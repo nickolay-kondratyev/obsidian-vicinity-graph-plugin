@@ -46,6 +46,15 @@ src/view/NeighborhoodGraphView.tsx, src/view/HelloGraph.tsx, src/manifest.test.t
 - COMPLETE. All exit criteria verified except Obsidian GUI load (human step, noted in PUBLIC).
 - READY_FOR_REVIEW: yes. No #QUESTION_FOR_HUMAN items.
 
+## Iteration (post-review, ITERATION instance)
+Review verdict APPROVED; 1 SHOULD_FIX + 3 NITs. Dispositions in IMPLEMENTATION_ITERATION__PUBLIC.md:
+- #1 SHOULD_FIX: ESLint follow-up → durable `docs-internal/tickets/ticket-eslint-adoption.md` (new tickets/ convention, orchestrator-mandated; references submodule README follow-up).
+- #2 NIT: no-op ctor deleted in NeighborhoodGraphView.tsx (+ unused WorkspaceLeaf import).
+- #3 NIT: `docIdService` → `private` (safe: no noUnusedLocals in tsconfig, so write-only private field type-checks).
+- #4 NIT: npm install vs npm ci in test:sublib → REJECTED (reviewer said no-action; ci = slow node_modules wipe every run).
+Re-verified after code changes: build=0, test=0 (2 + 69 passed), check=0 (logs .tmp/iter-*.log).
+CONVERGED: yes. Remaining: human GUI check only.
+
 ## Gotchas discovered
 - Bare `npm` in this env's Bash intermittently exits 1 with ZERO output (shell wrapper issue;
   the red `NVM_SH not found` stderr line is unrelated noise). Fix: call `/usr/local/bin/npm` explicitly.

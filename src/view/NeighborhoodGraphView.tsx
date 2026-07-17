@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf } from "obsidian";
+import { ItemView } from "obsidian";
 import { StrictMode } from "react";
 import { createRoot, Root } from "react-dom/client";
 import { HelloGraph } from "./HelloGraph";
@@ -8,10 +8,6 @@ export const VIEW_TYPE_NEIGHBORHOOD_GRAPH = "neighborhood-graph-view";
 /** ItemView shell that owns the React root lifecycle: mount on open, unmount on close. */
 export class NeighborhoodGraphView extends ItemView {
 	private root: Root | null = null;
-
-	constructor(leaf: WorkspaceLeaf) {
-		super(leaf);
-	}
 
 	getViewType(): string {
 		return VIEW_TYPE_NEIGHBORHOOD_GRAPH;

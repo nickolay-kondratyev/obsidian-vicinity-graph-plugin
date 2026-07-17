@@ -14,8 +14,9 @@ export default class NeighborhoodGraphPlugin extends Plugin {
 	 * WHY wired in step-01: proves obsidian-id-lib type-checks and bundles through our
 	 * esbuild (raw-TS submodule consumption smoke check). Construction does no IO.
 	 * Real consumers arrive with step-03 (adapters & persistence).
+	 * Private until a real consumer exists; step-03 decides final visibility.
 	 */
-	docIdService!: DocIdService;
+	private docIdService!: DocIdService;
 
 	async onload(): Promise<void> {
 		this.docIdService = DocIdServices.createDefault(this.app.vault);
