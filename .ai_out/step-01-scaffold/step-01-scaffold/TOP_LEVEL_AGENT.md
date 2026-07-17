@@ -12,7 +12,8 @@
 | CLARIFICATION | DONE | HUMAN approved minAppVersion=1.12.4 (floor, newer must work) → CLARIFICATION__PUBLIC.md |
 | IMPLEMENTATION_WITH_SELF_PLAN | DONE | commits d6c13bd, 9e3abb8; build/check/test PASS per report; READY_FOR_REVIEW; GUI load = human step |
 | IMPLEMENTATION_REVIEW | DONE | VERDICT: APPROVED; 0 blocking, 1 should-fix (ESLint ticket → durable location), 3 nits; independent build/test/check PASS |
-| IMPLEMENTATION_ITERATION | RUNNING | iteration-1 of max 4; fresh IMPLEMENTATION instance evaluating findings; tk tool absent → tickets go to docs-internal/tickets/ |
+| IMPLEMENTATION_ITERATION | DONE | iteration-1 converged (3 incorporated, 1 rejected w/ rationale: npm ci); build/test/check PASS; commit 1d017a6 |
+| WRAP_UP | DONE | Ticket: docs-internal/tickets/ticket-eslint-adoption.md (tk tool absent). Change log: docs-internal/CHANGELOG.md (single flow entry). Remaining HUMAN step: GUI load check in Obsidian |
 
 ## Decisions
 
