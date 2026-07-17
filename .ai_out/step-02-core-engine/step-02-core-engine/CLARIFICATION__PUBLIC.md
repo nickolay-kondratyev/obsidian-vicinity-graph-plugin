@@ -25,6 +25,14 @@ All four open questions resolved with human on 2026-07-17. These are binding dec
 - Engine takes "is this path a node-bearing doc" from `LinkProvider` metadata rather than hardcoding extensions.
 - **HUMAN REQUIREMENT:** this resolution must be an **SRP class that clearly owns eligibility** (single place that knows the rule). Adapter-side owns the real rule; the engine consumes the flag via provider metadata. `FakeLinkProvider` fixture data supplies the flag for tests.
 
+## Q5 — Edge semantics (from IMPLEMENTATION_REVIEW finding 1) ✅ TOGGLE (resolved 2026-07-17)
+
+- HUMAN decision: edge visibility is a **toggle** with two modes, named along the lines of **"walked from center" / "all edges"**:
+  - `walked-from-center`: only edges walked by the BFS (current behavior).
+  - `all-edges`: induced subgraph — every link between two visible nodes gets an edge (post-truncation sweep of the visible set via `LinkProvider`).
+- Engine must support BOTH modes now (pure, tested); the UI toggle itself arrives in step-06. Setting belongs to the view settings class (cascades like sizing/grouping/cap).
+- Default mode not specified by human — TOP_LEVEL_AGENT calls `all-edges` as default (POLS: two visibly linked notes should show their edge) and CALLS THIS OUT for human review.
+
 ## Non-questions (unambiguous from step doc — implement as specified)
 
 - Multi-root directional BFS, independent depth limits per root per direction, union + dedupe.
