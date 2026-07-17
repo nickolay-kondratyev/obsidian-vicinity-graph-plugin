@@ -1,6 +1,15 @@
 # IMPLEMENTATION_REVIEWER — PRIVATE state (step-02-core-engine)
 
-Status: REVIEW COMPLETE. Verdict APPROVED (0 blocker, 2 should-fix, 3 nit). PUBLIC.md written alongside this file.
+Status: CONVERGENCE CHECK (iteration 1) COMPLETE — **CONVERGED**. Verdict remains APPROVED. See "Convergence check" section appended to PUBLIC.md.
+
+## Convergence-check evidence (2026-07-17, fresh reviewer instance, commits 0ac1419..4325a46)
+
+- Re-ran myself: `/usr/local/bin/npm test` exit 0 (root **136** passed / 10 files, sublib **69** passed / 6 files; log `.tmp/conv-test.log`); `/usr/local/bin/npm run check` exit 0 (log `.tmp/conv-check.log`). Counts match iteration doc claims.
+- No test removals/weakening: `git diff 0ac1419..HEAD -- 'src/engine/*.test.ts'` shows deletions ONLY in importGuard.test.ts and only refactor lines (a comment + `forbiddenImportsIn` restructure into `moduleSpecifiersIn`/`forbiddenSpecifiersAmong`); NeighborhoodEngine.test.ts and settingsResolvers.test.ts are pure additions.
+- SF-1/Q5 verified in code: `EdgeVisibility.edgesFor` (mode switch), post-truncation sweep over `truncation.visiblePaths` (field pre-existed in GraphTruncator — no truncator change needed), outgoing-only sweep is COMPLETE for the visible set (every link is its source's outgoing link; attachments never visible). Walked ⊆ induced holds given a consistent provider (incoming derived from outgoing), so not merging walked into the sweep is clean semantics, and the superset property is itself tested. Cascade: `ViewSettingsResolver.field("edgeVisibility")` — compile-time covered via `Partial<ViewSettings>`. My sibling probe scenario is now a unit fixture (EdgeVisibility.test.ts) AND an e2e fixture (NeighborhoodEngine.test.ts "edge visibility" block); cross-root, truncated-target, attachment-target, dedupe, determinism, superset all covered. WHY-NOT doc: distance-to-MAIN ranking stays on walked set in both modes (matches Q5 post-truncation spec). Barrel `index.ts` has an "Edge semantics" section + exports; types.ts/constants.ts documented.
+- SF-2 verified: 4th pattern `/import\s*["']([^"']+)["']/g`; matcher proven by 9 positive forms (named/default/type-only/side-effect/deep/re-export/multiline/dynamic/require) + 2 negatives (relative, prefix-only names). Named-import single-extraction assertions prove no cross-pattern double-match; `q()` interpolation keeps the guard from tripping on its own fixtures — clever and honest.
+- NIT-3 verified: loud `throw` on missing size (message uses `path=[...]` convention). NIT-5 verified: loop min/max with WHY comment. NIT-4 rejection ACCEPTED — matches my own stated trigger ("extract when a third consumer appears"; the edge sweep does no path parsing).
+- Default `all-edges` (TOP_LEVEL call) already flagged to human in CLARIFICATION Q5 + iteration doc — per orchestrator instruction I did NOT re-raise it.
 
 ## What I verified myself (do not trust docs — I re-ran)
 

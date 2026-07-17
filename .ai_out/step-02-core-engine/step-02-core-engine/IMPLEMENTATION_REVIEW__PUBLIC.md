@@ -52,3 +52,33 @@ Test quality: BDD GIVEN/WHEN/THEN, one assert per test, all required fixture fam
 ## VERDICT: **APPROVED**
 
 0 BLOCKER / 2 SHOULD_FIX / 3 NIT. Binding clarifications fully honored; suite and typecheck verified green; tests are honest and thorough. The SHOULD_FIXes are small and isolated; finding 1's `#QUESTION_FOR_HUMAN` should be answered (and the chosen semantics implemented or documented + tested) before step-04 renders edges.
+
+---
+
+# Convergence check (iteration 1)
+
+Fresh reviewer instance, 2026-07-17. Verified iteration commits `0ac1419..4325a46` against the actual code, re-ran the suites myself.
+
+## Verification re-run (not trusted from docs)
+
+| Command | Result |
+|---|---|
+| `/usr/local/bin/npm test` | exit 0 — root **136 passed** (10 files), sublib **69 passed** (6 files) — matches iteration doc |
+| `/usr/local/bin/npm run check` (strict tsc) | exit 0 |
+| Test-removal audit (`git diff 0ac1419..HEAD -- 'src/engine/*.test.ts'`) | No behavior-capturing test removed or weakened. Only deletions are an importGuard.test.ts refactor (comment + function split into `moduleSpecifiersIn`/`forbiddenSpecifiersAmong`); all other test-file changes are pure additions. |
+
+## Per-finding verification
+
+| # | Finding | Verdict | Evidence |
+|---|---|---|---|
+| 1 | SHOULD_FIX — frontier edges dropped | **PASS** (resolved via binding Q5 toggle) | `EdgeVisibility.edgesFor` implements both modes; `"all-edges"` is a POST-truncation sweep over `truncation.visiblePaths` (field pre-existed on `GraphTruncator` output). Outgoing-only sweep is complete for the visible set (every link is its source's outgoing link; attachments never visible) — and the walked-⊆-induced superset property is itself tested. Cascades as a view-class field via the generic `field("edgeVisibility")` resolver with MAIN-beats-pinned-beats-global and pinned-gap-fill tests (`settingsResolvers.test.ts`). My proven sibling scenario is now a fixture at BOTH unit (`EdgeVisibility.test.ts`) and e2e (`NeighborhoodEngine.test.ts` Q5 block) levels; cross-root link, truncated-away target, attachment target, dedupe and determinism all covered. `walked-from-center` preserves prior behavior explicitly. WHY-NOT documented: truncation's distance-to-MAIN ranking intentionally stays on the walked set in both modes (matches Q5's post-truncation spec). Barrel `index.ts` gained an "Edge semantics" section; `EdgeVisibilityMode`/`EdgeVisibility`/`DEFAULT_EDGE_VISIBILITY` exported and documented. `EdgeAccumulator` extraction keeps edge-dedupe knowledge in one place (DRY with traversal). Honest tests — no tautologies, exact-set assertions. |
+| 2 | SHOULD_FIX — side-effect imports missed | **PASS** | Fourth pattern `/import\s*["']([^"']+)["']/g` added. Matcher proven against 9 positive forms (named, default, type-only, side-effect, deep `obsidian/foo`, re-export, multiline, dynamic, require) and 2 negatives (relative specifiers, prefix-only names like `obsidianite`). Exact single-specifier assertions also prove no cross-pattern double-count. Fixture interpolation via `q()` correctly prevents the self-scanning guard from tripping on its own test fixtures. |
+| 3 | NIT — silent size fallback | **PASS** | Engine now throws `Engine invariant violated: no size computed for path=[...]` — fail-loud, matches no-silent-fallback rule. |
+| 4 | NIT — path-parsing duplication | **REJECTION ACCEPTED** | Rationale is sound and matches the original finding's own trigger ("extract if a third consumer appears") — the edge sweep does no path parsing, so no third consumer exists. Revisit at step-03. |
+| 5 | NIT — `Math.min(...spread)` stack risk | **PASS** | Loop-based min/max in `MinMaxNormalizedMetric` with WHY comment (pre-truncation node count unbounded). |
+
+The `all-edges` default (TOP_LEVEL decision) is already flagged to the human in CLARIFICATION Q5 and the iteration doc — not re-raised here; it is a one-line, fully cascade-overridable constant either way and does not block convergence.
+
+## Signal: **CONVERGED**
+
+All SHOULD_FIXes verified fixed in code, NITs 3/5 incorporated, NIT 4 rejected with sound rationale. Suites and typecheck green, no regressions, no weakened tests, API docs in sync. No new findings.
