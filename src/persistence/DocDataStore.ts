@@ -57,14 +57,21 @@ export class DocDataStore {
 		return this.enqueue(docid, () => this.removeIfExists(this.filePathOf(docid)));
 	}
 
-	/** Docids that currently have a doc-data file (sweep input). */
+	/**
+	 * Docids that currently have a doc-data file (sweep input). Only
+	 * filename-safe stems qualify: this store never writes any other name, so
+	 * a foreign json (sync-conflict artifact, hand-made file) is not ours to
+	 * manage — listing it would make the sweep try to delete via a docid that
+	 * {@link filePathOf} rightly refuses.
+	 */
 	async listDocIds(): Promise<readonly string[]> {
 		if (!(await this.storage.exists(this.dirPath))) {
 			return [];
 		}
 		return (await this.storage.list(this.dirPath)).files
 			.filter((filePath) => filePath.endsWith(DOC_DATA_FILE_EXTENSION))
-			.map((filePath) => basenameOf(filePath).slice(0, -DOC_DATA_FILE_EXTENSION.length));
+			.map((filePath) => basenameOf(filePath).slice(0, -DOC_DATA_FILE_EXTENSION.length))
+			.filter((stem) => DocPersistEligibility.isFilenameSafeDocId(stem));
 	}
 
 	private filePathOf(docid: string): string {

@@ -65,6 +65,17 @@ describe("ObsidianLinkProvider incoming links", () => {
 		expect(provider.getIncomingLinks(asVaultPath("target.md"))).toEqual(["linker.md"]);
 	});
 
+	it("WHEN a nonexistent path is queried first THEN the API still answers later queries (no accidental inversion flip)", async () => {
+		// GIVEN resolvedLinks empty on purpose: an inversion would answer [] here,
+		// so a non-empty result proves the API is still the serving mode.
+		const provider = await providerOver({
+			files: [{ path: "target.md" }, { path: "linker.md" }],
+			backlinks: { "target.md": ["linker.md"] },
+		});
+		provider.getIncomingLinks(asVaultPath("ghost.md"));
+		expect(provider.getIncomingLinks(asVaultPath("target.md"))).toEqual(["linker.md"]);
+	});
+
 	it("WHEN the API is absent THEN inverting resolvedLinks answers incoming queries", async () => {
 		const provider = await providerOver({
 			files: [{ path: "target.md" }, { path: "linker.md" }],

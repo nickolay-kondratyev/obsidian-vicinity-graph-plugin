@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { FakeDocIdPort } from "../adapters/FakeDocIdPort";
 import { FakeObsidianPorts } from "../adapters/FakeObsidianPorts";
+import { DocDataMutations } from "./DocDataMutations";
 import { DocDataStore } from "./DocDataStore";
 import { FakeFileStorage } from "./FakeFileStorage";
 import { FakePluginDataPort } from "./FakePluginDataPort";
@@ -12,12 +13,15 @@ import { PluginDataStore } from "./PluginDataStore";
 const DIR = "plugins/obsidian-neighborhood-graph/doc-data";
 /** > the sweeper's internal batch size of 20, so the warm phase must yield at least once. */
 const LIVE_NOTE_COUNT = 25;
+/** A file this plugin never wrote (unsafe stem: dots + space) — sync tools drop these next to ours. */
+const FOREIGN_FILE_PATH = `${DIR}/docid_note0_e.sync-conflict copy.json`;
 
 /**
  * One vault snapshot exercising every orphan kind at once:
  * - 25 live notes with docids (docid_note0_e ...), one id-less note,
  * - doc-data for a live doc (with one live + one dangling centralDepths entry),
- * - doc-data for a vanished doc, a live pin and a stale pin.
+ * - doc-data for a vanished doc, a live pin and a stale pin,
+ * - a foreign json in doc-data/ (unsafe stem — e.g. a sync-conflict artifact).
  */
 async function sweptFixture() {
 	const files = Array.from({ length: LIVE_NOTE_COUNT }, (_, i) => ({ path: `note${i}.md` }));
@@ -39,6 +43,7 @@ async function sweptFixture() {
 		`${DIR}/docid_vanished_e.json`,
 		JSON.stringify({ version: PERSISTED_SHAPE_VERSION, depths: { outgoingDepth: 1 } }),
 	);
+	storage.seedFile(FOREIGN_FILE_PATH, "{}");
 	const docDataStore = new DocDataStore(storage, DIR);
 
 	const pluginDataStore = new PluginDataStore(new FakePluginDataPort());
@@ -96,5 +101,80 @@ describe("OrphanSweeper", () => {
 	it("WHEN the vault exceeds one batch THEN the sweep yields the main thread between batches", async () => {
 		const { yieldCount } = await sweptFixture();
 		expect(yieldCount()).toBeGreaterThan(0);
+	});
+
+	it("WHEN a foreign json (unsafe stem) sits in doc-data THEN the sweep neither throws nor touches it", async () => {
+		// The fixture's other asserts prove the sweep still COMPLETED despite the foreign file.
+		const { storage } = await sweptFixture();
+		expect(await storage.exists(FOREIGN_FILE_PATH)).toBe(true);
+	});
+});
+
+/**
+ * Race regression (review F1): while the chunked warm-up is still yielding,
+ * the user creates AND pins a brand-new doc — absent from the `getFiles()`
+ * snapshot taken at warm-up start. Every real write intent maps the docid
+ * (PersistenceServices.withPersistableIdentity), so the sweep must re-verify
+ * against the map before dropping anything.
+ */
+async function midSweepWriteFixture() {
+	const files = Array.from({ length: LIVE_NOTE_COUNT }, (_, i) => ({ path: `note${i}.md` }));
+	const docids = Object.fromEntries(files.map((file, i) => [file.path, `docid_note${i}_e`]));
+	const ports = new FakeObsidianPorts({ files });
+	const docIdPort = new FakeDocIdPort(docids);
+
+	const storage = new FakeFileStorage();
+	await storage.mkdir(DIR);
+	// A live owner already references the soon-to-be-created doc as a central.
+	storage.seedFile(
+		`${DIR}/docid_note0_e.json`,
+		JSON.stringify({ version: PERSISTED_SHAPE_VERSION, centralDepths: { docid_new_e: { incomingDepth: 2 } } }),
+	);
+	const docDataStore = new DocDataStore(storage, DIR);
+	const pluginDataStore = new PluginDataStore(new FakePluginDataPort());
+	await pluginDataStore.init();
+
+	const pathDocIdMap = new PathDocIdMap();
+	let writeIntentSimulated = false;
+	// GIVEN the first warm-up yield: the user pins a just-created doc. These are
+	// exactly the effects of PersistenceServices.withPersistableIdentity + stores.
+	const simulateWriteIntentOnFirstYield = async () => {
+		if (writeIntentSimulated) {
+			return;
+		}
+		writeIntentSimulated = true;
+		pathDocIdMap.set("new-note.md", "docid_new_e");
+		await pluginDataStore.addPin("docid_new_e", 300);
+		await docDataStore.update("docid_new_e", (doc) => DocDataMutations.setDepthField(doc, "outgoingDepth", 1));
+	};
+
+	const sweeper = new OrphanSweeper(
+		ports.vault,
+		docIdPort,
+		pathDocIdMap,
+		pluginDataStore,
+		docDataStore,
+		simulateWriteIntentOnFirstYield,
+	);
+	await sweeper.run();
+	return { storage, docDataStore, pluginDataStore };
+}
+
+describe("OrphanSweeper mid-sweep write race", () => {
+	it("WHEN a doc is pinned during warm-up THEN its pin survives the sweep", async () => {
+		const { pluginDataStore } = await midSweepWriteFixture();
+		expect(pluginDataStore.pins().map((pin) => pin.docid)).toContain("docid_new_e");
+	});
+
+	it("WHEN a doc gains doc-data during warm-up THEN its file survives the sweep", async () => {
+		const { storage } = await midSweepWriteFixture();
+		expect(await storage.exists(`${DIR}/docid_new_e.json`)).toBe(true);
+	});
+
+	it("WHEN an owner's centralDepths references the just-created doc THEN the entry is not stripped", async () => {
+		const { docDataStore } = await midSweepWriteFixture();
+		expect((await docDataStore.load("docid_note0_e"))?.centralDepths).toEqual({
+			docid_new_e: { incomingDepth: 2 },
+		});
 	});
 });

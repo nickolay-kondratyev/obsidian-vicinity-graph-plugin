@@ -62,6 +62,13 @@ describe("DocDataStore.listDocIds", () => {
 		await store.update("docid_b_e", (doc) => DocDataMutations.setViewField(doc, "groupByFolder", false));
 		expect([...(await store.listDocIds())].sort()).toEqual(["docid_a_e", "docid_b_e"]);
 	});
+
+	it("WHEN a foreign json's stem is not a filename-safe docid THEN it is not listed (this store never wrote it)", async () => {
+		const { store, storage } = storeOverFakeStorage();
+		await store.update("docid_a_e", (doc) => DocDataMutations.setDepthField(doc, "outgoingDepth", 1));
+		storage.seedFile(`${DIR}/docid_a_e.sync-conflict copy.json`, "{}");
+		expect(await store.listDocIds()).toEqual(["docid_a_e"]);
+	});
 });
 
 describe("DocDataStore safety re-assertion", () => {

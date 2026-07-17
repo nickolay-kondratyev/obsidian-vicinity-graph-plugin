@@ -21,6 +21,12 @@ export type NotPersistableReason =
  * must earn it.
  */
 const FILENAME_SAFE_DOCID_PATTERN = /^[A-Za-z0-9_-]{1,120}$/;
+/**
+ * Windows additionally reserves these as whole BASENAMES regardless of
+ * extension (`CON.json` is unwritable/hangs) — names, not characters, and
+ * matched case-insensitively because the filesystem is.
+ */
+const WINDOWS_RESERVED_BASENAME_PATTERN = /^(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$/i;
 
 export class DocPersistEligibility {
 	static classify(docid: string | null): PersistableIdentity {
@@ -34,6 +40,6 @@ export class DocPersistEligibility {
 	}
 
 	static isFilenameSafeDocId(docid: string): boolean {
-		return FILENAME_SAFE_DOCID_PATTERN.test(docid);
+		return FILENAME_SAFE_DOCID_PATTERN.test(docid) && !WINDOWS_RESERVED_BASENAME_PATTERN.test(docid);
 	}
 }

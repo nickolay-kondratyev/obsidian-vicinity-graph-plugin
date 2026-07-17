@@ -17,6 +17,12 @@ import { EngineDefaults } from "../engine";
  * (per-doc files), matching obsidian-id-lib's malformed-content philosophy.
  */
 
+/**
+ * WHY-NOT preserve-unknown-versions: a FUTURE-version file (v2 written by a
+ * newer install, then downgraded) also parses to defaults/null here, and the
+ * next write rewrites it as v1 — accepted while only v1 exists. A v2 parser
+ * MUST handle the downgrade-then-upgrade path explicitly before shipping.
+ */
 export const PERSISTED_SHAPE_VERSION = 1;
 
 /** One pinned doc; `pinTimestamp` (epoch ms) feeds the recency tiebreaker. */

@@ -77,16 +77,33 @@ export class OrphanSweeper {
 		pinsToRemove: readonly string[],
 		staleCentralDocidsByOwner: ReadonlyMap<string, readonly string[]>,
 	): Promise<void> {
-		await this.forEachChunked(docDataToDelete, (docid) => this.docDataStore.remove(docid));
-		if (pinsToRemove.length > 0) {
+		await this.forEachChunked(docDataToDelete, async (docid) => {
+			if (this.isConfirmedOrphan(docid)) {
+				await this.docDataStore.remove(docid);
+			}
+		});
+		const confirmedPinsToRemove = pinsToRemove.filter((docid) => this.isConfirmedOrphan(docid));
+		if (confirmedPinsToRemove.length > 0) {
 			// One data.json write for all stale pins — no reason to chunk a single call.
-			await this.pluginDataStore.removePins(pinsToRemove);
+			await this.pluginDataStore.removePins(confirmedPinsToRemove);
 		}
-		await this.forEachChunked([...staleCentralDocidsByOwner], ([owner, staleCentralDocids]) =>
-			this.docDataStore
-				.update(owner, (doc) => DocDataMutations.withoutCentralDepths(doc, staleCentralDocids))
-				.then(() => undefined),
-		);
+		await this.forEachChunked([...staleCentralDocidsByOwner], async ([owner, staleCentralDocids]) => {
+			const confirmed = staleCentralDocids.filter((docid) => this.isConfirmedOrphan(docid));
+			if (confirmed.length > 0) {
+				await this.docDataStore.update(owner, (doc) => DocDataMutations.withoutCentralDepths(doc, confirmed));
+			}
+		});
+	}
+
+	/**
+	 * Drop-time re-verification: `liveDocids` is a SNAPSHOT from warm-up start —
+	 * a doc created (and pinned / given settings) while the chunked phases were
+	 * yielding would look orphaned. Every write intent maps its docid
+	 * (PersistenceServices.withPersistableIdentity), so map presence at drop
+	 * time means alive; checked per item because apply itself also yields.
+	 */
+	private isConfirmedOrphan(docid: string): boolean {
+		return this.pathDocIdMap.getPath(docid) === undefined;
 	}
 
 	private forEachChunked<T>(items: readonly T[], work: (item: T) => void | Promise<void>): Promise<void> {

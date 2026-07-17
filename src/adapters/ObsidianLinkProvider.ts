@@ -130,16 +130,22 @@ export class ObsidianLinkProvider implements LinkProvider {
 	}
 
 	private backlinkSources(path: string): readonly string[] {
-		const file = this.vault.getFileByPath(path);
-		if (file !== null && this.invertedIncoming === null) {
-			const sources = BacklinksAdapter.backlinkSourcePaths(this.metadataCache, file);
-			if (sources !== null) {
-				return sources;
-			}
-			// API present but answered in an unrecognized shape: from here on,
-			// serve every query from the inversion (built sync, memoized below).
+		if (this.invertedIncoming !== null) {
+			return this.invertedIncoming.get(path) ?? [];
 		}
-		this.invertedIncoming ??= this.invertResolvedLinks();
+		const file = this.vault.getFileByPath(path);
+		if (file === null) {
+			// A path the vault does not know has no cache-known backlinks —
+			// NOT a reason to abandon the working API (only shape trouble is).
+			return [];
+		}
+		const sources = BacklinksAdapter.backlinkSourcePaths(this.metadataCache, file);
+		if (sources !== null) {
+			return sources;
+		}
+		// API present but answered in an unrecognized shape: from here on,
+		// serve every query from the inversion (built sync, memoized).
+		this.invertedIncoming = this.invertResolvedLinks();
 		return this.invertedIncoming.get(path) ?? [];
 	}
 

@@ -84,19 +84,26 @@ export default class NeighborhoodGraphPlugin extends Plugin {
 
 	private registerVaultLifecycleHandlers(): void {
 		// Renames are a persistence non-event (docid-keyed); only the map moves.
+		// Cache eviction is unconditional — non-canvas paths are no-ops.
 		this.registerEvent(
-			this.app.vault.on("rename", (file, oldPath) => this.pathDocIdMap.handleRename(oldPath, file.path)),
+			this.app.vault.on("rename", (file, oldPath) => {
+				this.pathDocIdMap.handleRename(oldPath, file.path);
+				this.canvasParseCache.evict(oldPath);
+			}),
 		);
 		this.registerEvent(this.app.vault.on("delete", (file) => void this.handleVaultDelete(file.path)));
 	}
 
 	/** Live cleanup for mapped docs; unmapped paths are the delayed sweep's job (backstop). */
 	private async handleVaultDelete(path: string): Promise<void> {
+		this.canvasParseCache.evict(path);
 		const docid = this.pathDocIdMap.handleDelete(path);
 		if (docid === undefined) {
 			return;
 		}
-		await this.pluginDataStore.removePins([docid]);
+		if (this.pluginDataStore.hasPin(docid)) {
+			await this.pluginDataStore.removePins([docid]);
+		}
 		if (DocPersistEligibility.isFilenameSafeDocId(docid)) {
 			await this.docDataStore.remove(docid);
 		}

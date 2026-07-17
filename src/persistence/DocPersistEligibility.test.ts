@@ -31,4 +31,16 @@ describe("DocPersistEligibility.classify", () => {
 	it("WHEN the docid is empty THEN it is unsafe", () => {
 		expect(DocPersistEligibility.classify("").kind).toBe("not-persistable");
 	});
+
+	it("WHEN a foreign docid is a Windows reserved device name THEN it is unsafe (CON.json is unwritable there)", () => {
+		expect(DocPersistEligibility.classify("CON").kind).toBe("not-persistable");
+	});
+
+	it("WHEN a reserved device name arrives in another case THEN it is still unsafe (Windows is case-insensitive)", () => {
+		expect(DocPersistEligibility.classify("com3").kind).toBe("not-persistable");
+	});
+
+	it("WHEN a docid merely STARTS with a reserved device name THEN it stays persistable", () => {
+		expect(DocPersistEligibility.classify("CONSOLE").kind).toBe("persistable");
+	});
 });
