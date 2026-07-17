@@ -1,7 +1,32 @@
 # IMPLEMENTATION_WITH_SELF_PLAN — PRIVATE (Step 03)
 
-Status: COMPLETE. All 7 milestones committed on `03-adapters-and-persistence`; git clean.
-(Instance 2 — rehydrated after predecessor died mid-milestone-4; adopted its plan wholesale.)
+Status: COMPLETE + ITERATION DONE (READY). All 7 milestones + review-fix commit
+`1f4d6ca` on `03-adapters-and-persistence`; git clean.
+(Instance 2 — rehydrated after predecessor died mid-milestone-4; adopted its plan wholesale.
+Instance 3 — ITERATION phase after reviewer NEEDS_CHANGES.)
+
+## ITERATION (instance 3) — review findings F1–F8: 8 incorporated / 0 rejected
+See IMPLEMENTATION_ITERATION__PUBLIC.md for the disposition table. Key facts for a clone:
+- All 8 findings re-verified against source; all factually correct. Failing tests
+  written FIRST for F1/F2/F5/F6 (confirmed failing, then fixed).
+- F1: `OrphanSweeper.apply` per-item `isConfirmedOrphan(docid)` = map-miss check
+  (`pathDocIdMap.getPath === undefined`). Extended beyond reviewer's suggestion to
+  ALSO cover stale centralDepths strips (symmetry — one rule for all three drop kinds).
+  Test fixture `midSweepWriteFixture`: yield callback simulates a write intent
+  (map.set + addPin + docDataStore.update) on FIRST warm-up yield; new doc absent
+  from vault fake = created after snapshot.
+- F2: `listDocIds` filters via `DocPersistEligibility.isFilenameSafeDocId`. The
+  foreign file `docid_note0_e.sync-conflict copy.json` is now PERMANENTLY part of
+  `sweptFixture` (before fix it made all 8 existing sweeper tests fail — great
+  demonstration; keep it there).
+- F3: importGuard `GUARDED_DIRS = [ENGINE_DIR, SHARED_DIR]` + shared non-vacuous test.
+- F5: reserved-basename regex is case-insensitive, exact-match only (CONSOLE passes).
+- F6: `backlinkSources` order now: inversion-mode short-circuit → file null → [] →
+  API → shape-fallback builds inversion. Test relies on empty resolvedLinks so
+  inversion would answer [] — proving API still serves.
+- F7/F4: main.ts only (untested wiring by ports-pattern design — deliberate, noted
+  in ITERATION PUBLIC).
+- F8: doc-only WHY-NOT at PERSISTED_SHAPE_VERSION.
 
 ## Goal (done)
 Step 03: ObsidianLinkProvider, canvas fallback (ACTIVE on target install, Q2),
@@ -67,7 +92,7 @@ step-doc devtools note.
 - .dev-vault gitignored — debug fixtures are untracked by design.
 
 ## Test counts (final, all green)
-- Root: 287 tests / 30 files (was 136/10 at step-02 exit → step 03 added 151).
+- Root: 297 tests / 30 files (287 at review + 10 iteration regression tests).
 - Sublib obsidian-id-lib: 69 tests / 6 files.
 - Commands: `/usr/local/bin/npm run check`, `/usr/local/bin/npm test`,
   `/usr/local/bin/npm run build` (green; copies to .dev-vault plugin dir).

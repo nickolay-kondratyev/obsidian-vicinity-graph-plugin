@@ -80,8 +80,10 @@ items 2–4.
    never mint ids.
 
 ## Tests
-- Root suite: **287 passing / 30 files** (step-02 exit baseline was 136/10 →
-  **151 added by step 03**). Sublib obsidian-id-lib: **69 passing / 6 files**.
+- Root suite: **297 passing / 30 files** (step-02 exit baseline was 136/10; 287 at
+  review + 10 iteration regression tests — see IMPLEMENTATION_ITERATION__PUBLIC.md
+  for the F1–F8 dispositions, all incorporated in commit `1f4d6ca`).
+  Sublib obsidian-id-lib: **69 passing / 6 files**.
 - `npm run check` clean; `npm run build` green (bundles incl. id-lib submodule,
   artifacts copied to .dev-vault).
 - Style: BDD `WHEN ... THEN ...`, ~one assert per test, structural fakes only
