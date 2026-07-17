@@ -1,0 +1,133 @@
+import type { FileMetadata, LinkProvider } from "./LinkProvider";
+import type { AttachmentRef, VaultPath } from "./types";
+import { asFolderPath, asVaultPath } from "./types";
+
+/** One file in a fixture vault. Defaults keep fixtures terse. */
+export interface FakeFileSpec {
+	readonly path: string;
+	/** Default 0. */
+	readonly sizeBytes?: number;
+	/** Default: derived from extension (`.md` / `.canvas` → true). */
+	readonly nodeBearing?: boolean;
+	/** Default: derived from extension (png/jpg/jpeg/gif/svg/webp). */
+	readonly image?: boolean;
+}
+
+/** Fixture vault: files + ordered outgoing links (incoming derived by inversion). */
+export interface FakeVaultSpec {
+	readonly files: readonly FakeFileSpec[];
+	readonly links?: Readonly<Record<string, readonly string[]>>;
+}
+
+const NODE_BEARING_EXTENSIONS = ["md", "canvas"];
+const IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "gif", "svg", "webp"];
+
+interface FakeFile {
+	readonly metadata: FileMetadata;
+	readonly nodeBearing: boolean;
+	readonly image: boolean;
+}
+
+/**
+ * In-memory {@link LinkProvider} over declarative fixture data — the test-side
+ * stand-in for step-03's Obsidian adapters. Mirrors adapter behavior:
+ * attachments are the outgoing references to non-node-bearing files, in link
+ * order. Links to undeclared paths fail construction loudly (fixture bug —
+ * real providers only ever surface resolved links).
+ *
+ * Query counters exist so tests can assert traversal never re-expands a node.
+ */
+export class FakeLinkProvider implements LinkProvider {
+	private readonly files = new Map<VaultPath, FakeFile>();
+	private readonly outgoing = new Map<VaultPath, readonly VaultPath[]>();
+	private readonly incoming = new Map<VaultPath, VaultPath[]>();
+	private readonly outgoingQueryCountsMutable = new Map<VaultPath, number>();
+
+	constructor(spec: FakeVaultSpec) {
+		for (const file of spec.files) {
+			this.declareFile(file);
+		}
+		for (const [from, targets] of Object.entries(spec.links ?? {})) {
+			this.declareLinks(from, targets);
+		}
+		this.attachAttachmentsToMetadata();
+	}
+
+	getOutgoingLinks(path: VaultPath): readonly VaultPath[] {
+		this.outgoingQueryCountsMutable.set(path, (this.outgoingQueryCountsMutable.get(path) ?? 0) + 1);
+		return this.outgoing.get(path) ?? [];
+	}
+
+	getIncomingLinks(path: VaultPath): readonly VaultPath[] {
+		return this.incoming.get(path) ?? [];
+	}
+
+	getFileMetadata(path: VaultPath): FileMetadata | undefined {
+		return this.files.get(path)?.metadata;
+	}
+
+	/** Times {@link getOutgoingLinks} was queried for `path` (test instrumentation). */
+	outgoingQueryCount(path: VaultPath): number {
+		return this.outgoingQueryCountsMutable.get(path) ?? 0;
+	}
+
+	private declareFile(file: FakeFileSpec): void {
+		const path = asVaultPath(file.path);
+		const extension = extensionOf(file.path);
+		const nodeBearing = file.nodeBearing ?? NODE_BEARING_EXTENSIONS.includes(extension);
+		this.files.set(path, {
+			nodeBearing,
+			image: file.image ?? IMAGE_EXTENSIONS.includes(extension),
+			metadata: {
+				folder: asFolderPath(folderOf(file.path)),
+				sizeBytes: file.sizeBytes ?? 0,
+				isNodeBearing: nodeBearing,
+				attachments: [], // replaced by attachAttachmentsToMetadata()
+			},
+		});
+	}
+
+	private declareLinks(from: string, targets: readonly string[]): void {
+		const fromPath = this.requireDeclared(from, "link source");
+		const targetPaths = targets.map((target) => this.requireDeclared(target, `link target of [${from}]`));
+		this.outgoing.set(fromPath, targetPaths);
+		for (const target of targetPaths) {
+			const linkers = this.incoming.get(target) ?? [];
+			linkers.push(fromPath);
+			this.incoming.set(target, linkers);
+		}
+	}
+
+	private requireDeclared(path: string, role: string): VaultPath {
+		const vaultPath = asVaultPath(path);
+		if (!this.files.has(vaultPath)) {
+			throw new Error(`FakeLinkProvider fixture bug: ${role} [${path}] is not a declared file`);
+		}
+		return vaultPath;
+	}
+
+	/** Attachments = outgoing references to non-node-bearing files, in link order. */
+	private attachAttachmentsToMetadata(): void {
+		for (const [path, file] of this.files) {
+			const attachments: AttachmentRef[] = [];
+			for (const target of this.outgoing.get(path) ?? []) {
+				const targetFile = this.files.get(target);
+				if (targetFile !== undefined && !targetFile.nodeBearing) {
+					attachments.push({ path: target, isImage: targetFile.image });
+				}
+			}
+			this.files.set(path, { ...file, metadata: { ...file.metadata, attachments } });
+		}
+	}
+}
+
+function extensionOf(path: string): string {
+	const basename = path.slice(path.lastIndexOf("/") + 1);
+	const dotIndex = basename.lastIndexOf(".");
+	return dotIndex < 0 ? "" : basename.slice(dotIndex + 1).toLowerCase();
+}
+
+function folderOf(path: string): string {
+	const slashIndex = path.lastIndexOf("/");
+	return slashIndex < 0 ? "" : path.slice(0, slashIndex);
+}

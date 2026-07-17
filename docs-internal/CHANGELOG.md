@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-07-17 — step-02-core-engine: pure graph engine
+
+Implemented the pure, fully-tested neighborhood-graph engine under `src/engine/` (executes [[plan/steps/step-02-core-engine]]; binding decisions in step-02 CLARIFICATION Q1–Q5):
+
+- Path-keyed identity (branded `VaultPath`; docids opaque, echoed through — adapter translates before the engine).
+- Sync `LinkProvider` seam (the ONLY Obsidian touchpoint) + fixture-driven `FakeLinkProvider`; `NodeEligibility` owns node-bearing resolution.
+- Multi-root directional BFS (independent per-root per-direction depth limits, full depth tags + `minDepth`, never re-expands), attachments + first image collected.
+- Composable sizing metrics (own-file-size, total-linker-size, backlink/outlink counts, depth-decay) → `sizeScore` → `sizePx`; centrals forced to max.
+- Truncation: hard cap on non-centrals (default 100), distance-to-MAIN ranking via the ONE shared `NodePriorityChain` comparator, per-folder hidden counts.
+- Settings cascades: depth (own override → global), view per-field (MAIN → pinned gaps via priority chain → global).
+- **Edge-visibility toggle** (Q5): `"walked-from-center"` (BFS-walked only, human-confirmed default — cleaner graph) vs `"all-edges"` (induced subgraph, available via toggle).
+- Import-guard test keeps the engine pure (zero `obsidian`/`obsidian-id-lib`/react imports, all import forms matched).
+
+Verified: `npm test` (136 root + 69 sublib) and `npm run check` green (implementer + independent reviewer + iteration). Review findings dispositioned in `.ai_out/step-02-core-engine/`.
+
 ## 2026-07-16 — step-01-scaffold: plugin dev environment
 
 Scaffolded the Obsidian plugin toolchain (executes [[plan/steps/step-01-scaffold]], Phase 0 of [[plan/high-level-plan]]):
