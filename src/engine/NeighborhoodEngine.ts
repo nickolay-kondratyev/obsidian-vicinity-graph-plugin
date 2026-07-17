@@ -64,11 +64,16 @@ export class NeighborhoodEngine {
 				continue;
 			}
 			const size = sizes.get(node.path);
+			if (size === undefined) {
+				// The sizer sizes every traversed node; a gap is a pipeline bug.
+				// Fail loud rather than render a silently wrong graph.
+				throw new Error(`Engine invariant violated: no size computed for path=[${node.path}]`);
+			}
 			nodes.push({
 				...node,
 				isMain: node.path === request.main.path,
-				sizeScore: size?.sizeScore ?? 0,
-				sizePx: size?.sizePx ?? viewSettings.sizing.minPx,
+				sizeScore: size.sizeScore,
+				sizePx: size.sizePx,
 			});
 		}
 		return {

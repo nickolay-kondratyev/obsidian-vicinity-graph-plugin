@@ -117,9 +117,14 @@ class MinMaxNormalizedMetric implements SizeMetric {
 		for (const [path, node] of nodes) {
 			transformed.set(path, this.transform(this.rawValue(node)));
 		}
-		const values = [...transformed.values()];
-		const min = Math.min(...values);
-		const max = Math.max(...values);
+		// Loop, not Math.min(...spread): sizing runs pre-truncation, so the node
+		// count is unbounded by the cap and a spread could hit argument limits.
+		let min = Number.POSITIVE_INFINITY;
+		let max = Number.NEGATIVE_INFINITY;
+		for (const value of transformed.values()) {
+			min = Math.min(min, value);
+			max = Math.max(max, value);
+		}
 		const normalized = new Map<VaultPath, number>();
 		for (const [path, value] of transformed) {
 			normalized.set(path, max === min ? NEUTRAL_NORMALIZED_VALUE : (value - min) / (max - min));
