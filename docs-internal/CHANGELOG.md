@@ -12,4 +12,4 @@ Scaffolded the Obsidian plugin toolchain (executes [[plan/steps/step-01-scaffold
 - Git-ignored `.dev-vault/` with build-time artifact copy; `.gitignore`, README fresh-clone docs (`git submodule update --init && npm install`).
 - Follow-up ticket: [[tickets/ticket-eslint-adoption]].
 
-Verified: `npm run build`, `npm test`, `npm run check` all pass (implementer + independent reviewer). Remaining human step: load the plugin in Obsidian GUI and confirm the view renders without console errors.
+Verified: `npm run build`, `npm test`, `npm run check` all pass (implementer + independent reviewer). GUI check confirmed by human (2026-07-16): plugin loads, placeholder view renders "hello graph", no console errors. All exit criteria met.
