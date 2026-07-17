@@ -58,6 +58,13 @@ Source of truth: `submodules/obsidian-id-lib/README.md`. Integration rules that 
 3. Rename handling: docids make renames a non-event for persistence, but the in-memory path map needs `vault.on('rename')`.
 4. Whether `centralDepths` cleanup on unpin is immediate or left to the sweep (lean: leave to sweep — simpler, self-healing).
 
+### Step-planning notes (resolved during step 03)
+
+1. **Devtools verification result (2026-07-17, target install):** `Object.keys(app.metadataCache.resolvedLinks).filter(k => k.endsWith('.canvas')).length` → **0**. No `.canvas` keys in `resolvedLinks` → **the fallback canvas parser is the ACTIVE path on the target install**; it received first-class treatment (dedicated fixtures incl. malformed JSON, mtime-cached parses). Caveat: `0` is also what a vault with zero canvas files reports — harmless, since build-time capability detection is adaptive and handles every combination.
+2. Map lifecycle: **both** — warmed by the delayed chunked sweep AND lazily filled on visit (graph build of MAIN, every persistence write intent).
+3. `vault.on('rename')` moves the map entry; `vault.on('delete')` uses it for live cleanup, with the sweep as backstop for unmapped paths.
+4. `centralDepths` cleanup on unpin: **left to the sweep** (the lean above, confirmed).
+
 ## Exit criteria
 
 - Engine renders correct graphs from a real vault through `ObsidianLinkProvider` (verified via a debug command or console harness — UI comes in step 04).
