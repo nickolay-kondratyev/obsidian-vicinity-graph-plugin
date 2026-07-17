@@ -95,11 +95,25 @@ export interface GraphNode {
 	readonly sizePx: number;
 }
 
-/** Directed link: `source` links to `target`. Deduplicated per (source, target). */
+/**
+ * Directed link: `source` links to `target`. Deduplicated per (source, target).
+ * Which links become edges is governed by {@link EdgeVisibilityMode}.
+ */
 export interface GraphEdge {
 	readonly source: VaultPath;
 	readonly target: VaultPath;
 }
+
+/**
+ * Which links between visible nodes become edges (binding decision, see
+ * step-02 CLARIFICATION Q5; naming follows the human's wording):
+ * - `"walked-from-center"` — only edges the BFS walked while expanding from
+ *   the centrals; links between two frontier nodes are NOT shown.
+ * - `"all-edges"` — induced subgraph: after truncation, EVERY link between two
+ *   visible nodes gets an edge (e.g. two depth-1 siblings linking each other,
+ *   or a link between nodes discovered by different roots).
+ */
+export type EdgeVisibilityMode = "walked-from-center" | "all-edges";
 
 // ---------------------------------------------------------------------------
 // Settings shapes (persisted by step-03; resolved by the engine's resolvers).
@@ -145,6 +159,7 @@ export interface ViewSettings {
 	/** Hard cap on NON-central node count (centrals are exempt). */
 	readonly nodeCap: number;
 	readonly groupByFolder: boolean;
+	readonly edgeVisibility: EdgeVisibilityMode;
 	readonly sizing: SizingSettings;
 }
 

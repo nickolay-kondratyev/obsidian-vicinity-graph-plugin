@@ -97,6 +97,23 @@ describe("ViewSettingsResolver cascade layers", () => {
 		const resolved = ViewSettingsResolver.resolve({ global, mainOverride: { groupByFolder: false } });
 		expect(resolved.groupByFolder).toBe(false);
 	});
+
+	it("WHEN MAIN pins edgeVisibility THEN it beats both pinned docs and global", () => {
+		const resolved = ViewSettingsResolver.resolve({
+			global,
+			mainOverride: { edgeVisibility: "walked-from-center" },
+			pinnedOverrides: [pinned("p.md", "docid_p_e", 100, { edgeVisibility: "all-edges" })],
+		});
+		expect(resolved.edgeVisibility).toBe("walked-from-center");
+	});
+
+	it("WHEN only a pinned doc pins edgeVisibility THEN it fills the gap", () => {
+		const resolved = ViewSettingsResolver.resolve({
+			global,
+			pinnedOverrides: [pinned("p.md", "docid_p_e", 100, { edgeVisibility: "walked-from-center" })],
+		});
+		expect(resolved.edgeVisibility).toBe("walked-from-center");
+	});
 });
 
 describe("ViewSettingsResolver multi-pin conflicts (via the shared priority chain)", () => {

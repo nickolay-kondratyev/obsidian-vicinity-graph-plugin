@@ -1,3 +1,4 @@
+import { EdgeAccumulator } from "./EdgeAccumulator";
 import type { LinkProvider } from "./LinkProvider";
 import { NodeEligibility } from "./NodeEligibility";
 import type {
@@ -163,8 +164,7 @@ function titleOf(path: VaultPath): string {
 /** Accumulates depth tags and deduped edges across all per-root BFS runs. */
 class TraversalCollector {
 	private readonly tags = new Map<VaultPath, DepthTag[]>();
-	private readonly edgeKeys = new Set<string>();
-	private readonly edgeList: GraphEdge[] = [];
+	private readonly edgeAccumulator = new EdgeAccumulator();
 
 	recordDepthTag(path: VaultPath, tag: DepthTag): void {
 		const tagsForPath = this.tags.get(path) ?? [];
@@ -176,12 +176,7 @@ class TraversalCollector {
 	recordEdge(current: VaultPath, neighbor: VaultPath, direction: Direction): void {
 		const source = direction === "outgoing" ? current : neighbor;
 		const target = direction === "outgoing" ? neighbor : current;
-		// NUL separator: vault paths may contain spaces but never NUL - key stays unambiguous.
-		const key = `${source}\u0000${target}`;
-		if (!this.edgeKeys.has(key)) {
-			this.edgeKeys.add(key);
-			this.edgeList.push({ source, target });
-		}
+		this.edgeAccumulator.add(source, target);
 	}
 
 	depthTagsByPath(): ReadonlyMap<VaultPath, readonly DepthTag[]> {
@@ -189,6 +184,6 @@ class TraversalCollector {
 	}
 
 	edges(): readonly GraphEdge[] {
-		return this.edgeList;
+		return this.edgeAccumulator.edges();
 	}
 }

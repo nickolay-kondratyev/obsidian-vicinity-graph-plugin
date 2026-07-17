@@ -14,6 +14,13 @@
  *    returned {@link NeighborhoodGraph} (nodes carry depth tags, attachments,
  *    first image and a diff-stable `sizePx`).
  *
+ * ## Edge semantics ({@link EdgeVisibilityMode}, CLARIFICATION Q5)
+ * `ViewSettings.edgeVisibility` picks which links become edges:
+ * `"all-edges"` (default) renders every link between two visible nodes
+ * (induced subgraph, swept post-truncation); `"walked-from-center"` renders
+ * only the edges the BFS walked. A view-class setting — it cascades like
+ * sizing/grouping/cap; the UI toggle lands in step-06.
+ *
  * ## Adapter contract for pins / per-doc overrides (step-03, MUST honor)
  * A note that receives a pin or a per-doc override MUST have a docid: the
  * adapter `await`s obsidian-id-lib's `ensureDocId` BEFORE persisting the
@@ -31,6 +38,7 @@ export type {
 	DepthTag,
 	Direction,
 	DocId,
+	EdgeVisibilityMode,
 	FolderPath,
 	GraphEdge,
 	GraphNode,
@@ -61,6 +69,8 @@ export { NodeSizer } from "./NodeSizer";
 export type { NodeSize } from "./NodeSizer";
 export { GraphTruncator } from "./GraphTruncator";
 export type { TruncationInput, TruncationResult } from "./GraphTruncator";
+export { EdgeVisibility } from "./EdgeVisibility";
+export type { EdgeVisibilityInput } from "./EdgeVisibility";
 export { NodePriorityChain } from "./NodePriorityChain";
 export type { PriorityRankable } from "./NodePriorityChain";
 export { TraversalSettingsResolver } from "./TraversalSettingsResolver";
@@ -70,6 +80,7 @@ export type { PinnedViewOverride, ViewSettingsResolutionInput } from "./ViewSett
 export {
 	CENTRAL_SIZE_SCORE,
 	DEFAULT_DEPTH_DECAY_K,
+	DEFAULT_EDGE_VISIBILITY,
 	DEFAULT_INCOMING_DEPTH,
 	DEFAULT_MAX_NODE_PX,
 	DEFAULT_MIN_NODE_PX,

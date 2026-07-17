@@ -1,4 +1,4 @@
-import type { DepthSettings, SizingSettings, ViewSettings } from "./types";
+import type { DepthSettings, EdgeVisibilityMode, SizingSettings, ViewSettings } from "./types";
 
 /** Hard cap default on non-central node count (step doc: default 100). */
 export const DEFAULT_NODE_CAP = 100;
@@ -24,6 +24,13 @@ export const NEUTRAL_NORMALIZED_VALUE = 0.5;
  * composition and get the top score → max pixel size.
  */
 export const CENTRAL_SIZE_SCORE = 1;
+
+/**
+ * Default edge mode is the induced subgraph (POLS: two visibly linked notes
+ * should show their edge). Chosen by TOP_LEVEL_AGENT — the human resolved the
+ * toggle itself (CLARIFICATION Q5) but did not specify the default.
+ */
+export const DEFAULT_EDGE_VISIBILITY: EdgeVisibilityMode = "all-edges";
 
 const DEFAULT_METRIC_WEIGHT = 1;
 
@@ -56,6 +63,7 @@ export class EngineDefaults {
 		return {
 			nodeCap: DEFAULT_NODE_CAP,
 			groupByFolder: true,
+			edgeVisibility: DEFAULT_EDGE_VISIBILITY,
 			sizing: EngineDefaults.sizingSettings(),
 		};
 	}

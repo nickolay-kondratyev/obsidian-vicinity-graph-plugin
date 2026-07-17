@@ -1,3 +1,4 @@
+import { EdgeVisibility } from "./EdgeVisibility";
 import { GraphTruncator } from "./GraphTruncator";
 import type { LinkProvider } from "./LinkProvider";
 import { NeighborhoodTraversal } from "./NeighborhoodTraversal";
@@ -37,7 +38,7 @@ export interface GraphBuildRequest {
 
 /**
  * The engine facade — the one call steps 03/04 make per rebuild:
- * resolve settings → multi-root BFS → sizing → truncation.
+ * resolve settings → multi-root BFS → sizing → truncation → edge visibility.
  * Pure and synchronous; Obsidian reaches it only through {@link LinkProvider}.
  */
 export class NeighborhoodEngine {
@@ -78,7 +79,12 @@ export class NeighborhoodEngine {
 		}
 		return {
 			nodes,
-			edges: truncation.visibleEdges,
+			edges: EdgeVisibility.edgesFor({
+				mode: viewSettings.edgeVisibility,
+				visiblePaths: truncation.visiblePaths,
+				walkedVisibleEdges: truncation.visibleEdges,
+				provider: this.provider,
+			}),
 			hiddenNodeCountsByFolder: truncation.hiddenNodeCountsByFolder,
 			viewSettings,
 		};

@@ -137,3 +137,42 @@ describe("NeighborhoodEngine settings integration", () => {
 		expect(build({ mainViewOverride: { nodeCap: 2 } })).toEqual(build({ mainViewOverride: { nodeCap: 2 } }));
 	});
 });
+
+describe("NeighborhoodEngine edge visibility (CLARIFICATION Q5)", () => {
+	/** GIVEN MAIN hub.md whose two depth-1 siblings link each other. */
+	function siblingBuild(overrides: Partial<GraphBuildRequest> = {}): NeighborhoodGraph {
+		const provider = new FakeLinkProvider({
+			files: [{ path: "hub.md" }, { path: "a.md" }, { path: "b.md" }],
+			links: {
+				"hub.md": ["a.md", "b.md"],
+				"a.md": ["b.md"],
+			},
+		});
+		return new NeighborhoodEngine(provider).build({
+			main: { path: asVaultPath("hub.md") },
+			globalDepths: { outgoingDepth: 1, incomingDepth: 0 },
+			globalView: EngineDefaults.viewSettings(),
+			...overrides,
+		});
+	}
+
+	function edgeStrings(graph: NeighborhoodGraph): string[] {
+		return graph.edges.map((e) => `${e.source}->${e.target}`).sort();
+	}
+
+	it("WHEN building with defaults THEN the sibling link renders (default mode is all-edges)", () => {
+		expect(edgeStrings(siblingBuild())).toEqual(["a.md->b.md", "hub.md->a.md", "hub.md->b.md"]);
+	});
+
+	it("WHEN the global view asks for walked-from-center THEN only BFS-walked edges render", () => {
+		const graph = siblingBuild({
+			globalView: { ...EngineDefaults.viewSettings(), edgeVisibility: "walked-from-center" },
+		});
+		expect(edgeStrings(graph)).toEqual(["hub.md->a.md", "hub.md->b.md"]);
+	});
+
+	it("WHEN MAIN's override pins walked-from-center THEN it beats the all-edges global (cascade)", () => {
+		const graph = siblingBuild({ mainViewOverride: { edgeVisibility: "walked-from-center" } });
+		expect(edgeStrings(graph)).toEqual(["hub.md->a.md", "hub.md->b.md"]);
+	});
+});
