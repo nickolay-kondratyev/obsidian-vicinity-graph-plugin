@@ -36,3 +36,31 @@
 4. F4: evict wired for BOTH rename (old path) and delete; confirm no evict on unrelated extensions breaks nothing (it's a no-op map delete).
 5. Re-run check/test/build and re-verify counts (were 287+69 at baseline; expect growth).
 6. Confirm no scope creep beyond the requested fixes.
+
+## Iteration 2 — verification pass (2026-07-17, fresh instance) — verdict READY
+
+### Method (worth repeating next time)
+- Empirical pre-fix check without touching the repo: `git archive e9e7d92 | tar -x` into
+  scratchpad, symlink node_modules, overlay ONLY the new test files from `1f4d6ca`,
+  run vitest on them. Result: 14 fail pre-fix / all pass post-fix. This proved:
+  - F2 abort mode: all 8 pre-existing sweeper tests fail with the foreign file seeded.
+  - F1 race: 3 failures INDEPENDENT of F2 (midSweepWriteFixture seeds no foreign file — verified via grep).
+  - F6 flip test fails pre-fix.
+- Re-ran check/test/build (`.tmp/verify-*.log`): all exit 0; root 297/30 (+10 as claimed), sublib 69/6.
+- `git diff --diff-filter=D e9e7d92..1f4d6ca` empty; only removed `it(` is the importGuard
+  engine-only test broadened to engine+shared.
+
+### Key correctness reasoning recorded
+- F1: isConfirmedOrphan placement is apply-time per-item; pin filter runs AFTER doc-data
+  phase yields; no yield between filter and removePins (single-threaded, safe). Post-plan
+  creations can't appear in plan drop lists → no residual window. Stale docids can't be
+  wrongly kept (never warm-mapped; live delete unmaps).
+- F6: constructor untouched (API-absent eager inversion pre-existing); short-circuit
+  preserves both permanent-inversion modes; `[]` for null file is what the inversion
+  would have answered anyway (resolved targets must exist) → no behavior change beyond fix.
+- F5/F2 interplay: reserved-stem json in doc-data now unlisted — intended.
+- F4 untested main.ts wiring: consistent with established pattern, accepted.
+
+### Outcome
+Appended "Verification pass (round 2)" to IMPLEMENTATION_REVIEW__PUBLIC.md: 8/8 RESOLVED,
+0 new findings, READY. Open item for humans: real-Obsidian smoke run of debug command.

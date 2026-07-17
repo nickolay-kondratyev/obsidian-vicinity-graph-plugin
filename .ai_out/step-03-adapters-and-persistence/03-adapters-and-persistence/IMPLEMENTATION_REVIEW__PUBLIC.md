@@ -66,3 +66,60 @@ None. (F1/F2 fixes are within already-approved scope; no requirement deviations 
 3. F3 — extend the import guard to `src/shared/`.
 4. F4 — wire `canvasParseCache.evict` into rename/delete handlers (or remove the promise).
 5. F5–F8 — at implementer's discretion this step; if deferred, note them (F8 needs only a WHY comment).
+
+---
+
+# Verification pass (round 2)
+
+Fresh IMPLEMENTATION_REVIEWER instance, 2026-07-17. Scope: verify F1–F8 fixes in
+`1f4d6ca` (+docs `82667e8`). Method: full diff inspection, full re-read of
+`OrphanSweeper.ts` and `ObsidianLinkProvider.ts`, re-run of check/test/build, and an
+**empirical pre-fix regression run**: extracted the pre-fix tree (`e9e7d92`) via
+`git archive` into the scratchpad, overlaid ONLY the new test files, ran them.
+
+## Empirical regression evidence (strongest signal)
+
+Against pre-fix production code: **14 tests fail** exactly along the reported
+failure modes; against fixed code all pass.
+
+- All 8 pre-existing sweeper tests fail under the seeded foreign json — precisely the
+  F2 "whole sweep aborts" mode.
+- All 3 F1 race tests fail — and the `midSweepWriteFixture` does NOT seed the foreign
+  file, so these failures are purely the snapshot race, independent of F2.
+- F2's two dedicated tests (store-level omission + sweep-survives) fail.
+- F6's inversion-flip test fails.
+
+## Per-finding verdicts
+
+| ID | Verdict | Evidence |
+|---|---|---|
+| F1 (MAJOR, sweep snapshot race) | **RESOLVED** | `OrphanSweeper.isConfirmedOrphan` consults `pathDocIdMap.getPath` at APPLY time (per-item inside the chunked callbacks; pin filter runs after the doc-data phase's yields) — exactly the requested placement. Extension to `centralDepths` strips is sound symmetry, disclosed, minimal. 3 regression tests empirically fail pre-fix. Post-plan creations can't be in the plan's drop lists, so plan/apply windows are both covered. |
+| F2 (MAJOR, foreign json aborts sweep) | **RESOLVED** | `listDocIds` filters stems via `isFilenameSafeDocId` with a WHY doc; foreign file seeded into the SHARED sweeper fixture, so every pre-existing test co-asserts "sweep completes despite it" — pin cleanup ordering concern (doc-data deletion precedes pin removal) is thereby covered. Empirically fails pre-fix (all 8 + 2 tests). |
+| F3 (MAJOR, guard misses src/shared) | **RESOLVED** | `GUARDED_DIRS = [engine, shared]`, dedicated non-vacuous test for src/shared, header comment updated. The removed `it(` is the old engine-only assertion broadened to both dirs — strengthening, not loss. |
+| F4 (MINOR, evict unwired) | **RESOLVED** | `evict(oldPath)` on rename, `evict(path)` first in `handleVaultDelete` — both handlers, unconditional no-op for non-canvas (commented). No unit test is consistent with the untested-wiring pattern for main.ts; acceptable. |
+| F5 (MINOR, Windows reserved names) | **RESOLVED** | `WINDOWS_RESERVED_BASENAME_PATTERN` (`CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9]`, `/i`) rejected in `isFilenameSafeDocId`; tests cover rejection, case-insensitivity, and no over-blocking (`CONSOLE`). Interplay with F2: a reserved-stem json in doc-data is now also unlisted — correct (never ours). |
+| F6 (MINOR, permanent inversion flip) | **RESOLVED** | Restructured `backlinkSources`: inversion short-circuit first (preserves constructor-time API-absent mode and shape-trouble memoization), `file === null` → `[]` with WHY comment. `[]` is semantically right: a nonexistent file cannot be a resolved-link target, so the old inversion answer was `[]` anyway — no behavior lost. Test empirically fails pre-fix. |
+| F7 (NIT, unconditional removePins write) | **RESOLVED** | `hasPin` guard in `handleVaultDelete`; sync in-memory check immediately before the awaited write — no interleaving window. `hasPin` gains its production caller. |
+| F8 (NIT, forward-version downgrade wipe) | **RESOLVED** | WHY-NOT comment at `PERSISTED_SHAPE_VERSION` naming the accepted downgrade-then-write behavior and the v2 obligation — doc-only, as requested. |
+
+## New findings introduced by fixes
+
+None. Specifically checked: F1's per-item re-check cannot resurrect genuinely stale
+docids (never warm-mapped, removed from map on live delete); F6's unconditional
+`invertedIncoming = ...` assignment is single-shot behind the early return; F2/F5
+filter composition; no deleted files, no removed behavior tests, no scope creep
+beyond the disclosed centralDepths symmetry in F1.
+
+## Commands re-run (outputs in `.tmp/verify-*.log`)
+
+- `/usr/local/bin/npm run check` → exit 0.
+- `/usr/local/bin/npm test` → exit 0. Root **30 files / 297 tests** (+10, matches
+  claim); sublib **6 / 69** (unchanged).
+- `/usr/local/bin/npm run build` → exit 0.
+- Pre-fix overlay run (scratchpad): 14 failed / 26 passed — expected pre-fix shape.
+
+## Readiness signal
+
+**READY.** 8/8 findings genuinely resolved; regression tests empirically capture the
+original failure modes; no new issues. The pre-existing note stands: human smoke run
+of the debug command in real Obsidian remains pending (environment limitation).
