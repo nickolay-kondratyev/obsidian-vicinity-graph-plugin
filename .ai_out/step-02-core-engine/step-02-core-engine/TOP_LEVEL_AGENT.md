@@ -10,8 +10,8 @@
 |---|---|---|
 | EXPLORATION | done (62230cc) | Explore agent was read-only; TOP_LEVEL persisted its findings verbatim |
 | CLARIFICATION | done (680dfe9) | 4 questions resolved with human; see CLARIFICATION__PUBLIC.md |
-| IMPLEMENTATION_WITH_SELF_PLAN | in_progress | Background sub-agent; THINK_HARD |
-| IMPLEMENTATION_REVIEW | pending | |
+| IMPLEMENTATION_WITH_SELF_PLAN | done (29fe897..7026ae4) | 14 modules under src/engine/, 107 engine tests; suite+check green per report |
+| IMPLEMENTATION_REVIEW | in_progress | Background reviewer; read-only for code; verifies test claims itself |
 | IMPLEMENTATION_ITERATION | pending | max 4 iterations |
 | Change log entry + merge | pending | Single entry by TOP_LEVEL_AGENT |
 
