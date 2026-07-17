@@ -72,3 +72,77 @@
     recursive/parentPath (Node 26 here); needs @types/node for tsc.
 - Nothing pending. Step ready for IMPLEMENTATION_REVIEW. CHANGELOG entry
   deliberately left for step-completion flow (see PUBLIC follow-ups).
+
+---
+
+# ITERATION CYCLE (new instance, 2026-07-17) — incorporate review feedback
+
+Review: 2 SHOULD_FIX, 3 NIT (IMPLEMENTATION_REVIEW__PUBLIC.md). SHOULD_FIX 1
+resolved by HUMAN as CLARIFICATION Q5 (binding): edge-visibility toggle.
+
+## Plan
+
+1. **SHOULD_FIX 2 (import guard)**: add 4th pattern for side-effect imports
+   (`import "obsidian";`); restructure so the specifier matcher is testable on
+   a source string; add matcher tests (named/default/type-only/side-effect/
+   deep-path/export-star/dynamic/require + negatives).
+2. **NIT 3**: NeighborhoodEngine throws on missing size (invariant) instead of
+   silent `?? 0` fallback. INCORPORATE (silent fallbacks are lies).
+3. **NIT 5**: loop-based min/max in MinMaxNormalizedMetric (spread arg-limit
+   crash risk on huge vaults). INCORPORATE.
+4. **NIT 4** (path-parsing duplication titleOf vs extensionOf/folderOf):
+   REJECT for now — reviewer's own suggestion was "extract when a third
+   consumer appears"; none appeared; extraction now = indirection w/o value.
+5. **Q5 edge-visibility mode (SHOULD_FIX 1)**:
+   - `types.ts`: `EdgeVisibilityMode = "walked-from-center" | "all-edges"`;
+     `ViewSettings.edgeVisibility` (cascades per-field automatically since
+     ViewSettingsOverride = Partial<ViewSettings>).
+   - `constants.ts`: `DEFAULT_EDGE_VISIBILITY = "all-edges"` (TOP_LEVEL
+     decision, called out to human) + EngineDefaults wiring.
+   - New `EdgeAccumulator.ts`: deduped directed edge collection (NUL key) —
+     extracted from TraversalCollector (DRY; sweep needs same dedupe).
+   - New `EdgeVisibility.ts`: SRP owner of both modes. `walked-from-center` →
+     truncator's visibleEdges as-is; `all-edges` → post-truncation induced
+     sweep: for each visible path, provider.getOutgoingLinks filtered to
+     targets in visiblePaths (attachments auto-excluded — never visible).
+     WHY-NOT: truncation distance-to-MAIN ranking stays on walked edges (Q5
+     says post-truncation sweep; binding).
+   - `ViewSettingsResolver`: add `edgeVisibility: field("edgeVisibility")`.
+   - `NeighborhoodEngine`: pick edges via EdgeVisibility after truncation.
+   - Tests: EdgeVisibility.test.ts (both modes: reviewer sibling scenario,
+     cross-root, hidden excluded, attachment excluded, dedupe, superset,
+     default constant); NeighborhoodEngine.test.ts end-to-end both modes;
+     settingsResolvers.test.ts cascade tests for the new field.
+   - `index.ts`: export new symbols, document edge semantics + default.
+6. CHANGELOG entry for step-02 (step-01 precedent: added in ITERATION).
+7. ITERATION PUBLIC with disposition table + READY signal.
+
+## Progress (iteration)
+- [x] Commit A: import guard hardening — 89c211f
+- [x] Commit B: NIT 3 + NIT 5 — 44c2d44
+- [x] Commit C: edge-visibility mode + tests + index.ts docs — 7aa885b
+- [x] Commit D: docs (PRIVATE/ITERATION PUBLIC/CHANGELOG)
+- [x] Full test + check green (root 136 + sublib 69, exit 0; check exit 0)
+
+## Iteration final state (for a clone)
+- COMPLETE, READY signal given in IMPLEMENTATION_ITERATION__PUBLIC.md
+  (disposition table there). 4 findings incorporated, NIT 4 rejected
+  (reviewer's own "wait for third consumer" trigger not met).
+- Q5 semantics: sweep is POST-truncation (binding wording) — truncation
+  distance-to-MAIN ranking intentionally stays on walked edges; WHY-NOT in
+  EdgeVisibility.ts. Default all-edges flagged #QUESTION_FOR_HUMAN in
+  ITERATION PUBLIC (flip = one line in constants.ts).
+- New modules: EdgeVisibility.ts (SRP mode owner), EdgeAccumulator.ts
+  (extracted NUL-key edge dedupe, shared traversal + sweep). Barrel exports
+  EdgeVisibility/EdgeVisibilityInput/EdgeVisibilityMode/DEFAULT_EDGE_VISIBILITY.
+  EdgeAccumulator deliberately NOT exported (internal detail).
+- Gotchas hit THIS iteration:
+  - Write tool AGAIN turned the u0000 escape into a raw NUL byte
+    (EdgeAccumulator.ts became "binary") — fixed via python byte replace;
+    NeighborhoodTraversal.ts edits near that line must go through python too.
+  - importGuard scans ITSELF: matcher-test fixtures (and even comments!)
+    containing literal import-of-forbidden-module text trip the guard.
+    Fixtures interpolate specifiers via a q() helper; keep comments free of
+    literal forbidden-import forms.
+  - CHANGELOG step-02 entry added (step-01 precedent: ITERATION phase).
+- Next: TOP_LEVEL review of dispositions; human to confirm all-edges default.
