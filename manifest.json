@@ -1,0 +1,9 @@
+{
+	"id": "obsidian-neighborhood-graph",
+	"name": "Neighborhood Graph",
+	"version": "0.1.0",
+	"minAppVersion": "1.12.4",
+	"description": "Improved visualization of neighboring notes (envisioned to be used in place of local graph).",
+	"author": "Nickolay Kondratyev",
+	"isDesktopOnly": false
+}
