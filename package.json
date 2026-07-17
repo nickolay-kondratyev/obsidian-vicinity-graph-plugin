@@ -1,0 +1,30 @@
+{
+	"name": "obsidian-neighborhood-graph",
+	"version": "0.1.0",
+	"private": true,
+	"description": "Improved visualization of neighboring notes (envisioned to be used in place of local graph).",
+	"type": "module",
+	"main": "main.js",
+	"scripts": {
+		"dev": "node esbuild.config.mjs",
+		"build": "npm run check && node esbuild.config.mjs production",
+		"check": "tsc -noEmit",
+		"test": "vitest run && npm run test:sublib",
+		"test:watch": "vitest",
+		"test:sublib": "npm --prefix submodules/obsidian-id-lib install && npm --prefix submodules/obsidian-id-lib test"
+	},
+	"license": "SEE LICENSE IN LICENSE.md",
+	"dependencies": {
+		"obsidian-id-lib": "file:submodules/obsidian-id-lib",
+		"react": "^18.3.1",
+		"react-dom": "^18.3.1"
+	},
+	"devDependencies": {
+		"@types/react": "^18.3.12",
+		"@types/react-dom": "^18.3.1",
+		"esbuild": "^0.25.5",
+		"obsidian": "latest",
+		"typescript": "^5.8.3",
+		"vitest": "^4.1.10"
+	}
+}
