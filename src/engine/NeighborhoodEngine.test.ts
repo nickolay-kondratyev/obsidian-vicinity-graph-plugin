@@ -160,19 +160,19 @@ describe("NeighborhoodEngine edge visibility (CLARIFICATION Q5)", () => {
 		return graph.edges.map((e) => `${e.source}->${e.target}`).sort();
 	}
 
-	it("WHEN building with defaults THEN the sibling link renders (default mode is all-edges)", () => {
-		expect(edgeStrings(siblingBuild())).toEqual(["a.md->b.md", "hub.md->a.md", "hub.md->b.md"]);
+	it("WHEN building with defaults THEN the sibling link is hidden (default mode is walked-from-center)", () => {
+		expect(edgeStrings(siblingBuild())).toEqual(["hub.md->a.md", "hub.md->b.md"]);
 	});
 
-	it("WHEN the global view asks for walked-from-center THEN only BFS-walked edges render", () => {
+	it("WHEN the global view asks for all-edges THEN the sibling link renders (induced subgraph)", () => {
 		const graph = siblingBuild({
-			globalView: { ...EngineDefaults.viewSettings(), edgeVisibility: "walked-from-center" },
+			globalView: { ...EngineDefaults.viewSettings(), edgeVisibility: "all-edges" },
 		});
-		expect(edgeStrings(graph)).toEqual(["hub.md->a.md", "hub.md->b.md"]);
+		expect(edgeStrings(graph)).toEqual(["a.md->b.md", "hub.md->a.md", "hub.md->b.md"]);
 	});
 
-	it("WHEN MAIN's override pins walked-from-center THEN it beats the all-edges global (cascade)", () => {
-		const graph = siblingBuild({ mainViewOverride: { edgeVisibility: "walked-from-center" } });
-		expect(edgeStrings(graph)).toEqual(["hub.md->a.md", "hub.md->b.md"]);
+	it("WHEN MAIN's override pins all-edges THEN it beats the walked-from-center global (cascade)", () => {
+		const graph = siblingBuild({ mainViewOverride: { edgeVisibility: "all-edges" } });
+		expect(edgeStrings(graph)).toEqual(["a.md->b.md", "hub.md->a.md", "hub.md->b.md"]);
 	});
 });

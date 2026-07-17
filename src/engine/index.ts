@@ -16,9 +16,9 @@
  *
  * ## Edge semantics ({@link EdgeVisibilityMode}, CLARIFICATION Q5)
  * `ViewSettings.edgeVisibility` picks which links become edges:
- * `"all-edges"` (default) renders every link between two visible nodes
- * (induced subgraph, swept post-truncation); `"walked-from-center"` renders
- * only the edges the BFS walked. A view-class setting — it cascades like
+ * `"walked-from-center"` (default) renders only the edges the BFS walked;
+ * `"all-edges"` renders every link between two visible nodes (induced
+ * subgraph, swept post-truncation). A view-class setting — it cascades like
  * sizing/grouping/cap; the UI toggle lands in step-06.
  *
  * ## Adapter contract for pins / per-doc overrides (step-03, MUST honor)

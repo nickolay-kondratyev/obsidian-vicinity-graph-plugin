@@ -10,7 +10,7 @@ Implemented the pure, fully-tested neighborhood-graph engine under `src/engine/`
 - Composable sizing metrics (own-file-size, total-linker-size, backlink/outlink counts, depth-decay) → `sizeScore` → `sizePx`; centrals forced to max.
 - Truncation: hard cap on non-centrals (default 100), distance-to-MAIN ranking via the ONE shared `NodePriorityChain` comparator, per-folder hidden counts.
 - Settings cascades: depth (own override → global), view per-field (MAIN → pinned gaps via priority chain → global).
-- **Edge-visibility toggle** (Q5): `"all-edges"` (induced subgraph, default — default chosen by agent, awaiting human confirmation) vs `"walked-from-center"` (BFS-walked only).
+- **Edge-visibility toggle** (Q5): `"walked-from-center"` (BFS-walked only, human-confirmed default — cleaner graph) vs `"all-edges"` (induced subgraph, available via toggle).
 - Import-guard test keeps the engine pure (zero `obsidian`/`obsidian-id-lib`/react imports, all import forms matched).
 
 Verified: `npm test` (136 root + 69 sublib) and `npm run check` green (implementer + independent reviewer + iteration). Review findings dispositioned in `.ai_out/step-02-core-engine/`.

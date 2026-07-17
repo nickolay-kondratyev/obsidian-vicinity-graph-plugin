@@ -45,8 +45,8 @@ function edgesInMode(mode: "walked-from-center" | "all-edges"): string[] {
 }
 
 describe("EdgeVisibility defaults", () => {
-	it("WHEN no one chose a mode THEN the default is all-edges (TOP_LEVEL decision, flagged to human)", () => {
-		expect(DEFAULT_EDGE_VISIBILITY).toBe("all-edges");
+	it("WHEN no one chose a mode THEN the default is walked-from-center (human decision, Q5)", () => {
+		expect(DEFAULT_EDGE_VISIBILITY).toBe("walked-from-center");
 	});
 
 	it("WHEN building default view settings THEN they carry the default edge mode", () => {

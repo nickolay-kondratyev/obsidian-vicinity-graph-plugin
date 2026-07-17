@@ -26,11 +26,10 @@ export const NEUTRAL_NORMALIZED_VALUE = 0.5;
 export const CENTRAL_SIZE_SCORE = 1;
 
 /**
- * Default edge mode is the induced subgraph (POLS: two visibly linked notes
- * should show their edge). Chosen by TOP_LEVEL_AGENT — the human resolved the
- * toggle itself (CLARIFICATION Q5) but did not specify the default.
+ * Default edge mode shows only BFS-walked edges (human decision, CLARIFICATION
+ * Q5: cleaner graph to see); `"all-edges"` stays available via the toggle.
  */
-export const DEFAULT_EDGE_VISIBILITY: EdgeVisibilityMode = "all-edges";
+export const DEFAULT_EDGE_VISIBILITY: EdgeVisibilityMode = "walked-from-center";
 
 const DEFAULT_METRIC_WEIGHT = 1;
 
