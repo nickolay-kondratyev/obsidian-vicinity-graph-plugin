@@ -10,8 +10,8 @@
 |-------|--------|-------|
 | EXPLORATION | DONE | EXPLORATION_PUBLIC.md written; minAppVersion premise found FALSE (no core version introduced canvas metadata.frontmatter) |
 | CLARIFICATION | DONE | HUMAN approved minAppVersion=1.12.4 (floor, newer must work) → CLARIFICATION__PUBLIC.md |
-| IMPLEMENTATION_WITH_SELF_PLAN | RUNNING | background sub-agent; binding decisions passed via CLARIFICATION__PUBLIC.md |
-| IMPLEMENTATION_REVIEW | PENDING | |
+| IMPLEMENTATION_WITH_SELF_PLAN | DONE | commits d6c13bd, 9e3abb8; build/check/test PASS per report; READY_FOR_REVIEW; GUI load = human step |
+| IMPLEMENTATION_REVIEW | RUNNING | reviewer re-verifies build/test/check independently; read-only for code |
 | IMPLEMENTATION_ITERATION | PENDING | max 4 iterations |
 
 ## Decisions
