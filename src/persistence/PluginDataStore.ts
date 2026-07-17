@@ -1,0 +1,65 @@
+import type { DepthSettings, ViewSettings } from "../engine";
+import type { PinnedDocEntry, PluginData } from "./persistedShapes";
+import { PersistedShapes } from "./persistedShapes";
+import type { PluginDataPort } from "./storagePorts";
+
+/**
+ * Typed owner of the plugin's `data.json` (global settings + the pinned set).
+ * Holds the parsed state in memory after {@link init}; every mutation
+ * persists through a serialized write chain (last write wins, no interleaved
+ * saveData calls).
+ */
+export class PluginDataStore {
+	private data: PluginData = PersistedShapes.defaultPluginData();
+	private writeChain: Promise<void> = Promise.resolve();
+
+	constructor(private readonly port: PluginDataPort) {}
+
+	/** Loads and defensively parses data.json (first run / malformed → defaults). */
+	async init(): Promise<void> {
+		this.data = PersistedShapes.parsePluginData(await this.port.loadData());
+	}
+
+	globalDepths(): DepthSettings {
+		return this.data.globalDepths;
+	}
+
+	globalView(): ViewSettings {
+		return this.data.globalView;
+	}
+
+	pins(): readonly PinnedDocEntry[] {
+		return this.data.pins;
+	}
+
+	hasPin(docid: string): boolean {
+		return this.data.pins.some((pin) => pin.docid === docid);
+	}
+
+	async saveGlobalDepths(globalDepths: DepthSettings): Promise<void> {
+		await this.persist({ ...this.data, globalDepths });
+	}
+
+	async saveGlobalView(globalView: ViewSettings): Promise<void> {
+		await this.persist({ ...this.data, globalView });
+	}
+
+	/** Re-pinning refreshes the timestamp (recency tiebreaker follows the newest pin intent). */
+	async addPin(docid: string, pinTimestamp: number): Promise<void> {
+		const withoutExisting = this.data.pins.filter((pin) => pin.docid !== docid);
+		await this.persist({ ...this.data, pins: [...withoutExisting, { docid, pinTimestamp }] });
+	}
+
+	async removePins(docids: readonly string[]): Promise<void> {
+		const removed = new Set(docids);
+		await this.persist({ ...this.data, pins: this.data.pins.filter((pin) => !removed.has(pin.docid)) });
+	}
+
+	private persist(updated: PluginData): Promise<void> {
+		this.data = updated;
+		// `.catch` keeps one failed write from wedging every later one; the
+		// failure still reaches ITS caller through the returned promise.
+		this.writeChain = this.writeChain.catch(() => undefined).then(() => this.port.saveData(this.data));
+		return this.writeChain;
+	}
+}
