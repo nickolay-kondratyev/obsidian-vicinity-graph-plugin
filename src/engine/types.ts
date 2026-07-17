@@ -153,11 +153,7 @@ export interface ViewSettings {
  * property; `sizing` is a single field in V1 (per-metric pinning would be
  * over-engineering until per-view overrides land).
  */
-export interface ViewSettingsOverride {
-	readonly nodeCap?: number;
-	readonly groupByFolder?: boolean;
-	readonly sizing?: SizingSettings;
-}
+export type ViewSettingsOverride = Partial<ViewSettings>;
 
 /** Final engine output consumed by steps 03/04. */
 export interface NeighborhoodGraph {
