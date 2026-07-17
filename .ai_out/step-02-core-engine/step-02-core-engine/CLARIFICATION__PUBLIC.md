@@ -31,7 +31,7 @@ All four open questions resolved with human on 2026-07-17. These are binding dec
   - `walked-from-center`: only edges walked by the BFS (current behavior).
   - `all-edges`: induced subgraph — every link between two visible nodes gets an edge (post-truncation sweep of the visible set via `LinkProvider`).
 - Engine must support BOTH modes now (pure, tested); the UI toggle itself arrives in step-06. Setting belongs to the view settings class (cascades like sizing/grouping/cap).
-- Default mode not specified by human — TOP_LEVEL_AGENT calls `all-edges` as default (POLS: two visibly linked notes should show their edge) and CALLS THIS OUT for human review.
+- Default mode: initially TOP_LEVEL called `all-edges`; **HUMAN overrode on 2026-07-17: default = `walked-from-center`** (reasoning: cleaner graph to see). This is the final, binding default.
 
 ## Non-questions (unambiguous from step doc — implement as specified)
 
