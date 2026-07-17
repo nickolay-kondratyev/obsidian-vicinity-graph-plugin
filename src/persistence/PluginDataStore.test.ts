@@ -1,21 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { EngineDefaults } from "../engine";
+import { FakePluginDataPort } from "./FakePluginDataPort";
 import { PluginDataStore } from "./PluginDataStore";
 import type { PluginDataPort } from "./storagePorts";
-
-/** In-memory data.json port; `saved` mirrors what Obsidian would hold on disk. */
-class FakePluginDataPort implements PluginDataPort {
-	saved: unknown = null;
-
-	async loadData(): Promise<unknown> {
-		return this.saved;
-	}
-
-	async saveData(data: unknown): Promise<void> {
-		// Deep copy: catches accidental reliance on shared object identity.
-		this.saved = JSON.parse(JSON.stringify(data));
-	}
-}
 
 async function initializedStore(port: PluginDataPort = new FakePluginDataPort()): Promise<PluginDataStore> {
 	const store = new PluginDataStore(port);
