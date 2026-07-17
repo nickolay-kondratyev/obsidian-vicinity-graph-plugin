@@ -146,3 +146,19 @@ resolved by HUMAN as CLARIFICATION Q5 (binding): edge-visibility toggle.
     literal forbidden-import forms.
   - CHANGELOG step-02 entry added (step-01 precedent: ITERATION phase).
 - Next: TOP_LEVEL review of dispositions; human to confirm all-edges default.
+
+---
+
+# DEFAULT FLIP CYCLE (new instance, 2026-07-17) — Q5 final
+
+HUMAN confirmed default = `walked-from-center` (updated Q5, binding). Single
+focused change, no refactors:
+- constants.ts: DEFAULT_EDGE_VISIBILITY flipped + comment cites human decision.
+- EdgeVisibility.test.ts: default assertion flipped.
+- NeighborhoodEngine.test.ts: defaults e2e expects walked edges; explicit-mode
+  and cascade e2e tests inverted (explicit all-edges) — both modes still fully
+  covered end-to-end; EdgeVisibility.test.ts mode-behavior tests untouched.
+- index.ts barrel doc + CHANGELOG Q5 line updated.
+- Verified: check exit 0; test exit 0 (root 136, sublib 69).
+- ITERATION PUBLIC: appended "Default flip (Q5 final)" section.
+- COMPLETE. Nothing pending from this cycle.

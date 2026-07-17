@@ -35,3 +35,18 @@ All pre-existing behavior-capturing tests untouched and green (the existing edge
 ## Convergence signal: **READY**
 
 All SHOULD_FIXes resolved (one via the binding Q5 decision), NITs dispositioned (2 incorporated, 1 rejected with rationale), suite + typecheck green, engine API docs in sync. Remaining open item is the human confirmation of the `all-edges` default (tagged above); it does not block step-04 consumption.
+
+## Default flip (Q5 final) — 2026-07-17
+
+HUMAN resolved the open `#QUESTION_FOR_HUMAN:` above: the default edge mode is **`walked-from-center`** (cleaner graph to see), `all-edges` stays available via the toggle. CLARIFICATION Q5 updated (binding).
+
+Changes (default flip only — mode behavior untouched, both modes remain fully tested):
+- `src/engine/constants.ts`: `DEFAULT_EDGE_VISIBILITY = "walked-from-center"` + doc comment now cites the human decision.
+- `src/engine/EdgeVisibility.test.ts`: default-constant assertion flipped.
+- `src/engine/NeighborhoodEngine.test.ts`: defaults e2e now expects walked edges only; explicit-mode and cascade tests inverted (explicit `all-edges` global / MAIN override) so both modes and the cascade stay covered end-to-end.
+- `src/engine/index.ts`: barrel edge-semantics doc names walked-from-center as default.
+- `docs-internal/CHANGELOG.md`: Q5 line now states walked-from-center is the human-confirmed default.
+
+Verification: `/usr/local/bin/npm run check` exit 0; `/usr/local/bin/npm test` exit 0 — root **136 passed** (10 files), sublib **69 passed** (6 files).
+
+Commit: 3803fcd
