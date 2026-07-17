@@ -1,3 +1,5 @@
+import { FileKinds } from "../shared/FileKinds";
+import { VaultPathFacts } from "../shared/VaultPathFacts";
 import type { FileMetadata, LinkProvider } from "./LinkProvider";
 import type { AttachmentRef, VaultPath } from "./types";
 import { asFolderPath, asVaultPath } from "./types";
@@ -18,9 +20,6 @@ export interface FakeVaultSpec {
 	readonly files: readonly FakeFileSpec[];
 	readonly links?: Readonly<Record<string, readonly string[]>>;
 }
-
-const NODE_BEARING_EXTENSIONS = ["md", "canvas"];
-const IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "gif", "svg", "webp"];
 
 interface FakeFile {
 	readonly metadata: FileMetadata;
@@ -73,13 +72,12 @@ export class FakeLinkProvider implements LinkProvider {
 
 	private declareFile(file: FakeFileSpec): void {
 		const path = asVaultPath(file.path);
-		const extension = extensionOf(file.path);
-		const nodeBearing = file.nodeBearing ?? NODE_BEARING_EXTENSIONS.includes(extension);
+		const nodeBearing = file.nodeBearing ?? FileKinds.isNodeBearingPath(file.path);
 		this.files.set(path, {
 			nodeBearing,
-			image: file.image ?? IMAGE_EXTENSIONS.includes(extension),
+			image: file.image ?? FileKinds.isImagePath(file.path),
 			metadata: {
-				folder: asFolderPath(folderOf(file.path)),
+				folder: asFolderPath(VaultPathFacts.folderOf(file.path)),
 				sizeBytes: file.sizeBytes ?? 0,
 				isNodeBearing: nodeBearing,
 				attachments: [], // replaced by attachAttachmentsToMetadata()
@@ -119,15 +117,4 @@ export class FakeLinkProvider implements LinkProvider {
 			this.files.set(path, { ...file, metadata: { ...file.metadata, attachments } });
 		}
 	}
-}
-
-function extensionOf(path: string): string {
-	const basename = path.slice(path.lastIndexOf("/") + 1);
-	const dotIndex = basename.lastIndexOf(".");
-	return dotIndex < 0 ? "" : basename.slice(dotIndex + 1).toLowerCase();
-}
-
-function folderOf(path: string): string {
-	const slashIndex = path.lastIndexOf("/");
-	return slashIndex < 0 ? "" : path.slice(0, slashIndex);
 }
