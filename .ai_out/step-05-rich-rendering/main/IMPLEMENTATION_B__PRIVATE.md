@@ -51,8 +51,16 @@ Working memory for IMPLEMENTATION_B (UX/UI implementation with self-plan). Rehyd
 - Container-query thresholds: strip ≥72px, thumbnail ≥104px (`--ng-thumbnail-height: 56px`).
 - groupHiddenTitleText added to badgeText (group badge tooltip copy).
 
+## Iteration 1 (review NEEDS_ITERATION → all 6 findings FIXED)
+- **My original arrowhead fact below was WRONG** (review MAJOR-1): RF's stylesheet fallback `var(--xy-edge-stroke)` for `.arrowclosed` never applies because `ArrowClosedSymbol` stamps `defaultMarkerColor` (`#b1b1b7`) as INLINE stroke/fill (`@xyflow/react` dist ~L2438; `@xyflow/system` `createMarkerIds` ~L1482 `color: marker.color || defaultColor`). Fix = `!important` override on `.neighborhood-graph-flow .react-flow__arrowhead polyline` in graph-view.css. JS route rejected: `getMarkerId` (~L1461-1469) serializes color into the marker id + `url('#…')` ref → `var(...)` there is fragile. Accepted trade-off (commented in CSS): shared marker defs ⇒ selected edge path brightens, arrowhead stays faint.
+- MINOR-1: `multiSelectionKeyCode={null}` on `<ReactFlow>` (default is Meta/Ctrl = same as Q2 new-tab gesture).
+- MINOR-2: pure `attachmentMenu.ts` (`ATTACHMENT_MENU_MAX_ITEMS=20`, `planAttachmentMenu` → visiblePaths + "…and N more" overflowText) + 4 tests; adapter renders overflow as disabled trailing item (`MenuItem.setDisabled` exists in obsidian.d.ts).
+- NIT-1 `hiddenOverlayText` now uses `plusNText`; NIT-2 var renamed `--neighborhood-graph-thumbnail-height`; NIT-3 constant renamed `EDGE_ARROWHEAD_SIZE` with honest markerUnits-strokeWidth doc (18×1.5≈27px effective, visuals unchanged on purpose).
+- QA_CHECKLIST additions: §2 cap note, §5 no-lingering-selection on ctrl-click, §7 arrowheads match edge color light+dark.
+- Gates: main 451/43 (+4), sublib 69/6, check 0, build 0 (main.js 1,846,828 B; styles.css 27,627 B).
+
 ## Facts discovered (don't re-derive)
-- RF arrowhead + edge stroke both key off `--xy-edge-stroke` (style.css L193-198) → theme once on `.neighborhood-graph-flow`.
+- ~~RF arrowhead + edge stroke both key off `--xy-edge-stroke` (style.css L193-198) → theme once on `.neighborhood-graph-flow`.~~ **WRONG — see Iteration 1 above** (inline defaultMarkerColor wins; needs the `!important` override).
 - elkMapping.test.ts asserts container children/edge IDS only — adding layoutOptions to containers is safe; add explicit padding test.
 - Obsidian Menu: `new Menu().addItem(i => i.setTitle().setIcon().onClick()).showAtMouseEvent(evt)`.
 - HoverParent = `{ hoverPopover: HoverPopover | null }`; `registerHoverLinkSource` exists (Plugin method, since 1.1.0).

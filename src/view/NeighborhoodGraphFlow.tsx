@@ -24,8 +24,13 @@ import type { GraphUiPort } from "./viewPorts";
 const NODE_TYPES: NodeTypes = { note: NoteNode, "folder-group": FolderGroupNode };
 const EDGE_TYPES: EdgeTypes = { neighborhood: NeighborhoodEdge };
 
-/** Arrowhead size in px; RF's default (12.5) reads too faint at graph zoom levels. */
-const EDGE_ARROWHEAD_SIZE_PX = 18;
+/**
+ * Arrowhead size in React Flow's default `markerUnits: strokeWidth` units, NOT
+ * px: the marker scales with `--xy-edge-stroke-width` (1.5 in graph-view.css),
+ * so the effective size is 18 × 1.5 = 27px-equivalent. RF's default (12.5)
+ * reads too faint at graph zoom levels; final tuning belongs to the smoke run.
+ */
+const EDGE_ARROWHEAD_SIZE = 18;
 
 export function NeighborhoodGraphFlow({
 	controller,
@@ -75,6 +80,11 @@ export function NeighborhoodGraphFlow({
 					onNodeClick={onNodeClick}
 					onNodeMouseEnter={onNodeMouseEnter}
 					nodesConnectable={false}
+					// Ctrl/cmd is the "open in new tab" gesture (CLARIFICATION Q2);
+					// RF's default multiSelectionKeyCode is the SAME modifier, so
+					// each new-tab click would also toggle a meaningless persistent
+					// multi-selection in this read-only graph. Disable it.
+					multiSelectionKeyCode={null}
 					fitView
 				>
 					<Background />
@@ -116,8 +126,8 @@ function toReactFlowEdge(edge: FlowEdge): Edge {
 		type: "neighborhood",
 		markerEnd: {
 			type: MarkerType.ArrowClosed,
-			width: EDGE_ARROWHEAD_SIZE_PX,
-			height: EDGE_ARROWHEAD_SIZE_PX,
+			width: EDGE_ARROWHEAD_SIZE,
+			height: EDGE_ARROWHEAD_SIZE,
 		},
 		data: { count: edge.count, hasOpposite: edge.hasOpposite },
 	};

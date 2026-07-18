@@ -16,7 +16,7 @@ export function plusNText(count: number): string {
 
 /** The graph-corner overlay badge text. */
 export function hiddenOverlayText(totalHiddenCount: number): string {
-	return `+${totalHiddenCount} hidden`;
+	return `${plusNText(totalHiddenCount)} hidden`;
 }
 
 /**

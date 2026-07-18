@@ -29,6 +29,23 @@
 	--xy-attribution-background-color: transparent;
 }
 
+/*
+ * Arrowheads: React Flow stamps its `defaultMarkerColor` (#b1b1b7) as an
+ * INLINE stroke/fill on the marker polyline, so neither --xy-edge-stroke nor
+ * any stylesheet rule reaches it without `!important` — the only CSS-side way
+ * to out-rank an inline style. WHY-NOT a JS `color` on markerEnd instead:
+ * React Flow serializes that color into the SVG marker id and the
+ * `url('#…')` reference, so a `var(--…)` value there is fragile (and a
+ * literal color would break the "zero own colors" theming rule).
+ * Knowingly accepted: markers are shared <defs>, so a SELECTED edge's path
+ * brightens to --xy-edge-stroke-selected while its arrowhead stays faint —
+ * fine for a read-only graph.
+ */
+.neighborhood-graph-flow .react-flow__arrowhead polyline {
+	stroke: var(--text-faint) !important;
+	fill: var(--text-faint) !important;
+}
+
 .neighborhood-graph-flow .react-flow__controls {
 	border-radius: var(--radius-s);
 	overflow: hidden;
@@ -58,7 +75,7 @@
  * only, medium ones add the attachment strip, large ones add the thumbnail.
  */
 .neighborhood-graph-node {
-	--ng-thumbnail-height: 56px;
+	--neighborhood-graph-thumbnail-height: 56px;
 
 	container-type: size;
 	width: 100%;
@@ -127,7 +144,7 @@
 	display: none;
 	position: relative;
 	flex-shrink: 0;
-	height: var(--ng-thumbnail-height);
+	height: var(--neighborhood-graph-thumbnail-height);
 	border-radius: var(--radius-s);
 	overflow: hidden;
 	background: var(--background-secondary);

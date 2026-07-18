@@ -2,6 +2,7 @@ import { Menu, setIcon } from "obsidian";
 import type { App, HoverPopover, HoverParent } from "obsidian";
 import { VaultPathFacts } from "../shared/VaultPathFacts";
 import { attachmentIconId } from "./attachmentIcons";
+import { planAttachmentMenu } from "./attachmentMenu";
 import type { AttachmentMenuRequest, GraphUiPort, HoverPreviewRequest } from "./viewPorts";
 
 /**
@@ -40,13 +41,18 @@ export class ObsidianGraphUi implements GraphUiPort, HoverParent {
 
 	showAttachmentMenu(request: AttachmentMenuRequest): void {
 		const menu = new Menu();
-		for (const path of request.paths) {
+		const plan = planAttachmentMenu(request.paths);
+		for (const path of plan.visiblePaths) {
 			menu.addItem((item) =>
 				item
 					.setTitle(VaultPathFacts.basenameOf(path))
 					.setIcon(attachmentIconId(VaultPathFacts.extensionOf(path)))
 					.onClick(() => this.openAttachment(path)),
 			);
+		}
+		const overflowText = plan.overflowText;
+		if (overflowText !== null) {
+			menu.addItem((item) => item.setTitle(overflowText).setDisabled(true));
 		}
 		menu.showAtMouseEvent(request.nativeEvent);
 	}

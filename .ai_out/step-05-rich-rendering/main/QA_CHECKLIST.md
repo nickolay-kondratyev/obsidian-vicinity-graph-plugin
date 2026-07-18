@@ -29,6 +29,10 @@ or `projects/alpha.md` as noted.
 - [ ] Clicking a menu entry opens that attachment in Obsidian's default viewer (current tab).
 - [ ] Dragging a node starting on a chip does not drag/pan (chip is inert for drag).
 
+(Not producible in the dev vault: menus cap at 20 entries with a disabled
+"…and N more" trailing item — unit-tested in `attachmentMenu.test.ts`; alpha's
+largest group has 1 file.)
+
 ## 3. Folder groups
 - [ ] `projects` renders as a group container: subtle border, secondary-background fill, "projects" label at the top — NO folder color.
 - [ ] alpha + beta render INSIDE the container; the label is not overlapped by member nodes (elk top padding).
@@ -45,7 +49,7 @@ or `projects/alpha.md` as noted.
 
 ## 5. Interactions
 - [ ] Click node → note opens in the current main-area tab (step-04 behavior intact).
-- [ ] Ctrl/Cmd-click node → note opens in a NEW tab.
+- [ ] Ctrl/Cmd-click node → note opens in a NEW tab — and the node does NOT stay marked selected in the graph (no lingering accent ring; repeated ctrl-clicks never accumulate a multi-selection).
 - [ ] Hovering a node fires Obsidian's native page preview popover (Page preview core plugin must be enabled; "Neighborhood graph" appears in its settings list).
 - [ ] Keyboard: Tab reaches nodes; focused node shows an accent focus ring (not a default browser outline).
 
@@ -58,6 +62,7 @@ step 06). They are covered by unit tests and Phase C e2e. Manual check:
 ## 7. Theme pass (repeat the visual checks)
 - [ ] Light theme: nodes/groups/badges/edges legible; RF zoom controls and dots background match the theme (no white buttons).
 - [ ] Dark theme (Settings → Appearance → Dark): same — zero plugin changes needed; text readable, borders subtle, accent rings visible.
+- [ ] Edge arrowheads match the edge line color in BOTH light AND dark (no fixed light-gray arrowheads — React Flow's `#b1b1b7` default is overridden in CSS).
 
 ## 8. Step-04 regressions
 - [ ] Switching active files rebuilds the graph (last switch wins; no stale graph).

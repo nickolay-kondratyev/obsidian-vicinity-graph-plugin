@@ -40,7 +40,7 @@ Status: **DONE**. Gates green. No `#QUESTION_FOR_HUMAN`. Commits on `main`: `737
 - `src/view/elkMapping.ts` + `constants.ts` — folder containers get `"elk.padding": ELK_GROUP_PADDING` (`[top=36,left/bottom/right=16]`) so the group label never underlaps members (+test). Implements Phase A decision #7.
 
 ### CSS — `src/view/graph-view.css` ONLY (styles.css regenerates)
-Sections: RF chrome retheme (`--xy-edge-stroke` themes BOTH edge paths and arrowheads; controls/background/attribution vars), note nodes (container queries, tiers, focus/selected accent ring replacing browser outline), chips (explicit reset of Obsidian's global button styling), groups (`color-mix` 70% translucent secondary fill w/ solid fallback — edges under containers stay legible), edge/group/overlay badges (shared pill ruleset), centered empty state.
+Sections: RF chrome retheme (`--xy-edge-stroke` themes edge paths; arrowheads need a dedicated `!important` override — see Iteration 1, MAJOR-1; controls/background/attribution vars), note nodes (container queries, tiers, focus/selected accent ring replacing browser outline), chips (explicit reset of Obsidian's global button styling), groups (`color-mix` 70% translucent secondary fill w/ solid fallback — edges under containers stay legible), edge/group/overlay badges (shared pill ruleset), centered empty state.
 
 ## Decisions affecting Phase C — STABLE e2e hooks (contract)
 | Feature | Selector |
@@ -73,5 +73,32 @@ Other Phase C facts: exact badge/tooltip strings come from `badgeText.ts` (impor
 
 ## Manual-QA checklist location
 `.ai_out/step-05-rich-rendering/main/QA_CHECKLIST.md`
+
+(No `#QUESTION_FOR_HUMAN` items.)
+
+---
+
+## Iteration 1 (2026-07-18) — review feedback addressed
+
+Commit: see git log ("step-05 iteration 1"). All 6 findings **FIXED**, none rejected.
+
+### CORRECTION of an earlier claim (truth over optics)
+The original CSS-section claim "`--xy-edge-stroke` themes BOTH edge paths and arrowheads" was **factually wrong** (reviewer MAJOR-1, verified in node_modules): React Flow v12 stamps its `defaultMarkerColor` (`#b1b1b7`) as an **inline** `stroke`/`fill` on the arrowhead polyline (`ArrowClosedSymbol`), and inline style beats RF's own `var(--xy-edge-stroke, …)` stylesheet fallback. Before this iteration, arrowheads shipped a fixed light gray in both themes. Corrected above and fixed below.
+
+### Per-finding disposition
+
+| Finding | Disposition | What was done |
+|---|---|---|
+| MAJOR-1 arrowheads hard-coded `#b1b1b7` | **FIXED** | CSS-only override in `graph-view.css`: `.neighborhood-graph-flow .react-flow__arrowhead polyline { stroke/fill: var(--text-faint) !important; }`. `!important` is required to out-rank RF's inline style and is documented in a WHY comment. WHY-NOT the JS route (verified in `@xyflow/react`/`@xyflow/system` dist): any `markerEnd.color`/`defaultMarkerColor` value is serialized by `getMarkerId` into the SVG marker **id** and the `url('#…')` reference, so a `var(--…)` string there is fragile, and a literal color would violate the zero-own-colors rule. Knowingly accepted (commented): markers are shared `<defs>`, so a selected edge's path brightens while its arrowhead stays `--text-faint` — fine for a read-only graph. QA_CHECKLIST §7 gained "arrowheads match edge color in light AND dark". |
+| MINOR-1 ctrl/cmd-click doubles as multi-select | **FIXED** | `multiSelectionKeyCode={null}` on `<ReactFlow>` (WHY comment: same modifier as the Q2 new-tab gesture; multi-selection is meaningless in a read-only graph). Plain-click selection untouched. QA §5 line extended (no lingering selection ring after ctrl-click). |
+| MINOR-2 unbounded attachment `Menu` | **FIXED** | NEW pure `src/view/attachmentMenu.ts`: `ATTACHMENT_MENU_MAX_ITEMS = 20` + `planAttachmentMenu(paths)` → `{visiblePaths, overflowText}` ("…and N more"); +4 BDD tests (`attachmentMenu.test.ts`). `ObsidianGraphUi.showAttachmentMenu` renders the plan; overflow becomes one disabled trailing menu item. Not producible in the small dev vault — noted honestly in QA §2. |
+| NIT-1 `hiddenOverlayText` re-implements "+N" | **FIXED** | Now composes `plusNText` (badgeText.ts stays the single home for that shape). |
+| NIT-2 `--ng-thumbnail-height` prefix | **FIXED** | Renamed to `--neighborhood-graph-thumbnail-height` (kept as a var: it documents the 56px thumbnail ↔ 104px container-query threshold relation). |
+| NIT-3 arrowhead size constant lies about px | **FIXED** (doc reword) | Renamed `EDGE_ARROWHEAD_SIZE_PX` → `EDGE_ARROWHEAD_SIZE`; doc now states RF's `markerUnits: strokeWidth` scaling (effective 18 × 1.5 ≈ 27px). Visuals intentionally unchanged — final size judgment stays with the human smoke run (reviewer agreed). |
+
+### Gate results (iteration 1, exact)
+- `npm test`: **451 passed / 43 files** (main; +4 `attachmentMenu` tests over the reviewed 447, none removed/weakened) + **69 passed / 6 files** (sublib) — exit 0.
+- `npm run check`: exit 0.
+- `npm run build`: exit 0 — `main.js` 1,846,828 B, `styles.css` 27,627 B (regenerated; contains the arrowhead override and the renamed custom property; zero `--ng-` remnants).
 
 (No `#QUESTION_FOR_HUMAN` items.)
