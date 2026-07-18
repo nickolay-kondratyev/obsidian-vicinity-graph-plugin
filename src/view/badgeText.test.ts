@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { asFolderPath } from "../engine";
 import {
 	extraImageCountText,
+	groupHiddenTitleText,
 	hiddenOverlayText,
 	linkCountBadgeText,
 	orphanBreakdownTitle,
@@ -28,6 +29,16 @@ describe("extraImageCountText", () => {
 
 	it("WHEN a node has a single image THEN there is no badge", () => {
 		expect(extraImageCountText(1)).toBeNull();
+	});
+});
+
+describe("groupHiddenTitleText", () => {
+	it("WHEN several notes are hidden THEN the tooltip pluralizes", () => {
+		expect(groupHiddenTitleText(3)).toBe("3 more notes in this folder are not shown");
+	});
+
+	it("WHEN one note is hidden THEN the tooltip is singular", () => {
+		expect(groupHiddenTitleText(1)).toBe("1 more note in this folder is not shown");
 	});
 });
 

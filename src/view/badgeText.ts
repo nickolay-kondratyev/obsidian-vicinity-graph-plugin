@@ -27,6 +27,12 @@ export function extraImageCountText(imageCount: number): string | null {
 	return imageCount > 1 ? plusNText(imageCount - 1) : null;
 }
 
+/** Tooltip on a folder group's "+N" badge. */
+export function groupHiddenTitleText(hiddenCount: number): string {
+	const noun = hiddenCount === 1 ? "note" : "notes";
+	return `${hiddenCount} more ${noun} in this folder ${hiddenCount === 1 ? "is" : "are"} not shown`;
+}
+
 /** Edge multi-link badge; `null` = no badge (single link). */
 export function linkCountBadgeText(count: number): string | null {
 	return count > 1 ? `×${count}` : null;

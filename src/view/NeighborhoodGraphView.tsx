@@ -7,6 +7,7 @@ import type { NeighborhoodGraphBuilder } from "../adapters/NeighborhoodGraphBuil
 import { ElkLayoutRunner } from "./ElkLayoutRunner";
 import { GraphViewController } from "./GraphViewController";
 import { NeighborhoodGraphFlow } from "./NeighborhoodGraphFlow";
+import { ObsidianGraphUi } from "./ObsidianGraphUi";
 import { ObsidianNoteNavigator } from "./ObsidianNoteNavigator";
 import type { NoteNavigatorPort } from "./viewPorts";
 
@@ -44,6 +45,7 @@ export class NeighborhoodGraphView extends ItemView {
 	async onOpen(): Promise<void> {
 		const navigator = new ObsidianNoteNavigator(this.app);
 		const controller = new GraphViewController(navigator, this.graphBuilder, new ElkLayoutRunner());
+		const ui = new ObsidianGraphUi(this.app, VIEW_TYPE_NEIGHBORHOOD_GRAPH);
 		this.controller = controller;
 		this.registerGraphEvents(controller, navigator);
 		controller.start();
@@ -51,7 +53,7 @@ export class NeighborhoodGraphView extends ItemView {
 		this.root = createRoot(this.contentEl);
 		this.root.render(
 			<StrictMode>
-				<NeighborhoodGraphFlow controller={controller} />
+				<NeighborhoodGraphFlow controller={controller} ui={ui} />
 			</StrictMode>,
 		);
 	}
