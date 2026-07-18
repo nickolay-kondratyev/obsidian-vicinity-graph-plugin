@@ -8,7 +8,7 @@ import type { Dimensions, FlowEdge, FlowGraph, FlowNode, XY } from "./flowMappin
 import { isFolderGroupId } from "./graphIdentity";
 import { NO_ORPHAN_TRUNCATION } from "./truncationBadges";
 import type { OrphanTruncation } from "./truncationBadges";
-import type { GraphLayoutPort, GraphSourcePort, NoteNavigatorPort } from "./viewPorts";
+import type { GraphLayoutPort, GraphSourcePort, NoteNavigatorPort, OpenNoteOptions } from "./viewPorts";
 
 /**
  * Owns the rebuild pipeline `events → engine → structural diff → elkjs →
@@ -109,12 +109,13 @@ export class GraphViewController {
 		}, REBUILD_DEBOUNCE_MS);
 	}
 
-	/** Open the note behind a clicked node in a main-area editor leaf. */
-	openNode(path: string): void {
+	/** Open the note behind a clicked node in a main-area editor leaf
+	 * (ctrl/cmd-click passes `{ newTab: true }` — CLARIFICATION Q2). */
+	openNode(path: string, options?: OpenNoteOptions): void {
 		if (isFolderGroupId(path)) {
 			return; // Folder-group containers have no note behind them.
 		}
-		this.navigator.openNote(path);
+		this.navigator.openNote(path, options);
 	}
 
 	// --- pipeline ----------------------------------------------------------

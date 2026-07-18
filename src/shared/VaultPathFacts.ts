@@ -32,7 +32,8 @@ export class VaultPathFacts {
 		return dotIndex <= 0 ? basename : basename.slice(0, dotIndex);
 	}
 
-	private static basenameOf(path: string): string {
+	/** File name INCLUDING extension (attachment menu entries). */
+	static basenameOf(path: string): string {
 		return path.slice(path.lastIndexOf("/") + 1);
 	}
 }

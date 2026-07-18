@@ -64,6 +64,13 @@ export default class NeighborhoodGraphPlugin extends Plugin {
 			VIEW_TYPE_NEIGHBORHOOD_GRAPH,
 			(leaf) => new NeighborhoodGraphView(leaf, this.graphBuilder),
 		);
+		// Node hover fires `hover-link` (step-05); registering the source lists
+		// the graph in the Page-preview core-plugin settings. `defaultMod: false`
+		// = previews on plain hover, like Obsidian's own graph view.
+		this.registerHoverLinkSource(VIEW_TYPE_NEIGHBORHOOD_GRAPH, {
+			display: "Neighborhood graph",
+			defaultMod: false,
+		});
 
 		this.addCommand({
 			id: "open-neighborhood-graph",
