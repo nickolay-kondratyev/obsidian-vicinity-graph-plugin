@@ -90,6 +90,22 @@ export class ObsidianLinkProvider implements LinkProvider {
 		return dedupe([...sources, ...canvasSources]).map(asVaultPath);
 	}
 
+	getLinkCount(source: VaultPath, target: VaultPath): number {
+		const file = this.vault.getFileByPath(source);
+		if (file !== null && file.extension === CANVAS_EXTENSION && this.canvasCapability === "fallback-required") {
+			// Fallback-parsed canvas links exist nowhere in resolvedLinks — count occurrences.
+			let count = 0;
+			for (const parsed of this.canvasOutgoingByPath.get(source) ?? []) {
+				if (parsed === target) {
+					count += 1;
+				}
+			}
+			return count;
+		}
+		// resolvedLinks is Obsidian's own source → target → link-count map.
+		return this.metadataCache.resolvedLinks[source]?.[target] ?? 0;
+	}
+
 	getFileMetadata(path: VaultPath): FileMetadata | undefined {
 		const file = this.vault.getFileByPath(path);
 		if (file === null) {

@@ -1,4 +1,4 @@
-import type { GraphEdge, GraphNode } from "../engine";
+import type { DirectedLink, GraphNode } from "../engine";
 
 /**
  * Structural identity helpers shared by the React-Flow mapping, the elk mapping
@@ -8,11 +8,12 @@ import type { GraphEdge, GraphNode } from "../engine";
  */
 
 /**
- * Engine edges carry no id ({@link GraphEdge} is `{source, target}`); React Flow
- * and elk both require one. Synthesized from the ordered pair — deterministic
- * and unique because the engine deduplicates edges per `(source, target)`.
+ * Engine edges carry no id (a {@link DirectedLink} is `{source, target}`);
+ * React Flow and elk both require one. Synthesized from the ordered pair —
+ * deterministic and unique because the engine deduplicates edges per
+ * `(source, target)`.
  */
-export function edgeIdOf(edge: GraphEdge): string {
+export function edgeIdOf(edge: DirectedLink): string {
 	return `${edge.source}->${edge.target}`;
 }
 

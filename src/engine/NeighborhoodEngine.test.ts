@@ -176,3 +176,32 @@ describe("NeighborhoodEngine edge visibility (CLARIFICATION Q5)", () => {
 		expect(edgeStrings(graph)).toEqual(["a.md->b.md", "hub.md->a.md", "hub.md->b.md"]);
 	});
 });
+
+describe("NeighborhoodEngine edge link counts (step-05, CLARIFICATION Q1)", () => {
+	// GIVEN hub.md links twin.md twice and solo.md once.
+	function duplicateLinkEngine(): NeighborhoodEngine {
+		return new NeighborhoodEngine(
+			new FakeLinkProvider({
+				files: [{ path: "hub.md" }, { path: "twin.md" }, { path: "solo.md" }],
+				links: { "hub.md": ["twin.md", "solo.md", "twin.md"] },
+			}),
+		);
+	}
+
+	function edgeCounts(edgeVisibility: "walked-from-center" | "all-edges"): Record<string, number> {
+		const graph = duplicateLinkEngine().build({
+			main: { path: asVaultPath("hub.md") },
+			globalDepths: { outgoingDepth: 1, incomingDepth: 1 },
+			globalView: { ...EngineDefaults.viewSettings(), edgeVisibility },
+		});
+		return Object.fromEntries(graph.edges.map((edge) => [`${edge.source}->${edge.target}`, edge.count]));
+	}
+
+	it("WHEN walked-from-center builds over a double link THEN that edge carries count 2", () => {
+		expect(edgeCounts("walked-from-center")).toEqual({ "hub.md->twin.md": 2, "hub.md->solo.md": 1 });
+	});
+
+	it("WHEN all-edges builds over a double link THEN that edge carries count 2", () => {
+		expect(edgeCounts("all-edges")).toEqual({ "hub.md->twin.md": 2, "hub.md->solo.md": 1 });
+	});
+});

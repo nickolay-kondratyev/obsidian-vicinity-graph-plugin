@@ -96,12 +96,25 @@ export interface GraphNode {
 }
 
 /**
- * Directed link: `source` links to `target`. Deduplicated per (source, target).
- * Which links become edges is governed by {@link EdgeVisibilityMode}.
+ * Directed ordered pair: `source` links to `target`. Deduplicated per
+ * (source, target). The COUNT-free shape used by intermediate pipeline stages
+ * (traversal, truncation) — only the final output edge carries multiplicity,
+ * because the true per-pair link count is provider knowledge (see
+ * {@link LinkProvider.getLinkCount}), not something the BFS can tally
+ * (multi-root walks revisit the same pair).
  */
-export interface GraphEdge {
+export interface DirectedLink {
 	readonly source: VaultPath;
 	readonly target: VaultPath;
+}
+
+/**
+ * Final output edge. Which links become edges is governed by
+ * {@link EdgeVisibilityMode}.
+ */
+export interface GraphEdge extends DirectedLink {
+	/** Number of distinct links source→target (>= 1) — the UI's edge count badge. */
+	readonly count: number;
 }
 
 /**

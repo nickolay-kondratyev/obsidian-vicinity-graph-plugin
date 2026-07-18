@@ -78,6 +78,40 @@ describe("FakeLinkProvider attachment derivation", () => {
 	});
 });
 
+describe("FakeLinkProvider duplicate links (multiplicity, step-05)", () => {
+	// GIVEN a note that links b.md twice and pic.png once.
+	function duplicateVault(): FakeLinkProvider {
+		return new FakeLinkProvider({
+			files: [{ path: "a.md" }, { path: "notes/b.md" }, { path: "assets/pic.png" }],
+			links: { "a.md": ["notes/b.md", "assets/pic.png", "notes/b.md"] },
+		});
+	}
+
+	it("WHEN a target is linked twice THEN getLinkCount reports 2", () => {
+		expect(duplicateVault().getLinkCount(A, B)).toBe(2);
+	});
+
+	it("WHEN a pair has no link THEN getLinkCount reports 0", () => {
+		expect(duplicateVault().getLinkCount(B, A)).toBe(0);
+	});
+
+	it("WHEN a target is linked twice THEN outgoing links are deduplicated (adapter parity)", () => {
+		expect(duplicateVault().getOutgoingLinks(A)).toEqual([B, IMG]);
+	});
+
+	it("WHEN a linker links twice THEN incoming links are deduplicated (adapter parity)", () => {
+		expect(duplicateVault().getIncomingLinks(B)).toEqual([A]);
+	});
+
+	it("WHEN an attachment is linked twice THEN it appears once among attachments (adapter parity)", () => {
+		const provider = new FakeLinkProvider({
+			files: [{ path: "a.md" }, { path: "assets/pic.png" }],
+			links: { "a.md": ["assets/pic.png", "assets/pic.png"] },
+		});
+		expect(provider.getFileMetadata(A)?.attachments.map((a) => a.path)).toEqual([IMG]);
+	});
+});
+
 describe("NodeEligibility (SRP owner of the node-bearing flag)", () => {
 	it("WHEN the provider marks a path node-bearing THEN it is eligible", () => {
 		expect(new NodeEligibility(vault()).isNodeBearing(A)).toBe(true);

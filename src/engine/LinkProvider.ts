@@ -32,10 +32,17 @@ export interface FileMetadata {
  * path-keyed link lists + per-file metadata, never canvas-specific (OCP).
  */
 export interface LinkProvider {
-	/** Resolved link targets of `path`, in reference order. May include non-node-bearing files. */
+	/** Resolved link targets of `path`, in reference order, deduplicated. May include non-node-bearing files. */
 	getOutgoingLinks(path: VaultPath): readonly VaultPath[];
-	/** Paths of files linking TO `path`. */
+	/** Paths of files linking TO `path`, deduplicated. */
 	getIncomingLinks(path: VaultPath): readonly VaultPath[];
 	/** Metadata for `path`, or `undefined` when the file is unknown to the vault. */
 	getFileMetadata(path: VaultPath): FileMetadata | undefined;
+	/**
+	 * Number of distinct resolved links `source` → `target`; 0 when none. The
+	 * ONLY multiplicity source: link lists above are deduplicated, and the
+	 * traversal cannot tally links itself (multi-root walks revisit pairs), so
+	 * edge count badges must come from here.
+	 */
+	getLinkCount(source: VaultPath, target: VaultPath): number;
 }

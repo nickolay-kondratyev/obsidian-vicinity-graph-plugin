@@ -38,8 +38,11 @@ interface FakeFile {
  */
 export class FakeLinkProvider implements LinkProvider {
 	private readonly files = new Map<VaultPath, FakeFile>();
+	/** Deduplicated (mirrors the real adapter's link-list contract). */
 	private readonly outgoing = new Map<VaultPath, readonly VaultPath[]>();
 	private readonly incoming = new Map<VaultPath, VaultPath[]>();
+	/** Raw fixture links WITH duplicates — the multiplicity truth behind getLinkCount. */
+	private readonly rawOutgoing = new Map<VaultPath, readonly VaultPath[]>();
 	private readonly outgoingQueryCountsMutable = new Map<VaultPath, number>();
 
 	constructor(spec: FakeVaultSpec) {
@@ -65,6 +68,16 @@ export class FakeLinkProvider implements LinkProvider {
 		return this.files.get(path)?.metadata;
 	}
 
+	getLinkCount(source: VaultPath, target: VaultPath): number {
+		let count = 0;
+		for (const raw of this.rawOutgoing.get(source) ?? []) {
+			if (raw === target) {
+				count += 1;
+			}
+		}
+		return count;
+	}
+
 	/** Times {@link getOutgoingLinks} was queried for `path` (test instrumentation). */
 	outgoingQueryCount(path: VaultPath): number {
 		return this.outgoingQueryCountsMutable.get(path) ?? 0;
@@ -88,10 +101,15 @@ export class FakeLinkProvider implements LinkProvider {
 	private declareLinks(from: string, targets: readonly string[]): void {
 		const fromPath = this.requireDeclared(from, "link source");
 		const targetPaths = targets.map((target) => this.requireDeclared(target, `link target of [${from}]`));
-		this.outgoing.set(fromPath, targetPaths);
-		for (const target of targetPaths) {
+		this.rawOutgoing.set(fromPath, targetPaths);
+		// Deduplicate like the real adapter: duplicate fixture links only surface
+		// through getLinkCount, never through the link lists.
+		this.outgoing.set(fromPath, [...new Set(targetPaths)]);
+		for (const target of new Set(targetPaths)) {
 			const linkers = this.incoming.get(target) ?? [];
-			linkers.push(fromPath);
+			if (!linkers.includes(fromPath)) {
+				linkers.push(fromPath);
+			}
 			this.incoming.set(target, linkers);
 		}
 	}

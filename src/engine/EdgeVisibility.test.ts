@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_EDGE_VISIBILITY, EngineDefaults } from "./constants";
 import { EdgeVisibility } from "./EdgeVisibility";
 import { FakeLinkProvider } from "./FakeLinkProvider";
-import type { GraphEdge, VaultPath } from "./types";
+import type { DirectedLink, VaultPath } from "./types";
 import { asVaultPath } from "./types";
 
 /**
@@ -28,7 +28,7 @@ function siblingProvider(): FakeLinkProvider {
 
 /** Visible set and walked edges as the truncator would hand them over (hidden.md truncated away). */
 const VISIBLE: ReadonlySet<VaultPath> = new Set([asVaultPath("m.md"), asVaultPath("a.md"), asVaultPath("b.md")]);
-const WALKED: readonly GraphEdge[] = [
+const WALKED: readonly DirectedLink[] = [
 	{ source: asVaultPath("m.md"), target: asVaultPath("a.md") },
 	{ source: asVaultPath("m.md"), target: asVaultPath("b.md") },
 ];
@@ -82,7 +82,7 @@ describe("EdgeVisibility all-edges mode (induced subgraph)", () => {
 		expect(edgesInMode("all-edges")).toEqual(["a.md->b.md", "m.md->a.md", "m.md->b.md"]);
 	});
 
-	it("WHEN a note declares the same link twice THEN the edge is deduplicated", () => {
+	it("WHEN a note declares the same link twice THEN ONE edge appears carrying count 2", () => {
 		const provider = new FakeLinkProvider({
 			files: [{ path: "m.md" }, { path: "a.md" }],
 			links: { "m.md": ["a.md", "a.md"] },
@@ -93,7 +93,7 @@ describe("EdgeVisibility all-edges mode (induced subgraph)", () => {
 			walkedVisibleEdges: [],
 			provider,
 		});
-		expect(edges).toEqual([{ source: "m.md", target: "a.md" }]);
+		expect(edges).toEqual([{ source: "m.md", target: "a.md", count: 2 }]);
 	});
 
 	it("WHEN two nodes were discovered by DIFFERENT roots THEN their cross-root link still appears", () => {
@@ -121,5 +121,49 @@ describe("EdgeVisibility all-edges mode (induced subgraph)", () => {
 
 	it("WHEN resolving the same input twice THEN the edge lists are identical (determinism)", () => {
 		expect(edgesInMode("all-edges")).toEqual(edgesInMode("all-edges"));
+	});
+});
+
+describe("EdgeVisibility link counts (step-05, CLARIFICATION Q1)", () => {
+	/** GIVEN m.md links a.md twice; the walked pair set carries no counts. */
+	function doubleLinkInput(mode: "walked-from-center" | "all-edges") {
+		return {
+			mode,
+			visiblePaths: new Set([asVaultPath("m.md"), asVaultPath("a.md")]),
+			walkedVisibleEdges: [{ source: asVaultPath("m.md"), target: asVaultPath("a.md") }],
+			provider: new FakeLinkProvider({
+				files: [{ path: "m.md" }, { path: "a.md" }],
+				links: { "m.md": ["a.md", "a.md"] },
+			}),
+		};
+	}
+
+	it("WHEN walked-from-center resolves a double link THEN its edge carries count 2", () => {
+		expect(EdgeVisibility.edgesFor(doubleLinkInput("walked-from-center"))[0]?.count).toBe(2);
+	});
+
+	it("WHEN all-edges resolves a double link THEN its edge carries count 2", () => {
+		expect(EdgeVisibility.edgesFor(doubleLinkInput("all-edges"))[0]?.count).toBe(2);
+	});
+
+	it("WHEN a single link resolves THEN its edge carries count 1", () => {
+		const edges = EdgeVisibility.edgesFor({
+			mode: "walked-from-center",
+			visiblePaths: VISIBLE,
+			walkedVisibleEdges: WALKED,
+			provider: siblingProvider(),
+		});
+		expect(edges[0]?.count).toBe(1);
+	});
+
+	it("WHEN the provider answers 0 for a walked edge (cache lag) THEN the count is floored at 1", () => {
+		const edges = EdgeVisibility.edgesFor({
+			mode: "walked-from-center",
+			visiblePaths: new Set([asVaultPath("m.md"), asVaultPath("a.md")]),
+			// A walked pair the provider no longer reports (momentary cache lag).
+			walkedVisibleEdges: [{ source: asVaultPath("m.md"), target: asVaultPath("a.md") }],
+			provider: new FakeLinkProvider({ files: [{ path: "m.md" }, { path: "a.md" }] }),
+		});
+		expect(edges[0]?.count).toBe(1);
 	});
 });

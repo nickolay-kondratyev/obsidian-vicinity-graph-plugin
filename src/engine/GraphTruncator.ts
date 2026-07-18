@@ -1,12 +1,12 @@
 import type { TraversedNode } from "./NeighborhoodTraversal";
 import { NodePriorityChain } from "./NodePriorityChain";
 import type { NodeSize } from "./NodeSizer";
-import type { FolderPath, GraphEdge, VaultPath } from "./types";
+import type { DirectedLink, FolderPath, VaultPath } from "./types";
 
 export interface TruncationInput {
 	readonly nodes: ReadonlyMap<VaultPath, TraversedNode>;
 	readonly sizes: ReadonlyMap<VaultPath, NodeSize>;
-	readonly edges: readonly GraphEdge[];
+	readonly edges: readonly DirectedLink[];
 	readonly mainPath: VaultPath;
 	/** Hard cap on the number of NON-central nodes kept. */
 	readonly nodeCap: number;
@@ -14,8 +14,8 @@ export interface TruncationInput {
 
 export interface TruncationResult {
 	readonly visiblePaths: ReadonlySet<VaultPath>;
-	/** Edges whose two endpoints both survived truncation. */
-	readonly visibleEdges: readonly GraphEdge[];
+	/** Walked pairs whose two endpoints both survived truncation (count-free). */
+	readonly visibleEdges: readonly DirectedLink[];
 	/** Hidden (truncated) node counts per folder — feeds the UI badge on folder groups. */
 	readonly hiddenNodeCountsByFolder: ReadonlyMap<FolderPath, number>;
 }
@@ -68,7 +68,7 @@ function toRankable(node: TraversedNode, input: TruncationInput, distances: Read
 }
 
 /** Undirected BFS distances from MAIN over the traversed edges ("graph distance to MAIN"). */
-function undirectedDistancesFrom(start: VaultPath, edges: readonly GraphEdge[]): ReadonlyMap<VaultPath, number> {
+function undirectedDistancesFrom(start: VaultPath, edges: readonly DirectedLink[]): ReadonlyMap<VaultPath, number> {
 	const adjacency = new Map<VaultPath, VaultPath[]>();
 	const addNeighbor = (from: VaultPath, to: VaultPath): void => {
 		const neighbors = adjacency.get(from) ?? [];

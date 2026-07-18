@@ -25,8 +25,10 @@ export function makeNode(overrides: Partial<GraphNode> = {}): GraphNode {
 	};
 }
 
-export function makeEdge(source: string, target: string): GraphEdge {
-	return { source: asVaultPath(source), target: asVaultPath(target) };
+const DEFAULT_EDGE_LINK_COUNT = 1;
+
+export function makeEdge(source: string, target: string, count = DEFAULT_EDGE_LINK_COUNT): GraphEdge {
+	return { source: asVaultPath(source), target: asVaultPath(target), count };
 }
 
 /** Minimal effective view settings — the view never reads these, but the shape is required. */

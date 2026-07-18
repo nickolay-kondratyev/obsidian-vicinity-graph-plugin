@@ -7,10 +7,10 @@ import type {
 	CentralNodeDescriptor,
 	DepthSettings,
 	DepthTag,
+	DirectedLink,
 	Direction,
 	DocId,
 	FolderPath,
-	GraphEdge,
 	VaultPath,
 } from "./types";
 
@@ -37,7 +37,8 @@ export interface TraversedNode {
 
 export interface TraversalResult {
 	readonly nodes: ReadonlyMap<VaultPath, TraversedNode>;
-	readonly edges: readonly GraphEdge[];
+	/** Walked (source, target) pairs — count-free; multiplicity is attached by EdgeVisibility. */
+	readonly edges: readonly DirectedLink[];
 }
 
 const DIRECTIONS: readonly Direction[] = ["outgoing", "incoming"];
@@ -178,7 +179,7 @@ class TraversalCollector {
 		return this.tags;
 	}
 
-	edges(): readonly GraphEdge[] {
+	edges(): readonly DirectedLink[] {
 		return this.edgeAccumulator.edges();
 	}
 }

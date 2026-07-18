@@ -183,3 +183,34 @@ describe("ObsidianLinkProvider file metadata", () => {
 		expect(provider.getFileMetadata(asVaultPath("nope.md"))).toBeUndefined();
 	});
 });
+
+describe("ObsidianLinkProvider link counts (step-05, CLARIFICATION Q1)", () => {
+	it("WHEN resolvedLinks reports 3 links for a pair THEN getLinkCount reports 3", async () => {
+		const provider = await providerOver({
+			files: [{ path: "source.md" }, { path: "target.md" }],
+			resolvedLinks: { "source.md": { "target.md": 3 } },
+		});
+		expect(provider.getLinkCount(asVaultPath("source.md"), asVaultPath("target.md"))).toBe(3);
+	});
+
+	it("WHEN a pair has no resolved link THEN getLinkCount reports 0", async () => {
+		const provider = await providerOver({
+			files: [{ path: "source.md" }, { path: "target.md" }],
+			resolvedLinks: {},
+		});
+		expect(provider.getLinkCount(asVaultPath("source.md"), asVaultPath("target.md"))).toBe(0);
+	});
+
+	it("WHEN a fallback-parsed canvas references the same note twice THEN getLinkCount reports 2", async () => {
+		const provider = await providerOver({
+			files: [
+				{ path: "note-a.md" },
+				{
+					path: "board.canvas",
+					content: '{"nodes": [{"type": "file", "file": "note-a.md"}, {"type": "file", "file": "note-a.md"}]}',
+				},
+			],
+		});
+		expect(provider.getLinkCount(asVaultPath("board.canvas"), asVaultPath("note-a.md"))).toBe(2);
+	});
+});

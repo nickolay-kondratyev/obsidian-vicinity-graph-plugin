@@ -36,6 +36,7 @@ export type {
 	DepthOverride,
 	DepthSettings,
 	DepthTag,
+	DirectedLink,
 	Direction,
 	DocId,
 	EdgeVisibilityMode,
