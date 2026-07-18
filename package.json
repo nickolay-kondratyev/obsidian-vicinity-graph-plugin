@@ -11,6 +11,7 @@
 		"build": "npm run check && node esbuild.config.mjs production",
 		"check": "tsc -noEmit",
 		"test": "vitest run && npm run test:sublib",
+		"test:e2e": "npm run setup:dev-vault && tsc -p e2e/tsconfig.json && playwright test --config e2e/playwright.config.ts",
 		"test:watch": "vitest",
 		"test:sublib": "npm --prefix submodules/obsidian-id-lib install && npm --prefix submodules/obsidian-id-lib test"
 	},
@@ -23,6 +24,7 @@
 		"react-dom": "^18.3.1"
 	},
 	"devDependencies": {
+		"@playwright/test": "^1.61.1",
 		"@types/node": "^26.1.1",
 		"@types/react": "^18.3.12",
 		"@types/react-dom": "^18.3.1",

@@ -18,6 +18,7 @@ Scripts:
 | `npm run build` | `tsc -noEmit` type check, then production bundle to `main.js` + dev-vault copy |
 | `npm test` | our vitest suite, then the `obsidian-id-lib` submodule's own suite (`test:sublib`) |
 | `npm run check` | `tsc -noEmit` (strict) |
+| `npm run test:e2e` | release-time Playwright e2e: drives a REAL Obsidian on a copy of the dev vault (needs `OBSIDIAN_PATH`, see below) |
 
 ### Dev vault
 
@@ -25,6 +26,33 @@ The build copies `main.js` / `manifest.json` / `styles.css` into
 `.dev-vault/.obsidian/plugins/obsidian-neighborhood-graph/` (git-ignored). Open `.dev-vault/`
 as a vault in Obsidian, enable community plugins, enable "Neighborhood Graph", then run the
 "Open neighborhood graph" command to see the placeholder view.
+
+### e2e suite (`npm run test:e2e`)
+
+Launches a real Obsidian (Electron) on a throwaway COPY of `.dev-vault` (plus e2e-only
+`crowd/` fixtures) with a sandboxed `--user-data-dir`, and asserts rendered DOM state
+(node counts, tier classes, badges, edge markers, theme-reactive arrowheads). Not part
+of `npm test` — run it as a release gate:
+
+```bash
+# Linux (AppImage): extract once, then point OBSIDIAN_PATH at the binary
+./Obsidian-x.y.z.AppImage --appimage-extract
+export OBSIDIAN_PATH=$PWD/squashfs-root/obsidian
+
+# macOS
+export OBSIDIAN_PATH='/Applications/Obsidian.app/Contents/MacOS/Obsidian'
+
+npm run test:e2e
+```
+
+Display-less environments (CI containers) work via Chromium's headless Ozone backend:
+
+```bash
+OBSIDIAN_E2E_EXTRA_ARGS="--ozone-platform=headless --disable-gpu" npm run test:e2e
+```
+
+The suite is idempotent (fresh vault copy + fresh sandbox config per run under `.tmp/e2e/`)
+and never touches your real Obsidian config or the dev-vault fixtures.
 
 ### `minAppVersion` (manifest.json)
 
