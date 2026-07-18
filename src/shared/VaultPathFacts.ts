@@ -20,6 +20,11 @@ export class VaultPathFacts {
 		return slashIndex < 0 ? "" : path.slice(0, slashIndex);
 	}
 
+	/** Display name of a folder path: its last segment; "" for the vault root. */
+	static folderNameOf(folderPath: string): string {
+		return folderPath.slice(folderPath.lastIndexOf("/") + 1);
+	}
+
 	/** Basename without extension (display title). Dot-files keep their name. */
 	static titleOf(path: string): string {
 		const basename = VaultPathFacts.basenameOf(path);

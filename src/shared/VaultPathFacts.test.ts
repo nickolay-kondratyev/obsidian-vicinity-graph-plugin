@@ -34,3 +34,17 @@ describe("VaultPathFacts.titleOf", () => {
 		expect(VaultPathFacts.titleOf(".hidden")).toBe(".hidden");
 	});
 });
+
+describe("VaultPathFacts.folderNameOf", () => {
+	it("WHEN the folder is nested THEN only the last segment is returned", () => {
+		expect(VaultPathFacts.folderNameOf("projects/alpha/notes")).toBe("notes");
+	});
+
+	it("WHEN the folder is top-level THEN the folder itself is returned", () => {
+		expect(VaultPathFacts.folderNameOf("notes")).toBe("notes");
+	});
+
+	it("WHEN the folder is the vault root THEN the empty string is returned", () => {
+		expect(VaultPathFacts.folderNameOf("")).toBe("");
+	});
+});
