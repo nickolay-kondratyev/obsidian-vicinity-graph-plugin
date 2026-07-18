@@ -139,7 +139,9 @@ export class ObsidianLinkProvider implements LinkProvider {
 		for (const property of FRONTMATTER_TITLE_PROPERTIES) {
 			const value = frontmatter[property];
 			if (typeof value === "string" && value.trim() !== "") {
-				return value;
+				// Trimmed: quoted YAML like `title: "  My Note  "` keeps its padding,
+				// which would leak into rendered titles and breadcrumbs.
+				return value.trim();
 			}
 		}
 		return undefined;

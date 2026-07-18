@@ -26,6 +26,13 @@ export const MIN_GROUP_MEMBER_COUNT = 2;
 
 const VAULT_ROOT_FOLDER = "";
 
+/**
+ * CONTRACT: called independently by BOTH `elkMapping` (container structure)
+ * and `flowMapping` (group nodes + parentIds) for the same graph, so it MUST
+ * stay a pure, deterministic function of `(nodes, groupByFolder)` — any
+ * call-site-dependent behavior (randomness, mutation, per-call sorting) would
+ * silently desynchronize React Flow parentIds from the elk layout.
+ */
 export function deriveFolderGroups(nodes: readonly GraphNode[], groupByFolder: boolean): FolderGroupingResult {
 	if (!groupByFolder) {
 		return { groups: [], groupFolderByMemberPath: new Map() };

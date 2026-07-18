@@ -85,6 +85,26 @@ interface FlowGraph { nodes; edges; groupByFolder: boolean; orphanTruncation: Or
 - Keeping `isCentral`/`isMain` alongside `tier` — knowledge duplication.
 - Gating group emission off — live wiring proved safe under the controller test suite; gating would have pushed integration risk into Phase B.
 
+## Iteration 1 — review-feedback pass (2026-07-18)
+
+Addressed IMPLEMENTATION_REVIEW_A__PUBLIC.md findings (verdict READY, 3 MINOR + 2 NIT).
+
+| Finding | Disposition | Detail |
+|---------|-------------|--------|
+| MINOR-1 untrimmed frontmatter title | **FIXED** | Failing test first (`WHEN the title has surrounding whitespace THEN it is trimmed`), then `return value.trim();` in `ObsidianLinkProvider.frontmatterTitleOf` with a WHY comment. `src/adapters/ObsidianLinkProvider.ts`, `.test.ts`. |
+| MINOR-2 implicit dual `deriveFolderGroups` contract | **FIXED** | Took the reviewer's cheapest option: CONTRACT doc-comment on `deriveFolderGroups` naming both consumers (`elkMapping`, `flowMapping`) and the purity/determinism requirement, plus the failure mode (desynchronized parentIds vs layout). No signature change — deriving once in the controller was rejected as not worth the churn for a today-correct pure function (Pareto). `src/view/folderGrouping.ts`. |
+| MINOR-3 no step-05 dev-vault fixtures | **FIXED** | Extended `scripts/setup-dev-vault.sh` idempotently (same `write_if_missing` pattern; new notes link TO note1 so existing note1.md never needs rewriting): `projects/alpha.md` + `projects/beta.md` (2+ folder group, alpha↔beta bidirectional, alpha→note1 duplicated link → count 2, frontmatter title, png/pdf/csv attachment strip), `solo/gamma.md` (singleton folder, whitespace-padded frontmatter title exercising the trim fix), `assets/data.csv`, `assets/report.pdf` (minimal valid PDF). Smoke-run notes appended to the script's closing banner. Verified: run 1 creates 5, run 2 = 13 keep / 0 create, build OK both times. |
+| NIT-1 `extension: ""` icon-strip group label | **REJECTED (deferred)** | Rendering concern with no Phase A surface — the label for the extension-less group is a Phase B component decision. Already documented on the `AttachmentIconGroup` interface and flagged in the review for Phase B's plate; nothing actionable here without writing Phase B UI code (out of scope). |
+| NIT-2 `count` duplicates `paths.length` | **REJECTED** | Deliberate renderer-ergonomics denormalization in a read-only payload built in one place; reviewer himself judged it "fine to keep". Removing it would trade a trivial field for `.paths.length` noise at every badge call site — no knowledge-duplication risk since both come from the same single construction site. |
+
+### Iteration 1 gate results
+- `npm test`: **423 passed / 39 files** (main, +1 trim test) + **69 passed / 6 files** (sublib) — exit 0.
+- `npm run check` (tsc -noEmit): exit 0.
+- `npm run build`: exit 0.
+- `scripts/setup-dev-vault.sh`: `bash -n` clean; double-run idempotency verified.
+
+No `#QUESTION_FOR_HUMAN` items.
+
 ## Punted (deliberately, per phase plan)
 - Resource-URL port (`vault.getResourcePath`), ctrl/cmd-click, hover-link, Obsidian `Menu`, all styling/CSS and custom node/edge components → **Phase B**.
 - Playwright harness → **Phase C**.

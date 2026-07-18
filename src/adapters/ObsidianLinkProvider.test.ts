@@ -244,6 +244,10 @@ describe("ObsidianLinkProvider frontmatter display title (step-05 human decision
 		expect(await titleOf({ title: "   ", name: "My Name" })).toBe("My Name");
 	});
 
+	it("WHEN the title has surrounding whitespace THEN it is trimmed", async () => {
+		expect(await titleOf({ title: "  My Note  " })).toBe("My Note");
+	});
+
 	it("WHEN no title-bearing property exists THEN there is no frontmatter title", async () => {
 		expect(await titleOf({ tags: ["x"] })).toBeUndefined();
 	});

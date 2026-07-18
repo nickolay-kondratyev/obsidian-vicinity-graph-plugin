@@ -71,6 +71,55 @@ EOF
 	echo "  create ${VAULT}/pic.png"
 fi
 
+# --- step-05 fixtures: rich rendering smoke-run material ---------------------
+# Exercises: 2+ folder group (projects/), singleton folder (solo/), frontmatter
+# titles (incl. whitespace that must render trimmed), duplicate links (edge
+# count badge), bidirectional links (mirrored curves), and several attachment
+# types (icon strip). New notes link TO note1 (incoming edges) on purpose:
+# note1.md is never rewritten once present, so they must pull themselves into
+# its neighborhood rather than rely on edits to note1.
+
+write_if_missing "${VAULT}/projects/alpha.md" <<'EOF'
+---
+title: Project Alpha (fm title)
+---
+Folder-group member (projects/ has 2 notes → renders as a group).
+
+Duplicate link for the edge-count badge: [[note1]] and again [[note1]].
+
+Bidirectional intra-group link: [[beta]].
+
+Attachment types for the icon strip: ![[pic.png]], ![[report.pdf]], ![[data.csv]].
+EOF
+
+write_if_missing "${VAULT}/projects/beta.md" <<'EOF'
+Second projects/ member. Links back to [[alpha]] (bidirectional pair) and to [[note1]].
+EOF
+
+write_if_missing "${VAULT}/solo/gamma.md" <<'EOF'
+---
+title: "  Gamma (solo, trimmed title)  "
+---
+Singleton folder note: solo/ has one note → breadcrumb title, no group box.
+Links to [[note1]].
+EOF
+
+write_if_missing "${VAULT}/assets/data.csv" <<'EOF'
+id,name
+1,alpha
+2,beta
+EOF
+
+# report.pdf: minimal valid single-page PDF — a non-image attachment type.
+write_if_missing "${VAULT}/assets/report.pdf" <<'EOF'
+%PDF-1.4
+1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
+2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj
+3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 200]>>endobj
+trailer<</Root 1 0 R>>
+%%EOF
+EOF
+
 echo "==> Ensuring minimal .obsidian config"
 write_if_missing "${OBSIDIAN}/app.json" <<'EOF'
 {}
@@ -114,6 +163,12 @@ cat <<EOF
       - no errors in the console
  3. Leave the vault open ~15s after the plugin loads and confirm
     the orphan sweep runs (delayed + chunked, no console errors).
+
+ Step-05 smoke material (open note1's neighborhood graph):
+   - projects/ (alpha, beta) → folder group; alpha↔beta bidirectional
+   - alpha → note1 twice → edge count badge "2"
+   - alpha: frontmatter title + png/pdf/csv attachment strip
+   - solo/gamma → singleton folder breadcrumb, trimmed fm title
 
  Record the result in:
    docs-internal/tickets/ticket-step-03-human-smoke-run.md
