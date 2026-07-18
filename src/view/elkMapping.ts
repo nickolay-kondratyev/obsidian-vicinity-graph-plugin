@@ -1,6 +1,6 @@
 import type { ElkNode } from "elkjs";
 import type { FolderPath, GraphEdge, NeighborhoodGraph } from "../engine";
-import { ELK_LAYOUT_OPTIONS, ELK_ROOT_ID } from "./constants";
+import { ELK_GROUP_PADDING, ELK_LAYOUT_OPTIONS, ELK_ROOT_ID } from "./constants";
 import { deriveFolderGroups } from "./folderGrouping";
 import { edgeIdOf, folderGroupIdOf, nodeSideLengthPx } from "./graphIdentity";
 import type { Dimensions, XY } from "./flowMapping";
@@ -33,7 +33,12 @@ export function neighborhoodGraphToElk(graph: NeighborhoodGraph): ElkNode {
 		const children = group.memberPaths
 			.map((path) => leafById.get(path))
 			.filter((child): child is ElkNode => child !== undefined);
-		const container: ElkNode = { id: folderGroupIdOf(group.folder), children, edges: [] };
+		const container: ElkNode = {
+			id: folderGroupIdOf(group.folder),
+			children,
+			edges: [],
+			layoutOptions: { "elk.padding": ELK_GROUP_PADDING },
+		};
 		containers.push(container);
 		containerByFolder.set(group.folder, container);
 	}

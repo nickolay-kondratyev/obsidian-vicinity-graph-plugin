@@ -44,3 +44,11 @@ export const ELK_LAYOUT_OPTIONS: Readonly<Record<string, string>> = {
 	"elk.layered.spacing.nodeNodeBetweenLayers": "80",
 	"elk.spacing.nodeNode": "40",
 };
+
+/**
+ * Inner padding of folder-group containers (elk `ElkPadding` syntax). The
+ * extra TOP padding reserves room for the group's folder-name label so member
+ * nodes never render underneath it; the other sides give members breathing
+ * room inside the container border.
+ */
+export const ELK_GROUP_PADDING = "[top=36.0,left=16.0,bottom=16.0,right=16.0]";

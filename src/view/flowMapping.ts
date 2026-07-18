@@ -25,8 +25,15 @@ export interface XY {
  */
 export type NodeTier = "main" | "pinned-central" | "regular";
 
-/** Note-node payload the rich renderer needs (step-05). */
-export interface FlowNodeData {
+/**
+ * Note-node payload the rich renderer needs (step-05).
+ *
+ * WHY a type alias, not an interface: React Flow constrains node `data` to
+ * `Record<string, unknown>`, which type-alias object types satisfy via their
+ * implicit index signature while interfaces do not — the alias lets the render
+ * boundary type `Node<FlowNodeData>` without casts.
+ */
+export type FlowNodeData = {
 	readonly path: string;
 	readonly title: string;
 	readonly tier: NodeTier;
@@ -46,16 +53,17 @@ export interface FlowNodeData {
 	readonly imageCount: number;
 	/** Icon strip entries (per-extension counts + dropdown paths). */
 	readonly attachmentGroups: readonly AttachmentIconGroup[];
-}
+};
 
-/** Folder-group node payload (label + truncation badge). */
-export interface FlowGroupData {
+/** Folder-group node payload (label + truncation badge). Type alias for the
+ * same React Flow `data` constraint reason as {@link FlowNodeData}. */
+export type FlowGroupData = {
 	readonly folder: string;
 	/** Display name (last path segment) — the group label. */
 	readonly folderName: string;
 	/** Truncated-away nodes of this folder — the group's "+N" badge; 0 = no badge. */
 	readonly hiddenCount: number;
-}
+};
 
 interface FlowNodeBase {
 	/** React Flow / elk node id — the vault path (notes) or folderGroupIdOf (groups). */

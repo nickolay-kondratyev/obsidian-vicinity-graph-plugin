@@ -1,7 +1,7 @@
 import type { ElkNode } from "elkjs";
 import { describe, expect, it } from "vitest";
 import { asFolderPath, asVaultPath } from "../engine";
-import { ELK_ROOT_ID } from "./constants";
+import { ELK_GROUP_PADDING, ELK_ROOT_ID } from "./constants";
 import { extractElkDimensionsById, extractElkPositions, neighborhoodGraphToElk } from "./elkMapping";
 import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
 
@@ -82,6 +82,10 @@ describe("neighborhoodGraphToElk folder-group compounds (step-05)", () => {
 	it("WHEN a folder groups THEN its members are not root children anymore", () => {
 		const rootIds = neighborhoodGraphToElk(graph).children?.map((child) => child.id);
 		expect(rootIds).toEqual(["folder-group:notes", "solo/only.md", "root.md"]);
+	});
+
+	it("WHEN a folder groups THEN its container reserves label padding (step-05 group label)", () => {
+		expect(container()?.layoutOptions?.["elk.padding"]).toBe(ELK_GROUP_PADDING);
 	});
 
 	it("WHEN an edge is intra-group THEN it relocates onto the container (elk common-ancestor rule)", () => {
