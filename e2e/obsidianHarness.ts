@@ -110,6 +110,7 @@ export class ObsidianHarness {
 			...(process.platform === "linux" ? ["--no-sandbox"] : []),
 			// Escape hatch for environment-specific Chromium flags (e.g.
 			// `--ozone-platform=headless` on display-less CI) without editing the harness.
+			// Space-separated flags only — quoting is NOT supported, so no flag values with spaces.
 			...(process.env["OBSIDIAN_E2E_EXTRA_ARGS"]?.split(" ").filter((arg) => arg !== "") ?? []),
 		]);
 		try {
@@ -127,8 +128,13 @@ export class ObsidianHarness {
 
 	async close(): Promise<void> {
 		// connectOverCDP close() only disconnects; the app process must be ended explicitly.
-		await this.browser.close();
-		this.obsidianProcess.kill();
+		// finally: if the CDP disconnect rejects (e.g. connection already dropped), the
+		// Obsidian process must still be killed or it would outlive the suite as a zombie.
+		try {
+			await this.browser.close();
+		} finally {
+			this.obsidianProcess.kill();
+		}
 	}
 
 	/** Opens a vault file in a MAIN-AREA leaf (mirrors ObsidianNoteNavigator's getLeaf(false)). */

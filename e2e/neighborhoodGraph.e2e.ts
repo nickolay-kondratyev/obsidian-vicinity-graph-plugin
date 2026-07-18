@@ -202,6 +202,8 @@ test("ctrl/cmd-clicking a node opens the note in a NEW tab", async () => {
 
 // --- truncation badges: group "+N" and corner "+N hidden" overlay -----------
 
+// KEEP LAST (or reset the cap): mutates the global nodeCap and does not restore
+// it, so any test appended after this one would see the truncated graph.
 test("a low node cap surfaces the group badge and the corner overlay", async () => {
 	await harness.setGlobalNodeCap(TRUNCATION_NODE_CAP);
 	// The cap change alone does not rebuild; an active-file change does. Bounce

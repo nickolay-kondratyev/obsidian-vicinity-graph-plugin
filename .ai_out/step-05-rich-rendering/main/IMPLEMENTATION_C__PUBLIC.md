@@ -59,5 +59,20 @@ Docs added to README.md ("e2e suite" section + scripts table row).
 - Empty state + reuse-layout position stability (step-04 regressions; manual QA §8).
 - "+N" extra-thumbnail badge POSITIVE case (needs a 2-image fixture note; negative case asserted; unit-covered in `badgeText.test.ts`).
 
+## Iteration 1 — review-feedback pass (verdict was READY; 2 MINOR + 3 NIT)
+
+| Finding | Disposition | Detail |
+|---|---|---|
+| MINOR-1 `close()` orphan risk | **FIXED** | `browser.close()` wrapped in try/finally so `obsidianProcess.kill()` always runs even if the CDP disconnect rejects (`e2e/obsidianHarness.ts`). |
+| MINOR-2 serial test-order coupling | **REJECTED** | Conscious, documented design (one Obsidian instance, `mode: "serial"`, fresh vault per run) that the reviewer explicitly accepted for KISS. File-header comment documents it; NIT-3 fix adds a further append-warning. Restructuring for independence would multiply launches for zero found-bug value. |
+| NIT-1 `OBSIDIAN_E2E_EXTRA_ARGS` no quoting | **FIXED** | Doc-comment added: "Space-separated flags only — quoting is NOT supported". |
+| NIT-2 duplicated `VIEW_TYPE_NEIGHBORHOOD_GRAPH` | **TICKETED** | Prod code is off-limits in Phase C, so the dedup (obsidian-free `src/view/constants.ts`) is recorded as `docs-internal/tickets/ticket-e2e-view-type-constant-dedup.md`. |
+| NIT-3 cap-mutating test leaves non-default state | **FIXED** | "KEEP LAST (or reset the cap)" comment added directly above the truncation test. |
+
+### Iteration 1 gate results (run for real)
+- `npm run test:e2e` (real Obsidian 1.12.7, headless ozone): **18 passed / 0 failed**, exit 0.
+- `npm test`: 451 passed / 43 files (+ sublib 69 / 6), exit 0.
+- `npm run check`: exit 0.
+
 ## Environment notes for CI
 Verified in this (display-less, container) environment: AppImage `--appimage-extract` (no FUSE), then headless via `OBSIDIAN_E2E_EXTRA_ARGS="--ozone-platform=headless --disable-gpu"` — no xvfb required. AppImage must be extracted on a non-noexec filesystem.

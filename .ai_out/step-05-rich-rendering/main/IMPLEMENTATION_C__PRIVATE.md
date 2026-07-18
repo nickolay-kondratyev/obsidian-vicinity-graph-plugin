@@ -42,3 +42,12 @@
 - Hover page-preview, native attachment Menu contents, group-drag, container-query density, empty-state, "+N" thumbnail badge positive case, reuse-layout position stability.
 
 ## No prod-code changes. No #QUESTION_FOR_HUMAN.
+
+## Iteration 1 (review feedback; verdict was READY)
+Dispositions: MINOR-1 FIXED (close() try/finally → kill always runs), MINOR-2 REJECTED
+(serial coupling is accepted-by-reviewer KISS design), NIT-1 FIXED (extra-args doc-comment:
+space-separated, no quoting), NIT-2 TICKETED (`docs-internal/tickets/ticket-e2e-view-type-constant-dedup.md`
+— prod code off-limits in Phase C), NIT-3 FIXED ("KEEP LAST or reset cap" comment on truncation test).
+Gates re-run for real: e2e 18/18 exit 0 (OBSIDIAN_PATH=.tmp/squashfs-root/obsidian + headless
+ozone args, ~1.7s warm), npm test 451/43 + 69/6 exit 0, npm run check exit 0
+(logs: .tmp/iter1-e2e.log, .tmp/iter1-unit.log, .tmp/iter1-check.log).
