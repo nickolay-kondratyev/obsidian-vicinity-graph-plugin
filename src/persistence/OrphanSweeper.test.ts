@@ -56,8 +56,8 @@ async function sweptFixture() {
 	const sweeper = new OrphanSweeper(ports.vault, docIdPort, pathDocIdMap, pluginDataStore, docDataStore, async () => {
 		yields += 1;
 	});
-	await sweeper.run();
-	return { docIdPort, storage, docDataStore, pluginDataStore, pathDocIdMap, yieldCount: () => yields };
+	const summary = await sweeper.run();
+	return { docIdPort, storage, docDataStore, pluginDataStore, pathDocIdMap, yieldCount: () => yields, summary };
 }
 
 describe("OrphanSweeper", () => {
@@ -107,6 +107,16 @@ describe("OrphanSweeper", () => {
 		// The fixture's other asserts prove the sweep still COMPLETED despite the foreign file.
 		const { storage } = await sweptFixture();
 		expect(await storage.exists(FOREIGN_FILE_PATH)).toBe(true);
+	});
+
+	it("WHEN the sweep completes THEN its summary counts exactly what was removed", async () => {
+		const { summary } = await sweptFixture();
+		expect(summary).toEqual({
+			docDataFilesRemoved: 1, // docid_vanished_e.json
+			pinsRemoved: 1, // docid_stale_e
+			centralEntriesRemoved: 1, // docid_dangling_e stripped from docid_note0_e
+			ownersRewritten: 1, // docid_note0_e
+		});
 	});
 });
 

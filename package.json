@@ -7,6 +7,7 @@
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
+		"setup:dev-vault": "bash scripts/setup-dev-vault.sh",
 		"build": "npm run check && node esbuild.config.mjs production",
 		"check": "tsc -noEmit",
 		"test": "vitest run && npm run test:sublib",

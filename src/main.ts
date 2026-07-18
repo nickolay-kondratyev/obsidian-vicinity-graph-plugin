@@ -1,8 +1,12 @@
 import { Plugin, WorkspaceLeaf } from "obsidian";
+import type { TFile } from "obsidian";
 import { DocIdServices } from "obsidian-id-lib";
 import type { DocIdService } from "obsidian-id-lib";
+import { asVaultPath } from "./engine";
+import { BacklinksAdapter } from "./adapters/BacklinksAdapter";
 import { CanvasParseCache } from "./adapters/CanvasParseCache";
 import { NeighborhoodGraphBuilder } from "./adapters/NeighborhoodGraphBuilder";
+import { ObsidianLinkProvider } from "./adapters/ObsidianLinkProvider";
 import { DocDataStore } from "./persistence/DocDataStore";
 import { DocPersistEligibility } from "./persistence/DocPersistEligibility";
 import { OrphanSweeper, SWEEP_DELAY_MS } from "./persistence/OrphanSweeper";
@@ -119,9 +123,16 @@ export default class NeighborhoodGraphPlugin extends Plugin {
 		);
 		this.sweepTimer = window.setTimeout(
 			() =>
-				void sweeper.run().catch((error: unknown) => {
-					console.error("neighborhood-graph: orphan sweep failed", error);
-				}),
+				void sweeper
+					.run()
+					.then((summary) => {
+						console.log(
+							`neighborhood-graph: orphan sweep complete docDataFilesRemoved=[${summary.docDataFilesRemoved}] pinsRemoved=[${summary.pinsRemoved}] centralEntriesRemoved=[${summary.centralEntriesRemoved}] ownersRewritten=[${summary.ownersRewritten}]`,
+						);
+					})
+					.catch((error: unknown) => {
+						console.error("neighborhood-graph: orphan sweep failed", error);
+					}),
 			SWEEP_DELAY_MS,
 		);
 	}
@@ -142,6 +153,10 @@ export default class NeighborhoodGraphPlugin extends Plugin {
 		console.log(
 			`neighborhood-graph debug: main=[${activeFile.path}] nodes=[${graph.nodes.length}] edges=[${graph.edges.length}] hiddenByTruncation=[${hiddenNodeCount}]`,
 		);
+		// The tables below are OUR output: engine nodes/edges built through
+		// ObsidianLinkProvider (markdown links from the metadata cache + canvas
+		// edges from our fallback parser when core does not index .canvas).
+		console.log("neighborhood-graph debug: [OUR engine] nodes + edges (canvas edges included via our fallback parser):");
 		console.table(
 			graph.nodes.map((node) => ({
 				path: node.path,
@@ -154,6 +169,45 @@ export default class NeighborhoodGraphPlugin extends Plugin {
 			})),
 		);
 		console.table(graph.edges.map((edge) => ({ source: edge.source, target: edge.target })));
+		await this.logBacklinkProvenance(activeFile);
+	}
+
+	/**
+	 * Makes the "who supplies which backlink" question unambiguous for manual
+	 * QA: it queries Obsidian core DIRECTLY (raw `getBacklinksForFile` +
+	 * `resolvedLinks`) and OUR provider side by side, then names the delta —
+	 * the incoming edges that exist ONLY because our canvas fallback parser
+	 * produced them. On an install where core indexes canvas, the delta is
+	 * empty and both sides agree; that is itself the informative result.
+	 */
+	private async logBacklinkProvenance(mainFile: TFile): Promise<void> {
+		const provider = await ObsidianLinkProvider.create(this.app.vault, this.app.metadataCache, this.canvasParseCache);
+		const canvasKeyCount = Object.keys(this.app.metadataCache.resolvedLinks).filter((key) =>
+			key.endsWith(".canvas"),
+		).length;
+		const coreBacklinks = BacklinksAdapter.backlinkSourcePaths(this.app.metadataCache, mainFile);
+		const providerIncoming = provider.getIncomingLinks(asVaultPath(mainFile.path));
+		const coreSources = new Set<string>(coreBacklinks ?? []);
+		const fallbackOnly = providerIncoming.filter((source) => !coreSources.has(source));
+
+		const capabilityNote =
+			provider.canvasCapability === "core-indexed"
+				? "Obsidian core indexes .canvas ⇒ core supplies canvas edges; our fallback parser stays DORMANT"
+				: "core does NOT index .canvas ⇒ OUR fallback parser supplies canvas edges";
+		console.log(`neighborhood-graph debug: === backlink provenance for main=[${mainFile.path}] ===`);
+		console.log(`neighborhood-graph debug: canvasCapability=[${provider.canvasCapability}] (${capabilityNote})`);
+		console.log(
+			`neighborhood-graph debug: [OBSIDIAN core] resolvedLinks .canvas-key count=[${canvasKeyCount}] ⇒ core canvas backlinks on this install=[${canvasKeyCount > 0 ? "YES" : "NO"}]`,
+		);
+		console.log(
+			coreBacklinks === null
+				? "neighborhood-graph debug: [OBSIDIAN core] getBacklinksForFile(main)=[UNAVAILABLE — undocumented API absent; provider falls back to resolvedLinks inversion]"
+				: `neighborhood-graph debug: [OBSIDIAN core] getBacklinksForFile(main) sources=[${coreBacklinks.join(", ")}]`,
+		);
+		console.log(`neighborhood-graph debug: [OUR provider] getIncomingLinks(main)=[${providerIncoming.join(", ")}]`);
+		console.log(
+			`neighborhood-graph debug: [OUR fallback only] incoming edges present in ours but NOT from core=[${fallbackOnly.join(", ")}]`,
+		);
 	}
 
 	private async activateView(): Promise<void> {

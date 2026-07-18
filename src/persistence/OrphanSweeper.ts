@@ -11,6 +11,15 @@ export const SWEEP_DELAY_MS = 15_000;
 /** Items handled between main-thread yields; small enough that a batch is never felt. */
 const SWEEP_BATCH_SIZE = 20;
 
+/** What a single sweep actually removed — the completion-log payload (all zero ⇒ nothing was stale). */
+export interface SweepSummary {
+	readonly docDataFilesRemoved: number;
+	readonly pinsRemoved: number;
+	readonly centralEntriesRemoved: number;
+	/** Owner docs whose file was rewritten to drop stale `centralDepths` entries. */
+	readonly ownersRewritten: number;
+}
+
 /**
  * Delayed self-healing pass (step doc): warms the path↔docid map over all
  * eligible files (getDocId — READ-ONLY, never creates ids), then drops
@@ -31,7 +40,7 @@ export class OrphanSweeper {
 		private readonly yieldBetweenBatches: () => Promise<void> = ChunkedWork.sleepZero,
 	) {}
 
-	async run(): Promise<void> {
+	async run(): Promise<SweepSummary> {
 		const liveDocids = await this.warmMapAndCollectLiveDocids();
 		const docDataDocids = await this.docDataStore.listDocIds();
 		const plan = SweepPlanner.plan({
@@ -40,7 +49,7 @@ export class OrphanSweeper {
 			pinnedDocids: this.pluginDataStore.pins().map((pin) => pin.docid),
 			centralDocidsByOwner: await this.collectCentralDocidsByOwner(docDataDocids, liveDocids),
 		});
-		await this.apply(plan.docDataToDelete, plan.pinsToRemove, plan.staleCentralDocidsByOwner);
+		return this.apply(plan.docDataToDelete, plan.pinsToRemove, plan.staleCentralDocidsByOwner);
 	}
 
 	private async warmMapAndCollectLiveDocids(): Promise<ReadonlySet<string>> {
@@ -76,10 +85,12 @@ export class OrphanSweeper {
 		docDataToDelete: readonly string[],
 		pinsToRemove: readonly string[],
 		staleCentralDocidsByOwner: ReadonlyMap<string, readonly string[]>,
-	): Promise<void> {
+	): Promise<SweepSummary> {
+		let docDataFilesRemoved = 0;
 		await this.forEachChunked(docDataToDelete, async (docid) => {
 			if (this.isConfirmedOrphan(docid)) {
 				await this.docDataStore.remove(docid);
+				docDataFilesRemoved += 1;
 			}
 		});
 		const confirmedPinsToRemove = pinsToRemove.filter((docid) => this.isConfirmedOrphan(docid));
@@ -87,12 +98,22 @@ export class OrphanSweeper {
 			// One data.json write for all stale pins — no reason to chunk a single call.
 			await this.pluginDataStore.removePins(confirmedPinsToRemove);
 		}
+		let centralEntriesRemoved = 0;
+		let ownersRewritten = 0;
 		await this.forEachChunked([...staleCentralDocidsByOwner], async ([owner, staleCentralDocids]) => {
 			const confirmed = staleCentralDocids.filter((docid) => this.isConfirmedOrphan(docid));
 			if (confirmed.length > 0) {
 				await this.docDataStore.update(owner, (doc) => DocDataMutations.withoutCentralDepths(doc, confirmed));
+				centralEntriesRemoved += confirmed.length;
+				ownersRewritten += 1;
 			}
 		});
+		return {
+			docDataFilesRemoved,
+			pinsRemoved: confirmedPinsToRemove.length,
+			centralEntriesRemoved,
+			ownersRewritten,
+		};
 	}
 
 	/**
