@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-07-18 — step-04-view-shell: first visible graph
+
+The milestone where it feels real: an `ItemView` (right sidebar, draggable to main) renders the active file's neighborhood as plain React Flow nodes laid out by elkjs, rebuilding on navigation and debounced vault changes (executes [[plan/steps/step-04-view-shell]], Phase 4 of [[plan/high-level-plan]]; binding decisions in step-04 CLARIFICATION Q1–Q5 — layered elk, inline async, latest-wins, no V1 scroll/zoom persistence, `@xyflow/react` v12):
+
+- Thin `ItemView` (`src/view/NeighborhoodGraphView.tsx`): createRoot/unmount lifecycle, registers `active-leaf-change`/`file-open`/metadataCache `resolved` via `registerEvent`, thin `getState`/`setState` that persist nothing (Q4); `main.ts` passes `graphBuilder` in through the `registerView` closure.
+- `GraphViewController` (`src/view/`): owns the pipeline `events → graphBuilder.build → structural diff → elkjs → React Flow` as a `useSyncExternalStore` store; **latest-wins** via a monotonic rebuild token checked after every await (no sleeps, Q2); metadata-resolve rebuilds debounced `REBUILD_DEBOUNCE_MS=500`; MAIN tracking gates on `FileKinds.isNodeBearingPath` (md/canvas only), and active-file change cancels a pending debounce. Obsidian navigation sits behind a `NoteNavigatorPort` (`viewPorts.ts`/`ObsidianNoteNavigator.ts`) so the controller is fully node-testable.
+- Pure, node-tested decision modules (no obsidian/React/elkjs-runtime imports): `GraphStructureDiff` (unchanged structure ⇒ `reuse-layout`; any surviving node grown past `SIZE_RELAYOUT_THRESHOLD=1.0` = +100% `sizePx` ⇒ `relayout`), `RebuildDecision`, `flowMapping` (engine → React Flow, node id = `path`, edge id = `${source}->${target}`), `elkMapping` (compound-ready: root + children + parent-offset extraction so step-05 folder groups lay out), `graphIdentity` (shared id/size conventions).
+- Layout: `ElkLayoutRunner` wraps `elkjs` in-thread (no worker, Q3) with `layered` + `hierarchyHandling: INCLUDE_CHILDREN` chosen now for the compound-graph future; `NeighborhoodGraphFlow.tsx` renders default nodes + `<Background>`/`<Controls>`, pan/zoom/fit-view, click-opens-note, empty state on `build()===null`.
+- Deps `@xyflow/react` + `elkjs` bundle into `main.js` (no externals change); `styles.css` is now **generated at build time** (`@xyflow/react` base CSS + authored `src/view/graph-view.css`) so it can't drift from the installed version — gitignored like `main.js`.
+
+Verified: `npm test` (335 root + 69 sublib), `npm run check`, `npm run build` all green (implementer + independent reviewer round 1 READY → iteration adds controller latest-wins tests behind a DIP seam → round-2 CONVERGED-READY, 0 blocking). Human smoke run in real Obsidian pending: [[tickets/ticket-step-04-human-smoke-run]].
+
 ## 2026-07-17 — step-03-adapters-and-persistence: Obsidian adapters + persistence
 
 Implemented everything between the pure engine and Obsidian (executes [[plan/steps/step-03-adapters-and-persistence]], Phases 2+3 of [[plan/high-level-plan]]; binding decisions in step-03 CLARIFICATION Q1–Q3):

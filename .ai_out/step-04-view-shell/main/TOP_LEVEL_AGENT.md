@@ -15,8 +15,14 @@ navigation and (debounced) vault changes. Structural diff skips layout when stru
 - [x] IMPLEMENTATION_WITH_SELF_PLAN — 325 tests pass, check+build green. Committed c920e7d.
   - Callout: styles.css now generated at build time + gitignored (like main.js). `git rm --cached` done.
 - [x] IMPLEMENTATION_REVIEW — Verdict READY. 0 blocking, 1 SHOULD-FIX (GraphViewController untested concurrency), 4 nice-to-have. Gates independently re-verified green.
-- [ ] IMPLEMENTATION_ITERATION — address SHOULD-FIX (test latest-wins) + clearDebounce nice-to-have
-- [ ] Changelog + commit + closeout
+- [x] IMPLEMENTATION_ITERATION — SHOULD-FIX closed (controller behind NoteNavigatorPort + 10 concurrency tests), clearDebounce added. Committed 057ccf0. Round-2 review: CONVERGED-READY (335 tests, 0 blocking, both signal readiness).
+- [x] Changelog + ticket + commit + closeout — DONE.
+
+## FINAL STATE: COMPLETE
+- Commits: c920e7d (impl), 057ccf0 (iteration), + closeout commit (changelog/ticket).
+- Gates: vitest 335+69 sublib, tsc, build — all green.
+- Human smoke run pending: docs-internal/tickets/ticket-step-04-human-smoke-run.md.
+- Callout: styles.css now generated-at-build + gitignored (like main.js). Reviewer endorsed the pattern.
 
 ## Open items (from step doc) needing decisions
 1. elkjs algorithm baseline (layered vs force/stress) for compound future.

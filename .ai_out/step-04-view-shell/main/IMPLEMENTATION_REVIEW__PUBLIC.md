@@ -91,3 +91,50 @@ delegation until per-view settings exist.
 ## Open questions for human
 - `#QUESTION_FOR_HUMAN:` None blocking. Optional: is a follow-up ticket for GraphViewController
   latest-wins unit tests (finding #1) acceptable, or do you want them in this step before merge?
+
+---
+
+## Round 2 / Convergence — verdict: CONVERGED-READY
+
+Reviewed the iteration delta (commit `057ccf0`) as a focused delta review. Gates re-run
+independently, all green: `npx vitest run` → **335 passed / 36 files** (exit 0);
+`npm run check` (`tsc -noEmit`) → exit 0; `npm run build` → exit 0, artifacts copied to `.dev-vault`.
+
+The implementer and I have converged: both signal readiness.
+
+### Round-1 finding dispositions (all resolved or consciously deferred)
+- **#1 [SHOULD-FIX] controller latest-wins untested — RESOLVED (the material one).** Rather than
+  a superficial test, the controller was made a clean DIP citizen: obsidian navigation extracted
+  behind `NoteNavigatorPort` (`viewPorts.ts` + `ObsidianNoteNavigator.ts`), so `GraphViewController`
+  now has ZERO obsidian/elkjs/builder runtime coupling. `GraphViewController.test.ts` (10 BDD tests)
+  drives concurrency with DEFERRED build promises resolved out-of-order via explicit `resolveBuild(i,…)`
+  — **no sleeps/timers**. The tests are REAL and non-tautological: they assert on observable snapshot
+  state and the fake layout's `callCount`, not on internals.
+    - Latest-wins: stale earlier build resolves first → snapshot stays `empty` (discarded), layout
+      `callCount === 0` (never reaches elk), and only the newest graph's node id renders (`["b.md"]`).
+      I traced the token flow: build[0]'s continuation sees `isStale(1)` (token now 2) and returns
+      before diff/layout/publish. Correct.
+    - null / empty-nodes → empty snapshot; non-node-bearing (`pic.png`) → no `build` call
+      (`FileKinds.isNodeBearingPath` gating); reuse-layout preserves prior positions and keeps
+      `callCount === 1`; node-set change relayouts (`callCount === 2`); `openNode` delegates to navigator.
+- **#2 [NICE] clearDebounce on active-file change — RESOLVED, correct.** `handleActiveFileChanged`
+  now calls `clearDebounce()` only on the rebuild branch (after the `ignore` early-return), so an
+  `ignore` outcome correctly leaves a pending resolve-debounce armed. Cancels the redundant second pass.
+- **#3 [NICE] always-on console.debug — KEPT (agreed).** `console.debug` is the lowest severity,
+  hidden by default in the Obsidian/Chromium console; gating it would require a new esbuild `define`
+  and risk perturbing React's NODE_ENV branching. Reasonable Pareto call for V1.
+- **#4 [NICE] openNode getLeaf(false) — behaviour UNCHANGED**, logic simply relocated into the
+  navigator adapter (documented there). Still worth the dev-vault smoke check.
+- **#5 [NICE] getState/setState no-op — KEPT (agreed)**, intentional per CLARIFICATION Q4;
+  documented step-06 anchors.
+
+### Port seam assessment
+`viewPorts.ts` is a narrow, types-only DIP boundary (three focused interfaces) consistent with
+`adapters/obsidianPorts.ts` conventions. `NeighborhoodGraphBuilder`/`ElkLayoutRunner` satisfy the
+first two structurally (production wiring unchanged; tsc green confirms structural conformance).
+`ObsidianNoteNavigator` is a thin adapter; the ItemView got thinner and DRY-er (the duplicated
+`activeFilePath` that lived in both ItemView and controller is now single-sourced in the navigator).
+The ItemView reuses the navigator for event wiring. Behaviour preserved, not changed.
+
+### New findings
+None. No regressions, no scope creep. The delta is tightly scoped to the review feedback.

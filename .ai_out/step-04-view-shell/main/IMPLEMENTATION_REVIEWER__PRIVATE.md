@@ -20,3 +20,18 @@ First run. Reviewed commit c920e7d against spec + CLARIFICATION.
 - NICE: handleActiveFileChanged doesn't clearDebounce → one redundant (harmless, diff→reuse) rebuild if a resolve debounce was pending. console.debug always-on (satisfies exit criterion though). openNode uses getLeaf(false) — fine because Obsidian getLeaf targets main-area, not sidebar; flag for smoke.
 
 ## Verdict: READY (2 SHOULD-FIX-ish, all non-blocking; gates green).
+
+## Round 2 / Convergence (commit 057ccf0) — CONVERGED-READY
+Delta reviewed: viewPorts.ts (new, types-only 3 ports), ObsidianNoteNavigator.ts (new adapter),
+GraphViewController.ts (constructor now takes ports; obsidian import GONE; clearDebounce added on
+active-file rebuild branch), NeighborhoodGraphView.tsx (wires navigator, drops dup activeFilePath),
+GraphViewController.test.ts (new, 10 tests).
+- Gates re-run: vitest 335 passed / 36 files (exit 0); check exit 0; build exit 0. Logs .tmp/review2-*.
+- SHOULD-FIX #1 CLOSED PROPERLY: controller now node-testable via DIP port seam; tests use deferred
+  promises + explicit resolveBuild(i,…), NO sleeps. Traced token flow — stale build[0] continuation
+  hits isStale(1) (token==2) → returns before diff/layout/publish. Asserts are on snapshot state +
+  fake layout.callCount, REAL not tautological. Covers latest-wins/null/empty/gating/reuse/relayout/openNode.
+- clearDebounce placed AFTER the ignore early-return → ignore path leaves debounce armed (correct).
+- #3 console.debug, #5 getState/setState KEPT with sound rationale — agreed.
+- tsc green confirms NeighborhoodGraphBuilder/ElkLayoutRunner structurally satisfy the ports.
+- NO new findings, no regressions, no scope creep. Implementer + reviewer converged.
