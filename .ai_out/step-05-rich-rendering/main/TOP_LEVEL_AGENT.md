@@ -7,8 +7,8 @@ EXPLORATION → CLARIFICATION → IMPLEMENTATION_WITH_SELF_PLAN → IMPLEMENTATI
 ## Status
 - [x] EXPLORATION (3 parallel Explore agents → EXPLORATION_PUBLIC.md)
 - [x] CLARIFICATION (top-level, with HUMAN) — CLARIFICATION__PUBLIC.md; spec doc updated per human decisions
-- [ ] IMPL_A: data & pure logic (engine edge count, frontmatter title, view data plumbing, pure transforms + tests) → REVIEW_A → ITERATION_A
-- [ ] IMPL_B: rendering & interactions (rich node, groups, edges, badges, CSS theming, ports, Menu) → REVIEW_B → ITERATION_B
+- [x] IMPL_A: data & pure logic → REVIEW_A (READY, 0 blockers/majors) → ITERATION_A (3 fixed, 2 rejected w/ rationale; NIT-1 deferred to Phase B). Gates: 423+69 tests, check 0, build 0. Commits a4ab397..4c64a10.
+- [ ] IMPL_B: rendering & interactions (rich node, groups, edges, badges, CSS theming, ports, Menu) → REVIEW_B → ITERATION_B — IN PROGRESS
 - [ ] IMPL_C: Playwright e2e harness (state-based, no screenshots) → REVIEW_C → ITERATION_C
 - [ ] Final: changelog entry (single, by TOP_LEVEL_AGENT), tickets (folder-color-UX, human smoke-run), commit
 
