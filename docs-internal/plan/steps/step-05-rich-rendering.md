@@ -12,15 +12,17 @@ Nodes that carry information — the plugin's reason to exist. Replace plain nod
 ### Custom node component
 
 - Title, **first image as thumbnail**: lazy-loaded, fixed height, "+N" badge when more images exist.
+- **Title source**: frontmatter `title` or `name` property when present; otherwise filename without extension. *(Clarified 2026-07-18.)*
+- **Ungrouped nodes** show folder identity as a breadcrumb title: `<folder-name>/<node-title>` (folder part muted, clearly a folder). *(Clarified 2026-07-18 — replaces the folder-colored accent.)*
 - **Icon strip per attachment extension with counts**; clicking an icon opens a dropdown listing those files.
 - Everything past the first image loads lazily; rely on React Flow viewport culling.
 - Distinct styling tiers: **MAIN**, **pinned centrals** (distinct from MAIN), regular nodes. Node size from the engine's sizing score.
-- **Truncation badges**: hidden-node count, per folder group where possible.
+- **Truncation badges**: per-folder "+N" on rendered folder groups; folders whose members were ALL truncated aggregate into one graph-corner overlay badge "+N hidden" (per-folder breakdown in tooltip). *(Clarified 2026-07-18.)*
 
 ### Folder groups
 
-- React Flow subflows; groups render **only at 2+ members**; singletons get a folder-colored accent.
-- Group colors: deterministic hash of folder path into a palette (user-assignable is V2).
+- React Flow subflows; groups render **only at 2+ members**; singletons get the breadcrumb title (see node component).
+- **No folder colors in step 05** *(human decision 2026-07-18)*: neutral Obsidian theme styling — subtle border, `--background-secondary`-style fill, folder-name label on the group. Color UX deferred to a deliberate design pass (follow-up ticket); original color-hash idea recorded there.
 - elkjs compound layout drives group geometry (options baseline chosen in step 04).
 
 ### Edges
@@ -31,7 +33,7 @@ Nodes that carry information — the plugin's reason to exist. Replace plain nod
 ### Theme integration + interactions
 
 - All styling from **Obsidian theme CSS variables** — light/dark just works; verify against both stock themes.
-- Click opens the note; **ctrl/cmd-click** for the alternate target; hover fires Obsidian's `hover-link` for native page previews.
+- Click opens the note (current tab); **ctrl/cmd-click** opens in a **new tab** (`getLeaf(true)`) *(clarified 2026-07-18)*; hover fires Obsidian's `hover-link` for native page previews.
 
 ## Out of scope
 
@@ -40,16 +42,17 @@ Nodes that carry information — the plugin's reason to exist. Replace plain nod
 
 ## Testing
 
-- Pure logic vitest-covered: folder color hashing (deterministic), edge collapsing/pairing, group-membership derivation (2+ rule), attachment→icon-strip mapping.
-- Visual/behavioral: dev-vault checklist per feature; light + dark theme pass. Consider `PLAYWRIGHT_REVIEW_WITH_SCREENSHOTS` sub-agent if an Obsidian-driving harness is feasible; otherwise structured manual QA with screenshots to `/.out`.
+- Pure logic vitest-covered: edge collapsing/pairing, group-membership derivation (2+ rule), attachment→icon-strip mapping, title/breadcrumb derivation. *(Folder-color-hash test dropped with the palette deferral — 2026-07-18.)*
+- **Playwright e2e (in scope, clarified 2026-07-18)**: harness launches Obsidian (Electron) on the dev-vault and asserts DOM/state (node counts, badge text, CSS classes, edge markers) — no screenshot/LLM judgment; re-runnable at release.
+- Visual/behavioral: dev-vault manual-QA checklist per feature as smoke test; light + dark theme pass; human smoke-run ticket per step-04 pattern.
 - Per master UI memory (`${MY_DEEP_MEM}/my-frontend-design.md`): load it during step-level planning — this is the UI-heavy step.
 
-## Open items for step-level planning
+## Open items — RESOLVED 2026-07-18 (see `.ai_out/step-05-rich-rendering/main/CLARIFICATION__PUBLIC.md`)
 
-1. Thumbnail resolution strategy: `vault.getResourcePath` for image attachments; cache behavior on rebuild.
-2. Dropdown implementation: Obsidian `Menu` (native feel) vs. custom React popover — lean native.
-3. Palette definition and hash function (stable across sessions; no magic numbers).
-4. How truncation badges attach to groups whose visible members were all truncated away.
+1. Thumbnail resolution: port method → `vault.getResourcePath`; no extra cache; re-resolved per rebuild.
+2. Dropdown: native Obsidian `Menu`; entries open files via Obsidian default handling.
+3. Palette: DEFERRED entirely (no colors in step 05; follow-up ticket for deliberate color UX design).
+4. Fully-truncated folders: aggregate graph-corner overlay badge "+N hidden" with per-folder tooltip breakdown.
 
 ## Exit criteria
 
