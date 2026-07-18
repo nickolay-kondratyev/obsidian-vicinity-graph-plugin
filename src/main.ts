@@ -60,7 +60,10 @@ export default class NeighborhoodGraphPlugin extends Plugin {
 		this.registerVaultLifecycleHandlers();
 		this.scheduleOrphanSweep();
 
-		this.registerView(VIEW_TYPE_NEIGHBORHOOD_GRAPH, (leaf) => new NeighborhoodGraphView(leaf));
+		this.registerView(
+			VIEW_TYPE_NEIGHBORHOOD_GRAPH,
+			(leaf) => new NeighborhoodGraphView(leaf, this.graphBuilder),
+		);
 
 		this.addCommand({
 			id: "open-neighborhood-graph",

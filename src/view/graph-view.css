@@ -1,0 +1,16 @@
+/*
+ * Authored Neighborhood Graph styles. This is the SOURCE; the shipped
+ * `styles.css` is generated at build time as `@xyflow/react` base CSS + this
+ * file (see esbuild.config.mjs). Edit here, never edit `styles.css` directly.
+ */
+
+/* React Flow needs an explicitly sized parent; fill the Obsidian view pane. */
+.neighborhood-graph-flow {
+	width: 100%;
+	height: 100%;
+}
+
+.neighborhood-graph-empty {
+	padding: var(--size-4-4);
+	color: var(--text-muted);
+}
