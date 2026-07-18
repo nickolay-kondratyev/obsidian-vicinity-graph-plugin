@@ -7,6 +7,8 @@ import type { NeighborhoodGraphBuilder } from "../adapters/NeighborhoodGraphBuil
 import { ElkLayoutRunner } from "./ElkLayoutRunner";
 import { GraphViewController } from "./GraphViewController";
 import { NeighborhoodGraphFlow } from "./NeighborhoodGraphFlow";
+import { ObsidianNoteNavigator } from "./ObsidianNoteNavigator";
+import type { NoteNavigatorPort } from "./viewPorts";
 
 export const VIEW_TYPE_NEIGHBORHOOD_GRAPH = "neighborhood-graph-view";
 
@@ -40,9 +42,10 @@ export class NeighborhoodGraphView extends ItemView {
 	}
 
 	async onOpen(): Promise<void> {
-		const controller = new GraphViewController(this.app, this.graphBuilder, new ElkLayoutRunner());
+		const navigator = new ObsidianNoteNavigator(this.app);
+		const controller = new GraphViewController(navigator, this.graphBuilder, new ElkLayoutRunner());
 		this.controller = controller;
-		this.registerGraphEvents(controller);
+		this.registerGraphEvents(controller, navigator);
 		controller.start();
 
 		this.root = createRoot(this.contentEl);
@@ -74,14 +77,10 @@ export class NeighborhoodGraphView extends ItemView {
 		await super.setState(state, result);
 	}
 
-	private registerGraphEvents(controller: GraphViewController): void {
-		const trackActiveFile = (): void => controller.handleActiveFileChanged(this.activeFilePath());
+	private registerGraphEvents(controller: GraphViewController, navigator: NoteNavigatorPort): void {
+		const trackActiveFile = (): void => controller.handleActiveFileChanged(navigator.activeFilePath());
 		this.registerEvent(this.app.workspace.on("active-leaf-change", trackActiveFile));
 		this.registerEvent(this.app.workspace.on("file-open", trackActiveFile));
 		this.registerEvent(this.app.metadataCache.on("resolved", () => controller.handleMetadataResolved()));
-	}
-
-	private activeFilePath(): string | null {
-		return this.app.workspace.getActiveFile()?.path ?? null;
 	}
 }

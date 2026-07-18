@@ -82,5 +82,31 @@ Fixtures: src/view/testFixtures/graphFixtures.ts (makeGraph/makeNode Partial bui
   unit-proven by GraphStructureDiff.test.ts ("structure unchanged -> reuse-layout").
 - Size-growth boundary: growthRatio > threshold (strictly). Exactly +100% (ratio 1.0) => reuse.
 
+## Iteration 1 (review response) — DONE
+Reviewer verdict was READY; addressed the essential feedback.
+- Port seam: NEW `src/view/viewPorts.ts` (GraphSourcePort/GraphLayoutPort/NoteNavigatorPort, types-only)
+  + NEW `src/view/ObsidianNoteNavigator.ts` (App→NoteNavigatorPort adapter, holds getFileByPath/getLeaf).
+  Controller now imports NO obsidian; constructor = (navigator, graphBuilder, layoutRunner) as ports.
+  Builder/Runner satisfy ports structurally → main.ts/ItemView wiring unchanged except ItemView builds
+  the navigator and passes it (also reuses it for event wiring; removed duplicated activeFilePath).
+- clearDebounce() added at top of handleActiveFileChanged REBUILD branch (not on ignore).
+- console.debug reuse-layout log KEPT (debug level = hidden-by-default; gating needs esbuild define, not
+  worth it). getState/setState KEPT per CLARIFICATION Q4.
+- NEW test `src/view/GraphViewController.test.ts` — 10 tests, structural fakes, deferred builds resolved
+  out-of-order (NO sleeps; `flush()` = setImmediate to drain microtasks). Covers latest-wins (stale
+  discarded / never reaches layout / latest wins), null+empty→empty, non-node-bearing→no build,
+  reuse-layout skips elk + preserves positions, node-set change relayouts, openNode delegates.
+- Controller tests run in vitest's default NODE env (no `window`); safe because they never hit the
+  debounce path and clearDebounce guards on null timer.
+
+## Gate status after Iteration 1 (all green)
+- vitest: 335 passed / 36 files (was 325/35). Log: .tmp/step04-iter-vitest.log
+- npm run check: exit 0. Log: .tmp/step04-iter-check.log
+- npm run build: exit 0, main.js 1.84MB, styles.css 19KB copied. Log: .tmp/step04-iter-build.log
+
+## Gotcha for a future clone
+- noUncheckedIndexedAccess is ON: index accesses (deferreds[i], paths[0]) need guards/destructuring
+  or tsc fails even when vitest passes. Hit this in the controller test; fixed.
+
 ## If pending work resumes
 Nothing pending for step-04 scope. Manual dev-vault smoke is the human's (see PUBLIC smoke steps).

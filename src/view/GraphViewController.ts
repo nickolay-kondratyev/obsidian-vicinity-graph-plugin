@@ -1,13 +1,11 @@
-import type { App } from "obsidian";
 import type { NeighborhoodGraph } from "../engine";
-import type { NeighborhoodGraphBuilder } from "../adapters/NeighborhoodGraphBuilder";
 import { REBUILD_DEBOUNCE_MS, SIZE_RELAYOUT_THRESHOLD } from "./constants";
 import { decideLayout } from "./GraphStructureDiff";
 import { decideActiveFileRebuild } from "./RebuildDecision";
 import { neighborhoodGraphToElk, extractElkPositions } from "./elkMapping";
 import { neighborhoodGraphToFlow, withPositions } from "./flowMapping";
 import type { FlowEdge, FlowNode, XY } from "./flowMapping";
-import type { ElkLayoutRunner } from "./ElkLayoutRunner";
+import type { GraphLayoutPort, GraphSourcePort, NoteNavigatorPort } from "./viewPorts";
 
 /**
  * Owns the rebuild pipeline `events → engine → structural diff → elkjs →
@@ -47,9 +45,9 @@ export class GraphViewController {
 	private debounceTimer: number | null = null;
 
 	constructor(
-		private readonly app: App,
-		private readonly graphBuilder: NeighborhoodGraphBuilder,
-		private readonly layoutRunner: ElkLayoutRunner,
+		private readonly navigator: NoteNavigatorPort,
+		private readonly graphBuilder: GraphSourcePort,
+		private readonly layoutRunner: GraphLayoutPort,
 	) {}
 
 	// --- external store (React `useSyncExternalStore`) ---------------------
@@ -80,6 +78,9 @@ export class GraphViewController {
 		if (outcome.kind === "ignore") {
 			return;
 		}
+		// The active-file change already triggers a fresh rebuild below, so drop
+		// any pending debounced resolve-rebuild — it would be a redundant second pass.
+		this.clearDebounce();
 		this.mainPath = outcome.mainPath;
 		void this.runRebuild();
 	}
@@ -93,13 +94,9 @@ export class GraphViewController {
 		}, REBUILD_DEBOUNCE_MS);
 	}
 
-	/** Open the note behind a clicked node in the active tab. */
+	/** Open the note behind a clicked node in a main-area editor leaf. */
 	openNode(path: string): void {
-		const file = this.app.vault.getFileByPath(path);
-		if (file === null) {
-			return;
-		}
-		void this.app.workspace.getLeaf(false).openFile(file);
+		this.navigator.openNote(path);
 	}
 
 	// --- pipeline ----------------------------------------------------------
@@ -164,7 +161,7 @@ export class GraphViewController {
 	}
 
 	private activeFilePath(): string | null {
-		return this.app.workspace.getActiveFile()?.path ?? null;
+		return this.navigator.activeFilePath();
 	}
 
 	private clearDebounce(): void {

@@ -72,6 +72,58 @@ step ships it to `.dev-vault`. Authored rules live in `src/view/graph-view.css`;
   when committing so the generated file stops being version-controlled. (I did not stage/commit anything.)
 - I did not write the CHANGELOG entry or commit (per instructions).
 
+## Iteration 1 — review feedback incorporation (reviewer verdict was READY)
+
+Gates re-run, all green: `npx vitest run` → **335 passed / 36 files** (+10 tests, +1 file;
+log `.tmp/step04-iter-vitest.log`); `npm run check` → exit 0 (`.tmp/step04-iter-check.log`);
+`npm run build` → exit 0, `main.js` 1.84 MB, `styles.css` 19 KB copied (`.tmp/step04-iter-build.log`).
+
+**Finding #1 [SHOULD-FIX] — controller latest-wins now tested. ADDRESSED.**
+Introduced a narrow structural-port seam so `GraphViewController` has ZERO obsidian/elkjs/builder
+runtime coupling and is fully node-testable (repo's hexagonal convention, cf. `adapters/obsidianPorts.ts`):
+- New `src/view/viewPorts.ts` — `GraphSourcePort` (`build`), `GraphLayoutPort` (`layout`),
+  `NoteNavigatorPort` (`activeFilePath`/`openNote`). Types only, no runtime import.
+  `NeighborhoodGraphBuilder`/`ElkLayoutRunner` satisfy the first two structurally — production
+  wiring unchanged.
+- New `src/view/ObsidianNoteNavigator.ts` — adapts `App` (vault/workspace) to `NoteNavigatorPort`.
+  The `getFileByPath`/`getLeaf(false).openFile` logic moved OUT of the controller into this adapter,
+  so the controller no longer imports `obsidian` at all. Also removed the duplicated `activeFilePath`
+  that lived in both the ItemView and the controller (ItemView now reuses the navigator for event wiring).
+- `GraphViewController` constructor now takes `(navigator, graphBuilder, layoutRunner)` as ports.
+- New `src/view/GraphViewController.test.ts` (10 tests, BDD WHEN/THEN, structural fakes, no DOM/RF/elk):
+  - **Latest-wins** — two rebuilds queued, builds resolved OUT OF ORDER via deferred promises
+    (no sleeps/timers): stale earlier result is discarded (snapshot stays empty), never reaches elk
+    layout, and only the latest graph renders. Concurrency is driven by explicit `resolveBuild(i, …)`.
+  - `build()` → `null` and `build()` → empty-node graph both yield the empty snapshot.
+  - Non-node-bearing active file (`pic.png`) triggers no `build` (isNodeBearingPath gating).
+  - Structural-diff-skip: identical id-set on the next graph reuses layout (elk called once) and
+    **preserves prior positions**; a node-set change relayouts (elk called twice).
+  - `openNode` delegates to the navigator.
+
+**Finding #2 [NICE-TO-HAVE] — clearDebounce on active-file change. ADDRESSED.**
+`handleActiveFileChanged` now calls `this.clearDebounce()` on the rebuild branch (before triggering
+the fresh rebuild), cancelling any pending metadata-resolve rebuild so there is no redundant second
+pass. Cleared only when we actually rebuild — an `ignore` outcome (same-path / non-eligible) leaves a
+pending resolve-debounce armed, which is correct.
+
+**Finding #3 [NICE-TO-HAVE] — always-on `console.debug`. KEPT as-is (judgment call).**
+The single reuse-layout `console.debug(...)` is retained. Rationale: `console.debug` is the lowest
+console severity and is hidden by default in the Obsidian/Chromium console (shown only when the user
+opts into "Verbose"), so it is NOT noisy in normal use; it is the one meaningful "skip-layout" runtime
+signal the exit criterion asks for. Gating it behind a real dev flag would require adding an esbuild
+`define` for `process.env.NODE_ENV` (there is none today) and risks perturbing React's own NODE_ENV
+branching — not worth it for V1 (Pareto). The "provably skips layout" guarantee is anchored by the
+unit tests (`decideLayout` reuse + the new controller reuse test), not the log.
+
+**Finding #4 — getState/setState no-op. KEPT (intentional, per binding CLARIFICATION Q4).**
+V1 persists nothing view-specific (no scroll/zoom snapshot, no view-settings UI until step-06). The
+super-delegating overrides remain as documented step-06 anchors; this is by design, not an oversight.
+
+**Finding #4 — openNode / `getLeaf(false)`. Behaviour UNCHANGED.**
+`openNode` still opens in a main-area editor leaf via `getLeaf(false)` (correct: not the sidebar
+hosting the graph). The logic simply relocated into `ObsidianNoteNavigator` (documented there). No
+correctness change; still worth the manual smoke check (report step 3).
+
 ## Manual dev-vault smoke steps (for the human — TOP_LEVEL can file a smoke-run ticket)
 Prereq: `npm run setup:dev-vault` (creates fixtures note1/note2/note3/test.canvas/pic.png) then open
 `.dev-vault` in Obsidian with the plugin enabled.

@@ -12,9 +12,10 @@ navigation and (debounced) vault changes. Structural diff skips layout when stru
 ## Workflow
 - [x] EXPLORATION (3 Explore agents → EXPLORATION_*.md)
 - [x] CLARIFICATION — human confirmed "go with defaults" (layered elk, inline async, no view-state persist, @xyflow/react v12)
-- [ ] IMPLEMENTATION_WITH_SELF_PLAN
-- [ ] IMPLEMENTATION_REVIEW
-- [ ] IMPLEMENTATION_ITERATION
+- [x] IMPLEMENTATION_WITH_SELF_PLAN — 325 tests pass, check+build green. Committed c920e7d.
+  - Callout: styles.css now generated at build time + gitignored (like main.js). `git rm --cached` done.
+- [x] IMPLEMENTATION_REVIEW — Verdict READY. 0 blocking, 1 SHOULD-FIX (GraphViewController untested concurrency), 4 nice-to-have. Gates independently re-verified green.
+- [ ] IMPLEMENTATION_ITERATION — address SHOULD-FIX (test latest-wins) + clearDebounce nice-to-have
 - [ ] Changelog + commit + closeout
 
 ## Open items (from step doc) needing decisions
