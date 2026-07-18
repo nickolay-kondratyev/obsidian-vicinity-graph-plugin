@@ -27,3 +27,18 @@ Status: review COMPLETE (pass 1, 2026-07-18). Verdict: **NEEDS_ITERATION** — 1
 2. Confirm MINOR-1 disposition (prop or reasoned rejection).
 3. Re-run gates; re-check no test weakened.
 4. PUBLIC file verdict flip to READY if MAJOR-1 addressed; MINORs are should-fix but not gating if reasoned.
+
+---
+
+# Re-review memory (Iteration 1, 2026-07-18, fresh clone)
+
+Status: re-review COMPLETE. Verdict: **READY**. Fix commit `74d009f` == HEAD, tree clean, `git diff 74d009f..HEAD -- src/ scripts/` empty.
+
+## What I verified (do NOT redo)
+- Checklist item 1 (MAJOR-1): PASS. `graph-view.css` has `.neighborhood-graph-flow .react-flow__arrowhead polyline { stroke/fill: var(--text-faint) !important; }`; `.neighborhood-graph-flow` div wraps `<ReactFlow>` (NeighborhoodGraphFlow.tsx:74) so RF's `<defs><marker class="react-flow__arrowhead">` is inside the scope. WHY (!important vs inline), WHY-NOT (JS color → serialized into marker id / url('#…') ref), AND the selected-edge shared-defs side effect are all in the CSS comment. QA §7 gained the light+dark arrowhead line. IMPLEMENTATION_B__PUBLIC has an explicit "CORRECTION of an earlier claim" section + fixed CSS-section text.
+- MINOR-1: PASS — `multiSelectionKeyCode={null}` with a Q2-referencing WHY comment; QA §5 line extended (no lingering ring / no accumulated multi-selection).
+- MINOR-2: PASS — pure `attachmentMenu.ts` (`ATTACHMENT_MENU_MAX_ITEMS = 20`, `planAttachmentMenu` → `{visiblePaths, overflowText}`), wired in `ObsidianGraphUi.showAttachmentMenu` (overflow = disabled trailing item). 4 real BDD tests incl. at-cap boundary (== 20 → all visible, null overflow) and exact "…and 5 more" string. No fake assertions.
+- NIT-1 composes `plusNText`; NIT-2 `--neighborhood-graph-thumbnail-height` (both usages); NIT-3 renamed `EDGE_ARROWHEAD_SIZE` + doc states 18 × 1.5 ≈ 27px strokeWidth scaling. All as dispositioned.
+- Gates re-run independently: `npm test` **451/43** main + **69/6** sublib exit 0; `npm run check` exit 0 (logs `.tmp/rereview-b-npm-{test,check}.log`). Matches iteration-1 claims exactly. Diff is add-only for tests (badgeText tests untouched — hiddenOverlayText output string unchanged).
+- Sanity: 74d009f's touches to MY review files (+29 PRIVATE / +85 PUBLIC, zero deletions) = first git-tracking of my pass-1 outputs, NOT tampering (current files match).
+- Non-finding noted, not flagged: at exactly 21 attachments the disabled "…and 1 more" item occupies the same menu height as showing the file would — cosmetic, matches suggested pattern, immaterial.

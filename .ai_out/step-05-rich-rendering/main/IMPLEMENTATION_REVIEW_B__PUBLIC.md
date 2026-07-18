@@ -83,3 +83,33 @@ A note with e.g. 60 images produces a 60-entry native `Menu`. Obsidian clamps me
 
 ## Final
 **NEEDS_ITERATION** — fix MAJOR-1 (arrowhead theming); disposition MINOR-1/MINOR-2 (fix or reasoned rejection); NITs at implementer's discretion.
+
+---
+
+# Re-review (Iteration 1)
+
+Reviewer: IMPLEMENTATION_REVIEWER_B (fresh re-review instance), 2026-07-18. Scope: fix commit `74d009f` (== HEAD, clean tree; `src/`+`scripts/` diff is exactly the 6 fixes + tests, nothing else). Focused convergence check only.
+
+## Gate results (re-run independently)
+- `npm test`: **451 passed / 43 files** (main) + **69 passed / 6 files** (sublib) — exit 0. +4 `attachmentMenu` tests over the 447 reviewed in pass 1; add-only diff, no test removed or weakened.
+- `npm run check` (tsc -noEmit): exit 0.
+
+Both match the implementer's Iteration 1 claims exactly.
+
+## Per-finding verification
+
+| Finding | Disposition claimed | Verified |
+|---|---|---|
+| MAJOR-1 arrowheads hard-coded `#b1b1b7` | FIXED | **PASS.** `graph-view.css` now has `.neighborhood-graph-flow .react-flow__arrowhead polyline { stroke: var(--text-faint) !important; fill: var(--text-faint) !important; }`. Selector is correct: the `.neighborhood-graph-flow` div wraps `<ReactFlow>` (`NeighborhoodGraphFlow.tsx:74`), so RF's marker `<defs>` sit inside the scope, and `!important` out-ranks RF's inline `defaultMarkerColor` style — exactly the suggested fix. The comment carries WHY (inline style), WHY-NOT (JS `markerEnd.color` gets serialized into the marker id / `url('#…')` reference), and the knowingly-accepted selected-edge side effect (shared `<defs>` → arrowhead stays faint while a selected path brightens). QA_CHECKLIST §7 gained the light+dark arrowhead line. The previously-false theming claim in IMPLEMENTATION_B__PUBLIC is explicitly corrected ("CORRECTION of an earlier claim" section + amended CSS-section text). |
+| MINOR-1 ctrl/cmd-click multi-select conflict | FIXED | **PASS.** `multiSelectionKeyCode={null}` on `<ReactFlow>` with a WHY comment referencing the Q2 gesture; plain-click selection untouched; QA §5 line extended (no lingering ring, no accumulated multi-selection). |
+| MINOR-2 unbounded attachment menu | FIXED | **PASS.** New pure `src/view/attachmentMenu.ts`: named constant `ATTACHMENT_MENU_MAX_ITEMS = 20` (with a WHY on the value) + `planAttachmentMenu` returning `{visiblePaths, overflowText}`; `ObsidianGraphUi.showAttachmentMenu` renders the plan and adds the overflow as one disabled trailing item. The 4 BDD tests are real: exact-equality assertions, at-cap boundary (20 → all visible, `null` overflow), above-cap slice, and the literal `"…and 5 more"` string. No fake/tautological assertions. |
+| NIT-1 "+N" duplication | FIXED | **PASS.** `hiddenOverlayText` composes `plusNText`; output string unchanged (existing tests unaffected). |
+| NIT-2 `--ng-` prefix | FIXED | **PASS.** Renamed to `--neighborhood-graph-thumbnail-height` at both declaration and use site. |
+| NIT-3 arrowhead size constant lies about px | FIXED (doc reword) | **PASS.** Renamed `EDGE_ARROWHEAD_SIZE`, doc states the `markerUnits: strokeWidth` × 1.5 scaling (≈27px effective); visuals intentionally unchanged pending smoke run — matches the accepted disposition. |
+
+## Regression check
+- No production code touched beyond the 6 fixes (`git diff` inspected line-by-line; commit also first-tracks the pass-1 review files, content unmodified).
+- One cosmetic non-issue observed, not flagged: at exactly cap+1 attachments the disabled "…and 1 more" item takes the same menu height as showing the file would — immaterial, consistent with the suggested pattern.
+
+## Final verdict: **READY**
+All 6 findings verifiably addressed; gates green; no regressions introduced. Remaining risk is exactly the pre-existing one: visual confirmation (arrowhead color in light/dark, arrowhead size tuning) belongs to the human smoke run via QA_CHECKLIST §5/§7.
