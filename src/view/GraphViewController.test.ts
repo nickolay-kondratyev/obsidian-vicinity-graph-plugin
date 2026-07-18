@@ -4,7 +4,7 @@ import type { NeighborhoodGraph } from "../engine";
 import { asFolderPath, asVaultPath } from "../engine";
 import { GraphViewController } from "./GraphViewController";
 import type { FlowSnapshot } from "./GraphViewController";
-import type { GraphLayoutPort, GraphSourcePort, NoteNavigatorPort } from "./viewPorts";
+import type { GraphLayoutPort, GraphSourcePort, NoteNavigatorPort, OpenNoteOptions } from "./viewPorts";
 import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
 
 /**
@@ -68,14 +68,16 @@ class FakeLayout implements GraphLayoutPort {
 
 class FakeNavigator implements NoteNavigatorPort {
 	readonly opened: string[] = [];
+	readonly openedOptions: (OpenNoteOptions | undefined)[] = [];
 	activePath: string | null = null;
 
 	activeFilePath(): string | null {
 		return this.activePath;
 	}
 
-	openNote(path: string): void {
+	openNote(path: string, options?: OpenNoteOptions): void {
 		this.opened.push(path);
+		this.openedOptions.push(options);
 	}
 }
 
@@ -178,6 +180,13 @@ describe("GraphViewController MAIN gating", () => {
 		h.controller.openNode("notes/a.md");
 
 		expect(h.navigator.opened).toEqual(["notes/a.md"]);
+	});
+
+	it("WHEN a node is ctrl/cmd-clicked THEN the new-tab option reaches the navigator", () => {
+		const h = setup();
+		h.controller.openNode("notes/a.md", { newTab: true });
+
+		expect(h.navigator.openedOptions).toEqual([{ newTab: true }]);
 	});
 });
 
