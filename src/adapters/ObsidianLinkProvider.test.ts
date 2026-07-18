@@ -214,3 +214,46 @@ describe("ObsidianLinkProvider link counts (step-05, CLARIFICATION Q1)", () => {
 		expect(provider.getLinkCount(asVaultPath("board.canvas"), asVaultPath("note-a.md"))).toBe(2);
 	});
 });
+
+describe("ObsidianLinkProvider frontmatter display title (step-05 human decision)", () => {
+	async function titleOf(frontmatter: Record<string, unknown> | undefined): Promise<string | undefined> {
+		const provider = await providerOver({
+			files: [{ path: "note.md" }],
+			fileCaches: frontmatter === undefined ? {} : { "note.md": { frontmatter } },
+		});
+		return provider.getFileMetadata(asVaultPath("note.md"))?.frontmatterTitle;
+	}
+
+	it("WHEN frontmatter has a title THEN it becomes the frontmatter title", async () => {
+		expect(await titleOf({ title: "My Title" })).toBe("My Title");
+	});
+
+	it("WHEN frontmatter has only a name THEN name becomes the frontmatter title", async () => {
+		expect(await titleOf({ name: "My Name" })).toBe("My Name");
+	});
+
+	it("WHEN frontmatter has both title and name THEN title wins (precedence)", async () => {
+		expect(await titleOf({ name: "My Name", title: "My Title" })).toBe("My Title");
+	});
+
+	it("WHEN the title is not a string THEN it is skipped in favor of name", async () => {
+		expect(await titleOf({ title: 42, name: "My Name" })).toBe("My Name");
+	});
+
+	it("WHEN the title is a blank string THEN it is skipped in favor of name", async () => {
+		expect(await titleOf({ title: "   ", name: "My Name" })).toBe("My Name");
+	});
+
+	it("WHEN no title-bearing property exists THEN there is no frontmatter title", async () => {
+		expect(await titleOf({ tags: ["x"] })).toBeUndefined();
+	});
+
+	it("WHEN the file has no cache entry THEN there is no frontmatter title", async () => {
+		expect(await titleOf(undefined)).toBeUndefined();
+	});
+
+	it("WHEN the file is a canvas THEN there is no frontmatter title (markdown only)", async () => {
+		const provider = await providerOver({ files: [{ path: "board.canvas" }] });
+		expect(provider.getFileMetadata(asVaultPath("board.canvas"))?.frontmatterTitle).toBeUndefined();
+	});
+});

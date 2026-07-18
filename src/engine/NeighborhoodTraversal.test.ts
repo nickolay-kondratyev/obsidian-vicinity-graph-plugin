@@ -261,3 +261,25 @@ describe("NeighborhoodTraversal node assembly", () => {
 		expect(`${node?.folder}|${node?.sizeBytes}`).toBe("notes|42");
 	});
 });
+
+describe("NeighborhoodTraversal display title (step-05 human decision)", () => {
+	// GIVEN a root whose provider metadata carries a frontmatter title and a
+	// neighbor without one.
+	function titledTraversal() {
+		const provider = new FakeLinkProvider({
+			files: [{ path: "notes/root.md", frontmatterTitle: "Fancy Title" }, { path: "notes/plain.md" }],
+			links: { "notes/root.md": ["notes/plain.md"] },
+		});
+		return new NeighborhoodTraversal(provider).traverse([
+			{ descriptor: { path: asVaultPath("notes/root.md") }, depths: { outgoingDepth: 1, incomingDepth: 1 } },
+		]);
+	}
+
+	it("WHEN metadata has a frontmatter title THEN the node title uses it", () => {
+		expect(titledTraversal().nodes.get(asVaultPath("notes/root.md"))?.title).toBe("Fancy Title");
+	});
+
+	it("WHEN metadata has no frontmatter title THEN the node title falls back to the basename", () => {
+		expect(titledTraversal().nodes.get(asVaultPath("notes/plain.md"))?.title).toBe("plain");
+	});
+});

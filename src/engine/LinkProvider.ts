@@ -10,6 +10,12 @@ export interface FileMetadata {
 	readonly folder: FolderPath;
 	readonly sizeBytes: number;
 	/**
+	 * Display-title override from the note's frontmatter (`title` property,
+	 * else `name` — step-05 human decision); absent when neither is a
+	 * non-empty string. The engine falls back to the basename.
+	 */
+	readonly frontmatterTitle?: string;
+	/**
 	 * True iff this file can be a graph node (adapter rule: `.md` + `.canvas`).
 	 * Non-node-bearing files are never nodes — they surface as attachments.
 	 */

@@ -12,6 +12,8 @@ const MARKDOWN_EXTENSION = "md";
 const CANVAS_EXTENSION = "canvas";
 /** Obsidian reports "/" as the parent path of vault-root files; the engine's root folder is "". */
 const OBSIDIAN_ROOT_FOLDER = "/";
+/** Display-title frontmatter properties, in precedence order (step-05 human decision). */
+const FRONTMATTER_TITLE_PROPERTIES = ["title", "name"] as const;
 
 /**
  * The real {@link LinkProvider} over Obsidian's metadata cache (step-03).
@@ -114,9 +116,33 @@ export class ObsidianLinkProvider implements LinkProvider {
 		return {
 			folder: asFolderPath(engineFolderOf(file)),
 			sizeBytes: file.stat.size,
+			frontmatterTitle: this.frontmatterTitleOf(file),
 			isNodeBearing: FileKinds.isNodeBearingPath(file.path),
 			attachments: this.attachmentsOf(path),
 		};
+	}
+
+	/**
+	 * Frontmatter `title` (else `name`) as the display title — step-05 human
+	 * decision. Only non-empty strings count: YAML lets users put any shape
+	 * (number, list) into these properties, and rendering those would violate
+	 * POLS worse than falling back to the basename.
+	 */
+	private frontmatterTitleOf(file: VaultFilePort): string | undefined {
+		if (file.extension !== MARKDOWN_EXTENSION) {
+			return undefined; // Only markdown carries frontmatter.
+		}
+		const frontmatter = this.metadataCache.getFileCache(file)?.frontmatter;
+		if (frontmatter === undefined) {
+			return undefined;
+		}
+		for (const property of FRONTMATTER_TITLE_PROPERTIES) {
+			const value = frontmatter[property];
+			if (typeof value === "string" && value.trim() !== "") {
+				return value;
+			}
+		}
+		return undefined;
 	}
 
 	/** Resolved outgoing targets in reference order, deduped (first occurrence wins). */

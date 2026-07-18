@@ -13,6 +13,8 @@ export interface FakeFileSpec {
 	readonly nodeBearing?: boolean;
 	/** Default: derived from extension (png/jpg/jpeg/gif/svg/webp). */
 	readonly image?: boolean;
+	/** Frontmatter display-title override (`title`/`name` already resolved). Default: none. */
+	readonly frontmatterTitle?: string;
 }
 
 /** Fixture vault: files + ordered outgoing links (incoming derived by inversion). */
@@ -92,6 +94,7 @@ export class FakeLinkProvider implements LinkProvider {
 			metadata: {
 				folder: asFolderPath(VaultPathFacts.folderOf(file.path)),
 				sizeBytes: file.sizeBytes ?? 0,
+				frontmatterTitle: file.frontmatterTitle,
 				isNodeBearing: nodeBearing,
 				attachments: [], // replaced by attachAttachmentsToMetadata()
 			},

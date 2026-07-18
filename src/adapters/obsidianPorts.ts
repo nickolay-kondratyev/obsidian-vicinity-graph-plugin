@@ -47,6 +47,8 @@ export interface CachedMetadataPort {
 	readonly links?: readonly ReferencePort[];
 	readonly embeds?: readonly ReferencePort[];
 	readonly frontmatterLinks?: readonly FrontmatterLinkPort[];
+	/** Parsed frontmatter properties; values are user-controlled (any YAML shape). */
+	readonly frontmatter?: Readonly<Record<string, unknown>>;
 }
 
 /** Structural slice of `MetadataCache`. */

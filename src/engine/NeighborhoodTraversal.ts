@@ -130,7 +130,8 @@ export class NeighborhoodTraversal {
 			nodes.set(path, {
 				path,
 				docid: docidByPath.get(path),
-				title: VaultPathFacts.titleOf(path),
+				// Step-05 human decision: frontmatter title/name wins over basename.
+				title: metadata.frontmatterTitle ?? VaultPathFacts.titleOf(path),
 				folder: metadata.folder,
 				sizeBytes: metadata.sizeBytes,
 				isCentral: rootPaths.has(path),
