@@ -1,3 +1,4 @@
+import { VaultPathFacts } from "../shared/VaultPathFacts";
 import { EdgeAccumulator } from "./EdgeAccumulator";
 import type { LinkProvider } from "./LinkProvider";
 import { NodeEligibility } from "./NodeEligibility";
@@ -128,7 +129,7 @@ export class NeighborhoodTraversal {
 			nodes.set(path, {
 				path,
 				docid: docidByPath.get(path),
-				title: titleOf(path),
+				title: VaultPathFacts.titleOf(path),
 				folder: metadata.folder,
 				sizeBytes: metadata.sizeBytes,
 				isCentral: rootPaths.has(path),
@@ -153,12 +154,6 @@ function dedupeRootsByPath(roots: readonly TraversalRoot[]): readonly TraversalR
 		}
 	}
 	return deduped;
-}
-
-function titleOf(path: VaultPath): string {
-	const basename = path.slice(path.lastIndexOf("/") + 1);
-	const dotIndex = basename.lastIndexOf(".");
-	return dotIndex <= 0 ? basename : basename.slice(0, dotIndex);
 }
 
 /** Accumulates depth tags and deduped edges across all per-root BFS runs. */

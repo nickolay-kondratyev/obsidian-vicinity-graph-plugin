@@ -5,11 +5,15 @@ import { describe, expect, it } from "vitest";
 
 /**
  * Step-02 exit criterion: ZERO `obsidian` / `obsidian-id-lib` / react imports
- * anywhere under src/engine/ — the engine must stay pure. Enforced as a test
- * because the repo has no ESLint yet (see ticket-eslint-adoption).
+ * anywhere in the engine's import closure — the engine must stay pure.
+ * Engine files import `../shared/` (step-03 DRY extraction), so src/shared/
+ * is guarded by the same rule. Enforced as a test because the repo has no
+ * ESLint yet (see ticket-eslint-adoption).
  */
 
 const ENGINE_DIR = dirname(fileURLToPath(import.meta.url));
+const SHARED_DIR = join(ENGINE_DIR, "..", "shared");
+const GUARDED_DIRS = [ENGINE_DIR, SHARED_DIR];
 const FORBIDDEN_MODULE_PREFIXES = ["obsidian", "obsidian-id-lib", "react", "react-dom"];
 
 // Static imports/re-exports, side-effect imports, dynamic import(...) and require(...).
@@ -55,8 +59,12 @@ describe("engine import guard", () => {
 		expect(tsFilesUnder(ENGINE_DIR).length).toBeGreaterThan(0);
 	});
 
-	it("WHEN scanning every engine file THEN no obsidian/obsidian-id-lib/react import exists", () => {
-		const offenders = tsFilesUnder(ENGINE_DIR)
+	it("WHEN scanning src/shared THEN there is at least one file (guard is not vacuous)", () => {
+		expect(tsFilesUnder(SHARED_DIR).length).toBeGreaterThan(0);
+	});
+
+	it("WHEN scanning every engine and shared file THEN no obsidian/obsidian-id-lib/react import exists", () => {
+		const offenders = GUARDED_DIRS.flatMap((dir) => tsFilesUnder(dir))
 			.map((file) => ({ file, forbidden: forbiddenImportsIn(file) }))
 			.filter((entry) => entry.forbidden.length > 0);
 		expect(offenders).toEqual([]);

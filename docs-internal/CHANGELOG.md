@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-07-17 — step-03-adapters-and-persistence: Obsidian adapters + persistence
+
+Implemented everything between the pure engine and Obsidian (executes [[plan/steps/step-03-adapters-and-persistence]], Phases 2+3 of [[plan/high-level-plan]]; binding decisions in step-03 CLARIFICATION Q1–Q3):
+
+- `ObsidianLinkProvider` (`src/adapters/`): outgoing links in true reference order via `getFileCache().links/embeds` (resolution via `resolvedLinks`); incoming via a single typed wrapper over undocumented `metadataCache.getBacklinksForFile` with runtime presence check + `resolvedLinks`-inversion fallback (Q1).
+- Canvas capability detection at build time + fallback `.canvas` JSON parser (file-type nodes only, malformed JSON never throws, mtime-cached). Devtools check on the target install found NO `.canvas` keys in `resolvedLinks` → the fallback parser is the active path there (Q2, recorded in the step doc).
+- `obsidian-id-lib` wired per contract: `getDocId` (read-only) on all bulk/read paths; `ensureDocId` only on explicit write intent; `null` → doc not pinnable/persistable, surfaced as typed reason.
+- Persistence (`src/persistence/`): versioned JSON shapes from day one; `data.json` (global settings + pinned set with pin timestamps); per-doc files at `doc-data/<docid>.json` via `vault.adapter.write`; pin-on-toggle per-field semantics (absence = inherit); unsafe-docid filenames refused with typed reason for a future non-popup node emblem (Q3).
+- Live cleanup: `vault.on('delete'/'rename')` + path→docid map (warmed by sweep, lazily filled); orphan sweep delayed ~15s, chunked with yields, tolerant of foreign files, race-safe via drop-time re-verification.
+- `GraphRequestAssembler` translates docid-keyed persistence → path-keyed `GraphBuildRequest`; main.ts lifecycle wiring + debug command harness for real-vault builds; shared `VaultPathFacts`/`FileKinds` extracted (resolves step-02 iteration finding 4).
+
+Verified: `npm test` (297 root + 69 sublib), `npm run check`, `npm run build` all green (implementer + independent reviewer; 8 review findings fixed test-first and empirically re-verified). Human smoke run in real Obsidian pending: [[tickets/ticket-step-03-human-smoke-run]].
+
 ## 2026-07-17 — step-02-core-engine: pure graph engine
 
 Implemented the pure, fully-tested neighborhood-graph engine under `src/engine/` (executes [[plan/steps/step-02-core-engine]]; binding decisions in step-02 CLARIFICATION Q1–Q5):
