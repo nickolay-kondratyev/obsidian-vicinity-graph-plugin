@@ -64,3 +64,12 @@ describe("decideLayout size-growth exception", () => {
 		expect(decideLayout(previous, nextWithSize(10), SIZE_RELAYOUT_THRESHOLD)).toBe("reuse-layout");
 	});
 });
+
+describe("decideLayout groupByFolder flip (step-05)", () => {
+	it("WHEN only groupByFolder changed THEN a relayout is forced (group nodes appear/disappear)", () => {
+		const nodes = [makeNode({ path: asVaultPath("a.md") })];
+		const previous = makeGraph({ nodes });
+		const next = makeGraph({ nodes, viewSettings: { ...previous.viewSettings, groupByFolder: false } });
+		expect(decideLayout(previous, next, 1.0)).toBe("relayout");
+	});
+});

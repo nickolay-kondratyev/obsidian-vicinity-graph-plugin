@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { asVaultPath } from "../engine";
+import { asFolderPath, asVaultPath } from "../engine";
 import { ElkLayoutRunner } from "./ElkLayoutRunner";
-import { extractElkPositions, neighborhoodGraphToElk } from "./elkMapping";
+import { extractElkDimensionsById, extractElkPositions, neighborhoodGraphToElk } from "./elkMapping";
 import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
 
 /**
@@ -39,5 +39,37 @@ describe("elk layout of a real neighborhood fixture", () => {
 		const first = await layoutPositions();
 		const second = await layoutPositions();
 		expect([...second]).toEqual([...first]);
+	});
+});
+
+describe("elk compound layout of a folder-grouped fixture (step-05)", () => {
+	// GIVEN two notes grouped under notes/ plus an ungrouped root note linking in.
+	const compoundGraph = makeGraph({
+		nodes: [
+			makeNode({ path: asVaultPath("root.md"), folder: asFolderPath(""), sizePx: 100 }),
+			makeNode({ path: asVaultPath("notes/a.md"), folder: asFolderPath("notes"), sizePx: 100 }),
+			makeNode({ path: asVaultPath("notes/b.md"), folder: asFolderPath("notes"), sizePx: 100 }),
+		],
+		edges: [makeEdge("root.md", "notes/a.md"), makeEdge("notes/a.md", "notes/b.md")],
+	});
+
+	async function laidOutCompound() {
+		return new ElkLayoutRunner().layout(neighborhoodGraphToElk(compoundGraph));
+	}
+
+	it("WHEN laid out THEN the container reports dimensions that wrap its members", async () => {
+		const dimensions = extractElkDimensionsById(await laidOutCompound()).get("folder-group:notes");
+		// Two 100px members can never fit a container smaller than one member.
+		expect((dimensions?.width ?? 0) > 100 && (dimensions?.height ?? 0) >= 100).toBe(true);
+	});
+
+	it("WHEN laid out THEN every node AND the container receive absolute positions", async () => {
+		const positions = extractElkPositions(await laidOutCompound());
+		expect([...positions.keys()].sort()).toEqual(["folder-group:notes", "notes/a.md", "notes/b.md", "root.md"]);
+	});
+
+	it("WHEN laid out THEN grouped members do not overlap inside the container", async () => {
+		const positions = extractElkPositions(await laidOutCompound());
+		expect(positions.get("notes/a.md")).not.toEqual(positions.get("notes/b.md"));
 	});
 });

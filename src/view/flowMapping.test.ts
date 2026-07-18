@@ -1,8 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { asVaultPath } from "../engine";
-import { neighborhoodGraphToFlow, withPositions } from "./flowMapping";
-import type { FlowNode } from "./flowMapping";
+import { asFolderPath, asVaultPath } from "../engine";
+import { neighborhoodGraphToFlow, withGroupDimensions, withPositions } from "./flowMapping";
+import type { FlowNode, NoteFlowNode } from "./flowMapping";
+import { NO_ORPHAN_TRUNCATION } from "./truncationBadges";
 import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
+
+function noteNode(nodes: readonly FlowNode[], id: string): NoteFlowNode | undefined {
+	const found = nodes.find((node) => node.id === id);
+	return found?.kind === "note" ? found : undefined;
+}
 
 describe("neighborhoodGraphToFlow nodes", () => {
 	const graph = makeGraph({
@@ -18,14 +24,145 @@ describe("neighborhoodGraphToFlow nodes", () => {
 		expect({ width: node?.width, height: node?.height }).toEqual({ width: 160, height: 160 });
 	});
 
-	it("WHEN mapping a node THEN its data carries title, central and main flags", () => {
+	it("WHEN mapping a node THEN its data carries the step-05 rich payload", () => {
 		expect(neighborhoodGraphToFlow(graph).nodes[0]?.data).toEqual({
 			path: "notes/a.md",
 			title: "a",
-			isCentral: true,
-			isMain: true,
+			tier: "main",
 			sizePx: 160,
+			sizeScore: 0.5,
+			folder: "",
+			imageCount: 0,
+			attachmentGroups: [],
 		});
+	});
+});
+
+describe("neighborhoodGraphToFlow styling tiers", () => {
+	function tierOfFlags(flags: { isMain: boolean; isCentral: boolean }): string | undefined {
+		const graph = makeGraph({ nodes: [makeNode({ path: asVaultPath("n.md"), ...flags })] });
+		return noteNode(neighborhoodGraphToFlow(graph).nodes, "n.md")?.data.tier;
+	}
+
+	it("WHEN the node is MAIN THEN its tier is main", () => {
+		expect(tierOfFlags({ isMain: true, isCentral: true })).toBe("main");
+	});
+
+	it("WHEN the node is central but not MAIN THEN its tier is pinned-central", () => {
+		expect(tierOfFlags({ isMain: false, isCentral: true })).toBe("pinned-central");
+	});
+
+	it("WHEN the node is neither THEN its tier is regular", () => {
+		expect(tierOfFlags({ isMain: false, isCentral: false })).toBe("regular");
+	});
+});
+
+describe("neighborhoodGraphToFlow attachments payload", () => {
+	const graph = makeGraph({
+		nodes: [
+			makeNode({
+				path: asVaultPath("n.md"),
+				attachments: [
+					{ path: asVaultPath("img/a.png"), isImage: true },
+					{ path: asVaultPath("doc.pdf"), isImage: false },
+					{ path: asVaultPath("img/b.png"), isImage: true },
+				],
+				firstImagePath: asVaultPath("img/a.png"),
+			}),
+		],
+	});
+
+	it("WHEN a node has images THEN imageCount counts all of them", () => {
+		expect(noteNode(neighborhoodGraphToFlow(graph).nodes, "n.md")?.data.imageCount).toBe(2);
+	});
+
+	it("WHEN a node has a first image THEN its path is forwarded as the thumbnail candidate", () => {
+		expect(noteNode(neighborhoodGraphToFlow(graph).nodes, "n.md")?.data.firstImagePath).toBe("img/a.png");
+	});
+
+	it("WHEN a node has attachments THEN the icon strip groups them by extension", () => {
+		expect(noteNode(neighborhoodGraphToFlow(graph).nodes, "n.md")?.data.attachmentGroups).toEqual([
+			{ extension: "png", count: 2, paths: ["img/a.png", "img/b.png"] },
+			{ extension: "pdf", count: 1, paths: ["doc.pdf"] },
+		]);
+	});
+});
+
+/** GIVEN two grouped notes/, one solo/ singleton, one root file. */
+function groupedGraph() {
+	return makeGraph({
+		nodes: [
+			makeNode({ path: asVaultPath("notes/a.md"), folder: asFolderPath("notes") }),
+			makeNode({ path: asVaultPath("notes/b.md"), folder: asFolderPath("notes") }),
+			makeNode({ path: asVaultPath("solo/only.md"), folder: asFolderPath("solo") }),
+			makeNode({ path: asVaultPath("root.md"), folder: asFolderPath("") }),
+		],
+	});
+}
+
+describe("neighborhoodGraphToFlow folder groups", () => {
+	it("WHEN a folder has 2+ members THEN a folder-group node is emitted with label data", () => {
+		const group = neighborhoodGraphToFlow(groupedGraph()).nodes.find((node) => node.kind === "folder-group");
+		expect(group?.data).toEqual({ folder: "notes", folderName: "notes", hiddenCount: 0 });
+	});
+
+	it("WHEN groups are emitted THEN they precede their children (React Flow parent-first rule)", () => {
+		const ids = neighborhoodGraphToFlow(groupedGraph()).nodes.map((node) => node.id);
+		expect(ids.indexOf("folder-group:notes")).toBeLessThan(ids.indexOf("notes/a.md"));
+	});
+
+	it("WHEN a node is a group member THEN it carries the group's parentId", () => {
+		expect(noteNode(neighborhoodGraphToFlow(groupedGraph()).nodes, "notes/a.md")?.parentId).toBe(
+			"folder-group:notes",
+		);
+	});
+
+	it("WHEN a node is ungrouped THEN it has no parentId", () => {
+		expect(noteNode(neighborhoodGraphToFlow(groupedGraph()).nodes, "solo/only.md")?.parentId).toBeUndefined();
+	});
+
+	it("WHEN groupByFolder is off THEN no folder-group nodes are emitted", () => {
+		const graph = makeGraph({
+			nodes: groupedGraph().nodes,
+			viewSettings: { ...groupedGraph().viewSettings, groupByFolder: false },
+		});
+		expect(neighborhoodGraphToFlow(graph).nodes.every((node) => node.kind === "note")).toBe(true);
+	});
+
+	it("WHEN a rendered group's folder has hidden nodes THEN the group carries the +N badge count", () => {
+		const graph = makeGraph({
+			nodes: groupedGraph().nodes,
+			hiddenNodeCountsByFolder: new Map([[asFolderPath("notes"), 4]]),
+		});
+		const group = neighborhoodGraphToFlow(graph).nodes.find((node) => node.kind === "folder-group");
+		expect(group?.data.hiddenCount).toBe(4);
+	});
+});
+
+describe("neighborhoodGraphToFlow breadcrumb titles", () => {
+	it("WHEN a node is an ungrouped folder singleton THEN it carries its folder name as breadcrumb", () => {
+		expect(noteNode(neighborhoodGraphToFlow(groupedGraph()).nodes, "solo/only.md")?.data.breadcrumbFolder).toBe(
+			"solo",
+		);
+	});
+
+	it("WHEN a node is grouped THEN it has no breadcrumb (the group shows the folder)", () => {
+		expect(
+			noteNode(neighborhoodGraphToFlow(groupedGraph()).nodes, "notes/a.md")?.data.breadcrumbFolder,
+		).toBeUndefined();
+	});
+
+	it("WHEN a node lives at the vault root THEN it has no breadcrumb", () => {
+		expect(noteNode(neighborhoodGraphToFlow(groupedGraph()).nodes, "root.md")?.data.breadcrumbFolder).toBeUndefined();
+	});
+
+	it("WHEN a breadcrumb is emitted for a nested folder THEN only the folder NAME is used", () => {
+		const graph = makeGraph({
+			nodes: [makeNode({ path: asVaultPath("projects/alpha/x.md"), folder: asFolderPath("projects/alpha") })],
+		});
+		expect(noteNode(neighborhoodGraphToFlow(graph).nodes, "projects/alpha/x.md")?.data.breadcrumbFolder).toBe(
+			"alpha",
+		);
 	});
 });
 
@@ -38,16 +175,64 @@ describe("neighborhoodGraphToFlow edges", () => {
 	it("WHEN mapping an edge THEN its id is synthesized as source->target", () => {
 		expect(neighborhoodGraphToFlow(graph).edges[0]?.id).toBe("a.md->b.md");
 	});
+
+	it("WHEN an edge carries a link count THEN it is forwarded to the flow edge", () => {
+		const counted = makeGraph({ nodes: graph.nodes, edges: [makeEdge("a.md", "b.md", 3)] });
+		expect(neighborhoodGraphToFlow(counted).edges[0]?.count).toBe(3);
+	});
+
+	it("WHEN only one direction exists THEN the edge has no opposite", () => {
+		expect(neighborhoodGraphToFlow(graph).edges[0]?.hasOpposite).toBe(false);
+	});
+
+	it("WHEN both directions exist THEN each edge of the pair is flagged hasOpposite", () => {
+		const bidirectional = makeGraph({
+			nodes: graph.nodes,
+			edges: [makeEdge("a.md", "b.md"), makeEdge("b.md", "a.md")],
+		});
+		expect(neighborhoodGraphToFlow(bidirectional).edges.map((edge) => edge.hasOpposite)).toEqual([true, true]);
+	});
+});
+
+describe("neighborhoodGraphToFlow snapshot extras", () => {
+	it("WHEN mapping THEN the resolved groupByFolder setting is forwarded", () => {
+		expect(neighborhoodGraphToFlow(groupedGraph()).groupByFolder).toBe(true);
+	});
+
+	it("WHEN nothing was hidden THEN the orphan truncation is the shared zero constant", () => {
+		expect(neighborhoodGraphToFlow(groupedGraph()).orphanTruncation).toBe(NO_ORPHAN_TRUNCATION);
+	});
+
+	it("WHEN a folder without a rendered group has hidden nodes THEN they surface as orphan truncation", () => {
+		const graph = makeGraph({
+			nodes: groupedGraph().nodes,
+			hiddenNodeCountsByFolder: new Map([[asFolderPath("gone"), 2]]),
+		});
+		expect(neighborhoodGraphToFlow(graph).orphanTruncation).toEqual({
+			totalHiddenCount: 2,
+			breakdown: [{ folder: "gone", hiddenCount: 2 }],
+		});
+	});
 });
 
 describe("withPositions", () => {
 	const nodes: readonly FlowNode[] = [
 		{
 			id: "a.md",
+			kind: "note",
 			position: { x: 0, y: 0 },
 			width: 100,
 			height: 100,
-			data: { path: "a.md", title: "a", isCentral: false, isMain: false, sizePx: 100 },
+			data: {
+				path: "a.md",
+				title: "a",
+				tier: "regular",
+				sizePx: 100,
+				sizeScore: 0.5,
+				folder: "",
+				imageCount: 0,
+				attachmentGroups: [],
+			},
 		},
 	];
 
@@ -59,5 +244,40 @@ describe("withPositions", () => {
 	it("WHEN a position is unknown THEN the node is returned unchanged", () => {
 		const placed = withPositions(nodes, new Map());
 		expect(placed[0]?.position).toEqual({ x: 0, y: 0 });
+	});
+
+	it("WHEN a node has a parent THEN its position becomes parent-relative (React Flow subflow)", () => {
+		const flow = neighborhoodGraphToFlow(groupedGraph());
+		const positions = new Map([
+			["folder-group:notes", { x: 100, y: 50 }],
+			["notes/a.md", { x: 130, y: 90 }],
+		]);
+		expect(withPositions(flow.nodes, positions).find((node) => node.id === "notes/a.md")?.position).toEqual({
+			x: 30,
+			y: 40,
+		});
+	});
+
+	it("WHEN a group node is placed THEN its own position stays absolute (top-level)", () => {
+		const flow = neighborhoodGraphToFlow(groupedGraph());
+		const positions = new Map([["folder-group:notes", { x: 100, y: 50 }]]);
+		expect(
+			withPositions(flow.nodes, positions).find((node) => node.id === "folder-group:notes")?.position,
+		).toEqual({ x: 100, y: 50 });
+	});
+});
+
+describe("withGroupDimensions", () => {
+	const flow = neighborhoodGraphToFlow(groupedGraph());
+
+	it("WHEN elk sized a group THEN the group node adopts that width and height", () => {
+		const sized = withGroupDimensions(flow.nodes, new Map([["folder-group:notes", { width: 300, height: 220 }]]));
+		const group = sized.find((node) => node.kind === "folder-group");
+		expect({ width: group?.width, height: group?.height }).toEqual({ width: 300, height: 220 });
+	});
+
+	it("WHEN dimensions exist for a note id THEN the note keeps its engine-driven size", () => {
+		const sized = withGroupDimensions(flow.nodes, new Map([["notes/a.md", { width: 999, height: 999 }]]));
+		expect(sized.find((node) => node.id === "notes/a.md")?.width).toBe(100);
 	});
 });

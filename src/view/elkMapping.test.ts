@@ -1,8 +1,8 @@
 import type { ElkNode } from "elkjs";
 import { describe, expect, it } from "vitest";
-import { asVaultPath } from "../engine";
+import { asFolderPath, asVaultPath } from "../engine";
 import { ELK_ROOT_ID } from "./constants";
-import { extractElkPositions, neighborhoodGraphToElk } from "./elkMapping";
+import { extractElkDimensionsById, extractElkPositions, neighborhoodGraphToElk } from "./elkMapping";
 import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
 
 describe("neighborhoodGraphToElk", () => {
@@ -51,5 +51,72 @@ describe("extractElkPositions", () => {
 			children: [{ id: "folder", x: 100, y: 200, children: [{ id: "a.md", x: 5, y: 6 }] }],
 		};
 		expect(extractElkPositions(laidOut).get("a.md")).toEqual({ x: 105, y: 206 });
+	});
+});
+
+describe("neighborhoodGraphToElk folder-group compounds (step-05)", () => {
+	// GIVEN two grouped notes/, one solo singleton, one root file, and edges:
+	// intra-group a->b, cross-boundary a->solo, root->a.
+	const graph = makeGraph({
+		nodes: [
+			makeNode({ path: asVaultPath("notes/a.md"), folder: asFolderPath("notes") }),
+			makeNode({ path: asVaultPath("notes/b.md"), folder: asFolderPath("notes") }),
+			makeNode({ path: asVaultPath("solo/only.md"), folder: asFolderPath("solo") }),
+			makeNode({ path: asVaultPath("root.md"), folder: asFolderPath("") }),
+		],
+		edges: [
+			makeEdge("notes/a.md", "notes/b.md"),
+			makeEdge("notes/a.md", "solo/only.md"),
+			makeEdge("root.md", "notes/a.md"),
+		],
+	});
+
+	function container(): ElkNode | undefined {
+		return neighborhoodGraphToElk(graph).children?.find((child) => child.id === "folder-group:notes");
+	}
+
+	it("WHEN a folder groups THEN its members nest under a folder container child", () => {
+		expect(container()?.children?.map((child) => child.id)).toEqual(["notes/a.md", "notes/b.md"]);
+	});
+
+	it("WHEN a folder groups THEN its members are not root children anymore", () => {
+		const rootIds = neighborhoodGraphToElk(graph).children?.map((child) => child.id);
+		expect(rootIds).toEqual(["folder-group:notes", "solo/only.md", "root.md"]);
+	});
+
+	it("WHEN an edge is intra-group THEN it relocates onto the container (elk common-ancestor rule)", () => {
+		expect(container()?.edges?.map((edge) => edge.id)).toEqual(["notes/a.md->notes/b.md"]);
+	});
+
+	it("WHEN an edge crosses the group boundary THEN it stays on the root", () => {
+		const rootEdgeIds = neighborhoodGraphToElk(graph).edges?.map((edge) => edge.id);
+		expect(rootEdgeIds).toEqual(["notes/a.md->solo/only.md", "root.md->notes/a.md"]);
+	});
+
+	it("WHEN groupByFolder is off THEN the elk graph stays flat", () => {
+		const flat = makeGraph({
+			nodes: graph.nodes,
+			edges: graph.edges,
+			viewSettings: { ...graph.viewSettings, groupByFolder: false },
+		});
+		expect(neighborhoodGraphToElk(flat).children?.every((child) => child.children === undefined)).toBe(true);
+	});
+});
+
+describe("extractElkDimensionsById", () => {
+	it("WHEN a laid-out container reports a size THEN it is extracted by id", () => {
+		const laidOut: ElkNode = {
+			id: ELK_ROOT_ID,
+			children: [{ id: "folder-group:notes", x: 0, y: 0, width: 300, height: 220, children: [] }],
+		};
+		expect(extractElkDimensionsById(laidOut).get("folder-group:notes")).toEqual({ width: 300, height: 220 });
+	});
+
+	it("WHEN a nested child reports a size THEN it is extracted too (leaves echo their input)", () => {
+		const laidOut: ElkNode = {
+			id: ELK_ROOT_ID,
+			children: [{ id: "g", width: 300, height: 220, children: [{ id: "a.md", width: 100, height: 100 }] }],
+		};
+		expect(extractElkDimensionsById(laidOut).get("a.md")).toEqual({ width: 100, height: 100 });
 	});
 });

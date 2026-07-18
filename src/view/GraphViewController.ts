@@ -2,9 +2,12 @@ import type { NeighborhoodGraph } from "../engine";
 import { REBUILD_DEBOUNCE_MS, SIZE_RELAYOUT_THRESHOLD } from "./constants";
 import { decideLayout } from "./GraphStructureDiff";
 import { decideActiveFileRebuild } from "./RebuildDecision";
-import { neighborhoodGraphToElk, extractElkPositions } from "./elkMapping";
-import { neighborhoodGraphToFlow, withPositions } from "./flowMapping";
-import type { FlowEdge, FlowNode, XY } from "./flowMapping";
+import { neighborhoodGraphToElk, extractElkDimensionsById, extractElkPositions } from "./elkMapping";
+import { neighborhoodGraphToFlow, withGroupDimensions, withPositions } from "./flowMapping";
+import type { Dimensions, FlowEdge, FlowGraph, FlowNode, XY } from "./flowMapping";
+import { isFolderGroupId } from "./graphIdentity";
+import { NO_ORPHAN_TRUNCATION } from "./truncationBadges";
+import type { OrphanTruncation } from "./truncationBadges";
 import type { GraphLayoutPort, GraphSourcePort, NoteNavigatorPort } from "./viewPorts";
 
 /**
@@ -26,9 +29,19 @@ export interface FlowSnapshot {
 	readonly status: FlowStatus;
 	readonly nodes: readonly FlowNode[];
 	readonly edges: readonly FlowEdge[];
+	/** Whether folder groups are rendered (the build's resolved view setting). */
+	readonly groupByFolder: boolean;
+	/** Graph-corner "+N hidden" overlay data (zero-total constant when nothing is hidden). */
+	readonly orphanTruncation: OrphanTruncation;
 }
 
-const EMPTY_SNAPSHOT: FlowSnapshot = { status: "empty", nodes: [], edges: [] };
+const EMPTY_SNAPSHOT: FlowSnapshot = {
+	status: "empty",
+	nodes: [],
+	edges: [],
+	groupByFolder: false,
+	orphanTruncation: NO_ORPHAN_TRUNCATION,
+};
 
 type Subscriber = () => void;
 
@@ -40,6 +53,8 @@ export class GraphViewController {
 	private previousGraph: NeighborhoodGraph | null = null;
 	/** Positions of the currently rendered nodes, reused when layout is skipped. */
 	private positions: ReadonlyMap<string, XY> = new Map();
+	/** elk-computed folder-group sizes, reused alongside positions when layout is skipped. */
+	private groupDimensions: ReadonlyMap<string, Dimensions> = new Map();
 	private mainPath: string | null = null;
 	private rebuildToken = 0;
 	private debounceTimer: number | null = null;
@@ -96,6 +111,9 @@ export class GraphViewController {
 
 	/** Open the note behind a clicked node in a main-area editor leaf. */
 	openNode(path: string): void {
+		if (isFolderGroupId(path)) {
+			return; // Folder-group containers have no note behind them.
+		}
 		this.navigator.openNote(path);
 	}
 
@@ -119,17 +137,16 @@ export class GraphViewController {
 		const decision = decideLayout(this.previousGraph, graph, SIZE_RELAYOUT_THRESHOLD);
 		const flow = neighborhoodGraphToFlow(graph);
 		if (decision === "reuse-layout") {
-			// No structural change: keep positions, refresh node data only.
+			// No structural change: keep positions and group sizes, refresh node data only.
 			console.debug("neighborhood-graph: structural diff skipped elk layout (data-only refresh)");
-			this.publish(graph, this.positions, withPositions(flow.nodes, this.positions), flow.edges);
+			this.publish(graph, this.positions, this.groupDimensions, flow);
 			return;
 		}
 		const laidOut = await this.layoutRunner.layout(neighborhoodGraphToElk(graph));
 		if (this.isStale(token)) {
 			return;
 		}
-		const positions = extractElkPositions(laidOut);
-		this.publish(graph, positions, withPositions(flow.nodes, positions), flow.edges);
+		this.publish(graph, extractElkPositions(laidOut), extractElkDimensionsById(laidOut), flow);
 	}
 
 	private isStale(token: number): boolean {
@@ -139,17 +156,25 @@ export class GraphViewController {
 	private publish(
 		graph: NeighborhoodGraph,
 		positions: ReadonlyMap<string, XY>,
-		nodes: readonly FlowNode[],
-		edges: readonly FlowEdge[],
+		groupDimensions: ReadonlyMap<string, Dimensions>,
+		flow: FlowGraph,
 	): void {
 		this.previousGraph = graph;
 		this.positions = positions;
-		this.setSnapshot({ status: "ready", nodes, edges });
+		this.groupDimensions = groupDimensions;
+		this.setSnapshot({
+			status: "ready",
+			nodes: withGroupDimensions(withPositions(flow.nodes, positions), groupDimensions),
+			edges: flow.edges,
+			groupByFolder: flow.groupByFolder,
+			orphanTruncation: flow.orphanTruncation,
+		});
 	}
 
 	private reset(): void {
 		this.previousGraph = null;
 		this.positions = new Map();
+		this.groupDimensions = new Map();
 		this.setSnapshot(EMPTY_SNAPSHOT);
 	}
 

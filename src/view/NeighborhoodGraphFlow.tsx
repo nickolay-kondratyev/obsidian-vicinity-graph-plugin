@@ -38,13 +38,19 @@ export function NeighborhoodGraphFlow({ controller }: { readonly controller: Gra
 }
 
 function toReactFlowNode(node: FlowNode): Node {
-	return {
+	const base = {
 		id: node.id,
 		position: { x: node.position.x, y: node.position.y },
-		// Default React Flow node renders `data.label`.
-		data: { label: node.data.title },
 		style: { width: node.width, height: node.height },
+		...(node.parentId === undefined ? {} : { parentId: node.parentId }),
 	};
+	if (node.kind === "folder-group") {
+		// React Flow's built-in "group" container — plain box until the styled
+		// group component ships (step-05 Phase B).
+		return { ...base, type: "group", data: {} };
+	}
+	// Default React Flow node renders `data.label`.
+	return { ...base, data: { label: node.data.title } };
 }
 
 function toReactFlowEdge(edge: FlowEdge): Edge {

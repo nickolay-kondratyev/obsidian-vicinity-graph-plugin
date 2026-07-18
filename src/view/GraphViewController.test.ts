@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ElkNode } from "elkjs";
 import type { NeighborhoodGraph } from "../engine";
-import { asVaultPath } from "../engine";
+import { asFolderPath, asVaultPath } from "../engine";
 import { GraphViewController } from "./GraphViewController";
 import type { FlowSnapshot } from "./GraphViewController";
 import type { GraphLayoutPort, GraphSourcePort, NoteNavigatorPort } from "./viewPorts";
@@ -220,5 +220,48 @@ describe("GraphViewController structural diff", () => {
 		await flush();
 
 		expect(h.layout.callCount).toBe(2);
+	});
+});
+
+describe("GraphViewController step-05 snapshot extras", () => {
+	/** GIVEN a graph whose notes/ folder groups and whose gone/ folder was fully truncated. */
+	function richGraph(): NeighborhoodGraph {
+		return makeGraph({
+			nodes: [
+				makeNode({ path: asVaultPath("notes/a.md"), folder: asFolderPath("notes") }),
+				makeNode({ path: asVaultPath("notes/b.md"), folder: asFolderPath("notes") }),
+			],
+			edges: [makeEdge("notes/a.md", "notes/b.md")],
+			hiddenNodeCountsByFolder: new Map([[asFolderPath("gone"), 2]]),
+		});
+	}
+
+	async function readySnapshot(): Promise<FlowSnapshot> {
+		const h = setup();
+		h.controller.handleActiveFileChanged("notes/a.md");
+		h.source.resolveBuild(0, richGraph());
+		await flush();
+		return h.snapshot();
+	}
+
+	it("WHEN a build renders THEN the snapshot forwards the resolved groupByFolder flag", async () => {
+		expect((await readySnapshot()).groupByFolder).toBe(true);
+	});
+
+	it("WHEN a grouped folder renders THEN the snapshot contains its folder-group node", async () => {
+		expect(nodeIds(await readySnapshot())).toContain("folder-group:notes");
+	});
+
+	it("WHEN a fully truncated folder exists THEN the snapshot carries the orphan overlay data", async () => {
+		expect((await readySnapshot()).orphanTruncation).toEqual({
+			totalHiddenCount: 2,
+			breakdown: [{ folder: "gone", hiddenCount: 2 }],
+		});
+	});
+
+	it("WHEN a folder-group node is clicked THEN no note open is attempted", () => {
+		const h = setup();
+		h.controller.openNode("folder-group:notes");
+		expect(h.navigator.opened).toEqual([]);
 	});
 });
