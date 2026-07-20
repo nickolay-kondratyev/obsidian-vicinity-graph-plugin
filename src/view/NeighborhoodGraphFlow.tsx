@@ -80,6 +80,11 @@ export function NeighborhoodGraphFlow({
 					onNodeClick={onNodeClick}
 					onNodeMouseEnter={onNodeMouseEnter}
 					nodesConnectable={false}
+					// The graph is read-only in V1: layout is elk-driven and would
+					// overwrite any manual placement on the next rebuild, so a drag
+					// would only snap back. Disable it rather than ship half-working
+					// drag (decision 2026-07-20, [[ticket-node-drag-reposition]]).
+					nodesDraggable={false}
 					// Ctrl/cmd is the "open in new tab" gesture (CLARIFICATION Q2);
 					// RF's default multiSelectionKeyCode is the SAME modifier, so
 					// each new-tab click would also toggle a meaningless persistent
