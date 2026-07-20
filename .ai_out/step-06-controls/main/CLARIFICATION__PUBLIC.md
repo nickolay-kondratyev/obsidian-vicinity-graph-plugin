@@ -15,3 +15,10 @@ Human-aligned decisions (2026-07-20). These bound the plan; do not re-litigate w
 - **Reset-to-global (unpin field)** affordance applies to the **depth steppers** (per-direction), since those are the only per-doc-pinnable controls surfaced. Write `value=undefined` to reset. Inherited-vs-pinned visual distinction needed for depth fields.
 - Pin/unpin has two entry points (hover button + context menu) → keep the decision/planning logic pure and shared; only the Obsidian `Menu`/DOM binding differs.
 - "Can't be pinned" (`PersistableIdentity.kind==="not-persistable"`) → Obsidian `Notice`.
+
+## Round 2 decisions (post-planning, human-aligned)
+| # | Decision | Resolution |
+|---|----------|-----------|
+| Q-A | Pinned central X with its own depth override, viewed at MAIN Y | The stepper edits **only the MAIN-view layer = `Y.centralDepths[X]`**. Badge "pinned" = that layer present; displayed number = fully-resolved value; **reset clears only `Y.centralDepths[X]`** (falls back to X's own override → global). X's own saved override is changed ONLY by visiting X as MAIN. |
+| Q-B | In-view sizing section scope | **Full parity** with settings-tab sizing controls, scrollable, **one shared component** (simpler mental model). |
+| Q-C | Settings-tab writes refresh open views | **Yes** — fan out `getLeavesOfType(...).view.refresh()` so open graph views re-render immediately on global-setting change. |
