@@ -5,6 +5,14 @@
 
 ## What is ALREADY verified automatically (no need to re-check functionally)
 
+**Release-time e2e now covers the glue too** (`npm run test:e2e`, real Obsidian 1.12.7, run + re-run green headless — see `.ai_out/step-06-controls/main/E2E_AUTOMATION_ANALYSIS.md`):
+- `e2e/controlsRestart.e2e.ts` — depth stepper (§1), pin (§6), sizing weight (§11) and node cap (§13) all survive a **real Obsidian restart** (`ObsidianHarness.relaunch()`), the step's hard exit criterion.
+- `e2e/pinnedCentralScenario.e2e.ts` — the §10 headline scenario end-to-end through the UI (pin → raise depth → hops appear → switch MAIN away/back restores → the pin's own depth is untouched).
+- Node **pin** is a REAL hover+click pointer gesture; toolbar steppers/sizing fire their own handler (overlay-panel pixel-clickability at ~300px is QA §16, still human).
+- Surfaced two follow-ups: pinned-central status lag after restart ([[ticket-pinned-central-status-lags-after-restart]]) and a pre-existing headless flake in the step-05 node-open click ([[ticket-e2e-node-click-flaky-headless]]).
+
+Human eyes are now needed only for the **visual/native-feel** residue of §1/§6/§10/§11/§13 (accent styling, size-change legibility) plus §2–§5, §7–§9, §12, §14–§16.
+
 `npm test` (49 files / 499 tests green) + `npm run check` (tsc clean) cover the entire contract layer:
 - `planSettingsWrite` — which write lands where, per interaction, incl. pin-on-toggle (writes even when == global) and reset (=undefined → field delete).
 - `ControlsModelBuilder` — presence-based inherited-vs-pinned, value derived through the same `TraversalSettingsResolver` the engine uses (shown value == graphed value, structurally), Q-A semantics (pinned central reflects only `MAIN.centralDepths[X]`).
