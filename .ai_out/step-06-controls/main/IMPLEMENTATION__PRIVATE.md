@@ -1,7 +1,53 @@
 # IMPLEMENTATION — PRIVATE working state (step-06-controls)
 
-## Status: Phase A + Phase B + Phase C COMPLETE. Phase D NOT started.
-Full suite green (48 files / 497 tests). `npm run check` clean. Production build (esbuild) OK. Nothing committed.
+## Status: Phases A–D COMPLETE. Implementation done (Phase E QA is a human/reviewer step).
+Full suite green (49 files / 499 tests). `npm run check` clean. Production build (esbuild) OK. Nothing committed.
+
+---
+## PHASE D state (global settings tab) — DONE
+
+### Files added
+- `src/view/NeighborhoodGraphSettingTab.ts` — `class NeighborhoodGraphSettingTab extends PluginSettingTab`.
+  Obsidian glue only. `display()` renders three headed sections via the native `Setting` builder:
+  - **Depth defaults**: two `addSlider` (0..MAX_STEPPER_DEPTH, step 1, dynamic tooltip), seeded from
+    `store.globalDepths()`; onChange → `applyInteraction({kind:"global-depth", direction, value: clampStepperDepth(v)})`.
+  - **Node sizing**: per-metric `addToggle` + weight `addText[number]` for all 5 metrics (iterating the shared
+    `SIZING_METRICS`); minPx / maxPx / depthDecayK number fields. Each edit merges the CURRENT
+    `store.globalView().sizing` and emits `{kind:"global-sizing", sizing}`. Toggle onChange re-runs `display()`
+    so the weight field's disabled state tracks the toggle (weight fields don't re-render mid-typing → no focus loss).
+  - **Performance**: node-cap number field (GLOBAL-only, Q4); onChange → `{kind:"global-cap", value}` guarded to
+    integer ≥ `MIN_NODE_CAP` (=1).
+  - Single private write path `applyInteraction(i)`: `planSettingsWrite(i, {globalDepths, globalView})` read FRESH
+    each call (so successive edits compose) → switch the resulting command onto
+    `store.saveGlobalDepths`/`saveGlobalView` (the two per-doc command kinds are unreachable for global-* and
+    early-return) → `plugin.refreshOpenViews()`.
+- `src/view/sizingMetrics.ts` — extracted shared `SIZING_METRICS` (id+label+order) — the ONE presentation list
+  consumed by BOTH `SizingSection.tsx` (in-view) and the tab, so labels/order never drift.
+- `src/view/sizingMetrics.test.ts` — invariant test: list covers every engine `SizeMetricId` exactly once (via
+  `EngineDefaults.sizingSettings().metrics` keys) + non-empty labels.
+
+### Files changed
+- `src/view/SizingSection.tsx` — now imports `SIZING_METRICS` (deleted its local `METRICS` copy). No behavior change.
+- `src/main.ts` — import `NeighborhoodGraphSettingTab`; `this.addSettingTab(new NeighborhoodGraphSettingTab(this.app, this))`
+  in `onload`; NEW public `refreshOpenViews()` iterating `getLeavesOfType(VIEW_TYPE_NEIGHBORHOOD_GRAPH)` and calling
+  `view.refresh()` on each `NeighborhoodGraphView` (uses `instanceof`, not `as`, for type-safe narrowing).
+
+### Phase D notes / decisions
+- Tab imports the plugin type via `import type NeighborhoodGraphPlugin from "../main"` (TYPE-ONLY default import →
+  no runtime cycle; `super(app, plugin)` needs the runtime instance, which the caller passes). `private get store()`
+  = `this.plugin.pluginDataStore`.
+- Depths use sliders (idiomatic, self-clamping 0..5) but still route the value through `clampStepperDepth` per task.
+- Writes fire on every valid change (slider tick / keystroke), consistent with the in-view `SizingSection` — Pareto,
+  no debounce in V1. `refreshOpenViews()` after each. Acceptable given serialized cheap `saveData`.
+
+### DEVIATION (Phase D)
+- None material. Judgement call on the DRY extraction: extracted ONLY the metric label/order list (`SIZING_METRICS`)
+  — genuine knowledge duplication with a real test invariant. The trivial whole-object `sizing` spreads were NOT
+  extracted (they are one-liners; a "sizing form" helper module would be indirection for its own sake). Both
+  surfaces still route through the same pure `planSettingsWrite` `global-sizing` command → zero write-logic dup.
+
+### Phase E (NOT code — reviewer/human)
+- Run plan §13 checklist through an Obsidian restart (persistence + live refresh across the settings tab and toolbar).
 
 ---
 ## PHASE C state (in-view UI + CSS) — DONE

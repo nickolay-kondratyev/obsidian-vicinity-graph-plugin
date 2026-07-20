@@ -3,6 +3,7 @@ import type { ReactElement } from "react";
 import { useControlsActions } from "./ControlsActionsContext";
 import type { SettingsWriteContext } from "./settingsWritePlan";
 import { planSettingsWrite } from "./settingsWritePlan";
+import { SIZING_METRICS } from "./sizingMetrics";
 
 /**
  * The in-view sizing mirror (step-06 Phase C, CLARIFICATION Q5): a collapsed
@@ -15,15 +16,6 @@ import { planSettingsWrite } from "./settingsWritePlan";
  * {@link ViewSettings.sizing} and each edit emits a whole-object write that
  * rebuilds and flows a fresh value back — no local form state to drift.
  */
-
-/** Display labels + render order for the five sizing metrics. */
-const METRICS: readonly { readonly id: SizeMetricId; readonly label: string }[] = [
-	{ id: "own-file-size", label: "Own file size" },
-	{ id: "total-linker-size", label: "Total linker size" },
-	{ id: "backlink-count", label: "Backlinks" },
-	{ id: "outlink-count", label: "Outlinks" },
-	{ id: "depth-decay", label: "Depth decay" },
-];
 
 export function SizingSection({
 	view,
@@ -47,7 +39,7 @@ export function SizingSection({
 			<summary className="neighborhood-graph-disclosure__summary">Node sizing</summary>
 			<div className="neighborhood-graph-disclosure__body nowheel">
 				<div className="neighborhood-graph-sizing__metrics">
-					{METRICS.map(({ id, label }) => {
+					{SIZING_METRICS.map(({ id, label }) => {
 						const metric = sizing.metrics[id];
 						return (
 							<div className="neighborhood-graph-sizing__metric" key={id}>

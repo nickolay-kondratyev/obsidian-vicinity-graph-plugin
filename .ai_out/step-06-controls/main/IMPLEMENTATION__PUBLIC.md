@@ -221,7 +221,84 @@ and threads it to both `CentralDepthControls` and `SizingSection`.
 - **Full suite: 48 files, 497 tests passing** (+1: ControlsModel global-context). `npm run check` (tsc): clean.
   `node esbuild.config.mjs production`: OK (CSS bundled into `styles.css`, verified). Zero regressions.
 
+## Phase D — global settings tab (COMPLETE)
+
+The final phase: a native Obsidian settings tab exposing the GLOBAL defaults, routed through the SAME pure
+`planSettingsWrite` contract as the toolbar. No new business rule.
+
+### Files added
+| Path | Public surface |
+|------|----------------|
+| `src/view/NeighborhoodGraphSettingTab.ts` | `class NeighborhoodGraphSettingTab extends PluginSettingTab`. Ctor `(app, plugin)`. `display()` renders Depth defaults (2 sliders), Node sizing (5 metric toggle+weight rows via shared `SIZING_METRICS`, plus minPx/maxPx/depthDecayK), Performance (node cap). All controls seed from `pluginDataStore.globalDepths()/globalView()`. |
+| `src/view/sizingMetrics.ts` | `SizingMetricLabel`, `SIZING_METRICS` — the single id+label+order list for the five sizing metrics, shared by the in-view `SizingSection` and the settings tab. |
+| `src/view/sizingMetrics.test.ts` | Invariant: `SIZING_METRICS` covers every engine `SizeMetricId` exactly once + non-empty labels. |
+
+### Files changed
+| Path | Change |
+|------|--------|
+| `src/view/SizingSection.tsx` | Imports the shared `SIZING_METRICS` (removed its local `METRICS` duplicate). No behavior change. |
+| `src/main.ts` | `addSettingTab(new NeighborhoodGraphSettingTab(this.app, this))` in `onload`; NEW public `refreshOpenViews(): void` — the settings-tab fan-out target. |
+
+### How settings-tab writes reach persistence (identical path to the toolbar)
+`display()` control onChange → build a `SettingsInteraction` (`global-depth` / `global-cap` / `global-sizing`)
+→ private `applyInteraction(i)`:
+```
+const command = planSettingsWrite(i, { globalDepths: store.globalDepths(), globalView: store.globalView() });
+switch (command.kind) {
+  case "global-depths": await store.saveGlobalDepths(command.depths); break;
+  case "global-view":   await store.saveGlobalView(command.view);     break;
+  // "doc-depth-field" / "central-depth-field": unreachable for global-* → early return
+}
+plugin.refreshOpenViews();
+```
+The ctx (`globalDepths`/`globalView`) is read FRESH from `pluginDataStore` on every write so successive edits
+compose. The "merge one field into the whole object" logic is NOT duplicated — it lives only in `planSettingsWrite`.
+Sizing edits merge the current `store.globalView().sizing` and emit `{kind:"global-sizing", sizing}`; depths route
+their value through `clampStepperDepth`; node cap is guarded to an integer ≥ 1 (GLOBAL-only per Q4).
+
+### Refresh fan-out (Q-C)
+`NeighborhoodGraphPlugin.refreshOpenViews()` iterates `app.workspace.getLeavesOfType(VIEW_TYPE_NEIGHBORHOOD_GRAPH)`
+and calls `view.refresh()` (Phase B; → `controller.handleSettingsChanged()` = immediate rebuild) on each leaf whose
+`view instanceof NeighborhoodGraphView`. Called after every settings-tab save. Obsidian-idiomatic; no bespoke emitter.
+
+### Shared extraction (DRY judgement)
+Only the metric label/order list was extracted (`SIZING_METRICS` + its test) — real knowledge duplication between the
+two sizing surfaces. The trivial whole-object `sizing` spreads stayed inline (one-liners; a dedicated helper module
+would be needless indirection). Both surfaces still share ONE write path via `planSettingsWrite`.
+
+### Deviations
+- None material.
+
+### Test / gate results (Phase D)
+- **Full suite: 49 files, 499 tests passing** (+2: `sizingMetrics`). `npm run check` (tsc -noEmit): clean.
+  `node esbuild.config.mjs production`: OK. Zero regressions.
+
 ---
 
-### Left for later phases (NOT started)
-- Phase D: `NeighborhoodGraphSettingTab` + `addSettingTab` + `refreshOpenViews()` fan-out (`view.refresh()`).
+## Implementation complete (A–D) — surface summary for the reviewer
+
+The step-06 controls feature is implementation-complete. Full surface:
+
+- **Pure core (A):** `clampStepperDepth`/`MIN|MAX_STEPPER_DEPTH` (`view/constants.ts`); `planSettingsWrite`
+  (`SettingsInteraction`→`SettingsCommand`, the "which write lands where" contract); `planNodePinAction`;
+  `PinnedRootResolver` (shared skip-rule + per-root merged override, reused by the assembler); `ControlsModelBuilder`
+  → `ControlsModel { centrals, globalDepths, globalView }`. All unit-tested; scenario round-trip + engine re-exploration.
+- **Pipeline + executor (B):** `NeighborhoodGraphBuilder.build` returns `{graph, controls}` (single disk read);
+  `GraphViewController` carries `controls`, adds `handleSettingsChanged()` (immediate rebuild) + `currentMainPath()`;
+  `ControlsActions` (obsidian glue) executes a `SettingsCommand`/pin/unpin onto `PersistenceServices`/`PluginDataStore`,
+  `Notice` on not-persistable; `NeighborhoodGraphView` gains `refresh()` + `getControlsActions()`.
+- **In-view UI (C):** `GraphToolbar` (`<Panel top-left>`, native `<details>`), `CentralDepthControls` + `DepthStepper`
+  (MAIN always visible; pinned centrals + sizing behind disclosures per Q1), `SizingSection`, node hover `PinButton` +
+  context-menu (`ObsidianGraphUi.showNodeMenu`), `graph-view.css` (all theme vars). Writes route React→`planSettingsWrite`
+  →`ControlsActionsPort`.
+- **Settings tab (D):** `NeighborhoodGraphSettingTab` (global depth / sizing / node-cap defaults) → same
+  `planSettingsWrite` path → `PluginDataStore.saveGlobal*` → `refreshOpenViews()` fan-out.
+
+**Write-path invariant across ALL surfaces:** every settings mutation is a `SettingsInteraction` → `planSettingsWrite`
+→ `SettingsCommand`, executed by exactly one obsidian switch (`ControlsActions` for the view, the tab's `applyInteraction`
+for globals). The field-merge business rule exists once (in `planSettingsWrite`).
+
+**Gates:** 49 files / 499 tests green; `tsc -noEmit` clean; production esbuild OK. Nothing committed.
+
+**For Phase E QA (human/reviewer):** run plan §13 through an Obsidian restart — verify persistence + live cross-surface
+refresh (a tab edit updates an open toolbar's values and vice-versa; both persist across restart).

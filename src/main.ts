@@ -13,6 +13,7 @@ import { OrphanSweeper, SWEEP_DELAY_MS } from "./persistence/OrphanSweeper";
 import { PathDocIdMap } from "./persistence/PathDocIdMap";
 import { PersistenceServices } from "./persistence/PersistenceServices";
 import { PluginDataStore } from "./persistence/PluginDataStore";
+import { NeighborhoodGraphSettingTab } from "./view/NeighborhoodGraphSettingTab";
 import { NeighborhoodGraphView, VIEW_TYPE_NEIGHBORHOOD_GRAPH } from "./view/NeighborhoodGraphView";
 
 // manifest.json minAppVersion WHY: 1.12.4 is the first PUBLIC Obsidian release where
@@ -59,6 +60,7 @@ export default class NeighborhoodGraphPlugin extends Plugin {
 
 		this.registerVaultLifecycleHandlers();
 		this.scheduleOrphanSweep();
+		this.addSettingTab(new NeighborhoodGraphSettingTab(this.app, this));
 
 		this.registerView(
 			VIEW_TYPE_NEIGHBORHOOD_GRAPH,
@@ -83,6 +85,20 @@ export default class NeighborhoodGraphPlugin extends Plugin {
 			name: "Debug: log neighborhood graph for active file",
 			callback: () => void this.logNeighborhoodGraph(),
 		});
+	}
+
+	/**
+	 * Re-render every open graph view after a global-settings write (step-06
+	 * Q-C). Obsidian-idiomatic fan-out: iterate the plugin's leaves and ask each
+	 * view to rebuild from the fresh globals. No bespoke event emitter.
+	 */
+	refreshOpenViews(): void {
+		for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE_NEIGHBORHOOD_GRAPH)) {
+			const { view } = leaf;
+			if (view instanceof NeighborhoodGraphView) {
+				view.refresh();
+			}
+		}
 	}
 
 	onunload(): void {
