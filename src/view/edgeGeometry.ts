@@ -16,9 +16,13 @@ export interface EdgePathGeometry {
  * Perpendicular offset of a paired edge's control point. Both edges of an
  * A↔B pair bow to the RIGHT of their OWN travel direction, so the pair mirrors
  * around the straight line automatically and neither the lines nor their count
- * badges overlap.
+ * badges overlap. Widened from 24 → 34 in the 2026-07-20 smoke run: the tighter
+ * bow let each incoming arrowhead sit almost on top of the returning edge near
+ * the shared node, reading as one clipped smudge. More separation fans the two
+ * curves apart at their endpoints so each arrowhead is individually legible
+ * (see [[ticket-edge-arrowhead-and-badge-visual-polish]]).
  */
-export const EDGE_PAIR_CURVATURE_PX = 24;
+export const EDGE_PAIR_CURVATURE_PX = 34;
 
 /**
  * Builds the edge path: a straight line normally, a quadratic curve bowed

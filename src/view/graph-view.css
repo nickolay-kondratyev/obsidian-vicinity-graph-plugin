@@ -256,8 +256,12 @@
 	text-overflow: ellipsis;
 }
 
-.neighborhood-graph-group__badge,
-.neighborhood-graph-edge__count-badge {
+/*
+ * Folder-group "+N" badge. Kept as its own rule block (WHY-NOT share with the
+ * edge count badge: the smoke run restyled ONLY the edge badge; the folder
+ * badge sits inside a bordered group card where the boxy chip still reads well).
+ */
+.neighborhood-graph-group__badge {
 	font-size: var(--font-smallest);
 	line-height: 1.6;
 	padding: 0 var(--size-4-1);
@@ -269,10 +273,26 @@
 
 /* ===== edges ============================================================ */
 
-/* Rendered inside React Flow's EdgeLabelRenderer overlay (absolute canvas space). */
+/*
+ * Collapsed multi-link "×N" badge, rendered inside React Flow's
+ * EdgeLabelRenderer overlay (absolute canvas space) at the edge midpoint.
+ * Smoke-run restyle (2026-07-20): the original bordered chip read as cluttered
+ * floating over the canvas. Softened to a borderless pill — a solid
+ * --background-primary fill still occludes the edge line behind the digits for
+ * legibility, a full --radius-l pill + faint --shadow-s make it read as a light
+ * floating token instead of a boxed label, and --text-muted keeps the count
+ * quiet next to the node titles (all theme vars — zero own colors).
+ */
 .neighborhood-graph-edge__count-badge {
 	position: absolute;
 	pointer-events: none;
+	padding: 0 var(--size-4-1);
+	font-size: var(--font-smallest);
+	line-height: 1.5;
+	color: var(--text-muted);
+	background: var(--background-primary);
+	border-radius: var(--radius-l);
+	box-shadow: var(--shadow-s);
 }
 
 /* ===== corner overlay badge ============================================= */

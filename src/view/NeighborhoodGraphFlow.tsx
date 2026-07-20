@@ -27,10 +27,14 @@ const EDGE_TYPES: EdgeTypes = { neighborhood: NeighborhoodEdge };
 /**
  * Arrowhead size in React Flow's default `markerUnits: strokeWidth` units, NOT
  * px: the marker scales with `--xy-edge-stroke-width` (1.5 in graph-view.css),
- * so the effective size is 18 × 1.5 = 27px-equivalent. RF's default (12.5)
- * reads too faint at graph zoom levels; final tuning belongs to the smoke run.
+ * so the effective size is 24 × 1.5 = 36px-equivalent. RF anchors the triangle
+ * in only a quarter of its 20×20 marker viewBox (rest is empty margin), so the
+ * number must run large to read as a solid, legibly-directional head. RF's
+ * default (12.5) and the first pass (18) both read too faint at graph zoom —
+ * the 2026-07-20 smoke run bumped this to 24 (see
+ * [[ticket-edge-arrowhead-and-badge-visual-polish]]).
  */
-const EDGE_ARROWHEAD_SIZE = 18;
+const EDGE_ARROWHEAD_SIZE = 24;
 
 export function NeighborhoodGraphFlow({
 	controller,
