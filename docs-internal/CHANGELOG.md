@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-07-20 — edge-polish: arrowhead clarity + cleaner ×N badge
+
+Resolves the two human-judged visual issues from the step-05 smoke run (QA_CHECKLIST §4/§7, [[tickets/ticket-edge-arrowhead-and-badge-visual-polish]]) that automation can't catch — arrowheads reading unclear and the collapsed-count badge looking cluttered:
+
+- **Arrowheads**: `EDGE_ARROWHEAD_SIZE` 18→24 (`NeighborhoodGraphFlow.tsx`) for legible direction; `EDGE_PAIR_CURVATURE_PX` 24→34 (`edgeGeometry.ts`) so the mirrored A↔B pair fans apart and each arrowhead is individually visible near the shared node (was reading as one clipped smudge). Color stays `--text-faint` — locked by the e2e both-theme contract, so the levers were size + geometry, not color.
+- **"×N" badge**: split out of the shared folder-badge CSS rule (folder `+N` chip unchanged) and restyled to a borderless theme-var pill (`--radius-l` + `--shadow-s`, tight padding) for a cleaner, less-cluttered midpoint.
+- CSS-first, all theme-variable-driven (zero plugin colors). Contract preserved: polyline arrowhead + `--text-faint` override, `marker-end url()` on every edge, `×N` text + `data-count`; `edgeGeometry.test.ts` needed no edit (asserts interpolate the curvature symbol).
+
+Verified: `npm run check` + `npm test` (451 root + 69 sublib) green; implementer + independent reviewer CONVERGED-READY on round 1 (0 blockers). Pending human confirmation on a real render (tuned on a faithful chromium proxy, not live Obsidian) and an e2e run in a display-capable env — see ticket.
+
 ## 2026-07-18 — step-05-rich-rendering: nodes that carry information
 
 Plain rectangles become rich, themed, information-dense nodes — the plugin's reason to exist (executes [[plan/steps/step-05-rich-rendering]], Phase 5 of [[plan/high-level-plan]]; binding decisions in step-05 CLARIFICATION Q1–Q5 + palette deferral — engine edge counts approved, ctrl/cmd = new tab, native `Menu`, corner overlay for orphaned truncation counts, Playwright e2e in scope, **NO folder colors** (human decision: deliberate design pass later, [[tickets/ticket-folder-color-ux-design-pass]])):

@@ -15,7 +15,11 @@ CLARIFICATION? → IMPLEMENTATION_WITH_SELF_PLAN → IMPLEMENTATION_REVIEW → I
 ## Progress
 - [x] EXPLORATION — done, findings in EXPLORATION_PUBLIC.md
 - [x] CLARIFICATION — no blocking questions; constraints in CLARIFICATION__PUBLIC.md
-- [ ] IMPLEMENTATION_WITH_SELF_PLAN — running (bg)
-- [ ] IMPLEMENTATION_REVIEW
-- [ ] IMPLEMENTATION_ITERATION
-- [ ] Commit + changelog + ticket close
+- [x] IMPLEMENTATION_WITH_SELF_PLAN — done; committed c3b4615 (size 18→24, curvature 24→34, badge pill). Tests green.
+- [x] IMPLEMENTATION_REVIEW — verdict READY (0 blockers). Reviewer re-ran tests green.
+- [x] IMPLEMENTATION_ITERATION — converged round 0 (no changes needed).
+- [x] Commit + changelog + ticket update — done.
+
+## Outcome
+Converged READY on first review pass. Ticket RESOLVED (pending human real-render eyeball).
+Changelog entry added (2026-07-20). Follow-ups folded into ticket (no new ticket needed).
