@@ -51,6 +51,13 @@ Display-less environments (CI containers) work via Chromium's headless Ozone bac
 OBSIDIAN_E2E_EXTRA_ARGS="--ozone-platform=headless --disable-gpu" npm run test:e2e
 ```
 
+On **Linux / Docker** you can skip the manual `OBSIDIAN_PATH` step entirely: when it is
+unset, `npm run test:e2e` auto-downloads a pinned Obsidian build (the Linux tarball — no
+FUSE/AppImage extraction) once, caches it under `.tmp/obsidian/`, and points the suite at
+it (`scripts/setup-obsidian-bin.sh`; run standalone via `npm run setup:obsidian`). Bump the
+pinned `OBSIDIAN_VERSION` in that script deliberately. Set `OBSIDIAN_PATH` yourself to
+override (and it is required on macOS/Windows, which have no drop-in binary).
+
 The suite is idempotent (fresh vault copy + fresh sandbox config per run under `.tmp/e2e/`)
 and never touches your real Obsidian config or the dev-vault fixtures.
 
