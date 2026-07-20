@@ -302,3 +302,22 @@ for globals). The field-merge business rule exists once (in `planSettingsWrite`)
 
 **For Phase E QA (human/reviewer):** run plan §13 through an Obsidian restart — verify persistence + live cross-surface
 refresh (a tab edit updates an open toolbar's values and vice-versa; both persist across restart).
+
+---
+
+## Post-review minors (non-blocking cleanups from IMPLEMENTATION_REVIEW)
+
+Applied the two Minor items; no behavior change, pure cleanup.
+
+1. **DRY'd the direction→field mapping.** The `Direction → keyof DepthOverride` map was duplicated
+   (`settingsWritePlan.ts` `fieldOf`, `ControlsModel.ts` `DIRECTION_FIELD`). Extracted ONE source of
+   truth `DIRECTION_DEPTH_FIELD` in `src/engine/types.ts` (next to `Direction`/`DepthOverride`, its
+   natural home — pure, no obsidian, no import cycle since `view` already imports from `engine`),
+   re-exported from `src/engine/index.ts`. Both call sites now use it; local copies deleted. Existing
+   tests already cover the mapping behavior end-to-end, so no new test warranted.
+2. **Dropped dead-defensive `central.docid ?? ""`** in `src/view/CentralDepthControls.tsx`. The pinned
+   branch now narrows `central.docid !== undefined` and passes a definite `string` (null-interaction
+   early-return if ever absent), matching the `editable` guard — type-safe, no papering fallback.
+
+**Gates:** 49 files / 499 tests green (`.tmp/minors-vitest.txt`); `tsc -noEmit` clean
+(`.tmp/minors-tsc.txt`). Not committed.

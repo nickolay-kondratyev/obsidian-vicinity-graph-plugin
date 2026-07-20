@@ -1,5 +1,5 @@
 import type { DepthOverride, DepthSettings, Direction, ViewSettings } from "../engine";
-import { TraversalSettingsResolver } from "../engine";
+import { DIRECTION_DEPTH_FIELD, TraversalSettingsResolver } from "../engine";
 import type { GraphRequestInputs } from "../adapters/GraphRequestAssembler";
 import { PinnedRootResolver } from "../adapters/resolvePinnedDescriptors";
 import { VaultPathFacts } from "../shared/VaultPathFacts";
@@ -53,11 +53,6 @@ export interface ControlsModel {
 	readonly globalView: ViewSettings;
 }
 
-const DIRECTION_FIELD: Readonly<Record<Direction, keyof DepthOverride>> = {
-	outgoing: "outgoingDepth",
-	incoming: "incomingDepth",
-};
-
 export class ControlsModelBuilder {
 	static build(inputs: GraphRequestInputs): ControlsModel {
 		const centrals: CentralControl[] = [ControlsModelBuilder.mainControl(inputs)];
@@ -110,7 +105,7 @@ export class ControlsModelBuilder {
 		ownedOverride: DepthOverride,
 		direction: Direction,
 	): DirectionDepth {
-		const field = DIRECTION_FIELD[direction];
+		const field = DIRECTION_DEPTH_FIELD[direction];
 		return {
 			value: TraversalSettingsResolver.resolveForRoot(global, effectiveOverride)[field],
 			pinned: ownedOverride[field] !== undefined,

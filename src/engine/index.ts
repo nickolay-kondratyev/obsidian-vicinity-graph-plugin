@@ -52,7 +52,7 @@ export type {
 	ViewSettings,
 	ViewSettingsOverride,
 } from "./types";
-export { asDocId, asFolderPath, asVaultPath } from "./types";
+export { asDocId, asFolderPath, asVaultPath, DIRECTION_DEPTH_FIELD } from "./types";
 
 export type { FileMetadata, LinkProvider } from "./LinkProvider";
 export { NodeEligibility } from "./NodeEligibility";

@@ -145,6 +145,17 @@ export interface DepthOverride {
 	readonly incomingDepth?: number;
 }
 
+/**
+ * Single source of truth mapping a {@link Direction} to the depth field it controls
+ * (`outgoing → outgoingDepth`, `incoming → incomingDepth`) on {@link DepthSettings} /
+ * {@link DepthOverride}. Shared by the engine resolvers and the step-06 controls so
+ * the mapping exists exactly once. POLS — trivially invertible.
+ */
+export const DIRECTION_DEPTH_FIELD: Readonly<Record<Direction, keyof DepthOverride>> = {
+	outgoing: "outgoingDepth",
+	incoming: "incomingDepth",
+};
+
 /** Toggle + weight of one sizing metric. */
 export interface SizingMetricSetting {
 	readonly enabled: boolean;

@@ -27,10 +27,15 @@ export function CentralDepthControls({
 	const editable = central.persistable && (central.kind === "main" || central.docid !== undefined);
 
 	const apply = (direction: Direction, value: number | undefined): void => {
-		const interaction: SettingsInteraction =
+		// Narrow the pinned-central docid to a definite string (the `editable`
+		// guard above already blocks this path when it is absent).
+		const interaction: SettingsInteraction | null =
 			central.kind === "main"
 				? { kind: "main-depth", direction, value }
-				: { kind: "central-depth", centralDocid: central.docid ?? "", direction, value };
+				: central.docid !== undefined
+					? { kind: "central-depth", centralDocid: central.docid, direction, value }
+					: null;
+		if (interaction === null) return;
 		void actions.applySettings(planSettingsWrite(interaction, ctx));
 	};
 

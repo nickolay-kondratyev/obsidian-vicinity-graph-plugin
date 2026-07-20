@@ -1,4 +1,5 @@
 import type { DepthOverride, DepthSettings, Direction, SizingSettings, ViewSettings } from "../engine";
+import { DIRECTION_DEPTH_FIELD } from "../engine";
 
 /**
  * The "which write lands where" contract layer (step-06 #2). Mirrors
@@ -52,26 +53,25 @@ export interface SettingsWriteContext {
 	readonly globalView: ViewSettings;
 }
 
-/** `outgoing → outgoingDepth`, `incoming → incomingDepth`. POLS — trivially invertible. */
-function fieldOf(direction: Direction): keyof DepthOverride {
-	return direction === "outgoing" ? "outgoingDepth" : "incomingDepth";
-}
-
 export function planSettingsWrite(interaction: SettingsInteraction, ctx: SettingsWriteContext): SettingsCommand {
 	switch (interaction.kind) {
 		case "main-depth":
-			return { kind: "doc-depth-field", field: fieldOf(interaction.direction), value: interaction.value };
+			return {
+				kind: "doc-depth-field",
+				field: DIRECTION_DEPTH_FIELD[interaction.direction],
+				value: interaction.value,
+			};
 		case "central-depth":
 			return {
 				kind: "central-depth-field",
 				centralDocid: interaction.centralDocid,
-				field: fieldOf(interaction.direction),
+				field: DIRECTION_DEPTH_FIELD[interaction.direction],
 				value: interaction.value,
 			};
 		case "global-depth":
 			return {
 				kind: "global-depths",
-				depths: { ...ctx.globalDepths, [fieldOf(interaction.direction)]: interaction.value },
+				depths: { ...ctx.globalDepths, [DIRECTION_DEPTH_FIELD[interaction.direction]]: interaction.value },
 			};
 		case "global-cap":
 			return { kind: "global-view", view: { ...ctx.globalView, nodeCap: interaction.value } };
