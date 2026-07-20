@@ -13,9 +13,12 @@ Branch: main. Feature dir: `.ai_out/step-06-controls/main/`.
   - [ ] Phase C: in-view UI + CSS
   - [ ] Phase D: settings tab
   - [ ] Phase E: manual QA
-- [ ] IMPLEMENTATION_REVIEW + ITERATION
-- [ ] PARETO_COMPLEXITY_ANALYSIS
-- [ ] Closeout: changelog entry, tickets, final human summary.
+  - [x] Phase A/B/C/D all committed, gates green (499 tests, tsc, prod build).
+- [x] IMPLEMENTATION_REVIEW — APPROVE-WITH-FOLLOWUPS (0 Critical/Important); 2 minor DRY cleanups applied + committed.
+- [x] PARETO_COMPLEXITY_ANALYSIS — JUSTIFIED, ship as-is.
+- [x] Closeout: changelog entry written; tickets filed (smoke-run + optimistic-input-latency); QA_CHECKLIST.md; final human summary.
+
+## DONE. Awaiting human manual smoke run (ticket-step-06-controls-human-smoke-run).
 
 ## Key binding decisions
 See CLARIFICATION__PUBLIC.md. Depth steppers = only per-doc/central write surface; sizing+cap global-only V1. Q-A: stepper edits MAIN.centralDepths[X] layer only.
