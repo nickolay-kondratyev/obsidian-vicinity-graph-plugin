@@ -32,31 +32,33 @@ as a vault in Obsidian, enable community plugins, enable "Neighborhood Graph", t
 Launches a real Obsidian (Electron) on a throwaway COPY of `.dev-vault` (plus e2e-only
 `crowd/` fixtures) with a sandboxed `--user-data-dir`, and asserts rendered DOM state
 (node counts, tier classes, badges, edge markers, theme-reactive arrowheads). Not part
-of `npm test` — run it as a release gate:
+of `npm test` — run it as a release gate.
+
+On **Linux / Docker / CI it just runs** — no setup:
 
 ```bash
-# Linux (AppImage): extract once, then point OBSIDIAN_PATH at the binary
-./Obsidian-x.y.z.AppImage --appimage-extract
-export OBSIDIAN_PATH=$PWD/squashfs-root/obsidian
-
-# macOS
-export OBSIDIAN_PATH='/Applications/Obsidian.app/Contents/MacOS/Obsidian'
-
 npm run test:e2e
 ```
 
-Display-less environments (CI containers) work via Chromium's headless Ozone backend:
+`scripts/run-e2e.sh` (the `test:e2e` entry) makes it self-contained:
+
+- **Binary:** when `OBSIDIAN_PATH` is unset it auto-downloads a pinned Obsidian build once
+  — the Linux tarball, no FUSE/AppImage extraction — caches it under `.tmp/obsidian/`, and
+  points the suite at it (`scripts/setup-obsidian-bin.sh`; also `npm run setup:obsidian`).
+  Bump the pinned `OBSIDIAN_VERSION` in that script deliberately.
+- **Display:** when no display server is detected (`$DISPLAY`/`$WAYLAND_DISPLAY` unset), it
+  defaults the headless Chromium-Ozone flags (`--ozone-platform=headless --disable-gpu`) so
+  Electron boots offscreen instead of dying on a missing X server.
+
+Both are overridable — set `OBSIDIAN_PATH` and/or `OBSIDIAN_E2E_EXTRA_ARGS` yourself and the
+script leaves them untouched. `OBSIDIAN_PATH` is **required** on macOS/Windows (no drop-in
+binary to auto-provision), e.g.:
 
 ```bash
-OBSIDIAN_E2E_EXTRA_ARGS="--ozone-platform=headless --disable-gpu" npm run test:e2e
+# macOS
+export OBSIDIAN_PATH='/Applications/Obsidian.app/Contents/MacOS/Obsidian'
+npm run test:e2e
 ```
-
-On **Linux / Docker** you can skip the manual `OBSIDIAN_PATH` step entirely: when it is
-unset, `npm run test:e2e` auto-downloads a pinned Obsidian build (the Linux tarball — no
-FUSE/AppImage extraction) once, caches it under `.tmp/obsidian/`, and points the suite at
-it (`scripts/setup-obsidian-bin.sh`; run standalone via `npm run setup:obsidian`). Bump the
-pinned `OBSIDIAN_VERSION` in that script deliberately. Set `OBSIDIAN_PATH` yourself to
-override (and it is required on macOS/Windows, which have no drop-in binary).
 
 The suite is idempotent (fresh vault copy + fresh sandbox config per run under `.tmp/e2e/`)
 and never touches your real Obsidian config or the dev-vault fixtures.
