@@ -3,14 +3,16 @@ import type { Edge, EdgeTypes, Node, NodeMouseHandler, NodeTypes } from "@xyflow
 import { useCallback, useMemo, useSyncExternalStore } from "react";
 import type { ReactElement } from "react";
 import { hiddenOverlayText, orphanBreakdownTitle } from "./badgeText";
+import { ControlsActionsContext } from "./ControlsActionsContext";
 import { FolderGroupNode } from "./FolderGroupNode";
 import type { FlowEdge, FlowNode } from "./flowMapping";
+import { GraphToolbar } from "./GraphToolbar";
 import type { GraphViewController } from "./GraphViewController";
 import { GraphUiContext } from "./GraphUiContext";
 import { isFolderGroupId } from "./graphIdentity";
 import { NeighborhoodEdge } from "./NeighborhoodEdge";
 import { NoteNode } from "./NoteNode";
-import type { GraphUiPort } from "./viewPorts";
+import type { ControlsActionsPort, GraphUiPort } from "./viewPorts";
 
 /**
  * Renders the controller's flow snapshot with React Flow (step-05 rich
@@ -39,9 +41,11 @@ const EDGE_ARROWHEAD_SIZE = 24;
 export function NeighborhoodGraphFlow({
 	controller,
 	ui,
+	actions,
 }: {
 	readonly controller: GraphViewController;
 	readonly ui: GraphUiPort;
+	readonly actions: ControlsActionsPort;
 }): ReactElement {
 	const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
 
@@ -75,41 +79,46 @@ export function NeighborhoodGraphFlow({
 
 	return (
 		<GraphUiContext.Provider value={ui}>
-			<div className="neighborhood-graph-flow">
-				<ReactFlow
-					nodes={nodes}
-					edges={edges}
-					nodeTypes={NODE_TYPES}
-					edgeTypes={EDGE_TYPES}
-					onNodeClick={onNodeClick}
-					onNodeMouseEnter={onNodeMouseEnter}
-					nodesConnectable={false}
-					// The graph is read-only in V1: layout is elk-driven and would
-					// overwrite any manual placement on the next rebuild, so a drag
-					// would only snap back. Disable it rather than ship half-working
-					// drag (decision 2026-07-20, [[ticket-node-drag-reposition]]).
-					nodesDraggable={false}
-					// Ctrl/cmd is the "open in new tab" gesture (CLARIFICATION Q2);
-					// RF's default multiSelectionKeyCode is the SAME modifier, so
-					// each new-tab click would also toggle a meaningless persistent
-					// multi-selection in this read-only graph. Disable it.
-					multiSelectionKeyCode={null}
-					fitView
-				>
-					<Background />
-					<Controls />
-					{snapshot.orphanTruncation.totalHiddenCount > 0 && (
-						<Panel position="top-right">
-							<div
-								className="neighborhood-graph-overlay-badge"
-								title={orphanBreakdownTitle(snapshot.orphanTruncation.breakdown)}
-							>
-								{hiddenOverlayText(snapshot.orphanTruncation.totalHiddenCount)}
-							</div>
+			<ControlsActionsContext.Provider value={actions}>
+				<div className="neighborhood-graph-flow">
+					<ReactFlow
+						nodes={nodes}
+						edges={edges}
+						nodeTypes={NODE_TYPES}
+						edgeTypes={EDGE_TYPES}
+						onNodeClick={onNodeClick}
+						onNodeMouseEnter={onNodeMouseEnter}
+						nodesConnectable={false}
+						// The graph is read-only in V1: layout is elk-driven and would
+						// overwrite any manual placement on the next rebuild, so a drag
+						// would only snap back. Disable it rather than ship half-working
+						// drag (decision 2026-07-20, [[ticket-node-drag-reposition]]).
+						nodesDraggable={false}
+						// Ctrl/cmd is the "open in new tab" gesture (CLARIFICATION Q2);
+						// RF's default multiSelectionKeyCode is the SAME modifier, so
+						// each new-tab click would also toggle a meaningless persistent
+						// multi-selection in this read-only graph. Disable it.
+						multiSelectionKeyCode={null}
+						fitView
+					>
+						<Background />
+						<Controls />
+						<Panel position="top-left">
+							<GraphToolbar controls={snapshot.controls} />
 						</Panel>
-					)}
-				</ReactFlow>
-			</div>
+						{snapshot.orphanTruncation.totalHiddenCount > 0 && (
+							<Panel position="top-right">
+								<div
+									className="neighborhood-graph-overlay-badge"
+									title={orphanBreakdownTitle(snapshot.orphanTruncation.breakdown)}
+								>
+									{hiddenOverlayText(snapshot.orphanTruncation.totalHiddenCount)}
+								</div>
+							</Panel>
+						)}
+					</ReactFlow>
+				</div>
+			</ControlsActionsContext.Provider>
 		</GraphUiContext.Provider>
 	);
 }

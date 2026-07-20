@@ -1,7 +1,77 @@
 # IMPLEMENTATION — PRIVATE working state (step-06-controls)
 
-## Status: Phase A + Phase B COMPLETE. Phases C/D NOT started.
-Full suite green (48 files / 496 tests). `npm run check` clean. Nothing committed (TOP_LEVEL commits).
+## Status: Phase A + Phase B + Phase C COMPLETE. Phase D NOT started.
+Full suite green (48 files / 497 tests). `npm run check` clean. Production build (esbuild) OK. Nothing committed.
+
+---
+## PHASE C state (in-view UI + CSS) — DONE
+
+### Files added
+- `src/view/ControlsActionsContext.ts` — React context (sibling of `GraphUiContext`) delivering
+  `ControlsActionsPort`; `useControlsActions()` throws if outside the flow.
+- `src/view/DepthStepper.tsx` — presentational `−/value/+` + reset (hidden unless `pinned && !disabled`);
+  clamps via `clampStepperDepth`; emits `number | undefined`. `data-pinned`/`data-disabled` drive CSS.
+- `src/view/CentralDepthControls.tsx` — one central row (title + 2 steppers). Builds `SettingsInteraction`
+  (`main-depth` for MAIN, `central-depth` w/ `centralDocid` for pinned) → `planSettingsWrite(_, ctx)` →
+  `actions.applySettings`. `editable = persistable && (main || docid!==undefined)`.
+- `src/view/SizingSection.tsx` — `<details>` disclosure; 5 metric enable+weight, minPx/maxPx, depthDecayK.
+  Fully CONTROLLED off `view.sizing` (snapshot) — each edit emits whole-object `global-sizing` write; no
+  local form state (no drift). Inner `SizingNumber` helper guards `Number.isNaN(valueAsNumber)`.
+- `src/view/GraphToolbar.tsx` — the `<Panel top-left>` body. Whole panel = native `<details>` (collapsed by
+  default, no JS state). MAIN row always visible; pinned centrals behind a nested `<details>`; sizing behind
+  its own disclosure. `nowheel nodrag nopan`. Returns null when `centrals` empty.
+
+### Files changed
+- `src/view/ControlsModel.ts` — **`ControlsModel` now carries `globalDepths: DepthSettings` +
+  `globalView: ViewSettings`** (single source for `planSettingsWrite` ctx + sizing seed; builder already
+  loaded them). `build()` returns them; +1 test in `ControlsModel.test.ts`.
+- `src/view/GraphViewController.ts` + `.test.ts` — `EMPTY_CONTROLS` now seeds globals from `EngineDefaults`
+  (`depthSettings()`/`viewSettings()`); GVC imports `EngineDefaults` (value).
+- `src/view/viewPorts.ts` — added `NodeMenuEntry` + `NodeMenuRequest`; `GraphUiPort.showNodeMenu(request)`.
+- `src/view/ObsidianGraphUi.ts` — implemented `showNodeMenu` (native `Menu`, one item, `showAtMouseEvent`;
+  item `onClick` = the entry's carried closure — adapter needs no actions ref). Mirrors `showAttachmentMenu`.
+- `src/view/NoteNode.tsx` — hover `PinButton` (`nodrag nopan`, icon via `ui.renderIcon`, stopPropagation →
+  `runPinAction`) + `onContextMenu` (preventDefault+stopPropagation; none→no menu; else `ui.showNodeMenu`).
+  `pinAction = useMemo(planNodePinAction(data.tier))`; `runPinAction` routes `actions.pinNode(path)` /
+  `unpinNode(docid)`. Uses `useControlsActions()`.
+- `src/view/NeighborhoodGraphFlow.tsx` — new `actions: ControlsActionsPort` prop; wraps tree in
+  `ControlsActionsContext.Provider`; renders `<Panel position="top-left"><GraphToolbar controls=…/></Panel>`.
+- `src/view/NeighborhoodGraphView.tsx` — passes `actions={controlsActions}` into the flow render.
+- `src/view/graph-view.css` — toolbar/header/body, central rows, stepper (button/value/reset,
+  inherited=muted vs pinned=normal+accent-dot + accent left-border), disclosures, sizing grid, hover
+  pin-button (`opacity:0` until `.neighborhood-graph-node:hover`/`:focus-visible`). Node got
+  `position:relative`. ALL theme vars (0 own colors; only pre-existing `b1b1b7` comment ref). ~260px max,
+  body `max-height:60vh; overflow-y:auto`.
+
+### Phase C notes / gotchas
+- Collapse uses native `<details>` throughout (toolbar + both nested disclosures) — zero `useState`.
+  Chevron = CSS border-triangle rotated 90° on `[open]`; `list-style:none` + `::-webkit-details-marker`.
+- SizingSection is CONTROLLED from the snapshot, relying on the immediate-rebuild loop (`handleSettingsChanged`)
+  to feed fresh values back. Fine for V1; number inputs write on every valid change (Pareto — no debounce).
+- `planSettingsWrite` ctx everywhere = `{ globalDepths: controls.globalDepths, globalView: controls.globalView }`
+  computed once in `GraphToolbar`, passed to `CentralDepthControls` + `SizingSection`.
+
+### DEVIATION (Phase C)
+- Task item 10 wording said "MAIN + pinned depth controls always visible"; I placed **pinned centrals behind
+  a nested disclosure** (MAIN always visible) to honor the BINDING **CLARIFICATION Q1** ("pinned centrals and
+  sizing section behind expand/disclosure toggles"). Sizing also behind a disclosure per Q1/Q5. If the human
+  prefers pinned rows always-visible, move the `<CentralDepthControls>` map out of the nested `<details>` in
+  `GraphToolbar.tsx` (one-line structural change).
+- `showNotice` port NOT added — Phase B routes the not-persistable/not-pinnable `Notice` directly inside
+  `ControlsActions` (its own obsidian glue), so no node surface needs a `showNotice` port. `GraphUiPort` gained
+  only `showNodeMenu`.
+
+### Remaining Phase D checklist (NOT started)
+- `src/view/NeighborhoodGraphSettingTab.ts` (`extends PluginSettingTab`): global depth defaults (clamp
+  `clampStepperDepth`) → `saveGlobalDepths`; sizing (REUSE the SAME `planSettingsWrite` `global-sizing` shape
+  — could even extract SizingSection's field set, but tab uses obsidian `Setting`); node cap → `saveGlobalView`.
+- `main.ts`: `this.addSettingTab(new NeighborhoodGraphSettingTab(this.app, this))` + `refreshOpenViews()`
+  helper iterating `app.workspace.getLeavesOfType(VIEW_TYPE_NEIGHBORHOOD_GRAPH)` → `view.refresh()` after each
+  global save. `view.refresh()` already exists (Phase B).
+- Phase E QA: run plan §13 checklist through an Obsidian restart.
+
+---
+### (historical) Status before Phase C
 
 ---
 ## PHASE B state (builder + controller + plumbing) — for Phase C

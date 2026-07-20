@@ -54,14 +54,15 @@ export class NeighborhoodGraphView extends ItemView {
 		const controller = new GraphViewController(navigator, this.graphBuilder, new ElkLayoutRunner());
 		const ui = new ObsidianGraphUi(this.app, VIEW_TYPE_NEIGHBORHOOD_GRAPH);
 		this.controller = controller;
-		this.controlsActions = new ControlsActions(controller, this.persistenceServices, this.pluginDataStore, this.app);
+		const controlsActions = new ControlsActions(controller, this.persistenceServices, this.pluginDataStore, this.app);
+		this.controlsActions = controlsActions;
 		this.registerGraphEvents(controller, navigator);
 		controller.start();
 
 		this.root = createRoot(this.contentEl);
 		this.root.render(
 			<StrictMode>
-				<NeighborhoodGraphFlow controller={controller} ui={ui} />
+				<NeighborhoodGraphFlow controller={controller} ui={ui} actions={controlsActions} />
 			</StrictMode>,
 		);
 	}

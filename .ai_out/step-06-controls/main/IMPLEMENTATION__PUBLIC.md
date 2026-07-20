@@ -165,12 +165,63 @@ type FlowNodeData = { …; docid?: string; … }
 ### Test results (Phase B)
 - **Full suite: 48 files, 496 tests passing. `npm run check` (tsc -noEmit): clean. Zero regressions.**
 
+## Phase C — in-view toolbar UI + node pin affordances + CSS (COMPLETE)
+
+Renders the tested pure layers as the user-facing toolbar and node pin/unpin. No settings tab yet (Phase D).
+
+### Components added
+| Path | Responsibility |
+|------|----------------|
+| `src/view/ControlsActionsContext.ts` | React context (sibling of `GraphUiContext`) delivering `ControlsActionsPort`; `useControlsActions()`. |
+| `src/view/DepthStepper.tsx` | Presentational `−/value/+` + reset. Clamps via `clampStepperDepth`; emits `number \| undefined`. `data-pinned`/`data-disabled` drive inherited-vs-pinned + disabled CSS; reset hidden unless `pinned`. |
+| `src/view/CentralDepthControls.tsx` | One central row → builds `SettingsInteraction` (`main-depth`/`central-depth`) → `planSettingsWrite(_, ctx)` → `actions.applySettings`. NO business rule. |
+| `src/view/SizingSection.tsx` | `<details>` mirror of the tab's sizing controls (5 metrics + weights, min/max px, depthDecayK). CONTROLLED off `view.sizing`; every edit → whole-object `global-sizing` write. |
+| `src/view/GraphToolbar.tsx` | The `<Panel top-left>` body: native `<details>` (collapsed by default). MAIN row always visible; pinned centrals + sizing each behind a disclosure (CLARIFICATION Q1). `nowheel nodrag nopan`. |
+
+### Existing files changed
+| Path | Change |
+|------|--------|
+| `src/view/ControlsModel.ts` | **`ControlsModel` now also carries `globalDepths: DepthSettings` + `globalView: ViewSettings`** — the single source for the `planSettingsWrite` ctx and the sizing form seed (builder already loaded them; no React re-read/dup). |
+| `src/view/GraphViewController.ts` (+`.test.ts`) | `EMPTY_CONTROLS` seeds those globals from `EngineDefaults`. |
+| `src/view/viewPorts.ts` | Added `NodeMenuEntry` + `NodeMenuRequest`; `GraphUiPort.showNodeMenu(request)`. |
+| `src/view/ObsidianGraphUi.ts` | Implemented `showNodeMenu` (native `Menu`, item `onClick` = the carried pin/unpin closure). |
+| `src/view/NoteNode.tsx` | Hover `PinButton` (`nodrag nopan`) + `onContextMenu` → `ui.showNodeMenu`; both share `planNodePinAction(data.tier)`; routes `actions.pinNode(path)`/`unpinNode(docid)`. |
+| `src/view/NeighborhoodGraphFlow.tsx` | New `actions` prop; provides `ControlsActionsContext`; renders `<Panel top-left><GraphToolbar/></Panel>`. |
+| `src/view/NeighborhoodGraphView.tsx` | Passes `actions={controlsActions}` into the flow. |
+| `src/view/graph-view.css` | Toolbar/stepper/pin-button/disclosure/sizing blocks — ALL theme vars (zero own colors), ~260px, body scrolls vertically. |
+
+### ControlsModel extension (the one pure-surface change)
+```ts
+interface ControlsModel {
+  readonly centrals: readonly CentralControl[];
+  readonly globalDepths: DepthSettings;   // NEW — planSettingsWrite ctx
+  readonly globalView: ViewSettings;      // NEW — ctx + SizingSection seed
+}
+```
+`GraphToolbar` derives `ctx = { globalDepths: controls.globalDepths, globalView: controls.globalView }` once
+and threads it to both `CentralDepthControls` and `SizingSection`.
+
+### How Phase D (settings tab) reuses this
+- **Same write path, zero duplication:** the tab builds `global-depth`/`global-cap`/`global-sizing`
+  `SettingsInteraction`s → `planSettingsWrite(_, ctx)` → `pluginDataStore.saveGlobal*`. The tab's `ctx` comes
+  from `pluginDataStore.globalDepths()`/`globalView()` directly (it is outside the React tree). `SizingSection`'s
+  field-set + labels (`METRICS` order, whole-object `global-sizing` merge) are the reference for the tab's
+  sizing controls; the tab uses obsidian `Setting` widgets rather than reusing the TSX component.
+- `NeighborhoodGraphView.refresh()` (Phase B) is the fan-out target; `main.ts` iterates
+  `getLeavesOfType(VIEW_TYPE_NEIGHBORHOOD_GRAPH)` after each global save.
+
+### Deviations
+- **Pinned centrals behind a disclosure** (MAIN always visible), honoring binding CLARIFICATION Q1 over the
+  task's item-10 phrasing ("pinned depth controls always visible"). One-line structural revert in `GraphToolbar`
+  if the human prefers always-visible.
+- No `showNotice` port added: the not-persistable/not-pinnable `Notice` is emitted inside `ControlsActions`
+  (Phase B). `GraphUiPort` gained only `showNodeMenu`.
+
+### Test / gate results (Phase C)
+- **Full suite: 48 files, 497 tests passing** (+1: ControlsModel global-context). `npm run check` (tsc): clean.
+  `node esbuild.config.mjs production`: OK (CSS bundled into `styles.css`, verified). Zero regressions.
+
 ---
 
 ### Left for later phases (NOT started)
-- Phase C: `ControlsActionsContext` + provide in flow; `<Panel top-left>` `GraphToolbar` +
-  `CentralDepthControls` + `DepthStepper` (reset / inherited-vs-pinned) + `SizingSection`; `NoteNode`
-  hover `PinButton` + `onContextMenu`; `ObsidianGraphUi.showNodeMenu` (+ optional `showNotice`);
-  `graph-view.css`. Wire `view.getControlsActions()` into the flow render; thread globals for
-  `planSettingsWrite` context.
 - Phase D: `NeighborhoodGraphSettingTab` + `addSettingTab` + `refreshOpenViews()` fan-out (`view.refresh()`).

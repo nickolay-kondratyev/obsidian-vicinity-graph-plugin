@@ -1,4 +1,4 @@
-import type { DepthOverride, DepthSettings, Direction } from "../engine";
+import type { DepthOverride, DepthSettings, Direction, ViewSettings } from "../engine";
 import { TraversalSettingsResolver } from "../engine";
 import type { GraphRequestInputs } from "../adapters/GraphRequestAssembler";
 import { PinnedRootResolver } from "../adapters/resolvePinnedDescriptors";
@@ -43,6 +43,14 @@ export interface CentralControl {
 export interface ControlsModel {
 	/** MAIN first, then pinned centrals in assembler (pin) order. */
 	readonly centrals: readonly CentralControl[];
+	/**
+	 * The current global defaults, carried on the model so the toolbar has the
+	 * `planSettingsWrite` context (`{globalDepths, globalView}` merge base) AND the
+	 * seed values for the sizing form WITHOUT re-reading disk or duplicating global
+	 * state in React — the builder already loaded them, so this is the single source.
+	 */
+	readonly globalDepths: DepthSettings;
+	readonly globalView: ViewSettings;
 }
 
 const DIRECTION_FIELD: Readonly<Record<Direction, keyof DepthOverride>> = {
@@ -74,7 +82,7 @@ export class ControlsModelBuilder {
 				),
 			});
 		}
-		return { centrals };
+		return { centrals, globalDepths: inputs.globalDepths, globalView: inputs.globalView };
 	}
 
 	private static mainControl(inputs: GraphRequestInputs): CentralControl {

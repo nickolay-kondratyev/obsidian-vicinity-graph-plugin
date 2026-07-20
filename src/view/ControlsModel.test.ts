@@ -116,6 +116,17 @@ describe("ControlsModelBuilder central list", () => {
 	});
 });
 
+describe("ControlsModelBuilder global context", () => {
+	it("WHEN building THEN the model carries the current global depths + view (planSettingsWrite ctx / sizing seed)", () => {
+		const view = EngineDefaults.viewSettings();
+		const model = ControlsModelBuilder.build(inputs({ globalView: view }));
+		expect({ depths: model.globalDepths, view: model.globalView }).toEqual({
+			depths: { outgoingDepth: 2, incomingDepth: 1 },
+			view,
+		});
+	});
+});
+
 describe("ControlsModelBuilder persistability", () => {
 	it("WHEN MAIN has no docid THEN the row is not persistable and carries no docid", () => {
 		const main = mainRow({ mainDocId: null, mainPersistable: false });

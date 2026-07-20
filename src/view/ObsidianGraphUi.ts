@@ -3,7 +3,7 @@ import type { App, HoverPopover, HoverParent } from "obsidian";
 import { VaultPathFacts } from "../shared/VaultPathFacts";
 import { attachmentIconId } from "./attachmentIcons";
 import { planAttachmentMenu } from "./attachmentMenu";
-import type { AttachmentMenuRequest, GraphUiPort, HoverPreviewRequest } from "./viewPorts";
+import type { AttachmentMenuRequest, GraphUiPort, HoverPreviewRequest, NodeMenuRequest } from "./viewPorts";
 
 /**
  * Adapts Obsidian UI services (resource URLs, `hover-link` page previews,
@@ -54,6 +54,14 @@ export class ObsidianGraphUi implements GraphUiPort, HoverParent {
 		if (overflowText !== null) {
 			menu.addItem((item) => item.setTitle(overflowText).setDisabled(true));
 		}
+		menu.showAtMouseEvent(request.nativeEvent);
+	}
+
+	showNodeMenu(request: NodeMenuRequest): void {
+		const menu = new Menu();
+		menu.addItem((item) =>
+			item.setTitle(request.entry.title).setIcon(request.entry.iconId).onClick(request.entry.onClick),
+		);
 		menu.showAtMouseEvent(request.nativeEvent);
 	}
 

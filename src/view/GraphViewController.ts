@@ -1,4 +1,5 @@
 import type { NeighborhoodGraph } from "../engine";
+import { EngineDefaults } from "../engine";
 import type { ControlsModel } from "./ControlsModel";
 import { REBUILD_DEBOUNCE_MS, SIZE_RELAYOUT_THRESHOLD } from "./constants";
 import { decideLayout } from "./GraphStructureDiff";
@@ -38,7 +39,11 @@ export interface FlowSnapshot {
 	readonly controls: ControlsModel;
 }
 
-const EMPTY_CONTROLS: ControlsModel = { centrals: [] };
+const EMPTY_CONTROLS: ControlsModel = {
+	centrals: [],
+	globalDepths: EngineDefaults.depthSettings(),
+	globalView: EngineDefaults.viewSettings(),
+};
 
 const EMPTY_SNAPSHOT: FlowSnapshot = {
 	status: "empty",

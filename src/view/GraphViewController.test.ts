@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ElkNode } from "elkjs";
 import type { NeighborhoodGraph } from "../engine";
-import { asFolderPath, asVaultPath } from "../engine";
+import { asFolderPath, asVaultPath, EngineDefaults } from "../engine";
 import { GraphViewController } from "./GraphViewController";
 import type { FlowSnapshot } from "./GraphViewController";
 import type { ControlsModel } from "./ControlsModel";
@@ -9,7 +9,11 @@ import type { GraphBuildResult, GraphLayoutPort, GraphSourcePort, NoteNavigatorP
 import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
 
 /** These tests exercise rebuild concurrency, not the toolbar model — an empty model suffices. */
-const EMPTY_CONTROLS: ControlsModel = { centrals: [] };
+const EMPTY_CONTROLS: ControlsModel = {
+	centrals: [],
+	globalDepths: EngineDefaults.depthSettings(),
+	globalView: EngineDefaults.viewSettings(),
+};
 
 /**
  * Controller orchestration tests: latest-wins concurrency, null/empty handling,
