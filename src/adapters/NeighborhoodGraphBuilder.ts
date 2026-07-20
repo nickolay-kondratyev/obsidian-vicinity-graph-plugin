@@ -43,10 +43,14 @@ export class NeighborhoodGraphBuilder {
 			// delete-handling exact for docs seen before the sweep warm-up.
 			this.pathDocIdMap.set(mainPath, mainDocId);
 		}
+		// Same gate loadDocDataIfPersistable applies — surfaced to the toolbar so
+		// an unsafe/absent MAIN docid disables its steppers instead of Notice-ing.
+		const mainPersistable = mainDocId !== null && DocPersistEligibility.isFilenameSafeDocId(mainDocId);
 		const pins = this.pluginDataStore.pins();
 		const request = GraphRequestAssembler.assemble({
 			mainPath,
 			mainDocId,
+			mainPersistable,
 			mainDocData: await this.loadDocDataIfPersistable(mainDocId),
 			pins,
 			resolvePinPath: (docid) => this.pathDocIdMap.getPath(docid),

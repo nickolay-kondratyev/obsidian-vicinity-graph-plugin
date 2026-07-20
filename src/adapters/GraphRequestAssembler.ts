@@ -9,12 +9,21 @@ import type {
 } from "../engine";
 import { asDocId, asVaultPath } from "../engine";
 import type { DocData, PinnedDocEntry } from "../persistence/persistedShapes";
+import type { ResolvedPinnedRoot } from "./resolvePinnedDescriptors";
+import { PinnedRootResolver } from "./resolvePinnedDescriptors";
 
 /** Everything the assembler needs, already loaded (it does no IO itself). */
 export interface GraphRequestInputs {
 	readonly mainPath: string;
 	/** `null` when the main doc has no docid (graph still builds, nothing persisted applies). */
 	readonly mainDocId: string | null;
+	/**
+	 * Whether MAIN's docid can back a `doc-data/<docid>.json` file — the same
+	 * gate the builder loads {@link mainDocData} through (`mainDocId !== null &&
+	 * isFilenameSafeDocId`). An unsafe-foreign-docid MAIN has a non-null docid
+	 * but is NOT persistable; the toolbar disables its steppers off this flag.
+	 */
+	readonly mainPersistable: boolean;
 	readonly mainDocData: DocData | null;
 	readonly pins: readonly PinnedDocEntry[];
 	/** docid → current vault path (the in-memory map). `undefined` = unresolvable pin. */
@@ -40,7 +49,8 @@ export interface GraphRequestInputs {
  */
 export class GraphRequestAssembler {
 	static assemble(inputs: GraphRequestInputs): GraphBuildRequest {
-		const pinned = GraphRequestAssembler.resolvePins(inputs);
+		const resolved = PinnedRootResolver.resolve(inputs);
+		const pinned = resolved.map((root) => root.descriptor);
 		return {
 			main: {
 				path: asVaultPath(inputs.mainPath),
@@ -49,39 +59,24 @@ export class GraphRequestAssembler {
 			...(pinned.length > 0 ? { pinned } : {}),
 			globalDepths: inputs.globalDepths,
 			globalView: inputs.globalView,
-			...GraphRequestAssembler.depthOverrides(inputs, pinned),
+			...GraphRequestAssembler.depthOverrides(inputs, resolved),
 			...(inputs.mainDocData?.view !== undefined ? { mainViewOverride: inputs.mainDocData.view } : {}),
-			...GraphRequestAssembler.pinnedViewOverrides(inputs, pinned),
+			...GraphRequestAssembler.pinnedViewOverrides(inputs, resolved),
 		};
-	}
-
-	private static resolvePins(inputs: GraphRequestInputs): PinnedNodeDescriptor[] {
-		const pinned: PinnedNodeDescriptor[] = [];
-		for (const pin of inputs.pins) {
-			const path = inputs.resolvePinPath(pin.docid);
-			if (path === undefined || path === inputs.mainPath) {
-				continue;
-			}
-			pinned.push({ path: asVaultPath(path), docid: asDocId(pin.docid), pinTimestamp: pin.pinTimestamp });
-		}
-		return pinned;
 	}
 
 	private static depthOverrides(
 		inputs: GraphRequestInputs,
-		pinned: readonly PinnedNodeDescriptor[],
+		resolved: readonly ResolvedPinnedRoot[],
 	): Pick<GraphBuildRequest, "depthOverridesByRoot"> {
 		const byRoot = new Map<VaultPath, DepthOverride>();
 		const mainDepths = inputs.mainDocData?.depths;
 		if (mainDepths !== undefined) {
 			byRoot.set(asVaultPath(inputs.mainPath), mainDepths);
 		}
-		for (const pin of pinned) {
-			const ownDepths = inputs.docDataByDocid.get(pin.docid)?.depths ?? {};
-			const mainAdjusted = inputs.mainDocData?.centralDepths?.[pin.docid] ?? {};
-			const merged: DepthOverride = { ...ownDepths, ...mainAdjusted };
-			if (Object.keys(merged).length > 0) {
-				byRoot.set(pin.path, merged);
+		for (const root of resolved) {
+			if (Object.keys(root.mergedDepthOverride).length > 0) {
+				byRoot.set(root.descriptor.path, root.mergedDepthOverride);
 			}
 		}
 		return byRoot.size > 0 ? { depthOverridesByRoot: byRoot } : {};
@@ -89,13 +84,13 @@ export class GraphRequestAssembler {
 
 	private static pinnedViewOverrides(
 		inputs: GraphRequestInputs,
-		pinned: readonly PinnedNodeDescriptor[],
+		resolved: readonly ResolvedPinnedRoot[],
 	): Pick<GraphBuildRequest, "pinnedViewOverrides"> {
 		const overrides: PinnedViewOverride[] = [];
-		for (const pin of pinned) {
-			const view = inputs.docDataByDocid.get(pin.docid)?.view;
+		for (const root of resolved) {
+			const view = inputs.docDataByDocid.get(root.descriptor.docid)?.view;
 			if (view !== undefined) {
-				overrides.push({ descriptor: pin, override: view });
+				overrides.push({ descriptor: root.descriptor, override: view });
 			}
 		}
 		return overrides.length > 0 ? { pinnedViewOverrides: overrides } : {};

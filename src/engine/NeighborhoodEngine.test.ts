@@ -205,3 +205,63 @@ describe("NeighborhoodEngine edge link counts (step-05, CLARIFICATION Q1)", () =
 		expect(edgeCounts("all-edges")).toEqual({ "hub.md->twin.md": 2, "hub.md->solo.md": 1 });
 	});
 });
+
+/**
+ * Scenario §11.5(b): a pinned central X whose outgoing depth is adjusted while
+ * MAIN is Y must re-explore its chain to that depth END-TO-END (proves the BFS
+ * actually re-walks X, not just that the resolver returns a number). X's chain
+ * X → x1 → x2 → x3 has neighbors at hops 1/2/3; X's OWN depth is 1.
+ */
+describe("NeighborhoodEngine pinned-central depth re-exploration", () => {
+	function chainProvider(): FakeLinkProvider {
+		return new FakeLinkProvider({
+			files: [
+				{ path: "y.md" },
+				{ path: "z.md" },
+				{ path: "x.md" },
+				{ path: "x1.md" },
+				{ path: "x2.md" },
+				{ path: "x3.md" },
+			],
+			links: { "x.md": ["x1.md"], "x1.md": ["x2.md"], "x2.md": ["x3.md"] },
+		});
+	}
+
+	const X_PIN: PinnedNodeDescriptor = {
+		path: asVaultPath("x.md"),
+		docid: asDocId("docid_x_e"),
+		pinTimestamp: 1,
+	};
+
+	/** Build with MAIN=`mainPath` and X's outgoing depth pinned to `xOutgoing`. */
+	function build(mainPath: string, xOutgoing: number): NeighborhoodGraph {
+		return new NeighborhoodEngine(chainProvider()).build({
+			main: { path: asVaultPath(mainPath) },
+			pinned: [X_PIN],
+			globalDepths: { outgoingDepth: 1, incomingDepth: 0 },
+			globalView: { ...EngineDefaults.viewSettings(), nodeCap: 100 },
+			depthOverridesByRoot: new Map([[asVaultPath("x.md"), { outgoingDepth: xOutgoing }]]),
+		});
+	}
+
+	it("WHEN MAIN is Y and X's depth is adjusted to 3 THEN X reaches x3 at depth 3", () => {
+		expect(node(build("y.md", 3), "x3.md")?.depthTags).toEqual([
+			{ rootPath: "x.md", direction: "outgoing", depth: 3 },
+		]);
+	});
+
+	it("WHEN MAIN is Z and X uses its OWN depth 1 THEN x2 and x3 are out of reach", () => {
+		const graph = build("z.md", 1);
+		expect({ x1: node(graph, "x1.md") !== undefined, x2: node(graph, "x2.md"), x3: node(graph, "x3.md") }).toEqual({
+			x1: true,
+			x2: undefined,
+			x3: undefined,
+		});
+	});
+
+	it("WHEN MAIN returns to Y with X adjusted to 3 THEN X reaches x3 at depth 3 again", () => {
+		expect(node(build("y.md", 3), "x3.md")?.depthTags).toEqual([
+			{ rootPath: "x.md", direction: "outgoing", depth: 3 },
+		]);
+	});
+});

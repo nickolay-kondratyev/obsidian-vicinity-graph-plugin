@@ -52,3 +52,20 @@ export const ELK_LAYOUT_OPTIONS: Readonly<Record<string, string>> = {
  * room inside the container border.
  */
 export const ELK_GROUP_PADDING = "[top=36.0,left=16.0,bottom=16.0,right=16.0]";
+
+/**
+ * Depth-stepper input bounds (CLARIFICATION Q2). These are an AFFORDANCE limit
+ * on the toolbar/settings inputs — the engine itself honors any depth; this is
+ * the UI's clamp so a stepper cannot dial a nonsensical value.
+ */
+export const MIN_STEPPER_DEPTH = 0; // 0 = central only, no expansion that direction
+export const MAX_STEPPER_DEPTH = 5;
+
+/**
+ * Clamp a (possibly fractional / out-of-range) stepper input into
+ * `[MIN_STEPPER_DEPTH, MAX_STEPPER_DEPTH]`, rounding to the nearest integer.
+ * Used by every depth stepper and the settings-tab depth inputs.
+ */
+export function clampStepperDepth(value: number): number {
+	return Math.min(MAX_STEPPER_DEPTH, Math.max(MIN_STEPPER_DEPTH, Math.round(value)));
+}

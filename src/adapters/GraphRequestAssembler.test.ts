@@ -10,6 +10,7 @@ function inputs(partial: Partial<GraphRequestInputs> = {}): GraphRequestInputs {
 	return {
 		mainPath: "main.md",
 		mainDocId: "docid_main_e",
+		mainPersistable: true,
 		mainDocData: null,
 		pins: [],
 		resolvePinPath: (docid) => PIN_PATHS[docid],
