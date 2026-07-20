@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { asFolderPath, asVaultPath } from "../engine";
+import { asDocId, asFolderPath, asVaultPath } from "../engine";
 import { neighborhoodGraphToFlow, withGroupDimensions, withPositions } from "./flowMapping";
 import type { FlowNode, NoteFlowNode } from "./flowMapping";
 import { NO_ORPHAN_TRUNCATION } from "./truncationBadges";
@@ -35,6 +35,20 @@ describe("neighborhoodGraphToFlow nodes", () => {
 			imageCount: 0,
 			attachmentGroups: [],
 		});
+	});
+});
+
+describe("neighborhoodGraphToFlow docid", () => {
+	it("WHEN a central node carries a docid THEN it is forwarded onto the node data", () => {
+		const graph = makeGraph({
+			nodes: [makeNode({ path: asVaultPath("n.md"), isCentral: true, docid: asDocId("docid_n_e") })],
+		});
+		expect(noteNode(neighborhoodGraphToFlow(graph).nodes, "n.md")?.data.docid).toBe("docid_n_e");
+	});
+
+	it("WHEN a regular node has no docid THEN the node data omits docid", () => {
+		const graph = makeGraph({ nodes: [makeNode({ path: asVaultPath("n.md") })] });
+		expect(noteNode(neighborhoodGraphToFlow(graph).nodes, "n.md")?.data.docid).toBeUndefined();
 	});
 });
 

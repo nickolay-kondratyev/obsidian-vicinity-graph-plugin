@@ -1,7 +1,72 @@
 # IMPLEMENTATION — PRIVATE working state (step-06-controls)
 
-## Status: Phase A COMPLETE. Phases B/C/D NOT started.
-Full suite green (48 files / 491 tests). `npm run check` clean. Nothing committed (TOP_LEVEL commits).
+## Status: Phase A + Phase B COMPLETE. Phases C/D NOT started.
+Full suite green (48 files / 496 tests). `npm run check` clean. Nothing committed (TOP_LEVEL commits).
+
+---
+## PHASE B state (builder + controller + plumbing) — for Phase C
+
+### Files changed
+- `src/view/viewPorts.ts`: `GraphSourcePort.build` now returns `Promise<GraphBuildResult | null>`.
+  Added `GraphBuildResult { graph: NeighborhoodGraph; controls: ControlsModel }` and
+  `ControlsActionsPort { applySettings(cmd); pinNode(path); unpinNode(docid) }` (all `Promise<void>`).
+  Imports `ControlsModel` + `SettingsCommand` as TYPES only (no cycle).
+- `src/adapters/NeighborhoodGraphBuilder.ts`: `build` extracts one `const inputs: GraphRequestInputs`,
+  feeds BOTH `GraphRequestAssembler.assemble(inputs)` AND `ControlsModelBuilder.build(inputs)` →
+  returns `{ graph, controls }`. Imports `ControlsModelBuilder` (runtime) + `GraphBuildResult` (type)
+  from `../view/*` — adapter→view import is intentional (ControlsModel lives in view, built from
+  adapter inputs). No import cycle at runtime (view/ControlsModel never imports the builder).
+- `src/view/GraphViewController.ts`: `FlowSnapshot` gains `controls: ControlsModel`; `EMPTY_CONTROLS =
+  { centrals: [] }` + `EMPTY_SNAPSHOT.controls`. New private `controls` field (set from `result.controls`
+  in runRebuild, reset in `reset()`, republished in `publish()`). runRebuild destructures `result.graph`.
+  NEW public: `handleSettingsChanged(): void` (clearDebounce + immediate `void runRebuild()`, bypasses
+  decideActiveFileRebuild) and `currentMainPath(): string | null` (returns private `mainPath`). Controller
+  stays obsidian-free.
+- `src/view/flowMapping.ts`: `FlowNodeData.docid?: string` added (before `tier`); `toFlowNodeData`
+  spreads `...(node.docid === undefined ? {} : { docid: node.docid })`.
+- `src/view/ControlsActions.ts` (NEW, obsidian glue): `class ControlsActions implements ControlsActionsPort`.
+  Ctor `(controller, persistenceServices, pluginDataStore, app)`. `applySettings` switches SettingsCommand →
+  `setDocDepthField`/`setCentralDepthField`(via `mainFile()` = getFileByPath(controller.currentMainPath()),
+  null-safe no-op) / `saveGlobalDepths` / `saveGlobalView`; `pinNode`=resolve TFile→pinDoc; `unpinNode`=unpinDoc.
+  Every persist path ends with `controller.handleSettingsChanged()`. `Notice` shown directly (imported from
+  obsidian) when `PersistableIdentity.kind==="not-persistable"` — see DEVIATION below. Not unit-tested (glue);
+  typechecks.
+- `src/view/NeighborhoodGraphView.tsx`: ctor `(leaf, graphBuilder, pluginDataStore, persistenceServices)`.
+  onOpen builds `this.controlsActions = new ControlsActions(controller, persistenceServices, pluginDataStore, app)`.
+  NEW `refresh(): void` (→ `controller?.handleSettingsChanged()`, the settings-tab fan-out target) and
+  `getControlsActions(): ControlsActionsPort | null` (Phase C consumes). onClose nulls controlsActions.
+- `src/main.ts`: `registerView` callback passes `this.pluginDataStore, this.persistenceServices` to the view
+  ctor. `logNeighborhoodGraph` destructures `const { graph } = result` from the new build result.
+
+### Tests changed/added
+- `GraphViewController.test.ts`: `FakeGraphSource` now `Deferred<GraphBuildResult|null>`; `resolveBuild(i, graph)`
+  wraps `{ graph, controls: EMPTY_CONTROLS }` (local `const EMPTY_CONTROLS: ControlsModel = { centrals: [] }`).
+  +3 tests (handleSettingsChanged rebuild, currentMainPath null / returns path).
+- `NeighborhoodGraphBuilder.test.ts`: 3 sites `const graph = (await builder.build("main.md"))?.graph;`.
+- `flowMapping.test.ts`: +2 docid tests (central forwards docid; regular omits); imported `asDocId`.
+
+### How Phase C consumes Phase B
+- Toolbar model: `snapshot.controls` (`ControlsModel { centrals: CentralControl[] }`, MAIN first). Empty view →
+  `centrals: []`.
+- Actions: `NeighborhoodGraphView.getControlsActions()` → `ControlsActionsPort`. Phase C passes it into
+  `NeighborhoodGraphFlow` and provides via a new `ControlsActionsContext` (NOT built yet).
+- Node docid for unpin: `FlowNodeData.docid` (present on centrals).
+- planSettingsWrite CONTEXT (globalDepths/globalView) is NOT yet in the snapshot. Phase C must either add
+  globals to the snapshot OR read them another way to call `planSettingsWrite` before `applySettings`.
+  (Chosen split: React builds the `SettingsCommand`; `applySettings` just executes it.)
+
+### Remaining C/D checklist
+- Phase C: `ControlsActionsContext` + provide in flow; `<Panel top-left>` `GraphToolbar` +
+  `CentralDepthControls` + `DepthStepper`(reset/inherited-vs-pinned) + `SizingSection`; `NoteNode` hover
+  `PinButton` + `onContextMenu`; `ObsidianGraphUi.showNodeMenu` + `showNotice`; `graph-view.css`.
+  Wire `getControlsActions()` into the flow render in the view. Thread globals for planSettingsWrite context.
+- Phase D: `NeighborhoodGraphSettingTab` + `addSettingTab` + `refreshOpenViews()` fan-out (calls `view.refresh()`).
+
+### DEVIATIONS (Phase B)
+- Notice: `ControlsActions` imports `Notice` from obsidian DIRECTLY instead of routing through a
+  `GraphUiPort.showNotice` (plan §7). Rationale: ControlsActions is already obsidian glue, so owning its own
+  Notice avoids adding a port method / dependency in Phase B (KISS). Phase C may still add `showNotice` for the
+  NoteNode surface if desired, but the pin/depth not-persistable notices are handled here.
 
 ## What I built (Phase A) — files
 - `src/view/constants.ts` (extended): `MIN_STEPPER_DEPTH=0`, `MAX_STEPPER_DEPTH=5`, `clampStepperDepth`.

@@ -36,6 +36,8 @@ export type NodeTier = "main" | "pinned-central" | "regular";
 export type FlowNodeData = {
 	readonly path: string;
 	readonly title: string;
+	/** Echoed engine docid — present on centrals (MAIN + pinned); drives unpin. */
+	readonly docid?: string;
 	readonly tier: NodeTier;
 	readonly sizePx: number;
 	readonly sizeScore: number;
@@ -180,6 +182,7 @@ function toFlowNodeData(node: GraphNode, isGrouped: boolean): FlowNodeData {
 	return {
 		path: node.path,
 		title: node.title,
+		...(node.docid === undefined ? {} : { docid: node.docid }),
 		tier: tierOf(node),
 		sizePx: node.sizePx,
 		sizeScore: node.sizeScore,

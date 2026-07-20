@@ -62,7 +62,8 @@ export default class NeighborhoodGraphPlugin extends Plugin {
 
 		this.registerView(
 			VIEW_TYPE_NEIGHBORHOOD_GRAPH,
-			(leaf) => new NeighborhoodGraphView(leaf, this.graphBuilder),
+			(leaf) =>
+				new NeighborhoodGraphView(leaf, this.graphBuilder, this.pluginDataStore, this.persistenceServices),
 		);
 		// Node hover fires `hover-link` (step-05); registering the source lists
 		// the graph in the Page-preview core-plugin settings. `defaultMod: false`
@@ -154,11 +155,12 @@ export default class NeighborhoodGraphPlugin extends Plugin {
 			console.log("neighborhood-graph debug: no active file");
 			return;
 		}
-		const graph = await this.graphBuilder.build(activeFile.path);
-		if (graph === null) {
+		const result = await this.graphBuilder.build(activeFile.path);
+		if (result === null) {
 			console.log("neighborhood-graph debug: active file did not resolve", activeFile.path);
 			return;
 		}
+		const { graph } = result;
 		const hiddenNodeCount = [...graph.hiddenNodeCountsByFolder.values()].reduce((sum, count) => sum + count, 0);
 		console.log(
 			`neighborhood-graph debug: main=[${activeFile.path}] nodes=[${graph.nodes.length}] edges=[${graph.edges.length}] hiddenByTruncation=[${hiddenNodeCount}]`,

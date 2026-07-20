@@ -108,12 +108,69 @@ class PinnedRootResolver { static resolve(inputs: PinnedResolutionInputs): reado
 - Scenario: round-trip 4, engine re-exploration 3.
 - **Full suite: 48 files, 491 tests passing. `npm run check` (tsc -noEmit): clean.**
 
+## Phase B — builder + controller + plumbing (COMPLETE)
+
+Wires the Phase-A pure `ControlsModel` into the live rebuild pipeline and adds the obsidian executor.
+No React UI, no CSS, no settings tab yet (Phase C/D).
+
+### Files added
+| Path | Public surface |
+|------|----------------|
+| `src/view/ControlsActions.ts` | `class ControlsActions implements ControlsActionsPort`. Ctor `(controller, persistenceServices, pluginDataStore, app)`. Obsidian glue: switches a `SettingsCommand` onto `PersistenceServices`/`PluginDataStore`, resolves the MAIN `TFile` via `controller.currentMainPath()`, `Notice` on `not-persistable`, then `controller.handleSettingsChanged()`. Not unit-tested (glue) — typechecks. |
+
+### Files changed
+| Path | Change |
+|------|--------|
+| `src/view/viewPorts.ts` | `GraphSourcePort.build` → `Promise<GraphBuildResult \| null>`. Added `GraphBuildResult` + `ControlsActionsPort`. |
+| `src/adapters/NeighborhoodGraphBuilder.ts` | `build` returns `{ graph, controls }`; one `inputs` object feeds `GraphRequestAssembler.assemble` AND `ControlsModelBuilder.build` (single disk read). |
+| `src/view/GraphViewController.ts` | `FlowSnapshot.controls`; store/publish `controls`; new `handleSettingsChanged()` (immediate rebuild) + `currentMainPath()`. Stays obsidian-free. |
+| `src/view/flowMapping.ts` | `FlowNodeData.docid?: string` (from `GraphNode.docid`, on centrals). |
+| `src/view/NeighborhoodGraphView.tsx` | ctor gains `pluginDataStore` + `persistenceServices`; builds `ControlsActions`; `refresh()`; `getControlsActions()`. |
+| `src/main.ts` | `registerView` passes the two new deps; `logNeighborhoodGraph` destructures `{ graph }`. |
+| `GraphViewController.test.ts`, `NeighborhoodGraphBuilder.test.ts`, `flowMapping.test.ts` | Updated for the new return shape; +5 tests (settings-changed rebuild ×3, docid ×2). |
+
+### New public signatures
+```ts
+// viewPorts.ts
+interface GraphBuildResult { graph: NeighborhoodGraph; controls: ControlsModel }
+interface GraphSourcePort { build(mainPath: string): Promise<GraphBuildResult | null> }
+interface ControlsActionsPort {
+  applySettings(command: SettingsCommand): Promise<void>;
+  pinNode(path: string): Promise<void>;
+  unpinNode(docid: string): Promise<void>;
+}
+// GraphViewController.ts
+interface FlowSnapshot { /* …existing… */ controls: ControlsModel }
+handleSettingsChanged(): void   // immediate rebuild, bypasses decideActiveFileRebuild, clears debounce
+currentMainPath(): string | null
+// NeighborhoodGraphView.tsx
+refresh(): void                            // → controller.handleSettingsChanged(); settings-tab fan-out
+getControlsActions(): ControlsActionsPort | null
+// flowMapping.ts
+type FlowNodeData = { …; docid?: string; … }
+```
+
+### How Phase C consumes Phase B
+- Toolbar model = `snapshot.controls` (MAIN first; empty view → `centrals: []`).
+- Actions = `view.getControlsActions()` → provide via a (Phase-C) `ControlsActionsContext`; wire into the flow render.
+- Unpin docid = `FlowNodeData.docid`.
+- `planSettingsWrite` context (globals) is NOT in the snapshot yet — Phase C threads it (React builds the
+  `SettingsCommand`; `applySettings` only executes).
+
+### Deviation
+- `ControlsActions` uses `new Notice(...)` directly (obsidian glue file) rather than a `GraphUiPort.showNotice`
+  port (plan §7) — one fewer port dependency for Phase B (KISS). Phase C may still add `showNotice` if a node
+  surface needs it.
+
+### Test results (Phase B)
+- **Full suite: 48 files, 496 tests passing. `npm run check` (tsc -noEmit): clean. Zero regressions.**
+
+---
+
 ### Left for later phases (NOT started)
-- Phase B: `NeighborhoodGraphBuilder.build` → `GraphBuildResult{graph, controls}` (call
-  `ControlsModelBuilder.build(inputs)` on the SAME assembled inputs); `GraphSourcePort` + controller
-  publish `controls`; `handleSettingsChanged()`; `docid?` on `FlowNodeData`; `ControlsActions` adapter
-  (executor for `SettingsCommand`/pin/unpin) + `ControlsActionsPort`; view ctor deps. NOTE: `main.ts`
-  `logNeighborhoodGraph` and `GraphViewController.test.ts` fakes must destructure `{ graph }` from the
-  new build result (compile break otherwise).
-- Phase C: in-view React toolbar + CSS.
-- Phase D: settings tab + refresh fan-out.
+- Phase C: `ControlsActionsContext` + provide in flow; `<Panel top-left>` `GraphToolbar` +
+  `CentralDepthControls` + `DepthStepper` (reset / inherited-vs-pinned) + `SizingSection`; `NoteNode`
+  hover `PinButton` + `onContextMenu`; `ObsidianGraphUi.showNodeMenu` (+ optional `showNotice`);
+  `graph-view.css`. Wire `view.getControlsActions()` into the flow render; thread globals for
+  `planSettingsWrite` context.
+- Phase D: `NeighborhoodGraphSettingTab` + `addSettingTab` + `refreshOpenViews()` fan-out (`view.refresh()`).

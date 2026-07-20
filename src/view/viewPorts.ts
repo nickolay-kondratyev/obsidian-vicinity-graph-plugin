@@ -1,5 +1,7 @@
 import type { ElkNode } from "elkjs";
 import type { NeighborhoodGraph } from "../engine";
+import type { ControlsModel } from "./ControlsModel";
+import type { SettingsCommand } from "./settingsWritePlan";
 
 /**
  * Narrow structural ports the {@link GraphViewController} depends on (DIP).
@@ -10,9 +12,36 @@ import type { NeighborhoodGraph } from "../engine";
  * {@link GraphLayoutPort}, `ObsidianNoteNavigator` → {@link NoteNavigatorPort}.
  */
 
+/**
+ * One rebuild's output: the graph the engine produced AND the toolbar's
+ * read-model, both derived from the SAME loaded inputs (single disk read) so
+ * the value shown next to a stepper is structurally the value the graph used.
+ */
+export interface GraphBuildResult {
+	readonly graph: NeighborhoodGraph;
+	readonly controls: ControlsModel;
+}
+
 /** Builds the neighborhood graph for a MAIN file path. `null` = path unresolved. */
 export interface GraphSourcePort {
-	build(mainPath: string): Promise<NeighborhoodGraph | null>;
+	build(mainPath: string): Promise<GraphBuildResult | null>;
+}
+
+/**
+ * The obsidian executor side of the controls surface (step-06 #2/#6). The pure
+ * `planSettingsWrite` decides WHICH write; this port carries it out against
+ * `PersistenceServices`/`PluginDataStore`, resolves the target `TFile`,
+ * surfaces a `Notice` on a non-persistable doc, then triggers an immediate
+ * rebuild. Implemented by `ControlsActions`; consumed by the toolbar + node
+ * components via context (Phase C).
+ */
+export interface ControlsActionsPort {
+	/** Persist a planned settings write (depth / global), then rebuild. */
+	applySettings(command: SettingsCommand): Promise<void>;
+	/** Pin a regular node by its vault path (resolves + ensures a docid), then rebuild. */
+	pinNode(path: string): Promise<void>;
+	/** Unpin a pinned central by its docid, then rebuild. */
+	unpinNode(docid: string): Promise<void>;
 }
 
 /** Runs the elk layout on an elk graph, returning it annotated with coordinates. */

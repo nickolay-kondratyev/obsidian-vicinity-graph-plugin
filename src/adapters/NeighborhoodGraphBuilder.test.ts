@@ -48,19 +48,19 @@ async function builderFixture() {
 describe("NeighborhoodGraphBuilder", () => {
 	it("WHEN the main path resolves THEN its node is the MAIN central of the graph", async () => {
 		const { builder } = await builderFixture();
-		const graph = await builder.build("main.md");
+		const graph = (await builder.build("main.md"))?.graph;
 		expect(graph?.nodes.find((node) => node.path === "main.md")?.isMain).toBe(true);
 	});
 
 	it("WHEN main links a note THEN the neighbor is walked into the graph", async () => {
 		const { builder } = await builderFixture();
-		const graph = await builder.build("main.md");
+		const graph = (await builder.build("main.md"))?.graph;
 		expect(graph?.nodes.some((node) => node.path === "a.md")).toBe(true);
 	});
 
 	it("WHEN a persisted pin resolves through the map THEN it appears as a non-main central", async () => {
 		const { builder } = await builderFixture();
-		const graph = await builder.build("main.md");
+		const graph = (await builder.build("main.md"))?.graph;
 		const pinnedNode = graph?.nodes.find((node) => node.path === "pinned.md");
 		expect([pinnedNode?.isCentral, pinnedNode?.isMain]).toEqual([true, false]);
 	});

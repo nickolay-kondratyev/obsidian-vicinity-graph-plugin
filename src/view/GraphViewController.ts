@@ -1,4 +1,5 @@
 import type { NeighborhoodGraph } from "../engine";
+import type { ControlsModel } from "./ControlsModel";
 import { REBUILD_DEBOUNCE_MS, SIZE_RELAYOUT_THRESHOLD } from "./constants";
 import { decideLayout } from "./GraphStructureDiff";
 import { decideActiveFileRebuild } from "./RebuildDecision";
@@ -33,7 +34,11 @@ export interface FlowSnapshot {
 	readonly groupByFolder: boolean;
 	/** Graph-corner "+N hidden" overlay data (zero-total constant when nothing is hidden). */
 	readonly orphanTruncation: OrphanTruncation;
+	/** The toolbar's read-model for this build (MAIN + pinned centrals, empty when no graph). */
+	readonly controls: ControlsModel;
 }
+
+const EMPTY_CONTROLS: ControlsModel = { centrals: [] };
 
 const EMPTY_SNAPSHOT: FlowSnapshot = {
 	status: "empty",
@@ -41,6 +46,7 @@ const EMPTY_SNAPSHOT: FlowSnapshot = {
 	edges: [],
 	groupByFolder: false,
 	orphanTruncation: NO_ORPHAN_TRUNCATION,
+	controls: EMPTY_CONTROLS,
 };
 
 type Subscriber = () => void;
@@ -55,6 +61,8 @@ export class GraphViewController {
 	private positions: ReadonlyMap<string, XY> = new Map();
 	/** elk-computed folder-group sizes, reused alongside positions when layout is skipped. */
 	private groupDimensions: ReadonlyMap<string, Dimensions> = new Map();
+	/** Toolbar read-model from the last successful build, republished on every publish. */
+	private controls: ControlsModel = EMPTY_CONTROLS;
 	private mainPath: string | null = null;
 	private rebuildToken = 0;
 	private debounceTimer: number | null = null;
@@ -100,6 +108,23 @@ export class GraphViewController {
 		void this.runRebuild();
 	}
 
+	/**
+	 * A settings write (toolbar stepper / settings tab) changed persisted state
+	 * for the current MAIN. Not a file change, so this bypasses
+	 * {@link decideActiveFileRebuild}; it drops any pending debounced resolve and
+	 * rebuilds immediately (latest-wins {@link rebuildToken} absorbs stepper
+	 * bursts, the executor already awaited the write). No-op when no MAIN is set.
+	 */
+	handleSettingsChanged(): void {
+		this.clearDebounce();
+		void this.runRebuild();
+	}
+
+	/** The current MAIN file path (pure string getter — the executor targets it). `null` before any build. */
+	currentMainPath(): string | null {
+		return this.mainPath;
+	}
+
 	/** Vault content changed while the view is open — debounce the resolve burst. */
 	handleMetadataResolved(): void {
 		this.clearDebounce();
@@ -127,14 +152,16 @@ export class GraphViewController {
 			this.reset();
 			return;
 		}
-		const graph = await this.graphBuilder.build(mainPath);
+		const result = await this.graphBuilder.build(mainPath);
 		if (this.isStale(token)) {
 			return;
 		}
-		if (graph === null || graph.nodes.length === 0) {
+		if (result === null || result.graph.nodes.length === 0) {
 			this.reset();
 			return;
 		}
+		const graph = result.graph;
+		this.controls = result.controls;
 		const decision = decideLayout(this.previousGraph, graph, SIZE_RELAYOUT_THRESHOLD);
 		const flow = neighborhoodGraphToFlow(graph);
 		if (decision === "reuse-layout") {
@@ -169,6 +196,7 @@ export class GraphViewController {
 			edges: flow.edges,
 			groupByFolder: flow.groupByFolder,
 			orphanTruncation: flow.orphanTruncation,
+			controls: this.controls,
 		});
 	}
 
@@ -176,6 +204,7 @@ export class GraphViewController {
 		this.previousGraph = null;
 		this.positions = new Map();
 		this.groupDimensions = new Map();
+		this.controls = EMPTY_CONTROLS;
 		this.setSnapshot(EMPTY_SNAPSHOT);
 	}
 

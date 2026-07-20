@@ -1,11 +1,13 @@
-import type { NeighborhoodGraph } from "../engine";
 import { NeighborhoodEngine } from "../engine";
 import type { DocData } from "../persistence/persistedShapes";
 import { DocPersistEligibility } from "../persistence/DocPersistEligibility";
 import type { DocDataStore } from "../persistence/DocDataStore";
 import type { PathDocIdMap } from "../persistence/PathDocIdMap";
 import type { PluginDataStore } from "../persistence/PluginDataStore";
+import { ControlsModelBuilder } from "../view/ControlsModel";
+import type { GraphBuildResult } from "../view/viewPorts";
 import type { CanvasParseCache } from "./CanvasParseCache";
+import type { GraphRequestInputs } from "./GraphRequestAssembler";
 import { GraphRequestAssembler } from "./GraphRequestAssembler";
 import { ObsidianLinkProvider } from "./ObsidianLinkProvider";
 import type { DocIdPort, MetadataCachePort, VaultPort } from "./obsidianPorts";
@@ -31,7 +33,7 @@ export class NeighborhoodGraphBuilder {
 	) {}
 
 	/** `null` when `mainPath` does not resolve to a vault file. */
-	async build(mainPath: string): Promise<NeighborhoodGraph | null> {
+	async build(mainPath: string): Promise<GraphBuildResult | null> {
 		const mainFile = this.vault.getFileByPath(mainPath);
 		if (mainFile === null) {
 			return null;
@@ -47,7 +49,9 @@ export class NeighborhoodGraphBuilder {
 		// an unsafe/absent MAIN docid disables its steppers instead of Notice-ing.
 		const mainPersistable = mainDocId !== null && DocPersistEligibility.isFilenameSafeDocId(mainDocId);
 		const pins = this.pluginDataStore.pins();
-		const request = GraphRequestAssembler.assemble({
+		// ONE loaded inputs object feeds BOTH the graph AND the toolbar model, so
+		// the value a stepper shows is structurally the value the graph used.
+		const inputs: GraphRequestInputs = {
 			mainPath,
 			mainDocId,
 			mainPersistable,
@@ -57,8 +61,9 @@ export class NeighborhoodGraphBuilder {
 			docDataByDocid: await this.loadPinnedDocData(pins.map((pin) => pin.docid)),
 			globalDepths: this.pluginDataStore.globalDepths(),
 			globalView: this.pluginDataStore.globalView(),
-		});
-		return new NeighborhoodEngine(provider).build(request);
+		};
+		const graph = new NeighborhoodEngine(provider).build(GraphRequestAssembler.assemble(inputs));
+		return { graph, controls: ControlsModelBuilder.build(inputs) };
 	}
 
 	private async loadPinnedDocData(pinnedDocids: readonly string[]): Promise<ReadonlyMap<string, DocData>> {

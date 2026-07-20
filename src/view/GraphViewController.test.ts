@@ -4,8 +4,12 @@ import type { NeighborhoodGraph } from "../engine";
 import { asFolderPath, asVaultPath } from "../engine";
 import { GraphViewController } from "./GraphViewController";
 import type { FlowSnapshot } from "./GraphViewController";
-import type { GraphLayoutPort, GraphSourcePort, NoteNavigatorPort, OpenNoteOptions } from "./viewPorts";
+import type { ControlsModel } from "./ControlsModel";
+import type { GraphBuildResult, GraphLayoutPort, GraphSourcePort, NoteNavigatorPort, OpenNoteOptions } from "./viewPorts";
 import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
+
+/** These tests exercise rebuild concurrency, not the toolbar model — an empty model suffices. */
+const EMPTY_CONTROLS: ControlsModel = { centrals: [] };
 
 /**
  * Controller orchestration tests: latest-wins concurrency, null/empty handling,
@@ -37,21 +41,22 @@ function flush(): Promise<void> {
 /** Records every `build(path)` and hands back a promise the test resolves by index. */
 class FakeGraphSource implements GraphSourcePort {
 	readonly calls: string[] = [];
-	private readonly deferreds: Deferred<NeighborhoodGraph | null>[] = [];
+	private readonly deferreds: Deferred<GraphBuildResult | null>[] = [];
 
-	build(mainPath: string): Promise<NeighborhoodGraph | null> {
+	build(mainPath: string): Promise<GraphBuildResult | null> {
 		this.calls.push(mainPath);
-		const pending = deferred<NeighborhoodGraph | null>();
+		const pending = deferred<GraphBuildResult | null>();
 		this.deferreds.push(pending);
 		return pending.promise;
 	}
 
+	/** Tests supply just the graph; the empty controls model is attached here. */
 	resolveBuild(index: number, graph: NeighborhoodGraph | null): void {
 		const pending = this.deferreds[index];
 		if (pending === undefined) {
 			throw new Error(`no pending build at index ${index}`);
 		}
-		pending.resolve(graph);
+		pending.resolve(graph === null ? null : { graph, controls: EMPTY_CONTROLS });
 	}
 }
 
@@ -187,6 +192,30 @@ describe("GraphViewController MAIN gating", () => {
 		h.controller.openNode("notes/a.md", { newTab: true });
 
 		expect(h.navigator.openedOptions).toEqual([{ newTab: true }]);
+	});
+});
+
+describe("GraphViewController settings-changed rebuild", () => {
+	it("WHEN handleSettingsChanged is called THEN it rebuilds the current MAIN immediately", async () => {
+		const h = setup();
+		h.controller.handleActiveFileChanged("a.md");
+		h.source.resolveBuild(0, graphOf("a.md"));
+		await flush();
+
+		h.controller.handleSettingsChanged();
+
+		expect(h.source.calls).toEqual(["a.md", "a.md"]);
+	});
+
+	it("WHEN no MAIN is set THEN currentMainPath is null", () => {
+		const h = setup();
+		expect(h.controller.currentMainPath()).toBeNull();
+	});
+
+	it("WHEN a MAIN file is active THEN currentMainPath returns it", () => {
+		const h = setup();
+		h.controller.handleActiveFileChanged("a.md");
+		expect(h.controller.currentMainPath()).toBe("a.md");
 	});
 });
 
