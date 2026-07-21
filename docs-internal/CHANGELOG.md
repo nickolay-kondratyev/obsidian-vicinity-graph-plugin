@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-07-21 — vicinity-rename: `neighborhood` → `vicinity` vocabulary + Obsidian-standard plugin naming
+
+Repo moved from `obsidian-neighborhood-graph` to `obsidian-vicinity-graph-plugin` (`neighborhood` is hard to spell); this change makes the code match. A **script-driven** rename (one throwaway Python migration, `.tmp/vicinity-rename/rename.py`, not committed) swept **534** `neighborhood`-family occurrences across ~72 files plus **12** file renames via `git mv` — deterministic and re-runnable, no manual per-file editing. Supersedes the step-07 "keep the `obsidian-` id for V1, rename deferred" decision.
+
+- **Vocabulary**: `neighborhood`/`Neighborhood`/`NEIGHBORHOOD` → `vicinity`/`Vicinity`/`VICINITY` (and plural `neighborhoods` → `vicinities`) in all contents — symbols, imports, CSS classes (`.vicinity-graph-*`), command ids, view-type literal. The graph-adjacency term `neighbor`/`neighbors`/`neighboring` was **deliberately preserved** (standard graph-theory vocabulary; "vicinity" has no clean singular equivalent) — the rename rules key on the `hood` substring so bare `neighbor` is never touched.
+- **File renames (12)**: `NeighborhoodEngine.*` → `VicinityEngine.*`, `NeighborhoodTraversal.*` → `VicinityTraversal.*`, `NeighborhoodGraphBuilder.*` → `VicinityGraphBuilder.*`, `NeighborhoodEdge/GraphFlow/GraphSettingTab/GraphView` → `Vicinity*`, `e2e/neighborhoodGraph.e2e.ts` → `vicinityGraph.e2e.ts`.
+- **Obsidian-standard identity**: manifest `id` `obsidian-neighborhood-graph` → **`vicinity-graph`** (no `obsidian-` prefix / `-plugin` suffix per convention), `name` "Neighborhood Graph" → **"Vicinity Graph"**, `package.json` name → **`vicinity-graph`**, view-type string → **`vicinity-graph-view`**. Version **unchanged at 0.1.0** (pre-release; already semver-conformant). Hardcoded-id tests (`manifest.test.ts`, `DocDataStore.test.ts`, `OrphanSweeper.test.ts`, `e2e/obsidianHarness.ts`) updated accordingly.
+- **Descriptions** (manifest + package, kept in sync) reworded for discoverability to include "**local graph**" and "**nearby notes**", dropping "neighboring".
+
+Verified: `npm run check` (tsc) 0 errors; `npm test` **559 root** / **69 sublib** green (root count identical to pre-rename baseline — zero regressions); e2e `tsc` 0 errors. Acceptance greps: 0 `neighborhood`-family hits in tracked files (excluding the task prompt/agent scratch), 0 `neighborhood` basenames, graph-term `neighbor(s)` intact. Independently reviewed — IMPLEMENTATION_REVIEW **APPROVED**, 0 blocking; PARETO **PROCEED** (near-ideal 80/20, throwaway script correct).
+
 ## 2026-07-20 — step-07-hardening: confidence at the edges + public README
 
 Ship-readiness pass over dense vaults, cap boundaries, real-usage performance, and the public README — executes [[plan/steps/step-07-hardening]], Phase 7 of [[plan/high-level-plan]]. Not a feature step; a hardening + documentation step. Binding decisions in step-07 CLARIFICATION: structural perf assertions + one loose 150ms engine-build ceiling; a **committed** dense-fixture generator as the V2 regression harness; keep the dense suite in the default `npm test`; fix only the hover-pin bug now (ticket the rest); state the KSAL-2.3 license plainly; keep the `obsidian-` plugin id for V1 (rename + repo move deferred); store submission out of scope.
