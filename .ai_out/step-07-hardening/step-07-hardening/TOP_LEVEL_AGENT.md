@@ -19,10 +19,12 @@
 - [x] Branch + dirs
 - [x] EXPLORATION (engine/perf/readme) — committed bf6aced
 - [x] CLARIFICATION — committed bf6aced
-- [ ] PHASE A: engine dense-fixtures + cap edge cases → review → iterate → commit
-- [ ] PHASE B: perf pass (rebuild-debounce test, orphan-sweep scale-up, image culling fix-or-ticket, hover-pin CSS fix) → review → iterate → commit
-- [ ] PHASE C: README + release checklist + ticket triage → review → iterate → commit
-- [ ] Closeout: ONE changelog entry, tickets, final summary
+- [x] PHASE A: engine dense-fixtures + cap edge cases → APPROVE-WITH-NITS (0 blocking) → 29f4a77
+- [x] PHASE B: perf pass → APPROVE-WITH-NITS (0 blocking) → 0025b47
+- [x] PHASE C: README + release checklist + ticket triage → APPROVE-WITH-NITS (0 blocking)
+- [x] Closeout: ONE changelog entry (step-07), hover-pin ticket closed, culling-smoke ticket created, full suite green (559 main + 69 sublib, tsc + build EXIT 0)
+
+## DONE. All exit criteria met. 0 blocking findings across all 3 phase reviews.
 
 ## Confirmed decisions (see CLARIFICATION__PUBLIC.md)
 - Perf: structural asserts + one loose 150ms engine build ceiling.
