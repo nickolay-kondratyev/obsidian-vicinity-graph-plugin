@@ -25,6 +25,8 @@ import type { Dimensions, XY } from "./flowMapping";
  *   (layered, {@link ELK_GROUP_MEMBER_OPTIONS}), then the root algorithm
  *   arranges containers and ungrouped leaves as fixed boxes. Cross-boundary
  *   edges are PROJECTED onto containers (see {@link projectedRootEdges}).
+ *   For `force` the elk root pass is only a seed — `GraphLayoutRunner` then
+ *   refines the root boxes with d3-force (`d3ForceRefinement.ts`).
  */
 
 export function vicinityGraphToElk(graph: VicinityGraph): ElkNode {

@@ -129,11 +129,12 @@ export interface GraphEdge extends DirectedLink {
 export type EdgeVisibilityMode = "walked-from-center" | "all-edges";
 
 /**
- * Which elk algorithm arranges the graph:
- * - `"radial"` — concentric rings around the central hub; best space use for
- *   the hub-with-many-neighbours shape a vicinity graph typically has.
- * - `"force"` — organic force-directed spread.
- * - `"layered"` — classic top-down layers (rows).
+ * Which algorithm arranges the graph:
+ * - `"force"` — organic d3-force packing (elk seeds, d3 refines the root);
+ *   stays compact on the hub-with-many-neighbours shape a vicinity graph
+ *   typically has, where radial rings disperse. The default.
+ * - `"radial"` — elk's concentric rings around the central hub.
+ * - `"layered"` — elk's classic top-down layers (rows).
  */
 export type LayoutMode = "layered" | "radial" | "force";
 

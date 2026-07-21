@@ -1,0 +1,115 @@
+import { forceCollide, forceLink, forceManyBody, forceSimulation, forceX, forceY } from "d3-force";
+import type { SimulationLinkDatum, SimulationNodeDatum } from "d3-force";
+import type { ElkNode } from "elkjs";
+import {
+	D3_FORCE_CENTER_PULL_STRENGTH,
+	D3_FORCE_CHARGE_STRENGTH,
+	D3_FORCE_COLLIDE_ITERATIONS,
+	D3_FORCE_COLLIDE_PADDING_PX,
+	D3_FORCE_LINK_GAP_PX,
+} from "./constants";
+
+/**
+ * d3-force refinement of a `force`-mode root (the reactflow.dev force-layout
+ * approach, run statically to convergence instead of animated). Input is the
+ * elk-laid-out root: elk already sized the folder containers and produced a
+ * rough seed arrangement; this pass re-arranges ONLY the root's direct children
+ * (containers + ungrouped leaves) so linked boxes sit close and unlinked boxes
+ * merely stop overlapping — the tight hub packing elk's own force/radial
+ * algorithms cannot deliver. Children's internal layouts are untouched.
+ *
+ * Deterministic: seeds come from elk (deterministic) and the simulation's
+ * random source is a fixed-seed LCG, so the same graph always lays out
+ * identically (matches the elk runner's contract and keeps tests stable).
+ */
+
+/** A root child as a simulation body. d3 mutates `x`/`y` (centre coordinates). */
+interface ForceBody extends SimulationNodeDatum {
+	readonly id: string;
+	readonly halfWidth: number;
+	readonly halfHeight: number;
+	/** Circumscribed-circle radius + padding: circle separation ⇒ box separation. */
+	readonly collideRadius: number;
+}
+
+export function refineForceRootLayout(root: ElkNode): ElkNode {
+	const children = root.children ?? [];
+	if (children.length < 2) {
+		return root; // Nothing to arrange.
+	}
+	const bodies = children.map((child): ForceBody => {
+		const width = child.width ?? 0;
+		const height = child.height ?? 0;
+		return {
+			id: child.id,
+			halfWidth: width / 2,
+			halfHeight: height / 2,
+			collideRadius: Math.hypot(width, height) / 2 + D3_FORCE_COLLIDE_PADDING_PX,
+			x: (child.x ?? 0) + width / 2,
+			y: (child.y ?? 0) + height / 2,
+		};
+	});
+	recentre(bodies);
+	const links: SimulationLinkDatum<ForceBody>[] = (root.edges ?? []).map((edge) => ({
+		source: edge.sources[0] as string,
+		target: edge.targets[0] as string,
+	}));
+	const simulation = forceSimulation(bodies)
+		.randomSource(seededRandom())
+		.force(
+			"link",
+			forceLink<ForceBody, SimulationLinkDatum<ForceBody>>(links)
+				.id((body) => body.id)
+				.distance(
+					(link) =>
+						(link.source as ForceBody).collideRadius + (link.target as ForceBody).collideRadius + D3_FORCE_LINK_GAP_PX,
+				),
+		)
+		.force("charge", forceManyBody<ForceBody>().strength(D3_FORCE_CHARGE_STRENGTH))
+		.force(
+			"collide",
+			forceCollide<ForceBody>((body) => body.collideRadius).iterations(D3_FORCE_COLLIDE_ITERATIONS),
+		)
+		.force("x", forceX<ForceBody>(0).strength(D3_FORCE_CENTER_PULL_STRENGTH))
+		.force("y", forceY<ForceBody>(0).strength(D3_FORCE_CENTER_PULL_STRENGTH))
+		.stop();
+	// Run to convergence synchronously (the d3 "static layout" recipe): the tick
+	// count is exactly how many decays alpha needs to fall below alphaMin.
+	simulation.tick(Math.ceil(Math.log(simulation.alphaMin()) / Math.log(1 - simulation.alphaDecay())));
+	const bodyById = new Map(bodies.map((body) => [body.id, body]));
+	return {
+		...root,
+		children: children.map((child) => {
+			const body = bodyById.get(child.id);
+			if (body === undefined || body.x === undefined || body.y === undefined) {
+				return child;
+			}
+			// d3 centres → elk top-left coordinates.
+			return { ...child, x: body.x - body.halfWidth, y: body.y - body.halfHeight };
+		}),
+	};
+}
+
+/** Shift seed centres so their centroid is the origin — the point the centring forces pull toward. */
+function recentre(bodies: ForceBody[]): void {
+	const meanX = bodies.reduce((sum, body) => sum + (body.x ?? 0), 0) / bodies.length;
+	const meanY = bodies.reduce((sum, body) => sum + (body.y ?? 0), 0) / bodies.length;
+	for (const body of bodies) {
+		body.x = (body.x ?? 0) - meanX;
+		body.y = (body.y ?? 0) - meanY;
+	}
+}
+
+/**
+ * Fixed-seed LCG (Numerical Recipes constants: state*1664525+1013904223 mod
+ * 2^32) replacing `Math.random` inside the simulation, which only consults it
+ * to jiggle exactly-coincident bodies apart.
+ */
+function seededRandom(): () => number {
+	const MODULUS = 2 ** 32;
+	let state = 1;
+	return () => {
+		state = (state * 1664525 + 1013904223) % MODULUS;
+		return state / MODULUS;
+	};
+}

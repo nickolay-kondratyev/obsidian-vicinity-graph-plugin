@@ -42,7 +42,7 @@ describe("PersistedShapes.parsePluginData", () => {
 
 	it("WHEN globalView carries an unknown layoutMode THEN the default mode survives", () => {
 		const raw = { version: PERSISTED_SHAPE_VERSION, globalView: { layoutMode: "spiral" } };
-		expect(PersistedShapes.parsePluginData(raw).globalView.layoutMode).toBe("radial");
+		expect(PersistedShapes.parsePluginData(raw).globalView.layoutMode).toBe("force");
 	});
 
 	it("WHEN globalView carries a known layoutMode THEN it survives", () => {

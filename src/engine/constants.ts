@@ -32,10 +32,12 @@ export const CENTRAL_SIZE_SCORE = 1;
 export const DEFAULT_EDGE_VISIBILITY: EdgeVisibilityMode = "walked-from-center";
 
 /**
- * Default layout is radial (human decision): a vicinity graph is hub-shaped,
- * and layered layouts degenerate into one very wide row on high fan-out.
+ * Default layout is force (human decision, superseding the earlier radial
+ * default): a vicinity graph is hub-shaped, layered degenerates into one very
+ * wide row on high fan-out, and radial rings disperse badly once a hub has
+ * dozens of links — the d3-force packing stays compact.
  */
-export const DEFAULT_LAYOUT_MODE: LayoutMode = "radial";
+export const DEFAULT_LAYOUT_MODE: LayoutMode = "force";
 
 const DEFAULT_METRIC_WEIGHT = 1;
 

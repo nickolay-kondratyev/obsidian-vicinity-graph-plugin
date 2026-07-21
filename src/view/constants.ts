@@ -63,10 +63,48 @@ export const ELK_RADIAL_ROOT_OPTIONS: Readonly<Record<string, string>> = {
 	"elk.spacing.nodeNode": ELK_NODE_SPACING,
 };
 
+/**
+ * Under `force` mode elk's own force algorithm is only the SEED: it computes
+ * container dimensions and a rough untangled arrangement, then the d3-force
+ * refinement (`d3ForceRefinement.ts`) packs the root-level boxes tightly.
+ */
 export const ELK_FORCE_ROOT_OPTIONS: Readonly<Record<string, string>> = {
 	"elk.algorithm": "force",
 	"elk.spacing.nodeNode": ELK_NODE_SPACING,
 };
+
+// --- d3-force root refinement (`force` mode) ----------------------------------
+
+/**
+ * Repulsion between root-level boxes (d3 `forceManyBody` strength; negative =
+ * repel). Deliberately moderate — collision + link distances do the packing,
+ * the charge only untangles; a strong charge would re-create the radial
+ * dispersion this mode exists to fix.
+ */
+export const D3_FORCE_CHARGE_STRENGTH = -300;
+
+/** Free space kept along a link between the two endpoint boxes' collide circles. */
+export const D3_FORCE_LINK_GAP_PX = 40;
+
+/**
+ * Padding added to each box's circumscribed-circle collide radius, so two
+ * touching circles still leave a visible gap between the boxes inside them.
+ */
+export const D3_FORCE_COLLIDE_PADDING_PX = 20;
+
+/**
+ * Weak pull of every box toward the layout centre (d3 `forceX`/`forceY`
+ * strength). Keeps weakly-connected satellites from drifting off; must stay
+ * well below the link strength (~1) or the graph collapses onto the hub.
+ */
+export const D3_FORCE_CENTER_PULL_STRENGTH = 0.05;
+
+/**
+ * d3 `forceCollide` relaxation passes per tick. 1 leaves residual overlaps on
+ * dense hubs; 2 resolves them (d3 docs recommend raising iterations when
+ * overlap-freedom matters more than speed).
+ */
+export const D3_FORCE_COLLIDE_ITERATIONS = 2;
 
 /** {@link LayoutMode} → root-level elk options. */
 export const ELK_ROOT_OPTIONS_BY_MODE: Readonly<Record<LayoutMode, Readonly<Record<string, string>>>> = {
