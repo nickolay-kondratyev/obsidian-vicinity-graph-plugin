@@ -1,7 +1,7 @@
 {
 	"id": "vicinity-graph",
 	"name": "Vicinity Graph",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"minAppVersion": "1.12.4",
 	"description": "A richer local graph that shows the nearby notes around your active note (an improved alternative to Obsidian's built-in local graph).",
 	"author": "Nickolay Kondratyev",
