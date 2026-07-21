@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-07-21 — edge arrowheads inset from the target so fan-in heads stop stacking
+
+Fixes the human-reported "you cannot see the arrows" on a note with many incoming edges (screenshot: all heads pile into one smudge at the shared top boundary). Root cause: React Flow's `marker-end` can only anchor at the path's terminal point, so every edge converging on one node stamped its arrowhead on the *same* pixel.
+
+- **Self-drawn arrowhead, inset from the target**: replaced RF's `marker-end` (`MarkerType.ArrowClosed`) with a per-edge `<polygon>` rendered by `VicinityEdge`. `edgeGeometry.edgePathFor` now also returns the arrow tip + angle, placing the tip back from the target by `clamp(length × 12%, 14px, 48px)` along the incoming tangent (the quadratic's real end-tangent `P1−control` for paired edges, not the chord). Because each edge arrives at its own angle, insetting each tip along its own direction fans the heads apart instead of stacking them — measured min separation on the reported fan-in ≈7px (near-parallel) up to 20–40px (wider angles), vs 0 before.
+- **Theming simplified**: the arrowhead now themes with a plain `.vicinity-graph-edge__arrowhead { fill: var(--text-faint); }` — no more `!important` fight with RF's inline marker color. The `EDGE_ARROWHEAD_SIZE` constant + its `markerUnits` explainer are gone.
+- **Contracts updated**: `edgeGeometry.test.ts` +5 tests (inset floor/fraction/cap, curved end-tangent, degenerate); e2e now asserts one `.vicinity-graph-edge__arrowhead` per edge and its `fill` follows the theme's `--text-faint` (was `marker-end url()` + polyline stroke).
+
+Verified: `npm run check` (tsc) 0 errors; `npm test` **564 root** green; `e2e/tsconfig.json` tsc 0 errors; `npm run build` (esbuild production) green. Live-render taste confirmation (inset magnitude / head size, both themes) is a human step — no browser/Obsidian binary in this env (see [[ticket-edge-arrowhead-and-badge-visual-polish]]).
+
 ## 2026-07-21 — vicinity-rename: `neighborhood` → `vicinity` vocabulary + Obsidian-standard plugin naming
 
 Repo moved from `obsidian-neighborhood-graph` to `obsidian-vicinity-graph-plugin` (`neighborhood` is hard to spell); this change makes the code match. A **script-driven** rename (one throwaway Python migration, `.tmp/vicinity-rename/rename.py`, not committed) swept **534** `neighborhood`-family occurrences across ~72 files plus **12** file renames via `git mv` — deterministic and re-runnable, no manual per-file editing. Supersedes the step-07 "keep the `obsidian-` id for V1, rename deferred" decision.

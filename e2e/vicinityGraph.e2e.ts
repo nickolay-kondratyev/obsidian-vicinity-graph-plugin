@@ -43,9 +43,6 @@ const ORPHAN_BREAKDOWN = [
 ] as const;
 const ORPHAN_HIDDEN_TOTAL = 6;
 
-/** React Flow's default arrowhead color; MUST never survive our CSS override. */
-const RF_DEFAULT_ARROWHEAD_COLOR = "rgb(177, 177, 183)"; // #b1b1b7
-
 let harness: ObsidianHarness;
 let page: Page;
 
@@ -112,12 +109,9 @@ test("duplicate links collapse into one edge with a ×2 count badge", async () =
 	await expect(badge).toHaveAttribute("data-count", String(ALPHA_TO_NOTE1_LINK_COUNT));
 });
 
-test("every edge path carries an arrowhead marker", async () => {
-	const edgePaths = page.locator(".vicinity-graph-flow .react-flow__edge-path");
-	await expect(edgePaths).toHaveCount(ALPHA_EDGE_COUNT);
-	for (let i = 0; i < ALPHA_EDGE_COUNT; i++) {
-		await expect(edgePaths.nth(i)).toHaveAttribute("marker-end", /url\(/);
-	}
+test("every edge carries a self-drawn arrowhead, one per edge", async () => {
+	await expect(page.locator(".vicinity-graph-flow .react-flow__edge-path")).toHaveCount(ALPHA_EDGE_COUNT);
+	await expect(page.locator(".vicinity-graph-flow .vicinity-graph-edge__arrowhead")).toHaveCount(ALPHA_EDGE_COUNT);
 });
 
 test("no corner overlay badge when nothing is truncated", async () => {
@@ -152,27 +146,26 @@ test("both multi-member folders render as groups", async () => {
 	await expect(folderGroup("crowd")).toHaveCount(1);
 });
 
-// --- theme: arrowheads must follow the theme, never RF's default gray -------
+// --- theme: arrowheads must follow the theme's --text-faint -----------------
 
 for (const theme of ["dark", "light"] as const) {
-	test(`arrowheads use the ${theme}-theme --text-faint, not RF's hard-coded default`, async () => {
+	test(`arrowheads fill with the ${theme}-theme --text-faint`, async () => {
 		await harness.setTheme(theme);
 		const colors = await page.evaluate(() => {
-			const polyline = document.querySelector(".vicinity-graph-flow .react-flow__arrowhead polyline");
-			if (polyline === null) {
-				throw new Error("e2e: no arrowhead polyline in the rendered graph");
+			const arrowhead = document.querySelector(".vicinity-graph-flow .vicinity-graph-edge__arrowhead");
+			if (arrowhead === null) {
+				throw new Error("e2e: no arrowhead polygon in the rendered graph");
 			}
 			// Probe element: resolves var(--text-faint) to the same computed rgb()
-			// format the polyline's stroke reports, so the strings compare exactly.
+			// format the polygon's fill reports, so the strings compare exactly.
 			const probe = document.createElement("div");
 			probe.style.color = "var(--text-faint)";
 			document.body.appendChild(probe);
 			const themeTextFaint = getComputedStyle(probe).color;
 			probe.remove();
-			return { arrowheadStroke: getComputedStyle(polyline).stroke, themeTextFaint };
+			return { arrowheadFill: getComputedStyle(arrowhead).fill, themeTextFaint };
 		});
-		expect(colors.arrowheadStroke).not.toBe(RF_DEFAULT_ARROWHEAD_COLOR);
-		expect(colors.arrowheadStroke).toBe(colors.themeTextFaint);
+		expect(colors.arrowheadFill).toBe(colors.themeTextFaint);
 	});
 }
 

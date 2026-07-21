@@ -30,20 +30,13 @@
 }
 
 /*
- * Arrowheads: React Flow stamps its `defaultMarkerColor` (#b1b1b7) as an
- * INLINE stroke/fill on the marker polyline, so neither --xy-edge-stroke nor
- * any stylesheet rule reaches it without `!important` — the only CSS-side way
- * to out-rank an inline style. WHY-NOT a JS `color` on markerEnd instead:
- * React Flow serializes that color into the SVG marker id and the
- * `url('#…')` reference, so a `var(--…)` value there is fragile (and a
- * literal color would break the "zero own colors" theming rule).
- * Knowingly accepted: markers are shared <defs>, so a SELECTED edge's path
- * brightens to --xy-edge-stroke-selected while its arrowhead stays faint —
- * fine for a read-only graph.
+ * Arrowheads: a self-drawn <polygon> per edge (VicinityEdge), so it themes with
+ * a plain fill — no fight with React Flow's inline marker color, and the head
+ * can sit inset from the target (which `marker-end` can't do). Faint to match
+ * the edge line.
  */
-.vicinity-graph-flow .react-flow__arrowhead polyline {
-	stroke: var(--text-faint) !important;
-	fill: var(--text-faint) !important;
+.vicinity-graph-flow .vicinity-graph-edge__arrowhead {
+	fill: var(--text-faint);
 }
 
 .vicinity-graph-flow .react-flow__controls {
