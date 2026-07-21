@@ -60,6 +60,21 @@ const LAUNCH_TIMEOUT_MS = 60_000;
 const WINDOW_POLL_INTERVAL_MS = 250;
 /** Wide graph pane for pointer tests — see openGraphView WHY comment. */
 const RIGHT_SIDEBAR_WIDTH_PX = 500;
+/**
+ * Physical Obsidian window size pre-seeded into the sandbox (see
+ * {@link ObsidianHarness.prepareSandboxConfigDir}). WHY: headless Obsidian
+ * (Docker/CI, `--ozone-platform=headless`) otherwise boots into a tiny ~300×200
+ * window; the 500px graph sidebar then overflows ENTIRELY off-screen, so no node
+ * is physically clickable and the pointer-interaction tests can't reach a node
+ * (DOM-assertion tests still pass — they query the DOM directly). A CDP
+ * `Emulation.setDeviceMetricsOverride` only resizes the LAYOUT viewport, not the
+ * input surface, so real clicks still miss; resizing the actual window is the
+ * only fix. Obsidian restores this from `<userdata>/<vaultId>.json` at boot, so
+ * pre-writing it makes the window real-sized on any host. Sized generously so
+ * `fitView` keeps every node inside the pane.
+ */
+const WINDOW_WIDTH_PX = 1280;
+const WINDOW_HEIGHT_PX = 800;
 /** App boot → `layoutReady` covers vault index + workspace restore. */
 const WORKSPACE_READY_TIMEOUT_MS = 60_000;
 const PLUGIN_READY_TIMEOUT_MS = 30_000;
@@ -306,6 +321,11 @@ export class ObsidianHarness {
 			},
 		};
 		fs.writeFileSync(path.join(SANDBOX_CONFIG_DIR, "obsidian.json"), JSON.stringify(obsidianJson));
+		// Per-vault window state Obsidian restores at boot (keyed by vault id):
+		// seed a real-sized window so headless runs don't default to ~300×200.
+		// See WINDOW_WIDTH_PX for WHY this matters to the pointer-interaction tests.
+		const windowStateJson = { width: WINDOW_WIDTH_PX, height: WINDOW_HEIGHT_PX, zoom: 0 };
+		fs.writeFileSync(path.join(SANDBOX_CONFIG_DIR, `${E2E_VAULT_ID}.json`), JSON.stringify(windowStateJson));
 	}
 
 	/** Resolves the "DevTools listening on ws://…" endpoint from the app's stderr. */

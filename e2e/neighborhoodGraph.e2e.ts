@@ -177,27 +177,37 @@ for (const theme of ["dark", "light"] as const) {
 }
 
 // --- interactions: click opens note, ctrl/cmd-click opens a NEW tab ---------
+//
+// These exercise a REAL pointer click (the native open gesture is what's under
+// test). They run on the ALPHA graph, NOT note1's: alpha has only 3 nodes, so
+// each renders large enough that a click lands on the node BODY. In note1's
+// 11-node fit every node shrinks to ~20px — smaller than the hover-reveal pin
+// button (a 20px top-right chip that is pointer-interactive even while
+// invisible), so a center click hits the pin (which stops propagation) instead
+// of opening the note. Clicking a big node sidesteps that overlap.
+// (The tiny-node pin overlap itself is tracked as a follow-up UX ticket.)
+
+const activeFilePath = () =>
+	page.evaluate(() => (window as unknown as { app: any }).app.workspace.getActiveFile()?.path);
 
 test("clicking a node opens that note in the current tab", async () => {
-	// Remount refits the viewport so the target node is physically clickable.
-	await harness.remountGraphView();
-	await noteNode("note2.md").click();
-	await expect
-		.poll(() => page.evaluate(() => (window as unknown as { app: any }).app.workspace.getActiveFile()?.path))
-		.toBe("note2.md");
+	// Land on the alpha graph (big nodes) with alpha as the active/main note, so
+	// clicking the note1 neighbor is an observable current-tab switch.
+	await harness.openFile(ALPHA_PATH);
+	await harness.remountGraphView(); // refit so the target node is physically clickable
+	await noteNode(NOTE1_PATH).click();
+	await expect.poll(activeFilePath).toBe(NOTE1_PATH);
 });
 
 test("ctrl/cmd-clicking a node opens the note in a NEW tab", async () => {
-	// note2 is now MAIN (previous test); its graph still shows note1.
+	await harness.openFile(ALPHA_PATH);
 	await harness.remountGraphView();
 	const markdownLeafCount = () =>
 		page.evaluate(() => (window as unknown as { app: any }).app.workspace.getLeavesOfType("markdown").length);
 	const leavesBefore = await markdownLeafCount();
 	await noteNode(NOTE1_PATH).click({ modifiers: ["ControlOrMeta"] });
 	await expect.poll(markdownLeafCount).toBe(leavesBefore + 1);
-	await expect
-		.poll(() => page.evaluate(() => (window as unknown as { app: any }).app.workspace.getActiveFile()?.path))
-		.toBe(NOTE1_PATH);
+	await expect.poll(activeFilePath).toBe(NOTE1_PATH);
 });
 
 // --- truncation badges: group "+N" and corner "+N hidden" overlay -----------
