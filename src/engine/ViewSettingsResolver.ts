@@ -47,6 +47,7 @@ export class ViewSettingsResolver {
 			nodeCap: field("nodeCap"),
 			groupByFolder: field("groupByFolder"),
 			edgeVisibility: field("edgeVisibility"),
+			layoutMode: field("layoutMode"),
 			sizing: field("sizing"),
 		};
 	}

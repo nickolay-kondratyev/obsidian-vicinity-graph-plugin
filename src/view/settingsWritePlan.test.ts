@@ -73,6 +73,13 @@ describe("planSettingsWrite global writes", () => {
 			view: { ...CTX.globalView, sizing },
 		});
 	});
+
+	it("WHEN global-layout THEN it merges the layoutMode over ctx.globalView", () => {
+		expect(planSettingsWrite({ kind: "global-layout", layoutMode: "layered" }, CTX)).toEqual({
+			kind: "global-view",
+			view: { ...CTX.globalView, layoutMode: "layered" },
+		});
+	});
 });
 
 describe("planSettingsWrite direction to field mapping (guards inversion)", () => {

@@ -1,4 +1,4 @@
-import type { DepthOverride, DepthSettings, Direction, SizingSettings, ViewSettings } from "../engine";
+import type { DepthOverride, DepthSettings, Direction, LayoutMode, SizingSettings, ViewSettings } from "../engine";
 import { DIRECTION_DEPTH_FIELD } from "../engine";
 
 /**
@@ -29,7 +29,9 @@ export type SettingsInteraction =
 	/** Global node cap. */
 	| { readonly kind: "global-cap"; readonly value: number }
 	/** Global sizing configuration (whole object). */
-	| { readonly kind: "global-sizing"; readonly sizing: SizingSettings };
+	| { readonly kind: "global-sizing"; readonly sizing: SizingSettings }
+	/** Global layout mode. */
+	| { readonly kind: "global-layout"; readonly layoutMode: LayoutMode };
 
 /** The persistence call the executor must make. */
 export type SettingsCommand =
@@ -77,5 +79,7 @@ export function planSettingsWrite(interaction: SettingsInteraction, ctx: Setting
 			return { kind: "global-view", view: { ...ctx.globalView, nodeCap: interaction.value } };
 		case "global-sizing":
 			return { kind: "global-view", view: { ...ctx.globalView, sizing: interaction.sizing } };
+		case "global-layout":
+			return { kind: "global-view", view: { ...ctx.globalView, layoutMode: interaction.layoutMode } };
 	}
 }

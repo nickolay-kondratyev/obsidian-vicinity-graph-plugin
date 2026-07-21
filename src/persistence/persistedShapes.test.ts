@@ -39,6 +39,16 @@ describe("PersistedShapes.parsePluginData", () => {
 		const raw = { version: PERSISTED_SHAPE_VERSION, globalView: { edgeVisibility: "rainbow" } };
 		expect(PersistedShapes.parsePluginData(raw).globalView.edgeVisibility).toBe("walked-from-center");
 	});
+
+	it("WHEN globalView carries an unknown layoutMode THEN the default mode survives", () => {
+		const raw = { version: PERSISTED_SHAPE_VERSION, globalView: { layoutMode: "spiral" } };
+		expect(PersistedShapes.parsePluginData(raw).globalView.layoutMode).toBe("radial");
+	});
+
+	it("WHEN globalView carries a known layoutMode THEN it survives", () => {
+		const raw = { version: PERSISTED_SHAPE_VERSION, globalView: { layoutMode: "force" } };
+		expect(PersistedShapes.parsePluginData(raw).globalView.layoutMode).toBe("force");
+	});
 });
 
 describe("PersistedShapes sizing parsing", () => {

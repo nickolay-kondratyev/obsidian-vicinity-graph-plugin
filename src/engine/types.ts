@@ -128,6 +128,18 @@ export interface GraphEdge extends DirectedLink {
  */
 export type EdgeVisibilityMode = "walked-from-center" | "all-edges";
 
+/**
+ * Which elk algorithm arranges the graph:
+ * - `"radial"` — concentric rings around the central hub; best space use for
+ *   the hub-with-many-neighbours shape a vicinity graph typically has.
+ * - `"force"` — organic force-directed spread.
+ * - `"layered"` — classic top-down layers (rows).
+ */
+export type LayoutMode = "layered" | "radial" | "force";
+
+/** All layout modes — single source for the persistence parser and UI selectors. */
+export const LAYOUT_MODES: readonly LayoutMode[] = ["layered", "radial", "force"];
+
 // ---------------------------------------------------------------------------
 // Settings shapes (persisted by step-03; resolved by the engine's resolvers).
 // Per-field semantics everywhere: absence = inherit, presence = pinned.
@@ -184,6 +196,7 @@ export interface ViewSettings {
 	readonly nodeCap: number;
 	readonly groupByFolder: boolean;
 	readonly edgeVisibility: EdgeVisibilityMode;
+	readonly layoutMode: LayoutMode;
 	readonly sizing: SizingSettings;
 }
 

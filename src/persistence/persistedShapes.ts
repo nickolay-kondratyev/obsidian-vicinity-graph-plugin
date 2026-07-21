@@ -7,7 +7,7 @@ import type {
 	ViewSettings,
 	ViewSettingsOverride,
 } from "../engine";
-import { EngineDefaults } from "../engine";
+import { EngineDefaults, LAYOUT_MODES } from "../engine";
 
 /**
  * Versioned JSON shapes persisted by step-03 (every shape carries `version`
@@ -132,6 +132,10 @@ function parseViewOverride(raw: unknown): ViewSettingsOverride {
 		...definedOnly(
 			"edgeVisibility",
 			EDGE_VISIBILITY_MODES.find((mode) => mode === edgeVisibility),
+		),
+		...definedOnly(
+			"layoutMode",
+			LAYOUT_MODES.find((mode) => mode === raw["layoutMode"]),
 		),
 		...definedOnly("sizing", parseSizing(raw["sizing"])),
 	};

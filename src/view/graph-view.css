@@ -650,3 +650,16 @@
 	width: 4.5em;
 	flex-shrink: 0;
 }
+
+/* --- Layout-mode selector (toolbar) ------------------------------------- */
+
+.vicinity-graph-layout {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--size-4-2);
+	color: var(--text-muted);
+}
+.vicinity-graph-layout select {
+	flex-shrink: 0;
+}

@@ -1,4 +1,4 @@
-import type { GraphEdge, GraphNode, VicinityGraph, ViewSettings } from "../../engine";
+import type { GraphEdge, GraphNode, LayoutMode, VicinityGraph, ViewSettings } from "../../engine";
 import { asFolderPath, asVaultPath } from "../../engine";
 
 /**
@@ -31,12 +31,17 @@ export function makeEdge(source: string, target: string, count = DEFAULT_EDGE_LI
 	return { source: asVaultPath(source), target: asVaultPath(target), count };
 }
 
-/** Minimal effective view settings — the view never reads these, but the shape is required. */
+/**
+ * Minimal effective view settings. `layoutMode` defaults to `"layered"` here
+ * (NOT the engine's radial default) so the pre-existing layered-mapping tests
+ * keep capturing layered behavior; radial/force tests opt in explicitly.
+ */
 function makeViewSettings(): ViewSettings {
 	return {
 		nodeCap: 100,
 		groupByFolder: true,
 		edgeVisibility: "walked-from-center",
+		layoutMode: "layered",
 		sizing: {
 			metrics: {
 				"own-file-size": { enabled: true, weight: 1 },
@@ -60,4 +65,9 @@ export function makeGraph(overrides: Partial<VicinityGraph> = {}): VicinityGraph
 		viewSettings: makeViewSettings(),
 		...overrides,
 	};
+}
+
+/** The same graph under a different layout mode (radial/force tests opt in per case). */
+export function withLayoutMode(graph: VicinityGraph, layoutMode: LayoutMode): VicinityGraph {
+	return { ...graph, viewSettings: { ...graph.viewSettings, layoutMode } };
 }

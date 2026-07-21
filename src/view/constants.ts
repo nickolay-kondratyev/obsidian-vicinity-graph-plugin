@@ -1,3 +1,5 @@
+import type { LayoutMode } from "../engine";
+
 /**
  * View-layer named constants. The engine keeps its own constants under an
  * import guard (`src/engine/constants.ts`); these are the view's and live here
@@ -28,21 +30,61 @@ export const ELK_ROOT_ID = "root";
  */
 export const ELK_DIRECTION = "DOWN";
 
+/** Minimum gap between sibling nodes, shared by every elk algorithm we run. */
+export const ELK_NODE_SPACING = "40";
+
+/** Gap between consecutive layers of the layered algorithm. */
+export const ELK_LAYER_SPACING = "80";
+
 /**
- * elk layout options, chosen with the step-05 compound (folder-group) future in
- * mind even though step-04 renders a flat graph:
+ * Root options of the `layered` mode:
  * - `layered` is elk's canonical algorithm that also honors hierarchical
  *   containment (force/stress handle containment worse) — CLARIFICATION Q1.
  * - `hierarchyHandling: INCLUDE_CHILDREN` makes the layout descend into child
- *   nodes, which is exactly what folder groups will need; on a flat graph it is
- *   a harmless no-op.
+ *   nodes (folder groups); on a flat graph it is a harmless no-op.
  */
-export const ELK_LAYOUT_OPTIONS: Readonly<Record<string, string>> = {
+export const ELK_LAYERED_ROOT_OPTIONS: Readonly<Record<string, string>> = {
 	"elk.algorithm": "layered",
 	"elk.direction": ELK_DIRECTION,
 	"elk.hierarchyHandling": "INCLUDE_CHILDREN",
-	"elk.layered.spacing.nodeNodeBetweenLayers": "80",
-	"elk.spacing.nodeNode": "40",
+	"elk.layered.spacing.nodeNodeBetweenLayers": ELK_LAYER_SPACING,
+	"elk.spacing.nodeNode": ELK_NODE_SPACING,
+};
+
+/**
+ * Root options of the hub-friendly modes (`radial` / `force`). Neither
+ * algorithm supports `INCLUDE_CHILDREN`, so these run with elk's default
+ * `SEPARATE_CHILDREN` hierarchy handling: folder containers are laid out
+ * internally first (see {@link ELK_GROUP_MEMBER_OPTIONS}), then the root
+ * algorithm arranges the resulting fixed-size boxes.
+ */
+export const ELK_RADIAL_ROOT_OPTIONS: Readonly<Record<string, string>> = {
+	"elk.algorithm": "radial",
+	"elk.spacing.nodeNode": ELK_NODE_SPACING,
+};
+
+export const ELK_FORCE_ROOT_OPTIONS: Readonly<Record<string, string>> = {
+	"elk.algorithm": "force",
+	"elk.spacing.nodeNode": ELK_NODE_SPACING,
+};
+
+/** {@link LayoutMode} → root-level elk options. */
+export const ELK_ROOT_OPTIONS_BY_MODE: Readonly<Record<LayoutMode, Readonly<Record<string, string>>>> = {
+	layered: ELK_LAYERED_ROOT_OPTIONS,
+	radial: ELK_RADIAL_ROOT_OPTIONS,
+	force: ELK_FORCE_ROOT_OPTIONS,
+};
+
+/**
+ * Layout of the INSIDE of a folder-group container under a radial/force root
+ * (`SEPARATE_CHILDREN` lays out every container independently): members stay on
+ * the proven layered arrangement regardless of the root mode. Under a layered
+ * root this is NOT set — `INCLUDE_CHILDREN` handles the whole hierarchy.
+ */
+export const ELK_GROUP_MEMBER_OPTIONS: Readonly<Record<string, string>> = {
+	"elk.algorithm": "layered",
+	"elk.direction": ELK_DIRECTION,
+	"elk.spacing.nodeNode": ELK_NODE_SPACING,
 };
 
 /**

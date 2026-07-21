@@ -1,4 +1,4 @@
-import type { DepthSettings, EdgeVisibilityMode, SizingSettings, ViewSettings } from "./types";
+import type { DepthSettings, EdgeVisibilityMode, LayoutMode, SizingSettings, ViewSettings } from "./types";
 
 /** Hard cap default on non-central node count (step doc: default 100). */
 export const DEFAULT_NODE_CAP = 100;
@@ -30,6 +30,12 @@ export const CENTRAL_SIZE_SCORE = 1;
  * Q5: cleaner graph to see); `"all-edges"` stays available via the toggle.
  */
 export const DEFAULT_EDGE_VISIBILITY: EdgeVisibilityMode = "walked-from-center";
+
+/**
+ * Default layout is radial (human decision): a vicinity graph is hub-shaped,
+ * and layered layouts degenerate into one very wide row on high fan-out.
+ */
+export const DEFAULT_LAYOUT_MODE: LayoutMode = "radial";
 
 const DEFAULT_METRIC_WEIGHT = 1;
 
@@ -63,6 +69,7 @@ export class EngineDefaults {
 			nodeCap: DEFAULT_NODE_CAP,
 			groupByFolder: true,
 			edgeVisibility: DEFAULT_EDGE_VISIBILITY,
+			layoutMode: DEFAULT_LAYOUT_MODE,
 			sizing: EngineDefaults.sizingSettings(),
 		};
 	}

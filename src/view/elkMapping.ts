@@ -1,7 +1,8 @@
 import type { ElkNode } from "elkjs";
-import type { FolderPath, GraphEdge, VicinityGraph } from "../engine";
-import { ELK_GROUP_PADDING, ELK_LAYOUT_OPTIONS, ELK_ROOT_ID } from "./constants";
+import type { FolderPath, GraphEdge, GraphNode, VicinityGraph } from "../engine";
+import { ELK_GROUP_MEMBER_OPTIONS, ELK_GROUP_PADDING, ELK_ROOT_OPTIONS_BY_MODE, ELK_ROOT_ID } from "./constants";
 import { deriveFolderGroups } from "./folderGrouping";
+import type { FolderGroupingResult } from "./folderGrouping";
 import { edgeIdOf, folderGroupIdOf, nodeSideLengthPx } from "./graphIdentity";
 import type { Dimensions, XY } from "./flowMapping";
 
@@ -15,11 +16,19 @@ import type { Dimensions, XY } from "./flowMapping";
  * under a folder container child; elk's JSON contract requires every edge to
  * live on the closest common ancestor of its endpoints, so intra-group edges
  * move onto their container while every other edge stays on the root.
- * `elk.hierarchyHandling=INCLUDE_CHILDREN` (constants) makes the root
- * algorithm lay out the whole hierarchy in one pass.
+ *
+ * Layout modes ({@link VicinityGraph.viewSettings}.layoutMode):
+ * - `layered` — `elk.hierarchyHandling=INCLUDE_CHILDREN` lays out the whole
+ *   hierarchy in one pass; cross-boundary edges may reference nested leaves.
+ * - `radial` / `force` — neither supports `INCLUDE_CHILDREN`, so elk's default
+ *   `SEPARATE_CHILDREN` applies: each container is laid out internally
+ *   (layered, {@link ELK_GROUP_MEMBER_OPTIONS}), then the root algorithm
+ *   arranges containers and ungrouped leaves as fixed boxes. Cross-boundary
+ *   edges are PROJECTED onto containers (see {@link projectedRootEdges}).
  */
 
 export function vicinityGraphToElk(graph: VicinityGraph): ElkNode {
+	const mode = graph.viewSettings.layoutMode;
 	const grouping = deriveFolderGroups(graph.nodes, graph.viewSettings.groupByFolder);
 	const leafById = new Map(
 		graph.nodes.map((node): [string, ElkNode] => {
@@ -37,7 +46,10 @@ export function vicinityGraphToElk(graph: VicinityGraph): ElkNode {
 			id: folderGroupIdOf(group.folder),
 			children,
 			edges: [],
-			layoutOptions: { "elk.padding": ELK_GROUP_PADDING },
+			layoutOptions:
+				mode === "layered"
+					? { "elk.padding": ELK_GROUP_PADDING }
+					: { ...ELK_GROUP_MEMBER_OPTIONS, "elk.padding": ELK_GROUP_PADDING },
 		};
 		containers.push(container);
 		containerByFolder.set(group.folder, container);
@@ -46,22 +58,65 @@ export function vicinityGraphToElk(graph: VicinityGraph): ElkNode {
 		.filter((node) => !grouping.groupFolderByMemberPath.has(node.path))
 		.map((node) => leafById.get(node.path))
 		.filter((leaf): leaf is ElkNode => leaf !== undefined);
-	const rootEdges: NonNullable<ElkNode["edges"]> = [];
+	const crossBoundaryEdges: GraphEdge[] = [];
 	for (const edge of graph.edges) {
-		const elkEdge = { id: edgeIdOf(edge), sources: [edge.source], targets: [edge.target] };
 		const container = intraGroupContainerOf(edge, grouping.groupFolderByMemberPath, containerByFolder);
 		if (container?.edges !== undefined) {
-			container.edges.push(elkEdge);
+			container.edges.push({ id: edgeIdOf(edge), sources: [edge.source], targets: [edge.target] });
 		} else {
-			rootEdges.push(elkEdge);
+			crossBoundaryEdges.push(edge);
 		}
 	}
+	const rootEdges =
+		mode === "layered"
+			? crossBoundaryEdges.map((edge) => ({ id: edgeIdOf(edge), sources: [edge.source], targets: [edge.target] }))
+			: projectedRootEdges(crossBoundaryEdges, grouping, graph.nodes);
 	return {
 		id: ELK_ROOT_ID,
-		layoutOptions: { ...ELK_LAYOUT_OPTIONS },
+		layoutOptions: { ...ELK_ROOT_OPTIONS_BY_MODE[mode] },
 		children: [...containers, ...ungroupedLeaves],
 		edges: rootEdges,
 	};
+}
+
+/**
+ * Root-level edges for the `SEPARATE_CHILDREN` modes (radial/force). Elk cannot
+ * reference a node nested inside a container from the root level there, so each
+ * grouped endpoint is projected onto its folder container. Positions are all
+ * the pipeline consumes (React Flow draws its own edges from node positions),
+ * so these edges exist purely to steer the layout:
+ * - edges collapsing onto the same projected pair are deduped;
+ * - every edge is oriented centre-outward (lower `minDepth` endpoint first)
+ *   because elk's radial algorithm derives its tree from edge direction —
+ *   mixed link directions (incoming links) otherwise push the hub off-centre
+ *   and overlap the rings (probe-verified). Harmless for force.
+ */
+function projectedRootEdges(
+	crossBoundaryEdges: readonly GraphEdge[],
+	grouping: FolderGroupingResult,
+	nodes: readonly GraphNode[],
+): NonNullable<ElkNode["edges"]> {
+	const projectedIdOf = (path: string): string => {
+		const folder = grouping.groupFolderByMemberPath.get(path);
+		return folder === undefined ? path : folderGroupIdOf(folder);
+	};
+	const minDepthById = new Map<string, number>();
+	for (const node of nodes) {
+		const id = projectedIdOf(node.path);
+		minDepthById.set(id, Math.min(minDepthById.get(id) ?? Number.POSITIVE_INFINITY, node.minDepth));
+	}
+	const edgesById = new Map<string, NonNullable<ElkNode["edges"]>[number]>();
+	for (const edge of crossBoundaryEdges) {
+		const sourceId = projectedIdOf(edge.source);
+		const targetId = projectedIdOf(edge.target);
+		const outward = (minDepthById.get(targetId) ?? 0) < (minDepthById.get(sourceId) ?? 0);
+		const [from, to] = outward ? [targetId, sourceId] : [sourceId, targetId];
+		const id = `${from}->${to}`;
+		if (!edgesById.has(id)) {
+			edgesById.set(id, { id, sources: [from], targets: [to] });
+		}
+	}
+	return [...edgesById.values()];
 }
 
 /** The container owning BOTH endpoints, or undefined when the edge belongs on the root. */
