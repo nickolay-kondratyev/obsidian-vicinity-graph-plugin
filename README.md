@@ -118,8 +118,7 @@ Depth is the one thing you can tune per note, from the in-view toolbar:
 Fresh clone → running dev build, following only these steps:
 
 ```bash
-git submodule update --init   # pull the obsidian-id-lib submodule
-npm install
+npm install                   # pulls obsidian-id-lib from npm, among other deps
 npm run setup:dev-vault       # build + create/copy the plugin into .dev-vault/
 npm run dev                   # esbuild watch; re-copies artifacts on every rebuild
 ```
@@ -138,7 +137,7 @@ re-running never clobbers local edits.
 | `npm run dev` | esbuild watch build; copies artifacts into the dev vault on every rebuild |
 | `npm run build` | `tsc -noEmit` type check, then production bundle to `main.js` + dev-vault copy |
 | `npm run check` | `tsc -noEmit` (strict type check) |
-| `npm test` | our vitest suite, then the `obsidian-id-lib` submodule's own suite (`test:sublib`) |
+| `npm test` | our vitest suite (`obsidian-id-lib` ships its own tested build from npm) |
 | `npm run setup:dev-vault` | build + create/copy the plugin into `.dev-vault/` |
 | `npm run test:e2e` | release-time Playwright e2e: drives a REAL Obsidian on a copy of the dev vault (see below) |
 
@@ -191,12 +190,12 @@ canvas `metadata.frontmatter` (used by `obsidian-id-lib` for canvas doc ids) was
 not introduced by any core release — it relies on the canvas format's documented
 arbitrary-key forward compatibility.
 
-### Submodule: `obsidian-id-lib`
+### Dependency: `obsidian-id-lib`
 
-Consumed as `"obsidian-id-lib": "file:submodules/obsidian-id-lib"` — raw
-TypeScript bundled by our esbuild (no build step in the submodule). `obsidian`
-itself is a types-only external and is never bundled. See the submodule README for
-the id-scheme contracts.
+Consumed as a published npm package (`"obsidian-id-lib": "^0.1.0"`) and bundled
+into `main.js` by our esbuild (not external). `obsidian` itself is a types-only
+external and is never bundled. See the [package](https://www.npmjs.com/package/obsidian-id-lib)
+for the id-scheme contracts.
 
 ## License
 

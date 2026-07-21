@@ -10,7 +10,7 @@ There is no release automation yet; every step below is **manual.**
 ## 1. Green gates (must all pass)
 
 - [ ] `npm run check` — strict `tsc -noEmit`, EXIT 0.
-- [ ] `npm test` — vitest suite + `obsidian-id-lib` sublib suite, 0 failures.
+- [ ] `npm test` — vitest suite, 0 failures.
 - [ ] `npm run build` — production bundle to `main.js` + `styles.css`, EXIT 0.
 - [ ] `npm run test:e2e` — real-Obsidian Playwright gate. Run in a display-capable
       env before release (auto-provisions the pinned Obsidian binary on Linux/CI).
