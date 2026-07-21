@@ -77,7 +77,7 @@ fi
 # count badge), bidirectional links (mirrored curves), and several attachment
 # types (icon strip). New notes link TO note1 (incoming edges) on purpose:
 # note1.md is never rewritten once present, so they must pull themselves into
-# its neighborhood rather than rely on edits to note1.
+# its vicinity rather than rely on edits to note1.
 
 write_if_missing "${VAULT}/projects/alpha.md" <<'EOF'
 ---
@@ -153,10 +153,10 @@ cat <<EOF
 
  Manual smoke test (step-03 exit criteria):
 
- 1. Enable "Neighborhood Graph" if not already
+ 1. Enable "Vicinity Graph" if not already
     (Settings → Community plugins). Turn OFF Restricted mode.
  2. Open note1.md. Run command palette →
-    "Neighborhood Graph: Debug: log neighborhood graph for active file".
+    "Vicinity Graph: Debug: log vicinity graph for active file".
     Open devtools console (Ctrl/Cmd+Opt+I) and expect:
       - nodes: note1, note2, note3, test.canvas
       - note1's first image attachment = pic.png
@@ -164,7 +164,7 @@ cat <<EOF
  3. Leave the vault open ~15s after the plugin loads and confirm
     the orphan sweep runs (delayed + chunked, no console errors).
 
- Step-05 smoke material (open note1's neighborhood graph):
+ Step-05 smoke material (open note1's vicinity graph):
    - projects/ (alpha, beta) → folder group; alpha↔beta bidirectional
    - alpha → note1 twice → edge count badge "2"
    - alpha: frontmatter title + png/pdf/csv attachment strip

@@ -4,8 +4,8 @@ import manifest from "../manifest.json";
 // GIVEN the committed manifest.json (single source of truth: esbuild.config.mjs derives
 // the dev-vault plugin dir from manifest.id, and Obsidian matches folder name to id).
 describe("manifest.json", () => {
-	it("WHEN read THEN the plugin id is the approved 'obsidian-neighborhood-graph'", () => {
-		expect(manifest.id).toBe("obsidian-neighborhood-graph");
+	it("WHEN read THEN the plugin id is the approved 'vicinity-graph'", () => {
+		expect(manifest.id).toBe("vicinity-graph");
 	});
 
 	// WHY 1.12.4: first public release with core canvas link indexing (see src/main.ts note).

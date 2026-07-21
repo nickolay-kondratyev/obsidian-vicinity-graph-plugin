@@ -1,5 +1,5 @@
 import type { ElkNode } from "elkjs";
-import type { NeighborhoodGraph } from "../engine";
+import type { VicinityGraph } from "../engine";
 import type { ControlsModel } from "./ControlsModel";
 import type { SettingsCommand } from "./settingsWritePlan";
 
@@ -8,7 +8,7 @@ import type { SettingsCommand } from "./settingsWritePlan";
  * Types only — no runtime import — so the controller has ZERO obsidian / elkjs /
  * builder runtime coupling and is fully node-testable with plain fakes (no
  * obsidian runtime mock). Real collaborators satisfy these structurally:
- * `NeighborhoodGraphBuilder` → {@link GraphSourcePort}, `ElkLayoutRunner` →
+ * `VicinityGraphBuilder` → {@link GraphSourcePort}, `ElkLayoutRunner` →
  * {@link GraphLayoutPort}, `ObsidianNoteNavigator` → {@link NoteNavigatorPort}.
  */
 
@@ -18,11 +18,11 @@ import type { SettingsCommand } from "./settingsWritePlan";
  * the value shown next to a stepper is structurally the value the graph used.
  */
 export interface GraphBuildResult {
-	readonly graph: NeighborhoodGraph;
+	readonly graph: VicinityGraph;
 	readonly controls: ControlsModel;
 }
 
-/** Builds the neighborhood graph for a MAIN file path. `null` = path unresolved. */
+/** Builds the vicinity graph for a MAIN file path. `null` = path unresolved. */
 export interface GraphSourcePort {
 	build(mainPath: string): Promise<GraphBuildResult | null>;
 }

@@ -27,18 +27,18 @@ export function GraphToolbar({ controls }: { readonly controls: ControlsModel })
 	const pinned = controls.centrals.filter((central) => central.kind === "pinned");
 
 	return (
-		<details className="neighborhood-graph-toolbar nowheel nodrag nopan">
-			<summary className="neighborhood-graph-toolbar__header">
-				<span className="neighborhood-graph-toolbar__title">Graph controls</span>
+		<details className="vicinity-graph-toolbar nowheel nodrag nopan">
+			<summary className="vicinity-graph-toolbar__header">
+				<span className="vicinity-graph-toolbar__title">Graph controls</span>
 			</summary>
-			<div className="neighborhood-graph-toolbar__body">
+			<div className="vicinity-graph-toolbar__body">
 				<CentralDepthControls central={main} ctx={ctx} />
 				{pinned.length > 0 && (
-					<details className="neighborhood-graph-disclosure">
-						<summary className="neighborhood-graph-disclosure__summary">
+					<details className="vicinity-graph-disclosure">
+						<summary className="vicinity-graph-disclosure__summary">
 							Pinned centrals ({pinned.length})
 						</summary>
-						<div className="neighborhood-graph-disclosure__body">
+						<div className="vicinity-graph-disclosure__body">
 							{pinned.map((central) => (
 								<CentralDepthControls key={central.path} central={central} ctx={ctx} />
 							))}

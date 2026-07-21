@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { EngineDefaults } from "./constants";
 import { FakeLinkProvider } from "./FakeLinkProvider";
-import type { GraphBuildRequest } from "./NeighborhoodEngine";
-import { NeighborhoodEngine } from "./NeighborhoodEngine";
-import type { NeighborhoodGraph, PinnedNodeDescriptor } from "./types";
+import type { GraphBuildRequest } from "./VicinityEngine";
+import { VicinityEngine } from "./VicinityEngine";
+import type { VicinityGraph, PinnedNodeDescriptor } from "./types";
 import { asDocId, asVaultPath } from "./types";
 
 /**
@@ -45,16 +45,16 @@ function buildRequest(overrides: Partial<GraphBuildRequest> = {}): GraphBuildReq
 	};
 }
 
-function build(overrides: Partial<GraphBuildRequest> = {}): NeighborhoodGraph {
-	return new NeighborhoodEngine(fixtureProvider()).build(buildRequest(overrides));
+function build(overrides: Partial<GraphBuildRequest> = {}): VicinityGraph {
+	return new VicinityEngine(fixtureProvider()).build(buildRequest(overrides));
 }
 
-function node(graph: NeighborhoodGraph, path: string) {
+function node(graph: VicinityGraph, path: string) {
 	return graph.nodes.find((candidate) => candidate.path === path);
 }
 
-describe("NeighborhoodEngine end-to-end build", () => {
-	it("WHEN building THEN the union covers MAIN's neighborhood and the disconnected pinned island", () => {
+describe("VicinityEngine end-to-end build", () => {
+	it("WHEN building THEN the union covers MAIN's vicinity and the disconnected pinned island", () => {
 		expect(build().nodes.map((n) => n.path).sort()).toEqual([
 			"hub.md",
 			"island/neighbor.md",
@@ -104,7 +104,7 @@ describe("NeighborhoodEngine end-to-end build", () => {
 	});
 });
 
-describe("NeighborhoodEngine settings integration", () => {
+describe("VicinityEngine settings integration", () => {
 	it("WHEN a per-root depth override shrinks MAIN's outgoing depth THEN the second hop disappears", () => {
 		const graph = build({
 			depthOverridesByRoot: new Map([[asVaultPath("hub.md"), { outgoingDepth: 1 }]]),
@@ -138,9 +138,9 @@ describe("NeighborhoodEngine settings integration", () => {
 	});
 });
 
-describe("NeighborhoodEngine edge visibility (CLARIFICATION Q5)", () => {
+describe("VicinityEngine edge visibility (CLARIFICATION Q5)", () => {
 	/** GIVEN MAIN hub.md whose two depth-1 siblings link each other. */
-	function siblingBuild(overrides: Partial<GraphBuildRequest> = {}): NeighborhoodGraph {
+	function siblingBuild(overrides: Partial<GraphBuildRequest> = {}): VicinityGraph {
 		const provider = new FakeLinkProvider({
 			files: [{ path: "hub.md" }, { path: "a.md" }, { path: "b.md" }],
 			links: {
@@ -148,7 +148,7 @@ describe("NeighborhoodEngine edge visibility (CLARIFICATION Q5)", () => {
 				"a.md": ["b.md"],
 			},
 		});
-		return new NeighborhoodEngine(provider).build({
+		return new VicinityEngine(provider).build({
 			main: { path: asVaultPath("hub.md") },
 			globalDepths: { outgoingDepth: 1, incomingDepth: 0 },
 			globalView: EngineDefaults.viewSettings(),
@@ -156,7 +156,7 @@ describe("NeighborhoodEngine edge visibility (CLARIFICATION Q5)", () => {
 		});
 	}
 
-	function edgeStrings(graph: NeighborhoodGraph): string[] {
+	function edgeStrings(graph: VicinityGraph): string[] {
 		return graph.edges.map((e) => `${e.source}->${e.target}`).sort();
 	}
 
@@ -177,10 +177,10 @@ describe("NeighborhoodEngine edge visibility (CLARIFICATION Q5)", () => {
 	});
 });
 
-describe("NeighborhoodEngine edge link counts (step-05, CLARIFICATION Q1)", () => {
+describe("VicinityEngine edge link counts (step-05, CLARIFICATION Q1)", () => {
 	// GIVEN hub.md links twin.md twice and solo.md once.
-	function duplicateLinkEngine(): NeighborhoodEngine {
-		return new NeighborhoodEngine(
+	function duplicateLinkEngine(): VicinityEngine {
+		return new VicinityEngine(
 			new FakeLinkProvider({
 				files: [{ path: "hub.md" }, { path: "twin.md" }, { path: "solo.md" }],
 				links: { "hub.md": ["twin.md", "solo.md", "twin.md"] },
@@ -212,7 +212,7 @@ describe("NeighborhoodEngine edge link counts (step-05, CLARIFICATION Q1)", () =
  * actually re-walks X, not just that the resolver returns a number). X's chain
  * X → x1 → x2 → x3 has neighbors at hops 1/2/3; X's OWN depth is 1.
  */
-describe("NeighborhoodEngine pinned-central depth re-exploration", () => {
+describe("VicinityEngine pinned-central depth re-exploration", () => {
 	function chainProvider(): FakeLinkProvider {
 		return new FakeLinkProvider({
 			files: [
@@ -234,8 +234,8 @@ describe("NeighborhoodEngine pinned-central depth re-exploration", () => {
 	};
 
 	/** Build with MAIN=`mainPath` and X's outgoing depth pinned to `xOutgoing`. */
-	function build(mainPath: string, xOutgoing: number): NeighborhoodGraph {
-		return new NeighborhoodEngine(chainProvider()).build({
+	function build(mainPath: string, xOutgoing: number): VicinityGraph {
+		return new VicinityEngine(chainProvider()).build({
 			main: { path: asVaultPath(mainPath) },
 			pinned: [X_PIN],
 			globalDepths: { outgoingDepth: 1, incomingDepth: 0 },

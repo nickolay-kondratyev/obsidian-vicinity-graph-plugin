@@ -3,18 +3,18 @@ import type { ViewStateResult, WorkspaceLeaf } from "obsidian";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import type { Root } from "react-dom/client";
-import type { NeighborhoodGraphBuilder } from "../adapters/NeighborhoodGraphBuilder";
+import type { VicinityGraphBuilder } from "../adapters/VicinityGraphBuilder";
 import type { PersistenceServices } from "../persistence/PersistenceServices";
 import type { PluginDataStore } from "../persistence/PluginDataStore";
 import { ControlsActions } from "./ControlsActions";
 import { ElkLayoutRunner } from "./ElkLayoutRunner";
 import { GraphViewController } from "./GraphViewController";
-import { NeighborhoodGraphFlow } from "./NeighborhoodGraphFlow";
+import { VicinityGraphFlow } from "./VicinityGraphFlow";
 import { ObsidianGraphUi } from "./ObsidianGraphUi";
 import { ObsidianNoteNavigator } from "./ObsidianNoteNavigator";
 import type { ControlsActionsPort, NoteNavigatorPort } from "./viewPorts";
 
-export const VIEW_TYPE_NEIGHBORHOOD_GRAPH = "neighborhood-graph-view";
+export const VIEW_TYPE_VICINITY_GRAPH = "vicinity-graph-view";
 
 /**
  * ItemView shell. Kept thin on purpose: it owns the React root and Obsidian
@@ -22,7 +22,7 @@ export const VIEW_TYPE_NEIGHBORHOOD_GRAPH = "neighborhood-graph-view";
  * {@link GraphViewController} and the pure modules under it. Registered as a
  * right-sidebar view (draggable to the main area) in `main.ts`.
  */
-export class NeighborhoodGraphView extends ItemView {
+export class VicinityGraphView extends ItemView {
 	private root: Root | null = null;
 	private controller: GraphViewController | null = null;
 	/** Built in `onOpen` alongside the controller; handed to the flow (Phase C). */
@@ -30,7 +30,7 @@ export class NeighborhoodGraphView extends ItemView {
 
 	constructor(
 		leaf: WorkspaceLeaf,
-		private readonly graphBuilder: NeighborhoodGraphBuilder,
+		private readonly graphBuilder: VicinityGraphBuilder,
 		private readonly pluginDataStore: PluginDataStore,
 		private readonly persistenceServices: PersistenceServices,
 	) {
@@ -38,11 +38,11 @@ export class NeighborhoodGraphView extends ItemView {
 	}
 
 	getViewType(): string {
-		return VIEW_TYPE_NEIGHBORHOOD_GRAPH;
+		return VIEW_TYPE_VICINITY_GRAPH;
 	}
 
 	getDisplayText(): string {
-		return "Neighborhood graph";
+		return "Vicinity graph";
 	}
 
 	getIcon(): string {
@@ -52,7 +52,7 @@ export class NeighborhoodGraphView extends ItemView {
 	async onOpen(): Promise<void> {
 		const navigator = new ObsidianNoteNavigator(this.app);
 		const controller = new GraphViewController(navigator, this.graphBuilder, new ElkLayoutRunner());
-		const ui = new ObsidianGraphUi(this.app, VIEW_TYPE_NEIGHBORHOOD_GRAPH);
+		const ui = new ObsidianGraphUi(this.app, VIEW_TYPE_VICINITY_GRAPH);
 		this.controller = controller;
 		const controlsActions = new ControlsActions(controller, this.persistenceServices, this.pluginDataStore, this.app);
 		this.controlsActions = controlsActions;
@@ -62,7 +62,7 @@ export class NeighborhoodGraphView extends ItemView {
 		this.root = createRoot(this.contentEl);
 		this.root.render(
 			<StrictMode>
-				<NeighborhoodGraphFlow controller={controller} ui={ui} actions={controlsActions} />
+				<VicinityGraphFlow controller={controller} ui={ui} actions={controlsActions} />
 			</StrictMode>,
 		);
 	}

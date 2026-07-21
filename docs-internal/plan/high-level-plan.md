@@ -7,7 +7,7 @@ An Obsidian plugin that replaces the local graph view with a React Flow based vi
 1. **Nodes that carry information.** Title, first image thumbnail, attachment icons, folder identity, visual emphasis by relevance. A node should tell you what the note is before you open it.
 2. **Grouping by folder.** Folder membership is visible structure in the graph, not invisible metadata.
 3. **Directional, per-node depth control.** Outbound and incoming depth are independent, adjustable in the view, and remembered per document.
-4. **Pinned central nodes.** Hold one or more neighborhoods on screen while browsing elsewhere.
+4. **Pinned central nodes.** Hold one or more vicinities on screen while browsing elsewhere.
 5. **Focused, bounded views.** Hard node cap with deterministic truncation. Above ~100 nodes a graph stops being interesting; we optimize for the readable range instead of chasing scale.
 6. **Feels native.** Obsidian theme variables, native hover previews, sidebar placement, canvas support.
 
@@ -60,7 +60,7 @@ An Obsidian plugin that replaces the local graph view with a React Flow based vi
 
 ### Pinning and settings resolution
 
-- Pinning a node makes it an **extra central node**: its neighborhood is traversed and rendered alongside MAIN's. The pinned set is global state and survives restarts.
+- Pinning a node makes it an **extra central node**: its vicinity is traversed and rendered alongside MAIN's. The pinned set is global state and survives restarts.
 - Settings split into two classes:
     - **Traversal settings (depth)**: per-root. Each central resolves own doc override, falling back to global default.
     - **View settings (sizing, grouping, cap)**: one per view. Cascade: MAIN's overrides on top, pinned nodes fill per-field gaps (conflicts resolved by the priority chain), global underneath. In V1 this cascade has little to arbitrate since sizing is global, but the resolver ships with tests because per-view overrides are planned.

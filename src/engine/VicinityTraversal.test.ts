@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { FakeLinkProvider } from "./FakeLinkProvider";
-import type { TraversalRoot, TraversalResult } from "./NeighborhoodTraversal";
-import { NeighborhoodTraversal } from "./NeighborhoodTraversal";
+import type { TraversalRoot, TraversalResult } from "./VicinityTraversal";
+import { VicinityTraversal } from "./VicinityTraversal";
 import type { DepthSettings } from "./types";
 import { asDocId, asVaultPath } from "./types";
 
@@ -13,7 +13,7 @@ function root(path: string, depths: Partial<DepthSettings> = {}): TraversalRoot 
 }
 
 function traverse(provider: FakeLinkProvider, roots: readonly TraversalRoot[]): TraversalResult {
-	return new NeighborhoodTraversal(provider).traverse(roots);
+	return new VicinityTraversal(provider).traverse(roots);
 }
 
 function nodePaths(result: TraversalResult): string[] {
@@ -32,7 +32,7 @@ function chainVault(): FakeLinkProvider {
 	});
 }
 
-describe("NeighborhoodTraversal depth limits on a chain a->b->c->d", () => {
+describe("VicinityTraversal depth limits on a chain a->b->c->d", () => {
 	it("WHEN outgoing depth is 2 THEN traversal stops at c", () => {
 		const result = traverse(chainVault(), [root("a.md", { outgoingDepth: 2, incomingDepth: 0 })]);
 		expect(nodePaths(result)).toEqual(["a.md", "b.md", "c.md"]);
@@ -72,7 +72,7 @@ function diamondVault(): FakeLinkProvider {
 	});
 }
 
-describe("NeighborhoodTraversal on a diamond graph", () => {
+describe("VicinityTraversal on a diamond graph", () => {
 	it("WHEN d is reachable via two branches THEN it appears as a single node", () => {
 		const result = traverse(diamondVault(), [root("a.md", { outgoingDepth: 2, incomingDepth: 0 })]);
 		expect(nodePaths(result)).toEqual(["a.md", "b.md", "c.md", "d.md"]);
@@ -97,7 +97,7 @@ describe("NeighborhoodTraversal on a diamond graph", () => {
 	});
 });
 
-describe("NeighborhoodTraversal on cycles and bidirectional links", () => {
+describe("VicinityTraversal on cycles and bidirectional links", () => {
 	// GIVEN a cycle a -> b -> c -> a
 	it("WHEN the graph contains a cycle THEN traversal terminates and visits each node once", () => {
 		const provider = new FakeLinkProvider({
@@ -128,7 +128,7 @@ describe("NeighborhoodTraversal on cycles and bidirectional links", () => {
 	});
 });
 
-describe("NeighborhoodTraversal multi-root union", () => {
+describe("VicinityTraversal multi-root union", () => {
 	// GIVEN two disconnected components: a -> b and p -> q
 	function twoIslands(): FakeLinkProvider {
 		return new FakeLinkProvider({
@@ -137,7 +137,7 @@ describe("NeighborhoodTraversal multi-root union", () => {
 		});
 	}
 
-	it("WHEN a pinned root is disconnected from MAIN THEN its neighborhood is still traversed", () => {
+	it("WHEN a pinned root is disconnected from MAIN THEN its vicinity is still traversed", () => {
 		const result = traverse(twoIslands(), [root("a.md"), root("p.md")]);
 		expect(nodePaths(result)).toEqual(["a.md", "b.md", "p.md", "q.md"]);
 	});
@@ -178,7 +178,7 @@ describe("NeighborhoodTraversal multi-root union", () => {
 	});
 });
 
-describe("NeighborhoodTraversal attachments and non-node-bearing files", () => {
+describe("VicinityTraversal attachments and non-node-bearing files", () => {
 	// GIVEN an attachment-heavy note: n.md -> [doc.pdf, one.png, two.png, m.md]
 	function attachmentVault(): FakeLinkProvider {
 		return new FakeLinkProvider({
@@ -222,7 +222,7 @@ describe("NeighborhoodTraversal attachments and non-node-bearing files", () => {
 	});
 });
 
-describe("NeighborhoodTraversal degenerate roots", () => {
+describe("VicinityTraversal degenerate roots", () => {
 	it("WHEN a root path is unknown to the provider THEN it is skipped gracefully", () => {
 		const result = traverse(chainVault(), [root("ghost.md")]);
 		expect(nodePaths(result)).toEqual([]);
@@ -235,7 +235,7 @@ describe("NeighborhoodTraversal degenerate roots", () => {
 	});
 });
 
-describe("NeighborhoodTraversal node assembly", () => {
+describe("VicinityTraversal node assembly", () => {
 	it("WHEN a root descriptor carries a docid THEN the docid is echoed on the output node", () => {
 		const provider = chainVault();
 		const roots: TraversalRoot[] = [
@@ -262,7 +262,7 @@ describe("NeighborhoodTraversal node assembly", () => {
 	});
 });
 
-describe("NeighborhoodTraversal display title (step-05 human decision)", () => {
+describe("VicinityTraversal display title (step-05 human decision)", () => {
 	// GIVEN a root whose provider metadata carries a frontmatter title and a
 	// neighbor without one.
 	function titledTraversal() {
@@ -270,7 +270,7 @@ describe("NeighborhoodTraversal display title (step-05 human decision)", () => {
 			files: [{ path: "notes/root.md", frontmatterTitle: "Fancy Title" }, { path: "notes/plain.md" }],
 			links: { "notes/root.md": ["notes/plain.md"] },
 		});
-		return new NeighborhoodTraversal(provider).traverse([
+		return new VicinityTraversal(provider).traverse([
 			{ descriptor: { path: asVaultPath("notes/root.md") }, depths: { outgoingDepth: 1, incomingDepth: 1 } },
 		]);
 	}

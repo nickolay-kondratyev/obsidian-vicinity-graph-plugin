@@ -10,7 +10,7 @@ import { PathDocIdMap } from "./PathDocIdMap";
 import { PERSISTED_SHAPE_VERSION } from "./persistedShapes";
 import { PluginDataStore } from "./PluginDataStore";
 
-const DIR = "plugins/obsidian-neighborhood-graph/doc-data";
+const DIR = "plugins/vicinity-graph/doc-data";
 /** > the sweeper's internal batch size of 20, so the warm phase must yield at least once. */
 const LIVE_NOTE_COUNT = 25;
 /** A file this plugin never wrote (unsafe stem: dots + space) — sync tools drop these next to ours. */

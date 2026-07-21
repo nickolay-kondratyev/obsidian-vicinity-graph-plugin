@@ -27,24 +27,24 @@ export function DepthStepper({
 	const canDecrease = !disabled && value > MIN_STEPPER_DEPTH;
 	const canIncrease = !disabled && value < MAX_STEPPER_DEPTH;
 	return (
-		<div className="neighborhood-graph-stepper" data-pinned={pinned} data-disabled={disabled}>
-			<span className="neighborhood-graph-stepper__label">{label}</span>
-			<div className="neighborhood-graph-stepper__control nodrag nopan">
+		<div className="vicinity-graph-stepper" data-pinned={pinned} data-disabled={disabled}>
+			<span className="vicinity-graph-stepper__label">{label}</span>
+			<div className="vicinity-graph-stepper__control nodrag nopan">
 				<button
 					type="button"
-					className="neighborhood-graph-stepper__button"
+					className="vicinity-graph-stepper__button"
 					aria-label={`Decrease ${label.toLowerCase()} depth`}
 					disabled={!canDecrease}
 					onClick={() => onChange(clampStepperDepth(value - 1))}
 				>
 					&minus;
 				</button>
-				<span className="neighborhood-graph-stepper__value" aria-live="polite">
+				<span className="vicinity-graph-stepper__value" aria-live="polite">
 					{value}
 				</span>
 				<button
 					type="button"
-					className="neighborhood-graph-stepper__button"
+					className="vicinity-graph-stepper__button"
 					aria-label={`Increase ${label.toLowerCase()} depth`}
 					disabled={!canIncrease}
 					onClick={() => onChange(clampStepperDepth(value + 1))}
@@ -56,7 +56,7 @@ export function DepthStepper({
 			    direction is actually pinned; hidden otherwise so the row stays quiet. */}
 			<button
 				type="button"
-				className="neighborhood-graph-stepper__reset nodrag nopan"
+				className="vicinity-graph-stepper__reset nodrag nopan"
 				aria-label={`Reset ${label.toLowerCase()} depth to global default`}
 				title="Reset to global default"
 				hidden={!pinned || disabled}

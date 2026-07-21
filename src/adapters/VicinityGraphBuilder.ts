@@ -1,4 +1,4 @@
-import { NeighborhoodEngine } from "../engine";
+import { VicinityEngine } from "../engine";
 import type { DocData } from "../persistence/persistedShapes";
 import { DocPersistEligibility } from "../persistence/DocPersistEligibility";
 import type { DocDataStore } from "../persistence/DocDataStore";
@@ -21,7 +21,7 @@ import type { DocIdPort, MetadataCachePort, VaultPort } from "./obsidianPorts";
  * `ensureDocId` (id-lib contract). A main doc without a docid still gets a
  * full graph; persisted overrides simply cannot apply to it.
  */
-export class NeighborhoodGraphBuilder {
+export class VicinityGraphBuilder {
 	constructor(
 		private readonly vault: VaultPort,
 		private readonly metadataCache: MetadataCachePort,
@@ -62,7 +62,7 @@ export class NeighborhoodGraphBuilder {
 			globalDepths: this.pluginDataStore.globalDepths(),
 			globalView: this.pluginDataStore.globalView(),
 		};
-		const graph = new NeighborhoodEngine(provider).build(GraphRequestAssembler.assemble(inputs));
+		const graph = new VicinityEngine(provider).build(GraphRequestAssembler.assemble(inputs));
 		return { graph, controls: ControlsModelBuilder.build(inputs) };
 	}
 

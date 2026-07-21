@@ -19,7 +19,7 @@ export class CanvasFallbackParser {
 		try {
 			parsed = JSON.parse(rawJson);
 		} catch {
-			console.error(`neighborhood-graph: malformed canvas JSON, skipping links of [${canvasPath}]`);
+			console.error(`vicinity-graph: malformed canvas JSON, skipping links of [${canvasPath}]`);
 			return [];
 		}
 		return CanvasFallbackParser.filePathsOf(parsed);

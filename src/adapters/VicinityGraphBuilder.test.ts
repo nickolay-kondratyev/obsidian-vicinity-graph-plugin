@@ -7,7 +7,7 @@ import { PluginDataStore } from "../persistence/PluginDataStore";
 import { CanvasParseCache } from "./CanvasParseCache";
 import { FakeDocIdPort } from "./FakeDocIdPort";
 import { FakeObsidianPorts } from "./FakeObsidianPorts";
-import { NeighborhoodGraphBuilder } from "./NeighborhoodGraphBuilder";
+import { VicinityGraphBuilder } from "./VicinityGraphBuilder";
 
 /**
  * End-to-end over fakes: persisted pins + live vault → engine graph. Vault:
@@ -33,7 +33,7 @@ async function builderFixture() {
 	await pluginDataStore.addPin("docid_pin_e", 5);
 	const pathDocIdMap = new PathDocIdMap();
 	pathDocIdMap.set("pinned.md", "docid_pin_e");
-	const builder = new NeighborhoodGraphBuilder(
+	const builder = new VicinityGraphBuilder(
 		ports.vault,
 		ports.metadataCache,
 		docIdPort,
@@ -45,7 +45,7 @@ async function builderFixture() {
 	return { builder, docIdPort, pathDocIdMap };
 }
 
-describe("NeighborhoodGraphBuilder", () => {
+describe("VicinityGraphBuilder", () => {
 	it("WHEN the main path resolves THEN its node is the MAIN central of the graph", async () => {
 		const { builder } = await builderFixture();
 		const graph = (await builder.build("main.md"))?.graph;

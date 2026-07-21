@@ -5,7 +5,7 @@
 
 ## Objective
 
-The milestone where it feels real: an `ItemView` in the right sidebar showing the active file's neighborhood as plain React Flow nodes, laid out by elkjs, rebuilding as you navigate.
+The milestone where it feels real: an `ItemView` in the right sidebar showing the active file's vicinity as plain React Flow nodes, laid out by elkjs, rebuilding as you navigate.
 
 ## Scope
 
@@ -53,6 +53,6 @@ The milestone where it feels real: an `ItemView` in the right sidebar showing th
 
 ## Exit criteria
 
-- Opening the view shows the active note's neighborhood; navigating notes updates it; editing links updates it within the debounce window.
+- Opening the view shows the active note's vicinity; navigating notes updates it; editing links updates it within the debounce window.
 - No-structural-change edits provably skip layout (log/assert in dev build).
 - Pure pipeline logic under test; the ItemView file stays thin.

@@ -12,14 +12,14 @@ import { edgePathFor } from "./edgeGeometry";
  */
 
 /** Payload threaded from {@link FlowEdge} at the render boundary. */
-export type NeighborhoodEdgeData = {
+export type VicinityEdgeData = {
 	readonly count: number;
 	readonly hasOpposite: boolean;
 };
 
-export type NeighborhoodEdgeType = Edge<NeighborhoodEdgeData, "neighborhood">;
+export type VicinityEdgeType = Edge<VicinityEdgeData, "vicinity">;
 
-export function NeighborhoodEdge({
+export function VicinityEdge({
 	id,
 	sourceX,
 	sourceY,
@@ -27,7 +27,7 @@ export function NeighborhoodEdge({
 	targetY,
 	markerEnd,
 	data,
-}: EdgeProps<NeighborhoodEdgeType>): ReactElement {
+}: EdgeProps<VicinityEdgeType>): ReactElement {
 	const geometry = edgePathFor(sourceX, sourceY, targetX, targetY, data?.hasOpposite ?? false);
 	const badge = linkCountBadgeText(data?.count ?? 1);
 	return (
@@ -36,7 +36,7 @@ export function NeighborhoodEdge({
 			{badge !== null && (
 				<EdgeLabelRenderer>
 					<span
-						className="neighborhood-graph-edge__count-badge"
+						className="vicinity-graph-edge__count-badge"
 						data-count={data?.count}
 						style={{
 							transform: `translate(-50%, -50%) translate(${geometry.labelX}px, ${geometry.labelY}px)`,

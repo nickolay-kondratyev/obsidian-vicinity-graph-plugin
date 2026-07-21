@@ -5,7 +5,7 @@ import type { DocIdService } from "obsidian-id-lib";
 import { asVaultPath } from "./engine";
 import { BacklinksAdapter } from "./adapters/BacklinksAdapter";
 import { CanvasParseCache } from "./adapters/CanvasParseCache";
-import { NeighborhoodGraphBuilder } from "./adapters/NeighborhoodGraphBuilder";
+import { VicinityGraphBuilder } from "./adapters/VicinityGraphBuilder";
 import { ObsidianLinkProvider } from "./adapters/ObsidianLinkProvider";
 import { DocDataStore } from "./persistence/DocDataStore";
 import { DocPersistEligibility } from "./persistence/DocPersistEligibility";
@@ -13,8 +13,8 @@ import { OrphanSweeper, SWEEP_DELAY_MS } from "./persistence/OrphanSweeper";
 import { PathDocIdMap } from "./persistence/PathDocIdMap";
 import { PersistenceServices } from "./persistence/PersistenceServices";
 import { PluginDataStore } from "./persistence/PluginDataStore";
-import { NeighborhoodGraphSettingTab } from "./view/NeighborhoodGraphSettingTab";
-import { NeighborhoodGraphView, VIEW_TYPE_NEIGHBORHOOD_GRAPH } from "./view/NeighborhoodGraphView";
+import { VicinityGraphSettingTab } from "./view/VicinityGraphSettingTab";
+import { VicinityGraphView, VIEW_TYPE_VICINITY_GRAPH } from "./view/VicinityGraphView";
 
 // manifest.json minAppVersion WHY: 1.12.4 is the first PUBLIC Obsidian release where
 // canvas backlinks are core-indexed (resolvedLinks/graph; EA 1.12.0, 2026-02). It is a
@@ -22,11 +22,11 @@ import { NeighborhoodGraphView, VIEW_TYPE_NEIGHBORHOOD_GRAPH } from "./view/Neig
 // `metadata.frontmatter` (used by obsidian-id-lib) was NOT introduced by any core
 // version; it rides canvas's documented arbitrary-key forward compatibility.
 
-export default class NeighborhoodGraphPlugin extends Plugin {
+export default class VicinityGraphPlugin extends Plugin {
 	/** Doc-scoped persistence entry points for steps 04/06 (pin, per-doc settings). */
 	persistenceServices!: PersistenceServices;
 	/** The per-rebuild orchestration for steps 04 (view) and the debug command. */
-	graphBuilder!: NeighborhoodGraphBuilder;
+	graphBuilder!: VicinityGraphBuilder;
 	/** Global settings + pinned set (data.json) — step 06 reads/writes globals here. */
 	pluginDataStore!: PluginDataStore;
 
@@ -48,7 +48,7 @@ export default class NeighborhoodGraphPlugin extends Plugin {
 			this.docDataStore,
 			this.pathDocIdMap,
 		);
-		this.graphBuilder = new NeighborhoodGraphBuilder(
+		this.graphBuilder = new VicinityGraphBuilder(
 			this.app.vault,
 			this.app.metadataCache,
 			this.docIdService,
@@ -60,30 +60,30 @@ export default class NeighborhoodGraphPlugin extends Plugin {
 
 		this.registerVaultLifecycleHandlers();
 		this.scheduleOrphanSweep();
-		this.addSettingTab(new NeighborhoodGraphSettingTab(this.app, this));
+		this.addSettingTab(new VicinityGraphSettingTab(this.app, this));
 
 		this.registerView(
-			VIEW_TYPE_NEIGHBORHOOD_GRAPH,
+			VIEW_TYPE_VICINITY_GRAPH,
 			(leaf) =>
-				new NeighborhoodGraphView(leaf, this.graphBuilder, this.pluginDataStore, this.persistenceServices),
+				new VicinityGraphView(leaf, this.graphBuilder, this.pluginDataStore, this.persistenceServices),
 		);
 		// Node hover fires `hover-link` (step-05); registering the source lists
 		// the graph in the Page-preview core-plugin settings. `defaultMod: false`
 		// = previews on plain hover, like Obsidian's own graph view.
-		this.registerHoverLinkSource(VIEW_TYPE_NEIGHBORHOOD_GRAPH, {
-			display: "Neighborhood graph",
+		this.registerHoverLinkSource(VIEW_TYPE_VICINITY_GRAPH, {
+			display: "Vicinity graph",
 			defaultMod: false,
 		});
 
 		this.addCommand({
-			id: "open-neighborhood-graph",
-			name: "Open neighborhood graph",
+			id: "open-vicinity-graph",
+			name: "Open vicinity graph",
 			callback: () => void this.activateView(),
 		});
 		this.addCommand({
-			id: "debug-log-neighborhood-graph",
-			name: "Debug: log neighborhood graph for active file",
-			callback: () => void this.logNeighborhoodGraph(),
+			id: "debug-log-vicinity-graph",
+			name: "Debug: log vicinity graph for active file",
+			callback: () => void this.logVicinityGraph(),
 		});
 	}
 
@@ -93,9 +93,9 @@ export default class NeighborhoodGraphPlugin extends Plugin {
 	 * view to rebuild from the fresh globals. No bespoke event emitter.
 	 */
 	refreshOpenViews(): void {
-		for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE_NEIGHBORHOOD_GRAPH)) {
+		for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE_VICINITY_GRAPH)) {
 			const { view } = leaf;
-			if (view instanceof NeighborhoodGraphView) {
+			if (view instanceof VicinityGraphView) {
 				view.refresh();
 			}
 		}
@@ -154,37 +154,37 @@ export default class NeighborhoodGraphPlugin extends Plugin {
 					.run()
 					.then((summary) => {
 						console.log(
-							`neighborhood-graph: orphan sweep complete docDataFilesRemoved=[${summary.docDataFilesRemoved}] pinsRemoved=[${summary.pinsRemoved}] centralEntriesRemoved=[${summary.centralEntriesRemoved}] ownersRewritten=[${summary.ownersRewritten}]`,
+							`vicinity-graph: orphan sweep complete docDataFilesRemoved=[${summary.docDataFilesRemoved}] pinsRemoved=[${summary.pinsRemoved}] centralEntriesRemoved=[${summary.centralEntriesRemoved}] ownersRewritten=[${summary.ownersRewritten}]`,
 						);
 					})
 					.catch((error: unknown) => {
-						console.error("neighborhood-graph: orphan sweep failed", error);
+						console.error("vicinity-graph: orphan sweep failed", error);
 					}),
 			SWEEP_DELAY_MS,
 		);
 	}
 
 	/** Step-03 exit-criterion harness: proves a real vault renders through ObsidianLinkProvider. */
-	private async logNeighborhoodGraph(): Promise<void> {
+	private async logVicinityGraph(): Promise<void> {
 		const activeFile = this.app.workspace.getActiveFile();
 		if (activeFile === null) {
-			console.log("neighborhood-graph debug: no active file");
+			console.log("vicinity-graph debug: no active file");
 			return;
 		}
 		const result = await this.graphBuilder.build(activeFile.path);
 		if (result === null) {
-			console.log("neighborhood-graph debug: active file did not resolve", activeFile.path);
+			console.log("vicinity-graph debug: active file did not resolve", activeFile.path);
 			return;
 		}
 		const { graph } = result;
 		const hiddenNodeCount = [...graph.hiddenNodeCountsByFolder.values()].reduce((sum, count) => sum + count, 0);
 		console.log(
-			`neighborhood-graph debug: main=[${activeFile.path}] nodes=[${graph.nodes.length}] edges=[${graph.edges.length}] hiddenByTruncation=[${hiddenNodeCount}]`,
+			`vicinity-graph debug: main=[${activeFile.path}] nodes=[${graph.nodes.length}] edges=[${graph.edges.length}] hiddenByTruncation=[${hiddenNodeCount}]`,
 		);
 		// The tables below are OUR output: engine nodes/edges built through
 		// ObsidianLinkProvider (markdown links from the metadata cache + canvas
 		// edges from our fallback parser when core does not index .canvas).
-		console.log("neighborhood-graph debug: [OUR engine] nodes + edges (canvas edges included via our fallback parser):");
+		console.log("vicinity-graph debug: [OUR engine] nodes + edges (canvas edges included via our fallback parser):");
 		console.table(
 			graph.nodes.map((node) => ({
 				path: node.path,
@@ -222,30 +222,30 @@ export default class NeighborhoodGraphPlugin extends Plugin {
 			provider.canvasCapability === "core-indexed"
 				? "Obsidian core indexes .canvas ⇒ core supplies canvas edges; our fallback parser stays DORMANT"
 				: "core does NOT index .canvas ⇒ OUR fallback parser supplies canvas edges";
-		console.log(`neighborhood-graph debug: === backlink provenance for main=[${mainFile.path}] ===`);
-		console.log(`neighborhood-graph debug: canvasCapability=[${provider.canvasCapability}] (${capabilityNote})`);
+		console.log(`vicinity-graph debug: === backlink provenance for main=[${mainFile.path}] ===`);
+		console.log(`vicinity-graph debug: canvasCapability=[${provider.canvasCapability}] (${capabilityNote})`);
 		console.log(
-			`neighborhood-graph debug: [OBSIDIAN core] resolvedLinks .canvas-key count=[${canvasKeyCount}] ⇒ core canvas backlinks on this install=[${canvasKeyCount > 0 ? "YES" : "NO"}]`,
+			`vicinity-graph debug: [OBSIDIAN core] resolvedLinks .canvas-key count=[${canvasKeyCount}] ⇒ core canvas backlinks on this install=[${canvasKeyCount > 0 ? "YES" : "NO"}]`,
 		);
 		console.log(
 			coreBacklinks === null
-				? "neighborhood-graph debug: [OBSIDIAN core] getBacklinksForFile(main)=[UNAVAILABLE — undocumented API absent; provider falls back to resolvedLinks inversion]"
-				: `neighborhood-graph debug: [OBSIDIAN core] getBacklinksForFile(main) sources=[${coreBacklinks.join(", ")}]`,
+				? "vicinity-graph debug: [OBSIDIAN core] getBacklinksForFile(main)=[UNAVAILABLE — undocumented API absent; provider falls back to resolvedLinks inversion]"
+				: `vicinity-graph debug: [OBSIDIAN core] getBacklinksForFile(main) sources=[${coreBacklinks.join(", ")}]`,
 		);
-		console.log(`neighborhood-graph debug: [OUR provider] getIncomingLinks(main)=[${providerIncoming.join(", ")}]`);
+		console.log(`vicinity-graph debug: [OUR provider] getIncomingLinks(main)=[${providerIncoming.join(", ")}]`);
 		console.log(
-			`neighborhood-graph debug: [OUR fallback only] incoming edges present in ours but NOT from core=[${fallbackOnly.join(", ")}]`,
+			`vicinity-graph debug: [OUR fallback only] incoming edges present in ours but NOT from core=[${fallbackOnly.join(", ")}]`,
 		);
 	}
 
 	private async activateView(): Promise<void> {
 		const { workspace } = this.app;
 		const leaf: WorkspaceLeaf | null =
-			workspace.getLeavesOfType(VIEW_TYPE_NEIGHBORHOOD_GRAPH)[0] ?? workspace.getRightLeaf(false);
+			workspace.getLeavesOfType(VIEW_TYPE_VICINITY_GRAPH)[0] ?? workspace.getRightLeaf(false);
 		if (leaf === null) {
 			return;
 		}
-		await leaf.setViewState({ type: VIEW_TYPE_NEIGHBORHOOD_GRAPH, active: true });
+		await leaf.setViewState({ type: VIEW_TYPE_VICINITY_GRAPH, active: true });
 		await workspace.revealLeaf(leaf);
 	}
 }

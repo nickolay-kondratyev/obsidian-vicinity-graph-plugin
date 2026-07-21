@@ -5,7 +5,7 @@
 
 ## Observation
 
-`e2e/neighborhoodGraph.e2e.ts` › "clicking a node opens that note in the current
+`e2e/vicinityGraph.e2e.ts` › "clicking a node opens that note in the current
 tab" (and the ctrl/cmd-click test after it) fails under headless Obsidian
 (`OBSIDIAN_E2E_EXTRA_ARGS="--ozone-platform=headless --disable-gpu"`): after
 `remountGraphView()`, a real pointer `noteNode("note2.md").click()` does not open

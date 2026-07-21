@@ -1,5 +1,5 @@
 /**
- * Domain vocabulary of the pure neighborhood-graph engine.
+ * Domain vocabulary of the pure vicinity-graph engine.
  *
  * Identity boundary (binding decision, see step-02 CLARIFICATION Q1):
  * - The engine keys EVERYTHING on vault file path ({@link VaultPath}).
@@ -195,7 +195,7 @@ export interface ViewSettings {
 export type ViewSettingsOverride = Partial<ViewSettings>;
 
 /** Final engine output consumed by steps 03/04. */
-export interface NeighborhoodGraph {
+export interface VicinityGraph {
 	readonly nodes: readonly GraphNode[];
 	readonly edges: readonly GraphEdge[];
 	/** Nodes hidden by truncation, counted per folder (UI badge on folder groups). */

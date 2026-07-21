@@ -1,4 +1,4 @@
-import type { GraphNode, NeighborhoodGraph } from "../engine";
+import type { GraphNode, VicinityGraph } from "../engine";
 import { VaultPathFacts } from "../shared/VaultPathFacts";
 import type { AttachmentIconGroup } from "./attachmentIconStrip";
 import { attachmentIconStrip } from "./attachmentIconStrip";
@@ -125,7 +125,7 @@ const UNPLACED: XY = { x: 0, y: 0 };
  */
 const UNSIZED_GROUP_PX = 0;
 
-export function neighborhoodGraphToFlow(graph: NeighborhoodGraph): FlowGraph {
+export function vicinityGraphToFlow(graph: VicinityGraph): FlowGraph {
 	const grouping = deriveFolderGroups(graph.nodes, graph.viewSettings.groupByFolder);
 	const badges = deriveTruncationBadges(
 		graph.hiddenNodeCountsByFolder,

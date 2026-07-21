@@ -1,11 +1,11 @@
-import type { NeighborhoodGraph } from "../engine";
+import type { VicinityGraph } from "../engine";
 import { EngineDefaults } from "../engine";
 import type { ControlsModel } from "./ControlsModel";
 import { REBUILD_DEBOUNCE_MS, SIZE_RELAYOUT_THRESHOLD } from "./constants";
 import { decideLayout } from "./GraphStructureDiff";
 import { decideActiveFileRebuild } from "./RebuildDecision";
-import { neighborhoodGraphToElk, extractElkDimensionsById, extractElkPositions } from "./elkMapping";
-import { neighborhoodGraphToFlow, withGroupDimensions, withPositions } from "./flowMapping";
+import { vicinityGraphToElk, extractElkDimensionsById, extractElkPositions } from "./elkMapping";
+import { vicinityGraphToFlow, withGroupDimensions, withPositions } from "./flowMapping";
 import type { Dimensions, FlowEdge, FlowGraph, FlowNode, XY } from "./flowMapping";
 import { isFolderGroupId } from "./graphIdentity";
 import { NO_ORPHAN_TRUNCATION } from "./truncationBadges";
@@ -16,7 +16,7 @@ import type { GraphLayoutPort, GraphSourcePort, NoteNavigatorPort, OpenNoteOptio
  * Owns the rebuild pipeline `events → engine → structural diff → elkjs →
  * React Flow` and exposes the result as an external store the React view
  * subscribes to. Deliberately the ONLY view class that touches Obsidian and the
- * async engine, so `NeighborhoodGraphView.tsx` stays a thin lifecycle shell and
+ * async engine, so `VicinityGraphView.tsx` stays a thin lifecycle shell and
  * every decision it makes lives in a pure, node-tested module.
  *
  * Concurrency: rebuilds are async (engine build + elk layout). A monotonic
@@ -61,7 +61,7 @@ export class GraphViewController {
 	private readonly subscribers = new Set<Subscriber>();
 
 	/** The graph rendered last — the structural-diff baseline. */
-	private previousGraph: NeighborhoodGraph | null = null;
+	private previousGraph: VicinityGraph | null = null;
 	/** Positions of the currently rendered nodes, reused when layout is skipped. */
 	private positions: ReadonlyMap<string, XY> = new Map();
 	/** elk-computed folder-group sizes, reused alongside positions when layout is skipped. */
@@ -168,14 +168,14 @@ export class GraphViewController {
 		const graph = result.graph;
 		this.controls = result.controls;
 		const decision = decideLayout(this.previousGraph, graph, SIZE_RELAYOUT_THRESHOLD);
-		const flow = neighborhoodGraphToFlow(graph);
+		const flow = vicinityGraphToFlow(graph);
 		if (decision === "reuse-layout") {
 			// No structural change: keep positions and group sizes, refresh node data only.
-			console.debug("neighborhood-graph: structural diff skipped elk layout (data-only refresh)");
+			console.debug("vicinity-graph: structural diff skipped elk layout (data-only refresh)");
 			this.publish(graph, this.positions, this.groupDimensions, flow);
 			return;
 		}
-		const laidOut = await this.layoutRunner.layout(neighborhoodGraphToElk(graph));
+		const laidOut = await this.layoutRunner.layout(vicinityGraphToElk(graph));
 		if (this.isStale(token)) {
 			return;
 		}
@@ -187,7 +187,7 @@ export class GraphViewController {
 	}
 
 	private publish(
-		graph: NeighborhoodGraph,
+		graph: VicinityGraph,
 		positions: ReadonlyMap<string, XY>,
 		groupDimensions: ReadonlyMap<string, Dimensions>,
 		flow: FlowGraph,

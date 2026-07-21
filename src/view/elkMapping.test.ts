@@ -2,30 +2,30 @@ import type { ElkNode } from "elkjs";
 import { describe, expect, it } from "vitest";
 import { asFolderPath, asVaultPath } from "../engine";
 import { ELK_GROUP_PADDING, ELK_ROOT_ID } from "./constants";
-import { extractElkDimensionsById, extractElkPositions, neighborhoodGraphToElk } from "./elkMapping";
+import { extractElkDimensionsById, extractElkPositions, vicinityGraphToElk } from "./elkMapping";
 import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
 
-describe("neighborhoodGraphToElk", () => {
+describe("vicinityGraphToElk", () => {
 	const graph = makeGraph({
 		nodes: [makeNode({ path: asVaultPath("a.md"), sizePx: 120 }), makeNode({ path: asVaultPath("b.md") })],
 		edges: [makeEdge("a.md", "b.md")],
 	});
 
 	it("WHEN mapping THEN the root carries the layered compound-ready algorithm", () => {
-		expect(neighborhoodGraphToElk(graph).layoutOptions?.["elk.algorithm"]).toBe("layered");
+		expect(vicinityGraphToElk(graph).layoutOptions?.["elk.algorithm"]).toBe("layered");
 	});
 
 	it("WHEN mapping THEN the root requests INCLUDE_CHILDREN hierarchy handling", () => {
-		expect(neighborhoodGraphToElk(graph).layoutOptions?.["elk.hierarchyHandling"]).toBe("INCLUDE_CHILDREN");
+		expect(vicinityGraphToElk(graph).layoutOptions?.["elk.hierarchyHandling"]).toBe("INCLUDE_CHILDREN");
 	});
 
 	it("WHEN mapping THEN each node becomes a root child sized by its sizePx", () => {
-		const child = neighborhoodGraphToElk(graph).children?.find((candidate) => candidate.id === "a.md");
+		const child = vicinityGraphToElk(graph).children?.find((candidate) => candidate.id === "a.md");
 		expect({ width: child?.width, height: child?.height }).toEqual({ width: 120, height: 120 });
 	});
 
 	it("WHEN mapping THEN each edge becomes an elk edge with synthesized id and endpoints", () => {
-		expect(neighborhoodGraphToElk(graph).edges?.[0]).toEqual({
+		expect(vicinityGraphToElk(graph).edges?.[0]).toEqual({
 			id: "a.md->b.md",
 			sources: ["a.md"],
 			targets: ["b.md"],
@@ -54,7 +54,7 @@ describe("extractElkPositions", () => {
 	});
 });
 
-describe("neighborhoodGraphToElk folder-group compounds (step-05)", () => {
+describe("vicinityGraphToElk folder-group compounds (step-05)", () => {
 	// GIVEN two grouped notes/, one solo singleton, one root file, and edges:
 	// intra-group a->b, cross-boundary a->solo, root->a.
 	const graph = makeGraph({
@@ -72,7 +72,7 @@ describe("neighborhoodGraphToElk folder-group compounds (step-05)", () => {
 	});
 
 	function container(): ElkNode | undefined {
-		return neighborhoodGraphToElk(graph).children?.find((child) => child.id === "folder-group:notes");
+		return vicinityGraphToElk(graph).children?.find((child) => child.id === "folder-group:notes");
 	}
 
 	it("WHEN a folder groups THEN its members nest under a folder container child", () => {
@@ -80,7 +80,7 @@ describe("neighborhoodGraphToElk folder-group compounds (step-05)", () => {
 	});
 
 	it("WHEN a folder groups THEN its members are not root children anymore", () => {
-		const rootIds = neighborhoodGraphToElk(graph).children?.map((child) => child.id);
+		const rootIds = vicinityGraphToElk(graph).children?.map((child) => child.id);
 		expect(rootIds).toEqual(["folder-group:notes", "solo/only.md", "root.md"]);
 	});
 
@@ -93,7 +93,7 @@ describe("neighborhoodGraphToElk folder-group compounds (step-05)", () => {
 	});
 
 	it("WHEN an edge crosses the group boundary THEN it stays on the root", () => {
-		const rootEdgeIds = neighborhoodGraphToElk(graph).edges?.map((edge) => edge.id);
+		const rootEdgeIds = vicinityGraphToElk(graph).edges?.map((edge) => edge.id);
 		expect(rootEdgeIds).toEqual(["notes/a.md->solo/only.md", "root.md->notes/a.md"]);
 	});
 
@@ -103,7 +103,7 @@ describe("neighborhoodGraphToElk folder-group compounds (step-05)", () => {
 			edges: graph.edges,
 			viewSettings: { ...graph.viewSettings, groupByFolder: false },
 		});
-		expect(neighborhoodGraphToElk(flat).children?.every((child) => child.children === undefined)).toBe(true);
+		expect(vicinityGraphToElk(flat).children?.every((child) => child.children === undefined)).toBe(true);
 	});
 });
 

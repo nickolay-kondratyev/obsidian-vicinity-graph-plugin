@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { EngineDefaults, NEUTRAL_NORMALIZED_VALUE } from "./constants";
 import { FakeLinkProvider } from "./FakeLinkProvider";
 import type { FakeVaultSpec } from "./FakeLinkProvider";
-import { NeighborhoodTraversal } from "./NeighborhoodTraversal";
+import { VicinityTraversal } from "./VicinityTraversal";
 import type { NodeSize } from "./NodeSizer";
 import { NodeSizer } from "./NodeSizer";
 import type { SizeMetricId, SizingSettings, VaultPath } from "./types";
@@ -31,7 +31,7 @@ function sizeAll(
 		descriptor: { path: asVaultPath(path) },
 		depths: { outgoingDepth: 1, incomingDepth: 1 },
 	}));
-	const traversal = new NeighborhoodTraversal(provider).traverse(roots);
+	const traversal = new VicinityTraversal(provider).traverse(roots);
 	return new NodeSizer(provider).computeSizes(traversal.nodes, settings);
 }
 
@@ -123,7 +123,7 @@ describe("NodeSizer depth-decay metric", () => {
 
 	it("WHEN k=1 THEN a depth-2 node scores 1/(1+2)", () => {
 		const provider = new FakeLinkProvider(spec);
-		const traversal = new NeighborhoodTraversal(provider).traverse([
+		const traversal = new VicinityTraversal(provider).traverse([
 			{ descriptor: { path: asVaultPath("m.md") }, depths: { outgoingDepth: 2, incomingDepth: 0 } },
 		]);
 		const sizes = new NodeSizer(provider).computeSizes(traversal.nodes, sizingWith({ "depth-decay": 1 }));
@@ -132,7 +132,7 @@ describe("NodeSizer depth-decay metric", () => {
 
 	it("WHEN k=4 THEN the decay steepens accordingly", () => {
 		const provider = new FakeLinkProvider(spec);
-		const traversal = new NeighborhoodTraversal(provider).traverse([
+		const traversal = new VicinityTraversal(provider).traverse([
 			{ descriptor: { path: asVaultPath("m.md") }, depths: { outgoingDepth: 2, incomingDepth: 0 } },
 		]);
 		const sizes = new NodeSizer(provider).computeSizes(traversal.nodes, sizingWith({ "depth-decay": 1 }, 4));

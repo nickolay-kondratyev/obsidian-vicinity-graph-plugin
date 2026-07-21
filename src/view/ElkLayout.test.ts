@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { asFolderPath, asVaultPath } from "../engine";
 import { ElkLayoutRunner } from "./ElkLayoutRunner";
-import { extractElkDimensionsById, extractElkPositions, neighborhoodGraphToElk } from "./elkMapping";
+import { extractElkDimensionsById, extractElkPositions, vicinityGraphToElk } from "./elkMapping";
 import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
 
 /**
@@ -20,11 +20,11 @@ const graph = makeGraph({
 });
 
 async function layoutPositions() {
-	const laidOut = await new ElkLayoutRunner().layout(neighborhoodGraphToElk(graph));
+	const laidOut = await new ElkLayoutRunner().layout(vicinityGraphToElk(graph));
 	return extractElkPositions(laidOut);
 }
 
-describe("elk layout of a real neighborhood fixture", () => {
+describe("elk layout of a real vicinity fixture", () => {
 	it("WHEN laid out THEN every node receives a position", async () => {
 		const positions = await layoutPositions();
 		expect(positions.size).toBe(3);
@@ -54,7 +54,7 @@ describe("elk compound layout of a folder-grouped fixture (step-05)", () => {
 	});
 
 	async function laidOutCompound() {
-		return new ElkLayoutRunner().layout(neighborhoodGraphToElk(compoundGraph));
+		return new ElkLayoutRunner().layout(vicinityGraphToElk(compoundGraph));
 	}
 
 	it("WHEN laid out THEN the container reports dimensions that wrap its members", async () => {

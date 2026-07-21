@@ -5,7 +5,7 @@
 # is unset it auto-downloads a pinned build via setup-obsidian-bin.sh (Linux /
 # Docker); an already-set OBSIDIAN_PATH is honoured untouched. Then seeds the dev
 # vault, type-checks the specs, and runs Playwright. Extra args pass through, e.g.
-#   npm run test:e2e -- neighborhoodGraph.e2e.ts
+#   npm run test:e2e -- vicinityGraph.e2e.ts
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

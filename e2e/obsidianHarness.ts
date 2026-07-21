@@ -38,15 +38,15 @@ export interface GlobalViewSnapshot {
 	readonly sizing: { readonly metrics: Record<string, { readonly enabled: boolean; readonly weight: number }> };
 }
 
-export const PLUGIN_ID = "obsidian-neighborhood-graph";
+export const PLUGIN_ID = "vicinity-graph";
 /** Command id = `<pluginId>:<commandId>` (Obsidian namespacing). */
-export const OPEN_GRAPH_COMMAND_ID = `${PLUGIN_ID}:open-neighborhood-graph`;
+export const OPEN_GRAPH_COMMAND_ID = `${PLUGIN_ID}:open-vicinity-graph`;
 /**
- * Duplicates `VIEW_TYPE_NEIGHBORHOOD_GRAPH` from `src/view/NeighborhoodGraphView.tsx`
+ * Duplicates `VIEW_TYPE_VICINITY_GRAPH` from `src/view/VicinityGraphView.tsx`
  * on purpose: importing that module here would drag the `obsidian` package (types-only,
  * no runtime) into the node-side test process and crash it.
  */
-const VIEW_TYPE_NEIGHBORHOOD_GRAPH = "neighborhood-graph-view";
+const VIEW_TYPE_VICINITY_GRAPH = "vicinity-graph-view";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DEV_VAULT_DIR = path.join(REPO_ROOT, ".dev-vault");
@@ -194,7 +194,7 @@ export class ObsidianHarness {
 		}, vaultPath);
 	}
 
-	/** Runs the plugin's "Open neighborhood graph" command and waits for the RF canvas to mount. */
+	/** Runs the plugin's "Open vicinity graph" command and waits for the RF canvas to mount. */
 	async openGraphView(): Promise<void> {
 		const executed = await this.page.evaluate(
 			(commandId) => (window as unknown as { app: any }).app.commands.executeCommandById(commandId),
@@ -205,7 +205,7 @@ export class ObsidianHarness {
 		}
 		// The mounted view shows the empty state until a note-bearing file becomes
 		// active (fresh boot lands on "New tab"), so wait for EITHER render mode.
-		await expect(this.page.locator(".neighborhood-graph-flow, .neighborhood-graph-empty")).toBeAttached();
+		await expect(this.page.locator(".vicinity-graph-flow, .vicinity-graph-empty")).toBeAttached();
 		// Deterministic sidebar layout: stock right-sidebar tabs (backlinks,
 		// outline, …) stack above/below the graph and their panes intercept
 		// pointer events on nodes near the pane boundary in small windows —
@@ -231,7 +231,7 @@ export class ObsidianHarness {
 					rightSplit.setSize(sidebarWidthPx);
 				}
 			},
-			{ viewType: VIEW_TYPE_NEIGHBORHOOD_GRAPH, sidebarWidthPx: RIGHT_SIDEBAR_WIDTH_PX },
+			{ viewType: VIEW_TYPE_VICINITY_GRAPH, sidebarWidthPx: RIGHT_SIDEBAR_WIDTH_PX },
 		);
 	}
 
@@ -248,7 +248,7 @@ export class ObsidianHarness {
 			for (const leaf of app.workspace.getLeavesOfType(viewType)) {
 				leaf.detach();
 			}
-		}, VIEW_TYPE_NEIGHBORHOOD_GRAPH);
+		}, VIEW_TYPE_VICINITY_GRAPH);
 		await this.openGraphView();
 	}
 

@@ -38,7 +38,7 @@ Raw annotated checklist: `.ai_out/step-05-rich-rendering/main/QA_CHECKLIST.md`.
 3. **Node/group drag not working (§2, §3).** Two checklist items assumed drag; manual repositioning was never a step-05 requirement and no usable drag exists (elk relayout overwrites, no position persistence). **Resolved 2026-07-20: out of V1** — drag explicitly disabled (`nodesDraggable={false}`) so there's no half-working drag; §2/§3 drag items are moot for V1. → [[ticket-node-drag-reposition]] (CLOSED).
 
 ### ✅ Accepted / by-design (no change)
-- **Click behavior (§5):** clicking a node opens the note AND recenters the graph on it — **expected**: opening the note makes it the active file, and the neighborhood graph re-centers on the active file (step-04 pipeline). Clicking arrows/edges does nothing (edges carry no open action) — fine.
+- **Click behavior (§5):** clicking a node opens the note AND recenters the graph on it — **expected**: opening the note makes it the active file, and the vicinity graph re-centers on the active file (step-04 pipeline). Clicking arrows/edges does nothing (edges carry no open action) — fine.
 - **Ctrl/cmd-click (§5):** opens a new tab with that node centered; no lingering multi-selection accent ring (the RF multi-select-on-modifier conflict was disabled). As intended (CLARIFICATION Q2).
 - **Empty state on close-all (§8):** closing all files leaves the last graph up. **By design** — `decideActiveFileRebuild` ignores a `null` active path so that focusing an image/PDF (or closing files) never blows away the graph (step-04 MAIN-gating rule). Human: "ok for now." Revisit only if an explicit "clear on no-note" behavior is wanted.
 

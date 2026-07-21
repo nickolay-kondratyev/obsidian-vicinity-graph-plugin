@@ -21,7 +21,7 @@ test.describe.configure({ mode: "serial" });
 // Depths default to 1 outgoing / 1 incoming, edge visibility "walked-from-center".
 const ALPHA_PATH = "projects/alpha.md";
 const ALPHA_FM_TITLE = "Project Alpha (fm title)";
-/** alpha-focused neighborhood: alpha (MAIN) + beta (out+in) + note1 (out). */
+/** alpha-focused vicinity: alpha (MAIN) + beta (out+in) + note1 (out). */
 const ALPHA_NODE_COUNT = 3;
 /** alpha→note1 (collapsed ×2), alpha→beta, beta→alpha. */
 const ALPHA_EDGE_COUNT = 3;
@@ -62,58 +62,58 @@ test.afterAll(async () => {
 });
 
 function noteNode(path: string) {
-	return page.locator(`.neighborhood-graph-node[data-path="${path}"]`);
+	return page.locator(`.vicinity-graph-node[data-path="${path}"]`);
 }
 
 function folderGroup(folder: string) {
-	return page.locator(`.neighborhood-graph-group[data-folder="${folder}"]`);
+	return page.locator(`.vicinity-graph-group[data-folder="${folder}"]`);
 }
 
 // --- alpha focused: tiers, titles, group, chips, edges ----------------------
 
-test("renders the expected node count for the alpha neighborhood", async () => {
-	await expect(page.locator(".neighborhood-graph-node")).toHaveCount(ALPHA_NODE_COUNT);
+test("renders the expected node count for the alpha vicinity", async () => {
+	await expect(page.locator(".vicinity-graph-node")).toHaveCount(ALPHA_NODE_COUNT);
 });
 
 test("exactly one MAIN-tier node, no pinned-central, rest regular", async () => {
-	await expect(page.locator('.neighborhood-graph-node[data-tier="main"]')).toHaveCount(1);
-	await expect(page.locator('.neighborhood-graph-node[data-tier="pinned-central"]')).toHaveCount(0);
-	await expect(page.locator('.neighborhood-graph-node[data-tier="regular"]')).toHaveCount(ALPHA_NODE_COUNT - 1);
+	await expect(page.locator('.vicinity-graph-node[data-tier="main"]')).toHaveCount(1);
+	await expect(page.locator('.vicinity-graph-node[data-tier="pinned-central"]')).toHaveCount(0);
+	await expect(page.locator('.vicinity-graph-node[data-tier="regular"]')).toHaveCount(ALPHA_NODE_COUNT - 1);
 });
 
 test("node title comes from frontmatter when present", async () => {
-	await expect(noteNode(ALPHA_PATH).locator(".neighborhood-graph-node__title")).toHaveText(ALPHA_FM_TITLE);
+	await expect(noteNode(ALPHA_PATH).locator(".vicinity-graph-node__title")).toHaveText(ALPHA_FM_TITLE);
 });
 
 test("root-folder note carries no breadcrumb", async () => {
-	await expect(noteNode(NOTE1_PATH).locator(".neighborhood-graph-node__breadcrumb")).toHaveCount(0);
+	await expect(noteNode(NOTE1_PATH).locator(".vicinity-graph-node__breadcrumb")).toHaveCount(0);
 });
 
 test("projects folder renders as a group with its label and no truncation badge", async () => {
 	await expect(folderGroup("projects")).toHaveCount(1);
-	await expect(folderGroup("projects").locator(".neighborhood-graph-group__label")).toHaveText("projects");
-	await expect(folderGroup("projects").locator(".neighborhood-graph-group__badge")).toHaveCount(0);
+	await expect(folderGroup("projects").locator(".vicinity-graph-group__label")).toHaveText("projects");
+	await expect(folderGroup("projects").locator(".vicinity-graph-group__badge")).toHaveCount(0);
 });
 
 test("attachment icon strip shows one counted chip per extension", async () => {
-	const chips = noteNode(ALPHA_PATH).locator("button.neighborhood-graph-attachment");
+	const chips = noteNode(ALPHA_PATH).locator("button.vicinity-graph-attachment");
 	await expect(chips).toHaveCount(3);
 	for (const extension of ["png", "pdf", "csv"]) {
-		const chip = noteNode(ALPHA_PATH).locator(`button.neighborhood-graph-attachment[data-extension="${extension}"]`);
+		const chip = noteNode(ALPHA_PATH).locator(`button.vicinity-graph-attachment[data-extension="${extension}"]`);
 		await expect(chip).toHaveAttribute("aria-label", attachmentGroupLabel(extension, 1));
-		await expect(chip.locator(".neighborhood-graph-attachment__count")).toHaveText("1");
+		await expect(chip.locator(".vicinity-graph-attachment__count")).toHaveText("1");
 	}
 });
 
 test("duplicate links collapse into one edge with a ×2 count badge", async () => {
-	const badge = page.locator(".neighborhood-graph-edge__count-badge");
+	const badge = page.locator(".vicinity-graph-edge__count-badge");
 	await expect(badge).toHaveCount(1); // single-link edges carry NO badge
 	await expect(badge).toHaveText(linkCountBadgeText(ALPHA_TO_NOTE1_LINK_COUNT) ?? "");
 	await expect(badge).toHaveAttribute("data-count", String(ALPHA_TO_NOTE1_LINK_COUNT));
 });
 
 test("every edge path carries an arrowhead marker", async () => {
-	const edgePaths = page.locator(".neighborhood-graph-flow .react-flow__edge-path");
+	const edgePaths = page.locator(".vicinity-graph-flow .react-flow__edge-path");
 	await expect(edgePaths).toHaveCount(ALPHA_EDGE_COUNT);
 	for (let i = 0; i < ALPHA_EDGE_COUNT; i++) {
 		await expect(edgePaths.nth(i)).toHaveAttribute("marker-end", /url\(/);
@@ -121,7 +121,7 @@ test("every edge path carries an arrowhead marker", async () => {
 });
 
 test("no corner overlay badge when nothing is truncated", async () => {
-	await expect(page.locator(".neighborhood-graph-overlay-badge")).toHaveCount(0);
+	await expect(page.locator(".vicinity-graph-overlay-badge")).toHaveCount(0);
 });
 
 // --- note1 focused: thumbnail, breadcrumb, groups ---------------------------
@@ -129,20 +129,20 @@ test("no corner overlay badge when nothing is truncated", async () => {
 test("switching the active file re-renders the graph around note1", async () => {
 	await harness.openFile(NOTE1_PATH);
 	await expect(noteNode(NOTE1_PATH)).toHaveAttribute("data-tier", "main");
-	await expect(page.locator(".neighborhood-graph-node")).toHaveCount(NOTE1_NODE_COUNT);
+	await expect(page.locator(".vicinity-graph-node")).toHaveCount(NOTE1_NODE_COUNT);
 });
 
 test("first embedded image renders as a thumbnail resolved to an app:// URL", async () => {
-	const img = noteNode(NOTE1_PATH).locator(".neighborhood-graph-node__thumbnail img");
+	const img = noteNode(NOTE1_PATH).locator(".vicinity-graph-node__thumbnail img");
 	await expect(img).toHaveCount(1);
 	await expect(img).toHaveAttribute("src", /^app:\/\//);
 	// Single image ⇒ no "+N" extra-images badge.
-	await expect(noteNode(NOTE1_PATH).locator(".neighborhood-graph-node__thumbnail-badge")).toHaveCount(0);
+	await expect(noteNode(NOTE1_PATH).locator(".vicinity-graph-node__thumbnail-badge")).toHaveCount(0);
 });
 
 test("singleton-folder note shows a folder breadcrumb and its trimmed frontmatter title", async () => {
-	await expect(noteNode(GAMMA_PATH).locator(".neighborhood-graph-node__breadcrumb")).toHaveText("solo/");
-	await expect(noteNode(GAMMA_PATH).locator(".neighborhood-graph-node__title")).toHaveText(
+	await expect(noteNode(GAMMA_PATH).locator(".vicinity-graph-node__breadcrumb")).toHaveText("solo/");
+	await expect(noteNode(GAMMA_PATH).locator(".vicinity-graph-node__title")).toHaveText(
 		`solo/${GAMMA_TRIMMED_TITLE}`,
 	);
 });
@@ -158,7 +158,7 @@ for (const theme of ["dark", "light"] as const) {
 	test(`arrowheads use the ${theme}-theme --text-faint, not RF's hard-coded default`, async () => {
 		await harness.setTheme(theme);
 		const colors = await page.evaluate(() => {
-			const polyline = document.querySelector(".neighborhood-graph-flow .react-flow__arrowhead polyline");
+			const polyline = document.querySelector(".vicinity-graph-flow .react-flow__arrowhead polyline");
 			if (polyline === null) {
 				throw new Error("e2e: no arrowhead polyline in the rendered graph");
 			}
@@ -222,12 +222,12 @@ test("a low node cap surfaces the group badge and the corner overlay", async () 
 	await harness.openFile(NOTE1_PATH);
 
 	// Visible: note1 (central, cap-exempt) + crowd/c1 + crowd/c2 (largest depth-1 neighbors).
-	await expect(page.locator(".neighborhood-graph-node")).toHaveCount(3);
+	await expect(page.locator(".vicinity-graph-node")).toHaveCount(3);
 
-	const crowdBadge = folderGroup("crowd").locator(".neighborhood-graph-group__badge");
+	const crowdBadge = folderGroup("crowd").locator(".vicinity-graph-group__badge");
 	await expect(crowdBadge).toHaveText(plusNText(CROWD_HIDDEN_COUNT));
 
-	const overlay = page.locator(".neighborhood-graph-overlay-badge");
+	const overlay = page.locator(".vicinity-graph-overlay-badge");
 	await expect(overlay).toHaveText(hiddenOverlayText(ORPHAN_HIDDEN_TOTAL));
 	await expect(overlay).toHaveAttribute("title", orphanBreakdownTitle(ORPHAN_BREAKDOWN));
 });

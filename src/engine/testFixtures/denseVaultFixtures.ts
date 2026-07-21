@@ -254,7 +254,7 @@ export function largeMixedVault(
 }
 
 /**
- * A pinned central whose neighborhood is fully disconnected from MAIN, for tight-cap
+ * A pinned central whose vicinity is fully disconnected from MAIN, for tight-cap
  * scenarios. MAIN's connected neighbors and the pin's disconnected neighbors compete
  * for the cap; the pin and MAIN themselves are cap-exempt centrals.
  *

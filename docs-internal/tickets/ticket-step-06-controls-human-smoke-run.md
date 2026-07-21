@@ -16,7 +16,7 @@ Human eyes are now needed only for the **visual/native-feel** residue of §1/§6
 `npm test` (49 files / 499 tests green) + `npm run check` (tsc clean) cover the entire contract layer:
 - `planSettingsWrite` — which write lands where, per interaction, incl. pin-on-toggle (writes even when == global) and reset (=undefined → field delete).
 - `ControlsModelBuilder` — presence-based inherited-vs-pinned, value derived through the same `TraversalSettingsResolver` the engine uses (shown value == graphed value, structurally), Q-A semantics (pinned central reflects only `MAIN.centralDepths[X]`).
-- The headline scenario at BOTH levels: `src/adapters/CentralDepthRoundTrip.test.ts` (persistence round-trip: X's own DocData byte-identical through Y→Z→Y) + the appended block in `src/engine/NeighborhoodEngine.test.ts` (BFS actually re-explores X at the adjusted depth).
+- The headline scenario at BOTH levels: `src/adapters/CentralDepthRoundTrip.test.ts` (persistence round-trip: X's own DocData byte-identical through Y→Z→Y) + the appended block in `src/engine/VicinityEngine.test.ts` (BFS actually re-explores X at the adjusted depth).
 - `clampStepperDepth` bounds 0..5, `planNodePinAction` (main→none/regular→pin/pinned→unpin), `sizingMetrics` invariant vs engine `SizeMetricId`.
 
 ## What needs HUMAN eyes (native feel / visual / restart round-trip)
