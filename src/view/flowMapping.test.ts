@@ -295,3 +295,40 @@ describe("withGroupDimensions", () => {
 		expect(sized.find((node) => node.id === "notes/a.md")?.width).toBe(100);
 	});
 });
+
+/**
+ * The "no thumbnail refetch storm on rebuild" guarantee (step-07 perf pass) is
+ * emergent, not explicit: `NoteNode` re-renders on every rebuild (fresh `data`
+ * object) but its `thumbnailUrl` is `useMemo`'d off the PRIMITIVE
+ * `data.firstImagePath` string, so an unchanged path recomputes to the same URL
+ * and React reconciles the <img> to the same `src` — no new network request.
+ * These tests pin the mapping-side half of that contract: `firstImagePath` is a
+ * plain string (a stable useMemo key), identical across independent rebuilds of
+ * an unchanged node. A future refactor that made it an object (fresh reference
+ * each rebuild) would break the memo and re-trigger fetches — and fail here.
+ */
+describe("neighborhoodGraphToFlow thumbnail key stability (no-refetch-storm contract)", () => {
+	function imageNode() {
+		return makeNode({
+			path: asVaultPath("n.md"),
+			attachments: [{ path: asVaultPath("img/a.png"), isImage: true }],
+			firstImagePath: asVaultPath("img/a.png"),
+		});
+	}
+
+	it("WHEN a node has a thumbnail THEN firstImagePath is a primitive string (a stable useMemo key)", () => {
+		const data = noteNode(neighborhoodGraphToFlow(makeGraph({ nodes: [imageNode()] })).nodes, "n.md")?.data;
+		expect(typeof data?.firstImagePath).toBe("string");
+	});
+
+	it("WHEN the same node is rebuilt THEN firstImagePath is string-equal across independent mappings", () => {
+		const first = noteNode(neighborhoodGraphToFlow(makeGraph({ nodes: [imageNode()] })).nodes, "n.md");
+		const second = noteNode(neighborhoodGraphToFlow(makeGraph({ nodes: [imageNode()] })).nodes, "n.md");
+		expect(second?.data.firstImagePath).toBe(first?.data.firstImagePath);
+	});
+
+	it("WHEN a node has no image THEN firstImagePath is absent (thumbnailUrl resolves to null, no <img> mounts)", () => {
+		const data = noteNode(neighborhoodGraphToFlow(makeGraph({ nodes: [makeNode({ path: asVaultPath("n.md") })] })).nodes, "n.md")?.data;
+		expect(data?.firstImagePath).toBeUndefined();
+	});
+});

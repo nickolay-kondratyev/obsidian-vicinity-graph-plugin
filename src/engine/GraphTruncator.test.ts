@@ -3,43 +3,11 @@ import { EngineDefaults } from "./constants";
 import { FakeLinkProvider } from "./FakeLinkProvider";
 import type { FakeVaultSpec } from "./FakeLinkProvider";
 import { GraphTruncator } from "./GraphTruncator";
-import type { TruncationResult } from "./GraphTruncator";
 import { NeighborhoodTraversal } from "./NeighborhoodTraversal";
 import type { TraversalRoot } from "./NeighborhoodTraversal";
 import { NodeSizer } from "./NodeSizer";
-import type { DepthSettings } from "./types";
+import { build, visible } from "./testFixtures/truncationHarness";
 import { asVaultPath } from "./types";
-
-/** Traverse + size + truncate over a fixture; MAIN is the first root. */
-function build(
-	spec: FakeVaultSpec,
-	rootPaths: readonly string[],
-	nodeCap: number,
-	depths: Partial<DepthSettings> = {},
-): TruncationResult {
-	const provider = new FakeLinkProvider(spec);
-	const roots: TraversalRoot[] = rootPaths.map((path) => ({
-		descriptor: { path: asVaultPath(path) },
-		depths: { outgoingDepth: depths.outgoingDepth ?? 2, incomingDepth: depths.incomingDepth ?? 2 },
-	}));
-	const traversal = new NeighborhoodTraversal(provider).traverse(roots);
-	const sizes = new NodeSizer(provider).computeSizes(traversal.nodes, EngineDefaults.sizingSettings());
-	const mainPath = rootPaths[0];
-	if (mainPath === undefined) {
-		throw new Error("build() needs at least one root");
-	}
-	return GraphTruncator.truncate({
-		nodes: traversal.nodes,
-		sizes,
-		edges: traversal.edges,
-		mainPath: asVaultPath(mainPath),
-		nodeCap,
-	});
-}
-
-function visible(result: TruncationResult): string[] {
-	return [...result.visiblePaths].sort();
-}
 
 // GIVEN MAIN m.md linking five same-sized neighbors in two folders
 const fanOutSpec: FakeVaultSpec = {
