@@ -15,14 +15,21 @@
 - No perf item unfixed without a ticket.
 - README accurate to shipped behavior; fresh clone → running dev build via README only.
 
-## Flow
+## Flow (phased to avoid compaction; code agents serial)
 - [x] Branch + dirs
-- [~] EXPLORATION (3 Explore agents: engine, perf, readme)
-- [ ] CLARIFICATION (align on open items 1-3 + perf budgets)
-- [ ] IMPLEMENTATION_WITH_SELF_PLAN
-- [ ] IMPLEMENTATION_REVIEW
-- [ ] IMPLEMENTATION_ITERATION
-- [ ] Closeout: changelog, tickets, final summary
+- [x] EXPLORATION (engine/perf/readme) — committed bf6aced
+- [x] CLARIFICATION — committed bf6aced
+- [ ] PHASE A: engine dense-fixtures + cap edge cases → review → iterate → commit
+- [ ] PHASE B: perf pass (rebuild-debounce test, orphan-sweep scale-up, image culling fix-or-ticket, hover-pin CSS fix) → review → iterate → commit
+- [ ] PHASE C: README + release checklist + ticket triage → review → iterate → commit
+- [ ] Closeout: ONE changelog entry, tickets, final summary
+
+## Confirmed decisions (see CLARIFICATION__PUBLIC.md)
+- Perf: structural asserts + one loose 150ms engine build ceiling.
+- Committed fixture generator under src/engine/testFixtures/.
+- Keep dense suite in default `npm test`.
+- Fix-now: hover-pin bug only. Ticket the rest.
+- License KSAL-2.3 stated plainly (LICENSE.md authority). Keep plugin id (rename+repo-move later). Store submission out of scope.
 
 ## Open items to resolve in CLARIFICATION
 1. Perf budget numbers (rebuild time at cap=100).

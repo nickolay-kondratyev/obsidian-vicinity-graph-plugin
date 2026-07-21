@@ -53,3 +53,46 @@ describe("deriveFolderGroups determinism", () => {
 		expect(deriveFolderGroups(MIXED_NODES, true)).toEqual(deriveFolderGroups(MIXED_NODES, true));
 	});
 });
+
+/**
+ * Step-07 dense folder scenario: one graph carrying the full membership matrix at
+ * scale — a 1-member folder, a 2-member folder, a many-member (dozens) folder, and
+ * vault-root files — to guard the 2+ rule and determinism against realistic breadth.
+ */
+const MANY_MEMBER_COUNT = 40;
+
+function denseMultiFolderNodes() {
+	const nodes = [
+		makeNode({ path: asVaultPath("single/only.md"), folder: asFolderPath("single") }),
+		makeNode({ path: asVaultPath("duo/a.md"), folder: asFolderPath("duo") }),
+		makeNode({ path: asVaultPath("duo/b.md"), folder: asFolderPath("duo") }),
+		makeNode({ path: asVaultPath("rootOne.md"), folder: asFolderPath("") }),
+		makeNode({ path: asVaultPath("rootTwo.md"), folder: asFolderPath("") }),
+	];
+	for (let i = 0; i < MANY_MEMBER_COUNT; i++) {
+		const index = String(i).padStart(2, "0");
+		nodes.push(makeNode({ path: asVaultPath(`many/m${index}.md`), folder: asFolderPath("many") }));
+	}
+	return nodes;
+}
+
+describe("deriveFolderGroups dense 1/2/many membership matrix", () => {
+	it("WHEN folders of size 1, 2 and many coexist THEN only the 2+ folders become groups", () => {
+		const folders = deriveFolderGroups(denseMultiFolderNodes(), true).groups.map((group) => group.folder).sort();
+		expect(folders).toEqual(["duo", "many"]);
+	});
+
+	it("WHEN a folder holds dozens of members THEN the group lists every one of them", () => {
+		const many = deriveFolderGroups(denseMultiFolderNodes(), true).groups.find((group) => group.folder === "many");
+		expect(many?.memberPaths).toHaveLength(MANY_MEMBER_COUNT);
+	});
+
+	it("WHEN the single-member and root folders are present THEN neither is grouped", () => {
+		const folders = deriveFolderGroups(denseMultiFolderNodes(), true).groups.map((group) => group.folder as string);
+		expect(folders.includes("single") || folders.includes("")).toBe(false);
+	});
+
+	it("WHEN deriving the dense graph twice THEN the results are identical (layout/flow sync)", () => {
+		expect(deriveFolderGroups(denseMultiFolderNodes(), true)).toEqual(deriveFolderGroups(denseMultiFolderNodes(), true));
+	});
+});
