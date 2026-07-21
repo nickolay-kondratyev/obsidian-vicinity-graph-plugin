@@ -1,4 +1,4 @@
-import type { GraphEdge, GraphNode, NeighborhoodGraph, ViewSettings } from "../../engine";
+import type { GraphEdge, GraphNode, VicinityGraph, ViewSettings } from "../../engine";
 import { asFolderPath, asVaultPath } from "../../engine";
 
 /**
@@ -52,7 +52,7 @@ function makeViewSettings(): ViewSettings {
 	};
 }
 
-export function makeGraph(overrides: Partial<NeighborhoodGraph> = {}): NeighborhoodGraph {
+export function makeGraph(overrides: Partial<VicinityGraph> = {}): VicinityGraph {
 	return {
 		nodes: [],
 		edges: [],

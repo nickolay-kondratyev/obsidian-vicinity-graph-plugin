@@ -1,6 +1,6 @@
-# Neighborhood Graph
+# Vicinity Graph
 
-An Obsidian plugin that renders the neighborhood of your active note as a rich,
+An Obsidian plugin that renders the vicinity of your active note as a rich,
 grouped, React Flow graph — meant to be used in place of the native local graph.
 
 ## What it is / Why
@@ -9,7 +9,7 @@ The native local graph has two core weaknesses: **every node looks the same, and
 there is no grouping.** Every note is an identical dot, and you cannot see any
 structure between them.
 
-Neighborhood Graph fixes both:
+Vicinity Graph fixes both:
 
 - **Informative nodes.** Each node carries its title, a first-image thumbnail,
   an icon strip for its attachments (with counts), its folder identity, and a
@@ -21,7 +21,7 @@ Neighborhood Graph fixes both:
 
 On top of that it gives you **per-direction, per-note depth control** (outbound
 and incoming traversed independently) and **pinned central notes** so you can
-hold one or more neighborhoods on screen while you browse elsewhere. The view
+hold one or more vicinities on screen while you browse elsewhere. The view
 lives in the right sidebar by default (matching native local-graph muscle
 memory) and can be dragged into the main area.
 
@@ -29,7 +29,7 @@ memory) and can be dragged into the main area.
 
 ## Install
 
-Neighborhood Graph is **not yet in the Obsidian community plugin store.** Install
+Vicinity Graph is **not yet in the Obsidian community plugin store.** Install
 it one of two ways:
 
 ### Manual
@@ -37,17 +37,17 @@ it one of two ways:
 1. Download `manifest.json`, `main.js`, and `styles.css` from a
    [GitHub Release](../../releases).
 2. Copy all three into your vault at
-   `.obsidian/plugins/obsidian-neighborhood-graph/` (create the folder if needed).
+   `.obsidian/plugins/vicinity-graph/` (create the folder if needed).
 3. In Obsidian: **Settings → Community plugins**, enable community plugins, then
-   enable **Neighborhood Graph**.
-4. Run the **Open neighborhood graph** command.
+   enable **Vicinity Graph**.
+4. Run the **Open vicinity graph** command.
 
 ### BRAT
 
 Use the [BRAT](https://github.com/TfTHacker/obsidian42-brat) plugin ("Beta
 Reviewers Auto-update Tool") to install directly from this repository and receive
 pre-release updates. Add this repo as a beta plugin in BRAT, then enable
-**Neighborhood Graph** as above.
+**Vicinity Graph** as above.
 
 Requires Obsidian **1.12.4** or newer (see [minAppVersion](#minappversion-manifestjson)).
 
@@ -56,7 +56,7 @@ Requires Obsidian **1.12.4** or newer (see [minAppVersion](#minappversion-manife
 There are two layers of settings: **global defaults** and **per-note overrides.**
 The distinction matters because people ask about it, so it is worth reading once.
 
-### Global defaults (Settings → Neighborhood Graph)
+### Global defaults (Settings → Vicinity Graph)
 
 - **Depth** — how far outbound/incoming traversal reaches from each central note.
 - **Sizing** — which metrics drive node size (own file size is the only one on by
@@ -77,7 +77,7 @@ Depth is the one thing you can tune per note, from the in-view toolbar:
 
 ### Pinning
 
-- **Pinning a note makes it an extra central node.** Its neighborhood is
+- **Pinning a note makes it an extra central node.** Its vicinity is
   traversed and rendered alongside your active note's. You pin/unpin from a node's
   hover button or its right-click menu.
 - The **pinned set is global state and survives restarts** (stored in the
@@ -123,7 +123,7 @@ npm run dev                   # esbuild watch; re-copies artifacts on every rebu
 ```
 
 Then open `.dev-vault/` as a vault in Obsidian, enable community plugins, enable
-**Neighborhood Graph**, and run the **Open neighborhood graph** command.
+**Vicinity Graph**, and run the **Open vicinity graph** command.
 
 `npm run setup:dev-vault` is idempotent: it creates `.dev-vault/` fixtures and a
 minimal `.obsidian/` config (which auto-enables the plugin) only when missing, so
@@ -198,6 +198,6 @@ the id-scheme contracts.
 
 ## License
 
-Neighborhood Graph is **source-available** under the **Kondratyev Source Available
+Vicinity Graph is **source-available** under the **Kondratyev Source Available
 License, Version 2.3 (KSAL-2.3)** — not an OSI open-source license. See
 [`LICENSE.md`](./LICENSE.md), which is the authoritative and controlling text.

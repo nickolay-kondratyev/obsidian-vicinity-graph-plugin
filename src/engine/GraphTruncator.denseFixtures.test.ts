@@ -269,7 +269,7 @@ describe("GraphTruncator runtime cap change", () => {
 	});
 });
 
-describe("GraphTruncator pinned disconnected neighborhood under a tight cap", () => {
+describe("GraphTruncator pinned disconnected vicinity under a tight cap", () => {
 	const fixture = pinnedDisconnectedVault(3, 3);
 	const roots = [fixture.mainPath, ...(fixture.pinnedPaths ?? [])];
 

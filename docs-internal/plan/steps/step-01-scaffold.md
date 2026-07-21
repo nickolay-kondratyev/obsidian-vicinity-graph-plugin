@@ -29,7 +29,7 @@ A working battle station: the plugin builds, loads in a dev vault, and `npm test
 ## Open items for step-level planning
 
 1. **`minAppVersion` value.** The high-level plan pins it to the Obsidian version that introduced canvas `metadata.frontmatter`. Research the exact version during step planning; record the finding in the manifest and a WHY comment.
-2. Plugin id/name — default to repo name (`obsidian-neighborhood-graph` / "Neighborhood Graph") unless the human prefers otherwise.
+2. Plugin id/name — default to repo name (`vicinity-graph` / "Vicinity Graph") unless the human prefers otherwise.
 3. Whether to run the submodule's own vitest suite in our CI loop (cheap confidence in the vendored code) or trust it as-is.
 
 ## Exit criteria

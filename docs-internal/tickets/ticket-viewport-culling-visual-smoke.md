@@ -7,7 +7,7 @@
 ## Context
 
 Phase B added `onlyRenderVisibleElements` to `<ReactFlow>`
-(`src/view/NeighborhoodGraphFlow.tsx`) so React Flow culls off-screen nodes and
+(`src/view/VicinityGraphFlow.tsx`) so React Flow culls off-screen nodes and
 edges on image-heavy / dense vaults. Code analysis found **no** break: RF v12
 computes visibility per-node from `internals.positionAbsolute` (folder-group
 children are handled correctly), and `forceInitialRender = !handleBounds` keeps
@@ -24,7 +24,7 @@ untested.
 ## What to do
 
 1. **One-time visual / e2e smoke:** in a display-capable env, pan/zoom a dense,
-   folder-grouped, image-heavy neighborhood so parts leave the viewport, and
+   folder-grouped, image-heavy vicinity so parts leave the viewport, and
    confirm folder-group boxes, their member nodes, and edges still render
    correctly (nothing vanishes, no orphaned children, edges reappear on pan-back).
 2. **Guard against the RF-internal fragility:** if feasible, add an e2e assertion
@@ -45,7 +45,7 @@ pre-existing headless-click flake:
 
 ## References
 
-- `src/view/NeighborhoodGraphFlow.tsx` (`onlyRenderVisibleElements`)
+- `src/view/VicinityGraphFlow.tsx` (`onlyRenderVisibleElements`)
 - `.ai_out/step-07-hardening/step-07-hardening/PHASE_B_IMPLEMENTATION__PUBLIC.md` (B2)
 - `.ai_out/step-07-hardening/step-07-hardening/PHASE_B_REVIEW__PUBLIC.md` (finding #1)
-- `e2e/neighborhoodGraph.e2e.ts` (interaction tests / ALPHA-graph workaround)
+- `e2e/vicinityGraph.e2e.ts` (interaction tests / ALPHA-graph workaround)

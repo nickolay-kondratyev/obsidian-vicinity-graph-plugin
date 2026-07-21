@@ -49,7 +49,7 @@ The entire decision-heavy core as pure functions with **no Obsidian imports**, t
 ## Testing (the point of this step)
 
 - BDD GIVEN/WHEN/THEN suites per module; one assert per test where practical.
-- Fixture vaults expressed as `FakeLinkProvider` data: diamond graphs, cycles, bidirectional links, disconnected pinned neighborhoods, attachment-heavy notes.
+- Fixture vaults expressed as `FakeLinkProvider` data: diamond graphs, cycles, bidirectional links, disconnected pinned vicinities, attachment-heavy notes.
 - Truncation determinism: same input → same output, every tiebreaker level exercised.
 - Sizing: normalization edge cases (one huge note, zero-byte notes, single-node graph).
 - Settings resolver: every cascade layer and per-field pin/inherit combination.

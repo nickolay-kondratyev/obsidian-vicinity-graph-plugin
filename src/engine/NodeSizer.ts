@@ -1,7 +1,7 @@
 import { CENTRAL_SIZE_SCORE, NEUTRAL_NORMALIZED_VALUE } from "./constants";
 import type { LinkProvider } from "./LinkProvider";
 import { NodeEligibility } from "./NodeEligibility";
-import type { TraversedNode } from "./NeighborhoodTraversal";
+import type { TraversedNode } from "./VicinityTraversal";
 import type { SizeMetricId, SizingSettings, VaultPath } from "./types";
 
 /** Computed size of one node — `sizePx` is the stable field step-04 diffs against. */

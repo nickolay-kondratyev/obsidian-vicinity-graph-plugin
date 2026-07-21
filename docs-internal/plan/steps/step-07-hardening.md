@@ -18,7 +18,7 @@ Confidence at the edges: dense vaults, cap boundaries, perf under real usage, an
 
 - Centrals alone exceed the cap (all exempt — verify nothing else renders and UI communicates it).
 - Cap boundary ±1; every truncation tiebreaker reached on realistic data.
-- Cap changes at runtime; pinned disconnected neighborhoods under tight caps.
+- Cap changes at runtime; pinned disconnected vicinities under tight caps.
 
 ### Performance pass
 

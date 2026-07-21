@@ -40,8 +40,8 @@ export function CentralDepthControls({
 	};
 
 	return (
-		<div className="neighborhood-graph-central" data-kind={central.kind}>
-			<div className="neighborhood-graph-central__title" title={central.path}>
+		<div className="vicinity-graph-central" data-kind={central.kind}>
+			<div className="vicinity-graph-central__title" title={central.path}>
 				{central.title}
 			</div>
 			<DepthStepper

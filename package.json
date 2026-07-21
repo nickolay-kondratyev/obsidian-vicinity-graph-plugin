@@ -1,8 +1,8 @@
 {
-	"name": "obsidian-neighborhood-graph",
+	"name": "vicinity-graph",
 	"version": "0.1.0",
 	"private": true,
-	"description": "Improved visualization of neighboring notes (envisioned to be used in place of local graph).",
+	"description": "A richer local graph that shows the nearby notes around your active note (an improved alternative to Obsidian's built-in local graph).",
 	"type": "module",
 	"main": "main.js",
 	"scripts": {

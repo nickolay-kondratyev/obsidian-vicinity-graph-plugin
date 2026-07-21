@@ -1,6 +1,6 @@
 # Release Checklist
 
-Ship-readiness checklist for cutting a Neighborhood Graph release. Covers the
+Ship-readiness checklist for cutting a Vicinity Graph release. Covers the
 Obsidian community-plugin *artifact* requirements. **Actual community-store
 submission is OUT OF SCOPE** and deferred — a repo move + plugin rename ("vicinity
 graph") is planned for a later round, so store listing waits until after that.
@@ -40,12 +40,11 @@ at **0.1.0** with `minAppVersion` **1.12.4**.
 
 All seven required Obsidian fields are present and current:
 
-- [ ] `id` = `obsidian-neighborhood-graph` — **KNOWN, DEFERRED:** the community
-      guidelines discourage an `obsidian-` prefix, and changing the id later
-      breaks existing users' data path (`.obsidian/plugins/<id>/`). Human decision
-      (CLARIFICATION §5): **keep as-is for V1**; the planned repo move + rename to
-      "vicinity graph" will settle the id then. Do not rename now.
-- [ ] `name` = `Neighborhood Graph`
+- [x] `id` = `vicinity-graph` — **DONE:** community guidelines discourage an
+      `obsidian-` prefix, so the prior `obsidian-`-prefixed id was dropped during
+      the vicinity rename. Since the plugin has no released users yet, retiring the
+      old id is safe.
+- [ ] `name` = `Vicinity Graph`
 - [ ] `version` = matches §3
 - [ ] `minAppVersion` = `1.12.4` (floor; rationale in README)
 - [ ] `description` present and accurate

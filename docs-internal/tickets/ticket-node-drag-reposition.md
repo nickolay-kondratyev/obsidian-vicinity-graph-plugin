@@ -1,7 +1,7 @@
 # Ticket: Node / group drag-to-reposition — decide scope
 
 **Status:** CLOSED — **out of V1** (human decision 2026-07-20). Drag explicitly
-disabled (`nodesDraggable={false}` in `NeighborhoodGraphFlow.tsx`) so nodes don't
+disabled (`nodesDraggable={false}` in `VicinityGraphFlow.tsx`) so nodes don't
 half-drag-and-snap-back. Reopen if repositioning is wanted post-V1 (see scope
 notes below for what it would take).
 **Origin:** step-05 human smoke run (2026-07-20), QA_CHECKLIST §2 (chip inert for
@@ -35,5 +35,5 @@ If repositioning is wanted later, it needs (this is why it isn't a quick add):
 ## References
 
 - `.ai_out/step-05-rich-rendering/main/QA_CHECKLIST.md` §2, §3
-- `src/view/NeighborhoodGraphFlow.tsx` (React Flow config)
+- `src/view/VicinityGraphFlow.tsx` (React Flow config)
 - `docs-internal/plan/steps/step-05-rich-rendering.md` (scope — drag not listed)

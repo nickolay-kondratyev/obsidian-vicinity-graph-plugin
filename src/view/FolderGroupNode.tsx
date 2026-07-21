@@ -18,14 +18,14 @@ export const FolderGroupNode = memo(function FolderGroupNode({
 	data,
 }: NodeProps<FolderGroupNodeType>): ReactElement {
 	return (
-		<div className="neighborhood-graph-group" data-folder={data.folder}>
-			<div className="neighborhood-graph-group__header">
-				<span className="neighborhood-graph-group__label" title={data.folder}>
+		<div className="vicinity-graph-group" data-folder={data.folder}>
+			<div className="vicinity-graph-group__header">
+				<span className="vicinity-graph-group__label" title={data.folder}>
 					{data.folderName}
 				</span>
 				{data.hiddenCount > 0 && (
 					<span
-						className="neighborhood-graph-group__badge"
+						className="vicinity-graph-group__badge"
 						title={groupHiddenTitleText(data.hiddenCount)}
 					>
 						{plusNText(data.hiddenCount)}

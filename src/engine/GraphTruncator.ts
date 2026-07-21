@@ -1,4 +1,4 @@
-import type { TraversedNode } from "./NeighborhoodTraversal";
+import type { TraversedNode } from "./VicinityTraversal";
 import { NodePriorityChain } from "./NodePriorityChain";
 import type { NodeSize } from "./NodeSizer";
 import type { DirectedLink, FolderPath, VaultPath } from "./types";

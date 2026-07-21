@@ -1,8 +1,8 @@
 import { EdgeVisibility } from "./EdgeVisibility";
 import { GraphTruncator } from "./GraphTruncator";
 import type { LinkProvider } from "./LinkProvider";
-import { NeighborhoodTraversal } from "./NeighborhoodTraversal";
-import type { TraversalRoot } from "./NeighborhoodTraversal";
+import { VicinityTraversal } from "./VicinityTraversal";
+import type { TraversalRoot } from "./VicinityTraversal";
 import { NodeSizer } from "./NodeSizer";
 import { TraversalSettingsResolver } from "./TraversalSettingsResolver";
 import { ViewSettingsResolver } from "./ViewSettingsResolver";
@@ -12,7 +12,7 @@ import type {
 	DepthOverride,
 	DepthSettings,
 	GraphNode,
-	NeighborhoodGraph,
+	VicinityGraph,
 	PinnedNodeDescriptor,
 	VaultPath,
 	ViewSettings,
@@ -41,16 +41,16 @@ export interface GraphBuildRequest {
  * resolve settings → multi-root BFS → sizing → truncation → edge visibility.
  * Pure and synchronous; Obsidian reaches it only through {@link LinkProvider}.
  */
-export class NeighborhoodEngine {
+export class VicinityEngine {
 	constructor(private readonly provider: LinkProvider) {}
 
-	build(request: GraphBuildRequest): NeighborhoodGraph {
+	build(request: GraphBuildRequest): VicinityGraph {
 		const viewSettings = ViewSettingsResolver.resolve({
 			global: request.globalView,
 			mainOverride: request.mainViewOverride,
 			pinnedOverrides: request.pinnedViewOverrides,
 		});
-		const traversal = new NeighborhoodTraversal(this.provider).traverse(this.toRoots(request));
+		const traversal = new VicinityTraversal(this.provider).traverse(this.toRoots(request));
 		const sizes = new NodeSizer(this.provider).computeSizes(traversal.nodes, viewSettings.sizing);
 		const truncation = GraphTruncator.truncate({
 			nodes: traversal.nodes,

@@ -9,7 +9,7 @@ the deferred Phase-B review NIT on arrowhead size.
 Implemented + independently reviewed (verdict READY, 0 blockers). See
 `.ai_out/edge-arrowhead-and-badge-visual-polish/main/` (IMPLEMENTATION / REVIEW PUBLIC docs).
 
-- **Arrowheads**: `EDGE_ARROWHEAD_SIZE` 18→24 (`NeighborhoodGraphFlow.tsx`) for legible
+- **Arrowheads**: `EDGE_ARROWHEAD_SIZE` 18→24 (`VicinityGraphFlow.tsx`) for legible
   direction; `EDGE_PAIR_CURVATURE_PX` 24→34 (`edgeGeometry.ts`) so the mirrored A↔B pair
   fans apart and each head is individually visible near the shared node. Color stays
   `--text-faint` (locked by e2e contract; the levers were size + geometry, not color).
@@ -37,7 +37,7 @@ and the smoke run flagged two issues** that automation does not catch:
 1. **Arrowheads don't render cleanly** (§4). The human "can't see the arrowheads
    well" and the mirrored A↔B curved-pair arrows read as not rendering cleanly.
    Current size is `EDGE_ARROWHEAD_SIZE=18` in `markerUnits: strokeWidth` (× the
-   1.5 stroke width) — `NeighborhoodGraphFlow.tsx` already flags final tuning as
+   1.5 stroke width) — `VicinityGraphFlow.tsx` already flags final tuning as
    smoke-run work. Investigate: arrowhead size/shape at typical zoom, whether the
    mirrored curvature offset (`edgeGeometry.ts`) leaves the two arrowheads
    overlapping or clipped, and marker anchoring on curved paths.
@@ -55,5 +55,5 @@ and the smoke run flagged two issues** that automation does not catch:
 ## References
 
 - `.ai_out/step-05-rich-rendering/main/QA_CHECKLIST.md` §4
-- `src/view/NeighborhoodGraphFlow.tsx` (`EDGE_ARROWHEAD_SIZE`), `NeighborhoodEdge.tsx`,
+- `src/view/VicinityGraphFlow.tsx` (`EDGE_ARROWHEAD_SIZE`), `VicinityEdge.tsx`,
   `edgeGeometry.ts`, `src/view/graph-view.css`

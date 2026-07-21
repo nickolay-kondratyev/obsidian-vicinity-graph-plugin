@@ -35,15 +35,15 @@ export function SizingSection({
 	};
 
 	return (
-		<details className="neighborhood-graph-disclosure neighborhood-graph-sizing">
-			<summary className="neighborhood-graph-disclosure__summary">Node sizing</summary>
-			<div className="neighborhood-graph-disclosure__body nowheel">
-				<div className="neighborhood-graph-sizing__metrics">
+		<details className="vicinity-graph-disclosure vicinity-graph-sizing">
+			<summary className="vicinity-graph-disclosure__summary">Node sizing</summary>
+			<div className="vicinity-graph-disclosure__body nowheel">
+				<div className="vicinity-graph-sizing__metrics">
 					{SIZING_METRICS.map(({ id, label }) => {
 						const metric = sizing.metrics[id];
 						return (
-							<div className="neighborhood-graph-sizing__metric" key={id}>
-								<label className="neighborhood-graph-sizing__toggle">
+							<div className="vicinity-graph-sizing__metric" key={id}>
+								<label className="vicinity-graph-sizing__toggle">
 									<input
 										type="checkbox"
 										checked={metric.enabled}
@@ -53,7 +53,7 @@ export function SizingSection({
 								</label>
 								<input
 									type="number"
-									className="neighborhood-graph-sizing__weight"
+									className="vicinity-graph-sizing__weight"
 									aria-label={`${label} weight`}
 									title="Weight"
 									min={0}
@@ -70,7 +70,7 @@ export function SizingSection({
 						);
 					})}
 				</div>
-				<div className="neighborhood-graph-sizing__ranges">
+				<div className="vicinity-graph-sizing__ranges">
 					<SizingNumber
 						label="Min px"
 						value={sizing.minPx}
@@ -113,7 +113,7 @@ function SizingNumber({
 	readonly onChange: (value: number) => void;
 }): ReactElement {
 	return (
-		<label className="neighborhood-graph-sizing__field">
+		<label className="vicinity-graph-sizing__field">
 			<span>{label}</span>
 			<input
 				type="number"

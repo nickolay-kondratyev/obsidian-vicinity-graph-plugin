@@ -53,7 +53,7 @@ const DIRECTIONS: readonly Direction[] = ["outgoing", "incoming"];
  * Non-node-bearing files never become nodes; they surface as attachments via
  * `FileMetadata.attachments` on each linking node (first image identified).
  */
-export class NeighborhoodTraversal {
+export class VicinityTraversal {
 	private readonly eligibility: NodeEligibility;
 
 	constructor(private readonly provider: LinkProvider) {

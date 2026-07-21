@@ -1,7 +1,7 @@
 import { PluginSettingTab, Setting } from "obsidian";
 import type { App } from "obsidian";
 import type { Direction, SizingSettings } from "../engine";
-import type NeighborhoodGraphPlugin from "../main";
+import type VicinityGraphPlugin from "../main";
 import type { PluginDataStore } from "../persistence/PluginDataStore";
 import { MAX_STEPPER_DEPTH, MIN_STEPPER_DEPTH, clampStepperDepth } from "./constants";
 import type { SettingsInteraction } from "./settingsWritePlan";
@@ -24,10 +24,10 @@ import { SIZING_METRICS } from "./sizingMetrics";
 /** A node cap below 1 would hide every non-central node — the floor is 1. */
 const MIN_NODE_CAP = 1;
 
-export class NeighborhoodGraphSettingTab extends PluginSettingTab {
+export class VicinityGraphSettingTab extends PluginSettingTab {
 	constructor(
 		app: App,
-		private readonly plugin: NeighborhoodGraphPlugin,
+		private readonly plugin: VicinityGraphPlugin,
 	) {
 		super(app, plugin);
 	}

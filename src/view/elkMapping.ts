@@ -1,5 +1,5 @@
 import type { ElkNode } from "elkjs";
-import type { FolderPath, GraphEdge, NeighborhoodGraph } from "../engine";
+import type { FolderPath, GraphEdge, VicinityGraph } from "../engine";
 import { ELK_GROUP_PADDING, ELK_LAYOUT_OPTIONS, ELK_ROOT_ID } from "./constants";
 import { deriveFolderGroups } from "./folderGrouping";
 import { edgeIdOf, folderGroupIdOf, nodeSideLengthPx } from "./graphIdentity";
@@ -19,7 +19,7 @@ import type { Dimensions, XY } from "./flowMapping";
  * algorithm lay out the whole hierarchy in one pass.
  */
 
-export function neighborhoodGraphToElk(graph: NeighborhoodGraph): ElkNode {
+export function vicinityGraphToElk(graph: VicinityGraph): ElkNode {
 	const grouping = deriveFolderGroups(graph.nodes, graph.viewSettings.groupByFolder);
 	const leafById = new Map(
 		graph.nodes.map((node): [string, ElkNode] => {

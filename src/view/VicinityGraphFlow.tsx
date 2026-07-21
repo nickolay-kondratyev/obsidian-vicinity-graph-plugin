@@ -10,7 +10,7 @@ import { GraphToolbar } from "./GraphToolbar";
 import type { GraphViewController } from "./GraphViewController";
 import { GraphUiContext } from "./GraphUiContext";
 import { isFolderGroupId } from "./graphIdentity";
-import { NeighborhoodEdge } from "./NeighborhoodEdge";
+import { VicinityEdge } from "./VicinityEdge";
 import { NoteNode } from "./NoteNode";
 import type { ControlsActionsPort, GraphUiPort } from "./viewPorts";
 
@@ -24,7 +24,7 @@ import type { ControlsActionsPort, GraphUiPort } from "./viewPorts";
  */
 
 const NODE_TYPES: NodeTypes = { note: NoteNode, "folder-group": FolderGroupNode };
-const EDGE_TYPES: EdgeTypes = { neighborhood: NeighborhoodEdge };
+const EDGE_TYPES: EdgeTypes = { vicinity: VicinityEdge };
 
 /**
  * Arrowhead size in React Flow's default `markerUnits: strokeWidth` units, NOT
@@ -38,7 +38,7 @@ const EDGE_TYPES: EdgeTypes = { neighborhood: NeighborhoodEdge };
  */
 const EDGE_ARROWHEAD_SIZE = 24;
 
-export function NeighborhoodGraphFlow({
+export function VicinityGraphFlow({
 	controller,
 	ui,
 	actions,
@@ -74,13 +74,13 @@ export function NeighborhoodGraphFlow({
 	);
 
 	if (snapshot.status === "empty") {
-		return <div className="neighborhood-graph-empty">No neighborhood graph for the active file.</div>;
+		return <div className="vicinity-graph-empty">No vicinity graph for the active file.</div>;
 	}
 
 	return (
 		<GraphUiContext.Provider value={ui}>
 			<ControlsActionsContext.Provider value={actions}>
-				<div className="neighborhood-graph-flow">
+				<div className="vicinity-graph-flow">
 					<ReactFlow
 						nodes={nodes}
 						edges={edges}
@@ -117,7 +117,7 @@ export function NeighborhoodGraphFlow({
 						{snapshot.orphanTruncation.totalHiddenCount > 0 && (
 							<Panel position="top-right">
 								<div
-									className="neighborhood-graph-overlay-badge"
+									className="vicinity-graph-overlay-badge"
 									title={orphanBreakdownTitle(snapshot.orphanTruncation.breakdown)}
 								>
 									{hiddenOverlayText(snapshot.orphanTruncation.totalHiddenCount)}
@@ -149,7 +149,7 @@ function toReactFlowEdge(edge: FlowEdge): Edge {
 		id: edge.id,
 		source: edge.source,
 		target: edge.target,
-		type: "neighborhood",
+		type: "vicinity",
 		markerEnd: {
 			type: MarkerType.ArrowClosed,
 			width: EDGE_ARROWHEAD_SIZE,

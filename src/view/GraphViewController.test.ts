@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ElkNode } from "elkjs";
-import type { NeighborhoodGraph } from "../engine";
+import type { VicinityGraph } from "../engine";
 import { asFolderPath, asVaultPath, EngineDefaults } from "../engine";
 import { REBUILD_DEBOUNCE_MS } from "./constants";
 import { GraphViewController } from "./GraphViewController";
@@ -58,7 +58,7 @@ class FakeGraphSource implements GraphSourcePort {
 	}
 
 	/** Tests supply just the graph; the empty controls model is attached here. */
-	resolveBuild(index: number, graph: NeighborhoodGraph | null): void {
+	resolveBuild(index: number, graph: VicinityGraph | null): void {
 		const pending = this.deferreds[index];
 		if (pending === undefined) {
 			throw new Error(`no pending build at index ${index}`);
@@ -114,7 +114,7 @@ function nodeIds(snapshot: FlowSnapshot): string[] {
 }
 
 /** A graph whose first path is central and the rest are edge-linked neighbours. */
-function graphOf(centralPath: string, ...neighbourPaths: string[]): NeighborhoodGraph {
+function graphOf(centralPath: string, ...neighbourPaths: string[]): VicinityGraph {
 	const nodes = [centralPath, ...neighbourPaths].map((path) => makeNode({ path: asVaultPath(path) }));
 	const edges = neighbourPaths.map((path) => makeEdge(centralPath, path));
 	return makeGraph({ nodes, edges });
@@ -270,7 +270,7 @@ describe("GraphViewController structural diff", () => {
 
 describe("GraphViewController step-05 snapshot extras", () => {
 	/** GIVEN a graph whose notes/ folder groups and whose gone/ folder was fully truncated. */
-	function richGraph(): NeighborhoodGraph {
+	function richGraph(): VicinityGraph {
 		return makeGraph({
 			nodes: [
 				makeNode({ path: asVaultPath("notes/a.md"), folder: asFolderPath("notes") }),

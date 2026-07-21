@@ -4,7 +4,7 @@ import { DocDataStore } from "./DocDataStore";
 import { FakeFileStorage } from "./FakeFileStorage";
 import { PERSISTED_SHAPE_VERSION } from "./persistedShapes";
 
-const DIR = ".obsidian/plugins/obsidian-neighborhood-graph/doc-data";
+const DIR = ".obsidian/plugins/vicinity-graph/doc-data";
 
 function storeOverFakeStorage(): { store: DocDataStore; storage: FakeFileStorage } {
 	const storage = new FakeFileStorage();

@@ -1,4 +1,4 @@
-import type { GraphNode, NeighborhoodGraph } from "../engine";
+import type { GraphNode, VicinityGraph } from "../engine";
 import { edgeIdOf } from "./graphIdentity";
 
 /**
@@ -19,8 +19,8 @@ import { edgeIdOf } from "./graphIdentity";
 export type LayoutDecision = "relayout" | "reuse-layout";
 
 export function decideLayout(
-	previous: NeighborhoodGraph | null,
-	next: NeighborhoodGraph,
+	previous: VicinityGraph | null,
+	next: VicinityGraph,
 	sizeGrowthThreshold: number,
 ): LayoutDecision {
 	if (previous === null) {
@@ -41,11 +41,11 @@ export function decideLayout(
 	return "reuse-layout";
 }
 
-function nodeIdsOf(graph: NeighborhoodGraph): Set<string> {
+function nodeIdsOf(graph: VicinityGraph): Set<string> {
 	return new Set(graph.nodes.map((node) => node.path));
 }
 
-function edgeIdsOf(graph: NeighborhoodGraph): Set<string> {
+function edgeIdsOf(graph: VicinityGraph): Set<string> {
 	return new Set(graph.edges.map(edgeIdOf));
 }
 

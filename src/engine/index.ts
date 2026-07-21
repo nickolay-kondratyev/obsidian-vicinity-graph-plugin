@@ -1,5 +1,5 @@
 /**
- * PUBLIC API of the pure neighborhood-graph engine.
+ * PUBLIC API of the pure vicinity-graph engine.
  *
  * The engine is synchronous, side-effect free and NEVER imports `obsidian`,
  * `obsidian-id-lib` or React (enforced by `importGuard.test.ts`). Obsidian
@@ -10,8 +10,8 @@
  *    canvas-fallback provider both satisfy it unchanged — keep it that way).
  * 2. Translate persisted docid-keyed inputs (pins, depth overrides) to
  *    path-keyed descriptors/maps.
- * 3. `new NeighborhoodEngine(provider).build(request)` per rebuild; render the
- *    returned {@link NeighborhoodGraph} (nodes carry depth tags, attachments,
+ * 3. `new VicinityEngine(provider).build(request)` per rebuild; render the
+ *    returned {@link VicinityGraph} (nodes carry depth tags, attachments,
  *    first image and a diff-stable `sizePx`).
  *
  * ## Edge semantics ({@link EdgeVisibilityMode}, CLARIFICATION Q5)
@@ -43,7 +43,7 @@ export type {
 	FolderPath,
 	GraphEdge,
 	GraphNode,
-	NeighborhoodGraph,
+	VicinityGraph,
 	PinnedNodeDescriptor,
 	SizeMetricId,
 	SizingMetricSetting,
@@ -59,13 +59,13 @@ export { NodeEligibility } from "./NodeEligibility";
 export { FakeLinkProvider } from "./FakeLinkProvider";
 export type { FakeFileSpec, FakeVaultSpec } from "./FakeLinkProvider";
 
-export { NeighborhoodEngine } from "./NeighborhoodEngine";
-export type { GraphBuildRequest } from "./NeighborhoodEngine";
+export { VicinityEngine } from "./VicinityEngine";
+export type { GraphBuildRequest } from "./VicinityEngine";
 
 // Pipeline stages, exported for targeted reuse/testing; most consumers only
-// need the NeighborhoodEngine facade above.
-export { NeighborhoodTraversal } from "./NeighborhoodTraversal";
-export type { TraversalResult, TraversalRoot, TraversedNode } from "./NeighborhoodTraversal";
+// need the VicinityEngine facade above.
+export { VicinityTraversal } from "./VicinityTraversal";
+export type { TraversalResult, TraversalRoot, TraversedNode } from "./VicinityTraversal";
 export { NodeSizer } from "./NodeSizer";
 export type { NodeSize } from "./NodeSizer";
 export { GraphTruncator } from "./GraphTruncator";

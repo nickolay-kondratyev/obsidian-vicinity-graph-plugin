@@ -59,7 +59,7 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
 
 	return (
 		<div
-			className="neighborhood-graph-node"
+			className="vicinity-graph-node"
 			data-tier={data.tier}
 			data-path={data.path}
 			onContextMenu={onContextMenu}
@@ -67,30 +67,30 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
 			{pinAction.kind !== "none" && <PinButton action={pinAction} onActivate={runPinAction} />}
 			{/* Read-only graph: handles exist only as edge anchors (top target /
 			    bottom source matches the elk DOWN direction) and are hidden in CSS. */}
-			<Handle type="target" position={Position.Top} className="neighborhood-graph-node__handle" />
-			<div className="neighborhood-graph-node__title" title={data.title}>
+			<Handle type="target" position={Position.Top} className="vicinity-graph-node__handle" />
+			<div className="vicinity-graph-node__title" title={data.title}>
 				{data.breadcrumbFolder !== undefined && (
-					<span className="neighborhood-graph-node__breadcrumb">{data.breadcrumbFolder}/</span>
+					<span className="vicinity-graph-node__breadcrumb">{data.breadcrumbFolder}/</span>
 				)}
 				{data.title}
 			</div>
 			{thumbnailUrl !== null && (
-				<div className="neighborhood-graph-node__thumbnail">
+				<div className="vicinity-graph-node__thumbnail">
 					{/* alt="" — decorative; the adjacent title already names the note. */}
 					<img src={thumbnailUrl} alt="" loading="lazy" draggable={false} />
 					{extraImages !== null && (
-						<span className="neighborhood-graph-node__thumbnail-badge">{extraImages}</span>
+						<span className="vicinity-graph-node__thumbnail-badge">{extraImages}</span>
 					)}
 				</div>
 			)}
 			{data.attachmentGroups.length > 0 && (
-				<div className="neighborhood-graph-node__attachments">
+				<div className="vicinity-graph-node__attachments">
 					{data.attachmentGroups.map((group) => (
 						<AttachmentChip key={group.extension} group={group} />
 					))}
 				</div>
 			)}
-			<Handle type="source" position={Position.Bottom} className="neighborhood-graph-node__handle" />
+			<Handle type="source" position={Position.Bottom} className="vicinity-graph-node__handle" />
 		</div>
 	);
 });
@@ -123,12 +123,12 @@ function PinButton({
 	return (
 		<button
 			type="button"
-			className="neighborhood-graph-pin-button nodrag nopan"
+			className="vicinity-graph-pin-button nodrag nopan"
 			aria-label={action.title}
 			title={action.title}
 			onClick={onClick}
 		>
-			<span ref={iconRef} className="neighborhood-graph-pin-button__icon" aria-hidden="true" />
+			<span ref={iconRef} className="vicinity-graph-pin-button__icon" aria-hidden="true" />
 		</button>
 	);
 }
@@ -153,14 +153,14 @@ function AttachmentChip({ group }: { readonly group: AttachmentIconGroup }): Rea
 		// not start a node drag or a canvas pan.
 		<button
 			type="button"
-			className="neighborhood-graph-attachment nodrag nopan"
+			className="vicinity-graph-attachment nodrag nopan"
 			data-extension={group.extension}
 			aria-label={label}
 			title={label}
 			onClick={onClick}
 		>
-			<span ref={iconRef} className="neighborhood-graph-attachment__icon" aria-hidden="true" />
-			<span className="neighborhood-graph-attachment__count">{group.count}</span>
+			<span ref={iconRef} className="vicinity-graph-attachment__icon" aria-hidden="true" />
+			<span className="vicinity-graph-attachment__count">{group.count}</span>
 		</button>
 	);
 }

@@ -3,7 +3,7 @@ import type { SizeMetricId } from "../engine";
 /**
  * Display label + render order for one sizing metric. Shared knowledge (step-06
  * Phase C/D): the in-view {@link SizingSection} disclosure and the global
- * {@link NeighborhoodGraphSettingTab} render the SAME five metric controls, so
+ * {@link VicinityGraphSettingTab} render the SAME five metric controls, so
  * the human-facing labels and their order live here once and neither surface
  * drifts.
  */

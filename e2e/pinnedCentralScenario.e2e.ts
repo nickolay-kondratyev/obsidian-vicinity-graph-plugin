@@ -56,19 +56,19 @@ test.afterAll(async () => {
 });
 
 function noteNode(path: string): Locator {
-	return page.locator(`.neighborhood-graph-node[data-path="${path}"]`);
+	return page.locator(`.vicinity-graph-node[data-path="${path}"]`);
 }
 
 function centralRow(kind: "main" | "pinned"): Locator {
-	return page.locator(`.neighborhood-graph-central[data-kind="${kind}"]`);
+	return page.locator(`.vicinity-graph-central[data-kind="${kind}"]`);
 }
 
 /** The value span of one central's directional depth stepper. */
 function depthValue(kind: "main" | "pinned", direction: "Outgoing" | "Incoming"): Locator {
 	return centralRow(kind)
-		.locator(".neighborhood-graph-stepper")
+		.locator(".vicinity-graph-stepper")
 		.filter({ hasText: direction })
-		.locator(".neighborhood-graph-stepper__value");
+		.locator(".vicinity-graph-stepper__value");
 }
 
 /**
@@ -87,12 +87,12 @@ async function bumpDepth(kind: "main" | "pinned", direction: "Outgoing" | "Incom
 }
 
 function toolbar(): Locator {
-	return page.locator(".neighborhood-graph-toolbar");
+	return page.locator(".vicinity-graph-toolbar");
 }
 
 function pinnedDisclosure(): Locator {
-	return page.locator(".neighborhood-graph-disclosure", {
-		has: page.locator(".neighborhood-graph-disclosure__summary", { hasText: "Pinned centrals" }),
+	return page.locator(".vicinity-graph-disclosure", {
+		has: page.locator(".vicinity-graph-disclosure__summary", { hasText: "Pinned centrals" }),
 	});
 }
 
@@ -113,7 +113,7 @@ async function ensureOpen(details: Locator): Promise<void> {
 async function clickPin(path: string): Promise<void> {
 	const node = noteNode(path);
 	await node.hover();
-	await node.locator(".neighborhood-graph-pin-button").click();
+	await node.locator(".vicinity-graph-pin-button").click();
 }
 
 test("pinned-central depth is per-MAIN-doc: it adds hops, restores on return, and never touches the pin's own depth", async () => {

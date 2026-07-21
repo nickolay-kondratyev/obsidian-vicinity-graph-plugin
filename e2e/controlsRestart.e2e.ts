@@ -57,27 +57,27 @@ test.afterAll(async () => {
 });
 
 function noteNode(path: string): Locator {
-	return page.locator(`.neighborhood-graph-node[data-path="${path}"]`);
+	return page.locator(`.vicinity-graph-node[data-path="${path}"]`);
 }
 
 function mainRow(): Locator {
-	return page.locator('.neighborhood-graph-central[data-kind="main"]');
+	return page.locator('.vicinity-graph-central[data-kind="main"]');
 }
 
 function mainIncomingValue(): Locator {
 	return mainRow()
-		.locator(".neighborhood-graph-stepper")
+		.locator(".vicinity-graph-stepper")
 		.filter({ hasText: "Incoming" })
-		.locator(".neighborhood-graph-stepper__value");
+		.locator(".vicinity-graph-stepper__value");
 }
 
 function toolbar(): Locator {
-	return page.locator(".neighborhood-graph-toolbar");
+	return page.locator(".vicinity-graph-toolbar");
 }
 
 function pinnedDisclosure(): Locator {
-	return page.locator(".neighborhood-graph-disclosure", {
-		has: page.locator(".neighborhood-graph-disclosure__summary", { hasText: "Pinned centrals" }),
+	return page.locator(".vicinity-graph-disclosure", {
+		has: page.locator(".vicinity-graph-disclosure__summary", { hasText: "Pinned centrals" }),
 	});
 }
 
@@ -97,7 +97,7 @@ async function ensureOpen(details: Locator): Promise<void> {
 async function clickPin(path: string): Promise<void> {
 	const node = noteNode(path);
 	await node.hover();
-	await node.locator(".neighborhood-graph-pin-button").click();
+	await node.locator(".vicinity-graph-pin-button").click();
 }
 
 /**
@@ -140,8 +140,8 @@ test("depth, pin, node cap and sizing all survive an Obsidian restart", async ()
 	await expect(noteNode(IN2)).toHaveCount(1);
 
 	// §11 Sizing (in-view mirror): set a distinctive Own-file-size weight.
-	await ensureOpen(page.locator(".neighborhood-graph-sizing"));
-	await setNumberInput(page.locator(".neighborhood-graph-sizing").getByLabel("Own file size weight"), DISTINCTIVE_WEIGHT);
+	await ensureOpen(page.locator(".vicinity-graph-sizing"));
+	await setNumberInput(page.locator(".vicinity-graph-sizing").getByLabel("Own file size weight"), DISTINCTIVE_WEIGHT);
 	await expect
 		.poll(async () => (await harness.readGlobalView()).sizing.metrics[OWN_FILE_SIZE_METRIC]?.weight)
 		.toBe(DISTINCTIVE_WEIGHT);

@@ -3,8 +3,8 @@ import { EngineDefaults } from "./constants";
 import { FakeLinkProvider } from "./FakeLinkProvider";
 import type { FakeVaultSpec } from "./FakeLinkProvider";
 import { GraphTruncator } from "./GraphTruncator";
-import { NeighborhoodTraversal } from "./NeighborhoodTraversal";
-import type { TraversalRoot } from "./NeighborhoodTraversal";
+import { VicinityTraversal } from "./VicinityTraversal";
+import type { TraversalRoot } from "./VicinityTraversal";
 import { NodeSizer } from "./NodeSizer";
 import { build, visible } from "./testFixtures/truncationHarness";
 import { asVaultPath } from "./types";
@@ -95,7 +95,7 @@ describe("GraphTruncator priority ordering", () => {
 			{ descriptor: { path: asVaultPath("m.md") }, depths: { outgoingDepth: 2, incomingDepth: 0 } },
 			{ descriptor: { path: asVaultPath("p.md") }, depths: { outgoingDepth: 1, incomingDepth: 0 } },
 		];
-		const traversal = new NeighborhoodTraversal(provider).traverse(roots);
+		const traversal = new VicinityTraversal(provider).traverse(roots);
 		const sizes = new NodeSizer(provider).computeSizes(traversal.nodes, EngineDefaults.sizingSettings());
 		const result = GraphTruncator.truncate({
 			nodes: traversal.nodes,

@@ -3,8 +3,8 @@ import type { FakeVaultSpec } from "../FakeLinkProvider";
 import { FakeLinkProvider } from "../FakeLinkProvider";
 import { GraphTruncator } from "../GraphTruncator";
 import type { TruncationResult } from "../GraphTruncator";
-import { NeighborhoodTraversal } from "../NeighborhoodTraversal";
-import type { TraversalResult, TraversalRoot } from "../NeighborhoodTraversal";
+import { VicinityTraversal } from "../VicinityTraversal";
+import type { TraversalResult, TraversalRoot } from "../VicinityTraversal";
 import { NodeSizer } from "../NodeSizer";
 import type { NodeSize } from "../NodeSizer";
 import type { DepthSettings, VaultPath } from "../types";
@@ -44,7 +44,7 @@ export function traverseAndSize(
 			incomingDepth: depths.incomingDepth ?? DEFAULT_TEST_DEPTH,
 		},
 	}));
-	const traversal = new NeighborhoodTraversal(provider).traverse(roots);
+	const traversal = new VicinityTraversal(provider).traverse(roots);
 	const sizes = new NodeSizer(provider).computeSizes(traversal.nodes, EngineDefaults.sizingSettings());
 	return { traversal, sizes, mainPath: asVaultPath(mainPath) };
 }
