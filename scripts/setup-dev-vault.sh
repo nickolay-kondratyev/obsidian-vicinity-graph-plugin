@@ -32,6 +32,18 @@ write_if_missing() {
 	echo "  create ${target}"
 }
 
+# copy_if_missing SRC DEST — copy a binary fixture (e.g. an image) only when DEST is absent.
+copy_if_missing() {
+	local src="$1" dest="$2"
+	if [[ -e "${dest}" ]]; then
+		echo "  keep   ${dest} (already present)"
+		return
+	fi
+	mkdir -p "$(dirname "${dest}")"
+	cp "${src}" "${dest}"
+	echo "  create ${dest}"
+}
+
 echo "==> Ensuring dev-vault fixtures in ${VAULT}/"
 
 write_if_missing "${VAULT}/note1.md" <<'EOF'
@@ -39,7 +51,7 @@ Central note for the step-03 debug harness.
 
 Links out: [[note2]] and [[note3]].
 
-Embedded attachment (first-image candidate): ![[pic.png]]
+Embedded attachment (first-image candidate): ![[pic.jpg]]
 EOF
 
 write_if_missing "${VAULT}/note2.md" <<'EOF'
@@ -61,15 +73,11 @@ write_if_missing "${VAULT}/test.canvas" <<'EOF'
 }
 EOF
 
-# pic.png: a 1x1 transparent PNG — the first-image attachment candidate for note1.
-if [[ -e "${VAULT}/pic.png" ]]; then
-	echo "  keep   ${VAULT}/pic.png (already present)"
-else
-	base64 -d >"${VAULT}/pic.png" <<'EOF'
-iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==
-EOF
-	echo "  create ${VAULT}/pic.png"
-fi
+# pic.jpg: a tiny recognizable public-domain photo (NASA "Blue Marble" Earth,
+# Apollo 17) — the first-image attachment candidate for note1. Sourced once
+# from Wikimedia Commons and committed small under scripts/dev-vault-fixtures/
+# so a clean checkout doesn't need network access to build the vault.
+copy_if_missing "scripts/dev-vault-fixtures/pic.jpg" "${VAULT}/pic.jpg"
 
 # --- step-05 fixtures: rich rendering smoke-run material ---------------------
 # Exercises: 2+ folder group (projects/), singleton folder (solo/), frontmatter
@@ -89,7 +97,7 @@ Duplicate link for the edge-count badge: [[note1]] and again [[note1]].
 
 Bidirectional intra-group link: [[beta]].
 
-Attachment types for the icon strip: ![[pic.png]], ![[report.pdf]], ![[data.csv]].
+Attachment types for the icon strip: ![[pic.jpg]], ![[report.pdf]], ![[data.csv]].
 EOF
 
 write_if_missing "${VAULT}/projects/beta.md" <<'EOF'
@@ -102,6 +110,8 @@ title: "  Gamma (solo, trimmed title)  "
 ---
 Singleton folder note: solo/ has one note → breadcrumb title, no group box.
 Links to [[note1]].
+
+Second recognizable image, so the thumbnail feature isn't only exercised by one shared file: ![[pic2.jpg]].
 EOF
 
 write_if_missing "${VAULT}/assets/data.csv" <<'EOF'
@@ -109,6 +119,10 @@ id,name
 1,alpha
 2,beta
 EOF
+
+# pic2.jpg: second tiny recognizable public-domain photo (NASA Apollo 11,
+# "Buzz Aldrin on the Moon") — solo/gamma's embedded image.
+copy_if_missing "scripts/dev-vault-fixtures/pic2.jpg" "${VAULT}/assets/pic2.jpg"
 
 # report.pdf: minimal valid single-page PDF — a non-image attachment type.
 write_if_missing "${VAULT}/assets/report.pdf" <<'EOF'
@@ -159,7 +173,7 @@ cat <<EOF
     "Vicinity Graph: Debug: log vicinity graph for active file".
     Open devtools console (Ctrl/Cmd+Opt+I) and expect:
       - nodes: note1, note2, note3, test.canvas
-      - note1's first image attachment = pic.png
+      - note1's first image attachment = pic.jpg
       - no errors in the console
  3. Leave the vault open ~15s after the plugin loads and confirm
     the orphan sweep runs (delayed + chunked, no console errors).

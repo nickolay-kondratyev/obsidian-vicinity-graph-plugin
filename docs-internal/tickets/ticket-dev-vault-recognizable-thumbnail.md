@@ -1,7 +1,23 @@
 # Ticket: Dev-vault fixture — use a recognizable thumbnail image
 
-**Status:** OPEN
+**Status:** RESOLVED (2026-07-21)
 **Origin:** step-05 human smoke run (2026-07-20), QA_CHECKLIST §1 thumbnail item.
+
+## Resolution
+
+Committed two tiny (~14KB) public-domain NASA photos under
+`scripts/dev-vault-fixtures/` (`pic.jpg` — "Blue Marble" Earth, Apollo 17;
+`pic2.jpg` — Buzz Aldrin on the Moon, Apollo 11; both PD-USGov, sourced from
+Wikimedia Commons and downsized locally). `scripts/setup-dev-vault.sh` now
+copies `pic.jpg` in as `note1`'s (and `projects/alpha`'s) embedded image
+instead of generating the old 1x1 placeholder, and copies `pic2.jpg` into
+`solo/gamma` so the thumbnail isn't exercised by only one shared file. The
+live `.dev-vault/` (gitignored, local-only) was updated to match.
+
+Still needs a human to re-verify the actual thumbnail render in Obsidian per
+the QA_CHECKLIST §1 criteria (fixed-height cropped cover, appears only once
+the node is large enough, no spurious "+N" badge for a single image) — that
+manual check is outside what this change can confirm.
 
 ## Context
 
