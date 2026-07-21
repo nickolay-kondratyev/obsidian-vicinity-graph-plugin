@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ElkNode } from "elkjs";
 import type { NeighborhoodGraph } from "../engine";
 import { asFolderPath, asVaultPath, EngineDefaults } from "../engine";
+import { REBUILD_DEBOUNCE_MS } from "./constants";
 import { GraphViewController } from "./GraphViewController";
 import type { FlowSnapshot } from "./GraphViewController";
 import type { ControlsModel } from "./ControlsModel";
@@ -20,8 +21,10 @@ const EMPTY_CONTROLS: ControlsModel = {
  * MAIN gating, and the structural-diff skip/relayout branches. All collaborators
  * are plain structural fakes (no obsidian runtime mock, no React, no elk mounted).
  * Rebuilds are driven by resolving DEFERRED build promises in a chosen order —
- * concurrency is controlled explicitly, never by sleeps or timers. The debounced
- * metadata-resolve path is intentionally out of scope (it needs `window`).
+ * concurrency is controlled explicitly, never by sleeps or timers. The one
+ * exception is the debounce describe block at the bottom, which drives the
+ * metadata-resolve timer with Vitest FAKE timers (deterministic, no real wait)
+ * plus a `window` shim, since the controller debounces via `window.setTimeout`.
  */
 
 interface Deferred<T> {
@@ -305,5 +308,111 @@ describe("GraphViewController step-05 snapshot extras", () => {
 		const h = setup();
 		h.controller.openNode("folder-group:notes");
 		expect(h.navigator.opened).toEqual([]);
+	});
+});
+
+describe("GraphViewController structural-diff skip rate", () => {
+	/** Content-only rebuilds of the SAME node/edge id-set — the reuse-layout path. */
+	const CONTENT_ONLY_REBUILDS = 5;
+
+	it("WHEN structure is unchanged across repeated rebuilds THEN elk runs exactly once (skipped every time after)", async () => {
+		const h = setup();
+		h.controller.handleActiveFileChanged("a.md");
+		h.source.resolveBuild(0, graphOf("n1.md", "n2.md"));
+		await flush();
+
+		// Each settings change rebuilds MAIN immediately with an identical id-set;
+		// decideLayout must return reuse-layout every time, so elk never re-runs.
+		for (let i = 0; i < CONTENT_ONLY_REBUILDS; i++) {
+			h.controller.handleSettingsChanged();
+			h.source.resolveBuild(i + 1, graphOf("n1.md", "n2.md"));
+			await flush();
+		}
+
+		expect(h.layout.callCount).toBe(1);
+	});
+});
+
+/**
+ * The debounced metadata-resolve path (typing bursts). Driven with FAKE timers
+ * so the 500ms window is deterministic and instant. Only setTimeout/clearTimeout
+ * are faked — `flush()`'s setImmediate stays real so the async rebuild pipeline
+ * still drains. `window` is aliased to the global timers because the controller
+ * debounces via `window.setTimeout` and the node test env has no `window`.
+ */
+describe("GraphViewController metadata-resolve debounce", () => {
+	beforeEach(() => {
+		vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+		vi.stubGlobal("window", globalThis);
+	});
+	afterEach(() => {
+		vi.useRealTimers();
+		vi.unstubAllGlobals();
+	});
+
+	/** Brings the controller to a rendered MAIN so subsequent rebuilds are measurable. */
+	async function withMain(h: Harness): Promise<void> {
+		h.controller.handleActiveFileChanged("a.md"); // immediate build[0]
+		h.source.resolveBuild(0, graphOf("a.md"));
+		await flush();
+	}
+
+	/** Fires N resolve events, each landing INSIDE the still-open window (restarting the timer). */
+	function burstWithinWindow(h: Harness, count: number): void {
+		for (let i = 0; i < count; i++) {
+			h.controller.handleMetadataResolved();
+			vi.advanceTimersByTime(REBUILD_DEBOUNCE_MS - 100); // < window: never fires here
+		}
+	}
+
+	it("WHEN resolve events fire repeatedly within the window THEN no rebuild has fired yet (coalesced)", async () => {
+		const h = setup();
+		await withMain(h);
+
+		burstWithinWindow(h, 5);
+
+		expect(h.source.calls).toEqual(["a.md"]); // only the initial build; burst still pending
+	});
+
+	it("WHEN the window finally elapses after a burst THEN exactly one coalesced rebuild fires", async () => {
+		const h = setup();
+		await withMain(h);
+		burstWithinWindow(h, 5);
+
+		vi.advanceTimersByTime(REBUILD_DEBOUNCE_MS); // let the last armed timer complete
+
+		expect(h.source.calls).toEqual(["a.md", "a.md"]); // initial + one, not five
+	});
+
+	it("WHEN an active-file change arrives with a resolve pending THEN it rebuilds immediately", async () => {
+		const h = setup();
+		await withMain(h);
+		h.controller.handleMetadataResolved(); // arm the debounce
+
+		h.controller.handleActiveFileChanged("b.md"); // no timer advance below
+
+		expect(h.source.calls).toEqual(["a.md", "b.md"]);
+	});
+
+	it("WHEN an active-file change supersedes a pending resolve THEN the pending debounce never fires", async () => {
+		const h = setup();
+		await withMain(h);
+		h.controller.handleMetadataResolved();
+		h.controller.handleActiveFileChanged("b.md"); // clears the pending debounce
+
+		vi.advanceTimersByTime(REBUILD_DEBOUNCE_MS * 2);
+
+		expect(h.source.calls).toEqual(["a.md", "b.md"]); // no stray third build
+	});
+
+	it("WHEN a settings change supersedes a pending resolve THEN the pending debounce never fires", async () => {
+		const h = setup();
+		await withMain(h);
+		h.controller.handleMetadataResolved();
+		h.controller.handleSettingsChanged(); // immediate + clears the pending debounce
+
+		vi.advanceTimersByTime(REBUILD_DEBOUNCE_MS * 2);
+
+		expect(h.source.calls).toEqual(["a.md", "a.md"]); // the settings rebuild only
 	});
 });

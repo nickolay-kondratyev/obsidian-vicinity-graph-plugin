@@ -99,6 +99,14 @@ export function NeighborhoodGraphFlow({
 						// each new-tab click would also toggle a meaningless persistent
 						// multi-selection in this read-only graph. Disable it.
 						multiSelectionKeyCode={null}
+						// Mount only nodes overlapping the pan/zoom viewport so a
+						// large/image-heavy graph doesn't hold every node (and its lazy
+						// <img> thumbnail) in the DOM at once. Safe with folder-group
+						// subflows: group parents render no <Handle>, so React Flow's
+						// `forceInitialRender` (keyed on missing handleBounds) keeps them
+						// always mounted, and children are culled by their own absolute
+						// rect — the container never disappears out from under them.
+						onlyRenderVisibleElements
 						fitView
 					>
 						<Background />

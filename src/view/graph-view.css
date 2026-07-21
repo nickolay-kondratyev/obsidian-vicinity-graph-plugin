@@ -232,13 +232,22 @@
  * Revealed only while the node is hovered (or the button itself is keyboard
  * focused) so an idle graph stays uncluttered (CLARIFICATION Q3). A round chip
  * in the node's top-right corner; `nodrag nopan` keeps its click off the canvas.
+ *
+ * Two guards keep this 20px chip from swallowing the node's open-click on small
+ * nodes (a dense fit-view shrinks nodes toward the 40px minimum):
+ *   1. `pointer-events: none` while hidden — an opacity:0 element STILL receives
+ *      pointer events, so without this the transparent button eats a click that
+ *      should open the note. Re-enabled only when revealed (hover/focus).
+ *   2. `display: none` below the 72px density threshold (same as the attachment
+ *      strip): tiny nodes carry no pin affordance at all — pin/unpin is still
+ *      reachable there via the right-click menu (NoteNode onContextMenu).
  */
 .neighborhood-graph-pin-button {
 	position: absolute;
 	top: var(--size-4-1);
 	right: var(--size-4-1);
 	z-index: 1;
-	display: inline-flex;
+	display: none;
 	align-items: center;
 	justify-content: center;
 	width: 20px;
@@ -251,13 +260,21 @@
 	box-shadow: var(--shadow-s);
 	cursor: pointer;
 	opacity: 0;
+	pointer-events: none;
 	transition:
 		opacity 0.12s ease,
 		color 0.12s ease;
 }
+/* Node tall enough to host the chip without blanketing its body. */
+@container (min-height: 72px) {
+	.neighborhood-graph-pin-button {
+		display: inline-flex;
+	}
+}
 .neighborhood-graph-node:hover .neighborhood-graph-pin-button,
 .neighborhood-graph-pin-button:focus-visible {
 	opacity: 1;
+	pointer-events: auto;
 }
 .neighborhood-graph-pin-button:hover {
 	color: var(--interactive-accent);

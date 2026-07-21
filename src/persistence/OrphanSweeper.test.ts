@@ -188,3 +188,57 @@ describe("OrphanSweeper mid-sweep write race", () => {
 		});
 	});
 });
+
+/**
+ * Scale check (step-07 perf pass): a vault with HUNDREDS of eligible files must
+ * not run the warm-up as one unbroken main-thread block. Asserted STRUCTURALLY
+ * via the yield count (per CLARIFICATION — no wall-clock), so it stays robust
+ * across machines. All notes are live and there is nothing stale, isolating the
+ * chunk-yield behaviour from any deletion work.
+ */
+const HUNDREDS_NOTE_COUNT = 500;
+/**
+ * The warm-up chunks 500 eligible files in batches of SWEEP_BATCH_SIZE (20),
+ * yielding after every FULL batch except the last (ChunkedWork's boundary rule):
+ * boundaries at 20, 40, ... 480 → 24 yields from the warm phase alone. Later
+ * chunked phases can only add more, so this is a safe lower bound.
+ */
+const MIN_WARM_PHASE_YIELDS = Math.floor((HUNDREDS_NOTE_COUNT - 1) / 20);
+
+async function hundredsOfFilesSweep() {
+	const files = Array.from({ length: HUNDREDS_NOTE_COUNT }, (_, i) => ({ path: `note${i}.md` }));
+	const docids = Object.fromEntries(files.map((file, i) => [file.path, `docid_note${i}_e`]));
+	const ports = new FakeObsidianPorts({ files });
+	const docIdPort = new FakeDocIdPort(docids);
+
+	const storage = new FakeFileStorage();
+	await storage.mkdir(DIR);
+	const docDataStore = new DocDataStore(storage, DIR);
+	const pluginDataStore = new PluginDataStore(new FakePluginDataPort());
+	await pluginDataStore.init();
+
+	const pathDocIdMap = new PathDocIdMap();
+	let yields = 0;
+	const sweeper = new OrphanSweeper(ports.vault, docIdPort, pathDocIdMap, pluginDataStore, docDataStore, async () => {
+		yields += 1;
+	});
+	const summary = await sweeper.run();
+	return { yieldCount: () => yields, summary };
+}
+
+describe("OrphanSweeper at hundreds-of-files scale", () => {
+	it("WHEN the vault has hundreds of eligible files THEN the sweep yields the main thread many times (chunk-yield scales)", async () => {
+		const { yieldCount } = await hundredsOfFilesSweep();
+		expect(yieldCount()).toBeGreaterThanOrEqual(MIN_WARM_PHASE_YIELDS);
+	});
+
+	it("WHEN hundreds of files are all live THEN the sweep removes nothing", async () => {
+		const { summary } = await hundredsOfFilesSweep();
+		expect(summary).toEqual({
+			docDataFilesRemoved: 0,
+			pinsRemoved: 0,
+			centralEntriesRemoved: 0,
+			ownersRewritten: 0,
+		});
+	});
+});
