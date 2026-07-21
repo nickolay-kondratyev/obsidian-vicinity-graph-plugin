@@ -32,6 +32,12 @@ import type { Browser, Page } from "@playwright/test";
  *   requires a leveldb writer dependency for zero extra value here).
  */
 
+/** The subset of the plugin's persisted global view settings the e2e suite asserts on. */
+export interface GlobalViewSnapshot {
+	readonly nodeCap: number;
+	readonly sizing: { readonly metrics: Record<string, { readonly enabled: boolean; readonly weight: number }> };
+}
+
 export const PLUGIN_ID = "obsidian-neighborhood-graph";
 /** Command id = `<pluginId>:<commandId>` (Obsidian namespacing). */
 export const OPEN_GRAPH_COMMAND_ID = `${PLUGIN_ID}:open-neighborhood-graph`;
@@ -54,6 +60,21 @@ const LAUNCH_TIMEOUT_MS = 60_000;
 const WINDOW_POLL_INTERVAL_MS = 250;
 /** Wide graph pane for pointer tests — see openGraphView WHY comment. */
 const RIGHT_SIDEBAR_WIDTH_PX = 500;
+/**
+ * Physical Obsidian window size pre-seeded into the sandbox (see
+ * {@link ObsidianHarness.prepareSandboxConfigDir}). WHY: headless Obsidian
+ * (Docker/CI, `--ozone-platform=headless`) otherwise boots into a tiny ~300×200
+ * window; the 500px graph sidebar then overflows ENTIRELY off-screen, so no node
+ * is physically clickable and the pointer-interaction tests can't reach a node
+ * (DOM-assertion tests still pass — they query the DOM directly). A CDP
+ * `Emulation.setDeviceMetricsOverride` only resizes the LAYOUT viewport, not the
+ * input surface, so real clicks still miss; resizing the actual window is the
+ * only fix. Obsidian restores this from `<userdata>/<vaultId>.json` at boot, so
+ * pre-writing it makes the window real-sized on any host. Sized generously so
+ * `fitView` keeps every node inside the pane.
+ */
+const WINDOW_WIDTH_PX = 1280;
+const WINDOW_HEIGHT_PX = 800;
 /** App boot → `layoutReady` covers vault index + workspace restore. */
 const WORKSPACE_READY_TIMEOUT_MS = 60_000;
 const PLUGIN_READY_TIMEOUT_MS = 30_000;
@@ -98,11 +119,34 @@ export class ObsidianHarness {
 		return obsidianPath;
 	}
 
-	static async launch(): Promise<ObsidianHarness> {
-		const executablePath = ObsidianHarness.resolveObsidianPath();
-		ObsidianHarness.prepareVaultCopy();
+	/**
+	 * Fresh launch: (re)seeds a throwaway vault copy + sandbox config, then boots
+	 * Obsidian. `extraFixtures` are extra `vaultRelativePath → content` notes
+	 * layered on top of the built-in `crowd/` set (used by suites that need their
+	 * own graph shape, e.g. depth chains for restart round-trips).
+	 */
+	static async launch(options: { extraFixtures?: Record<string, string> } = {}): Promise<ObsidianHarness> {
+		ObsidianHarness.prepareVaultCopy(options.extraFixtures);
 		ObsidianHarness.prepareSandboxConfigDir();
+		return ObsidianHarness.spawnAndConnect();
+	}
 
+	/**
+	 * Restarts Obsidian against the SAME vault copy + sandbox config — deliberately
+	 * WITHOUT re-seeding them (no `prepareVaultCopy` wipe). This automates the
+	 * step-06 "settings round-trip through an Obsidian restart" exit criterion: all
+	 * plugin state persists to `.obsidian/plugins/<id>/data.json` inside the copy,
+	 * so a real relaunch reloads exactly what was written. Closes the current
+	 * instance first, then returns a FRESH harness bound to the new window.
+	 */
+	async relaunch(): Promise<ObsidianHarness> {
+		await this.close();
+		return ObsidianHarness.spawnAndConnect();
+	}
+
+	/** Spawns the Obsidian process against the already-prepared dirs and attaches over CDP. */
+	private static async spawnAndConnect(): Promise<ObsidianHarness> {
+		const executablePath = ObsidianHarness.resolveObsidianPath();
 		const obsidianProcess = childProcess.spawn(executablePath, [
 			`--user-data-dir=${SANDBOX_CONFIG_DIR}`,
 			// Port 0 = OS-assigned; the concrete endpoint is read from stderr.
@@ -220,6 +264,18 @@ export class ObsidianHarness {
 		);
 	}
 
+	/**
+	 * Reads the plugin's persisted global view settings straight from the store —
+	 * the source of truth that a restart reloads. Used to assert settings
+	 * round-trip through {@link relaunch} without depending on rendered pixels.
+	 */
+	async readGlobalView(): Promise<GlobalViewSnapshot> {
+		return this.page.evaluate((pluginId) => {
+			const app = (window as unknown as { app: any }).app;
+			return app.plugins.plugins[pluginId].pluginDataStore.globalView() as GlobalViewSnapshot;
+		}, PLUGIN_ID);
+	}
+
 	/** Forces the given Obsidian theme by body class (how Obsidian itself switches). */
 	async setTheme(theme: "dark" | "light"): Promise<void> {
 		await this.page.evaluate((mode) => {
@@ -235,7 +291,7 @@ export class ObsidianHarness {
 	 * mutations (nodeCap, plugin data.json) never leak into the human's vault,
 	 * and e2e-only fixtures never pollute manual QA.
 	 */
-	private static prepareVaultCopy(): void {
+	private static prepareVaultCopy(extraFixtures: Record<string, string> = {}): void {
 		if (!fs.existsSync(DEV_VAULT_DIR)) {
 			throw new Error(`Dev vault missing: dir=[${DEV_VAULT_DIR}]. Run: npm run setup:dev-vault`);
 		}
@@ -248,7 +304,7 @@ export class ObsidianHarness {
 		// Fresh plugin settings: a stale data.json (e.g. from a previous aborted
 		// run) would silently change caps/settings under the assertions.
 		fs.rmSync(path.join(VAULT_COPY_DIR, ".obsidian", "plugins", PLUGIN_ID, "data.json"), { force: true });
-		for (const [relativePath, content] of Object.entries(CROWD_FIXTURES)) {
+		for (const [relativePath, content] of Object.entries({ ...CROWD_FIXTURES, ...extraFixtures })) {
 			const target = path.join(VAULT_COPY_DIR, relativePath);
 			fs.mkdirSync(path.dirname(target), { recursive: true });
 			fs.writeFileSync(target, content);
@@ -265,6 +321,11 @@ export class ObsidianHarness {
 			},
 		};
 		fs.writeFileSync(path.join(SANDBOX_CONFIG_DIR, "obsidian.json"), JSON.stringify(obsidianJson));
+		// Per-vault window state Obsidian restores at boot (keyed by vault id):
+		// seed a real-sized window so headless runs don't default to ~300×200.
+		// See WINDOW_WIDTH_PX for WHY this matters to the pointer-interaction tests.
+		const windowStateJson = { width: WINDOW_WIDTH_PX, height: WINDOW_HEIGHT_PX, zoom: 0 };
+		fs.writeFileSync(path.join(SANDBOX_CONFIG_DIR, `${E2E_VAULT_ID}.json`), JSON.stringify(windowStateJson));
 	}
 
 	/** Resolves the "DevTools listening on ws://…" endpoint from the app's stderr. */
