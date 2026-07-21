@@ -1,4 +1,4 @@
-import { Background, Controls, MarkerType, Panel, ReactFlow } from "@xyflow/react";
+import { Background, Controls, Panel, ReactFlow } from "@xyflow/react";
 import type { Edge, EdgeTypes, Node, NodeMouseHandler, NodeTypes } from "@xyflow/react";
 import { useCallback, useMemo, useSyncExternalStore } from "react";
 import type { ReactElement } from "react";
@@ -25,18 +25,6 @@ import type { ControlsActionsPort, GraphUiPort } from "./viewPorts";
 
 const NODE_TYPES: NodeTypes = { note: NoteNode, "folder-group": FolderGroupNode };
 const EDGE_TYPES: EdgeTypes = { vicinity: VicinityEdge };
-
-/**
- * Arrowhead size in React Flow's default `markerUnits: strokeWidth` units, NOT
- * px: the marker scales with `--xy-edge-stroke-width` (1.5 in graph-view.css),
- * so the effective size is 24 × 1.5 = 36px-equivalent. RF anchors the triangle
- * in only a quarter of its 20×20 marker viewBox (rest is empty margin), so the
- * number must run large to read as a solid, legibly-directional head. RF's
- * default (12.5) and the first pass (18) both read too faint at graph zoom —
- * the 2026-07-20 smoke run bumped this to 24 (see
- * [[ticket-edge-arrowhead-and-badge-visual-polish]]).
- */
-const EDGE_ARROWHEAD_SIZE = 24;
 
 export function VicinityGraphFlow({
 	controller,
@@ -150,11 +138,7 @@ function toReactFlowEdge(edge: FlowEdge): Edge {
 		source: edge.source,
 		target: edge.target,
 		type: "vicinity",
-		markerEnd: {
-			type: MarkerType.ArrowClosed,
-			width: EDGE_ARROWHEAD_SIZE,
-			height: EDGE_ARROWHEAD_SIZE,
-		},
+		// Arrowhead is drawn by VicinityEdge (inset from the target), not RF's marker-end.
 		data: { count: edge.count, hasOpposite: edge.hasOpposite },
 	};
 }

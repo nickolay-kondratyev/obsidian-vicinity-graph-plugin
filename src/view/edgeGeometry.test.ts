@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { EDGE_PAIR_CURVATURE_PX, edgePathFor } from "./edgeGeometry";
+import {
+	EDGE_ARROWHEAD_INSET_FRACTION,
+	EDGE_ARROWHEAD_INSET_MAX_PX,
+	EDGE_ARROWHEAD_INSET_MIN_PX,
+	EDGE_PAIR_CURVATURE_PX,
+	edgePathFor,
+} from "./edgeGeometry";
 
 describe("edgePathFor without an opposite edge", () => {
 	it("WHEN the edge has no opposite THEN it renders as a straight line", () => {
@@ -31,5 +37,48 @@ describe("edgePathFor with an opposite edge (A↔B pair)", () => {
 
 	it("WHEN source and target coincide THEN the degenerate edge falls back to a straight line", () => {
 		expect(edgePathFor(10, 10, 10, 10, true).path).toBe("M 10,10 L 10,10");
+	});
+});
+
+describe("edgePathFor arrowhead placement (inset back from the target)", () => {
+	// The arrowhead tip is inset back from the target so heads on edges converging
+	// on one node fan apart instead of stacking at the shared boundary point.
+	it("WHEN a short straight edge THEN the tip is inset by the MIN clamp, not the raw fraction", () => {
+		// length 100 → 12% = 12px, below the 14px floor.
+		const { arrowX, arrowY, arrowAngleDeg } = edgePathFor(0, 0, 100, 0, false);
+		expect({ arrowX, arrowY, arrowAngleDeg }).toEqual({
+			arrowX: 100 - EDGE_ARROWHEAD_INSET_MIN_PX,
+			arrowY: 0,
+			arrowAngleDeg: 0,
+		});
+	});
+
+	it("WHEN a mid-length straight edge THEN the tip is inset by the fraction and the angle follows travel", () => {
+		// length 120 → 12% = 14.4px (above the 14px floor, below the cap).
+		const inset = 120 * EDGE_ARROWHEAD_INSET_FRACTION;
+		const { arrowX, arrowY, arrowAngleDeg } = edgePathFor(0, 0, 0, 120, false);
+		expect(arrowX).toBeCloseTo(0);
+		expect(arrowY).toBeCloseTo(120 - inset);
+		expect(arrowAngleDeg).toBeCloseTo(90);
+	});
+
+	it("WHEN a long straight edge THEN the inset is capped by the MAX clamp so the head stays near the node", () => {
+		// length 500 → 12% = 60px, above the 48px cap.
+		expect(edgePathFor(0, 0, 500, 0, false).arrowX).toBeCloseTo(500 - EDGE_ARROWHEAD_INSET_MAX_PX);
+	});
+
+	it("WHEN the edge bows THEN the tip is inset along the curve's END tangent, not the straight chord", () => {
+		// Quadratic end tangent direction = P1 - control = (100,0) - (50,CURV) = (50,-CURV).
+		const inset = EDGE_ARROWHEAD_INSET_MIN_PX; // length 100 → floor applies
+		const dirLength = Math.hypot(50, EDGE_PAIR_CURVATURE_PX);
+		const { arrowX, arrowY, arrowAngleDeg } = edgePathFor(0, 0, 100, 0, true);
+		expect(arrowX).toBeCloseTo(100 - (inset * 50) / dirLength);
+		expect(arrowY).toBeCloseTo(0 - (inset * -EDGE_PAIR_CURVATURE_PX) / dirLength);
+		expect(arrowAngleDeg).toBeCloseTo((Math.atan2(-EDGE_PAIR_CURVATURE_PX, 50) * 180) / Math.PI);
+	});
+
+	it("WHEN source and target coincide THEN the arrow anchors at the target with a zero angle", () => {
+		const { arrowX, arrowY, arrowAngleDeg } = edgePathFor(10, 10, 10, 10, false);
+		expect({ arrowX, arrowY, arrowAngleDeg }).toEqual({ arrowX: 10, arrowY: 10, arrowAngleDeg: 0 });
 	});
 });

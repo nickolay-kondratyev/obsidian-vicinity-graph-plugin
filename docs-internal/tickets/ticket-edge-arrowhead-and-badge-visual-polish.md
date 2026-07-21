@@ -28,6 +28,22 @@ Implemented + independently reviewed (verdict READY, 0 blockers). See
 2. `npm run test:e2e` could not run in this env (no display / no Obsidian binary) — run in a
    display-capable env before release to confirm the both-theme arrowhead-color assert.
 
+## Follow-up (2026-07-21) — arrowheads inset from the target (fan-in visibility)
+
+Human-reported: a note with many incoming edges shows all heads stacked into one smudge at
+the shared boundary (React Flow's `marker-end` only anchors at the path end). Fixed by
+self-drawing the arrowhead as a `<polygon>` in `VicinityEdge`, inset back from the target by
+`clamp(length × 12%, 14px, 48px)` along the incoming tangent so heads fan apart by arrival
+angle (see `EDGE_ARROWHEAD_INSET_*` in `edgeGeometry.ts`; CHANGELOG 2026-07-21). The RF
+`marker-end`/`EDGE_ARROWHEAD_SIZE` path is retired.
+
+**Open (human, same env limitation):** confirm the inset magnitude and arrowhead
+size (`ARROWHEAD_LENGTH_PX`/`ARROWHEAD_HALF_WIDTH_PX` in `VicinityEdge.tsx`) on a live render
+in both themes. Near-parallel fan-in edges still separate by only ~7px — if that reads as
+overlap at normal zoom, raise the inset fraction (`EDGE_ARROWHEAD_INSET_FRACTION`) or shrink
+the head. Re-run `npm run test:e2e` in a display-capable env (arrowhead count + `--text-faint`
+fill asserts).
+
 ## Context
 
 Edge direction/pairing/count are functionally correct and e2e-asserted (marker
