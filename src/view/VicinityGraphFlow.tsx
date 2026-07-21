@@ -178,6 +178,6 @@ function toReactFlowEdge(edge: FlowEdge): Edge {
 		target: edge.target,
 		type: "vicinity",
 		// Arrowhead is drawn by VicinityEdge (inset from the target), not RF's marker-end.
-		data: { count: edge.count, hasOpposite: edge.hasOpposite },
+		data: { count: edge.count, hasOpposite: edge.hasOpposite, bidirectional: edge.bidirectional },
 	};
 }

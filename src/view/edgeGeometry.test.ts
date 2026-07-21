@@ -82,3 +82,30 @@ describe("edgePathFor arrowhead placement (inset back from the target)", () => {
 		expect({ arrowX, arrowY, arrowAngleDeg }).toEqual({ arrowX: 10, arrowY: 10, arrowAngleDeg: 0 });
 	});
 });
+
+describe("edgePathFor source-side arrow anchor (drawn only for bidirectional edges)", () => {
+	// The source anchor is the mirror of the target anchor: inset the same
+	// distance back from the SOURCE along the outgoing tangent, pointing at the
+	// source. It lets a collapsed bidirectional edge draw a second arrowhead.
+	it("WHEN a straight edge THEN the source anchor angle points back at the source (opposite the target)", () => {
+		const geometry = edgePathFor(0, 0, 0, 120, false);
+		expect(geometry.sourceArrowAngleDeg).toBeCloseTo(-90);
+		expect(geometry.arrowAngleDeg).toBeCloseTo(90);
+	});
+
+	it("WHEN a straight edge THEN the source anchor is inset the same distance as the target anchor", () => {
+		const geometry = edgePathFor(0, 0, 0, 120, false);
+		const targetInset = Math.hypot(geometry.arrowX - 0, geometry.arrowY - 120);
+		const sourceInset = Math.hypot(geometry.sourceArrowX - 0, geometry.sourceArrowY - 0);
+		expect(sourceInset).toBeCloseTo(targetInset);
+	});
+
+	it("WHEN source and target coincide THEN the source anchor sits on the source with a zero angle", () => {
+		const { sourceArrowX, sourceArrowY, sourceArrowAngleDeg } = edgePathFor(10, 10, 10, 10, false);
+		expect({ sourceArrowX, sourceArrowY, sourceArrowAngleDeg }).toEqual({
+			sourceArrowX: 10,
+			sourceArrowY: 10,
+			sourceArrowAngleDeg: 0,
+		});
+	});
+});

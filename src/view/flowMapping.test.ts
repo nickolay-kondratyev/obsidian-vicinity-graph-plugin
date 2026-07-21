@@ -237,6 +237,99 @@ describe("vicinityGraphToFlow edges", () => {
 	});
 });
 
+/**
+ * GIVEN an ungrouped hub linking to two members of the `notes` group. The fan of
+ * per-member edges must collapse onto ONE edge to the `folder-group:notes` box.
+ */
+function collapsedGraph() {
+	return makeGraph({
+		nodes: [
+			makeNode({ path: asVaultPath("hub.md"), folder: asFolderPath("") }),
+			makeNode({ path: asVaultPath("notes/a.md"), folder: asFolderPath("notes") }),
+			makeNode({ path: asVaultPath("notes/b.md"), folder: asFolderPath("notes") }),
+		],
+		edges: [makeEdge("hub.md", "notes/a.md"), makeEdge("hub.md", "notes/b.md")],
+	});
+}
+
+describe("vicinityGraphToFlow group-collapsed edges", () => {
+	it("WHEN many members link from one node THEN the fan collapses to a single edge to the group box", () => {
+		const edges = toFlow(collapsedGraph()).edges;
+		expect(edges).toHaveLength(1);
+	});
+
+	it("WHEN edges collapse onto a group THEN the edge connects the node to the group box", () => {
+		const [edge] = toFlow(collapsedGraph()).edges;
+		expect({ source: edge?.source, target: edge?.target }).toEqual({
+			source: "hub.md",
+			target: "folder-group:notes",
+		});
+	});
+
+	it("WHEN member edges collapse THEN the count is the SUM of their link counts", () => {
+		const graph = makeGraph({
+			nodes: collapsedGraph().nodes,
+			edges: [makeEdge("hub.md", "notes/a.md", 2), makeEdge("hub.md", "notes/b.md", 3)],
+		});
+		expect(toFlow(graph).edges[0]?.count).toBe(5);
+	});
+
+	it("WHEN only one direction crosses the group boundary THEN the collapsed edge is not bidirectional", () => {
+		expect(toFlow(collapsedGraph()).edges[0]?.bidirectional).toBe(false);
+	});
+
+	it("WHEN opposite directions cross the same group THEN they collapse to ONE bidirectional edge", () => {
+		const graph = makeGraph({
+			nodes: collapsedGraph().nodes,
+			edges: [makeEdge("hub.md", "notes/a.md"), makeEdge("notes/b.md", "hub.md")],
+		});
+		const edges = toFlow(graph).edges;
+		expect(edges).toHaveLength(1);
+		expect(edges[0]?.bidirectional).toBe(true);
+	});
+
+	it("WHEN both directions cross the group THEN the collapsed count sums both", () => {
+		const graph = makeGraph({
+			nodes: collapsedGraph().nodes,
+			edges: [makeEdge("hub.md", "notes/a.md"), makeEdge("notes/b.md", "hub.md")],
+		});
+		expect(toFlow(graph).edges[0]?.count).toBe(2);
+	});
+
+	it("WHEN an edge is intra-group THEN it stays member-to-member (no group self-loop)", () => {
+		const graph = makeGraph({
+			nodes: collapsedGraph().nodes,
+			edges: [makeEdge("notes/a.md", "notes/b.md")],
+		});
+		const edges = toFlow(graph).edges;
+		expect(edges).toEqual([
+			{ id: "notes/a.md->notes/b.md", source: "notes/a.md", target: "notes/b.md", count: 1, hasOpposite: false, bidirectional: false },
+		]);
+	});
+
+	it("WHEN groupByFolder is off THEN edges are NOT projected onto groups", () => {
+		const graph = makeGraph({
+			nodes: collapsedGraph().nodes,
+			edges: collapsedGraph().edges,
+			viewSettings: { ...collapsedGraph().viewSettings, groupByFolder: false },
+		});
+		const edges = toFlow(graph).edges;
+		expect(edges.map((edge) => ({ source: edge.source, target: edge.target }))).toEqual([
+			{ source: "hub.md", target: "notes/a.md" },
+			{ source: "hub.md", target: "notes/b.md" },
+		]);
+	});
+
+	it("WHEN a two-way pair collapses THEN the emitted orientation is the first-seen direction", () => {
+		const graph = makeGraph({
+			nodes: collapsedGraph().nodes,
+			edges: [makeEdge("notes/a.md", "hub.md"), makeEdge("hub.md", "notes/b.md")],
+		});
+		// First-seen edge is notes/a.md -> hub.md, so the group is the source.
+		expect(toFlow(graph).edges[0]?.source).toBe("folder-group:notes");
+	});
+});
+
 describe("vicinityGraphToFlow snapshot extras", () => {
 	it("WHEN mapping THEN the resolved groupByFolder setting is forwarded", () => {
 		expect(toFlow(groupedGraph()).groupByFolder).toBe(true);

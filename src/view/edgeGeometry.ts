@@ -15,6 +15,14 @@ export interface EdgePathGeometry {
 	readonly arrowY: number;
 	/** Arrowhead orientation (degrees, SVG clockwise), pointing at the target. */
 	readonly arrowAngleDeg: number;
+	/**
+	 * Symmetric SOURCE-side arrowhead tip, inset back from the source along the
+	 * OUTGOING tangent, pointing at the source. Drawn only for bidirectional
+	 * (group-collapsed) edges, which show an arrowhead at each end.
+	 */
+	readonly sourceArrowX: number;
+	readonly sourceArrowY: number;
+	readonly sourceArrowAngleDeg: number;
 }
 
 /**
@@ -64,7 +72,7 @@ export function edgePathFor(
 	const deltaY = targetY - sourceY;
 	const length = Math.hypot(deltaX, deltaY);
 	if (length === 0) {
-		// Degenerate: no travel direction, so anchor the arrow on the target.
+		// Degenerate: no travel direction, so anchor both arrows on their endpoints.
 		return {
 			path: `M ${sourceX},${sourceY} L ${targetX},${targetY}`,
 			labelX: midX,
@@ -72,12 +80,23 @@ export function edgePathFor(
 			arrowX: targetX,
 			arrowY: targetY,
 			arrowAngleDeg: 0,
+			sourceArrowX: sourceX,
+			sourceArrowY: sourceY,
+			sourceArrowAngleDeg: 0,
 		};
 	}
 	if (!hasOpposite) {
-		// Straight edge: the incoming tangent is the edge direction itself.
+		// Straight edge: each tangent is the edge direction; the source anchor is
+		// its mirror (reversed direction, inset back from the source).
 		const arrow = arrowFromApproach(targetX, targetY, deltaX, deltaY, length);
-		return { path: `M ${sourceX},${sourceY} L ${targetX},${targetY}`, labelX: midX, labelY: midY, ...arrow };
+		const sourceArrow = sourceArrowOf(arrowFromApproach(sourceX, sourceY, -deltaX, -deltaY, length));
+		return {
+			path: `M ${sourceX},${sourceY} L ${targetX},${targetY}`,
+			labelX: midX,
+			labelY: midY,
+			...arrow,
+			...sourceArrow,
+		};
 	}
 	// Unit normal pointing right of travel on screen (y grows downwards).
 	const normalX = -deltaY / length;
@@ -87,12 +106,26 @@ export function edgePathFor(
 	// A quadratic's tangent at the endpoint (t=1) points along (P1 - control),
 	// so the arrow follows the curve's real arrival angle, not the chord.
 	const arrow = arrowFromApproach(targetX, targetY, targetX - controlX, targetY - controlY, length);
+	// Curved edges never draw a source arrowhead (only bidirectional collapsed
+	// edges do, and those are straight); the anchor follows the start tangent for
+	// symmetry with the target side should a future caller want it.
+	const sourceArrow = sourceArrowOf(arrowFromApproach(sourceX, sourceY, sourceX - controlX, sourceY - controlY, length));
 	return {
 		path: `M ${sourceX},${sourceY} Q ${controlX},${controlY} ${targetX},${targetY}`,
 		labelX: midX + (normalX * EDGE_PAIR_CURVATURE_PX) / 2,
 		labelY: midY + (normalY * EDGE_PAIR_CURVATURE_PX) / 2,
 		...arrow,
+		...sourceArrow,
 	};
+}
+
+/** Relabels a target-style {@link ArrowAnchor} as the source-side anchor fields. */
+function sourceArrowOf(anchor: ArrowAnchor): {
+	readonly sourceArrowX: number;
+	readonly sourceArrowY: number;
+	readonly sourceArrowAngleDeg: number;
+} {
+	return { sourceArrowX: anchor.arrowX, sourceArrowY: anchor.arrowY, sourceArrowAngleDeg: anchor.arrowAngleDeg };
 }
 
 interface ArrowAnchor {

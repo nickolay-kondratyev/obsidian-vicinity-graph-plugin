@@ -1,3 +1,4 @@
+import { Handle, Position } from "@xyflow/react";
 import type { Node, NodeProps } from "@xyflow/react";
 import { memo } from "react";
 import type { ReactElement } from "react";
@@ -19,6 +20,15 @@ export const FolderGroupNode = memo(function FolderGroupNode({
 }: NodeProps<FolderGroupNodeType>): ReactElement {
 	return (
 		<div className="vicinity-graph-group" data-folder={data.folder}>
+			{/* Hidden edge anchors so collapsed edges can point at the group box
+			    (mirrors NoteNode). isConnectable=false keeps groups non-interactive
+			    for links — they are edge-addressable only. */}
+			<Handle
+				type="target"
+				position={Position.Top}
+				className="vicinity-graph-node__handle"
+				isConnectable={false}
+			/>
 			<div className="vicinity-graph-group__header">
 				<span className="vicinity-graph-group__label" title={data.folder}>
 					{data.folderName}
@@ -32,6 +42,12 @@ export const FolderGroupNode = memo(function FolderGroupNode({
 					</span>
 				)}
 			</div>
+			<Handle
+				type="source"
+				position={Position.Bottom}
+				className="vicinity-graph-node__handle"
+				isConnectable={false}
+			/>
 		</div>
 	);
 });

@@ -115,6 +115,17 @@ test("every edge carries a self-drawn arrowhead, one per edge", async () => {
 	await expect(page.locator(".vicinity-graph-flow .vicinity-graph-edge__arrowhead")).toHaveCount(ALPHA_EDGE_COUNT);
 });
 
+test("cross-boundary member links collapse onto ONE edge anchored at the group box", async () => {
+	// alpha is a `projects` group member; its link to root-level note1 collapses
+	// from `projects/alpha.md->note1.md` onto `folder-group:projects->note1.md`.
+	await expect(
+		page.locator('.vicinity-graph-flow .react-flow__edge[data-id="folder-group:projects->note1.md"]'),
+	).toHaveCount(1);
+	await expect(
+		page.locator('.vicinity-graph-flow .react-flow__edge[data-id="projects/alpha.md->note1.md"]'),
+	).toHaveCount(0);
+});
+
 test("no corner overlay badge when nothing is truncated", async () => {
 	await expect(page.locator(".vicinity-graph-overlay-badge")).toHaveCount(0);
 });

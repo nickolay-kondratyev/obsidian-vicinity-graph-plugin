@@ -25,6 +25,8 @@ const ARROWHEAD_HALF_WIDTH_PX = 6;
 export type VicinityEdgeData = {
 	readonly count: number;
 	readonly hasOpposite: boolean;
+	/** Group-collapsed edge unioning both directions: draw a second arrowhead at the source. */
+	readonly bidirectional: boolean;
 };
 
 export type VicinityEdgeType = Edge<VicinityEdgeData, "vicinity">;
@@ -50,6 +52,13 @@ export function VicinityEdge({
 				points={arrowPoints}
 				transform={`translate(${geometry.arrowX} ${geometry.arrowY}) rotate(${geometry.arrowAngleDeg})`}
 			/>
+			{data?.bidirectional === true && (
+				<polygon
+					className="vicinity-graph-edge__arrowhead"
+					points={arrowPoints}
+					transform={`translate(${geometry.sourceArrowX} ${geometry.sourceArrowY}) rotate(${geometry.sourceArrowAngleDeg})`}
+				/>
+			)}
 			{badge !== null && (
 				<EdgeLabelRenderer>
 					<span
