@@ -95,7 +95,8 @@ test("projects folder renders as a group with its label and no truncation badge"
 test("attachment icon strip shows one counted chip per extension", async () => {
 	const chips = noteNode(ALPHA_PATH).locator("button.vicinity-graph-attachment");
 	await expect(chips).toHaveCount(3);
-	for (const extension of ["png", "pdf", "csv"]) {
+	// alpha embeds pic.jpg (the vault moved from pic.png to a real photo fixture).
+	for (const extension of ["jpg", "pdf", "csv"]) {
 		const chip = noteNode(ALPHA_PATH).locator(`button.vicinity-graph-attachment[data-extension="${extension}"]`);
 		await expect(chip).toHaveAttribute("aria-label", attachmentGroupLabel(extension, 1));
 		await expect(chip.locator(".vicinity-graph-attachment__count")).toHaveText("1");

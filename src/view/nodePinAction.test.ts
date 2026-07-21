@@ -2,16 +2,12 @@ import { describe, expect, it } from "vitest";
 import { planNodePinAction } from "./nodePinAction";
 
 describe("planNodePinAction", () => {
-	it("WHEN the tier is main THEN there is no pin action", () => {
-		expect(planNodePinAction("main")).toEqual({ kind: "none" });
+	it("WHEN the doc is not pinned THEN the action is a labelled pin (applies to regular nodes AND MAIN)", () => {
+		expect(planNodePinAction(false)).toEqual({ kind: "pin", title: "Pin to graph", iconId: "pin" });
 	});
 
-	it("WHEN the tier is regular THEN the action is a labelled pin", () => {
-		expect(planNodePinAction("regular")).toEqual({ kind: "pin", title: "Pin to graph", iconId: "pin" });
-	});
-
-	it("WHEN the tier is pinned-central THEN the action is a labelled unpin", () => {
-		expect(planNodePinAction("pinned-central")).toEqual({
+	it("WHEN the doc is pinned THEN the action is a labelled unpin (pinned central OR pinned MAIN)", () => {
+		expect(planNodePinAction(true)).toEqual({
 			kind: "unpin",
 			title: "Unpin from graph",
 			iconId: "pin-off",

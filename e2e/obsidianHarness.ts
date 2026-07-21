@@ -57,6 +57,8 @@ const SANDBOX_CONFIG_DIR = path.join(E2E_TMP_DIR, "obsidian-config");
 const E2E_VAULT_ID = "0e2e0e2e0e2e0e2e";
 
 const LAUNCH_TIMEOUT_MS = 60_000;
+/** Graceful-shutdown grace before SIGKILL in {@link ObsidianHarness.killAndWaitForExit}. */
+const FORCE_KILL_AFTER_MS = 10_000;
 const WINDOW_POLL_INTERVAL_MS = 250;
 /** Wide graph pane for pointer tests — see openGraphView WHY comment. */
 const RIGHT_SIDEBAR_WIDTH_PX = 500;
@@ -141,6 +143,12 @@ export class ObsidianHarness {
 	 */
 	async relaunch(): Promise<ObsidianHarness> {
 		await this.close();
+		// Obsidian saved its ACTUAL window size at shutdown; in a headless run
+		// that is the tiny default (~300×200), so the relaunched pane would be a
+		// sliver — fitView then legitimately can't show the whole graph and the
+		// culling unmounts off-screen nodes. Window geometry is environment
+		// plumbing (not the persisted plugin state under test), so re-seed it.
+		ObsidianHarness.seedWindowState();
 		return ObsidianHarness.spawnAndConnect();
 	}
 
@@ -177,8 +185,30 @@ export class ObsidianHarness {
 		try {
 			await this.browser.close();
 		} finally {
-			this.obsidianProcess.kill();
+			await ObsidianHarness.killAndWaitForExit(this.obsidianProcess);
 		}
+	}
+
+	/**
+	 * Kills Obsidian and WAITS for the process to actually exit. WHY: a dying
+	 * Obsidian still writes sandbox-config files (window state, workspace) on
+	 * shutdown; returning before exit lets those writes race the next launch —
+	 * observed as `relaunch()`'s re-seeded window state being clobbered and as
+	 * `ENOTEMPTY` when the next spec wipes the config dir.
+	 */
+	private static killAndWaitForExit(proc: childProcess.ChildProcess): Promise<void> {
+		if (proc.exitCode !== null || proc.signalCode !== null) {
+			return Promise.resolve();
+		}
+		return new Promise<void>((resolve) => {
+			// Backstop: escalate if graceful shutdown hangs (bounded, condition-based).
+			const forceKillTimer = setTimeout(() => proc.kill("SIGKILL"), FORCE_KILL_AFTER_MS);
+			proc.once("exit", () => {
+				clearTimeout(forceKillTimer);
+				resolve();
+			});
+			proc.kill();
+		});
 	}
 
 	/** Opens a vault file in a MAIN-AREA leaf (mirrors ObsidianNoteNavigator's getLeaf(false)). */
@@ -321,9 +351,17 @@ export class ObsidianHarness {
 			},
 		};
 		fs.writeFileSync(path.join(SANDBOX_CONFIG_DIR, "obsidian.json"), JSON.stringify(obsidianJson));
-		// Per-vault window state Obsidian restores at boot (keyed by vault id):
-		// seed a real-sized window so headless runs don't default to ~300×200.
-		// See WINDOW_WIDTH_PX for WHY this matters to the pointer-interaction tests.
+		ObsidianHarness.seedWindowState();
+	}
+
+	/**
+	 * Per-vault window state Obsidian restores at boot (keyed by vault id):
+	 * seed a real-sized window so headless runs don't default to ~300×200.
+	 * See WINDOW_WIDTH_PX for WHY this matters to the pointer-interaction tests.
+	 * Called on fresh launches AND on {@link relaunch} (Obsidian overwrites the
+	 * file with the actual — headless-tiny — size at shutdown).
+	 */
+	private static seedWindowState(): void {
 		const windowStateJson = { width: WINDOW_WIDTH_PX, height: WINDOW_HEIGHT_PX, zoom: 0 };
 		fs.writeFileSync(path.join(SANDBOX_CONFIG_DIR, `${E2E_VAULT_ID}.json`), JSON.stringify(windowStateJson));
 	}

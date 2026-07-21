@@ -43,6 +43,18 @@ and re-confirm the dense-graph click test. (Related but distinct from the
 pre-existing headless-click flake:
 `docs-internal/tickets/ticket-e2e-node-click-flaky-headless.md`.)
 
+## Update 2026-07-21 — culling+fit mount race FOUND and FIXED
+
+The headless e2e suite surfaced a real culling defect: RF's mount-only `fitView`
+prop raced Obsidian's pane layout and could compute a garbage viewport (observed
+`translate(542px,-11.5px) scale(0.5)` centered where no nodes exist); with
+`onlyRenderVisibleElements` that unmounted EVERY node. Fixed by owning the fit:
+`FitViewOnLayoutChange` (gated on the RF store's measured pane size, re-fired per
+`FlowSnapshot.layoutVersion`) replaced the `fitView` prop, and RF nodes now carry
+explicit `width`/`height` so culling/fit math never waits on DOM measurement.
+The e2e suite now exercises culling + refit on every rebuild; item 1 above
+(visual pan/zoom smoke in a display-capable env) remains open.
+
 ## References
 
 - `src/view/VicinityGraphFlow.tsx` (`onlyRenderVisibleElements`)

@@ -1,8 +1,9 @@
-import { Background, Controls, Panel, ReactFlow } from "@xyflow/react";
+import { Background, Controls, Panel, ReactFlow, useReactFlow, useStore } from "@xyflow/react";
 import type { Edge, EdgeTypes, Node, NodeMouseHandler, NodeTypes } from "@xyflow/react";
-import { useCallback, useMemo, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 import type { ReactElement } from "react";
 import { hiddenOverlayText, orphanBreakdownTitle } from "./badgeText";
+import { GRAPH_MIN_ZOOM } from "./constants";
 import { ControlsActionsContext } from "./ControlsActionsContext";
 import { FolderGroupNode } from "./FolderGroupNode";
 import type { FlowEdge, FlowNode } from "./flowMapping";
@@ -87,6 +88,9 @@ export function VicinityGraphFlow({
 						// each new-tab click would also toggle a meaningless persistent
 						// multi-selection in this read-only graph. Disable it.
 						multiSelectionKeyCode={null}
+						// See GRAPH_MIN_ZOOM — RF's 0.5 default clamps fitView on dense
+						// graphs, leaving part of the vicinity unreachable off-pane.
+						minZoom={GRAPH_MIN_ZOOM}
 						// Mount only nodes overlapping the pan/zoom viewport so a
 						// large/image-heavy graph doesn't hold every node (and its lazy
 						// <img> thumbnail) in the DOM at once. Safe with folder-group
@@ -94,9 +98,15 @@ export function VicinityGraphFlow({
 						// `forceInitialRender` (keyed on missing handleBounds) keeps them
 						// always mounted, and children are culled by their own absolute
 						// rect — the container never disappears out from under them.
+						// Culling math never needs DOM measurement: every node carries
+						// explicit width/height (toReactFlowNode).
 						onlyRenderVisibleElements
-						fitView
+						// WHY-NOT the `fitView` prop: it fires exactly once at mount,
+						// racing Obsidian's pane layout (observed producing an off-graph
+						// viewport in a fresh sidebar) and never refitting after rebuilds.
+						// FitViewOnLayoutChange owns fitting instead.
 					>
+						<FitViewOnLayoutChange layoutVersion={snapshot.layoutVersion} />
 						<Background />
 						<Controls />
 						<Panel position="top-left">
@@ -119,10 +129,39 @@ export function VicinityGraphFlow({
 	);
 }
 
+/**
+ * Fits the viewport to the CURRENT graph whenever a fresh elk layout is
+ * published ({@link FlowSnapshot.layoutVersion}) — including the first one
+ * after mount. Deferred one animation frame so React Flow has ingested this
+ * render's `nodes` prop and the Obsidian pane has real dimensions; `fitView`
+ * works on the nodes' explicit width/height, so culled (unmounted) nodes are
+ * fitted too.
+ */
+function FitViewOnLayoutChange({ layoutVersion }: { readonly layoutVersion: number }): null {
+	const { fitView } = useReactFlow();
+	// Fitting before React Flow has measured its pane is a silent no-op (or fits
+	// a zero-sized rect) — the exact mount race behind the broken `fitView` prop.
+	// The store's width/height flip once the pane is measured, re-running the
+	// effect, so the first REAL fit is deterministic.
+	const paneReady = useStore((store) => store.width > 0 && store.height > 0);
+	useEffect(() => {
+		if (!paneReady) {
+			return;
+		}
+		const frame = requestAnimationFrame(() => void fitView());
+		return () => cancelAnimationFrame(frame);
+	}, [fitView, paneReady, layoutVersion]);
+	return null;
+}
+
 function toReactFlowNode(node: FlowNode): Node {
 	const base = {
 		id: node.id,
 		position: { x: node.position.x, y: node.position.y },
+		// Explicit RF dimensions (not just style): culling and fitView then know
+		// every node's rect WITHOUT waiting for a DOM measurement pass.
+		width: node.width,
+		height: node.height,
 		style: { width: node.width, height: node.height },
 		...(node.parentId === undefined ? {} : { parentId: node.parentId }),
 	};

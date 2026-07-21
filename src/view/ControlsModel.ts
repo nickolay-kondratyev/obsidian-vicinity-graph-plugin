@@ -44,6 +44,12 @@ export interface ControlsModel {
 	/** MAIN first, then pinned centrals in assembler (pin) order. */
 	readonly centrals: readonly CentralControl[];
 	/**
+	 * Whether the MAIN doc itself is in the persisted pinned set. The pin
+	 * resolver skips main-as-pin (it is already central), so this is the ONLY
+	 * surviving carrier of that fact — it drives MAIN's pin/unpin node toggle.
+	 */
+	readonly mainPinned: boolean;
+	/**
 	 * The current global defaults, carried on the model so the toolbar has the
 	 * `planSettingsWrite` context (`{globalDepths, globalView}` merge base) AND the
 	 * seed values for the sizing form WITHOUT re-reading disk or duplicating global
@@ -77,7 +83,12 @@ export class ControlsModelBuilder {
 				),
 			});
 		}
-		return { centrals, globalDepths: inputs.globalDepths, globalView: inputs.globalView };
+		return {
+			centrals,
+			mainPinned: inputs.mainDocId !== null && inputs.pins.some((pin) => pin.docid === inputs.mainDocId),
+			globalDepths: inputs.globalDepths,
+			globalView: inputs.globalView,
+		};
 	}
 
 	private static mainControl(inputs: GraphRequestInputs): CentralControl {

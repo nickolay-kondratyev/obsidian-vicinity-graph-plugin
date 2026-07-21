@@ -12,6 +12,7 @@ import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
 /** These tests exercise rebuild concurrency, not the toolbar model — an empty model suffices. */
 const EMPTY_CONTROLS: ControlsModel = {
 	centrals: [],
+	mainPinned: false,
 	globalDepths: EngineDefaults.depthSettings(),
 	globalView: EngineDefaults.viewSettings(),
 };
@@ -308,6 +309,59 @@ describe("GraphViewController step-05 snapshot extras", () => {
 		const h = setup();
 		h.controller.openNode("folder-group:notes");
 		expect(h.navigator.opened).toEqual([]);
+	});
+});
+
+describe("GraphViewController layoutVersion refit signal", () => {
+	it("WHEN the first build lays out THEN layoutVersion becomes 1", async () => {
+		const h = setup();
+		h.controller.handleActiveFileChanged("a.md");
+		h.source.resolveBuild(0, graphOf("n1.md", "n2.md"));
+		await flush();
+
+		expect(h.snapshot().layoutVersion).toBe(1);
+	});
+
+	it("WHEN a rebuild reuses the layout THEN layoutVersion is unchanged (no refit)", async () => {
+		const h = setup();
+		h.controller.handleActiveFileChanged("a.md");
+		h.source.resolveBuild(0, graphOf("n1.md", "n2.md"));
+		await flush();
+
+		h.controller.handleSettingsChanged(); // identical id-set → reuse-layout
+		h.source.resolveBuild(1, graphOf("n1.md", "n2.md"));
+		await flush();
+
+		expect(h.snapshot().layoutVersion).toBe(1);
+	});
+
+	it("WHEN a rebuild changes structure THEN layoutVersion increments (refit)", async () => {
+		const h = setup();
+		h.controller.handleActiveFileChanged("a.md");
+		h.source.resolveBuild(0, graphOf("n1.md", "n2.md"));
+		await flush();
+
+		h.controller.handleActiveFileChanged("b.md"); // adds n3 → relayout
+		h.source.resolveBuild(1, graphOf("n1.md", "n2.md", "n3.md"));
+		await flush();
+
+		expect(h.snapshot().layoutVersion).toBe(2);
+	});
+
+	it("WHEN the snapshot goes empty and a new graph lays out THEN layoutVersion stays monotonic", async () => {
+		const h = setup();
+		h.controller.handleActiveFileChanged("a.md");
+		h.source.resolveBuild(0, graphOf("n1.md"));
+		await flush();
+
+		h.controller.handleActiveFileChanged("gone.md");
+		h.source.resolveBuild(1, null); // empty gap
+		await flush();
+		h.controller.handleActiveFileChanged("b.md");
+		h.source.resolveBuild(2, graphOf("n2.md"));
+		await flush();
+
+		expect(h.snapshot().layoutVersion).toBe(2);
 	});
 });
 

@@ -164,3 +164,32 @@ test("pinned-central depth is per-MAIN-doc: it adds hops, restores on return, an
 	await expect(noteNode(X1)).toHaveCount(1);
 	await expect(noteNode(X2)).toHaveCount(0);
 });
+
+test("the MAIN central itself can be pinned, survives switching MAIN, and can be unpinned", async () => {
+	// Land on the hub as MAIN with a refit so its node is physically clickable.
+	await harness.openFile(HUB);
+	await harness.remountGraphView();
+	await expect(noteNode(HUB)).toHaveAttribute("data-tier", "main");
+
+	// MAIN offers the pin gesture too (keep the current central around before navigating away).
+	await expect(noteNode(HUB).locator(".vicinity-graph-pin-button")).toHaveAttribute("aria-label", "Pin to graph");
+	await clickPin(HUB);
+	// Still MAIN-tier (main styling wins) but the toggle flips to unpin.
+	await expect(noteNode(HUB)).toHaveAttribute("data-tier", "main");
+	await expect(noteNode(HUB).locator(".vicinity-graph-pin-button")).toHaveAttribute(
+		"aria-label",
+		"Unpin from graph",
+	);
+
+	// Switch MAIN away → the pinned ex-MAIN stays in the graph as a pinned central.
+	await harness.openFile(OTHER_MAIN);
+	await expect(noteNode(OTHER_MAIN)).toHaveAttribute("data-tier", "main");
+	await expect(noteNode(HUB)).toHaveAttribute("data-tier", "pinned-central");
+
+	// Unpin it from here → it loses central status. It stays VISIBLE as a plain
+	// neighbor: sc_x is still pinned (previous test) and sc_hub links to it, so
+	// the hub is sc_x's incoming depth-1 node — the tier flip is the unpin proof.
+	await harness.remountGraphView(); // refit so the hub node is physically clickable
+	await clickPin(HUB);
+	await expect(noteNode(HUB)).toHaveAttribute("data-tier", "regular");
+});

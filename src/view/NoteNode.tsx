@@ -32,23 +32,21 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
 
 	// Pin/unpin is one shared pure decision (title/icon/applicability) driving
 	// BOTH the hover button and the right-click menu (CLARIFICATION Q3).
-	const pinAction = useMemo(() => planNodePinAction(data.tier), [data.tier]);
+	// Every node toggles — including MAIN, whose pin keeps it central after
+	// the human navigates to another note.
+	const pinAction = useMemo(() => planNodePinAction(data.isPinned), [data.isPinned]);
 	const runPinAction = useCallback(() => {
 		if (pinAction.kind === "pin") {
 			void actions.pinNode(data.path);
-		} else if (pinAction.kind === "unpin" && data.docid !== undefined) {
+		} else if (data.docid !== undefined) {
 			void actions.unpinNode(data.docid);
 		}
 	}, [pinAction.kind, actions, data.path, data.docid]);
 	const onContextMenu = useCallback(
 		(event: ReactMouseEvent<HTMLDivElement>) => {
-			// Suppress the browser menu and the RF pane; MAIN (kind "none") gets
-			// neither our menu nor the native one.
+			// Suppress the browser menu and the RF pane menu.
 			event.preventDefault();
 			event.stopPropagation();
-			if (pinAction.kind === "none") {
-				return;
-			}
 			ui.showNodeMenu({
 				nativeEvent: event.nativeEvent,
 				entry: { title: pinAction.title, iconId: pinAction.iconId, onClick: runPinAction },
@@ -64,7 +62,7 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
 			data-path={data.path}
 			onContextMenu={onContextMenu}
 		>
-			{pinAction.kind !== "none" && <PinButton action={pinAction} onActivate={runPinAction} />}
+			<PinButton action={pinAction} onActivate={runPinAction} />
 			{/* Read-only graph: handles exist only as edge anchors (top target /
 			    bottom source matches the elk DOWN direction) and are hidden in CSS. */}
 			<Handle type="target" position={Position.Top} className="vicinity-graph-node__handle" />

@@ -80,6 +80,8 @@ Depth is the one thing you can tune per note, from the in-view toolbar:
 - **Pinning a note makes it an extra central node.** Its vicinity is
   traversed and rendered alongside your active note's. You pin/unpin from a node's
   hover button or its right-click menu.
+- **The active (central) note is pinnable too** — pin it before navigating away
+  and it stays in the graph as a pinned central.
 - The **pinned set is global state and survives restarts** (stored in the
   plugin's `data.json`).
 - **The subtle bit:** when you adjust a *pinned* central's depth while viewing

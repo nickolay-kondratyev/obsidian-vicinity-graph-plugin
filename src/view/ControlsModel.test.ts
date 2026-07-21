@@ -116,6 +116,24 @@ describe("ControlsModelBuilder central list", () => {
 	});
 });
 
+describe("ControlsModelBuilder mainPinned", () => {
+	it("WHEN the pinned set does not contain MAIN THEN mainPinned is false", () => {
+		expect(ControlsModelBuilder.build(inputs(PIN_X)).mainPinned).toBe(false);
+	});
+
+	it("WHEN the pinned set contains MAIN's docid THEN mainPinned is true", () => {
+		const model = ControlsModelBuilder.build(inputs({ pins: [{ docid: "docid_main_e", pinTimestamp: 1 }] }));
+		expect(model.mainPinned).toBe(true);
+	});
+
+	it("WHEN MAIN has no docid THEN mainPinned is false regardless of pins", () => {
+		const model = ControlsModelBuilder.build(
+			inputs({ mainDocId: null, mainPersistable: false, pins: [{ docid: "docid_main_e", pinTimestamp: 1 }] }),
+		);
+		expect(model.mainPinned).toBe(false);
+	});
+});
+
 describe("ControlsModelBuilder global context", () => {
 	it("WHEN building THEN the model carries the current global depths + view (planSettingsWrite ctx / sizing seed)", () => {
 		const view = EngineDefaults.viewSettings();

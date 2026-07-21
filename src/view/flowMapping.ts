@@ -39,6 +39,12 @@ export type FlowNodeData = {
 	/** Echoed engine docid — present on centrals (MAIN + pinned); drives unpin. */
 	readonly docid?: string;
 	readonly tier: NodeTier;
+	/**
+	 * Whether this note's doc is in the persisted pinned set — the fact the
+	 * pin/unpin toggle switches on. Distinct from {@link tier}: a pinned MAIN
+	 * still styles as `main` but must offer "unpin".
+	 */
+	readonly isPinned: boolean;
 	readonly sizePx: number;
 	readonly sizeScore: number;
 	/** Engine folder path ("" = vault root). */
@@ -125,7 +131,11 @@ const UNPLACED: XY = { x: 0, y: 0 };
  */
 const UNSIZED_GROUP_PX = 0;
 
-export function vicinityGraphToFlow(graph: VicinityGraph): FlowGraph {
+/**
+ * @param mainPinned whether the MAIN doc itself is in the persisted pinned set
+ * (the engine skips main-as-pin, so this fact must be supplied by the caller).
+ */
+export function vicinityGraphToFlow(graph: VicinityGraph, mainPinned: boolean): FlowGraph {
 	const grouping = deriveFolderGroups(graph.nodes, graph.viewSettings.groupByFolder);
 	const badges = deriveTruncationBadges(
 		graph.hiddenNodeCountsByFolder,
@@ -156,7 +166,7 @@ export function vicinityGraphToFlow(graph: VicinityGraph): FlowGraph {
 			width: side,
 			height: side,
 			...(groupFolder === undefined ? {} : { parentId: folderGroupIdOf(groupFolder) }),
-			data: toFlowNodeData(node, groupFolder !== undefined),
+			data: toFlowNodeData(node, groupFolder !== undefined, mainPinned),
 		};
 	});
 	const renderedEdgeIds = new Set(graph.edges.map(edgeIdOf));
@@ -177,13 +187,15 @@ export function vicinityGraphToFlow(graph: VicinityGraph): FlowGraph {
 	};
 }
 
-function toFlowNodeData(node: GraphNode, isGrouped: boolean): FlowNodeData {
+function toFlowNodeData(node: GraphNode, isGrouped: boolean, mainPinned: boolean): FlowNodeData {
 	const showBreadcrumb = !isGrouped && node.folder !== "";
 	return {
 		path: node.path,
 		title: node.title,
 		...(node.docid === undefined ? {} : { docid: node.docid }),
 		tier: tierOf(node),
+		// A non-MAIN central IS a pin by definition; MAIN's pinned-ness comes from the caller.
+		isPinned: node.isMain ? mainPinned : node.isCentral,
 		sizePx: node.sizePx,
 		sizeScore: node.sizeScore,
 		folder: node.folder,

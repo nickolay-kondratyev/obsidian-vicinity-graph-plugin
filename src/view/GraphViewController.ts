@@ -37,10 +37,18 @@ export interface FlowSnapshot {
 	readonly orphanTruncation: OrphanTruncation;
 	/** The toolbar's read-model for this build (MAIN + pinned centrals, empty when no graph). */
 	readonly controls: ControlsModel;
+	/**
+	 * Monotonic counter bumped every time a publish carries FRESH elk positions
+	 * (unchanged on reuse-layout data refreshes). The render layer refits the
+	 * viewport on this signal — RF's own mount-only `fitView` neither refits
+	 * after rebuilds nor survives Obsidian's pane-timing on mount.
+	 */
+	readonly layoutVersion: number;
 }
 
 const EMPTY_CONTROLS: ControlsModel = {
 	centrals: [],
+	mainPinned: false,
 	globalDepths: EngineDefaults.depthSettings(),
 	globalView: EngineDefaults.viewSettings(),
 };
@@ -52,6 +60,7 @@ const EMPTY_SNAPSHOT: FlowSnapshot = {
 	groupByFolder: false,
 	orphanTruncation: NO_ORPHAN_TRUNCATION,
 	controls: EMPTY_CONTROLS,
+	layoutVersion: 0,
 };
 
 type Subscriber = () => void;
@@ -71,6 +80,8 @@ export class GraphViewController {
 	private mainPath: string | null = null;
 	private rebuildToken = 0;
 	private debounceTimer: number | null = null;
+	/** Never reset — monotonicity lets the render layer diff it safely across empty gaps. */
+	private layoutVersion = 0;
 
 	constructor(
 		private readonly navigator: NoteNavigatorPort,
@@ -168,7 +179,7 @@ export class GraphViewController {
 		const graph = result.graph;
 		this.controls = result.controls;
 		const decision = decideLayout(this.previousGraph, graph, SIZE_RELAYOUT_THRESHOLD);
-		const flow = vicinityGraphToFlow(graph);
+		const flow = vicinityGraphToFlow(graph, result.controls.mainPinned);
 		if (decision === "reuse-layout") {
 			// No structural change: keep positions and group sizes, refresh node data only.
 			console.debug("vicinity-graph: structural diff skipped elk layout (data-only refresh)");
@@ -179,6 +190,7 @@ export class GraphViewController {
 		if (this.isStale(token)) {
 			return;
 		}
+		this.layoutVersion += 1;
 		this.publish(graph, extractElkPositions(laidOut), extractElkDimensionsById(laidOut), flow);
 	}
 
@@ -202,6 +214,7 @@ export class GraphViewController {
 			groupByFolder: flow.groupByFolder,
 			orphanTruncation: flow.orphanTruncation,
 			controls: this.controls,
+			layoutVersion: this.layoutVersion,
 		});
 	}
 

@@ -54,6 +54,14 @@ export const ELK_LAYOUT_OPTIONS: Readonly<Record<string, string>> = {
 export const ELK_GROUP_PADDING = "[top=36.0,left=16.0,bottom=16.0,right=16.0]";
 
 /**
+ * React Flow zoom floor. RF's default (0.5) clamps `fitView` on dense graphs in
+ * a narrow sidebar pane — the whole vicinity then CANNOT be brought into view
+ * (and, with viewport culling, boundary nodes flicker in and out of the DOM).
+ * A low floor lets fitView always show the full graph; users can zoom back in.
+ */
+export const GRAPH_MIN_ZOOM = 0.1;
+
+/**
  * Depth-stepper input bounds (CLARIFICATION Q2). These are an AFFORDANCE limit
  * on the toolbar/settings inputs — the engine itself honors any depth; this is
  * the UI's clamp so a stepper cannot dial a nonsensical value.
