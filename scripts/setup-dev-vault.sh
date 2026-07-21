@@ -51,7 +51,9 @@ Central note for the step-03 debug harness.
 
 Links out: [[note2]] and [[note3]].
 
-Embedded attachment (first-image candidate): ![[pic.jpg]]
+Embedded attachment (first-image candidate):
+
+![[pic.jpg]]
 EOF
 
 write_if_missing "${VAULT}/note2.md" <<'EOF'
