@@ -1,4 +1,4 @@
-import type { GraphNode, VicinityGraph } from "../engine";
+import type { FolderPath, GraphNode, VicinityGraph } from "../engine";
 import { VaultPathFacts } from "../shared/VaultPathFacts";
 import type { AttachmentIconGroup } from "./attachmentIconStrip";
 import { attachmentIconStrip } from "./attachmentIconStrip";
@@ -106,12 +106,20 @@ export interface FlowEdge {
 	/** Distinct links source→target — the edge's count badge (1 = no badge). */
 	readonly count: number;
 	/**
-	 * True when the reverse edge (target→source) is also rendered. Both edges
-	 * of such a pair curve away from the straight line on the right of their
-	 * OWN travel direction, which mirrors them automatically — no extra
-	 * offset-sign field needed.
+	 * True when the reverse edge (target→source) is also rendered as a SEPARATE
+	 * FlowEdge. Both edges of such a pair curve away from the straight line on
+	 * the right of their OWN travel direction, which mirrors them automatically
+	 * — no extra offset-sign field needed. Mutually exclusive with
+	 * {@link bidirectional}: a group-collapsed pair is a single edge, not two.
 	 */
 	readonly hasOpposite: boolean;
+	/**
+	 * True for a group-collapsed edge that unions BOTH directions into ONE
+	 * straight line drawn with an arrowhead at each end. Only ever set on
+	 * collapsed edges (see {@link vicinityGraphToFlow}); plain note↔note pairs
+	 * use the curved {@link hasOpposite} mechanism instead.
+	 */
+	readonly bidirectional: boolean;
 }
 
 export interface FlowGraph {
@@ -169,22 +177,103 @@ export function vicinityGraphToFlow(graph: VicinityGraph, mainPinned: boolean): 
 			data: toFlowNodeData(node, groupFolder !== undefined, mainPinned),
 		};
 	});
-	const renderedEdgeIds = new Set(graph.edges.map(edgeIdOf));
-	const edges = graph.edges.map(
-		(edge): FlowEdge => ({
-			id: edgeIdOf(edge),
-			source: edge.source,
-			target: edge.target,
-			count: edge.count,
-			hasOpposite: renderedEdgeIds.has(edgeIdOf({ source: edge.target, target: edge.source })),
-		}),
-	);
 	return {
 		nodes: [...groupNodes, ...noteNodes],
-		edges,
+		edges: buildFlowEdges(graph, grouping.groupFolderByMemberPath),
 		groupByFolder: graph.viewSettings.groupByFolder,
 		orphanTruncation: badges.orphan,
 	};
+}
+
+/**
+ * A collapsed edge under construction: one per UNORDERED projected pair. The
+ * first-seen `{from,to}` fixes the emitted orientation (deterministic — no
+ * sort); later contributing engine edges union their direction and sum `count`.
+ */
+interface CollapsedEdgeAccumulator {
+	readonly from: string;
+	readonly to: string;
+	forwardSeen: boolean;
+	backwardSeen: boolean;
+	count: number;
+}
+
+/** Separator that cannot occur in a vault path or folder-group id — a collision-proof delimiter. */
+const UNORDERED_PAIR_KEY_SEPARATOR = "\u0000";
+
+/**
+ * Maps engine edges to rendered {@link FlowEdge}s, collapsing the fan of edges
+ * crossing a folder-group boundary onto a single edge to the group box (mirrors
+ * `projectedRootEdges` in elkMapping, so layout and rendering agree). An engine
+ * edge is:
+ * - PASSTHROUGH when neither endpoint is projected (both ungrouped) or both
+ *   endpoints project to the SAME group (intra-group — kept member-to-member so
+ *   the container's internal links stay visible, never a group self-loop). These
+ *   keep the curved-pair `hasOpposite` semantics unchanged.
+ * - COLLAPSED when its projected endpoints differ and at least one was projected
+ *   onto its group. Collapsed edges union by unordered projected pair: both
+ *   directions → one bidirectional edge (arrowhead each end); one direction →
+ *   single arrowhead; `count` = sum of every contributing edge.
+ */
+function buildFlowEdges(
+	graph: VicinityGraph,
+	groupFolderByMemberPath: ReadonlyMap<string, FolderPath>,
+): FlowEdge[] {
+	const projectId = (path: string): string => {
+		const folder = groupFolderByMemberPath.get(path);
+		return folder === undefined ? path : folderGroupIdOf(folder);
+	};
+	const renderedEdgeIds = new Set(graph.edges.map(edgeIdOf));
+	const passthrough: FlowEdge[] = [];
+	const collapsedByPair = new Map<string, CollapsedEdgeAccumulator>();
+	for (const edge of graph.edges) {
+		const projSource = projectId(edge.source);
+		const projTarget = projectId(edge.target);
+		const wasProjected = projSource !== edge.source || projTarget !== edge.target;
+		if (!wasProjected || projSource === projTarget) {
+			passthrough.push({
+				id: edgeIdOf(edge),
+				source: edge.source,
+				target: edge.target,
+				count: edge.count,
+				hasOpposite: renderedEdgeIds.has(edgeIdOf({ source: edge.target, target: edge.source })),
+				bidirectional: false,
+			});
+			continue;
+		}
+		accumulateCollapsedEdge(collapsedByPair, projSource, projTarget, edge.count);
+	}
+	const collapsed = [...collapsedByPair.values()].map(
+		(pair): FlowEdge => ({
+			id: `${pair.from}->${pair.to}`,
+			source: pair.from,
+			target: pair.to,
+			count: pair.count,
+			hasOpposite: false,
+			bidirectional: pair.forwardSeen && pair.backwardSeen,
+		}),
+	);
+	return [...passthrough, ...collapsed];
+}
+
+function accumulateCollapsedEdge(
+	collapsedByPair: Map<string, CollapsedEdgeAccumulator>,
+	projSource: string,
+	projTarget: string,
+	count: number,
+): void {
+	const key = [projSource, projTarget].sort().join(UNORDERED_PAIR_KEY_SEPARATOR);
+	const existing = collapsedByPair.get(key);
+	if (existing === undefined) {
+		collapsedByPair.set(key, { from: projSource, to: projTarget, forwardSeen: true, backwardSeen: false, count });
+		return;
+	}
+	existing.count += count;
+	if (projSource === existing.from && projTarget === existing.to) {
+		existing.forwardSeen = true;
+	} else {
+		existing.backwardSeen = true;
+	}
 }
 
 function toFlowNodeData(node: GraphNode, isGrouped: boolean, mainPinned: boolean): FlowNodeData {
