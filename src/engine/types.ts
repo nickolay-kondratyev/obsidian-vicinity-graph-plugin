@@ -198,6 +198,8 @@ export interface ViewSettings {
 	readonly groupByFolder: boolean;
 	readonly edgeVisibility: EdgeVisibilityMode;
 	readonly layoutMode: LayoutMode;
+	/** Whether the post-layout obstacle-avoiding edge-routing pass runs (default OFF). */
+	readonly edgeRouting: boolean;
 	readonly sizing: SizingSettings;
 }
 

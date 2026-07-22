@@ -10,11 +10,14 @@ IMPLEMENTATION_WITH_SELF_PLAN → IMPLEMENTATION_REVIEW → IMPLEMENTATION_ITERA
 ## Status log
 - [x] Read ticket 01 + spike 00 findings.
 - [x] Spawned 3 Explore agents (layout / settings / rendering+loader) → EXPLORATION_*.md.
-- [ ] Assemble EXPLORATION_PUBLIC.md (pointer index).
-- [ ] Phase: IMPLEMENTATION_WITH_SELF_PLAN.
+- [x] Assembled EXPLORATION_PUBLIC.md (pointer index). Committed c924e66.
+- [ ] Phase: IMPLEMENTATION_WITH_SELF_PLAN (in progress).
 - [ ] Phase: IMPLEMENTATION_REVIEW.
 - [ ] Phase: IMPLEMENTATION_ITERATION.
 - [ ] Final commit + changelog + ticket close.
+
+## Phase agents
+- IMPLEMENTATION_WITH_SELF_PLAN: a94af27a434dcb498 (running) → IMPLEMENTATION_WITH_SELF_PLAN__PUBLIC.md
 
 ## Explore agents
 - layout: aa5c16c1ecfeae0be → EXPLORATION_layout.md

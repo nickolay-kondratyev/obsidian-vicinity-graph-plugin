@@ -49,6 +49,16 @@ describe("PersistedShapes.parsePluginData", () => {
 		const raw = { version: PERSISTED_SHAPE_VERSION, globalView: { layoutMode: "force" } };
 		expect(PersistedShapes.parsePluginData(raw).globalView.layoutMode).toBe("force");
 	});
+
+	it("WHEN globalView carries edgeRouting=true THEN it survives (default is false)", () => {
+		const raw = { version: PERSISTED_SHAPE_VERSION, globalView: { edgeRouting: true } };
+		expect(PersistedShapes.parsePluginData(raw).globalView.edgeRouting).toBe(true);
+	});
+
+	it("WHEN globalView carries a non-boolean edgeRouting THEN the default (false) survives", () => {
+		const raw = { version: PERSISTED_SHAPE_VERSION, globalView: { edgeRouting: "yes" } };
+		expect(PersistedShapes.parsePluginData(raw).globalView.edgeRouting).toBe(false);
+	});
 });
 
 describe("PersistedShapes sizing parsing", () => {

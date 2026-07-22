@@ -3,6 +3,7 @@ import type { Edge, EdgeProps } from "@xyflow/react";
 import type { ReactElement } from "react";
 import { linkCountBadgeText } from "./badgeText";
 import { edgePathFor } from "./edgeGeometry";
+import type { RoutedPoint } from "./edgeRouting";
 
 /**
  * Directed graph edge (step-05): straight line with an arrowhead normally;
@@ -27,6 +28,12 @@ export type VicinityEdgeData = {
 	readonly hasOpposite: boolean;
 	/** Group-collapsed edge unioning both directions: draw a second arrowhead at the source. */
 	readonly bidirectional: boolean;
+	/**
+	 * Obstacle-avoiding polyline in ABSOLUTE flow-space (no transform needed — RF
+	 * edge endpoints are absolute too). Present only when edge routing is on and
+	 * the pass succeeded. NOT consumed by rendering yet (ticket edge-routing__02).
+	 */
+	readonly routedPoints?: readonly RoutedPoint[];
 };
 
 export type VicinityEdgeType = Edge<VicinityEdgeData, "vicinity">;

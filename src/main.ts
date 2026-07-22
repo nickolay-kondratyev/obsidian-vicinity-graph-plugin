@@ -15,9 +15,6 @@ import { PersistenceServices } from "./persistence/PersistenceServices";
 import { PluginDataStore } from "./persistence/PluginDataStore";
 import { VicinityGraphSettingTab } from "./view/VicinityGraphSettingTab";
 import { VicinityGraphView, VIEW_TYPE_VICINITY_GRAPH } from "./view/VicinityGraphView";
-// THROWAWAY imports — Phase 0 spike (ticket edge-routing__00-wasm-spike). Remove in Phase 1.
-import { loadAvoid } from "./view/libavoidLoader";
-import { runNestedScenario, runObstacleScenario, runStressLoop } from "./view/libavoidSpike";
 
 // manifest.json minAppVersion WHY: 1.12.4 is the first PUBLIC Obsidian release where
 // canvas backlinks are core-indexed (resolvedLinks/graph; EA 1.12.0, 2026-02). It is a
@@ -87,14 +84,6 @@ export default class VicinityGraphPlugin extends Plugin {
 			id: "debug-log-vicinity-graph",
 			name: "Debug: log vicinity graph for active file",
 			callback: () => void this.logVicinityGraph(),
-		});
-		// THROWAWAY — Phase 0 spike command for ticket edge-routing__00-wasm-spike
-		// (nid_pgsj1vjjnmtflf55a4sd9txos_e). Proves the base64/data-URL wasm loads
-		// OFFLINE inside real Obsidian/Electron and routes. Remove in Phase 1.
-		this.addCommand({
-			id: "debug-spike-libavoid-routing",
-			name: "Debug: spike libavoid edge routing",
-			callback: () => void this.spikeLibavoidRouting(),
 		});
 	}
 
@@ -173,41 +162,6 @@ export default class VicinityGraphPlugin extends Plugin {
 					}),
 			SWEEP_DELAY_MS,
 		);
-	}
-
-	/**
-	 * THROWAWAY — Phase 0 spike (ticket edge-routing__00-wasm-spike). Loads the
-	 * embedded libavoid wasm OFFLINE via the base64/data-URL path, runs the three
-	 * routing scenarios, logs a summary, and stashes the structured result on
-	 * `window.__vicinitySpikeResult` so the e2e harness can assert on it. Remove in Phase 1.
-	 */
-	private async spikeLibavoidRouting(): Promise<void> {
-		const STRESS_ITERATIONS = 100;
-		try {
-			const avoid = await loadAvoid();
-			const obstacle = runObstacleScenario(avoid);
-			const nested = runNestedScenario(avoid);
-			const stress = runStressLoop(avoid, STRESS_ITERATIONS);
-			const result = {
-				ok: true,
-				loadPath: "data-url" as const,
-				obstacle,
-				nested,
-				stress,
-			};
-			(window as unknown as { __vicinitySpikeResult?: unknown }).__vicinitySpikeResult = result;
-			console.log(
-				`vicinity-graph spike: OK loadPath=[data-url] a.pointCount=[${obstacle.pointCount}] a.avoidsObstacle=[${!obstacle.anyPointInsideObstacle}] b.pointCount=[${nested.pointCount}] b.startsAtChildCentre=[${nested.startsAtChildCentre}] b.avoidsOutside=[${nested.avoidsOutsideObstacle}] c.completed=[${stress.completed}/${STRESS_ITERATIONS}]`,
-			);
-			console.log("vicinity-graph spike: full result", result);
-		} catch (error: unknown) {
-			const message = error instanceof Error ? error.message : String(error);
-			(window as unknown as { __vicinitySpikeResult?: unknown }).__vicinitySpikeResult = {
-				ok: false,
-				error: message,
-			};
-			console.error("vicinity-graph spike: FAILED", error);
-		}
 	}
 
 	/** Step-03 exit-criterion harness: proves a real vault renders through ObsidianLinkProvider. */

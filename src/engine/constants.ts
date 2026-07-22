@@ -39,6 +39,13 @@ export const DEFAULT_EDGE_VISIBILITY: EdgeVisibilityMode = "walked-from-center";
  */
 export const DEFAULT_LAYOUT_MODE: LayoutMode = "force";
 
+/**
+ * Obstacle-avoiding edge routing ships OFF by default: it is opt-in until the
+ * render pass (ticket edge-routing__02) and default-ON decision (edge-routing__03)
+ * land. When OFF the routing pass never runs and the libavoid wasm never loads.
+ */
+export const DEFAULT_EDGE_ROUTING = false;
+
 const DEFAULT_METRIC_WEIGHT = 1;
 
 /** Stateless factory for default settings shapes (used by tests and step-03 seeding). */
@@ -72,6 +79,7 @@ export class EngineDefaults {
 			groupByFolder: true,
 			edgeVisibility: DEFAULT_EDGE_VISIBILITY,
 			layoutMode: DEFAULT_LAYOUT_MODE,
+			edgeRouting: DEFAULT_EDGE_ROUTING,
 			sizing: EngineDefaults.sizingSettings(),
 		};
 	}

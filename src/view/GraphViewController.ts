@@ -7,6 +7,8 @@ import { decideActiveFileRebuild } from "./RebuildDecision";
 import { vicinityGraphToElk, extractElkDimensionsById, extractElkPositions } from "./elkMapping";
 import { vicinityGraphToFlow, withGroupDimensions, withPositions } from "./flowMapping";
 import type { Dimensions, FlowEdge, FlowGraph, FlowNode, XY } from "./flowMapping";
+import { extractEdgeRoutingInput } from "./edgeRouting";
+import type { EdgeRouteMap, EdgeRouter, EdgeRoutingInput } from "./edgeRouting";
 import { isFolderGroupId } from "./graphIdentity";
 import { NO_ORPHAN_TRUNCATION } from "./truncationBadges";
 import type { OrphanTruncation } from "./truncationBadges";
@@ -63,6 +65,9 @@ const EMPTY_SNAPSHOT: FlowSnapshot = {
 	layoutVersion: 0,
 };
 
+/** Shared empty route map = every edge stays straight (routing off or failed). */
+const EMPTY_ROUTES: EdgeRouteMap = new Map();
+
 type Subscriber = () => void;
 
 export class GraphViewController {
@@ -82,11 +87,21 @@ export class GraphViewController {
 	private debounceTimer: number | null = null;
 	/** Never reset — monotonicity lets the render layer diff it safely across empty gaps. */
 	private layoutVersion = 0;
+	/**
+	 * Cached routed polylines keyed by a signature of the routing inputs
+	 * (obstacles + edges). Reused when the signature is unchanged so a reuse-layout
+	 * rebuild never re-runs libavoid; dropped on any input change or when routing is
+	 * off (so a later edge-routing flip recomputes without forcing an elk relayout).
+	 */
+	private routeCache: { readonly signature: string; readonly routes: EdgeRouteMap } | null = null;
+	/** The pass-level routing failure is logged at most once per controller — no per-rebuild spam. */
+	private routingFailureWarned = false;
 
 	constructor(
 		private readonly navigator: NoteNavigatorPort,
 		private readonly graphBuilder: GraphSourcePort,
 		private readonly layoutRunner: GraphLayoutPort,
+		private readonly edgeRouter: EdgeRouter,
 	) {}
 
 	// --- external store (React `useSyncExternalStore`) ---------------------
@@ -180,18 +195,74 @@ export class GraphViewController {
 		this.controls = result.controls;
 		const decision = decideLayout(this.previousGraph, graph, SIZE_RELAYOUT_THRESHOLD);
 		const flow = vicinityGraphToFlow(graph, result.controls.mainPinned);
+		let positions: ReadonlyMap<string, XY>;
+		let groupDimensions: ReadonlyMap<string, Dimensions>;
 		if (decision === "reuse-layout") {
 			// No structural change: keep positions and group sizes, refresh node data only.
 			console.debug("vicinity-graph: structural diff skipped elk layout (data-only refresh)");
-			this.publish(graph, this.positions, this.groupDimensions, flow);
-			return;
+			positions = this.positions;
+			groupDimensions = this.groupDimensions;
+		} else {
+			const laidOut = await this.layoutRunner.layout(vicinityGraphToElk(graph));
+			if (this.isStale(token)) {
+				return;
+			}
+			this.layoutVersion += 1;
+			positions = extractElkPositions(laidOut);
+			groupDimensions = extractElkDimensionsById(laidOut);
 		}
-		const laidOut = await this.layoutRunner.layout(vicinityGraphToElk(graph));
+		// Route AFTER layout, BEFORE publish: obstacles need final absolute positions.
+		const routes = await this.resolveRoutes(graph, flow, positions, groupDimensions, token);
 		if (this.isStale(token)) {
 			return;
 		}
-		this.layoutVersion += 1;
-		this.publish(graph, extractElkPositions(laidOut), extractElkDimensionsById(laidOut), flow);
+		this.publish(graph, positions, groupDimensions, withRoutedPoints(flow, routes));
+	}
+
+	/**
+	 * Obstacle-avoiding routes for this build, or an empty map = straight edges.
+	 * Gated by the `edgeRouting` view setting (OFF ⇒ router never invoked, wasm
+	 * never loads). Caches by an input signature so a reuse-layout rebuild with
+	 * unchanged obstacles/edges reuses the previous pass instead of re-running
+	 * libavoid. A wasm-init/routing failure is contained here: warn ONCE, return
+	 * empty (single documented pass-level fallback — no per-edge silent fallbacks).
+	 */
+	private async resolveRoutes(
+		graph: VicinityGraph,
+		flow: FlowGraph,
+		positions: ReadonlyMap<string, XY>,
+		groupDimensions: ReadonlyMap<string, Dimensions>,
+		token: number,
+	): Promise<EdgeRouteMap> {
+		if (!graph.viewSettings.edgeRouting) {
+			this.routeCache = null;
+			return EMPTY_ROUTES;
+		}
+		const input = extractEdgeRoutingInput({
+			nodes: flow.nodes,
+			edges: flow.edges,
+			positions,
+			groupDimensions,
+		});
+		const signature = routingSignature(input);
+		if (this.routeCache !== null && this.routeCache.signature === signature) {
+			return this.routeCache.routes;
+		}
+		try {
+			const routes = await this.edgeRouter.route(input);
+			if (this.isStale(token)) {
+				return EMPTY_ROUTES;
+			}
+			this.routeCache = { signature, routes };
+			return routes;
+		} catch (error: unknown) {
+			if (!this.routingFailureWarned) {
+				this.routingFailureWarned = true;
+				console.warn("vicinity-graph: edge routing failed; rendering straight edges", error);
+			}
+			this.routeCache = null;
+			return EMPTY_ROUTES;
+		}
 	}
 
 	private isStale(token: number): boolean {
@@ -243,4 +314,40 @@ export class GraphViewController {
 			this.debounceTimer = null;
 		}
 	}
+}
+
+/** Field separator for the route-cache signature — a NUL cannot occur in a vault path / id. */
+const ROUTE_SIGNATURE_SEPARATOR = "\u0000";
+
+/**
+ * A stable string over every routing input (obstacle geometry + edge endpoints).
+ * Two builds with the same obstacles/edges produce the same signature, so the
+ * route cache reuses the previous pass instead of re-running libavoid. Insertion
+ * order is deterministic (flow node/edge order is stable for a given graph).
+ */
+function routingSignature(input: EdgeRoutingInput): string {
+	const obstacles = input.obstacles.map(
+		(o) => `${o.id}:${o.x},${o.y},${o.widthPx},${o.heightPx}`,
+	);
+	const edges = input.edges.map((e) => `${e.id}:${e.sourceId}->${e.targetId}`);
+	return [obstacles.join(ROUTE_SIGNATURE_SEPARATOR), edges.join(ROUTE_SIGNATURE_SEPARATOR)].join(
+		ROUTE_SIGNATURE_SEPARATOR,
+	);
+}
+
+/**
+ * Attaches routed polylines to the flow edges before publish. Edges absent from
+ * the map keep straight rendering (no `routedPoints`); an empty map is a no-op.
+ */
+function withRoutedPoints(flow: FlowGraph, routes: EdgeRouteMap): FlowGraph {
+	if (routes.size === 0) {
+		return flow;
+	}
+	return {
+		...flow,
+		edges: flow.edges.map((edge) => {
+			const routedPoints = routes.get(edge.id);
+			return routedPoints === undefined ? edge : { ...edge, routedPoints };
+		}),
+	};
 }

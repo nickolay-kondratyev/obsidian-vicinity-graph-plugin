@@ -178,6 +178,15 @@ function toReactFlowEdge(edge: FlowEdge): Edge {
 		target: edge.target,
 		type: "vicinity",
 		// Arrowhead is drawn by VicinityEdge (inset from the target), not RF's marker-end.
-		data: { count: edge.count, hasOpposite: edge.hasOpposite, bidirectional: edge.bidirectional },
+		// routedPoints are ABSOLUTE flow-space coordinates: RF re-derives each node's
+		// absolute rect (even subflow children) for edge endpoints, so the routed
+		// polyline needs NO coordinate transform to render (ticket decision #2). Threaded
+		// unused this phase — VicinityEdge starts consuming it in edge-routing__02.
+		data: {
+			count: edge.count,
+			hasOpposite: edge.hasOpposite,
+			bidirectional: edge.bidirectional,
+			...(edge.routedPoints === undefined ? {} : { routedPoints: edge.routedPoints }),
+		},
 	};
 }

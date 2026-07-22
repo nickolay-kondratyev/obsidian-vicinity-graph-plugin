@@ -7,7 +7,8 @@ import { GraphViewController } from "./GraphViewController";
 import type { FlowSnapshot } from "./GraphViewController";
 import type { ControlsModel } from "./ControlsModel";
 import type { GraphBuildResult, GraphLayoutPort, GraphSourcePort, NoteNavigatorPort, OpenNoteOptions } from "./viewPorts";
-import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
+import type { EdgeRouteMap, EdgeRouter, EdgeRoutingInput } from "./edgeRouting";
+import { makeEdge, makeGraph, makeNode, withEdgeRouting } from "./testFixtures/graphFixtures";
 
 /** These tests exercise rebuild concurrency, not the toolbar model — an empty model suffices. */
 const EMPTY_CONTROLS: ControlsModel = {
@@ -79,6 +80,30 @@ class FakeLayout implements GraphLayoutPort {
 	}
 }
 
+/**
+ * Records every `route(input)` and returns a preset response — a route map, or an
+ * Error to throw (failure-fallback tests). Default response is empty (no routing).
+ */
+class FakeEdgeRouter implements EdgeRouter {
+	callCount = 0;
+	lastInput: EdgeRoutingInput | null = null;
+
+	constructor(private response: EdgeRouteMap | Error = new Map()) {}
+
+	setResponse(response: EdgeRouteMap | Error): void {
+		this.response = response;
+	}
+
+	async route(input: EdgeRoutingInput): Promise<EdgeRouteMap> {
+		this.callCount += 1;
+		this.lastInput = input;
+		if (this.response instanceof Error) {
+			throw this.response;
+		}
+		return this.response;
+	}
+}
+
 class FakeNavigator implements NoteNavigatorPort {
 	readonly opened: string[] = [];
 	readonly openedOptions: (OpenNoteOptions | undefined)[] = [];
@@ -99,15 +124,16 @@ interface Harness {
 	readonly source: FakeGraphSource;
 	readonly layout: FakeLayout;
 	readonly navigator: FakeNavigator;
+	readonly router: FakeEdgeRouter;
 	snapshot(): FlowSnapshot;
 }
 
-function setup(): Harness {
+function setup(router: FakeEdgeRouter = new FakeEdgeRouter()): Harness {
 	const source = new FakeGraphSource();
 	const layout = new FakeLayout();
 	const navigator = new FakeNavigator();
-	const controller = new GraphViewController(navigator, source, layout);
-	return { controller, source, layout, navigator, snapshot: () => controller.getSnapshot() };
+	const controller = new GraphViewController(navigator, source, layout, router);
+	return { controller, source, layout, navigator, router, snapshot: () => controller.getSnapshot() };
 }
 
 function nodeIds(snapshot: FlowSnapshot): string[] {
@@ -384,6 +410,109 @@ describe("GraphViewController structural-diff skip rate", () => {
 		}
 
 		expect(h.layout.callCount).toBe(1);
+	});
+});
+
+describe("GraphViewController edge-routing pass", () => {
+	/** A graph whose central links out to each neighbour, with the routing pass ON. */
+	function routedGraphOf(centralPath: string, ...neighbourPaths: string[]): VicinityGraph {
+		return withEdgeRouting(graphOf(centralPath, ...neighbourPaths), true);
+	}
+
+	function edgeById(snapshot: FlowSnapshot, id: string): FlowSnapshot["edges"][number] {
+		const edge = snapshot.edges.find((candidate) => candidate.id === id);
+		if (edge === undefined) {
+			throw new Error(`no edge ${id} in snapshot`);
+		}
+		return edge;
+	}
+
+	it("WHEN edgeRouting is OFF THEN the router is never invoked", async () => {
+		const h = setup();
+		h.controller.handleActiveFileChanged("a.md");
+		h.source.resolveBuild(0, graphOf("c.md", "n1.md")); // default settings: edgeRouting off
+		await flush();
+
+		expect(h.router.callCount).toBe(0);
+	});
+
+	it("WHEN routing succeeds THEN the route lands on the matching edge's routedPoints", async () => {
+		const route = [
+			{ x: 1, y: 2 },
+			{ x: 3, y: 4 },
+		];
+		const router = new FakeEdgeRouter(new Map([["c.md->n1.md", route]]));
+		const h = setup(router);
+		h.controller.handleActiveFileChanged("c.md");
+		h.source.resolveBuild(0, routedGraphOf("c.md", "n1.md", "n2.md"));
+		await flush();
+
+		expect(edgeById(h.snapshot(), "c.md->n1.md").routedPoints).toEqual(route);
+	});
+
+	it("WHEN an edge is absent from the route map THEN its routedPoints stays undefined", async () => {
+		const router = new FakeEdgeRouter(new Map([["c.md->n1.md", [{ x: 1, y: 2 }]]]));
+		const h = setup(router);
+		h.controller.handleActiveFileChanged("c.md");
+		h.source.resolveBuild(0, routedGraphOf("c.md", "n1.md", "n2.md"));
+		await flush();
+
+		expect(edgeById(h.snapshot(), "c.md->n2.md").routedPoints).toBeUndefined();
+	});
+
+	it("WHEN the router throws THEN edges publish without routedPoints (straight-edge fallback)", async () => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+		const h = setup(new FakeEdgeRouter(new Error("wasm boom")));
+		h.controller.handleActiveFileChanged("c.md");
+		h.source.resolveBuild(0, routedGraphOf("c.md", "n1.md"));
+		await flush();
+
+		expect(edgeById(h.snapshot(), "c.md->n1.md").routedPoints).toBeUndefined();
+		warn.mockRestore();
+	});
+
+	it("WHEN the router throws on repeated rebuilds THEN it warns exactly once", async () => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+		const h = setup(new FakeEdgeRouter(new Error("wasm boom")));
+		h.controller.handleActiveFileChanged("c.md");
+		h.source.resolveBuild(0, routedGraphOf("c.md", "n1.md"));
+		await flush();
+
+		h.controller.handleActiveFileChanged("d.md"); // different structure → relayout → routes again → throws again
+		h.source.resolveBuild(1, routedGraphOf("d.md", "n1.md", "n2.md"));
+		await flush();
+
+		expect(warn).toHaveBeenCalledTimes(1);
+		warn.mockRestore();
+	});
+
+	it("WHEN a reuse-layout rebuild has unchanged inputs THEN routes are cached (router invoked once)", async () => {
+		const router = new FakeEdgeRouter(new Map([["c.md->n1.md", [{ x: 1, y: 2 }]]]));
+		const h = setup(router);
+		h.controller.handleActiveFileChanged("c.md");
+		h.source.resolveBuild(0, routedGraphOf("c.md", "n1.md"));
+		await flush();
+
+		h.controller.handleSettingsChanged(); // identical id-set → reuse-layout, unchanged routing inputs
+		h.source.resolveBuild(1, routedGraphOf("c.md", "n1.md"));
+		await flush();
+
+		expect(h.router.callCount).toBe(1);
+	});
+
+	it("WHEN a reuse-layout rebuild reuses cached routes THEN the edge still carries them", async () => {
+		const route = [{ x: 1, y: 2 }];
+		const router = new FakeEdgeRouter(new Map([["c.md->n1.md", route]]));
+		const h = setup(router);
+		h.controller.handleActiveFileChanged("c.md");
+		h.source.resolveBuild(0, routedGraphOf("c.md", "n1.md"));
+		await flush();
+
+		h.controller.handleSettingsChanged();
+		h.source.resolveBuild(1, routedGraphOf("c.md", "n1.md"));
+		await flush();
+
+		expect(edgeById(h.snapshot(), "c.md->n1.md").routedPoints).toEqual(route);
 	});
 });
 

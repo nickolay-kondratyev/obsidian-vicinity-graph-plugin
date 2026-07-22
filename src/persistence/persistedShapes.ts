@@ -130,6 +130,10 @@ function parseViewOverride(raw: unknown): ViewSettingsOverride {
 			typeof raw["groupByFolder"] === "boolean" ? raw["groupByFolder"] : undefined,
 		),
 		...definedOnly(
+			"edgeRouting",
+			typeof raw["edgeRouting"] === "boolean" ? raw["edgeRouting"] : undefined,
+		),
+		...definedOnly(
 			"edgeVisibility",
 			EDGE_VISIBILITY_MODES.find((mode) => mode === edgeVisibility),
 		),

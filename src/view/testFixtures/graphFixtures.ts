@@ -42,6 +42,7 @@ function makeViewSettings(): ViewSettings {
 		groupByFolder: true,
 		edgeVisibility: "walked-from-center",
 		layoutMode: "layered",
+		edgeRouting: false,
 		sizing: {
 			metrics: {
 				"own-file-size": { enabled: true, weight: 1 },
@@ -70,4 +71,9 @@ export function makeGraph(overrides: Partial<VicinityGraph> = {}): VicinityGraph
 /** The same graph under a different layout mode (radial/force tests opt in per case). */
 export function withLayoutMode(graph: VicinityGraph, layoutMode: LayoutMode): VicinityGraph {
 	return { ...graph, viewSettings: { ...graph.viewSettings, layoutMode } };
+}
+
+/** The same graph with the obstacle-avoiding edge-routing pass toggled (default OFF). */
+export function withEdgeRouting(graph: VicinityGraph, edgeRouting: boolean): VicinityGraph {
+	return { ...graph, viewSettings: { ...graph.viewSettings, edgeRouting } };
 }

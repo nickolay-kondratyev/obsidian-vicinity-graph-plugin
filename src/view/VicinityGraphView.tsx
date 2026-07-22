@@ -7,6 +7,7 @@ import type { VicinityGraphBuilder } from "../adapters/VicinityGraphBuilder";
 import type { PersistenceServices } from "../persistence/PersistenceServices";
 import type { PluginDataStore } from "../persistence/PluginDataStore";
 import { ControlsActions } from "./ControlsActions";
+import { LibavoidEdgeRouter } from "./edgeRouting";
 import { GraphLayoutRunner } from "./GraphLayoutRunner";
 import { GraphViewController } from "./GraphViewController";
 import { VicinityGraphFlow } from "./VicinityGraphFlow";
@@ -51,7 +52,12 @@ export class VicinityGraphView extends ItemView {
 
 	async onOpen(): Promise<void> {
 		const navigator = new ObsidianNoteNavigator(this.app);
-		const controller = new GraphViewController(navigator, this.graphBuilder, new GraphLayoutRunner());
+		const controller = new GraphViewController(
+			navigator,
+			this.graphBuilder,
+			new GraphLayoutRunner(),
+			new LibavoidEdgeRouter(),
+		);
 		const ui = new ObsidianGraphUi(this.app, VIEW_TYPE_VICINITY_GRAPH);
 		this.controller = controller;
 		const controlsActions = new ControlsActions(controller, this.persistenceServices, this.pluginDataStore, this.app);
