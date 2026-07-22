@@ -61,4 +61,27 @@ interior" test. `EDGE_ARROWHEAD_INSET_MIN/MAX/FRACTION` unchanged.
    read the group node's flow-space rect from its `.react-flow__node` inline `translate()` + offset size
    (same coordinate space as the edge path `d`) to avoid viewport-transform math.
 
+## ITERATION 1 — REVIEW feedback (APPROVE-WITH-MINOR)
+
+`npm run check` PASS (tsc exit 0) · `npm test` 658 PASS (was 657, +1 new test).
+
+### MINOR #1 ACCEPTED — direct folder-group controller clip test (the HEADLINE scenario, ticket §4)
+Added to `src/view/GraphViewController.test.ts`:
+- `FakeLayout` now sizes folder-group CONTAINERS (`FAKE_GROUP_WIDTH_PX=150 × FAKE_GROUP_HEIGHT_PX=100`).
+  Elk wraps containers to a real box; the prior fake left them unsized, so a group never became a
+  routing obstacle. 150px (≠ the 100px note square) makes a terminus at x=150 unambiguously the
+  GROUP boundary. No existing test asserts group dimensions → no regression.
+- New `collapsedGroupGraph()` fixture (c.md → 2-member `notes` folder) whose engine edge collapses
+  to `c.md->folder-group:notes`. The FakeEdgeRouter feeds a raw route that runs from c.md's centre
+  THROUGH the group interior to the group centre; the test asserts the attached `routedPoints`
+  terminus is clipped to the group's right border **x=150** (derived from `groupDimensions` via the
+  REAL `extractEdgeRoutingInput` folder-group branch), NOT the interior centre x=75. This closes the
+  coverage gap: the note→note test never exercised the `node.kind === "folder-group"` obstacle path.
+
+### MINOR #2 REJECTED — `isStrictlyInside` test-local duplication (nit)
+Rejected. The reviewer rated it "acceptable; noting only". DRYing by reusing the production
+predicate would make the assertion circular (checking the clip's output with the same inside-test
+the clip uses), which undercuts the independent-geometric-guarantee goal; and a 3-line pure helper
+across 2 test files does not warrant a shared test-helper module (KISS/PARETO). No change.
+
 ## No #QUESTION_FOR_HUMAN items.

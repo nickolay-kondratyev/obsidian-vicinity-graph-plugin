@@ -74,4 +74,34 @@ flakier coverage. Ticket explicitly permits this downgrade. Screenshot capture a
 `.tmp/check.log` (tsc, exit 0), `.tmp/test.log` (657 pass), `.tmp/newtests.log` (73 pass),
 `.tmp/e2e.log` (4 pass).
 
+## ITERATION 1 (REVIEW feedback — APPROVE-WITH-MINOR, 2 minors)
+
+### MINOR #1 ACCEPTED — direct folder-group controller clip test (ticket §4 acceptance criterion)
+`src/view/GraphViewController.test.ts`:
+- Enhanced shared `FakeLayout.layout` (~line 73): a top-level child that carries `children`
+  (a folder-group container) now also gets a fixed box `FAKE_GROUP_WIDTH_PX=150` ×
+  `FAKE_GROUP_HEIGHT_PX=100` (new consts). Faithful to elk (it wraps containers; the prior
+  fake left them UNSIZED so `extractElkDimensionsById` emitted nothing for the group and the
+  obstacle was skipped). Width 150 ≠ 100px note square so a terminus at x=150 is UNMISTAKABLY
+  the group boundary. Leaves unchanged (they already echo their engine square). No existing
+  test asserts group dimensions → safe (step-05 richGraph tests still green).
+- New fixture `collapsedGroupGraph()` in the edge-routing describe: c.md (root, ungrouped) +
+  notes/a.md, notes/b.md (folder "notes", 2 members → groups), edge c.md→notes/a.md, routing ON.
+  buildFlowEdges collapses it to `c.md->folder-group:notes`.
+- New test: FakeEdgeRouter returns raw route [{250,50},{100,50},{75,50}] (c.md centre → THROUGH
+  group interior → group centre). Group obstacle [0..150]x[0..100] comes from the REAL
+  `extractEdgeRoutingInput` folder-group branch (reads groupDimensions) — the branch the
+  note→note test never exercised. Asserts clipped `routedPoints` == [{200,50},{150,50}]: source
+  clipped to c.md left border x=200, target clipped to GROUP right border x=150 (NOT the interior
+  centre 75). One-assert toEqual, same rigor as the note→note test.
+
+### MINOR #2 REJECTED — `isStrictlyInside` test-local duplication (edgeGeometry.test.ts:129)
+Rationale: (1) the reviewer rated it "acceptable; noting only"; (2) DRYing via exporting the
+production `isStrictlyInsideRect` would make the assertion CIRCULAR (validate the clip's output
+with the same predicate the clip uses to decide inside-ness) — the reviewer's own "genuine
+geometric guarantee" bar argues for an INDEPENDENT test predicate; (3) a 3-line pure helper used
+across 2 test files does not justify a shared test-helper module (KISS/PARETO — over-engineering).
+
+### Verify (iteration): `.tmp/check2.log` tsc exit 0 · `.tmp/test2.log` 658 pass (54 files, +1).
+
 ## Nothing half-done. Not committed (TOP_LEVEL_AGENT commits).

@@ -69,13 +69,30 @@ class FakeGraphSource implements GraphSourcePort {
 	}
 }
 
+/**
+ * Fixed box FakeLayout stamps on a folder-group container. Elk sizes a container
+ * to wrap its children; the fake gives it a deterministic, DISTINCT box (width
+ * differs from the 100px note square) so a terminus clipped to the group's right
+ * edge (x = FAKE_GROUP_WIDTH_PX) is unmistakably the GROUP boundary — derived from
+ * groupDimensions — and not a note boundary.
+ */
+const FAKE_GROUP_WIDTH_PX = 150;
+const FAKE_GROUP_HEIGHT_PX = 100;
+
 /** Lays children out at deterministic, distinct coordinates and counts invocations. */
 class FakeLayout implements GraphLayoutPort {
 	callCount = 0;
 
 	async layout(graph: ElkNode): Promise<ElkNode> {
 		this.callCount += 1;
-		const children = (graph.children ?? []).map((child, index) => ({ ...child, x: index * 200, y: 0 }));
+		const children = (graph.children ?? []).map((child, index) => {
+			const placed = { ...child, x: index * 200, y: 0 };
+			// A folder-group container carries `children`; elk sizes it to wrap them.
+			// Leaves already echo their engine square, so only containers get a box here.
+			return child.children === undefined
+				? placed
+				: { ...placed, width: FAKE_GROUP_WIDTH_PX, height: FAKE_GROUP_HEIGHT_PX };
+		});
 		return { ...graph, children };
 	}
 }
@@ -480,6 +497,49 @@ describe("GraphViewController edge-routing pass", () => {
 		expect(edgeById(h.snapshot(), "c.md->n1.md").routedPoints).toEqual([
 			{ x: 100, y: 50 },
 			{ x: 200, y: 50 },
+		]);
+	});
+
+	/**
+	 * A central root note linking into a 2-member `notes` folder that renders as ONE
+	 * collapsed group box. The engine edge c.md→notes/a.md collapses to the group
+	 * edge `c.md->folder-group:notes` — the HEADLINE scenario this ticket clips.
+	 */
+	function collapsedGroupGraph(): VicinityGraph {
+		return withEdgeRouting(
+			makeGraph({
+				nodes: [
+					makeNode({ path: asVaultPath("c.md") }),
+					makeNode({ path: asVaultPath("notes/a.md"), folder: asFolderPath("notes") }),
+					makeNode({ path: asVaultPath("notes/b.md"), folder: asFolderPath("notes") }),
+				],
+				edges: [makeEdge("c.md", "notes/a.md")],
+			}),
+			true,
+		);
+	}
+
+	it("WHEN a collapsed edge's route ends at the GROUP box centre THEN its terminus is clipped to the group boundary, not inside it", async () => {
+		// FakeLayout lays the `notes` folder-group container out at index 0 → box
+		// [0..150]x[0..100] (150px wide, centre 75,50, sized from groupDimensions) and
+		// the ungrouped central c.md at index 1 → box [200..300]x[0..100] (centre 250,50).
+		// The raw route runs from c.md's centre THROUGH the group interior to the group
+		// centre; clipping must pull the group-side terminus back to the group's right
+		// edge (x=150), never leaving it at the interior centre (x=75).
+		const throughGroupInterior = [
+			{ x: 250, y: 50 }, // c.md centre (source end)
+			{ x: 100, y: 50 }, // inside the group box
+			{ x: 75, y: 50 }, // group centre (target end)
+		];
+		const router = new FakeEdgeRouter(new Map([["c.md->folder-group:notes", throughGroupInterior]]));
+		const h = setup(router);
+		h.controller.handleActiveFileChanged("c.md");
+		h.source.resolveBuild(0, collapsedGroupGraph());
+		await flush();
+
+		expect(edgeById(h.snapshot(), "c.md->folder-group:notes").routedPoints).toEqual([
+			{ x: 200, y: 50 }, // clipped to c.md's left border (source)
+			{ x: 150, y: 50 }, // clipped to the GROUP's right border (target), not the interior 75
 		]);
 	});
 
