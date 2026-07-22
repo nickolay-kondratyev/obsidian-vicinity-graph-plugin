@@ -7,7 +7,7 @@ links: []
 created_iso: 2026-07-21T19:47:00Z
 status_updated_iso: 2026-07-21T19:47:00Z
 type: task
-priority: 2
+priority: 3
 assignee: CC_WITH-nickolaykondratyev
 ---
 

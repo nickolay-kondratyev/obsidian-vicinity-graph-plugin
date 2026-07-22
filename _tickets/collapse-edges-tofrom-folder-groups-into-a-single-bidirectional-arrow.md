@@ -1,7 +1,7 @@
 ---
 id: nid_hxvixo4srwy6t2gsy7v4ef4uj_E
 title: "Collapse edges to/from folder groups into a single (bidirectional) arrow"
-status: open
+status: closed
 deps: []
 links: []
 created_iso: 2026-07-21T22:25:51Z
