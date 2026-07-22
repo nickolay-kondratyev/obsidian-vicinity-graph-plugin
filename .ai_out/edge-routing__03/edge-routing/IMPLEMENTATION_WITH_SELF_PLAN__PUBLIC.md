@@ -89,8 +89,8 @@ Recorded here AND in the CHANGELOG entry (not silently skipped). `isDesktopOnly:
 unchanged.
 
 ## main.js size
-Production `main.js` = **2,610,230 B**. Pre-routing Phase-00 baseline 1,877,709 B ⇒
-**+732,521 B (~+715 KiB)**, essentially all the base64-embedded libavoid wasm; the
+Production `main.js` = **2,610,310 B**. Pre-routing Phase-00 baseline 1,877,709 B ⇒
+**+732,601 B (~+715 KiB)**, essentially all the base64-embedded libavoid wasm; the
 Phase-3 source delta over Phase 2 is ~3 KB.
 
 ## Screenshots (gitignored, under /.out) — read & verified clean

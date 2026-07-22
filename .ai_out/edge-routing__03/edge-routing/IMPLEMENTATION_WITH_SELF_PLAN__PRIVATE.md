@@ -9,6 +9,9 @@
 - main.js current size: 2,609,836 B.
 - Version stays 0.1.1 across manifest/package/versions — phase 0/1/2 did NOT bump per-phase; RELEASE_CHECKLIST bumps at release cut. LEAVE version alone, note it.
 
+## STATUS: COMPLETE + ITERATION converged (pending orchestrator commit). Review APPROVE-WITH-MINOR, 0 MUST/SHOULD.
+Iteration (see IMPLEMENTATION_ITERATION__PUBLIC.md): N1 timings→ticket = DELEGATED to orchestrator; N2 fixed waitForTimeout(4500) in eval spec = KEPT (eval/non-gating, added WHY comment); N3 stale main.js byte count in PUBLIC = FIXED to 2,610,310 B. Re-verified: tsc 0, vitest 650/650, e2e tsc 0 (no e2e assertion touched → full e2e not re-run; last green 32/0).
+
 ## STATUS: COMPLETE incl. radial-gate follow-up (pending orchestrator commit). All items 1-6 + gate done.
 Final verification: tsc EXIT 0; vitest 650 passed/54 files; full e2e 32 passed/0 failed; prod build green, main.js=2,610,310 B.
 #QUESTION RESOLVED (human): routing gated OFF for layoutMode==="radial". Gate = `ROUTING_SKIPPED_LAYOUT_MODE`/`isRoutingSkippedLayout` in GraphViewController.ts, checked in resolveRoutes beside the edgeRouting OFF gate. Radial e2e now asserts 0 bends; new controller unit test asserts router never invoked under radial; eval radial asserts routingMs undefined. Docs (arrows.md §5, CHANGELOG) say force+layered route, radial excluded.

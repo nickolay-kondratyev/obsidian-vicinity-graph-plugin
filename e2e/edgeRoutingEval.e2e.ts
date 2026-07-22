@@ -102,8 +102,13 @@ async function renderFixture(mode: LayoutMode, centralPath: string): Promise<Per
 	await harness.openFile(BOUNCE_PATH);
 	await harness.openFile(centralPath);
 	await expect(page.locator(EDGE_PATH_SELECTOR).first()).toBeAttached();
-	// Settle window must exceed the SLOWEST layout (force on the dense fixture is
-	// ~1.5s) so its trailing routing pass is logged before we read the entries.
+	// Fixed settle window that exceeds the SLOWEST layout (force on the dense fixture
+	// is ~1.5s) so its trailing routing pass is logged before we read the entries.
+	// Deliberately a fixed wait, not a condition poll: this is an EVAL/measurement
+	// spec (see file header), not a gating regression, and the timing/screenshot
+	// readout has no crisp DOM signal to poll on — a generous fixed window keeps it
+	// simple. The committed perf-BUDGET assertion below has a ~10x margin, so this is
+	// not timing-brittle.
 	await page.waitForTimeout(4500);
 	const entries = (await Promise.all(pendingPerf)).filter((e): e is PerfEntry => e !== null);
 	return entries;

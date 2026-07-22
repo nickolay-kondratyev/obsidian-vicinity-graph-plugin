@@ -16,4 +16,5 @@ Workflow: IMPLEMENTATION_WITH_SELF_PLAN → IMPLEMENTATION_REVIEW → IMPLEMENTA
 - [done] Exploration: 2 Explore agents → EXPLORATION_PUBLIC.md. Committed 557c4b1.
 - [done] IMPLEMENTATION_WITH_SELF_PLAN complete. Full suite green (tsc 0, vitest 649, e2e 32, build OK). NOT committed yet.
 - [resolved] Perf gate → HUMAN DECISION: **gate routing to SKIP for radial layout** (spokes near-straight; routing not needed there). graphFixtures.ts-false decision accepted.
-- [in progress] IMPLEMENTATION_WITH_SELF_PLAN continued: add radial-skip gate + update affected tests (e2e radial now expects 0 bends) + docs + PUBLIC. Then commit → review.
+- [done] IMPLEMENTATION_WITH_SELF_PLAN + radial gate. Suite green (tsc 0, vitest 650, e2e 32). Committed f00a36e.
+- [in progress] IMPLEMENTATION_REVIEW launched (background, readonly).

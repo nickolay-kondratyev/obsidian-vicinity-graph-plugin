@@ -55,3 +55,14 @@ Graduate edge routing from "force layout, opt-in" to "all layout modes, on by de
 - Live re-routing during node drag (nodes are non-draggable today — `docs-internal/tickets/ticket-node-drag-reposition.md`).
 - Web-worker routing offload (only if phase-3 timing numbers justify it).
 
+
+## Notes
+
+**2026-07-22T18:55:52Z**
+
+Routing-pass timing (dense fixture ~100 nodes / ~292 edges, all-edges):
+- force  (default): routing ~137ms vs elk+d3 layout ~1494ms  -> well under (~9%).
+- layered:          routing ~172ms vs layout ~276ms          -> under.
+- radial:           GATED OFF (routingMs=undefined); layout ~45ms. Human decision: skip routing for radial (near-straight spokes, routing added ~490ms with no visual benefit). Web-worker offload remains deferred.
+main.js (production) = 2,610,310 B; +732,601 B (~715 KiB) over pre-routing baseline 1,877,709 B (embedded libavoid wasm).
+Mobile: NOT verified (no iOS/Android simulator available).
