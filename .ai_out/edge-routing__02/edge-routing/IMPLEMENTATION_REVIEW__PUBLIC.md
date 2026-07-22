@@ -33,3 +33,17 @@ None.
 
 ## Documentation updates needed
 None required. Ticket acceptance criteria are met (check clean, new geometry fully unit-tested, OFF unchanged, e2e asserts a bend + screenshots to gitignored `/.out`).
+
+## Confirmation re-review (commit `157058d`)
+
+**FINAL VERDICT: APPROVE. Converged.**
+
+All 4 non-blocking notes are satisfactorily resolved (all INCORPORATED, none rejected):
+1. **Zero-length segment NaN guard — RESOLVED, non-hacky.** New pure `distinctSegmentFrom` walks past duplicate waypoints to the nearest distinct neighbour; the `approachLength === 0` guard in `arrowFromApproach` provides a sound terminal fallback (all-coincident → flat anchor at endpoint, 0°, mirroring the degenerate `edgePathFor`). For normal routes it returns the immediate neighbour, so behavior is identical to before — no OFF/ON regression. The 5 new BDD tests genuinely reproduce-then-prevent the NaN (finite checks + correct tangent angles 0° / -90°), not an assertion-fudge.
+2. **Coord-space test overclaim — RESOLVED.** Name/comment softened to state it only proves the pure pass-through; assertions kept intact (not weakened/deleted).
+3. **`{@link}` doc nit — RESOLVED.** Replaced with a plain "~17px" reference + "same order of magnitude".
+4. **Weak OFF e2e baseline — RESOLVED.** `all-edges` visibility set once in `beforeAll` so both tests share the crossing-chord graph; OFF assertion is now a real guard.
+
+**Real results I re-verified:** `npm run check` (tsc -noEmit) exit 0, clean. `npm run test` (vitest) **646 passed / 54 files** (was 641; +5 new NaN tests, no pre-existing test lines removed). e2e not re-run here (needs Obsidian binary); implementer's 2/2 pass is credible.
+
+No new must-fix, no regression, no weakened pre-existing tests, no out-of-scope creep. **READY TO MERGE.**

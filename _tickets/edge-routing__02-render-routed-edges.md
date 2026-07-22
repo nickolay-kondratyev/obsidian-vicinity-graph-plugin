@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-22T17:54:17Z
 id: nid_82xnrearif6y7fcd80y5gprkc_e
 title: "edge-routing__02-render-routed-edges"
-status: open
+status: closed
 deps: [nid_pc87xabr7xi67c4qmht938r2o_e]
 links: []
 created_iso: 2026-07-22T16:04:58Z
-status_updated_iso: 2026-07-22T16:04:58Z
+status_updated_iso: 2026-07-22T17:54:17Z
 type: task
 priority: 1
 assignee: CC_WITH-nickolaykondratyev
@@ -53,3 +54,9 @@ DEPENDS ON: `edge-routing__01-routing-pass-and-snapshot-threading` (`nid_pc87xab
 - Enabling by default, tuning routing parameters, layered/radial verification (ticket `edge-routing__03-all-layouts-tuning-default-on`).
 - Collapsing hasOpposite pairs into single bidirectional lines (separate follow-up per `docs-internal/vicinity-graph-specs/arrows.md:88-94`).
 
+
+## Notes
+
+**2026-07-22T17:54:17Z**
+
+Done. VicinityEdge renders routed polyline (routedPathFor rounded corners, ROUTED_CORNER_RADIUS_PX=10; tangent arrowheads reuse arrowFromApproach/sourceArrowOf; badge at polylineMidpoint). Straight fallback byte-identical when routedPoints absent/degenerate. Coord-space: no transform needed (routedPoints + RF endpoints both absolute). e2e edgeRouting.e2e.ts 2/2 vs real Obsidian, screenshot /.out/edge-routing-force.png. Verified: check clean, vitest 646 passed, incl NaN-guard for duplicate waypoints. Review APPROVE, 0 blocking.

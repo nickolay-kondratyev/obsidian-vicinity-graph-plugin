@@ -32,3 +32,19 @@ SHOULD/NICE:
 4. e2e OFF baseline runs under default walked-from-center (no crossings) → "0 bends" trivially true; weak regression guard but fine for smoke.
 
 VERDICT: APPROVE-WITH-MINOR.
+
+## Confirmation re-review (commit 157058d)
+
+Re-verified myself (REAL):
+- `npm run check` (tsc -noEmit): exit 0, clean.
+- `npm run test` (vitest): 54 files / 646 tests PASSED (was 641; +5 new NaN tests). No pre-existing test lines removed — only test-name/comment softening on the coord-space test (assertions unchanged) + 5 appended tests.
+- e2e NOT re-run (needs Obsidian binary); implementer claims 2/2, credible.
+
+Note resolution (all 4 INCORPORATED, none rejected):
+1. NaN guard — CORRECT and non-hacky. New pure `distinctSegmentFrom(points,fromIndex,step)` walks past zero-length duplicates to nearest DISTINCT neighbour; returns vector FROM endpoint TO neighbour, negated at call site → direction AT endpoint (matches arrowFromApproach contract). For normal (no-dup) routes it returns the immediate neighbour → identical to prior behavior, so no OFF/ON regression. Terminal fallback is sound: all-coincident → zero vector → `arrowFromApproach` `approachLength===0` guard anchors flat {x,y,0°}, mirroring degenerate edgePathFor. `-0` handled (Math.hypot(-0,-0)===0). `edgeLength` param now = distinct-segment length (better inset for degenerate case; unchanged for normal). Traced all 5 tests by hand — they genuinely reproduce-then-prevent NaN, not assertion-fudge (finite checks + real angle 0°/-90°).
+2. Coord-space test — name/comment softened to state it only proves pass-through; assertions kept. Honest.
+3. Doc `{@link}` replaced with plain "~17px" ref + "same order of magnitude". Fine.
+4. e2e OFF baseline strengthened: `all-edges` set once in beforeAll so both tests share crossing chords; OFF now a real guard. Removed redundant per-test visibility set. No new fixtures.
+
+No new must-fix. No regression, no weakened tests, no out-of-scope creep. CONVERGED.
+FINAL VERDICT: APPROVE.
