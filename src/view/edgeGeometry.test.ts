@@ -5,11 +5,13 @@ import {
 	EDGE_ARROWHEAD_INSET_MIN_PX,
 	EDGE_PAIR_CURVATURE_PX,
 	ROUTED_CORNER_RADIUS_PX,
+	clipRouteToEndpointRects,
 	edgePathFor,
 	polylineMidpoint,
 	routedGeometryFor,
 	routedPathFor,
 } from "./edgeGeometry";
+import type { ClipRect } from "./edgeGeometry";
 import type { RoutedPoint } from "./edgeRouting";
 
 describe("edgePathFor without an opposite edge", () => {
@@ -116,6 +118,62 @@ describe("edgePathFor source-side arrow anchor (drawn only for bidirectional edg
 });
 
 const pt = (x: number, y: number): RoutedPoint => ({ x, y });
+const rect = (x: number, y: number, width: number, height: number): ClipRect => ({
+	x,
+	y,
+	widthPx: width,
+	heightPx: height,
+});
+
+/** Local point-in-rect used ONLY to assert a clipped terminus is not buried inside a rect. */
+function isStrictlyInside(point: RoutedPoint, r: ClipRect): boolean {
+	return point.x > r.x && point.x < r.x + r.widthPx && point.y > r.y && point.y < r.y + r.heightPx;
+}
+
+describe("clipRouteToEndpointRects terminates routes on the endpoint boundaries", () => {
+	// Target box [200..300]x[0..100], centre (250,50). Source box placed away from the
+	// start so each test isolates the end it exercises.
+	const targetRect = rect(200, 0, 100, 100);
+	const farSourceRect = rect(-1000, 0, 100, 100);
+
+	it("WHEN a 2-point route ends at the target centre THEN the terminus moves to the rect border", () => {
+		const clipped = clipRouteToEndpointRects([pt(50, 50), pt(250, 50)], farSourceRect, targetRect);
+		expect(clipped[clipped.length - 1]).toEqual({ x: 200, y: 50 });
+	});
+
+	it("WHEN several trailing points lie inside the target THEN they collapse to a single border crossing", () => {
+		// Both (230,50) and (250,50) are strictly inside the target, so only the start
+		// and the border crossing survive.
+		const clipped = clipRouteToEndpointRects([pt(50, 50), pt(230, 50), pt(250, 50)], farSourceRect, targetRect);
+		expect(clipped).toEqual([{ x: 50, y: 50 }, { x: 200, y: 50 }]);
+	});
+
+	it("WHEN the route starts inside the source rect THEN the start moves to the source border", () => {
+		const sourceRect = rect(0, 0, 100, 100);
+		const clipped = clipRouteToEndpointRects([pt(50, 50), pt(250, 50)], sourceRect, rect(1000, 0, 100, 100));
+		expect(clipped[0]).toEqual({ x: 100, y: 50 });
+	});
+
+	it("WHEN the entry segment crosses at a corner THEN the terminus lands on that corner", () => {
+		// (100,-100) -> (250,50) enters the box exactly at its top-left corner (200,0).
+		const clipped = clipRouteToEndpointRects([pt(100, -100), pt(250, 50)], rect(0, 0, 50, 50), targetRect);
+		expect(clipped[clipped.length - 1]).toEqual({ x: 200, y: 0 });
+	});
+
+	it("WHEN source and target rects contain the whole polyline THEN it falls back to the unclipped 2-point chord", () => {
+		// Overlapping/nested rects: clipping would consume everything, so the original
+		// first & last points are returned (non-empty, no NaN).
+		const overlap = rect(0, 0, 100, 100);
+		const clipped = clipRouteToEndpointRects([pt(10, 10), pt(20, 20), pt(30, 30)], overlap, overlap);
+		expect(clipped).toEqual([{ x: 10, y: 10 }, { x: 30, y: 30 }]);
+	});
+
+	it("WHEN a clipped route feeds routedGeometryFor THEN the arrow tip lies outside the target interior", () => {
+		const clipped = clipRouteToEndpointRects([pt(50, 50), pt(50, 250), pt(250, 250)], farSourceRect, rect(200, 200, 100, 100));
+		const geometry = routedGeometryFor(clipped);
+		expect(isStrictlyInside({ x: geometry.arrowX, y: geometry.arrowY }, rect(200, 200, 100, 100))).toBe(false);
+	});
+});
 
 describe("routedPathFor rounded polyline path", () => {
 	it("WHEN the polyline has only two points THEN it is a plain straight line (identical to the OFF case)", () => {

@@ -462,6 +462,27 @@ describe("GraphViewController edge-routing pass", () => {
 		expect(edgeById(h.snapshot(), "c.md->n1.md").routedPoints).toEqual(route);
 	});
 
+	it("WHEN a route ends inside its endpoint boxes THEN the attached routedPoints are clipped to those box borders", async () => {
+		// FakeLayout places notes as 100px squares at x = index*200, y = 0: central
+		// c.md → box [0..100]x[0..100] (centre 50,50), n1.md → box [200..300]x[0..100]
+		// (centre 250,50). A straight route between the two CENTRES must clip to the
+		// facing borders (x=100 on the source, x=200 on the target).
+		const centreToCentre = [
+			{ x: 50, y: 50 },
+			{ x: 250, y: 50 },
+		];
+		const router = new FakeEdgeRouter(new Map([["c.md->n1.md", centreToCentre]]));
+		const h = setup(router);
+		h.controller.handleActiveFileChanged("c.md");
+		h.source.resolveBuild(0, routedGraphOf("c.md", "n1.md"));
+		await flush();
+
+		expect(edgeById(h.snapshot(), "c.md->n1.md").routedPoints).toEqual([
+			{ x: 100, y: 50 },
+			{ x: 200, y: 50 },
+		]);
+	});
+
 	it("WHEN an edge is absent from the route map THEN its routedPoints stays undefined", async () => {
 		const router = new FakeEdgeRouter(new Map([["c.md->n1.md", [{ x: 1, y: 2 }]]]));
 		const h = setup(router);
