@@ -11,13 +11,14 @@ IMPLEMENTATION_WITH_SELF_PLAN → IMPLEMENTATION_REVIEW → IMPLEMENTATION_ITERA
 - [x] Read ticket 01 + spike 00 findings.
 - [x] Spawned 3 Explore agents (layout / settings / rendering+loader) → EXPLORATION_*.md.
 - [x] Assembled EXPLORATION_PUBLIC.md (pointer index). Committed c924e66.
-- [ ] Phase: IMPLEMENTATION_WITH_SELF_PLAN (in progress).
-- [ ] Phase: IMPLEMENTATION_REVIEW.
-- [ ] Phase: IMPLEMENTATION_ITERATION.
-- [ ] Final commit + changelog + ticket close.
+- [x] Phase: IMPLEMENTATION_WITH_SELF_PLAN → committed 1c2c282. check clean, vitest 630, build green.
+- [x] Phase: IMPLEMENTATION_REVIEW → READY, 0 blocking, 0 should-fix, 2 nice-to-have (self-assessed no-change).
+- [x] Phase: IMPLEMENTATION_ITERATION → CONVERGED iteration 0 (no cycle; nice-to-haves rejected w/ rationale).
+- [x] Final commit + changelog + ticket close (ticket nid_pc87xabr7xi67c4qmht938r2o_e CLOSED).
 
 ## Phase agents
-- IMPLEMENTATION_WITH_SELF_PLAN: a94af27a434dcb498 (running) → IMPLEMENTATION_WITH_SELF_PLAN__PUBLIC.md
+- IMPLEMENTATION_WITH_SELF_PLAN: a94af27a434dcb498 (done) → IMPLEMENTATION_WITH_SELF_PLAN__PUBLIC.md. Committed 1c2c282. check clean, vitest 630 pass, build green.
+- IMPLEMENTATION_REVIEWER: acc8c6afd623220b1 (running) → IMPLEMENTATION_REVIEW__PUBLIC.md. Diff base c924e66..1c2c282.
 
 ## Explore agents
 - layout: aa5c16c1ecfeae0be → EXPLORATION_layout.md

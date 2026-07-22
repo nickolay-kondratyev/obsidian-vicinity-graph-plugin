@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-22T17:24:51Z
 id: nid_pc87xabr7xi67c4qmht938r2o_e
 title: "edge-routing__01-routing-pass-and-snapshot-threading"
-status: open
+status: closed
 deps: [nid_pgsj1vjjnmtflf55a4sd9txos_e]
 links: []
 created_iso: 2026-07-22T16:04:58Z
-status_updated_iso: 2026-07-22T16:04:58Z
+status_updated_iso: 2026-07-22T17:24:51Z
 type: task
 priority: 1
 assignee: CC_WITH-nickolaykondratyev
@@ -70,3 +71,17 @@ GraphLayoutRunner (elk [+ d3 force refine])       src/view/GraphLayoutRunner.ts:
 - Rendering routed paths (ticket `edge-routing__02-render-routed-edges`).
 - Orthogonal routing, parameter tuning beyond initial constants, default-ON (ticket `edge-routing__03`).
 
+
+## Notes
+
+**2026-07-22T17:24:51Z**
+
+Phase 1 COMPLETE — all acceptance criteria met, 0 blocking.
+
+DELIVERED: RF-free src/view/edgeRouting.ts (EdgeRouter DIP + LibavoidEdgeRouter with internal AvoidArena), pure extractEdgeRoutingInput(); routedPoints threaded FlowEdge -> RF data -> VicinityEdgeData (rendering unchanged, Phase-2 boundary); wired into GraphViewController.runRebuild after layout/before publish with signature-keyed route cache + warn-once pass-level failure fallback; new edgeRouting ViewSetting (default OFF) mirroring groupByFolder + visible settings-tab toggle. Spike throwaway deleted; main.ts cleaned.
+
+DECISIONS: shapeBufferDistance = EDGE_ROUTING_SHAPE_BUFFER_PX = EDGE_PAIR_CURVATURE_PX/2 (17). EdgeRouteMap typed ReadonlyMap for immutability. edgeRouting flip invalidates route cache WITHOUT forcing elk relayout (positions unchanged). loadAvoid reached via lazy await import() so OFF never loads wasm and vitest never pulls the esbuild-only virtual module. AvoidArena relocated from throwaway spike (the spike ticket note had it in the wrong file).
+
+VERIFIED: npm run check 0 errors; vitest run 630 passed/54 files (zero regressions); npm run build green with wasm embedded; real-wasm integration test genuinely routes around obstacle (>2 pts, avoids rect), not fake-passed. Avoid. usage grep-confined to edgeRouting.ts + libavoidLoader.ts. Independently reproduced by IMPLEMENTATION_REVIEW: READY.
+
+Commits: c924e66 (exploration), 1c2c282 (impl). Artifacts: .ai_out/edge-routing__01/edge-routing/*.md.
