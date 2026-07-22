@@ -56,6 +56,22 @@ Obsidian binary already present (offline) at `.tmp/obsidian/obsidian-1.12.7/obsi
 ## Scratch probes (in .tmp, gitignored) if you need to re-derive
 - `.tmp/probe-node.mjs`, `.tmp/probe-nested2.mjs`, `.tmp/bisect.mjs`, `.tmp/confirm-mem.mjs`, `.tmp/probe-dataurl.mjs` (browser-in-node abort), `.tmp/esbuild-probe/` (exports block).
 
+## ITERATION (convergence pass, post-review)
+- Review verdict: READY TO CLOSE, 0 BLOCKING, 2 IMPORTANT (I1 ticket-note = orchestrator's; I2 = mine), 5 NIT.
+- **I2 FIXED** in `loadAvoid` (`libavoidLoader.ts:89-118`): only a SUCCESSFUL init is memoized. On
+  failure, `.catch` resets `cached=null` (guarded by `if (cached===attempt)` so a newer attempt is
+  not clobbered) → later call retries instead of session-long straight-edge lock-in. In-flight promise
+  still assigned synchronously → concurrent-caller sharing / no double-load race preserved. Error still
+  surfaces to caller (we return the rejecting `attempt`; `.catch` is side-effect only, never swallows).
+  Full WHY at code site + in IMPLEMENTATION_ITERATION__PUBLIC.md.
+- **All 5 NITs REJECTED** (spike/YAGNI/scope): N1 already a tracked Phase-1 follow-up; N2 throwaway e2e;
+  N3 vertex-check is acceptable spike proxy; N4 pragmatic untyped-lib index sig; N5 module-singleton is
+  a Phase-1 DIP decision. Zero NIT code changes.
+- Verify: `npm run check` exit 0; `vitest run` 616 passed / 54 files (unchanged). e2e NOT re-run —
+  justified: only the failure-caching branch changed; load path + success-caching unchanged, so the
+  offline-load proof is unaffected. Logs: `.tmp/check-iter.log`, `.tmp/vitest-iter.log`.
+- Output: `IMPLEMENTATION_ITERATION__PUBLIC.md` written. NOT committed (orchestrator commits).
+
 ## Follow-ups for Phase 1
 - Promote `AvoidArena` (or its ownership rules) into `LibavoidEdgeRouter`; router-per-pass, dispose in `finally`.
 - Endpoint attachment uses centre pins (classId 1) — carry that into the real router.

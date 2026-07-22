@@ -88,13 +88,33 @@ let cached: Promise<Avoid> | null = null;
 
 /**
  * Lazily initialize the libavoid engine from the embedded wasm and return the
- * singleton `Avoid` instance. Safe to call repeatedly (cached). Throws if the
- * wasm cannot be instantiated — callers (the routing pass) contain that failure
- * and fall back to straight edges.
+ * singleton `Avoid` instance. Safe to call repeatedly. Throws if the wasm cannot
+ * be instantiated — callers (the routing pass) contain that failure and fall back
+ * to straight edges.
+ *
+ * Only a SUCCESSFUL instance is memoized. WHY: caching a rejected promise would
+ * lock the whole session into straight edges after a single transient init failure
+ * (e.g. a one-off Electron/Chromium hiccup instantiating the data: wasm) with no
+ * way to recover short of a plugin reload. We instead clear the cached slot on
+ * failure so a later call — a different view or a subsequent routing pass — gets a
+ * fresh attempt. The failure still surfaces to THIS caller (we return the rejecting
+ * promise); we never swallow it. Concurrent callers continue to share one in-flight
+ * promise (assigned synchronously before we return), so there is no double-load race.
+ * Phase 1's `LibavoidEdgeRouter` inherits this retry-on-failure contract.
  */
 export function loadAvoid(): Promise<Avoid> {
 	if (cached === null) {
-		cached = initAvoid();
+		const attempt = initAvoid();
+		cached = attempt;
+		// Reset only if this failed attempt is still the cached one, so a retry
+		// already in flight (a newer attempt) is never clobbered. This `.catch`
+		// is a side-effect handler; the error is still delivered to callers via
+		// the `attempt` promise returned below.
+		attempt.catch(() => {
+			if (cached === attempt) {
+				cached = null;
+			}
+		});
 	}
 	return cached;
 }
