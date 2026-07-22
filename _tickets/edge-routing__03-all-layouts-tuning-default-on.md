@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-22T18:57:27Z
 id: nid_o1f05i1pu3lgkmaxpbaj13x3x_e
 title: "edge-routing__03-all-layouts-tuning-default-on"
-status: open
+status: closed
 deps: [nid_82xnrearif6y7fcd80y5gprkc_e]
 links: []
 created_iso: 2026-07-22T16:04:58Z
-status_updated_iso: 2026-07-22T16:04:58Z
+status_updated_iso: 2026-07-22T18:57:27Z
 type: task
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
@@ -66,3 +67,7 @@ Routing-pass timing (dense fixture ~100 nodes / ~292 edges, all-edges):
 - radial:           GATED OFF (routingMs=undefined); layout ~45ms. Human decision: skip routing for radial (near-straight spokes, routing added ~490ms with no visual benefit). Web-worker offload remains deferred.
 main.js (production) = 2,610,310 B; +732,601 B (~715 KiB) over pre-routing baseline 1,877,709 B (embedded libavoid wasm).
 Mobile: NOT verified (no iOS/Android simulator available).
+
+**2026-07-22T18:57:27Z**
+
+RESOLVED — Phase 3 shipped (commits 557c4b1, f00a36e, 8038e4c on branch edge-routing). Edge routing default-ON for force+layered, gated OFF for radial (human decision). Tuned named constants (segmentPenalty=50, crossingPenalty=0 disabled, shapeBufferDistance=17). Docs: arrows.md routing section + CHANGELOG entry. Suite green: tsc 0, vitest 650, e2e 32. Review APPROVE-WITH-MINOR, iteration converged. Mobile NOT verified (no simulator).

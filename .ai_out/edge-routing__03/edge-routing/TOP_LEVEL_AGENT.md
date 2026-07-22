@@ -17,4 +17,14 @@ Workflow: IMPLEMENTATION_WITH_SELF_PLAN → IMPLEMENTATION_REVIEW → IMPLEMENTA
 - [done] IMPLEMENTATION_WITH_SELF_PLAN complete. Full suite green (tsc 0, vitest 649, e2e 32, build OK). NOT committed yet.
 - [resolved] Perf gate → HUMAN DECISION: **gate routing to SKIP for radial layout** (spokes near-straight; routing not needed there). graphFixtures.ts-false decision accepted.
 - [done] IMPLEMENTATION_WITH_SELF_PLAN + radial gate. Suite green (tsc 0, vitest 650, e2e 32). Committed f00a36e.
-- [in progress] IMPLEMENTATION_REVIEW launched (background, readonly).
+- [done] IMPLEMENTATION_REVIEW: VERDICT APPROVE-WITH-MINOR (0 must/should-fix; reviewer reproduced tsc 0 + vitest 650). 3 NOTES.
+- [done] IMPLEMENTATION_ITERATION: N1 timings→ticket (orchestrator add-note); N2 eval waitForTimeout kept+WHY; N3 byte-count record fixed. Converged. Committed 8038e4c.
+- [done] Ticket closed (nid_o1f05i1pu3lgkmaxpbaj13x3x_e) with resolution note + timing note.
+- [done] Follow-up ticket created: nid_si26o1o5h4yrvv5v8tcgz1b68_e (re-enable radial routing via web-worker offload).
+
+## Commits
+- 557c4b1 exploration
+- f00a36e implementation (all layouts + tuning + default ON + radial gate + docs)
+- 8038e4c review + iteration converged
+
+## Final state: DONE. Suite green (tsc 0, vitest 650, e2e 32). Default-ON for force+layered; radial gated. Mobile not verified.
