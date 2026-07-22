@@ -67,7 +67,16 @@ Key decisions:
 6. **Failure containment**: if WASM init or routing throws, log once and publish the snapshot WITHOUT `routedPoints` — the graph must always render (straight edges = today's behavior). No silent per-edge fallbacks beyond this single documented pass-level fallback.
 7. **Settings**: `ViewSettings` boolean `edgeRouting` (default ON once stable; ship Phase 1 behind default OFF until Phase 3 sign-off). Surface in the settings tab alongside layout mode.
 
-# Phases (implement as separate child tickets; each fits a 200K-context session)
+# Phases — child tickets (dependency chain 00 → 01 → 02 → 03)
+
+| Phase | Ticket file (`_tickets/`) | Id |
+|---|---|---|
+| 0 | `edge-routing__00-wasm-spike-libavoid-in-obsidian.md` | `nid_pgsj1vjjnmtflf55a4sd9txos_e` |
+| 1 | `edge-routing__01-routing-pass-and-snapshot-threading.md` | `nid_pc87xabr7xi67c4qmht938r2o_e` |
+| 2 | `edge-routing__02-render-routed-edges.md` | `nid_82xnrearif6y7fcd80y5gprkc_e` |
+| 3 | `edge-routing__03-all-layouts-tuning-default-on.md` | `nid_o1f05i1pu3lgkmaxpbaj13x3x_e` |
+
+Phase summaries below are kept for overview; the child tickets are the source of truth for scope/acceptance.
 
 **Phase 0 — Spike: libavoid in Obsidian (small, throwaway allowed)**
 - Add `libavoid-js` dep, esbuild base64 wasm loader, load module inside the dev-vault plugin, route 1 conn around 1 rect, log polyline.
