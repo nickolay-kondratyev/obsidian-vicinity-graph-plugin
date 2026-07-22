@@ -41,3 +41,23 @@ Confirmed NO transform needed. Geometry test asserts routed path endpoints == po
 Fixture links are one-directional -> no bidirectional pairs in the screenshot, so no overlap to record. Routed edges render as-is (no bow) per ticket.
 
 ## No open issues.
+
+## Iteration 1 (reviewer feedback, APPROVE-WITH-MINOR, 0 must-fix)
+- Note 1 (zero-len end seg → NaN arrow): INCORPORATED. Failing-first: 5 BDD tests reproducing
+  NaN on duplicate consecutive endpoints (last/first/all-coincident). Fix: `distinctSegmentFrom`
+  walks past duplicate waypoints to nearest DISTINCT neighbour for the tangent; `arrowFromApproach`
+  guards approachLength===0 → flat anchor on endpoint (mirrors degenerate edgePathFor). edgeGeometry.ts.
+- Note 2 (tautological coord-space test): INCORPORATED. Softened comment/name — it proves only the
+  pure pass-through, NOT the subflow offset claim (that rests on doc reasoning + e2e). Test kept.
+- Note 3 ({@link}+"sized near" nit): INCORPORATED. Replaced unresolved {@link EDGE_ROUTING_SHAPE_BUFFER_PX}
+  with plain ref "(in edgeRouting.ts, ~17px)" + "same order of magnitude".
+- Note 4 (weak OFF e2e baseline): INCORPORATED. all-edges visibility now set in beforeAll → BOTH tests
+  share crossing-chord graph; routing toggle is the ONLY variable. OFF now asserts "0 bends WITH
+  crossings present" (real guard, not trivial star pass). Removed redundant per-test set.
+
+## Iteration verification (REAL)
+- npm run test: 646 passed / 54 files (was 641; +5 new NaN tests). Pre-existing untouched & green.
+- npm run check: exit 0 clean.
+- npm run test:e2e -- edgeRouting.e2e.ts: 2/2 PASSED (real headless Obsidian). OFF=0 bends w/ chords, ON>=1 bend.
+
+## Convergence: READY. All 4 notes addressed (all incorporated); no blocking items remained.

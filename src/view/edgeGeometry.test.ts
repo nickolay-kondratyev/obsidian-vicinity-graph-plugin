@@ -141,9 +141,11 @@ describe("routedPathFor rounded polyline path", () => {
 		);
 	});
 
-	it("WHEN a route has three points THEN the path starts and ends exactly at the polyline endpoints (no coordinate transform)", () => {
-		// Coordinate-space guard (ticket item 3): routed points are drawn in the
-		// coordinates they arrive in — the geometry layer applies no offset.
+	it("WHEN a route has three points THEN the path starts and ends exactly at the polyline endpoints (pure pass-through)", () => {
+		// Proves only that this pure layer applies NO offset — it draws points in
+		// the coordinates it receives. It does NOT (and cannot) verify the subflow
+		// absolute-vs-parent-relative coordinate claim (ticket item 3); that rests
+		// on the reasoning in routedGeometryFor's doc plus the e2e screenshot.
 		const path = routedPathFor([pt(3, 7), pt(40, 7), pt(40, 55)]);
 		expect(path.startsWith("M 3,7")).toBe(true);
 		expect(path.endsWith("L 40,55")).toBe(true);
@@ -191,5 +193,36 @@ describe("routedGeometryFor arrowheads follow the segment tangents", () => {
 
 	it("WHEN a route is just two points THEN routedGeometryFor equals the straight edgePathFor (OFF parity)", () => {
 		expect(routedGeometryFor([pt(0, 0), pt(100, 0)])).toEqual(edgePathFor(0, 0, 100, 0, false));
+	});
+});
+
+describe("routedGeometryFor tolerates duplicate consecutive waypoints (no NaN arrow transform)", () => {
+	// A zero-length end segment (duplicate consecutive endpoint the router could emit)
+	// must not divide the tangent by zero and NaN the arrowhead transform.
+	it("WHEN the last two waypoints coincide THEN the target arrow follows the last DISTINCT segment and stays finite", () => {
+		const geometry = routedGeometryFor([pt(0, 0), pt(0, 50), pt(60, 50), pt(60, 50)]);
+		expect(Number.isFinite(geometry.arrowX) && Number.isFinite(geometry.arrowY)).toBe(true);
+	});
+
+	it("WHEN the last two waypoints coincide THEN the target arrow angle still follows the real last segment (+x)", () => {
+		expect(routedGeometryFor([pt(0, 0), pt(0, 50), pt(60, 50), pt(60, 50)]).arrowAngleDeg).toBeCloseTo(0);
+	});
+
+	it("WHEN the first two waypoints coincide THEN the source arrow follows the first DISTINCT segment and stays finite", () => {
+		const geometry = routedGeometryFor([pt(0, 0), pt(0, 0), pt(0, 50), pt(60, 50)]);
+		expect(Number.isFinite(geometry.sourceArrowX) && Number.isFinite(geometry.sourceArrowY)).toBe(true);
+	});
+
+	it("WHEN the first two waypoints coincide THEN the source arrow angle still points back along the real first segment", () => {
+		expect(routedGeometryFor([pt(0, 0), pt(0, 0), pt(0, 50), pt(60, 50)]).sourceArrowAngleDeg).toBeCloseTo(-90);
+	});
+
+	it("WHEN every waypoint coincides THEN both arrows anchor flat on the point (finite, zero angle)", () => {
+		const geometry = routedGeometryFor([pt(5, 5), pt(5, 5), pt(5, 5)]);
+		expect({ arrowX: geometry.arrowX, arrowY: geometry.arrowY, arrowAngleDeg: geometry.arrowAngleDeg }).toEqual({
+			arrowX: 5,
+			arrowY: 5,
+			arrowAngleDeg: 0,
+		});
 	});
 });

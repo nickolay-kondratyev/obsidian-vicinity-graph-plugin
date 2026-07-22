@@ -20,7 +20,11 @@ import { ObsidianHarness, PLUGIN_ID } from "./obsidianHarness";
  *
  * Chords are sibling links between depth-1 neighbours, so they only render under
  * the `all-edges` visibility mode (default `walked-from-center` shows just the
- * radial star, which has no crossings) — the ON test enables it explicitly.
+ * radial star, which has no crossings). Both tests run under `all-edges` (set once
+ * in `beforeAll`) so the crossing chords are present in BOTH: the ONLY variable
+ * between them is the routing toggle. That makes the OFF assertion a real guard —
+ * "0 bends even with crossings present" — not the trivial pass a no-crossing star
+ * would give.
  *
  * Bend detector: a routed detour (>=3 waypoints) emits >=2 `L` commands in its
  * path `d`; a straight edge emits exactly one `L` and a paired bow emits none.
@@ -58,6 +62,8 @@ test.beforeAll(async () => {
 	harness = await ObsidianHarness.launch({ extraFixtures: ROUTING_FIXTURES });
 	page = harness.page;
 	await harness.openGraphView();
+	// Both tests share the crossing-chord graph so routing is the only variable.
+	await setAllEdgesVisibility();
 	await harness.openFile(HUB_PATH);
 	await expect(page.locator(EDGE_PATH_SELECTOR).first()).toBeAttached();
 });
@@ -87,15 +93,15 @@ async function setAllEdgesVisibility(): Promise<void> {
 	}, PLUGIN_ID);
 }
 
-test("WHEN routing is OFF THEN every edge renders as a single straight/curved segment", async () => {
+test("WHEN routing is OFF THEN every edge stays straight even though crossing chords are present", async () => {
 	const pathData = await edgePathData();
 	expect(pathData.length).toBeGreaterThan(0);
-	// Straight edges have exactly one `L`; paired bows have none. None should bend.
+	// Crossing diameter chords ARE rendered here (all-edges), yet with routing OFF
+	// none should detour: straight edges have exactly one `L`, paired bows none.
 	expect(bentEdgeCount(pathData)).toBe(0);
 });
 
 test("WHEN routing is ON THEN at least one edge bends around a node, and a screenshot is captured", async () => {
-	await setAllEdgesVisibility();
 	await harness.setEdgeRouting(true);
 	// A settings change alone does not rebuild; bounce the active file to force a
 	// full re-run of the pipeline (route computation happens during publish).

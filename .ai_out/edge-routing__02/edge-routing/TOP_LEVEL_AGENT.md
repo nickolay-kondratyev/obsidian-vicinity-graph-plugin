@@ -9,9 +9,9 @@ IMPLEMENTATION_WITH_SELF_PLAN → IMPLEMENTATION_REVIEW → IMPLEMENTATION_ITERA
 ## Status log
 - [x] Setup + created output dir.
 - [x] EXPLORATION done + committed (9ce3e6a). Files: EXPLORATION_PUBLIC.md + rendering + coords_e2e.
-- [~] IMPLEMENTATION_WITH_SELF_PLAN (running)
-- [ ] IMPLEMENTATION_REVIEW
-- [ ] IMPLEMENTATION_ITERATION
+- [x] IMPLEMENTATION_WITH_SELF_PLAN done + committed (8d23bbe). check clean, 641 tests, e2e 2/2, screenshot .out/edge-routing-force.png.
+- [x] IMPLEMENTATION_REVIEW done. Verdict APPROVE-WITH-MINOR, 0 must-fix. 4 non-blocking notes (zero-len seg NaN; tautological coord test; {@link} nit; weak OFF e2e).
+- [~] IMPLEMENTATION_ITERATION (running)
 - [ ] Final: changelog, close ticket, commit.
 
 ## Key facts

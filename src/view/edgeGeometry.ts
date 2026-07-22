@@ -129,8 +129,9 @@ export function edgePathFor(
  * clamped to HALF of each adjacent segment so a short segment can never invert
  * (the shrink from two neighbouring corners never overruns the segment between
  * them). Turns the router's hard right-angle detours into smooth, organic curves.
- * Sized near {@link EDGE_ROUTING_SHAPE_BUFFER_PX} so corners read at the same
- * visual scale as the routing clearance; further tuning is ticket edge-routing__03.
+ * Kept the same order of magnitude as `EDGE_ROUTING_SHAPE_BUFFER_PX` (in
+ * edgeRouting.ts, ~17px) so corners read at roughly the routing clearance's
+ * visual scale; further tuning is ticket edge-routing__03.
  */
 export const ROUTED_CORNER_RADIUS_PX = 10;
 
@@ -242,15 +243,16 @@ export function routedGeometryFor(points: readonly RoutedPoint[]): EdgePathGeome
 	if (points.length <= 2) {
 		return edgePathFor(first.x, first.y, last.x, last.y, false);
 	}
-	const second = points[1] ?? first;
-	const beforeLast = points[points.length - 2] ?? last;
-	const lastDeltaX = last.x - beforeLast.x;
-	const lastDeltaY = last.y - beforeLast.y;
-	const firstDeltaX = second.x - first.x;
-	const firstDeltaY = second.y - first.y;
-	const arrow = arrowFromApproach(last.x, last.y, lastDeltaX, lastDeltaY, Math.hypot(lastDeltaX, lastDeltaY));
+	// Tangents walk PAST any duplicate consecutive waypoints (which the router can
+	// emit) to the nearest DISTINCT neighbour, so a zero-length end segment never
+	// divides the arrow angle by zero. `distinctSegmentFrom` returns the vector
+	// FROM the endpoint TO that neighbour, so negating it gives the direction
+	// pointing AT the endpoint that `arrowFromApproach` expects.
+	const targetSegment = distinctSegmentFrom(points, points.length - 1, -1);
+	const sourceSegment = distinctSegmentFrom(points, 0, 1);
+	const arrow = arrowFromApproach(last.x, last.y, -targetSegment.deltaX, -targetSegment.deltaY, targetSegment.length);
 	const sourceArrow = sourceArrowOf(
-		arrowFromApproach(first.x, first.y, -firstDeltaX, -firstDeltaY, Math.hypot(firstDeltaX, firstDeltaY)),
+		arrowFromApproach(first.x, first.y, -sourceSegment.deltaX, -sourceSegment.deltaY, sourceSegment.length),
 	);
 	const midpoint = polylineMidpoint(points);
 	return {
@@ -277,6 +279,38 @@ interface ArrowAnchor {
 	readonly arrowAngleDeg: number;
 }
 
+interface SegmentVector {
+	readonly deltaX: number;
+	readonly deltaY: number;
+	readonly length: number;
+}
+
+/**
+ * Vector from `points[fromIndex]` to the nearest point in the `step` direction
+ * (`1` forward, `-1` backward) that does NOT coincide with it, skipping the
+ * duplicate consecutive waypoints the router may emit. Returns a zero vector
+ * when every point in that direction coincides (a fully degenerate end), so the
+ * caller's arrow anchors flat on the endpoint instead of chasing a zero tangent.
+ */
+function distinctSegmentFrom(points: readonly RoutedPoint[], fromIndex: number, step: 1 | -1): SegmentVector {
+	const origin = points[fromIndex];
+	if (origin !== undefined) {
+		for (let i = fromIndex + step; i >= 0 && i < points.length; i += step) {
+			const point = points[i];
+			if (point === undefined) {
+				continue;
+			}
+			const deltaX = point.x - origin.x;
+			const deltaY = point.y - origin.y;
+			const length = Math.hypot(deltaX, deltaY);
+			if (length > 0) {
+				return { deltaX, deltaY, length };
+			}
+		}
+	}
+	return { deltaX: 0, deltaY: 0, length: 0 };
+}
+
 /**
  * Places the arrowhead tip `inset` px back from the target along the incoming
  * tangent (`approachX/Y`, the un-normalised direction pointing AT the target).
@@ -294,6 +328,11 @@ function arrowFromApproach(
 		Math.max(EDGE_ARROWHEAD_INSET_MIN_PX, edgeLength * EDGE_ARROWHEAD_INSET_FRACTION),
 	);
 	const approachLength = Math.hypot(approachX, approachY);
+	if (approachLength === 0) {
+		// No tangent direction (coincident points): anchor flat on the endpoint,
+		// mirroring the degenerate `edgePathFor` case, so callers never emit NaN.
+		return { arrowX: targetX, arrowY: targetY, arrowAngleDeg: 0 };
+	}
 	const unitX = approachX / approachLength;
 	const unitY = approachY / approachLength;
 	return {
