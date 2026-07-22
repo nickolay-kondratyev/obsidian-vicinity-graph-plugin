@@ -49,6 +49,18 @@ describe("PersistedShapes.parsePluginData", () => {
 		const raw = { version: PERSISTED_SHAPE_VERSION, globalView: { layoutMode: "force" } };
 		expect(PersistedShapes.parsePluginData(raw).globalView.layoutMode).toBe("force");
 	});
+
+	it("WHEN globalView carries edgeRouting=false THEN it survives (default is now true)", () => {
+		// Default flipped ON in edge-routing__03; an explicitly-persisted `false`
+		// (user turned routing off) must still round-trip and NOT snap back to the default.
+		const raw = { version: PERSISTED_SHAPE_VERSION, globalView: { edgeRouting: false } };
+		expect(PersistedShapes.parsePluginData(raw).globalView.edgeRouting).toBe(false);
+	});
+
+	it("WHEN globalView carries a non-boolean edgeRouting THEN the default (true) survives", () => {
+		const raw = { version: PERSISTED_SHAPE_VERSION, globalView: { edgeRouting: "yes" } };
+		expect(PersistedShapes.parsePluginData(raw).globalView.edgeRouting).toBe(true);
+	});
 });
 
 describe("PersistedShapes sizing parsing", () => {

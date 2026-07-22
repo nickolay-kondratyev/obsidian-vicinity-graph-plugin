@@ -80,6 +80,13 @@ describe("planSettingsWrite global writes", () => {
 			view: { ...CTX.globalView, layoutMode: "layered" },
 		});
 	});
+
+	it("WHEN global-edge-routing THEN it merges edgeRouting over ctx.globalView", () => {
+		expect(planSettingsWrite({ kind: "global-edge-routing", edgeRouting: true }, CTX)).toEqual({
+			kind: "global-view",
+			view: { ...CTX.globalView, edgeRouting: true },
+		});
+	});
 });
 
 describe("planSettingsWrite direction to field mapping (guards inversion)", () => {

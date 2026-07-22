@@ -136,6 +136,69 @@ trailer<</Root 1 0 R>>
 %%EOF
 EOF
 
+# --- edge-routing__03 tuning fixtures: medium (folder-group heavy) + dense -----
+# Two extra vicinities used to tune the routing parameters and measure the pass
+# on realistic obstacle sets. Both are self-contained (their members link only to
+# their OWN hub, never to note1/crowd), so they never alter note1's vicinity or
+# the pre-existing e2e assertions. Open hub-medium.md / zzdense-hub.md to inspect.
+#
+# MEDIUM: a root hub + five 3-member folder groups, each member linking to the hub
+# (cross-boundary edges collapse onto the group box) plus an inter-group ring —
+# exercises collapsed group-box edge attachment across layered (INCLUDE_CHILDREN)
+# and radial/force (SEPARATE_CHILDREN + projectedRootEdges).
+echo "==> Ensuring medium folder-group routing fixture (hub-medium + grp-*/)"
+write_if_missing "${VAULT}/hub-medium.md" <<'EOF'
+Medium routing fixture hub (edge-routing__03): five folder groups link inward.
+
+Groups: [[ma1]] [[mb1]] [[mc1]] [[md1]] [[me1]].
+EOF
+
+# medium_group LETTER NEXT_LETTER — three members of grp-<LETTER>/, each linking to
+# the hub, member 1 also linking to the next group's member 1 (inter-group ring).
+medium_group() {
+	local letter="$1" next="$2"
+	write_if_missing "${VAULT}/grp-${letter}/m${letter}1.md" <<EOF
+Group ${letter} member 1. Hub [[hub-medium]]. Inter-group ring link [[m${next}1]].
+EOF
+	write_if_missing "${VAULT}/grp-${letter}/m${letter}2.md" <<EOF
+Group ${letter} member 2. Hub [[hub-medium]]. Intra-group link [[m${letter}1]].
+EOF
+	write_if_missing "${VAULT}/grp-${letter}/m${letter}3.md" <<EOF
+Group ${letter} member 3. Hub [[hub-medium]]. Intra-group link [[m${letter}2]].
+EOF
+}
+medium_group a b
+medium_group b c
+medium_group c d
+medium_group d e
+medium_group e a
+
+# DENSE: an ungrouped root hub with ~110 spokes (kept at vault root so they do NOT
+# collapse into a folder group — the router then sees ~100 individual square
+# obstacles once the default nodeCap of 100 applies). Each spoke also links a chord
+# 7 ahead, so under `all-edges` visibility the chords cross the hub-centred disk and
+# force genuine obstacle detours — the dense stress case for perf + route quality.
+# `zz` prefix sorts them to the bottom of the file explorer so manual QA of the
+# other fixtures stays uncluttered.
+echo "==> Ensuring dense routing fixture (zzdense-hub + 110 ungrouped spokes)"
+DENSE_COUNT=110
+DENSE_CHORD_STEP=7
+{
+	echo "Dense routing hub (edge-routing__03): ~110 ungrouped spokes for perf + quality tuning."
+	echo
+	for i in $(seq 1 "${DENSE_COUNT}"); do
+		printf 'Spoke [[%s]].\n' "$(printf 'zzdense-%03d' "${i}")"
+	done
+} | write_if_missing "${VAULT}/zzdense-hub.md"
+
+for i in $(seq 1 "${DENSE_COUNT}"); do
+	name="$(printf 'zzdense-%03d' "${i}")"
+	chord=$(( ((i - 1 + DENSE_CHORD_STEP) % DENSE_COUNT) + 1 ))
+	chordname="$(printf 'zzdense-%03d' "${chord}")"
+	printf 'Dense spoke %d. Hub [[zzdense-hub]]. Chord [[%s]].\n' "${i}" "${chordname}" \
+		| write_if_missing "${VAULT}/${name}.md"
+done
+
 echo "==> Ensuring minimal .obsidian config"
 write_if_missing "${OBSIDIAN}/app.json" <<'EOF'
 {}

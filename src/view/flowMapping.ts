@@ -6,6 +6,7 @@ import { deriveFolderGroups } from "./folderGrouping";
 import type { OrphanTruncation } from "./truncationBadges";
 import { deriveTruncationBadges } from "./truncationBadges";
 import { edgeIdOf, folderGroupIdOf, nodeSideLengthPx } from "./graphIdentity";
+import type { RoutedPoint } from "./edgeRouting";
 
 /**
  * Pure engine → React Flow shape mapping. Emits plain objects only (no React,
@@ -120,6 +121,12 @@ export interface FlowEdge {
 	 * use the curved {@link hasOpposite} mechanism instead.
 	 */
 	readonly bidirectional: boolean;
+	/**
+	 * Obstacle-avoiding polyline (ABSOLUTE coords) from the post-layout routing
+	 * pass, present only when `edgeRouting` is on and the pass succeeded. Rides
+	 * along unused this phase — rendering starts consuming it in edge-routing__02.
+	 */
+	readonly routedPoints?: readonly RoutedPoint[];
 }
 
 export interface FlowGraph {

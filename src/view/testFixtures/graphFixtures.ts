@@ -32,9 +32,16 @@ export function makeEdge(source: string, target: string, count = DEFAULT_EDGE_LI
 }
 
 /**
- * Minimal effective view settings. `layoutMode` defaults to `"layered"` here
- * (NOT the engine's radial default) so the pre-existing layered-mapping tests
- * keep capturing layered behavior; radial/force tests opt in explicitly.
+ * Minimal effective view settings — deliberately DECOUPLED from the engine
+ * production defaults so unit tests stay neutral and opt in to behavior per case:
+ * - `layoutMode: "layered"` (NOT the engine's `force` default) keeps the
+ *   pre-existing layered-mapping tests capturing layered behavior; radial/force
+ *   tests opt in via {@link withLayoutMode}.
+ * - `edgeRouting: false` (NOT the engine's now-`true` default, flipped in
+ *   edge-routing__03) keeps the routing pass OFF for pure mapping/controller
+ *   baselines (no wasm invoked); routing tests opt in via {@link withEdgeRouting}.
+ *   Mirroring the engine default here would make every mapping test implicitly
+ *   run the router and break the controller "routing OFF" baseline.
  */
 function makeViewSettings(): ViewSettings {
 	return {
@@ -42,6 +49,7 @@ function makeViewSettings(): ViewSettings {
 		groupByFolder: true,
 		edgeVisibility: "walked-from-center",
 		layoutMode: "layered",
+		edgeRouting: false,
 		sizing: {
 			metrics: {
 				"own-file-size": { enabled: true, weight: 1 },
@@ -70,4 +78,9 @@ export function makeGraph(overrides: Partial<VicinityGraph> = {}): VicinityGraph
 /** The same graph under a different layout mode (radial/force tests opt in per case). */
 export function withLayoutMode(graph: VicinityGraph, layoutMode: LayoutMode): VicinityGraph {
 	return { ...graph, viewSettings: { ...graph.viewSettings, layoutMode } };
+}
+
+/** The same graph with the obstacle-avoiding edge-routing pass toggled (fixture baseline OFF). */
+export function withEdgeRouting(graph: VicinityGraph, edgeRouting: boolean): VicinityGraph {
+	return { ...graph, viewSettings: { ...graph.viewSettings, edgeRouting } };
 }

@@ -48,6 +48,7 @@ export class ViewSettingsResolver {
 			groupByFolder: field("groupByFolder"),
 			edgeVisibility: field("edgeVisibility"),
 			layoutMode: field("layoutMode"),
+			edgeRouting: field("edgeRouting"),
 			sizing: field("sizing"),
 		};
 	}

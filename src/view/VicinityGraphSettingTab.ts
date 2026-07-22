@@ -42,7 +42,22 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 
 		this.renderDepthDefaults();
 		this.renderSizing();
+		this.renderLayout();
 		this.renderPerformance();
+	}
+
+	private renderLayout(): void {
+		new Setting(this.containerEl).setName("Layout").setHeading();
+		new Setting(this.containerEl)
+			.setName("Obstacle-avoiding edge routing")
+			.setDesc(
+				"Route edges around nodes instead of drawing straight lines. Uses a WebAssembly routing engine loaded on demand.",
+			)
+			.addToggle((toggle) =>
+				toggle.setValue(this.store.globalView().edgeRouting).onChange((edgeRouting) => {
+					void this.applyInteraction({ kind: "global-edge-routing", edgeRouting });
+				}),
+			);
 	}
 
 	private renderDepthDefaults(): void {

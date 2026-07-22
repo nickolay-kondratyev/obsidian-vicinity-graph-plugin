@@ -1,5 +1,100 @@
 # Changelog
 
+## 2026-07-22 — edge-routing Phase 3: routed edges ON by default, verified across all layout modes, parameters tuned
+
+Graduates obstacle-avoiding edge routing to **ON by default for the `force` and
+`layered` layouts**. `DEFAULT_EDGE_ROUTING` flips `false → true`; users can still
+disable it from the settings tab (OFF ⇒ the routing pass never runs and the libavoid
+wasm never loads). Ticket `edge-routing__03-all-layouts-tuning-default-on`. Builds on
+Phases 0–2.
+
+- **Routing works in `force` + `layered`; `radial` is gated off.** The routing pass
+  is layout-agnostic (runs in `GraphViewController` after layout, before publish, on
+  absolute positions only). Verified end-to-end on real headless Obsidian across a
+  sparse / medium (folder-group) / dense (~100-node) dev-vault fixture — collapsed
+  group-box edges and child-square edges attach correctly, no NaN/degenerate paths.
+  **`radial` is deliberately excluded** (`ROUTING_SKIPPED_LAYOUT_MODE`, human
+  decision): its ring placement makes spokes near-straight, so routing there only
+  added ~490ms of visibility-graph cost (vs a ~45ms radial layout on the dense
+  `all-edges` fixture) for no visual gain — radial renders straight spokes, gated
+  pending a web-worker offload. `e2e/edgeRouting.e2e.ts` extended with a
+  `setLayoutMode` helper, a `layered` case (genuinely detours a hub-crossing chord),
+  and a `radial` case asserting ZERO bends (proving the gate); the existing "routing
+  OFF" test now pins `edgeRouting=false` explicitly since the default is ON.
+- **Parameters tuned as named constants** (`src/view/edgeRouting.ts`, evaluated on
+  three dev-vault fixtures with screenshots read back for route quality):
+  `EDGE_ROUTING_SHAPE_BUFFER_PX = 17` (kept; > the 14px arrowhead min inset so routes
+  clear boxes past the head, small vs node spacing), `EDGE_ROUTING_SEGMENT_PENALTY_PX
+  = 50` (NEW — ~50px virtual cost per extra bend → calmer, fewer spurious zig-zags),
+  `EDGE_ROUTING_CROSSING_PENALTY_PX = 0` (NEW knob, **disabled**: any positive value
+  pays libavoid's ~O(connectors²) crossing check and blew the dense-fixture budget —
+  crossing reduction is not "cheap" on hub-shaped vicinities), `ROUTED_CORNER_RADIUS_PX
+  = 10` (kept). The three "tuning deferred to __03" WHY comments are updated to the
+  final rationale.
+- **Performance (routing pass vs elk+d3 layout, real headless Obsidian, ~100-node /
+  ~292-edge dense fixture, `all-edges`):** DEFAULT force layout — routing **~140ms**
+  vs layout **~1460ms** (well under, ~9%). `layered` — routing **~185ms** vs
+  **~300ms** (under). `radial` — routing would have been **~490ms** vs a ~45ms layout,
+  so it is **gated off** (above) and pays nothing. A committed perf-budget e2e guards
+  the default force case; sparse/medium routing is a few ms.
+- **`main.js` size:** production build **2,610,310 B** (vs the pre-routing Phase-00
+  baseline 1,877,709 B ⇒ **+732,601 B / ~+715 KiB**, essentially all the base64
+  embedded libavoid wasm; the Phase-3 source delta over Phase 2 is ~3 KB).
+- **Mobile: NOT verified.** `manifest.isDesktopOnly:false` but no iOS/Android runtime
+  or simulator is available in this environment — unchanged from Phases 0–2, recorded
+  here again explicitly (not silently skipped).
+- **Version unchanged (0.1.1).** Following the established per-phase pattern (Phases
+  0–2 added CHANGELOG entries without bumping); the three-file version bump happens
+  at the actual release cut per `RELEASE_CHECKLIST.md`.
+
+Verified: `npm run check` (tsc) 0 errors; `vitest run` all green (3 new tuning-constant
+tests); `npm run test:e2e` green on headless Obsidian 1.12.7 (extended routing smoke
+across all layouts + a routing-eval spec that reads the pass timings and captures
+per-mode screenshots to `/.out`).
+
+## 2026-07-22 — edge-routing Phase 2: `VicinityEdge` renders the routed polyline (smoothed corners, tangent arrowheads, midpoint badge) — straight-line fallback unchanged (behind `edgeRouting`, default OFF)
+
+`VicinityEdge` now consumes the `routedPoints` threaded through in Phase 1 and draws the obstacle-avoiding polyline with rounded corners, arrowheads along the true approach segments, and the count badge on the routed path. When `routedPoints` is absent or degenerate the render is byte-for-byte the previous straight/bowed edge. Ticket `edge-routing__02-render-routed-edges` (closed). Depends on Phase 1. Enabling by default + parameter tuning + layered/radial verification remain Phase 3 ([[_tickets/edge-routing__03-all-layouts-tuning-default-on]]).
+
+- **New pure geometry in `src/view/edgeGeometry.ts` (still RF-free, unit-tested)**: `routedPathFor(points)` builds the SVG path with a quadratic arc at each interior bend, shrinking each corner by `ROUTED_CORNER_RADIUS_PX = 10` clamped to half of each adjacent segment (short segments can't invert); `polylineMidpoint(points)` walks to half the total arc length for badge anchoring; `routedGeometryFor(points)` returns the SAME `EdgePathGeometry` shape as `edgePathFor`, so `VicinityEdge` renders routed and straight edges through ONE code path.
+- **Arrowheads generalized, not duplicated (DRY)**: target head from the LAST-segment tangent, source head from the FIRST-segment tangent, reusing `arrowFromApproach`/`sourceArrowOf` — the inset constants (`0.12`/`14`/`48`) still live once. Routed arrow inset uses the tangent SEGMENT's own length (head sits on its approach segment); the ≤2-point case delegates to `edgePathFor(...,false)` so it equals today's straight edge exactly.
+- **`VicinityEdge.tsx` branch**: `data.routedPoints` (length ≥ 2) → `routedGeometryFor`; else EXACTLY the prior `edgePathFor` call. Arrowhead/badge JSX untouched → the OFF path is a no-op change (all pre-existing edge tests pass unmodified). `hasOpposite` bowing intentionally NOT applied when routed — separation comes from libavoid buffers; genuine bidirectional overlap is deferred to the arrows.md:88-94 collapse follow-up, no third mechanism invented.
+- **Degenerate-segment hardening**: duplicate consecutive routed points no longer NaN the arrow transform — `distinctSegmentFrom(points, fromIndex, step)` walks past coincident waypoints to the nearest DISTINCT neighbour for the tangent, and `arrowFromApproach` guards `approachLength === 0` by anchoring flat on the endpoint (mirrors the existing degenerate `edgePathFor` case). Reproduced failing-first, then fixed.
+- **Coordinates (ticket item 3) — no transform needed, confirmed**: `routedPoints` are ABSOLUTE flow coords and RF hands custom edges absolute `sourceX/Y`/`targetX/Y` (even subflow children), so the geometry layer applies no offset. A pure pass-through unit test proves the routed path starts/ends exactly at the polyline endpoints; the subflow claim rests on that plus the e2e screenshot (WHY comments at both seams). Nothing to fix at the mapping layer.
+- **e2e visual smoke (`e2e/edgeRouting.e2e.ts` + new `setEdgeRouting` harness helper)**: a seeded force-layout fixture with `edgeVisibility: "all-edges"` renders sibling diameter-chords through the hub so a straight edge would cross a node. Routing OFF asserts 0 bends WITH crossing chords present; ON asserts ≥1 bent edge (detector = path with ≥2 `L` commands — precise, not coordinate-overfit). Screenshot saved to gitignored `/.out/edge-routing-force.png`.
+
+Verified: `npm run check` (tsc) 0 errors; `vitest run` **646 passed / 54 files** (16 new geometry tests incl. 5 NaN-tolerance cases; zero pre-existing tests modified or removed); `npm run test:e2e -- edgeRouting.e2e.ts` **2/2 passed** against real headless Obsidian 1.12.7 (not fake-passed). Independently reproduced by IMPLEMENTATION_REVIEW — final verdict **APPROVE, 0 blocking**; all 4 non-blocking review notes incorporated.
+
+## 2026-07-22 — edge-routing Phase 1: obstacle-avoiding EdgeRouter pass + `routedPoints` threaded through the snapshot (behind `edgeRouting` setting, default OFF)
+
+Adds a layout-agnostic, post-layout routing pass that computes obstacle-avoiding polylines for every edge and threads them through the immutable `FlowSnapshot`, gated by the new `edgeRouting` ViewSetting. No rendering change yet — routed points ride along unused until Phase 2 ([[_tickets/edge-routing__02-render-routed-edges]]). Ticket `edge-routing__01-routing-pass-and-snapshot-threading` (closed). Builds on the Phase 0 loader/esbuild wiring.
+
+- **New RF-free module `src/view/edgeRouting.ts`**: `EdgeRouter` interface (DIP — tests use a `FakeEdgeRouter`; libavoid impl is `LibavoidEdgeRouter`) with named data types (`RoutingObstacle`/`RoutingEdge`/`EdgeRoutingInput`, `RoutedPoint`, `EdgeRouteMap = ReadonlyMap<edgeId, readonly RoutedPoint[]>`). Pure `extractEdgeRoutingInput(...)` turns snapshot inputs (absolute positions, group/child dimensions, edges) into the router input — node-testable without WASM, like `elkMapping`/`flowMapping`.
+- **libavoid usage**: `Avoid.Router(PolyLineRouting)`; obstacles = `Rectangle` + `ShapeRef`; endpoints SHAPE-ATTACHED via a centre-pin `ConnEnd(shapeRef, classId)` (not raw points) so src/tgt shapes don't block their own edge; one `processTransaction()`; `connRef.displayRoute()`. `shapeBufferDistance` set to `EDGE_ROUTING_SHAPE_BUFFER_PX` (= `EDGE_PAIR_CURVATURE_PX / 2 = 17`).
+- **Memory safety owned in one place**: the `AvoidArena` ownership wrapper (relocated verbatim from the throwaway spike into `LibavoidEdgeRouter`) tracks only leaf allocations (Point/Rectangle/ConnEnd), destroys the Router last in `finally`, and never frees router-owned ShapeRef/ConnRef/Pin — no libavoid object escapes the class; `Avoid.` usage is grep-confined to `edgeRouting.ts` + `libavoidLoader.ts`.
+- **Coordinates**: routing runs in ABSOLUTE space (the space `extractElkPositions` yields, before `withPositions` makes subflow children parent-relative). RF renders edges in the same absolute flow-space, so `routedPoints` need no transform when Phase 2 consumes them — documented at both threading seams.
+- **Wired into `GraphViewController.runRebuild`** after layout, before `publish`; async (pipeline already is). A signature-keyed route cache (obstacle geometry + edge endpoints) means reuse-layout rebuilds don't re-run libavoid when inputs are unchanged, re-route when edges change but positions are reused, and flipping the setting invalidates the cache WITHOUT forcing an elk relayout (positions don't change). Latest-wins via the existing `isStale(token)` guard.
+- **Failure containment (single, documented, pass-level)**: wasm init or routing throws → one `console.warn` with the plugin prefix, snapshot published WITHOUT `routedPoints` (straight edges = today's behavior). No per-edge silent fallbacks.
+- **Setting**: `edgeRouting: boolean` (default OFF) mirrors the `groupByFolder` boolean wiring end-to-end (type → default → resolver → persist-parse → write-plan → fixtures) plus a visible settings-tab toggle. When OFF the pass never runs and the wasm never loads (`loadAvoid` is a lazy `await import` reached only inside `route()`).
+- **Threading stops at data**: `FlowEdge.routedPoints` → RF edge `data` → `VicinityEdgeData.routedPoints`; `VicinityEdge` does NOT branch on it (Phase 2 boundary).
+- **Spike cleanup**: `libavoidSpike.ts`, its test, and `e2e/libavoidSpike.e2e.ts` deleted; the throwaway `debug-spike-libavoid-routing` command + imports removed from `src/main.ts`. Production-shaped loader/esbuild wiring stays.
+
+Verified: `npm run check` (tsc) 0 errors; `vitest run` **630 passed / 54 files** (612 pre-existing − 4 removed spike tests + new edgeRouting/controller/settings tests, zero regressions); `npm run build` (production) green with the wasm still embedded; real-wasm integration test genuinely routes 2 nodes around a blocking obstacle (>2 points, avoids the rect — not fake-passed). Independently reproduced by IMPLEMENTATION_REVIEW — **READY, 0 blocking, 0 should-fix**.
+
+## 2026-07-22 — edge-routing Phase 0 spike: libavoid-js (WASM) proven to load OFFLINE inside Obsidian
+
+De-risks the whole edge-routing epic ([[_tickets/edge-routing-via-libavoid-js-obstacle-avoiding-edges-for-all-layouts-force-directed-first]]) by proving, with automated verification, that the `libavoid-js` WASM router bundles into the single-file `main.js` and loads/routes offline in the real Obsidian/Electron runtime. Ticket `edge-routing__00-wasm-spike-libavoid-in-obsidian` (closed). Spike harness is throwaway; the esbuild wiring + loader shim are production-shaped and stay for Phase 1.
+
+- **WASM bundling (production-shaped, stays)**: `libavoid-js@0.4.5` pinned; new esbuild `loader: { ".wasm": "base64" }` (the config's first loader entry) embeds `dist/libavoid.wasm` as base64; `src/types/libavoidWasm.d.ts` is the repo's first ambient `declare module "*.wasm"`. `src/view/libavoidLoader.ts` is the lazy, success-cached `loadAvoid(): Promise<Avoid>` shim that Phase 1's `LibavoidEdgeRouter` will build on.
+- **Load path — data-URL works in Electron; `wasmBinary` fallback unreachable & unneeded**: `AvoidLib.load("data:application/octet-stream;base64,<b64>")` → Emscripten `locateFile` → Chromium `fetch()` accepts the data: URL. The ticket's proposed `wasmBinary` fallback is **not reachable** through libavoid-js's browser build (the Emscripten factory isn't exported) — but the primary path works, so it isn't required (recorded on the epic risk table).
+- **Offline proof is real, not asserted**: `e2e/libavoidSpike.e2e.ts` drives a real pinned Obsidian 1.12.7 Electron binary over CDP with the renderer's http/ws **network blackholed** — the embedded wasm still loads and routes (`1 passed`).
+- **Routing verified**: (a) 1 conn around 1 rect obstacle → bent polyline, no vertex inside the obstacle; (b) a child rect **nested inside** a folder-group rect routes sanely to a shape outside the group — **no "attach-to-group" fallback needed** (epic risk mitigated for the common case); (c) **100/100** create/route/destroy loop, no crash.
+- **Memory safety encoded once**: the load-bearing rule — never `Avoid.destroy()` router-owned `ShapeRef`/`ConnRef`/connector pins (double-free → wasm abort) — is enforced by the `AvoidArena` wrapper so leaks/double-frees are impossible to write at call sites. Reviewer feedback I2 applied: `loadAvoid` no longer memoizes a *rejected* promise (a failed init resets the slot so a later call can retry, instead of locking the session into straight edges).
+- **Cost**: `main.js` **1,877,709 → 2,607,082 B (+729,373 B, ~+712 KiB)** from the 474 KB embedded wasm. Accepted; flagged for Phase 3 release notes.
+- **Mobile (isDesktopOnly:false)**: iOS/Android WebView **not verified** — no mobile runtime in this environment (best-effort per ticket; deferred). Desktop verified.
+
+Verified: `npm run check` (tsc) 0 errors; `vitest run` **616 passed** (612 pre-existing + 4 spike, zero regressions); `npm run build` (production) green with the wasm embedded; offline-load e2e `1 passed` on headless Obsidian 1.12.7. Independently reproduced by IMPLEMENTATION_REVIEW — **READY TO CLOSE, 0 blocking**.
+
 ## 2026-07-21 — viewport fit owned explicitly + the MAIN central is now pinnable
 
 Fixes the 3 failing e2e specs (human-reported) and closes the UX gap that the current central note could not be pinned before navigating away.

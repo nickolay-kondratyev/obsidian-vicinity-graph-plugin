@@ -31,7 +31,9 @@ export type SettingsInteraction =
 	/** Global sizing configuration (whole object). */
 	| { readonly kind: "global-sizing"; readonly sizing: SizingSettings }
 	/** Global layout mode. */
-	| { readonly kind: "global-layout"; readonly layoutMode: LayoutMode };
+	| { readonly kind: "global-layout"; readonly layoutMode: LayoutMode }
+	/** Global obstacle-avoiding edge-routing toggle. */
+	| { readonly kind: "global-edge-routing"; readonly edgeRouting: boolean };
 
 /** The persistence call the executor must make. */
 export type SettingsCommand =
@@ -81,5 +83,7 @@ export function planSettingsWrite(interaction: SettingsInteraction, ctx: Setting
 			return { kind: "global-view", view: { ...ctx.globalView, sizing: interaction.sizing } };
 		case "global-layout":
 			return { kind: "global-view", view: { ...ctx.globalView, layoutMode: interaction.layoutMode } };
+		case "global-edge-routing":
+			return { kind: "global-view", view: { ...ctx.globalView, edgeRouting: interaction.edgeRouting } };
 	}
 }
