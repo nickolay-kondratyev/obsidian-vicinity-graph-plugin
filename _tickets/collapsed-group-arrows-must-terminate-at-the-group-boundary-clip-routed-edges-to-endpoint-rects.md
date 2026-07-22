@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-22T21:07:04Z
 id: nid_wku3029kwmnei7e86rbb1dk7w_e
 title: "Collapsed group arrows must terminate at the group boundary (clip routed edges to endpoint rects)"
-status: open
+status: closed
 deps: []
 links: [nid_var2o7krxq7ribq3iofni3aw1_e]
 created_iso: 2026-07-22T20:37:35Z
-status_updated_iso: 2026-07-22T20:37:35Z
+status_updated_iso: 2026-07-22T21:07:04Z
 type: bug
 priority: 0
 assignee: CC_WITH-nickolaykondratyev

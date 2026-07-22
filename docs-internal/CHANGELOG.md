@@ -1,5 +1,45 @@
 # Changelog
 
+## 2026-07-22 — routed edges clipped to endpoint rects: collapsed group arrows terminate at the group boundary
+
+Fixes a bug where, with edge routing ON, a collapsed group arrow plunged INSIDE the
+group box and its arrowhead landed on a member node — reading as a node→node link
+rather than node→group. Root cause: libavoid's centre pin (`PIN_CENTRE_FRACTION = 0.5`)
+makes routed polylines start/end at the endpoint box **centre**; nothing clipped them
+to the box boundary. Ticket `nid_wku3029kwmnei7e86rbb1dk7w_e`. Pure view-layer geometry —
+no engine changes.
+
+- **New pure function `clipRouteToEndpointRects(points, sourceRect, targetRect)`**
+  (`src/view/edgeGeometry.ts`): walks in from each end dropping points strictly inside
+  the endpoint rect and replacing the terminus with the true segment↔border crossing
+  (Liang–Barsky). Degenerate/overlap (route wholly inside a rect, tiny edge, source rect
+  == target rect) falls back to the unclipped 2-point chord — never empty/NaN, mirroring
+  the existing `distinctSegmentFrom` guard spirit.
+- **Applied in `GraphViewController.resolveRoutes`** before the route cache write, so
+  cached (reuse-layout) routes are already clipped; `withRoutedPoints` is untouched.
+  Each route is clipped against its source/target obstacle rect from the existing
+  `extractEdgeRoutingInput` pipeline — folder-group endpoints resolve to their
+  `groupDimensions` GROUP rect, notes to their note rect; a missing obstacle leaves the
+  route unclipped rather than crashing.
+- **Side-aware anchoring for free:** the clipped terminus is where the route crosses the
+  border, so the arrowhead now lands on the logical approach side for ALL routed edges.
+  The non-routed straight-edge path is unchanged (linked follow-up
+  `nid_var2o7krxq7ribq3iofni3aw1_e`).
+- **Arrowhead inset unchanged:** after clipping, `routedGeometryFor`'s inset measures
+  from the boundary; the head now sits just OUTSIDE the box on the approach line
+  (previously note heads coincidentally sat just inside via centre≈boundary) — a
+  consistency improvement, not a regression.
+- **Spec:** `docs-internal/vicinity-graph-specs/arrows.md` §5 gains a normative
+  boundary-clipping statement.
+- **Tests:** 7 new (6 BDD unit for the clip math incl. corner-entry, source mirror, and
+  degenerate-fallback; 1 controller test asserting a note→note terminus clips to the
+  note border) plus a folder-group controller test asserting a `c.md→folder-group:notes`
+  route clips to the GROUP container border (x=150), not the interior centre — routed
+  through the real folder-group obstacle-extraction branch. `npm test` 658 pass, `tsc`
+  clean. E2E: existing routing regression stays green (4/4); the new group
+  geometry-assertion e2e was **downgraded to screenshot capture** (deterministic
+  controller test is the gate) per the ticket's explicit allowance.
+
 ## 2026-07-22 — edge-routing Phase 3: routed edges ON by default, verified across all layout modes, parameters tuned
 
 Graduates obstacle-avoiding edge routing to **ON by default for the `force` and
