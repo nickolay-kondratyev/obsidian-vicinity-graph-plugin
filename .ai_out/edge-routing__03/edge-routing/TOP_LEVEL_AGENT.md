@@ -13,4 +13,7 @@ Workflow: IMPLEMENTATION_WITH_SELF_PLAN → IMPLEMENTATION_REVIEW → IMPLEMENTA
 6. Mobile check or explicitly record "not verified on mobile".
 
 ## Status log
-- [in progress] Exploration: 2 Explore agents launched (routing pipeline; tests/fixtures/docs).
+- [done] Exploration: 2 Explore agents → EXPLORATION_PUBLIC.md. Committed 557c4b1.
+- [done] IMPLEMENTATION_WITH_SELF_PLAN complete. Full suite green (tsc 0, vitest 649, e2e 32, build OK). NOT committed yet.
+- [resolved] Perf gate → HUMAN DECISION: **gate routing to SKIP for radial layout** (spokes near-straight; routing not needed there). graphFixtures.ts-false decision accepted.
+- [in progress] IMPLEMENTATION_WITH_SELF_PLAN continued: add radial-skip gate + update affected tests (e2e radial now expects 0 bends) + docs + PUBLIC. Then commit → review.

@@ -51,11 +51,40 @@ export interface EdgeRouter {
 /**
  * Clearance libavoid keeps around every obstacle. Derived from the hand-drawn
  * paired-edge bow ({@link EDGE_PAIR_CURVATURE_PX}) so routed detours read at a
- * comparable visual scale — half the curvature keeps paths clear of box corners
- * without ballooning the layout. Parameter tuning beyond this initial value is
- * ticket edge-routing__03.
+ * comparable visual scale: half the curvature = 17px, comfortably beyond the
+ * arrowhead's minimum inset (`EDGE_ARROWHEAD_INSET_MIN_PX = 14px`) so a route
+ * clears a box further out than the arrowhead ever sits, yet small relative to
+ * inter-node spacing (min node 40px, layouts space centres hundreds of px apart)
+ * so dense vicinities don't detour absurdly. Kept at 17px after the edge-routing__03
+ * tuning pass: screenshots on the sparse/medium/dense dev-vault fixtures showed
+ * routes clearing boxes cleanly without ballooning — see that ticket's PUBLIC notes.
  */
 export const EDGE_ROUTING_SHAPE_BUFFER_PX = EDGE_PAIR_CURVATURE_PX / 2;
+
+/**
+ * Cost libavoid adds per connector SEGMENT beyond the first, in the same length
+ * units as the route (so ~50px of virtual length per extra bend). A positive
+ * penalty makes the router prefer a straight shot and only introduce a bend when
+ * detouring saves more than the penalty — killing spurious near-collinear
+ * zig-zags so routes read calm. 50 is libavoid's own documented example value;
+ * on the dev-vault fixtures it removed jitter without suppressing the genuine
+ * obstacle detours (tuned in edge-routing__03).
+ */
+export const EDGE_ROUTING_SEGMENT_PENALTY_PX = 50;
+
+/**
+ * Cost libavoid adds per edge-edge CROSSING. DISABLED (0) after the edge-routing__03
+ * perf pass: crossing avoidance is the expensive part of libavoid's search (it is
+ * ~O(connectors²) in the crossing check, incurred for ANY positive value — it is
+ * NOT paid only "when cheap"). On the ~100-node / ~292-edge dense fixture a value of
+ * 100 pushed the routing pass to ~1700ms — above the elk+d3 layout time — whereas 0
+ * kept it at ~140ms under the default force layout (well under the ~1460ms layout).
+ * The segment penalty above already calms routes; crossing minimisation buys little
+ * extra on these hub-shaped vicinities for a cost the interactive rebuild can't
+ * afford. Kept as a NAMED knob (not deleted) so the tuning decision is explicit and
+ * a future web-worker offload (deferred) can revisit it. See edge-routing__03 PUBLIC.
+ */
+export const EDGE_ROUTING_CROSSING_PENALTY_PX = 0;
 
 /**
  * Extracts the router's input from the SAME post-layout data the publish step
@@ -209,6 +238,8 @@ export class LibavoidEdgeRouter implements EdgeRouter {
 		const router = arena.newRouter();
 		try {
 			router.setRoutingParameter(avoid.shapeBufferDistance, EDGE_ROUTING_SHAPE_BUFFER_PX);
+			router.setRoutingParameter(avoid.segmentPenalty, EDGE_ROUTING_SEGMENT_PENALTY_PX);
+			router.setRoutingParameter(avoid.crossingPenalty, EDGE_ROUTING_CROSSING_PENALTY_PX);
 			const shapeById = new Map<string, AvoidShapeRef>();
 			for (const obstacle of input.obstacles) {
 				const shape = arena.shape(router, rectOf(obstacle));

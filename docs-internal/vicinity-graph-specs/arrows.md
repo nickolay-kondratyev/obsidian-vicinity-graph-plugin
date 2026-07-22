@@ -101,6 +101,41 @@ projects cross-boundary edges onto containers for layout in the
 `SEPARATE_CHILDREN` modes, so layout and rendering now agree at the group
 granularity instead of diverging.
 
+### 5. Obstacle-avoiding edge routing
+
+Since edge-routing__03 the graph routes edges around node/group boxes by default
+(`edgeRouting` ViewSetting, default ON; users can turn it off). The routing pass
+(`GraphViewController` → `LibavoidEdgeRouter`) runs AFTER layout and BEFORE
+publish, consuming only the final absolute positions + group dimensions. It applies
+to the **`force` and `layered`** layouts. **`radial` is deliberately excluded**
+(`ROUTING_SKIPPED_LAYOUT_MODE`): its ring placement makes spokes near-straight, so
+routing there only adds visibility-graph cost (~490ms on a dense vicinity vs a ~45ms
+radial layout) for no visual benefit — radial edges render straight, gated until a
+cheaper path (web-worker offload) exists. Each routed edge carries a `routedPoints`
+polyline; `VicinityEdge` renders it via `routedGeometryFor` with rounded corners and
+arrowheads along the true approach segments.
+
+- **When routes apply:** routing ON + a non-radial layout + libavoid returns a
+  polyline for the edge. A cleanly-routed (unobstructed) edge comes back as a 2-point
+  line and renders byte-identical to the straight-line form below.
+- **Straight-line fallback:** when routing is OFF, or the wasm/router fails (one
+  logged `console.warn`, then the whole pass yields no routes), or an edge is absent
+  from the route map, the edge renders through the original `edgePathFor` — a
+  straight line, or a right-of-travel quadratic bow for a `hasOpposite` pair.
+- **Interaction with bidirectional / `hasOpposite`:** routed edges do NOT apply the
+  hand-drawn paired-edge bow. Two opposite routed edges are already separated by the
+  libavoid clearance buffer (`EDGE_ROUTING_SHAPE_BUFFER_PX`), so re-adding the bow
+  would double-separate them. Group-collapsed bidirectional edges still draw an
+  arrowhead at BOTH ends — for a routed edge those heads follow the first/last
+  segment tangents (via `routedGeometryFor`) instead of the straight-chord tangents.
+
+Tuning (all named constants, `edgeRouting.ts` / `edgeGeometry.ts`): shape buffer
+17px, segment penalty 50 (calmer, fewer bends), crossing penalty 0 (disabled — too
+costly for the interactive rebuild on dense vicinities), corner radius 10px. The
+routing pass stays well under the elk+d3 layout time for `force` and `layered`;
+`radial` is gated off entirely (see above) so it never pays that cost. A web-worker
+offload is the deferred follow-up that could let radial route cheaply.
+
 ## Edge cases to cover in tests
 
 - Many members → one collapsed arrow; `count` = sum of member link counts.

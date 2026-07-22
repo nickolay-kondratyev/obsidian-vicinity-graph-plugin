@@ -1,4 +1,4 @@
-import type { VicinityGraph } from "../engine";
+import type { LayoutMode, VicinityGraph } from "../engine";
 import { EngineDefaults } from "../engine";
 import type { ControlsModel } from "./ControlsModel";
 import { REBUILD_DEBOUNCE_MS, SIZE_RELAYOUT_THRESHOLD } from "./constants";
@@ -203,7 +203,15 @@ export class GraphViewController {
 			positions = this.positions;
 			groupDimensions = this.groupDimensions;
 		} else {
+			// Wall-time of the elk+d3 layout pass — the baseline the routing pass must
+			// stay well under (edge-routing__03 item 3 perf budget). debug-level so it
+			// is silent unless devtools verbose logging is enabled.
+			const layoutStart = performance.now();
 			const laidOut = await this.layoutRunner.layout(vicinityGraphToElk(graph));
+			console.debug("vicinity-graph: elk+d3 layout pass", {
+				nodeCount: graph.nodes.length,
+				durationMs: performance.now() - layoutStart,
+			});
 			if (this.isStale(token)) {
 				return;
 			}
@@ -234,7 +242,7 @@ export class GraphViewController {
 		groupDimensions: ReadonlyMap<string, Dimensions>,
 		token: number,
 	): Promise<EdgeRouteMap> {
-		if (!graph.viewSettings.edgeRouting) {
+		if (!graph.viewSettings.edgeRouting || isRoutingSkippedLayout(graph.viewSettings.layoutMode)) {
 			this.routeCache = null;
 			return EMPTY_ROUTES;
 		}
@@ -249,7 +257,16 @@ export class GraphViewController {
 			return this.routeCache.routes;
 		}
 		try {
+			// Wall-time of the obstacle-avoiding routing pass, with its input scale —
+			// compared against the elk+d3 layout log above to hold the item-3 perf
+			// budget (routing must stay well under layout). debug-level, silent by default.
+			const routeStart = performance.now();
 			const routes = await this.edgeRouter.route(input);
+			console.debug("vicinity-graph: edge routing pass", {
+				obstacleCount: input.obstacles.length,
+				edgeCount: input.edges.length,
+				durationMs: performance.now() - routeStart,
+			});
 			if (this.isStale(token)) {
 				return EMPTY_ROUTES;
 			}
@@ -314,6 +331,21 @@ export class GraphViewController {
 			this.debounceTimer = null;
 		}
 	}
+}
+
+/**
+ * Layout mode whose routing pass is intentionally SKIPPED. Radial ring placement
+ * spreads nodes evenly around the hub so the spokes are already near-straight;
+ * running obstacle-avoiding routing there still forces libavoid to build the full
+ * ~100-obstacle visibility graph (~490ms on a dense `all-edges` vicinity, vs the
+ * ~45ms radial layout) for no visual benefit. So radial edges render straight —
+ * gated until a cheaper path exists (web-worker offload, deferred). Force + layered
+ * still route (edge-routing__03, human decision).
+ */
+const ROUTING_SKIPPED_LAYOUT_MODE: LayoutMode = "radial";
+
+function isRoutingSkippedLayout(layoutMode: LayoutMode): boolean {
+	return layoutMode === ROUTING_SKIPPED_LAYOUT_MODE;
 }
 
 /** Field separator for the route-cache signature — a NUL cannot occur in a vault path / id. */

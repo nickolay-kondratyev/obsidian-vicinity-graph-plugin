@@ -2,10 +2,17 @@ import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { asFolderPath, asVaultPath } from "../engine";
+import { EDGE_ARROWHEAD_INSET_MIN_PX } from "./edgeGeometry";
 import { vicinityGraphToFlow } from "./flowMapping";
 import type { Dimensions, XY } from "./flowMapping";
 import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
-import { EDGE_ROUTING_SHAPE_BUFFER_PX, LibavoidEdgeRouter, extractEdgeRoutingInput } from "./edgeRouting";
+import {
+	EDGE_ROUTING_CROSSING_PENALTY_PX,
+	EDGE_ROUTING_SEGMENT_PENALTY_PX,
+	EDGE_ROUTING_SHAPE_BUFFER_PX,
+	LibavoidEdgeRouter,
+	extractEdgeRoutingInput,
+} from "./edgeRouting";
 import type { RoutingObstacle } from "./edgeRouting";
 import type { Avoid } from "./libavoidLoader";
 
@@ -93,6 +100,24 @@ describe("extractEdgeRoutingInput", () => {
 describe("EDGE_ROUTING_SHAPE_BUFFER_PX", () => {
 	it("WHEN derived from the paired-edge curvature THEN it is half of it (17px)", () => {
 		expect(EDGE_ROUTING_SHAPE_BUFFER_PX).toBe(17);
+	});
+
+	it("WHEN a route clears an obstacle THEN the buffer exceeds the arrowhead min inset (14px)", () => {
+		// The clearance must be larger than where the arrowhead ever sits, so a route
+		// clears a box further out than its own head (edge-routing__03 tuning rationale).
+		expect(EDGE_ROUTING_SHAPE_BUFFER_PX).toBeGreaterThan(EDGE_ARROWHEAD_INSET_MIN_PX);
+	});
+});
+
+describe("edge-routing tuning penalties (edge-routing__03)", () => {
+	it("WHEN each extra bend is penalised THEN the segment penalty is 50px of virtual length", () => {
+		expect(EDGE_ROUTING_SEGMENT_PENALTY_PX).toBe(50);
+	});
+
+	it("WHEN crossing avoidance is too costly for the interactive rebuild THEN the crossing penalty is disabled (0)", () => {
+		// Evaluated in edge-routing__03: any positive value pays libavoid's ~O(connectors²)
+		// crossing check, blowing the dense-fixture perf budget. Kept as a named knob at 0.
+		expect(EDGE_ROUTING_CROSSING_PENALTY_PX).toBe(0);
 	});
 });
 

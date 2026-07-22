@@ -40,11 +40,13 @@ export const DEFAULT_EDGE_VISIBILITY: EdgeVisibilityMode = "walked-from-center";
 export const DEFAULT_LAYOUT_MODE: LayoutMode = "force";
 
 /**
- * Obstacle-avoiding edge routing ships OFF by default: it is opt-in until the
- * render pass (ticket edge-routing__02) and default-ON decision (edge-routing__03)
- * land. When OFF the routing pass never runs and the libavoid wasm never loads.
+ * Obstacle-avoiding edge routing ships ON by default (ticket edge-routing__03):
+ * the render pass, parameter tuning, and all-layout verification have landed, so
+ * routed edges are the default reading experience. Users can still disable it from
+ * the settings tab; when OFF the routing pass never runs and the libavoid wasm
+ * never loads (lazy `await import` reached only inside `LibavoidEdgeRouter.route`).
  */
-export const DEFAULT_EDGE_ROUTING = false;
+export const DEFAULT_EDGE_ROUTING = true;
 
 const DEFAULT_METRIC_WEIGHT = 1;
 

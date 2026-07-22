@@ -1,5 +1,57 @@
 # Changelog
 
+## 2026-07-22 — edge-routing Phase 3: routed edges ON by default, verified across all layout modes, parameters tuned
+
+Graduates obstacle-avoiding edge routing to **ON by default for the `force` and
+`layered` layouts**. `DEFAULT_EDGE_ROUTING` flips `false → true`; users can still
+disable it from the settings tab (OFF ⇒ the routing pass never runs and the libavoid
+wasm never loads). Ticket `edge-routing__03-all-layouts-tuning-default-on`. Builds on
+Phases 0–2.
+
+- **Routing works in `force` + `layered`; `radial` is gated off.** The routing pass
+  is layout-agnostic (runs in `GraphViewController` after layout, before publish, on
+  absolute positions only). Verified end-to-end on real headless Obsidian across a
+  sparse / medium (folder-group) / dense (~100-node) dev-vault fixture — collapsed
+  group-box edges and child-square edges attach correctly, no NaN/degenerate paths.
+  **`radial` is deliberately excluded** (`ROUTING_SKIPPED_LAYOUT_MODE`, human
+  decision): its ring placement makes spokes near-straight, so routing there only
+  added ~490ms of visibility-graph cost (vs a ~45ms radial layout on the dense
+  `all-edges` fixture) for no visual gain — radial renders straight spokes, gated
+  pending a web-worker offload. `e2e/edgeRouting.e2e.ts` extended with a
+  `setLayoutMode` helper, a `layered` case (genuinely detours a hub-crossing chord),
+  and a `radial` case asserting ZERO bends (proving the gate); the existing "routing
+  OFF" test now pins `edgeRouting=false` explicitly since the default is ON.
+- **Parameters tuned as named constants** (`src/view/edgeRouting.ts`, evaluated on
+  three dev-vault fixtures with screenshots read back for route quality):
+  `EDGE_ROUTING_SHAPE_BUFFER_PX = 17` (kept; > the 14px arrowhead min inset so routes
+  clear boxes past the head, small vs node spacing), `EDGE_ROUTING_SEGMENT_PENALTY_PX
+  = 50` (NEW — ~50px virtual cost per extra bend → calmer, fewer spurious zig-zags),
+  `EDGE_ROUTING_CROSSING_PENALTY_PX = 0` (NEW knob, **disabled**: any positive value
+  pays libavoid's ~O(connectors²) crossing check and blew the dense-fixture budget —
+  crossing reduction is not "cheap" on hub-shaped vicinities), `ROUTED_CORNER_RADIUS_PX
+  = 10` (kept). The three "tuning deferred to __03" WHY comments are updated to the
+  final rationale.
+- **Performance (routing pass vs elk+d3 layout, real headless Obsidian, ~100-node /
+  ~292-edge dense fixture, `all-edges`):** DEFAULT force layout — routing **~140ms**
+  vs layout **~1460ms** (well under, ~9%). `layered` — routing **~185ms** vs
+  **~300ms** (under). `radial` — routing would have been **~490ms** vs a ~45ms layout,
+  so it is **gated off** (above) and pays nothing. A committed perf-budget e2e guards
+  the default force case; sparse/medium routing is a few ms.
+- **`main.js` size:** production build **2,610,310 B** (vs the pre-routing Phase-00
+  baseline 1,877,709 B ⇒ **+732,601 B / ~+715 KiB**, essentially all the base64
+  embedded libavoid wasm; the Phase-3 source delta over Phase 2 is ~3 KB).
+- **Mobile: NOT verified.** `manifest.isDesktopOnly:false` but no iOS/Android runtime
+  or simulator is available in this environment — unchanged from Phases 0–2, recorded
+  here again explicitly (not silently skipped).
+- **Version unchanged (0.1.1).** Following the established per-phase pattern (Phases
+  0–2 added CHANGELOG entries without bumping); the three-file version bump happens
+  at the actual release cut per `RELEASE_CHECKLIST.md`.
+
+Verified: `npm run check` (tsc) 0 errors; `vitest run` all green (3 new tuning-constant
+tests); `npm run test:e2e` green on headless Obsidian 1.12.7 (extended routing smoke
+across all layouts + a routing-eval spec that reads the pass timings and captures
+per-mode screenshots to `/.out`).
+
 ## 2026-07-22 — edge-routing Phase 2: `VicinityEdge` renders the routed polyline (smoothed corners, tangent arrowheads, midpoint badge) — straight-line fallback unchanged (behind `edgeRouting`, default OFF)
 
 `VicinityEdge` now consumes the `routedPoints` threaded through in Phase 1 and draws the obstacle-avoiding polyline with rounded corners, arrowheads along the true approach segments, and the count badge on the routed path. When `routedPoints` is absent or degenerate the render is byte-for-byte the previous straight/bowed edge. Ticket `edge-routing__02-render-routed-edges` (closed). Depends on Phase 1. Enabling by default + parameter tuning + layered/radial verification remain Phase 3 ([[_tickets/edge-routing__03-all-layouts-tuning-default-on]]).

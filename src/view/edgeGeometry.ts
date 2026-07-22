@@ -131,7 +131,10 @@ export function edgePathFor(
  * them). Turns the router's hard right-angle detours into smooth, organic curves.
  * Kept the same order of magnitude as `EDGE_ROUTING_SHAPE_BUFFER_PX` (in
  * edgeRouting.ts, ~17px) so corners read at roughly the routing clearance's
- * visual scale; further tuning is ticket edge-routing__03.
+ * visual scale. Held at 10px through the edge-routing__03 tuning pass: on the
+ * sparse/medium/dense dev-vault fixtures it rounds the router's right-angle
+ * detours into organic curves without eating so much of a short segment that the
+ * corner reads as a diagonal shortcut.
  */
 export const ROUTED_CORNER_RADIUS_PX = 10;
 
