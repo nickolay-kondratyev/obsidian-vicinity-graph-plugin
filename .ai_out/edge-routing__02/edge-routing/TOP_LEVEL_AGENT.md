@@ -8,8 +8,8 @@ IMPLEMENTATION_WITH_SELF_PLAN → IMPLEMENTATION_REVIEW → IMPLEMENTATION_ITERA
 
 ## Status log
 - [x] Setup + created output dir.
-- [ ] EXPLORATION (2 Explore agents running: rendering geometry; coords+e2e).
-- [ ] IMPLEMENTATION_WITH_SELF_PLAN
+- [x] EXPLORATION done + committed (9ce3e6a). Files: EXPLORATION_PUBLIC.md + rendering + coords_e2e.
+- [~] IMPLEMENTATION_WITH_SELF_PLAN (running)
 - [ ] IMPLEMENTATION_REVIEW
 - [ ] IMPLEMENTATION_ITERATION
 - [ ] Final: changelog, close ticket, commit.

@@ -294,6 +294,18 @@ export class ObsidianHarness {
 		);
 	}
 
+	/** Toggles obstacle-avoiding edge routing through the plugin's own persistence API (mirrors {@link setGlobalNodeCap}). */
+	async setEdgeRouting(enabled: boolean): Promise<void> {
+		await this.page.evaluate(
+			async ({ pluginId, edgeRouting }) => {
+				const app = (window as unknown as { app: any }).app;
+				const store = app.plugins.plugins[pluginId].pluginDataStore;
+				await store.saveGlobalView({ ...store.globalView(), edgeRouting });
+			},
+			{ pluginId: PLUGIN_ID, edgeRouting: enabled },
+		);
+	}
+
 	/**
 	 * Reads the plugin's persisted global view settings straight from the store —
 	 * the source of truth that a restart reloads. Used to assert settings

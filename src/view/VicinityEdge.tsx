@@ -2,7 +2,7 @@ import { BaseEdge, EdgeLabelRenderer } from "@xyflow/react";
 import type { Edge, EdgeProps } from "@xyflow/react";
 import type { ReactElement } from "react";
 import { linkCountBadgeText } from "./badgeText";
-import { edgePathFor } from "./edgeGeometry";
+import { edgePathFor, routedGeometryFor } from "./edgeGeometry";
 import type { RoutedPoint } from "./edgeRouting";
 
 /**
@@ -46,7 +46,15 @@ export function VicinityEdge({
 	targetY,
 	data,
 }: EdgeProps<VicinityEdgeType>): ReactElement {
-	const geometry = edgePathFor(sourceX, sourceY, targetX, targetY, data?.hasOpposite ?? false);
+	// When the routing pass produced an obstacle-avoiding polyline (edge routing
+	// ON), draw it; otherwise fall back to EXACTLY the straight/curved geometry.
+	// routedPoints are ABSOLUTE flow coords and RF gives us absolute sourceX/Y too,
+	// so routedGeometryFor applies no transform (see its doc + edge-routing__02 item 3).
+	const routedPoints = data?.routedPoints;
+	const geometry =
+		routedPoints !== undefined && routedPoints.length >= 2
+			? routedGeometryFor(routedPoints)
+			: edgePathFor(sourceX, sourceY, targetX, targetY, data?.hasOpposite ?? false);
 	const badge = linkCountBadgeText(data?.count ?? 1);
 	// Triangle authored tip-at-origin pointing +x, then translated to the tip
 	// and rotated to the edge's arrival angle.
