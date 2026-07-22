@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-22T16:45:16Z
 id: nid_pgsj1vjjnmtflf55a4sd9txos_e
 title: "edge-routing__00-wasm-spike-libavoid-in-obsidian"
-status: open
+status: closed
 deps: []
 links: []
 created_iso: 2026-07-22T16:04:58Z
-status_updated_iso: 2026-07-22T16:04:58Z
+status_updated_iso: 2026-07-22T16:45:16Z
 type: task
 priority: 1
 assignee: CC_WITH-nickolaykondratyev
@@ -69,3 +70,64 @@ Throwaway code is ALLOWED for the spike surface (e.g. a temporary command or con
 - Any integration with the layout pipeline or snapshot (that is ticket `edge-routing__01-routing-pass-and-snapshot-threading`).
 - Rendering (ticket `edge-routing__02-render-routed-edges`).
 
+
+## Notes
+
+**2026-07-22T16:45:16Z**
+
+Phase 0 spike COMPLETE — all acceptance criteria met. Findings:
+
+WASM LOAD PATH: primary data-URL path works in real Obsidian/Electron.
+`AvoidLib.load("data:application/octet-stream;base64,<b64>")` → Emscripten
+`locateFile` → Chromium `fetch()` accepts the data: URL. The ticket's
+`wasmBinary` FALLBACK is UNREACHABLE through libavoid-js's browser build
+(the Emscripten module factory is not exported), so it was NOT implemented —
+the primary path works, so the fallback is unnecessary. Recorded as a risk
+note for the epic risk table.
+
+OFFLINE VERIFICATION: proven via automated e2e (`e2e/libavoidSpike.e2e.ts`)
+driving a REAL pinned Obsidian 1.12.7 Electron binary over CDP with the
+renderer's http/ws network blackholed — the base64-embedded wasm still loads
+and routes. `1 passed`.
+
+SCENARIO (a) obstacle avoidance: PASS — 1 conn + 1 rect obstacle straddling
+the straight line produces a bent polyline (>2 points, no vertex inside the
+obstacle rect).
+
+SCENARIO (b) nested-shape endpoint: PASS — a child rect nested inside an
+outer folder-group rect, conn from the child shape (shape-attached ConnEnd)
+to a shape outside the group, routes sanely and escapes the group. NO
+"attach-to-group" fallback needed (epic risk table row can be marked
+mitigated for the common case).
+
+SCENARIO (c) memory cleanup: PASS — 100/100 create-router/route/destroy loop,
+no crash. Load-bearing rule discovered and encoded in the `AvoidArena`
+wrapper: NEVER `Avoid.destroy()` router-owned ShapeRef/ConnRef/connector pins
+(the router owns them; double-free → wasm abort). Only Points/Rectangles/
+Router are destroyed explicitly.
+
+main.js SIZE DELTA: 1,877,709 B → 2,607,082 B = +729,373 B (~+712 KiB) from
+the base64-embedded 474 KB wasm. Accepted (noted for Phase 3 release notes).
+
+MOBILE (iOS WKWebView / Android WebView): NOT verified — no mobile runtime in
+this environment. Best-effort per ticket; deferred. Desktop verification done.
+
+PRODUCTION-SHAPED ARTIFACTS (stay for Phase 1): esbuild `loader:{".wasm":
+"base64"}`, `src/types/libavoidWasm.d.ts` ambient decl, `src/view/
+libavoidLoader.ts` (lazy singleton `loadAvoid(): Promise<Avoid>` + memory-safe
+`AvoidArena`). THROWAWAY (delete in Phase 1): `src/view/libavoidSpike.ts`,
+`src/view/libavoidSpike.test.ts`, `e2e/libavoidSpike.e2e.ts`, and the
+`debug-spike-libavoid-routing` command in `src/main.ts`.
+
+REVIEW: independently reproduced every claim (build/check/vitest/e2e).
+Verdict READY TO CLOSE, 0 blocking. One code item addressed (I2): `loadAvoid`
+no longer memoizes a rejected promise — only successful init is cached, a
+failed init resets the slot so a later call can retry (better contract for
+Phase 1's `LibavoidEdgeRouter` to inherit).
+
+VERIFIED: `npm run check` 0 errors; `vitest run` 616 passed (612 pre-existing
++ 4 spike, no regressions); `npm run build` (production) green with wasm
+embedded; e2e offline-load `1 passed`. libavoid-js pinned at 0.4.5.
+
+Commits: 9b79f3b (exploration), 5c6685b (impl), 3a5fc74 (review+iteration).
+Full details: .ai_out/edge-routing__00-wasm-spike/edge-routing/*.md.
