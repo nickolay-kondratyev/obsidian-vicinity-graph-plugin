@@ -55,6 +55,23 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
 		[pinAction, ui, runPinAction],
 	);
 
+	// The native page preview anchors to (and is kept alive by) this inner
+	// content zone — NOT the whole node — so the interactive tiles below it (the
+	// attachment chips, the pin button) are a deliberate dead zone: hovering a
+	// tile leaves the zone, so no note preview pops over the affordance the human
+	// is reaching for. Obsidian opens the popover only while the pointer is over
+	// `targetEl`, and closes it on leave, so scoping the element is the whole fix.
+	const onPreviewEnter = useCallback(
+		(event: ReactMouseEvent<HTMLDivElement>) => {
+			ui.showHoverPreview({
+				nativeEvent: event.nativeEvent,
+				targetEl: event.currentTarget,
+				path: data.path,
+			});
+		},
+		[ui, data.path],
+	);
+
 	return (
 		<div
 			className="vicinity-graph-node"
@@ -66,21 +83,23 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
 			{/* Read-only graph: handles exist only as edge anchors (top target /
 			    bottom source matches the elk DOWN direction) and are hidden in CSS. */}
 			<Handle type="target" position={Position.Top} className="vicinity-graph-node__handle" />
-			<div className="vicinity-graph-node__title" title={data.title}>
-				{data.breadcrumbFolder !== undefined && (
-					<span className="vicinity-graph-node__breadcrumb">{data.breadcrumbFolder}/</span>
-				)}
-				{data.title}
-			</div>
-			{thumbnailUrl !== null && (
-				<div className="vicinity-graph-node__thumbnail">
-					{/* alt="" — decorative; the adjacent title already names the note. */}
-					<img src={thumbnailUrl} alt="" loading="lazy" draggable={false} />
-					{extraImages !== null && (
-						<span className="vicinity-graph-node__thumbnail-badge">{extraImages}</span>
+			<div className="vicinity-graph-node__preview-zone" onMouseEnter={onPreviewEnter}>
+				<div className="vicinity-graph-node__title" title={data.title}>
+					{data.breadcrumbFolder !== undefined && (
+						<span className="vicinity-graph-node__breadcrumb">{data.breadcrumbFolder}/</span>
 					)}
+					{data.title}
 				</div>
-			)}
+				{thumbnailUrl !== null && (
+					<div className="vicinity-graph-node__thumbnail">
+						{/* alt="" — decorative; the adjacent title already names the note. */}
+						<img src={thumbnailUrl} alt="" loading="lazy" draggable={false} />
+						{extraImages !== null && (
+							<span className="vicinity-graph-node__thumbnail-badge">{extraImages}</span>
+						)}
+					</div>
+				)}
+			</div>
 			{data.attachmentGroups.length > 0 && (
 				<div className="vicinity-graph-node__attachments">
 					{data.attachmentGroups.map((group) => (
