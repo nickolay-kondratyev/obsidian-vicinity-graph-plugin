@@ -10,7 +10,6 @@ import type { FlowEdge, FlowNode } from "./flowMapping";
 import { GraphToolbar } from "./GraphToolbar";
 import type { GraphViewController } from "./GraphViewController";
 import { GraphUiContext } from "./GraphUiContext";
-import { isFolderGroupId } from "./graphIdentity";
 import { VicinityEdge } from "./VicinityEdge";
 import { NoteNode } from "./NoteNode";
 import type { ControlsActionsPort, GraphUiPort } from "./viewPorts";
@@ -48,19 +47,9 @@ export function VicinityGraphFlow({
 		[controller],
 	);
 
-	const onNodeMouseEnter = useCallback<NodeMouseHandler>(
-		(event, node) => {
-			if (isFolderGroupId(node.id)) {
-				return; // Groups have no note to preview.
-			}
-			ui.showHoverPreview({
-				nativeEvent: event.nativeEvent,
-				targetEl: event.currentTarget as HTMLElement,
-				path: node.id,
-			});
-		},
-		[ui],
-	);
+	// The note preview is triggered by NoteNode itself (scoped to its content
+	// zone so the attachment tiles stay a dead zone), not here — a node-level
+	// mouse-enter would re-cover those tiles with the popover.
 
 	if (snapshot.status === "empty") {
 		return <div className="vicinity-graph-empty">No vicinity graph for the active file.</div>;
@@ -76,7 +65,6 @@ export function VicinityGraphFlow({
 						nodeTypes={NODE_TYPES}
 						edgeTypes={EDGE_TYPES}
 						onNodeClick={onNodeClick}
-						onNodeMouseEnter={onNodeMouseEnter}
 						nodesConnectable={false}
 						// The graph is read-only in V1: layout is elk-driven and would
 						// overwrite any manual placement on the next rebuild, so a drag

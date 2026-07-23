@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-07-23 — note preview scoped to node content: attachment tiles are a hover dead zone
+
+Fixes hovering an attachment tile (e.g. the PDF chip) triggering the native note
+preview popover over the very affordance the human is reaching for. Root cause: the
+`hover-link` preview was armed by React Flow's node-level `onNodeMouseEnter`, so the
+whole node — tiles included — was the preview target.
+
+- **`NoteNode` now owns the trigger**, bound to a new `.vicinity-graph-node__preview-zone`
+  wrapper around the title + thumbnail; that element (not the node) is the `hover-link`
+  `targetEl`. The attachment strip and pin button are SIBLINGS of the zone, so the
+  pointer leaves the preview target when it reaches a tile — Obsidian never opens/keeps
+  the popover there. `onNodeMouseEnter` removed from `VicinityGraphFlow`.
+- **CSS:** the preview-zone flex-grows to fill the node, so the strip still lands on the
+  bottom edge (replacing its old `margin-top: auto`); container-query density thresholds
+  are unaffected (they match descendants at any depth).
+- **e2e:** new selector-contract test asserts the chips render outside the preview-zone.
+  Pure view-layer change — no engine changes.
+
 ## 2026-07-22 — routed edges clipped to endpoint rects: collapsed group arrows terminate at the group boundary
 
 Fixes a bug where, with edge routing ON, a collapsed group arrow plunged INSIDE the
