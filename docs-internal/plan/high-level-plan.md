@@ -56,7 +56,7 @@ An Obsidian plugin that replaces the local graph view with a React Flow based vi
 - Metrics: **own-file-size** (the default and the only one enabled out of the box), total-linker-size, backlink-count, outlink-count, and **depth-decay** (multiplier `1 / (1 + k * depth)` using shortest depth from any central, so nearby notes stay prominent even at high depth settings).
 - Sizing controls live behind an expandable section, not front and center.
 - **Pinned nodes get central-node sizing even when disconnected** from MAIN.
-- The composed score drives a node's **height**; its **width** is then floored so the full name renders without an ellipsis (a long title grows the node wider, not taller, and may exceed the max pixel size). Ungrouped singletons reserve extra width for their `folder/` breadcrumb. The floor is a pure char-count estimate in the view mapping (`nodeDimensionsPx`) — no DOM measuring.
+- The composed score drives a node's **height**; its **width** snugly fits the title on one line — floored at the score-driven square and **capped** at `NODE_MAX_LABEL_WIDTH_PX` (~200px). A title longer than the cap stops widening the node and **wraps onto the 2 lines** the title CSS allows (`-webkit-line-clamp: 2`), rather than ellipsizing. The width is a pure char-count estimate in the view mapping (`nodeDimensionsPx`) — no DOM measuring.
 - Sizing is global-only in V1.
 
 ### Pinning and settings resolution

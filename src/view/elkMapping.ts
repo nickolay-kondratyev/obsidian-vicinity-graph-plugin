@@ -3,7 +3,7 @@ import type { FolderPath, GraphEdge, GraphNode, VicinityGraph } from "../engine"
 import { ELK_GROUP_MEMBER_OPTIONS, ELK_GROUP_PADDING, ELK_ROOT_OPTIONS_BY_MODE, ELK_ROOT_ID } from "./constants";
 import { deriveFolderGroups } from "./folderGrouping";
 import type { FolderGroupingResult } from "./folderGrouping";
-import { breadcrumbFolderOf, edgeIdOf, folderGroupIdOf, nodeDimensionsPx } from "./graphIdentity";
+import { edgeIdOf, folderGroupIdOf, nodeDimensionsPx } from "./graphIdentity";
 import type { Dimensions, XY } from "./flowMapping";
 
 /**
@@ -34,8 +34,7 @@ export function vicinityGraphToElk(graph: VicinityGraph): ElkNode {
 	const grouping = deriveFolderGroups(graph.nodes, graph.viewSettings.groupByFolder);
 	const leafById = new Map(
 		graph.nodes.map((node): [string, ElkNode] => {
-			const isGrouped = grouping.groupFolderByMemberPath.has(node.path);
-			const { width, height } = nodeDimensionsPx(node, breadcrumbFolderOf(node, isGrouped));
+			const { width, height } = nodeDimensionsPx(node);
 			return [node.path, { id: node.path, width, height }];
 		}),
 	);

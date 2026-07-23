@@ -5,7 +5,7 @@ import { attachmentIconStrip } from "./attachmentIconStrip";
 import { deriveFolderGroups } from "./folderGrouping";
 import type { OrphanTruncation } from "./truncationBadges";
 import { deriveTruncationBadges } from "./truncationBadges";
-import { breadcrumbFolderOf, edgeIdOf, folderGroupIdOf, nodeDimensionsPx } from "./graphIdentity";
+import { edgeIdOf, folderGroupIdOf, nodeDimensionsPx } from "./graphIdentity";
 import type { RoutedPoint } from "./edgeRouting";
 
 /**
@@ -50,12 +50,6 @@ export type FlowNodeData = {
 	readonly sizeScore: number;
 	/** Engine folder path ("" = vault root). */
 	readonly folder: string;
-	/**
-	 * Folder display name to render muted before the title
-	 * (`<folder-name>/<title>`). Present ONLY on ungrouped non-root nodes —
-	 * grouped nodes get folder identity from their group, root nodes have none.
-	 */
-	readonly breadcrumbFolder?: string;
 	/** Thumbnail candidate (vault path; the component resolves it to a URL). */
 	readonly firstImagePath?: string;
 	/** Total images among attachments — the thumbnail's "+N more" badge is imageCount - 1. */
@@ -173,8 +167,7 @@ export function vicinityGraphToFlow(graph: VicinityGraph, mainPinned: boolean): 
 	);
 	const noteNodes = graph.nodes.map((node): NoteFlowNode => {
 		const groupFolder = grouping.groupFolderByMemberPath.get(node.path);
-		const breadcrumbFolder = breadcrumbFolderOf(node, groupFolder !== undefined);
-		const { width, height } = nodeDimensionsPx(node, breadcrumbFolder);
+		const { width, height } = nodeDimensionsPx(node);
 		return {
 			id: node.path,
 			kind: "note",
@@ -182,7 +175,7 @@ export function vicinityGraphToFlow(graph: VicinityGraph, mainPinned: boolean): 
 			width,
 			height,
 			...(groupFolder === undefined ? {} : { parentId: folderGroupIdOf(groupFolder) }),
-			data: toFlowNodeData(node, breadcrumbFolder, mainPinned),
+			data: toFlowNodeData(node, mainPinned),
 		};
 	});
 	return {
@@ -284,7 +277,7 @@ function accumulateCollapsedEdge(
 	}
 }
 
-function toFlowNodeData(node: GraphNode, breadcrumbFolder: string | undefined, mainPinned: boolean): FlowNodeData {
+function toFlowNodeData(node: GraphNode, mainPinned: boolean): FlowNodeData {
 	return {
 		path: node.path,
 		title: node.title,
@@ -295,7 +288,6 @@ function toFlowNodeData(node: GraphNode, breadcrumbFolder: string | undefined, m
 		sizePx: node.sizePx,
 		sizeScore: node.sizeScore,
 		folder: node.folder,
-		...(breadcrumbFolder === undefined ? {} : { breadcrumbFolder }),
 		...(node.firstImagePath === undefined ? {} : { firstImagePath: node.firstImagePath }),
 		imageCount: node.attachments.filter((attachment) => attachment.isImage).length,
 		attachmentGroups: attachmentIconStrip(node.attachments),
@@ -339,8 +331,8 @@ export interface Dimensions {
 
 /**
  * Applies elk-computed container sizes to folder-group nodes. Note nodes keep
- * their mapping-time box (`nodeDimensionsPx`: engine-driven height, label-floored
- * width) — elk echoes the input size for leaves anyway, so the mapping stays the
+ * their mapping-time box (`nodeDimensionsPx`: engine-driven height, snug capped
+ * label width) — elk echoes the input size for leaves anyway, so the mapping stays the
  * single note-sizing truth.
  */
 export function withGroupDimensions(

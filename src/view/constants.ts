@@ -22,28 +22,34 @@ export const REBUILD_DEBOUNCE_MS = 500;
 
 /**
  * Approximate average glyph advance (px) of the node-title font
- * (`--font-ui-smaller`, ~12–13px in Obsidian's default theme). Used to FLOOR a
- * node's width so its full name renders without an ellipsis. Deliberately
- * generous — over-estimating only widens a node slightly, whereas
- * under-estimating brings the `...` back, so we bias to the safe side (covers
- * the heavier MAIN semibold title too). An estimate, not a measurement: the
- * view stays pure (no DOM), consistent with the node's "no JS measuring" model.
+ * (`--font-ui-smaller`, ~12–13px in Obsidian's default theme). Used to size a
+ * node's width to fit its title on one line. Snug (not generous) because the
+ * title CSS clamps to 2 lines: when a title needs more than
+ * {@link NODE_MAX_LABEL_WIDTH_PX} the width pins to that cap and the overflow
+ * wraps onto the second line — the wrap, not width overshoot, is the safety net
+ * against ellipsis. An estimate, not a measurement: the view stays pure (no
+ * DOM), consistent with the node's "no JS measuring" model.
  */
-export const NODE_TITLE_CHAR_WIDTH_PX = 8;
+export const NODE_TITLE_CHAR_WIDTH_PX = 7;
 
 /** Horizontal chrome around the title text: node padding (both sides) + border. */
 export const NODE_LABEL_HORIZONTAL_PADDING_PX = 20;
 
 /**
- * Width (px) a note node needs to render its label on one line without an
- * ellipsis. The label is the title, prefixed by `folder/` on ungrouped
- * singletons (`breadcrumbFolder`). Char-count heuristic — see
- * {@link NODE_TITLE_CHAR_WIDTH_PX}.
+ * Upper bound on the label-driven node width. Beyond this a title stops widening
+ * the node and instead wraps onto the second line the title CSS allows
+ * (`-webkit-line-clamp: 2`). Chosen ~roughly balanced against the 160px engine
+ * max HEIGHT so a long-titled node stays a readable, not-too-wide box.
  */
-export function estimateNodeLabelWidthPx(title: string, breadcrumbFolder: string | undefined): number {
-	const breadcrumbChars = breadcrumbFolder === undefined ? 0 : breadcrumbFolder.length + 1; // +1 for the "/"
-	const charCount = breadcrumbChars + title.length;
-	return Math.ceil(charCount * NODE_TITLE_CHAR_WIDTH_PX) + NODE_LABEL_HORIZONTAL_PADDING_PX;
+export const NODE_MAX_LABEL_WIDTH_PX = 200;
+
+/**
+ * Snug width (px) a note node needs to render its title on ONE line. Char-count
+ * heuristic — see {@link NODE_TITLE_CHAR_WIDTH_PX}. Callers cap this at
+ * {@link NODE_MAX_LABEL_WIDTH_PX} (a longer title wraps to 2 lines instead).
+ */
+export function estimateNodeLabelWidthPx(title: string): number {
+	return Math.ceil(title.length * NODE_TITLE_CHAR_WIDTH_PX) + NODE_LABEL_HORIZONTAL_PADDING_PX;
 }
 
 /** Id of the synthetic elk root that contains every graph node. */
