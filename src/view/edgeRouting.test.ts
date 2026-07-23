@@ -57,7 +57,14 @@ describe("extractEdgeRoutingInput", () => {
 	}
 
 	it("WHEN a note node has a position THEN its obstacle is a sizePx square at absolute coords", () => {
-		expect(obstacle("notes/a.md")).toEqual({ id: "notes/a.md", x: 110, y: 140, widthPx: 100, heightPx: 100 });
+		expect(obstacle("notes/a.md")).toEqual({
+			id: "notes/a.md",
+			x: 110,
+			y: 140,
+			widthPx: 100,
+			heightPx: 100,
+			kind: "note",
+		});
 	});
 
 	it("WHEN a folder group has elk dimensions THEN its obstacle is the container rect at absolute coords", () => {
@@ -67,6 +74,7 @@ describe("extractEdgeRoutingInput", () => {
 			y: 100,
 			widthPx: 120,
 			heightPx: 120,
+			kind: "folder-group",
 		});
 	});
 
@@ -156,9 +164,9 @@ describe("LibavoidEdgeRouter with real wasm", () => {
 	}
 
 	// Two nodes on a horizontal line with a rectangle straddling the straight path.
-	const nodeA: RoutingObstacle = { id: "A", x: 0, y: 40, widthPx: 20, heightPx: 20 }; // centre (10,50)
-	const nodeB: RoutingObstacle = { id: "B", x: 200, y: 40, widthPx: 20, heightPx: 20 }; // centre (210,50)
-	const blocker: RoutingObstacle = { id: "OBS", x: 95, y: 20, widthPx: 40, heightPx: 60 };
+	const nodeA: RoutingObstacle = { id: "A", x: 0, y: 40, widthPx: 20, heightPx: 20, kind: "note" }; // centre (10,50)
+	const nodeB: RoutingObstacle = { id: "B", x: 200, y: 40, widthPx: 20, heightPx: 20, kind: "note" }; // centre (210,50)
+	const blocker: RoutingObstacle = { id: "OBS", x: 95, y: 20, widthPx: 40, heightPx: 60, kind: "note" };
 
 	async function route(): Promise<readonly { x: number; y: number }[]> {
 		const routes = await new LibavoidEdgeRouter().route({
@@ -186,5 +194,70 @@ describe("LibavoidEdgeRouter with real wasm", () => {
 			return;
 		}
 		expect((await route()).some((p) => isStrictlyInside(p, blocker))).toBe(false);
+	});
+
+	// WHY these two: they are the regression guard for edge-routing__04's central fix —
+	// boundary pins whose `visDirs` face OUTWARD, so an edge attaches on the side FACING
+	// its counterpart. Without a facing-side assertion, an inverted/reverted `visDirs`
+	// mapping keeps all other tests green while silently breaking the whole point of the
+	// ticket. These lock the outward mapping in.
+	//
+	// NOTE: the boxes are FOLDER-GROUP obstacles (kind: "folder-group"). Boundary pins are
+	// registered on group boxes ONLY; note squares intentionally keep a single centre pin
+	// (perf fallback, Phase A), so a NOTE→NOTE edge attaches at centres and would NOT show
+	// facing-side attachment. The roundabout pathology this guards is group-box specific.
+	const FACING_BORDER_TOL_PX = 3; // endpoint must sit on the facing border (within a few px)
+	const MID_SPAN_TOL_PX = 10; // and roughly at the facing side's midpoint, not a corner
+
+	// Two 100x100 boxes with a clear gap between them; the edge should hop directly
+	// across the gap, attaching on the two facing borders.
+	async function routePair(
+		source: RoutingObstacle,
+		target: RoutingObstacle,
+	): Promise<{ first: { x: number; y: number }; last: { x: number; y: number } }> {
+		const routes = await new LibavoidEdgeRouter().route({
+			obstacles: [source, target],
+			edges: [{ id: "S->T", sourceId: source.id, targetId: target.id }],
+		});
+		const polyline = routes.get("S->T");
+		if (polyline === undefined || polyline.length < 2) {
+			throw new Error("router produced no route for S->T");
+		}
+		const first = polyline[0];
+		const last = polyline[polyline.length - 1];
+		if (first === undefined || last === undefined) {
+			throw new Error("route missing endpoints");
+		}
+		return { first, last };
+	}
+
+	it("WHEN two boxes are separated horizontally THEN the edge attaches on the facing (right→left) borders", async () => {
+		if (!loaded) {
+			return;
+		}
+		const boxL: RoutingObstacle = { id: "L", x: 0, y: 0, widthPx: 100, heightPx: 100, kind: "folder-group" }; // right border x=100
+		const boxR: RoutingObstacle = { id: "R", x: 300, y: 0, widthPx: 100, heightPx: 100, kind: "folder-group" }; // left border x=300
+		const { first, last } = await routePair(boxL, boxR);
+		// Source leaves L's RIGHT border (x≈100), not its centre (50) or far/left border (0);
+		// target enters R's LEFT border (x≈300), not its centre (350). Both near mid-height (50).
+		expect(Math.abs(first.x - 100)).toBeLessThanOrEqual(FACING_BORDER_TOL_PX);
+		expect(Math.abs(first.y - 50)).toBeLessThanOrEqual(MID_SPAN_TOL_PX);
+		expect(Math.abs(last.x - 300)).toBeLessThanOrEqual(FACING_BORDER_TOL_PX);
+		expect(Math.abs(last.y - 50)).toBeLessThanOrEqual(MID_SPAN_TOL_PX);
+	});
+
+	it("WHEN two boxes are separated vertically THEN the edge attaches on the facing (bottom→top) borders", async () => {
+		if (!loaded) {
+			return;
+		}
+		const boxT: RoutingObstacle = { id: "T", x: 0, y: 0, widthPx: 100, heightPx: 100, kind: "folder-group" }; // bottom border y=100
+		const boxB: RoutingObstacle = { id: "B", x: 0, y: 300, widthPx: 100, heightPx: 100, kind: "folder-group" }; // top border y=300
+		const { first, last } = await routePair(boxT, boxB);
+		// Source leaves T's BOTTOM border (y≈100), target enters B's TOP border (y≈300);
+		// both near mid-width (50). An inverted up/down mapping would force a detour off-side.
+		expect(Math.abs(first.y - 100)).toBeLessThanOrEqual(FACING_BORDER_TOL_PX);
+		expect(Math.abs(first.x - 50)).toBeLessThanOrEqual(MID_SPAN_TOL_PX);
+		expect(Math.abs(last.y - 300)).toBeLessThanOrEqual(FACING_BORDER_TOL_PX);
+		expect(Math.abs(last.x - 50)).toBeLessThanOrEqual(MID_SPAN_TOL_PX);
 	});
 });
