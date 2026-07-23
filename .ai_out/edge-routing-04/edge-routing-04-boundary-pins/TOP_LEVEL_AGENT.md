@@ -10,8 +10,12 @@ Feature dir: `.ai_out/edge-routing-04/edge-routing-04-boundary-pins/`
 | EXPLORATION | ✅ done | 2 explore agents; EXPLORATION_PUBLIC.md + 2 sub-docs |
 | CLARIFICATION | ✅ done | No blocking questions; ticket fully specifies plan |
 | IMPLEMENTATION_WITH_SELF_PLAN | ⏳ | Phase A boundary pins + Phase B detour telemetry |
-| IMPLEMENTATION_REVIEW | ⬜ | |
-| IMPLEMENTATION_ITERATION | ⬜ | max 4 iters |
+| IMPLEMENTATION_REVIEW | ✅ | R1 READY (1 should-fix); R2 focused READY, no blocking |
+| IMPLEMENTATION_ITERATION | ✅ | facing-side test; group-only fallback + telemetry fix |
+| VERIFICATION (e2e eval) | ✅ | R1 perf FAIL → R2 PASS (137ms vs ~1464ms, detour 1.000) |
+| DOCS | ✅ | CHANGELOG + ticket closed; plan/README skipped (not stale) |
+
+## FINAL: DONE — converged, all gates green. Ticket closed.
 
 ## STOP condition
 After Phase A: repro edges still roundabout OR perf budget blown even with group-only pins → STOP.

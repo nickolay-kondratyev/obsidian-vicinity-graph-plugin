@@ -1,5 +1,27 @@
 # VERIFICATION — PRIVATE memory (edge-routing__04)
 
+## Round 2 verdict: PASS (@ c060122). dense/force routing 137ms << layout ~1464ms.
+- Round 1 verdict below: STOP (dense/force routing 8838ms >> layout ~1450ms; ~64x base).
+
+## Round 2 (group-only pins + telemetry fix) — commands + numbers
+- HEAD `c060122` "fix(edge-routing__04): group-only boundary pins + accurate routing telemetry".
+- `npm run test:e2e -- edgeRoutingEval.e2e.ts > .tmp/eval-fixed.log 2>&1` → 6 passed (29.2s).
+  Grep `[eval]` for the per-fixture numbers; grep `✓`/`passed` for verdicts.
+- [eval] force: sparse 2.9/34.4 (obs13), medium 9.4/35.6 (obs21), dense 137.2/1463.6 (obs101).
+  layered/dense 174.3/300.8. radial routingMs=undefined (gated). PERF dense/force 125.7 < 1495.1 obs101.
+- PERF test now TRUE-passes: measured pass has obs=101 (telemetry reorder = clip+detourStats+debug
+  moved BEFORE isStale early-return, so heaviest non-stale pass logs). Round-1 false pass (obs=3) closed.
+- Detour ratios via throwaway `e2e/zzThrowawayDetour.e2e.ts` (DELETED): reused ObsidianHarness,
+  onConsole captured msg.args()[1].jsonValue(), printed full payload. medium max=mean=1.0;
+  dense max 3.096 mean 1.161. (Same reason as Round 1: page console.debug NOT forwarded to stdout.)
+- Screenshots regenerated in .out/edge-routing-force-{sparse,medium,dense}.png etc. Eyeballed:
+  medium/sparse group boxes attach facing-side, direct, no loops vs base-*.png loops. PASS.
+- Did NOT modify src/, did NOT commit, throwaway spec removed, `git status` clean.
+
+---
+
+# Round 1 memory (below)
+
 ## Verdict: STOP (dense/force routing 8838ms >> layout ~1450ms; ~64x base).
 
 ## Environment

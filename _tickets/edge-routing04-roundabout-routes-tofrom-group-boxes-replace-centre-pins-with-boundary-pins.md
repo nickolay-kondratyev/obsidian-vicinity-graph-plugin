@@ -1,11 +1,11 @@
 ---
 id: nid_54ura771jb1b82dah6macdqvj_e
 title: "edge-routing__04: roundabout routes to/from group boxes - replace centre pins with boundary pins"
-status: open
+status: closed
 deps: []
 links: [nid_o1f05i1pu3lgkmaxpbaj13x3x_e, nid_w8co2gp7cok2a2hwwsm88brfo_e]
 created_iso: 2026-07-23T18:09:12Z
-status_updated_iso: 2026-07-23T18:09:12Z
+status_updated_iso: 2026-07-23T20:45:00Z
 type: bug
 priority: 1
 assignee: CC_WITH-nickolaykondratyev
@@ -135,3 +135,16 @@ by a child tile (common — groups pack children) degrades this way.
   around genuinely intervening obstacles).
 - Perf budget held; `clipRouteToEndpointRects` contract and arrowhead behaviour
   unchanged; radial layout remains routing-skipped.
+
+## Resolution (2026-07-23, CLOSED)
+
+Shipped Phase A + B. **Group-only boundary pins**: 8 proportional pins (4
+side-midpoints with outward `visDirs` + 4 corners) on folder-group shapes; note
+squares keep the single centre pin (8-pins-on-all blew the dense budget ~8.8s vs
+~1.45s layout). Added typed `ConnDirUp/Down/Left/Right` to the `Avoid` interface;
+threaded `kind` onto `RoutingObstacle`. Grouped-fixture max detour ratio 1.000 —
+repro loops gone. **Detour-ratio telemetry** added to `edgeGeometry.ts` (unit-tested,
+logged in the routing-pass debug line); fixed a telemetry-ordering bug so the pass is
+logged before the `isStale` early-return (PERF BUDGET e2e was false-passing).
+**Phase C (line-of-sight shortcutting) NOT needed** — boundary pins sufficed. Perf
+held: dense/force routing ~137ms vs layout ~1464ms. 664/664 tests, tsc clean.

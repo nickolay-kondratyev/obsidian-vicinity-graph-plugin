@@ -1,8 +1,15 @@
-# VERIFICATION — edge-routing__04 (boundary pins) — VERDICT: **STOP**
+# VERIFICATION — edge-routing__04 (boundary pins)
+
+- **Round 1 (8-pins-on-ALL-shapes @ `5e175ed`): VERDICT STOP** — dense/force routing blew the perf budget.
+- **Round 2 (group-only pins + telemetry fix @ `c060122`): VERDICT PASS** — see the Round 2 section at the bottom.
 
 Role: VERIFICATION sub-agent. Ran the real-Obsidian Playwright edge-routing EVAL
 harness (headless, Obsidian 1.12.7) on NEW code (`edge-routing-04-boundary-pins`
 @ `5e175ed`) and on BASE (`main` @ `02c4b4b`, centre pins) via a git worktree.
+
+---
+
+## Round 1 findings (8-pins-on-ALL-shapes) — kept for the record
 
 ## Headline
 
@@ -118,3 +125,84 @@ git worktree add .worktree/base main
 cd .worktree/base && OBSIDIAN_PATH=<cached> npm run test:e2e -- edgeRoutingEval.e2e.ts  # -> obstacles=101 routingMs=137.7
 git worktree remove .worktree/base --force
 ```
+
+---
+
+# Round 2 (group-only pins + telemetry fix) — VERDICT: **PASS**
+
+Fresh VERIFICATION instance. Re-ran the committed eval on the FIXED HEAD
+`edge-routing-04-boundary-pins @ c060122`
+(`fix(edge-routing__04): group-only boundary pins + accurate routing telemetry`).
+`npm run test:e2e -- edgeRoutingEval.e2e.ts` → `.tmp/eval-fixed.log`, **6 passed (29.2s)**,
+including the PERF BUDGET test.
+
+## Perf — routingMs vs layoutMs per fixture (all from the committed eval `[eval]` lines)
+
+| fixture | obstacles | edges | routingMs | layoutMs | routing vs layout |
+|---|---|---|---|---|---|
+| force/sparse | 13 | 10 | 2.9 | 34.4 | under (8%) |
+| force/medium (5 folder groups) | 21 | 20 | 9.4 | 35.6 | under (26%) |
+| **force/dense** | **101** | **292** | **137.2** | **1463.6** | **under (9%) — budget met** |
+| layered/dense | 101 | 292 | 174.3 | 300.8 | under (58%) |
+| radial/dense | — | — | undefined (gated off) | 32.6 | routing correctly skipped |
+| **PERF BUDGET (dense/force)** | **101** | **292** | **125.7** | **1495.1** | **PASS: 125.7 < 1495.1** |
+
+Dense/force routing dropped from Round-1 **8838 ms → 137 ms** (~64× recovery),
+essentially back to the base (~137.7 ms). Because dense is ~100 UNGROUPED spokes,
+each now carries a single centre pin again; only folder-group boxes get 8 pins.
+
+## PERF BUDGET test verdict — **PASS, and now a TRUE pass**
+
+The committed PERF BUDGET test reports `routingMs=125.7 < layoutMs=1495.1` with
+**`obstacles=101 edges=292`** — the REAL dense pass, not the trivial 3-obstacle
+stale intermediate that produced the Round-1 false pass. The telemetry reorder
+(clip + detourStats + `console.debug` now run BEFORE the `isStale` early-return in
+`resolveRoutes`) means the heaviest non-stale pass is what the eval measures. The
+`obstacles=101` in the measured pass is the proof the telemetry fix landed.
+
+Note: Playwright does not forward the browser `console.debug("…edge routing pass"…)`
+lines to stdout, so they cannot be grepped from `.tmp/eval-fixed.log` directly —
+the committed eval parses them internally (`msg.args()[1]`) into the `[eval]` lines
+above. Detour ratios (below) were captured with a throwaway spec (deleted).
+
+## Detour ratios (Round 2, from throwaway `console.log` of the full debug payload)
+
+| fixture | obstacles | edges | maxDetourRatio | meanDetourRatio |
+|---|---|---|---|---|
+| medium (5 folder groups) | 21 | 20 | **1.000** | **1.000** |
+| dense (ungrouped) | 101 | 292 | 3.096 | 1.161 |
+
+The grouped medium fixture routes are perfectly direct (ratio 1.0) — group-only
+pins preserve the Round-1 route-quality win on grouped shapes. Dense (all
+ungrouped, single centre pin) is 3.10 max / 1.16 mean, matching the Round-1
+numbers (3.257 / 1.181) — no quality regression from the downgrade to centre pins
+on note squares (expected: dense has no group boxes to benefit from boundary pins).
+
+## Screenshots (repo `.out/`, not source-controlled)
+
+Freshly written: `edge-routing-force-{sparse,medium,dense}.png`,
+`edge-routing-{layered,radial}-dense.png`. BASE refs from Round 1 still present:
+`base-force-{sparse,medium,dense}.png`.
+
+Eyeballed:
+- **`edge-routing-force-medium.png`** (grouped): edges attach on the side of each
+  folder-group box facing the hub and take short direct hops; grp-b→grp-c is a
+  near-horizontal direct line; no big loops. vs **`base-force-medium.png`**: the
+  top-left `×4` edge loops up and over grp-b, grp-a edges wrap around the far left.
+  Clear improvement, consistent with detour ratio 1.0.
+- **`edge-routing-force-sparse.png`**: `projects` and `crowd` group boxes connect
+  to note1 on their facing sides, direct; no roundabout routes. vs
+  `base-force-sparse.png` which loops down/around to note3.
+
+Group-box routes look near-direct — no visible roundabout routing remains.
+
+## Overall verdict — **PASS**
+
+- Perf budget MET on dense/force: routing **137.2 ms** (eval) / **125.7 ms** (PERF
+  test) ≪ layout **~1464–1495 ms**. STOP condition (routing ≥ layout) not triggered.
+- Telemetry fix confirmed: PERF test measures the real **101-obstacle** pass, not a
+  3-obstacle stale intermediate — the Round-1 false-pass is closed.
+- Route quality preserved: grouped fixture detour ratio 1.0, group-box routes
+  attach on facing sides with no loops in the screenshots.
+- No STOP condition met. Did NOT modify `src/`, did NOT commit; throwaway detour
+  spec deleted, tree clean.

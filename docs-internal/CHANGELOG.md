@@ -1,5 +1,34 @@
 # Changelog
 
+## 2026-07-23 — edge-routing__04: boundary pins on group boxes kill roundabout routes; detour-ratio telemetry
+
+Fixes routed edges to/from folder-group boxes taking visibly roundabout paths when a
+direct route existed. Root cause: connector endpoints pinned to shape CENTRES, so
+libavoid optimised a centre→centre path (the interior leg of a large group box dominated
+its cost) while the UI shows only the clipped border→border chord — and a group's own
+member squares block the group's own connectors, forcing escape through whatever channel
+remained. Ticket `nid_54ura771jb1b82dah6macdqvj_e`. Pure view-layer change — no engine
+changes.
+
+- **Group-box endpoints now use 8 proportional boundary pins** (4 side-midpoints with
+  outward `visDirs` + 4 corners `ConnDirAll`) instead of one centre pin, so libavoid
+  picks the pin facing the counterpart and routes never traverse the box interior or its
+  children. **Note squares keep the single centre pin** — group-only by deliberate
+  perf choice: 8 pins on ALL shapes blew the dense-fixture budget (~8.8s vs ~1.45s
+  layout), and small squares have centre≈boundary after clipping so they barely exhibit
+  the pathology. Added typed `ConnDirUp/Down/Left/Right` to the `Avoid` interface
+  (`libavoidLoader.ts`); threaded `kind` onto `RoutingObstacle`. `clipRouteToEndpointRects`
+  unchanged. Result: grouped-fixture max detour ratio 1.000 (repro loops gone).
+- **Detour-ratio telemetry** (`edgeGeometry.ts`, unit-tested): pure metric = clipped arc
+  length ÷ endpoint chord; max/mean logged in the routing-pass `console.debug` so
+  before/after is numeric, not just visual. Also fixed a telemetry-ordering bug — the
+  routing pass is now logged before the `isStale` early-return (the PERF BUDGET e2e was
+  false-passing on a trivial intermediate pass).
+- **Perf held:** dense/force routing **~137ms** vs layout **~1464ms** (real 101-obstacle
+  pass). Phase C (line-of-sight shortcutting) NOT needed — boundary pins sufficed.
+
+Verified: `npm run check` (tsc) clean; `npm test` **664/664** green.
+
 ## 2026-07-23 — note preview scoped to node content: attachment tiles are a hover dead zone
 
 Fixes hovering an attachment tile (e.g. the PDF chip) triggering the native note

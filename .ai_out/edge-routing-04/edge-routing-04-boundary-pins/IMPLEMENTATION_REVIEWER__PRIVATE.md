@@ -26,3 +26,24 @@
 ## Nits (won't block)
 - detourRatio dead undefined-guard (strict-index only).
 - detourStats lives in GraphViewController (fine).
+
+---
+
+## Round 2 (c060122 group-only pins + telemetry fix) — Verdict: READY (0 blocking/should-fix)
+
+Both Round-1 open items CLOSED:
+- SHOULD-FIX (facing-side test) → 2 new real-wasm tests assert right→left / bottom→top
+  border attachment on FOLDER-GROUP obstacles. Genuine: centre pins would fail them.
+- Implementer callout (a) (group-only pins needs kind threading) → done via
+  RoutingObstacle.kind sourced from FlowNode.kind (closed union note|folder-group).
+
+Verified:
+- check 0; test 664/664 (was 662 + 2). Real-wasm executes (loaded=true, 2ms/0ms).
+- registerPinsForShape: every shape ≥1 PIN_CLASS pin (group=8, note=1) → no pinless edge.
+- Telemetry: clippedRoutes computed once; same map logged+cached+returned; isStale moved
+  after log but before cache write → stale still returns EMPTY, never caches. False-pass
+  closed (eval measures obstacles=101). detourRatio guards chord==0 / missing endpoints.
+- No anchors in touched files; no behavior test removed; sizing logic unchanged (only
+  kind label added). Note→note keeps pre-04 centre-pin behaviour (no regression).
+
+Nits only: per-call [CENTRE_PIN_SPEC] alloc; debug line per non-stale pass. Non-blocking.
