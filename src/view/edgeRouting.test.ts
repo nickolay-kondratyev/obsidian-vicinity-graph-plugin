@@ -57,7 +57,14 @@ describe("extractEdgeRoutingInput", () => {
 	}
 
 	it("WHEN a note node has a position THEN its obstacle is a sizePx square at absolute coords", () => {
-		expect(obstacle("notes/a.md")).toEqual({ id: "notes/a.md", x: 110, y: 140, widthPx: 100, heightPx: 100 });
+		expect(obstacle("notes/a.md")).toEqual({
+			id: "notes/a.md",
+			x: 110,
+			y: 140,
+			widthPx: 100,
+			heightPx: 100,
+			kind: "note",
+		});
 	});
 
 	it("WHEN a folder group has elk dimensions THEN its obstacle is the container rect at absolute coords", () => {
@@ -67,6 +74,7 @@ describe("extractEdgeRoutingInput", () => {
 			y: 100,
 			widthPx: 120,
 			heightPx: 120,
+			kind: "folder-group",
 		});
 	});
 
@@ -156,9 +164,9 @@ describe("LibavoidEdgeRouter with real wasm", () => {
 	}
 
 	// Two nodes on a horizontal line with a rectangle straddling the straight path.
-	const nodeA: RoutingObstacle = { id: "A", x: 0, y: 40, widthPx: 20, heightPx: 20 }; // centre (10,50)
-	const nodeB: RoutingObstacle = { id: "B", x: 200, y: 40, widthPx: 20, heightPx: 20 }; // centre (210,50)
-	const blocker: RoutingObstacle = { id: "OBS", x: 95, y: 20, widthPx: 40, heightPx: 60 };
+	const nodeA: RoutingObstacle = { id: "A", x: 0, y: 40, widthPx: 20, heightPx: 20, kind: "note" }; // centre (10,50)
+	const nodeB: RoutingObstacle = { id: "B", x: 200, y: 40, widthPx: 20, heightPx: 20, kind: "note" }; // centre (210,50)
+	const blocker: RoutingObstacle = { id: "OBS", x: 95, y: 20, widthPx: 40, heightPx: 60, kind: "note" };
 
 	async function route(): Promise<readonly { x: number; y: number }[]> {
 		const routes = await new LibavoidEdgeRouter().route({
@@ -191,8 +199,13 @@ describe("LibavoidEdgeRouter with real wasm", () => {
 	// WHY these two: they are the regression guard for edge-routing__04's central fix —
 	// boundary pins whose `visDirs` face OUTWARD, so an edge attaches on the side FACING
 	// its counterpart. Without a facing-side assertion, an inverted/reverted `visDirs`
-	// mapping (or a fallback to a single centre pin) keeps all 662 other tests green while
-	// silently breaking the whole point of the ticket. These lock the outward mapping in.
+	// mapping keeps all other tests green while silently breaking the whole point of the
+	// ticket. These lock the outward mapping in.
+	//
+	// NOTE: the boxes are FOLDER-GROUP obstacles (kind: "folder-group"). Boundary pins are
+	// registered on group boxes ONLY; note squares intentionally keep a single centre pin
+	// (perf fallback, Phase A), so a NOTE→NOTE edge attaches at centres and would NOT show
+	// facing-side attachment. The roundabout pathology this guards is group-box specific.
 	const FACING_BORDER_TOL_PX = 3; // endpoint must sit on the facing border (within a few px)
 	const MID_SPAN_TOL_PX = 10; // and roughly at the facing side's midpoint, not a corner
 
@@ -222,8 +235,8 @@ describe("LibavoidEdgeRouter with real wasm", () => {
 		if (!loaded) {
 			return;
 		}
-		const boxL: RoutingObstacle = { id: "L", x: 0, y: 0, widthPx: 100, heightPx: 100 }; // right border x=100
-		const boxR: RoutingObstacle = { id: "R", x: 300, y: 0, widthPx: 100, heightPx: 100 }; // left border x=300
+		const boxL: RoutingObstacle = { id: "L", x: 0, y: 0, widthPx: 100, heightPx: 100, kind: "folder-group" }; // right border x=100
+		const boxR: RoutingObstacle = { id: "R", x: 300, y: 0, widthPx: 100, heightPx: 100, kind: "folder-group" }; // left border x=300
 		const { first, last } = await routePair(boxL, boxR);
 		// Source leaves L's RIGHT border (x≈100), not its centre (50) or far/left border (0);
 		// target enters R's LEFT border (x≈300), not its centre (350). Both near mid-height (50).
@@ -237,8 +250,8 @@ describe("LibavoidEdgeRouter with real wasm", () => {
 		if (!loaded) {
 			return;
 		}
-		const boxT: RoutingObstacle = { id: "T", x: 0, y: 0, widthPx: 100, heightPx: 100 }; // bottom border y=100
-		const boxB: RoutingObstacle = { id: "B", x: 0, y: 300, widthPx: 100, heightPx: 100 }; // top border y=300
+		const boxT: RoutingObstacle = { id: "T", x: 0, y: 0, widthPx: 100, heightPx: 100, kind: "folder-group" }; // bottom border y=100
+		const boxB: RoutingObstacle = { id: "B", x: 0, y: 300, widthPx: 100, heightPx: 100, kind: "folder-group" }; // top border y=300
 		const { first, last } = await routePair(boxT, boxB);
 		// Source leaves T's BOTTOM border (y≈100), target enters B's TOP border (y≈300);
 		// both near mid-width (50). An inverted up/down mapping would force a detour off-side.

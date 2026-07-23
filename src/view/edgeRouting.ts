@@ -26,6 +26,15 @@ export interface RoutingObstacle {
 	readonly y: number;
 	readonly widthPx: number;
 	readonly heightPx: number;
+	/**
+	 * The flow-node kind this obstacle came from. Drives pin registration
+	 * ({@link registerPinsForShape}): folder-group boxes get the 8 boundary pins so
+	 * cross-group edges attach on the facing side; note squares keep a single centre
+	 * pin (the pre-edge-routing__04 behaviour) — 8 pins × the many ungrouped spokes of
+	 * a dense hub blew the routing perf budget, and the roundabout pathology the
+	 * boundary pins fix is specific to group boxes distorted by their own children.
+	 */
+	readonly kind: "note" | "folder-group";
 }
 
 /** An edge to route: endpoints reference {@link RoutingObstacle.id}s (note squares or group boxes). */
@@ -124,9 +133,23 @@ export function extractEdgeRoutingInput(input: {
 			if (size === undefined) {
 				continue;
 			}
-			obstacles.push({ id: node.id, x: position.x, y: position.y, widthPx: size.width, heightPx: size.height });
+			obstacles.push({
+				id: node.id,
+				x: position.x,
+				y: position.y,
+				widthPx: size.width,
+				heightPx: size.height,
+				kind: "folder-group",
+			});
 		} else {
-			obstacles.push({ id: node.id, x: position.x, y: position.y, widthPx: node.width, heightPx: node.height });
+			obstacles.push({
+				id: node.id,
+				x: position.x,
+				y: position.y,
+				widthPx: node.width,
+				heightPx: node.height,
+				kind: "note",
+			});
 		}
 		obstacleIds.add(node.id);
 	}
@@ -170,14 +193,19 @@ interface BoundaryPinSpec {
 }
 
 /**
- * The eight boundary connection pins registered on every obstacle (all sharing
- * {@link PIN_CLASS}). Four side-midpoint pins face outward perpendicular to their
- * own side, so an edge leaves/enters the box square-on instead of skimming along
- * it; four corner pins accept any direction. This replaces the single centre pin
- * that made libavoid optimise a centre→centre path whose long interior leg (later
- * clipped away by `clipRouteToEndpointRects`) diverged from the visible
+ * The eight boundary connection pins registered on a FOLDER-GROUP obstacle (all
+ * sharing {@link PIN_CLASS}). Four side-midpoint pins face outward perpendicular to
+ * their own side, so an edge leaves/enters the box square-on instead of skimming
+ * along it; four corner pins accept any direction. This replaces the single centre
+ * pin that made libavoid optimise a centre→centre path whose long interior leg
+ * (later clipped away by `clipRouteToEndpointRects`) diverged from the visible
  * border→border route and let a group's own child squares distort it
  * (ticket edge-routing__04). libavoid picks the cheapest pin per connector end.
+ *
+ * WHY-NOT on note squares: the roundabout pathology is specific to group boxes, and
+ * a dense vicinity is mostly UNGROUPED spokes — 8 pins on each of ~100 note squares
+ * pushed the routing pass ~64× over budget (ticket edge-routing__04 Phase A). Note
+ * squares therefore keep the single {@link CENTRE_PIN_SPEC}.
  */
 const BOUNDARY_PIN_SPECS: readonly BoundaryPinSpec[] = [
 	{ xFrac: PIN_EDGE_MID, yFrac: PIN_EDGE_MIN, dir: "up" }, // top side-midpoint
@@ -189,6 +217,14 @@ const BOUNDARY_PIN_SPECS: readonly BoundaryPinSpec[] = [
 	{ xFrac: PIN_EDGE_MIN, yFrac: PIN_EDGE_MAX, dir: "all" }, // bottom-left corner
 	{ xFrac: PIN_EDGE_MAX, yFrac: PIN_EDGE_MAX, dir: "all" }, // bottom-right corner
 ];
+
+/**
+ * The single centre pin registered on a NOTE-SQUARE obstacle (the pre-edge-routing__04
+ * behaviour): one pin at the shape centre accepting any approach direction. One pin
+ * per note keeps the dense-fixture routing pass within its perf budget; the interior
+ * leg it produces is clipped to the box boundary by `clipRouteToEndpointRects`.
+ */
+const CENTRE_PIN_SPEC: BoundaryPinSpec = { xFrac: PIN_EDGE_MID, yFrac: PIN_EDGE_MID, dir: "all" };
 
 /** Resolves a pin's abstract facing to the libavoid `ConnDirFlag` bitmask on this binding. */
 function visDirsFor(avoid: Avoid, dir: PinDir): number {
@@ -203,6 +239,29 @@ function visDirsFor(avoid: Avoid, dir: PinDir): number {
 			return avoid.ConnDirRight;
 		case "all":
 			return avoid.ConnDirAll;
+	}
+}
+
+/**
+ * Registers the connection pins for one obstacle shape, all under {@link PIN_CLASS}
+ * so every `ConnEnd(shape, PIN_CLASS)` resolves to the cheapest pin regardless of
+ * count. Folder-group boxes get the 8 {@link BOUNDARY_PIN_SPECS} (facing-side
+ * attachment); note squares get the single {@link CENTRE_PIN_SPEC} (perf fallback,
+ * ticket edge-routing__04 Phase A). Pins are owned by their shape (and thus the
+ * router) — never destroyed by us.
+ */
+function registerPinsForShape(avoid: Avoid, shape: AvoidShapeRef, kind: RoutingObstacle["kind"]): void {
+	const specs = kind === "folder-group" ? BOUNDARY_PIN_SPECS : [CENTRE_PIN_SPEC];
+	for (const spec of specs) {
+		new avoid.ShapeConnectionPin(
+			shape,
+			PIN_CLASS,
+			spec.xFrac,
+			spec.yFrac,
+			true,
+			PIN_INSIDE_OFFSET,
+			visDirsFor(avoid, spec.dir),
+		);
 	}
 }
 
@@ -282,11 +341,12 @@ function readRoute(conn: AvoidConnRef): RoutedPoint[] {
 
 /**
  * The libavoid implementation of {@link EdgeRouter}. One `Avoid.Router` per pass
- * (PolyLine routing), obstacles as Rectangle+ShapeRef carrying {@link BOUNDARY_PIN_SPECS}
- * boundary pins, endpoints SHAPE-ATTACHED via `ConnEnd(shapeRef, PIN_CLASS)` (so a
- * source/target box does not block its own edge and each edge attaches on the facing
- * side), a single `processTransaction()`, then `displayRoute()` per connector. All
- * allocation/cleanup is owned by an internal {@link AvoidArena}.
+ * (PolyLine routing), obstacles as Rectangle+ShapeRef carrying connection pins
+ * ({@link registerPinsForShape}: boundary pins on folder-group boxes, a centre pin on
+ * note squares), endpoints SHAPE-ATTACHED via `ConnEnd(shapeRef, PIN_CLASS)` (so a
+ * source/target box does not block its own edge and group-box edges attach on the
+ * facing side), a single `processTransaction()`, then `displayRoute()` per connector.
+ * All allocation/cleanup is owned by an internal {@link AvoidArena}.
  */
 export class LibavoidEdgeRouter implements EdgeRouter {
 	async route(input: EdgeRoutingInput): Promise<EdgeRouteMap> {
@@ -304,21 +364,10 @@ export class LibavoidEdgeRouter implements EdgeRouter {
 			const shapeById = new Map<string, AvoidShapeRef>();
 			for (const obstacle of input.obstacles) {
 				const shape = arena.shape(router, rectOf(obstacle));
-				// A shape-attached endpoint needs pins; the boundary pins (all PIN_CLASS)
-				// let libavoid attach each edge on the side facing its counterpart instead
-				// of routing centre→centre. Pins are owned by their shape (and thus the
-				// router) — never destroyed by us.
-				for (const spec of BOUNDARY_PIN_SPECS) {
-					new avoid.ShapeConnectionPin(
-						shape,
-						PIN_CLASS,
-						spec.xFrac,
-						spec.yFrac,
-						true,
-						PIN_INSIDE_OFFSET,
-						visDirsFor(avoid, spec.dir),
-					);
-				}
+				// A shape-attached endpoint needs pins (all PIN_CLASS): folder-group boxes
+				// get boundary pins for facing-side attachment, note squares a single centre
+				// pin (perf fallback). See registerPinsForShape.
+				registerPinsForShape(avoid, shape, obstacle.kind);
 				shapeById.set(obstacle.id, shape);
 			}
 			const connectors: Array<{ readonly id: string; readonly conn: AvoidConnRef }> = [];

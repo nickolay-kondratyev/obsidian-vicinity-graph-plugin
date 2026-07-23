@@ -264,9 +264,6 @@ export class GraphViewController {
 			const routeStart = performance.now();
 			const routes = await this.edgeRouter.route(input);
 			const durationMs = performance.now() - routeStart;
-			if (this.isStale(token)) {
-				return EMPTY_ROUTES;
-			}
 			// Clip each route to its endpoint obstacle rects so arrows terminate ON the
 			// box boundary (esp. a collapsed GROUP box), not at the centre pin libavoid
 			// attaches connector endpoints to. Cache the CLIPPED routes so a reuse-layout
@@ -276,6 +273,12 @@ export class GraphViewController {
 			// per-edge detour ratio (routed length ÷ endpoint chord). Logged alongside the
 			// duration so the boundary-pin change is verifiable numerically in the dev
 			// vault, where the wasm router's route quality can't be unit-tested.
+			//
+			// Logged BEFORE the isStale early-return so the pass that ACTUALLY ran is what
+			// gets measured: during rapid rebuilds the heavy dense pass is superseded
+			// (stale) and would otherwise be discarded unlogged, letting the perf gate read
+			// a trivial intermediate pass and false-pass (edge-routing__04). Clipping a
+			// stale pass is a cheap, acceptable cost for correct telemetry.
 			const detour = detourStats(clippedRoutes);
 			console.debug("vicinity-graph: edge routing pass", {
 				obstacleCount: input.obstacles.length,
@@ -284,6 +287,9 @@ export class GraphViewController {
 				maxDetourRatio: detour.max,
 				meanDetourRatio: detour.mean,
 			});
+			if (this.isStale(token)) {
+				return EMPTY_ROUTES;
+			}
 			this.routeCache = { signature, routes: clippedRoutes };
 			return clippedRoutes;
 		} catch (error: unknown) {

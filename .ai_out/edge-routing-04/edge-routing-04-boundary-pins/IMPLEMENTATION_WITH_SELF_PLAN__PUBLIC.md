@@ -77,3 +77,55 @@ Boundary-pin routing fix (Phase A) + detour-ratio telemetry (Phase B). Phase C n
   threading `kind`). Also confirm the repro edges (`freedom → Discipline Leads to Freedom`,
   `wealth-buys-external-freedom → rel`) now render near-direct and `maxDetourRatio` drops materially.
 - **(c) No `#QUESTION_FOR_HUMAN` items** — ticket fully specified; no blockers.
+
+---
+
+# Iteration 3 — Phase A fallback (group-only pins) + telemetry defect fix
+
+VERIFICATION (see `VERIFICATION__PUBLIC.md`) STOPped iteration 2: 8-pins-on-ALL-shapes
+blew the dense-fixture routing budget (~8838ms vs ~1450ms layout — dense is ~100 UNGROUPED
+spokes, so every one got 8 pins) AND the telemetry move made the perf e2e gate false-pass.
+This iteration applies the ticket's authorized fallback and fixes the telemetry.
+
+## CHANGE 1 — boundary pins on FOLDER-GROUP shapes ONLY (`src/view/edgeRouting.ts`)
+- `RoutingObstacle` gained `readonly kind: "note" | "folder-group"` (interface ~30).
+- `extractEdgeRoutingInput` now populates `kind` (`"folder-group"` / `"note"`) from
+  `FlowNode.kind` on each pushed obstacle.
+- New `CENTRE_PIN_SPEC = {0.5, 0.5, "all"}` (the pre-fix single centre pin) alongside the
+  KEPT `BOUNDARY_PIN_SPECS` (8 pins).
+- New `registerPinsForShape(avoid, shape, kind)` helper: folder-group → 8 BOUNDARY_PIN_SPECS;
+  note → single CENTRE_PIN_SPEC. All pins share `PIN_CLASS`, so every `ConnEnd(shape, PIN_CLASS)`
+  still resolves (every shape has ≥1 pin of that class). ConnEnd wiring UNCHANGED.
+- `route()` obstacle loop replaced its inline 8-pin loop with `registerPinsForShape(...)`.
+- Docs updated on `RoutingObstacle.kind`, `BOUNDARY_PIN_SPECS` (WHY-NOT note squares),
+  `CENTRE_PIN_SPEC`, `registerPinsForShape`, and the `LibavoidEdgeRouter` class doc.
+- `routingSignature` (GraphViewController) NOT changed: it hashes id/x/y/w/h + edge ids; `kind`
+  is derived from stable node identity, so cache correctness is unaffected. tsc GREEN confirms.
+
+## CHANGE 2 — telemetry reorder (`src/view/GraphViewController.ts` `resolveRoutes`)
+- Moved `clipRoutesToObstacles` + `detourStats` + the ONE `console.debug` line to BEFORE the
+  `if (this.isStale(token)) return EMPTY_ROUTES;` early-return. The pass that actually ran is now
+  always logged (obstacleCount/edgeCount/durationMs/max+meanDetourRatio) — a superseded (stale)
+  heavy dense pass is no longer discarded unlogged, so the e2e PERF gate reads the real heaviest
+  pass instead of a trivial intermediate. Same clipped map is cached/returned (no double-clip).
+  Cache/EMPTY_ROUTES/error paths otherwise unchanged. Added a WHY comment explaining the ordering.
+
+## Test changes (`src/view/edgeRouting.test.ts` — test-only)
+- `extractEdgeRoutingInput` obstacle assertions now include `kind` (`"note"` for a note square,
+  `"folder-group"` for the group box) — asserts kind is populated for both.
+- Real-wasm facing-side tests: the two 100x100 boxes are now `kind: "folder-group"` (so they keep
+  boundary pins and STILL assert facing-side attachment). Added a NOTE in the test that note squares
+  intentionally keep a single centre pin (a NOTE→NOTE edge would attach at centres, not facing sides).
+  The bends-around tests' obstacles are `kind: "note"` (they only assert obstacle avoidance).
+
+## Test results (exact)
+- `npm run check` (tsc strict): GREEN.
+- `npm test`: **664 passed / 664, 54 files, 0 failed.**
+- Real-wasm block EXECUTED (not skipped): bends-around 5ms, facing-side horizontal 2ms / vertical 1ms —
+  facing-side tests assert boundary/facing-side attachment on FOLDER-GROUP boxes with real wasm.
+
+## CALLOUT — dense-fixture perf MUST be re-verified by TOP_LEVEL via the eval
+The wasm router still cannot be timed under vitest. TOP_LEVEL must re-run the edge-routing eval on the
+dense fixture and confirm: (1) routing `durationMs` is now well under layout (the ~100 ungrouped spokes
+now use 1 centre pin each, only the group boxes carry 8 pins), and (2) the telemetry fix means the PERF
+BUDGET e2e test now reads the real 101-obstacle pass (obstacleCount≈101), not a stale 3-obstacle pass.
