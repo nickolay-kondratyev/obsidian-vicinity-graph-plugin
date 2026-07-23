@@ -1,6 +1,7 @@
 import { EdgeVisibility } from "./EdgeVisibility";
 import { GraphTruncator } from "./GraphTruncator";
 import type { LinkProvider } from "./LinkProvider";
+import { PathExclusionMatcher } from "./PathExclusionMatcher";
 import { VicinityTraversal } from "./VicinityTraversal";
 import type { TraversalRoot } from "./VicinityTraversal";
 import { NodeSizer } from "./NodeSizer";
@@ -13,6 +14,7 @@ import type {
 	DepthSettings,
 	GraphNode,
 	VicinityGraph,
+	NodeExclusionSettings,
 	PinnedNodeDescriptor,
 	VaultPath,
 	ViewSettings,
@@ -34,6 +36,11 @@ export interface GraphBuildRequest {
 	readonly globalView: ViewSettings;
 	readonly mainViewOverride?: ViewSettingsOverride;
 	readonly pinnedViewOverrides?: readonly PinnedViewOverride[];
+	/**
+	 * Global node exclusion (vault-wide). Absent ⇒ no exclusion. Honored only for
+	 * discovered NEIGHBORS (never roots), at BFS neighbor discovery.
+	 */
+	readonly nodeExclusion?: NodeExclusionSettings;
 }
 
 /**
@@ -50,7 +57,9 @@ export class VicinityEngine {
 			mainOverride: request.mainViewOverride,
 			pinnedOverrides: request.pinnedViewOverrides,
 		});
-		const traversal = new VicinityTraversal(this.provider).traverse(this.toRoots(request));
+		const traversal = new VicinityTraversal(this.provider, this.exclusionMatcher(request)).traverse(
+			this.toRoots(request),
+		);
 		const sizes = new NodeSizer(this.provider).computeSizes(traversal.nodes, viewSettings.sizing);
 		const truncation = GraphTruncator.truncate({
 			nodes: traversal.nodes,
@@ -86,8 +95,20 @@ export class VicinityEngine {
 				provider: this.provider,
 			}),
 			hiddenNodeCountsByFolder: truncation.hiddenNodeCountsByFolder,
+			excludedNodeCount: traversal.excludedNodeCount,
 			viewSettings,
 		};
+	}
+
+	/**
+	 * Builds the neighbor-exclusion matcher for this request. A disabled flag or an
+	 * absent config yields an empty (no-op) matcher — the `enabled` gate lives here
+	 * so {@link PathExclusionMatcher} stays pure regex-lite logic.
+	 */
+	private exclusionMatcher(request: GraphBuildRequest): PathExclusionMatcher {
+		const exclusion = request.nodeExclusion;
+		const patterns = exclusion?.enabled ? exclusion.patterns : [];
+		return PathExclusionMatcher.fromPatterns(patterns);
 	}
 
 	/** MAIN first — when MAIN is also pinned, traversal dedupe keeps MAIN's descriptor. */

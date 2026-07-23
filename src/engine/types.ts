@@ -152,6 +152,19 @@ export interface DepthSettings {
 	readonly incomingDepth: number;
 }
 
+/**
+ * Global node-exclusion settings (vault-wide, no per-doc override). Each pattern
+ * is a raw JS regex tested UNANCHORED and CASE-SENSITIVELY against the full
+ * vault-relative path (including extension); an invalid pattern is silently
+ * skipped. `enabled === false` or an empty list is a no-op. A settings shape (like
+ * {@link DepthSettings}/{@link ViewSettings}) — persistence parses it, the engine
+ * consumes it via {@link PathExclusionMatcher} at neighbor discovery.
+ */
+export interface NodeExclusionSettings {
+	readonly enabled: boolean;
+	readonly patterns: readonly string[];
+}
+
 /** Partial per-doc depth override (absence = inherit the global default). */
 export interface DepthOverride {
 	readonly outgoingDepth?: number;
@@ -216,6 +229,11 @@ export interface VicinityGraph {
 	readonly edges: readonly GraphEdge[];
 	/** Nodes hidden by truncation, counted per folder (UI badge on folder groups). */
 	readonly hiddenNodeCountsByFolder: ReadonlyMap<FolderPath, number>;
+	/**
+	 * Distinct vault paths rejected by global node exclusion during traversal
+	 * (0 when exclusion is disabled/empty). Surfaced next to the toolbar pill.
+	 */
+	readonly excludedNodeCount: number;
 	/** The view settings the build actually used (post cascade resolution). */
 	readonly viewSettings: ViewSettings;
 }

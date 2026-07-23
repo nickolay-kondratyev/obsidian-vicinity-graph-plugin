@@ -1,4 +1,11 @@
-import type { DepthSettings, EdgeVisibilityMode, LayoutMode, SizingSettings, ViewSettings } from "./types";
+import type {
+	DepthSettings,
+	EdgeVisibilityMode,
+	LayoutMode,
+	NodeExclusionSettings,
+	SizingSettings,
+	ViewSettings,
+} from "./types";
 
 /** Hard cap default on non-central node count (step doc: default 100). */
 export const DEFAULT_NODE_CAP = 100;
@@ -73,6 +80,11 @@ export class EngineDefaults {
 			minPx: DEFAULT_MIN_NODE_PX,
 			maxPx: DEFAULT_MAX_NODE_PX,
 		};
+	}
+
+	/** Exclusion ships OFF with no patterns — an additive, opt-in feature. */
+	static nodeExclusionSettings(): NodeExclusionSettings {
+		return { enabled: false, patterns: [] };
 	}
 
 	static viewSettings(): ViewSettings {

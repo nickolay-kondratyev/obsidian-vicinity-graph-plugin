@@ -61,9 +61,12 @@ export class VicinityGraphBuilder {
 			docDataByDocid: await this.loadPinnedDocData(pins.map((pin) => pin.docid)),
 			globalDepths: this.pluginDataStore.globalDepths(),
 			globalView: this.pluginDataStore.globalView(),
+			nodeExclusion: this.pluginDataStore.nodeExclusion(),
 		};
 		const graph = new VicinityEngine(provider).build(GraphRequestAssembler.assemble(inputs));
-		return { graph, controls: ControlsModelBuilder.build(inputs) };
+		// The exclusion COUNT is a graph output (not an input), so it is threaded from
+		// the built graph into the toolbar model alongside the shared inputs.
+		return { graph, controls: ControlsModelBuilder.build(inputs, graph.excludedNodeCount) };
 	}
 
 	private async loadPinnedDocData(pinnedDocids: readonly string[]): Promise<ReadonlyMap<string, DocData>> {

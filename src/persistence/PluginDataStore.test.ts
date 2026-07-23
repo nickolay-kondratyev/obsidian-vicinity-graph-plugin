@@ -23,6 +23,17 @@ describe("PluginDataStore", () => {
 		expect(reloaded.globalDepths()).toEqual({ outgoingDepth: 4, incomingDepth: 2 });
 	});
 
+	it("WHEN a fresh install is read THEN node exclusion defaults to disabled with no patterns", async () => {
+		const store = await initializedStore();
+		expect(store.nodeExclusion()).toEqual({ enabled: false, patterns: [] });
+	});
+
+	it("WHEN node exclusion is saved THEN a re-initialized store reads it back (round-trip)", async () => {
+		const port = new FakePluginDataPort();
+		await (await initializedStore(port)).saveNodeExclusion({ enabled: true, patterns: ["^rel/"] });
+		expect((await initializedStore(port)).nodeExclusion()).toEqual({ enabled: true, patterns: ["^rel/"] });
+	});
+
 	it("WHEN a pin is added THEN it round-trips with its timestamp", async () => {
 		const port = new FakePluginDataPort();
 		await (await initializedStore(port)).addPin("docid_a_e", 1234);

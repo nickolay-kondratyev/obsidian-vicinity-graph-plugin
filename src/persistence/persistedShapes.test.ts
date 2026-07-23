@@ -9,6 +9,7 @@ describe("PersistedShapes.parsePluginData", () => {
 			globalDepths: EngineDefaults.depthSettings(),
 			globalView: EngineDefaults.viewSettings(),
 			pins: [],
+			nodeExclusion: EngineDefaults.nodeExclusionSettings(),
 		});
 	});
 
@@ -18,6 +19,7 @@ describe("PersistedShapes.parsePluginData", () => {
 			globalDepths: { outgoingDepth: 3, incomingDepth: 2 },
 			globalView: { ...EngineDefaults.viewSettings(), nodeCap: 42 },
 			pins: [{ docid: "docid_a_e", pinTimestamp: 1000 }],
+			nodeExclusion: { enabled: true, patterns: ["^rel/", "templates/"] },
 		};
 		expect(PersistedShapes.parsePluginData(JSON.parse(JSON.stringify(data)))).toEqual(data);
 	});
@@ -60,6 +62,34 @@ describe("PersistedShapes.parsePluginData", () => {
 	it("WHEN globalView carries a non-boolean edgeRouting THEN the default (true) survives", () => {
 		const raw = { version: PERSISTED_SHAPE_VERSION, globalView: { edgeRouting: "yes" } };
 		expect(PersistedShapes.parsePluginData(raw).globalView.edgeRouting).toBe(true);
+	});
+});
+
+describe("PersistedShapes node-exclusion parsing", () => {
+	it("WHEN nodeExclusion is absent THEN it defaults to disabled with no patterns", () => {
+		const raw = { version: PERSISTED_SHAPE_VERSION };
+		expect(PersistedShapes.parsePluginData(raw).nodeExclusion).toEqual({ enabled: false, patterns: [] });
+	});
+
+	it("WHEN a valid nodeExclusion round-trips through JSON THEN it parses back unchanged", () => {
+		const nodeExclusion = { enabled: true, patterns: ["^rel/", "\\.excalidraw\\.md$"] };
+		const raw = { version: PERSISTED_SHAPE_VERSION, nodeExclusion: JSON.parse(JSON.stringify(nodeExclusion)) };
+		expect(PersistedShapes.parsePluginData(raw).nodeExclusion).toEqual(nodeExclusion);
+	});
+
+	it("WHEN enabled is not a boolean THEN it degrades to the default enabled flag", () => {
+		const raw = { version: PERSISTED_SHAPE_VERSION, nodeExclusion: { enabled: "yes", patterns: ["a"] } };
+		expect(PersistedShapes.parsePluginData(raw).nodeExclusion).toEqual({ enabled: false, patterns: ["a"] });
+	});
+
+	it("WHEN patterns is not an array THEN it degrades to an empty pattern list", () => {
+		const raw = { version: PERSISTED_SHAPE_VERSION, nodeExclusion: { enabled: true, patterns: "rel/" } };
+		expect(PersistedShapes.parsePluginData(raw).nodeExclusion).toEqual({ enabled: true, patterns: [] });
+	});
+
+	it("WHEN patterns contains non-string entries THEN only the strings survive", () => {
+		const raw = { version: PERSISTED_SHAPE_VERSION, nodeExclusion: { enabled: true, patterns: ["ok", 42, null] } };
+		expect(PersistedShapes.parsePluginData(raw).nodeExclusion.patterns).toEqual(["ok"]);
 	});
 });
 

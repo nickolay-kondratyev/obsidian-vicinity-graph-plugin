@@ -53,6 +53,33 @@ function node(graph: VicinityGraph, path: string) {
 	return graph.nodes.find((candidate) => candidate.path === path);
 }
 
+describe("VicinityEngine global node exclusion", () => {
+	it("WHEN exclusion is enabled with a matching pattern THEN the neighbor is suppressed and counted", () => {
+		const graph = build({ nodeExclusion: { enabled: true, patterns: ["^notes/beta"] } });
+		expect({ hasBeta: node(graph, "notes/beta.md") !== undefined, count: graph.excludedNodeCount }).toEqual({
+			hasBeta: false,
+			count: 1,
+		});
+	});
+
+	it("WHEN exclusion is DISABLED THEN patterns are ignored (no-op, zero count)", () => {
+		const graph = build({ nodeExclusion: { enabled: false, patterns: ["^notes/beta"] } });
+		expect({ hasBeta: node(graph, "notes/beta.md") !== undefined, count: graph.excludedNodeCount }).toEqual({
+			hasBeta: true,
+			count: 0,
+		});
+	});
+
+	it("WHEN no exclusion config is supplied THEN the count is zero", () => {
+		expect(build().excludedNodeCount).toBe(0);
+	});
+
+	it("WHEN a pattern matches a pinned ROOT THEN the root stays (roots exempt)", () => {
+		const graph = build({ nodeExclusion: { enabled: true, patterns: ["^island/pin"] } });
+		expect(node(graph, "island/pin.md")?.isCentral).toBe(true);
+	});
+});
+
 describe("VicinityEngine end-to-end build", () => {
 	it("WHEN building THEN the union covers MAIN's vicinity and the disconnected pinned island", () => {
 		expect(build().nodes.map((n) => n.path).sort()).toEqual([

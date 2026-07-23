@@ -42,7 +42,7 @@ async function builderFixture() {
 		new DocDataStore(new FakeFileStorage(), "doc-data"),
 		pathDocIdMap,
 	);
-	return { builder, docIdPort, pathDocIdMap };
+	return { builder, docIdPort, pathDocIdMap, pluginDataStore };
 }
 
 describe("VicinityGraphBuilder", () => {
@@ -80,5 +80,23 @@ describe("VicinityGraphBuilder", () => {
 		const { builder, pathDocIdMap } = await builderFixture();
 		await builder.build("main.md");
 		expect(pathDocIdMap.getDocId("main.md")).toBe("docid_main_e");
+	});
+
+	it("WHEN a global exclusion pattern matches a neighbor THEN it is suppressed end-to-end and counted", async () => {
+		const { builder, pluginDataStore } = await builderFixture();
+		await pluginDataStore.saveNodeExclusion({ enabled: true, patterns: ["^a\\.md$"] });
+		const result = await builder.build("main.md");
+		expect({
+			hasA: result?.graph.nodes.some((node) => node.path === "a.md") ?? true,
+			count: result?.graph.excludedNodeCount,
+			pillCount: result?.controls.excludedNodeCount,
+		}).toEqual({ hasA: false, count: 1, pillCount: 1 });
+	});
+
+	it("WHEN exclusion is disabled THEN a matching pattern is a no-op (neighbor stays)", async () => {
+		const { builder, pluginDataStore } = await builderFixture();
+		await pluginDataStore.saveNodeExclusion({ enabled: false, patterns: ["^a\\.md$"] });
+		const result = await builder.build("main.md");
+		expect(result?.graph.nodes.some((node) => node.path === "a.md")).toBe(true);
 	});
 });

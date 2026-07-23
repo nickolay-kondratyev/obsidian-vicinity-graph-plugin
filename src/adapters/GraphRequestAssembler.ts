@@ -2,6 +2,7 @@ import type {
 	DepthOverride,
 	DepthSettings,
 	GraphBuildRequest,
+	NodeExclusionSettings,
 	PinnedNodeDescriptor,
 	PinnedViewOverride,
 	VaultPath,
@@ -32,6 +33,8 @@ export interface GraphRequestInputs {
 	readonly docDataByDocid: ReadonlyMap<string, DocData>;
 	readonly globalDepths: DepthSettings;
 	readonly globalView: ViewSettings;
+	/** Global node exclusion (vault-wide). Passed straight through to the engine. */
+	readonly nodeExclusion: NodeExclusionSettings;
 }
 
 /**
@@ -59,6 +62,7 @@ export class GraphRequestAssembler {
 			...(pinned.length > 0 ? { pinned } : {}),
 			globalDepths: inputs.globalDepths,
 			globalView: inputs.globalView,
+			nodeExclusion: inputs.nodeExclusion,
 			...GraphRequestAssembler.depthOverrides(inputs, resolved),
 			...(inputs.mainDocData?.view !== undefined ? { mainViewOverride: inputs.mainDocData.view } : {}),
 			...GraphRequestAssembler.pinnedViewOverrides(inputs, resolved),

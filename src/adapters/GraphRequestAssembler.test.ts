@@ -17,6 +17,7 @@ function inputs(partial: Partial<GraphRequestInputs> = {}): GraphRequestInputs {
 		docDataByDocid: new Map(),
 		globalDepths: EngineDefaults.depthSettings(),
 		globalView: EngineDefaults.viewSettings(),
+		nodeExclusion: EngineDefaults.nodeExclusionSettings(),
 		...partial,
 	};
 }
@@ -48,6 +49,11 @@ describe("GraphRequestAssembler pins", () => {
 
 	it("WHEN the main doc has no docid THEN its descriptor carries none (graph still builds)", () => {
 		expect(GraphRequestAssembler.assemble(inputs({ mainDocId: null })).main).toEqual({ path: "main.md" });
+	});
+
+	it("WHEN inputs carry node exclusion THEN it is threaded onto the request unchanged", () => {
+		const nodeExclusion = { enabled: true, patterns: ["^rel/"] };
+		expect(GraphRequestAssembler.assemble(inputs({ nodeExclusion })).nodeExclusion).toEqual(nodeExclusion);
 	});
 });
 

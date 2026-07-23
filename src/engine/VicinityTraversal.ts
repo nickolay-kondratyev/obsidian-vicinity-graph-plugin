@@ -2,6 +2,7 @@ import { VaultPathFacts } from "../shared/VaultPathFacts";
 import { EdgeAccumulator } from "./EdgeAccumulator";
 import type { LinkProvider } from "./LinkProvider";
 import { NodeEligibility } from "./NodeEligibility";
+import { PathExclusionMatcher } from "./PathExclusionMatcher";
 import type {
 	AttachmentRef,
 	CentralNodeDescriptor,
@@ -39,6 +40,8 @@ export interface TraversalResult {
 	readonly nodes: ReadonlyMap<VaultPath, TraversedNode>;
 	/** Walked (source, target) pairs — count-free; multiplicity is attached by EdgeVisibility. */
 	readonly edges: readonly DirectedLink[];
+	/** Distinct non-root neighbor paths rejected by global exclusion during traversal. */
+	readonly excludedNodeCount: number;
 }
 
 const DIRECTIONS: readonly Direction[] = ["outgoing", "incoming"];
@@ -56,12 +59,20 @@ const DIRECTIONS: readonly Direction[] = ["outgoing", "incoming"];
 export class VicinityTraversal {
 	private readonly eligibility: NodeEligibility;
 
-	constructor(private readonly provider: LinkProvider) {
+	constructor(
+		private readonly provider: LinkProvider,
+		/** Global neighbor exclusion; defaults to a no-op matcher (nothing excluded). */
+		private readonly exclusion: PathExclusionMatcher = PathExclusionMatcher.fromPatterns([]),
+	) {
 		this.eligibility = new NodeEligibility(provider);
 	}
 
 	traverse(roots: readonly TraversalRoot[]): TraversalResult {
 		const collector = new TraversalCollector();
+		// Roots are EXEMPT from exclusion (binding: exclusion applies only to
+		// discovered neighbors) — computed once so bfs can wave a matching root past
+		// the neighbor gate even when another root links to it.
+		const rootPaths = new Set(roots.map((root) => root.descriptor.path));
 		for (const root of dedupeRootsByPath(roots)) {
 			// Roots that are unknown or non-node-bearing are skipped gracefully:
 			// a build request may momentarily reference a deleted/renamed file.
@@ -69,13 +80,18 @@ export class VicinityTraversal {
 				continue;
 			}
 			for (const direction of DIRECTIONS) {
-				this.bfs(root, direction, collector);
+				this.bfs(root, direction, rootPaths, collector);
 			}
 		}
 		return this.assemble(roots, collector);
 	}
 
-	private bfs(root: TraversalRoot, direction: Direction, collector: TraversalCollector): void {
+	private bfs(
+		root: TraversalRoot,
+		direction: Direction,
+		rootPaths: ReadonlySet<VaultPath>,
+		collector: TraversalCollector,
+	): void {
 		const rootPath = root.descriptor.path;
 		const depthLimit = direction === "outgoing" ? root.depths.outgoingDepth : root.depths.incomingDepth;
 		const visited = new Map<VaultPath, number>([[rootPath, 0]]);
@@ -91,6 +107,13 @@ export class VicinityTraversal {
 				continue; // Depth budget exhausted — do not expand further.
 			}
 			for (const neighbor of this.neighborsOf(current, direction)) {
+				// Exclusion FIRST (before the isNodeBearing metadata read): an excluded
+				// neighbor is never enqueued, never expanded through, and never fetches
+				// metadata — the performance win. Roots are exempt (checked above).
+				if (!rootPaths.has(neighbor) && this.exclusion.excludes(neighbor)) {
+					collector.recordExcluded(neighbor);
+					continue;
+				}
 				if (!this.eligibility.isNodeBearing(neighbor)) {
 					continue; // Attachment, not a node; surfaced via FileMetadata.attachments.
 				}
@@ -141,7 +164,7 @@ export class VicinityTraversal {
 				firstImagePath: firstImage?.path,
 			});
 		}
-		return { nodes, edges: collector.edges() };
+		return { nodes, edges: collector.edges(), excludedNodeCount: collector.excludedCount() };
 	}
 }
 
@@ -162,6 +185,8 @@ function dedupeRootsByPath(roots: readonly TraversalRoot[]): readonly TraversalR
 class TraversalCollector {
 	private readonly tags = new Map<VaultPath, DepthTag[]>();
 	private readonly edgeAccumulator = new EdgeAccumulator();
+	/** Distinct neighbor paths rejected by exclusion (deduped across roots/directions). */
+	private readonly excluded = new Set<VaultPath>();
 
 	recordDepthTag(path: VaultPath, tag: DepthTag): void {
 		const tagsForPath = this.tags.get(path) ?? [];
@@ -176,11 +201,20 @@ class TraversalCollector {
 		this.edgeAccumulator.add(source, target);
 	}
 
+	/** Records a distinct excluded neighbor path (deduped; drives excludedNodeCount). */
+	recordExcluded(path: VaultPath): void {
+		this.excluded.add(path);
+	}
+
 	depthTagsByPath(): ReadonlyMap<VaultPath, readonly DepthTag[]> {
 		return this.tags;
 	}
 
 	edges(): readonly DirectedLink[] {
 		return this.edgeAccumulator.edges();
+	}
+
+	excludedCount(): number {
+		return this.excluded.size;
 	}
 }

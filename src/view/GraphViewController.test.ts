@@ -16,6 +16,8 @@ const EMPTY_CONTROLS: ControlsModel = {
 	mainPinned: false,
 	globalDepths: EngineDefaults.depthSettings(),
 	globalView: EngineDefaults.viewSettings(),
+	nodeExclusion: EngineDefaults.nodeExclusionSettings(),
+	excludedNodeCount: 0,
 };
 
 /**

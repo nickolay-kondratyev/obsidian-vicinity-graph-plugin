@@ -88,6 +88,9 @@ export class ControlsActions implements ControlsActionsPort {
 			case "global-view":
 				await this.pluginDataStore.saveGlobalView(command.view);
 				return;
+			case "node-exclusion":
+				await this.pluginDataStore.saveNodeExclusion(command.nodeExclusion);
+				return;
 		}
 	}
 
