@@ -1,4 +1,4 @@
-import type { DepthSettings, ViewSettings } from "../engine";
+import type { DepthSettings, NodeExclusionSettings, ViewSettings } from "../engine";
 import type { PinnedDocEntry, PluginData } from "./persistedShapes";
 import { PersistedShapes } from "./persistedShapes";
 import type { PluginDataPort } from "./storagePorts";
@@ -32,6 +32,10 @@ export class PluginDataStore {
 		return this.data.pins;
 	}
 
+	nodeExclusion(): NodeExclusionSettings {
+		return this.data.nodeExclusion;
+	}
+
 	hasPin(docid: string): boolean {
 		return this.data.pins.some((pin) => pin.docid === docid);
 	}
@@ -42,6 +46,10 @@ export class PluginDataStore {
 
 	async saveGlobalView(globalView: ViewSettings): Promise<void> {
 		await this.persist({ ...this.data, globalView });
+	}
+
+	async saveNodeExclusion(nodeExclusion: NodeExclusionSettings): Promise<void> {
+		await this.persist({ ...this.data, nodeExclusion });
 	}
 
 	/** Re-pinning refreshes the timestamp (recency tiebreaker follows the newest pin intent). */

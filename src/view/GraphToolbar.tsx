@@ -2,6 +2,7 @@ import type { ReactElement } from "react";
 import { CentralDepthControls } from "./CentralDepthControls";
 import type { ControlsModel } from "./ControlsModel";
 import { LayoutSection } from "./LayoutSection";
+import { NodeExclusionSection } from "./NodeExclusionSection";
 import type { SettingsWriteContext } from "./settingsWritePlan";
 import { SizingSection } from "./SizingSection";
 
@@ -24,7 +25,11 @@ export function GraphToolbar({ controls }: { readonly controls: ControlsModel })
 	if (main === undefined) {
 		return null; // Empty view — no central to control.
 	}
-	const ctx: SettingsWriteContext = { globalDepths: controls.globalDepths, globalView: controls.globalView };
+	const ctx: SettingsWriteContext = {
+		globalDepths: controls.globalDepths,
+		globalView: controls.globalView,
+		nodeExclusion: controls.nodeExclusion,
+	};
 	const pinned = controls.centrals.filter((central) => central.kind === "pinned");
 
 	return (
@@ -47,6 +52,7 @@ export function GraphToolbar({ controls }: { readonly controls: ControlsModel })
 					</details>
 				)}
 				<LayoutSection view={controls.globalView} ctx={ctx} />
+				<NodeExclusionSection ctx={ctx} excludedNodeCount={controls.excludedNodeCount} />
 				<SizingSection view={controls.globalView} ctx={ctx} />
 			</div>
 		</details>

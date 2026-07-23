@@ -10,6 +10,42 @@ terminated at; every attachment now lands square-on a face. Note squares are unc
 change — libavoid still selects the cheapest pin per connector end. View-layer only
 (`src/view/edgeRouting.ts`).
 
+## 2026-07-23 — global-node-exclusion: exclude notes from every graph by path regex
+
+Adds a **global** exclusion list that keeps matching notes (index/MOC hubs,
+templates, a `rel/` folder) out of every vicinity graph. Applied at the **data
+layer** — excluded neighbors are rejected at BFS discovery, before layout — so
+they never read metadata, record an edge, or expand further (the perf win). New
+pure engine seam; adapters stay thin.
+
+- **Regex-lite matching** (`src/engine/PathExclusionMatcher.ts`, new pure class):
+  each list entry is a `new RegExp(pattern)` tested **unanchored** and
+  **case-sensitively** against the full vault-relative path incl. extension, so
+  `rel/` matches `rel/x.md` anywhere in the path and `^rel/` anchors to the vault
+  root. Invalid patterns are silently skipped (never break the graph); excluded
+  iff ANY enabled + valid pattern matches; empty/disabled ⇒ no-op.
+- **Roots exempt.** Exclusion applies only to discovered neighbors —
+  `VicinityTraversal` computes the root-path set once and never excludes the
+  central or a pinned central even when it matches. A note reachable only through
+  an excluded note is consequently not discovered (documented semantic).
+- **Count.** `VicinityGraph.excludedNodeCount` = distinct vault paths rejected
+  during that traversal; surfaced next to the toolbar pill only when exclusion is
+  enabled AND the count > 0.
+- **Surfaces.** Settings tab: enable toggle + patterns textarea (source of
+  truth). Toolbar pill (`NodeExclusionSection`): global enable/disable + count
+  badge. Both write the one `node-exclusion` command through the existing
+  `planSettingsWrite` contract.
+- **Persistence.** New global-only `PluginData.nodeExclusion { enabled, patterns[] }`
+  (defensively parsed, default `{ enabled: false, patterns: [] }`); reaches the
+  engine as a top-level `GraphBuildRequest.nodeExclusion`. **Version stays v1**
+  (additive).
+- **Out of scope this iteration:** per-doc override, settings-tab regex
+  validation UI (invalid patterns silently skipped).
+
+Verified: `npm run check` (tsc) clean; `npm test` **713** green. Pure view/CSS
+mirrors the existing global-toggle precedents; `main.js`/`styles.css` regenerated
+by the build.
+
 ## 2026-07-23 — node width floored to fit the full name (no more title `...`)
 
 Note nodes no longer truncate their title with an ellipsis. Previously every node was a

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { FakeLinkProvider } from "./FakeLinkProvider";
+import { PathExclusionMatcher } from "./PathExclusionMatcher";
 import type { TraversalRoot, TraversalResult } from "./VicinityTraversal";
 import { VicinityTraversal } from "./VicinityTraversal";
 import type { DepthSettings } from "./types";
@@ -14,6 +15,14 @@ function root(path: string, depths: Partial<DepthSettings> = {}): TraversalRoot 
 
 function traverse(provider: FakeLinkProvider, roots: readonly TraversalRoot[]): TraversalResult {
 	return new VicinityTraversal(provider).traverse(roots);
+}
+
+function traverseExcluding(
+	provider: FakeLinkProvider,
+	roots: readonly TraversalRoot[],
+	patterns: readonly string[],
+): TraversalResult {
+	return new VicinityTraversal(provider, PathExclusionMatcher.fromPatterns(patterns)).traverse(roots);
 }
 
 function nodePaths(result: TraversalResult): string[] {
@@ -219,6 +228,78 @@ describe("VicinityTraversal attachments and non-node-bearing files", () => {
 		});
 		const result = traverse(provider, [root("n.md")]);
 		expect(result.nodes.get(asVaultPath("n.md"))?.firstImagePath).toBeUndefined();
+	});
+});
+
+describe("VicinityTraversal global neighbor exclusion", () => {
+	// GIVEN main a.md -> excluded rel/b.md -> c.md, plus a.md -> d.md
+	function excludableVault(): FakeLinkProvider {
+		return new FakeLinkProvider({
+			files: [{ path: "a.md" }, { path: "rel/b.md" }, { path: "c.md" }, { path: "d.md" }],
+			links: { "a.md": ["rel/b.md", "d.md"], "rel/b.md": ["c.md"] },
+		});
+	}
+
+	it("WHEN a neighbor matches an exclusion pattern THEN it is absent from the graph", () => {
+		const result = traverseExcluding(excludableVault(), [root("a.md", { outgoingDepth: 3 })], ["^rel/"]);
+		expect(nodePaths(result)).toEqual(["a.md", "d.md"]);
+	});
+
+	it("WHEN an excluded neighbor would bridge to a deeper node THEN that node is not discovered", () => {
+		const result = traverseExcluding(excludableVault(), [root("a.md", { outgoingDepth: 3 })], ["^rel/"]);
+		expect(nodePaths(result)).not.toContain("c.md");
+	});
+
+	it("WHEN a neighbor is excluded THEN it is never expanded through (its links are never queried)", () => {
+		const provider = excludableVault();
+		traverseExcluding(provider, [root("a.md", { outgoingDepth: 3 })], ["^rel/"]);
+		expect(provider.outgoingQueryCount(asVaultPath("rel/b.md"))).toBe(0);
+	});
+
+	it("WHEN no edge is recorded to an excluded neighbor THEN the graph has no edge into it", () => {
+		const result = traverseExcluding(excludableVault(), [root("a.md", { outgoingDepth: 3 })], ["^rel/"]);
+		expect(edgePairs(result)).toEqual(["a.md->d.md"]);
+	});
+
+	it("WHEN nothing is excluded THEN the count is zero", () => {
+		expect(traverse(excludableVault(), [root("a.md")]).excludedNodeCount).toBe(0);
+	});
+
+	it("WHEN one distinct neighbor is excluded THEN the count is one", () => {
+		const result = traverseExcluding(excludableVault(), [root("a.md", { outgoingDepth: 3 })], ["^rel/"]);
+		expect(result.excludedNodeCount).toBe(1);
+	});
+
+	it("WHEN the same excluded neighbor is reached from two roots THEN it is counted once (distinct)", () => {
+		// a.md -> rel/x.md <- z.md : rel/x.md is a shared excluded neighbor.
+		const provider = new FakeLinkProvider({
+			files: [{ path: "a.md" }, { path: "z.md" }, { path: "rel/x.md" }],
+			links: { "a.md": ["rel/x.md"], "z.md": ["rel/x.md"] },
+		});
+		const result = traverseExcluding(provider, [root("a.md"), root("z.md")], ["^rel/"]);
+		expect(result.excludedNodeCount).toBe(1);
+	});
+
+	it("WHEN a ROOT matches an exclusion pattern THEN the root is exempt and still present", () => {
+		const provider = new FakeLinkProvider({
+			files: [{ path: "rel/root.md" }, { path: "n.md" }],
+			links: { "rel/root.md": ["n.md"] },
+		});
+		const result = traverseExcluding(provider, [root("rel/root.md")], ["^rel/"]);
+		expect(nodePaths(result)).toEqual(["n.md", "rel/root.md"]);
+	});
+
+	it("WHEN a matching path is a pinned root reached as a neighbor of MAIN THEN it stays and is not counted", () => {
+		// main.md -> rel/pinned.md, and rel/pinned.md is ALSO a root (pinned).
+		const provider = new FakeLinkProvider({
+			files: [{ path: "main.md" }, { path: "rel/pinned.md" }],
+			links: { "main.md": ["rel/pinned.md"] },
+		});
+		const result = traverseExcluding(provider, [root("main.md"), root("rel/pinned.md")], ["^rel/"]);
+		expect({ paths: nodePaths(result), count: result.excludedNodeCount }).toEqual({
+			paths: ["main.md", "rel/pinned.md"],
+			count: 0,
+		});
 	});
 });
 

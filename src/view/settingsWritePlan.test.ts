@@ -6,6 +6,7 @@ import { planSettingsWrite } from "./settingsWritePlan";
 const CTX: SettingsWriteContext = {
 	globalDepths: { outgoingDepth: 1, incomingDepth: 1 },
 	globalView: EngineDefaults.viewSettings(),
+	nodeExclusion: EngineDefaults.nodeExclusionSettings(),
 };
 
 describe("planSettingsWrite main depth", () => {
@@ -85,6 +86,14 @@ describe("planSettingsWrite global writes", () => {
 		expect(planSettingsWrite({ kind: "global-edge-routing", edgeRouting: true }, CTX)).toEqual({
 			kind: "global-view",
 			view: { ...CTX.globalView, edgeRouting: true },
+		});
+	});
+
+	it("WHEN global-node-exclusion THEN it emits a node-exclusion command carrying the whole object", () => {
+		const nodeExclusion = { enabled: true, patterns: ["^rel/"] };
+		expect(planSettingsWrite({ kind: "global-node-exclusion", nodeExclusion }, CTX)).toEqual({
+			kind: "node-exclusion",
+			nodeExclusion,
 		});
 	});
 });

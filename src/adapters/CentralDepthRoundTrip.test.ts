@@ -31,6 +31,7 @@ function inputs(mainPath: string, mainDocData: DocData): GraphRequestInputs {
 		docDataByDocid: new Map([[X_DOCID, X_OWN]]),
 		globalDepths: EngineDefaults.depthSettings(),
 		globalView: EngineDefaults.viewSettings(),
+		nodeExclusion: EngineDefaults.nodeExclusionSettings(),
 	};
 }
 

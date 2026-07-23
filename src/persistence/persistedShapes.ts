@@ -2,6 +2,7 @@ import type {
 	DepthOverride,
 	DepthSettings,
 	EdgeVisibilityMode,
+	NodeExclusionSettings,
 	SizeMetricId,
 	SizingSettings,
 	ViewSettings,
@@ -37,6 +38,8 @@ export interface PluginData {
 	readonly globalDepths: DepthSettings;
 	readonly globalView: ViewSettings;
 	readonly pins: readonly PinnedDocEntry[];
+	/** Global node exclusion (vault-wide enable + regex-lite pattern list). */
+	readonly nodeExclusion: NodeExclusionSettings;
 }
 
 /**
@@ -63,6 +66,7 @@ export class PersistedShapes {
 			globalDepths: EngineDefaults.depthSettings(),
 			globalView: EngineDefaults.viewSettings(),
 			pins: [],
+			nodeExclusion: EngineDefaults.nodeExclusionSettings(),
 		};
 	}
 
@@ -84,6 +88,7 @@ export class PersistedShapes {
 			globalDepths: { ...defaults.globalDepths, ...parseDepthOverride(raw["globalDepths"]) },
 			globalView: { ...defaults.globalView, ...parseViewOverride(raw["globalView"]) },
 			pins: parsePins(raw["pins"]),
+			nodeExclusion: parseNodeExclusion(raw["nodeExclusion"], defaults.nodeExclusion),
 		};
 	}
 
@@ -175,6 +180,24 @@ function parseMetricSetting(raw: unknown): SizingSettings["metrics"][SizeMetricI
 	}
 	const weight = numberOrUndefined(raw["weight"]);
 	return weight === undefined ? undefined : { enabled: raw["enabled"], weight };
+}
+
+/**
+ * Defensive node-exclusion parser: a non-object, a non-boolean `enabled`, or a
+ * non-array `patterns` degrade to the default; within a valid array only string
+ * entries survive (non-strings dropped). Never throws — matches the file's
+ * malformed-content philosophy. Patterns are stored verbatim; invalid REGEXES
+ * are tolerated at match time (engine skips them), not rejected here.
+ */
+function parseNodeExclusion(raw: unknown, fallback: NodeExclusionSettings): NodeExclusionSettings {
+	if (!isRecord(raw)) {
+		return fallback;
+	}
+	const enabled = typeof raw["enabled"] === "boolean" ? raw["enabled"] : fallback.enabled;
+	const patterns = Array.isArray(raw["patterns"])
+		? raw["patterns"].filter((entry): entry is string => typeof entry === "string")
+		: fallback.patterns;
+	return { enabled, patterns };
 }
 
 function parsePins(raw: unknown): readonly PinnedDocEntry[] {

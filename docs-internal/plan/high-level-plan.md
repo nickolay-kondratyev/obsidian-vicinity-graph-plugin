@@ -41,6 +41,7 @@ An Obsidian plugin that replaces the local graph view with a React Flow based vi
 - Each root traverses with **its own depth settings** (per-root, no cascade for depth). Node X pinned at depth 3 keeps exploring at depth 3 while MAIN Y explores at depth 1.
 - Every node is tagged with depth per root per direction; **minDepth** = minimum across all roots and directions drives sizing decay and truncation priority.
 - **Non-markdown files are never graph nodes.** They are collected as node content (attachments) during traversal.
+- **Global node exclusion**: a global (not per-doc) list of regex-lite patterns matched against each candidate's vault-relative path prunes matching neighbors **at BFS discovery** (before metadata reads / edge recording / expansion). Central and pinned roots are exempt even when they match; a node reachable only through an excluded node is not discovered. The count of distinct excluded paths is surfaced in the view.
 - Rebuild triggers: active file change, plus vault file changes while the view is open (debounced metadata resolve, ~500ms).
 
 ### Node cap and truncation

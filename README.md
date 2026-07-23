@@ -95,6 +95,27 @@ Depth is the one thing you can tune per note, from the in-view toolbar:
 > only its visual identity lags. Tracked in
 > `docs-internal/tickets/ticket-pinned-central-status-lags-after-restart.md`.
 
+### Node exclusion
+
+Keep whole classes of notes out of every graph — index/MOC hubs, templates, a
+`rel/` relationship folder — via a **global** exclusion pattern list.
+
+- **Pattern list** lives in Settings → Vicinity Graph (one pattern per line) and
+  is global (like sizing and the node cap — no per-note override).
+- **Toolbar pill** enables/disables exclusion in-view; when it is on and the
+  current graph actually dropped notes, it shows an **excluded count** for that
+  graph.
+- **Matching is regex-lite.** Each line is a JavaScript regex tested
+  **unanchored** and **case-sensitively** against the full vault-relative path
+  **including extension**. So `rel/` matches `rel/some-relationship.md` (and
+  `rel/` anywhere in the path), while `^rel/` anchors it to the vault root. An
+  invalid pattern is silently ignored (it excludes nothing and never breaks the
+  graph).
+- **Only discovered neighbors are excluded** — the active note and pinned
+  centrals stay even if they match a pattern. Excluded notes are pruned at the
+  data layer (during traversal, before rendering), so a note reachable *only*
+  through an excluded note is not discovered either.
+
 ## V1 scope / limits
 
 - **LOCAL graph only.** No global graph.

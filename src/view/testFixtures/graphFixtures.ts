@@ -70,6 +70,7 @@ export function makeGraph(overrides: Partial<VicinityGraph> = {}): VicinityGraph
 		nodes: [],
 		edges: [],
 		hiddenNodeCountsByFolder: new Map(),
+		excludedNodeCount: 0,
 		viewSettings: makeViewSettings(),
 		...overrides,
 	};

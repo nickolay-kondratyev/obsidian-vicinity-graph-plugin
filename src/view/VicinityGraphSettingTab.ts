@@ -24,6 +24,22 @@ import { SIZING_METRICS } from "./sizingMetrics";
 /** A node cap below 1 would hide every non-central node — the floor is 1. */
 const MIN_NODE_CAP = 1;
 
+/** Visible height of the exclusion-patterns textarea (one pattern per line). */
+const EXCLUSION_TEXTAREA_ROWS = 4;
+
+/**
+ * Textarea → pattern list: one pattern per line, trimmed, blank lines dropped.
+ * WHY trim/drop: newline-delimited input inevitably carries a trailing blank line
+ * and stray indentation; an empty regex matches everything, so keeping blanks would
+ * silently exclude the whole vault. Invalid regexes are tolerated (engine skips them).
+ */
+function parseExclusionPatterns(raw: string): readonly string[] {
+	return raw
+		.split("\n")
+		.map((line) => line.trim())
+		.filter((line) => line.length > 0);
+}
+
 export class VicinityGraphSettingTab extends PluginSettingTab {
 	constructor(
 		app: App,
@@ -43,7 +59,46 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 		this.renderDepthDefaults();
 		this.renderSizing();
 		this.renderLayout();
+		this.renderExclusion();
 		this.renderPerformance();
+	}
+
+	/**
+	 * Global node exclusion (CLARIFICATION: vault-wide). The textarea is the SOURCE
+	 * OF TRUTH for the pattern list (one raw regex per line); the toggle mirrors the
+	 * toolbar pill's enable flag. Both route through the SAME `global-node-exclusion`
+	 * interaction, so there is no bespoke merge logic here.
+	 */
+	private renderExclusion(): void {
+		new Setting(this.containerEl).setName("Node exclusion").setHeading();
+		const exclusion = this.store.nodeExclusion();
+		new Setting(this.containerEl)
+			.setName("Exclude notes from the graph")
+			.setDesc("Hide matching neighbor notes before the graph is built. Central and pinned notes are never excluded.")
+			.addToggle((toggle) =>
+				toggle.setValue(exclusion.enabled).onChange((enabled) => {
+					void this.applyInteraction({
+						kind: "global-node-exclusion",
+						nodeExclusion: { ...this.store.nodeExclusion(), enabled },
+					});
+				}),
+			);
+		new Setting(this.containerEl)
+			.setName("Exclusion patterns")
+			.setDesc(
+				"One regular expression per line, tested (case-sensitively, unanchored) against each note's vault path including extension. E.g. `^archive/` matches the archive folder at the vault root; `templates/` matches anywhere. Invalid patterns are ignored.",
+			)
+			.addTextArea((text) => {
+				text.inputEl.rows = EXCLUSION_TEXTAREA_ROWS;
+				text.inputEl.setAttribute("aria-label", "Exclusion patterns");
+				text.setValue(exclusion.patterns.join("\n"));
+				text.onChange((raw) => {
+					void this.applyInteraction({
+						kind: "global-node-exclusion",
+						nodeExclusion: { ...this.store.nodeExclusion(), patterns: parseExclusionPatterns(raw) },
+					});
+				});
+			});
 	}
 
 	private renderLayout(): void {
@@ -203,6 +258,7 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 		const command = planSettingsWrite(interaction, {
 			globalDepths: this.store.globalDepths(),
 			globalView: this.store.globalView(),
+			nodeExclusion: this.store.nodeExclusion(),
 		});
 		switch (command.kind) {
 			case "global-depths":
@@ -210,6 +266,9 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 				break;
 			case "global-view":
 				await this.store.saveGlobalView(command.view);
+				break;
+			case "node-exclusion":
+				await this.store.saveNodeExclusion(command.nodeExclusion);
 				break;
 			case "doc-depth-field":
 			case "central-depth-field":

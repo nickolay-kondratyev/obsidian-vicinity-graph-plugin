@@ -1,4 +1,4 @@
-import type { DepthOverride, DepthSettings, Direction, ViewSettings } from "../engine";
+import type { DepthOverride, DepthSettings, Direction, NodeExclusionSettings, ViewSettings } from "../engine";
 import { DIRECTION_DEPTH_FIELD, TraversalSettingsResolver } from "../engine";
 import type { GraphRequestInputs } from "../adapters/GraphRequestAssembler";
 import { PinnedRootResolver } from "../adapters/resolvePinnedDescriptors";
@@ -57,10 +57,23 @@ export interface ControlsModel {
 	 */
 	readonly globalDepths: DepthSettings;
 	readonly globalView: ViewSettings;
+	/**
+	 * The current global node-exclusion settings — the `planSettingsWrite` context
+	 * the toolbar pill flips (like {@link globalView}), so the pill preserves the
+	 * pattern list when toggling `enabled`.
+	 */
+	readonly nodeExclusion: NodeExclusionSettings;
+	/**
+	 * Distinct neighbor paths this build rejected by exclusion (graph telemetry,
+	 * not an input). Rendered next to the pill only when exclusion is enabled AND
+	 * this is > 0.
+	 */
+	readonly excludedNodeCount: number;
 }
 
 export class ControlsModelBuilder {
-	static build(inputs: GraphRequestInputs): ControlsModel {
+	/** `excludedNodeCount` is a graph output threaded in by the builder (0 by default). */
+	static build(inputs: GraphRequestInputs, excludedNodeCount = 0): ControlsModel {
 		const centrals: CentralControl[] = [ControlsModelBuilder.mainControl(inputs)];
 		for (const root of PinnedRootResolver.resolve(inputs)) {
 			centrals.push({
@@ -88,6 +101,8 @@ export class ControlsModelBuilder {
 			mainPinned: inputs.mainDocId !== null && inputs.pins.some((pin) => pin.docid === inputs.mainDocId),
 			globalDepths: inputs.globalDepths,
 			globalView: inputs.globalView,
+			nodeExclusion: inputs.nodeExclusion,
+			excludedNodeCount,
 		};
 	}
 

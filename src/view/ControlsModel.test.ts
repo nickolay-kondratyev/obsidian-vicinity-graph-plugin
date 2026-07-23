@@ -18,6 +18,7 @@ function inputs(partial: Partial<GraphRequestInputs> = {}): GraphRequestInputs {
 		docDataByDocid: new Map(),
 		globalDepths: { outgoingDepth: 2, incomingDepth: 1 },
 		globalView: EngineDefaults.viewSettings(),
+		nodeExclusion: EngineDefaults.nodeExclusionSettings(),
 		...partial,
 	};
 }
@@ -142,6 +143,21 @@ describe("ControlsModelBuilder global context", () => {
 			depths: { outgoingDepth: 2, incomingDepth: 1 },
 			view,
 		});
+	});
+});
+
+describe("ControlsModelBuilder node exclusion", () => {
+	it("WHEN building THEN the model carries the current node-exclusion settings (pill write ctx)", () => {
+		const nodeExclusion = { enabled: true, patterns: ["^rel/"] };
+		expect(ControlsModelBuilder.build(inputs({ nodeExclusion })).nodeExclusion).toEqual(nodeExclusion);
+	});
+
+	it("WHEN an excluded count is threaded in THEN the model exposes it", () => {
+		expect(ControlsModelBuilder.build(inputs(), 3).excludedNodeCount).toBe(3);
+	});
+
+	it("WHEN no count is threaded in THEN excludedNodeCount defaults to zero", () => {
+		expect(ControlsModelBuilder.build(inputs()).excludedNodeCount).toBe(0);
 	});
 });
 

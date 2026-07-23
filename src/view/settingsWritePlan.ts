@@ -1,4 +1,12 @@
-import type { DepthOverride, DepthSettings, Direction, LayoutMode, SizingSettings, ViewSettings } from "../engine";
+import type {
+	DepthOverride,
+	DepthSettings,
+	Direction,
+	LayoutMode,
+	NodeExclusionSettings,
+	SizingSettings,
+	ViewSettings,
+} from "../engine";
 import { DIRECTION_DEPTH_FIELD } from "../engine";
 
 /**
@@ -33,7 +41,9 @@ export type SettingsInteraction =
 	/** Global layout mode. */
 	| { readonly kind: "global-layout"; readonly layoutMode: LayoutMode }
 	/** Global obstacle-avoiding edge-routing toggle. */
-	| { readonly kind: "global-edge-routing"; readonly edgeRouting: boolean };
+	| { readonly kind: "global-edge-routing"; readonly edgeRouting: boolean }
+	/** Global node exclusion (whole object — pill flips `enabled`, settings tab edits `patterns`). */
+	| { readonly kind: "global-node-exclusion"; readonly nodeExclusion: NodeExclusionSettings };
 
 /** The persistence call the executor must make. */
 export type SettingsCommand =
@@ -49,12 +59,15 @@ export type SettingsCommand =
 	/** → `saveGlobalDepths(depths)` (whole object). */
 	| { readonly kind: "global-depths"; readonly depths: DepthSettings }
 	/** → `saveGlobalView(view)` (whole object). */
-	| { readonly kind: "global-view"; readonly view: ViewSettings };
+	| { readonly kind: "global-view"; readonly view: ViewSettings }
+	/** → `saveNodeExclusion(nodeExclusion)` (whole object). */
+	| { readonly kind: "node-exclusion"; readonly nodeExclusion: NodeExclusionSettings };
 
 /** Current globals so whole-object commands can merge exactly one field. */
 export interface SettingsWriteContext {
 	readonly globalDepths: DepthSettings;
 	readonly globalView: ViewSettings;
+	readonly nodeExclusion: NodeExclusionSettings;
 }
 
 export function planSettingsWrite(interaction: SettingsInteraction, ctx: SettingsWriteContext): SettingsCommand {
@@ -85,5 +98,7 @@ export function planSettingsWrite(interaction: SettingsInteraction, ctx: Setting
 			return { kind: "global-view", view: { ...ctx.globalView, layoutMode: interaction.layoutMode } };
 		case "global-edge-routing":
 			return { kind: "global-view", view: { ...ctx.globalView, edgeRouting: interaction.edgeRouting } };
+		case "global-node-exclusion":
+			return { kind: "node-exclusion", nodeExclusion: interaction.nodeExclusion };
 	}
 }

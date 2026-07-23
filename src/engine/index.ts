@@ -44,6 +44,7 @@ export type {
 	GraphEdge,
 	GraphNode,
 	LayoutMode,
+	NodeExclusionSettings,
 	VicinityGraph,
 	PinnedNodeDescriptor,
 	SizeMetricId,
@@ -57,6 +58,7 @@ export { asDocId, asFolderPath, asVaultPath, DIRECTION_DEPTH_FIELD, LAYOUT_MODES
 
 export type { FileMetadata, LinkProvider } from "./LinkProvider";
 export { NodeEligibility } from "./NodeEligibility";
+export { PathExclusionMatcher } from "./PathExclusionMatcher";
 export { FakeLinkProvider } from "./FakeLinkProvider";
 export type { FakeFileSpec, FakeVaultSpec } from "./FakeLinkProvider";
 

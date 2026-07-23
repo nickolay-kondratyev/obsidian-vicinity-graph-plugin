@@ -676,3 +676,36 @@
 .vicinity-graph-layout select {
 	flex-shrink: 0;
 }
+
+/* --- Node-exclusion pill (toolbar) ------------------------------------- */
+
+/*
+ * A single labelled checkbox that toggles global exclusion, with an optional
+ * count badge shown only when exclusion is on and at least one node was excluded.
+ * Same layout language as the sizing toggles; all colours are theme vars.
+ */
+.vicinity-graph-exclusion {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-1);
+	min-width: 0;
+	color: var(--text-normal);
+	cursor: pointer;
+}
+.vicinity-graph-exclusion__label {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.vicinity-graph-exclusion__count {
+	flex-shrink: 0;
+	margin-left: auto;
+	padding: 0 var(--size-4-2);
+	font-size: var(--font-smallest);
+	line-height: 1.6;
+	color: var(--text-muted);
+	background: var(--background-primary);
+	border-radius: var(--radius-l);
+	box-shadow: var(--shadow-s);
+	cursor: help; /* title tooltip explains the count */
+}
