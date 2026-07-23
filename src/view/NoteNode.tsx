@@ -14,7 +14,7 @@ import { planNodePinAction } from "./nodePinAction";
  * The rich note node (step-05): breadcrumbed title, lazy first-image thumbnail
  * with a "+N" badge, and an attachment icon strip whose chips open a native
  * menu. Tier styling (MAIN / pinned-central / regular) is pure CSS keyed on
- * `data-tier`; content density adapts to the node's engine-driven square via
+ * `data-tier`; content density adapts to the node's engine-driven height via
  * CSS container queries — no JS measuring. All Obsidian access goes through
  * {@link GraphUiContext}.
  */

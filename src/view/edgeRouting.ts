@@ -102,7 +102,8 @@ export const EDGE_ROUTING_CROSSING_PENALTY_PX = 0;
  * nested group children compare in one shared space).
  *
  * Obstacles:
- * - note squares → `FlowNode.width/height` (= engine `sizePx`) at their absolute position;
+ * - note boxes → `FlowNode.width/height` (height = engine `sizePx`; width floored
+ *   to the label) at their absolute position;
  * - folder-group containers → elk-computed `groupDimensions` at their absolute position.
  *
  * Edge attachment is already resolved by `buildFlowEdges`: a collapsed edge's
