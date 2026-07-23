@@ -1,0 +1,49 @@
+# CLAUDE.md — Vicinity Graph
+
+An Obsidian plugin (`id: vicinity-graph`) that renders the vicinity of the
+active note as a rich, folder-grouped React Flow graph — a richer replacement
+for the native local graph. TypeScript + esbuild + React 18. Source-available
+under KSAL-2.3 (`LICENSE.md`), **not** OSI open-source.
+
+## Orient here first
+
+- **[`docs-internal/architecture-map.md`](./docs-internal/architecture-map.md)** — directory → responsibility map + layering rules. **Read before changing structure.**
+- **[`docs-internal/plan/high-level-plan.md`](./docs-internal/plan/high-level-plan.md)** — design source of truth (traversal, sizing, truncation, pinning, persistence, canvas). Read before changing behavior.
+- **[`README.md`](./README.md)** — user-facing settings model, pinning semantics, dev + e2e setup.
+- `docs-internal/tickets/` — active follow-ups. `docs-internal/CHANGELOG.md`, `RELEASE_CHECKLIST.md`.
+
+## Layering (enforced — do not violate)
+
+`view → adapters → engine (pure)`; `persistence` implements engine-defined ports.
+
+- **`src/engine/`** is pure: **no `obsidian` / `obsidian-id-lib` / `react` imports** (guarded by `src/engine/importGuard.test.ts`; same rule for `src/shared/`). Obsidian reaches it only via the `LinkProvider` seam. Import engine symbols from `src/engine/index.ts`, not deep paths.
+- **`src/adapters/`** bridge Obsidian ↔ engine. **`src/persistence/`** = JSON storage. **`src/view/`** = React in an Obsidian `ItemView`; `GraphViewController.ts` is the only view class touching Obsidian + the async engine.
+- Extend via new interface implementations (OCP), not by editing existing seams. Each port has a `Fake*` for tests.
+
+## Commands
+
+```bash
+npm run dev              # esbuild watch; re-copies artifacts into .dev-vault/
+npm run setup:dev-vault  # idempotent: build + create/copy plugin into .dev-vault/
+npm test                 # vitest (our suite: src/**/*.test.{ts,tsx})
+npm run check            # tsc -noEmit (strict)
+npm run build            # check + production bundle → main.js
+npm run test:e2e         # Playwright against a REAL Obsidian (release gate, not npm test)
+```
+
+Redirect verbose build/test output to `.tmp/` to conserve context.
+
+## Conventions (repo-specific)
+
+- **Tests are BDD** (`WHEN … THEN …`), one behavior per test, colocated `*.test.ts`. Pure engine/persistence logic is fixture-tested via `Fake*` providers — keep correctness in the tested core, adapters thin. Prefer starting from a failing test.
+- **Strict TS**: `noUncheckedIndexedAccess`, `noImplicitReturns` on. Prefer branded types (`asVaultPath`, `asDocId`, `asFolderPath`) over raw strings.
+- **Persistence**: every persisted shape carries a `version` field. docid-keyed, so renames are non-events. Per-doc files, never a single blob.
+- **Styling** pulls from Obsidian theme CSS variables (light/dark just work); prefer CSS over JS. `styles.css` is generated from `src/view/*.css` at build.
+- `main.js` and `styles.css` are **build artifacts** — never hand-edit.
+- `minAppVersion` `1.12.4` is a floor, never a ceiling (canvas core indexing). `obsidian-id-lib` is bundled; only `obsidian` is external.
+
+## Guardrails
+
+- Preserve `ap_XXX_E` anchor identifiers; don't remove anchor points or behavior-capturing tests without explicit alignment.
+- Spot issues outside your task → file a `docs-internal/tickets/` ticket, don't silently patch.
+- Temp files → `$PWD/.tmp/`. Test screenshots → `.out/` (never source-controlled).
