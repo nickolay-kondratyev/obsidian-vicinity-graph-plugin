@@ -3,7 +3,7 @@ id: nid_w8co2gp7cok2a2hwwsm88brfo_e
 title: "Edge routing via libavoid-js (obstacle-avoiding edges for all layouts, force-directed first)"
 status: open
 deps: []
-links: []
+links: [nid_o1f05i1pu3lgkmaxpbaj13x3x_e, nid_54ura771jb1b82dah6macdqvj_e]
 created_iso: 2026-07-22T15:57:36Z
 status_updated_iso: 2026-07-22T15:57:36Z
 type: epic
