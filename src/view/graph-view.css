@@ -67,7 +67,7 @@
  * engine-driven height (40–160px) purely in CSS — small nodes show the title
  * only, medium ones add the attachment strip, large ones add the thumbnail.
  * (Width fits the title snugly up to a cap; past the cap the title wraps to the
- * 2 lines below, so a long name never changes this height-keyed density.)
+ * 4 lines below, so a long name never changes this height-keyed density.)
  */
 .vicinity-graph-node {
 	--vicinity-graph-thumbnail-height: 56px;
@@ -142,7 +142,7 @@
 	overflow-wrap: anywhere;
 	display: -webkit-box;
 	-webkit-box-orient: vertical;
-	-webkit-line-clamp: 2;
+	-webkit-line-clamp: 4;
 	overflow: hidden;
 }
 

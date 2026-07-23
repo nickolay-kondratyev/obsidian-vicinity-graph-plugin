@@ -7,7 +7,7 @@ import { makeNode } from "./testFixtures/graphFixtures";
 // between the score-driven square floor (40px) and the cap — the "medium" case.
 const MEDIUM_TITLE = "medium-title-xx";
 // Long enough that the snug estimate blows past NODE_MAX_LABEL_WIDTH_PX, so the
-// width pins to the cap and the title wraps onto the 2 lines CSS allows.
+// width pins to the cap and the title wraps onto the 4 lines CSS allows.
 const LONG_TITLE = "a-really-long-note-title-that-cannot-fit-a-small-square";
 
 describe("nodeDimensionsPx", () => {
@@ -26,7 +26,7 @@ describe("nodeDimensionsPx", () => {
 		expect(width > 40 && width < NODE_MAX_LABEL_WIDTH_PX).toBe(true);
 	});
 
-	it("WHEN a long title exceeds the cap THEN width pins to NODE_MAX_LABEL_WIDTH_PX (title wraps to 2 lines)", () => {
+	it("WHEN a long title exceeds the cap THEN width pins to NODE_MAX_LABEL_WIDTH_PX (title wraps to 4 lines)", () => {
 		const node = makeNode({ title: LONG_TITLE, sizePx: 40 });
 		expect(nodeDimensionsPx(node).width).toBe(NODE_MAX_LABEL_WIDTH_PX);
 	});

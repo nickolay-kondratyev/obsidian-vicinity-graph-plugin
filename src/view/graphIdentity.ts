@@ -46,7 +46,7 @@ export interface NodeDimensions {
  * Rendered box of a note node. HEIGHT stays the engine's diff-stable, score-
  * driven `sizePx`. WIDTH is the snug label estimate, floored at the score-driven
  * square (`sizePx`) and capped at {@link NODE_MAX_LABEL_WIDTH_PX} — a longer
- * title stops widening the node and wraps onto the second line the title CSS
+ * title stops widening the node and wraps onto the further lines the title CSS
  * allows. Both the elk input and the React Flow node MUST use the SAME numbers
  * or layout positions and rendered boxes drift.
  */
