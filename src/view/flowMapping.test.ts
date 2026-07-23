@@ -46,17 +46,6 @@ describe("vicinityGraphToFlow nodes", () => {
 		expect(noteNode(toFlow(smallGraph).nodes, "a.md")?.height).toBe(40);
 	});
 
-	it("WHEN an ungrouped singleton has a folder THEN its width reserves room for the folder breadcrumb", () => {
-		function widthOf(title: string, folder: string): number | undefined {
-			const singleGraph = makeGraph({
-				nodes: [makeNode({ path: asVaultPath(`${folder}/a.md`), title, folder: asFolderPath(folder), sizePx: 40 })],
-			});
-			return noteNode(toFlow(singleGraph).nodes, `${folder}/a.md`)?.width;
-		}
-		// A long folder name must widen the node even when the title itself is short.
-		expect(widthOf("a", "a-long-folder-name-that-needs-room")).toBeGreaterThan(40);
-	});
-
 	it("WHEN mapping a node THEN its data carries the step-05 rich payload", () => {
 		expect(toFlow(graph).nodes[0]?.data).toEqual({
 			path: "notes/a.md",
@@ -207,33 +196,6 @@ describe("vicinityGraphToFlow folder groups", () => {
 		});
 		const group = toFlow(graph).nodes.find((node) => node.kind === "folder-group");
 		expect(group?.data.hiddenCount).toBe(4);
-	});
-});
-
-describe("vicinityGraphToFlow breadcrumb titles", () => {
-	it("WHEN a node is an ungrouped folder singleton THEN it carries its folder name as breadcrumb", () => {
-		expect(noteNode(toFlow(groupedGraph()).nodes, "solo/only.md")?.data.breadcrumbFolder).toBe(
-			"solo",
-		);
-	});
-
-	it("WHEN a node is grouped THEN it has no breadcrumb (the group shows the folder)", () => {
-		expect(
-			noteNode(toFlow(groupedGraph()).nodes, "notes/a.md")?.data.breadcrumbFolder,
-		).toBeUndefined();
-	});
-
-	it("WHEN a node lives at the vault root THEN it has no breadcrumb", () => {
-		expect(noteNode(toFlow(groupedGraph()).nodes, "root.md")?.data.breadcrumbFolder).toBeUndefined();
-	});
-
-	it("WHEN a breadcrumb is emitted for a nested folder THEN only the folder NAME is used", () => {
-		const graph = makeGraph({
-			nodes: [makeNode({ path: asVaultPath("projects/alpha/x.md"), folder: asFolderPath("projects/alpha") })],
-		});
-		expect(noteNode(toFlow(graph).nodes, "projects/alpha/x.md")?.data.breadcrumbFolder).toBe(
-			"alpha",
-		);
 	});
 });
 

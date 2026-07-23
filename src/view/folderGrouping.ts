@@ -4,7 +4,7 @@ import type { FolderPath, GraphNode } from "../engine";
  * Folder-group membership derivation (step-05): pure, deterministic, RF-free.
  * A folder renders as a group only when 2+ visible nodes live in it; the vault
  * root ("") never groups — root files have no folder identity to box.
- * Singletons stay ungrouped and get a breadcrumb title instead (flowMapping).
+ * Singletons stay ungrouped and render as plain note nodes.
  */
 
 /** A folder that renders as a group node, with its member node paths. */
@@ -21,7 +21,7 @@ export interface FolderGroupingResult {
 	readonly groupFolderByMemberPath: ReadonlyMap<string, FolderPath>;
 }
 
-/** Groups render only at 2+ members (step-05 spec); singletons keep breadcrumb titles. */
+/** Groups render only at 2+ members (step-05 spec); singletons render ungrouped. */
 export const MIN_GROUP_MEMBER_COUNT = 2;
 
 const VAULT_ROOT_FOLDER = "";

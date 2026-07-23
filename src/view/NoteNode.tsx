@@ -11,7 +11,7 @@ import { useGraphUi } from "./GraphUiContext";
 import { planNodePinAction } from "./nodePinAction";
 
 /**
- * The rich note node (step-05): breadcrumbed title, lazy first-image thumbnail
+ * The rich note node (step-05): title, lazy first-image thumbnail
  * with a "+N" badge, and an attachment icon strip whose chips open a native
  * menu. Tier styling (MAIN / pinned-central / regular) is pure CSS keyed on
  * `data-tier`; content density adapts to the node's engine-driven height via
@@ -85,9 +85,6 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
 			<Handle type="target" position={Position.Top} className="vicinity-graph-node__handle" />
 			<div className="vicinity-graph-node__preview-zone" onMouseEnter={onPreviewEnter}>
 				<div className="vicinity-graph-node__title" title={data.title}>
-					{data.breadcrumbFolder !== undefined && (
-						<span className="vicinity-graph-node__breadcrumb">{data.breadcrumbFolder}/</span>
-					)}
 					{data.title}
 				</div>
 				{thumbnailUrl !== null && (

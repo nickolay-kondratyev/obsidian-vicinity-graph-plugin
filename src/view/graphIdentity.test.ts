@@ -1,53 +1,38 @@
 import { describe, expect, it } from "vitest";
-import { asFolderPath, asVaultPath } from "../engine";
-import { estimateNodeLabelWidthPx } from "./constants";
-import { breadcrumbFolderOf, nodeDimensionsPx } from "./graphIdentity";
+import { NODE_MAX_LABEL_WIDTH_PX, estimateNodeLabelWidthPx } from "./constants";
+import { nodeDimensionsPx } from "./graphIdentity";
 import { makeNode } from "./testFixtures/graphFixtures";
 
+// 15 chars: the snug single-line estimate (15*7 + 20 = 125px) lands strictly
+// between the score-driven square floor (40px) and the cap — the "medium" case.
+const MEDIUM_TITLE = "medium-title-xx";
+// Long enough that the snug estimate blows past NODE_MAX_LABEL_WIDTH_PX, so the
+// width pins to the cap and the title wraps onto the 2 lines CSS allows.
 const LONG_TITLE = "a-really-long-note-title-that-cannot-fit-a-small-square";
 
 describe("nodeDimensionsPx", () => {
-	it("WHEN the title fits the score-driven square THEN width and height both equal sizePx", () => {
+	it("WHEN a short title fits the score-driven square THEN width and height both equal sizePx", () => {
 		const node = makeNode({ title: "a", sizePx: 160 });
-		expect(nodeDimensionsPx(node, undefined)).toEqual({ width: 160, height: 160 });
+		expect(nodeDimensionsPx(node)).toEqual({ width: 160, height: 160 });
 	});
 
-	it("WHEN the title is too long for the square THEN width grows to fit the label", () => {
+	it("WHEN a medium title outgrows the square but fits the cap THEN width is the snug single-line estimate", () => {
+		const node = makeNode({ title: MEDIUM_TITLE, sizePx: 40 });
+		expect(nodeDimensionsPx(node).width).toBe(estimateNodeLabelWidthPx(MEDIUM_TITLE));
+	});
+
+	it("WHEN a medium title widens the node THEN width lands between the square floor and the cap", () => {
+		const width = nodeDimensionsPx(makeNode({ title: MEDIUM_TITLE, sizePx: 40 })).width;
+		expect(width > 40 && width < NODE_MAX_LABEL_WIDTH_PX).toBe(true);
+	});
+
+	it("WHEN a long title exceeds the cap THEN width pins to NODE_MAX_LABEL_WIDTH_PX (title wraps to 2 lines)", () => {
 		const node = makeNode({ title: LONG_TITLE, sizePx: 40 });
-		expect(nodeDimensionsPx(node, undefined).width).toBe(estimateNodeLabelWidthPx(LONG_TITLE, undefined));
+		expect(nodeDimensionsPx(node).width).toBe(NODE_MAX_LABEL_WIDTH_PX);
 	});
 
-	it("WHEN the title is too long for the square THEN height stays the score-driven size", () => {
+	it("WHEN a long title pins the width to the cap THEN height stays the score-driven size", () => {
 		const node = makeNode({ title: LONG_TITLE, sizePx: 40 });
-		expect(nodeDimensionsPx(node, undefined).height).toBe(40);
-	});
-
-	it("WHEN a long name forces growth THEN width may exceed the engine max size", () => {
-		const node = makeNode({ title: LONG_TITLE, sizePx: 160 });
-		expect(nodeDimensionsPx(node, undefined).width).toBeGreaterThan(160);
-	});
-
-	it("WHEN an ungrouped singleton shows a folder breadcrumb THEN the folder is included in the width", () => {
-		const node = makeNode({ title: "note", sizePx: 40 });
-		const withFolder = nodeDimensionsPx(node, "my-folder").width;
-		const withoutFolder = nodeDimensionsPx(node, undefined).width;
-		expect(withFolder).toBeGreaterThan(withoutFolder);
-	});
-});
-
-describe("breadcrumbFolderOf", () => {
-	it("WHEN a node is an ungrouped singleton in a folder THEN it shows the folder-name breadcrumb", () => {
-		const node = makeNode({ path: asVaultPath("notes/a.md"), folder: asFolderPath("deep/notes") });
-		expect(breadcrumbFolderOf(node, false)).toBe("notes");
-	});
-
-	it("WHEN a node is grouped THEN it shows no breadcrumb (its group box carries folder identity)", () => {
-		const node = makeNode({ path: asVaultPath("notes/a.md"), folder: asFolderPath("notes") });
-		expect(breadcrumbFolderOf(node, true)).toBeUndefined();
-	});
-
-	it("WHEN a node lives at the vault root THEN it shows no breadcrumb", () => {
-		const node = makeNode({ path: asVaultPath("a.md"), folder: asFolderPath("") });
-		expect(breadcrumbFolderOf(node, false)).toBeUndefined();
+		expect(nodeDimensionsPx(node).height).toBe(40);
 	});
 });
