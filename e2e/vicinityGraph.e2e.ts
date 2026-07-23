@@ -103,6 +103,17 @@ test("attachment icon strip shows one counted chip per extension", async () => {
 	}
 });
 
+test("attachment tiles sit outside the preview-hover zone, so hovering a tile shows no note preview", async () => {
+	const alpha = noteNode(ALPHA_PATH);
+	// Only the note's own content (title + thumbnail) lives inside the zone that
+	// arms the native page preview (NoteNode binds showHoverPreview to it).
+	await expect(alpha.locator(".vicinity-graph-node__preview-zone .vicinity-graph-node__title")).toHaveCount(1);
+	// The interactive attachment chips are SIBLINGS of that zone, never inside it:
+	// the pointer leaves the preview target when it reaches a tile, so Obsidian's
+	// popover never covers the chip the human is reaching for.
+	await expect(alpha.locator(".vicinity-graph-node__preview-zone button.vicinity-graph-attachment")).toHaveCount(0);
+});
+
 test("duplicate links collapse into one edge with a ×2 count badge", async () => {
 	const badge = page.locator(".vicinity-graph-edge__count-badge");
 	await expect(badge).toHaveCount(1); // single-link edges carry NO badge
