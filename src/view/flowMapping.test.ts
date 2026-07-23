@@ -29,6 +29,34 @@ describe("vicinityGraphToFlow nodes", () => {
 		expect({ width: node?.width, height: node?.height }).toEqual({ width: 160, height: 160 });
 	});
 
+	it("WHEN a title is too long for its square THEN the node widens so the name renders without an ellipsis", () => {
+		const longTitle = "a-really-long-note-title-that-cannot-fit-a-small-square";
+		const smallGraph = makeGraph({
+			nodes: [makeNode({ path: asVaultPath("a.md"), title: longTitle, sizePx: 40 })],
+		});
+		const node = noteNode(toFlow(smallGraph).nodes, "a.md");
+		expect(node?.width).toBeGreaterThan(node?.height ?? 0);
+	});
+
+	it("WHEN a long title widens a node THEN its height stays the score-driven size", () => {
+		const longTitle = "a-really-long-note-title-that-cannot-fit-a-small-square";
+		const smallGraph = makeGraph({
+			nodes: [makeNode({ path: asVaultPath("a.md"), title: longTitle, sizePx: 40 })],
+		});
+		expect(noteNode(toFlow(smallGraph).nodes, "a.md")?.height).toBe(40);
+	});
+
+	it("WHEN an ungrouped singleton has a folder THEN its width reserves room for the folder breadcrumb", () => {
+		function widthOf(title: string, folder: string): number | undefined {
+			const singleGraph = makeGraph({
+				nodes: [makeNode({ path: asVaultPath(`${folder}/a.md`), title, folder: asFolderPath(folder), sizePx: 40 })],
+			});
+			return noteNode(toFlow(singleGraph).nodes, `${folder}/a.md`)?.width;
+		}
+		// A long folder name must widen the node even when the title itself is short.
+		expect(widthOf("a", "a-long-folder-name-that-needs-room")).toBeGreaterThan(40);
+	});
+
 	it("WHEN mapping a node THEN its data carries the step-05 rich payload", () => {
 		expect(toFlow(graph).nodes[0]?.data).toEqual({
 			path: "notes/a.md",

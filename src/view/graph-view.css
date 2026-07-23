@@ -64,8 +64,10 @@
 
 /*
  * The node root is a CSS size-container: content density adapts to the
- * engine-driven square (40–160px) purely in CSS — small nodes show the title
+ * engine-driven height (40–160px) purely in CSS — small nodes show the title
  * only, medium ones add the attachment strip, large ones add the thumbnail.
+ * (Width is floored to fit the full title, so a long name widens the node
+ * without changing this height-keyed density.)
  */
 .vicinity-graph-node {
 	--vicinity-graph-thumbnail-height: 56px;

@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-07-23 — node width floored to fit the full name (no more title `...`)
+
+Note nodes no longer truncate their title with an ellipsis. Previously every node was a
+score-sized square (40–160px), so any name too long for the square clipped to `...`.
+
+- **Nodes are now rectangles**: the composed size score drives the node **height** (and a
+  minimum width); the **width** is floored so the full label renders on one line without
+  truncation. A long name grows the node **wider, not taller**, and may exceed the 160px
+  max. Ungrouped singletons additionally reserve width for their muted `folder/`
+  breadcrumb.
+- The width floor is a pure char-count estimate (`estimateNodeLabelWidthPx` in
+  `view/constants.ts`) applied in the shared `nodeDimensionsPx` (`view/graphIdentity.ts`),
+  so the elk layout box and the React Flow render box stay in lockstep — no DOM measuring,
+  consistent with the node's existing "no JS measuring" density model. Breadcrumb
+  derivation moved into the shared `breadcrumbFolderOf` so both mappers agree on it.
+- Height-keyed CSS density (title-only / +attachments / +thumbnail) is unchanged.
+
 ## 2026-07-23 — edge-routing__04: boundary pins on group boxes kill roundabout routes; detour-ratio telemetry
 
 Fixes routed edges to/from folder-group boxes taking visibly roundabout paths when a

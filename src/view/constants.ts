@@ -20,6 +20,32 @@ export const SIZE_RELAYOUT_THRESHOLD = 1.0;
  */
 export const REBUILD_DEBOUNCE_MS = 500;
 
+/**
+ * Approximate average glyph advance (px) of the node-title font
+ * (`--font-ui-smaller`, ~12–13px in Obsidian's default theme). Used to FLOOR a
+ * node's width so its full name renders without an ellipsis. Deliberately
+ * generous — over-estimating only widens a node slightly, whereas
+ * under-estimating brings the `...` back, so we bias to the safe side (covers
+ * the heavier MAIN semibold title too). An estimate, not a measurement: the
+ * view stays pure (no DOM), consistent with the node's "no JS measuring" model.
+ */
+export const NODE_TITLE_CHAR_WIDTH_PX = 8;
+
+/** Horizontal chrome around the title text: node padding (both sides) + border. */
+export const NODE_LABEL_HORIZONTAL_PADDING_PX = 20;
+
+/**
+ * Width (px) a note node needs to render its label on one line without an
+ * ellipsis. The label is the title, prefixed by `folder/` on ungrouped
+ * singletons (`breadcrumbFolder`). Char-count heuristic — see
+ * {@link NODE_TITLE_CHAR_WIDTH_PX}.
+ */
+export function estimateNodeLabelWidthPx(title: string, breadcrumbFolder: string | undefined): number {
+	const breadcrumbChars = breadcrumbFolder === undefined ? 0 : breadcrumbFolder.length + 1; // +1 for the "/"
+	const charCount = breadcrumbChars + title.length;
+	return Math.ceil(charCount * NODE_TITLE_CHAR_WIDTH_PX) + NODE_LABEL_HORIZONTAL_PADDING_PX;
+}
+
 /** Id of the synthetic elk root that contains every graph node. */
 export const ELK_ROOT_ID = "root";
 

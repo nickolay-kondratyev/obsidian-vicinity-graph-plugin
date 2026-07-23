@@ -5,7 +5,7 @@ import { attachmentIconStrip } from "./attachmentIconStrip";
 import { deriveFolderGroups } from "./folderGrouping";
 import type { OrphanTruncation } from "./truncationBadges";
 import { deriveTruncationBadges } from "./truncationBadges";
-import { edgeIdOf, folderGroupIdOf, nodeSideLengthPx } from "./graphIdentity";
+import { breadcrumbFolderOf, edgeIdOf, folderGroupIdOf, nodeDimensionsPx } from "./graphIdentity";
 import type { RoutedPoint } from "./edgeRouting";
 
 /**
@@ -172,16 +172,17 @@ export function vicinityGraphToFlow(graph: VicinityGraph, mainPinned: boolean): 
 		}),
 	);
 	const noteNodes = graph.nodes.map((node): NoteFlowNode => {
-		const side = nodeSideLengthPx(node);
 		const groupFolder = grouping.groupFolderByMemberPath.get(node.path);
+		const breadcrumbFolder = breadcrumbFolderOf(node, groupFolder !== undefined);
+		const { width, height } = nodeDimensionsPx(node, breadcrumbFolder);
 		return {
 			id: node.path,
 			kind: "note",
 			position: UNPLACED,
-			width: side,
-			height: side,
+			width,
+			height,
 			...(groupFolder === undefined ? {} : { parentId: folderGroupIdOf(groupFolder) }),
-			data: toFlowNodeData(node, groupFolder !== undefined, mainPinned),
+			data: toFlowNodeData(node, breadcrumbFolder, mainPinned),
 		};
 	});
 	return {
@@ -283,8 +284,7 @@ function accumulateCollapsedEdge(
 	}
 }
 
-function toFlowNodeData(node: GraphNode, isGrouped: boolean, mainPinned: boolean): FlowNodeData {
-	const showBreadcrumb = !isGrouped && node.folder !== "";
+function toFlowNodeData(node: GraphNode, breadcrumbFolder: string | undefined, mainPinned: boolean): FlowNodeData {
 	return {
 		path: node.path,
 		title: node.title,
@@ -295,7 +295,7 @@ function toFlowNodeData(node: GraphNode, isGrouped: boolean, mainPinned: boolean
 		sizePx: node.sizePx,
 		sizeScore: node.sizeScore,
 		folder: node.folder,
-		...(showBreadcrumb ? { breadcrumbFolder: VaultPathFacts.folderNameOf(node.folder) } : {}),
+		...(breadcrumbFolder === undefined ? {} : { breadcrumbFolder }),
 		...(node.firstImagePath === undefined ? {} : { firstImagePath: node.firstImagePath }),
 		imageCount: node.attachments.filter((attachment) => attachment.isImage).length,
 		attachmentGroups: attachmentIconStrip(node.attachments),
@@ -339,8 +339,9 @@ export interface Dimensions {
 
 /**
  * Applies elk-computed container sizes to folder-group nodes. Note nodes keep
- * their engine-driven square (elk echoes the input size for leaves anyway —
- * the engine stays the single sizing truth).
+ * their mapping-time box (`nodeDimensionsPx`: engine-driven height, label-floored
+ * width) — elk echoes the input size for leaves anyway, so the mapping stays the
+ * single note-sizing truth.
  */
 export function withGroupDimensions(
 	nodes: readonly FlowNode[],
