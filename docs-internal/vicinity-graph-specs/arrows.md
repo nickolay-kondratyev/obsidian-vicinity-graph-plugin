@@ -128,6 +128,17 @@ arrowheads along the true approach segments.
   would double-separate them. Group-collapsed bidirectional edges still draw an
   arrowhead at BOTH ends — for a routed edge those heads follow the first/last
   segment tangents (via `routedGeometryFor`) instead of the straight-chord tangents.
+- **Boundary clipping (endpoint terminus):** A routed edge's polyline is clipped to
+  the source/target node rectangles: the arrow originates and terminates ON the
+  endpoint's boundary, at the point where the route crosses it. In particular a
+  collapsed group arrow terminates at the GROUP container boundary, never inside it.
+  libavoid attaches connector endpoints to a centre pin, so the raw route ends at the
+  box centre; `GraphViewController.resolveRoutes` runs `clipRouteToEndpointRects`
+  (`edgeGeometry.ts`) on every route before caching/publish to move each terminus to
+  the border crossing. Because the terminus is where the route crosses the box, the
+  arrowhead also lands on the logical side the route approaches from. A degenerate
+  case (overlapping/nested endpoint rects, or a route lying wholly inside a rect)
+  falls back to the unclipped 2-point chord — never empty/NaN geometry.
 
 Tuning (all named constants, `edgeRouting.ts` / `edgeGeometry.ts`): shape buffer
 17px, segment penalty 50 (calmer, fewer bends), crossing penalty 0 (disabled — too

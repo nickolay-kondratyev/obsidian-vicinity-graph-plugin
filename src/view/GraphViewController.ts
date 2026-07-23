@@ -7,8 +7,9 @@ import { decideActiveFileRebuild } from "./RebuildDecision";
 import { vicinityGraphToElk, extractElkDimensionsById, extractElkPositions } from "./elkMapping";
 import { vicinityGraphToFlow, withGroupDimensions, withPositions } from "./flowMapping";
 import type { Dimensions, FlowEdge, FlowGraph, FlowNode, XY } from "./flowMapping";
+import { clipRouteToEndpointRects } from "./edgeGeometry";
 import { extractEdgeRoutingInput } from "./edgeRouting";
-import type { EdgeRouteMap, EdgeRouter, EdgeRoutingInput } from "./edgeRouting";
+import type { EdgeRouteMap, EdgeRouter, EdgeRoutingInput, RoutedPoint } from "./edgeRouting";
 import { isFolderGroupId } from "./graphIdentity";
 import { NO_ORPHAN_TRUNCATION } from "./truncationBadges";
 import type { OrphanTruncation } from "./truncationBadges";
@@ -270,8 +271,13 @@ export class GraphViewController {
 			if (this.isStale(token)) {
 				return EMPTY_ROUTES;
 			}
-			this.routeCache = { signature, routes };
-			return routes;
+			// Clip each route to its endpoint obstacle rects so arrows terminate ON the
+			// box boundary (esp. a collapsed GROUP box), not at the centre pin libavoid
+			// attaches connector endpoints to. Cache the CLIPPED routes so a reuse-layout
+			// rebuild serves them straight from cache.
+			const clippedRoutes = clipRoutesToObstacles(routes, input);
+			this.routeCache = { signature, routes: clippedRoutes };
+			return clippedRoutes;
 		} catch (error: unknown) {
 			if (!this.routingFailureWarned) {
 				this.routingFailureWarned = true;
@@ -365,6 +371,35 @@ function routingSignature(input: EdgeRoutingInput): string {
 	return [obstacles.join(ROUTE_SIGNATURE_SEPARATOR), edges.join(ROUTE_SIGNATURE_SEPARATOR)].join(
 		ROUTE_SIGNATURE_SEPARATOR,
 	);
+}
+
+/**
+ * Clips every routed polyline to its source/target obstacle rectangles so the
+ * arrow terminates ON the endpoint boundary rather than at the box centre libavoid
+ * pins connector endpoints to (see {@link clipRouteToEndpointRects}). An edge whose
+ * source or target obstacle is missing is left UNCLIPPED (never dropped or crashed);
+ * an empty route map is a no-op.
+ */
+function clipRoutesToObstacles(routes: EdgeRouteMap, input: EdgeRoutingInput): EdgeRouteMap {
+	if (routes.size === 0) {
+		return routes;
+	}
+	const obstacleById = new Map(input.obstacles.map((obstacle) => [obstacle.id, obstacle]));
+	const clipped = new Map<string, readonly RoutedPoint[]>();
+	for (const edge of input.edges) {
+		const route = routes.get(edge.id);
+		if (route === undefined) {
+			continue;
+		}
+		const sourceRect = obstacleById.get(edge.sourceId);
+		const targetRect = obstacleById.get(edge.targetId);
+		if (sourceRect === undefined || targetRect === undefined) {
+			clipped.set(edge.id, route);
+			continue;
+		}
+		clipped.set(edge.id, clipRouteToEndpointRects(route, sourceRect, targetRect));
+	}
+	return clipped;
 }
 
 /**

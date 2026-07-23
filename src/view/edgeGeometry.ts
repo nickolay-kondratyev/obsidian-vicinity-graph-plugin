@@ -139,6 +139,151 @@ export function edgePathFor(
 export const ROUTED_CORNER_RADIUS_PX = 10;
 
 /**
+ * A rectangle a routed polyline is clipped to, in ABSOLUTE top-left coordinates —
+ * the same shape as a routing obstacle (`{x, y, widthPx, heightPx}`). Kept LOCAL
+ * (not imported from edgeRouting) so this pure math layer carries no routing types;
+ * a `RoutingObstacle` is structurally assignable to it at the call site.
+ */
+export interface ClipRect {
+	readonly x: number;
+	readonly y: number;
+	readonly widthPx: number;
+	readonly heightPx: number;
+}
+
+/**
+ * Clips a routed polyline so it BEGINS and ENDS on its endpoint rectangles'
+ * boundaries instead of plunging to their centres. libavoid attaches connector
+ * endpoints to a centre pin (`edgeRouting.ts`), so a raw route's first/last point
+ * is the box centre; for a large collapsed-group box that terminus sits deep
+ * inside, on a member node, reading as a node→node link. This drops the trailing
+ * points that fall strictly inside `targetRect` and moves the terminus to where the
+ * last outside→inside segment crosses the border, then does the same from the START
+ * against `sourceRect`. The arrowhead thus lands on the side the route approaches
+ * from (side-aware anchoring for free), and a group arrow stops at the GROUP
+ * boundary — never inside it.
+ *
+ * Degenerate guard (same spirit as {@link distinctSegmentFrom}): if clipping would
+ * consume the whole polyline — overlapping/nested source & target rects, or a route
+ * lying entirely inside a rect — it falls back to the UNCLIPPED 2-point chord of the
+ * first & last ORIGINAL points. It never emits an empty or NaN-bearing polyline.
+ */
+export function clipRouteToEndpointRects(
+	points: readonly RoutedPoint[],
+	sourceRect: ClipRect,
+	targetRect: ClipRect,
+): RoutedPoint[] {
+	const first = points[0];
+	const last = points[points.length - 1];
+	if (points.length < 2 || first === undefined || last === undefined) {
+		return points.map((point) => ({ x: point.x, y: point.y }));
+	}
+	const chordFallback: RoutedPoint[] = [
+		{ x: first.x, y: first.y },
+		{ x: last.x, y: last.y },
+	];
+	const targetClipped = clipTrailingInsideRect(points, targetRect);
+	if (targetClipped === null) {
+		return chordFallback;
+	}
+	const sourceClipped = clipTrailingInsideRect([...targetClipped].reverse(), sourceRect);
+	if (sourceClipped === null) {
+		return chordFallback;
+	}
+	return sourceClipped.reverse();
+}
+
+/**
+ * Drops the run of points at the END of `points` that lie strictly inside `rect`
+ * and replaces the terminus with the border crossing of the last outside→inside
+ * segment. Returns the polyline UNCHANGED when the endpoint is already on/outside
+ * the border, and `null` (the degenerate signal) when every point is strictly
+ * inside `rect` or the crossing is indeterminate — letting the caller fall back to
+ * the chord. Clipping the START is this same walk on the reversed polyline.
+ */
+function clipTrailingInsideRect(points: readonly RoutedPoint[], rect: ClipRect): RoutedPoint[] | null {
+	let lastOutside = -1;
+	for (let i = points.length - 1; i >= 0; i -= 1) {
+		const point = points[i];
+		if (point !== undefined && !isStrictlyInsideRect(point, rect)) {
+			lastOutside = i;
+			break;
+		}
+	}
+	if (lastOutside === -1) {
+		return null; // whole polyline strictly inside the rect
+	}
+	const copy = points.map((point) => ({ x: point.x, y: point.y }));
+	if (lastOutside === copy.length - 1) {
+		return copy; // terminus already on/outside the border — nothing to clip
+	}
+	const outside = points[lastOutside];
+	const inside = points[lastOutside + 1];
+	if (outside === undefined || inside === undefined) {
+		return null;
+	}
+	const crossing = segmentRectEntryPoint(outside, inside, rect);
+	if (crossing === null) {
+		return null;
+	}
+	const kept = copy.slice(0, lastOutside + 1);
+	kept.push(crossing);
+	return kept;
+}
+
+/** Strict point-in-rect: a point exactly ON the border is NOT inside, so it is kept as a terminus. */
+function isStrictlyInsideRect(point: RoutedPoint, rect: ClipRect): boolean {
+	return (
+		point.x > rect.x && point.x < rect.x + rect.widthPx && point.y > rect.y && point.y < rect.y + rect.heightPx
+	);
+}
+
+/**
+ * Liang–Barsky: the point where segment `from`→`to` first ENTERS `rect`. Callers
+ * pass `from` outside/on the border and `to` strictly inside, so the entry
+ * parameter is in [0, 1] and the returned point is on the rect border. Returns
+ * `null` when the segment never enters (parallel-and-outside / degenerate), so the
+ * caller falls back to the unclipped chord rather than emitting NaN geometry.
+ *
+ * `edgeDistances` (Liang–Barsky `p`) and `boundaryGaps` (`q`) index the four rect
+ * slabs as [left, right, top, bottom]; `p<0` bounds the ENTER parameter, `p>0` the
+ * LEAVE parameter, and `p==0` with `q<0` means parallel to a slab and fully outside.
+ */
+function segmentRectEntryPoint(from: RoutedPoint, to: RoutedPoint, rect: ClipRect): RoutedPoint | null {
+	const deltaX = to.x - from.x;
+	const deltaY = to.y - from.y;
+	const edgeDistances = [-deltaX, deltaX, -deltaY, deltaY];
+	const boundaryGaps = [
+		from.x - rect.x,
+		rect.x + rect.widthPx - from.x,
+		from.y - rect.y,
+		rect.y + rect.heightPx - from.y,
+	];
+	let enter = 0;
+	let leave = 1;
+	for (let i = 0; i < edgeDistances.length; i += 1) {
+		const edge = edgeDistances[i] ?? 0;
+		const gap = boundaryGaps[i] ?? 0;
+		if (edge === 0) {
+			if (gap < 0) {
+				return null; // parallel to this slab and fully outside it
+			}
+			continue;
+		}
+		const t = gap / edge;
+		if (edge < 0) {
+			enter = Math.max(enter, t);
+		} else {
+			leave = Math.min(leave, t);
+		}
+	}
+	if (enter > leave) {
+		return null;
+	}
+	return { x: from.x + enter * deltaX, y: from.y + enter * deltaY };
+}
+
+/**
  * SVG path over a routed polyline with rounded interior corners. Each interior
  * vertex is replaced by a quadratic arc between the two points {@link ROUTED_CORNER_RADIUS_PX}
  * back along its adjacent segments (clamped to half each segment length). A
