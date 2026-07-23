@@ -68,6 +68,10 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	 * OF TRUTH for the pattern list (one raw regex per line); the toggle mirrors the
 	 * toolbar pill's enable flag. Both route through the SAME `global-node-exclusion`
 	 * interaction, so there is no bespoke merge logic here.
+	 *
+	 * WHEN disabled the pattern textarea is hidden (the patterns are inactive), but the
+	 * stored patterns are untouched so re-enabling restores them. The toggle re-renders
+	 * the tab so the textarea appears/disappears immediately.
 	 */
 	private renderExclusion(): void {
 		new Setting(this.containerEl).setName("Node exclusion").setHeading();
@@ -76,13 +80,18 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 			.setName("Exclude notes from the graph")
 			.setDesc("Hide matching neighbor notes before the graph is built. Central and pinned notes are never excluded.")
 			.addToggle((toggle) =>
-				toggle.setValue(exclusion.enabled).onChange((enabled) => {
-					void this.applyInteraction({
+				toggle.setValue(exclusion.enabled).onChange(async (enabled) => {
+					await this.applyInteraction({
 						kind: "global-node-exclusion",
 						nodeExclusion: { ...this.store.nodeExclusion(), enabled },
 					});
+					// Re-render so the patterns textarea tracks the toggle.
+					this.display();
 				}),
 			);
+		if (!exclusion.enabled) {
+			return;
+		}
 		new Setting(this.containerEl)
 			.setName("Exclusion patterns")
 			.setDesc(
