@@ -30,7 +30,7 @@ export interface RoutingObstacle {
 	 * The flow-node kind this obstacle came from. Drives pin registration
 	 * ({@link registerPinsForShape}): folder-group boxes get the boundary pins so
 	 * cross-group edges attach on the facing side; note squares keep a single centre
-	 * pin (the pre-edge-routing__04 behaviour) — 8 pins × the many ungrouped spokes of
+	 * pin (the pre-edge-routing__04 behaviour) — many pins × the many ungrouped spokes of
 	 * a dense hub blew the routing perf budget, and the roundabout pathology the
 	 * boundary pins fix is specific to group boxes distorted by their own children.
 	 */

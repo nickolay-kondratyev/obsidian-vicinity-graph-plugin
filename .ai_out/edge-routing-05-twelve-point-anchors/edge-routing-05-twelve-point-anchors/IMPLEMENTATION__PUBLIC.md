@@ -78,3 +78,11 @@ export const BOUNDARY_PIN_SPECS: readonly BoundaryPinSpec[] = [
 None. The plan's optional §2b "on-face" extra assertion (reviewer Minor Suggestion) was not
 added — corner-clearance is the stated contract and is sufficient (PARETO); the pure §2c spec
 test already locks the full face geometry.
+
+## IMPLEMENTATION_ITERATION (review MINOR-1 follow-up)
+
+Fixed the one stale comment the reviewer flagged: `src/view/edgeRouting.ts:33` inside the
+`RoutingObstacle.kind` JSDoc — "8 pins × the many ungrouped spokes" → "many pins × the many
+ungrouped spokes", matching how the `BOUNDARY_PIN_SPECS` block comment was already reworded
+(the perf WHY-NOT rationale is unchanged; 12 pins is even heavier than 8). Comment-only, no
+code touched. `npm run check` PASS (EXIT 0).

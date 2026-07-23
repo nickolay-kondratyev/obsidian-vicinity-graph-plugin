@@ -40,6 +40,10 @@ CENTRE_PIN_SPEC, registerPinsForShape note branch, visDirsFor ("all" kept for ce
 cost model (buffer/segment/crossing penalties), clipping geometry, GraphViewController,
 edgeGeometry, main.js/styles.css (build not run). No new ticket (change fully resolves request).
 
+## IMPLEMENTATION_ITERATION (review MINOR-1)
+Fixed last stale comment: `src/view/edgeRouting.ts:33` "8 pins ×" → "many pins ×" (matches
+BOUNDARY_PIN_SPECS block wording). Comment-only. `npm run check` → EXIT 0. No further findings.
+
 ## Commands
 `npm run check > .tmp/impl-check.log 2>&1` → EXIT 0
 `npm test > .tmp/impl-test.log 2>&1` → EXIT 0, 55 files / 681 tests
