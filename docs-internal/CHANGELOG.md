@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-07-23 — edge-routing: 12 boundary pins per group box (corner pins removed)
+
+Folder-group boxes now expose **12 boundary connection pins** — 3 per side at 1/4, 1/2,
+3/4, all outward-perpendicular — instead of the earlier 8 (4 side-midpoints + 4 corners).
+The corner pins are removed so an edge never appears to continue **past** a node it
+terminated at; every attachment now lands square-on a face. Note squares are unchanged
+(single centre pin, the group-only perf decision from edge-routing__04). No cost-model
+change — libavoid still selects the cheapest pin per connector end. View-layer only
+(`src/view/edgeRouting.ts`).
+
 ## 2026-07-23 — node width floored to fit the full name (no more title `...`)
 
 Note nodes no longer truncate their title with an ellipsis. Previously every node was a
