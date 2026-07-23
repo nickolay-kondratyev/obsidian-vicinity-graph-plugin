@@ -49,6 +49,22 @@ Boundary-pin routing fix (Phase A) + detour-ratio telemetry (Phase B). Phase C n
   (6ms / 2ms, not the graceful skip) against the new 8-pin router: route still bends around the
   blocker (>2 pts) and no waypoint falls strictly inside it. New 4 `detourRatio` tests pass.
 
+## Iteration 2 — reviewer SHOULD-FIX addressed (facing-side regression guard)
+- **`src/view/edgeRouting.test.ts`** (test-only): added 2 BDD tests inside the existing
+  `describe("LibavoidEdgeRouter with real wasm", ...)` block via a `routePair(source, target)`
+  helper that routes one edge between two 100x100 boxes with a clear gap:
+  - horizontal: asserts source endpoint on box L's RIGHT border (x≈100) and target on box R's
+    LEFT border (x≈300), both near mid-height (y≈50).
+  - vertical: source on box T's BOTTOM border (y≈100), target on box B's TOP border (y≈300),
+    both near mid-width (x≈50).
+  - Tolerances: facing border within 3px, mid-span within 10px — FAIL if `visDirs` were inverted
+    (forces detour off the facing side) or reverted to a single centre pin (endpoints at 50/350),
+    PASS for the correct outward mapping. This locks in the ticket's central fix.
+  - Reuses the real-wasm harness + `if (!loaded) return;` graceful-degradation guard (no fake-pass).
+    Both tests EXECUTED their assertions in this env (wasm loaded — sibling bends-around test 6ms).
+- Test results: `npm test` **664 passed / 664, 54 files** (was 662, +2 new). `npm run check`: GREEN.
+- No production code touched.
+
 ## CALLOUTS
 - **(a) Shipped: 8-pins on ALL shapes** (ticket primary path) — note squares AND folder-group boxes.
   Did NOT implement the group-only fallback and did NOT thread `FlowNode.kind` onto `RoutingObstacle`.

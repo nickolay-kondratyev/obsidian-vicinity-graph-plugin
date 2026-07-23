@@ -36,6 +36,15 @@ Phase A (boundary pins) + Phase B (detour telemetry). Phase C OUT.
 - src/view/edgeGeometry.ts (+ .test.ts)
 - src/view/GraphViewController.ts
 
+## Iteration 2 — reviewer SHOULD-FIX (facing-side regression guard) — DONE
+- Added 2 BDD tests in `LibavoidEdgeRouter with real wasm` (edgeRouting.test.ts):
+  horizontal (right→left border) + vertical (bottom→top border) facing-side attachment.
+- Reuse existing real-wasm harness (`loadAvoidMock`, `if (!loaded) return;` guard).
+  Both EXECUTED (not skipped) — sibling bends-around test ran 6ms confirming wasm loaded.
+- Assert endpoints on FACING border within 3px + mid-span within 10px. Would FAIL for
+  centre pins (endpoint at 50/350) or inverted visDirs (detour). Only test file touched.
+- `npm test`: 664 passed / 54 files (was 662, +2). `npm run check`: green.
+
 ## Open risks
 - PERF GATE unverified in-agent (wasm not under vitest). TOP_LEVEL must confirm dense-fixture
   routing pass stays well under layout with 8 pins × ~100 obstacles.
