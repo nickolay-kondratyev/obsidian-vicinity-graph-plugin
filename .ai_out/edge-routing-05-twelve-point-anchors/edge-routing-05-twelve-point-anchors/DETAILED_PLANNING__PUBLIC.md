@@ -102,16 +102,22 @@ Three layers. Prefer keeping the two existing facing-side tests green (robust-te
 ### 2a. Existing facing-side tests (`edgeRouting.test.ts:234–262`) — PASS AS-IS, verified
 
 Geometry: two 100×100 `folder-group` boxes, perfectly aligned on the cross axis (horizontal
-case both `y=0`; vertical case both `x=0`) with a clean gap. The straight-line shot is exactly
-level with the facing side's midpoint (y=50 / x=50). The 0.5 pin sits on that straight path;
-the new 0.25 and 0.75 pins are strictly farther from it, so libavoid's cost model still picks
-the midpoint. The `MID_SPAN_TOL_PX=10` assertions (endpoint near y=50 / x=50) therefore still
-hold. **No reframing needed — leave these tests unchanged.** (They remain a valuable regression
-guard that the midpoint pin and the outward `visDirs` mapping still work.)
+case both `y=0`; vertical case both `x=0`) with a clean gap. Because the boxes are aligned, the
+{0.25, 0.5, 0.75} pins on the two facing sides line up in matched pairs, so the 25→25, 50→50 and
+75→75 shots are all straight and of *equal* length — a genuine cost tie, not a case of the
+midpoint being cheapest. libavoid's tie-break resolves this to the midpoint, so the endpoint
+still lands at y=50 / x=50 and the `MID_SPAN_TOL_PX=10` assertions hold.
 
-If, contrary to this reasoning, the run shows an endpoint at 25 or 75 for the aligned geometry,
-that is a real signal (cost model behaving unexpectedly) — investigate, do NOT loosen the
-tolerance to force green.
+> PLAN_REVIEWER note (empirically verified): the 12-pin set was applied and the two facing-side
+> tests were run against the real node wasm — **both stay green (4/4 in the real-wasm block)**.
+> The pass is real, though it rests on libavoid's tie-break rather than a strict cost gap; the
+> §2c pure spec test is the durable anchor for the new behaviour, so this dependence is low-risk.
+
+**No reframing needed — leave these tests unchanged.** (They remain a valuable regression guard
+that the midpoint pin and the outward `visDirs` mapping still work.)
+
+If, contrary to this, a future run shows an endpoint at 25 or 75 for the aligned geometry, that
+is a real signal (tie-break shifted) — investigate, do NOT loosen the tolerance to force green.
 
 ### 2b. NEW corner-removal integration test (real WASM, in the same `describe` block)
 
