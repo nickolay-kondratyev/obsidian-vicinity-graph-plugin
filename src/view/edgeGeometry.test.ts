@@ -3,9 +3,11 @@ import {
 	EDGE_ARROWHEAD_INSET_FRACTION,
 	EDGE_ARROWHEAD_INSET_MAX_PX,
 	EDGE_ARROWHEAD_INSET_MIN_PX,
+	DETOUR_RATIO_DEGENERATE,
 	EDGE_PAIR_CURVATURE_PX,
 	ROUTED_CORNER_RADIUS_PX,
 	clipRouteToEndpointRects,
+	detourRatio,
 	edgePathFor,
 	polylineMidpoint,
 	routedGeometryFor,
@@ -282,5 +284,24 @@ describe("routedGeometryFor tolerates duplicate consecutive waypoints (no NaN ar
 			arrowY: 5,
 			arrowAngleDeg: 0,
 		});
+	});
+});
+
+describe("detourRatio", () => {
+	it("WHEN the route is a straight 2-point line THEN the ratio is 1 (arc length equals the chord)", () => {
+		expect(detourRatio([pt(0, 0), pt(100, 0)])).toBe(1);
+	});
+
+	it("WHEN the route detours around an obstacle THEN the ratio exceeds 1", () => {
+		// L-shaped detour: arc length 100 + 100 = 200 over a chord of hypot(100,100) ≈ 141.42.
+		expect(detourRatio([pt(0, 0), pt(0, 100), pt(100, 100)])).toBeCloseTo(200 / Math.hypot(100, 100));
+	});
+
+	it("WHEN a straight-through waypoint lies on the chord THEN the ratio is still 1", () => {
+		expect(detourRatio([pt(0, 0), pt(50, 0), pt(100, 0)])).toBe(1);
+	});
+
+	it("WHEN the endpoints coincide (zero chord) THEN the guard returns the degenerate ratio, not NaN", () => {
+		expect(detourRatio([pt(10, 10), pt(30, 10), pt(10, 10)])).toBe(DETOUR_RATIO_DEGENERATE);
 	});
 });

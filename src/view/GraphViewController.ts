@@ -7,7 +7,7 @@ import { decideActiveFileRebuild } from "./RebuildDecision";
 import { vicinityGraphToElk, extractElkDimensionsById, extractElkPositions } from "./elkMapping";
 import { vicinityGraphToFlow, withGroupDimensions, withPositions } from "./flowMapping";
 import type { Dimensions, FlowEdge, FlowGraph, FlowNode, XY } from "./flowMapping";
-import { clipRouteToEndpointRects } from "./edgeGeometry";
+import { DETOUR_RATIO_DEGENERATE, clipRouteToEndpointRects, detourRatio } from "./edgeGeometry";
 import { extractEdgeRoutingInput } from "./edgeRouting";
 import type { EdgeRouteMap, EdgeRouter, EdgeRoutingInput, RoutedPoint } from "./edgeRouting";
 import { isFolderGroupId } from "./graphIdentity";
@@ -263,11 +263,7 @@ export class GraphViewController {
 			// budget (routing must stay well under layout). debug-level, silent by default.
 			const routeStart = performance.now();
 			const routes = await this.edgeRouter.route(input);
-			console.debug("vicinity-graph: edge routing pass", {
-				obstacleCount: input.obstacles.length,
-				edgeCount: input.edges.length,
-				durationMs: performance.now() - routeStart,
-			});
+			const durationMs = performance.now() - routeStart;
 			if (this.isStale(token)) {
 				return EMPTY_ROUTES;
 			}
@@ -276,6 +272,18 @@ export class GraphViewController {
 			// attaches connector endpoints to. Cache the CLIPPED routes so a reuse-layout
 			// rebuild serves them straight from cache.
 			const clippedRoutes = clipRoutesToObstacles(routes, input);
+			// Detour telemetry on the CLIPPED routes (edge-routing__04): max/mean of the
+			// per-edge detour ratio (routed length ÷ endpoint chord). Logged alongside the
+			// duration so the boundary-pin change is verifiable numerically in the dev
+			// vault, where the wasm router's route quality can't be unit-tested.
+			const detour = detourStats(clippedRoutes);
+			console.debug("vicinity-graph: edge routing pass", {
+				obstacleCount: input.obstacles.length,
+				edgeCount: input.edges.length,
+				durationMs,
+				maxDetourRatio: detour.max,
+				meanDetourRatio: detour.mean,
+			});
 			this.routeCache = { signature, routes: clippedRoutes };
 			return clippedRoutes;
 		} catch (error: unknown) {
@@ -400,6 +408,36 @@ function clipRoutesToObstacles(routes: EdgeRouteMap, input: EdgeRoutingInput): E
 		clipped.set(edge.id, clipRouteToEndpointRects(route, sourceRect, targetRect));
 	}
 	return clipped;
+}
+
+/** Max/mean of the per-route detour ratio over a pass (see {@link detourStats}). */
+interface DetourStats {
+	readonly max: number;
+	readonly mean: number;
+}
+
+/** Neutral stats when a pass produced no routes — no detour to report, so 1 ("straight"). */
+const EMPTY_DETOUR_STATS: DetourStats = { max: DETOUR_RATIO_DEGENERATE, mean: DETOUR_RATIO_DEGENERATE };
+
+/**
+ * Max and mean detour ratio over the CLIPPED routes of one pass, for the routing
+ * debug log (edge-routing__04). Only edges that actually routed appear in the map,
+ * so every entry contributes; an empty map yields the neutral {@link EMPTY_DETOUR_STATS}.
+ */
+function detourStats(routes: EdgeRouteMap): DetourStats {
+	let max = 0;
+	let sum = 0;
+	let count = 0;
+	for (const route of routes.values()) {
+		const ratio = detourRatio(route);
+		max = Math.max(max, ratio);
+		sum += ratio;
+		count += 1;
+	}
+	if (count === 0) {
+		return EMPTY_DETOUR_STATS;
+	}
+	return { max, mean: sum / count };
 }
 
 /**

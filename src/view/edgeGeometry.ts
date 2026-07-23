@@ -367,6 +367,48 @@ export function polylineMidpoint(points: readonly RoutedPoint[]): { readonly x: 
 }
 
 /**
+ * Value {@link detourRatio} returns when the endpoint chord is zero. Coincident
+ * termini (overlapping/degenerate endpoint rects) have no straight distance to
+ * compare against, so we report 1 — "no detour" — rather than dividing by zero and
+ * emitting NaN/Infinity into the pass-level max/mean telemetry.
+ */
+export const DETOUR_RATIO_DEGENERATE = 1;
+
+/**
+ * How much longer a routed polyline is than the straight hop between its endpoints:
+ * total arc length ÷ endpoint chord (`hypot(last - first)`). 1 = dead straight;
+ * >1 = a detour. Meant to run on the CLIPPED route (termini already on the endpoint
+ * boundaries), so the chord is the border→border distance the edge visually spans.
+ *
+ * A telemetry aid for the edge-routing__04 boundary-pin change (logged max/mean per
+ * pass in GraphViewController): the wasm router can't run under vitest, so route
+ * QUALITY is tracked numerically here rather than asserted in unit tests. Reuses the
+ * arc-length walk from {@link polylineMidpoint}; guards the zero chord (see
+ * {@link DETOUR_RATIO_DEGENERATE}) so it never emits NaN.
+ */
+export function detourRatio(points: readonly RoutedPoint[]): number {
+	const first = points[0];
+	const last = points[points.length - 1];
+	if (first === undefined || last === undefined) {
+		return DETOUR_RATIO_DEGENERATE;
+	}
+	let arcLength = 0;
+	for (let i = 1; i < points.length; i += 1) {
+		const a = points[i - 1];
+		const b = points[i];
+		if (a === undefined || b === undefined) {
+			continue;
+		}
+		arcLength += Math.hypot(b.x - a.x, b.y - a.y);
+	}
+	const chord = Math.hypot(last.x - first.x, last.y - first.y);
+	if (chord === 0) {
+		return DETOUR_RATIO_DEGENERATE;
+	}
+	return arcLength / chord;
+}
+
+/**
  * Full geometry for a routed edge, in the SAME {@link EdgePathGeometry} shape the
  * straight/curved {@link edgePathFor} returns, so the edge component renders both
  * paths through one code path.

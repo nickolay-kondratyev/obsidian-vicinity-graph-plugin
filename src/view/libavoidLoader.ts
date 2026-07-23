@@ -20,6 +20,14 @@ import libavoidWasmBase64 from "libavoid-wasm";
 export interface Avoid {
 	readonly PolyLineRouting: number;
 	readonly OrthogonalRouting: number;
+	// ConnDirFlags: allowed connector approach/leave directions (a bitmask). The
+	// upstream .d.ts ships ConnDirFlags as an EMPTY enum, so these live only on the
+	// runtime binding — named here so boundary pins pick a facing direction without
+	// `as number` casts (edge-routing__04). ConnDirAll = every direction.
+	readonly ConnDirUp: number;
+	readonly ConnDirDown: number;
+	readonly ConnDirLeft: number;
+	readonly ConnDirRight: number;
 	readonly ConnDirAll: number;
 	readonly shapeBufferDistance: number;
 	readonly segmentPenalty: number;
