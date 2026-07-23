@@ -28,9 +28,9 @@ export interface RoutingObstacle {
 	readonly heightPx: number;
 	/**
 	 * The flow-node kind this obstacle came from. Drives pin registration
-	 * ({@link registerPinsForShape}): folder-group boxes get the 8 boundary pins so
+	 * ({@link registerPinsForShape}): folder-group boxes get the boundary pins so
 	 * cross-group edges attach on the facing side; note squares keep a single centre
-	 * pin (the pre-edge-routing__04 behaviour) — 8 pins × the many ungrouped spokes of
+	 * pin (the pre-edge-routing__04 behaviour) — many pins × the many ungrouped spokes of
 	 * a dense hub blew the routing perf budget, and the roundabout pathology the
 	 * boundary pins fix is specific to group boxes distorted by their own children.
 	 */
@@ -173,12 +173,16 @@ export function extractEdgeRoutingInput(input: {
 const PIN_CLASS = 1;
 
 /**
- * Proportional pin offsets along a side: 0 = left/top border, 0.5 = centre of a
- * side, 1 = right/bottom border (libavoid multiplies these by the shape's
- * width/height when `proportional = true`).
+ * Proportional pin offsets along a side: 0 = left/top border, 1 = right/bottom border
+ * (libavoid multiplies these by the shape's width/height when `proportional = true`).
+ * The three interior fractions 1/4, 1/2, 3/4 give each side three attachment points so
+ * an edge can meet a box square-on near where it actually approaches, without ever
+ * landing on a corner.
  */
 const PIN_EDGE_MIN = 0;
+const PIN_EDGE_Q1 = 0.25;
 const PIN_EDGE_MID = 0.5;
+const PIN_EDGE_Q3 = 0.75;
 const PIN_EDGE_MAX = 1;
 
 /** No inward nudge: pins sit exactly on the shape border. */
@@ -187,36 +191,44 @@ const PIN_INSIDE_OFFSET = 0;
 /** Allowed approach/leave direction for a boundary pin (resolved to a ConnDirFlag at route time). */
 type PinDir = "up" | "down" | "left" | "right" | "all";
 
-interface BoundaryPinSpec {
+export interface BoundaryPinSpec {
 	readonly xFrac: number;
 	readonly yFrac: number;
 	readonly dir: PinDir;
 }
 
 /**
- * The eight boundary connection pins registered on a FOLDER-GROUP obstacle (all
- * sharing {@link PIN_CLASS}). Four side-midpoint pins face outward perpendicular to
- * their own side, so an edge leaves/enters the box square-on instead of skimming
- * along it; four corner pins accept any direction. This replaces the single centre
- * pin that made libavoid optimise a centre→centre path whose long interior leg
- * (later clipped away by `clipRouteToEndpointRects`) diverged from the visible
- * border→border route and let a group's own child squares distort it
- * (ticket edge-routing__04). libavoid picks the cheapest pin per connector end.
+ * The twelve boundary connection pins registered on a FOLDER-GROUP obstacle (all sharing
+ * {@link PIN_CLASS}). Each of the four sides carries three pins — at 1/4, 1/2, 3/4 along the
+ * side — every one facing OUTWARD perpendicular to its own side, so an edge leaves/enters the
+ * box square-on near where it actually approaches instead of skimming along the border.
  *
- * WHY-NOT on note squares: the roundabout pathology is specific to group boxes, and
- * a dense vicinity is mostly UNGROUPED spokes — 8 pins on each of ~100 note squares
- * pushed the routing pass ~64× over budget (ticket edge-routing__04 Phase A). Note
- * squares therefore keep the single {@link CENTRE_PIN_SPEC}.
+ * WHY no corner pins: at a corner an edge can visually read as continuing PAST the node even
+ * though it terminated there. Side-only anchors keep every attachment unambiguously on a face.
+ * (Superseded the earlier 8-pin set of 4 side-midpoints + 4 "all"-direction corners.) This whole
+ * pin set replaced the single centre pin that made libavoid optimise a centre→centre path whose
+ * long interior leg — later clipped away by `clipRouteToEndpointRects` — diverged from the visible
+ * border→border route and let a group's own child squares distort it (ticket edge-routing__04).
+ * libavoid picks the cheapest pin per connector end.
+ *
+ * WHY-NOT on note squares: the roundabout pathology is specific to group boxes, and a dense
+ * vicinity is mostly UNGROUPED spokes — many pins on each of ~100 note squares pushed the routing
+ * pass far over budget (ticket edge-routing__04 Phase A). Note squares therefore keep the single
+ * {@link CENTRE_PIN_SPEC}.
  */
-const BOUNDARY_PIN_SPECS: readonly BoundaryPinSpec[] = [
-	{ xFrac: PIN_EDGE_MID, yFrac: PIN_EDGE_MIN, dir: "up" }, // top side-midpoint
-	{ xFrac: PIN_EDGE_MAX, yFrac: PIN_EDGE_MID, dir: "right" }, // right side-midpoint
-	{ xFrac: PIN_EDGE_MID, yFrac: PIN_EDGE_MAX, dir: "down" }, // bottom side-midpoint
-	{ xFrac: PIN_EDGE_MIN, yFrac: PIN_EDGE_MID, dir: "left" }, // left side-midpoint
-	{ xFrac: PIN_EDGE_MIN, yFrac: PIN_EDGE_MIN, dir: "all" }, // top-left corner
-	{ xFrac: PIN_EDGE_MAX, yFrac: PIN_EDGE_MIN, dir: "all" }, // top-right corner
-	{ xFrac: PIN_EDGE_MIN, yFrac: PIN_EDGE_MAX, dir: "all" }, // bottom-left corner
-	{ xFrac: PIN_EDGE_MAX, yFrac: PIN_EDGE_MAX, dir: "all" }, // bottom-right corner
+export const BOUNDARY_PIN_SPECS: readonly BoundaryPinSpec[] = [
+	{ xFrac: PIN_EDGE_Q1, yFrac: PIN_EDGE_MIN, dir: "up" }, // top 1/4
+	{ xFrac: PIN_EDGE_MID, yFrac: PIN_EDGE_MIN, dir: "up" }, // top 1/2
+	{ xFrac: PIN_EDGE_Q3, yFrac: PIN_EDGE_MIN, dir: "up" }, // top 3/4
+	{ xFrac: PIN_EDGE_MAX, yFrac: PIN_EDGE_Q1, dir: "right" }, // right 1/4
+	{ xFrac: PIN_EDGE_MAX, yFrac: PIN_EDGE_MID, dir: "right" }, // right 1/2
+	{ xFrac: PIN_EDGE_MAX, yFrac: PIN_EDGE_Q3, dir: "right" }, // right 3/4
+	{ xFrac: PIN_EDGE_Q3, yFrac: PIN_EDGE_MAX, dir: "down" }, // bottom 3/4
+	{ xFrac: PIN_EDGE_MID, yFrac: PIN_EDGE_MAX, dir: "down" }, // bottom 1/2
+	{ xFrac: PIN_EDGE_Q1, yFrac: PIN_EDGE_MAX, dir: "down" }, // bottom 1/4
+	{ xFrac: PIN_EDGE_MIN, yFrac: PIN_EDGE_Q3, dir: "left" }, // left 3/4
+	{ xFrac: PIN_EDGE_MIN, yFrac: PIN_EDGE_MID, dir: "left" }, // left 1/2
+	{ xFrac: PIN_EDGE_MIN, yFrac: PIN_EDGE_Q1, dir: "left" }, // left 1/4
 ];
 
 /**
@@ -246,7 +258,7 @@ function visDirsFor(avoid: Avoid, dir: PinDir): number {
 /**
  * Registers the connection pins for one obstacle shape, all under {@link PIN_CLASS}
  * so every `ConnEnd(shape, PIN_CLASS)` resolves to the cheapest pin regardless of
- * count. Folder-group boxes get the 8 {@link BOUNDARY_PIN_SPECS} (facing-side
+ * count. Folder-group boxes get the {@link BOUNDARY_PIN_SPECS} (facing-side
  * attachment); note squares get the single {@link CENTRE_PIN_SPEC} (perf fallback,
  * ticket edge-routing__04 Phase A). Pins are owned by their shape (and thus the
  * router) — never destroyed by us.

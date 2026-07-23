@@ -7,13 +7,14 @@ import { vicinityGraphToFlow } from "./flowMapping";
 import type { Dimensions, XY } from "./flowMapping";
 import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
 import {
+	BOUNDARY_PIN_SPECS,
 	EDGE_ROUTING_CROSSING_PENALTY_PX,
 	EDGE_ROUTING_SEGMENT_PENALTY_PX,
 	EDGE_ROUTING_SHAPE_BUFFER_PX,
 	LibavoidEdgeRouter,
 	extractEdgeRoutingInput,
 } from "./edgeRouting";
-import type { RoutingObstacle } from "./edgeRouting";
+import type { BoundaryPinSpec, RoutingObstacle } from "./edgeRouting";
 import type { Avoid } from "./libavoidLoader";
 
 // The real libavoid wasm loads via the node build (below); LibavoidEdgeRouter
@@ -130,6 +131,73 @@ describe("edge-routing tuning penalties (edge-routing__03)", () => {
 });
 
 /**
+ * Pure spec lock for the folder-group boundary pins (no wasm). This is the durable
+ * regression anchor for the 12-point change: it fixes the geometry independent of
+ * libavoid's cost model / tie-break. Corner pins (both fracs extreme) are forbidden
+ * so an edge never appears to continue PAST a node it terminated at.
+ */
+describe("BOUNDARY_PIN_SPECS", () => {
+	const EXTREMES = new Set([0, 1]);
+	const QUARTER_FRACS = [0.25, 0.5, 0.75] as const;
+
+	function isCorner(spec: BoundaryPinSpec): boolean {
+		return EXTREMES.has(spec.xFrac) && EXTREMES.has(spec.yFrac);
+	}
+
+	// The side a pin sits on (identified by the coordinate pinned to a border) plus the
+	// pin's free coordinate along that side. Vertical sides pin xFrac; horizontal sides yFrac.
+	interface SidePin {
+		readonly side: "top" | "bottom" | "left" | "right";
+		readonly along: number;
+	}
+	function sidePinOf(spec: BoundaryPinSpec): SidePin {
+		if (spec.xFrac === 0) {
+			return { side: "left", along: spec.yFrac };
+		}
+		if (spec.xFrac === 1) {
+			return { side: "right", along: spec.yFrac };
+		}
+		if (spec.yFrac === 0) {
+			return { side: "top", along: spec.xFrac };
+		}
+		return { side: "bottom", along: spec.xFrac };
+	}
+
+	const OUTWARD_DIR: Record<SidePin["side"], BoundaryPinSpec["dir"]> = {
+		top: "up",
+		bottom: "down",
+		left: "left",
+		right: "right",
+	};
+
+	it("WHEN the pin set is defined THEN there are exactly 12 boundary pins", () => {
+		expect(BOUNDARY_PIN_SPECS.length).toBe(12);
+	});
+
+	it("WHEN a pin is inspected THEN none sits on a corner (both fracs at an extreme)", () => {
+		expect(BOUNDARY_PIN_SPECS.some(isCorner)).toBe(false);
+	});
+
+	it("WHEN a pin is inspected THEN every pin faces outward-perpendicular (never 'all')", () => {
+		expect(BOUNDARY_PIN_SPECS.every((s) => s.dir !== "all")).toBe(true);
+	});
+
+	it("WHEN pins are grouped by side THEN each of the 4 sides has pins at 1/4, 1/2, 3/4 facing outward", () => {
+		const bySide = new Map<SidePin["side"], number[]>();
+		for (const spec of BOUNDARY_PIN_SPECS) {
+			const { side, along } = sidePinOf(spec);
+			expect(spec.dir).toBe(OUTWARD_DIR[side]); // dir matches the side's outward perpendicular
+			(bySide.get(side) ?? bySide.set(side, []).get(side)!).push(along);
+		}
+		const sortedFor = (side: SidePin["side"]): number[] => [...(bySide.get(side) ?? [])].sort((a, b) => a - b);
+		expect(sortedFor("top")).toEqual([...QUARTER_FRACS]);
+		expect(sortedFor("bottom")).toEqual([...QUARTER_FRACS]);
+		expect(sortedFor("left")).toEqual([...QUARTER_FRACS]);
+		expect(sortedFor("right")).toEqual([...QUARTER_FRACS]);
+	});
+});
+
+/**
  * Integration against the REAL libavoid wasm (node build, same engine as the
  * shipped browser build). Proves obstacle avoidance end-to-end through the actual
  * LibavoidEdgeRouter (arena + shape-attached endpoints + processTransaction).
@@ -161,6 +229,21 @@ describe("LibavoidEdgeRouter with real wasm", () => {
 			point.y > rect.y + eps &&
 			point.y < rect.y + rect.heightPx - eps
 		);
+	}
+
+	const CORNER_CLEARANCE_TOL_PX = 12; // quarter pins sit 25px from a corner; a corner sits 0px away
+
+	function cornersOf(r: RoutingObstacle): { x: number; y: number }[] {
+		return [
+			{ x: r.x, y: r.y },
+			{ x: r.x + r.widthPx, y: r.y },
+			{ x: r.x, y: r.y + r.heightPx },
+			{ x: r.x + r.widthPx, y: r.y + r.heightPx },
+		];
+	}
+
+	function minCornerDistance(p: { x: number; y: number }, r: RoutingObstacle): number {
+		return Math.min(...cornersOf(r).map((c) => Math.hypot(p.x - c.x, p.y - c.y)));
 	}
 
 	// Two nodes on a horizontal line with a rectangle straddling the straight path.
@@ -259,5 +342,29 @@ describe("LibavoidEdgeRouter with real wasm", () => {
 		expect(Math.abs(first.x - 50)).toBeLessThanOrEqual(MID_SPAN_TOL_PX);
 		expect(Math.abs(last.y - 300)).toBeLessThanOrEqual(FACING_BORDER_TOL_PX);
 		expect(Math.abs(last.x - 50)).toBeLessThanOrEqual(MID_SPAN_TOL_PX);
+	});
+
+	// Corner-removal guard (12-point anchors): two group boxes offset DIAGONALLY so the
+	// natural straight path runs corner-to-corner. The old 8-pin set would attach exactly
+	// on L's bottom-right / R's top-left corner (minCornerDistance = 0); the side-only
+	// 12-pin set forces a face pin ~25px from any corner. CORNER_CLEARANCE_TOL_PX = 12
+	// cleanly separates 25 (new) from 0 (old) — the actual contract is corner-clearance.
+	const boxL: RoutingObstacle = { id: "L", x: 0, y: 0, widthPx: 100, heightPx: 100, kind: "folder-group" };
+	const boxR: RoutingObstacle = { id: "R", x: 300, y: 300, widthPx: 100, heightPx: 100, kind: "folder-group" };
+
+	it("WHEN two group boxes are offset diagonally THEN the source endpoint clears every corner of its box", async () => {
+		if (!loaded) {
+			return;
+		}
+		const { first } = await routePair(boxL, boxR);
+		expect(minCornerDistance(first, boxL)).toBeGreaterThan(CORNER_CLEARANCE_TOL_PX);
+	});
+
+	it("WHEN two group boxes are offset diagonally THEN the target endpoint clears every corner of its box", async () => {
+		if (!loaded) {
+			return;
+		}
+		const { last } = await routePair(boxL, boxR);
+		expect(minCornerDistance(last, boxR)).toBeGreaterThan(CORNER_CLEARANCE_TOL_PX);
 	});
 });
