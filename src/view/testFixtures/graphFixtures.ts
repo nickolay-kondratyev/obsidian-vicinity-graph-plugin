@@ -49,6 +49,14 @@ function makeViewSettings(): ViewSettings {
 			minPx: 40,
 			maxPx: 160,
 		},
+		forceLayout: {
+			centerPullStrength: 0.05,
+			repelStrength: 300,
+			linkStrengthFactor: 1,
+			linkGapPx: 40,
+			collidePaddingPx: 20,
+			elkNodeSpacingPx: 40,
+		},
 	};
 }
 

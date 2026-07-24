@@ -19,6 +19,17 @@ describe("vicinityGraphToElk", () => {
 		expect(vicinityGraphToElk(graph).layoutOptions?.["elk.hierarchyHandling"]).toBeUndefined();
 	});
 
+	it("WHEN the group-member-spacing setting is customized THEN the root spacing option carries it (ticket-04 threading)", () => {
+		const custom = makeGraph({
+			...graph,
+			viewSettings: {
+				...graph.viewSettings,
+				forceLayout: { ...graph.viewSettings.forceLayout, elkNodeSpacingPx: 80 },
+			},
+		});
+		expect(vicinityGraphToElk(custom).layoutOptions?.["elk.spacing.nodeNode"]).toBe("80");
+	});
+
 	it("WHEN mapping THEN each node becomes a root child sized by its sizePx", () => {
 		const child = vicinityGraphToElk(graph).children?.find((candidate) => candidate.id === "a.md");
 		expect({ width: child?.width, height: child?.height }).toEqual({ width: 120, height: 120 });
@@ -86,6 +97,18 @@ describe("vicinityGraphToElk folder-group compounds (step-05)", () => {
 
 	it("WHEN a folder groups THEN its container reserves label padding (step-05 group label)", () => {
 		expect(container()?.layoutOptions?.["elk.padding"]).toBe(ELK_GROUP_PADDING);
+	});
+
+	it("WHEN the group-member-spacing setting is customized THEN the container spacing option carries it (ticket-04 threading)", () => {
+		const custom = makeGraph({
+			...graph,
+			viewSettings: {
+				...graph.viewSettings,
+				forceLayout: { ...graph.viewSettings.forceLayout, elkNodeSpacingPx: 80 },
+			},
+		});
+		const customContainer = vicinityGraphToElk(custom).children?.find((child) => child.id === "folder-group:notes");
+		expect(customContainer?.layoutOptions?.["elk.spacing.nodeNode"]).toBe("80");
 	});
 
 	it("WHEN an edge is intra-group THEN it relocates onto the container (elk common-ancestor rule)", () => {

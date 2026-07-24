@@ -1,5 +1,31 @@
 # Changelog
 
+## 2026-07-24 — force-layout tuning sliders: native-parity 4 + advanced spacing (ticket 04)
+
+Six force-layout knobs are now user-tunable from Settings → Vicinity Graph, doubling as
+the pre-release tuning harness (tuned values get baked back into the defaults before
+release). New `ViewSettings.forceLayout` (atomic field like `sizing`) wired end-to-end:
+engine defaults/ranges → resolver cascade → persistence (defensive parse + clamp, no
+version bump) → `global-force-layout` write plan → settings-tab sliders.
+
+- **Native-parity sliders** (names match Obsidian's native graph): Center force
+  (`centerPullStrength`), Repel force (`repelStrength`, stored positive, negated at the
+  d3 call), Link force (`linkStrengthFactor` — introduces an EXPLICIT
+  `forceLink.strength()` scaling d3's `1/min(degree)` default; factor 1 is bit-identical
+  to the previously-unset default), Link distance (`linkGapPx`).
+- **Advanced spacing** (collapsible `<details>`): Node spacing (`collidePaddingPx`),
+  Group member spacing (`elkNodeSpacingPx`, drives both elk passes). Plus a
+  restore-defaults button.
+- **Ranges + defaults defined once** in `src/engine/constants.ts`
+  (`FORCE_LAYOUT_RANGES`, `EngineDefaults.forceLayoutSettings()`); clamped in UI AND at
+  persistence parse so degenerate combos (e.g. center pull ≥ link strength) are
+  unreachable. Collide iterations / alphaDecay / group padding / elk seed params stay
+  internal.
+- **Live effect:** `decideLayout` forces a relayout on any force-layout value change.
+- **No default behavior change:** defaults equal the ticket-03 shipped constants;
+  verified bit-identical positions vs HEAD on the stranding + fan-out fixtures; the
+  ticket-03 stranding metric test is untouched and green.
+
 ## 2026-07-23 — force layout: rectangular collision fixes container stranding (ticket 03)
 
 Organic (force) mode no longer strands a linked note far from a tall folder-group

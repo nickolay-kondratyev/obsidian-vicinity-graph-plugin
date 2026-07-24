@@ -191,6 +191,37 @@ export interface SizingSettings {
 	readonly maxPx: number;
 }
 
+/**
+ * Force-layout tuning knobs (ticket-04). The first four mirror Obsidian's
+ * NATIVE graph sliders (Center/Repel/Link force, Link distance — POLS); the two
+ * spacing fields are the "Advanced" section. Field names describe the MECHANISM
+ * (what the value drives in the view's elk+d3 pipeline), the UI shows the
+ * native-parity labels. One atomic field on {@link ViewSettings} (like
+ * `sizing`): overrides pin/inherit it wholesale.
+ */
+export interface ForceLayoutSettings {
+	/** UI "Center force": d3 `forceX`/`forceY` pull of every box toward the layout centre. */
+	readonly centerPullStrength: number;
+	/**
+	 * UI "Repel force": magnitude of the d3 `forceManyBody` repulsion between
+	 * root-level boxes. Stored POSITIVE (intuitive slider/JSON value); the view
+	 * negates it into d3's negative-charge convention at the call site.
+	 */
+	readonly repelStrength: number;
+	/**
+	 * UI "Link force": multiplier on d3's default per-link spring strength
+	 * (`1 / min(degree(source), degree(target))`). `1` reproduces d3's built-in
+	 * default exactly — the shipped behavior before this knob existed.
+	 */
+	readonly linkStrengthFactor: number;
+	/** UI "Link distance": extra px on a link's resting length beyond the endpoints' half-extents. */
+	readonly linkGapPx: number;
+	/** UI "Node spacing" (advanced): min gap px the rect-collide force enforces per box pair. */
+	readonly collidePaddingPx: number;
+	/** UI "Group member spacing" (advanced): elk `spacing.nodeNode` px (group internals + root seed). */
+	readonly elkNodeSpacingPx: number;
+}
+
 /** Fully-resolved view settings. */
 export interface ViewSettings {
 	/** Hard cap on NON-central node count (centrals are exempt). */
@@ -198,6 +229,7 @@ export interface ViewSettings {
 	readonly groupByFolder: boolean;
 	readonly edgeVisibility: EdgeVisibilityMode;
 	readonly sizing: SizingSettings;
+	readonly forceLayout: ForceLayoutSettings;
 }
 
 /**

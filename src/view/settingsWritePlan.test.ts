@@ -75,6 +75,14 @@ describe("planSettingsWrite global writes", () => {
 		});
 	});
 
+	it("WHEN global-force-layout THEN it merges the forceLayout object over ctx.globalView", () => {
+		const forceLayout = { ...EngineDefaults.forceLayoutSettings(), repelStrength: 500, linkGapPx: 60 };
+		expect(planSettingsWrite({ kind: "global-force-layout", forceLayout }, CTX)).toEqual({
+			kind: "global-view",
+			view: { ...CTX.globalView, forceLayout },
+		});
+	});
+
 	it("WHEN global-node-exclusion THEN it emits a node-exclusion command carrying the whole object", () => {
 		const nodeExclusion = { enabled: true, patterns: ["^rel/"] };
 		expect(planSettingsWrite({ kind: "global-node-exclusion", nodeExclusion }, CTX)).toEqual({

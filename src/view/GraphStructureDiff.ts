@@ -1,4 +1,4 @@
-import type { GraphNode, VicinityGraph } from "../engine";
+import type { ForceLayoutSettings, GraphNode, VicinityGraph } from "../engine";
 import { edgeIdOf } from "./graphIdentity";
 
 /**
@@ -12,9 +12,11 @@ import { edgeIdOf } from "./graphIdentity";
  *
  * `relayout`: first build, any structural change (a node or edge added/removed),
  * a `groupByFolder` flip (folder-group nodes appear/disappear, so preserved
- * positions would lack group entries and misplace nested children), or a
- * surviving node whose `sizePx` grew beyond the threshold. Structural changes
- * accept layout jumps in V1 (position seeding is V2).
+ * positions would lack group entries and misplace nested children), a
+ * force-layout tuning change (the sliders must re-run the layout live — reusing
+ * positions would silently swallow the new values), or a surviving node whose
+ * `sizePx` grew beyond the threshold. Structural changes accept layout jumps in
+ * V1 (position seeding is V2).
  */
 export type LayoutDecision = "relayout" | "reuse-layout";
 
@@ -29,6 +31,9 @@ export function decideLayout(
 	if (previous.viewSettings.groupByFolder !== next.viewSettings.groupByFolder) {
 		return "relayout";
 	}
+	if (!sameForceLayout(previous.viewSettings.forceLayout, next.viewSettings.forceLayout)) {
+		return "relayout";
+	}
 	if (!sameIds(nodeIdsOf(previous), nodeIdsOf(next))) {
 		return "relayout";
 	}
@@ -39,6 +44,18 @@ export function decideLayout(
 		return "relayout";
 	}
 	return "reuse-layout";
+}
+
+/** Value equality over every force-layout field (each build resolves a fresh object, so identity cannot be used). */
+function sameForceLayout(a: ForceLayoutSettings, b: ForceLayoutSettings): boolean {
+	return (
+		a.centerPullStrength === b.centerPullStrength &&
+		a.repelStrength === b.repelStrength &&
+		a.linkStrengthFactor === b.linkStrengthFactor &&
+		a.linkGapPx === b.linkGapPx &&
+		a.collidePaddingPx === b.collidePaddingPx &&
+		a.elkNodeSpacingPx === b.elkNodeSpacingPx
+	);
 }
 
 function nodeIdsOf(graph: VicinityGraph): Set<string> {

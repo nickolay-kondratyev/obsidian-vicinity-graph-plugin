@@ -98,6 +98,21 @@ describe("ViewSettingsResolver cascade layers", () => {
 		expect(resolved.groupByFolder).toBe(false);
 	});
 
+	it("WHEN MAIN pins the forceLayout object THEN the whole forceLayout field is taken from MAIN", () => {
+		const mainForceLayout = { ...EngineDefaults.forceLayoutSettings(), linkGapPx: 90 };
+		const resolved = ViewSettingsResolver.resolve({ global, mainOverride: { forceLayout: mainForceLayout } });
+		expect(resolved.forceLayout).toEqual(mainForceLayout);
+	});
+
+	it("WHEN only a pinned doc pins forceLayout THEN it fills the gap over global", () => {
+		const pinnedForceLayout = { ...EngineDefaults.forceLayoutSettings(), repelStrength: 500 };
+		const resolved = ViewSettingsResolver.resolve({
+			global,
+			pinnedOverrides: [pinned("p.md", "docid_p_e", 100, { forceLayout: pinnedForceLayout })],
+		});
+		expect(resolved.forceLayout.repelStrength).toBe(500);
+	});
+
 	it("WHEN MAIN pins edgeVisibility THEN it beats both pinned docs and global", () => {
 		const resolved = ViewSettingsResolver.resolve({
 			global,

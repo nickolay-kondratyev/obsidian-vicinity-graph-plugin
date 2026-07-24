@@ -74,3 +74,30 @@ describe("decideLayout groupByFolder flip (step-05)", () => {
 	});
 });
 
+describe("decideLayout force-layout tuning change (ticket-04 live sliders)", () => {
+	const nodes = [makeNode({ path: asVaultPath("a.md") })];
+	const previous = makeGraph({ nodes });
+
+	it("WHEN only a force-layout value changed THEN a relayout is forced (sliders must take effect live)", () => {
+		const next = makeGraph({
+			nodes,
+			viewSettings: {
+				...previous.viewSettings,
+				forceLayout: { ...previous.viewSettings.forceLayout, linkGapPx: 90 },
+			},
+		});
+		expect(decideLayout(previous, next, 1.0)).toBe("relayout");
+	});
+
+	it("WHEN force-layout values are equal but the object identity differs THEN the layout is still reused", () => {
+		const next = makeGraph({
+			nodes,
+			viewSettings: {
+				...previous.viewSettings,
+				forceLayout: { ...previous.viewSettings.forceLayout },
+			},
+		});
+		expect(decideLayout(previous, next, 1.0)).toBe("reuse-layout");
+	});
+});
+

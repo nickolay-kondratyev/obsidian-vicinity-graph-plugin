@@ -41,6 +41,7 @@ export type {
 	DocId,
 	EdgeVisibilityMode,
 	FolderPath,
+	ForceLayoutSettings,
 	GraphEdge,
 	GraphNode,
 	NodeExclusionSettings,
@@ -90,5 +91,8 @@ export {
 	DEFAULT_NODE_CAP,
 	DEFAULT_OUTGOING_DEPTH,
 	EngineDefaults,
+	FORCE_LAYOUT_RANGES,
 	NEUTRAL_NORMALIZED_VALUE,
+	clampForceLayoutSettings,
 } from "./constants";
+export type { ForceLayoutRange } from "./constants";

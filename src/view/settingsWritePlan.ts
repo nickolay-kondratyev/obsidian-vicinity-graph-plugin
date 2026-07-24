@@ -2,6 +2,7 @@ import type {
 	DepthOverride,
 	DepthSettings,
 	Direction,
+	ForceLayoutSettings,
 	NodeExclusionSettings,
 	SizingSettings,
 	ViewSettings,
@@ -37,6 +38,8 @@ export type SettingsInteraction =
 	| { readonly kind: "global-cap"; readonly value: number }
 	/** Global sizing configuration (whole object). */
 	| { readonly kind: "global-sizing"; readonly sizing: SizingSettings }
+	/** Global force-layout tuning (whole object — sliders and restore-defaults both send it complete). */
+	| { readonly kind: "global-force-layout"; readonly forceLayout: ForceLayoutSettings }
 	/** Global node exclusion (whole object — pill flips `enabled`, settings tab edits `patterns`). */
 	| { readonly kind: "global-node-exclusion"; readonly nodeExclusion: NodeExclusionSettings };
 
@@ -89,6 +92,8 @@ export function planSettingsWrite(interaction: SettingsInteraction, ctx: Setting
 			return { kind: "global-view", view: { ...ctx.globalView, nodeCap: interaction.value } };
 		case "global-sizing":
 			return { kind: "global-view", view: { ...ctx.globalView, sizing: interaction.sizing } };
+		case "global-force-layout":
+			return { kind: "global-view", view: { ...ctx.globalView, forceLayout: interaction.forceLayout } };
 		case "global-node-exclusion":
 			return { kind: "node-exclusion", nodeExclusion: interaction.nodeExclusion };
 	}

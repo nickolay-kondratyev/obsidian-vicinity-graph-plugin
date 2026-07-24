@@ -61,8 +61,13 @@ export const ELK_ROOT_ID = "root";
  */
 export const ELK_DIRECTION = "DOWN";
 
-/** Minimum gap between sibling nodes, shared by every elk algorithm we run. */
-export const ELK_NODE_SPACING = "40";
+/**
+ * The root's elk algorithm id — the marker {@link GraphLayoutRunner} keys the
+ * d3-force refinement on. The tunable spacing/force VALUES live on
+ * `ViewSettings.forceLayout` (engine defaults, ticket-04 sliders); this file
+ * keeps only the non-tunable structure.
+ */
+export const ELK_FORCE_ALGORITHM = "force";
 
 /**
  * Root layout options. elk's `force` algorithm is only the SEED: it computes
@@ -70,50 +75,25 @@ export const ELK_NODE_SPACING = "40";
  * d3-force refinement (`d3ForceRefinement.ts`) packs the root-level boxes
  * tightly. `force` does not support `INCLUDE_CHILDREN`, so the root runs elk's
  * default `SEPARATE_CHILDREN` hierarchy handling: folder containers are laid out
- * internally first (see {@link ELK_GROUP_MEMBER_OPTIONS}), then the root arranges
- * the resulting fixed-size boxes.
+ * internally first (see {@link elkGroupMemberOptions}), then the root arranges
+ * the resulting fixed-size boxes. `nodeSpacingPx` comes from
+ * `ViewSettings.forceLayout.elkNodeSpacingPx` (the "Group member spacing" knob
+ * feeds the root seed too — one spacing concept across both elk passes).
  */
-export const ELK_FORCE_ROOT_OPTIONS: Readonly<Record<string, string>> = {
-	"elk.algorithm": "force",
-	"elk.spacing.nodeNode": ELK_NODE_SPACING,
-};
-
-// --- d3-force root refinement -------------------------------------------------
-
-/**
- * Repulsion between root-level boxes (d3 `forceManyBody` strength; negative =
- * repel). Deliberately moderate — collision + link distances do the packing,
- * the charge only untangles; a strong charge would re-create the dispersion the
- * d3 refinement exists to fix.
- */
-export const D3_FORCE_CHARGE_STRENGTH = -300;
-
-/**
- * Extra length on a link's resting distance beyond the endpoints' min
- * half-extents. The spring only pulls partners into touching range — the rect
- * collide force owns the actual separation (see `d3ForceRefinement.ts`).
- */
-export const D3_FORCE_LINK_GAP_PX = 40;
-
-/**
- * Minimum gap enforced between each PAIR of boxes by the rectangular collide
- * force (`forceRectCollide.ts`) — applied once per pair, not per box. 20 validated
- * by the ticket-03 prototype: doubling it measurably worsened crowded layouts.
- */
-export const D3_FORCE_COLLIDE_PADDING_PX = 20;
-
-/**
- * Weak pull of every box toward the layout centre (d3 `forceX`/`forceY`
- * strength). Keeps weakly-connected satellites from drifting off; must stay
- * well below the link strength (~1) or the graph collapses onto the hub.
- */
-export const D3_FORCE_CENTER_PULL_STRENGTH = 0.05;
+export function elkForceRootOptions(nodeSpacingPx: number): Readonly<Record<string, string>> {
+	return {
+		"elk.algorithm": ELK_FORCE_ALGORITHM,
+		"elk.spacing.nodeNode": String(nodeSpacingPx),
+	};
+}
 
 /**
  * Rect-collide (`forceRectCollide.ts`) relaxation passes per tick. 1 leaves
  * residual overlaps on dense hubs; 2 resolves them (same rationale as d3's own
  * advice to raise `forceCollide` iterations when overlap-freedom matters more
  * than speed). The ticket-03 prototype found 3 passes gained nothing.
+ * Deliberately INTERNAL (no slider): overlap-resolution quality/perf, not
+ * layout taste.
  */
 export const D3_FORCE_COLLIDE_ITERATIONS = 2;
 
@@ -121,13 +101,16 @@ export const D3_FORCE_COLLIDE_ITERATIONS = 2;
  * Layout of the INSIDE of a folder-group container. The force root runs
  * `SEPARATE_CHILDREN`, laying out every container independently: members are
  * arranged with elk's proven layered algorithm, then the container is placed as
- * a fixed-size box by the root force/d3 pass.
+ * a fixed-size box by the root force/d3 pass. `nodeSpacingPx` is the "Group
+ * member spacing" knob (`ViewSettings.forceLayout.elkNodeSpacingPx`).
  */
-export const ELK_GROUP_MEMBER_OPTIONS: Readonly<Record<string, string>> = {
-	"elk.algorithm": "layered",
-	"elk.direction": ELK_DIRECTION,
-	"elk.spacing.nodeNode": ELK_NODE_SPACING,
-};
+export function elkGroupMemberOptions(nodeSpacingPx: number): Readonly<Record<string, string>> {
+	return {
+		"elk.algorithm": "layered",
+		"elk.direction": ELK_DIRECTION,
+		"elk.spacing.nodeNode": String(nodeSpacingPx),
+	};
+}
 
 /**
  * Inner padding of folder-group containers (elk `ElkPadding` syntax). The

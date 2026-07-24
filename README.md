@@ -64,6 +64,11 @@ The distinction matters because people ask about it, so it is worth reading once
 - **Grouping** and the **node cap** (default **100** — above roughly a hundred
   nodes a graph stops being readable, so the view truncates deterministically and
   shows a hidden-node count).
+- **Force layout** — four sliders named like Obsidian's native graph (**Center
+  force**, **Repel force**, **Link force**, **Link distance**) plus an *Advanced
+  spacing* group (**Node spacing**, **Group member spacing**). Changes re-layout
+  open graphs immediately; ranges are clamped so no combination can degenerate
+  the layout, and a **Restore defaults** button resets all six.
 
 ### Per-note depth overrides
 

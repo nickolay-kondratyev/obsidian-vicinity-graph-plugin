@@ -1,6 +1,7 @@
 import { PluginSettingTab, Setting } from "obsidian";
 import type { App } from "obsidian";
-import type { Direction, SizingSettings } from "../engine";
+import type { Direction, ForceLayoutSettings, SizingSettings } from "../engine";
+import { EngineDefaults, FORCE_LAYOUT_RANGES } from "../engine";
 import type VicinityGraphPlugin from "../main";
 import type { PluginDataStore } from "../persistence/PluginDataStore";
 import { MAX_STEPPER_DEPTH, MIN_STEPPER_DEPTH, clampStepperDepth } from "./constants";
@@ -58,8 +59,71 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 
 		this.renderDepthDefaults();
 		this.renderSizing();
+		this.renderForceLayout();
 		this.renderExclusion();
 		this.renderPerformance();
+	}
+
+	/**
+	 * Force-layout tuning (ticket-04). The four primary sliders carry the SAME
+	 * names as Obsidian's native graph view (POLS — users already know them);
+	 * the two spacing knobs live in a collapsible `<details>` block (Obsidian's
+	 * Setting API has no built-in collapsible group, and a native details
+	 * element keeps it dependency-free). Slider limits come from the engine's
+	 * {@link FORCE_LAYOUT_RANGES} — the SAME table the persistence parser clamps
+	 * with — and every control routes through one `global-force-layout`
+	 * interaction carrying the complete object.
+	 */
+	private renderForceLayout(): void {
+		new Setting(this.containerEl).setName("Force layout").setHeading();
+		this.addForceLayoutSlider(
+			this.containerEl,
+			"Center force",
+			"Pull of every node toward the graph centre. Keeps loosely-linked notes from drifting away.",
+			"centerPullStrength",
+		);
+		this.addForceLayoutSlider(
+			this.containerEl,
+			"Repel force",
+			"How strongly nodes and folder groups push each other apart.",
+			"repelStrength",
+		);
+		this.addForceLayoutSlider(
+			this.containerEl,
+			"Link force",
+			"Stiffness of the springs that pull linked notes together. 1 is the built-in default.",
+			"linkStrengthFactor",
+		);
+		this.addForceLayoutSlider(
+			this.containerEl,
+			"Link distance",
+			"Extra resting distance (px) a link keeps between the two linked boxes.",
+			"linkGapPx",
+		);
+		const advanced = this.containerEl.createEl("details");
+		advanced.createEl("summary", { text: "Advanced spacing" });
+		this.addForceLayoutSlider(
+			advanced,
+			"Node spacing",
+			"Minimum gap (px) enforced between any two boxes at the top level of the graph.",
+			"collidePaddingPx",
+		);
+		this.addForceLayoutSlider(
+			advanced,
+			"Group member spacing",
+			"Gap (px) between the notes inside a folder group (also spaces the initial layout pass).",
+			"elkNodeSpacingPx",
+		);
+		new Setting(this.containerEl)
+			.setName("Restore force layout defaults")
+			.setDesc("Reset all force layout sliders to their shipped defaults.")
+			.addButton((button) =>
+				button.setButtonText("Restore defaults").onClick(async () => {
+					await this.applyForceLayout(EngineDefaults.forceLayoutSettings());
+					// Re-render so every slider knob jumps back to its default.
+					this.display();
+				}),
+			);
 	}
 
 	/**
@@ -236,6 +300,35 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 				}
 			});
 		});
+	}
+
+	/**
+	 * One force-layout slider. The current value is read fresh from the store on
+	 * every change so successive slider edits compose (same pattern as sizing).
+	 */
+	private addForceLayoutSlider(
+		container: HTMLElement,
+		name: string,
+		desc: string,
+		field: keyof ForceLayoutSettings,
+	): void {
+		const range = FORCE_LAYOUT_RANGES[field];
+		new Setting(container)
+			.setName(name)
+			.setDesc(desc)
+			.addSlider((slider) =>
+				slider
+					.setLimits(range.min, range.max, range.step)
+					.setValue(this.store.globalView().forceLayout[field])
+					.setDynamicTooltip()
+					.onChange((value) => {
+						void this.applyForceLayout({ ...this.store.globalView().forceLayout, [field]: value });
+					}),
+			);
+	}
+
+	private applyForceLayout(forceLayout: ForceLayoutSettings): Promise<void> {
+		return this.applyInteraction({ kind: "global-force-layout", forceLayout });
 	}
 
 	private applySizing(sizing: SizingSettings): Promise<void> {
