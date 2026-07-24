@@ -12,8 +12,9 @@ Bring repro data into dev-vault / unit fixture (public vault not source-controll
 ## Phase tracking
 - [x] EXPLORATION — pipeline + vault reports written; consolidated in EXPLORATION_PUBLIC.md
 - [x] CLARIFICATION — SKIPPED: requirements unambiguous (fix defaults, failing-test-first, deterministic, mirror data to dev-vault)
-- [ ] DETAILED_PLANNING (Think Hard) — PLANNER running
-- [ ] DETAILED_PLAN_REVIEW
+- [x] DETAILED_PLANNING (Think Hard) — plan written. Key: Enchiridion is degree-1 so weak-link-strength is NOT its cause (Mechanism B: charge + local minimum off large container). Fix = pin forceLink.strength~1 (Lever 1) + moderate charge reduction (Lever 2); reserve re-heat. Metric = per-edge stretch ratio. Automated test = self-contained makeGraph fixture; dev-vault notes for manual visual check.
+  - Q_FOR_HUMAN resolved by ticket text (ticket explicitly directs mirroring repro into dev-vault). Not a blocker.
+- [ ] DETAILED_PLAN_REVIEW — PLAN_REVIEWER running
 - [ ] PLAN_ITERATION
 - [ ] IMPLEMENTATION
 - [ ] IMPLEMENTATION_REVIEW
