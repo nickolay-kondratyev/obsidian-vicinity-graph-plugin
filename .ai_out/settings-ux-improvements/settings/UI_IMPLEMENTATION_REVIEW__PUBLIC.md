@@ -1,4 +1,11 @@
-# UI_IMPLEMENTATION_REVIEW — restore-defaults affordances (branch `settings`, commit 3c86c7f)
+# UI_IMPLEMENTATION_REVIEW — restore-defaults affordances (branch `settings`)
+
+> **Iteration 1 verification (commit `a6668b5`) is at the bottom of this file.**
+> **Current verdict: READY.** MAJOR-1 and NIT-3 are fixed and independently
+> re-verified in a running Obsidian; the three rejected NITs are accepted as
+> rejected.
+
+## Original review (commit 3c86c7f)
 
 **Verdict: READY** (ship), with one MAJOR follow-up worth a human decision before
 release and four NITs. No BLOCKING issue.
@@ -121,3 +128,104 @@ is acceptable as shipped — noted only so it is a decision, not an accident.
 - `e2e/settingsResetReview.e2e.ts` (new, passing) — kept as the behavior-capturing
   regression net for reset isolation, modal keyboard operability and persistence.
 - No implementation code was modified (`src/` untouched by this review).
+
+---
+
+# Iteration 1 verification — commit `a6668b5`
+
+**Verdict: READY.** Every accepted finding is fixed and re-proved behaviorally in a
+running Obsidian; every rejected finding's rationale is accepted. No new findings
+raised (scope honored — this was a narrow verification pass, not a fresh review).
+
+## 1. MAJOR-1 — node-exclusion reset now confirms · VERIFIED
+
+Re-proved independently in `e2e/settingsResetVerify.e2e.ts` (written from the
+requirement, not from the implementer's tests, and deliberately using different
+fixtures):
+
+| Claim | Result |
+|---|---|
+| Confirms when patterns exist | PASS — title "Restore node exclusion defaults?", body "…deletes the following 3 exclusion patterns. This cannot be undone." |
+| Works with the textarea COLLAPSED (exclusion toggled off) | PASS — asserted `textarea` count 0 first, so the dialog is the ONLY surface showing the content (`01-`, `02-`) |
+| Lists the patterns VERBATIM | PASS — fixtures deliberately contain regex metacharacters and markup (`^archive/.*\.md$`, `<b>templates</b>/`, `daily/2024-\d{2}`); all three render as literal monospace text, in stored order. No HTML interpretation, no escaping artifacts |
+| Cancel is a true no-op | PASS — whole-store snapshot compared before/after (`enabled` AND `patterns`), plus the textarea still holds every pattern |
+| **Escape** is a true no-op | PASS — same whole-store equality (this path was not pinned by the shipped suite) |
+| Confirm actually deletes | PASS — `{ enabled: false, patterns: [] }` |
+| NO patterns → NO dialog | PASS — reset applies instantly, `.modal-container` count stays 1 (Obsidian's own settings window) |
+| A long list cannot bury the safe exit | PASS — 40 patterns: the inset scrolls (`scrollHeight > clientHeight`) and Cancel stays in the viewport (`08-`) |
+
+The mechanism is also right, not just the behavior: `confirmation?: (ctx) => …`
+lives in `SETTINGS_RESET_SCOPES` beside the key-set each scope clears
+(`src/view/settingsResetPlan.ts:110-122`), and `requestReset()`
+(`src/view/VicinityGraphSettingTab.ts:118-125`) is the ONLY entry point, so
+"which resets are destructive" stays answerable in one file. That is a better fix
+than the call-site branch the finding suggested.
+
+## 2. Section-isolation matrix after the `requestReset()` refactor · VERIFIED
+
+Re-ran the full cross-check with independent dirty values: each of the five
+section resets moves only its own slice and leaves the other four
+byte-identical; the tab-wide reset confirms first, then moves everything; its
+Cancel leaves every section dirty. All six buttons still correct. (Re-proved in a
+scratch pass, then dropped from the retained spec to avoid duplicating the matrix
+already held by `settingsResetReview.e2e.ts` — 11/11 pass.)
+
+## 3. NIT-3 wording on screen · VERIFIED
+
+Row reads "Restore all Vicinity Graph settings / Resets every Vicinity Graph
+setting — depth defaults, node sizing, force layout, node exclusion and
+performance — to its shipped default. **Per-note depth overrides and pinned notes
+are kept.**" Asserted to contain the survivor sentence and to NOT contain "this
+tab"; legible in both themes (`04-` light, `06-` dark). README bullet agrees.
+The confirmation renders correctly in dark theme too (`07-`).
+
+## 4. The three REJECTED nits — rejections ACCEPTED
+
+- **NIT-1** (`:focus-visible` on Cancel) — accepted. `focusVisible` genuinely is
+  not in TS's `FocusOptions`, and the safety property (Enter on open cancels) is
+  untouched; the `WHY-NOT` comment at `ConfirmModal.ts:48-51` records the attempt
+  so the next maintainer does not repeat it. Cosmetic, not blocking.
+- **NIT-2** (focus trap) — accepted. Stock Obsidian `Modal` behavior; fixing it
+  means fighting the framework's focus manager for an escape that returns on its
+  own.
+- **NIT-4** (`Advanced spacing` no longer last in its card) — accepted. Putting a
+  collapsible *after* the card's closing footer would be worse; the rendered
+  result reads as a footer. Recorded as a decision, not an accident.
+
+None is blocking. I do not re-litigate any of them.
+
+## Test status (honest)
+
+- `npm run check` — exit 0.
+- `npm test` — **769 passed / 0 failed**, 63 files. The 3 stale-baseline failures
+  from the first review are genuinely resolved (human decision 1), not silenced.
+- `npm run test:e2e -- settingsResetReview.e2e.ts` — **11/11**.
+- `npm run test:e2e -- settingsUxVisual.e2e.ts` — **7/7**.
+- `npm run test:e2e -- settingsResetVerify.e2e.ts` — **8/8** (this pass's retained
+  spec; 15/15 before the redundant matrix tests were trimmed out of it).
+- **`npm run test:e2e` (WHOLE suite) is RED: 47 passed / 2 failed / 7 did not run.**
+  Called out rather than glossed: the failures are
+  `vicinityGraph.e2e.ts` › gamma singleton breadcrumb and `edgeRoutingEval.e2e.ts`
+  › radial-layout gating. **Both are PRE-EXISTING and unrelated to this work** —
+  I verified by building commit `22bd5cb` (the branch's base, before any of this
+  settings work) in a throwaway worktree and reproducing both failures
+  identically there. They are also already ticketed with exactly this
+  "2 failed, 7 did not run" signature:
+  `docs-internal/tickets/ticket-e2e-gamma-breadcrumb-fails-headless.md` and
+  `_tickets/e2e-remove-layeredradial-layout-mode-references-left-by-force-layout-only-ticket.md`.
+  Also ruled out leftover `.dev-vault` settings state as the cause (both still
+  fail with `data.json` deleted), so the new settings specs are not polluting
+  later specs.
+
+Screenshots (untracked): `.out/settings-reset-verify/` —
+`01-exclusion-collapsed.png`, `02-exclusion-confirm-collapsed.png`,
+`03/04-restore-all-copy|row-light.png`, `05/06-restore-all-copy|row-dark.png`,
+`07-exclusion-confirm-dark.png`, `08-exclusion-confirm-long-list.png`.
+
+## Left in the tree
+
+- `e2e/settingsResetVerify.e2e.ts` (new, passing) — trimmed to only what
+  `settingsResetReview.e2e.ts` does NOT cover: verbatim rendering of
+  regex/markup-ish content, Escape as a no-op, the long-list scroll guard, and
+  the NIT-3 copy in both themes.
+- `src/` untouched by this pass.

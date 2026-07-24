@@ -1,7 +1,8 @@
 # UI_IMPLEMENTATION_REVIEW — PRIVATE working notes (rehydration state)
 
 ## Status
-Review COMPLETE. Verdict READY. Public report:
+Iteration-1 VERIFICATION COMPLETE (commit `a6668b5`). Verdict READY. Nothing
+outstanding from me. Public report (both passes):
 `.ai_out/settings-ux-improvements/settings/UI_IMPLEMENTATION_REVIEW__PUBLIC.md`.
 
 ## Environment facts (re-usable)
@@ -47,3 +48,50 @@ Review COMPLETE. Verdict READY. Public report:
 ## Files
 - NEW (kept): `e2e/settingsResetReview.e2e.ts` — 9 tests, all passing.
 - `src/` untouched (readonly per instructions).
+
+
+---
+
+## Iteration-1 verification notes (commit `a6668b5`)
+
+### Outcome
+MAJOR-1 fixed WELL (better than my suggestion: confirmation is data on the scope
+spec, `requestReset()` is the single entry point — not a call-site branch).
+NIT-3 fixed. NIT-1/2/4 rejections all accepted; do NOT reopen them.
+
+### The one thing that needed real digging
+`npm run test:e2e` (WHOLE suite) is RED: 47 passed / 2 failed / 7 did not run.
+Do NOT panic-report this as a regression — I chased it down:
+1. Reproduces standalone (`vicinityGraph.e2e.ts` gamma breadcrumb +
+   `edgeRoutingEval.e2e.ts` radial gating).
+2. NOT caused by leftover `.dev-vault` settings state — still fails with
+   `data.json` deleted. (So the new settings specs do not pollute later specs.)
+3. Reproduces IDENTICALLY at base commit `22bd5cb` — proved in a throwaway
+   worktree (`git worktree add .worktree/base-<sha>`, symlink the repo's
+   `node_modules` in, `npm run setup:dev-vault`, then run the two specs).
+   Worktree removed afterwards.
+4. Already ticketed with exactly this "2 failed, 7 did not run" signature:
+   `docs-internal/tickets/ticket-e2e-gamma-breadcrumb-fails-headless.md` and
+   `_tickets/e2e-remove-layeredradial-layout-mode-references-left-by-...md`.
+The earlier passes only ever ran INDIVIDUAL spec files, which is why nobody had
+seen the full-suite red before.
+
+### Environment facts (additions)
+- The base-commit worktree recipe above works and is cheap (~1 min). Reuse it
+  whenever "is this pre-existing?" comes up.
+- `npm test` is now 769/0 — the 3 stale-baseline failures were genuinely fixed by
+  realigning the baselines to the SHIPPED values (human decision 1), not silenced.
+- Theme switching in e2e: `app.customCss.setTheme("obsidian"|"moonstone")` works
+  and does NOT leak into `.dev-vault/.obsidian/appearance.json` (stays `{}`).
+
+### Verification technique worth reusing
+Fixtures with regex metacharacters AND markup (`<b>templates</b>/`) are what
+actually prove "verbatim": plain patterns would pass even if the list rendered
+HTML. Same idea for the 40-pattern list — it is the only way to catch a
+confirmation whose safe exit gets pushed out of the viewport.
+
+### Files
+- NEW (kept): `e2e/settingsResetVerify.e2e.ts` — 8 tests, complements
+  `settingsResetReview.e2e.ts` (no matrix duplication; I trimmed that out after
+  re-running it green).
+- `src/` untouched by this pass.
