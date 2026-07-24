@@ -15,6 +15,9 @@
  * - Markdown link URLs containing `)`, nested or unbalanced markers, HTML tags,
  *   footnote refs, LaTeX.
  * - `[[note#heading]]` → Obsidian's "note > heading" display form.
+ * - Multi-pipe wikilinks: `[[a|b|c]]` → `c`, where Obsidian displays `b|c`.
+ * - The pathological `"## "` (marker only): the empty-result fallback below shows
+ *   its raw text, the sole path by which a `#` marker reaches the display.
  */
 
 /** Leading `#` marker + WHITESPACE. The whitespace is required so a `#tag` heading survives. */

@@ -307,6 +307,24 @@ export class ObsidianHarness {
 	}
 
 	/**
+	 * Sets the largest node size through the plugin's own persistence API (mirrors
+	 * {@link setGlobalNodeCap}). Centrals are always sized at `maxPx`, so this is
+	 * the one deterministic lever for putting the MAIN node in a chosen density
+	 * band (the CSS container-query thresholds).
+	 */
+	async setMaxNodeSizePx(maxPx: number): Promise<void> {
+		await this.page.evaluate(
+			async ({ pluginId, px }) => {
+				const app = (window as unknown as { app: any }).app;
+				const store = app.plugins.plugins[pluginId].pluginDataStore;
+				const globalView = store.globalView();
+				await store.saveGlobalView({ ...globalView, sizing: { ...globalView.sizing, maxPx: px } });
+			},
+			{ pluginId: PLUGIN_ID, px: maxPx },
+		);
+	}
+
+	/**
 	 * Reads the plugin's persisted global view settings straight from the store —
 	 * the source of truth that a restart reloads. Used to assert settings
 	 * round-trip through {@link relaunch} without depending on rendered pixels.

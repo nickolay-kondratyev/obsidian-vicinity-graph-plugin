@@ -46,6 +46,18 @@ const EXPECTED_ENTRY_LABELS = [
 const LEVEL_THREE_LABEL = "Deep detail one";
 /** The RAW heading text of the entry the click tests use (plain prose: sanitising is a no-op). */
 const CLICKED_HEADING = "Background";
+/** The STRIPPED label of the fixture's markdown-carrying heading (`## Status of [[outline-cover]] **today**`). */
+const MARKDOWN_HEADING_LABEL = "Status of outline-cover today";
+/** A marker present in that heading's RAW text and absent from its label — see the raw-heading test. */
+const RAW_ONLY_MARKER = "**today**";
+/** Largest node size, in px, that still lands in the 72–104px band (attachments shown, outline hidden). */
+const BELOW_OUTLINE_THRESHOLD_PX = 96;
+/** The density band that shows the attachment strip but NOT the outline (graph-view.css). */
+const ATTACHMENTS_ONLY_BAND_PX = { min: 72, belowMax: 104 };
+/** One wheel notch's worth of scroll — far less than the list's overflow, so any movement is proof. */
+const WHEEL_SCROLL_PX = 120;
+/** Fractional layout px only: anything larger is real dead space, not rounding. */
+const MAX_SUB_PIXEL_SLACK_PX = 1;
 
 let harness: ObsidianHarness;
 let page: Page;
@@ -59,6 +71,7 @@ test.beforeAll(async () => {
 });
 
 test.afterAll(async () => {
+	await restoreNavigationSpies();
 	await harness?.close();
 });
 
@@ -77,6 +90,11 @@ function entriesOf(path: string): Locator {
 // --- E1: rendered content -----------------------------------------------------
 
 test("the outline lists its headings as stripped labels in document order", async () => {
+	// Visibility, not just markup: the reveal at the 104px threshold and the base
+	// `display: none` live in different stylesheets, and `toHaveText` reads
+	// textContent — which a hidden outline would satisfy just as well.
+	await expect(outlineOf(OUTLINE_NOTE_PATH)).toBeVisible();
+
 	await expect(entriesOf(OUTLINE_NOTE_PATH)).toHaveText(EXPECTED_ENTRY_LABELS);
 });
 
@@ -97,32 +115,102 @@ const activeFilePath = () =>
 	page.evaluate(() => (window as unknown as { app: any }).app.workspace.getActiveFile()?.path);
 
 /**
- * Records the linktexts the plugin hands to Obsidian, delegating to the real
- * implementation so the click still opens the note. We assert OUR side of the
- * documented `openLinkText` contract — whether Obsidian then scrolls the editor
- * or flashes the heading is Obsidian's contract, and is covered by the manual
- * dev-vault check in the step-9 commit.
+ * Records BOTH navigation paths the plugin can take, delegating to the real
+ * implementations so the click still opens the note:
+ *
+ * - `workspace.openLinkText` — the heading-targeted open an outline entry makes.
+ *   We assert OUR side of that documented contract; whether Obsidian then scrolls
+ *   the editor or flashes the heading is Obsidian's contract, covered by the
+ *   manual dev-vault check in the step-9 commit.
+ * - `WorkspaceLeaf.prototype.openFile` — how the NODE-level click handler opens a
+ *   note (at its top, with no open state). An outline click that failed to
+ *   `stopPropagation` would show up here as an extra heading-less open.
+ *
+ * Each wrapper is installed at most once — re-wrapping would make one click
+ * record twice — while the logs are cleared on every call, so each test asserts
+ * on its own click. {@link restoreNavigationSpies} puts the originals back.
  */
-async function spyOnOpenLinkText(): Promise<void> {
+async function recordNavigationFromNow(): Promise<void> {
 	await page.evaluate(() => {
 		const app = (window as unknown as { app: any }).app;
-		const store = window as unknown as { __vgLinktexts?: string[] };
-		store.__vgLinktexts = [];
-		const original = app.workspace.openLinkText.bind(app.workspace);
-		app.workspace.openLinkText = (linktext: string, sourcePath: string, newLeaf?: unknown) => {
-			store.__vgLinktexts?.push(linktext);
-			return original(linktext, sourcePath, newLeaf);
+		const store = window as unknown as {
+			__vgLinktexts?: string[];
+			__vgLeafOpens?: string[];
+			__vgOriginalOpenLinkText?: unknown;
+			__vgOriginalLeafOpenFile?: unknown;
 		};
+		store.__vgLinktexts = [];
+		store.__vgLeafOpens = [];
+		if (store.__vgOriginalOpenLinkText === undefined) {
+			const originalOpenLinkText = app.workspace.openLinkText.bind(app.workspace);
+			store.__vgOriginalOpenLinkText = originalOpenLinkText;
+			app.workspace.openLinkText = (linktext: string, sourcePath: string, newLeaf?: unknown) => {
+				store.__vgLinktexts?.push(linktext);
+				return originalOpenLinkText(linktext, sourcePath, newLeaf);
+			};
+		}
+		if (store.__vgOriginalLeafOpenFile === undefined) {
+			// Prototype-level: leaves are created per navigation, so wrapping one
+			// instance would miss the very call we are looking for.
+			const leafPrototype = Object.getPrototypeOf(app.workspace.getLeaf(false));
+			const originalOpenFile = leafPrototype.openFile;
+			store.__vgOriginalLeafOpenFile = originalOpenFile;
+			leafPrototype.openFile = function (file: any, openState?: any) {
+				// `#` + the subpath Obsidian derived, or nothing at all for a plain
+				// "open this note" — which is exactly what distinguishes the two paths.
+				store.__vgLeafOpens?.push(`${file?.path ?? "?"}${openState?.eState?.subpath ?? ""}`);
+				return originalOpenFile.call(this, file, openState);
+			};
+		}
+	});
+}
+
+async function restoreNavigationSpies(): Promise<void> {
+	await page.evaluate(() => {
+		const app = (window as unknown as { app: any }).app;
+		const store = window as unknown as { __vgOriginalOpenLinkText?: any; __vgOriginalLeafOpenFile?: any };
+		if (store.__vgOriginalOpenLinkText !== undefined) {
+			app.workspace.openLinkText = store.__vgOriginalOpenLinkText;
+			store.__vgOriginalOpenLinkText = undefined;
+		}
+		if (store.__vgOriginalLeafOpenFile !== undefined) {
+			Object.getPrototypeOf(app.workspace.getLeaf(false)).openFile = store.__vgOriginalLeafOpenFile;
+			store.__vgOriginalLeafOpenFile = undefined;
+		}
 	});
 }
 
 const recordedLinktexts = () => page.evaluate(() => (window as unknown as { __vgLinktexts: string[] }).__vgLinktexts);
+const recordedLeafOpens = () => page.evaluate(() => (window as unknown as { __vgLeafOpens: string[] }).__vgLeafOpens);
 
 test("clicking an outline entry asks Obsidian to open that note at that heading", async () => {
-	await spyOnOpenLinkText();
+	await recordNavigationFromNow();
 	await entriesOf(OUTLINE_NOTE_PATH).filter({ hasText: CLICKED_HEADING }).first().click();
 
 	await expect.poll(recordedLinktexts).toEqual([`${OUTLINE_NOTE_PATH}#${CLICKED_HEADING}`]);
+});
+
+test("the linktext is built from the RAW heading, not the stripped label", async () => {
+	await recordNavigationFromNow();
+	await entriesOf(OUTLINE_NOTE_PATH).filter({ hasText: MARKDOWN_HEADING_LABEL }).first().click();
+
+	// `**today**` survives ONLY if the raw heading text was the key: the label the
+	// entry displays has it stripped. Deliberately not an equality assertion —
+	// the exact output is `stripHeadingForLink`'s business, not ours.
+	await expect.poll(async () => (await recordedLinktexts()).join("")).toContain(RAW_ONLY_MARKER);
+});
+
+test("clicking an outline entry does not ALSO trigger the node-level open", async () => {
+	await recordNavigationFromNow();
+	await entriesOf(OUTLINE_NOTE_PATH).filter({ hasText: CLICKED_HEADING }).first().click();
+	// Wait for the navigation to land before counting, so "nothing extra" is not
+	// just "nothing yet".
+	await expect.poll(recordedLinktexts).toHaveLength(1);
+
+	// The node-level handler opens the note with NO subpath; if the entry's
+	// stopPropagation stopped working, that open would land here (and after the
+	// heading jump, undoing it).
+	expect(await recordedLeafOpens()).toEqual([`${OUTLINE_NOTE_PATH}#${CLICKED_HEADING}`]);
 });
 
 test("clicking an outline entry makes that note the active file", async () => {
@@ -153,22 +241,22 @@ test("the outline scrollbar is transparent until the node is hovered", async () 
 	expect(await scrollbarColorOf(outline)).not.toBe(idle);
 });
 
-test("the outline still scrolls while its scrollbar is hidden", async () => {
+test("the wheel scrolls the outline (not the canvas) while its scrollbar is hidden", async () => {
 	const outline = outlineOf(OUTLINE_NOTE_PATH);
-	await page.mouse.move(0, 0);
 	// Precondition: without real overflow this test would pass vacuously.
-	const overflow = await outline.evaluate((el) => ({
-		scrollHeight: el.scrollHeight,
-		clientHeight: el.clientHeight,
-	}));
+	const overflow = await outline.evaluate((el) => {
+		el.scrollTop = 0;
+		return { scrollHeight: el.scrollHeight, clientHeight: el.clientHeight };
+	});
 	expect(overflow.scrollHeight).toBeGreaterThan(overflow.clientHeight);
 
-	const scrolled = await outline.evaluate((el) => {
-		el.scrollTop = el.scrollHeight;
-		return el.scrollTop;
-	});
+	// A REAL wheel over the list — the gesture the `nowheel` escape hatch exists
+	// for. React Flow's zoom is a native d3-zoom listener on the pane, so without
+	// `nowheel` this would zoom the canvas and leave scrollTop at 0.
+	await outline.hover();
+	await page.mouse.wheel(0, WHEEL_SCROLL_PX);
 
-	expect(scrolled).toBeGreaterThan(0);
+	await expect.poll(() => outline.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
 });
 
 // --- E6: the image escape hatch (KEEP LAST — it changes the MAIN note) --------
@@ -179,4 +267,47 @@ test("a note whose first image precedes its first heading shows the image, not a
 
 	await expect(noteNode(OUTLINE_COVER_PATH)).toHaveAttribute("data-preview", "thumbnail");
 	await expect(outlineOf(OUTLINE_COVER_PATH)).toHaveCount(0);
+});
+
+// --- E7: the outline's layout rule must not leak below its own threshold ------
+// KEEP LAST: it shrinks every node for the rest of the file.
+
+/**
+ * Dead space, in px, between the bottom of the attachment strip and the node's
+ * bottom padding edge. The strip is pinned there by the preview zone's
+ * flex-grow, so a rule that switches that grow off unpins it — visibly, as a gap.
+ */
+const attachmentStripSlackPx = (path: string) =>
+	noteNode(path).evaluate((node) => {
+		const strip = node.querySelector<HTMLElement>(".vicinity-graph-node__attachments");
+		if (strip === null) {
+			return null;
+		}
+		const paddingBottom = Number.parseFloat(getComputedStyle(node).paddingBottom);
+		// offsetTop and clientHeight share the node's padding-box origin, and both
+		// are LAYOUT px — unaffected by React Flow's zoom transform.
+		return node.clientHeight - paddingBottom - (strip.offsetTop + strip.offsetHeight);
+	});
+
+test("an outline-bearing node below the outline threshold still pins its attachment strip to the bottom", async () => {
+	await harness.setMaxNodeSizePx(BELOW_OUTLINE_THRESHOLD_PX);
+	// A sizing change alone does not rebuild; an active-file change does (the
+	// current MAIN is outline-cover, so this is a real change).
+	await harness.openFile(OUTLINE_NOTE_PATH);
+	await expect(noteNode(OUTLINE_NOTE_PATH)).toHaveAttribute("data-tier", "main");
+
+	// Preconditions: an outline-bearing node, in the band where the outline is
+	// NOT rendered — exactly where a rule gated on `data-preview` but not on the
+	// density threshold would still apply.
+	await expect(noteNode(OUTLINE_NOTE_PATH)).toHaveAttribute("data-preview", "outline");
+	await expect(outlineOf(OUTLINE_NOTE_PATH)).toBeHidden();
+	const heightPx = await noteNode(OUTLINE_NOTE_PATH).evaluate((node) => (node as HTMLElement).offsetHeight);
+	expect(heightPx).toBeGreaterThanOrEqual(ATTACHMENTS_ONLY_BAND_PX.min);
+	expect(heightPx).toBeLessThan(ATTACHMENTS_ONLY_BAND_PX.belowMax);
+
+	const slackPx = await attachmentStripSlackPx(OUTLINE_NOTE_PATH);
+	// Precondition: the node HAS a strip to pin (the fixture embeds pic.jpg).
+	expect(slackPx).not.toBeNull();
+
+	expect(slackPx).toBeLessThanOrEqual(MAX_SUB_PIXEL_SLACK_PX);
 });
