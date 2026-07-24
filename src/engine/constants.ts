@@ -1,3 +1,4 @@
+import { SETTINGS_SPEC } from "./SettingsSpec";
 import type {
 	DepthSettings,
 	EdgeVisibilityMode,
@@ -7,18 +8,43 @@ import type {
 	ViewSettings,
 } from "./types";
 
-/** Hard cap default on non-central node count (step doc: default 100). */
-export const DEFAULT_NODE_CAP = 100;
+// ---------------------------------------------------------------------------
+// Thin adapters over SETTINGS_SPEC (the single source of truth for every
+// settings default AND limit — see `SettingsSpec.ts`). The WHY rationale for
+// each value lives on the spec; these are mechanical projections of it.
+// ---------------------------------------------------------------------------
 
-/** Depth defaults mirror Obsidian's local-graph default of 1 hop each way. */
-export const DEFAULT_OUTGOING_DEPTH = 1;
-export const DEFAULT_INCOMING_DEPTH = 1;
+/** @see SETTINGS_SPEC — `globalView.nodeCap.default`. */
+export const DEFAULT_NODE_CAP = SETTINGS_SPEC.globalView.nodeCap.default;
 
-export const DEFAULT_MIN_NODE_PX = 40;
-export const DEFAULT_MAX_NODE_PX = 160;
+/** @see SETTINGS_SPEC — `globalDepths.{outgoing,incoming}Depth.default`. */
+export const DEFAULT_OUTGOING_DEPTH = SETTINGS_SPEC.globalDepths.outgoingDepth.default;
+export const DEFAULT_INCOMING_DEPTH = SETTINGS_SPEC.globalDepths.incomingDepth.default;
 
-/** Default `k` of depth-decay `1 / (1 + k * depth)`. */
-export const DEFAULT_DEPTH_DECAY_K = 1;
+/** @see SETTINGS_SPEC — `globalView.sizing.{minPx,maxPx}.default`. */
+export const DEFAULT_MIN_NODE_PX = SETTINGS_SPEC.globalView.sizing.minPx.default;
+export const DEFAULT_MAX_NODE_PX = SETTINGS_SPEC.globalView.sizing.maxPx.default;
+
+/** @see SETTINGS_SPEC — `globalView.sizing.depthDecayK.default`. */
+export const DEFAULT_DEPTH_DECAY_K = SETTINGS_SPEC.globalView.sizing.depthDecayK.default;
+
+/** @see SETTINGS_SPEC — `globalView.edgeVisibility.default`. */
+export const DEFAULT_EDGE_VISIBILITY: EdgeVisibilityMode = SETTINGS_SPEC.globalView.edgeVisibility.default;
+
+/** Lower bound of the node-cap input. @see SETTINGS_SPEC — `globalView.nodeCap.min`. */
+export const MIN_NODE_CAP = SETTINGS_SPEC.globalView.nodeCap.min;
+
+/**
+ * Depth-stepper input bounds (CLARIFICATION Q2) — an AFFORDANCE limit on the
+ * toolbar/settings steppers, not an engine limit. @see SETTINGS_SPEC —
+ * `globalDepths.outgoingDepth.{min,max}` (both depth fields share these bounds).
+ */
+export const MIN_STEPPER_DEPTH = SETTINGS_SPEC.globalDepths.outgoingDepth.min;
+export const MAX_STEPPER_DEPTH = SETTINGS_SPEC.globalDepths.outgoingDepth.max;
+
+// ---------------------------------------------------------------------------
+// Non-settings tuning constants (NOT user-facing defaults → not in the spec).
+// ---------------------------------------------------------------------------
 
 /**
  * Normalized value when a metric cannot discriminate (all raw values equal,
@@ -32,62 +58,13 @@ export const NEUTRAL_NORMALIZED_VALUE = 0.5;
  */
 export const CENTRAL_SIZE_SCORE = 1;
 
-/**
- * Default edge mode shows only BFS-walked edges (human decision, CLARIFICATION
- * Q5: cleaner graph to see); `"all-edges"` stays available via the toggle.
- */
-export const DEFAULT_EDGE_VISIBILITY: EdgeVisibilityMode = "walked-from-center";
-
-const DEFAULT_METRIC_WEIGHT = 1;
-
 // ---------------------------------------------------------------------------
-// Force-layout defaults + slider ranges (ticket-04). Defaults are the exact
-// values the ticket-03 placement-quality work shipped as view constants —
-// changing one here CHANGES THE DEFAULT LAYOUT (the stranding regression test
-// runs at these defaults). Ranges are clamped so degenerate combinations are
-// unreachable from the sliders AND from hand-edited JSON (the persistence
-// parser clamps with the same table).
+// Force-layout slider ranges — derived from SETTINGS_SPEC's per-field bounds.
+// Single source of truth for the tuning-slider limits: the settings-tab sliders
+// take their bounds here and the persistence parser clamps with the same table,
+// so out-of-range values are unreachable end-to-end. The WHY per field lives on
+// `SETTINGS_SPEC.globalView.forceLayout`.
 // ---------------------------------------------------------------------------
-
-/**
- * Weak pull of every box toward the layout centre (d3 `forceX`/`forceY`
- * strength). Keeps weakly-connected satellites from drifting off; must stay
- * well below the link strength (~1) or the graph collapses onto the hub.
- */
-export const DEFAULT_CENTER_PULL_STRENGTH = 0.05;
-
-/**
- * Repulsion magnitude between root-level boxes (d3 `forceManyBody`, negated at
- * the call site). Deliberately moderate — collision + link distances do the
- * packing, the charge only untangles; a strong charge would re-create the
- * dispersion the d3 refinement exists to fix.
- */
-export const DEFAULT_REPEL_STRENGTH = 300;
-
-/**
- * Multiplier on d3's default per-link spring strength. 1 reproduces d3's
- * built-in `1 / min(degree)` default bit-for-bit — the behavior shipped before
- * the "Link force" slider introduced an explicit override.
- */
-export const DEFAULT_LINK_STRENGTH_FACTOR = 1;
-
-/**
- * Extra length on a link's resting distance beyond the endpoints' min
- * half-extents. The spring only pulls partners into touching range — the rect
- * collide force owns the actual separation (see `d3ForceRefinement.ts`).
- */
-export const DEFAULT_LINK_GAP_PX = 40;
-
-/**
- * Minimum gap enforced between each PAIR of boxes by the rectangular collide
- * force (`forceRectCollide.ts`) — applied once per pair, not per box. 20
- * validated by the ticket-03 prototype: doubling it measurably worsened
- * crowded layouts.
- */
-export const DEFAULT_COLLIDE_PADDING_PX = 20;
-
-/** Minimum gap between sibling nodes in elk passes (folder-group internals + root seed). */
-export const DEFAULT_ELK_NODE_SPACING_PX = 40;
 
 /** Inclusive slider bounds + step for one force-layout field. */
 export interface ForceLayoutRange {
@@ -96,41 +73,13 @@ export interface ForceLayoutRange {
 	readonly step: number;
 }
 
-/**
- * Single source of truth for the tuning-slider bounds — the settings-tab
- * sliders take their limits here and the persistence parser clamps with the
- * same table, so out-of-range values are unreachable end-to-end. WHY per field:
- *
- * - `centerPullStrength` max 0.15: the pull must stay WELL below the weakest
- *   per-link spring the ranges allow (`linkStrengthFactor` min 0.25 gives a
- *   degree-1 leaf strength 0.25), or satellites get dragged off their partners
- *   and the graph collapses onto the hub. Min 0 (no pull) is safe — the rect
- *   collide still owns separation.
- * - `repelStrength` [50, 1000]: 0/negative charge degenerates into attraction;
- *   below ~50 the charge stops untangling, far above ~1000 it re-creates the
- *   dispersion the d3 refinement exists to fix.
- * - `linkStrengthFactor` [0.25, 2]: min keeps links dominant over the max
- *   center pull (see above); above ~2 the stiff springs overshoot within the
- *   fixed-tick static run and the layout stops converging cleanly.
- * - `linkGapPx` [10, 150]: below the collide floor the spring and the collide
- *   force just fight (jitter, no visual gain); above 150 edges defeat the
- *   vicinity-compactness goal.
- * - `collidePaddingPx` [0, 80]: even at 0 the AABB collide prevents overlap
- *   (labels live INSIDE node boxes, so boxes-not-overlapping means labels
- *   never overlap); above 80 spacing defeats packing.
- * - `elkNodeSpacingPx` [10, 120]: elk spacing separates node BOUNDARIES, so
- *   members can never overlap; min 10 keeps them readable, above 120 the
- *   folder containers balloon. (The folder-name label is protected by the
- *   container's fixed top padding, not by this spacing.)
- */
-export const FORCE_LAYOUT_RANGES: Readonly<Record<keyof ForceLayoutSettings, ForceLayoutRange>> = {
-	centerPullStrength: { min: 0, max: 0.15, step: 0.01 },
-	repelStrength: { min: 50, max: 1000, step: 10 },
-	linkStrengthFactor: { min: 0.25, max: 2, step: 0.05 },
-	linkGapPx: { min: 10, max: 150, step: 5 },
-	collidePaddingPx: { min: 0, max: 80, step: 5 },
-	elkNodeSpacingPx: { min: 10, max: 120, step: 5 },
-};
+export const FORCE_LAYOUT_RANGES: Readonly<Record<keyof ForceLayoutSettings, ForceLayoutRange>> =
+	Object.fromEntries(
+		Object.entries(SETTINGS_SPEC.globalView.forceLayout).map(([field, spec]) => [
+			field,
+			{ min: spec.min, max: spec.max, step: spec.step },
+		]),
+	) as Readonly<Record<keyof ForceLayoutSettings, ForceLayoutRange>>;
 
 /** Clamps every field into its {@link FORCE_LAYOUT_RANGES} bounds (steps are a UI affordance, not enforced). */
 export function clampForceLayoutSettings(settings: ForceLayoutSettings): ForceLayoutSettings {
@@ -148,53 +97,56 @@ export function clampForceLayoutSettings(settings: ForceLayoutSettings): ForceLa
 	};
 }
 
-/** Stateless factory for default settings shapes (used by tests and step-03 seeding). */
+/**
+ * Stateless factory for default settings shapes (used by tests and step-03
+ * seeding). Every value is projected from {@link SETTINGS_SPEC} `.default` — a
+ * thin adapter, NOT a second source of truth.
+ */
 export class EngineDefaults {
 	static depthSettings(): DepthSettings {
+		const depths = SETTINGS_SPEC.globalDepths;
 		return {
-			outgoingDepth: DEFAULT_OUTGOING_DEPTH,
-			incomingDepth: DEFAULT_INCOMING_DEPTH,
+			outgoingDepth: depths.outgoingDepth.default,
+			incomingDepth: depths.incomingDepth.default,
 		};
 	}
 
-	/** `own-file-size` is the only default-on metric (step doc). */
 	static sizingSettings(): SizingSettings {
+		const sizing = SETTINGS_SPEC.globalView.sizing;
+		const metrics = Object.fromEntries(
+			Object.entries(sizing.metrics).map(([metricId, metric]) => [metricId, metric.default]),
+		) as SizingSettings["metrics"];
 		return {
-			metrics: {
-				"own-file-size": { enabled: true, weight: DEFAULT_METRIC_WEIGHT },
-				"total-linker-size": { enabled: false, weight: DEFAULT_METRIC_WEIGHT },
-				"backlink-count": { enabled: false, weight: DEFAULT_METRIC_WEIGHT },
-				"outlink-count": { enabled: false, weight: DEFAULT_METRIC_WEIGHT },
-				"depth-decay": { enabled: false, weight: DEFAULT_METRIC_WEIGHT },
-			},
-			depthDecayK: DEFAULT_DEPTH_DECAY_K,
-			minPx: DEFAULT_MIN_NODE_PX,
-			maxPx: DEFAULT_MAX_NODE_PX,
+			metrics,
+			depthDecayK: sizing.depthDecayK.default,
+			minPx: sizing.minPx.default,
+			maxPx: sizing.maxPx.default,
 		};
 	}
 
-	/** Exclusion ships OFF with no patterns — an additive, opt-in feature. */
 	static nodeExclusionSettings(): NodeExclusionSettings {
-		return { enabled: false, patterns: [] };
+		const exclusion = SETTINGS_SPEC.nodeExclusion;
+		return { enabled: exclusion.enabled.default, patterns: [...exclusion.patterns.default] };
 	}
 
-	/** The ticket-03 shipped layout constants — the "no default behavior change" baseline. */
 	static forceLayoutSettings(): ForceLayoutSettings {
+		const forceLayout = SETTINGS_SPEC.globalView.forceLayout;
 		return {
-			centerPullStrength: DEFAULT_CENTER_PULL_STRENGTH,
-			repelStrength: DEFAULT_REPEL_STRENGTH,
-			linkStrengthFactor: DEFAULT_LINK_STRENGTH_FACTOR,
-			linkGapPx: DEFAULT_LINK_GAP_PX,
-			collidePaddingPx: DEFAULT_COLLIDE_PADDING_PX,
-			elkNodeSpacingPx: DEFAULT_ELK_NODE_SPACING_PX,
+			centerPullStrength: forceLayout.centerPullStrength.default,
+			repelStrength: forceLayout.repelStrength.default,
+			linkStrengthFactor: forceLayout.linkStrengthFactor.default,
+			linkGapPx: forceLayout.linkGapPx.default,
+			collidePaddingPx: forceLayout.collidePaddingPx.default,
+			elkNodeSpacingPx: forceLayout.elkNodeSpacingPx.default,
 		};
 	}
 
 	static viewSettings(): ViewSettings {
+		const view = SETTINGS_SPEC.globalView;
 		return {
-			nodeCap: DEFAULT_NODE_CAP,
-			groupByFolder: true,
-			edgeVisibility: DEFAULT_EDGE_VISIBILITY,
+			nodeCap: view.nodeCap.default,
+			groupByFolder: view.groupByFolder.default,
+			edgeVisibility: view.edgeVisibility.default,
 			sizing: EngineDefaults.sizingSettings(),
 			forceLayout: EngineDefaults.forceLayoutSettings(),
 		};

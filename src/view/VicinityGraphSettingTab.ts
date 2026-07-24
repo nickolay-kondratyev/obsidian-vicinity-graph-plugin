@@ -1,7 +1,7 @@
 import { PluginSettingTab, Setting } from "obsidian";
 import type { App } from "obsidian";
 import type { Direction, ForceLayoutSettings, SizingSettings } from "../engine";
-import { EngineDefaults, FORCE_LAYOUT_RANGES } from "../engine";
+import { EngineDefaults, FORCE_LAYOUT_RANGES, MIN_NODE_CAP } from "../engine";
 import type VicinityGraphPlugin from "../main";
 import type { PluginDataStore } from "../persistence/PluginDataStore";
 import { MAX_STEPPER_DEPTH, MIN_STEPPER_DEPTH, clampStepperDepth } from "./constants";
@@ -26,9 +26,6 @@ import { SIZING_METRICS } from "./sizingMetrics";
  * Node-cap lives here ONLY (CLARIFICATION Q4): it is a global-only knob with no
  * per-doc/per-view surface.
  */
-
-/** A node cap below 1 would hide every non-central node — the floor is 1. */
-const MIN_NODE_CAP = 1;
 
 /** Visible height of the exclusion-patterns textarea (one pattern per line). */
 const EXCLUSION_TEXTAREA_ROWS = 4;

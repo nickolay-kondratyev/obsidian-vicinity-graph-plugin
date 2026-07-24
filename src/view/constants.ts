@@ -4,6 +4,13 @@
  * so the pure view modules and the ItemView glue share one source.
  */
 
+import { MAX_STEPPER_DEPTH, MIN_STEPPER_DEPTH } from "../engine";
+
+// Depth-stepper bounds live in the engine's SETTINGS_SPEC (co-located with the
+// depth defaults). Re-exported here so view modules keep importing them from the
+// view constants barrel unchanged.
+export { MAX_STEPPER_DEPTH, MIN_STEPPER_DEPTH };
+
 /**
  * Relayout trigger for a node that SURVIVED a rebuild (same id, same structure):
  * relayout only if its `sizePx` grew by more than this fraction. `1.0` = +100%
@@ -127,14 +134,6 @@ export const ELK_GROUP_PADDING = "[top=36.0,left=16.0,bottom=16.0,right=16.0]";
  * A low floor lets fitView always show the full graph; users can zoom back in.
  */
 export const GRAPH_MIN_ZOOM = 0.1;
-
-/**
- * Depth-stepper input bounds (CLARIFICATION Q2). These are an AFFORDANCE limit
- * on the toolbar/settings inputs — the engine itself honors any depth; this is
- * the UI's clamp so a stepper cannot dial a nonsensical value.
- */
-export const MIN_STEPPER_DEPTH = 0; // 0 = central only, no expansion that direction
-export const MAX_STEPPER_DEPTH = 5;
 
 /**
  * Clamp a (possibly fractional / out-of-range) stepper input into
