@@ -5,6 +5,11 @@ import { EngineDefaults, FORCE_LAYOUT_RANGES } from "../engine";
 import type VicinityGraphPlugin from "../main";
 import type { PluginDataStore } from "../persistence/PluginDataStore";
 import { MAX_STEPPER_DEPTH, MIN_STEPPER_DEPTH, clampStepperDepth } from "./constants";
+import {
+	FORCE_LAYOUT_ADVANCED_FIELDS,
+	FORCE_LAYOUT_FIELD_META,
+	FORCE_LAYOUT_MAIN_FIELDS,
+} from "./forceLayoutFieldMeta";
 import type { SettingsInteraction } from "./settingsWritePlan";
 import { planSettingsWrite } from "./settingsWritePlan";
 import { SIZING_METRICS } from "./sizingMetrics";
@@ -56,6 +61,8 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	display(): void {
 		const { containerEl } = this;
 		containerEl.empty();
+		// Scope class for the settings-tab card styling (src/view/settings-tab.css).
+		containerEl.addClass("vicinity-graph-settings");
 
 		this.renderDepthDefaults();
 		this.renderSizing();
@@ -65,56 +72,36 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	}
 
 	/**
+	 * One framed card per section (settings-ux CLARIFICATION #2: CSS-only visual
+	 * grouping, no collapsibles here). Each renderX() builds into its own card.
+	 */
+	private createSection(): HTMLElement {
+		return this.containerEl.createDiv({ cls: "vicinity-graph-settings-section" });
+	}
+
+	/**
 	 * Force-layout tuning (ticket-04). The four primary sliders carry the SAME
 	 * names as Obsidian's native graph view (POLS — users already know them);
 	 * the two spacing knobs live in a collapsible `<details>` block (Obsidian's
 	 * Setting API has no built-in collapsible group, and a native details
 	 * element keeps it dependency-free). Slider limits come from the engine's
 	 * {@link FORCE_LAYOUT_RANGES} — the SAME table the persistence parser clamps
-	 * with — and every control routes through one `global-force-layout`
-	 * interaction carrying the complete object.
+	 * with — labels/descriptions from the shared {@link FORCE_LAYOUT_FIELD_META}
+	 * (also driving the in-graph panel), and every control routes through one
+	 * `global-force-layout` interaction carrying the complete object.
 	 */
 	private renderForceLayout(): void {
-		new Setting(this.containerEl).setName("Force layout").setHeading();
-		this.addForceLayoutSlider(
-			this.containerEl,
-			"Center force",
-			"Pull of every node toward the graph centre. Keeps loosely-linked notes from drifting away.",
-			"centerPullStrength",
-		);
-		this.addForceLayoutSlider(
-			this.containerEl,
-			"Repel force",
-			"How strongly nodes and folder groups push each other apart.",
-			"repelStrength",
-		);
-		this.addForceLayoutSlider(
-			this.containerEl,
-			"Link force",
-			"Stiffness of the springs that pull linked notes together. 1 is the built-in default.",
-			"linkStrengthFactor",
-		);
-		this.addForceLayoutSlider(
-			this.containerEl,
-			"Link distance",
-			"Extra resting distance (px) a link keeps between the two linked boxes.",
-			"linkGapPx",
-		);
-		const advanced = this.containerEl.createEl("details");
+		const section = this.createSection();
+		new Setting(section).setName("Force layout").setHeading();
+		for (const field of FORCE_LAYOUT_MAIN_FIELDS) {
+			this.addForceLayoutSlider(section, field);
+		}
+		const advanced = section.createEl("details", { cls: "vicinity-graph-settings-advanced" });
 		advanced.createEl("summary", { text: "Advanced spacing" });
-		this.addForceLayoutSlider(
-			advanced,
-			"Node spacing",
-			"Minimum gap (px) enforced between any two boxes at the top level of the graph.",
-			"collidePaddingPx",
-		);
-		this.addForceLayoutSlider(
-			advanced,
-			"Group member spacing",
-			"Gap (px) between the notes inside a folder group (also spaces the initial layout pass).",
-			"elkNodeSpacingPx",
-		);
-		new Setting(this.containerEl)
+		for (const field of FORCE_LAYOUT_ADVANCED_FIELDS) {
+			this.addForceLayoutSlider(advanced, field);
+		}
+		new Setting(section)
 			.setName("Restore force layout defaults")
 			.setDesc("Reset all force layout sliders to their shipped defaults.")
 			.addButton((button) =>
@@ -137,9 +124,10 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	 * the tab so the textarea appears/disappears immediately.
 	 */
 	private renderExclusion(): void {
-		new Setting(this.containerEl).setName("Node exclusion").setHeading();
+		const section = this.createSection();
+		new Setting(section).setName("Node exclusion").setHeading();
 		const exclusion = this.store.nodeExclusion();
-		new Setting(this.containerEl)
+		new Setting(section)
 			.setName("Exclude notes from the graph")
 			.setDesc("Hide matching neighbor notes before the graph is built. Central and pinned notes are never excluded.")
 			.addToggle((toggle) =>
@@ -155,7 +143,7 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 		if (!exclusion.enabled) {
 			return;
 		}
-		new Setting(this.containerEl)
+		new Setting(section)
 			.setName("Exclusion patterns")
 			.setDesc(
 				"One regular expression per line, tested (case-sensitively, unanchored) against each note's vault path including extension. E.g. `^archive/` matches the archive folder at the vault root; `templates/` matches anywhere. Invalid patterns are ignored.",
@@ -174,15 +162,18 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	}
 
 	private renderDepthDefaults(): void {
-		new Setting(this.containerEl).setName("Depth defaults").setHeading();
+		const section = this.createSection();
+		new Setting(section).setName("Depth defaults").setHeading();
 		const depths = this.store.globalDepths();
 		this.addDepthSlider(
+			section,
 			"Outgoing depth",
 			"How many hops of outgoing links to expand from a central note by default.",
 			"outgoing",
 			depths.outgoingDepth,
 		);
 		this.addDepthSlider(
+			section,
 			"Incoming depth",
 			"How many hops of incoming links (backlinks) to expand by default.",
 			"incoming",
@@ -191,15 +182,16 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	}
 
 	private renderSizing(): void {
-		new Setting(this.containerEl).setName("Node sizing").setHeading();
-		new Setting(this.containerEl).setDesc(
+		const section = this.createSection();
+		new Setting(section).setName("Node sizing").setHeading();
+		new Setting(section).setDesc(
 			"Enable metrics and weight their contribution to each node's size. Sizes are normalised across the graph.",
 		);
 
 		const sizing = this.store.globalView().sizing;
 		for (const { id, label } of SIZING_METRICS) {
 			const metric = sizing.metrics[id];
-			new Setting(this.containerEl)
+			new Setting(section)
 				.setName(label)
 				.addToggle((toggle) =>
 					toggle.setValue(metric.enabled).onChange(async (enabled) => {
@@ -232,20 +224,21 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 				});
 		}
 
-		this.addSizingNumber("Minimum node size (px)", sizing.minPx, 1, 4, (minPx) =>
+		this.addSizingNumber(section, "Minimum node size (px)", sizing.minPx, 1, 4, (minPx) =>
 			this.applySizing({ ...this.store.globalView().sizing, minPx }),
 		);
-		this.addSizingNumber("Maximum node size (px)", sizing.maxPx, 1, 4, (maxPx) =>
+		this.addSizingNumber(section, "Maximum node size (px)", sizing.maxPx, 1, 4, (maxPx) =>
 			this.applySizing({ ...this.store.globalView().sizing, maxPx }),
 		);
-		this.addSizingNumber("Depth decay k", sizing.depthDecayK, 0, 0.5, (depthDecayK) =>
+		this.addSizingNumber(section, "Depth decay k", sizing.depthDecayK, 0, 0.5, (depthDecayK) =>
 			this.applySizing({ ...this.store.globalView().sizing, depthDecayK }),
 		);
 	}
 
 	private renderPerformance(): void {
-		new Setting(this.containerEl).setName("Performance").setHeading();
-		new Setting(this.containerEl)
+		const section = this.createSection();
+		new Setting(section).setName("Performance").setHeading();
+		new Setting(section)
 			.setName("Node cap")
 			.setDesc("Maximum number of non-central nodes rendered. Central and pinned notes are never capped.")
 			.addText((text) => {
@@ -262,8 +255,14 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 			});
 	}
 
-	private addDepthSlider(name: string, desc: string, direction: Direction, current: number): void {
-		new Setting(this.containerEl)
+	private addDepthSlider(
+		container: HTMLElement,
+		name: string,
+		desc: string,
+		direction: Direction,
+		current: number,
+	): void {
+		new Setting(container)
 			.setName(name)
 			.setDesc(desc)
 			.addSlider((slider) =>
@@ -282,13 +281,14 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	}
 
 	private addSizingNumber(
+		container: HTMLElement,
 		name: string,
 		value: number,
 		min: number,
 		step: number,
 		onChange: (value: number) => Promise<void>,
 	): void {
-		new Setting(this.containerEl).setName(name).addText((text) => {
+		new Setting(container).setName(name).addText((text) => {
 			text.inputEl.type = "number";
 			text.inputEl.min = String(min);
 			text.inputEl.step = String(step);
@@ -303,19 +303,17 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	}
 
 	/**
-	 * One force-layout slider. The current value is read fresh from the store on
-	 * every change so successive slider edits compose (same pattern as sizing).
+	 * One force-layout slider. Bounds come from {@link FORCE_LAYOUT_RANGES},
+	 * copy from the shared {@link FORCE_LAYOUT_FIELD_META}. The current value is
+	 * read fresh from the store on every change so successive edits compose
+	 * (same pattern as sizing).
 	 */
-	private addForceLayoutSlider(
-		container: HTMLElement,
-		name: string,
-		desc: string,
-		field: keyof ForceLayoutSettings,
-	): void {
+	private addForceLayoutSlider(container: HTMLElement, field: keyof ForceLayoutSettings): void {
 		const range = FORCE_LAYOUT_RANGES[field];
+		const meta = FORCE_LAYOUT_FIELD_META[field];
 		new Setting(container)
-			.setName(name)
-			.setDesc(desc)
+			.setName(meta.label)
+			.setDesc(meta.description)
 			.addSlider((slider) =>
 				slider
 					.setLimits(range.min, range.max, range.step)

@@ -1,17 +1,23 @@
 import type { ReactElement } from "react";
 import { useControlsActions } from "./ControlsActionsContext";
+import { Disclosure } from "./Disclosure";
 import type { SettingsWriteContext } from "./settingsWritePlan";
 import { planSettingsWrite } from "./settingsWritePlan";
+import { ToggleSwitch } from "./ToggleSwitch";
 
 /**
- * The toolbar's node-exclusion pill. Toggles the GLOBAL exclusion `enabled` flag
- * (preserving the pattern list from `ctx.nodeExclusion`) through the same pure
- * {@link planSettingsWrite} path the sizing/layout mirrors use — the rebuild flows
- * the fresh value back, so there is no local state. The pattern LIST is edited in
- * the settings tab (this pill is the quick on/off, per CLARIFICATION).
+ * The toolbar's node-exclusion disclosure. The {@link ToggleSwitch} flips the
+ * GLOBAL exclusion `enabled` flag (preserving the pattern list) through the
+ * same pure {@link planSettingsWrite} path as every other control — the rebuild
+ * flows the fresh value back, so there is no local state.
  *
- * The excluded COUNT is shown next to the label only when exclusion is enabled AND
- * at least one node was excluded for this graph (binding: "enabled AND count > 0").
+ * WHEN ON the body also shows the configured patterns READ-ONLY (per
+ * CLARIFICATION: the patterns, not the excluded note list). Editing stays in
+ * the settings tab. WHEN OFF the off-position switch alone says so.
+ *
+ * The excluded COUNT badge lives in the summary so it stays visible while the
+ * disclosure is collapsed (no regression vs the old always-visible pill);
+ * shown only when exclusion is enabled AND at least one node was excluded.
  */
 export function NodeExclusionSection({
 	ctx,
@@ -21,31 +27,55 @@ export function NodeExclusionSection({
 	readonly excludedNodeCount: number;
 }): ReactElement {
 	const actions = useControlsActions();
-	const { enabled } = ctx.nodeExclusion;
+	const { enabled, patterns } = ctx.nodeExclusion;
 	const showCount = enabled && excludedNodeCount > 0;
+	const setEnabled = (nextEnabled: boolean): void => {
+		void actions.applySettings(
+			planSettingsWrite(
+				{ kind: "global-node-exclusion", nodeExclusion: { ...ctx.nodeExclusion, enabled: nextEnabled } },
+				ctx,
+			),
+		);
+	};
+
 	return (
-		<label className="vicinity-graph-exclusion">
-			<input
-				type="checkbox"
-				checked={enabled}
-				onChange={(event) => {
-					void actions.applySettings(
-						planSettingsWrite(
-							{ kind: "global-node-exclusion", nodeExclusion: { ...ctx.nodeExclusion, enabled: event.target.checked } },
-							ctx,
-						),
-					);
-				}}
-			/>
-			<span className="vicinity-graph-exclusion__label">Exclude notes</span>
-			{showCount && (
-				<span
-					className="vicinity-graph-exclusion__count"
-					title={`${excludedNodeCount} node(s) excluded from this graph`}
-				>
-					{excludedNodeCount}
-				</span>
-			)}
-		</label>
+		<Disclosure
+			className="vicinity-graph-exclusion"
+			summary={
+				<>
+					<span className="vicinity-graph-exclusion__summary-label">Node exclusion</span>
+					{showCount && (
+						<span
+							className="vicinity-graph-exclusion__count"
+							title={`${excludedNodeCount} node(s) excluded from this graph`}
+						>
+							{excludedNodeCount}
+						</span>
+					)}
+				</>
+			}
+		>
+			<label className="vicinity-graph-exclusion__toggle-row">
+				<span>Exclude notes</span>
+				<ToggleSwitch checked={enabled} onChange={setEnabled} ariaLabel="Exclude notes" />
+			</label>
+			{enabled &&
+				(patterns.length > 0 ? (
+					<>
+						<ul className="vicinity-graph-exclusion__patterns" aria-label="Exclusion patterns">
+							{/* Index keys: the list is read-only and rebuilt wholesale, and raw user
+							    patterns are not guaranteed unique. */}
+							{patterns.map((pattern, index) => (
+								<li key={index}>
+									<code>{pattern}</code>
+								</li>
+							))}
+						</ul>
+						<div className="vicinity-graph-exclusion__hint">Patterns are edited in the plugin settings.</div>
+					</>
+				) : (
+					<div className="vicinity-graph-exclusion__hint">No patterns yet — add them in the plugin settings.</div>
+				))}
+		</Disclosure>
 	);
 }

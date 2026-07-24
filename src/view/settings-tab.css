@@ -1,0 +1,44 @@
+/*
+ * Settings-tab styles (settings-ux-improvements). Obsidian injects the plugin's
+ * generated styles.css app-wide, so these rules DO reach the settings modal
+ * DOM; everything is scoped under `.vicinity-graph-settings` (added to the
+ * tab's containerEl) so no other plugin's settings tab is touched.
+ *
+ * Theming rule (step-05): every colour comes from an Obsidian theme variable —
+ * the plugin ships zero colours of its own.
+ */
+
+/* Each renderX() section becomes a framed card; the column gap does the
+ * between-group separation so the cards read as distinct chunks (Gestalt
+ * enclosure + proximity). */
+.vicinity-graph-settings {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-4);
+}
+.vicinity-graph-settings .vicinity-graph-settings-section {
+	padding: var(--size-4-1) var(--size-4-4) var(--size-4-3);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+}
+
+/* Obsidian gives section headings a hefty top margin to separate flat runs of
+ * settings; inside a card the frame already does that job. */
+.vicinity-graph-settings .vicinity-graph-settings-section .setting-item-heading {
+	margin-top: 0;
+	padding-top: var(--size-4-3);
+	border-top: none;
+}
+
+/* The "Advanced spacing" collapsible inside the Force layout card: quiet
+ * summary row matching Obsidian's muted secondary text. */
+.vicinity-graph-settings .vicinity-graph-settings-advanced > summary {
+	padding: var(--size-4-2) 0;
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+	cursor: pointer;
+	user-select: none;
+}
+.vicinity-graph-settings .vicinity-graph-settings-advanced > summary:hover {
+	color: var(--text-normal);
+}
