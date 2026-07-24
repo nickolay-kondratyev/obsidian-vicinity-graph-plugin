@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { asFolderPath, asVaultPath } from "../engine";
 import { GraphLayoutRunner } from "./GraphLayoutRunner";
 import { extractElkDimensionsById, extractElkPositions, vicinityGraphToElk } from "./elkMapping";
+import { countOverlappingAabbPairs } from "./testFixtures/aabbOverlap";
 import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
 import type { VicinityGraph } from "../engine";
 
@@ -52,17 +53,7 @@ async function laidOutBoxes(graph: VicinityGraph): Promise<readonly Box[]> {
 }
 
 function overlappingPairCount(boxes: readonly Box[]): number {
-	let count = 0;
-	for (let i = 0; i < boxes.length; i++) {
-		for (let j = i + 1; j < boxes.length; j++) {
-			const a = boxes[i] as Box;
-			const b = boxes[j] as Box;
-			if (a.x < b.x + b.side && b.x < a.x + a.side && a.y < b.y + b.side && b.y < a.y + a.side) {
-				count += 1;
-			}
-		}
-	}
-	return count;
+	return countOverlappingAabbPairs(boxes.map((box) => ({ x: box.x, y: box.y, width: box.side, height: box.side })));
 }
 
 describe("d3-force layout of a high fan-out hub (the layout's motivating case)", () => {

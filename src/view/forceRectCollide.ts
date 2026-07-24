@@ -22,8 +22,8 @@ export interface RectCollideBody extends SimulationNodeDatum {
  * Mechanics, per relaxation pass over every pair in FIXED index order:
  * - Overlap is tested on ANTICIPATED positions (`x+vx`), the same trick d3's
  *   forceCollide uses so this pass sees where bodies are heading this tick.
- * - Half-extents are inflated by `paddingPx` so separated boxes keep a visible
- *   gap.
+ * - `paddingPx` is added ONCE PER PAIR to the combined half-extents, enforcing
+ *   a `paddingPx` gap between separated boxes (not 2x per-box inflation).
  * - The pair separates along the MINIMUM-penetration axis only, half the
  *   penetration to each body (velocity impulse, symmetric).
  * - Exactly-coincident centres tie-break to the positive direction — no

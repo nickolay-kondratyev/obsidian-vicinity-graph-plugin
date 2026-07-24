@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { asFolderPath, asVaultPath } from "../engine";
 import { GraphLayoutRunner } from "./GraphLayoutRunner";
 import { extractElkDimensionsById, extractElkPositions, vicinityGraphToElk } from "./elkMapping";
+import { countOverlappingAabbPairs } from "./testFixtures/aabbOverlap";
 import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
 import type { ElkNode } from "elkjs";
 import type { VicinityGraph } from "../engine";
@@ -149,17 +150,7 @@ function overlappingRootPairCount(layout: StrandedLayout): number {
 		}
 		return { x: position.x, y: position.y, width: dims.width, height: dims.height };
 	});
-	let count = 0;
-	for (let i = 0; i < boxes.length; i++) {
-		for (let j = i + 1; j < boxes.length; j++) {
-			const a = boxes[i] as (typeof boxes)[number];
-			const b = boxes[j] as (typeof boxes)[number];
-			if (a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height) {
-				count += 1;
-			}
-		}
-	}
-	return count;
+	return countOverlappingAabbPairs(boxes);
 }
 
 describe("d3-force stranding around a folder-grouped hub (ticket 03 Enchiridion mirror)", () => {

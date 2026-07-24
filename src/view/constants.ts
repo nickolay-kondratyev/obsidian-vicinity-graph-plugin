@@ -96,8 +96,8 @@ export const D3_FORCE_CHARGE_STRENGTH = -300;
 export const D3_FORCE_LINK_GAP_PX = 40;
 
 /**
- * Padding added to each box's half-extents in the rectangular collide force
- * (`forceRectCollide.ts`), so separated boxes keep a visible gap. 20 validated
+ * Minimum gap enforced between each PAIR of boxes by the rectangular collide
+ * force (`forceRectCollide.ts`) — applied once per pair, not per box. 20 validated
  * by the ticket-03 prototype: doubling it measurably worsened crowded layouts.
  */
 export const D3_FORCE_COLLIDE_PADDING_PX = 20;

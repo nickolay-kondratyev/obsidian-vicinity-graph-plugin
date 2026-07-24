@@ -1,5 +1,18 @@
 # IMPLEMENTATION — PRIVATE rehydration (03, pass 2, restart #2) — CONVERGED
 
+## ITERATION PASS (post-review, 2026-07-23) — DONE, READY
+Review verdict was APPROVED-WITH-MINORS (3 minors). Dispositions in
+IMPLEMENTATION_ITERATION__PUBLIC.md:
+- Minor 1 INCORPORATED: per-pair padding wording fixed in forceRectCollide.ts
+  module doc + constants.ts D3_FORCE_COLLIDE_PADDING_PX doc (comments only).
+- Minor 2 INCORPORATED (partial): new src/view/testFixtures/aabbOverlap.ts
+  (countOverlappingAabbPairs); both test helpers delegate. REJECTED sharing
+  HUB_SIZE_PX/NEIGHBOR_SIZE_PX — per-fixture data, coupling suites is worse.
+- Minor 3 NO ACTION: #QUESTION_FOR_HUMAN in review is for the human; untouched.
+Evidence: .tmp/iter-test.log 703/703 exit 0; .tmp/iter-check.log exit 0.
+Iteration changes UNCOMMITTED on top of committed 507a27a (top-level commits).
+
+
 All milestones done. See IMPLEMENTATION__PUBLIC.md for the human-facing record; this
 file holds the exact commands/numbers for any future rehydration.
 
