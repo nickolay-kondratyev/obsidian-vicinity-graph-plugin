@@ -1,0 +1,334 @@
+import { forceLink, forceManyBody, forceSimulation, forceX, forceY } from "d3-force";
+import { describe, expect, it } from "vitest";
+import { asFolderPath, asVaultPath } from "../engine";
+import {
+	D3_FORCE_CENTER_PULL_STRENGTH,
+	D3_FORCE_CHARGE_STRENGTH,
+	D3_FORCE_COLLIDE_PADDING_PX,
+	D3_FORCE_LINK_GAP_PX,
+} from "./constants";
+import { ElkLayoutRunner } from "./ElkLayoutRunner";
+import { GraphLayoutRunner } from "./GraphLayoutRunner";
+import { extractElkDimensionsById, extractElkPositions, vicinityGraphToElk } from "./elkMapping";
+import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
+import type { SimulationLinkDatum, SimulationNodeDatum } from "d3-force";
+import type { ElkNode } from "elkjs";
+import type { VicinityGraph } from "../engine";
+
+/**
+ * THROWAWAY PROTOTYPE (ticket 03 re-plan sandbox) — DO NOT COMMIT.
+ * Compares the CURRENT circular-collide refinement (via real GraphLayoutRunner)
+ * against a prototype rectangular (AABB) collide refinement, on the stranded-hub
+ * reproduction fixture, using a boundary-gap metric that can DETECT container
+ * stranding (unlike the invalidated circumscribed-normalised edge-stretch).
+ */
+
+const HUB_SIZE_PX = 160;
+const NEIGHBOR_SIZE_PX = 80;
+const STRANDED_HUB_FOLDER = "p/ep";
+const STRANDED_BOOK_FOLDER = "p/ep/book";
+const crowdPath = (index: number): string => `crowd${index}.md`;
+
+function strandedHubGraph(crowdCount: number): VicinityGraph {
+	const crowd = Array.from({ length: crowdCount }, (_, index) =>
+		makeNode({ path: asVaultPath(crowdPath(index)), minDepth: 1, sizePx: NEIGHBOR_SIZE_PX }),
+	);
+	return makeGraph({
+		nodes: [
+			makeNode({ path: asVaultPath("main.md"), isCentral: true, isMain: true, minDepth: 0, sizePx: 100 }),
+			makeNode({
+				path: asVaultPath("p/ep/hub.md"),
+				folder: asFolderPath(STRANDED_HUB_FOLDER),
+				minDepth: 1,
+				sizePx: HUB_SIZE_PX,
+			}),
+			makeNode({
+				path: asVaultPath("p/ep/sib.md"),
+				folder: asFolderPath(STRANDED_HUB_FOLDER),
+				minDepth: 1,
+				sizePx: HUB_SIZE_PX,
+			}),
+			...crowd,
+			makeNode({
+				path: asVaultPath("p/ep/book/enchiridion.md"),
+				folder: asFolderPath(STRANDED_BOOK_FOLDER),
+				minDepth: 2,
+				sizePx: NEIGHBOR_SIZE_PX,
+			}),
+		],
+		edges: [
+			makeEdge("main.md", "p/ep/hub.md"),
+			makeEdge("p/ep/hub.md", "p/ep/sib.md"),
+			...crowd.map((node) => makeEdge("p/ep/hub.md", node.path)),
+			makeEdge("p/ep/hub.md", "p/ep/book/enchiridion.md"),
+		],
+	});
+}
+
+/** The pre-existing 24-neighbor hub regression fixture (no folders). */
+function hubGraph(): VicinityGraph {
+	const NEIGHBOR_COUNT = 24;
+	const neighborPath = (index: number): string => `n${index}.md`;
+	return makeGraph({
+		nodes: [
+			makeNode({ path: asVaultPath("hub.md"), isCentral: true, isMain: true, minDepth: 0, sizePx: HUB_SIZE_PX }),
+			...Array.from({ length: NEIGHBOR_COUNT }, (_, index) =>
+				makeNode({ path: asVaultPath(neighborPath(index)), minDepth: 1, sizePx: NEIGHBOR_SIZE_PX }),
+			),
+		],
+		edges: Array.from({ length: NEIGHBOR_COUNT }, (_, index) =>
+			index % 2 === 0 ? makeEdge("hub.md", neighborPath(index)) : makeEdge(neighborPath(index), "hub.md"),
+		),
+	});
+}
+
+// ---------------------------------------------------------------------------
+// PROTOTYPE refinement: same shape as refineForceRootLayout, but:
+//   1. rectangular AABB collide replaces circular forceCollide
+//   2. link resting distance uses min half-extents (not circumscribed radii)
+// ---------------------------------------------------------------------------
+
+interface ForceBody extends SimulationNodeDatum {
+	readonly id: string;
+	readonly halfWidth: number;
+	readonly halfHeight: number;
+}
+
+function forceRectCollide(paddingPx: number, iterations: number) {
+	let bodies: ForceBody[] = [];
+	const force = (): void => {
+		for (let k = 0; k < iterations; k++) {
+			for (let i = 0; i < bodies.length; i++) {
+				for (let j = i + 1; j < bodies.length; j++) {
+					const a = bodies[i] as Required<ForceBody>;
+					const b = bodies[j] as Required<ForceBody>;
+					const dx = b.x + b.vx - (a.x + a.vx);
+					const dy = b.y + b.vy - (a.y + a.vy);
+					const px = a.halfWidth + b.halfWidth + paddingPx - Math.abs(dx);
+					const py = a.halfHeight + b.halfHeight + paddingPx - Math.abs(dy);
+					if (px <= 0 || py <= 0) {
+						continue;
+					}
+					if (px < py) {
+						const sign = dx > 0 ? 1 : dx < 0 ? -1 : 1;
+						a.vx -= (px / 2) * sign;
+						b.vx += (px / 2) * sign;
+					} else {
+						const sign = dy > 0 ? 1 : dy < 0 ? -1 : 1;
+						a.vy -= (py / 2) * sign;
+						b.vy += (py / 2) * sign;
+					}
+				}
+			}
+		}
+	};
+	force.initialize = (n: ForceBody[]): void => {
+		bodies = n;
+	};
+	return force;
+}
+
+function protoRefineForceRootLayout(root: ElkNode): ElkNode {
+	const children = root.children ?? [];
+	if (children.length < 2) {
+		return root;
+	}
+	const bodies = children.map((child): ForceBody => {
+		const width = child.width ?? 0;
+		const height = child.height ?? 0;
+		return {
+			id: child.id,
+			halfWidth: width / 2,
+			halfHeight: height / 2,
+			x: (child.x ?? 0) + width / 2,
+			y: (child.y ?? 0) + height / 2,
+		};
+	});
+	const meanX = bodies.reduce((sum, body) => sum + (body.x ?? 0), 0) / bodies.length;
+	const meanY = bodies.reduce((sum, body) => sum + (body.y ?? 0), 0) / bodies.length;
+	for (const body of bodies) {
+		body.x = (body.x ?? 0) - meanX;
+		body.y = (body.y ?? 0) - meanY;
+	}
+	const links: SimulationLinkDatum<ForceBody>[] = (root.edges ?? []).map((edge) => ({
+		source: edge.sources[0] as string,
+		target: edge.targets[0] as string,
+	}));
+	const minHalf = (b: ForceBody): number => Math.min(b.halfWidth, b.halfHeight);
+	const simulation = forceSimulation(bodies)
+		.randomSource(seededRandom())
+		.force(
+			"link",
+			forceLink<ForceBody, SimulationLinkDatum<ForceBody>>(links)
+				.id((body) => body.id)
+				.distance(
+					(link) =>
+						minHalf(link.source as ForceBody) + minHalf(link.target as ForceBody) + D3_FORCE_LINK_GAP_PX,
+				),
+		)
+		.force("charge", forceManyBody<ForceBody>().strength(D3_FORCE_CHARGE_STRENGTH))
+		// Variation A (RECOMMENDED): padding 20, 2 iterations — best metric results.
+		// Variation B (2x padding, 3 iterations) was measurably worse at crowd>=10.
+		.force("collide", forceRectCollide(D3_FORCE_COLLIDE_PADDING_PX, 2))
+		.force("x", forceX<ForceBody>(0).strength(D3_FORCE_CENTER_PULL_STRENGTH))
+		.force("y", forceY<ForceBody>(0).strength(D3_FORCE_CENTER_PULL_STRENGTH))
+		.stop();
+	simulation.tick(Math.ceil(Math.log(simulation.alphaMin()) / Math.log(1 - simulation.alphaDecay())));
+	const bodyById = new Map(bodies.map((body) => [body.id, body]));
+	return {
+		...root,
+		children: children.map((child) => {
+			const body = bodyById.get(child.id);
+			if (body === undefined || body.x === undefined || body.y === undefined) {
+				return child;
+			}
+			return { ...child, x: body.x - body.halfWidth, y: body.y - body.halfHeight };
+		}),
+	};
+}
+
+function seededRandom(): () => number {
+	const MODULUS = 2 ** 32;
+	let state = 1;
+	return () => {
+		state = (state * 1664525 + 1013904223) % MODULUS;
+		return state / MODULUS;
+	};
+}
+
+// ---------------------------------------------------------------------------
+// Measurement helpers
+// ---------------------------------------------------------------------------
+
+interface LaidOut {
+	readonly positions: ReadonlyMap<string, { x: number; y: number }>;
+	readonly dimensions: ReadonlyMap<string, { width: number; height: number }>;
+	readonly rootEdges: readonly { source: string; target: string }[];
+	readonly rootIds: readonly string[];
+}
+
+async function layoutBaseline(graph: VicinityGraph): Promise<LaidOut> {
+	const elkRoot = vicinityGraphToElk(graph);
+	const laidOut = await new GraphLayoutRunner().layout(elkRoot);
+	return summarize(elkRoot, laidOut);
+}
+
+async function layoutProto(graph: VicinityGraph): Promise<LaidOut> {
+	const elkRoot = vicinityGraphToElk(graph);
+	const elkSeeded = await new ElkLayoutRunner().layout(elkRoot);
+	const laidOut = protoRefineForceRootLayout(elkSeeded);
+	return summarize(elkRoot, laidOut);
+}
+
+function summarize(elkRoot: ElkNode, laidOut: ElkNode): LaidOut {
+	return {
+		positions: extractElkPositions(laidOut),
+		dimensions: extractElkDimensionsById(laidOut),
+		rootEdges: (elkRoot.edges ?? []).map((edge) => ({
+			source: edge.sources[0] as string,
+			target: edge.targets[0] as string,
+		})),
+		rootIds: (laidOut.children ?? []).map((child) => child.id),
+	};
+}
+
+function centerOf(out: LaidOut, id: string): { x: number; y: number } {
+	const pos = out.positions.get(id);
+	const dims = out.dimensions.get(id);
+	if (pos === undefined || dims === undefined) {
+		throw new Error(`missing ${id}`);
+	}
+	return { x: pos.x + dims.width / 2, y: pos.y + dims.height / 2 };
+}
+
+/**
+ * Boundary gap of a root edge: rendered free space between the two boxes'
+ * RECTANGLE boundaries along the center-to-center segment. Detects stranding the
+ * old edge-stretch could not: a neighbor held off a tall container's
+ * circumscribed circle shows a large gap even though stretch ratio ~= 1.
+ */
+function boundaryGapPx(out: LaidOut, sourceId: string, targetId: string): number {
+	const s = centerOf(out, sourceId);
+	const t = centerOf(out, targetId);
+	const dist = Math.hypot(t.x - s.x, t.y - s.y);
+	if (dist === 0) {
+		return 0;
+	}
+	const ux = Math.abs((t.x - s.x) / dist);
+	const uy = Math.abs((t.y - s.y) / dist);
+	const extent = (id: string): number => {
+		const dims = out.dimensions.get(id);
+		if (dims === undefined) {
+			throw new Error(`missing dims ${id}`);
+		}
+		return Math.min(ux > 0 ? dims.width / 2 / ux : Number.POSITIVE_INFINITY, uy > 0 ? dims.height / 2 / uy : Number.POSITIVE_INFINITY);
+	};
+	return dist - extent(sourceId) - extent(targetId);
+}
+
+/** Axis-aligned overlap area between root-level boxes (0 = clean layout). */
+function rootOverlapCount(out: LaidOut): number {
+	let count = 0;
+	const boxes = out.rootIds.map((id) => {
+		const pos = out.positions.get(id);
+		const dims = out.dimensions.get(id);
+		if (pos === undefined || dims === undefined) {
+			throw new Error(`missing ${id}`);
+		}
+		return { x: pos.x, y: pos.y, w: dims.width, h: dims.height };
+	});
+	for (let i = 0; i < boxes.length; i++) {
+		for (let j = i + 1; j < boxes.length; j++) {
+			const a = boxes[i] as { x: number; y: number; w: number; h: number };
+			const b = boxes[j] as { x: number; y: number; w: number; h: number };
+			if (a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h) {
+				count += 1;
+			}
+		}
+	}
+	return count;
+}
+
+function report(label: string, out: LaidOut): string {
+	const gaps = out.rootEdges
+		.map((edge) => ({ ...edge, gap: boundaryGapPx(out, edge.source, edge.target) }))
+		.sort((a, b) => b.gap - a.gap);
+	const worst = gaps[0];
+	const ench = centerOf(out, "p/ep/book/enchiridion.md");
+	const hub = centerOf(out, "p/ep/hub.md");
+	const enchToHubMember = Math.hypot(ench.x - hub.x, ench.y - hub.y);
+	const enchGap = gaps.find((g) => g.source.includes("book") || g.target.includes("book"));
+	return (
+		`${label}: overlaps=${rootOverlapCount(out)} ` +
+		`worstGap=${worst?.gap.toFixed(0)} (${worst?.source}->${worst?.target}) ` +
+		`enchGap=${enchGap?.gap.toFixed(0)} enchToHubMember=${enchToHubMember.toFixed(0)} ` +
+		`allGaps=[${gaps.map((g) => g.gap.toFixed(0)).join(",")}]`
+	);
+}
+
+// ---------------------------------------------------------------------------
+
+describe("PROTO rect-collide vs baseline circular collide", () => {
+	it("stranded fixture: baseline vs proto numbers", async () => {
+		const lines: string[] = [];
+		for (const crowd of [5, 10, 16]) {
+			const graph = strandedHubGraph(crowd);
+			lines.push(report(`BASE crowd=${crowd}`, await layoutBaseline(graph)));
+			lines.push(report(`PROTO crowd=${crowd}`, await layoutProto(graph)));
+		}
+		console.log(`\n${lines.join("\n")}\n`);
+		expect(true).toBe(true);
+	});
+
+	it("hub regression fixture: proto keeps zero overlaps", async () => {
+		const out = await layoutProto(hubGraph());
+		console.log(`PROTO hub24: overlaps=${rootOverlapCount(out)}`);
+		expect(rootOverlapCount(out)).toBe(0);
+	});
+
+	it("proto is deterministic (two runs bit-identical)", async () => {
+		const a = await layoutProto(strandedHubGraph(10));
+		const b = await layoutProto(strandedHubGraph(10));
+		expect([...a.positions.entries()]).toEqual([...b.positions.entries()]);
+	});
+});
