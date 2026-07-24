@@ -135,3 +135,70 @@ test("settings tab renders five framed section cards with plugin CSS applied", a
 	await harness.setTheme("light");
 	await page.screenshot({ path: `${OUT_DIR}/settings-tab-cards-light.png` });
 });
+
+/** The plugin's persisted globals, straight from the store (no UI in the middle). */
+function readGlobals(): Promise<{ view: { nodeCap: number }; depths: { outgoingDepth: number } }> {
+	return page.evaluate((pluginId) => {
+		const store = (window as any).app.plugins.plugins[pluginId].pluginDataStore;
+		return { view: store.globalView(), depths: store.globalDepths() };
+	}, PLUGIN_ID);
+}
+
+async function openSettingsTab(): Promise<void> {
+	await page.evaluate((pluginId) => {
+		const app = (window as any).app;
+		app.setting.open();
+		app.setting.openTabById(pluginId);
+	}, PLUGIN_ID);
+}
+
+test("settings tab: every section card ends with its own scoped restore row", async () => {
+	await openSettingsTab();
+	const resets = page.locator(".vicinity-graph-settings-section .vicinity-graph-settings-reset");
+	await expect(resets).toHaveCount(5);
+	// Scope must be readable from the row itself — no bare "Restore defaults".
+	await expect(resets.locator(".setting-item-name")).toHaveText([
+		"Restore depth defaults",
+		"Restore node sizing defaults",
+		"Restore force layout defaults",
+		"Restore node exclusion defaults",
+		"Restore performance defaults",
+	]);
+	await page.screenshot({ path: `${OUT_DIR}/settings-tab-resets-light.png` });
+});
+
+test("settings tab: a section restore resets ONLY that section", async () => {
+	await openSettingsTab();
+	const nodeCap = page.getByLabel("Node cap").or(page.locator(".vicinity-graph-settings input[type=number]").last());
+	await page.evaluate(async (pluginId) => {
+		const plugin = (window as any).app.plugins.plugins[pluginId];
+		const store = plugin.pluginDataStore;
+		await store.saveGlobalView({ ...store.globalView(), nodeCap: 42 });
+		await store.saveGlobalDepths({ outgoingDepth: 4, incomingDepth: 4 });
+		plugin.app.setting.activeTab.display();
+	}, PLUGIN_ID);
+	await expect(nodeCap).toHaveValue("42");
+	await page.locator(".vicinity-graph-settings-section", { hasText: "Performance" }).getByRole("button").click();
+	const after = await readGlobals();
+	expect(after.view.nodeCap).toBe(100);
+	// The other section stays exactly as the user left it.
+	expect(after.depths.outgoingDepth).toBe(4);
+});
+
+test("settings tab: restore-all asks first, then resets every section", async () => {
+	await openSettingsTab();
+	const restoreAll = page.locator(".vicinity-graph-settings-reset-all").getByRole("button");
+	await restoreAll.click();
+	// `.last()`: the settings window is itself a `.modal-container`; the confirm
+	// dialog stacks on top of it.
+	const modal = page.locator(".modal-container").last();
+	await expect(modal).toContainText("Restore all Vicinity Graph settings?");
+	await page.screenshot({ path: `${OUT_DIR}/settings-tab-restore-all-confirm.png` });
+	await modal.getByRole("button", { name: "Cancel" }).click();
+	// Cancel must be a true no-op.
+	expect((await readGlobals()).depths.outgoingDepth).toBe(4);
+	await restoreAll.click();
+	await modal.getByRole("button", { name: "Restore all defaults" }).click();
+	const after = await readGlobals();
+	expect(after.depths.outgoingDepth).toBe(1);
+});

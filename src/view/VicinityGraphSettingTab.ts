@@ -1,16 +1,19 @@
 import { PluginSettingTab, Setting } from "obsidian";
 import type { App } from "obsidian";
 import type { Direction, ForceLayoutSettings, SizingSettings } from "../engine";
-import { EngineDefaults, FORCE_LAYOUT_RANGES, MIN_NODE_CAP } from "../engine";
+import { FORCE_LAYOUT_RANGES, MIN_NODE_CAP } from "../engine";
 import type VicinityGraphPlugin from "../main";
 import type { PluginDataStore } from "../persistence/PluginDataStore";
+import { ConfirmModal } from "./ConfirmModal";
 import { MAX_STEPPER_DEPTH, MIN_STEPPER_DEPTH, clampStepperDepth } from "./constants";
 import {
 	FORCE_LAYOUT_ADVANCED_FIELDS,
 	FORCE_LAYOUT_FIELD_META,
 	FORCE_LAYOUT_MAIN_FIELDS,
 } from "./forceLayoutFieldMeta";
-import type { SettingsInteraction } from "./settingsWritePlan";
+import type { SettingsResetScope } from "./settingsResetPlan";
+import { ALL_SETTINGS_RESET_SCOPE, SETTINGS_RESET_SCOPES, planSettingsReset } from "./settingsResetPlan";
+import type { SettingsCommand, SettingsInteraction, SettingsWriteContext } from "./settingsWritePlan";
 import { planSettingsWrite } from "./settingsWritePlan";
 import { SIZING_METRICS } from "./sizingMetrics";
 
@@ -66,6 +69,7 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 		this.renderForceLayout();
 		this.renderExclusion();
 		this.renderPerformance();
+		this.renderRestoreAll();
 	}
 
 	/**
@@ -74,6 +78,58 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	 */
 	private createSection(): HTMLElement {
 		return this.containerEl.createDiv({ cls: "vicinity-graph-settings-section" });
+	}
+
+	/**
+	 * The LAST row of a section card: its restore-defaults affordance. Placement
+	 * and copy are uniform across all five cards, and the copy is read from
+	 * {@link SETTINGS_RESET_SCOPES} so the stated blast radius always matches the
+	 * key-set actually written. Inside the card's frame on purpose — a reset
+	 * rendered after the frame closes reads as a tab-wide reset.
+	 */
+	private addSectionReset(section: HTMLElement, scope: SettingsResetScope): void {
+		const { label, description } = SETTINGS_RESET_SCOPES[scope];
+		new Setting(section)
+			.setClass("vicinity-graph-settings-reset")
+			.setName(label)
+			.setDesc(description)
+			.addButton((button) =>
+				button
+					.setButtonText("Restore defaults")
+					// The button alone would be ambiguous once the tab has six of
+					// them; the accessible name carries the scope, like the row name.
+					.setTooltip(label)
+					.then(() => button.buttonEl.setAttribute("aria-label", label))
+					.onClick(() => this.applyReset(scope)),
+			);
+	}
+
+	/**
+	 * Tab-wide restore, outside every section frame (its blast radius is the whole
+	 * plugin, so it must not sit inside any one card). Destructive and not cheap
+	 * to redo → the only reset gated behind a confirmation; the red treatment
+	 * lives on the modal's confirm button, never on this one.
+	 */
+	private renderRestoreAll(): void {
+		const { label, description } = SETTINGS_RESET_SCOPES[ALL_SETTINGS_RESET_SCOPE];
+		const footer = this.containerEl.createDiv({ cls: "vicinity-graph-settings-reset-all" });
+		new Setting(footer)
+			.setName(label)
+			.setDesc(description)
+			.addButton((button) =>
+				button
+					.setButtonText("Restore all defaults")
+					.setTooltip(label)
+					.then(() => button.buttonEl.setAttribute("aria-label", label))
+					.onClick(() => {
+						new ConfirmModal(this.app, {
+							title: `${label}?`,
+							body: `${description} This cannot be undone.`,
+							confirmText: "Restore all defaults",
+							onConfirm: () => this.applyReset(ALL_SETTINGS_RESET_SCOPE),
+						}).open();
+					}),
+			);
 	}
 
 	/**
@@ -98,16 +154,7 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 		for (const field of FORCE_LAYOUT_ADVANCED_FIELDS) {
 			this.addForceLayoutSlider(advanced, field);
 		}
-		new Setting(section)
-			.setName("Restore force layout defaults")
-			.setDesc("Reset all force layout sliders to their shipped defaults.")
-			.addButton((button) =>
-				button.setButtonText("Restore defaults").onClick(async () => {
-					await this.applyForceLayout(EngineDefaults.forceLayoutSettings());
-					// Re-render so every slider knob jumps back to its default.
-					this.display();
-				}),
-			);
+		this.addSectionReset(section, "force-layout");
 	}
 
 	/**
@@ -137,9 +184,13 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 					this.display();
 				}),
 			);
-		if (!exclusion.enabled) {
-			return;
+		if (exclusion.enabled) {
+			this.addExclusionPatterns(section, exclusion.patterns);
 		}
+		this.addSectionReset(section, "node-exclusion");
+	}
+
+	private addExclusionPatterns(section: HTMLElement, patterns: readonly string[]): void {
 		new Setting(section)
 			.setName("Exclusion patterns")
 			.setDesc(
@@ -148,7 +199,7 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 			.addTextArea((text) => {
 				text.inputEl.rows = EXCLUSION_TEXTAREA_ROWS;
 				text.inputEl.setAttribute("aria-label", "Exclusion patterns");
-				text.setValue(exclusion.patterns.join("\n"));
+				text.setValue(patterns.join("\n"));
 				text.onChange((raw) => {
 					void this.applyInteraction({
 						kind: "global-node-exclusion",
@@ -176,6 +227,7 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 			"incoming",
 			depths.incomingDepth,
 		);
+		this.addSectionReset(section, "depth-defaults");
 	}
 
 	private renderSizing(): void {
@@ -230,6 +282,7 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 		this.addSizingNumber(section, "Depth decay k", sizing.depthDecayK, 0, 0.5, (depthDecayK) =>
 			this.applySizing({ ...this.store.globalView().sizing, depthDecayK }),
 		);
+		this.addSectionReset(section, "node-sizing");
 	}
 
 	private renderPerformance(): void {
@@ -250,6 +303,7 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 					}
 				});
 			});
+		this.addSectionReset(section, "performance");
 	}
 
 	private addDepthSlider(
@@ -337,25 +391,54 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	 * from a global-* interaction; the per-doc kinds are unreachable here.
 	 */
 	private async applyInteraction(interaction: SettingsInteraction): Promise<void> {
-		const command = planSettingsWrite(interaction, {
+		await this.persist(planSettingsWrite(interaction, this.writeContext()));
+		this.plugin.refreshOpenViews();
+	}
+
+	/**
+	 * Restore-defaults path. It shares the store/refresh seam with every other
+	 * settings write — the ONLY difference is that the commands come from
+	 * {@link planSettingsReset} (spec defaults) instead of a control's value.
+	 * Commands are persisted in order, each planned against the same snapshot, so
+	 * a multi-slice reset cannot half-apply a stale view object.
+	 */
+	private async applyReset(scope: SettingsResetScope): Promise<void> {
+		for (const command of planSettingsReset(scope, this.writeContext())) {
+			await this.persist(command);
+		}
+		this.plugin.refreshOpenViews();
+		// Re-render so every control's displayed value actually moves back.
+		this.display();
+	}
+
+	/** Globals read FRESH on every write so successive edits compose. */
+	private writeContext(): SettingsWriteContext {
+		return {
 			globalDepths: this.store.globalDepths(),
 			globalView: this.store.globalView(),
 			nodeExclusion: this.store.nodeExclusion(),
-		});
+		};
+	}
+
+	/**
+	 * The single persistence executor. Only the three global command kinds can
+	 * result from a global-* interaction or a reset; the per-doc kinds are
+	 * unreachable from this surface.
+	 */
+	private async persist(command: SettingsCommand): Promise<void> {
 		switch (command.kind) {
 			case "global-depths":
 				await this.store.saveGlobalDepths(command.depths);
-				break;
+				return;
 			case "global-view":
 				await this.store.saveGlobalView(command.view);
-				break;
+				return;
 			case "node-exclusion":
 				await this.store.saveNodeExclusion(command.nodeExclusion);
-				break;
+				return;
 			case "doc-depth-field":
 			case "central-depth-field":
 				return;
 		}
-		this.plugin.refreshOpenViews();
 	}
 }
