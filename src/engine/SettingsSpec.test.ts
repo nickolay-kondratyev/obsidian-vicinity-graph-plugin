@@ -1,0 +1,174 @@
+import { describe, expect, it } from "vitest";
+import {
+	DEFAULT_EDGE_VISIBILITY,
+	DEFAULT_INCOMING_DEPTH,
+	DEFAULT_MAX_NODE_PX,
+	DEFAULT_MIN_NODE_PX,
+	DEFAULT_NODE_CAP,
+	DEFAULT_OUTGOING_DEPTH,
+	EngineDefaults,
+	FORCE_LAYOUT_RANGES,
+	MAX_STEPPER_DEPTH,
+	MIN_NODE_CAP,
+	MIN_STEPPER_DEPTH,
+} from "./constants";
+import { SETTINGS_SPEC } from "./SettingsSpec";
+import { SettingsDefaults } from "./SettingsDefaults";
+
+/**
+ * Refactor guard: SETTINGS_SPEC is the SINGLE source of truth for every settings
+ * default and limit. These tests pin the exact shipped baseline (so a future
+ * edit that drifts a value fails loudly) AND prove the adapters (`EngineDefaults`,
+ * `FORCE_LAYOUT_RANGES`, the view bounds) are mechanical projections of the spec.
+ */
+describe("SETTINGS_SPEC (single source of truth for defaults + limits)", () => {
+	it("WHEN the spec is read THEN its default values equal the exact shipped baseline", () => {
+		const view = SETTINGS_SPEC.globalView;
+		expect({
+			globalDepths: {
+				outgoingDepth: SETTINGS_SPEC.globalDepths.outgoingDepth.default,
+				incomingDepth: SETTINGS_SPEC.globalDepths.incomingDepth.default,
+			},
+			nodeCap: view.nodeCap.default,
+			groupByFolder: view.groupByFolder.default,
+			edgeVisibility: view.edgeVisibility.default,
+			sizing: {
+				metrics: Object.fromEntries(
+					Object.entries(view.sizing.metrics).map(([id, m]) => [id, m.default]),
+				),
+				depthDecayK: view.sizing.depthDecayK.default,
+				minPx: view.sizing.minPx.default,
+				maxPx: view.sizing.maxPx.default,
+			},
+			forceLayout: Object.fromEntries(
+				Object.entries(view.forceLayout).map(([field, s]) => [field, s.default]),
+			),
+			nodeExclusion: {
+				enabled: SETTINGS_SPEC.nodeExclusion.enabled.default,
+				patterns: SETTINGS_SPEC.nodeExclusion.patterns.default,
+			},
+		}).toEqual({
+			globalDepths: { outgoingDepth: 1, incomingDepth: 1 },
+			nodeCap: 100,
+			groupByFolder: true,
+			edgeVisibility: "walked-from-center",
+			sizing: {
+				metrics: {
+					"own-file-size": { enabled: true, weight: 1 },
+					"total-linker-size": { enabled: false, weight: 1 },
+					"backlink-count": { enabled: false, weight: 1 },
+					"outlink-count": { enabled: false, weight: 1 },
+					"depth-decay": { enabled: false, weight: 1 },
+				},
+				depthDecayK: 1,
+				minPx: 40,
+				maxPx: 160,
+			},
+			forceLayout: {
+				centerPullStrength: 0.05,
+				repelStrength: 300,
+				linkStrengthFactor: 1,
+				linkGapPx: 40,
+				collidePaddingPx: 20,
+				elkNodeSpacingPx: 40,
+			},
+			nodeExclusion: { enabled: false, patterns: [] },
+		});
+	});
+
+	it("WHEN the spec is read THEN its limits equal the exact shipped baseline", () => {
+		expect({
+			depthStepper: {
+				min: SETTINGS_SPEC.globalDepths.outgoingDepth.min,
+				max: SETTINGS_SPEC.globalDepths.outgoingDepth.max,
+			},
+			nodeCapMin: SETTINGS_SPEC.globalView.nodeCap.min,
+			forceLayout: Object.fromEntries(
+				Object.entries(SETTINGS_SPEC.globalView.forceLayout).map(([field, s]) => [
+					field,
+					{ min: s.min, max: s.max, step: s.step },
+				]),
+			),
+		}).toEqual({
+			depthStepper: { min: 0, max: 5 },
+			nodeCapMin: 1,
+			forceLayout: {
+				centerPullStrength: { min: 0, max: 0.15, step: 0.01 },
+				repelStrength: { min: 50, max: 1000, step: 10 },
+				linkStrengthFactor: { min: 0.25, max: 2, step: 0.05 },
+				linkGapPx: { min: 10, max: 150, step: 5 },
+				collidePaddingPx: { min: 0, max: 80, step: 5 },
+				elkNodeSpacingPx: { min: 10, max: 120, step: 5 },
+			},
+		});
+	});
+});
+
+describe("adapters derive from SETTINGS_SPEC", () => {
+	it("WHEN EngineDefaults.viewSettings is built THEN it projects the spec defaults", () => {
+		expect(EngineDefaults.viewSettings()).toEqual({
+			nodeCap: SETTINGS_SPEC.globalView.nodeCap.default,
+			groupByFolder: SETTINGS_SPEC.globalView.groupByFolder.default,
+			edgeVisibility: SETTINGS_SPEC.globalView.edgeVisibility.default,
+			sizing: EngineDefaults.sizingSettings(),
+			forceLayout: EngineDefaults.forceLayoutSettings(),
+		});
+	});
+
+	it("WHEN EngineDefaults.depthSettings is built THEN it projects the spec depth defaults", () => {
+		expect(EngineDefaults.depthSettings()).toEqual({ outgoingDepth: 1, incomingDepth: 1 });
+	});
+
+	it("WHEN EngineDefaults.nodeExclusionSettings is built THEN it projects the spec exclusion defaults", () => {
+		expect(EngineDefaults.nodeExclusionSettings()).toEqual({ enabled: false, patterns: [] });
+	});
+
+	it("WHEN sizingSettings is built twice THEN each call returns deep-equal but fresh metric objects", () => {
+		const first = EngineDefaults.sizingSettings();
+		const second = EngineDefaults.sizingSettings();
+		expect(first.metrics["own-file-size"]).toEqual(second.metrics["own-file-size"]);
+		expect(first.metrics["own-file-size"]).not.toBe(second.metrics["own-file-size"]);
+	});
+
+	it("WHEN FORCE_LAYOUT_RANGES is read THEN each field mirrors the spec's min/max/step", () => {
+		for (const [field, spec] of Object.entries(SETTINGS_SPEC.globalView.forceLayout)) {
+			expect(FORCE_LAYOUT_RANGES[field as keyof typeof FORCE_LAYOUT_RANGES]).toEqual({
+				min: spec.min,
+				max: spec.max,
+				step: spec.step,
+			});
+		}
+	});
+
+	it("WHEN the DEFAULT_* named constants are read THEN they alias the spec defaults", () => {
+		expect({
+			DEFAULT_NODE_CAP,
+			DEFAULT_OUTGOING_DEPTH,
+			DEFAULT_INCOMING_DEPTH,
+			DEFAULT_MIN_NODE_PX,
+			DEFAULT_MAX_NODE_PX,
+			DEFAULT_EDGE_VISIBILITY,
+		}).toEqual({
+			DEFAULT_NODE_CAP: 100,
+			DEFAULT_OUTGOING_DEPTH: 1,
+			DEFAULT_INCOMING_DEPTH: 1,
+			DEFAULT_MIN_NODE_PX: 40,
+			DEFAULT_MAX_NODE_PX: 160,
+			DEFAULT_EDGE_VISIBILITY: "walked-from-center",
+		});
+	});
+
+	it("WHEN the view bound constants are read THEN they alias the spec limits", () => {
+		expect({ MIN_NODE_CAP, MIN_STEPPER_DEPTH, MAX_STEPPER_DEPTH }).toEqual({
+			MIN_NODE_CAP: 1,
+			MIN_STEPPER_DEPTH: 0,
+			MAX_STEPPER_DEPTH: 5,
+		});
+	});
+});
+
+describe("SettingsDefaults discoverability shim", () => {
+	it("WHEN SettingsDefaults.SPEC is read THEN it points at the real SETTINGS_SPEC", () => {
+		expect(SettingsDefaults.SPEC).toBe(SETTINGS_SPEC);
+	});
+});

@@ -92,7 +92,26 @@ export {
 	DEFAULT_OUTGOING_DEPTH,
 	EngineDefaults,
 	FORCE_LAYOUT_RANGES,
+	MAX_STEPPER_DEPTH,
+	MIN_NODE_CAP,
+	MIN_STEPPER_DEPTH,
 	NEUTRAL_NORMALIZED_VALUE,
 	clampForceLayoutSettings,
 } from "./constants";
 export type { ForceLayoutRange } from "./constants";
+
+// Settings defaults + limits, single source of truth (see SettingsSpec.ts).
+// `SettingsDefaults` is a discoverability shim that points back at SETTINGS_SPEC.
+export { SETTINGS_SPEC } from "./SettingsSpec";
+export { SettingsDefaults } from "./SettingsDefaults";
+export type {
+	BoundedNumberSpec,
+	DefaultSpec,
+	DepthSpec,
+	ForceLayoutSpec,
+	MinBoundedNumberSpec,
+	NodeExclusionSpec,
+	SettingsSpec,
+	SizingSpec,
+	ViewSpec,
+} from "./SettingsSpec";
