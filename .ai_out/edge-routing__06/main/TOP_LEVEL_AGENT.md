@@ -1,0 +1,26 @@
+# TOP_LEVEL_AGENT — edge-routing__06
+
+Ticket: `_tickets/edge-routing06-non-exclusive-group-boundary-pins-reduce-and-expose-the-libavoid-shape-buffer.md`
+Branch: `main` · Feature dir: `.ai_out/edge-routing__06/main/`
+
+## Sequencing (each its own commit)
+
+| # | Step | Status |
+|---|------|--------|
+| 0 | Exploration (3 agents) | RUNNING |
+| 1 | Repair `e2e/edgeRoutingEval.e2e.ts` (chore ticket) + print detour ratios | pending |
+| 2 | (a) `setExclusive(false)` — RED real-wasm test first, then 1-line change + loader type narrowing | pending |
+| 3 | (b) sweep 5/8/11/14/17, record table + screenshots | pending |
+| 4 | (b) **HUMAN DECISION** on the two invariants (`buffer = curvature/2`, `buffer > arrowhead inset`) | pending |
+| 5 | (b) implement setting end-to-end with chosen default | pending |
+
+Note: ticket lists ask-human before sweep, but also says "bring the sweep table to that conversation" — so sweep runs first (temporary constant override, uncommitted), human decides with data.
+
+## Exploration outputs
+- `EXPLORATION_PUBLIC.md` (index)
+- `EXPLORATION_PUBLIC__routing.md`
+- `EXPLORATION_PUBLIC__e2e.md`
+- `EXPLORATION_PUBLIC__settings.md`
+
+## Log
+- (start) Spawned 3 Explore agents.
