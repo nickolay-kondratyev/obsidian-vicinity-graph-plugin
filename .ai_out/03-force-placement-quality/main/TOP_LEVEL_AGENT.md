@@ -16,7 +16,7 @@ Bring repro data into dev-vault / unit fixture (public vault not source-controll
   - Q_FOR_HUMAN resolved by ticket text (ticket explicitly directs mirroring repro into dev-vault). Not a blocker.
 - [x] DETAILED_PLAN_REVIEW — VERDICT MINOR (inline edits). Approved. Sharpened: hub-spoke fixtures don't exercise Lever 1 (all degree-1) → metric is a charge/Lever-2 test; Lever 1 must be honestly covered or marked untested. No blockers.
 - [x] PLAN_ITERATION — SKIPPED (reviewer empowered minor inline edits)
-- [ ] IMPLEMENTATION — running
+- [~] IMPLEMENTATION — **BLOCKED / escalated**. Failing-first empirical work INVALIDATED the plan's root cause. Charge sweep (−300→−30) leaves max edge-stretch bit-identical → Lever 2 inert; Lever 1 no-op on degree-1 leaf. REAL cause: circular `forceCollide` uses folder-group container's circumscribed-circle radius (~238px for 192×392 container) → flings external neighbors far/uneven. Fix is ARCHITECTURAL (AABB collision, or attract edge to member note), exceeds "fix defaults" scope. No production change shipped; tree pristine. → STOP + ask human for direction.
 - [ ] IMPLEMENTATION_REVIEW
 - [ ] IMPLEMENTATION_ITERATION
 - [ ] PARETO_COMPLEXITY_ANALYSIS
