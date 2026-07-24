@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-24T03:57:07Z
 id: nid_apkpp62otiz0qhxlxoqhe5l1r_e
 title: "force placement quality: linked nodes stranded far from neighbors (root-cause + fix defaults)"
-status: open
+status: closed
 deps: [nid_ihlfchb69wt1hqot6iqy7a9m9_e]
 links: []
 created_iso: 2026-07-23T23:34:17Z
-status_updated_iso: 2026-07-23T23:34:17Z
+status_updated_iso: 2026-07-24T03:57:07Z
 type: bug
 priority: 1
 assignee: CC_WITH-nickolaykondratyev
@@ -146,3 +147,23 @@ asserts on the crowd=5 vault mirror only.
 - Direction-aware link force (scalar spring presses against the rect collide floor on
   vertical approaches to tall containers; collide wins, zero overlaps in all runs).
 - Charge stays point-based (proven inert on resting geometry).
+## RESOLUTION (2026-07-23) — SHIPPED
+
+Implemented per accepted re-plan (`.ai_out/03-force-placement-quality/main/RE_PLAN__PUBLIC.md`):
+
+- `src/view/forceRectCollide.ts` — deterministic pairwise AABB separation force
+  replaces circular `forceCollide`; link resting distance now min-half-extent based
+  (`src/view/d3ForceRefinement.ts`, `src/view/constants.ts`).
+- Failing-first proof: boundary-gap metric RED **206.52px** on baseline → GREEN
+  **32.84px** (`src/view/d3ForceStranding.test.ts`, threshold
+  `D3_FORCE_MAX_BOUNDARY_GAP_PX = 100`).
+- `npm test` 703/703 + `npm run check` clean. E2e: 2 failures proven PRE-EXISTING via
+  stash-baseline rerun (radial gating already ticketed; gamma breadcrumb →
+  `docs-internal/tickets/ticket-e2e-gamma-breadcrumb-fails-headless.md`).
+- Visual acceptance passed on real headless Obsidian
+  (`.out/ticket-03-stranded-hub-after-fix.png`); Enchiridion-mirror repro cluster added
+  to `.dev-vault/` via `scripts/setup-dev-vault.sh`.
+- Review: APPROVED-WITH-MINORS (all incorporated). Pareto analysis: JUSTIFIED — net
+  simplification of the production path.
+- Remaining human step: public-vault visual smoke check (covered by existing
+  `docs-internal/tickets/ticket-step-03-human-smoke-run.md`).
