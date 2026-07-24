@@ -98,6 +98,40 @@ and the implementer's PUBLIC doc. Verdict: **APPROVED-WITH-MINORS** (0 blocking,
 - CHANGELOG entry present (not scrutinized word-by-word). README bullet
   accurate vs implementation.
 
+## Sign-off pass (iteration 1) — fresh instance, commit `7c19b78`
+
+Scope: iteration diff only (`git show 7c19b78`). Verdict: **APPROVED**.
+
+- **Reran myself**: `npm test` → 60 files / 729 tests PASS (722 + 7 new);
+  `npm run check` → clean. Logs: `.tmp/t04-signoff-test.log`,
+  `.tmp/t04-signoff-check.log`.
+- **MINOR-1 genuinely fixed**: `FakeLayout` in `GraphViewController.test.ts`
+  now implements the full port signature (`layout(graph, forceLayout?)`,
+  matches `viewPorts.ts:53`) and records `lastForceLayout`; new BDD test uses
+  NON-default `linkGapPx: 77` (a default value could pass coincidentally) and
+  asserts `toEqual(forceLayout)`. Failing-first evidence verified myself:
+  `.tmp/t04-iter-ctrl-fail.log` shows the exact test failing with
+  `expected undefined to deeply equal { centerPullStrength: 0.05, … }` — the
+  silent-fallback trap is now caught.
+- **MINOR-2 genuinely fixed, exhaustiveness claim verified at the source**:
+  `constants.ts:126` declares `FORCE_LAYOUT_RANGES:
+  Readonly<Record<keyof ForceLayoutSettings, ForceLayoutRange>>` — so a 7th
+  field is a compile error in the ranges table, and `FORCE_LAYOUT_FIELDS =
+  Object.keys(FORCE_LAYOUT_RANGES) as readonly (keyof ForceLayoutSettings)[]`
+  auto-includes it in `sameForceLayout`'s `.every`. Export path clean
+  (engine `index.ts:94`, view→engine via index — correct layering direction).
+  Runtime backstop `it.each` uses `range.max + 1` (guaranteed ≠ any in-range
+  value). Original single-field + identity-differs tests untouched.
+- **NIT-3 rejection ACCEPTED**: my own prior suggested direction was "None
+  required; revisit only if observed"; rejection rationale (consistency with
+  depth-slider pattern, debounce = speculative complexity, wholesale-if-ever)
+  matches it exactly.
+- **Stranding test still unmodified**: `git show HEAD --stat` lists only 6
+  files (3 src/test + 3 .ai_out docs); `d3ForceStranding.test.ts` absent;
+  green in my run.
+- **No new issues opened**: only production change is the `sameForceLayout`
+  rewrite — semantics-preserving, covered by old + new tests.
+
 ## Method notes for future clone
 
 Diff extracts live in `.tmp/t04-rev-diff-{engine,view,persist-tab,tests}.txt`

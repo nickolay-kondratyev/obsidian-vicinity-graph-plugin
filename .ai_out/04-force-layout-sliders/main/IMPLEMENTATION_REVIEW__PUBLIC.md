@@ -82,3 +82,25 @@ No `sanity_check.sh` exists in this repo (checked).
   analytic link-strength verification and the threading tests above.
 
 #QUESTION_FOR_HUMAN: none — no ambiguities requiring alignment were found.
+
+## Sign-off (iteration 1)
+
+Reviewed commit: `7c19b78` (`refactor(ticket-04): iteration 1`) — scope limited
+to the iteration diff. Sign-off performed by a fresh reviewer instance.
+
+### Verdict: **APPROVED**
+
+| Item | Result |
+|---|---|
+| MINOR-1 (controller→runner `forceLayout` forwarding untested) | **Fixed as claimed.** `FakeLayout` now implements the full `GraphLayoutPort` signature and records `lastForceLayout`; the new BDD test forwards a NON-default `linkGapPx` (77) so a default-fallback cannot pass coincidentally. Failing-first evidence independently inspected (`.tmp/t04-iter-ctrl-fail.log`: `expected undefined to deeply equal …`) — dropping the argument now fails the suite. |
+| MINOR-2 (`sameForceLayout` hand-enumeration) | **Fixed as claimed, exhaustiveness verified at the source.** `FORCE_LAYOUT_RANGES` is typed `Readonly<Record<keyof ForceLayoutSettings, ForceLayoutRange>>` (`src/engine/constants.ts:126`), so a future 7th field is a compile error until added there, at which point the derived `FORCE_LAYOUT_FIELDS` auto-compares it. Imported via the engine index (correct layering). Runtime `it.each` backstop uses `range.max + 1` — guaranteed to differ from any in-range value. Prior tests untouched. |
+| NIT-3 rejection (no slider debounce) | **Accepted.** The original review itself recommended no change; the rejection rationale (consistency with the depth-slider pattern, debounce = speculative complexity, wholesale-if-ever follow-up) is sound. |
+| `npm test` (reviewer-run) | **PASS** — 60 files / 729 tests (`.tmp/t04-signoff-test.log`) |
+| `npm run check` (reviewer-run) | **PASS** — clean (`.tmp/t04-signoff-check.log`) |
+| Ticket-03 stranding test | **Still unmodified** — absent from the iteration diff; green in the suite. |
+| New issues in iteration diff | None. Only production change is the semantics-preserving `sameForceLayout` rewrite. |
+
+### Readiness signal
+
+**READY** — ticket-04 is ready to close from the implementation-review standpoint
+(e2e + visual pass remain the human's real-vault tuning step, as previously noted).
