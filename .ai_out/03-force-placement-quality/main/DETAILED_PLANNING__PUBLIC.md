@@ -80,6 +80,7 @@ Apply the **smallest** set the metric proves necessary. Each lever below lists t
 - **Change:** add `D3_FORCE_LINK_STRENGTH = 1` (or 0.9) in `constants.ts`; call `.strength(D3_FORCE_LINK_STRENGTH)` on `forceLink` in `d3ForceRefinement.ts`.
 - **PRO:** tiny, deterministic, makes the documented model true, fixes general degree>1 stranding. **CON:** does NOT change the degree-1 Enchiridion's forces (already effectively 1) → may not, alone, satisfy the visual acceptance.
 - **Determinism:** unaffected (pure constant).
+- **NOTE — Lever 1 is NOT exercised by either fixture.** In `hubGraph()` and the proposed `strandedHubGraph()` every non-hub node is degree-1, so its link strength is *already* `1/min(deg)=1`. Pinning to 1 leaves both fixtures' layouts bit-identical, so **the stretch-metric test proves nothing about Lever 1 — the metric is driven entirely by Lever 2 (charge).** Ship Lever 1 as an explicitly-reasoned correctness / doc-reconciliation fix for real multi-degree vault edges (which the hub-spoke fixtures do not model), NOT as something the new test covers. Alternative if you want it test-backed: add a small Mechanism-A fixture (an edge whose BOTH endpoints are degree>1, e.g. a cross-linked pair) that strands pre-pin and packs post-pin — but that is arguably over-scope for this Mechanism-B ticket; a follow-up ticket is the Pareto call. Do not let the "failing-first" ritual confuse you into expecting Lever 1 to move the metric — it will not.
 
 ### Lever 2 (the degree-1 lever) — moderate charge reduction
 - **Addresses:** Mechanism B. Lower repulsion → the crowd packs tighter and the tethered leaf settles nearer its target, with fewer unrelated boxes between partners to cross.
@@ -155,5 +156,5 @@ Add notes via **`scripts/setup-dev-vault.sh`** `write_if_missing` blocks (source
 
 ---
 
-## #QUESTION_FOR_HUMAN
-The visual acceptance criterion references `.out/vaults/public/we-have-a-finite-amount-of-time.md`, which is not source-controlled. The plan mirrors that subgraph into `.dev-vault/` (via `setup-dev-vault.sh`) and expects the visual check to be performed there at `outgoingDepth = 2`. **Please confirm the mirrored dev-vault subgraph is an acceptable substitute for the public-vault visual check** (the automated deterministic gate is the self-contained fixture regardless).
+## Resolved — dev-vault mirror sanctioned (was #QUESTION_FOR_HUMAN)
+The visual acceptance criterion references `.out/vaults/public/we-have-a-finite-amount-of-time.md`, which is not source-controlled. **RESOLVED by the ticket itself**, which explicitly instructs: "bring in the required test data into the dev-vault to be able to reproduce this issue without the `.out/vaults/public` dependency." The mirrored `.dev-vault/` subgraph (via `setup-dev-vault.sh`, opened at `outgoingDepth = 2`) is the sanctioned substitute for the visual check; the automated deterministic gate is the self-contained `makeGraph` fixture regardless. No human confirmation needed — proceed.

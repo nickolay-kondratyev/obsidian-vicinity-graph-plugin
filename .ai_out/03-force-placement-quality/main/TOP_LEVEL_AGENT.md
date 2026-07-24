@@ -14,9 +14,9 @@ Bring repro data into dev-vault / unit fixture (public vault not source-controll
 - [x] CLARIFICATION — SKIPPED: requirements unambiguous (fix defaults, failing-test-first, deterministic, mirror data to dev-vault)
 - [x] DETAILED_PLANNING (Think Hard) — plan written. Key: Enchiridion is degree-1 so weak-link-strength is NOT its cause (Mechanism B: charge + local minimum off large container). Fix = pin forceLink.strength~1 (Lever 1) + moderate charge reduction (Lever 2); reserve re-heat. Metric = per-edge stretch ratio. Automated test = self-contained makeGraph fixture; dev-vault notes for manual visual check.
   - Q_FOR_HUMAN resolved by ticket text (ticket explicitly directs mirroring repro into dev-vault). Not a blocker.
-- [ ] DETAILED_PLAN_REVIEW — PLAN_REVIEWER running
-- [ ] PLAN_ITERATION
-- [ ] IMPLEMENTATION
+- [x] DETAILED_PLAN_REVIEW — VERDICT MINOR (inline edits). Approved. Sharpened: hub-spoke fixtures don't exercise Lever 1 (all degree-1) → metric is a charge/Lever-2 test; Lever 1 must be honestly covered or marked untested. No blockers.
+- [x] PLAN_ITERATION — SKIPPED (reviewer empowered minor inline edits)
+- [ ] IMPLEMENTATION — running
 - [ ] IMPLEMENTATION_REVIEW
 - [ ] IMPLEMENTATION_ITERATION
 - [ ] PARETO_COMPLEXITY_ANALYSIS
