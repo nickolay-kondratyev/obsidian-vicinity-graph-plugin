@@ -12,6 +12,7 @@ import type {
 	Direction,
 	DocId,
 	FolderPath,
+	OutlineEntry,
 	VaultPath,
 } from "./types";
 
@@ -33,6 +34,8 @@ export interface TraversedNode {
 	readonly depthTags: readonly DepthTag[];
 	readonly minDepth: number;
 	readonly attachments: readonly AttachmentRef[];
+	/** Provider-owned heading outline (empty when this note offers none). */
+	readonly outline: readonly OutlineEntry[];
 	readonly firstImagePath?: VaultPath;
 }
 
@@ -161,6 +164,7 @@ export class VicinityTraversal {
 				depthTags,
 				minDepth: Math.min(...depthTags.map((tag) => tag.depth)),
 				attachments: metadata.attachments,
+				outline: metadata.outline,
 				firstImagePath: firstImage?.path,
 			});
 		}

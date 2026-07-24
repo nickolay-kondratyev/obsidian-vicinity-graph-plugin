@@ -45,6 +45,7 @@ export type {
 	GraphEdge,
 	GraphNode,
 	NodeExclusionSettings,
+	OutlineEntry,
 	VicinityGraph,
 	PinnedNodeDescriptor,
 	SizeMetricId,

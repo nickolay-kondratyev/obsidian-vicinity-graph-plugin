@@ -1,4 +1,4 @@
-import type { AttachmentRef, FileMetadata, LinkProvider, VaultPath } from "../engine";
+import type { AttachmentRef, FileMetadata, LinkProvider, OutlineEntry, VaultPath } from "../engine";
 import { asFolderPath, asVaultPath } from "../engine";
 import { FileKinds } from "../shared/FileKinds";
 import { BacklinksAdapter } from "./BacklinksAdapter";
@@ -6,7 +6,13 @@ import { ReferenceOrder } from "./ReferenceOrder";
 import type { CanvasCapability } from "./CanvasCapability";
 import { CanvasCapabilityDetector } from "./CanvasCapability";
 import type { CanvasParseCache } from "./CanvasParseCache";
-import type { MetadataCachePort, VaultFilePort, VaultPort } from "./obsidianPorts";
+import type { CachedMetadataPort, MetadataCachePort, VaultFilePort, VaultPort } from "./obsidianPorts";
+
+/** A resolved outgoing reference paired with the document offset it was written at. */
+interface ResolvedReference {
+	readonly path: string;
+	readonly offset: number;
+}
 
 /** Kept local: canvas capability detection is adapter-specific knowledge, not a shared file kind. */
 const CANVAS_EXTENSION = "canvas";
@@ -113,38 +119,65 @@ export class ObsidianLinkProvider implements LinkProvider {
 		if (file === null) {
 			return undefined;
 		}
+		// One cache read serves both the title and the outline (they ask the same
+		// `getFileCache` question about the same file).
+		const cache = this.metadataCache.getFileCache(file);
 		return {
 			folder: asFolderPath(engineFolderOf(file)),
 			sizeBytes: file.stat.size,
-			frontmatterTitle: this.frontmatterTitleOf(file),
+			frontmatterTitle: frontmatterTitleOf(file, cache),
 			isNodeBearing: FileKinds.isNodeBearingPath(file.path),
 			attachments: this.attachmentsOf(path),
+			outline: this.outlineOf(file, cache),
 		};
 	}
 
 	/**
-	 * Frontmatter `title` (else `name`) as the display title — step-05 human
-	 * decision. Only non-empty strings count: YAML lets users put any shape
-	 * (number, list) into these properties, and rendering those would violate
-	 * POLS worse than falling back to the basename.
+	 * The note's heading outline, or EMPTY when the note offers none: not
+	 * outline-bearing (canvas, `*.excalidraw.md`), no headings, or its first
+	 * IMAGE sits before its first heading — the documented "show the picture
+	 * instead" escape hatch. Only the adapter can see document offsets, so the
+	 * whole rule lives here (see `FileMetadata.outline`).
 	 */
-	private frontmatterTitleOf(file: VaultFilePort): string | undefined {
-		if (!FileKinds.isMarkdownPath(file.path)) {
-			return undefined; // Only markdown carries frontmatter.
+	private outlineOf(file: VaultFilePort, cache: CachedMetadataPort | null): readonly OutlineEntry[] {
+		if (!FileKinds.isOutlineBearingPath(file.path) || cache === null) {
+			return [];
 		}
-		const frontmatter = this.metadataCache.getFileCache(file)?.frontmatter;
-		if (frontmatter === undefined) {
-			return undefined;
+		const headings = cache.headings ?? [];
+		const firstHeading = headings[0];
+		if (firstHeading === undefined) {
+			return [];
 		}
-		for (const property of FRONTMATTER_TITLE_PROPERTIES) {
-			const value = frontmatter[property];
-			if (typeof value === "string" && value.trim() !== "") {
-				// Trimmed: quoted YAML like `title: "  My Note  "` keeps its padding,
-				// which would leak into rendered titles and breadcrumbs.
-				return value.trim();
+		const firstImageOffset = this.firstImageOffsetOf(file.path, cache);
+		if (firstImageOffset !== undefined && firstImageOffset < firstHeading.position.start.offset) {
+			return []; // The image wins.
+		}
+		// Obsidian's `headings` is already in document order — never re-sorted.
+		return headings.map((heading) => ({ rawText: heading.heading, level: heading.level }));
+	}
+
+	/**
+	 * Document offset of the note's first referenced IMAGE, or `undefined` when it
+	 * references none. Computed from RESOLVED references (the same pass that feeds
+	 * `attachments`/`firstImagePath`), so an unresolvable `![[missing.png]]` cannot
+	 * suppress the outline while producing no thumbnail — a silently blank node.
+	 */
+	private firstImageOffsetOf(path: string, cache: CachedMetadataPort): number | undefined {
+		return this.orderedMarkdownReferences(path, cache).find((reference) =>
+			FileKinds.isImagePath(reference.path),
+		)?.offset;
+	}
+
+	/** Resolved markdown references in document order, WITH offsets, duplicates kept. */
+	private orderedMarkdownReferences(path: string, cache: CachedMetadataPort): readonly ResolvedReference[] {
+		const resolved: ResolvedReference[] = [];
+		for (const reference of ReferenceOrder.orderedReferences(cache)) {
+			const target = this.metadataCache.getFirstLinkpathDest(reference.link, path)?.path;
+			if (target !== undefined) {
+				resolved.push({ path: target, offset: reference.offset });
 			}
 		}
-		return undefined;
+		return resolved;
 	}
 
 	/** Resolved outgoing targets in reference order, deduped (first occurrence wins). */
@@ -160,12 +193,7 @@ export class ObsidianLinkProvider implements LinkProvider {
 		if (FileKinds.isMarkdownPath(file.path)) {
 			const cache = this.metadataCache.getFileCache(file);
 			if (cache !== null) {
-				const orderedTexts = ReferenceOrder.orderedLinkTexts(cache);
-				return dedupe(
-					orderedTexts
-						.map((text) => this.metadataCache.getFirstLinkpathDest(text, path)?.path)
-						.filter((target): target is string => target !== undefined),
-				);
+				return dedupe(this.orderedMarkdownReferences(path, cache).map((reference) => reference.path));
 			}
 		}
 		// Core-indexed canvas, and markdown not yet in getFileCache: resolvedLinks
@@ -209,6 +237,31 @@ export class ObsidianLinkProvider implements LinkProvider {
 			.filter((target) => !FileKinds.isNodeBearingPath(target))
 			.map((target) => ({ path: asVaultPath(target), isImage: FileKinds.isImagePath(target) }));
 	}
+}
+
+/**
+ * Frontmatter `title` (else `name`) as the display title — step-05 human
+ * decision. Only non-empty strings count: YAML lets users put any shape
+ * (number, list) into these properties, and rendering those would violate POLS
+ * worse than falling back to the basename.
+ */
+function frontmatterTitleOf(file: VaultFilePort, cache: CachedMetadataPort | null): string | undefined {
+	if (!FileKinds.isMarkdownPath(file.path)) {
+		return undefined; // Only markdown carries frontmatter.
+	}
+	const frontmatter = cache?.frontmatter;
+	if (frontmatter === undefined) {
+		return undefined;
+	}
+	for (const property of FRONTMATTER_TITLE_PROPERTIES) {
+		const value = frontmatter[property];
+		if (typeof value === "string" && value.trim() !== "") {
+			// Trimmed: quoted YAML like `title: "  My Note  "` keeps its padding,
+			// which would leak into rendered titles and breadcrumbs.
+			return value.trim();
+		}
+	}
+	return undefined;
 }
 
 function engineFolderOf(file: VaultFilePort): string {

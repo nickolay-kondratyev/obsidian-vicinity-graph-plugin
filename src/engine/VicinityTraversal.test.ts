@@ -364,3 +364,22 @@ describe("VicinityTraversal display title (step-05 human decision)", () => {
 		expect(titledTraversal().nodes.get(asVaultPath("notes/plain.md"))?.title).toBe("plain");
 	});
 });
+
+describe("VicinityTraversal outline echo", () => {
+	// GIVEN a single-note vault whose metadata carries a heading outline.
+	function outlineVault(): FakeLinkProvider {
+		return new FakeLinkProvider({
+			files: [{ path: "a.md", outline: [{ rawText: "Intro", level: 1 }] }, { path: "plain.md" }],
+		});
+	}
+
+	it("WHEN a visited file's metadata carries an outline THEN the traversed node echoes it", () => {
+		const result = traverse(outlineVault(), [root("a.md")]);
+		expect(result.nodes.get(asVaultPath("a.md"))?.outline).toEqual([{ rawText: "Intro", level: 1 }]);
+	});
+
+	it("WHEN a visited file's metadata carries no outline THEN the traversed node's outline is empty", () => {
+		const result = traverse(outlineVault(), [root("plain.md")]);
+		expect(result.nodes.get(asVaultPath("plain.md"))?.outline).toEqual([]);
+	});
+});

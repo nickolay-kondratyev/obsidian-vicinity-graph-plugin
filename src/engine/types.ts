@@ -49,6 +49,24 @@ export interface AttachmentRef {
 }
 
 /**
+ * One markdown heading offered for a node's outline. Engine-owned POJO (no
+ * obsidian `HeadingCache` leakage — see the import guard).
+ */
+export interface OutlineEntry {
+	/**
+	 * The heading's text EXACTLY as Obsidian parsed it: the `#` marker and its
+	 * surrounding whitespace are gone, but INLINE MARKDOWN IS INTACT —
+	 * `[[links]]`, `**bold**`, `` `code` `` are all still present.
+	 * This is the LINK KEY: the navigator sanitises it with Obsidian's own
+	 * `stripHeadingForLink` to build `path#Heading`. Never render it directly —
+	 * the view formats it for display.
+	 */
+	readonly rawText: string;
+	/** Markdown heading level, 1–6. Drives the depth filter AND the rendered nesting. */
+	readonly level: number;
+}
+
+/**
  * A root the traversal starts from. `docid`/`pinTimestamp` are echoed to output
  * nodes so steps 03/04 never re-map identities.
  */
@@ -87,6 +105,8 @@ export interface GraphNode {
 	/** Minimum depth across all roots and directions; 0 for centrals. */
 	readonly minDepth: number;
 	readonly attachments: readonly AttachmentRef[];
+	/** Heading outline offered as this node's in-node preview; empty when none applies. */
+	readonly outline: readonly OutlineEntry[];
 	/** First image among {@link attachments} in provider order (thumbnail candidate). */
 	readonly firstImagePath?: VaultPath;
 	/** Composed, normalized sizing score in [0, 1]. Centrals are pinned to 1. */

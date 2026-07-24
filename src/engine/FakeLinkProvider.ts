@@ -1,7 +1,7 @@
 import { FileKinds } from "../shared/FileKinds";
 import { VaultPathFacts } from "../shared/VaultPathFacts";
 import type { FileMetadata, LinkProvider } from "./LinkProvider";
-import type { AttachmentRef, VaultPath } from "./types";
+import type { AttachmentRef, OutlineEntry, VaultPath } from "./types";
 import { asFolderPath, asVaultPath } from "./types";
 
 /** One file in a fixture vault. Defaults keep fixtures terse. */
@@ -15,6 +15,12 @@ export interface FakeFileSpec {
 	readonly image?: boolean;
 	/** Frontmatter display-title override (`title`/`name` already resolved). Default: none. */
 	readonly frontmatterTitle?: string;
+	/**
+	 * Heading outline the real adapter would have produced (raw heading text +
+	 * level, in document order). Default: none — the fixture stands in for the
+	 * ADAPTER's decision, so the image-vs-outline rule is not re-derived here.
+	 */
+	readonly outline?: readonly OutlineEntry[];
 }
 
 /** Fixture vault: files + ordered outgoing links (incoming derived by inversion). */
@@ -97,6 +103,7 @@ export class FakeLinkProvider implements LinkProvider {
 				frontmatterTitle: file.frontmatterTitle,
 				isNodeBearing: nodeBearing,
 				attachments: [], // replaced by attachAttachmentsToMetadata()
+				outline: file.outline ?? [],
 			},
 		});
 	}

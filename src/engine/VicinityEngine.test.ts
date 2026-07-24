@@ -292,3 +292,22 @@ describe("VicinityEngine pinned-central depth re-exploration", () => {
 		]);
 	});
 });
+
+describe("VicinityEngine outline pass-through", () => {
+	it("WHEN a graph is built THEN each output node carries its file's outline", () => {
+		// GIVEN a hub linking one note that declares an outline (the spread-through guard:
+		// GraphNode gets `outline` only because VicinityEngine copies the traversed node).
+		const provider = new FakeLinkProvider({
+			files: [{ path: "hub.md" }, { path: "child.md", outline: [{ rawText: "Intro", level: 1 }] }],
+			links: { "hub.md": ["child.md"] },
+		});
+		const graph = new VicinityEngine(provider).build({
+			main: { path: asVaultPath("hub.md") },
+			globalDepths: { outgoingDepth: 1, incomingDepth: 0 },
+			globalView: EngineDefaults.viewSettings(),
+		});
+		expect(graph.nodes.find((candidate) => candidate.path === "child.md")?.outline).toEqual([
+			{ rawText: "Intro", level: 1 },
+		]);
+	});
+});
