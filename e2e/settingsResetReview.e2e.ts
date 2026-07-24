@@ -83,6 +83,19 @@ function resetButton(headingText: string): Locator {
 	return card(headingText).locator(".vicinity-graph-settings-reset button");
 }
 
+/**
+ * Obsidian's settings window is ITSELF a `.modal-container`, so the confirmation
+ * is always the LAST one (a plain `.modal-container` locator is a strict-mode
+ * violation here).
+ */
+function confirmDialog(): Locator {
+	return page.locator(".modal-container").last();
+}
+
+function dialogButton(text: string): Locator {
+	return confirmDialog().locator("button").filter({ hasText: text });
+}
+
 test("REVIEW: isolation matrix — each section reset touches only its own keys", async () => {
 	await openSettingsTab();
 
@@ -122,6 +135,9 @@ test("REVIEW: isolation matrix — each section reset touches only its own keys"
 	// --- Node exclusion -----------------------------------------------------
 	await dirtyEverySection();
 	await resetButton("Node exclusion").click();
+	// The only section reset that destroys content → it confirms first.
+	await dialogButton("Delete patterns and restore defaults").click();
+	await expect.poll(async () => (await readGlobals()).exclusion.patterns).toEqual([]);
 	after = await readGlobals();
 	expect(after.exclusion).toEqual({ enabled: false, patterns: [] });
 	expect(after.depths.outgoingDepth).toBe(4);
@@ -166,8 +182,8 @@ test("REVIEW: section reset re-renders the tab so displayed values actually move
 	await expect(nodeCap).toHaveValue("100");
 });
 
-test("REVIEW: exclusion reset wipes patterns silently even while the textarea is hidden", async () => {
-	await openSettingsTab();
+/** Puts the tab in the state where patterns exist but the textarea is hidden. */
+async function storeHiddenPatterns(): Promise<void> {
 	await page.evaluate(async (pluginId) => {
 		const store = (window as any).app.plugins.plugins[pluginId].pluginDataStore;
 		// Disabled + patterns kept: the tab hides the textarea in this state.
@@ -175,11 +191,43 @@ test("REVIEW: exclusion reset wipes patterns silently even while the textarea is
 		(window as any).app.setting.activeTab?.display();
 	}, PLUGIN_ID);
 	await expect(card("Node exclusion").locator("textarea")).toHaveCount(0);
+}
+
+test("REVIEW: exclusion reset shows the hidden patterns it is about to delete", async () => {
+	await openSettingsTab();
+	await storeHiddenPatterns();
 	await page.screenshot({ path: `${OUT_DIR}/exclusion-disabled-with-hidden-patterns.png` });
 	await resetButton("Node exclusion").click();
-	// The user's two patterns are gone with no confirmation and nothing on screen
-	// having shown them — documented in the review as a scope-visibility finding.
-	expect((await readGlobals()).exclusion.patterns).toEqual([]);
+	// MAJOR-1 fix: the patterns are off screen, so the confirmation is the only
+	// place the user can see WHAT is being destroyed.
+	await expect(confirmDialog()).toContainText("Restore node exclusion defaults?");
+	const listed = await confirmDialog()
+		.locator(".vicinity-graph-confirm-items code")
+		.evaluateAll((els) => els.map((el) => el.textContent));
+	expect(listed).toEqual(["^archive/", "templates/"]);
+	await page.screenshot({ path: `${OUT_DIR}/exclusion-confirm-hidden-patterns.png` });
+	await page.keyboard.press("Escape");
+});
+
+test("REVIEW: cancelling the exclusion confirmation keeps every pattern", async () => {
+	await openSettingsTab();
+	await storeHiddenPatterns();
+	await resetButton("Node exclusion").click();
+	await dialogButton("Cancel").click();
+	expect((await readGlobals()).exclusion).toEqual({ enabled: false, patterns: ["^archive/", "templates/"] });
+});
+
+test("REVIEW: with no patterns stored, the exclusion reset applies without a dialog", async () => {
+	await openSettingsTab();
+	await page.evaluate(async (pluginId) => {
+		const store = (window as any).app.plugins.plugins[pluginId].pluginDataStore;
+		await store.saveNodeExclusion({ enabled: true, patterns: [] });
+		(window as any).app.setting.activeTab?.display();
+	}, PLUGIN_ID);
+	await resetButton("Node exclusion").click();
+	// Nothing irreplaceable to lose → no dialog worth the user's attention.
+	await expect.poll(async () => (await readGlobals()).exclusion.enabled).toBe(false);
+	await expect(page.locator(".modal-container")).toHaveCount(1);
 });
 
 test("REVIEW: confirm modal — Escape is non-destructive and Cancel holds initial focus", async () => {

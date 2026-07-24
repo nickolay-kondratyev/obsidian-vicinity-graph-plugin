@@ -6,6 +6,12 @@ export interface ConfirmModalOptions {
 	readonly title: string;
 	/** One or more sentences spelling out exactly what the action changes. */
 	readonly body: string;
+	/**
+	 * Verbatim list of the user-authored content this action destroys, rendered
+	 * so the user can see it even when the surface that normally shows it is
+	 * hidden. Empty/absent → no list.
+	 */
+	readonly items?: readonly string[];
 	/** Label of the destructive button — MUST restate the action, never "OK". */
 	readonly confirmText: string;
 	readonly onConfirm: () => void | Promise<void>;
@@ -32,12 +38,17 @@ export class ConfirmModal extends Modal {
 	override onOpen(): void {
 		this.setTitle(this.options.title);
 		this.contentEl.createEl("p", { text: this.options.body });
+		this.renderItems();
 		new Setting(this.contentEl)
 			.addButton((button) =>
 				button
 					.setButtonText("Cancel")
 					.onClick(() => this.close())
 					// Safe option holds initial focus (Enter/Escape both back out).
+					// WHY-NOT `focus({ focusVisible: true })` to also show the ring:
+					// not in TS's `FocusOptions` (needs a cast) and unverified in
+					// this Electron build. The safety property holds regardless —
+					// Enter on open cancels — so only the indicator is missing.
 					.then(() => button.buttonEl.focus()),
 			)
 			.addButton((button) =>
@@ -49,6 +60,21 @@ export class ConfirmModal extends Modal {
 						await this.options.onConfirm();
 					}),
 			);
+	}
+
+	/**
+	 * The doomed content, verbatim and monospaced (it is usually code-ish — regexes,
+	 * paths), scrollable so a long list cannot push the Cancel button off screen.
+	 */
+	private renderItems(): void {
+		const items = this.options.items ?? [];
+		if (items.length === 0) {
+			return;
+		}
+		const list = this.contentEl.createEl("ul", { cls: "vicinity-graph-confirm-items" });
+		for (const item of items) {
+			list.createEl("li").createEl("code", { text: item });
+		}
 	}
 
 	override onClose(): void {

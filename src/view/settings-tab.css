@@ -64,3 +64,24 @@
 .vicinity-graph-settings .vicinity-graph-settings-advanced > summary:hover {
 	color: var(--text-normal);
 }
+
+/* The doomed-content list inside ConfirmModal. NOT scoped under
+ * .vicinity-graph-settings: the modal renders at the app root, not in the tab.
+ * Capped height + scroll so a long list can never push Cancel off screen. */
+.vicinity-graph-confirm-items {
+	margin: 0 0 var(--size-4-3) 0;
+	padding: var(--size-4-2) var(--size-4-2) var(--size-4-2) var(--size-4-5);
+	max-height: 9em;
+	overflow-y: auto;
+	background-color: var(--background-secondary);
+	border-radius: var(--radius-s);
+	color: var(--text-muted);
+}
+.vicinity-graph-confirm-items > li {
+	margin: 0;
+}
+.vicinity-graph-confirm-items code {
+	font-family: var(--font-monospace);
+	font-size: var(--font-ui-small);
+	word-break: break-all;
+}

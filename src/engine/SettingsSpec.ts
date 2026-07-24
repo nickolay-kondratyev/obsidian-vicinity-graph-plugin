@@ -186,20 +186,22 @@ export const SETTINGS_SPEC: SettingsSpec = {
 			 * touching range — the rect collide force owns the actual separation
 			 * (see `d3ForceRefinement.ts`).
 			 *
-			 * `[10, 150]`: below the collide floor the spring and the collide force
-			 * just fight (jitter, no visual gain); above 150 edges defeat the
-			 * vicinity-compactness goal.
+			 * `[10, 250]`: below the collide floor the spring and the collide force
+			 * just fight (jitter, no visual gain); the ceiling was raised to 250 so
+			 * users who want an airy, spread-out vicinity can have it — past that,
+			 * edges defeat the vicinity-compactness goal entirely.
 			 */
 			linkGapPx: { default: 40, min: 10, max: 250, step: 5 },
 			/**
 			 * UI "Node spacing" (advanced) — minimum gap enforced between each PAIR
 			 * of boxes by the rectangular collide force (`forceRectCollide.ts`),
-			 * applied once per pair, not per box. 20 validated by the ticket-03
-			 * prototype: doubling it measurably worsened crowded layouts.
+			 * applied once per pair, not per box. Shipped default raised 20 → 50 in
+			 * `22bd5cb`: the ticket-03 prototype's 20 packed boxes tighter than the
+			 * shipped node sizes read comfortably at.
 			 *
-			 * `[0, 80]`: even at 0 the AABB collide prevents overlap (labels live
+			 * `[0, 100]`: even at 0 the AABB collide prevents overlap (labels live
 			 * INSIDE node boxes, so boxes-not-overlapping means labels never
-			 * overlap); above 80 spacing defeats packing.
+			 * overlap); above 100 spacing defeats packing.
 			 */
 			collidePaddingPx: { default: 50, min: 0, max: 100, step: 5 },
 			/**

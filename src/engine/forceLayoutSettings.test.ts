@@ -4,18 +4,21 @@ import type { ForceLayoutSettings } from "./types";
 
 /**
  * Guards the ticket-04 "sliders must not change default behavior" criterion:
- * the default force-layout settings MUST equal the exact constants the
- * ticket-03 placement-quality work shipped. A failure here means the default
- * rendered layout changed — align with the human before touching these values.
+ * the default force-layout settings MUST equal the exact constants currently
+ * shipped. A failure here means the default rendered layout changed — align
+ * with the human before touching these values.
+ *
+ * Baseline is ticket-03's placement-quality constants except `collidePaddingPx`,
+ * deliberately raised 20 → 50 in `22bd5cb` (see `SettingsSpec.ts`).
  */
-describe("EngineDefaults.forceLayoutSettings (ticket-03 shipped baseline)", () => {
-	it("WHEN defaults are built THEN they equal the ticket-03 shipped layout constants", () => {
+describe("EngineDefaults.forceLayoutSettings (shipped baseline)", () => {
+	it("WHEN defaults are built THEN they equal the shipped layout constants", () => {
 		expect(EngineDefaults.forceLayoutSettings()).toEqual({
 			centerPullStrength: 0.05,
 			repelStrength: 300,
 			linkStrengthFactor: 1,
 			linkGapPx: 40,
-			collidePaddingPx: 20,
+			collidePaddingPx: 50,
 			elkNodeSpacingPx: 40,
 		});
 	});

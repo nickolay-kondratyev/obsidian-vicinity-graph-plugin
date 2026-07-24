@@ -27,6 +27,19 @@ export type SettingsResetScope =
 	| "performance"
 	| "all";
 
+/**
+ * Copy for the "are you sure?" step of a reset — the exact shape
+ * {@link ConfirmModal} renders, minus the callback.
+ */
+export interface SettingsResetConfirmation {
+	readonly title: string;
+	readonly body: string;
+	/** MUST restate the action (never "OK"). */
+	readonly confirmText: string;
+	/** Verbatim list of the user-authored content about to be destroyed, if any. */
+	readonly items?: readonly string[];
+}
+
 export interface SettingsResetScopeSpec {
 	/** Row name AND button tooltip copy. MUST name the scope (never a bare "Restore defaults"). */
 	readonly label: string;
@@ -34,7 +47,27 @@ export interface SettingsResetScopeSpec {
 	readonly description: string;
 	/** Current globals → the writes that restore this scope's spec defaults. */
 	readonly plan: (ctx: SettingsWriteContext) => readonly SettingsCommand[];
+	/**
+	 * Friction scales with blast radius: `null` (or absent) applies the reset
+	 * instantly, anything else gates it behind a confirmation. Context-dependent
+	 * on purpose — a scope only needs confirming when it actually has something
+	 * irreversible to destroy.
+	 */
+	readonly confirmation?: (ctx: SettingsWriteContext) => SettingsResetConfirmation | null;
 }
+
+const CANNOT_BE_UNDONE = "This cannot be undone.";
+
+const ALL_SCOPE_LABEL = "Restore all Vicinity Graph settings";
+/**
+ * WHY it names what SURVIVES: the label claims "all", but per-note depth
+ * overrides and pins live in per-doc files this reset never touches. Without the
+ * second sentence a user reads the label as "my per-note work is gone too".
+ */
+const ALL_SCOPE_DESCRIPTION =
+	"Resets every Vicinity Graph setting — depth defaults, node sizing, force layout, node exclusion and performance — to its shipped default. Per-note depth overrides and pinned notes are kept.";
+
+const EXCLUSION_SCOPE_LABEL = "Restore node exclusion defaults";
 
 /**
  * WHY whole-object `global-view` writes with the untouched fields carried over:
@@ -64,9 +97,29 @@ export const SETTINGS_RESET_SCOPES: Readonly<Record<SettingsResetScope, Settings
 		],
 	},
 	"node-exclusion": {
-		label: "Restore node exclusion defaults",
+		label: EXCLUSION_SCOPE_LABEL,
 		description: "Turns exclusion off and deletes every exclusion pattern.",
 		plan: () => [{ kind: "node-exclusion", nodeExclusion: EngineDefaults.nodeExclusionSettings() }],
+		/**
+		 * The ONE section reset that destroys user-authored CONTENT (hand-written
+		 * regexes), not a numeric knob — and the tab hides the patterns textarea
+		 * while exclusion is toggled off, so the patterns may not even be on screen.
+		 * Confirming (and listing them verbatim) is the only chance the user gets to
+		 * see what is about to go. Nothing to destroy → no pointless dialog.
+		 */
+		confirmation: (ctx) => {
+			const { patterns } = ctx.nodeExclusion;
+			if (patterns.length === 0) {
+				return null;
+			}
+			const count = `${patterns.length} exclusion pattern${patterns.length === 1 ? "" : "s"}`;
+			return {
+				title: `${EXCLUSION_SCOPE_LABEL}?`,
+				body: `Turns exclusion off and deletes the following ${count}. ${CANNOT_BE_UNDONE}`,
+				confirmText: "Delete patterns and restore defaults",
+				items: patterns,
+			};
+		},
 	},
 	performance: {
 		label: "Restore performance defaults",
@@ -76,9 +129,8 @@ export const SETTINGS_RESET_SCOPES: Readonly<Record<SettingsResetScope, Settings
 		],
 	},
 	all: {
-		label: "Restore all Vicinity Graph settings",
-		description:
-			"Resets every setting in this tab — depth defaults, node sizing, force layout, node exclusion and performance — to its shipped default.",
+		label: ALL_SCOPE_LABEL,
+		description: ALL_SCOPE_DESCRIPTION,
 		// Whole-slice writes (NOT a merge): this is the one scope that must also
 		// clear persisted view fields the tab exposes no control for.
 		plan: () => [
@@ -86,6 +138,13 @@ export const SETTINGS_RESET_SCOPES: Readonly<Record<SettingsResetScope, Settings
 			{ kind: "global-view", view: EngineDefaults.viewSettings() },
 			{ kind: "node-exclusion", nodeExclusion: EngineDefaults.nodeExclusionSettings() },
 		],
+		// Always confirms: the blast radius is the whole plugin, so there is no
+		// "nothing to lose" state worth skipping the dialog for.
+		confirmation: () => ({
+			title: `${ALL_SCOPE_LABEL}?`,
+			body: `${ALL_SCOPE_DESCRIPTION} ${CANNOT_BE_UNDONE}`,
+			confirmText: "Restore all defaults",
+		}),
 	},
 };
 
@@ -115,4 +174,17 @@ export const _assertEveryResetScopePlaced: UnplacedScope extends never ? true : 
 
 export function planSettingsReset(scope: SettingsResetScope, ctx: SettingsWriteContext): readonly SettingsCommand[] {
 	return SETTINGS_RESET_SCOPES[scope].plan(ctx);
+}
+
+/**
+ * The confirmation this reset must show first, or `null` to apply it straight
+ * away. Callers MUST route every reset through here rather than deciding per
+ * scope at the call site — that is what keeps "which resets are destructive"
+ * answerable in one place.
+ */
+export function planSettingsResetConfirmation(
+	scope: SettingsResetScope,
+	ctx: SettingsWriteContext,
+): SettingsResetConfirmation | null {
+	return SETTINGS_RESET_SCOPES[scope].confirmation?.(ctx) ?? null;
 }

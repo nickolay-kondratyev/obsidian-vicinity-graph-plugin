@@ -12,7 +12,12 @@ import {
 	FORCE_LAYOUT_MAIN_FIELDS,
 } from "./forceLayoutFieldMeta";
 import type { SettingsResetScope } from "./settingsResetPlan";
-import { ALL_SETTINGS_RESET_SCOPE, SETTINGS_RESET_SCOPES, planSettingsReset } from "./settingsResetPlan";
+import {
+	ALL_SETTINGS_RESET_SCOPE,
+	SETTINGS_RESET_SCOPES,
+	planSettingsReset,
+	planSettingsResetConfirmation,
+} from "./settingsResetPlan";
 import type { SettingsCommand, SettingsInteraction, SettingsWriteContext } from "./settingsWritePlan";
 import { planSettingsWrite } from "./settingsWritePlan";
 import { SIZING_METRICS } from "./sizingMetrics";
@@ -100,15 +105,29 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 					// them; the accessible name carries the scope, like the row name.
 					.setTooltip(label)
 					.then(() => button.buttonEl.setAttribute("aria-label", label))
-					.onClick(() => this.applyReset(scope)),
+					.onClick(() => this.requestReset(scope)),
 			);
 	}
 
 	/**
+	 * The ONE entry point for every reset button. Whether a scope confirms first is
+	 * decided by {@link planSettingsResetConfirmation}, next to the key-set it
+	 * clears — never by the call site, or "which resets are destructive" would be
+	 * answered in six places.
+	 */
+	private requestReset(scope: SettingsResetScope): void {
+		const confirmation = planSettingsResetConfirmation(scope, this.writeContext());
+		if (confirmation === null) {
+			void this.applyReset(scope);
+			return;
+		}
+		new ConfirmModal(this.app, { ...confirmation, onConfirm: () => this.applyReset(scope) }).open();
+	}
+
+	/**
 	 * Tab-wide restore, outside every section frame (its blast radius is the whole
-	 * plugin, so it must not sit inside any one card). Destructive and not cheap
-	 * to redo → the only reset gated behind a confirmation; the red treatment
-	 * lives on the modal's confirm button, never on this one.
+	 * plugin, so it must not sit inside any one card). Always confirms; the red
+	 * treatment lives on the modal's confirm button, never on this one.
 	 */
 	private renderRestoreAll(): void {
 		const { label, description } = SETTINGS_RESET_SCOPES[ALL_SETTINGS_RESET_SCOPE];
@@ -121,14 +140,7 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 					.setButtonText("Restore all defaults")
 					.setTooltip(label)
 					.then(() => button.buttonEl.setAttribute("aria-label", label))
-					.onClick(() => {
-						new ConfirmModal(this.app, {
-							title: `${label}?`,
-							body: `${description} This cannot be undone.`,
-							confirmText: "Restore all defaults",
-							onConfirm: () => this.applyReset(ALL_SETTINGS_RESET_SCOPE),
-						}).open();
-					}),
+					.onClick(() => this.requestReset(ALL_SETTINGS_RESET_SCOPE)),
 			);
 	}
 

@@ -37,14 +37,13 @@ section and duplicate the merge logic already in `planSettingsWrite`.
 - e2e in this sandbox works and is FAST (~3s for the whole spec) — no reason to
   skip it. `npm run test:e2e -- <spec>` passes args through.
 
-### Pre-existing red tests (DO NOT "fix" silently)
-3 failures on HEAD (`22bd5cb`): `SettingsSpec.test.ts` ×2 and
-`forceLayoutSettings.test.ts` ×1, all from `collidePaddingPx` default `20 → 50`
-and `max 80 → 100` shipped without updating the baselines. Verified pre-existing
-via `git stash -u`. Ticketed at
-`docs-internal/tickets/ticket-settings-spec-baseline-tests-stale-after-node-spacing-bump.md`.
-Also stale: the `collidePaddingPx` doc comment in `SettingsSpec.ts` still says
-"20" and "[0, 80]". Needs a human decision, not an agent edit.
+### Pre-existing red tests — RESOLVED in iteration 1
+The 3 failures were `collidePaddingPx` (default `20 → 50`, `max 80 → 100`) and,
+hiding in the same limits assertion, `linkGapPx` (`max 150 → 250`). Human
+confirmed the bump was intended → baselines realigned to the spec, doc comments
+in `SettingsSpec.ts` fixed, ticket CLOSED. Suite is now fully green (769/769).
+Lesson: the "limits baseline" test asserts a whole object, so ONE failing test
+can hide TWO stale fields — read the diff, don't patch the first mismatch.
 
 ### Design rules applied (from the `obsidian-settings` skill)
 - Section reset INSIDE the card's frame, LAST row, demoted (small/muted name +
@@ -57,5 +56,24 @@ Also stale: the `collidePaddingPx` doc comment in `SettingsSpec.ts` still says
 
 ### Deliberately NOT done (scope)
 Debounce, `display()` teardown removal, `groupByFolder`/`edgeVisibility` UI,
-per-row revert icons ("modified-ness" affordance), confirmation on the exclusion
-section reset.
+per-row revert icons ("modified-ness" affordance).
+
+## Iteration 1 (reviewer round) — what a future clone must know
+
+- **Confirmation is data, not a call site.** `SettingsResetScopeSpec.confirmation`
+  is `(ctx) => SettingsResetConfirmation | null`, and `requestReset(scope)` in the
+  tab is the ONLY reset entry point. Do NOT reintroduce a per-button `if (scope
+  === …)`; the whole value is that "which resets confirm" is one lookup. The
+  return type is deliberately `ConfirmModalOptions` minus `onConfirm`, so the tab
+  is a one-line spread.
+- **Context-dependent confirmation matters**: exclusion confirms only when
+  `patterns.length > 0`. A dialog over an empty list is friction nobody pays for.
+- **`ConfirmModal.items`** exists because the tab HIDES the patterns textarea when
+  exclusion is off — the dialog is then the only surface that can show the doomed
+  content. Keep the capped-height + scroll, or a long list pushes Cancel off screen.
+- **NIT-1 dead end**: `focus({ focusVisible: true })` does NOT typecheck
+  (`FocusOptions` has no `focusVisible` in this TS lib). Don't re-try it without a
+  cast decision; a `WHY-NOT` comment in `ConfirmModal.ts` records this.
+- e2e note: `.modal-container` count is **1** when only the settings window is
+  open — that is the assertion for "no dialog appeared". Leaving a dialog open at
+  the end of a test breaks the NEXT test's `openSettingsTab()`; press Escape.

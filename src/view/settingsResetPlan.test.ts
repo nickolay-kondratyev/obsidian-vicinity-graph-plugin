@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { ViewSettings } from "../engine";
 import { EngineDefaults } from "../engine";
-import { SECTION_RESET_SCOPES, SETTINGS_RESET_SCOPES, planSettingsReset } from "./settingsResetPlan";
+import {
+	SECTION_RESET_SCOPES,
+	SETTINGS_RESET_SCOPES,
+	planSettingsReset,
+	planSettingsResetConfirmation,
+} from "./settingsResetPlan";
 import type { SettingsCommand } from "./settingsWritePlan";
 import type { SettingsWriteContext } from "./settingsWritePlan";
 
@@ -150,6 +155,66 @@ describe("planSettingsReset all scope", () => {
 	});
 });
 
+/**
+ * Confirmation is the "friction scales with blast radius" rule: numeric knobs are
+ * cheap to redo, hand-written exclusion patterns are user-authored CONTENT with no
+ * undo — and the tab hides the patterns textarea while exclusion is off, so the
+ * confirmation is the only place that content can be shown before it is destroyed.
+ */
+describe("planSettingsResetConfirmation node-exclusion scope", () => {
+	it("WHEN the node-exclusion section is reset with stored patterns THEN a confirmation is required", () => {
+		expect(planSettingsResetConfirmation("node-exclusion", TUNED_CTX)).not.toBeNull();
+	});
+
+	it("WHEN a node-exclusion reset is confirmed THEN every stored pattern is listed verbatim", () => {
+		expect(planSettingsResetConfirmation("node-exclusion", TUNED_CTX)?.items).toEqual([
+			"^archive/",
+			"templates/",
+		]);
+	});
+
+	it("WHEN exclusion is toggled OFF but patterns are still stored THEN a confirmation is still required", () => {
+		const hiddenPatterns: SettingsWriteContext = {
+			...TUNED_CTX,
+			nodeExclusion: { enabled: false, patterns: ["^archive/"] },
+		};
+		expect(planSettingsResetConfirmation("node-exclusion", hiddenPatterns)?.items).toEqual(["^archive/"]);
+	});
+
+	it("WHEN there is no pattern to destroy THEN the node-exclusion reset needs no confirmation", () => {
+		const noPatterns: SettingsWriteContext = { ...TUNED_CTX, nodeExclusion: { enabled: true, patterns: [] } };
+		expect(planSettingsResetConfirmation("node-exclusion", noPatterns)).toBeNull();
+	});
+
+	it("WHEN a node-exclusion reset is confirmed THEN the confirm button restates the deletion", () => {
+		expect(planSettingsResetConfirmation("node-exclusion", TUNED_CTX)?.confirmText).toBe(
+			"Delete patterns and restore defaults",
+		);
+	});
+});
+
+describe("planSettingsResetConfirmation other scopes", () => {
+	it("WHEN a section that only holds numeric knobs is reset THEN it applies without a confirmation", () => {
+		const confirmed = SECTION_RESET_SCOPES.filter(
+			(scope) => scope !== "node-exclusion" && planSettingsResetConfirmation(scope, TUNED_CTX) !== null,
+		);
+		expect(confirmed).toEqual([]);
+	});
+
+	it("WHEN the tab-wide scope is reset THEN a confirmation is always required, even at defaults", () => {
+		const defaults: SettingsWriteContext = {
+			globalDepths: EngineDefaults.depthSettings(),
+			globalView: EngineDefaults.viewSettings(),
+			nodeExclusion: EngineDefaults.nodeExclusionSettings(),
+		};
+		expect(planSettingsResetConfirmation("all", defaults)).not.toBeNull();
+	});
+
+	it("WHEN the tab-wide confirmation is read THEN its body warns the action cannot be undone", () => {
+		expect(planSettingsResetConfirmation("all", TUNED_CTX)?.body).toContain("cannot be undone");
+	});
+});
+
 describe("settings reset scope catalogue", () => {
 	it("WHEN the section scopes are listed THEN they cover every scope except the tab-wide one", () => {
 		expect([...SECTION_RESET_SCOPES, "all"].sort()).toEqual(Object.keys(SETTINGS_RESET_SCOPES).sort());
@@ -162,5 +227,17 @@ describe("settings reset scope catalogue", () => {
 
 	it("WHEN the tab-wide scope's label is read THEN it names the whole plugin", () => {
 		expect(SETTINGS_RESET_SCOPES.all.label).toBe("Restore all Vicinity Graph settings");
+	});
+
+	/**
+	 * The label claims "all Vicinity Graph settings", so the description MUST say
+	 * what survives — otherwise a user reads it as "my per-note work is gone too".
+	 */
+	it("WHEN the tab-wide scope's description is read THEN it states that per-note overrides and pins are kept", () => {
+		expect(SETTINGS_RESET_SCOPES.all.description).toContain("Per-note depth overrides and pinned notes are kept.");
+	});
+
+	it("WHEN the tab-wide scope's description is read THEN it does NOT scope itself to 'this tab'", () => {
+		expect(SETTINGS_RESET_SCOPES.all.description).not.toContain("this tab");
 	});
 });
