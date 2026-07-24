@@ -199,6 +199,44 @@ for i in $(seq 1 "${DENSE_COUNT}"); do
 		| write_if_missing "${VAULT}/${name}.md"
 done
 
+# --- ticket-03 stranding fixture: folder-grouped hub + degree-1 leaf ----------
+# Mirrors the public-vault "Enchiridion" bug without the private vault: a hub
+# note sharing a folder (p/ep/ → 2-member group box) with a sibling fans out to
+# 5 ungrouped root crowd notes plus ONE degree-1 leaf in a singleton subfolder.
+# The old circular collide stranded the leaf far off the tall group container;
+# with the AABB collide it must sit adjacent to the group. Self-contained
+# (nothing links note1/hub-medium/zzdense).
+echo "==> Ensuring ticket-03 stranding fixture (stranded-main + p/ep/)"
+write_if_missing "${VAULT}/stranded-main.md" <<'EOF'
+Ticket-03 stranding repro root. Open my vicinity graph with outgoing depth >= 2
+(or open stranded-hub directly at default depths): the leaf [[enchiridion]]
+must sit adjacent to the p/ep group box, with no long crossing edge.
+
+Hub: [[stranded-hub]].
+EOF
+
+write_if_missing "${VAULT}/p/ep/stranded-hub.md" <<'EOF'
+Grouped hub (p/ep has 2 notes → group box). Sibling [[stranded-sib]].
+
+Crowd: [[stranded-crowd1]] [[stranded-crowd2]] [[stranded-crowd3]] [[stranded-crowd4]] [[stranded-crowd5]].
+
+Degree-1 leaf in a singleton subfolder: [[enchiridion]].
+EOF
+
+write_if_missing "${VAULT}/p/ep/stranded-sib.md" <<'EOF'
+Second p/ep member — makes the folder a 2-member group with a tall box.
+EOF
+
+write_if_missing "${VAULT}/p/ep/book/enchiridion.md" <<'EOF'
+The Enchiridion (The Manual) mirror: degree-1 leaf, linked ONLY from
+stranded-hub. Must rest adjacent to the p/ep group box, never mid-graph.
+EOF
+
+for i in 1 2 3 4 5; do
+	printf 'Ticket-03 crowd note %d (ungrouped root leaf of stranded-hub).\n' "${i}" \
+		| write_if_missing "${VAULT}/stranded-crowd${i}.md"
+done
+
 echo "==> Ensuring minimal .obsidian config"
 write_if_missing "${OBSIDIAN}/app.json" <<'EOF'
 {}
@@ -248,6 +286,10 @@ cat <<EOF
    - alpha → note1 twice → edge count badge "2"
    - alpha: frontmatter title + png/pdf/csv attachment strip
    - solo/gamma → singleton folder breadcrumb, trimmed fm title
+
+ Ticket-03 stranding check:
+   - open stranded-main.md (outgoing depth >= 2) or stranded-hub.md →
+     enchiridion sits adjacent to the p/ep group box (no long edge)
 
  Record the result in:
    docs-internal/tickets/ticket-step-03-human-smoke-run.md

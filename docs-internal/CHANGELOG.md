@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-07-23 — force layout: rectangular collision fixes container stranding (ticket 03)
+
+Organic (force) mode no longer strands a linked note far from a tall folder-group
+container ("The Enchiridion" long-crossing-edge bug). Root cause: d3's circular
+`forceCollide` must circumscribe each box, so a 192×392 group container held every
+external neighbour ≥ ~238px off its centre; the link resting distance was built from the
+same circumscribed radii. Fix (view layer only):
+
+- **`src/view/forceRectCollide.ts` (new):** deterministic pairwise AABB collision force —
+  anticipated positions (`x+vx`), padded half-extents, minimum-penetration axis, symmetric
+  half/half velocity split, fixed pair order, positive tie-break for coincident centres
+  (no randomness; layouts stay bit-identical). O(n²) over root children only.
+- **`d3ForceRefinement.ts`:** circular `forceCollide` → `forceRectCollide`; link resting
+  distance → sum of MIN half-extents + `D3_FORCE_LINK_GAP_PX` (the spring pulls partners
+  into touching range; the rect collide owns separation). Padding 20 / 2 iterations kept —
+  prototype showed larger values measurably worse on crowded hubs.
+- **Regression test** `d3ForceStranding.test.ts`: Enchiridion-mirror fixture through the
+  real elk-seed → d3 pipeline asserts every projected root edge's **boundary gap**
+  (rect-boundary free space) ≤ 100px. Baseline measured ~207px (RED), fix measures ~33px.
+- **Dev-vault repro:** `setup-dev-vault.sh` now seeds `stranded-main` + `p/ep/` cluster so
+  the bug reproduces without the private public-vault data.
+
 ## 2026-07-23 — edge-routing: obstacle avoidance is always on (setting removed)
 
 Obstacle-avoiding edge routing (libavoid) is no longer a user toggle — it always runs.

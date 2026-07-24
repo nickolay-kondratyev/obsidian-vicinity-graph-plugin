@@ -1,159 +1,78 @@
-# IMPLEMENTATION — 03 Force placement quality
+# IMPLEMENTATION — Ticket 03 force placement quality (PASS 2 — CONVERGED)
 
-## STATUS: BLOCKED — escalating. No production change shipped. See `#QUESTION_FOR_HUMAN` below.
+## STATUS: DONE. RE_PLAN executed in full; unit + typecheck green; e2e triaged (both failures pre-existing on main, verified by stash-baseline runs); visual acceptance PASSED on the dev-vault repro.
 
-I executed the plan's failing-first Phase 1/2 (built the `strandedHubGraph()`
-fixture + the edge-stretch metric over the real elk+d3 pipeline) and then, per the
-plan's explicit mandate, iterated the fixture and swept the fix levers to find a
-genuine RED. **The empirical result contradicts the plan's root-cause model:** the
-prescribed fix (Levers 1–2, pure constants) provably cannot move the metric, and
-the metric the plan chose provably cannot detect the real stranding mechanism. I
-did **not** fabricate a passing/failing test and did **not** ship an ineffective
-constant change. The working tree is pristine (reverted all experiments).
+Pass-1 history (the escalation that empirically invalidated the ORIGINAL plan and led
+to `RE_PLAN__PUBLIC.md`) is preserved in git history of this file — commits
+`b25e31c`/`0249955`. This file now documents pass 2 only.
 
----
+## What shipped (uncommitted working tree; top-level agent commits)
 
-## What I built (investigation harness — reverted from the tree, preserved in PRIVATE)
+| File | Change |
+|---|---|
+| `src/view/forceRectCollide.ts` (new) | Deterministic pairwise AABB collision force for d3-force: anticipated positions (`x+vx`), padded half-extents, minimum-penetration axis, symmetric half/half velocity split, fixed pair order, positive tie-break for coincident centres (zero randomness). O(n²) per pass with WHY comment (root children only, ~300 static ticks). |
+| `src/view/forceRectCollide.test.ts` (new) | 7 BDD unit tests driving the force directly: min-axis selection both axes, padding-as-separation, no-op when separated, deterministic tie-break, anticipated-position handling, multi-iteration idempotence. |
+| `src/view/d3ForceRefinement.ts` | `forceCollide` (circumscribed radius) → `forceRectCollide(D3_FORCE_COLLIDE_PADDING_PX, D3_FORCE_COLLIDE_ITERATIONS)`; dropped `collideRadius` from `ForceBody`; link resting distance → `minHalfExtent(s)+minHalfExtent(t)+D3_FORCE_LINK_GAP_PX`; module doc + WHY comments cite prototype numbers (207→33). |
+| `src/view/constants.ts` | WHY comments for `D3_FORCE_LINK_GAP_PX` / `COLLIDE_PADDING_PX` / `COLLIDE_ITERATIONS` rewritten for the rect-collide rationale (padding 20 / 2 iterations kept — prototype showed 2×/3-pass measurably worse). Values unchanged. |
+| `src/view/d3ForceStranding.test.ts` (new) | Ticket-03 regression: `strandedHubGraph(5)` Enchiridion mirror through the REAL elk-seed → d3 pipeline; asserts every projected root edge's boundary gap ≤ `D3_FORCE_MAX_BOUNDARY_GAP_PX` (100, WHY-documented) + zero root-box overlaps. |
+| `scripts/setup-dev-vault.sh` | Ticket-03 repro cluster: `stranded-main.md`, `p/ep/{stranded-hub,stranded-sib}.md`, `p/ep/book/enchiridion.md`, 5 crowd notes; smoke-check text updated. Self-contained (no links from existing fixtures). |
+| `docs-internal/CHANGELOG.md` | New top entry "force layout: rectangular collision fixes container stranding (ticket 03)". |
+| `docs-internal/tickets/ticket-e2e-gamma-breadcrumb-fails-headless.md` (new) | Follow-up ticket for a pre-existing e2e failure found during triage (below). |
 
-- `strandedHubGraph(crowdCount)` — the Enchiridion mirror the plan specified:
-  `main→hub`; `hub`+`sib` in folder `p/ep` (2-member folder-group container, large
-  collide radius); `hub→N crowd leaves`; `hub→enchiridion` where enchiridion is a
-  degree-1 leaf alone in singleton folder `p/ep/book` (ungrouped root leaf).
-- `edgeStretches()` — the plan's edge-stretch ratio computed over the REAL
-  projected root edges (`vicinityGraphToElk` → `GraphLayoutRunner.layout` →
-  `extractElkPositions`/`extractElkDimensionsById`), exactly:
-  `dist(center(s),center(t)) / (collideRadius(s)+collideRadius(t)+D3_FORCE_LINK_GAP_PX)`,
-  `collideRadius = hypot(w,h)/2 + D3_FORCE_COLLIDE_PADDING_PX`.
+Steps 1–3 were implemented by the pass-2 predecessor (died mid-run on API error);
+audited line-by-line this session against RE_PLAN + prototype — no fixes needed.
 
-## The empirical evidence (all through the real deterministic pipeline)
+## RED → GREEN evidence (honest provenance)
 
-### 1. A degree-1 leaf NEVER strands in this metric at a small crowd
-`strandedHubGraph` crowd sweep at current defaults (charge −300):
+- **RED** (real, not reconstructed): `.tmp/impl-red.log`, mtime 2026-07-24 03:24 —
+  the committed `d3ForceStranding.test.ts` run against BASELINE defaults failed with
+  `expected 206.5235742967829 to be less than or equal to 100` (plan predicted ~207).
+  This log was produced by the predecessor before the refinement rewiring landed.
+- **GREEN**: full `npm test` = **703/703 pass** (`.tmp/impl2-test-final.log`);
+  `npm run check` exit 0. Measured worst boundary gap after fix = **32.84px**
+  (`.tmp/impl2-green-measure.log`; obtained by temporarily asserting `≤ -99999` to
+  force-print the value — vitest here is silent-config; test restored byte-identical).
+  Matches the prototype's 33.
 
-```
-crowd=5   ench=0.978  crowdMax=0.974   (all edges < 1.0 — nothing stranded)
-crowd=8   ench=0.966  crowdMax=0.975
-crowd=12  ench=0.984  crowdMax=0.984
-crowd=16  ench=1.058  crowdMax=1.234
-crowd=20  ench=0.965  crowdMax=1.308
-crowd=24  ench=1.233  crowdMax=1.319
-```
-The degree-1 leaf's link is already full strength (`1/min(deg)=1`), so `forceLink`
-converges its distance to the target ⇒ ratio ≈ 1. The only edges that exceed 1
-appear at large crowd and are **collide-ring geometry** (N equal-radius nodes cannot
-all sit at one radius around the container), exactly the false-positive the plan
-review warned about — not the Enchiridion bug.
+## E2E triage (release gate) — verdict per failure
 
-### 2. Charge (Lever 2) has ZERO leverage on the metric — decisive charge sweep
-Same fixture, overall max edge-stretch and overlaps, charge swept −300 → −30:
+Full run (`.tmp/impl2-e2e.log`): **21 passed, 2 failed, 7 did-not-run** (serial abort).
 
-```
-                    crowd=16              crowd=24
-charge=-300   ench=1.058 max=1.234   ench=1.233 max=1.319   overlaps=0
-charge=-220   ench=1.050 max=1.234   ench=0.889 max=1.309   overlaps=0
-charge=-160   ench=1.046 max=1.234   ench=1.233 max=1.317   overlaps=0
-charge=-100   ench=1.040 max=1.234   ench=1.233 max=1.317   overlaps=0
-charge=-60    ench=1.036 max=1.234   ench=1.233 max=1.317   overlaps=0
-charge=-30    ench=1.034 max=1.234   ench=1.233 max=1.317   overlaps=0
-```
-`overallMax` is **invariant to charge** (identical to 3 decimals across a 10×
-range). The max stretch is set by `forceCollide` (circular, radius = circumscribed
-circle), which charge cannot compress. **Lever 2 cannot make any stretch-metric
-test go RED→GREEN.** A second, competing-cluster fixture (also plan-suggested) gave
-the same result: the leaf rested at ~0.94 for every charge; the only >1 edges were
-the other hub's collide ring.
+1. `edgeRoutingEval.e2e.ts:171` "radial layout SKIPS routing (gated)" — routing ran
+   (132ms) where the test expects none. **PRE-EXISTING**: reproduced identically on
+   stashed-baseline code (`.tmp/impl2-e2e-baseline.log`). Already tracked:
+   `_tickets/e2e-remove-layeredradial-layout-mode-references-left-by-force-layout-only-ticket.md`
+   (leftover radial references after ticket-01/02 removed the mode/gating).
+2. `vicinityGraph.e2e.ts:160` gamma singleton-folder breadcrumb not found —
+   **PRE-EXISTING**: reproduced on stashed-baseline code with identical vault AND
+   again with the ticket-03 fixture notes deleted
+   (`.tmp/impl2-e2e-baseline-nofixture.log`); consistent 4/4 runs, not flake. NEW
+   follow-up ticket filed: `docs-internal/tickets/ticket-e2e-gamma-breadcrumb-fails-headless.md`.
 
-### 3. Lever 1 (pin link strength) — not exercised, as the review already noted
-Every non-hub node in every hub-spoke fixture is degree-1 ⇒ strength already 1 ⇒
-pinning to 1 changes nothing. Confirmed; no behavioral coverage possible from these
-fixtures. (This was flagged in the plan review as a known gap.)
+The 7 "did not run" were then executed against my change with the two pre-existing
+failures grep-inverted: **all 24 pass** (`.tmp/impl2-e2e-rest.log`) — including the
+PERF BUDGET test and the two historically-flaky node-click tests. Net: **no e2e test
+is broken by this change; the gate's 2 reds exist on main without it.**
 
-### 4. The REAL mechanism: the folder-group container's circumscribed collide radius
-The Enchiridion "long edge" is real, but its cause is neither charge nor link
-strength. The `p/ep` container is **192 × 392 px** (two 160px members stacked
-vertically by the elk layered pass). Its circular collide radius is
-`hypot(192,392)/2 + 20 ≈ 238 px`. Because the hub note is *inside* that container and
-every external neighbour links to the *container* (edges are projected onto the
-container id), `forceCollide` forces every neighbour ~238px + its own radius from
-the container centre. Measured rendered leaf→hub distances:
+## Visual acceptance (step 6)
 
-```
-grouped=true   ench->hub=375   crowdToHub=[332,261,414,417,288]   (far AND uneven)
-grouped=false  ench->hub=247   crowdToHub=[245,244,241,242,243]   (near AND even)
-```
-With the hub ungrouped (no container) the leaf sits at 247 and the whole fan is a
-tidy equal-radius ring. Grouped, the tall container's circumscribed circle pushes
-every neighbour far out at uneven distances, and the lone leaf's long edge crosses
-the crowd — precisely the screenshot symptom. **This is a property of the circular
-collide approximation applied to a high-aspect-ratio container, and it is
-independent of `D3_FORCE_CHARGE_STRENGTH` and `forceLink.strength`.**
+- Real Obsidian (headless Electron via the e2e harness), dev-vault repro note
+  `p/ep/stranded-hub.md`, via a TEMPORARY spec (deleted after run — not committed):
+  screenshot `.out/ticket-03-stranded-hub-after-fix.png`. **PASS** — `enchiridion`
+  sits directly adjacent to the `ep` group box, crowd notes ring the group closely,
+  no stranded mid-graph leaf / long crossing edge.
+- `.out/vaults/public` `we-have-a-finite-amount-of-time.md` cross-check: **NOT done**
+  — the e2e harness is hard-wired to launch on a copy of `.dev-vault`
+  (`obsidianHarness.ts`), and pointing real Obsidian at the public vault is a harness
+  change out of scope. Explicitly relying on the metric test + dev-vault mirror
+  instead; the human smoke run can cover the public vault
+  (`docs-internal/tickets/ticket-step-03-human-smoke-run.md` flow).
 
-## Why the plan is not executable as written
+## Caveats
 
-- **Levers 1–2 (the sanctioned, pure-constant fix) cannot fix the bug** — §2/§3
-  above prove charge is inert on this metric and link-strength is already 1.
-- **The chosen edge-stretch metric cannot even detect the real bug** — it
-  normalises by the circumscribed collide radius, so the inflated placement scores
-  ≈ 1 (the numerator and denominator both scale with the oversized container). §4.
-- **Lever 4 ("tighter link distance for large containers") also cannot fix it** —
-  `forceCollide` is circular at the circumscribed radius, so it already forbids any
-  neighbour from sitting closer than ~238px from the container centre *regardless of
-  link distance*. Shrinking only the link distance does nothing; shrinking the
-  collide radius below the circumscribed circle reintroduces box overlaps and would
-  fail the existing `overlappingPairCount == 0` regression.
+- Known geometric limit (documented in RE_PLAN): at crowd ≥ 10 second-ring overflow
+  means the *worst* gap can exceed the old uniformly-bad baseline; the committed
+  assertion deliberately targets the crowd=5 vault mirror.
+- Nothing committed per instructions; working tree holds all changes listed above.
 
-The real fix is architectural, not a constant tune — e.g. (a) a rectangular/AABB
-collision force replacing the circular `forceCollide` (so a neighbour approaching a
-tall container from the side only clears its half-width, not its diagonal); or
-(b) attracting/attaching a cross-boundary edge to the actual member-note position
-instead of the container centre; or (c) making containers squarer. Each is a
-design change with its own correctness/determinism/overlap test burden and is well
-outside "fix defaults / tune constants."
-
----
-
-## `#QUESTION_FOR_HUMAN`
-
-The approved plan's premise — that the Enchiridion strands due to weak link
-strength (Lever 1) and/or high charge (Lever 2), fixable by tuning `constants.ts`,
-and detectable by a circumscribed-normalised edge-stretch metric — is empirically
-false (evidence above). The genuine mechanism is the **circular `forceCollide`
-using the folder-group container's circumscribed-circle radius**, which inflates the
-resting distance of *every* external neighbour of a hub that lives inside a tall/
-wide container. No pure-constant lever (charge, link strength, link distance) can
-fix this without breaking the overlap guarantee, and the chosen metric cannot detect
-it.
-
-**Please choose a direction for a re-plan (I did not want to unilaterally undertake
-an architectural change against an invalidated plan):**
-
-1. **Rectangular/AABB collision force** (replace circular `forceCollide` with a
-   box-aware separation). Highest-fidelity fix; largest change. Would also let me
-   write a metric that genuinely goes RED→GREEN.
-2. **Edge/attraction target = member note, not container centre** (change the
-   projection so the leaf is pulled toward Epictetus's actual box). Medium change in
-   `elkMapping.ts` + `d3ForceRefinement.ts`.
-3. **Reduce container aspect ratio / size** (e.g. squarer internal layout, or cap
-   container collide radius) — smaller effect, may not fully resolve.
-4. **Confirm on the real engine first** — reproduce with `FakeLinkProvider` +
-   `VicinityEngine.build({outgoingDepth:2})` to verify the mechanism at engine scale
-   before committing to a fix (the `makeGraph` reproduction already isolates it, so
-   I believe this is confirmatory only).
-
-I recommend **(1)** for a durable fix (it directly removes the over-conservative
-circular approximation that is the root cause) or **(2)** as a lighter-weight
-Pareto option, but this is a scope/architecture decision for you.
-
-## Test / check status
-No production or test files changed (tree pristine); the committed suite remains
-green. Nothing to re-verify beyond the untouched baseline. Dev-vault repro data and
-CHANGELOG were intentionally NOT added, since no fix shipped — they should land with
-the chosen fix so the visual acceptance note references a real code change.
-
-## Files (for the next iteration)
-- Investigation harness (fixture + metric + all calibration probes) preserved at
-  `.ai_out/03-force-placement-quality/main/IMPLEMENTATION__PRIVATE.md` and
-  `.tmp/investigation-harness.test.ts.txt`.
-- Root-cause locus: `src/view/d3ForceRefinement.ts` (`forceCollide` at the
-  circumscribed radius, `collideRadius = hypot(w,h)/2 + 20`, line ~47/71) +
-  `src/view/elkMapping.ts` (`projectedRootEdges`, edges projected onto container id).
+No `#QUESTION_FOR_HUMAN` items.

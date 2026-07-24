@@ -88,12 +88,17 @@ export const ELK_FORCE_ROOT_OPTIONS: Readonly<Record<string, string>> = {
  */
 export const D3_FORCE_CHARGE_STRENGTH = -300;
 
-/** Free space kept along a link between the two endpoint boxes' collide circles. */
+/**
+ * Extra length on a link's resting distance beyond the endpoints' min
+ * half-extents. The spring only pulls partners into touching range — the rect
+ * collide force owns the actual separation (see `d3ForceRefinement.ts`).
+ */
 export const D3_FORCE_LINK_GAP_PX = 40;
 
 /**
- * Padding added to each box's circumscribed-circle collide radius, so two
- * touching circles still leave a visible gap between the boxes inside them.
+ * Padding added to each box's half-extents in the rectangular collide force
+ * (`forceRectCollide.ts`), so separated boxes keep a visible gap. 20 validated
+ * by the ticket-03 prototype: doubling it measurably worsened crowded layouts.
  */
 export const D3_FORCE_COLLIDE_PADDING_PX = 20;
 
@@ -105,9 +110,10 @@ export const D3_FORCE_COLLIDE_PADDING_PX = 20;
 export const D3_FORCE_CENTER_PULL_STRENGTH = 0.05;
 
 /**
- * d3 `forceCollide` relaxation passes per tick. 1 leaves residual overlaps on
- * dense hubs; 2 resolves them (d3 docs recommend raising iterations when
- * overlap-freedom matters more than speed).
+ * Rect-collide (`forceRectCollide.ts`) relaxation passes per tick. 1 leaves
+ * residual overlaps on dense hubs; 2 resolves them (same rationale as d3's own
+ * advice to raise `forceCollide` iterations when overlap-freedom matters more
+ * than speed). The ticket-03 prototype found 3 passes gained nothing.
  */
 export const D3_FORCE_COLLIDE_ITERATIONS = 2;
 
