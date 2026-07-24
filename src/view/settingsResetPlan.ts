@@ -12,16 +12,17 @@ import type { SettingsCommand, SettingsWriteContext } from "./settingsWritePlan"
  * re-typed here, or "restore defaults" could restore a value that was never the
  * default.
  *
- * Scope granularity mirrors the settings tab's five cards, plus the tab-wide
+ * Scope granularity mirrors the settings tab's six cards, plus the tab-wide
  * scope at the bottom. The UX rule this encodes (obsidian-settings skill): a
  * reset's blast radius must be readable from its label alone, so the label lives
  * HERE next to the key-set it clears — the two cannot drift.
  */
 
-/** One reset affordance: the five per-section scopes plus the tab-wide one. */
+/** One reset affordance: the six per-section scopes plus the tab-wide one. */
 export type SettingsResetScope =
 	| "depth-defaults"
 	| "node-sizing"
+	| "node-contents"
 	| "force-layout"
 	| "node-exclusion"
 	| "performance"
@@ -65,7 +66,7 @@ const ALL_SCOPE_LABEL = "Restore all Vicinity Graph settings";
  * second sentence a user reads the label as "my per-note work is gone too".
  */
 const ALL_SCOPE_DESCRIPTION =
-	"Resets every Vicinity Graph setting — depth defaults, node sizing, force layout, node exclusion and performance — to its shipped default. Per-note depth overrides and pinned notes are kept.";
+	"Resets every Vicinity Graph setting — depth defaults, node sizing, node contents, force layout, node exclusion and performance — to its shipped default. Per-note depth overrides and pinned notes are kept.";
 
 const EXCLUSION_SCOPE_LABEL = "Restore node exclusion defaults";
 
@@ -87,6 +88,16 @@ export const SETTINGS_RESET_SCOPES: Readonly<Record<SettingsResetScope, Settings
 			"Resets every sizing metric and weight, the minimum and maximum node size, and the depth decay k.",
 		plan: (ctx) => [
 			{ kind: "global-view", view: { ...ctx.globalView, sizing: EngineDefaults.sizingSettings() } },
+		],
+	},
+	"node-contents": {
+		label: "Restore node contents defaults",
+		description: `Resets the outline depth to ${SETTINGS_SPEC.globalView.outlineMaxDepth.default} heading levels.`,
+		plan: (ctx) => [
+			{
+				kind: "global-view",
+				view: { ...ctx.globalView, outlineMaxDepth: SETTINGS_SPEC.globalView.outlineMaxDepth.default },
+			},
 		],
 	},
 	"force-layout": {
@@ -156,6 +167,7 @@ export const SETTINGS_RESET_SCOPES: Readonly<Record<SettingsResetScope, Settings
 export const SECTION_RESET_SCOPES = [
 	"depth-defaults",
 	"node-sizing",
+	"node-contents",
 	"force-layout",
 	"node-exclusion",
 	"performance",

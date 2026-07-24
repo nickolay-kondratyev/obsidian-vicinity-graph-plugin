@@ -58,7 +58,9 @@ ordinary graph nodes.
   ellipsis for headings too wide to fit.
 - **`outlineMaxDepth`** (global, 1–6, default 2) added through the full `SETTINGS_SPEC`
   chain. There is deliberately **no on/off toggle** — putting an image before the first
-  heading is the documented way to keep a thumbnail.
+  heading is the documented way to keep a thumbnail. Its *Node contents* card carries its
+  own `node-contents` restore row like every sibling section, and the tab-wide restore
+  names it (both wired up when this branch merged with the restore-defaults round).
 - **Space gating is CSS-only** — the existing 104px container query, reusing the
   thumbnail's slot (mutually exclusive). Base `display:none` and its reveal are kept in
   the same file on purpose: split across files, stylesheet concatenation order silently

@@ -32,6 +32,7 @@ test.afterAll(async () => {
 interface Globals {
 	readonly view: {
 		readonly nodeCap: number;
+		readonly outlineMaxDepth: number;
 		readonly groupByFolder: boolean;
 		readonly edgeVisibility: string;
 		readonly sizing: { readonly minPx: number; readonly maxPx: number; readonly depthDecayK: number };
@@ -58,6 +59,7 @@ async function dirtyEverySection(): Promise<void> {
 		await store.saveGlobalView({
 			...view,
 			nodeCap: 42,
+			outlineMaxDepth: 5,
 			sizing: { ...view.sizing, minPx: 11, maxPx: 99, depthDecayK: 0.75 },
 			forceLayout: { ...view.forceLayout, repelStrength: 800, collidePaddingPx: 77 },
 		});
@@ -72,7 +74,7 @@ async function openSettingsTab(): Promise<void> {
 		app.setting.open();
 		app.setting.openTabById(pluginId);
 	}, PLUGIN_ID);
-	await expect(page.locator(".vicinity-graph-settings-section")).toHaveCount(5);
+	await expect(page.locator(".vicinity-graph-settings-section")).toHaveCount(6);
 }
 
 function card(headingText: string): Locator {
@@ -107,6 +109,7 @@ test("REVIEW: isolation matrix — each section reset touches only its own keys"
 	expect(after.view.nodeCap).toBe(42);
 	expect(after.view.sizing.minPx).toBe(11);
 	expect(after.view.forceLayout.repelStrength).toBe(800);
+	expect(after.view.outlineMaxDepth).toBe(5);
 	expect(after.exclusion.patterns).toEqual(["^archive/", "templates/"]);
 
 	// --- Node sizing --------------------------------------------------------
@@ -119,6 +122,20 @@ test("REVIEW: isolation matrix — each section reset touches only its own keys"
 	expect(after.depths.outgoingDepth).toBe(4);
 	expect(after.view.nodeCap).toBe(42);
 	expect(after.view.forceLayout.repelStrength).toBe(800);
+	// Node CONTENTS is the adjacent card and shares the `global-view` slice with
+	// sizing — the pairing most likely to reset each other by accident.
+	expect(after.view.outlineMaxDepth).toBe(5);
+	expect(after.exclusion.enabled).toBe(true);
+
+	// --- Node contents ------------------------------------------------------
+	await dirtyEverySection();
+	await resetButton("Node contents").click();
+	after = await readGlobals();
+	expect(after.view.outlineMaxDepth).toBe(2);
+	expect(after.depths.outgoingDepth).toBe(4);
+	expect(after.view.nodeCap).toBe(42);
+	expect(after.view.sizing.minPx).toBe(11);
+	expect(after.view.forceLayout.repelStrength).toBe(800);
 	expect(after.exclusion.enabled).toBe(true);
 
 	// --- Force layout -------------------------------------------------------
@@ -130,6 +147,7 @@ test("REVIEW: isolation matrix — each section reset touches only its own keys"
 	expect(after.depths.outgoingDepth).toBe(4);
 	expect(after.view.nodeCap).toBe(42);
 	expect(after.view.sizing.minPx).toBe(11);
+	expect(after.view.outlineMaxDepth).toBe(5);
 	expect(after.exclusion.enabled).toBe(true);
 
 	// --- Node exclusion -----------------------------------------------------
@@ -144,6 +162,7 @@ test("REVIEW: isolation matrix — each section reset touches only its own keys"
 	expect(after.view.nodeCap).toBe(42);
 	expect(after.view.sizing.minPx).toBe(11);
 	expect(after.view.forceLayout.repelStrength).toBe(800);
+	expect(after.view.outlineMaxDepth).toBe(5);
 
 	// --- Performance --------------------------------------------------------
 	await dirtyEverySection();
@@ -153,6 +172,7 @@ test("REVIEW: isolation matrix — each section reset touches only its own keys"
 	expect(after.depths.outgoingDepth).toBe(4);
 	expect(after.view.sizing.minPx).toBe(11);
 	expect(after.view.forceLayout.repelStrength).toBe(800);
+	expect(after.view.outlineMaxDepth).toBe(5);
 	expect(after.exclusion.enabled).toBe(true);
 });
 
@@ -165,6 +185,7 @@ test("REVIEW: every reset control has a distinct accessible name", async () => {
 	expect(resetNames).toEqual([
 		"Restore depth defaults",
 		"Restore node sizing defaults",
+		"Restore node contents defaults",
 		"Restore force layout defaults",
 		"Restore node exclusion defaults",
 		"Restore performance defaults",
@@ -261,6 +282,9 @@ test("REVIEW: confirm modal — keyboard-only confirm restores everything", asyn
 	expect(after.view.nodeCap).toBe(100);
 	expect(after.view.sizing.minPx).not.toBe(11);
 	expect(after.view.forceLayout.repelStrength).not.toBe(800);
+	// "Restore ALL" must include the newest section too, not just the ones that
+	// existed when the footer button was written.
+	expect(after.view.outlineMaxDepth).toBe(2);
 });
 
 test("REVIEW: reset survives closing/reopening the tab AND a plugin reload", async () => {

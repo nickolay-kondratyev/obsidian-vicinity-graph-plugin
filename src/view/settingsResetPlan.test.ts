@@ -17,6 +17,7 @@ import type { SettingsWriteContext } from "./settingsWritePlan";
 const TUNED_VIEW: ViewSettings = {
 	...EngineDefaults.viewSettings(),
 	nodeCap: 17,
+	outlineMaxDepth: 5,
 	groupByFolder: false,
 	edgeVisibility: "all-edges",
 	sizing: {
@@ -80,6 +81,23 @@ describe("planSettingsReset node-sizing scope", () => {
 	});
 });
 
+describe("planSettingsReset node-contents scope", () => {
+	it("WHEN the node-contents section is reset THEN the outline depth returns to its spec default", () => {
+		expect(onlyViewCommand(planSettingsReset("node-contents", TUNED_CTX)).outlineMaxDepth).toBe(
+			EngineDefaults.viewSettings().outlineMaxDepth,
+		);
+	});
+
+	it("WHEN the node-contents section is reset THEN every other view field keeps its tuned value", () => {
+		const view = onlyViewCommand(planSettingsReset("node-contents", TUNED_CTX));
+		expect({ ...view, outlineMaxDepth: TUNED_VIEW.outlineMaxDepth }).toEqual(TUNED_VIEW);
+	});
+
+	it("WHEN the node-contents section is reset THEN neither the depths nor the exclusion are written", () => {
+		expect(planSettingsReset("node-contents", TUNED_CTX).map((command) => command.kind)).toEqual(["global-view"]);
+	});
+});
+
 describe("planSettingsReset force-layout scope", () => {
 	it("WHEN the force-layout section is reset THEN forceLayout returns to its spec defaults", () => {
 		expect(onlyViewCommand(planSettingsReset("force-layout", TUNED_CTX)).forceLayout).toEqual(
@@ -128,6 +146,17 @@ describe("planSettingsReset all scope", () => {
 
 	it("WHEN everything is reset THEN the view write carries EVERY spec default (including keys with no UI)", () => {
 		expect(onlyViewCommand(planSettingsReset("all", TUNED_CTX))).toEqual(EngineDefaults.viewSettings());
+	});
+
+	/**
+	 * Called out on its own because it is the field a whole-slice reset is most
+	 * likely to LOSE: `outlineMaxDepth` arrived on a branch that never saw the
+	 * reset machinery, so "restore all" silently skipping it would be invisible.
+	 */
+	it("WHEN everything is reset THEN the outline depth is restored too", () => {
+		expect(onlyViewCommand(planSettingsReset("all", TUNED_CTX)).outlineMaxDepth).toBe(
+			EngineDefaults.viewSettings().outlineMaxDepth,
+		);
 	});
 
 	it("WHEN everything is reset THEN the exclusion write carries the spec defaults", () => {
@@ -239,5 +268,27 @@ describe("settings reset scope catalogue", () => {
 
 	it("WHEN the tab-wide scope's description is read THEN it does NOT scope itself to 'this tab'", () => {
 		expect(SETTINGS_RESET_SCOPES.all.description).not.toContain("this tab");
+	});
+});
+
+/**
+ * The tab-wide description ENUMERATES the sections it clears ("depth defaults,
+ * node sizing, …"), so a section added without extending that sentence turns the
+ * sentence into a lie about the button's blast radius — exactly what merging a
+ * new settings section produced once. The noun is derived from each section's OWN
+ * label ("Restore <noun> defaults"), so there is no second list to keep in sync.
+ */
+describe("tab-wide description enumerates every section", () => {
+	const sectionNouns = SECTION_RESET_SCOPES.map((scope) =>
+		SETTINGS_RESET_SCOPES[scope].label.replace(/^Restore /, "").replace(/ defaults$/, ""),
+	);
+
+	it("WHEN a section label is reduced to its noun THEN the noun is non-empty (so the check below is not vacuous)", () => {
+		expect(sectionNouns.filter((noun) => noun.length === 0)).toEqual([]);
+	});
+
+	it("WHEN the tab-wide description is read THEN every section it resets is named in it", () => {
+		const unnamed = sectionNouns.filter((noun) => !SETTINGS_RESET_SCOPES.all.description.includes(noun));
+		expect(unnamed).toEqual([]);
 	});
 });

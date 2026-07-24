@@ -56,7 +56,7 @@ async function openSettingsTab(): Promise<void> {
 		app.setting.open();
 		app.setting.openTabById(pluginId);
 	}, PLUGIN_ID);
-	await expect(page.locator(".vicinity-graph-settings-section")).toHaveCount(5);
+	await expect(page.locator(".vicinity-graph-settings-section")).toHaveCount(6);
 }
 
 function card(headingText: string): Locator {

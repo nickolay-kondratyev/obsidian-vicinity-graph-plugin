@@ -124,7 +124,7 @@ test("settings tab renders six framed section cards with plugin CSS applied", as
 		app.setting.openTabById(pluginId);
 	}, PLUGIN_ID);
 	const sections = page.locator(".vicinity-graph-settings-section");
-	// Depths, sizing, node contents, layout, force layout, node exclusion.
+	// Depth defaults, node sizing, node contents, force layout, node exclusion, performance.
 	await expect(sections).toHaveCount(6);
 	// The framed-card border proves settings-tab.css reached the settings DOM.
 	const borderStyle = await sections.first().evaluate((el) => getComputedStyle(el).borderTopStyle);
@@ -156,11 +156,12 @@ async function openSettingsTab(): Promise<void> {
 test("settings tab: every section card ends with its own scoped restore row", async () => {
 	await openSettingsTab();
 	const resets = page.locator(".vicinity-graph-settings-section .vicinity-graph-settings-reset");
-	await expect(resets).toHaveCount(5);
+	await expect(resets).toHaveCount(6);
 	// Scope must be readable from the row itself — no bare "Restore defaults".
 	await expect(resets.locator(".setting-item-name")).toHaveText([
 		"Restore depth defaults",
 		"Restore node sizing defaults",
+		"Restore node contents defaults",
 		"Restore force layout defaults",
 		"Restore node exclusion defaults",
 		"Restore performance defaults",

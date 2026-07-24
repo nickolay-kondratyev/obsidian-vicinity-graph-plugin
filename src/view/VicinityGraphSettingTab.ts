@@ -99,7 +99,7 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 
 	/**
 	 * The LAST row of a section card: its restore-defaults affordance. Placement
-	 * and copy are uniform across all five cards, and the copy is read from
+	 * and copy are uniform across all six cards, and the copy is read from
 	 * {@link SETTINGS_RESET_SCOPES} so the stated blast radius always matches the
 	 * key-set actually written. Inside the card's frame on purpose — a reset
 	 * rendered after the frame closes reads as a tab-wide reset.
@@ -113,7 +113,7 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 			.addButton((button) =>
 				button
 					.setButtonText("Restore defaults")
-					// The button alone would be ambiguous once the tab has six of
+					// The button alone would be ambiguous once the tab has seven of
 					// them; the accessible name carries the scope, like the row name.
 					.setTooltip(label)
 					.then(() => button.buttonEl.setAttribute("aria-label", label))
@@ -125,7 +125,7 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	 * The ONE entry point for every reset button. Whether a scope confirms first is
 	 * decided by {@link planSettingsResetConfirmation}, next to the key-set it
 	 * clears — never by the call site, or "which resets are destructive" would be
-	 * answered in six places.
+	 * answered in seven places.
 	 */
 	private requestReset(scope: SettingsResetScope): void {
 		const confirmation = planSettingsResetConfirmation(scope, this.writeContext());
@@ -338,6 +338,7 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 						});
 					}),
 			);
+		this.addSectionReset(section, "node-contents");
 	}
 
 	private renderPerformance(): void {
