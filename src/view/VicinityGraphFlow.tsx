@@ -12,7 +12,9 @@ import type { GraphViewController } from "./GraphViewController";
 import { GraphUiContext } from "./GraphUiContext";
 import { VicinityEdge } from "./VicinityEdge";
 import { NoteNode } from "./NoteNode";
-import type { ControlsActionsPort, GraphUiPort } from "./viewPorts";
+import { NoteOpenContext } from "./NoteOpenContext";
+import { opensInNewTab } from "./nodeOpenIntent";
+import type { ControlsActionsPort, GraphUiPort, NoteOpenPort } from "./viewPorts";
 
 /**
  * Renders the controller's flow snapshot with React Flow (step-05 rich
@@ -41,9 +43,17 @@ export function VicinityGraphFlow({
 	const edges = useMemo<Edge[]>(() => snapshot.edges.map(toReactFlowEdge), [snapshot.edges]);
 
 	const onNodeClick = useCallback<NodeMouseHandler>(
-		// Ctrl/cmd-click opens a NEW tab (CLARIFICATION Q2); the controller
-		// ignores folder-group ids.
-		(event, node) => controller.openNode(node.id, { newTab: event.ctrlKey || event.metaKey }),
+		// Ctrl/cmd-click opens a NEW tab (CLARIFICATION Q2) — `opensInNewTab` is the
+		// ONE definition of that gesture, shared with the outline entries. The
+		// controller ignores folder-group ids.
+		(event, node) => controller.openNode(node.id, { newTab: opensInNewTab(event) }),
+		[controller],
+	);
+
+	// Node components cannot receive the controller as a prop (React Flow
+	// instantiates them), so navigation reaches them through this one-method port.
+	const noteOpen = useMemo<NoteOpenPort>(
+		() => ({ openNote: (path, options) => controller.openNode(path, options) }),
 		[controller],
 	);
 
@@ -58,60 +68,62 @@ export function VicinityGraphFlow({
 	return (
 		<GraphUiContext.Provider value={ui}>
 			<ControlsActionsContext.Provider value={actions}>
-				<div className="vicinity-graph-flow">
-					<ReactFlow
-						nodes={nodes}
-						edges={edges}
-						nodeTypes={NODE_TYPES}
-						edgeTypes={EDGE_TYPES}
-						onNodeClick={onNodeClick}
-						nodesConnectable={false}
-						// The graph is read-only in V1: layout is elk-driven and would
-						// overwrite any manual placement on the next rebuild, so a drag
-						// would only snap back. Disable it rather than ship half-working
-						// drag (decision 2026-07-20, [[ticket-node-drag-reposition]]).
-						nodesDraggable={false}
-						// Ctrl/cmd is the "open in new tab" gesture (CLARIFICATION Q2);
-						// RF's default multiSelectionKeyCode is the SAME modifier, so
-						// each new-tab click would also toggle a meaningless persistent
-						// multi-selection in this read-only graph. Disable it.
-						multiSelectionKeyCode={null}
-						// See GRAPH_MIN_ZOOM — RF's 0.5 default clamps fitView on dense
-						// graphs, leaving part of the vicinity unreachable off-pane.
-						minZoom={GRAPH_MIN_ZOOM}
-						// Mount only nodes overlapping the pan/zoom viewport so a
-						// large/image-heavy graph doesn't hold every node (and its lazy
-						// <img> thumbnail) in the DOM at once. Safe with folder-group
-						// subflows: group parents render no <Handle>, so React Flow's
-						// `forceInitialRender` (keyed on missing handleBounds) keeps them
-						// always mounted, and children are culled by their own absolute
-						// rect — the container never disappears out from under them.
-						// Culling math never needs DOM measurement: every node carries
-						// explicit width/height (toReactFlowNode).
-						onlyRenderVisibleElements
-						// WHY-NOT the `fitView` prop: it fires exactly once at mount,
-						// racing Obsidian's pane layout (observed producing an off-graph
-						// viewport in a fresh sidebar) and never refitting after rebuilds.
-						// FitViewOnLayoutChange owns fitting instead.
-					>
-						<FitViewOnLayoutChange layoutVersion={snapshot.layoutVersion} />
-						<Background />
-						<Controls />
-						<Panel position="top-left">
-							<GraphToolbar controls={snapshot.controls} />
-						</Panel>
-						{snapshot.orphanTruncation.totalHiddenCount > 0 && (
-							<Panel position="top-right">
-								<div
-									className="vicinity-graph-overlay-badge"
-									title={orphanBreakdownTitle(snapshot.orphanTruncation.breakdown)}
-								>
-									{hiddenOverlayText(snapshot.orphanTruncation.totalHiddenCount)}
-								</div>
+				<NoteOpenContext.Provider value={noteOpen}>
+					<div className="vicinity-graph-flow">
+						<ReactFlow
+							nodes={nodes}
+							edges={edges}
+							nodeTypes={NODE_TYPES}
+							edgeTypes={EDGE_TYPES}
+							onNodeClick={onNodeClick}
+							nodesConnectable={false}
+							// The graph is read-only in V1: layout is elk-driven and would
+							// overwrite any manual placement on the next rebuild, so a drag
+							// would only snap back. Disable it rather than ship half-working
+							// drag (decision 2026-07-20, [[ticket-node-drag-reposition]]).
+							nodesDraggable={false}
+							// Ctrl/cmd is the "open in new tab" gesture (CLARIFICATION Q2);
+							// RF's default multiSelectionKeyCode is the SAME modifier, so
+							// each new-tab click would also toggle a meaningless persistent
+							// multi-selection in this read-only graph. Disable it.
+							multiSelectionKeyCode={null}
+							// See GRAPH_MIN_ZOOM — RF's 0.5 default clamps fitView on dense
+							// graphs, leaving part of the vicinity unreachable off-pane.
+							minZoom={GRAPH_MIN_ZOOM}
+							// Mount only nodes overlapping the pan/zoom viewport so a
+							// large/image-heavy graph doesn't hold every node (and its lazy
+							// <img> thumbnail) in the DOM at once. Safe with folder-group
+							// subflows: group parents render no <Handle>, so React Flow's
+							// `forceInitialRender` (keyed on missing handleBounds) keeps them
+							// always mounted, and children are culled by their own absolute
+							// rect — the container never disappears out from under them.
+							// Culling math never needs DOM measurement: every node carries
+							// explicit width/height (toReactFlowNode).
+							onlyRenderVisibleElements
+							// WHY-NOT the `fitView` prop: it fires exactly once at mount,
+							// racing Obsidian's pane layout (observed producing an off-graph
+							// viewport in a fresh sidebar) and never refitting after rebuilds.
+							// FitViewOnLayoutChange owns fitting instead.
+						>
+							<FitViewOnLayoutChange layoutVersion={snapshot.layoutVersion} />
+							<Background />
+							<Controls />
+							<Panel position="top-left">
+								<GraphToolbar controls={snapshot.controls} />
 							</Panel>
-						)}
-					</ReactFlow>
-				</div>
+							{snapshot.orphanTruncation.totalHiddenCount > 0 && (
+								<Panel position="top-right">
+									<div
+										className="vicinity-graph-overlay-badge"
+										title={orphanBreakdownTitle(snapshot.orphanTruncation.breakdown)}
+									>
+										{hiddenOverlayText(snapshot.orphanTruncation.totalHiddenCount)}
+									</div>
+								</Panel>
+							)}
+						</ReactFlow>
+					</div>
+				</NoteOpenContext.Provider>
 			</ControlsActionsContext.Provider>
 		</GraphUiContext.Provider>
 	);

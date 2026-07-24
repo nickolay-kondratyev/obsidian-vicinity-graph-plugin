@@ -260,6 +260,15 @@ describe("GraphViewController MAIN gating", () => {
 
 		expect(h.navigator.openedOptions).toEqual([{ newTab: true }]);
 	});
+
+	it("WHEN an outline entry is opened THEN the RAW heading reaches the navigator verbatim", () => {
+		const h = setup();
+		// Sanitising is the ADAPTER's job (obsidian's `stripHeadingForLink`), so the
+		// controller must not touch the heading on the way through.
+		h.controller.openNode("notes/a.md", { newTab: false, heading: "Status of [[note1]] **today**" });
+
+		expect(h.navigator.openedOptions).toEqual([{ newTab: false, heading: "Status of [[note1]] **today**" }]);
+	});
 });
 
 describe("GraphViewController settings-changed rebuild", () => {

@@ -57,6 +57,12 @@ export interface GraphLayoutPort {
 export interface OpenNoteOptions {
 	/** `true` opens a NEW tab (`getLeaf(true)`); otherwise the current main-area leaf is reused. */
 	readonly newTab: boolean;
+	/**
+	 * RAW heading text to position the note at (`OutlineEntry.rawText`); absent =
+	 * the top of the note. The ADAPTER sanitises it into a link subpath with
+	 * Obsidian's own `stripHeadingForLink` — callers pass it through verbatim.
+	 */
+	readonly heading?: string;
 }
 
 /** The slice of Obsidian navigation the controller needs: read the active file
@@ -64,6 +70,17 @@ export interface OpenNoteOptions {
 export interface NoteNavigatorPort {
 	activeFilePath(): string | null;
 	openNote(path: string, options?: OpenNoteOptions): void;
+}
+
+/**
+ * The slice of navigation the rich node components need — deliberately ONE
+ * method, so a node component can open a note (or one of its headings) without
+ * reaching the whole {@link NoteNavigatorPort} or the controller. Delivered by
+ * `NoteOpenContext`; kept out of {@link GraphUiPort} because that port's doc
+ * comment explicitly splits navigation out of it (SRP).
+ */
+export interface NoteOpenPort {
+	openNote(path: string, options: OpenNoteOptions): void;
 }
 
 /** Fires Obsidian's native `hover-link` page preview for a hovered node. */
