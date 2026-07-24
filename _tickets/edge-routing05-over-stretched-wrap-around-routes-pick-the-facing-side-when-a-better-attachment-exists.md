@@ -43,3 +43,8 @@ Testability: facing-side computation + pin-spec selection are pure functions -> 
 - crossingPenalty remains 0; no new settings/knobs exposed.
 - Pure pin-selection logic unit-tested; screenshot smoke run recorded.
 
+
+## Appendix
+Vault with notes `/home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-2/.out/public`
+
+from note 'clear-goals.md' produces a view as `/home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-2/.tmp/Screenshot From 2026-07-24 15-41-26.png` Notice how Epictetus is awkwardly linked to the bottom from the bottom of the group creating odd relationship. 
