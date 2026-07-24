@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { asVaultPath } from "../engine";
+import type { ForceLayoutSettings } from "../engine";
+import { asVaultPath, FORCE_LAYOUT_RANGES } from "../engine";
 import { SIZE_RELAYOUT_THRESHOLD } from "./constants";
 import { decideLayout } from "./GraphStructureDiff";
 import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
@@ -88,6 +89,23 @@ describe("decideLayout force-layout tuning change (ticket-04 live sliders)", () 
 		});
 		expect(decideLayout(previous, next, 1.0)).toBe("relayout");
 	});
+
+	// Every field, not just one: guards the comparison against silently dropping a
+	// field (review finding — a missed field means that slider never takes effect).
+	it.each(Object.keys(FORCE_LAYOUT_RANGES) as (keyof ForceLayoutSettings)[])(
+		"WHEN only the %s force-layout field changed THEN a relayout is forced",
+		(field) => {
+			const bumpedPastRangeMax = FORCE_LAYOUT_RANGES[field].max + 1; // differs from ANY in-range value
+			const next = makeGraph({
+				nodes,
+				viewSettings: {
+					...previous.viewSettings,
+					forceLayout: { ...previous.viewSettings.forceLayout, [field]: bumpedPastRangeMax },
+				},
+			});
+			expect(decideLayout(previous, next, 1.0)).toBe("relayout");
+		},
+	);
 
 	it("WHEN force-layout values are equal but the object identity differs THEN the layout is still reused", () => {
 		const next = makeGraph({

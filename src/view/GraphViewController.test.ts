@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ElkNode } from "elkjs";
-import type { VicinityGraph } from "../engine";
+import type { ForceLayoutSettings, VicinityGraph } from "../engine";
 import { asFolderPath, asVaultPath, EngineDefaults } from "../engine";
 import { REBUILD_DEBOUNCE_MS } from "./constants";
 import { GraphViewController } from "./GraphViewController";
@@ -81,12 +81,19 @@ class FakeGraphSource implements GraphSourcePort {
 const FAKE_GROUP_WIDTH_PX = 150;
 const FAKE_GROUP_HEIGHT_PX = 100;
 
-/** Lays children out at deterministic, distinct coordinates and counts invocations. */
+/**
+ * Lays children out at deterministic, distinct coordinates and counts invocations.
+ * Records the forwarded force-layout settings: the real runner defaults the
+ * parameter when omitted, so only recording it here can catch a controller that
+ * silently stops passing the graph's resolved values.
+ */
 class FakeLayout implements GraphLayoutPort {
 	callCount = 0;
+	lastForceLayout: ForceLayoutSettings | undefined;
 
-	async layout(graph: ElkNode): Promise<ElkNode> {
+	async layout(graph: ElkNode, forceLayout?: ForceLayoutSettings): Promise<ElkNode> {
 		this.callCount += 1;
+		this.lastForceLayout = forceLayout;
 		const children = (graph.children ?? []).map((child, index) => {
 			const placed = { ...child, x: index * 200, y: 0 };
 			// A folder-group container carries `children`; elk sizes it to wrap them.
@@ -298,6 +305,21 @@ describe("GraphViewController structural diff", () => {
 		await flush();
 
 		expect(h.snapshot().nodes.map((node) => node.position)).toEqual(laidOut);
+	});
+
+	it("WHEN a build lays out THEN the graph's resolved force-layout settings reach the layout runner", async () => {
+		// A NON-default value: proves the controller forwards the graph's RESOLVED
+		// settings — with the argument dropped, the runner would silently fall back
+		// to engine defaults and the d3 sliders would become no-ops.
+		const NON_DEFAULT_LINK_GAP_PX = 77;
+		const forceLayout = { ...EngineDefaults.forceLayoutSettings(), linkGapPx: NON_DEFAULT_LINK_GAP_PX };
+		const base = graphOf("a.md");
+		const h = setup();
+		h.controller.handleActiveFileChanged("a.md");
+		h.source.resolveBuild(0, { ...base, viewSettings: { ...base.viewSettings, forceLayout } });
+		await flush();
+
+		expect(h.layout.lastForceLayout).toEqual(forceLayout);
 	});
 
 	it("WHEN the next graph's node set changed THEN elk layout runs again (relayout)", async () => {

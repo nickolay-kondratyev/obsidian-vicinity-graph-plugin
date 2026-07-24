@@ -113,3 +113,35 @@ in service of the "unreachable" AC.
 
 ## Follow-ups
 None filed — no out-of-scope issues encountered.
+
+---
+
+## Iteration 1 — response to IMPLEMENTATION_REVIEW (APPROVED-WITH-MINORS)
+
+Full per-finding disposition table: `IMPLEMENTATION_ITERATION__PUBLIC.md`. Summary:
+
+- **MINOR-1 (untested controller→runner forwarding) — INCORPORATED.**
+  `GraphViewController.test.ts`: `FakeLayout` now records the received
+  `forceLayout` (`lastForceLayout`), and a new BDD test builds a graph with a
+  NON-default `linkGapPx` (77) and asserts the recorded value equals the graph's
+  resolved settings. Written failing-first; dropping the argument at
+  `GraphViewController.ts:213` now fails this test instead of staying green.
+- **MINOR-2 (non-exhaustive `sameForceLayout`) — INCORPORATED.**
+  `GraphStructureDiff.ts` now derives `FORCE_LAYOUT_FIELDS` from
+  `Object.keys(FORCE_LAYOUT_RANGES)` — the ranges table is typed
+  `Record<keyof ForceLayoutSettings, …>`, so a future 7th field is a compile
+  error there and automatically compared here (compile-time exhaustiveness, no
+  runtime guard). Semantics unchanged. Backed by a new `it.each` over the same
+  keys in `GraphStructureDiff.test.ts` (each field change forces relayout).
+- **NIT-3 (per-drag-tick persist+relayout) — REJECTED (no change).**
+  Reviewer's own direction was "none required". Consistent with the existing
+  depth-slider pattern (consistency over one-off optimization); a debounce is
+  speculative complexity for a tuning harness. Revisit only if the human's
+  real-vault tuning pass feels janky.
+
+Iteration results: `npm test` 60 files / **729** tests PASS (+7 vs. review run),
+`npm run check` PASS (`.tmp/t04-iter-test.log`, `.tmp/t04-iter-check.log`).
+Files touched: `src/view/GraphStructureDiff.ts` (pure refactor),
+`src/view/GraphStructureDiff.test.ts`, `src/view/GraphViewController.test.ts`.
+Stranding test untouched and green; defaults behavior-identical (no production
+behavior change — one semantics-preserving refactor plus tests).

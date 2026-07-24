@@ -1,4 +1,5 @@
 import type { ForceLayoutSettings, GraphNode, VicinityGraph } from "../engine";
+import { FORCE_LAYOUT_RANGES } from "../engine";
 import { edgeIdOf } from "./graphIdentity";
 
 /**
@@ -46,16 +47,17 @@ export function decideLayout(
 	return "reuse-layout";
 }
 
+/**
+ * Every force-layout field, derived from FORCE_LAYOUT_RANGES rather than hand-listed:
+ * the ranges table is typed `Record<keyof ForceLayoutSettings, …>`, so a future field
+ * is compile-forced into it and automatically compared here (a hand-written field
+ * list could silently miss one, leaving that slider without live effect).
+ */
+const FORCE_LAYOUT_FIELDS = Object.keys(FORCE_LAYOUT_RANGES) as readonly (keyof ForceLayoutSettings)[];
+
 /** Value equality over every force-layout field (each build resolves a fresh object, so identity cannot be used). */
 function sameForceLayout(a: ForceLayoutSettings, b: ForceLayoutSettings): boolean {
-	return (
-		a.centerPullStrength === b.centerPullStrength &&
-		a.repelStrength === b.repelStrength &&
-		a.linkStrengthFactor === b.linkStrengthFactor &&
-		a.linkGapPx === b.linkGapPx &&
-		a.collidePaddingPx === b.collidePaddingPx &&
-		a.elkNodeSpacingPx === b.elkNodeSpacingPx
-	);
+	return FORCE_LAYOUT_FIELDS.every((field) => a[field] === b[field]);
 }
 
 function nodeIdsOf(graph: VicinityGraph): Set<string> {

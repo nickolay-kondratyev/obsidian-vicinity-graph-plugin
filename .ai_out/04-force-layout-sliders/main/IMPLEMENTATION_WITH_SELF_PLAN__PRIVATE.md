@@ -1,6 +1,25 @@
 # IMPLEMENTATION_WITH_SELF_PLAN — ticket-04 force-layout sliders (PRIVATE)
 
-## Status: COMPLETE — all steps done, NOT committed (TOP_LEVEL_AGENT commits)
+## Status: ITERATION-1 COMPLETE (review response) — NOT committed (TOP_LEVEL_AGENT commits)
+
+Iteration-1 (2026-07-23, fresh instance): responded to APPROVED-WITH-MINORS review.
+- MINOR-1 INCORPORATED: FakeLayout in GraphViewController.test.ts now records the
+  forwarded `forceLayout` (`lastForceLayout`); new BDD test with NON-default
+  linkGapPx=77 asserts the controller forwards graph.viewSettings.forceLayout.
+  Verified failing-first (.tmp/t04-iter-ctrl-fail.log) before adding the recording.
+- MINOR-2 INCORPORATED: sameForceLayout now derives its field list from
+  FORCE_LAYOUT_RANGES keys (typed Record<keyof ForceLayoutSettings,…> ⇒ compile-time
+  exhaustive). Plus it.each over the ranges keys in GraphStructureDiff.test.ts
+  (each field change ⇒ relayout; uses range.max+1 as guaranteed-different value).
+- NIT-3 REJECTED: no slider debounce — reviewer said none required; consistent with
+  depth-slider pattern; speculative complexity (KISS). Revisit only if real-vault
+  tuning feels janky.
+Results: npm test 60 files / 729 tests PASS (.tmp/t04-iter-test.log), check PASS
+(.tmp/t04-iter-check.log). Only 3 files touched (2 test files + GraphStructureDiff.ts,
+pure semantics-preserving refactor). Stranding test not in diff.
+Disposition doc: .ai_out/04-force-layout-sliders/main/IMPLEMENTATION_ITERATION__PUBLIC.md
+
+## Original implementation status: COMPLETE (feature committed as 3291aaf by TOP_LEVEL_AGENT)
 
 Final state (2026-07-24): npm test 60/722 PASS (.tmp/t04-test-final.log),
 npm run check PASS, npm run build PASS (.tmp/t04-build.log). PUBLIC file written.
