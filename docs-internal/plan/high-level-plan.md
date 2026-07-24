@@ -90,10 +90,11 @@ An Obsidian plugin that replaces the local graph view with a React Flow based vi
 ### Rendering and interaction
 
 - Custom node component: title, **first image as thumbnail** (lazy-loaded, fixed height, "+N" badge for more), **icon strip per attachment extension with counts**, click on an icon opens a dropdown listing those files. Everything past the first image loads lazily; rely on React Flow viewport culling.
+- **In-node markdown outline** shares the thumbnail's preview slot: a node above the 104px container-query threshold shows EITHER its heading outline OR its first image, decided by document position (an image before the first heading wins — the documented "show the picture" escape hatch). Rendered as a real nested list, capped by the global **Outline depth** setting (1–6, default 2) plus a render budget, scrollable with a hover-only scrollbar and per-entry ellipsis. Owned by a dedicated `NodeOutline` component so the UI can be iterated independently of node rendering.
 - Folder groups render **only at 2+ members**; singletons get a folder-colored accent instead. Group colors: deterministic hash of folder path into a palette (user-assignable later).
 - **Edges show direction** (arrowheads). A→B and B→A render as **two arrows**, offset with opposite curvature. Multiple links between the same ordered pair collapse into one edge with a count badge.
 - Styling pulls from **Obsidian theme CSS variables**, so light/dark themes just work.
-- Interactions: click opens the note, ctrl/cmd-click for the alternate target, hover fires Obsidian's `hover-link` for native page previews — scoped to the note's content zone (title + thumbnail), so the interactive tiles below (attachment chips, pin button) stay a hover dead zone and the popover never covers the affordance being clicked.
+- Interactions: click opens the note, **clicking an outline entry opens it at that heading** (same ctrl/cmd new-tab gesture), ctrl/cmd-click for the alternate target, hover fires Obsidian's `hover-link` for native page previews — scoped to the note's content zone (title + thumbnail), so the interactive tiles below (attachment chips, pin button) stay a hover dead zone and the popover never covers the affordance being clicked.
 - View placement: **right sidebar by default** (matches native local graph muscle memory), registered as a normal view type so it can be dragged into the main area. Follows the active file; per-leaf `getState`/`setState` so workspace restore works with multiple views open.
 
 ### Layout stability

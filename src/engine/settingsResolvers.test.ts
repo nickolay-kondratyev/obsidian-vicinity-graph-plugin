@@ -180,3 +180,20 @@ describe("ViewSettingsResolver multi-pin conflicts (via the shared priority chai
 		}).toEqual({ nodeCap: 25, groupByFolder: false, sizingFromGlobal: true });
 	});
 });
+
+describe("ViewSettingsResolver outline depth cascade", () => {
+	const global: ViewSettings = EngineDefaults.viewSettings();
+
+	it("WHEN MAIN pins outlineMaxDepth THEN the resolved value is MAIN's", () => {
+		const resolved = ViewSettingsResolver.resolve({ global, mainOverride: { outlineMaxDepth: 4 } });
+		expect(resolved.outlineMaxDepth).toBe(4);
+	});
+
+	it("WHEN nobody pins outlineMaxDepth THEN the resolved value is the global one", () => {
+		const resolved = ViewSettingsResolver.resolve({
+			global,
+			pinnedOverrides: [pinned("p.md", "docid_p_e", 1, { nodeCap: 5 })],
+		});
+		expect(resolved.outlineMaxDepth).toBe(global.outlineMaxDepth);
+	});
+});

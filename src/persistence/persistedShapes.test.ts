@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EngineDefaults } from "../engine";
+import { EngineDefaults, SETTINGS_SPEC } from "../engine";
 import { PersistedShapes, PERSISTED_SHAPE_VERSION } from "./persistedShapes";
 
 describe("PersistedShapes.parsePluginData", () => {
@@ -193,5 +193,32 @@ describe("PersistedShapes.parseDocData", () => {
 	it("WHEN a zero depth was pinned THEN zero survives parsing (presence = pinned)", () => {
 		const raw = { version: PERSISTED_SHAPE_VERSION, depths: { outgoingDepth: 0 } };
 		expect(PersistedShapes.parseDocData(raw)?.depths).toEqual({ outgoingDepth: 0 });
+	});
+});
+
+describe("PersistedShapes outline depth parsing", () => {
+	function parsedDepth(globalView: unknown): number {
+		return PersistedShapes.parsePluginData({ version: PERSISTED_SHAPE_VERSION, globalView }).globalView
+			.outlineMaxDepth;
+	}
+
+	it("WHEN globalView carries a valid outlineMaxDepth THEN it round-trips", () => {
+		expect(parsedDepth({ outlineMaxDepth: 4 })).toBe(4);
+	});
+
+	it("WHEN a hand-edited outlineMaxDepth is 0 THEN parsing clamps it to the spec min (no silent off-switch)", () => {
+		expect(parsedDepth({ outlineMaxDepth: 0 })).toBe(SETTINGS_SPEC.globalView.outlineMaxDepth.min);
+	});
+
+	it("WHEN a hand-edited outlineMaxDepth is 99 THEN parsing clamps it to the spec max", () => {
+		expect(parsedDepth({ outlineMaxDepth: 99 })).toBe(SETTINGS_SPEC.globalView.outlineMaxDepth.max);
+	});
+
+	it("WHEN outlineMaxDepth is absent THEN the default applies", () => {
+		expect(parsedDepth({ nodeCap: 7 })).toBe(SETTINGS_SPEC.globalView.outlineMaxDepth.default);
+	});
+
+	it("WHEN outlineMaxDepth is not a number THEN the default applies", () => {
+		expect(parsedDepth({ outlineMaxDepth: "deep" })).toBe(SETTINGS_SPEC.globalView.outlineMaxDepth.default);
 	});
 });

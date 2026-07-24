@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import type { OutlineEntry } from "../engine";
 import { asDocId, asFolderPath, asVaultPath } from "../engine";
+import { OUTLINE_RENDER_LIMIT } from "./constants";
 import { vicinityGraphToFlow, withGroupDimensions, withPositions } from "./flowMapping";
 import type { FlowNode, NoteFlowNode } from "./flowMapping";
 import { NO_ORPHAN_TRUNCATION } from "./truncationBadges";
@@ -55,6 +57,7 @@ describe("vicinityGraphToFlow nodes", () => {
 			sizePx: 160,
 			sizeScore: 0.5,
 			folder: "",
+			outline: [],
 			imageCount: 0,
 			attachmentGroups: [],
 		});
@@ -357,6 +360,7 @@ describe("withPositions", () => {
 				sizePx: 100,
 				sizeScore: 0.5,
 				folder: "",
+				outline: [],
 				imageCount: 0,
 				attachmentGroups: [],
 			},
@@ -443,5 +447,76 @@ describe("vicinityGraphToFlow thumbnail key stability (no-refetch-storm contract
 	it("WHEN a node has no image THEN firstImagePath is absent (thumbnailUrl resolves to null, no <img> mounts)", () => {
 		const data = noteNode(toFlow(makeGraph({ nodes: [makeNode({ path: asVaultPath("n.md") })] })).nodes, "n.md")?.data;
 		expect(data?.firstImagePath).toBeUndefined();
+	});
+});
+
+/**
+ * The outline reaches the node as a FLAT, raw, depth-filtered, budget-capped
+ * array. Tree shape, labels and markup are the outline component's business —
+ * this is the whole contract between the mapping and the UI.
+ */
+describe("vicinityGraphToFlow outline mapping", () => {
+	const SIX_LEVELS: readonly OutlineEntry[] = [
+		{ rawText: "H1", level: 1 },
+		{ rawText: "H2", level: 2 },
+		{ rawText: "H3", level: 3 },
+		{ rawText: "H6", level: 6 },
+	];
+
+	function outlineOf(outline: readonly OutlineEntry[], outlineMaxDepth: number) {
+		const graph = makeGraph({
+			nodes: [makeNode({ path: asVaultPath("n.md"), outline })],
+			viewSettings: { ...makeGraph().viewSettings, outlineMaxDepth },
+		});
+		return noteNode(toFlow(graph).nodes, "n.md")?.data.outline;
+	}
+
+	it("WHEN outlineMaxDepth is 2 THEN entries deeper than level 2 are dropped", () => {
+		expect(outlineOf(SIX_LEVELS, 2)?.map((entry) => entry.level)).toEqual([1, 2]);
+	});
+
+	it("WHEN outlineMaxDepth is 2 THEN the surviving entries keep document order", () => {
+		expect(outlineOf(SIX_LEVELS, 2)?.map((entry) => entry.rawText)).toEqual(["H1", "H2"]);
+	});
+
+	it("WHEN outlineMaxDepth is 6 THEN every level survives", () => {
+		expect(outlineOf(SIX_LEVELS, 6)?.map((entry) => entry.level)).toEqual([1, 2, 3, 6]);
+	});
+
+	it("WHEN a node has more surviving entries than the render budget THEN only the first OUTLINE_RENDER_LIMIT map", () => {
+		const many = Array.from({ length: OUTLINE_RENDER_LIMIT + 5 }, (_unused, index) => ({
+			rawText: `H${index}`,
+			level: 1,
+		}));
+		expect(outlineOf(many, 2)?.length).toBe(OUTLINE_RENDER_LIMIT);
+	});
+
+	it("WHEN entries deeper than the cap outnumber the budget THEN the shallow ones still map (filter runs BEFORE slice)", () => {
+		const deepThenShallow: readonly OutlineEntry[] = [
+			...Array.from({ length: OUTLINE_RENDER_LIMIT + 5 }, (_unused, index) => ({
+				rawText: `deep-${index}`,
+				level: 4,
+			})),
+			{ rawText: "shallow", level: 1 },
+		];
+		expect(outlineOf(deepThenShallow, 2)?.map((entry) => entry.rawText)).toEqual(["shallow"]);
+	});
+
+	it("WHEN the engine node has an empty outline THEN the mapped outline is [] (never undefined)", () => {
+		expect(outlineOf([], 2)).toEqual([]);
+	});
+
+	it("WHEN a node has BOTH an outline and a first image THEN firstImagePath is still mapped", () => {
+		const graph = makeGraph({
+			nodes: [
+				makeNode({
+					path: asVaultPath("n.md"),
+					outline: [{ rawText: "Intro", level: 1 }],
+					attachments: [{ path: asVaultPath("img/a.png"), isImage: true }],
+					firstImagePath: asVaultPath("img/a.png"),
+				}),
+			],
+		});
+		expect(noteNode(toFlow(graph).nodes, "n.md")?.data.firstImagePath).toBe("img/a.png");
 	});
 });

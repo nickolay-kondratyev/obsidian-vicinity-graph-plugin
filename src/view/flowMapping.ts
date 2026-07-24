@@ -1,5 +1,6 @@
-import type { FolderPath, GraphNode, VicinityGraph } from "../engine";
+import type { FolderPath, GraphNode, OutlineEntry, VicinityGraph } from "../engine";
 import { VaultPathFacts } from "../shared/VaultPathFacts";
+import { OUTLINE_RENDER_LIMIT } from "./constants";
 import type { AttachmentIconGroup } from "./attachmentIconStrip";
 import { attachmentIconStrip } from "./attachmentIconStrip";
 import { deriveFolderGroups } from "./folderGrouping";
@@ -50,6 +51,14 @@ export type FlowNodeData = {
 	readonly sizeScore: number;
 	/** Engine folder path ("" = vault root). */
 	readonly folder: string;
+	/**
+	 * Heading outline to render inside the node: FLAT, in document order, with RAW
+	 * heading text, already depth-filtered and capped at {@link OUTLINE_RENDER_LIMIT}.
+	 * Empty when the note offers none (including when its image wins — the adapter
+	 * decided that). The flat array is the stable contract between this mapping and
+	 * the outline UI: nesting, labels and markup are the UI's own business.
+	 */
+	readonly outline: readonly OutlineEntry[];
 	/** Thumbnail candidate (vault path; the component resolves it to a URL). */
 	readonly firstImagePath?: string;
 	/** Total images among attachments — the thumbnail's "+N more" badge is imageCount - 1. */
@@ -175,7 +184,7 @@ export function vicinityGraphToFlow(graph: VicinityGraph, mainPinned: boolean): 
 			width,
 			height,
 			...(groupFolder === undefined ? {} : { parentId: folderGroupIdOf(groupFolder) }),
-			data: toFlowNodeData(node, mainPinned),
+			data: toFlowNodeData(node, mainPinned, graph.viewSettings.outlineMaxDepth),
 		};
 	});
 	return {
@@ -277,7 +286,8 @@ function accumulateCollapsedEdge(
 	}
 }
 
-function toFlowNodeData(node: GraphNode, mainPinned: boolean): FlowNodeData {
+/** @param outlineMaxDepth deepest heading level to render (`ViewSettings.outlineMaxDepth`). */
+function toFlowNodeData(node: GraphNode, mainPinned: boolean, outlineMaxDepth: number): FlowNodeData {
 	return {
 		path: node.path,
 		title: node.title,
@@ -288,6 +298,11 @@ function toFlowNodeData(node: GraphNode, mainPinned: boolean): FlowNodeData {
 		sizePx: node.sizePx,
 		sizeScore: node.sizeScore,
 		folder: node.folder,
+		// Filter THEN slice: a depth-2 view of a note with 60 deep headings must
+		// still find its shallow ones (slicing first could drop every survivor).
+		outline: node.outline
+			.filter((entry) => entry.level <= outlineMaxDepth)
+			.slice(0, OUTLINE_RENDER_LIMIT),
 		...(node.firstImagePath === undefined ? {} : { firstImagePath: node.firstImagePath }),
 		imageCount: node.attachments.filter((attachment) => attachment.isImage).length,
 		attachmentGroups: attachmentIconStrip(node.attachments),

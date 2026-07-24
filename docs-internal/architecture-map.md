@@ -37,7 +37,12 @@ view  ──▶  adapters  ──▶  engine  (pure core)
 
 - `engine/LinkProvider.ts` — the sole Obsidian→engine boundary; canvas
   detection lives here.
-- `view/viewPorts.ts` — `GraphSourcePort`, `GraphLayoutPort`, `NoteNavigatorPort`.
+- `view/viewPorts.ts` — `GraphSourcePort`, `GraphLayoutPort`, `NoteNavigatorPort`
+  (opens a note, optionally at a `heading` — the RAW heading text; the adapter
+  sanitises it into a link subpath), and `NoteOpenPort`, the one-method slice
+  node components reach through `NoteOpenContext` (React Flow instantiates them,
+  so context is the only channel). `NodeOutline.tsx` owns in-node outline
+  rendering — the tree/label/markup decisions and `node-outline.css`.
 - `persistence/storagePorts.ts`, `adapters/obsidianPorts.ts` — testable seams,
   each with a `Fake*` implementation used by unit tests.
 

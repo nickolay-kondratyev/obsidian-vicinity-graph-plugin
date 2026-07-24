@@ -1,3 +1,4 @@
+import { stripHeadingForLink } from "obsidian";
 import type { App } from "obsidian";
 import type { NoteNavigatorPort, OpenNoteOptions } from "./viewPorts";
 
@@ -7,6 +8,10 @@ import type { NoteNavigatorPort, OpenNoteOptions } from "./viewPorts";
  * and node-testable. `getLeaf(false)` targets a main-area editor leaf (not the
  * sidebar hosting the graph), so a clicked node opens in the editor;
  * `getLeaf(true)` (ctrl/cmd-click, CLARIFICATION Q2) opens a new tab there.
+ *
+ * Sanitising the raw heading into a link subpath happens HERE because it needs
+ * `obsidian` at runtime; the module is therefore unit-untestable by construction
+ * (as every `Obsidian*` adapter here is) and is covered by the e2e suite.
  */
 export class ObsidianNoteNavigator implements NoteNavigatorPort {
 	constructor(private readonly app: App) {}
@@ -16,10 +21,22 @@ export class ObsidianNoteNavigator implements NoteNavigatorPort {
 	}
 
 	openNote(path: string, options?: OpenNoteOptions): void {
+		// The guard covers BOTH branches: `openLinkText` on a path with no file can
+		// prompt Obsidian to CREATE a note, so a click on a stale graph node must
+		// never reach it.
 		const file = this.app.vault.getFileByPath(path);
 		if (file === null) {
 			return;
 		}
-		void this.app.workspace.getLeaf(options?.newTab === true).openFile(file);
+		const newTab = options?.newTab === true;
+		if (options?.heading === undefined) {
+			void this.app.workspace.getLeaf(newTab).openFile(file);
+			return;
+		}
+		// `stripHeadingForLink` is Obsidian's own subpath sanitiser — the one behind
+		// "copy link to heading" — so our link resolves exactly like a hand-written
+		// [[Note#Heading]]. Duplicate heading text jumps to the FIRST match, which is
+		// Obsidian's own behaviour for such links (documented in the README).
+		void this.app.workspace.openLinkText(`${path}#${stripHeadingForLink(options.heading)}`, path, newTab);
 	}
 }

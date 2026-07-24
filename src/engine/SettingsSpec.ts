@@ -66,6 +66,7 @@ export type ForceLayoutSpec = Readonly<Record<keyof ForceLayoutSettings, Bounded
 
 export interface ViewSpec {
 	readonly nodeCap: MinBoundedNumberSpec;
+	readonly outlineMaxDepth: BoundedNumberSpec;
 	readonly groupByFolder: DefaultSpec<boolean>;
 	readonly edgeVisibility: DefaultSpec<EdgeVisibilityMode>;
 	readonly sizing: SizingSpec;
@@ -114,6 +115,14 @@ export const SETTINGS_SPEC: SettingsSpec = {
 		 * `min 1`: at least the central must be renderable.
 		 */
 		nodeCap: { default: 100, min: 1 },
+		/**
+		 * How many markdown heading levels a node's in-node outline renders.
+		 * Markdown has 6 levels; `2` shows sections + subsections, which is what
+		 * fits the ≤160px node the engine's sizing can produce. `min 1` (never 0):
+		 * the outline has no on/off switch (CLARIFICATION Q2) — the documented way
+		 * to get an image instead is to put it before the first heading.
+		 */
+		outlineMaxDepth: { default: 2, min: 1, max: 6, step: 1 },
 		/** Folder grouping ships ON — the richer, folder-aware layout is the whole point of the plugin. */
 		groupByFolder: { default: true },
 		/**

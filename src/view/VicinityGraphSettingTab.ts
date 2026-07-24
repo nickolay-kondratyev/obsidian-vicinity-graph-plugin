@@ -1,7 +1,14 @@
 import { PluginSettingTab, Setting } from "obsidian";
 import type { App } from "obsidian";
 import type { Direction, ForceLayoutSettings, SizingSettings } from "../engine";
-import { FORCE_LAYOUT_RANGES, MIN_NODE_CAP } from "../engine";
+import {
+	FORCE_LAYOUT_RANGES,
+	MAX_OUTLINE_DEPTH,
+	MIN_NODE_CAP,
+	MIN_OUTLINE_DEPTH,
+	SETTINGS_SPEC,
+	clampOutlineMaxDepth,
+} from "../engine";
 import type VicinityGraphPlugin from "../main";
 import type { PluginDataStore } from "../persistence/PluginDataStore";
 import { ConfirmModal } from "./ConfirmModal";
@@ -38,6 +45,9 @@ import { SIZING_METRICS } from "./sizingMetrics";
 /** Visible height of the exclusion-patterns textarea (one pattern per line). */
 const EXCLUSION_TEXTAREA_ROWS = 4;
 
+/** Outline-depth slider granularity — from the spec, like its bounds (one source of truth). */
+const OUTLINE_DEPTH_SLIDER_STEP = SETTINGS_SPEC.globalView.outlineMaxDepth.step;
+
 /**
  * Textarea → pattern list: one pattern per line, trimmed, blank lines dropped.
  * WHY trim/drop: newline-delimited input inevitably carries a trailing blank line
@@ -71,6 +81,8 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 
 		this.renderDepthDefaults();
 		this.renderSizing();
+		// Node CONTENTS follow node SIZE: how big a node is decides how much of this fits.
+		this.renderNodeContents();
 		this.renderForceLayout();
 		this.renderExclusion();
 		this.renderPerformance();
@@ -295,6 +307,37 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 			this.applySizing({ ...this.store.globalView().sizing, depthDecayK }),
 		);
 		this.addSectionReset(section, "node-sizing");
+	}
+
+	/**
+	 * What a node shows INSIDE itself. One card like every other section (the tab
+	 * groups by framed card throughout — mixing mechanisms would invent hierarchy).
+	 * Slider bounds come from the engine's spec, the SAME source the persistence
+	 * parser clamps with, so the slider and a hand-edited `data.json` agree.
+	 *
+	 * No enable/disable toggle by design (CLARIFICATION Q2): a note shows its image
+	 * instead of its outline by putting that image before the first heading.
+	 */
+	private renderNodeContents(): void {
+		const section = this.createSection();
+		new Setting(section).setName("Node contents").setHeading();
+		new Setting(section)
+			.setName("Outline depth")
+			.setDesc(
+				"How many heading levels a note's outline shows inside its node. Notes whose first image comes before the first heading show that image instead.",
+			)
+			.addSlider((slider) =>
+				slider
+					.setLimits(MIN_OUTLINE_DEPTH, MAX_OUTLINE_DEPTH, OUTLINE_DEPTH_SLIDER_STEP)
+					.setValue(this.store.globalView().outlineMaxDepth)
+					.setDynamicTooltip()
+					.onChange((value) => {
+						void this.applyInteraction({
+							kind: "global-outline-depth",
+							value: clampOutlineMaxDepth(value),
+						});
+					}),
+			);
 	}
 
 	private renderPerformance(): void {

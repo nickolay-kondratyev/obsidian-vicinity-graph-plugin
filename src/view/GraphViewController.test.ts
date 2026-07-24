@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ElkNode } from "elkjs";
-import type { ForceLayoutSettings, VicinityGraph } from "../engine";
+import type { ForceLayoutSettings, OutlineEntry, VicinityGraph } from "../engine";
 import { asFolderPath, asVaultPath, EngineDefaults } from "../engine";
 import { REBUILD_DEBOUNCE_MS } from "./constants";
 import { GraphViewController } from "./GraphViewController";
 import type { FlowSnapshot } from "./GraphViewController";
+import type { FlowNode, NoteFlowNode } from "./flowMapping";
 import type { ControlsModel } from "./ControlsModel";
 import type { GraphBuildResult, GraphLayoutPort, GraphSourcePort, NoteNavigatorPort, OpenNoteOptions } from "./viewPorts";
 import type { EdgeRouteMap, EdgeRouter, EdgeRoutingInput } from "./edgeRouting";
@@ -166,6 +167,12 @@ function nodeIds(snapshot: FlowSnapshot): string[] {
 	return snapshot.nodes.map((node) => node.id);
 }
 
+/** The note node with this id — folder-group nodes carry a different data shape. */
+function noteNode(nodes: readonly FlowNode[], id: string): NoteFlowNode | undefined {
+	const found = nodes.find((node) => node.id === id);
+	return found?.kind === "note" ? found : undefined;
+}
+
 /** A graph whose first path is central and the rest are edge-linked neighbours. */
 function graphOf(centralPath: string, ...neighbourPaths: string[]): VicinityGraph {
 	const nodes = [centralPath, ...neighbourPaths].map((path) => makeNode({ path: asVaultPath(path) }));
@@ -253,6 +260,15 @@ describe("GraphViewController MAIN gating", () => {
 
 		expect(h.navigator.openedOptions).toEqual([{ newTab: true }]);
 	});
+
+	it("WHEN an outline entry is opened THEN the RAW heading reaches the navigator verbatim", () => {
+		const h = setup();
+		// Sanitising is the ADAPTER's job (obsidian's `stripHeadingForLink`), so the
+		// controller must not touch the heading on the way through.
+		h.controller.openNode("notes/a.md", { newTab: false, heading: "Status of [[note1]] **today**" });
+
+		expect(h.navigator.openedOptions).toEqual([{ newTab: false, heading: "Status of [[note1]] **today**" }]);
+	});
 });
 
 describe("GraphViewController settings-changed rebuild", () => {
@@ -333,6 +349,37 @@ describe("GraphViewController structural diff", () => {
 		await flush();
 
 		expect(h.layout.callCount).toBe(2);
+	});
+});
+
+describe("GraphViewController outline data refresh", () => {
+	const EDITED_OUTLINE: readonly OutlineEntry[] = [{ rawText: "Intro", level: 1 }];
+
+	/** The same single-node graph, differing ONLY in the note's headings. */
+	function graphWithOutline(outline: readonly OutlineEntry[]): VicinityGraph {
+		return makeGraph({ nodes: [makeNode({ path: asVaultPath("a.md"), outline })] });
+	}
+
+	/** GIVEN a rendered graph, WHEN its note's headings are edited and it rebuilds. */
+	async function afterHeadingsEdited(): Promise<Harness> {
+		const h = setup();
+		h.controller.handleActiveFileChanged("a.md");
+		h.source.resolveBuild(0, graphWithOutline([]));
+		await flush();
+
+		h.controller.handleSettingsChanged(); // rebuild with an identical id-set
+		h.source.resolveBuild(1, graphWithOutline(EDITED_OUTLINE));
+		await flush();
+		return h;
+	}
+
+	it("THEN elk layout is not re-run (an outline change never forces a relayout)", async () => {
+		expect((await afterHeadingsEdited()).layout.callCount).toBe(1);
+	});
+
+	it("THEN the snapshot published off the reused layout carries the NEW outline", async () => {
+		const h = await afterHeadingsEdited();
+		expect(noteNode(h.snapshot().nodes, "a.md")?.data.outline).toEqual(EDITED_OUTLINE);
 	});
 });
 

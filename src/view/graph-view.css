@@ -217,8 +217,18 @@
 	height: 12px;
 }
 
+/* Hidden by default, revealed at 104px below. The base rule lives HERE rather
+ * than with the rest of the outline's styling in node-outline.css so that both
+ * halves of "when is the outline shown" sit together: split across files they
+ * have equal specificity, and whichever styles.css concatenates LAST would win —
+ * which is exactly how the outline once ended up invisible at every node size. */
+.vicinity-graph-outline {
+	display: none;
+}
+
 /* Density thresholds (see container comment above). 72px ≈ two title lines +
- * one chip row; 104px additionally fits the fixed-height thumbnail. */
+ * one chip row; 104px additionally fits the fixed-height thumbnail OR the
+ * outline that replaces it (mutually exclusive — same slot). */
 @container (min-height: 72px) {
 	.vicinity-graph-node__attachments {
 		display: flex;
@@ -227,6 +237,21 @@
 @container (min-height: 104px) {
 	.vicinity-graph-node__thumbnail {
 		display: block;
+	}
+	/* Everything else about the outline (appearance, scrolling, nesting) lives in
+	 * node-outline.css; only its visibility belongs to this density ladder. */
+	.vicinity-graph-outline {
+		display: block;
+	}
+	/* The outline and the thumbnail share ONE preview slot (nodePreviewChoice.ts
+	 * picks which), so when the outline renders the title zone must not also claim
+	 * the node's spare height — the outline is what should absorb it.
+	 * INSIDE this block on purpose: below the threshold the outline is
+	 * `display: none` and cannot absorb anything, so dropping the title zone's
+	 * flex-grow there would unpin the attachment strip from the node's bottom
+	 * edge (that grow is what replaced the strip's old `margin-top: auto`). */
+	.vicinity-graph-node[data-preview="outline"] .vicinity-graph-node__preview-zone {
+		flex: 0 0 auto;
 	}
 }
 

@@ -46,6 +46,7 @@ const REACT_FLOW_CSS = path.join("node_modules", "@xyflow", "react", "dist", "st
 // Explicit ordered list (not a glob): concatenation order is part of the output contract.
 const AUTHORED_CSS_FILES = [
 	path.join("src", "view", "graph-view.css"),
+	path.join("src", "view", "node-outline.css"),
 	path.join("src", "view", "settings-tab.css"),
 ];
 

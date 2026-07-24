@@ -33,6 +33,44 @@ against the real libavoid wasm **before** implementation and proven inert.
   (`buffer = curvature/2`, `buffer > arrowhead min inset 14`) and requires a human decision
   on those invariants before any code.
 
+## 2026-07-24 — Markdown heading outline inside graph nodes
+
+Nodes tall enough to afford it now render the note's heading outline instead of a
+thumbnail, and each entry is a link that opens the note **at that heading**. Markdown
+notes only — canvas and `.excalidraw.md` are excluded from outline parsing but remain
+ordinary graph nodes.
+
+- **Outline vs image is positional, not a preference**: if the note's first image
+  precedes the first heading it stays a thumbnail; an image *inside* a section yields to
+  the outline. Encoded at the adapter (`ObsidianLinkProvider`) as an empty outline, made
+  explicit at the view by pure `nodePreviewChoice`. Frontmatter images always count as
+  "before".
+- **Data path mirrors `firstImagePath`**: `CachedMetadataPort.headings` (new) →
+  `FileMetadata.outline` → `TraversedNode`/`GraphNode` → `FlowNodeData.outline` →
+  `NodeOutline.tsx`. Engine stays obsidian-free — the adapter translates `HeadingCache`
+  into an engine POJO. No persisted-shape version bump (outline is recomputed per build).
+- **Rendering** lives in its own component + `node-outline.css`, deliberately separable so
+  the outline UI can be iterated without touching node rendering. Nested `<ul>` carries
+  hierarchy; inline markdown (`[[wikilinks]]`, `**bold**`, `` `code` ``, `[md](links)`) is
+  stripped **for display only** — the raw heading text remains the link key.
+- **Overflow**: vertical scroll with a scrollbar that appears on node hover and still
+  scrolls while hidden (`nowheel` keeps the wheel from panning the canvas); per-entry
+  ellipsis for headings too wide to fit.
+- **`outlineMaxDepth`** (global, 1–6, default 2) added through the full `SETTINGS_SPEC`
+  chain. There is deliberately **no on/off toggle** — putting an image before the first
+  heading is the documented way to keep a thumbnail.
+- **Space gating is CSS-only** — the existing 104px container query, reusing the
+  thumbnail's slot (mutually exclusive). Base `display:none` and its reveal are kept in
+  the same file on purpose: split across files, stylesheet concatenation order silently
+  defeated the reveal (a real bug caught by e2e during this work).
+- Navigation goes through `workspace.openLinkText` (documented) with
+  `stripHeadingForLink`; `OpenNoteOptions.heading` is additive and ctrl/cmd-click new-tab
+  semantics are preserved.
+
+Tests: +~75 vitest (BDD, spot-verified failable by mutation) and 11 new Playwright cases
+against real Obsidian. Not covered automatically: confirming Obsidian visually scrolls to
+and flashes the target heading — see `ticket-node-outline-heading-jump-smoke-run.md`.
+
 ## 2026-07-24 — force-layout tuning sliders: native-parity 4 + advanced spacing (ticket 04)
 
 Six force-layout knobs are now user-tunable from Settings → Vicinity Graph, doubling as

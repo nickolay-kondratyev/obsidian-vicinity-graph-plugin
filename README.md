@@ -61,6 +61,9 @@ The distinction matters because people ask about it, so it is worth reading once
 - **Depth** — how far outbound/incoming traversal reaches from each central note.
 - **Sizing** — which metrics drive node size (own file size is the only one on by
   default) and their weights. Sizing is **global-only in V1.**
+- **Outline depth** — how many markdown heading levels a node's outline shows
+  (**1–6**, default **2**: sections plus subsections, which is what fits a node).
+  See *Node contents* below. There is no on/off switch.
 - **Grouping** and the **node cap** (default **100** — above roughly a hundred
   nodes a graph stops being readable, so the view truncates deterministically and
   shows a hidden-node count).
@@ -129,6 +132,21 @@ Keep whole classes of notes out of every graph — index/MOC hubs, templates, a
   data layer (during traversal, before rendering), so a note reachable *only*
   through an excluded note is not discovered either.
 
+### Node contents
+
+A node tall enough to have room shows **one** preview: either the note's
+**heading outline** or its **first image**, never both.
+
+- **Which one you get is decided by document position.** If the note's first
+  image sits **before** its first heading, the node shows the **image**;
+  otherwise it shows the **outline**. That is the escape hatch — move the image
+  above the first heading to say "show the picture for this note".
+- The outline is a **nested list** capped by the *Outline depth* setting. It
+  scrolls when it does not fit (the scrollbar appears on hover); an over-long
+  entry ellipsises on its own, and its full text is in the tooltip.
+- **Clicking an entry opens the note at that heading** (ctrl/cmd-click opens it
+  in a new tab).
+
 ## V1 scope / limits
 
 - **LOCAL graph only.** No global graph.
@@ -137,6 +155,14 @@ Keep whole classes of notes out of every graph — index/MOC hubs, templates, a
 - **No manual node dragging persistence; layout is computed.**
 - Default **node cap is 100** (the readable ceiling); canvas text-node wikilinks
   are skipped.
+- **Outline entries jump to the FIRST heading with that text** — same as any
+  `[[Note#Heading]]` link in Obsidian, so duplicate headings are ambiguous.
+- **`*.excalidraw.md` drawings show no outline** (they stay graph nodes; their
+  body is a generated payload, not prose). Canvas files have no headings at all.
+- **Heading display strips common inline markdown** (`[[links]]`, `**bold**`,
+  `` `code` ``, `[md](links)`) but is not a markdown renderer — underscore
+  emphasis, escapes and exotic nesting can leave a stray character in the label.
+  The link never depends on it: the raw heading text is what opens the note.
 
 ## V2 roadmap (deferred)
 

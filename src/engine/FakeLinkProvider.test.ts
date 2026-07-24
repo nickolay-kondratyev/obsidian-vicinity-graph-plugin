@@ -125,3 +125,16 @@ describe("NodeEligibility (SRP owner of the node-bearing flag)", () => {
 		expect(new NodeEligibility(vault()).isNodeBearing(asVaultPath("ghost.md"))).toBe(false);
 	});
 });
+
+describe("FakeLinkProvider note outline", () => {
+	it("WHEN a fixture file declares an outline THEN the metadata returns it", () => {
+		const provider = new FakeLinkProvider({
+			files: [{ path: "a.md", outline: [{ rawText: "Intro", level: 1 }] }],
+		});
+		expect(provider.getFileMetadata(A)?.outline).toEqual([{ rawText: "Intro", level: 1 }]);
+	});
+
+	it("WHEN a fixture file declares no outline THEN the metadata carries an empty array (never undefined)", () => {
+		expect(vault().getFileMetadata(A)?.outline).toEqual([]);
+	});
+});

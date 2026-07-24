@@ -19,6 +19,7 @@ export function makeNode(overrides: Partial<GraphNode> = {}): GraphNode {
 		depthTags: [],
 		minDepth: 1,
 		attachments: [],
+		outline: [],
 		sizeScore: 0.5,
 		sizePx: 100,
 		...overrides,
@@ -35,6 +36,7 @@ export function makeEdge(source: string, target: string, count = DEFAULT_EDGE_LI
 function makeViewSettings(): ViewSettings {
 	return {
 		nodeCap: 100,
+		outlineMaxDepth: 2,
 		groupByFolder: true,
 		edgeVisibility: "walked-from-center",
 		sizing: {

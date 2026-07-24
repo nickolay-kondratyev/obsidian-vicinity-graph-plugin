@@ -9,7 +9,7 @@ import type {
 	ViewSettings,
 	ViewSettingsOverride,
 } from "../engine";
-import { EngineDefaults, clampForceLayoutSettings } from "../engine";
+import { EngineDefaults, clampForceLayoutSettings, clampOutlineMaxDepth } from "../engine";
 
 /**
  * Versioned JSON shapes persisted by step-03 (every shape carries `version`
@@ -134,8 +134,15 @@ function parseViewOverride(raw: unknown): ViewSettingsOverride {
 		return {};
 	}
 	const edgeVisibility = raw["edgeVisibility"];
+	const outlineMaxDepth = numberOrUndefined(raw["outlineMaxDepth"]);
 	return {
 		...definedOnly("nodeCap", numberOrUndefined(raw["nodeCap"])),
+		// Clamped with the SAME function the slider uses, so hand-edited JSON cannot
+		// reach 0 (a silent off-switch the feature does not have) or an undefined level.
+		...definedOnly(
+			"outlineMaxDepth",
+			outlineMaxDepth === undefined ? undefined : clampOutlineMaxDepth(outlineMaxDepth),
+		),
 		...definedOnly(
 			"groupByFolder",
 			typeof raw["groupByFolder"] === "boolean" ? raw["groupByFolder"] : undefined,

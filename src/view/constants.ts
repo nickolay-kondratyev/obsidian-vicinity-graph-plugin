@@ -58,6 +58,15 @@ export function estimateNodeLabelWidthPx(title: string): number {
 	return Math.ceil(title.length * NODE_TITLE_CHAR_WIDTH_PX) + NODE_LABEL_HORIZONTAL_PADDING_PX;
 }
 
+/**
+ * Hard cap on outline entries mounted per node. Only ~3–6 are visible at once
+ * (the node is ≤160px tall), so 40 is roughly seven screens of scrolling —
+ * generous for reading, while bounding the DOM: a generated 500-heading note
+ * must not mount 500 buttons in one node. Applied AFTER the depth filter, so
+ * raising the depth never silently costs a note its shallow headings.
+ */
+export const OUTLINE_RENDER_LIMIT = 40;
+
 /** Id of the synthetic elk root that contains every graph node. */
 export const ELK_ROOT_ID = "root";
 

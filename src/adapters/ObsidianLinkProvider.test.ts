@@ -4,10 +4,14 @@ import { CanvasParseCache } from "./CanvasParseCache";
 import type { FakeObsidianSpec } from "./FakeObsidianPorts";
 import { FakeObsidianPorts } from "./FakeObsidianPorts";
 import { ObsidianLinkProvider } from "./ObsidianLinkProvider";
-import type { ReferencePort } from "./obsidianPorts";
+import type { HeadingPort, ReferencePort } from "./obsidianPorts";
 
 function ref(link: string, offset: number): ReferencePort {
 	return { link, position: { start: { offset } } };
+}
+
+function heading(text: string, level: number, offset: number): HeadingPort {
+	return { heading: text, level, position: { start: { offset } } };
 }
 
 async function providerOver(spec: FakeObsidianSpec): Promise<ObsidianLinkProvider> {
@@ -259,5 +263,183 @@ describe("ObsidianLinkProvider frontmatter display title (step-05 human decision
 	it("WHEN the file is a canvas THEN there is no frontmatter title (markdown only)", async () => {
 		const provider = await providerOver({ files: [{ path: "board.canvas" }] });
 		expect(provider.getFileMetadata(asVaultPath("board.canvas"))?.frontmatterTitle).toBeUndefined();
+	});
+});
+
+/**
+ * The note outline offered as a node's in-node preview. The adapter owns the
+ * whole rule: eligibility (markdown minus excalidraw) AND the image-vs-outline
+ * choice, which it encodes by returning an EMPTY outline when the image wins.
+ */
+describe("ObsidianLinkProvider note outline", () => {
+	async function outlineOf(spec: FakeObsidianSpec, path: string) {
+		const provider = await providerOver(spec);
+		return provider.getFileMetadata(asVaultPath(path))?.outline;
+	}
+
+	// GIVEN a plain note with two headings and no references at all.
+	const headingsOnly: FakeObsidianSpec = {
+		files: [{ path: "note.md" }],
+		fileCaches: { "note.md": { headings: [heading("Intro", 1, 10), heading("Background", 2, 40)] } },
+	};
+
+	it("WHEN a markdown file's cache carries headings THEN the outline lists their raw text in document order", async () => {
+		expect((await outlineOf(headingsOnly, "note.md"))?.map((entry) => entry.rawText)).toEqual([
+			"Intro",
+			"Background",
+		]);
+	});
+
+	it("WHEN a markdown file's cache carries headings THEN each entry carries the heading level", async () => {
+		expect((await outlineOf(headingsOnly, "note.md"))?.map((entry) => entry.level)).toEqual([1, 2]);
+	});
+
+	it("WHEN a heading's source contains inline markdown THEN rawText preserves it verbatim (it is the link key)", async () => {
+		const outline = await outlineOf(
+			{
+				files: [{ path: "note.md" }],
+				fileCaches: { "note.md": { headings: [heading("Status of [[note1]] **today**", 2, 0)] } },
+			},
+			"note.md",
+		);
+		expect(outline?.[0]?.rawText).toBe("Status of [[note1]] **today**");
+	});
+
+	it("WHEN the file is a canvas THEN the outline is empty (canvas has no headings)", async () => {
+		expect(await outlineOf({ files: [{ path: "board.canvas" }] }, "board.canvas")).toEqual([]);
+	});
+
+	it("WHEN the file is an excalidraw drawing THEN the outline is empty (CLARIFICATION Q4)", async () => {
+		const outline = await outlineOf(
+			{
+				files: [{ path: "draw/x.excalidraw.md" }],
+				fileCaches: { "draw/x.excalidraw.md": { headings: [heading("Text Elements", 1, 0)] } },
+			},
+			"draw/x.excalidraw.md",
+		);
+		expect(outline).toEqual([]);
+	});
+
+	it("WHEN the file is an excalidraw drawing THEN it is STILL node-bearing (excluded from outline parsing only)", async () => {
+		const provider = await providerOver({ files: [{ path: "draw/x.excalidraw.md" }] });
+		expect(provider.getFileMetadata(asVaultPath("draw/x.excalidraw.md"))?.isNodeBearing).toBe(true);
+	});
+
+	it("WHEN the cache carries no headings key THEN the outline is empty", async () => {
+		const outline = await outlineOf(
+			{ files: [{ path: "note.md" }], fileCaches: { "note.md": { links: [ref("other", 5)] } } },
+			"note.md",
+		);
+		expect(outline).toEqual([]);
+	});
+
+	it("WHEN the file has no cache entry at all THEN the outline is empty", async () => {
+		expect(await outlineOf({ files: [{ path: "note.md" }] }, "note.md")).toEqual([]);
+	});
+
+	it("WHEN the note has headings and NO image THEN the outline carries the headings", async () => {
+		const outline = await outlineOf(
+			{
+				files: [{ path: "note.md" }, { path: "doc.pdf" }],
+				fileCaches: {
+					"note.md": { headings: [heading("Intro", 1, 10)], links: [ref("doc.pdf", 2)] },
+				},
+				resolutions: { "doc.pdf": "doc.pdf" },
+			},
+			"note.md",
+		);
+		expect(outline?.map((entry) => entry.rawText)).toEqual(["Intro"]);
+	});
+
+	it("WHEN the note's first image is embedded BEFORE the first heading THEN the outline is empty (the image wins)", async () => {
+		const outline = await outlineOf(
+			{
+				files: [{ path: "note.md" }, { path: "pic.png" }],
+				fileCaches: {
+					"note.md": { headings: [heading("Intro", 1, 30)], embeds: [ref("pic.png", 5)] },
+				},
+				resolutions: { "pic.png": "pic.png" },
+			},
+			"note.md",
+		);
+		expect(outline).toEqual([]);
+	});
+
+	it("WHEN the note's first image is embedded AFTER the first heading THEN the outline carries the headings", async () => {
+		const outline = await outlineOf(
+			{
+				files: [{ path: "note.md" }, { path: "pic.png" }],
+				fileCaches: {
+					"note.md": { headings: [heading("Intro", 1, 5)], embeds: [ref("pic.png", 30)] },
+				},
+				resolutions: { "pic.png": "pic.png" },
+			},
+			"note.md",
+		);
+		expect(outline?.map((entry) => entry.rawText)).toEqual(["Intro"]);
+	});
+
+	it("WHEN the note's image is a FRONTMATTER link THEN the outline is empty (frontmatter sits above all body content)", async () => {
+		const outline = await outlineOf(
+			{
+				files: [{ path: "note.md" }, { path: "pic.png" }],
+				fileCaches: {
+					"note.md": { headings: [heading("Intro", 1, 0)], frontmatterLinks: [{ link: "pic.png" }] },
+				},
+				resolutions: { "pic.png": "pic.png" },
+			},
+			"note.md",
+		);
+		expect(outline).toEqual([]);
+	});
+
+	it("WHEN the note has an image and no headings THEN the outline is empty", async () => {
+		const outline = await outlineOf(
+			{
+				files: [{ path: "note.md" }, { path: "pic.png" }],
+				fileCaches: { "note.md": { embeds: [ref("pic.png", 5)] } },
+				resolutions: { "pic.png": "pic.png" },
+			},
+			"note.md",
+		);
+		expect(outline).toEqual([]);
+	});
+
+	it("WHEN a NON-image attachment precedes the first heading but the first image follows it THEN the outline carries the headings", async () => {
+		const outline = await outlineOf(
+			{
+				files: [{ path: "note.md" }, { path: "doc.pdf" }, { path: "pic.png" }],
+				fileCaches: {
+					"note.md": {
+						headings: [heading("Intro", 1, 20)],
+						links: [ref("doc.pdf", 5)],
+						embeds: [ref("pic.png", 50)],
+					},
+				},
+				resolutions: { "doc.pdf": "doc.pdf", "pic.png": "pic.png" },
+			},
+			"note.md",
+		);
+		expect(outline?.map((entry) => entry.rawText)).toEqual(["Intro"]);
+	});
+
+	it("WHEN a file carries an outline THEN its attachments keep their exact reference order", async () => {
+		// The outline refactor shares ONE resolution pass with attachments; a
+		// reordering here would silently move `firstImagePath` (the thumbnail).
+		const provider = await providerOver({
+			files: [{ path: "note.md" }, { path: "doc.pdf" }, { path: "pic.png" }],
+			fileCaches: {
+				"note.md": {
+					headings: [heading("Intro", 1, 0)],
+					links: [ref("doc.pdf", 30)],
+					embeds: [ref("pic.png", 10)],
+				},
+			},
+			resolutions: { "doc.pdf": "doc.pdf", "pic.png": "pic.png" },
+		});
+		expect(provider.getFileMetadata(asVaultPath("note.md"))?.attachments).toEqual([
+			{ path: "pic.png", isImage: true },
+			{ path: "doc.pdf", isImage: false },
+		]);
 	});
 });

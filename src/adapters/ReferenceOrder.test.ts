@@ -1,14 +1,19 @@
 import { describe, expect, it } from "vitest";
-import type { ReferencePort } from "./obsidianPorts";
-import { ReferenceOrder } from "./ReferenceOrder";
+import type { CachedMetadataPort, ReferencePort } from "./obsidianPorts";
+import { FRONTMATTER_REFERENCE_OFFSET, ReferenceOrder } from "./ReferenceOrder";
 
 function ref(link: string, offset: number): ReferencePort {
 	return { link, position: { start: { offset } } };
 }
 
-describe("ReferenceOrder.orderedLinkTexts", () => {
+/** The link texts alone — what the ordering-only cases care about. */
+function linksOf(cache: CachedMetadataPort): readonly string[] {
+	return ReferenceOrder.orderedReferences(cache).map((reference) => reference.link);
+}
+
+describe("ReferenceOrder.orderedReferences (link order)", () => {
 	it("WHEN links and embeds interleave in the body THEN they are merged by start offset", () => {
-		const ordered = ReferenceOrder.orderedLinkTexts({
+		const ordered = linksOf({
 			links: [ref("late-link", 30), ref("early-link", 5)],
 			embeds: [ref("middle-embed", 10)],
 		});
@@ -16,7 +21,7 @@ describe("ReferenceOrder.orderedLinkTexts", () => {
 	});
 
 	it("WHEN frontmatter links exist THEN they come first (top of the file, no body offset)", () => {
-		const ordered = ReferenceOrder.orderedLinkTexts({
+		const ordered = linksOf({
 			links: [ref("body-link", 0)],
 			frontmatterLinks: [{ link: "property-link" }],
 		});
@@ -24,6 +29,31 @@ describe("ReferenceOrder.orderedLinkTexts", () => {
 	});
 
 	it("WHEN the cache has no reference arrays at all THEN the order is empty", () => {
-		expect(ReferenceOrder.orderedLinkTexts({})).toEqual([]);
+		expect(ReferenceOrder.orderedReferences({})).toEqual([]);
+	});
+});
+
+describe("ReferenceOrder.orderedReferences (document offsets)", () => {
+	it("WHEN frontmatter and body links exist THEN frontmatter comes first at FRONTMATTER_REFERENCE_OFFSET", () => {
+		const ordered = ReferenceOrder.orderedReferences({
+			links: [ref("body-link", 0)],
+			frontmatterLinks: [{ link: "property-link" }],
+		});
+		expect(ordered).toEqual([
+			{ link: "property-link", offset: FRONTMATTER_REFERENCE_OFFSET },
+			{ link: "body-link", offset: 0 },
+		]);
+	});
+
+	it("WHEN body links and embeds interleave THEN they come back ascending by start offset", () => {
+		const ordered = ReferenceOrder.orderedReferences({
+			links: [ref("late-link", 30), ref("early-link", 5)],
+			embeds: [ref("middle-embed", 10)],
+		});
+		expect(ordered).toEqual([
+			{ link: "early-link", offset: 5 },
+			{ link: "middle-embed", offset: 10 },
+			{ link: "late-link", offset: 30 },
+		]);
 	});
 });

@@ -42,11 +42,25 @@ export interface FrontmatterLinkPort {
 	readonly link: string;
 }
 
+/**
+ * Structural slice of a `HeadingCache`. `heading` is the heading's SOURCE text
+ * (the `#` marker is gone, inline markdown is not). `offset` only — no `line`:
+ * the outline opens a note by heading TEXT (`path#Heading`), so a line number
+ * would be a field we never read.
+ */
+export interface HeadingPort {
+	readonly heading: string;
+	readonly level: number;
+	readonly position: { readonly start: { readonly offset: number } };
+}
+
 /** Structural slice of `CachedMetadata`. */
 export interface CachedMetadataPort {
 	readonly links?: readonly ReferencePort[];
 	readonly embeds?: readonly ReferencePort[];
 	readonly frontmatterLinks?: readonly FrontmatterLinkPort[];
+	/** Markdown headings in document order (Obsidian's own ordering — never re-sorted). */
+	readonly headings?: readonly HeadingPort[];
 	/** Parsed frontmatter properties; values are user-controlled (any YAML shape). */
 	readonly frontmatter?: Readonly<Record<string, unknown>>;
 }

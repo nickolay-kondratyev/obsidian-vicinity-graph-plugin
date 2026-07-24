@@ -118,4 +118,3 @@ describe("decideLayout force-layout tuning change (ticket-04 live sliders)", () 
 		expect(decideLayout(previous, next, 1.0)).toBe("reuse-layout");
 	});
 });
-

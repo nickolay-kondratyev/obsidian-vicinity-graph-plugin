@@ -1,4 +1,4 @@
-import type { AttachmentRef, FolderPath, VaultPath } from "./types";
+import type { AttachmentRef, FolderPath, OutlineEntry, VaultPath } from "./types";
 
 /**
  * Per-file facts the engine needs. Everything here is ADAPTER truth: the
@@ -26,6 +26,16 @@ export interface FileMetadata {
 	 * links) without an engine change (OCP).
 	 */
 	readonly attachments: readonly AttachmentRef[];
+	/**
+	 * Heading outline offered as this note's in-node preview, in document order.
+	 * EMPTY when the file has no headings, is not outline-bearing (canvas,
+	 * `*.excalidraw.md`), or when its FIRST IMAGE appears BEFORE its first
+	 * heading — the human's documented "show the picture instead" escape hatch.
+	 * Nothing downstream can act on the difference between those cases: all three
+	 * mean "do not offer an outline for this note". Provider-owned exactly like
+	 * {@link attachments}: only the adapter sees document offsets.
+	 */
+	readonly outline: readonly OutlineEntry[];
 }
 
 /**

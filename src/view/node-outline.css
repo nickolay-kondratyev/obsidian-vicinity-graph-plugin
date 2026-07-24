@@ -1,0 +1,79 @@
+/*
+ * In-node markdown outline (NodeOutline.tsx). Its own file because the
+ * component boundary CLARIFICATION Q9 mandates would be hollow if these styles
+ * stayed interleaved in the node stylesheet — this is the first iteration of the
+ * outline UI and is expected to be re-tuned.
+ *
+ * VISIBILITY lives elsewhere on purpose: `display: none` and the `display: block`
+ * reveal at the 104px density threshold are BOTH in graph-view.css, with the rest
+ * of the "what shows at what node size" ladder — keeping them together is what
+ * stops stylesheet concatenation order from deciding which one wins. This file is
+ * purely about appearance.
+ *
+ * Colors come exclusively from Obsidian theme variables — light and dark both
+ * just work with no per-theme rules.
+ */
+
+.vicinity-graph-outline {
+	/* Take the node's spare height and SHRINK rather than push the attachment
+	 * strip out of the box. Deliberately not the thumbnail's fixed min-height,
+	 * which would overflow a 104px node. */
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow-y: auto;
+	overflow-x: hidden;
+	scrollbar-width: thin;
+	/* Invisible thumb, still fully scrollable (wheel, drag, keyboard). Styling
+	 * the THUMB rather than the track width means nothing reflows on hover, so
+	 * entries never re-ellipsise as the pointer arrives. */
+	scrollbar-color: transparent transparent;
+}
+.vicinity-graph-node:hover .vicinity-graph-outline {
+	scrollbar-color: var(--background-modifier-border-hover) transparent;
+}
+
+/* The reset is load-bearing, not cosmetic: Obsidian's base `ul` indent (~2em)
+ * would compound PER NESTING LEVEL and eat the ellipsis budget of a small node. */
+.vicinity-graph-outline__list {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+/* THE nesting knob (CLARIFICATION Q8: minimal spacing — nodes are small).
+ * --size-4-2 = 8px ≈ one glyph at --font-smallest: readable as hierarchy, cheap
+ * enough that six levels cost 40px of a ~250px node. Re-tune HERE. */
+.vicinity-graph-outline__list .vicinity-graph-outline__list {
+	padding-inline-start: var(--size-4-2);
+}
+
+/* Row resets Obsidian's global button styling on purpose (compact, in-node).
+ * `display: block` + a constrained width is what makes text-overflow apply. */
+.vicinity-graph-outline__entry {
+	display: block;
+	width: 100%;
+	height: auto;
+	padding: 0 var(--size-4-1);
+	text-align: left;
+	font-size: var(--font-smallest);
+	line-height: 1.5;
+	color: var(--text-muted);
+	background: transparent;
+	border: none;
+	border-radius: var(--radius-s);
+	box-shadow: none;
+	cursor: pointer;
+	/* Per-entry ellipsis: one over-wide heading truncates alone, leaving its
+	 * siblings untouched (the full text stays in the `title` tooltip). */
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.vicinity-graph-outline__entry:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover);
+}
+.vicinity-graph-outline__entry:focus-visible {
+	outline: none;
+	box-shadow: 0 0 0 2px var(--interactive-accent);
+}

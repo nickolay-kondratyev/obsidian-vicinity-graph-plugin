@@ -117,14 +117,15 @@ test("force layout: 6 sliders, live write, restore defaults", async () => {
 	await expect(repel).toHaveValue(defaultRepel);
 });
 
-test("settings tab renders five framed section cards with plugin CSS applied", async () => {
+test("settings tab renders six framed section cards with plugin CSS applied", async () => {
 	await page.evaluate((pluginId) => {
 		const app = (window as any).app;
 		app.setting.open();
 		app.setting.openTabById(pluginId);
 	}, PLUGIN_ID);
 	const sections = page.locator(".vicinity-graph-settings-section");
-	await expect(sections).toHaveCount(5);
+	// Depths, sizing, node contents, layout, force layout, node exclusion.
+	await expect(sections).toHaveCount(6);
 	// The framed-card border proves settings-tab.css reached the settings DOM.
 	const borderStyle = await sections.first().evaluate((el) => getComputedStyle(el).borderTopStyle);
 	expect(borderStyle).toBe("solid");
