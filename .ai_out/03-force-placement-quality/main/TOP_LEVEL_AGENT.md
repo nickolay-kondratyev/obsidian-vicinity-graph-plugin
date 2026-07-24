@@ -27,6 +27,21 @@ run through the real pipeline proving red→green before plan acceptance).
   re-plan directive: `_tickets/03-force-placement-quality-...md`.
 - No production/source change shipped (tree pristine); all evidence in `.ai_out/.../*`.
 
+## PASS 2 (2026-07-23, resumed) — re-plan accepted, implementing
+Plan of record: `RE_PLAN__PUBLIC.md` (AABB rect-collide + min-half-extent link
+distance; prototype-validated RED 207 → GREEN 33 on crowd=5 vault-mirror fixture).
+- [x] RE_PLAN — accepted (commit e87afd4); prototype preserved as PROTOTYPE__rect-collide.test.ts.txt
+- [x] IMPLEMENTATION — CONVERGED (agent #1 died on API error mid-e2e-triage; restarted fresh per protocol).
+      RED 206.52px → GREEN 32.84px; 703/703 tests + check clean; 2 e2e failures proven PRE-EXISTING
+      (stash-baseline rerun); visual acceptance passed on real headless Obsidian.
+- [x] IMPLEMENTATION_REVIEW — APPROVED-WITH-MINORS (0 blocking / 0 major / 3 minor), independently verified.
+- [x] IMPLEMENTATION_ITERATION — minors (a)(b) incorporated, (c) informational; READY. Single round.
+- [x] PARETO_COMPLEXITY_ANALYSIS — JUSTIFIED (net simplification; YAGNI lines held).
+- [x] Final: ticket nid_apkpp62otiz0qhxlxoqhe5l1r_e closed with resolution; single change_log entry written.
+
+## OUTCOME (pass 2): DONE — fix shipped, ticket closed.
+Open human follow-up: public-vault visual smoke check (existing ticket-step-03-human-smoke-run.md).
+
 ## Notes
 - Commit between phases; keep git clean.
 - Think Hard during planning (per human instruction).

@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-24T03:57:07Z
 id: nid_apkpp62otiz0qhxlxoqhe5l1r_e
 title: "force placement quality: linked nodes stranded far from neighbors (root-cause + fix defaults)"
-status: open
+status: closed
 deps: [nid_ihlfchb69wt1hqot6iqy7a9m9_e]
 links: []
 created_iso: 2026-07-23T23:34:17Z
-status_updated_iso: 2026-07-23T23:34:17Z
+status_updated_iso: 2026-07-24T03:57:07Z
 type: bug
 priority: 1
 assignee: CC_WITH-nickolaykondratyev
@@ -88,20 +89,81 @@ metric that measures the rendered/member-relative geometry.
 3. **Squarer / capped container** (reduce container aspect ratio, or cap collide radius) —
    smallest change, likely partial; radius cap risks overlaps.
 
-## Next Step — RE-PLAN this ticket with a stronger model
+## RE-PLAN (2026-07-23) — ACCEPTED: rectangular (AABB) collision force, prototype-validated
 
-Re-plan the approach from the corrected root cause above (do NOT resurrect the invalidated
-constant-tune plan). Use a stronger reasoning model for planning. Keep the deliverable
-goals (deterministic layout, failing-first quality test that a fix moves red→green, repro
-data mirrored into the dev-vault, `npm test` + `npm run check` green).
+Full plan + evidence: `.ai_out/03-force-placement-quality/main/RE_PLAN__PUBLIC.md`
+(prototype source preserved at `PROTOTYPE__rect-collide.test.ts.txt` in the same dir).
+The planning exit criteria below were MET — a throwaway prototype ran through the REAL
+`ElkLayoutRunner` seed → d3 refinement on the reproduction fixture.
 
-**Planning exit criteria — MUST include sandboxing / prototyping during planning:**
-- Before the plan is accepted, build a **throwaway prototype** of the chosen direction and
-  run it through the REAL elk+d3 pipeline on the reproduction fixture, demonstrating it
-  actually moves the (new) quality metric red→green **without** breaking
-  `overlappingPairCount == 0` or determinism. Attach the prototype evidence (numbers) to
-  the plan.
-- The plan must define a quality metric that can genuinely **detect** the container-collide
-  stranding (the prior circumscribed-normalised edge-stretch metric could not).
-- No approach is accepted on a-priori reasoning alone — this ticket already shows why that
-  fails for a layout heuristic.
+**Direction chosen: candidate fix 1** (AABB collide replacing circular `forceCollide`,
+plus rect-aware link resting distance = min half-extents + `D3_FORCE_LINK_GAP_PX`).
+Candidates 2/3 rejected: both leave the circular collide floor in place, which alone
+forbids neighbors from approaching closer than the circumscribed radius.
+
+**New quality metric (detects the bug, unlike edge-stretch): boundary gap** — rendered
+free space between the two boxes' RECTANGLE boundaries along the center-center segment:
+`dist(centers) − rectExtentAlongDir(s) − rectExtentAlongDir(t)`, per projected root edge.
+Not normalized by the circumscribed radius, so container inflation cannot mask stranding.
+
+**Prototype evidence** (padding 20 / 2 collide iterations; `strandedHubGraph` fixture):
+
+```
+                          baseline(circle)   prototype(AABB)
+crowd=5  ench gap                207                33        RED→GREEN at threshold 100
+crowd=5  ench->hub member        375               193
+crowd=10 ench gap                203               122
+crowd=16 ench gap                231               120
+overlaps (all fixtures + hub24)    0                 0
+determinism (two runs)        bit-identical    bit-identical
+```
+
+Variation with 2× padding / 3 iterations was measurably WORSE at crowd≥10 — keep
+padding 20, iterations 2. Honest caveat: at crowd≥16 the prototype's *worst* gap
+(second-ring overflow, a geometric necessity once the container perimeter is full)
+exceeds baseline's; the bug-shaped edge always improves. The committed test therefore
+asserts on the crowd=5 vault mirror only.
+
+### Implementation steps (failing-first)
+1. RED — `src/view/d3ForceStranding.test.ts`: `strandedHubGraph(5)` + boundary-gap
+   metric (lift from prototype); assert every root edge gap ≤
+   `D3_FORCE_MAX_BOUNDARY_GAP_PX` (new constant, 100, WHY-documented: ~3× margin to
+   both prototype 33 and baseline 207). Must FAIL on current defaults (~207).
+2. New `src/view/forceRectCollide.ts` + unit tests: deterministic pairwise AABB
+   separation (anticipated `x+vx` positions, padded half-extents, min-penetration
+   axis, half/half split, fixed pair order, deterministic tie-break, NO randomness);
+   O(n²) with WHY (root children small; quadtree YAGNI).
+3. Rewire `refineForceRootLayout`: drop `collideRadius`; collide → rect force; link
+   distance → `minHalf(s)+minHalf(t)+D3_FORCE_LINK_GAP_PX`. Update WHY comments with
+   prototype numbers.
+4. GREEN — step-1 test + all existing suites; `npm test` + `npm run check`.
+5. Dev-vault repro data: mirror the Enchiridion cluster into `.dev-vault/`
+   (`p/ep/{hub,sib}.md`, `p/ep/book/enchiridion.md`, 5 crowd notes + main) so repro
+   needs no `.out/vaults/public`.
+6. Visual acceptance on dev-vault repro note (+ public vault where available),
+   screenshots → `.out/`; CHANGELOG entry; commit at milestones.
+
+### Deferred (YAGNI unless visual QA shows it)
+- Direction-aware link force (scalar spring presses against the rect collide floor on
+  vertical approaches to tall containers; collide wins, zero overlaps in all runs).
+- Charge stays point-based (proven inert on resting geometry).
+## RESOLUTION (2026-07-23) — SHIPPED
+
+Implemented per accepted re-plan (`.ai_out/03-force-placement-quality/main/RE_PLAN__PUBLIC.md`):
+
+- `src/view/forceRectCollide.ts` — deterministic pairwise AABB separation force
+  replaces circular `forceCollide`; link resting distance now min-half-extent based
+  (`src/view/d3ForceRefinement.ts`, `src/view/constants.ts`).
+- Failing-first proof: boundary-gap metric RED **206.52px** on baseline → GREEN
+  **32.84px** (`src/view/d3ForceStranding.test.ts`, threshold
+  `D3_FORCE_MAX_BOUNDARY_GAP_PX = 100`).
+- `npm test` 703/703 + `npm run check` clean. E2e: 2 failures proven PRE-EXISTING via
+  stash-baseline rerun (radial gating already ticketed; gamma breadcrumb →
+  `docs-internal/tickets/ticket-e2e-gamma-breadcrumb-fails-headless.md`).
+- Visual acceptance passed on real headless Obsidian
+  (`.out/ticket-03-stranded-hub-after-fix.png`); Enchiridion-mirror repro cluster added
+  to `.dev-vault/` via `scripts/setup-dev-vault.sh`.
+- Review: APPROVED-WITH-MINORS (all incorporated). Pareto analysis: JUSTIFIED — net
+  simplification of the production path.
+- Remaining human step: public-vault visual smoke check (covered by existing
+  `docs-internal/tickets/ticket-step-03-human-smoke-run.md`).

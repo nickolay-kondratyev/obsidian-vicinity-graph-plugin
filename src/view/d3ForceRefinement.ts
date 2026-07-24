@@ -1,5 +1,5 @@
-import { forceCollide, forceLink, forceManyBody, forceSimulation, forceX, forceY } from "d3-force";
-import type { SimulationLinkDatum, SimulationNodeDatum } from "d3-force";
+import { forceLink, forceManyBody, forceSimulation, forceX, forceY } from "d3-force";
+import type { SimulationLinkDatum } from "d3-force";
 import type { ElkNode } from "elkjs";
 import {
 	D3_FORCE_CENTER_PULL_STRENGTH,
@@ -8,6 +8,8 @@ import {
 	D3_FORCE_COLLIDE_PADDING_PX,
 	D3_FORCE_LINK_GAP_PX,
 } from "./constants";
+import { forceRectCollide } from "./forceRectCollide";
+import type { RectCollideBody } from "./forceRectCollide";
 
 /**
  * d3-force refinement of a `force`-mode root (the reactflow.dev force-layout
@@ -21,15 +23,17 @@ import {
  * Deterministic: seeds come from elk (deterministic) and the simulation's
  * random source is a fixed-seed LCG, so the same graph always lays out
  * identically (matches the elk runner's contract and keeps tests stable).
+ *
+ * Separation is RECTANGULAR ({@link forceRectCollide}), not d3's circular
+ * `forceCollide`: a circle must circumscribe the box, so a tall folder-group
+ * container (e.g. 192x392 ⇒ radius ~238px) stranded every external neighbour
+ * off its diagonal — ticket 03. Colliding the boxes themselves cut the
+ * worst root-edge boundary gap 207px → 33px on the reproduction fixture.
  */
 
 /** A root child as a simulation body. d3 mutates `x`/`y` (centre coordinates). */
-interface ForceBody extends SimulationNodeDatum {
+interface ForceBody extends RectCollideBody {
 	readonly id: string;
-	readonly halfWidth: number;
-	readonly halfHeight: number;
-	/** Circumscribed-circle radius + padding: circle separation ⇒ box separation. */
-	readonly collideRadius: number;
 }
 
 export function refineForceRootLayout(root: ElkNode): ElkNode {
@@ -44,7 +48,6 @@ export function refineForceRootLayout(root: ElkNode): ElkNode {
 			id: child.id,
 			halfWidth: width / 2,
 			halfHeight: height / 2,
-			collideRadius: Math.hypot(width, height) / 2 + D3_FORCE_COLLIDE_PADDING_PX,
 			x: (child.x ?? 0) + width / 2,
 			y: (child.y ?? 0) + height / 2,
 		};
@@ -60,16 +63,17 @@ export function refineForceRootLayout(root: ElkNode): ElkNode {
 			"link",
 			forceLink<ForceBody, SimulationLinkDatum<ForceBody>>(links)
 				.id((body) => body.id)
+				// Resting distance = sum of MIN half-extents + gap: the spring only
+				// pulls partners into touching range and the rect collide owns the
+				// actual separation. Circumscribed-radius resting distances were the
+				// ticket-03 stranding mechanism (leaf→hub member distance 375px; with
+				// min half-extents + AABB collide it settles at 193px).
 				.distance(
-					(link) =>
-						(link.source as ForceBody).collideRadius + (link.target as ForceBody).collideRadius + D3_FORCE_LINK_GAP_PX,
+					(link) => minHalfExtent(link.source as ForceBody) + minHalfExtent(link.target as ForceBody) + D3_FORCE_LINK_GAP_PX,
 				),
 		)
 		.force("charge", forceManyBody<ForceBody>().strength(D3_FORCE_CHARGE_STRENGTH))
-		.force(
-			"collide",
-			forceCollide<ForceBody>((body) => body.collideRadius).iterations(D3_FORCE_COLLIDE_ITERATIONS),
-		)
+		.force("collide", forceRectCollide<ForceBody>(D3_FORCE_COLLIDE_PADDING_PX, D3_FORCE_COLLIDE_ITERATIONS))
 		.force("x", forceX<ForceBody>(0).strength(D3_FORCE_CENTER_PULL_STRENGTH))
 		.force("y", forceY<ForceBody>(0).strength(D3_FORCE_CENTER_PULL_STRENGTH))
 		.stop();
@@ -88,6 +92,11 @@ export function refineForceRootLayout(root: ElkNode): ElkNode {
 			return { ...child, x: body.x - body.halfWidth, y: body.y - body.halfHeight };
 		}),
 	};
+}
+
+/** Smaller half-extent of a body's box — the closest its rectangle boundary can be to its centre. */
+function minHalfExtent(body: ForceBody): number {
+	return Math.min(body.halfWidth, body.halfHeight);
 }
 
 /** Shift seed centres so their centroid is the origin — the point the centring forces pull toward. */
