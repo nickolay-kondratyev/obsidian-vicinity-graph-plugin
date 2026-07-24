@@ -41,6 +41,12 @@ Interaction:
 | 8 | How is heading hierarchy conveyed? | **Nested list** (structure carries the hierarchy, not indentation-by-padding-ladder). Nesting spacing must be tuned **minimal** — nodes are small. This is explicitly a **first iteration**; the UI is expected to evolve. |
 | 9 | Code structure for the outline UI | **A dedicated React component** owns rendering of headings inside a node (e.g. `src/view/NodeOutline.tsx`), separate from `NoteNode.tsx`, **specifically so the outline UI can be iterated on later without touching node rendering.** This is a structural requirement, not a suggestion. |
 
+## Round 4 — human decision (CONFIRMED, binding)
+
+| # | Question | Decision |
+|---|---|---|
+| 10 | The plan's manual GUI check (click an outline entry deep in a note; confirm Obsidian scrolls to **and flashes** that heading, in both editing and reading view) cannot be automated — e2e only covers our side of the contract (the linktext handed to `openLinkText`). | **Accept as a post-merge smoke test.** Merge on the automated coverage; **file a smoke-test ticket** so the visual confirmation is not forgotten. |
+
 ## Binding constraints from exploration (see `EXPLORATION_PUBLIC.md`)
 
 - Engine purity: no `obsidian` types in `src/engine/` — translate `HeadingCache[]` → an engine-owned POJO in `ObsidianLinkProvider`.
