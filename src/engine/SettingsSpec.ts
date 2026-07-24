@@ -179,7 +179,7 @@ export const SETTINGS_SPEC: SettingsSpec = {
 			 * above); above ~2 the stiff springs overshoot within the fixed-tick
 			 * static run and the layout stops converging cleanly.
 			 */
-			linkStrengthFactor: { default: 1, min: 0.25, max: 2, step: 0.05 },
+			linkStrengthFactor: { default: 1, min: 0.25, max: 4, step: 0.05 },
 			/**
 			 * UI "Link distance" — extra length on a link's resting distance beyond
 			 * the endpoints' min half-extents. The spring only pulls partners into
