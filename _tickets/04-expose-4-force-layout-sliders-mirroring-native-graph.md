@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-24T04:48:36Z
 id: nid_lhandama1t1d3q9z6p4jefa4i_e
 title: "expose force-layout tuning sliders: native-graph 4 + advanced spacing knobs (pre-release tuning harness)"
-status: open
+status: closed
 deps: [nid_apkpp62otiz0qhxlxoqhe5l1r_e]
 links: []
 created_iso: 2026-07-23T23:34:33Z
-status_updated_iso: 2026-07-23T23:34:33Z
+status_updated_iso: 2026-07-24T04:48:36Z
 type: feature
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
@@ -81,3 +82,7 @@ Knob inventory refreshed against shipped code (post-AABB): charge -300, link gap
 collide padding 20 (now per-PAIR, rect collide), center pull 0.05, collide iterations 2,
 forceLink.strength still d3-default/unset (the Link force slider introduces the explicit
 override), ELK_NODE_SPACING "40".
+
+**2026-07-24T04:48:36Z**
+
+RESOLUTION (2026-07-23): Shipped via TOP_LEVEL_AGENT flow (.ai_out/04-force-layout-sliders/main/). 6 sliders: native-parity (Center force, Repel force, Link force, Link distance) + Advanced (Node spacing, Group member spacing). Wired ViewSettings -> engine defaults/resolver -> settingsWritePlan -> persistence (versioned) -> settings tab; live re-layout without reload; restore-defaults; clamped ranges as named constants (FORCE_LAYOUT_RANGES). Link force introduces explicit forceLink.strength override whose default reproduces d3 unset behavior (verified bit-identical). Defaults == ticket-03 shipped values; stranding metric test unmodified and green. Review: APPROVED (2 minors fixed, 1 nit rejected: no debounce). npm test 729 PASS, npm run check PASS. Pre-release tuning + bake-back of tuned defaults tracked in follow-up ticket.

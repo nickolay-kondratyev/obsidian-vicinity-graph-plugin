@@ -1,6 +1,6 @@
 import type { ElkNode } from "elkjs";
 import type { FolderPath, GraphEdge, GraphNode, VicinityGraph } from "../engine";
-import { ELK_FORCE_ROOT_OPTIONS, ELK_GROUP_MEMBER_OPTIONS, ELK_GROUP_PADDING, ELK_ROOT_ID } from "./constants";
+import { ELK_GROUP_PADDING, ELK_ROOT_ID, elkForceRootOptions, elkGroupMemberOptions } from "./constants";
 import { deriveFolderGroups } from "./folderGrouping";
 import type { FolderGroupingResult } from "./folderGrouping";
 import { edgeIdOf, folderGroupIdOf, nodeDimensionsPx } from "./graphIdentity";
@@ -17,10 +17,10 @@ import type { Dimensions, XY } from "./flowMapping";
  * live on the closest common ancestor of its endpoints, so intra-group edges
  * move onto their container while every other edge stays on the root.
  *
- * The root runs elk's `force` algorithm ({@link ELK_FORCE_ROOT_OPTIONS}), which
+ * The root runs elk's `force` algorithm ({@link elkForceRootOptions}), which
  * does not support `INCLUDE_CHILDREN`, so elk's default `SEPARATE_CHILDREN`
  * applies: each container is laid out internally (layered,
- * {@link ELK_GROUP_MEMBER_OPTIONS}), then the root arranges containers and
+ * {@link elkGroupMemberOptions}), then the root arranges containers and
  * ungrouped leaves as fixed boxes. Cross-boundary edges are PROJECTED onto
  * containers (see {@link projectedRootEdges}). The elk root pass is only a seed —
  * `GraphLayoutRunner` then refines the root boxes with d3-force
@@ -29,6 +29,9 @@ import type { Dimensions, XY } from "./flowMapping";
 
 export function vicinityGraphToElk(graph: VicinityGraph): ElkNode {
 	const grouping = deriveFolderGroups(graph.nodes, graph.viewSettings.groupByFolder);
+	// The "Group member spacing" knob drives BOTH elk passes (group internals and
+	// the root force seed) — one spacing concept, resolved per build.
+	const nodeSpacingPx = graph.viewSettings.forceLayout.elkNodeSpacingPx;
 	const leafById = new Map(
 		graph.nodes.map((node): [string, ElkNode] => {
 			const { width, height } = nodeDimensionsPx(node);
@@ -45,7 +48,7 @@ export function vicinityGraphToElk(graph: VicinityGraph): ElkNode {
 			id: folderGroupIdOf(group.folder),
 			children,
 			edges: [],
-			layoutOptions: { ...ELK_GROUP_MEMBER_OPTIONS, "elk.padding": ELK_GROUP_PADDING },
+			layoutOptions: { ...elkGroupMemberOptions(nodeSpacingPx), "elk.padding": ELK_GROUP_PADDING },
 		};
 		containers.push(container);
 		containerByFolder.set(group.folder, container);
@@ -66,7 +69,7 @@ export function vicinityGraphToElk(graph: VicinityGraph): ElkNode {
 	const rootEdges = projectedRootEdges(crossBoundaryEdges, grouping, graph.nodes);
 	return {
 		id: ELK_ROOT_ID,
-		layoutOptions: { ...ELK_FORCE_ROOT_OPTIONS },
+		layoutOptions: { ...elkForceRootOptions(nodeSpacingPx) },
 		children: [...containers, ...ungroupedLeaves],
 		edges: rootEdges,
 	};

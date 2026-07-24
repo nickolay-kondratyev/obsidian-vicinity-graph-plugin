@@ -118,6 +118,51 @@ describe("PersistedShapes sizing parsing", () => {
 	});
 });
 
+describe("PersistedShapes force-layout parsing", () => {
+	// forceLayout replaces the default WHOLESALE in the view cascade (like
+	// sizing), so a parsed value must always be complete AND inside the slider
+	// ranges — mangled pieces are repaired from defaults, excesses are clamped.
+
+	it("WHEN a persisted forceLayout round-trips through JSON THEN it parses back unchanged", () => {
+		const forceLayout = { ...EngineDefaults.forceLayoutSettings(), repelStrength: 500, linkGapPx: 60 };
+		const raw = { version: PERSISTED_SHAPE_VERSION, view: { forceLayout: JSON.parse(JSON.stringify(forceLayout)) } };
+		expect(PersistedShapes.parseDocData(raw)?.view?.forceLayout).toEqual(forceLayout);
+	});
+
+	it("WHEN persisted forceLayout is partially mangled THEN unusable pieces are repaired from defaults (complete shape out)", () => {
+		const raw = {
+			version: PERSISTED_SHAPE_VERSION,
+			view: { forceLayout: { repelStrength: "broken", linkGapPx: 60 } },
+		};
+		const defaults = EngineDefaults.forceLayoutSettings();
+		expect(PersistedShapes.parseDocData(raw)?.view?.forceLayout).toEqual({ ...defaults, linkGapPx: 60 });
+	});
+
+	it("WHEN persisted forceLayout carries out-of-range values THEN they are clamped into the slider ranges", () => {
+		const raw = {
+			version: PERSISTED_SHAPE_VERSION,
+			view: { forceLayout: { centerPullStrength: 99, repelStrength: -5 } },
+		};
+		expect(PersistedShapes.parseDocData(raw)?.view?.forceLayout).toEqual({
+			...EngineDefaults.forceLayoutSettings(),
+			centerPullStrength: 0.15,
+			repelStrength: 50,
+		});
+	});
+
+	it("WHEN persisted forceLayout is not an object THEN the forceLayout field inherits (absent)", () => {
+		const raw = { version: PERSISTED_SHAPE_VERSION, view: { nodeCap: 5, forceLayout: "scrambled" } };
+		expect(PersistedShapes.parseDocData(raw)?.view).toEqual({ nodeCap: 5 });
+	});
+
+	it("WHEN an old data.json lacks forceLayout THEN the global view gets the engine default (backward compatible, no version bump)", () => {
+		const raw = { version: PERSISTED_SHAPE_VERSION, globalView: { nodeCap: 7 } };
+		expect(PersistedShapes.parsePluginData(raw).globalView.forceLayout).toEqual(
+			EngineDefaults.forceLayoutSettings(),
+		);
+	});
+});
+
 describe("PersistedShapes.parseDocData", () => {
 	it("WHEN a doc override round-trips through JSON THEN it parses back unchanged", () => {
 		const doc = {

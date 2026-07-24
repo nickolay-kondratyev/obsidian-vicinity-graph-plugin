@@ -1,4 +1,5 @@
-import type { GraphNode, VicinityGraph } from "../engine";
+import type { ForceLayoutSettings, GraphNode, VicinityGraph } from "../engine";
+import { FORCE_LAYOUT_RANGES } from "../engine";
 import { edgeIdOf } from "./graphIdentity";
 
 /**
@@ -12,9 +13,11 @@ import { edgeIdOf } from "./graphIdentity";
  *
  * `relayout`: first build, any structural change (a node or edge added/removed),
  * a `groupByFolder` flip (folder-group nodes appear/disappear, so preserved
- * positions would lack group entries and misplace nested children), or a
- * surviving node whose `sizePx` grew beyond the threshold. Structural changes
- * accept layout jumps in V1 (position seeding is V2).
+ * positions would lack group entries and misplace nested children), a
+ * force-layout tuning change (the sliders must re-run the layout live — reusing
+ * positions would silently swallow the new values), or a surviving node whose
+ * `sizePx` grew beyond the threshold. Structural changes accept layout jumps in
+ * V1 (position seeding is V2).
  */
 export type LayoutDecision = "relayout" | "reuse-layout";
 
@@ -29,6 +32,9 @@ export function decideLayout(
 	if (previous.viewSettings.groupByFolder !== next.viewSettings.groupByFolder) {
 		return "relayout";
 	}
+	if (!sameForceLayout(previous.viewSettings.forceLayout, next.viewSettings.forceLayout)) {
+		return "relayout";
+	}
 	if (!sameIds(nodeIdsOf(previous), nodeIdsOf(next))) {
 		return "relayout";
 	}
@@ -39,6 +45,19 @@ export function decideLayout(
 		return "relayout";
 	}
 	return "reuse-layout";
+}
+
+/**
+ * Every force-layout field, derived from FORCE_LAYOUT_RANGES rather than hand-listed:
+ * the ranges table is typed `Record<keyof ForceLayoutSettings, …>`, so a future field
+ * is compile-forced into it and automatically compared here (a hand-written field
+ * list could silently miss one, leaving that slider without live effect).
+ */
+const FORCE_LAYOUT_FIELDS = Object.keys(FORCE_LAYOUT_RANGES) as readonly (keyof ForceLayoutSettings)[];
+
+/** Value equality over every force-layout field (each build resolves a fresh object, so identity cannot be used). */
+function sameForceLayout(a: ForceLayoutSettings, b: ForceLayoutSettings): boolean {
+	return FORCE_LAYOUT_FIELDS.every((field) => a[field] === b[field]);
 }
 
 function nodeIdsOf(graph: VicinityGraph): Set<string> {

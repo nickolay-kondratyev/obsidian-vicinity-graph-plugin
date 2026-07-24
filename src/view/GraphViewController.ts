@@ -210,7 +210,7 @@ export class GraphViewController {
 			// stay well under (edge-routing__03 item 3 perf budget). debug-level so it
 			// is silent unless devtools verbose logging is enabled.
 			const layoutStart = performance.now();
-			const laidOut = await this.layoutRunner.layout(vicinityGraphToElk(graph));
+			const laidOut = await this.layoutRunner.layout(vicinityGraphToElk(graph), graph.viewSettings.forceLayout);
 			console.debug("vicinity-graph: elk+d3 layout pass", {
 				nodeCount: graph.nodes.length,
 				durationMs: performance.now() - layoutStart,

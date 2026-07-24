@@ -1,13 +1,8 @@
 import { forceLink, forceManyBody, forceSimulation, forceX, forceY } from "d3-force";
 import type { SimulationLinkDatum } from "d3-force";
 import type { ElkNode } from "elkjs";
-import {
-	D3_FORCE_CENTER_PULL_STRENGTH,
-	D3_FORCE_CHARGE_STRENGTH,
-	D3_FORCE_COLLIDE_ITERATIONS,
-	D3_FORCE_COLLIDE_PADDING_PX,
-	D3_FORCE_LINK_GAP_PX,
-} from "./constants";
+import type { ForceLayoutSettings } from "../engine";
+import { D3_FORCE_COLLIDE_ITERATIONS } from "./constants";
 import { forceRectCollide } from "./forceRectCollide";
 import type { RectCollideBody } from "./forceRectCollide";
 
@@ -36,7 +31,7 @@ interface ForceBody extends RectCollideBody {
 	readonly id: string;
 }
 
-export function refineForceRootLayout(root: ElkNode): ElkNode {
+export function refineForceRootLayout(root: ElkNode, forceLayout: ForceLayoutSettings): ElkNode {
 	const children = root.children ?? [];
 	if (children.length < 2) {
 		return root; // Nothing to arrange.
@@ -57,6 +52,17 @@ export function refineForceRootLayout(root: ElkNode): ElkNode {
 		source: edge.sources[0] as string,
 		target: edge.targets[0] as string,
 	}));
+	// Replicates d3 forceLink's internal per-node link count so the explicit
+	// strength override below can scale d3's DEFAULT strength
+	// (`1 / min(count(source), count(target))`) by the "Link force" factor —
+	// at factor 1 the values are bit-identical to leaving strength unset.
+	const linkCountById = new Map<string, number>();
+	for (const link of links) {
+		for (const endpoint of [link.source as string, link.target as string]) {
+			linkCountById.set(endpoint, (linkCountById.get(endpoint) ?? 0) + 1);
+		}
+	}
+	const linkCountOf = (body: ForceBody): number => linkCountById.get(body.id) ?? 1;
 	const simulation = forceSimulation(bodies)
 		.randomSource(seededRandom())
 		.force(
@@ -69,13 +75,23 @@ export function refineForceRootLayout(root: ElkNode): ElkNode {
 				// ticket-03 stranding mechanism (leaf→hub member distance 375px; with
 				// min half-extents + AABB collide it settles at 193px).
 				.distance(
-					(link) => minHalfExtent(link.source as ForceBody) + minHalfExtent(link.target as ForceBody) + D3_FORCE_LINK_GAP_PX,
+					(link) =>
+						minHalfExtent(link.source as ForceBody) +
+						minHalfExtent(link.target as ForceBody) +
+						forceLayout.linkGapPx,
+				)
+				.strength(
+					(link) =>
+						forceLayout.linkStrengthFactor /
+						Math.min(linkCountOf(link.source as ForceBody), linkCountOf(link.target as ForceBody)),
 				),
 		)
-		.force("charge", forceManyBody<ForceBody>().strength(D3_FORCE_CHARGE_STRENGTH))
-		.force("collide", forceRectCollide<ForceBody>(D3_FORCE_COLLIDE_PADDING_PX, D3_FORCE_COLLIDE_ITERATIONS))
-		.force("x", forceX<ForceBody>(0).strength(D3_FORCE_CENTER_PULL_STRENGTH))
-		.force("y", forceY<ForceBody>(0).strength(D3_FORCE_CENTER_PULL_STRENGTH))
+		// repelStrength is stored as a positive magnitude (intuitive slider value);
+		// d3's forceManyBody repels on NEGATIVE strength, hence the negation here.
+		.force("charge", forceManyBody<ForceBody>().strength(-forceLayout.repelStrength))
+		.force("collide", forceRectCollide<ForceBody>(forceLayout.collidePaddingPx, D3_FORCE_COLLIDE_ITERATIONS))
+		.force("x", forceX<ForceBody>(0).strength(forceLayout.centerPullStrength))
+		.force("y", forceY<ForceBody>(0).strength(forceLayout.centerPullStrength))
 		.stop();
 	// Run to convergence synchronously (the d3 "static layout" recipe): the tick
 	// count is exactly how many decays alpha needs to fall below alphaMin.

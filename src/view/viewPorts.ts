@@ -1,5 +1,5 @@
 import type { ElkNode } from "elkjs";
-import type { VicinityGraph } from "../engine";
+import type { ForceLayoutSettings, VicinityGraph } from "../engine";
 import type { ControlsModel } from "./ControlsModel";
 import type { SettingsCommand } from "./settingsWritePlan";
 
@@ -44,9 +44,13 @@ export interface ControlsActionsPort {
 	unpinNode(docid: string): Promise<void>;
 }
 
-/** Runs the elk layout on an elk graph, returning it annotated with coordinates. */
+/**
+ * Runs the elk layout on an elk graph, returning it annotated with coordinates.
+ * `forceLayout` carries the build's resolved tuning values into the d3-force
+ * root refinement; when omitted the implementation uses the engine defaults.
+ */
 export interface GraphLayoutPort {
-	layout(graph: ElkNode): Promise<ElkNode>;
+	layout(graph: ElkNode, forceLayout?: ForceLayoutSettings): Promise<ElkNode>;
 }
 
 /** How a clicked note opens (step-05: ctrl/cmd-click = new tab). */

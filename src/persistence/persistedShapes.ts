@@ -2,13 +2,14 @@ import type {
 	DepthOverride,
 	DepthSettings,
 	EdgeVisibilityMode,
+	ForceLayoutSettings,
 	NodeExclusionSettings,
 	SizeMetricId,
 	SizingSettings,
 	ViewSettings,
 	ViewSettingsOverride,
 } from "../engine";
-import { EngineDefaults } from "../engine";
+import { EngineDefaults, clampForceLayoutSettings } from "../engine";
 
 /**
  * Versioned JSON shapes persisted by step-03 (every shape carries `version`
@@ -144,6 +145,7 @@ function parseViewOverride(raw: unknown): ViewSettingsOverride {
 			EDGE_VISIBILITY_MODES.find((mode) => mode === edgeVisibility),
 		),
 		...definedOnly("sizing", parseSizing(raw["sizing"])),
+		...definedOnly("forceLayout", parseForceLayout(raw["forceLayout"])),
 	};
 }
 
@@ -169,6 +171,29 @@ function parseSizing(raw: unknown): SizingSettings | undefined {
 		minPx: numberOrUndefined(raw["minPx"]) ?? defaults.minPx,
 		maxPx: numberOrUndefined(raw["maxPx"]) ?? defaults.maxPx,
 	};
+}
+
+/**
+ * `forceLayout` is ONE field (like `sizing`) and replaces the default WHOLESALE
+ * in the view cascade — so a partially-mangled persisted value must come out as
+ * a COMPLETE {@link ForceLayoutSettings}: recognized fields survive, unusable
+ * ones are repaired from the engine default. Non-object → inherit. The result
+ * is CLAMPED into the slider ranges so hand-edited JSON cannot reach the
+ * degenerate combinations the sliders make unreachable.
+ */
+function parseForceLayout(raw: unknown): ForceLayoutSettings | undefined {
+	if (!isRecord(raw)) {
+		return undefined;
+	}
+	const defaults = EngineDefaults.forceLayoutSettings();
+	return clampForceLayoutSettings({
+		centerPullStrength: numberOrUndefined(raw["centerPullStrength"]) ?? defaults.centerPullStrength,
+		repelStrength: numberOrUndefined(raw["repelStrength"]) ?? defaults.repelStrength,
+		linkStrengthFactor: numberOrUndefined(raw["linkStrengthFactor"]) ?? defaults.linkStrengthFactor,
+		linkGapPx: numberOrUndefined(raw["linkGapPx"]) ?? defaults.linkGapPx,
+		collidePaddingPx: numberOrUndefined(raw["collidePaddingPx"]) ?? defaults.collidePaddingPx,
+		elkNodeSpacingPx: numberOrUndefined(raw["elkNodeSpacingPx"]) ?? defaults.elkNodeSpacingPx,
+	});
 }
 
 function parseMetricSetting(raw: unknown): SizingSettings["metrics"][SizeMetricId] | undefined {
