@@ -33,3 +33,12 @@ Centralize settings defaults + limits into ONE nested `SETTINGS_SPEC` mirroring
 - `npm run check` EXIT=0; `npm test` EXIT=0 → 62 files / 739 tests passed.
 - No stale refs to removed force `DEFAULT_*` scalars or `DEFAULT_METRIC_WEIGHT` (now local to SettingsSpec.ts).
 - Remaining risk: none known. E2E (npm run test:e2e) not run (release gate, out of scope).
+
+## Post-review MINOR fix: DONE
+- `EngineDefaults.sizingSettings()` metrics now spread each leaf: `{ ...metric.default }`
+  (was leaking shared SETTINGS_SPEC references). constants.ts line ~117.
+- Audited depth/forceLayout/view factories: they build fresh literals from scalar
+  `.default` reads → no shared-ref leak, unchanged. nodeExclusion already spreads. Sole fix.
+- Added test in SettingsSpec.test.ts: two sizingSettings() calls → deep-equal, NOT reference-equal.
+- Re-ran: check EXIT=0 (.tmp/check2.out), test EXIT=0 (.tmp/test2.out) → 62 files / 740 tests.
+- NOT committed (TOP_LEVEL_AGENT commits).

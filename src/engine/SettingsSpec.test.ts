@@ -123,6 +123,13 @@ describe("adapters derive from SETTINGS_SPEC", () => {
 		expect(EngineDefaults.nodeExclusionSettings()).toEqual({ enabled: false, patterns: [] });
 	});
 
+	it("WHEN sizingSettings is built twice THEN each call returns deep-equal but fresh metric objects", () => {
+		const first = EngineDefaults.sizingSettings();
+		const second = EngineDefaults.sizingSettings();
+		expect(first.metrics["own-file-size"]).toEqual(second.metrics["own-file-size"]);
+		expect(first.metrics["own-file-size"]).not.toBe(second.metrics["own-file-size"]);
+	});
+
 	it("WHEN FORCE_LAYOUT_RANGES is read THEN each field mirrors the spec's min/max/step", () => {
 		for (const [field, spec] of Object.entries(SETTINGS_SPEC.globalView.forceLayout)) {
 			expect(FORCE_LAYOUT_RANGES[field as keyof typeof FORCE_LAYOUT_RANGES]).toEqual({

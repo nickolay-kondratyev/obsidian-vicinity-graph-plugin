@@ -74,6 +74,33 @@ npm test       → TEST EXIT=0
         Tests  739 passed (739)
 ```
 
+## Post-review MINOR fix (defensive metric copy)
+Review finding: `EngineDefaults.sizingSettings()` handed out the SAME per-metric
+leaf object references held inside `SETTINGS_SPEC` on every call (whereas the
+pre-refactor factory produced fresh `{enabled,weight}` literals, and
+`nodeExclusionSettings()` already spreads `[...patterns]`). Currently safe
+(leaves are `readonly`, all settings updates spread-on-write) but a future
+in-place mutation would corrupt the global spec.
+
+Fix (`src/engine/constants.ts`): shallow-copy each metric leaf when projecting —
+`[metricId, { ...metric.default }]`. No values changed.
+
+Audit of the other spec-derived factories: `depthSettings`, `forceLayoutSettings`,
+`viewSettings` all build brand-new object literals from scalar `.default` reads,
+so they never leak a shared spec reference — no change needed. `nodeExclusionSettings`
+was already defensive. Only the metrics record leaked; that is the sole fix.
+
+Added test (`SettingsSpec.test.ts`, "adapters derive from SETTINGS_SPEC" block):
+two `EngineDefaults.sizingSettings()` calls return deep-equal but NOT
+reference-equal metric objects.
+
+```
+npm run check  → CHECK EXIT=0   (.tmp/check2.out)
+npm test       → TEST EXIT=0    (.tmp/test2.out)
+   Test Files  62 passed (62)
+        Tests  740 passed (740)   (+1 new defensive-copy test)
+```
+
 ## Deviations / callouts
 - `NEUTRAL_NORMALIZED_VALUE` and `CENTRAL_SIZE_SCORE` were intentionally left in
   `constants.ts` and NOT moved into the spec — they are internal sizing-algorithm

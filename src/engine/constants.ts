@@ -114,7 +114,9 @@ export class EngineDefaults {
 	static sizingSettings(): SizingSettings {
 		const sizing = SETTINGS_SPEC.globalView.sizing;
 		const metrics = Object.fromEntries(
-			Object.entries(sizing.metrics).map(([metricId, metric]) => [metricId, metric.default]),
+			// Defensive per-metric copy: never hand out the spec's own leaf object,
+			// so a future in-place mutation of a default can't corrupt SETTINGS_SPEC.
+			Object.entries(sizing.metrics).map(([metricId, metric]) => [metricId, { ...metric.default }]),
 		) as SizingSettings["metrics"];
 		return {
 			metrics,
