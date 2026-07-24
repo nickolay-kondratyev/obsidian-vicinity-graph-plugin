@@ -1,21 +1,49 @@
 import type { CachedMetadataPort, ReferencePort } from "./obsidianPorts";
 
 /**
+ * A reference in document order, carrying the offset the order was derived from.
+ * The offset is a character offset into the file — the SAME coordinate space as
+ * `HeadingPort.position.start.offset`, which is what lets the outline rule
+ * compare "first image" against "first heading".
+ */
+export interface OrderedReference {
+	readonly link: string;
+	readonly offset: number;
+}
+
+/**
+ * Offset assigned to frontmatter (property) links: they sit ABOVE all body
+ * content, so any negative sentinel orders them first and — decisively for the
+ * outline rule — before every heading (whose offsets are >= 0).
+ */
+export const FRONTMATTER_REFERENCE_OFFSET = -1;
+
+/**
  * True reference order of a markdown file's links (planning default, step-03
  * CLARIFICATION): `resolvedLinks` is a target→count record with no ordering
  * contract, so ordering comes from `getFileCache` instead. Order drives
- * `FileMetadata.attachments` and thereby `firstImagePath` (thumbnails).
+ * `FileMetadata.attachments` and thereby `firstImagePath` (thumbnails), and the
+ * offsets drive the image-vs-outline rule.
  */
 export class ReferenceOrder {
 	/**
-	 * Link texts in document order: frontmatter (property) links first — they
-	 * sit at the top of the file and carry no body offset — then body links and
-	 * embeds merged by their start offset.
+	 * References in document order WITH their offsets: frontmatter (property)
+	 * links first at {@link FRONTMATTER_REFERENCE_OFFSET} — they sit at the top
+	 * of the file and carry no body offset — then body links and embeds merged by
+	 * their start offset.
 	 */
-	static orderedLinkTexts(cache: CachedMetadataPort): readonly string[] {
-		const frontmatterTexts = (cache.frontmatterLinks ?? []).map((ref) => ref.link);
+	static orderedReferences(cache: CachedMetadataPort): readonly OrderedReference[] {
+		const frontmatter = (cache.frontmatterLinks ?? []).map((ref) => ({
+			link: ref.link,
+			offset: FRONTMATTER_REFERENCE_OFFSET,
+		}));
 		const bodyRefs: ReferencePort[] = [...(cache.links ?? []), ...(cache.embeds ?? [])];
 		bodyRefs.sort((a, b) => a.position.start.offset - b.position.start.offset);
-		return [...frontmatterTexts, ...bodyRefs.map((ref) => ref.link)];
+		return [...frontmatter, ...bodyRefs.map((ref) => ({ link: ref.link, offset: ref.position.start.offset }))];
+	}
+
+	/** Link texts in document order — the projection of {@link orderedReferences} (one ordering truth). */
+	static orderedLinkTexts(cache: CachedMetadataPort): readonly string[] {
+		return ReferenceOrder.orderedReferences(cache).map((ref) => ref.link);
 	}
 }
