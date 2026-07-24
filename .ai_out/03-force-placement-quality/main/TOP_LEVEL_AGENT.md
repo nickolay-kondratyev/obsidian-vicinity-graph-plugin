@@ -27,6 +27,16 @@ run through the real pipeline proving red→green before plan acceptance).
   re-plan directive: `_tickets/03-force-placement-quality-...md`.
 - No production/source change shipped (tree pristine); all evidence in `.ai_out/.../*`.
 
+## PASS 2 (2026-07-23, resumed) — re-plan accepted, implementing
+Plan of record: `RE_PLAN__PUBLIC.md` (AABB rect-collide + min-half-extent link
+distance; prototype-validated RED 207 → GREEN 33 on crowd=5 vault-mirror fixture).
+- [x] RE_PLAN — accepted (commit e87afd4); prototype preserved as PROTOTYPE__rect-collide.test.ts.txt
+- [ ] IMPLEMENTATION — new IMPLEMENTATION agent spawned (restart, not resume; reads predecessor PRIVATE/PUBLIC)
+- [ ] IMPLEMENTATION_REVIEW
+- [ ] IMPLEMENTATION_ITERATION
+- [ ] PARETO_COMPLEXITY_ANALYSIS
+- [ ] Final: CHANGELOG via change_log, ticket close, single change_log entry
+
 ## Notes
 - Commit between phases; keep git clean.
 - Think Hard during planning (per human instruction).
