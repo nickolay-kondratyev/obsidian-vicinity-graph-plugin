@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-24T00:43:03Z
 id: nid_ihlfchb69wt1hqot6iqy7a9m9_e
 title: "force-layout-only: remove layered and radial layout modes"
-status: open
+status: closed
 deps: []
 links: []
 created_iso: 2026-07-23T23:33:41Z
-status_updated_iso: 2026-07-23T23:33:41Z
+status_updated_iso: 2026-07-24T00:43:03Z
 type: task
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
@@ -33,3 +34,9 @@ Scope:
 - No LayoutMode symbol remains; toolbar has no layout selector; force pipeline (elk force seed + d3 refinement) unchanged.
 - Old persisted layoutMode values load without error.
 
+
+## Notes
+
+**2026-07-24T00:43:03Z**
+
+Implemented on branch 'tickets' (commit e68a86a). Removed LayoutMode type/LAYOUT_MODES/DEFAULT_LAYOUT_MODE, layoutMode ViewSettings field, toolbar LayoutSection.tsx + global-layout command, elk layered/radial root options (ELK_LAYERED/RADIAL_ROOT_OPTIONS, ELK_ROOT_OPTIONS_BY_MODE, ELK_LAYER_SPACING), radial routing-skip guard. Force pipeline unchanged. Old persisted layoutMode values fall back to force via per-field parser (no version bump — matches actual codebase convention; deviation from ticket's 'bump' wording, reviewer-approved). npm run check + npm test pass (697 tests). Reviewer verdict: APPROVE, 0 blocking.
