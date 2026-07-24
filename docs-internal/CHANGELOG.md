@@ -1,5 +1,38 @@
 # Changelog
 
+## 2026-07-24 — edge-routing__05 closed as a measured negative result (docs only)
+
+No production code changed. The ticketed fix for over-stretched wrap-around routes —
+facing-side pin preference via `ShapeConnectionPin.setConnectionCost()` — was measured
+against the real libavoid wasm **before** implementation and proven inert.
+
+- **The negative result:** facing-side pin costs change **0 of 818 group attachments**
+  across 400 random crowded scenes, and are still 0 at cost 100 000. A positive control
+  passes, so the API is live and correctly bound. Root cause: the wrap-around alternatives
+  win because the facing pins are **visibility-BLOCKED** by the 17px per-obstacle shape
+  buffer, not because they are near-ties — **no cost bias can reach a pin the router cannot
+  see.** Independently reproduced by a second agent re-running the probes.
+- **PREREQ spike answered:** `setConnectionCost`, `setExclusive`/`isExclusive`, `directions`
+  and `portDirectionPenalty` are all bound in the pinned `libavoid-js@0.4.5` — no
+  wasm/WebIDL rebuild is needed. `Avoid::ClusterRef` is **not** bound, so
+  `clusterCrossingPenalty` is infeasible on 0.4.5 (the research doc's C1 claim was wrong
+  and is corrected).
+- **Ticket Design step 2 was a no-op:** libavoid directional pins already default to
+  exclusive. The useful move is the **opposite** — `setExclusive(false)`, which also fixes a
+  latent bug live in shipped code today: with 3 pins per side, the 4th edge approaching a
+  side silently falls back to the group **centre** (the pre-edge-routing__04 pathology).
+- **New research doc** `docs-internal/research/facing-side-edge-attachment.md` parks the
+  full measurement history, the two-pass pin-CLASS design (keep-the-better at 1.30× if ever
+  built, with the caveat that its headline numbers were measured *without*
+  `setExclusive(false)`), why a keep-shorter rule cannot work, and the revisit triggers.
+- **Staleness fixed along the way:** `docs-internal/specs/graph/arrows.md` no longer
+  describes the removed `edgeRouting` setting or claims connector ends pin to box centres.
+- **Successor:** `edge-routing__06` carries the two KISS wins — `setExclusive(false)`, and
+  reducing the `shapeBufferDistance` (17px today) with a measured 5/8/11/14/17 sweep plus a
+  user setting. That ticket flags 17px as load-bearing and test-locked
+  (`buffer = curvature/2`, `buffer > arrowhead min inset 14`) and requires a human decision
+  on those invariants before any code.
+
 ## 2026-07-24 — force-layout tuning sliders: native-parity 4 + advanced spacing (ticket 04)
 
 Six force-layout knobs are now user-tunable from Settings → Vicinity Graph, doubling as

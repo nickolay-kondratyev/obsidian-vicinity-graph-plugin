@@ -1,9 +1,11 @@
 # Research (parked): crossing penalty & web-worker routing offload
 
 Deliberately NOT ticketed (2026-07-24 decision): the near-term aesthetics work
-is the facing-side attachment fix (ticket `edge-routing__05`). This note
+is the facing-side attachment fix (`edge-routing__05`, closed as a negative
+result → its surviving levers are `edge-routing__06`). This note
 preserves the findings so the decision can be revisited with full context.
-Companion investigation: `../notes/research-layout-aesthetics.md`.
+Companion investigations: `./research-layout-aesthetics.md` and
+`./facing-side-edge-attachment.md`.
 
 ## Why this matters at all
 
@@ -61,12 +63,12 @@ Implementation notes for this repo:
   stack (`idealNudgingDistance`, `nudgeOrthogonalSegmentsConnectedToShapes`,
   `fixedSharedPathPenalty`) — the designed fix for shared corridors — but is
   a visual-style decision (right-angle circuits vs organic lines).
-- **`clusterCrossingPenalty` + ClusterRef group boxes**: penalizes routes
-  slicing across group boundaries; cost profile needs the same measurement
-  treatment as crossingPenalty before enabling.
+- ~~**`clusterCrossingPenalty` + ClusterRef group boxes**~~: **infeasible on
+  the pinned `libavoid-js@0.4.5` — `Avoid::ClusterRef` is not bound** (verified
+  2026-07-24). Needs a WebIDL/wasm rebuild before it can even be measured.
 
 ## Revisit triggers
 
-- Crossing clutter remains a complaint after `edge-routing__05` ships.
+- Crossing clutter remains a complaint after `edge-routing__06` ships.
 - A perf pass finds typical-vault routing headroom (Path A becomes ~free).
 - Any other feature needs worker infrastructure anyway (amortizes Path B).

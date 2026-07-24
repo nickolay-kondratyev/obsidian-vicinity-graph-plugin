@@ -11,12 +11,21 @@ Branch: `main`
 | EXPLORATION (code / bindings / docs) | done — committed `101938f` |
 | CLARIFICATION | done — 3 human decisions, see `CLARIFICATION__PUBLIC.md` |
 | DETAILED_PLANNING | done — committed `098df04`; measured pivot to Path A |
-| DETAILED_PLAN_REVIEW | running |
-| PLAN_ITERATION | pending |
-| IMPLEMENTATION | pending |
-| IMPLEMENTATION_REVIEW | pending |
-| IMPLEMENTATION_ITERATION | pending |
-| PARETO_COMPLEXITY_ANALYSIS | pending |
+| DETAILED_PLAN_REVIEW | done — committed `ea9da29`; NEEDS_ITERATION, negative result reproduced |
+| PLAN_ITERATION | **cancelled by human** — scope simplified instead |
+| IMPLEMENTATION | **not performed** — approach disproven before any code was written |
+| IMPLEMENTATION_REVIEW | n/a |
+| IMPLEMENTATION_ITERATION | n/a |
+| PARETO_COMPLEXITY_ANALYSIS | n/a — the Pareto call was made by the human directly |
+| WRAP-UP: park research + close ticket + file KISS ticket | running |
+
+## Outcome
+
+`edge-routing__05` closes as a **measured negative result**. No production code changed.
+The ticketed mechanism (facing-side `setConnectionCost`) was proven inert against the real wasm
+before implementation — 0/818 attachments changed, independently reproduced. Future items park in
+`docs-internal/research/`; a new ticket carries the two KISS wins (`setExclusive(false)`, buffer
+reduction + setting).
 
 ## Notes
 

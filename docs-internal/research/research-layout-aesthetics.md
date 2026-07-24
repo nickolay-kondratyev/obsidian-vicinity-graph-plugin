@@ -56,6 +56,11 @@ group's left border are visible). The wrap happens because:
 4. Nothing re-examines the result: detour ratio ≫ 1 is *logged*
    (`detourStats`) but never acted on.
 
+**2026-07-24 measurement update:** cause 2 is the operative one — the facing
+pins are **visibility-BLOCKED by the 17px shape buffer, not merely expensive**,
+so cause 1 (equal pin costs) cannot be fixed by biasing costs. Evidence and the
+parked designs: `./facing-side-edge-attachment.md`.
+
 ### B2 → P4. Long edges crossing the group's EMPTY interior
 
 The group interior is laid out by elk `layered` (direction DOWN) with **zero
@@ -92,31 +97,45 @@ stack. Length-uniformity work (stress vs spring) is NOT worth effort yet.
 ## C. Options, ranked by ROI
 
 2026-07-24 disposition: the facing-side attachment work (C1 minus its
-crossing-penalty items) is ticketed as `edge-routing__05`
-(nid_4lmhpfc64eb4auw27wqis8wqe_e). Crossing penalty + worker offload (C2 and
+crossing-penalty items) was ticketed as `edge-routing__05`
+(nid_4lmhpfc64eb4auw27wqis8wqe_e) and **closed as a measured negative result**
+— see `./facing-side-edge-attachment.md`, which supersedes C1's pin bullets
+below. The surviving levers are ticketed as `edge-routing__06`
+(nid_j2jwp6x9rij34kbkewo03m0mb_e). Crossing penalty + worker offload (C2 and
 C1's penalty items) are PARKED — findings preserved in
-`../research/crossing-penalty-and-worker-offload.md`, deliberately not ticketed.
+`./crossing-penalty-and-worker-offload.md`, deliberately not ticketed.
 
 ### C1. Side-aware pins + costs + cluster penalties (P1, P2, part P3) — days, parameter-level
 
+> **MEASURED 2026-07-24 — read `./facing-side-edge-attachment.md` before
+> acting on any bullet here.** Struck items were disproved against the real
+> `libavoid-js@0.4.5` wasm.
+
 All on the libavoid API we already ship:
 
-- Keep directional boundary pins on groups, but **cheapen the facing side**:
-  `ShapeConnectionPin.setConnectionCost(cost)` — among same-class pins, lower
-  cost wins before raw path cost. Facing side is computable from the two
-  endpoint rects before routing.
-- Make pins **exclusive** (`setExclusive(true)`; directional pins are
-  exclusive by default) — one connector per pin spreads attachments along the
-  border instead of piling into one corridor.
+- ~~Cheapen the facing side with `ShapeConnectionPin.setConnectionCost(cost)`.~~
+  **DISPROVED:** changes 0 of 818 group attachments, still 0 at cost 100 000.
+  The facing pins are visibility-blocked, not near-ties. The only per-edge pin
+  lever is the **class id** on `ConnEnd(shape, classId)`, and it is a hard
+  filter (parked two-pass design in the companion doc).
+- ~~Make pins **exclusive** (`setExclusive(true)`).~~ **No-op — directional
+  pins are already exclusive by default.** The useful move is the OPPOSITE:
+  `setExclusive(false)`, so the 4th edge approaching a side stops falling back
+  to the group CENTRE (measured 82 → 40 non-facing; ticketed in
+  `edge-routing__06`).
+- **Reduce `shapeBufferDistance`** (17px today) — it is what blocks the facing
+  pins, so it is the measured root-cause lever. Also in `edge-routing__06`.
 - Replace the note-square centre pin with **4 directional side pins** so
-  libavoid picks the facing side on that end too (12-pins-per-note was the
-  perf blowup in edge-routing__04; 4 is the middle ground to re-measure).
-- Re-enable a **small `crossingPenalty`** (see C2 for the perf story) and add
-  `portDirectionPenalty` so wrong-direction pin approaches cost extra.
-- Register group boxes as `Avoid::ClusterRef` and set
-  `clusterCrossingPenalty` so routes slicing across group boundaries pay.
+  libavoid picks the facing side on that end too — parked: 8 pins on all
+  shapes measured ~8838ms vs ~1450ms layout (~64×).
+- Re-enable a **small `crossingPenalty`** (see C2 for the perf story).
+  `portDirectionPenalty` is bound but measured to have **no effect** on the
+  blocked-corridor case.
+- ~~Register group boxes as `Avoid::ClusterRef` + `clusterCrossingPenalty`.~~
+  **INFEASIBLE on the pinned `libavoid-js@0.4.5`: `ClusterRef` is not bound**
+  — it needs a WebIDL/wasm rebuild.
 
-Fallback lever if pin costs underdeliver: post-check any clipped route with
+Fallback lever, never measured: post-check any clipped route with
 `detourRatio > THRESHOLD`, re-route once with pins restricted to the facing
 side, keep the shorter.
 
@@ -213,9 +232,10 @@ dormant (last release 2019). Keep as a far-horizon ticket.
 
 ## E. Suggested sequencing
 
-1. **C1** (side-aware/cost-weighted/exclusive pins, 4 side pins on notes,
-   small crossingPenalty, ClusterRef) — parameter-level, attacks the two
-   screenshot symptoms directly; re-measure the dense-fixture perf budget.
+1. **C1** — parameter-level, attacks the two screenshot symptoms directly.
+   Superseded in part by measurement: what remains is `setExclusive(false)` +
+   a smaller `shapeBufferDistance` (`edge-routing__06`); pin costs and
+   `ClusterRef` are out. Re-measure the dense-fixture perf budget.
 2. **C2** worker offload — makes the crossing penalty (the #1
    evidence-backed aesthetic) affordable for good.
 3. **C3** orientation pass — the cheap, testable P4 fix that keeps the look.

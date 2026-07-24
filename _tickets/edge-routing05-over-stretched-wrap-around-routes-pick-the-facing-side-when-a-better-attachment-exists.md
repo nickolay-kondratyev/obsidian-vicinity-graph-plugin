@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-24T23:16:01Z
 id: nid_4lmhpfc64eb4auw27wqis8wqe_e
 title: "edge-routing__05: over-stretched wrap-around routes - pick the facing side when a better attachment exists"
-status: open
+status: closed
 deps: []
-links: []
+links: [nid_j2jwp6x9rij34kbkewo03m0mb_e]
 created_iso: 2026-07-24T22:09:21Z
-status_updated_iso: 2026-07-24T22:09:21Z
+status_updated_iso: 2026-07-24T23:16:01Z
 type: feature
 priority: 1
 assignee: CC_WITH-nickolaykondratyev
@@ -48,3 +49,33 @@ Testability: facing-side computation + pin-spec selection are pure functions -> 
 Vault with notes `/home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-2/.out/public`
 
 from note 'clear-goals.md' produces a view as `/home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-2/.tmp/Screenshot From 2026-07-24 15-41-26.png` Notice how Epictetus is awkwardly linked to the bottom from the bottom of the group creating odd relationship. 
+## Notes
+
+**2026-07-24T23:16:01Z**
+
+RESOLUTION: closed as a MEASURED NEGATIVE RESULT. No production code was changed.
+
+The ticketed mechanism (Design step 1 - facing-side ShapeConnectionPin.setConnectionCost)
+was measured against the real libavoid wasm BEFORE implementation and proven inert:
+it changes 0 of 818 group attachments across 400 random crowded scenes, and is still 0
+at cost 100000. A positive control passes, so the API is live and correctly bound - the
+wrap-around pins are visibility-BLOCKED, not near-ties, so no cost bias can reach them.
+A second agent independently re-ran the probes; every number reproduced exactly.
+
+Other Design steps resolved without code:
+- Step 2 (setExclusive(true)): already true - directional pins default to exclusive. No-op.
+  The useful move is the OPPOSITE, setExclusive(FALSE) - see the new ticket.
+- Step 3 (4 pins per note square): parked, revives the 64x perf pathology
+  (8 pins on all shapes = ~8838ms vs ~1450ms layout).
+- Step 4/5: parked.
+- PREREQ spike ANSWERED: setConnectionCost, setExclusive/isExclusive, directions and
+  portDirectionPenalty are ALL bound in libavoid-js 0.4.5; no wasm/WebIDL rebuild is
+  needed. Avoid::ClusterRef is NOT bound, so clusterCrossingPenalty is infeasible on 0.4.5.
+
+Full history, measurements and the parked two-pass design (pin-CLASS + keep-the-better at
+1.30x) live in docs-internal/research/facing-side-edge-attachment.md.
+
+Superseded by a new ticket carrying the KISS wins: setExclusive(false) on group boundary
+pins (probe-measured 82->40 non-facing attachments, -2.3% route length, and it fixes a
+latent centre-fallback bug at >12 edges per group box) plus reducing the libavoid
+shapeBufferDistance from 17px and exposing it as a setting.

@@ -37,22 +37,25 @@ both ends** (`edgeGeometry.edgePathFor` returns source- and target-side anchors;
 form for all bidirectional edges. `hasOpposite` note↔note pairs still bow only in
 the straight-line (non-routed) fallback.
 
-## Obstacle-avoiding routing (default ON)
+## Obstacle-avoiding routing (always on)
 
 After layout and before publish, `GraphViewController` → `LibavoidEdgeRouter`
 routes edges around node/group boxes and attaches a `routedPoints` polyline;
 `VicinityEdge` renders it via `routedGeometryFor` (rounded corners, arrowheads on
 the true approach segments).
 
-- **Runs whenever `edgeRouting` is ON.** Force is the only layout, so the pass
-  is gated solely on the `edgeRouting` view setting — no per-layout exclusion.
-- **Straight-line fallback** (`edgePathFor`) when routing is OFF, the wasm/router
+- **Always runs.** The `edgeRouting` view setting was removed — force is the only
+  layout and routing is unconditional, with no per-layout exclusion.
+- **Straight-line fallback** (`edgePathFor`) when the wasm/router
   fails (one `console.warn`, whole pass yields no routes), or an edge is absent
   from the route map. A cleanly-routed edge returns a 2-point line, byte-identical
   to the straight form.
 - Routed edges do **not** re-apply the paired-edge bow — libavoid's clearance
   buffer already separates opposite edges.
-- **Boundary clipping:** libavoid pins connector ends to the box centre;
+- **Connection pins:** folder-group boxes carry 12 directional boundary pins
+  (`BOUNDARY_PIN_SPECS`, 3 per side, never at a corner); note squares keep a
+  single centre pin.
+- **Boundary clipping:** connector ends land on a pin, not on the border;
   `resolveRoutes` runs `clipRouteToEndpointRects` (`edgeGeometry.ts`) to move each
   terminus to where the route crosses the endpoint rect — so arrows land ON the
   boundary (a collapsed group arrow terminates at the group container border,
