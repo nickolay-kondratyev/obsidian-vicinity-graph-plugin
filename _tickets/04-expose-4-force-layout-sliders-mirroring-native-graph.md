@@ -1,11 +1,11 @@
 ---
 id: nid_lhandama1t1d3q9z6p4jefa4i_e
 title: "expose force-layout tuning sliders: native-graph 4 + advanced spacing knobs (pre-release tuning harness)"
-status: open
+status: in_progress
 deps: [nid_apkpp62otiz0qhxlxoqhe5l1r_e]
 links: []
 created_iso: 2026-07-23T23:34:33Z
-status_updated_iso: 2026-07-23T23:34:33Z
+status_updated_iso: 2026-07-24T04:18:34Z
 type: feature
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
