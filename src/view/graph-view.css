@@ -217,8 +217,16 @@
 	height: 12px;
 }
 
+/* The outline and the thumbnail share ONE preview slot (nodePreviewChoice.ts
+ * picks which), so when the outline renders the title zone must not also claim
+ * the node's spare height — the outline is what should absorb it. */
+.vicinity-graph-node[data-preview="outline"] .vicinity-graph-node__preview-zone {
+	flex: 0 0 auto;
+}
+
 /* Density thresholds (see container comment above). 72px ≈ two title lines +
- * one chip row; 104px additionally fits the fixed-height thumbnail. */
+ * one chip row; 104px additionally fits the fixed-height thumbnail OR the
+ * outline that replaces it (mutually exclusive — same slot). */
 @container (min-height: 72px) {
 	.vicinity-graph-node__attachments {
 		display: flex;
@@ -226,6 +234,10 @@
 }
 @container (min-height: 104px) {
 	.vicinity-graph-node__thumbnail {
+		display: block;
+	}
+	/* Everything else about this region lives in node-outline.css. */
+	.vicinity-graph-outline {
 		display: block;
 	}
 }
