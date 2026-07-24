@@ -190,7 +190,7 @@ export const SETTINGS_SPEC: SettingsSpec = {
 			 * just fight (jitter, no visual gain); above 150 edges defeat the
 			 * vicinity-compactness goal.
 			 */
-			linkGapPx: { default: 40, min: 10, max: 150, step: 5 },
+			linkGapPx: { default: 40, min: 10, max: 250, step: 5 },
 			/**
 			 * UI "Node spacing" (advanced) — minimum gap enforced between each PAIR
 			 * of boxes by the rectangular collide force (`forceRectCollide.ts`),
@@ -201,7 +201,7 @@ export const SETTINGS_SPEC: SettingsSpec = {
 			 * INSIDE node boxes, so boxes-not-overlapping means labels never
 			 * overlap); above 80 spacing defeats packing.
 			 */
-			collidePaddingPx: { default: 20, min: 0, max: 80, step: 5 },
+			collidePaddingPx: { default: 50, min: 0, max: 100, step: 5 },
 			/**
 			 * UI "Group member spacing" (advanced) — minimum gap between sibling
 			 * nodes in elk passes (folder-group internals + root seed).
