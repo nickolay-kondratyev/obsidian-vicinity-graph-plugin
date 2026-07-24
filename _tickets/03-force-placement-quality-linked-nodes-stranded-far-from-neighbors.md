@@ -33,3 +33,5 @@ Approach:
 - Visual check on .out/vaults/public note we-have-a-finite-amount-of-time.md: The Enchiridion (The Manual) sits adjacent to its link partners; no long stranded edges.
 - Layout deterministic; npm test + npm run check pass.
 
+
+NOTE: `.out/vaults/public` is not under source control so bring in the required test data into the dev-vault to be able to reproduce this issues without the `.out/vaults/public` dependency.
