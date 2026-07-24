@@ -37,6 +37,35 @@ extended rather than duplicated. This gives a repeatable, source-controlled regr
 can drive (`ObsidianHarness` is hardcoded to `.dev-vault`). A manual screenshot of the real
 `.out/public` vault is still expected as the smoke record, but the fixture is the durable guard.
 
+## D4 — Approach: **Path A, per-edge pin CLASS + keep-the-better two-pass** (supersedes D1's mechanism)
+
+PLANNER measured the D1-approved mechanism against the real libavoid wasm: facing-side
+`setConnectionCost` changes **0 of 818 group attachments** across 400 random crowded scenes, and is
+still 0 at cost 100 000. `setConnectionCost` itself is live (positive control passes) — the
+wrap-arounds are visibility-**blocked** pins, not near-ties. **Design step 1 as originally scoped is
+a provable no-op and is therefore abandoned.**
+
+Human approved Path A instead:
+- Re-class the same 12 group boundary pins **by facing side** — the class id on
+  `ConnEnd(shape, classId)` is the only per-edge pin lever libavoid exposes.
+- Run a **baseline pass** and a **facing pass**, and **keep the better route** per edge
+  (facing route accepted only when ≤ **1.25×** the baseline length).
+- Measured outcome: non-facing attachments **24 → 7**, **zero lassos**, total route length **−0.4%**.
+  Re-classing alone (without keep-the-better) was a net loss (53/802 routes >50% longer) and is
+  rejected.
+- The second pass is **skipped entirely when nothing attaches to a group box**, so the dense
+  (ungrouped) perf fixture is untouched.
+- **Never co-locate duplicate pins in two classes** — it corrupts routing.
+
+D1's *scope narrowing* still stands: note-square pins and the detour-triggered re-route remain out,
+as follow-up tickets. D1's acceptance-criterion adjustment also stands.
+
+## D5 — **`setExclusive(false)` on group boundary pins: APPROVED**
+
+Required by Path A, and applied in **both** passes so the two are comparable. Without it a 4th edge
+facing one side silently falls back to the group **centre**. This also fixes a **latent bug that
+exists today** at >12 edges on a single group box (the pre-edge-routing__04 pathology).
+
 ## Standing constraints (restated, non-negotiable)
 
 - `crossingPenalty` stays **0**.

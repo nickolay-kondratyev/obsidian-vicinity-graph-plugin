@@ -8,9 +8,9 @@ Branch: `main`
 
 | Phase | Status |
 |-------|--------|
-| EXPLORATION (code / bindings / docs) | running |
-| CLARIFICATION | pending |
-| DETAILED_PLANNING | pending |
+| EXPLORATION (code / bindings / docs) | done — committed `101938f` |
+| CLARIFICATION | done — 3 human decisions, see `CLARIFICATION__PUBLIC.md` |
+| DETAILED_PLANNING | running (THINK_HARD) |
 | DETAILED_PLAN_REVIEW | pending |
 | PLAN_ITERATION | pending |
 | IMPLEMENTATION | pending |
@@ -20,7 +20,16 @@ Branch: `main`
 
 ## Notes
 
-- PREREQ spike delegated to EXPLORATION_BINDINGS: are `setConnectionCost` /
-  `setExclusive` / `portDirectionPenalty` exposed by the installed `libavoid-js`?
-  If NOT → likely blocking issue → surface to human before planning.
+- PREREQ spike RESOLVED: **no blocker**. `setConnectionCost`, `setExclusive`/`isExclusive` and
+  `portDirectionPenalty` are all bound in `libavoid-js@0.4.5`. Only `src/view/libavoidLoader.ts`
+  type narrowing widens. `Avoid.ClusterRef` is NOT bound.
 - HARD CONSTRAINT from ticket: `crossingPenalty` stays 0; no routing perf regression.
+- Human scope decision: Design **step 1 only**; steps 2 (no-op), 3 (perf pathology) and 5
+  become follow-up tickets. Eval harness repaired first; Epictetus becomes a dev-vault fixture.
+- Env: `node_modules/` absent — IMPLEMENTATION must `npm ci`.
+
+## Open risk to watch
+
+The crux the PLANNER must resolve honestly: pins are registered **per shape**, but "facing side"
+is a property of an **edge pair**. A shape with many edges cannot have per-counterpart pin costs.
+If the plan papers over this, reject it.
