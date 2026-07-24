@@ -237,6 +237,78 @@ for i in 1 2 3 4 5; do
 		| write_if_missing "${VAULT}/stranded-crowd${i}.md"
 done
 
+# --- node-outline fixtures: in-node heading outline + the image escape hatch ---
+# Self-contained ON PURPOSE (they link only to each other, never to note1/crowd/
+# hub-medium): the pre-existing e2e suites assert exact node counts for note1's
+# vicinity, and a link into it would silently change them.
+#
+# Both are exercised as the MAIN (central) node, which is always sized at maxPx —
+# the only deterministic way to land above the 104px density threshold that
+# reveals the outline.
+echo "==> Ensuring node-outline fixtures (outline-note + outline-cover)"
+
+# outline-note: image AFTER the first heading -> the node shows the OUTLINE.
+# 11 headings at levels 1-2 (so the list provably overflows a 160px node at the
+# default depth of 2), one level-1 with two level-2 children (nesting), two
+# level-3 headings (depth filter), and one heading carrying inline markdown
+# (display stripping: it must render as "Status of outline-cover today").
+write_if_missing "${VAULT}/outline-note.md" <<'EOF'
+# Overview
+
+![[pic.jpg]]
+
+The first image sits AFTER the first heading, so this note's node shows its
+heading outline instead of a thumbnail.
+
+## Background
+
+Nested under Overview.
+
+## Scope
+
+Second child of Overview — proves the nesting is real.
+
+### Deep detail one
+
+Level 3: hidden at the default outline depth of 2.
+
+# Method
+
+## Status of [[outline-cover]] **today**
+
+Inline markdown in the heading above must render stripped, while the RAW text
+stays the key that opens this note at that heading.
+
+## Data collection
+
+### Deep detail two
+
+Second level-3 heading.
+
+# Results
+
+## Findings
+
+## Limitations
+
+# Discussion
+
+# Conclusion
+EOF
+
+# outline-cover: image BEFORE the first heading -> the node shows the IMAGE.
+# This is the documented escape hatch for "I want the picture, not the outline".
+write_if_missing "${VAULT}/outline-cover.md" <<'EOF'
+![[assets/pic2.jpg]]
+
+# Cover heading
+
+The first image sits BEFORE the first heading, so this note's node shows the
+thumbnail and NO outline.
+
+## Second heading
+EOF
+
 echo "==> Ensuring minimal .obsidian config"
 write_if_missing "${OBSIDIAN}/app.json" <<'EOF'
 {}
@@ -286,6 +358,14 @@ cat <<EOF
    - alpha → note1 twice → edge count badge "2"
    - alpha: frontmatter title + png/pdf/csv attachment strip
    - solo/gamma → singleton folder breadcrumb, trimmed fm title
+
+ Node-outline check (open outline-note.md, then outline-cover.md):
+   - outline-note's MAIN node lists its headings, nested, with no
+     level-3 entry and "Status of outline-cover today" rendered stripped
+   - the list scrolls; its scrollbar appears only while the node is hovered
+   - clicking an entry opens the note AT that heading (check BOTH
+     editing and reading view — Obsidian scrolls to and flashes it)
+   - outline-cover's MAIN node shows the image, never an outline
 
  Ticket-03 stranding check:
    - open stranded-main.md (outgoing depth >= 2) or stranded-hub.md →

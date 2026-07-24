@@ -236,8 +236,11 @@
 	.vicinity-graph-node__thumbnail {
 		display: block;
 	}
-	/* Everything else about this region lives in node-outline.css. */
-	.vicinity-graph-outline {
+	/* Everything else about this region lives in node-outline.css — which
+	 * styles.css concatenates AFTER this file, so its `display: none` would win
+	 * a specificity tie. The ancestor selector is the deliberate tie-breaker
+	 * (@container adds no specificity of its own). */
+	.vicinity-graph-node .vicinity-graph-outline {
 		display: block;
 	}
 }
