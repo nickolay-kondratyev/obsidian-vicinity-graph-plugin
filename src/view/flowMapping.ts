@@ -117,8 +117,8 @@ export interface FlowEdge {
 	readonly bidirectional: boolean;
 	/**
 	 * Obstacle-avoiding polyline (ABSOLUTE coords) from the post-layout routing
-	 * pass, present only when `edgeRouting` is on and the pass succeeded. Rides
-	 * along unused this phase — rendering starts consuming it in edge-routing__02.
+	 * pass, present when the pass produced a route for this edge (absent on the
+	 * documented pass-level failure fallback, where edges render straight).
 	 */
 	readonly routedPoints?: readonly RoutedPoint[];
 }

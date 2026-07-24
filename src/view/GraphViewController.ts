@@ -223,7 +223,7 @@ export class GraphViewController {
 			groupDimensions = extractElkDimensionsById(laidOut);
 		}
 		// Route AFTER layout, BEFORE publish: obstacles need final absolute positions.
-		const routes = await this.resolveRoutes(graph, flow, positions, groupDimensions, token);
+		const routes = await this.resolveRoutes(flow, positions, groupDimensions, token);
 		if (this.isStale(token)) {
 			return;
 		}
@@ -232,23 +232,18 @@ export class GraphViewController {
 
 	/**
 	 * Obstacle-avoiding routes for this build, or an empty map = straight edges.
-	 * Gated by the `edgeRouting` view setting (OFF ⇒ router never invoked, wasm
-	 * never loads). Caches by an input signature so a reuse-layout rebuild with
-	 * unchanged obstacles/edges reuses the previous pass instead of re-running
-	 * libavoid. A wasm-init/routing failure is contained here: warn ONCE, return
-	 * empty (single documented pass-level fallback — no per-edge silent fallbacks).
+	 * The routing pass always runs (libavoid wasm lazy-loads on first `route`).
+	 * Caches by an input signature so a reuse-layout rebuild with unchanged
+	 * obstacles/edges reuses the previous pass instead of re-running libavoid. A
+	 * wasm-init/routing failure is contained here: warn ONCE, return empty (single
+	 * documented pass-level fallback — no per-edge silent fallbacks).
 	 */
 	private async resolveRoutes(
-		graph: VicinityGraph,
 		flow: FlowGraph,
 		positions: ReadonlyMap<string, XY>,
 		groupDimensions: ReadonlyMap<string, Dimensions>,
 		token: number,
 	): Promise<EdgeRouteMap> {
-		if (!graph.viewSettings.edgeRouting) {
-			this.routeCache = null;
-			return EMPTY_ROUTES;
-		}
 		const input = extractEdgeRoutingInput({
 			nodes: flow.nodes,
 			edges: flow.edges,

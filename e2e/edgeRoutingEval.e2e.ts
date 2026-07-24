@@ -74,7 +74,6 @@ test.beforeAll(async () => {
 	page.on("console", onConsole);
 	await harness.openGraphView();
 	await setAllEdgesVisibility();
-	await harness.setEdgeRouting(true);
 	fs.mkdirSync(OUT_DIR, { recursive: true });
 });
 

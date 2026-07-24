@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-24T00:59:06Z
 id: nid_n2zht3y7sa953l5whfqi5zw1b_e
 title: "remove edge-routing setting: obstacle avoidance always on"
-status: open
+status: closed
 deps: [nid_ihlfchb69wt1hqot6iqy7a9m9_e]
 links: []
 created_iso: 2026-07-23T23:33:57Z
-status_updated_iso: 2026-07-23T23:33:57Z
+status_updated_iso: 2026-07-24T00:59:05Z
 type: task
 priority: 2
 assignee: CC_WITH-nickolaykondratyev

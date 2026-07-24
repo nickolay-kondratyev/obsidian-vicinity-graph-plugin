@@ -51,16 +51,13 @@ describe("PersistedShapes.parsePluginData", () => {
 		expect(parsed.nodeCap).toBe(7);
 	});
 
-	it("WHEN globalView carries edgeRouting=false THEN it survives (default is now true)", () => {
-		// Default flipped ON in edge-routing__03; an explicitly-persisted `false`
-		// (user turned routing off) must still round-trip and NOT snap back to the default.
-		const raw = { version: PERSISTED_SHAPE_VERSION, globalView: { edgeRouting: false } };
-		expect(PersistedShapes.parsePluginData(raw).globalView.edgeRouting).toBe(false);
-	});
-
-	it("WHEN globalView carries a non-boolean edgeRouting THEN the default (true) survives", () => {
-		const raw = { version: PERSISTED_SHAPE_VERSION, globalView: { edgeRouting: "yes" } };
-		expect(PersistedShapes.parsePluginData(raw).globalView.edgeRouting).toBe(true);
+	it("WHEN globalView carries a removed edgeRouting field THEN it is ignored without error", () => {
+		// edgeRouting was removed (obstacle avoidance is always on); an old persisted
+		// value is simply dropped by the per-field parser — the rest of globalView survives.
+		const raw = { version: PERSISTED_SHAPE_VERSION, globalView: { edgeRouting: false, nodeCap: 7 } };
+		const parsed = PersistedShapes.parsePluginData(raw).globalView;
+		expect(parsed).not.toHaveProperty("edgeRouting");
+		expect(parsed.nodeCap).toBe(7);
 	});
 });
 
@@ -133,7 +130,7 @@ describe("PersistedShapes.parseDocData", () => {
 	});
 
 	it("WHEN the version is foreign THEN the doc data is unusable (null)", () => {
-		expect(PersistedShapes.parseDocData({ version: 2, depths: { outgoingDepth: 1 } })).toBeNull();
+		expect(PersistedShapes.parseDocData({ version: 999, depths: { outgoingDepth: 1 } })).toBeNull();
 	});
 
 	it("WHEN the content is not an object THEN the doc data is unusable (null)", () => {

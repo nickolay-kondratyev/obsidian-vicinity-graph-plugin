@@ -31,21 +31,12 @@ export function makeEdge(source: string, target: string, count = DEFAULT_EDGE_LI
 	return { source: asVaultPath(source), target: asVaultPath(target), count };
 }
 
-/**
- * Minimal effective view settings — deliberately DECOUPLED from the engine
- * production defaults so unit tests stay neutral and opt in to behavior per case:
- * - `edgeRouting: false` (NOT the engine's now-`true` default, flipped in
- *   edge-routing__03) keeps the routing pass OFF for pure mapping/controller
- *   baselines (no wasm invoked); routing tests opt in via {@link withEdgeRouting}.
- *   Mirroring the engine default here would make every mapping test implicitly
- *   run the router and break the controller "routing OFF" baseline.
- */
+/** Minimal effective view settings for view-layer tests (neutral, engine-decoupled). */
 function makeViewSettings(): ViewSettings {
 	return {
 		nodeCap: 100,
 		groupByFolder: true,
 		edgeVisibility: "walked-from-center",
-		edgeRouting: false,
 		sizing: {
 			metrics: {
 				"own-file-size": { enabled: true, weight: 1 },
@@ -70,9 +61,4 @@ export function makeGraph(overrides: Partial<VicinityGraph> = {}): VicinityGraph
 		viewSettings: makeViewSettings(),
 		...overrides,
 	};
-}
-
-/** The same graph with the obstacle-avoiding edge-routing pass toggled (fixture baseline OFF). */
-export function withEdgeRouting(graph: VicinityGraph, edgeRouting: boolean): VicinityGraph {
-	return { ...graph, viewSettings: { ...graph.viewSettings, edgeRouting } };
 }

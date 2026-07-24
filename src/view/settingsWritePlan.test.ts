@@ -75,13 +75,6 @@ describe("planSettingsWrite global writes", () => {
 		});
 	});
 
-	it("WHEN global-edge-routing THEN it merges edgeRouting over ctx.globalView", () => {
-		expect(planSettingsWrite({ kind: "global-edge-routing", edgeRouting: true }, CTX)).toEqual({
-			kind: "global-view",
-			view: { ...CTX.globalView, edgeRouting: true },
-		});
-	});
-
 	it("WHEN global-node-exclusion THEN it emits a node-exclusion command carrying the whole object", () => {
 		const nodeExclusion = { enabled: true, patterns: ["^rel/"] };
 		expect(planSettingsWrite({ kind: "global-node-exclusion", nodeExclusion }, CTX)).toEqual({

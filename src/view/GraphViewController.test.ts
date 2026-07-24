@@ -8,7 +8,7 @@ import type { FlowSnapshot } from "./GraphViewController";
 import type { ControlsModel } from "./ControlsModel";
 import type { GraphBuildResult, GraphLayoutPort, GraphSourcePort, NoteNavigatorPort, OpenNoteOptions } from "./viewPorts";
 import type { EdgeRouteMap, EdgeRouter, EdgeRoutingInput } from "./edgeRouting";
-import { makeEdge, makeGraph, makeNode, withEdgeRouting } from "./testFixtures/graphFixtures";
+import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
 
 /** These tests exercise rebuild concurrency, not the toolbar model — an empty model suffices. */
 const EMPTY_CONTROLS: ControlsModel = {
@@ -433,11 +433,6 @@ describe("GraphViewController structural-diff skip rate", () => {
 });
 
 describe("GraphViewController edge-routing pass", () => {
-	/** A graph whose central links out to each neighbour, with the routing pass ON. */
-	function routedGraphOf(centralPath: string, ...neighbourPaths: string[]): VicinityGraph {
-		return withEdgeRouting(graphOf(centralPath, ...neighbourPaths), true);
-	}
-
 	function edgeById(snapshot: FlowSnapshot, id: string): FlowSnapshot["edges"][number] {
 		const edge = snapshot.edges.find((candidate) => candidate.id === id);
 		if (edge === undefined) {
@@ -445,15 +440,6 @@ describe("GraphViewController edge-routing pass", () => {
 		}
 		return edge;
 	}
-
-	it("WHEN edgeRouting is OFF THEN the router is never invoked", async () => {
-		const h = setup();
-		h.controller.handleActiveFileChanged("a.md");
-		h.source.resolveBuild(0, graphOf("c.md", "n1.md")); // fixture baseline: edgeRouting off (routing tests opt in via routedGraphOf)
-		await flush();
-
-		expect(h.router.callCount).toBe(0);
-	});
 
 	it("WHEN routing succeeds THEN the route lands on the matching edge's routedPoints", async () => {
 		const route = [
@@ -463,7 +449,7 @@ describe("GraphViewController edge-routing pass", () => {
 		const router = new FakeEdgeRouter(new Map([["c.md->n1.md", route]]));
 		const h = setup(router);
 		h.controller.handleActiveFileChanged("c.md");
-		h.source.resolveBuild(0, routedGraphOf("c.md", "n1.md", "n2.md"));
+		h.source.resolveBuild(0, graphOf("c.md", "n1.md", "n2.md"));
 		await flush();
 
 		expect(edgeById(h.snapshot(), "c.md->n1.md").routedPoints).toEqual(route);
@@ -481,7 +467,7 @@ describe("GraphViewController edge-routing pass", () => {
 		const router = new FakeEdgeRouter(new Map([["c.md->n1.md", centreToCentre]]));
 		const h = setup(router);
 		h.controller.handleActiveFileChanged("c.md");
-		h.source.resolveBuild(0, routedGraphOf("c.md", "n1.md"));
+		h.source.resolveBuild(0, graphOf("c.md", "n1.md"));
 		await flush();
 
 		expect(edgeById(h.snapshot(), "c.md->n1.md").routedPoints).toEqual([
@@ -496,17 +482,14 @@ describe("GraphViewController edge-routing pass", () => {
 	 * edge `c.md->folder-group:notes` — the HEADLINE scenario this ticket clips.
 	 */
 	function collapsedGroupGraph(): VicinityGraph {
-		return withEdgeRouting(
-			makeGraph({
-				nodes: [
-					makeNode({ path: asVaultPath("c.md") }),
-					makeNode({ path: asVaultPath("notes/a.md"), folder: asFolderPath("notes") }),
-					makeNode({ path: asVaultPath("notes/b.md"), folder: asFolderPath("notes") }),
-				],
-				edges: [makeEdge("c.md", "notes/a.md")],
-			}),
-			true,
-		);
+		return makeGraph({
+			nodes: [
+				makeNode({ path: asVaultPath("c.md") }),
+				makeNode({ path: asVaultPath("notes/a.md"), folder: asFolderPath("notes") }),
+				makeNode({ path: asVaultPath("notes/b.md"), folder: asFolderPath("notes") }),
+			],
+			edges: [makeEdge("c.md", "notes/a.md")],
+		});
 	}
 
 	it("WHEN a collapsed edge's route ends at the GROUP box centre THEN its terminus is clipped to the group boundary, not inside it", async () => {
@@ -537,7 +520,7 @@ describe("GraphViewController edge-routing pass", () => {
 		const router = new FakeEdgeRouter(new Map([["c.md->n1.md", [{ x: 1, y: 2 }]]]));
 		const h = setup(router);
 		h.controller.handleActiveFileChanged("c.md");
-		h.source.resolveBuild(0, routedGraphOf("c.md", "n1.md", "n2.md"));
+		h.source.resolveBuild(0, graphOf("c.md", "n1.md", "n2.md"));
 		await flush();
 
 		expect(edgeById(h.snapshot(), "c.md->n2.md").routedPoints).toBeUndefined();
@@ -547,7 +530,7 @@ describe("GraphViewController edge-routing pass", () => {
 		const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
 		const h = setup(new FakeEdgeRouter(new Error("wasm boom")));
 		h.controller.handleActiveFileChanged("c.md");
-		h.source.resolveBuild(0, routedGraphOf("c.md", "n1.md"));
+		h.source.resolveBuild(0, graphOf("c.md", "n1.md"));
 		await flush();
 
 		expect(edgeById(h.snapshot(), "c.md->n1.md").routedPoints).toBeUndefined();
@@ -558,11 +541,11 @@ describe("GraphViewController edge-routing pass", () => {
 		const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
 		const h = setup(new FakeEdgeRouter(new Error("wasm boom")));
 		h.controller.handleActiveFileChanged("c.md");
-		h.source.resolveBuild(0, routedGraphOf("c.md", "n1.md"));
+		h.source.resolveBuild(0, graphOf("c.md", "n1.md"));
 		await flush();
 
 		h.controller.handleActiveFileChanged("d.md"); // different structure → relayout → routes again → throws again
-		h.source.resolveBuild(1, routedGraphOf("d.md", "n1.md", "n2.md"));
+		h.source.resolveBuild(1, graphOf("d.md", "n1.md", "n2.md"));
 		await flush();
 
 		expect(warn).toHaveBeenCalledTimes(1);
@@ -573,11 +556,11 @@ describe("GraphViewController edge-routing pass", () => {
 		const router = new FakeEdgeRouter(new Map([["c.md->n1.md", [{ x: 1, y: 2 }]]]));
 		const h = setup(router);
 		h.controller.handleActiveFileChanged("c.md");
-		h.source.resolveBuild(0, routedGraphOf("c.md", "n1.md"));
+		h.source.resolveBuild(0, graphOf("c.md", "n1.md"));
 		await flush();
 
 		h.controller.handleSettingsChanged(); // identical id-set → reuse-layout, unchanged routing inputs
-		h.source.resolveBuild(1, routedGraphOf("c.md", "n1.md"));
+		h.source.resolveBuild(1, graphOf("c.md", "n1.md"));
 		await flush();
 
 		expect(h.router.callCount).toBe(1);
@@ -588,11 +571,11 @@ describe("GraphViewController edge-routing pass", () => {
 		const router = new FakeEdgeRouter(new Map([["c.md->n1.md", route]]));
 		const h = setup(router);
 		h.controller.handleActiveFileChanged("c.md");
-		h.source.resolveBuild(0, routedGraphOf("c.md", "n1.md"));
+		h.source.resolveBuild(0, graphOf("c.md", "n1.md"));
 		await flush();
 
 		h.controller.handleSettingsChanged();
-		h.source.resolveBuild(1, routedGraphOf("c.md", "n1.md"));
+		h.source.resolveBuild(1, graphOf("c.md", "n1.md"));
 		await flush();
 
 		expect(edgeById(h.snapshot(), "c.md->n1.md").routedPoints).toEqual(route);

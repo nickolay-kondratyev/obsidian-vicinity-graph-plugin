@@ -19,12 +19,17 @@ import { EngineDefaults } from "../engine";
  */
 
 /**
- * WHY-NOT preserve-unknown-versions: a FUTURE-version file (v2 written by a
- * newer install, then downgraded) also parses to defaults/null here, and the
- * next write rewrites it as v1 — accepted while only v1 exists. A v2 parser
- * MUST handle the downgrade-then-upgrade path explicitly before shipping.
+ * Bumped to 2 when the `edgeRouting` view field was removed (routing is now
+ * always on): a mismatched version parses to defaults/null and the next write
+ * rewrites at the current version, so stale v1 `edgeRouting` values are dropped.
+ *
+ * WHY-NOT preserve-unknown-versions: a FUTURE-version file (written by a newer
+ * install, then downgraded) also parses to defaults/null here, and the next
+ * write rewrites it at this version — accepted while forward-compat is not a
+ * goal. A future parser that must survive a downgrade-then-upgrade round trip
+ * has to handle that path explicitly before shipping.
  */
-export const PERSISTED_SHAPE_VERSION = 1;
+export const PERSISTED_SHAPE_VERSION = 2;
 
 /** One pinned doc; `pinTimestamp` (epoch ms) feeds the recency tiebreaker. */
 export interface PinnedDocEntry {
@@ -133,10 +138,6 @@ function parseViewOverride(raw: unknown): ViewSettingsOverride {
 		...definedOnly(
 			"groupByFolder",
 			typeof raw["groupByFolder"] === "boolean" ? raw["groupByFolder"] : undefined,
-		),
-		...definedOnly(
-			"edgeRouting",
-			typeof raw["edgeRouting"] === "boolean" ? raw["edgeRouting"] : undefined,
 		),
 		...definedOnly(
 			"edgeVisibility",

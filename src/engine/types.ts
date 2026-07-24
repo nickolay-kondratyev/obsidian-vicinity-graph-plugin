@@ -197,8 +197,6 @@ export interface ViewSettings {
 	readonly nodeCap: number;
 	readonly groupByFolder: boolean;
 	readonly edgeVisibility: EdgeVisibilityMode;
-	/** Whether the post-layout obstacle-avoiding edge-routing pass runs (default OFF). */
-	readonly edgeRouting: boolean;
 	readonly sizing: SizingSettings;
 }
 

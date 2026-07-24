@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-07-23 — edge-routing: obstacle avoidance is always on (setting removed)
+
+Obstacle-avoiding edge routing (libavoid) is no longer a user toggle — it always runs.
+The `edgeRouting` view setting is removed end to end: the `ViewSettings` field and
+`DEFAULT_EDGE_ROUTING`, its cascade resolution, the settings-tab "Layout" toggle, the
+`global-edge-routing` write command, and its persistence parsing. The routing pass in
+`GraphViewController` now runs unconditionally (the libavoid wasm still lazy-loads on the
+first `route`, and the pass-level failure fallback to straight edges is unchanged).
+
+- **Persistence** bumps to **v2**; stale persisted `edgeRouting` values are dropped
+  (mismatched-version data resets to defaults, then rewrites at v2).
+- **Tests.** The fixture baseline (`edgeRouting:false` + `withEdgeRouting`) is removed —
+  routing is on for every view-layer fixture. The "router not invoked when off" case is a
+  human-approved behavior removal. Unit tests stay fast on `FakeEdgeRouter`; real libavoid
+  wasm remains e2e-covered (`e2e/edgeRouting.e2e.ts`).
+
 ## 2026-07-23 — edge-routing: 12 boundary pins per group box (corner pins removed)
 
 Folder-group boxes now expose **12 boundary connection pins** — 3 per side at 1/4, 1/2,
