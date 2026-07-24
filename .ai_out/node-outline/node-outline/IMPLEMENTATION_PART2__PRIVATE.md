@@ -1,7 +1,43 @@
 # IMPLEMENTATION_PART2__PRIVATE — rehydration memory (steps 6–10)
 
-Branch `node-outline`. My commits: `96d4093` (6), `d38c543` (7), `f5bc9a0` (8),
-`512905a` (9), `ca77f7f` (10). Tree clean at `ca77f7f`.
+Branch `node-outline`. Commits: `96d4093` (6), `d38c543` (7), `f5bc9a0` (8),
+`512905a` (9), `ca77f7f` (10), **`086549f` (review iteration 1)**. Tree clean.
+
+## Review iteration 1 — what changed (read `IMPLEMENTATION_ITERATION_PART2__PUBLIC.md` for the full disposition)
+
+Review verdict was CHANGES REQUIRED: M1 (real regression), M2, M3, 4 minors.
+All fixed except MINOR 3 (CSS file-order coupling), rejected on PARETO with a
+visibility assertion added instead. e2e went 33/2 → **36 passed / 2 failed**;
+vitest unchanged at **815/3**; `npm run check` clean.
+
+- `graph-view.css`: the `[data-preview="outline"] … preview-zone { flex: 0 0 auto }`
+  rule now lives **inside** `@container (min-height: 104px)`. Outside it, nodes in
+  the 72–104px band lost the flex-grow that pins the attachment strip to the
+  bottom edge while the outline was still `display: none`.
+- `e2e/nodeOutline.e2e.ts` is now **11 cases**. New: raw-heading linktext,
+  no-double-open, and the sub-104px strip pin. E1 asserts `toBeVisible()`; E5 uses
+  a real `page.mouse.wheel` instead of assigning `scrollTop`.
+- `e2e/obsidianHarness.ts`: **`setMaxNodeSizePx(px)`** — centrals are always
+  `maxPx`, so this is the only deterministic way to put MAIN in a chosen density
+  band. Sizing changes do NOT rebuild; bounce the active file (same as nodeCap).
+- Added `docs-internal/tickets/ticket-node-outline-heading-jump-smoke-run.md`
+  (CLARIFICATION Round 4 #10, added by the human WITH the review commit `de0bee9`,
+  requires a ticket for the manual GUI check — it was missing).
+
+### Environment facts learned this round
+
+- `main.js` / `styles.css` are **NOT git-tracked** here (the earlier note below
+  was wrong) — they never show in `git status`.
+- **`git checkout src/…` after a mutation test also throws away UNCOMMITTED
+  fixes.** Commit the good state BEFORE mutating. Cost me one re-apply.
+- e2e needs `npm run setup:dev-vault` after every source change (it rebuilds and
+  copies into `.dev-vault`); a mutation run is ~15 s build + ~40 s e2e.
+- Obsidian's `workspace.openLinkText` DOES route through
+  `WorkspaceLeaf.prototype.openFile`, passing `openState.eState.subpath`
+  (`"#Background"`). That is what makes the "exactly one navigation, and it
+  carried the heading" assertion possible — verified, not assumed.
+- The node-level open (`onNodeClick` → `openNode`) calls `openFile(file)` with
+  **no** open state, so subpath presence cleanly separates the two paths.
 
 ## Environment facts (re-learned the hard way — do not re-derive)
 
@@ -17,8 +53,11 @@ Branch `node-outline`. My commits: `96d4093` (6), `d38c543` (7), `f5bc9a0` (8),
   "N did not run" is expected, not extra breakage.
 - No formatter script in `package.json`. Indentation is hand-maintained tabs.
 - `tsconfig` targets **ES2021** — no `Array.prototype.at`, no `findLast`.
-- `styles.css` and `main.js` ARE git-tracked but regenerate on build; they show as
-  modified after `npm run build` only if content changed.
+- ~~`styles.css` and `main.js` ARE git-tracked~~ — WRONG, see the iteration-1
+  section above: they are untracked build artifacts.
+- `npm run check` does NOT cover `e2e/` — run `npx tsc -noEmit -p e2e/tsconfig.json`
+  after touching a spec (`Locator.evaluate`'s element is `HTMLElement | SVGElement`,
+  so `offsetHeight` needs a cast).
 
 ## Key design facts I depended on
 
@@ -73,10 +112,11 @@ one tab), `src/view/NoteNode.tsx`, `src/view/graph-view.css`,
 ## Open / deliberately not done
 
 - **Manual GUI check** (Obsidian scrolls to + flashes the heading, editing AND
-  reading view) — needs a human. Noted in the step-9 commit and the dev-vault
-  banner. If a reviewer asks "did you verify the jump works", the honest answer is
-  "our side of the `openLinkText` contract is pinned by e2e E2; Obsidian's scroll
-  behaviour is unverified here."
+  reading view) — needs a human. The human ACCEPTED it as a post-merge smoke test
+  (CLARIFICATION Round 4 #10); it is now tracked by
+  `ticket-node-outline-heading-jump-smoke-run.md`. If a reviewer asks "did you
+  verify the jump works", the honest answer is "our side of the `openLinkText`
+  contract is pinned by e2e; Obsidian's scroll behaviour is unverified here."
 - `change_log` entry and `docs-internal/CHANGELOG.md` — TOP_LEVEL_AGENT owns them.
   Part 1's iteration doc flagged the README settings line as owed; it is now
   written, but the CHANGELOG line still is not.
