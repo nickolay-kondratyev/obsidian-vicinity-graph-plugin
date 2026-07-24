@@ -95,7 +95,7 @@ describe("SETTINGS_SPEC (single source of truth for defaults + limits)", () => {
 			forceLayout: {
 				centerPullStrength: { min: 0, max: 0.15, step: 0.01 },
 				repelStrength: { min: 50, max: 1000, step: 10 },
-				linkStrengthFactor: { min: 0.25, max: 2, step: 0.05 },
+				linkStrengthFactor: { min: 0.25, max: 4, step: 0.05 },
 				linkGapPx: { min: 10, max: 250, step: 5 },
 				collidePaddingPx: { min: 0, max: 100, step: 5 },
 				elkNodeSpacingPx: { min: 10, max: 120, step: 5 },
