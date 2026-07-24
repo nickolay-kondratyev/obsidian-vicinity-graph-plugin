@@ -8,9 +8,12 @@ import {
 	DEFAULT_OUTGOING_DEPTH,
 	EngineDefaults,
 	FORCE_LAYOUT_RANGES,
+	MAX_OUTLINE_DEPTH,
 	MAX_STEPPER_DEPTH,
 	MIN_NODE_CAP,
+	MIN_OUTLINE_DEPTH,
 	MIN_STEPPER_DEPTH,
+	clampOutlineMaxDepth,
 } from "./constants";
 import { SETTINGS_SPEC } from "./SettingsSpec";
 import { SettingsDefaults } from "./SettingsDefaults";
@@ -108,6 +111,7 @@ describe("adapters derive from SETTINGS_SPEC", () => {
 	it("WHEN EngineDefaults.viewSettings is built THEN it projects the spec defaults", () => {
 		expect(EngineDefaults.viewSettings()).toEqual({
 			nodeCap: SETTINGS_SPEC.globalView.nodeCap.default,
+			outlineMaxDepth: SETTINGS_SPEC.globalView.outlineMaxDepth.default,
 			groupByFolder: SETTINGS_SPEC.globalView.groupByFolder.default,
 			edgeVisibility: SETTINGS_SPEC.globalView.edgeVisibility.default,
 			sizing: EngineDefaults.sizingSettings(),
@@ -170,5 +174,32 @@ describe("adapters derive from SETTINGS_SPEC", () => {
 describe("SettingsDefaults discoverability shim", () => {
 	it("WHEN SettingsDefaults.SPEC is read THEN it points at the real SETTINGS_SPEC", () => {
 		expect(SettingsDefaults.SPEC).toBe(SETTINGS_SPEC);
+	});
+});
+
+describe("outline depth spec (CLARIFICATION Q1 + Q5)", () => {
+	it("WHEN EngineDefaults.viewSettings is built THEN outlineMaxDepth equals the spec default", () => {
+		expect(EngineDefaults.viewSettings().outlineMaxDepth).toBe(SETTINGS_SPEC.globalView.outlineMaxDepth.default);
+	});
+
+	it("WHEN the spec is read THEN the outline depth default is the shipped baseline of 2", () => {
+		expect(SETTINGS_SPEC.globalView.outlineMaxDepth.default).toBe(2);
+	});
+
+	it("WHEN the spec is read THEN the outline depth limits are the shipped baseline 1..6", () => {
+		const spec = SETTINGS_SPEC.globalView.outlineMaxDepth;
+		expect({ min: spec.min, max: spec.max, step: spec.step }).toEqual({ min: 1, max: 6, step: 1 });
+	});
+
+	it("WHEN a value below the spec min is clamped THEN the min comes back (never a silent off-switch)", () => {
+		expect(clampOutlineMaxDepth(0)).toBe(MIN_OUTLINE_DEPTH);
+	});
+
+	it("WHEN a value above the spec max is clamped THEN the max comes back", () => {
+		expect(clampOutlineMaxDepth(99)).toBe(MAX_OUTLINE_DEPTH);
+	});
+
+	it("WHEN a fractional value is clamped THEN it rounds to a whole heading level", () => {
+		expect(clampOutlineMaxDepth(2.4)).toBe(2);
 	});
 });

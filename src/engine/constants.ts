@@ -34,6 +34,21 @@ export const DEFAULT_EDGE_VISIBILITY: EdgeVisibilityMode = SETTINGS_SPEC.globalV
 /** Lower bound of the node-cap input. @see SETTINGS_SPEC — `globalView.nodeCap.min`. */
 export const MIN_NODE_CAP = SETTINGS_SPEC.globalView.nodeCap.min;
 
+/** @see SETTINGS_SPEC — `globalView.outlineMaxDepth.{default,min,max}`. */
+export const DEFAULT_OUTLINE_MAX_DEPTH = SETTINGS_SPEC.globalView.outlineMaxDepth.default;
+export const MIN_OUTLINE_DEPTH = SETTINGS_SPEC.globalView.outlineMaxDepth.min;
+export const MAX_OUTLINE_DEPTH = SETTINGS_SPEC.globalView.outlineMaxDepth.max;
+
+/**
+ * THE outline-depth clamp, shared by the settings slider and the persistence
+ * parser, so a hand-edited `data.json` cannot reach `0` (a silent off-switch the
+ * feature deliberately does not have) or a level markdown does not define.
+ * Rounds: heading levels are whole numbers.
+ */
+export function clampOutlineMaxDepth(value: number): number {
+	return Math.min(MAX_OUTLINE_DEPTH, Math.max(MIN_OUTLINE_DEPTH, Math.round(value)));
+}
+
 /**
  * Depth-stepper input bounds (CLARIFICATION Q2) — an AFFORDANCE limit on the
  * toolbar/settings steppers, not an engine limit. @see SETTINGS_SPEC —
@@ -147,6 +162,7 @@ export class EngineDefaults {
 		const view = SETTINGS_SPEC.globalView;
 		return {
 			nodeCap: view.nodeCap.default,
+			outlineMaxDepth: view.outlineMaxDepth.default,
 			groupByFolder: view.groupByFolder.default,
 			edgeVisibility: view.edgeVisibility.default,
 			sizing: EngineDefaults.sizingSettings(),

@@ -246,6 +246,11 @@ export interface ForceLayoutSettings {
 export interface ViewSettings {
 	/** Hard cap on NON-central node count (centrals are exempt). */
 	readonly nodeCap: number;
+	/**
+	 * Deepest markdown heading level a node's outline renders (1–6). A view-layer
+	 * knob: the engine carries it, the view's mapping applies it.
+	 */
+	readonly outlineMaxDepth: number;
 	readonly groupByFolder: boolean;
 	readonly edgeVisibility: EdgeVisibilityMode;
 	readonly sizing: SizingSettings;

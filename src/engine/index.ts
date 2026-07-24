@@ -91,13 +91,17 @@ export {
 	DEFAULT_MIN_NODE_PX,
 	DEFAULT_NODE_CAP,
 	DEFAULT_OUTGOING_DEPTH,
+	DEFAULT_OUTLINE_MAX_DEPTH,
 	EngineDefaults,
 	FORCE_LAYOUT_RANGES,
+	MAX_OUTLINE_DEPTH,
 	MAX_STEPPER_DEPTH,
 	MIN_NODE_CAP,
+	MIN_OUTLINE_DEPTH,
 	MIN_STEPPER_DEPTH,
 	NEUTRAL_NORMALIZED_VALUE,
 	clampForceLayoutSettings,
+	clampOutlineMaxDepth,
 } from "./constants";
 export type { ForceLayoutRange } from "./constants";
 

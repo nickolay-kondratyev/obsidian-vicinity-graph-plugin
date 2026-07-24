@@ -36,6 +36,7 @@ export function makeEdge(source: string, target: string, count = DEFAULT_EDGE_LI
 function makeViewSettings(): ViewSettings {
 	return {
 		nodeCap: 100,
+		outlineMaxDepth: 2,
 		groupByFolder: true,
 		edgeVisibility: "walked-from-center",
 		sizing: {

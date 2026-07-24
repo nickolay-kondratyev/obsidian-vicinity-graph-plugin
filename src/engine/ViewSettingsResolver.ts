@@ -45,6 +45,7 @@ export class ViewSettingsResolver {
 		};
 		return {
 			nodeCap: field("nodeCap"),
+			outlineMaxDepth: field("outlineMaxDepth"),
 			groupByFolder: field("groupByFolder"),
 			edgeVisibility: field("edgeVisibility"),
 			sizing: field("sizing"),

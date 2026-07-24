@@ -103,3 +103,20 @@ describe("planSettingsWrite direction to field mapping (guards inversion)", () =
 		expect(command).toMatchObject({ field: "incomingDepth" });
 	});
 });
+
+describe("planSettingsWrite outline depth", () => {
+	it("WHEN a global-outline-depth interaction is planned THEN it is a global-view write carrying the new depth", () => {
+		const command = planSettingsWrite({ kind: "global-outline-depth", value: 4 }, CTX);
+		expect(command).toEqual({ kind: "global-view", view: { ...CTX.globalView, outlineMaxDepth: 4 } });
+	});
+
+	it("WHEN a global-outline-depth interaction is planned THEN every other globalView field is preserved", () => {
+		const command = planSettingsWrite({ kind: "global-outline-depth", value: 4 }, CTX);
+		const view = command.kind === "global-view" ? command.view : undefined;
+		expect({ nodeCap: view?.nodeCap, sizing: view?.sizing, forceLayout: view?.forceLayout }).toEqual({
+			nodeCap: CTX.globalView.nodeCap,
+			sizing: CTX.globalView.sizing,
+			forceLayout: CTX.globalView.forceLayout,
+		});
+	});
+});
