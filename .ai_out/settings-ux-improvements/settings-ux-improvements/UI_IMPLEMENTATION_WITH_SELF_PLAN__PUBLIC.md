@@ -99,3 +99,40 @@ Modified:
 ## #QUESTION_FOR_HUMAN
 
 None — all CLARIFICATION decisions were implementable as specified.
+
+## Iteration 1 (response to UI_IMPLEMENTATION_REVIEW, verdict APPROVED-WITH-MINORS)
+
+Finding dispositions — no product source changes (none were needed; all findings were
+test-evidence/process quality, matching the reviewer's own assessment):
+
+- **M1 (MINOR) — FIXED.** `e2e/settingsUxVisual.e2e.ts` now targets the nested disclosure by its
+  own class (`details.vicinity-graph-forcelayout__advanced`) instead of the ambiguous summary-text
+  `has:` locator (which also matched the ancestor Force-layout `<details>`, so `.first()` opened
+  the wrong element and the advanced disclosure was never actually opened). The spec now asserts
+  the advanced `<details>` carries `open` AND that both advanced sliders ("Node spacing",
+  "Group member spacing") are **visible** — `toHaveCount(6)` alone counted hidden inputs, so the
+  spec previously claimed reachability evidence it did not have.
+- **N1 (slider input → full persist+rebuild per drag tick, no throttle) — REJECTED.** Speculative
+  complexity: it is exact parity with the settings tab's existing behavior, the controller is
+  latest-wins, and no jank was observed by implementer or reviewer (reviewer explicitly marked it
+  "watch item, not a change request"). Throttling now would add state (KISS violation) for an
+  unobserved problem; documented as a watch item in my PRIVATE.md with the agreed remedy location
+  (component-level throttle, never the write path) if it ever surfaces.
+- **N2 (ToggleSwitch depends on Obsidian's internal `checkbox-container` markup contract) —
+  ACCEPTED.** Added a one-line item to `docs-internal/RELEASE_CHECKLIST.md` §1: on an Obsidian
+  version bump, visually re-verify the in-graph exclusion toggle. Low cost, real long-term value —
+  exactly the "release checklist candidate" the reviewer suggested.
+- **N3 (dark screenshots were mislabeled — sandbox boots LIGHT) — ACCEPTED.** The settings-tab e2e
+  test now sets the theme explicitly before each capture: `setTheme("dark")` →
+  `settings-tab-cards-dark.png`, then `setTheme("light")` → `settings-tab-cards-light.png`
+  (ambiguous unsuffixed `settings-tab-cards.png` retired; the stale artifact deleted from
+  `.out/settings-ux/`). The new dark capture was visually verified to be genuinely dark.
+
+Verification (all truthful, all green):
+- `npm run check` — pass.
+- `npm test` — 61 files, 730 tests, all pass.
+- e2e vs real headless Obsidian (`npm run test:e2e -- settingsUxVisual.e2e.ts
+  controlsRestart.e2e.ts pinnedCentralScenario.e2e.ts`) — **7/7 pass**, including the tightened
+  force-layout test proving the advanced sliders are genuinely revealed.
+
+Commit: `431e33e` (details in `UI_IMPLEMENTATION_ITERATION__PUBLIC.md`).

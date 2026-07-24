@@ -75,6 +75,30 @@ Range inputs get class `slider` to inherit Obsidian's native slider styling.
   one shared visual language (they differ: native marker vs chevron) — deliberate for now
   (settings tab uses Obsidian idioms, panel uses plugin disclosure grammar).
 
+## Iteration 1 (review response, commit 431e33e)
+
+Review verdict was APPROVED-WITH-MINORS (0 blocking / 1 minor / 3 nits); all findings were
+test-evidence quality, zero product source changes needed or made.
+
+- M1 FIXED in `e2e/settingsUxVisual.e2e.ts`: the `disclosure("Advanced spacing")` summary-text
+  `has:` locator ALSO matched the ancestor Force-layout `<details>` and `setOpen`'s `.first()`
+  opened that outer one — the nested disclosure never opened, and `toHaveCount(6)` passed anyway
+  because it counts hidden inputs. Now: locate `details.vicinity-graph-forcelayout__advanced`
+  directly, assert `open` attr + `toBeVisible` on both advanced sliders. LESSON for this repo's
+  e2e: never use summary-text `has:` locators for NESTED disclosures — `has:` matches every
+  ancestor `<details>` too; target the disclosure's own class.
+- N1 REJECTED (slider throttle): parity + latest-wins + unobserved; if jank ever appears, throttle
+  in ForceLayoutSection, never the write path.
+- N2 ACCEPTED: RELEASE_CHECKLIST.md §1 line — re-verify ToggleSwitch rendering on Obsidian bumps.
+- N3 ACCEPTED: sandbox boots LIGHT (not dark!) — spec now sets theme explicitly per screenshot
+  (`settings-tab-cards-dark.png` / `-light.png`); stale unsuffixed screenshot deleted from
+  `.out/settings-ux/`. Verified the dark capture is genuinely dark by viewing the PNG.
+- Also removed stray root `test-results/` (created by running `npx playwright test` WITHOUT the
+  e2e config — always run e2e via `npm run test:e2e -- <spec>`; root-level npx invocation finds
+  no tests and litters `test-results/`).
+- Gates re-run: check ✓, 730/730 unit ✓, e2e 7/7 ✓ (settingsUxVisual + controlsRestart +
+  pinnedCentralScenario).
+
 ## Gotchas noted during planning (kept for context)
 - e2e specs (`controlsRestart.e2e.ts`, `pinnedCentralScenario.e2e.ts`) select `.vicinity-graph-toolbar`,
   `.vicinity-graph-disclosure__summary` hasText "Pinned centrals", `.vicinity-graph-sizing`,
