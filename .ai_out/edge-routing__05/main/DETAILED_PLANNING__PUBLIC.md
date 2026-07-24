@@ -22,7 +22,7 @@ the repo's exact router parameters (`shapeBufferDistance 17`, `segmentPenalty 50
 | **E6** | **Two passes + keep-the-better is a strict improvement**: baseline (shared-class) pass, facing (side-class) pass, keep the facing route only when it is ≤ 1.25× the baseline length → non-facing **24 → 7**, **zero** routes >1.5× longer, total length **−0.4 %**. | probe9 |
 | **E7** | Side-class pins **must** get `setExclusive(false)`. With the libavoid default (directional ⇒ exclusive), the 4th edge facing the same side gets `ConnEnd::assignPinVisibilityTo: no pins with class id …` and silently falls back to the **shape centre** — the exact pre-`edge-routing__04` pathology. With `setExclusive(false)` all 8 test edges attach on the correct border. | probe10 |
 | **E8** | **Never co-locate duplicate pins.** Registering each pin twice (shared class + side class at identical coordinates) corrupted routing badly: 761/802 non-facing, +56 % length. Any design needing two class families needs **two routers**, not two pin sets on one shape. | probe7 |
-| **E9** | **Latent bug in the shipped code** (independent of this ticket): the 12 group pins are exclusive by default, so a group box with **>12 attached edges** falls back to centre attachment today. | E7 mechanism |
+| **E9** | **Latent bug in the shipped code** (independent of this ticket): the 12 group pins are exclusive by default, so a group box falls back to centre attachment today. **Corrected in review — the threshold is NOT ">12 edges on the box"**: a pin is only reachable from the direction it faces, so the real limit is **≥4 edges approaching one side** (3 pins per side). probe10's shared-class "today" run puts **5 of 8** left-approaching edges on the group CENTRE. Cheap to hit in a real vault. | E7 mechanism, probe10 |
 
 **Consequence:** ticket Design step 1 — the only thing CLARIFICATION D1 put in scope — cannot move a
 single route. Shipping it would be a change with a plausible-sounding comment and zero behaviour,
@@ -117,7 +117,15 @@ LibavoidEdgeRouter.route(input)
 ```
 
 Two **separate routers** (one per pass) — mandated by E8: two class families on one shape means
-co-located duplicate pins, which corrupts routing.
+co-located duplicate pins, which corrupts routing. The E8 rule is enforced **structurally**, not by
+convention: `registerPinsForShape` takes the pass's `mode` and emits exactly one pin per
+`BOUNDARY_PIN_SPECS` entry, so no shape can ever carry two class families.
+
+**Invariant that makes "route only the group-attached edges in pass 2" sound** (added in review —
+state it as a WHY comment, it is load-bearing and silently breakable): connectors are independent of
+one another **only** because `crossingPenalty === 0` and the group pins are **non-exclusive**. With
+either of those reversed, routing a subset of the edges would no longer reproduce the routes those
+edges get in the full set, and the facing pass would have to route everything.
 
 ### 3.1 The per-edge lever, stated honestly
 
@@ -159,6 +167,11 @@ export function chooseRoutes(baseline: EdgeRouteMap, facing: EdgeRouteMap, maxRa
    test, which only asserts corner *clearance*.
 3. Exact tie between a horizontal and a vertical gap → prefer the **horizontal** side (documented
    deterministic default; graph vicinities are wider than tall).
+   **This branch is live in an existing spec-locked test** (noted in review): the diagonal
+   corner-clearance pair is `boxL(0,0,100,100)` / `boxR(300,300,100,100)` — right gap 200 == down
+   gap 200, an exact tie. Horizontal wins → source class `right`, target class `left`, whose pins
+   sit ≥25px from any corner, so `CORNER_CLEARANCE_TOL_PX = 12` still passes. Reversing the
+   tie-break would still pass, but assert this deliberately rather than by luck.
 4. Touching (`gap === 0`) counts as **not facing** — strictly `> 0`, no tolerance, deterministic.
 5. All gaps `≤ 0` (rects overlap on both axes, or one contains the other — e.g. a group's own child,
    which *is* an obstacle) → fall back to the dominant component of the **centre delta**; exact zero
@@ -170,6 +183,16 @@ export function chooseRoutes(baseline: EdgeRouteMap, facing: EdgeRouteMap, maxRa
 **`chooseRoutes` rule:** for each edge present in `facing`, compute both polyline arc lengths; keep
 the facing route when `facingLen <= baselineLen * maxRatio` **or** when the baseline is degenerate
 (< 2 points); otherwise keep the baseline. Edges absent from `facing` pass through unchanged.
+
+- **A degenerate FACING route (< 2 points) is never eligible** — it has length 0, so a pure length
+  comparison would always "prefer" it and publish a broken edge. Eligibility is
+  `facing.length >= 2 && (baseline.length < 2 || facingLen <= baselineLen * maxRatio)`.
+  (Added in review; probe6 measured `degenerateRoutes = 0`, but the guard must not depend on that.)
+- **WHY comparing raw arc length is correct** (verified in review, so this is not re-litigated
+  later): a bend-aware metric `length + EDGE_ROUTING_SEGMENT_PENALTY_PX × bends` — i.e. libavoid's
+  own objective — disagrees with the length-only rule on **2 of 802** (low-degree) and **9 of 1668**
+  (higher-degree) selections, and is very slightly *worse* on non-facing count. Raw length is the
+  simpler rule and loses nothing.
 
 ### 3.3 Named constants
 
@@ -345,6 +368,8 @@ the dense-fixture perf guarantee, asserted without wasm).
 - WHEN the facing route exceeds `maxRatio` × baseline THEN the baseline is kept.
 - WHEN the facing route is exactly `maxRatio` × baseline THEN it is kept (boundary is inclusive).
 - WHEN an edge has no facing route THEN its baseline route passes through unchanged.
+- WHEN the facing route is degenerate (< 2 points) THEN the baseline is kept (a zero-length route
+  must never win the length comparison).
 
 `describe("EDGE_ROUTING_FACING_MAX_LENGTH_RATIO")`: WHEN the knee of the measured sweep is locked
 THEN it is 1.25 (with the measurement in the comment).

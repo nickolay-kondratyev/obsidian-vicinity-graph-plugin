@@ -10,8 +10,8 @@ Branch: `main`
 |-------|--------|
 | EXPLORATION (code / bindings / docs) | done — committed `101938f` |
 | CLARIFICATION | done — 3 human decisions, see `CLARIFICATION__PUBLIC.md` |
-| DETAILED_PLANNING | running (THINK_HARD) |
-| DETAILED_PLAN_REVIEW | pending |
+| DETAILED_PLANNING | done — committed `098df04`; measured pivot to Path A |
+| DETAILED_PLAN_REVIEW | running |
 | PLAN_ITERATION | pending |
 | IMPLEMENTATION | pending |
 | IMPLEMENTATION_REVIEW | pending |
