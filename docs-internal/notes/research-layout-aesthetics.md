@@ -91,6 +91,12 @@ stack. Length-uniformity work (stress vs spring) is NOT worth effort yet.
 
 ## C. Options, ranked by ROI
 
+2026-07-24 disposition: the facing-side attachment work (C1 minus its
+crossing-penalty items) is ticketed as `edge-routing__05`
+(nid_4lmhpfc64eb4auw27wqis8wqe_e). Crossing penalty + worker offload (C2 and
+C1's penalty items) are PARKED — findings preserved in
+`../research/crossing-penalty-and-worker-offload.md`, deliberately not ticketed.
+
 ### C1. Side-aware pins + costs + cluster penalties (P1, P2, part P3) — days, parameter-level
 
 All on the libavoid API we already ship:
