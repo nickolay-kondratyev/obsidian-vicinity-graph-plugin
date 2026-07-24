@@ -69,6 +69,14 @@ The distinction matters because people ask about it, so it is worth reading once
   spacing* group (**Node spacing**, **Group member spacing**). Changes re-layout
   open graphs immediately; ranges are clamped so no combination can degenerate
   the layout, and a **Restore defaults** button resets all six.
+- **Restoring defaults** — every section ends with its own restore row whose name
+  states exactly what it resets (*Restore node sizing defaults*, *Restore force
+  layout defaults*, …). Rows that only reset numeric knobs apply immediately;
+  *Restore node exclusion defaults* asks first and lists the patterns it is about
+  to delete, since those are hand-written and cannot be recovered. At the very
+  bottom, **Restore all Vicinity Graph settings** resets every setting on the tab
+  and asks for confirmation first. Per-note depth overrides and pins are never
+  touched by any of them.
 
 ### Per-note depth overrides
 
