@@ -6,12 +6,13 @@ import type { ConsoleMessage, Page } from "@playwright/test";
 import { ObsidianHarness, PLUGIN_ID } from "./obsidianHarness";
 
 /**
- * Evaluation harness for edge-routing__03 — NOT a tight regression (that is
+ * Evaluation harness for edge routing — NOT a tight regression (that is
  * `edgeRouting.e2e.ts`). It drives the tuning fixtures with routing ON, captures a
- * screenshot per (fixture × layout mode) to `/.out` for human/agent eyeballing of
- * route quality, and reads the routing-pass vs elk+d3-layout wall-times that the
- * controller logs at `console.debug` — proving the item-3 perf budget: the routing
- * pass stays WELL under the layout time even on the ~100-node dense fixture.
+ * screenshot per fixture to `/.out` for human/agent eyeballing of route quality, and
+ * reads the routing-pass vs elk+d3-layout wall-times AND the route-quality detour
+ * ratios that the controller logs at `console.debug` — proving the perf budget (the
+ * routing pass stays WELL under the layout time even on the ~100-node dense fixture)
+ * and giving route-quality tuning (e.g. the libavoid shape buffer) a numeric baseline.
  *
  * Fixtures come from `scripts/setup-dev-vault.sh`:
  * - sparse: `note1.md` vicinity (~9 notes, projects/solo groups).
@@ -28,7 +29,8 @@ const BOUNCE_PATH = "note2.md";
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const OUT_DIR = path.join(REPO_ROOT, ".out");
 
-type LayoutMode = "force" | "layered" | "radial";
+/** Detour ratios are raw floats (1.2843901…); trim them so the eval lines stay scannable. */
+const DETOUR_RATIO_DIGITS = 3;
 
 interface PerfEntry {
 	readonly kind: "routing" | "layout";
@@ -37,7 +39,19 @@ interface PerfEntry {
 		readonly nodeCount?: number;
 		readonly obstacleCount?: number;
 		readonly edgeCount?: number;
+		readonly maxDetourRatio?: number;
+		readonly meanDetourRatio?: number;
 	};
+}
+
+/** One rebuild's headline numbers: cost (ms), routing input scale, and route quality. */
+interface EvalMetrics {
+	readonly routingMs?: number;
+	readonly layoutMs?: number;
+	readonly obstacleCount?: number;
+	readonly edgeCount?: number;
+	readonly maxDetourRatio?: number;
+	readonly meanDetourRatio?: number;
 }
 
 let harness: ObsidianHarness;
@@ -90,13 +104,12 @@ async function setAllEdgesVisibility(): Promise<void> {
 }
 
 /**
- * Switches to `mode`, opens `centralPath`, waits for the graph to render, and
- * returns the perf entries captured during THIS rebuild. Bounces through another
- * note first so re-opening the central file is a real active-file change (a
- * same-path open is a no-op that would not re-run the pipeline).
+ * Opens `centralPath`, waits for the graph to render, and returns the perf entries
+ * captured during THIS rebuild. Bounces through another note first so re-opening the
+ * central file is a real active-file change (a same-path open is a no-op that would
+ * not re-run the pipeline).
  */
-async function renderFixture(mode: LayoutMode, centralPath: string): Promise<PerfEntry[]> {
-	await harness.setLayoutMode(mode);
+async function renderFixture(centralPath: string): Promise<PerfEntry[]> {
 	pendingPerf = [];
 	await harness.openFile(BOUNCE_PATH);
 	await harness.openFile(centralPath);
@@ -113,13 +126,8 @@ async function renderFixture(mode: LayoutMode, centralPath: string): Promise<Per
 	return entries;
 }
 
-/** Fresh rebuild's routing/layout durations + routing input scale (last of each kind). */
-function lastDurations(entries: PerfEntry[]): {
-	routingMs?: number;
-	layoutMs?: number;
-	obstacleCount?: number;
-	edgeCount?: number;
-} {
+/** Fresh rebuild's routing/layout durations + routing input scale and detour ratios. */
+function lastDurations(entries: PerfEntry[]): EvalMetrics {
 	// Pick the HEAVIEST pass of each kind (max input size), not the last: a rebuild
 	// sequence includes the small bounce-note pass whose trailing log can otherwise
 	// mask the dense central-file pass we actually want to measure.
@@ -133,7 +141,24 @@ function lastDurations(entries: PerfEntry[]): {
 		layoutMs: heaviest("layout", (e) => e.data.nodeCount ?? 0)?.data.durationMs,
 		obstacleCount: routing?.data.obstacleCount,
 		edgeCount: routing?.data.edgeCount,
+		// Same heaviest routing entry, so cost and quality always describe ONE pass.
+		maxDetourRatio: routing?.data.maxDetourRatio,
+		meanDetourRatio: routing?.data.meanDetourRatio,
 	};
+}
+
+/** One shared `[eval]` readout so every fixture's line stays directly comparable. */
+function formatMetrics(metrics: EvalMetrics): string {
+	const ratio = (value: number | undefined): string =>
+		value === undefined ? "undefined" : value.toFixed(DETOUR_RATIO_DIGITS);
+	return [
+		`routingMs=${metrics.routingMs}`,
+		`layoutMs=${metrics.layoutMs}`,
+		`obstacles=${metrics.obstacleCount}`,
+		`edges=${metrics.edgeCount}`,
+		`maxDetourRatio=${ratio(metrics.maxDetourRatio)}`,
+		`meanDetourRatio=${ratio(metrics.meanDetourRatio)}`,
+	].join(" ");
 }
 
 async function screenshot(name: string): Promise<void> {
@@ -148,48 +173,22 @@ const FORCE_FIXTURES: ReadonlyArray<{ readonly label: string; readonly central: 
 
 for (const { label, central } of FORCE_FIXTURES) {
 	test(`force layout routes the ${label} fixture and captures a screenshot`, async () => {
-		const entries = await renderFixture("force", central);
-		const { routingMs, layoutMs, obstacleCount, edgeCount } = lastDurations(entries);
-		console.log(
-			`[eval] force/${label}: routingMs=${routingMs} layoutMs=${layoutMs} obstacles=${obstacleCount} edges=${edgeCount}`,
-		);
+		const entries = await renderFixture(central);
+		const metrics = lastDurations(entries);
+		console.log(`[eval] force/${label}: ${formatMetrics(metrics)}`);
 		await screenshot(`force-${label}`);
 		await expect(page.locator(EDGE_PATH_SELECTOR).first()).toBeAttached();
 	});
 }
 
-test("layered layout routes the dense fixture and captures a screenshot", async () => {
-	const entries = await renderFixture("layered", "zzdense-hub.md");
-	const { routingMs, layoutMs, obstacleCount, edgeCount } = lastDurations(entries);
-	console.log(
-		`[eval] layered/dense: routingMs=${routingMs} layoutMs=${layoutMs} obstacles=${obstacleCount} edges=${edgeCount}`,
-	);
-	await screenshot("layered-dense");
-	await expect(page.locator(EDGE_PATH_SELECTOR).first()).toBeAttached();
-});
-
-test("radial layout SKIPS routing (gated) and still renders the dense fixture", async () => {
-	// Routing is gated off for radial (human decision, edge-routing__03): no routing
-	// pass should run at all, so no timing is logged — proving the gate, not just
-	// that routes happen to be cheap. Edges still render (straight spokes).
-	const entries = await renderFixture("radial", "zzdense-hub.md");
-	const { routingMs, layoutMs } = lastDurations(entries);
-	console.log(`[eval] radial/dense: routingMs=${routingMs} (gated off) layoutMs=${layoutMs}`);
-	await screenshot("radial-dense");
-	await expect(page.locator(EDGE_PATH_SELECTOR).first()).toBeAttached();
-	expect(routingMs, "no routing pass runs under radial (gated)").toBeUndefined();
-});
-
-test("PERF BUDGET: on the dense fixture under the DEFAULT force layout the routing pass stays well under the elk+d3 layout time", async () => {
-	// Guards the DEFAULT config (force layout): routing (~140ms) must stay comfortably
-	// under the elk+d3 layout (~1460ms) on the ~100-node/~292-edge dense fixture.
-	// (The RADIAL layout — where routing would have exceeded its cheap layout — is now
-	// gated off entirely, verified in the radial test above; layered stays under.)
-	const entries = await renderFixture("force", "zzdense-hub.md");
-	const { routingMs, layoutMs, obstacleCount, edgeCount } = lastDurations(entries);
-	console.log(
-		`[eval] PERF dense/force: routingMs=${routingMs} layoutMs=${layoutMs} obstacles=${obstacleCount} edges=${edgeCount}`,
-	);
+test("PERF BUDGET: on the dense fixture the routing pass stays well under the elk+d3 layout time", async () => {
+	// Force is the ONLY layout: routing (~140ms) must stay comfortably under the
+	// elk+d3 layout (~1460ms) on the ~100-node/~292-edge dense fixture. Routing is
+	// unconditional, so this budget covers every render the plugin performs.
+	const entries = await renderFixture("zzdense-hub.md");
+	const metrics = lastDurations(entries);
+	const { routingMs, layoutMs } = metrics;
+	console.log(`[eval] PERF dense/force: ${formatMetrics(metrics)}`);
 	expect(routingMs, "routing pass duration was logged").toBeGreaterThanOrEqual(0);
 	expect(layoutMs, "layout pass duration was logged").toBeGreaterThan(0);
 	expect(routingMs).toBeLessThan(layoutMs as number);
