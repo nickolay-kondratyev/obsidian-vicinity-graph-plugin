@@ -35,3 +35,73 @@ Approach:
 
 
 NOTE: `.out/vaults/public` is not under source control so bring in the required test data into the dev-vault to be able to reproduce this issues without the `.out/vaults/public` dependency.
+
+---
+
+## Investigation Findings (2026-07-23) — original hypotheses EMPIRICALLY INVALIDATED
+
+A failing-first investigation (self-contained `makeGraph` `strandedHubGraph()` fixture
++ edge-stretch metric run through the REAL elk-seed → d3-force pipeline) disproved the
+three hypotheses at the top of this ticket. **No production change was shipped** — a
+constant tune cannot fix this. Full detail + reproduction harness:
+`.ai_out/03-force-placement-quality/main/IMPLEMENTATION__PUBLIC.md` (and `EXPLORATION_*`,
+`DETAILED_PLANNING__PUBLIC.md`, `DETAILED_PLAN_REVIEW__PUBLIC.md` in the same dir).
+
+- **Hypothesis 1 (weak link strength) — WRONG for this node.** "The Enchiridion" is a
+  **degree-1** leaf; d3's default link strength is `1/min(deg)=1`, i.e. already full
+  strength. Pinning `forceLink.strength` is a no-op on every hub-and-spoke fixture.
+- **Hypothesis 2 (charge / static local minimum) — has ZERO leverage.** Sweeping
+  `D3_FORCE_CHARGE_STRENGTH` from −300 → −30 (10×) leaves the max edge-stretch
+  **bit-identical to 3 decimals**. Charge cannot compress the resting distance that
+  produces the long edge; overlaps stay 0 throughout.
+- **Hypothesis 3 (elk force seed) — not the driver either.**
+
+**Actual root cause — circular `forceCollide` on a high-aspect-ratio folder-group
+container.** When the hub note lives inside a folder-group container, cross-boundary
+edges are projected onto the *container* id (`elkMapping.ts` `projectedRootEdges`), and
+`forceCollide` uses the container's **circumscribed-circle** radius
+(`hypot(w,h)/2 + D3_FORCE_COLLIDE_PADDING_PX`). For a tall 192×392 container that is
+~238px, so every external neighbor is forced ~238px + its own radius from the container
+centre, at uneven distances:
+
+```
+grouped=true    ench->hub=375   crowdToHub=[332,261,414,417,288]   (far AND uneven)
+grouped=false   ench->hub=247   crowdToHub=[245,244,241,242,243]   (near AND even ring)
+```
+
+This is a geometry property of the circular collision approximation, **independent of
+`D3_FORCE_CHARGE_STRENGTH` and `forceLink.strength`**. Shrinking the collide radius below
+the circumscribed circle reintroduces box overlaps (fails the existing
+`overlappingPairCount == 0` regression), so no pure-constant lever fixes it. The chosen
+edge-stretch metric also cannot *detect* it (numerator and denominator both scale with
+the oversized container radius → stranded placement still scores ≈ 1); a new fix needs a
+metric that measures the rendered/member-relative geometry.
+
+### Candidate fix directions (for the re-plan to weigh)
+1. **AABB / rectangular collision force** replacing circular `forceCollide` — a neighbor
+   approaching a tall container from the side clears its half-width, not its diagonal.
+   Durable root-cause fix; largest change; needs a custom deterministic d3 force + its own
+   overlap/determinism tests. (Investigation's recommended durable option.)
+2. **Attract cross-boundary edge to the member-note position** (not the container centre)
+   in `elkMapping.ts` + `d3ForceRefinement.ts`. Lighter; **caveat:** the circular collide
+   floor still applies, so this alone may only partially resolve.
+3. **Squarer / capped container** (reduce container aspect ratio, or cap collide radius) —
+   smallest change, likely partial; radius cap risks overlaps.
+
+## Next Step — RE-PLAN this ticket with a stronger model
+
+Re-plan the approach from the corrected root cause above (do NOT resurrect the invalidated
+constant-tune plan). Use a stronger reasoning model for planning. Keep the deliverable
+goals (deterministic layout, failing-first quality test that a fix moves red→green, repro
+data mirrored into the dev-vault, `npm test` + `npm run check` green).
+
+**Planning exit criteria — MUST include sandboxing / prototyping during planning:**
+- Before the plan is accepted, build a **throwaway prototype** of the chosen direction and
+  run it through the REAL elk+d3 pipeline on the reproduction fixture, demonstrating it
+  actually moves the (new) quality metric red→green **without** breaking
+  `overlappingPairCount == 0` or determinism. Attach the prototype evidence (numbers) to
+  the plan.
+- The plan must define a quality metric that can genuinely **detect** the container-collide
+  stranding (the prior circumscribed-normalised edge-stretch metric could not).
+- No approach is accepted on a-priori reasoning alone — this ticket already shows why that
+  fails for a layout heuristic.

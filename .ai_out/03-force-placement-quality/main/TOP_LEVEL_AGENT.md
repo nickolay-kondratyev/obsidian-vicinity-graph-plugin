@@ -17,9 +17,15 @@ Bring repro data into dev-vault / unit fixture (public vault not source-controll
 - [x] DETAILED_PLAN_REVIEW — VERDICT MINOR (inline edits). Approved. Sharpened: hub-spoke fixtures don't exercise Lever 1 (all degree-1) → metric is a charge/Lever-2 test; Lever 1 must be honestly covered or marked untested. No blockers.
 - [x] PLAN_ITERATION — SKIPPED (reviewer empowered minor inline edits)
 - [~] IMPLEMENTATION — **BLOCKED / escalated**. Failing-first empirical work INVALIDATED the plan's root cause. Charge sweep (−300→−30) leaves max edge-stretch bit-identical → Lever 2 inert; Lever 1 no-op on degree-1 leaf. REAL cause: circular `forceCollide` uses folder-group container's circumscribed-circle radius (~238px for 192×392 container) → flings external neighbors far/uneven. Fix is ARCHITECTURAL (AABB collision, or attract edge to member note), exceeds "fix defaults" scope. No production change shipped; tree pristine. → STOP + ask human for direction.
-- [ ] IMPLEMENTATION_REVIEW
-- [ ] IMPLEMENTATION_ITERATION
-- [ ] PARETO_COMPLEXITY_ANALYSIS
+- [—] IMPLEMENTATION_REVIEW / ITERATION / PARETO — N/A this pass (no fix shipped)
+
+## OUTCOME (this pass): HALTED at IMPLEMENTATION — re-plan required
+Human decision: fold findings into the SAME ticket; next step = re-plan with a STRONGER
+model; planning exit criteria must include sandboxing/prototyping (throwaway prototype
+run through the real pipeline proving red→green before plan acceptance).
+- Ticket updated with invalidated hypotheses + true root cause + candidate directions +
+  re-plan directive: `_tickets/03-force-placement-quality-...md`.
+- No production/source change shipped (tree pristine); all evidence in `.ai_out/.../*`.
 
 ## Notes
 - Commit between phases; keep git clean.
