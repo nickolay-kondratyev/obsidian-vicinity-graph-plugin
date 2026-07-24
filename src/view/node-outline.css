@@ -4,18 +4,17 @@
  * stayed interleaved in the node stylesheet — this is the first iteration of the
  * outline UI and is expected to be re-tuned.
  *
- * ONE rule lives elsewhere on purpose: the `display: block` reveal at the 104px
- * density threshold stays in graph-view.css, with the rest of the "what shows at
- * what node size" ladder. Container queries resolve against the nearest ancestor
- * container regardless of which file the rule came from, so the split is purely
- * editorial.
+ * VISIBILITY lives elsewhere on purpose: `display: none` and the `display: block`
+ * reveal at the 104px density threshold are BOTH in graph-view.css, with the rest
+ * of the "what shows at what node size" ladder — keeping them together is what
+ * stops stylesheet concatenation order from deciding which one wins. This file is
+ * purely about appearance.
  *
  * Colors come exclusively from Obsidian theme variables — light and dark both
  * just work with no per-theme rules.
  */
 
 .vicinity-graph-outline {
-	display: none; /* revealed at the 104px threshold — see graph-view.css */
 	/* Take the node's spare height and SHRINK rather than push the attachment
 	 * strip out of the box. Deliberately not the thumbnail's fixed min-height,
 	 * which would overflow a 104px node. */

@@ -34,8 +34,7 @@ export const DEFAULT_EDGE_VISIBILITY: EdgeVisibilityMode = SETTINGS_SPEC.globalV
 /** Lower bound of the node-cap input. @see SETTINGS_SPEC — `globalView.nodeCap.min`. */
 export const MIN_NODE_CAP = SETTINGS_SPEC.globalView.nodeCap.min;
 
-/** @see SETTINGS_SPEC — `globalView.outlineMaxDepth.{default,min,max}`. */
-export const DEFAULT_OUTLINE_MAX_DEPTH = SETTINGS_SPEC.globalView.outlineMaxDepth.default;
+/** @see SETTINGS_SPEC — `globalView.outlineMaxDepth.{min,max}`. */
 export const MIN_OUTLINE_DEPTH = SETTINGS_SPEC.globalView.outlineMaxDepth.min;
 export const MAX_OUTLINE_DEPTH = SETTINGS_SPEC.globalView.outlineMaxDepth.max;
 

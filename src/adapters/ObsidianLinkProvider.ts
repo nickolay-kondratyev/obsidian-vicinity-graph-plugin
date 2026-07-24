@@ -2,17 +2,12 @@ import type { AttachmentRef, FileMetadata, LinkProvider, OutlineEntry, VaultPath
 import { asFolderPath, asVaultPath } from "../engine";
 import { FileKinds } from "../shared/FileKinds";
 import { BacklinksAdapter } from "./BacklinksAdapter";
+import type { OrderedReference } from "./ReferenceOrder";
 import { ReferenceOrder } from "./ReferenceOrder";
 import type { CanvasCapability } from "./CanvasCapability";
 import { CanvasCapabilityDetector } from "./CanvasCapability";
 import type { CanvasParseCache } from "./CanvasParseCache";
 import type { CachedMetadataPort, MetadataCachePort, VaultFilePort, VaultPort } from "./obsidianPorts";
-
-/** A resolved outgoing reference paired with the document offset it was written at. */
-interface ResolvedReference {
-	readonly path: string;
-	readonly offset: number;
-}
 
 /** Kept local: canvas capability detection is adapter-specific knowledge, not a shared file kind. */
 const CANVAS_EXTENSION = "canvas";
@@ -88,7 +83,12 @@ export class ObsidianLinkProvider implements LinkProvider {
 	}
 
 	getOutgoingLinks(path: VaultPath): readonly VaultPath[] {
-		return this.resolvedOutgoingPaths(path).map(asVaultPath);
+		const file = this.vault.getFileByPath(path);
+		if (file === null) {
+			return [];
+		}
+		const references = orderedReferencesOf(file, this.metadataCache.getFileCache(file));
+		return this.outgoingPathsOf(file, references).map(asVaultPath);
 	}
 
 	getIncomingLinks(path: VaultPath): readonly VaultPath[] {
@@ -119,18 +119,19 @@ export class ObsidianLinkProvider implements LinkProvider {
 		if (file === null) {
 			return undefined;
 		}
-		// One cache read serves both the title and the outline (they ask the same
-		// `getFileCache` question about the same file). `attachments` resolves its
-		// own references through `resolvedOutgoingPaths`, which also handles the
-		// canvas and not-yet-cached branches this read cannot answer.
+		// One cache read serves the title, the outline and the outgoing references
+		// (they ask the same `getFileCache` question about the same file), and the
+		// reference ORDERING is derived once here for the same reason: the outline's
+		// image rule and the attachment resolution below read the same sorted array.
 		const cache = this.metadataCache.getFileCache(file);
+		const references = orderedReferencesOf(file, cache);
 		return {
 			folder: asFolderPath(engineFolderOf(file)),
 			sizeBytes: file.stat.size,
 			frontmatterTitle: frontmatterTitleOf(file, cache),
 			isNodeBearing: FileKinds.isNodeBearingPath(file.path),
-			attachments: this.attachmentsOf(path),
-			outline: this.outlineOf(file, cache),
+			attachments: this.attachmentsOf(file, references),
+			outline: this.outlineOf(file, cache, references),
 		};
 	}
 
@@ -141,7 +142,11 @@ export class ObsidianLinkProvider implements LinkProvider {
 	 * instead" escape hatch. Only the adapter can see document offsets, so the
 	 * whole rule lives here (see `FileMetadata.outline`).
 	 */
-	private outlineOf(file: VaultFilePort, cache: CachedMetadataPort | null): readonly OutlineEntry[] {
+	private outlineOf(
+		file: VaultFilePort,
+		cache: CachedMetadataPort | null,
+		references: readonly OrderedReference[] | null,
+	): readonly OutlineEntry[] {
 		if (!FileKinds.isOutlineBearingPath(file.path) || cache === null) {
 			return [];
 		}
@@ -150,7 +155,10 @@ export class ObsidianLinkProvider implements LinkProvider {
 		if (firstHeading === undefined) {
 			return [];
 		}
-		if (this.referencesImageAbove(firstHeading.position.start.offset, file.path, cache)) {
+		// `references` is null only when the metadata cache cannot order this file's
+		// links, and then nothing is KNOWN to sit above the first heading.
+		const firstHeadingOffset = firstHeading.position.start.offset;
+		if (references !== null && this.referencesImageAbove(firstHeadingOffset, file.path, references)) {
 			return []; // The image wins.
 		}
 		// Obsidian's `headings` is already in document order — never re-sorted.
@@ -163,13 +171,13 @@ export class ObsidianLinkProvider implements LinkProvider {
 	 *
 	 * RESOLVED references only (the same resolution `attachments`/`firstImagePath`
 	 * use), so an unresolvable `![[missing.png]]` cannot suppress the outline while
-	 * producing no thumbnail — a silently blank node. References arrive ascending
+	 * producing no thumbnail — a silently blank node. `references` arrive ascending
 	 * by offset, so the scan stops at the limit rather than resolving the whole
 	 * file: only the references ABOVE the first heading are resolved here, and
 	 * `attachments` (which resolves all of them) stays the single full pass.
 	 */
-	private referencesImageAbove(offsetLimit: number, path: string, cache: CachedMetadataPort): boolean {
-		for (const reference of ReferenceOrder.orderedReferences(cache)) {
+	private referencesImageAbove(offsetLimit: number, path: string, references: readonly OrderedReference[]): boolean {
+		for (const reference of references) {
 			if (reference.offset >= offsetLimit) {
 				return false; // Ascending order: nothing further can be above the limit.
 			}
@@ -181,42 +189,34 @@ export class ObsidianLinkProvider implements LinkProvider {
 		return false;
 	}
 
-	/** Resolved markdown references in document order, WITH offsets, duplicates kept. */
-	private orderedMarkdownReferences(path: string, cache: CachedMetadataPort): readonly ResolvedReference[] {
-		const resolved: ResolvedReference[] = [];
-		for (const reference of ReferenceOrder.orderedReferences(cache)) {
-			const target = this.resolveReference(reference.link, path);
-			if (target !== undefined) {
-				resolved.push({ path: target, offset: reference.offset });
-			}
-		}
-		return resolved;
-	}
-
 	/** The vault path a link text resolves to from `fromPath`, or `undefined` when it dangles. */
 	private resolveReference(link: string, fromPath: string): string | undefined {
 		return this.metadataCache.getFirstLinkpathDest(link, fromPath)?.path;
 	}
 
-	/** Resolved outgoing targets in reference order, deduped (first occurrence wins). */
-	private resolvedOutgoingPaths(path: string): readonly string[] {
-		const file = this.vault.getFileByPath(path);
-		if (file === null) {
-			return [];
-		}
+	/**
+	 * Resolved outgoing targets in reference order, deduped (first occurrence wins).
+	 * `references` is `null` exactly when the metadata cache cannot order this
+	 * file's links — the two cases the fallbacks below exist for.
+	 */
+	private outgoingPathsOf(file: VaultFilePort, references: readonly OrderedReference[] | null): readonly string[] {
 		if (file.extension === CANVAS_EXTENSION && this.canvasCapability === "fallback-required") {
-			const parsedPaths = this.canvasOutgoingByPath.get(path) ?? [];
+			const parsedPaths = this.canvasOutgoingByPath.get(file.path) ?? [];
 			return dedupe(parsedPaths.filter((target) => this.vault.getFileByPath(target) !== null));
 		}
-		if (FileKinds.isMarkdownPath(file.path)) {
-			const cache = this.metadataCache.getFileCache(file);
-			if (cache !== null) {
-				return dedupe(this.orderedMarkdownReferences(path, cache).map((reference) => reference.path));
+		if (references !== null) {
+			const resolved: string[] = [];
+			for (const reference of references) {
+				const target = this.resolveReference(reference.link, file.path);
+				if (target !== undefined) {
+					resolved.push(target);
+				}
 			}
+			return dedupe(resolved);
 		}
 		// Core-indexed canvas, and markdown not yet in getFileCache: resolvedLinks
 		// keys are already-resolved targets (order not contractual, best available).
-		return Object.keys(this.metadataCache.resolvedLinks[path] ?? {});
+		return Object.keys(this.metadataCache.resolvedLinks[file.path] ?? {});
 	}
 
 	private backlinkSources(path: string): readonly string[] {
@@ -250,11 +250,27 @@ export class ObsidianLinkProvider implements LinkProvider {
 	}
 
 	/** Attachments = outgoing references to non-node-bearing files, in reference order. */
-	private attachmentsOf(path: string): readonly AttachmentRef[] {
-		return this.resolvedOutgoingPaths(path)
+	private attachmentsOf(file: VaultFilePort, references: readonly OrderedReference[] | null): readonly AttachmentRef[] {
+		return this.outgoingPathsOf(file, references)
 			.filter((target) => !FileKinds.isNodeBearingPath(target))
 			.map((target) => ({ path: asVaultPath(target), isImage: FileKinds.isImagePath(target) }));
 	}
+}
+
+/**
+ * A markdown file's references in document order, or `null` when the metadata
+ * cache cannot order them (not markdown, or not indexed yet). Ordering allocates
+ * and sorts, so each caller derives this ONCE and shares the array between the
+ * outline's image rule and the outgoing-link resolution.
+ */
+function orderedReferencesOf(
+	file: VaultFilePort,
+	cache: CachedMetadataPort | null,
+): readonly OrderedReference[] | null {
+	if (cache === null || !FileKinds.isMarkdownPath(file.path)) {
+		return null;
+	}
+	return ReferenceOrder.orderedReferences(cache);
 }
 
 /**
