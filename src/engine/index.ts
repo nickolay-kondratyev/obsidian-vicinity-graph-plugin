@@ -43,7 +43,6 @@ export type {
 	FolderPath,
 	GraphEdge,
 	GraphNode,
-	LayoutMode,
 	NodeExclusionSettings,
 	VicinityGraph,
 	PinnedNodeDescriptor,
@@ -54,7 +53,7 @@ export type {
 	ViewSettings,
 	ViewSettingsOverride,
 } from "./types";
-export { asDocId, asFolderPath, asVaultPath, DIRECTION_DEPTH_FIELD, LAYOUT_MODES } from "./types";
+export { asDocId, asFolderPath, asVaultPath, DIRECTION_DEPTH_FIELD } from "./types";
 
 export type { FileMetadata, LinkProvider } from "./LinkProvider";
 export { NodeEligibility } from "./NodeEligibility";
@@ -86,7 +85,6 @@ export {
 	DEFAULT_DEPTH_DECAY_K,
 	DEFAULT_EDGE_VISIBILITY,
 	DEFAULT_INCOMING_DEPTH,
-	DEFAULT_LAYOUT_MODE,
 	DEFAULT_MAX_NODE_PX,
 	DEFAULT_MIN_NODE_PX,
 	DEFAULT_NODE_CAP,

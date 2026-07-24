@@ -42,14 +42,13 @@ describe("PersistedShapes.parsePluginData", () => {
 		expect(PersistedShapes.parsePluginData(raw).globalView.edgeVisibility).toBe("walked-from-center");
 	});
 
-	it("WHEN globalView carries an unknown layoutMode THEN the default mode survives", () => {
-		const raw = { version: PERSISTED_SHAPE_VERSION, globalView: { layoutMode: "spiral" } };
-		expect(PersistedShapes.parsePluginData(raw).globalView.layoutMode).toBe("force");
-	});
-
-	it("WHEN globalView carries a known layoutMode THEN it survives", () => {
-		const raw = { version: PERSISTED_SHAPE_VERSION, globalView: { layoutMode: "force" } };
-		expect(PersistedShapes.parsePluginData(raw).globalView.layoutMode).toBe("force");
+	it("WHEN globalView carries a removed layoutMode field THEN it is ignored without error", () => {
+		// layoutMode was removed (force is the only layout); an old persisted value
+		// is simply dropped by the per-field parser — the rest of globalView survives.
+		const raw = { version: PERSISTED_SHAPE_VERSION, globalView: { layoutMode: "radial", nodeCap: 7 } };
+		const parsed = PersistedShapes.parsePluginData(raw).globalView;
+		expect(parsed).not.toHaveProperty("layoutMode");
+		expect(parsed.nodeCap).toBe(7);
 	});
 
 	it("WHEN globalView carries edgeRouting=false THEN it survives (default is now true)", () => {

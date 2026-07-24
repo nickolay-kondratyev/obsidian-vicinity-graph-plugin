@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-24T00:43:03Z
 id: nid_si26o1o5h4yrvv5v8tcgz1b68_e
 title: "edge-routing: re-enable radial routing via web-worker offload"
-status: open
+status: closed
 deps: []
 links: []
 created_iso: 2026-07-22T18:57:48Z
-status_updated_iso: 2026-07-22T18:57:48Z
+status_updated_iso: 2026-07-24T00:43:03Z
 type: task
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
@@ -25,3 +26,9 @@ Acceptance: radial routing either re-enabled behind the offload with no UI jank,
 - Radial routing re-enabled without main-thread jank, OR documented decision to keep radial straight-spoke.
 - arrows.md routing section updated to match.
 
+
+## Notes
+
+**2026-07-24T00:43:03Z**
+
+Superseded/closed by force-layout-only removal (ticket nid_ihlfchb69wt1hqot6iqy7a9m9_e, commit e68a86a). Radial layout no longer exists, so re-enabling radial routing is moot. Routing is now unconditional when edgeRouting is on (the ROUTING_SKIPPED_LAYOUT_MODE radial guard was removed).

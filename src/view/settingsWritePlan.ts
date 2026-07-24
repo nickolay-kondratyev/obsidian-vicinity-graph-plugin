@@ -2,7 +2,6 @@ import type {
 	DepthOverride,
 	DepthSettings,
 	Direction,
-	LayoutMode,
 	NodeExclusionSettings,
 	SizingSettings,
 	ViewSettings,
@@ -38,8 +37,6 @@ export type SettingsInteraction =
 	| { readonly kind: "global-cap"; readonly value: number }
 	/** Global sizing configuration (whole object). */
 	| { readonly kind: "global-sizing"; readonly sizing: SizingSettings }
-	/** Global layout mode. */
-	| { readonly kind: "global-layout"; readonly layoutMode: LayoutMode }
 	/** Global obstacle-avoiding edge-routing toggle. */
 	| { readonly kind: "global-edge-routing"; readonly edgeRouting: boolean }
 	/** Global node exclusion (whole object — pill flips `enabled`, settings tab edits `patterns`). */
@@ -94,8 +91,6 @@ export function planSettingsWrite(interaction: SettingsInteraction, ctx: Setting
 			return { kind: "global-view", view: { ...ctx.globalView, nodeCap: interaction.value } };
 		case "global-sizing":
 			return { kind: "global-view", view: { ...ctx.globalView, sizing: interaction.sizing } };
-		case "global-layout":
-			return { kind: "global-view", view: { ...ctx.globalView, layoutMode: interaction.layoutMode } };
 		case "global-edge-routing":
 			return { kind: "global-view", view: { ...ctx.globalView, edgeRouting: interaction.edgeRouting } };
 		case "global-node-exclusion":

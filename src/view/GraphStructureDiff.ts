@@ -12,9 +12,8 @@ import { edgeIdOf } from "./graphIdentity";
  *
  * `relayout`: first build, any structural change (a node or edge added/removed),
  * a `groupByFolder` flip (folder-group nodes appear/disappear, so preserved
- * positions would lack group entries and misplace nested children), a
- * `layoutMode` switch (identical structure, entirely different arrangement), or
- * a surviving node whose `sizePx` grew beyond the threshold. Structural changes
+ * positions would lack group entries and misplace nested children), or a
+ * surviving node whose `sizePx` grew beyond the threshold. Structural changes
  * accept layout jumps in V1 (position seeding is V2).
  */
 export type LayoutDecision = "relayout" | "reuse-layout";
@@ -28,9 +27,6 @@ export function decideLayout(
 		return "relayout";
 	}
 	if (previous.viewSettings.groupByFolder !== next.viewSettings.groupByFolder) {
-		return "relayout";
-	}
-	if (previous.viewSettings.layoutMode !== next.viewSettings.layoutMode) {
 		return "relayout";
 	}
 	if (!sameIds(nodeIdsOf(previous), nodeIdsOf(next))) {

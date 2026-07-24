@@ -1,4 +1,4 @@
-import type { GraphEdge, GraphNode, LayoutMode, VicinityGraph, ViewSettings } from "../../engine";
+import type { GraphEdge, GraphNode, VicinityGraph, ViewSettings } from "../../engine";
 import { asFolderPath, asVaultPath } from "../../engine";
 
 /**
@@ -34,9 +34,6 @@ export function makeEdge(source: string, target: string, count = DEFAULT_EDGE_LI
 /**
  * Minimal effective view settings — deliberately DECOUPLED from the engine
  * production defaults so unit tests stay neutral and opt in to behavior per case:
- * - `layoutMode: "layered"` (NOT the engine's `force` default) keeps the
- *   pre-existing layered-mapping tests capturing layered behavior; radial/force
- *   tests opt in via {@link withLayoutMode}.
  * - `edgeRouting: false` (NOT the engine's now-`true` default, flipped in
  *   edge-routing__03) keeps the routing pass OFF for pure mapping/controller
  *   baselines (no wasm invoked); routing tests opt in via {@link withEdgeRouting}.
@@ -48,7 +45,6 @@ function makeViewSettings(): ViewSettings {
 		nodeCap: 100,
 		groupByFolder: true,
 		edgeVisibility: "walked-from-center",
-		layoutMode: "layered",
 		edgeRouting: false,
 		sizing: {
 			metrics: {
@@ -74,11 +70,6 @@ export function makeGraph(overrides: Partial<VicinityGraph> = {}): VicinityGraph
 		viewSettings: makeViewSettings(),
 		...overrides,
 	};
-}
-
-/** The same graph under a different layout mode (radial/force tests opt in per case). */
-export function withLayoutMode(graph: VicinityGraph, layoutMode: LayoutMode): VicinityGraph {
-	return { ...graph, viewSettings: { ...graph.viewSettings, layoutMode } };
 }
 
 /** The same graph with the obstacle-avoiding edge-routing pass toggled (fixture baseline OFF). */

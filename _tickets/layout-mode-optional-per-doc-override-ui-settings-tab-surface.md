@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-24T00:43:03Z
 id: nid_fqb570fmygcijuer2cjxtbana_E
 title: "Layout mode: optional per-doc override UI + settings-tab surface"
-status: open
+status: closed
 deps: []
 links: []
 created_iso: 2026-07-21T19:47:00Z
-status_updated_iso: 2026-07-21T19:47:00Z
+status_updated_iso: 2026-07-24T00:43:03Z
 type: task
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
@@ -21,3 +22,9 @@ Follow-ups (do only if wanted):
 
 Context: chosen defaults + elk probe results are in the commit that introduced LayoutMode (see src/view/constants.ts ELK_ROOT_OPTIONS_BY_MODE and src/view/elkMapping.ts projectedRootEdges for the radial/force compound handling).
 
+
+## Notes
+
+**2026-07-24T00:43:03Z**
+
+Superseded/closed by force-layout-only removal (ticket nid_ihlfchb69wt1hqot6iqy7a9m9_e, commit e68a86a). The per-doc layoutMode override target no longer exists: LayoutMode type and the layoutMode ViewSettings field have been removed entirely. Force is now the only layout mode.

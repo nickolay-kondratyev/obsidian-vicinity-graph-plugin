@@ -1,6 +1,6 @@
 import type { ElkNode } from "elkjs";
 import type { FolderPath, GraphEdge, GraphNode, VicinityGraph } from "../engine";
-import { ELK_GROUP_MEMBER_OPTIONS, ELK_GROUP_PADDING, ELK_ROOT_OPTIONS_BY_MODE, ELK_ROOT_ID } from "./constants";
+import { ELK_FORCE_ROOT_OPTIONS, ELK_GROUP_MEMBER_OPTIONS, ELK_GROUP_PADDING, ELK_ROOT_ID } from "./constants";
 import { deriveFolderGroups } from "./folderGrouping";
 import type { FolderGroupingResult } from "./folderGrouping";
 import { edgeIdOf, folderGroupIdOf, nodeDimensionsPx } from "./graphIdentity";
@@ -17,20 +17,17 @@ import type { Dimensions, XY } from "./flowMapping";
  * live on the closest common ancestor of its endpoints, so intra-group edges
  * move onto their container while every other edge stays on the root.
  *
- * Layout modes ({@link VicinityGraph.viewSettings}.layoutMode):
- * - `layered` — `elk.hierarchyHandling=INCLUDE_CHILDREN` lays out the whole
- *   hierarchy in one pass; cross-boundary edges may reference nested leaves.
- * - `radial` / `force` — neither supports `INCLUDE_CHILDREN`, so elk's default
- *   `SEPARATE_CHILDREN` applies: each container is laid out internally
- *   (layered, {@link ELK_GROUP_MEMBER_OPTIONS}), then the root algorithm
- *   arranges containers and ungrouped leaves as fixed boxes. Cross-boundary
- *   edges are PROJECTED onto containers (see {@link projectedRootEdges}).
- *   For `force` the elk root pass is only a seed — `GraphLayoutRunner` then
- *   refines the root boxes with d3-force (`d3ForceRefinement.ts`).
+ * The root runs elk's `force` algorithm ({@link ELK_FORCE_ROOT_OPTIONS}), which
+ * does not support `INCLUDE_CHILDREN`, so elk's default `SEPARATE_CHILDREN`
+ * applies: each container is laid out internally (layered,
+ * {@link ELK_GROUP_MEMBER_OPTIONS}), then the root arranges containers and
+ * ungrouped leaves as fixed boxes. Cross-boundary edges are PROJECTED onto
+ * containers (see {@link projectedRootEdges}). The elk root pass is only a seed —
+ * `GraphLayoutRunner` then refines the root boxes with d3-force
+ * (`d3ForceRefinement.ts`).
  */
 
 export function vicinityGraphToElk(graph: VicinityGraph): ElkNode {
-	const mode = graph.viewSettings.layoutMode;
 	const grouping = deriveFolderGroups(graph.nodes, graph.viewSettings.groupByFolder);
 	const leafById = new Map(
 		graph.nodes.map((node): [string, ElkNode] => {
@@ -48,10 +45,7 @@ export function vicinityGraphToElk(graph: VicinityGraph): ElkNode {
 			id: folderGroupIdOf(group.folder),
 			children,
 			edges: [],
-			layoutOptions:
-				mode === "layered"
-					? { "elk.padding": ELK_GROUP_PADDING }
-					: { ...ELK_GROUP_MEMBER_OPTIONS, "elk.padding": ELK_GROUP_PADDING },
+			layoutOptions: { ...ELK_GROUP_MEMBER_OPTIONS, "elk.padding": ELK_GROUP_PADDING },
 		};
 		containers.push(container);
 		containerByFolder.set(group.folder, container);
@@ -69,29 +63,25 @@ export function vicinityGraphToElk(graph: VicinityGraph): ElkNode {
 			crossBoundaryEdges.push(edge);
 		}
 	}
-	const rootEdges =
-		mode === "layered"
-			? crossBoundaryEdges.map((edge) => ({ id: edgeIdOf(edge), sources: [edge.source], targets: [edge.target] }))
-			: projectedRootEdges(crossBoundaryEdges, grouping, graph.nodes);
+	const rootEdges = projectedRootEdges(crossBoundaryEdges, grouping, graph.nodes);
 	return {
 		id: ELK_ROOT_ID,
-		layoutOptions: { ...ELK_ROOT_OPTIONS_BY_MODE[mode] },
+		layoutOptions: { ...ELK_FORCE_ROOT_OPTIONS },
 		children: [...containers, ...ungroupedLeaves],
 		edges: rootEdges,
 	};
 }
 
 /**
- * Root-level edges for the `SEPARATE_CHILDREN` modes (radial/force). Elk cannot
- * reference a node nested inside a container from the root level there, so each
- * grouped endpoint is projected onto its folder container. Positions are all
- * the pipeline consumes (React Flow draws its own edges from node positions),
- * so these edges exist purely to steer the layout:
+ * Root-level edges for the `SEPARATE_CHILDREN` force root. Elk cannot reference a
+ * node nested inside a container from the root level, so each grouped endpoint is
+ * projected onto its folder container. Positions are all the pipeline consumes
+ * (React Flow draws its own edges from node positions), so these edges exist
+ * purely to steer the layout:
  * - edges collapsing onto the same projected pair are deduped;
- * - every edge is oriented centre-outward (lower `minDepth` endpoint first)
- *   because elk's radial algorithm derives its tree from edge direction —
- *   mixed link directions (incoming links) otherwise push the hub off-centre
- *   and overlap the rings (probe-verified). Harmless for force.
+ * - every edge is oriented centre-outward (lower `minDepth` endpoint first), a
+ *   stable tree-like hint that keeps the hub centred regardless of link
+ *   direction (incoming links). Harmless for the force seed.
  */
 function projectedRootEdges(
 	crossBoundaryEdges: readonly GraphEdge[],

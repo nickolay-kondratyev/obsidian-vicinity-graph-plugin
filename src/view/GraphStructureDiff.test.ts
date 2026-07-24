@@ -74,11 +74,3 @@ describe("decideLayout groupByFolder flip (step-05)", () => {
 	});
 });
 
-describe("decideLayout layoutMode switch", () => {
-	it("WHEN only layoutMode changed THEN a relayout is forced (same structure, different arrangement)", () => {
-		const nodes = [makeNode({ path: asVaultPath("a.md") })];
-		const previous = makeGraph({ nodes });
-		const next = makeGraph({ nodes, viewSettings: { ...previous.viewSettings, layoutMode: "radial" } });
-		expect(decideLayout(previous, next, 1.0)).toBe("relayout");
-	});
-});

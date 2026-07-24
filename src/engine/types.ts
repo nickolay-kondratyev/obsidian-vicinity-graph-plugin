@@ -128,19 +128,6 @@ export interface GraphEdge extends DirectedLink {
  */
 export type EdgeVisibilityMode = "walked-from-center" | "all-edges";
 
-/**
- * Which algorithm arranges the graph:
- * - `"force"` — organic d3-force packing (elk seeds, d3 refines the root);
- *   stays compact on the hub-with-many-neighbours shape a vicinity graph
- *   typically has, where radial rings disperse. The default.
- * - `"radial"` — elk's concentric rings around the central hub.
- * - `"layered"` — elk's classic top-down layers (rows).
- */
-export type LayoutMode = "layered" | "radial" | "force";
-
-/** All layout modes — single source for the persistence parser and UI selectors. */
-export const LAYOUT_MODES: readonly LayoutMode[] = ["layered", "radial", "force"];
-
 // ---------------------------------------------------------------------------
 // Settings shapes (persisted by step-03; resolved by the engine's resolvers).
 // Per-field semantics everywhere: absence = inherit, presence = pinned.
@@ -210,7 +197,6 @@ export interface ViewSettings {
 	readonly nodeCap: number;
 	readonly groupByFolder: boolean;
 	readonly edgeVisibility: EdgeVisibilityMode;
-	readonly layoutMode: LayoutMode;
 	/** Whether the post-layout obstacle-avoiding edge-routing pass runs (default OFF). */
 	readonly edgeRouting: boolean;
 	readonly sizing: SizingSettings;
