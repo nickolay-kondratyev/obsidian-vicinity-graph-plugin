@@ -26,9 +26,12 @@ Interaction:
 | 3 | Outline staleness | **Accept for now.** Ship without a `metadataCache.on("changed")` trigger; outlines refresh on the next natural rebuild (active-file switch / rename / delete). **File a `docs-internal/tickets/` ticket** for a debounced live-refresh follow-up. |
 | 4 | Excalidraw exclusion | **Filename suffix `.excalidraw.md`.** Excalidraw files **stay in the graph** as nodes — they are excluded from **outline parsing/rendering only**. |
 
-## Interpretation note (flagged to human; correct if wrong)
+## Round 2 — human decisions (CONFIRMED, binding)
 
-Answers 1 and 2 combine as: **no on/off toggle for the feature, but a "max outline depth" setting does exist** (default 2). If the human intended literally zero new settings, the depth becomes a hard-coded constant of 2 and the settings plumbing is dropped.
+| # | Question | Decision |
+|---|---|---|
+| 5 | Settings interpretation of answers 1+2 | **CONFIRMED: no on/off toggle, but the "Outline depth" slider DOES ship** (global, 1–6, default 2). Full `SETTINGS_SPEC` plumbing stays in scope. |
+| 6 | Staleness ticket framing (planner found `metadataCache.on("resolved")` IS already wired, debounced 500ms — the earlier assumption in decision #3 was wrong) | **Verify-first ticket**: verify refresh latency in a real vault while editing headings; tighten the trigger **only if** the lag is actually noticeable. No speculative work now. Decision #3 is superseded on the "add the missing listener" framing. |
 
 ## Binding constraints from exploration (see `EXPLORATION_PUBLIC.md`)
 
