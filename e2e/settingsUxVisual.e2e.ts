@@ -87,8 +87,17 @@ test("exclusion toggle switches on, shows patterns state, and persists", async (
 test("force layout: 6 sliders, live write, restore defaults", async () => {
 	const forceLayout = disclosure("Force layout").first();
 	await setOpen(forceLayout, true);
-	await setOpen(disclosure("Advanced spacing"), true);
+	// Target the advanced <details> by its OWN class: a summary-text `has:`
+	// locator would also match the ancestor Force-layout details (it contains
+	// the advanced summary), and setOpen's `.first()` would open the wrong one.
+	const advanced = forceLayout.locator("details.vicinity-graph-forcelayout__advanced");
+	await setOpen(advanced, true);
+	await expect(advanced).toHaveAttribute("open", "");
 	await expect(forceLayout.locator("input[type=range]")).toHaveCount(6);
+	// toHaveCount alone also counts hidden inputs — additionally prove the two
+	// advanced sliders are genuinely user-reachable behind the opened disclosure.
+	await expect(forceLayout.getByLabel("Node spacing")).toBeVisible();
+	await expect(forceLayout.getByLabel("Group member spacing")).toBeVisible();
 	const repel = forceLayout.getByLabel("Repel force");
 	const defaultRepel = await repel.inputValue();
 	await repel.evaluate((el) => {
@@ -119,8 +128,10 @@ test("settings tab renders five framed section cards with plugin CSS applied", a
 	// The framed-card border proves settings-tab.css reached the settings DOM.
 	const borderStyle = await sections.first().evaluate((el) => getComputedStyle(el).borderTopStyle);
 	expect(borderStyle).toBe("solid");
-	await page.screenshot({ path: `${OUT_DIR}/settings-tab-cards.png` });
+	// The sandbox boots LIGHT — set each theme explicitly so the screenshot
+	// filenames are truthful (dark evidence was previously mislabeled light).
+	await harness.setTheme("dark");
+	await page.screenshot({ path: `${OUT_DIR}/settings-tab-cards-dark.png` });
 	await harness.setTheme("light");
 	await page.screenshot({ path: `${OUT_DIR}/settings-tab-cards-light.png` });
-	await harness.setTheme("dark");
 });

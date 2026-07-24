@@ -14,6 +14,9 @@ There is no release automation yet; every step below is **manual.**
 - [ ] `npm run build` — production bundle to `main.js` + `styles.css`, EXIT 0.
 - [ ] `npm run test:e2e` — real-Obsidian Playwright gate. Run in a display-capable
       env before release (auto-provisions the pinned Obsidian binary on Linux/CI).
+- [ ] On an Obsidian version bump: visually re-verify the in-graph exclusion
+      toggle — `src/view/ToggleSwitch.tsx` reuses Obsidian's internal
+      `checkbox-container` markup contract (no plugin CSS fallback).
 
 ## 2. Pre-ship gates (tracked separately, not this step's exit criteria)
 
