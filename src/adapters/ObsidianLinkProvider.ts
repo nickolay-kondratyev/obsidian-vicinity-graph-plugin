@@ -8,7 +8,7 @@ import { CanvasCapabilityDetector } from "./CanvasCapability";
 import type { CanvasParseCache } from "./CanvasParseCache";
 import type { MetadataCachePort, VaultFilePort, VaultPort } from "./obsidianPorts";
 
-const MARKDOWN_EXTENSION = "md";
+/** Kept local: canvas capability detection is adapter-specific knowledge, not a shared file kind. */
 const CANVAS_EXTENSION = "canvas";
 /** Obsidian reports "/" as the parent path of vault-root files; the engine's root folder is "". */
 const OBSIDIAN_ROOT_FOLDER = "/";
@@ -129,7 +129,7 @@ export class ObsidianLinkProvider implements LinkProvider {
 	 * POLS worse than falling back to the basename.
 	 */
 	private frontmatterTitleOf(file: VaultFilePort): string | undefined {
-		if (file.extension !== MARKDOWN_EXTENSION) {
+		if (!FileKinds.isMarkdownPath(file.path)) {
 			return undefined; // Only markdown carries frontmatter.
 		}
 		const frontmatter = this.metadataCache.getFileCache(file)?.frontmatter;
@@ -157,7 +157,7 @@ export class ObsidianLinkProvider implements LinkProvider {
 			const parsedPaths = this.canvasOutgoingByPath.get(path) ?? [];
 			return dedupe(parsedPaths.filter((target) => this.vault.getFileByPath(target) !== null));
 		}
-		if (file.extension === MARKDOWN_EXTENSION) {
+		if (FileKinds.isMarkdownPath(file.path)) {
 			const cache = this.metadataCache.getFileCache(file);
 			if (cache !== null) {
 				const orderedTexts = ReferenceOrder.orderedLinkTexts(cache);

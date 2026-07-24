@@ -15,6 +15,28 @@ describe("FileKinds.isNodeBearingPath", () => {
 	});
 });
 
+describe("FileKinds.isOutlineBearingPath", () => {
+	it("WHEN the path is a markdown note THEN it is outline-bearing", () => {
+		expect(FileKinds.isOutlineBearingPath("notes/a.md")).toBe(true);
+	});
+
+	it("WHEN the path is an excalidraw drawing THEN it is NOT outline-bearing", () => {
+		expect(FileKinds.isOutlineBearingPath("draw/x.excalidraw.md")).toBe(false);
+	});
+
+	it("WHEN the excalidraw suffix is upper-cased THEN it is still NOT outline-bearing", () => {
+		expect(FileKinds.isOutlineBearingPath("draw/X.Excalidraw.MD")).toBe(false);
+	});
+
+	it("WHEN the path is a canvas THEN it is NOT outline-bearing (canvas has no headings)", () => {
+		expect(FileKinds.isOutlineBearingPath("board.canvas")).toBe(false);
+	});
+
+	it("WHEN the path is an excalidraw drawing THEN it is STILL node-bearing (excluded from outline parsing only)", () => {
+		expect(FileKinds.isNodeBearingPath("draw/x.excalidraw.md")).toBe(true);
+	});
+});
+
 describe("FileKinds.isImagePath", () => {
 	it("WHEN the path has an image extension THEN it is an image", () => {
 		expect(FileKinds.isImagePath("shots/pic.JPG")).toBe(true);
