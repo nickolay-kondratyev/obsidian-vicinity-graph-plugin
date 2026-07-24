@@ -120,7 +120,9 @@ export class ObsidianLinkProvider implements LinkProvider {
 			return undefined;
 		}
 		// One cache read serves both the title and the outline (they ask the same
-		// `getFileCache` question about the same file).
+		// `getFileCache` question about the same file). `attachments` resolves its
+		// own references through `resolvedOutgoingPaths`, which also handles the
+		// canvas and not-yet-cached branches this read cannot answer.
 		const cache = this.metadataCache.getFileCache(file);
 		return {
 			folder: asFolderPath(engineFolderOf(file)),
@@ -148,8 +150,7 @@ export class ObsidianLinkProvider implements LinkProvider {
 		if (firstHeading === undefined) {
 			return [];
 		}
-		const firstImageOffset = this.firstImageOffsetOf(file.path, cache);
-		if (firstImageOffset !== undefined && firstImageOffset < firstHeading.position.start.offset) {
+		if (this.referencesImageAbove(firstHeading.position.start.offset, file.path, cache)) {
 			return []; // The image wins.
 		}
 		// Obsidian's `headings` is already in document order — never re-sorted.
@@ -157,27 +158,44 @@ export class ObsidianLinkProvider implements LinkProvider {
 	}
 
 	/**
-	 * Document offset of the note's first referenced IMAGE, or `undefined` when it
-	 * references none. Computed from RESOLVED references (the same pass that feeds
-	 * `attachments`/`firstImagePath`), so an unresolvable `![[missing.png]]` cannot
-	 * suppress the outline while producing no thumbnail — a silently blank node.
+	 * Whether the note references an IMAGE above `offsetLimit` — the outline rule
+	 * asked directly ("is there an image before the first heading?").
+	 *
+	 * RESOLVED references only (the same resolution `attachments`/`firstImagePath`
+	 * use), so an unresolvable `![[missing.png]]` cannot suppress the outline while
+	 * producing no thumbnail — a silently blank node. References arrive ascending
+	 * by offset, so the scan stops at the limit rather than resolving the whole
+	 * file: only the references ABOVE the first heading are resolved here, and
+	 * `attachments` (which resolves all of them) stays the single full pass.
 	 */
-	private firstImageOffsetOf(path: string, cache: CachedMetadataPort): number | undefined {
-		return this.orderedMarkdownReferences(path, cache).find((reference) =>
-			FileKinds.isImagePath(reference.path),
-		)?.offset;
+	private referencesImageAbove(offsetLimit: number, path: string, cache: CachedMetadataPort): boolean {
+		for (const reference of ReferenceOrder.orderedReferences(cache)) {
+			if (reference.offset >= offsetLimit) {
+				return false; // Ascending order: nothing further can be above the limit.
+			}
+			const target = this.resolveReference(reference.link, path);
+			if (target !== undefined && FileKinds.isImagePath(target)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/** Resolved markdown references in document order, WITH offsets, duplicates kept. */
 	private orderedMarkdownReferences(path: string, cache: CachedMetadataPort): readonly ResolvedReference[] {
 		const resolved: ResolvedReference[] = [];
 		for (const reference of ReferenceOrder.orderedReferences(cache)) {
-			const target = this.metadataCache.getFirstLinkpathDest(reference.link, path)?.path;
+			const target = this.resolveReference(reference.link, path);
 			if (target !== undefined) {
 				resolved.push({ path: target, offset: reference.offset });
 			}
 		}
 		return resolved;
+	}
+
+	/** The vault path a link text resolves to from `fromPath`, or `undefined` when it dangles. */
+	private resolveReference(link: string, fromPath: string): string | undefined {
+		return this.metadataCache.getFirstLinkpathDest(link, fromPath)?.path;
 	}
 
 	/** Resolved outgoing targets in reference order, deduped (first occurrence wins). */

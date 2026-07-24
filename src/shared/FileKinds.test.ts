@@ -15,6 +15,22 @@ describe("FileKinds.isNodeBearingPath", () => {
 	});
 });
 
+describe("FileKinds.isMarkdownPath", () => {
+	it("WHEN the path is a markdown note THEN it is markdown", () => {
+		expect(FileKinds.isMarkdownPath("notes/a.md")).toBe(true);
+	});
+
+	it("WHEN the markdown extension is upper-cased THEN it is STILL markdown", () => {
+		// The adapter used to compare Obsidian's `TFile.extension` to "md" literally;
+		// routing frontmatter/link resolution through here made `NOTE.MD` markdown too.
+		expect(FileKinds.isMarkdownPath("NOTE.MD")).toBe(true);
+	});
+
+	it("WHEN the path is a canvas THEN it is not markdown", () => {
+		expect(FileKinds.isMarkdownPath("board.canvas")).toBe(false);
+	});
+});
+
 describe("FileKinds.isOutlineBearingPath", () => {
 	it("WHEN the path is a markdown note THEN it is outline-bearing", () => {
 		expect(FileKinds.isOutlineBearingPath("notes/a.md")).toBe(true);

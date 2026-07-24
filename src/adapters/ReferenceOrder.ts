@@ -31,6 +31,10 @@ export class ReferenceOrder {
 	 * links first at {@link FRONTMATTER_REFERENCE_OFFSET} — they sit at the top
 	 * of the file and carry no body offset — then body links and embeds merged by
 	 * their start offset.
+	 *
+	 * The result is therefore ASCENDING by offset end to end (the sentinel is
+	 * negative, body offsets are >= 0), which lets callers stop scanning once they
+	 * pass an offset of interest instead of resolving every reference.
 	 */
 	static orderedReferences(cache: CachedMetadataPort): readonly OrderedReference[] {
 		const frontmatter = (cache.frontmatterLinks ?? []).map((ref) => ({
@@ -40,10 +44,5 @@ export class ReferenceOrder {
 		const bodyRefs: ReferencePort[] = [...(cache.links ?? []), ...(cache.embeds ?? [])];
 		bodyRefs.sort((a, b) => a.position.start.offset - b.position.start.offset);
 		return [...frontmatter, ...bodyRefs.map((ref) => ({ link: ref.link, offset: ref.position.start.offset }))];
-	}
-
-	/** Link texts in document order — the projection of {@link orderedReferences} (one ordering truth). */
-	static orderedLinkTexts(cache: CachedMetadataPort): readonly string[] {
-		return ReferenceOrder.orderedReferences(cache).map((ref) => ref.link);
 	}
 }

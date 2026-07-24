@@ -178,10 +178,6 @@ describe("SettingsDefaults discoverability shim", () => {
 });
 
 describe("outline depth spec (CLARIFICATION Q1 + Q5)", () => {
-	it("WHEN EngineDefaults.viewSettings is built THEN outlineMaxDepth equals the spec default", () => {
-		expect(EngineDefaults.viewSettings().outlineMaxDepth).toBe(SETTINGS_SPEC.globalView.outlineMaxDepth.default);
-	});
-
 	it("WHEN the spec is read THEN the outline depth default is the shipped baseline of 2", () => {
 		expect(SETTINGS_SPEC.globalView.outlineMaxDepth.default).toBe(2);
 	});

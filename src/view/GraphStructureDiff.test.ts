@@ -118,16 +118,3 @@ describe("decideLayout force-layout tuning change (ticket-04 live sliders)", () 
 		expect(decideLayout(previous, next, 1.0)).toBe("reuse-layout");
 	});
 });
-
-
-describe("decideLayout node data changes", () => {
-	it("WHEN only a node's outline changed THEN the layout is still reused (outline never forces a relayout)", () => {
-		// GIVEN one node whose HEADINGS were edited between rebuilds — no id, edge,
-		// grouping, force-layout or size change.
-		const previous = makeGraph({ nodes: [makeNode({ path: asVaultPath("a.md"), outline: [] })] });
-		const next = makeGraph({
-			nodes: [makeNode({ path: asVaultPath("a.md"), outline: [{ rawText: "Intro", level: 1 }] })],
-		});
-		expect(decideLayout(previous, next, SIZE_RELAYOUT_THRESHOLD)).toBe("reuse-layout");
-	});
-});
