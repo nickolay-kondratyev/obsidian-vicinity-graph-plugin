@@ -45,7 +45,7 @@ export interface Avoid {
 		proportional: boolean,
 		insideOffset: number,
 		visDirs: number,
-	) => unknown;
+	) => AvoidShapeConnectionPin;
 	ConnEnd: new (shapeOrPoint: AvoidShapeRef | AvoidPoint, classId?: number) => AvoidConnEnd;
 	ConnRef: new (router: AvoidRouter, src: AvoidConnEnd, dst: AvoidConnEnd) => AvoidConnRef;
 
@@ -67,6 +67,21 @@ export interface AvoidShapeRef {
 }
 export interface AvoidConnEnd {
 	readonly __connEnd: unique symbol;
+}
+/**
+ * A connection pin registered on a shape. Router-owned: never `destroy()` it.
+ *
+ * Exclusivity is the only knob we use — an exclusive pin accepts at most one
+ * connector, so a shape's pins run out and libavoid falls back to the shape centre
+ * (ticket edge-routing__06). Its default is derived from the pin's visibility
+ * directions, hence `isExclusive()`: it is the honest way to observe what a freshly
+ * constructed pin actually is. The binding also exposes `setConnectionCost`, left
+ * deliberately UNTYPED: pin costs are a measured negative result (edge-routing__05,
+ * `docs-internal/research/facing-side-edge-attachment.md`) and must stay unreachable.
+ */
+export interface AvoidShapeConnectionPin {
+	setExclusive(exclusive: boolean): void;
+	isExclusive(): boolean;
 }
 export interface AvoidPolyLine {
 	size(): number;

@@ -367,4 +367,167 @@ describe("LibavoidEdgeRouter with real wasm", () => {
 		const { last } = await routePair(boxL, boxR);
 		expect(minCornerDistance(last, boxR)).toBeGreaterThan(CORNER_CLEARANCE_TOL_PX);
 	});
+
+	// Pin-exhaustion guard (edge-routing__06 item (a)). An EXCLUSIVE libavoid pin accepts at
+	// most ONE connector, and a directional pin is exclusive by default on this binding, so
+	// a group box's twelve boundary pins form one finite pool. Two consequences, both
+	// measured against the real wasm (implementer probe, tall box + N leaves down its left):
+	//   * from the 4th edge on, the crowd spills onto pins of the WRONG side (8 edges: 5 of
+	//     them terminated on the top/right borders instead of the facing left one), and
+	//   * from the 13th edge on, the pool is exhausted, libavoid warns "no pins with class
+	//     id of 1" and falls back to the shape CENTRE — the pre-edge-routing__04 pathology.
+	// Routes are UNCLIPPED at this layer (GraphViewController clips them later), so both
+	// failures are directly observable in the terminal point of the route.
+	const FACING_SIDE_EDGE_COUNT = 8; // > 3 pins on the facing side: the crowd spills sideways
+	const PIN_POOL_EXHAUSTING_EDGE_COUNT = 16; // > 12 pins on the box: libavoid falls back to the centre
+	const GROUP_CENTRE_TOL_PX = 1; // a centre fallback lands ON the centre, not near it
+	const tallGroup: RoutingObstacle = { id: "G", x: 400, y: 0, widthPx: 200, heightPx: 800, kind: "folder-group" };
+
+	/**
+	 * Terminal (group-side) point of every route in a scene of `edgeCount` leaf notes
+	 * stacked down the LEFT of {@link tallGroup}, one edge each — so every edge's facing
+	 * side is unambiguously the group's left border.
+	 */
+	async function crowdedSideTerminals(edgeCount: number): Promise<{ x: number; y: number }[]> {
+		const leaves: RoutingObstacle[] = Array.from({ length: edgeCount }, (_unused, index) => ({
+			id: `L${index}`,
+			x: 100,
+			y: Math.round(10 + (index * tallGroup.heightPx) / edgeCount),
+			widthPx: 60,
+			heightPx: 30,
+			kind: "note",
+		}));
+		const routes = await new LibavoidEdgeRouter().route({
+			obstacles: [tallGroup, ...leaves],
+			edges: leaves.map((leaf) => ({ id: `${leaf.id}->G`, sourceId: leaf.id, targetId: tallGroup.id })),
+		});
+		return leaves.map((leaf) => {
+			const polyline = routes.get(`${leaf.id}->G`);
+			if (polyline === undefined || polyline.length < 2) {
+				throw new Error(`router produced no route for ${leaf.id}->G`);
+			}
+			const last = polyline[polyline.length - 1];
+			if (last === undefined) {
+				throw new Error(`route ${leaf.id}->G missing its terminal point`);
+			}
+			return last;
+		});
+	}
+
+	it("WHEN more edges approach a group box than it has pins THEN no route terminates at the group centre", async () => {
+		if (!loaded) {
+			return;
+		}
+		const centre = { x: tallGroup.x + tallGroup.widthPx / 2, y: tallGroup.y + tallGroup.heightPx / 2 };
+		const terminals = await crowdedSideTerminals(PIN_POOL_EXHAUSTING_EDGE_COUNT);
+		expect(terminals.filter((p) => Math.hypot(p.x - centre.x, p.y - centre.y) <= GROUP_CENTRE_TOL_PX)).toEqual([]);
+	});
+
+	it("WHEN eight edges approach the same side of a group box THEN every route still terminates on that facing side", async () => {
+		if (!loaded) {
+			return;
+		}
+		const terminals = await crowdedSideTerminals(FACING_SIDE_EDGE_COUNT);
+		expect(terminals.filter((p) => Math.abs(p.x - tallGroup.x) > FACING_BORDER_TOL_PX)).toEqual([]);
+	});
+
+	// The note CENTRE pin is the other half of the exclusivity decision, and it is a guard,
+	// not a fix: its ConnDirAll visibility already makes libavoid create it non-exclusive, so
+	// `setExclusive(false)` changed 0 of 949 routes there (implementer probe, 200 seeded
+	// scenes at hub degree 2-8). This test has teeth all the same — force that pin exclusive
+	// (directly, or by giving it a direction, which flips libavoid's default) and every spoke
+	// after the first loses its pin and routes STRAIGHT THROUGH whatever lies between: 5 of
+	// the 6 spokes below do exactly that when the pin is made exclusive.
+	const HUB_SPOKE_COUNT = 6;
+	const HUB_CENTRE = { x: 500, y: 400 };
+	const SPOKE_RADIUS_PX = 400;
+	const BLOCKER_RADIUS_PX = 200;
+	const hubNote: RoutingObstacle = { id: "H", x: 470, y: 385, widthPx: 60, heightPx: 30, kind: "note" };
+
+	/** Note squares (60x30) evenly around the hub, each shadowed by an 80x80 box mid-spoke. */
+	function hubSpokes(): { leaves: RoutingObstacle[]; blockers: RoutingObstacle[] } {
+		const leaves: RoutingObstacle[] = [];
+		const blockers: RoutingObstacle[] = [];
+		for (let index = 0; index < HUB_SPOKE_COUNT; index++) {
+			const angle = (index / HUB_SPOKE_COUNT) * Math.PI * 2;
+			const at = (radius: number): { x: number; y: number } => ({
+				x: Math.round(HUB_CENTRE.x + Math.cos(angle) * radius),
+				y: Math.round(HUB_CENTRE.y + Math.sin(angle) * radius),
+			});
+			const leaf = at(SPOKE_RADIUS_PX);
+			const blocker = at(BLOCKER_RADIUS_PX);
+			leaves.push({ id: `S${index}`, x: leaf.x - 30, y: leaf.y - 15, widthPx: 60, heightPx: 30, kind: "note" });
+			blockers.push({ id: `X${index}`, x: blocker.x - 40, y: blocker.y - 40, widthPx: 80, heightPx: 80, kind: "note" });
+		}
+		return { leaves, blockers };
+	}
+
+	/**
+	 * WHAT: Liang–Barsky clip of segment a→b against `rect` — true when they overlap at all.
+	 * WHY not `isStrictlyInside`: a route that cuts through a box places NO waypoint inside
+	 * it (it is one straight segment from end to end), so only a segment test can see it.
+	 */
+	function segmentCrosses(a: { x: number; y: number }, b: { x: number; y: number }, rect: RoutingObstacle): boolean {
+		let tMin = 0;
+		let tMax = 1;
+		const dx = b.x - a.x;
+		const dy = b.y - a.y;
+		const clips: readonly (readonly [number, number])[] = [
+			[-dx, a.x - rect.x],
+			[dx, rect.x + rect.widthPx - a.x],
+			[-dy, a.y - rect.y],
+			[dy, rect.y + rect.heightPx - a.y],
+		];
+		for (const [edgeDir, edgeDist] of clips) {
+			if (edgeDir === 0) {
+				if (edgeDist < 0) {
+					return false; // parallel to this edge and outside it
+				}
+				continue;
+			}
+			const t = edgeDist / edgeDir;
+			if (edgeDir < 0) {
+				if (t > tMax) {
+					return false;
+				}
+				tMin = Math.max(tMin, t);
+			} else {
+				if (t < tMin) {
+					return false;
+				}
+				tMax = Math.min(tMax, t);
+			}
+		}
+		return tMax > tMin;
+	}
+
+	function routeCrosses(polyline: readonly { x: number; y: number }[], rect: RoutingObstacle): boolean {
+		for (let i = 1; i < polyline.length; i++) {
+			const from = polyline[i - 1];
+			const to = polyline[i];
+			if (from !== undefined && to !== undefined && segmentCrosses(from, to, rect)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	it("WHEN several edges attach to the same note square THEN no route cuts through the boxes in between", async () => {
+		if (!loaded) {
+			return;
+		}
+		const { leaves, blockers } = hubSpokes();
+		const routes = await new LibavoidEdgeRouter().route({
+			obstacles: [hubNote, ...leaves, ...blockers],
+			edges: leaves.map((leaf) => ({ id: `${leaf.id}->H`, sourceId: leaf.id, targetId: hubNote.id })),
+		});
+		const cutting = leaves.filter((leaf) => {
+			const polyline = routes.get(`${leaf.id}->H`);
+			if (polyline === undefined || polyline.length < 2) {
+				throw new Error(`router produced no route for ${leaf.id}->H`);
+			}
+			return blockers.some((blocker) => routeCrosses(polyline, blocker));
+		});
+		expect(cutting.map((leaf) => leaf.id)).toEqual([]);
+	});
 });

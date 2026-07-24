@@ -266,7 +266,7 @@ function visDirsFor(avoid: Avoid, dir: PinDir): number {
 function registerPinsForShape(avoid: Avoid, shape: AvoidShapeRef, kind: RoutingObstacle["kind"]): void {
 	const specs = kind === "folder-group" ? BOUNDARY_PIN_SPECS : [CENTRE_PIN_SPEC];
 	for (const spec of specs) {
-		new avoid.ShapeConnectionPin(
+		const pin = new avoid.ShapeConnectionPin(
 			shape,
 			PIN_CLASS,
 			spec.xFrac,
@@ -275,6 +275,21 @@ function registerPinsForShape(avoid: Avoid, shape: AvoidShapeRef, kind: RoutingO
 			PIN_INSIDE_OFFSET,
 			visDirsFor(avoid, spec.dir),
 		);
+		// WHY (ticket edge-routing__06 item (a)): an EXCLUSIVE pin accepts at most ONE
+		// connector, and this binding derives that default from the pin's visibility —
+		// measured, a directional pin reports `isExclusive() === true`, a ConnDirAll pin
+		// false. The 12 directional BOUNDARY pins are therefore a finite pool: the 4th edge
+		// approaching a side is pushed onto a pin of the WRONG side, and the 13th finds none
+		// at all — libavoid then warns ("no pins with class id of 1") and falls back to the
+		// shape CENTRE, reviving the pre-edge-routing__04 roundabout attachment. Shared pins
+		// fix both and cost nothing: still one routing pass (measured over 400 crowded scenes
+		// at realistic group degree: non-facing attachments 82 -> 40, total length -2.3%).
+		// On the note CENTRE pin this is a measured no-op (ConnDirAll is already shared — 0 of
+		// 949 routes changed); it is applied uniformly so the requirement is stated in code
+		// rather than resting on a default that a change of pin direction would silently flip.
+		// The local const exists ONLY for this call — see the OWNERSHIP GOTCHA on AvoidArena
+		// below: this pin is router-owned, so it must never be tracked or destroyed by us.
+		pin.setExclusive(false);
 	}
 }
 

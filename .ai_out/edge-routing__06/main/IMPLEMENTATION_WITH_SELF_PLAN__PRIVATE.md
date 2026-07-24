@@ -74,9 +74,75 @@ not a stale trivial intermediate (edge-routing__04 false-pass hazard).
 `src/engine/SettingsSpec.test.ts` — expects `linkStrengthFactor.max: 2`, spec ships `4`. Structurally
 cannot be caused by e2e-only edits (vitest globs `src/**/*.test.{ts,tsx}`). It was the ONLY failure.
 
-## If a future clone continues into the sweep
+## If a future clone continues into the sweep (step 0 note)
 
 Editing `EDGE_ROUTING_SHAPE_BUFFER_PX` (`src/view/edgeRouting.ts:71`) turns `npm test` red on
 `src/view/edgeRouting.test.ts:109-131` (asserts `=== 17`). Expected; never loosen those. `npm run
 build`/`test:e2e` stay green since they only run `tsc`. Copy `.out/edge-routing-force-*.png` aside per
 value — filenames are fixed and get overwritten each run.
+
+---
+
+# STEP 1 — item (a) `setExclusive(false)` — DONE, all green, uncommitted
+
+Public result: `STEP1_SET_EXCLUSIVE__PUBLIC.md` (same dir). Plan I followed: RED test -> one-line
+change + loader type narrowing -> measure -> decide the note-pin question with evidence -> verify.
+
+## Files touched (only these three)
+
+- `src/view/edgeRouting.ts:266-294` — `const pin = new avoid.ShapeConnectionPin(...); pin.setExclusive(false);`
+  plus a WHY block that points at the OWNERSHIP GOTCHA immediately below it. Pin never tracked, never destroyed.
+- `src/view/libavoidLoader.ts:40-48, 72-86` — constructor returns the new `AvoidShapeConnectionPin`
+  (`setExclusive` + `isExclusive` only; `setConnectionCost` deliberately absent, with the WHY-NOT in the doc).
+- `src/view/edgeRouting.test.ts:371-533` — 3 real-wasm tests + `crowdedSideTerminals`, `hubSpokes`,
+  `segmentCrosses` (Liang-Barsky), `routeCrosses`.
+
+## THE thing a clone of me must not re-derive (cost me the most time)
+
+**libavoid's pin-exclusivity default is derived from `visDirs`, NOT globally true.**
+Measured with the freshly exposed `isExclusive()`:
+- directional pin (`ConnDirLeft/...`) -> `isExclusive() === true`;
+- `ConnDirAll` pin (the note centre pin) -> `isExclusive() === false`.
+Consequences: (1) the ticket's "directional pins default to EXCLUSIVE" is right only for the group's 12;
+(2) **explicit `setExclusive(true)` is NOT a stand-in for "today"** on note pins — I initially measured that
+way and wrongly concluded there was a live obstacle-cutting bug at multi-edge notes. Always use "no call at
+all" as the baseline arm in a probe.
+
+**Exclusivity is per PIN across the whole shared-class pool.** All 12 group pins share `PIN_CLASS`, so the
+group CENTRE fallback starts at the **13th** edge, not the 4th. At 8 edges the symptom is 5 of 8 terminating
+on the WRONG SIDE. That is why the ticket's literal test spec (8 edges -> none at centre) is green on
+unmodified code; I used 16 edges for the centre test and kept 8 for a facing-side test.
+
+## Probe invocations (all from repo root, node, `.tmp/`, untracked)
+
+```bash
+node .tmp/probe11-reviewer.mjs          # pre-existing; A vs B, 2 corpora  -> reproduced 24->22 / 82->40
+node .tmp/probe14-side-crowding.mjs     # N=4..20 one group + N left leaves; shows centre fallback at N=13
+node .tmp/probe21-shipped.mjs           # probe11 corpora, variant = what is actually shipped (group+note)
+node .tmp/probe22-note-ring.mjs         # 6 spokes into one hub note, blocker per spoke: 5/6 vs 0/6
+node .tmp/probe24-default-vs-true.mjs   # prints isExclusive() right after construction (the key finding)
+node .tmp/probe25-group-default-vs-true.mjs   # group pins: default == explicit true, both != false
+node .tmp/probe26-note-default-vs-false.mjs   # note pins: default == explicit false (0 of 949 routes differ)
+```
+Probes print libavoid warnings on **stderr** (`no pins with class id of 1`) — `2>/dev/null` when grepping,
+but that stderr volume also inflates the slow arm's `ms`, so never quote probe ms as a perf result.
+
+## Verifying RED/GREEN of a routing change — mutation trick
+
+vitest picks up `src/` edits immediately (no cache trap). To prove a test has teeth without reverting the
+feature, mutate the production line and re-run:
+`sed`/python-replace `pin.setExclusive(false)` -> `pin.setExclusive(true)` gives 3 failed / 19 passed;
+-> `if (kind === "folder-group") { ... }` isolates the note-pin half (all 22 pass — that is how I proved the
+note pin call is a no-op). Keep a backup: `cp src/view/edgeRouting.ts .tmp/edgeRouting.ts.bak` and restore.
+
+## Verification actually run
+
+`npm run check` exit 0; `npm test` exit 0 -> 63 files / 772 tests passed (the old SettingsSpec failure is
+gone — main fixed it). e2e NOT run (next step). Logs: `.tmp/step1-{red,green,green2,note-red2,check,unit}.log`.
+
+## Open ends for the next agent
+
+- Ticket notes not updated by me; a paste-ready paragraph (with the two corrections to the ticket's own
+  rationale) is in `STEP1_SET_EXCLUSIVE__PUBLIC.md` §6.
+- Item (b) untouched: buffer still 17, no settings plumbing, `e2e/` untouched.
+- If an e2e detour/perf number moves in step 2, note routing ms was flat here (536 -> 530 aggregate).
