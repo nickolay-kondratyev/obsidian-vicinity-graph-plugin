@@ -1,6 +1,7 @@
 import type { SizeMetricId, SizingSettings, ViewSettings } from "../engine";
 import type { ReactElement } from "react";
 import { useControlsActions } from "./ControlsActionsContext";
+import { Disclosure } from "./Disclosure";
 import type { SettingsWriteContext } from "./settingsWritePlan";
 import { planSettingsWrite } from "./settingsWritePlan";
 import { SIZING_METRICS } from "./sizingMetrics";
@@ -35,10 +36,8 @@ export function SizingSection({
 	};
 
 	return (
-		<details className="vicinity-graph-disclosure vicinity-graph-sizing">
-			<summary className="vicinity-graph-disclosure__summary">Node sizing</summary>
-			<div className="vicinity-graph-disclosure__body nowheel">
-				<div className="vicinity-graph-sizing__metrics">
+		<Disclosure summary="Node sizing" className="vicinity-graph-sizing" bodyClassName="nowheel">
+			<div className="vicinity-graph-sizing__metrics">
 					{SIZING_METRICS.map(({ id, label }) => {
 						const metric = sizing.metrics[id];
 						return (
@@ -93,8 +92,7 @@ export function SizingSection({
 						onChange={(depthDecayK) => applySizing({ ...sizing, depthDecayK })}
 					/>
 				</div>
-			</div>
-		</details>
+		</Disclosure>
 	);
 }
 

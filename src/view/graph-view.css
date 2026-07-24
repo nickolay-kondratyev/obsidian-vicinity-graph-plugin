@@ -592,7 +592,7 @@
 	opacity: 0.55;
 }
 
-/* ===== disclosures (pinned list + sizing) ============================= */
+/* ===== disclosures (shared <Disclosure> component) ==================== */
 
 .vicinity-graph-disclosure {
 	background: var(--background-primary);
@@ -677,22 +677,14 @@
 	flex-shrink: 0;
 }
 
-/* --- Node-exclusion pill (toolbar) ------------------------------------- */
+/* --- Node-exclusion disclosure (toolbar) -------------------------------- */
 
 /*
- * A single labelled checkbox that toggles global exclusion, with an optional
- * count badge shown only when exclusion is on and at least one node was excluded.
- * Same layout language as the sizing toggles; all colours are theme vars.
+ * A disclosure whose summary carries the excluded-count badge (visible even
+ * while collapsed) and whose body holds the Obsidian-native toggle switch plus,
+ * when enabled, the READ-ONLY pattern list. All colours are theme vars.
  */
-.vicinity-graph-exclusion {
-	display: flex;
-	align-items: center;
-	gap: var(--size-4-1);
-	min-width: 0;
-	color: var(--text-normal);
-	cursor: pointer;
-}
-.vicinity-graph-exclusion__label {
+.vicinity-graph-exclusion__summary-label {
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
@@ -704,8 +696,84 @@
 	font-size: var(--font-smallest);
 	line-height: 1.6;
 	color: var(--text-muted);
-	background: var(--background-primary);
+	background: var(--background-secondary);
 	border-radius: var(--radius-l);
 	box-shadow: var(--shadow-s);
 	cursor: help; /* title tooltip explains the count */
+}
+.vicinity-graph-exclusion__toggle-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--size-4-2);
+	color: var(--text-normal);
+	cursor: pointer;
+}
+.vicinity-graph-exclusion__patterns {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-2-1);
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+.vicinity-graph-exclusion__patterns code {
+	display: block;
+	padding: var(--size-2-1) var(--size-4-2);
+	font-family: var(--font-monospace);
+	font-size: var(--font-smallest);
+	color: var(--text-muted);
+	background: var(--background-secondary);
+	border-radius: var(--radius-s);
+	overflow-wrap: anywhere; /* raw regexes have no natural break points */
+}
+.vicinity-graph-exclusion__hint {
+	font-size: var(--font-smallest);
+	color: var(--text-faint);
+}
+
+/* --- Force-layout section (toolbar) ------------------------------------- */
+
+/*
+ * Six compact sliders: a muted label with a tabular-nums value readout above a
+ * full-width native range input (Obsidian's `slider` class themes the track).
+ * The long field descriptions from the shared meta table ride as native title
+ * tooltips — no room for paragraph text at 260px.
+ */
+.vicinity-graph-forcelayout__field {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-2-1);
+}
+.vicinity-graph-forcelayout__field .slider {
+	width: 100%;
+	margin: 0;
+}
+.vicinity-graph-forcelayout__head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: var(--size-4-2);
+}
+.vicinity-graph-forcelayout__label {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.vicinity-graph-forcelayout__value {
+	flex-shrink: 0;
+	font-size: var(--font-ui-smaller);
+	font-variant-numeric: tabular-nums;
+	color: var(--text-normal);
+}
+/* Nested advanced-spacing disclosure: bordered so it reads as a sub-group on
+ * the parent disclosure's identical background. */
+.vicinity-graph-forcelayout__advanced {
+	border: 1px solid var(--background-modifier-border);
+}
+.vicinity-graph-forcelayout__restore {
+	align-self: flex-start;
+	font-size: var(--font-ui-smaller);
 }
