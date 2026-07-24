@@ -1,4 +1,4 @@
-import type { LayoutMode, VicinityGraph } from "../engine";
+import type { VicinityGraph } from "../engine";
 import { EngineDefaults } from "../engine";
 import type { ControlsModel } from "./ControlsModel";
 import { REBUILD_DEBOUNCE_MS, SIZE_RELAYOUT_THRESHOLD } from "./constants";
@@ -245,7 +245,7 @@ export class GraphViewController {
 		groupDimensions: ReadonlyMap<string, Dimensions>,
 		token: number,
 	): Promise<EdgeRouteMap> {
-		if (!graph.viewSettings.edgeRouting || isRoutingSkippedLayout(graph.viewSettings.layoutMode)) {
+		if (!graph.viewSettings.edgeRouting) {
 			this.routeCache = null;
 			return EMPTY_ROUTES;
 		}
@@ -353,21 +353,6 @@ export class GraphViewController {
 			this.debounceTimer = null;
 		}
 	}
-}
-
-/**
- * Layout mode whose routing pass is intentionally SKIPPED. Radial ring placement
- * spreads nodes evenly around the hub so the spokes are already near-straight;
- * running obstacle-avoiding routing there still forces libavoid to build the full
- * ~100-obstacle visibility graph (~490ms on a dense `all-edges` vicinity, vs the
- * ~45ms radial layout) for no visual benefit. So radial edges render straight —
- * gated until a cheaper path exists (web-worker offload, deferred). Force + layered
- * still route (edge-routing__03, human decision).
- */
-const ROUTING_SKIPPED_LAYOUT_MODE: LayoutMode = "radial";
-
-function isRoutingSkippedLayout(layoutMode: LayoutMode): boolean {
-	return layoutMode === ROUTING_SKIPPED_LAYOUT_MODE;
 }
 
 /** Field separator for the route-cache signature — a NUL cannot occur in a vault path / id. */

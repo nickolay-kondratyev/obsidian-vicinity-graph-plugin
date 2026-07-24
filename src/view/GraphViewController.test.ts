@@ -8,7 +8,7 @@ import type { FlowSnapshot } from "./GraphViewController";
 import type { ControlsModel } from "./ControlsModel";
 import type { GraphBuildResult, GraphLayoutPort, GraphSourcePort, NoteNavigatorPort, OpenNoteOptions } from "./viewPorts";
 import type { EdgeRouteMap, EdgeRouter, EdgeRoutingInput } from "./edgeRouting";
-import { makeEdge, makeGraph, makeNode, withEdgeRouting, withLayoutMode } from "./testFixtures/graphFixtures";
+import { makeEdge, makeGraph, makeNode, withEdgeRouting } from "./testFixtures/graphFixtures";
 
 /** These tests exercise rebuild concurrency, not the toolbar model — an empty model suffices. */
 const EMPTY_CONTROLS: ControlsModel = {
@@ -450,18 +450,6 @@ describe("GraphViewController edge-routing pass", () => {
 		const h = setup();
 		h.controller.handleActiveFileChanged("a.md");
 		h.source.resolveBuild(0, graphOf("c.md", "n1.md")); // fixture baseline: edgeRouting off (routing tests opt in via routedGraphOf)
-		await flush();
-
-		expect(h.router.callCount).toBe(0);
-	});
-
-	it("WHEN the layout is radial THEN routing is skipped even with edgeRouting ON (router never invoked)", async () => {
-		// Radial spokes are near-straight, so the routing pass is gated off for radial
-		// (perf: it would build a full visibility graph for no visual gain). See
-		// ROUTING_SKIPPED_LAYOUT_MODE in GraphViewController.
-		const h = setup();
-		h.controller.handleActiveFileChanged("c.md");
-		h.source.resolveBuild(0, withLayoutMode(routedGraphOf("c.md", "n1.md"), "radial"));
 		await flush();
 
 		expect(h.router.callCount).toBe(0);

@@ -15,8 +15,8 @@ import {
  * elk-laid-out root: elk already sized the folder containers and produced a
  * rough seed arrangement; this pass re-arranges ONLY the root's direct children
  * (containers + ungrouped leaves) so linked boxes sit close and unlinked boxes
- * merely stop overlapping — the tight hub packing elk's own force/radial
- * algorithms cannot deliver. Children's internal layouts are untouched.
+ * merely stop overlapping — the tight hub packing elk's own force pass cannot
+ * deliver. Children's internal layouts are untouched.
  *
  * Deterministic: seeds come from elk (deterministic) and the simulation's
  * random source is a fixed-seed LCG, so the same graph always lays out

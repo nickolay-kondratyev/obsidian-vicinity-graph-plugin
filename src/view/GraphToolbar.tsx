@@ -1,7 +1,6 @@
 import type { ReactElement } from "react";
 import { CentralDepthControls } from "./CentralDepthControls";
 import type { ControlsModel } from "./ControlsModel";
-import { LayoutSection } from "./LayoutSection";
 import { NodeExclusionSection } from "./NodeExclusionSection";
 import type { SettingsWriteContext } from "./settingsWritePlan";
 import { SizingSection } from "./SizingSection";
@@ -51,7 +50,6 @@ export function GraphToolbar({ controls }: { readonly controls: ControlsModel })
 						</div>
 					</details>
 				)}
-				<LayoutSection view={controls.globalView} ctx={ctx} />
 				<NodeExclusionSection ctx={ctx} excludedNodeCount={controls.excludedNodeCount} />
 				<SizingSection view={controls.globalView} ctx={ctx} />
 			</div>

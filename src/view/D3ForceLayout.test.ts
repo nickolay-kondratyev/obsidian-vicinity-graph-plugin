@@ -1,16 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { asFolderPath, asVaultPath } from "../engine";
-import { ElkLayoutRunner } from "./ElkLayoutRunner";
 import { GraphLayoutRunner } from "./GraphLayoutRunner";
 import { extractElkDimensionsById, extractElkPositions, vicinityGraphToElk } from "./elkMapping";
-import { makeEdge, makeGraph, makeNode, withLayoutMode } from "./testFixtures/graphFixtures";
-import type { LayoutMode, VicinityGraph } from "../engine";
+import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
+import type { VicinityGraph } from "../engine";
 
 /**
- * End-to-end confirmation of the d3-force root refinement behind the `force`
- * layout mode (the new DEFAULT): elk lays out folder-group internals and seeds
- * the root, then d3-force packs the root-level boxes. Runs the real elk + d3
- * engines headless in Node — no React Flow, no DOM.
+ * End-to-end confirmation of the d3-force root refinement (the only layout): elk
+ * lays out folder-group internals and seeds the root, then d3-force packs the
+ * root-level boxes. Runs the real elk + d3 engines headless in Node — no React
+ * Flow, no DOM.
  */
 
 const HUB_SIZE_PX = 160;
@@ -20,21 +19,18 @@ const NEIGHBOR_COUNT = 24;
 const neighborPath = (index: number): string => `n${index}.md`;
 
 /** A central hub with many neighbours, half linking INTO the hub (mixed directions). */
-function hubGraph(mode: LayoutMode): VicinityGraph {
-	return withLayoutMode(
-		makeGraph({
-			nodes: [
-				makeNode({ path: asVaultPath("hub.md"), isCentral: true, isMain: true, minDepth: 0, sizePx: HUB_SIZE_PX }),
-				...Array.from({ length: NEIGHBOR_COUNT }, (_, index) =>
-					makeNode({ path: asVaultPath(neighborPath(index)), minDepth: 1, sizePx: NEIGHBOR_SIZE_PX }),
-				),
-			],
-			edges: Array.from({ length: NEIGHBOR_COUNT }, (_, index) =>
-				index % 2 === 0 ? makeEdge("hub.md", neighborPath(index)) : makeEdge(neighborPath(index), "hub.md"),
+function hubGraph(): VicinityGraph {
+	return makeGraph({
+		nodes: [
+			makeNode({ path: asVaultPath("hub.md"), isCentral: true, isMain: true, minDepth: 0, sizePx: HUB_SIZE_PX }),
+			...Array.from({ length: NEIGHBOR_COUNT }, (_, index) =>
+				makeNode({ path: asVaultPath(neighborPath(index)), minDepth: 1, sizePx: NEIGHBOR_SIZE_PX }),
 			),
-		}),
-		mode,
-	);
+		],
+		edges: Array.from({ length: NEIGHBOR_COUNT }, (_, index) =>
+			index % 2 === 0 ? makeEdge("hub.md", neighborPath(index)) : makeEdge(neighborPath(index), "hub.md"),
+		),
+	});
 }
 
 interface Box {
@@ -69,46 +65,31 @@ function overlappingPairCount(boxes: readonly Box[]): number {
 	return count;
 }
 
-function boundingBoxArea(boxes: readonly Box[]): number {
-	const width = Math.max(...boxes.map((box) => box.x + box.side)) - Math.min(...boxes.map((box) => box.x));
-	const height = Math.max(...boxes.map((box) => box.y + box.side)) - Math.min(...boxes.map((box) => box.y));
-	return width * height;
-}
-
-describe("d3-force layout of a high fan-out hub (the mode's motivating case)", () => {
-	it("WHEN laid out with force THEN every node receives a position", async () => {
-		expect((await laidOutBoxes(hubGraph("force"))).length).toBe(NEIGHBOR_COUNT + 1);
+describe("d3-force layout of a high fan-out hub (the layout's motivating case)", () => {
+	it("WHEN laid out THEN every node receives a position", async () => {
+		expect((await laidOutBoxes(hubGraph())).length).toBe(NEIGHBOR_COUNT + 1);
 	});
 
-	it("WHEN laid out with force THEN no two nodes overlap despite mixed link directions", async () => {
-		expect(overlappingPairCount(await laidOutBoxes(hubGraph("force")))).toBe(0);
+	it("WHEN laid out THEN no two nodes overlap despite mixed link directions", async () => {
+		expect(overlappingPairCount(await laidOutBoxes(hubGraph()))).toBe(0);
 	});
 
-	it("WHEN laid out with force THEN the vicinity is LESS dispersed than radial (the feature's reason to exist)", async () => {
-		const forceArea = boundingBoxArea(await laidOutBoxes(hubGraph("force")));
-		const radialArea = boundingBoxArea(await laidOutBoxes(hubGraph("radial")));
-		expect(forceArea).toBeLessThan(radialArea);
-	});
-
-	it("WHEN laid out with force twice THEN the result is deterministic", async () => {
-		expect(await laidOutBoxes(hubGraph("force"))).toEqual(await laidOutBoxes(hubGraph("force")));
+	it("WHEN laid out twice THEN the result is deterministic", async () => {
+		expect(await laidOutBoxes(hubGraph())).toEqual(await laidOutBoxes(hubGraph()));
 	});
 });
 
 describe("d3-force layout of a folder-grouped fixture (grouping survives the force mode)", () => {
 	// GIVEN an ungrouped root linking into a two-member notes/ group: elk lays
 	// out the group INTERNALLY, d3-force only arranges the root-level boxes.
-	const groupedForce = withLayoutMode(
-		makeGraph({
-			nodes: [
-				makeNode({ path: asVaultPath("root.md"), folder: asFolderPath(""), minDepth: 0, sizePx: 100 }),
-				makeNode({ path: asVaultPath("notes/a.md"), folder: asFolderPath("notes"), minDepth: 1, sizePx: 100 }),
-				makeNode({ path: asVaultPath("notes/b.md"), folder: asFolderPath("notes"), minDepth: 2, sizePx: 100 }),
-			],
-			edges: [makeEdge("root.md", "notes/a.md"), makeEdge("notes/a.md", "notes/b.md")],
-		}),
-		"force",
-	);
+	const groupedForce = makeGraph({
+		nodes: [
+			makeNode({ path: asVaultPath("root.md"), folder: asFolderPath(""), minDepth: 0, sizePx: 100 }),
+			makeNode({ path: asVaultPath("notes/a.md"), folder: asFolderPath("notes"), minDepth: 1, sizePx: 100 }),
+			makeNode({ path: asVaultPath("notes/b.md"), folder: asFolderPath("notes"), minDepth: 2, sizePx: 100 }),
+		],
+		edges: [makeEdge("root.md", "notes/a.md"), makeEdge("notes/a.md", "notes/b.md")],
+	});
 
 	async function laidOutGrouped() {
 		return new GraphLayoutRunner().layout(vicinityGraphToElk(groupedForce));
@@ -139,14 +120,5 @@ describe("d3-force layout of a folder-grouped fixture (grouping survives the for
 			);
 		});
 		expect(inside).toBe(true);
-	});
-});
-
-describe("GraphLayoutRunner pass-through for non-force modes", () => {
-	it("WHEN mode is layered THEN positions are IDENTICAL to the plain elk runner (no d3 refinement)", async () => {
-		const layered = hubGraph("layered");
-		const viaGraphRunner = extractElkPositions(await new GraphLayoutRunner().layout(vicinityGraphToElk(layered)));
-		const viaElkRunner = extractElkPositions(await new ElkLayoutRunner().layout(vicinityGraphToElk(layered)));
-		expect([...viaGraphRunner]).toEqual([...viaElkRunner]);
 	});
 });

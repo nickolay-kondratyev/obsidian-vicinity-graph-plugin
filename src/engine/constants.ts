@@ -1,7 +1,6 @@
 import type {
 	DepthSettings,
 	EdgeVisibilityMode,
-	LayoutMode,
 	NodeExclusionSettings,
 	SizingSettings,
 	ViewSettings,
@@ -37,14 +36,6 @@ export const CENTRAL_SIZE_SCORE = 1;
  * Q5: cleaner graph to see); `"all-edges"` stays available via the toggle.
  */
 export const DEFAULT_EDGE_VISIBILITY: EdgeVisibilityMode = "walked-from-center";
-
-/**
- * Default layout is force (human decision, superseding the earlier radial
- * default): a vicinity graph is hub-shaped, layered degenerates into one very
- * wide row on high fan-out, and radial rings disperse badly once a hub has
- * dozens of links — the d3-force packing stays compact.
- */
-export const DEFAULT_LAYOUT_MODE: LayoutMode = "force";
 
 /**
  * Obstacle-avoiding edge routing ships ON by default (ticket edge-routing__03):
@@ -92,7 +83,6 @@ export class EngineDefaults {
 			nodeCap: DEFAULT_NODE_CAP,
 			groupByFolder: true,
 			edgeVisibility: DEFAULT_EDGE_VISIBILITY,
-			layoutMode: DEFAULT_LAYOUT_MODE,
 			edgeRouting: DEFAULT_EDGE_ROUTING,
 			sizing: EngineDefaults.sizingSettings(),
 		};

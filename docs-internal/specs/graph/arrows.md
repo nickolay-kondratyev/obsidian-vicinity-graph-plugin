@@ -44,10 +44,8 @@ routes edges around node/group boxes and attaches a `routedPoints` polyline;
 `VicinityEdge` renders it via `routedGeometryFor` (rounded corners, arrowheads on
 the true approach segments).
 
-- **Applies to `force` and `layered` only.** `radial` is excluded
-  (`ROUTING_SKIPPED_LAYOUT_MODE`): spokes are already near-straight and routing
-  costs ~490ms vs a ~45ms radial layout for no benefit. Deferred: web-worker
-  offload could let radial route cheaply.
+- **Runs whenever `edgeRouting` is ON.** Force is the only layout, so the pass
+  is gated solely on the `edgeRouting` view setting — no per-layout exclusion.
 - **Straight-line fallback** (`edgePathFor`) when routing is OFF, the wasm/router
   fails (one `console.warn`, whole pass yields no routes), or an edge is absent
   from the route map. A cleanly-routed edge returns a 2-point line, byte-identical
@@ -78,4 +76,3 @@ corner radius 10px.
 
 - `flowMapping` and `elkMapping` projections could share one `projectEdgeEndpoints`
   helper (DRY).
-- Web-worker routing offload to enable `radial` routing.

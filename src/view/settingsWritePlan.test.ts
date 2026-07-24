@@ -75,13 +75,6 @@ describe("planSettingsWrite global writes", () => {
 		});
 	});
 
-	it("WHEN global-layout THEN it merges the layoutMode over ctx.globalView", () => {
-		expect(planSettingsWrite({ kind: "global-layout", layoutMode: "layered" }, CTX)).toEqual({
-			kind: "global-view",
-			view: { ...CTX.globalView, layoutMode: "layered" },
-		});
-	});
-
 	it("WHEN global-edge-routing THEN it merges edgeRouting over ctx.globalView", () => {
 		expect(planSettingsWrite({ kind: "global-edge-routing", edgeRouting: true }, CTX)).toEqual({
 			kind: "global-view",
