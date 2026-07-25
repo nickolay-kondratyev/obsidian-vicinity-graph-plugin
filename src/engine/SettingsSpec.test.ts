@@ -16,7 +16,7 @@ import {
 	clampOutlineMaxDepth,
 } from "./constants";
 import { SETTINGS_SPEC } from "./SettingsSpec";
-import type { DepthSpec, NodeExclusionSpec, ViewSpec } from "./SettingsSpec";
+import type { DepthSpec, NodeExclusionSpec, SizingSpec, ViewSpec } from "./SettingsSpec";
 import { SettingsDefaults } from "./SettingsDefaults";
 
 /**
@@ -34,6 +34,21 @@ import { SettingsDefaults } from "./SettingsDefaults";
  * baselined and nothing went red. Now it is a `npm run check` error instead.
  */
 type EverySpecField<TSpec> = Record<keyof TSpec, unknown>;
+
+/**
+ * Exhaustiveness guard for the LIMITS baseline. Like {@link EverySpecField} it
+ * demands one entry per spec field, and additionally demands that a field which
+ * HAS bounds pins every bound it declares — a default-only field maps to `{}`,
+ * so (and only so) may it carry {@link NO_SPEC_LIMITS}.
+ *
+ * WHY not plain `EverySpecField` here: the marker sits on BOTH sides of the
+ * `toEqual`, so on its own it is a constant compared with itself and asserts
+ * nothing — a default-only field that GAINED a min/max in the spec stayed green.
+ * This type moves that claim to compile time.
+ */
+type SpecLimitsBaseline<TSpec> = {
+	[K in keyof TSpec]: { [B in Extract<keyof TSpec[K], "min" | "max" | "step">]: unknown };
+};
 
 /** Baseline entry for a spec field that is default-only (no min/max/step to pin). */
 const NO_SPEC_LIMITS = "no limits in the spec";
@@ -54,7 +69,7 @@ describe("SETTINGS_SPEC (single source of truth for defaults + limits)", () => {
 				depthDecayK: view.sizing.depthDecayK.default,
 				minPx: view.sizing.minPx.default,
 				maxPx: view.sizing.maxPx.default,
-			},
+			} satisfies EverySpecField<SizingSpec>,
 			forceLayout: Object.fromEntries(
 				Object.entries(view.forceLayout).map(([field, s]) => [field, s.default]),
 			),
@@ -120,15 +135,27 @@ describe("SETTINGS_SPEC (single source of truth for defaults + limits)", () => {
 					{ min: s.min, max: s.max, step: s.step },
 				]),
 			),
-		} satisfies EverySpecField<ViewSpec>;
+		} satisfies SpecLimitsBaseline<ViewSpec>;
+		const depths = SETTINGS_SPEC.globalDepths;
 		expect({
-			depthStepper: {
-				min: SETTINGS_SPEC.globalDepths.outgoingDepth.min,
-				max: SETTINGS_SPEC.globalDepths.outgoingDepth.max,
-			},
+			globalDepths: {
+				outgoingDepth: {
+					min: depths.outgoingDepth.min,
+					max: depths.outgoingDepth.max,
+					step: depths.outgoingDepth.step,
+				},
+				incomingDepth: {
+					min: depths.incomingDepth.min,
+					max: depths.incomingDepth.max,
+					step: depths.incomingDepth.step,
+				},
+			} satisfies SpecLimitsBaseline<DepthSpec>,
 			...viewLimits,
 		}).toEqual({
-			depthStepper: { min: 0, max: 5 },
+			globalDepths: {
+				outgoingDepth: { min: 0, max: 5, step: 1 },
+				incomingDepth: { min: 0, max: 5, step: 1 },
+			},
 			nodeCap: { min: 1 },
 			outlineMaxDepth: { min: 1, max: 6, step: 1 },
 			nodePreviewPreference: NO_SPEC_LIMITS,
