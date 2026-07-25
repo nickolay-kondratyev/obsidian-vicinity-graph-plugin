@@ -263,3 +263,85 @@ Consequences you will hit:
    it must NOT use this helper — it papers over exactly that.
 5. `e2e/` is still outside `npm run check` (tsconfig includes `src/**` only). Run
    `npx tsc -p e2e/tsconfig.json` by hand, or trust `run-e2e.sh` which does it for you.
+
+---
+
+# PRIVATE working notes — IMPLEMENTATION_ITERATION round 1 (B1 fix)
+
+Appended by the round-1 instance. Waves A/B/C above still hold **except** where noted.
+
+## Where things stand
+
+- `1623084` = the B1 fix + ticket correction. Tree clean. `e2e/` and ticket text only.
+- Numbers: `npm run check` exit 0; `npx tsc -p e2e/tsconfig.json` exit 0;
+  `npm test` **1 failed | 894 passed (895)** (the known-RED `linkStrengthFactor.max`);
+  full `nodeOutline.e2e.ts` **14/14 on 5 runs**; full e2e **67 passed / 2 failed / 7 did
+  not run**. Logs: `.tmp/it1-*.log` (`check`, `test`, `e2e-tsc`, `nodeOutline-run{1..5}`,
+  `nodeOutline-CONTROL`, `nodeOutline-with-workspacejson`, `e2e-full`, `e2e-full-final`,
+  `setup`, `stash`).
+
+## The thing to know about running this file
+
+**`.dev-vault/.obsidian/workspace.json` decides whether `nodeOutline.e2e.ts` is
+informative at all.** `prepareVaultCopy()` copies `.dev-vault` wholesale, so a saved
+workspace restores small pane geometry ⇒ the `:92` culling flake ⇒ "13 did not run".
+Recipe I used, and the one to reuse:
+
+```bash
+mv .dev-vault/.obsidian/workspace.json .tmp/workspace.json.bak   # gitignored, safe
+npm run test:e2e -- nodeOutline.e2e.ts                            # informative
+mv .tmp/workspace.json.bak .dev-vault/.obsidian/workspace.json    # PUT IT BACK
+```
+
+I put it back. If you find it missing, Obsidian recreates one on the next dev-vault run;
+nothing is lost either way, but leaving the repo as found matters.
+
+**Do NOT use `--grep` on this file.** That is what hid B1. Wave C's private note above
+says "To verify anything you add there, use `--grep`" — **that advice is now retracted**;
+use the workspace.json recipe instead.
+
+## Things I verified rather than assumed
+
+- `setMaxNodeSizePx` has exactly ONE caller (E7). `setGlobalNodeCap` / `setLayoutMode`
+  are the same "store write, no rebuild" shape, and **their** callers already follow with
+  an explicit `remountGraphView()` (`controlsRestart:150→157`, `vicinityGraph:234`). E7
+  was the lone outlier relying on an implicit trigger — which is why the fix is E7-side,
+  not harness-side. I considered making `setMaxNodeSizePx` fan out internally (as
+  `setNodePreviewPreference` does) and rejected it: it would make the three sibling
+  setters inconsistent and hide the rebuild from the reader, which is the opposite of the
+  lesson B1 teaches.
+- The A/B was run in the SAME checkout with only `git stash push -- e2e/nodeOutline.e2e.ts`
+  between the two runs, so build, vault and Obsidian binary are provably identical. Stashed
+  → 13 passed / 1 failed at E7 (`Expected: hidden / Received: visible`); popped → 14/14.
+  That is the tightest control available here and it is worth reproducing before believing
+  any future claim about this file.
+- `remountGraphView()` really does re-read the store: E7 asserts a 72–104px height band
+  after a maxPx write with no other trigger, and it passes. So remount == rebuild, not just
+  a viewport refit.
+- The "7 did not run" in the full suite is arithmetic, not exclusion: edgeRoutingEval
+  fails #5 of 6 (⇒1) and vicinityGraph fails #13 of 19 (⇒6). Same as wave C's accounting
+  minus nodeOutline's 13.
+
+## Dead ends / near-misses
+
+- My first instinct was the reviewer's literal suggestion (`remountGraphView()` after
+  `setMaxNodeSizePx`, keeping the separate `openFile` + tier assert). That is 3 lines but
+  duplicates the body of `showNoteWithRefitGraph()` verbatim. Reusing the helper is the
+  same fix, DRY, and it makes E7 and E8 read identically — worth the docblock rewrite the
+  reuse forced.
+- I nearly left the helper's docblock alone. That would have been a trap: its ticket says
+  "then delete `showNoteWithRefitGraph()`", and after this change deleting it re-introduces
+  B1. Both the docblock and ticket step 3 now say so.
+
+## Watch items for whoever comes next
+
+1. **If you fix the culling flake, do not delete the helper** — trim only its reason (2).
+   E7 and E8.3 need reason (1) forever.
+2. **E7 must stay LAST** in the file (it shrinks every node). That is intrinsic, not an
+   inherited assumption, and its header says so.
+3. E1–E5 still share `beforeAll`'s MAIN node deliberately. They assert nothing about
+   sizing or the preference, so no B1-class coupling — but if anyone adds a sizing or
+   preference assertion up there, it must establish its own MAIN first.
+4. Wave C's PUBLIC record still contains the "pristine tree" phrasing in its own section
+   (preserved by instruction). The correction of record is in the round-1 PUBLIC section
+   and in the ticket. Do not quote wave C's sentence as evidence.

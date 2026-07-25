@@ -635,3 +635,142 @@ engineering follow-ups live in — `ticket ls`):
 No `#QUESTION_FOR_HUMAN:` — nothing forced a hack, nothing departs from the approved
 CLARIFICATION, and the one visual judgement call was the human's own decision, which I
 implemented and then measured.
+
+---
+
+# IMPLEMENTATION_ITERATION round 1 — the B1 fix + two honesty corrections
+
+Commit `1623084`. Scope: **`e2e/` and ticket text only.** Zero `src/` changes, zero
+assertion changes, nothing skipped or loosened. The feature itself was accepted by the
+final review and is untouched.
+
+## B1 — root cause, and why the fix is a root fix
+
+**The defect.** `e2e/nodeOutline.e2e.ts` E7 (*"an outline-bearing node below the outline
+threshold still pins its attachment strip to the bottom"*) failed on **every** full-file
+run after wave C. `harness.setMaxNodeSizePx()` writes the plugin store but does **not**
+rebuild any view, so E7 needed something else to trigger the rebuild that applies the new
+96px `maxPx`. It used `openFile(OUTLINE_NOTE_PATH)` — which only rebuilds if that file is
+not *already* the active one. Wave C's E8 cases leave `outline-note` active, so the call
+became a silent no-op: no rebuild, nodes stayed at 160px, the outline stayed visible, and
+`toBeHidden()` failed. The comment two lines below the write said *"an active-file change
+does (the current MAIN is outline-cover, so this is a real change)"* — an invariant E7 did
+not own and could not enforce.
+
+**The fix.** E7 now triggers its rebuild **itself**, via the existing
+`showNoteWithRefitGraph()` (`openFile` → `remountGraphView()` → assert `data-tier="main"`).
+A remount rebuilds unconditionally from the store, so the trigger no longer depends on any
+prior case. This is a root fix rather than a patch because it removes the *dependency*, not
+the symptom: E7 is now correct at **any** position in the file, under **any** predecessor,
+and would keep passing if another case were inserted above it tomorrow. I explicitly did
+**not** reorder tests, re-activate a file to satisfy E7, or touch its assertions — the A/B
+below shows the assertions still catch the real thing.
+
+**Sibling fragility, fixed with one line (reviewer's N2).** E8.3 (*"back on Auto, document
+position decides again"*) inherited its MAIN node from E8.2. It now calls
+`showNoteWithRefitGraph(OUTLINE_NOTE_PATH)` first. E8.1/E8.2 already did. That makes the
+rule uniform: **every case needing a MAIN other than `beforeAll`'s establishes it itself.**
+No broader e2e refactor was attempted.
+
+**Comments corrected, not deleted:**
+
+- The lying `:341-342` comment is replaced by one describing the explicit trigger *and* the
+  no-op trap that caused B1.
+- `showNoteWithRefitGraph()`'s docblock now lists **two** load-bearing reasons — (1) explicit
+  rebuild after a store-only write, (2) refit against React Flow culling — because reason 1
+  is new and has nothing to do with the culling flake. Without this, whoever fixes that flake
+  would delete the helper per its ticket and re-introduce B1.
+- The file docblock's *"later tests build on earlier navigation state"* is replaced by the
+  actual rule, with B1 named as the reason it exists.
+- `// --- E6: … (KEEP LAST …)` was stale the moment wave C appended E8/E7 after it. Reworded
+  to state what it really requires (E1–E5 precede it).
+
+## S1 — the verification lesson, recorded
+
+**In a serial e2e file, `--grep` is structurally blind to cross-test state coupling: it
+removes exactly the neighbours whose leftover state you need to observe.** Wave C verified
+its 3 new cases with `--grep` and therefore had *no signal at all* about the damage they did
+to E7. The rule now lives in three places so it cannot be lost: the file docblock of
+`nodeOutline.e2e.ts`, step 2 of `ticket-e2e-headless-culling-unmounts-main-node.md`, and
+here. **A change to a serial e2e file must be validated by running the WHOLE file.**
+
+Corollary, also learned here: when the whole file is uninformative because of an unrelated
+red first case, fix the *environment condition* (below) rather than reaching for `--grep`.
+
+## S2 — the false "pristine tree" claim, corrected
+
+`docs-internal/tickets/ticket-e2e-headless-culling-unmounts-main-node.md` claimed the `:92`
+flake was *"reproduced on a **pristine `main`** tree, so nothing in that feature branch
+causes it."* **That was false as written**: the stash was to `c96640d`, the wave **B** tip,
+with waves A+B still applied — so the experiment could exonerate wave C only.
+
+The ticket now states what was actually verified and by whom: wave C's stash was to the wave
+B tip; the **IMPLEMENTATION_REVIEWER** ran the missing experiment from a worktree on true
+`main` and confirmed the flake reproduces there. So the *conclusion* stands — the flake is
+genuinely pre-existing and the feature branch does not cause it — but the evidence chain is
+now honestly attributed. Also added, because it was missing: the **trigger** is a saved
+`.dev-vault/.obsidian/workspace.json` (copied wholesale into the e2e vault, restoring small
+saved pane geometry), with the measured pass/fail table and the note that moving it aside is
+a *workaround*, not the fix. I reproduced both halves of that table myself (see below).
+
+Correcting the same overclaim in wave C's record: the sentence at wave C's
+"§ The `nodeOutline.e2e.ts:92` failure — diagnosed, not hand-waved", item 2, reading *"two
+runs on a `git stash`-ed, pristine tree"* should be read as **"a stash to `c96640d`, the wave
+B tip"**. Wave C's section is left otherwise intact per instruction; this paragraph is the
+correction of record.
+
+## VERIFIED — exact commands, counts and run conditions
+
+Environment: Linux container, no display server; `scripts/run-e2e.sh` supplies
+`--ozone-platform=headless --disable-gpu` and the cached Obsidian **1.12.7** in
+`.tmp/obsidian/`; `workers: 1`, `retries: 0`. `npm run setup:dev-vault` run first (exit 0).
+
+| Gate | Result |
+|---|---|
+| `npm run check` | **exit 0**, clean (`.tmp/it1-check.log`) |
+| `npx tsc -p e2e/tsconfig.json` (`e2e/` is outside `npm run check`) | **exit 0** (`.tmp/it1-e2e-tsc.log`) |
+| `npm test` | **1 failed / 894 passed (895)**; 1 failed file / 67 passed (68). The single failure is the known-RED author-only `SettingsSpec.test.ts › … limits equal the exact shipped baseline` (`linkStrengthFactor.max`). Identical to wave C's baseline; untouched. (`.tmp/it1-test.log`) |
+| **Full `nodeOutline.e2e.ts`, no `--grep`, ×5** | **14/14 passed, 5 for 5** — runs 1–3 on the fix, runs 4–5 after the comment-only edits (`.tmp/it1-nodeOutline-run{1,2,3,4,5}.log`) |
+| **A/B control** — same vault, same build, only `e2e/nodeOutline.e2e.ts` stashed to HEAD | **1 failed / 13 passed**, at E7, `Expected: hidden / Received: visible` (`.tmp/it1-nodeOutline-CONTROL.log`) |
+| Full e2e suite (after all edits) | **67 passed / 2 failed / 7 did not run** (`.tmp/it1-e2e-full-final.log`); an earlier identical run pre-comment-edits (`.tmp/it1-e2e-full.log`) |
+
+**Run condition, stated plainly:** all five green `nodeOutline` runs and both full-suite runs
+were made with `.dev-vault/.obsidian/workspace.json` **moved aside**, because with that file
+present the pre-existing `:92` culling flake kills the serial file before E7 is reached. I
+verified that too, on the fixed code: with `workspace.json` restored, `nodeOutline.e2e.ts` →
+**1 failed (`:92`) / 13 did not run** (`.tmp/it1-nodeOutline-with-workspacejson.log`). That
+is the ticketed flake, is independent of B1, and is why the ticket now records the trigger.
+**The file was restored to its original place afterwards** — the repo is exactly as I found it.
+
+The A/B pair is the load-bearing evidence: identical conditions, identical build, the only
+difference being my ~4 changed lines, and E7 flips from deterministic red to green.
+
+Remaining 2 e2e failures, both pre-existing and already ticketed (unchanged from wave C's
+baseline; neither is in `nodeOutline.e2e.ts`):
+
+- `e2e/edgeRoutingEval.e2e.ts:171` — *radial layout SKIPS routing …* → ticket
+  `nid_6lxaenl4oamjxqj6f0eh6rr4c_e`
+- `e2e/vicinityGraph.e2e.ts:160` — *singleton-folder note shows a folder breadcrumb …* →
+  `docs-internal/tickets/ticket-e2e-gamma-breadcrumb-fails-headless.md`
+
+"7 did not run" is the Playwright serial cascade behind those two (edgeRoutingEval #5 of 6 ⇒
+1; vicinityGraph #13 of 19 ⇒ 6), **not** silent exclusion.
+
+## Residual risk
+
+1. **The `:92` culling flake is still open** and is now the only thing standing between this
+   file and a green run on a machine with a saved `workspace.json`. It is not this branch's
+   defect (reproduced on true `main` by the reviewer) and is out of this round's scope. Its
+   ticket now carries the trigger, the workaround, the "run the whole file, 5× " acceptance
+   bar, and the warning not to delete `showNoteWithRefitGraph()` outright.
+2. **E1–E5 still share `beforeAll`'s MAIN node** — by design, and they assert nothing about
+   sizing or preference, so they carry no B1-class coupling. I did not convert them; that
+   would be the broad refactor the work order excluded.
+3. **E7 remains order-sensitive in one direction only**: it shrinks every node for the rest
+   of the file, so it must stay LAST. That is documented at its header and is a property of
+   what it does, not an inherited assumption.
+4. `showNoteWithRefitGraph()` now has two reasons to exist, which means the culling fix is
+   slightly more work than "delete the helper". Step 3 of the ticket says exactly that.
+
+No `#QUESTION_FOR_HUMAN:` — the fix was implementable honestly, and nothing here needed a
+human decision.
