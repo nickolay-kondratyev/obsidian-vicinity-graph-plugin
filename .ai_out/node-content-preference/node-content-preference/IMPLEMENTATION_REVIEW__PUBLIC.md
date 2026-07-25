@@ -658,3 +658,249 @@ Obsidian's own inputs use `--background-modifier-form-field` for this trough.
 or is the hairline-only frame the look you want?** (Purely a visual call, and one
 I cannot settle without a real Obsidian; the current code is theme-safe either
 way.)
+
+---
+
+# IMPLEMENTATION REVIEW — `node-content-preference`, wave C + WHOLE-FEATURE ACCEPTANCE
+
+Scope: wave C = `ac27f8d` (trough + Phase 5 docs/e2e/tickets) and `f570a44` (record),
+plus a whole-feature acceptance pass over `git diff main..HEAD`. Waves A and B above are
+preserved unchanged.
+
+## Verdict — **NEEDS-ITERATION** · 1 BLOCKING · **DO NOT SHIP YET**
+
+The **feature itself is done and is genuinely good work**: every binding requirement in
+the human-approved CLARIFICATION passes, the layering is clean, the precedence rule is one
+pure function, the docs are reconciled as *superseded, not contradicted*, and I could not
+find a single weakened, skipped or loosened assertion anywhere in the diff.
+
+The blocker is **not** in `src/`. It is that wave C's three new e2e cases, inserted into the
+middle of a `serial` file, **deterministically break the pre-existing case that follows
+them** (`e2e/nodeOutline.e2e.ts:339`, the outline-threshold layout guard). Wave C did not
+see it because that file dies earlier from an unrelated environment flake in this
+container, and because the new cases were verified in isolation with `--grep`. I found it
+by running the file in a controlled worktree. It is a ~3-line e2e fix, and once it is
+fixed this branch ships.
+
+## Acceptance table — every binding requirement in `CLARIFICATION__PUBLIC.md`
+
+| # | Binding requirement | Verdict | Evidence |
+|---|---|---|---|
+| Q1 | 3-way `Auto` / `Outline` / `Image` | **PASS** | `src/engine/types.ts` `NodePreviewPreference` + `NODE_PREVIEW_PREFERENCES` single-sourced, with a compile-time completeness assert |
+| Q1 | Pill exposed on **both** settings tab and graph controls | **PASS** | `VicinityGraphSettingTab.addNodePreviewSegmented` + `src/view/NodeContentsSection.tsx`; e2e cases 51/52/55/56 green in the full real-Obsidian run |
+| Q1 | No previously supported behavior removed; the "image wins" behavior-capturing assertions survive **in substance** | **PASS** | The two adapter assertions were *relocated*, which the CLARIFICATION expressly permits: new `ObsidianLinkProvider.test.ts` `imagePrecedesOutline` describe (7 cases incl. frontmatter + unresolvable embed), `nodePreviewChoice.test.ts:36`, `flowMapping.test.ts` auto branch, and e2e `:264` still asserts the positional result end-to-end |
+| Q1 | Docs **superseded, not contradicted** | **PASS** | `README.md:142-158`, `high-level-plan.md:93` (+ a new "where that decision lives" bullet), `architecture-map.md` LinkProvider seam, `SettingsSpec.ts:121-131`; `grep "CLARIFICATION Q2"` leaves only unrelated hits |
+| Q2 | Default `auto`, zero visible change on upgrade | **PASS** | `SETTINGS_SPEC.globalView.nodePreviewPreference = { default: "auto" }` |
+| Q2 | Do **not** bump `PERSISTED_SHAPE_VERSION` | **PASS** | still `2`; `parseViewOverride` validates against `NODE_PREVIEW_PREFERENCES` and falls through to the spec default |
+| Q3 | Global scope only, no per-doc override | **PASS** | listed at `ViewSettingsResolver.ts:48` as required; no UI or write path produces a per-doc override (the parser accepts the key only because `globalView` shares that parser — reviewed and accepted in wave A) |
+| Q3 | Both surfaces edit the **same** global value | **PASS** | both emit `{ kind: "global-node-preview" }` through `planSettingsWrite`; e2e case 55 asserts the *panel* writes the same global the tab writes |
+| D1 | Graceful fallback — a preference never empties a node | **PASS** | `nodePreviewChoice.ts:33-38` short-circuits *before* the preference switch; full 3×5 truth table in `nodePreviewChoice.test.ts` |
+| D2 | "Fits" = existing 104px container query, no JS measurement | **PASS** | no measurement code added; the 104px gate is untouched and symmetric for both regions |
+| D3 | `sizePx` must NOT depend on the preference | **PASS** | `toFlowNodeData` passes `node.sizePx` through; nothing in sizing/elk/`GraphStructureDiff` reads `preference` or `preview`; tripwire test present |
+| D4 | Precedence = one pure, unit-testable function | **PASS** | `src/view/nodePreviewChoice.ts` is the only place; `NoteNode.tsx` now renders and decides nothing |
+| D5 | Adapter stops discarding the outline; reports the fact | **PASS** | `outlineFactsOf` + `FileMetadata.imagePrecedesOutline`, threaded through `TraversedNode` → `GraphNode` → `FlowNodeData.preview` |
+| D6 | Shared data + write path, duplicated markup | **PASS** | `nodePreviewPreferenceMeta.ts` (copy) + `planSettingsWrite` (write); radio `name` deliberately **not** shared — tab constant vs `useId()` — which is load-bearing (see wave B) |
+| D7 | Docs to update: README, `high-level-plan.md:93`, superseded comments | **PASS** | all three, plus CHANGELOG, architecture-map and the dev-vault smoke checklist |
+| D8 | Do not touch the known-RED `linkStrengthFactor.max` baseline | **PASS** | untouched |
+| — | e2e integrity: nothing weakened/skipped to manufacture green | **PASS** | **zero** deleted lines across `git diff main..HEAD -- e2e/`; no `.skip`/`.only`/`.fixme`; no loosened timeouts or counts |
+| — | e2e integrity: new cases must not break existing ones | **FAIL** | **BLOCKING B1 below** |
+
+## The e2e integrity claim — how I verified it, and what I found
+
+Wave C's report is **substantially honest** and its numbers reproduce exactly. It also
+volunteered the two things a self-serving report would have hidden (that the 3 nodeOutline
+cases could not run in the full suite, and that the light-theme trough change is a no-op).
+Two independent cross-checks:
+
+1. **The arithmetic is airtight.** `npx playwright test --list` → **76 tests**, matching
+   `53 + 3 + 20`. And "20 did not run" is exactly the serial-file cascade, to the test:
+   `nodeOutline:92` is #1 of 14 (13 skipped) + `vicinityGraph:160` is #13 of 19 (6) +
+   `edgeRoutingEval:171` is #5 of 6 (1) = **20**. So "did not run" is Playwright serial-mode
+   cascade, **not** silent exclusion of tests. `.tmp/wc-e2e-full.log` matches line for line,
+   including all 6 new `settingsUxVisual` cases passing as items 51–56.
+2. **Nothing was weakened.** `git diff main..HEAD -- e2e/` has **0 deleted lines**, no
+   `.skip`/`.only`, no timeout or count loosening. The only `toHaveCount` touched is a newly
+   *added* `toHaveCount(3)` for the pill's three radios. Claim confirmed.
+
+### The `nodeOutline.e2e.ts:92` flake IS pre-existing — but wave C never actually proved it
+
+Wave C's proof was "two runs on a `git stash`-ed, pristine tree". `.tmp/wc-stash.log` shows
+the stash was `WIP on node-content-preference: c96640d` — the **wave B tip**. Waves A and B
+were still applied; only wave C's own changes were stashed. So that experiment could only
+exonerate wave C, not the feature.
+
+I ran the missing experiment. `git worktree` from **true `main`**, `node_modules` symlinked,
+same cached Obsidian 1.12.7 (logs in `.tmp/reviewC/`):
+
+| Vault state | Code | `:92` result |
+|---|---|---|
+| worktree vault, **no** saved `workspace.json` | `main` | 11/11 pass ×4 runs |
+| worktree vault, **no** saved `workspace.json` | HEAD, E8 excluded | 11/11 pass |
+| worktree vault **+ the repo's saved `workspace.json`** | **`main`** | **FAILS at `:92`** (1 of 2 runs) |
+| worktree vault **+ the repo's saved `workspace.json`** | HEAD, E8 excluded | fails 2/2 |
+| the repo's own `.dev-vault` (has a saved `workspace.json`) | HEAD | fails 2/2 |
+
+**Conclusion: the flake is real, pre-existing, and reproduces on true pristine `main` — so
+wave C's attribution is correct and the feature does not cause it.** The trigger I isolated
+and which the ticket does not yet record: it appears only when
+`.dev-vault/.obsidian/workspace.json` exists (saved pane geometry ⇒ a small graph pane ⇒
+React Flow culls the MAIN node). A vault without it went 5/5 green. That belongs in the
+ticket, because it is also the workaround for validating the fix to B1.
+
+### Panel controlled/uncontrolled caveat — followed correctly
+
+Wave B's SHOULD-FIX landed. `settingsUxVisual.e2e.ts:238-251` carries the asymmetry as a
+block comment, and every panel-side assertion is retrying: `expect.poll(storedPreviewPreference)`
+(case 55) and `expect(locator).toBeChecked()` (case 56). No `isChecked()`, no
+`evaluate(el => el.checked)`, no `inputValue()` on the panel. `.click()` is used rather than
+`.check()`, with the reason stated. The one-shot `evaluate` samples are all on the
+**uncontrolled tab** pill, which is correct. **No latent flake here.**
+
+## 🚨 BLOCKING
+
+### B1 — the 3 new E8 cases deterministically break the pre-existing E7 guard
+
+`e2e/nodeOutline.e2e.ts:339` — *"an outline-bearing node below the outline threshold still
+pins its attachment strip to the bottom"* — now fails **every** run, on the assertion at
+`:350`:
+
+```
+Expected: hidden   Received: visible
+  locator('.vicinity-graph-node[data-path="outline-note.md"]').locator('.vicinity-graph-outline')
+```
+
+**Root cause.** E7 documents its own precondition at `:341-342`:
+
+```ts
+await harness.setMaxNodeSizePx(BELOW_OUTLINE_THRESHOLD_PX);
+// A sizing change alone does not rebuild; an active-file change does (the
+// current MAIN is outline-cover, so this is a real change).
+await harness.openFile(OUTLINE_NOTE_PATH);
+```
+
+E7 relies on the *previous* test leaving **outline-cover** as the active file, so that
+`openFile(outline-note)` is a genuine active-file change — which is the only thing that
+triggers the rebuild that applies the new 96px `maxPx`. Wave C's E8.2/E8.3 leave
+**outline-note** as the active file. `openFile(OUTLINE_NOTE_PATH)` is therefore a **no-op**,
+no rebuild happens, nodes stay at 160px, and the outline stays visible. Deviation C1
+correctly preserved the *preference* invariant (case 53 restores `auto`) but silently broke
+the *active-file* invariant printed two lines below the insertion point.
+
+**Proof (controlled A/B — same worktree, same `.dev-vault`, only the code differs):**
+
+| Code under test | Result |
+|---|---|
+| HEAD, whole file (14 tests) | **13 passed / 1 failed — E7 — on 3 of 3 runs** |
+| HEAD, same file, E8's 3 cases excluded via `--grep-invert` (11 tests) | **11/11 pass** |
+| `main` (11 tests) | 11/11 pass ×2 |
+
+Excluding only the three new cases turns the file green on the identical build, so the
+insertion is the sole cause.
+
+**Why it matters beyond the test:** E7 is a behavior-capturing guard for a real layout rule
+("the outline's layout rule must not leak below its own threshold"). It is now permanently
+red, i.e. effectively disabled — which the repo's guardrails forbid without explicit human
+alignment. Worse, it is *invisible in this container* (the `:92` flake kills the file first),
+so **the human running e2e on a real desktop, where `:92` passes, will see E7 fail and it
+will look like this feature broke the layout rule.**
+
+**Fix — prefer the second; both are ~3 lines and neither touches `src/`:**
+
+- Make E7's rebuild explicit rather than inherited: after `setMaxNodeSizePx(...)`, call
+  `await harness.remountGraphView()` (the helper E8 already uses) instead of depending on
+  which file happens to be active. This removes the implicit coupling for good.
+- Or make the active-file change real locally: open a different file first
+  (`OUTLINE_COVER_PATH` or `NON_NODE_BEARING_PATH`) before `openFile(OUTLINE_NOTE_PATH)`,
+  and update the `:341-342` comment so it no longer states an invariant it does not own.
+
+**Verify the fix by running the WHOLE file**, not `--grep` — and in a vault with no saved
+`.obsidian/workspace.json`, otherwise `:92`'s flake hides the result again (see S1/S2).
+
+## ⚠️ SHOULD-FIX
+
+### S1 — the verification method that missed B1
+
+The 3 new cases were verified with
+`npm run test:e2e -- nodeOutline.e2e.ts --grep "Preview preference|document position decides again"`.
+In a `serial` file, `--grep` **cannot by construction** observe the damage an insertion does
+to its neighbours: it removes exactly the neighbours. Combined with the `:92` flake making
+the full file uninformative in this container, wave C had no signal at all. Record the rule:
+**a change to a serial e2e file must be validated by running the whole file, in an
+environment where that file is otherwise green.**
+
+### S2 — correct the "pristine tree" claim in the ticket and the record
+
+`IMPLEMENTATION__PUBLIC.md:464-466` ("two runs on a `git stash`-ed, pristine tree") and
+`docs-internal/tickets/ticket-e2e-headless-culling-unmounts-main-node.md:4-6` ("reproduced on
+a **pristine `main`** tree, so nothing in that feature branch causes it") claim evidence that
+was not produced — the stash was to `c96640d`, with waves A+B still applied. The
+*conclusion* is right (I confirmed it on true `main`), so this is a wording fix, not a
+retraction. While editing that ticket, add the trigger I isolated: the flake appears only
+when the dev vault carries a saved `.obsidian/workspace.json`; without one it went 5/5 green.
+That is both the missing root-cause detail and the workaround needed to verify B1's fix.
+
+## 💡 NICE-TO-HAVE
+
+- **N1** — the settings tab's pill is built once from the store and has no `display()` on
+  external writes, so it goes stale if the *panel* writes the preference while the tab is
+  open. Identical to every other tab control (sliders behave the same way), and
+  `nid_u36pqr4zljs44jt42lk9ln8ry_e` is adjacent. No action now.
+- **N2** — E8.3 ("back on Auto") relies on E8.2 leaving `outline-note` as MAIN: the same
+  class of implicit coupling that produced B1. Once B1 is fixed with an explicit rebuild
+  step, E8.3 should use it too.
+
+## The trough change (human decision) — implemented and honest
+
+`src/view/segmented-control.css:44` is `var(--background-modifier-form-field)`, purely
+theme-variable-driven, and it **is** in the generated `styles.css` (`:1156` and `:1673`) —
+the `AUTHORED_CSS_FILES` entry from wave B is present, so the shared stylesheet reaches both
+DOMs (now also pinned by e2e case 53's `overflow: hidden` probe). `main.js` and `styles.css`
+are untracked build artifacts, so no hand-edit is even possible.
+
+The WHY/WHY-NOT comment a future reverter would need **exists** at `segmented-control.css:29-43`
+and is **accurate**: it names the rejected `--background-primary`, states the measured
+`app.css` mapping (`body → --color-base-00`, `.theme-dark → --color-base-25`), and says
+plainly that the default **light** theme change is a visual no-op because Obsidian's own
+light inputs are hairline-framed too. The e2e case asserts the one theme-independent promise
+(`selectedFill !== trough`) and logs the rest as evidence rather than asserting theme colours.
+This is the right call and I did not second-guess the decision itself.
+
+## Tickets — real, correctly scoped, nothing important left unfiled
+
+Both markdown tickets exist and are substantive (probe transcript, three candidate fixes,
+"five consecutive green runs" as the acceptance bar; the smoke-run ticket records the measured
+colours so nobody re-derives them). All 6 CLI ids resolve in `ticket ls` as **open**. Coverage
+of the genuinely deferred items: deviation B2's real-Obsidian eyeball ✓, the `:92` culling
+flake ✓, the e2e baseline triplication ✓ (correctly filed after checking that the ticket the
+plan assumed existed did not). None of them should have been fixed inline instead.
+
+**The one real issue with no ticket is B1 — and it must be FIXED, not ticketed.**
+
+## Final quality sweep
+
+DRY/SRP/layering intact across the whole diff. `nodePreviewPreferenceMeta.ts` is a real DRY
+win (the reset description reads the option label instead of re-typing "Auto").
+`outlineFactsOf` merging two answers under shared guards is correct SRP, not a `Pair`.
+`toFlowNodeData` computing the outline once and reusing it for both the data and the decision
+removes the duplicated filter. No dead code, no test theatre (the 15-case truth table is the
+real contract, and the e2e cases assert user-visible DOM), no over-engineering.
+`npm run check` / `npm test` / `npm run build` as reported; the sole red is the author-only
+`linkStrengthFactor.max`, untouched.
+
+## Remaining risk for the human's real-Obsidian smoke run
+
+1. **You will see `nodeOutline.e2e.ts` fail** — at `:92` if your vault has a saved
+   `workspace.json` (pre-existing flake, reproduces on `main`, ticketed), and at `:339`
+   otherwise (**B1** — this branch's fault, fix it first).
+2. Genuinely open and unautomatable: `--text-on-accent` legibility on the accent fill under a
+   **third-party theme**; the focus ring sharing `--interactive-accent` with the selected fill;
+   260px-panel ellipsis. All three are in `ticket-node-preview-pill-human-smoke-run.md`, with
+   the default-theme colours already measured.
+3. Everything functional is covered: unit truth table + real-Obsidian e2e on both surfaces,
+   including that the panel pill writes the same global.
+
+## SHIP / DO-NOT-SHIP
+
+**DO NOT SHIP as-is.** One blocking defect (**B1**), entirely inside `e2e/`, no `src/` change
+required. The feature implementation itself is accepted against every binding requirement.
+Fix B1, correct S2's wording, re-run the whole `nodeOutline.e2e.ts` file, and this **SHIPS**.

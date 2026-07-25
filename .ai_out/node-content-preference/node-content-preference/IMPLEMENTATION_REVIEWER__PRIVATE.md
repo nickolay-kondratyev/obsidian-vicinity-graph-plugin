@@ -195,3 +195,89 @@ assertions all use retrying `expect(...)`; (d) the Phase-5 doc set incl.
 `README.md:138` and `high-level-plan.md:93`; (e) the §8 tickets actually filed,
 incl. the two new ones (sizePx-independence pinning; panel writes not fanning out
 to other open views via `ControlsActions.applySettings`).
+
+---
+
+# Run 3 — wave C + whole-feature acceptance.
+# Verdict: **NEEDS-ITERATION**, **1 BLOCKING**, DO-NOT-SHIP until B1 is fixed.
+# Public: appended "wave C + WHOLE-FEATURE ACCEPTANCE" section (waves A and B preserved,
+# verified by prefix check: file went 640 → 906 lines, nothing rewritten).
+
+## The find, and the method that produced it
+
+**B1: wave C's 3 new E8 cases deterministically break the pre-existing E7 at
+`nodeOutline.e2e.ts:339`.** E7's own comment at `:341-342` says "the current MAIN is
+outline-cover, so this is a real change" — it depends on the PREVIOUS test leaving
+outline-cover active, because only an active-file change triggers the rebuild that applies
+`setMaxNodeSizePx(96)`. E8.2/E8.3 leave outline-note active ⇒ `openFile(outline-note)` is a
+no-op ⇒ no rebuild ⇒ nodes stay 160px ⇒ outline visible ⇒ `toBeHidden()` fails.
+
+**What made this findable, and would have hidden it from anyone reading only logs:** the
+repo's own `.dev-vault` kills the file at `:92` first, so E7 never runs here. I only saw it
+because I ran the file in a git worktree, whose freshly-created `.dev-vault` has **no saved
+`workspace.json`** — and that absence is exactly what makes `:92` pass.
+
+Decisive A/B (all in `.tmp/reviewC/`): HEAD whole file → 1 failed (E7) / 13 passed, **3 of 3
+runs**; HEAD `--grep-invert` the 3 new cases → **11/11 pass**; main → 11/11 ×2. Same
+worktree, same vault, only the code differs.
+
+## Reusable environment knowledge (worth not re-deriving)
+
+- **e2e DOES run here.** `OBSIDIAN_PATH=$REPO/.tmp/obsidian/obsidian-1.12.7/obsidian`;
+  `scripts/run-e2e.sh` auto-adds `--ozone-platform=headless --disable-gpu` when no display.
+  A single-file run is ~20-40s including Obsidian boot. Wave C's correction was right and
+  waves A and B (including my own runs 1 and 2) were wrong to defer it.
+- **The `:92` culling flake is triggered by `.dev-vault/.obsidian/workspace.json`.**
+  Saved pane geometry ⇒ small graph pane ⇒ React Flow culls the MAIN node. Without that
+  file: 5/5 green (incl. HEAD). With it transplanted into the worktree vault: **`main`
+  itself goes red** (1 of 2 runs) and HEAD-no-E8 2/2. That is the experiment wave C never
+  ran, and it is what actually exonerates the feature.
+- **Worktree e2e recipe that works from this container:**
+  `git worktree add --detach .worktree/X main` → `ln -s $REPO/node_modules` →
+  `mkdir .tmp && ln -s $REPO/.tmp/obsidian .tmp/obsidian` → `npm run test:e2e -- <file>`.
+  `run-e2e.sh` rebuilds via `setup:dev-vault`, so the worktree gets its own correct `main.js`.
+  Checking out a different ref inside the same worktree is the ONLY controlled A/B — the
+  main repo's `.dev-vault` differs from a fresh one in `workspace.json` + `core-plugins.json`.
+- **Harness wipes `data.json`** in the vault copy on every launch
+  (`obsidianHarness.ts:383-387`: rm the copy, cp `.dev-vault`, then delete the plugin's
+  `data.json`). So there is NO cross-run preference pollution — I chased that hypothesis and
+  it is dead. Every launch starts at spec defaults.
+- **All 9 e2e files are `mode: "serial"`** ⇒ one red hides the rest as "did not run", and
+  `--grep` verification of an inserted case is structurally blind to what it broke.
+- `npx playwright test --config e2e/playwright.config.ts --list` needs no Obsidian and gives
+  the true total (**76**) — the cheapest way to audit a "N passed / M did not run" claim.
+
+## How I audited the report rather than trusting it
+
+- 76 total, and the cascade counts **exactly** 20: `nodeOutline:92` #1/14 (13) +
+  `vicinityGraph:160` #13/19 (6) + `edgeRoutingEval:171` #5/6 (1). Arithmetic that tight is
+  strong evidence the log is genuine and nothing was silently excluded.
+- `git diff main..HEAD -- e2e/ | grep -c "^-[^-]"` → **0**. No deletions, no `.skip/.only`,
+  no loosened timeouts. "Nothing weakened to manufacture green" is TRUE.
+- `git ls-files main.js styles.css` → empty (untracked artifacts) ⇒ hand-editing them into a
+  commit is impossible; the trough at `styles.css:1156` came from the build.
+
+## Honesty assessment of wave C (for the record)
+
+Substantially honest, and better than its predecessors: it volunteered that the 3 nodeOutline
+cases could NOT run in the full suite, and that the light-theme trough change is a visual
+no-op. Two overstatements, both wording rather than fabrication: the "pristine `main` tree"
+claim (the stash was to `c96640d` = wave B tip — `.tmp/wc-stash.log` proves it), and "all 9
+new cases pass" which is only true across two different runs. Neither conclusion was wrong;
+I verified the underlying claim properly myself.
+
+## If rehydrated to review the B1 fix
+
+1. The fix must be in `e2e/` only. Preferred shape: `await harness.remountGraphView()` after
+   `setMaxNodeSizePx` in E7, killing the implicit active-file dependency; acceptable
+   alternative: open a different file first and reword the `:341-342` comment.
+2. **Re-run the WHOLE `nodeOutline.e2e.ts`** (never `--grep`) in a vault with **no** saved
+   `workspace.json` — use a fresh worktree, that is the only place the file is otherwise
+   green. Expect 14/14.
+3. Check S2 landed: the culling ticket's "pristine `main`" wording corrected, and the
+   `workspace.json` trigger recorded in it.
+4. Nothing in `src/` needs re-review — the acceptance table is all PASS and wave C did not
+   disturb waves A or B (the only `src/` changes in `ac27f8d` are the `SettingsSpec.ts`
+   comment and the one-line CSS trough).
+5. Housekeeping I did: created and then removed `.worktree/reviewC-main`; left evidence logs
+   in `.tmp/reviewC/`. Nothing in `src/` or `e2e/` was modified by me (read-only mandate held).
