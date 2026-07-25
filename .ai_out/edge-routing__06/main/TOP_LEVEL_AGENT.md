@@ -11,9 +11,9 @@ Branch: `main` · Feature dir: `.ai_out/edge-routing__06/main/`
 | 0b | CLARIFICATION — human decisions D1/D2 | DONE — `CLARIFICATION__PUBLIC.md` |
 | 1 | Repair `e2e/edgeRoutingEval.e2e.ts` (chore ticket) + print detour ratios | DONE — `b4a9d57`, baseline in `STEP0_E2E_REPAIR__PUBLIC.md` |
 | 1b | Fix pre-existing red `SettingsSpec.test.ts` (D2) | DONE — `258ec5a`, `npm test` green |
-| 2 | (a) `setExclusive(false)` — RED real-wasm test first, then 1-line change + loader type narrowing | RUNNING |
-| 2b | (a) IMPLEMENTATION_REVIEW + iteration | pending |
-| 3 | (b) sweep 5/8/11/14/17, record table + screenshots | pending |
+| 2 | (a) `setExclusive(false)` — RED real-wasm test first, then 1-line change + loader type narrowing | DONE — `2d08ab1` |
+| 2b | (a) IMPLEMENTATION_REVIEW (verdict READY) + iteration (5/5 incorporated) | DONE — `9f92e77` |
+| 3 | (b) sweep 5/8/11/14/17, record table + screenshots | RUNNING |
 | 4 | (b) **HUMAN DECISION** on the two invariants (`buffer = curvature/2`, `buffer > arrowhead inset`) | pending |
 | 5 | (b) implement setting end-to-end with chosen default (7th force-layout field per D1) | pending |
 | 6 | Ticket notes, change_log, close chore ticket | pending |
