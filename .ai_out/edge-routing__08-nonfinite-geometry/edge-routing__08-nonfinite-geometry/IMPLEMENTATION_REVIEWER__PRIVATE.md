@@ -65,3 +65,39 @@ non-finite `k`, not just a zero denominator.
 Only S1/S2 wording is outstanding — both are single-comment edits in `src/view/edgeRouting.ts`. Re-run
 of `npm run check` / `npm test` would not be required for comment-only changes, but confirm the diff
 touches nothing else before signing off again.
+
+---
+
+# ITERATION 2 — convergence confirmed. **Verdict: READY.** Review CLOSED.
+
+Reviewed commit `85ad6bd` only. `git diff HEAD~1 HEAD -- src/` = `edgeRouting.ts` +9/-5 (comments
+only) + `edgeRouting.test.ts` +16/-6. No production logic changed; `hasFiniteGeometry` body and
+`dispose()` code byte-identical to iteration 1.
+
+## Disposition of my iteration-1 items
+
+- **S1** INCORPORATED — `edgeRouting.ts:410-416` now scopes the guarantee to obstacles produced by
+  `extractEdgeRoutingInput` and states outright that `route()` is unvalidated. Overclaim gone.
+- **S2** INCORPORATED — `edgeRouting.ts:182-185`; the `dispose()`-flush non-sequitur removed. I
+  verified its replacement claim against code: `:127-129` (no position) and `:133-135` (no group
+  dimensions) really are existing drop sites, so "already owns the drop discipline" is factual.
+- **N3** INCORPORATED — `test:162-170` 4 cases (x/y × NaN/-Infinity), `test:178-181` 2 cases
+  (width/height). Original single cases were widened, not replaced — no coverage lost. `$label`
+  keeps WHEN/THEN naming. Non-vacuity argument from my iteration-1 memory still applies verbatim.
+- **N1** REJECTED — accepted. Style only; `let` definitely-assigned under strict TS.
+- **N2** REJECTED — accepted as a judgment call, explicitly NOT blocking. I recorded one accuracy
+  correction publicly: `GraphViewController.ts:288-294` logs `obstacleCount`/`edgeCount` but no
+  total node count, so the debug line does not make a drop self-evident on its own. Conclusion
+  unaffected. Do NOT re-open this if there is a round 3.
+
+## My own gate runs (iteration 2, real)
+
+- `npm run check` → exit 0 (`.tmp/rev2_check.log`).
+- `npm test` → exit 0, **68 files / 916 tests passed**, 0 failed, 0 skipped (`.tmp/rev2_test.log`).
+  912 → 916 is arithmetically consistent (1→4 and 1→2).
+
+## Only outstanding item (not mine to fix)
+
+TOP_LEVEL_AGENT must file the upstream follow-up ticket before closing the branch: `DepthDecayMetric`
+guard must reject a **non-finite `k`** (`Infinity * 0 = NaN` at `src/engine/NodeSizer.ts:143`), not
+just a zero denominator. The `hasFiniteGeometry` comment asserts that defect still exists.

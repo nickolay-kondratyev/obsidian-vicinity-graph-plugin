@@ -149,3 +149,74 @@ None for `CLAUDE.md`. The reachability knowledge is recorded in exactly one plac
 (`hasFiniteGeometry`'s doc comment) — no DRY violation; `dispose()` cross-references rather than
 restates it. Ensure the follow-up ticket is filed before this branch is closed, since the
 `hasFiniteGeometry` comment asserts the upstream defect still exists.
+
+---
+
+# ITERATION 2 — convergence
+
+Scope: commit `85ad6bd` only (comments in `src/view/edgeRouting.ts`, `it.each` in
+`src/view/edgeRouting.test.ts`). `git diff HEAD~1 HEAD -- src/` touches exactly those two files:
+`edgeRouting.ts` +9/-5 (comment text only, `hasFiniteGeometry` body and `dispose()` code unchanged),
+`edgeRouting.test.ts` +16/-6. No production logic moved. **Verdict: READY (unchanged).**
+
+## 1. S1 / S2 — now HONEST
+
+- **S1 (`edgeRouting.ts:410-416`)** — RESOLVED. The guarantee is now explicitly scoped to
+  "no obstacle produced by `extractEdgeRoutingInput` — the only production input path", with the
+  counter-case stated outright ("`route()` is public and its `EdgeRoutingInput` is unvalidated, so
+  this is a guarantee about production input, not about the API surface"). That is precisely the
+  distinction the file's own wasm tests exercise. No overclaim remains.
+- **S2 (`edgeRouting.ts:182-185`)** — RESOLVED. The non-sequitur (`dispose()`'s teardown flush) is
+  gone; the clause now concedes "it could filter obstacles just as effectively" and gives the two
+  real reasons: extraction is pure/wasm-free to test, and it already owns the drop discipline.
+  I verified the factual claim in the second reason against the code: `extractEdgeRoutingInput`
+  does `continue` on a missing position (`:127-129`) and on missing group dimensions (`:133-135`),
+  so "already where this file drops unusable nodes" is accurate, not a rationalization.
+- **DRY** — the reachability knowledge still lives in exactly one place (`hasFiniteGeometry`'s doc);
+  `dispose()` cross-references via `{@link}` and does not restate it. No stale pointer.
+
+## 2. N3 coverage — non-vacuous and BDD-consistent
+
+- **Note position, 4 cases (`edgeRouting.test.ts:162-170`)** — `x`/`y` × `NaN`/`-Infinity`. The
+  fixture copies the position map verbatim into the obstacle, so each case genuinely reaches a
+  distinct conjunct of the guard; the exact-array `toEqual(["ok.md"])` fails if the corresponding
+  `Number.isFinite` term is dropped. The inline WHY ("a transposed field would still pass if only
+  `x` were exercised") states the real motivation. The pre-existing single-case test was widened,
+  not replaced — the original `x is NaN` case is case 1. **No coverage lost.**
+- **Folder group, 2 cases (`:178-181`)** — non-finite `width` and `height`. Non-vacuous because the
+  pre-existing test earlier in the file proves this same two-member-folder fixture DOES emit a
+  `folder-group:notes` obstacle; the exact `toEqual(["notes/a.md","notes/b.md"])` therefore fails
+  without the guard.
+- **BDD naming** — `$label` interpolation keeps every generated name in `WHEN … THEN …` form, one
+  behavior per case, one assert per case. Consistent with the repo convention.
+- The doc's honest caveat that note-side `widthPx`/`heightPx` cannot be split (both come from
+  `sizePx`) is correct and I would not ask for a synthetic split.
+
+## 3. The two rejections
+
+- **N1 (`obstacleOf` extractor) — rejection ACCEPTED, not blocking.** The `let` is definitely
+  assigned on both branches under strict TS, so this was style, and I said so in iteration 1. The
+  "revisit at a third node kind" trigger is the right deferral.
+- **N2 (caller-side `console.warn` on drop) — rejection ACCEPTED as a judgment call, NOT blocking.**
+  The core argument holds: the only known reachable trigger is fixed upstream by the follow-up
+  ticket, and a second reporting channel for a soon-unreachable state is net complexity. I still
+  mildly prefer observability here, but not enough to block, and I will not re-litigate it.
+  One accuracy correction to the disposition text, for the record only: the existing
+  `console.debug("vicinity-graph: edge routing pass", …)` at `GraphViewController.ts:288-294` logs
+  `obstacleCount`/`edgeCount` but **no** total node count in the same statement, so a drop is not
+  self-evident from that line alone — it is inferable only by comparison. The conclusion is
+  unaffected; the supporting claim is just slightly stronger than the code warrants.
+
+## 4. Gate results — re-run by me, real numbers
+
+- `npm run check` → **exit 0** (`.tmp/rev2_check.log`).
+- `npm test` → **exit 0 — 68 test files passed (68), 916 tests passed (916)**, 0 failed, 0 skipped
+  (`.tmp/rev2_test.log`). Matches the implementer's reported 916 exactly; the +4 delta over
+  iteration 1's 912 is arithmetically consistent with 1→4 and 1→2 case expansion.
+- No `sanity_check.sh` in the repo root.
+
+## Remaining (unchanged from iteration 1, owned by TOP_LEVEL_AGENT)
+
+File the upstream follow-up ticket before closing this branch — the `hasFiniteGeometry` comment
+asserts that the `depthDecayK` defect still exists, and that guard must reject a **non-finite `k`**
+(`Infinity * 0 = NaN` at `src/engine/NodeSizer.ts:143`), not merely a zero denominator.
