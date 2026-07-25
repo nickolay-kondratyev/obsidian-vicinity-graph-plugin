@@ -25,7 +25,9 @@ const ARROWHEAD_LENGTH_PX = 11;
  * own route. Exported (not module-private) because it is the measured FLOOR of
  * the edge-routing clearance: a head drawn on a route that clears every box by
  * `clearance` px keeps its body outside those boxes as long as
- * `clearance > ARROWHEAD_HALF_WIDTH_PX`. Asserted in `edgeRouting.test.ts`.
+ * `clearance >= ARROWHEAD_HALF_WIDTH_PX` (at equality the head's body grazes the
+ * boundary without crossing it, which is the decided floor — the shipped minimum
+ * clearance IS 6). Asserted in `edgeRouting.test.ts`.
  */
 export const ARROWHEAD_HALF_WIDTH_PX = 6;
 

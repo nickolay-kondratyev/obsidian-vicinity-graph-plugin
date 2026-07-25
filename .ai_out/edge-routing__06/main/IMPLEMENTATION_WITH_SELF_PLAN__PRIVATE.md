@@ -384,3 +384,83 @@ invariant. Restored from `.tmp/SettingsSpec.ts.bak`; `git diff` shows only the i
   `toHaveCount(6)`. `src/view/settingsResetPlan.ts:94` and `README.md:71` say "six" and are now WRONG
   but have no test asserting the word, so they are silent — 5b must not rely on a failure to find them.
 - `docs-internal/CHANGELOG.md` untouched by me.
+
+---
+
+# STEP 6 — iteration on IMPLEMENTATION_REVIEW_B (item (b)) — DONE, all green, uncommitted
+
+Public result: `IMPLEMENTATION_ITERATION_B__PUBLIC.md` (same dir). Base `2f61c7d`. Verdict was READY,
+so nothing blocked; 3 SHOULD-FIX + 4 suggestions were the input. **5 incorporated, 3 rejected, 1
+self-found.** `npm run check` 0 · `npm test` **780 passed** (779 + the one new test) · e2e tsc 0.
+
+## The one thing that mattered: the last hop is now guarded
+
+`src/view/edgeRouting.test.ts:341-368`. The reviewer's measurement reproduced EXACTLY — hardcoding
+`setRoutingParameter(avoid.shapeBufferDistance, 17)` collapses both arms onto the same number:
+
+```
+AssertionError: expected 231.31449065508642 to be less than 231.31449065508642
+      Tests  1 failed | 24 passed (25)
+```
+
+231.314… is the reviewer's `buffer=17 routeLength=231.31` to 2dp — independent confirmation the
+scene is the one they swept. Restored → 25/25, and the wasm-disabled forced-negative gives
+`13 passed | 12 skipped (25)` with the new test showing `↓` (it was 11 skipped before, so the new
+test genuinely joined the skip set rather than passing vacuously).
+
+**Refactor needed to get there:** `route()` had the clearance baked in. Split into
+`routeAtClearance(shapeBufferPx)` + `route()` delegating at `SHIPPED_CLEARANCE_PX`, so the two
+pre-existing blocker tests are byte-identical in behaviour. Also lifted `CLEARANCE_RANGE` from inside
+the invariants `describe` to module scope (`:34`) — two describes need it now.
+
+**Do NOT be tempted to assert either length.** They are scene-dependent; only the ORDERING is a
+property. Same discipline as the two replaced invariants (relation, not magic number).
+
+## Rejections (do not silently re-open these on a later pass)
+
+- **S3 "restore the word four"** — REJECTED. The reviewer's premise is that the POLS rationale rode on
+  the count; it does not. `VicinityGraphSettingTab.ts:147-149` still reads "The primary sliders carry
+  the SAME names as Obsidian's native graph view (POLS — users already know them)" — the whole
+  argument, count-free. Re-adding "four" re-creates exactly the class of unasserted prose count that
+  this review found lying in THREE places (`settingsResetPlan`, README, two docblocks). Nothing
+  asserts it; `FORCE_LAYOUT_MAIN_FIELDS` does.
+- **S4 "the buffer must stay small vs inter-node spacing"** — REJECTED as already carried, in stronger
+  form. `SettingsSpec.ts:217-244` records the same claim as MEASUREMENT ("dense-fixture detour
+  improved monotonically as the clearance shrank, max 1.342 → 1.188") rather than as the old prose
+  estimate. The reviewer themselves called it "strictly satisfied and superseded".
+- **S1 arrowhead-geometry follow-up ticket** — cannot act: `_tickets/` is TOP_LEVEL_AGENT-owned by my
+  brief. Paste-ready ticket body is in the PUBLIC §4 so it is not lost.
+
+## Self-found, same class as F2 (a comment that is false)
+
+`src/view/VicinityEdge.tsx:26-28` said the head stays outside "as long as
+`clearance > ARROWHEAD_HALF_WIDTH_PX`" — strict, while the shipped floor is `min: 6 == 6` and the test
+asserts `>=`. Left alone, the ONE constant whose export exists to state this relation would have
+contradicted the test that asserts it. Fixed to `>=` with the grazing case spelled out.
+
+## F2 — what the true WHY actually is (I re-derived it, did not reword)
+
+The deleted import made the old cycle claim false. Checked with grep: `edgeRouting.ts` imports nothing
+from `edgeGeometry.ts` in either direction now. But `import type` is still load-bearing for a
+DIFFERENT, checkable reason that already has a sibling in the same file: `ClipRect`
+(`edgeGeometry.ts:~150`) is deliberately kept LOCAL rather than importing `RoutingObstacle`, "so this
+pure math layer carries no routing types". So the module has a standing no-runtime-coupling policy and
+`RoutedPoint` is its single exception — legal precisely because it is erased. The new comment states
+that and points at `ClipRect`, so a future reader can verify it in-file.
+
+## Verification / hygiene
+
+- e2e NOT run, and that is defensible rather than lazy: `git diff -U0 src/view/edgeGeometry.ts
+  src/view/VicinityEdge.tsx | grep -v '^[+-]\s*\(\*\|//\)'` prints **nothing** — every shipped-source
+  line I changed is a comment. `src/view/edgeRouting.ts` is byte-identical to HEAD (mutation restored
+  from `.tmp/s6/edgeRouting.ts.bak`; `git diff --stat` on it is empty). Only test + docs changed.
+- Logs: `.tmp/s6/{red1,green1,skip,check,e2e-tsc,unit}.log`. Backups in `.tmp/s6/*.bak`.
+- Mutation discipline as in step 4: back up → python-replace → measure → restore → prove with
+  `git diff`. Two mutations this step (production line; then the test's wasm loader).
+
+## Still open after me
+
+- `_tickets/` untouched. TOP_LEVEL_AGENT still owes checklist rows 1b/3b (sweep table + D3 rationale
+  into the ticket) and, if they agree, the S1 ticket from PUBLIC §4.
+- Two carried-forward `#QUESTION_FOR_HUMAN:` (the `min: 6` strict-vs-inclusive call, and the full
+  elk+d3 relayout on a routing-only slider) are STILL unanswered — I did not re-litigate either.

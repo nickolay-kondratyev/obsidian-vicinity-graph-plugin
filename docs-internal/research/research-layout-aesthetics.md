@@ -142,8 +142,13 @@ All on the libavoid API we already ship:
     stack on one border point**, and no metric in this corpus (non-facing count,
     total length, detour ratio) can see it. Judge it from a screenshot; the fix
     if it looks bad is more pins per side or a spread heuristic, not a revert.
-- **Reduce `shapeBufferDistance`** (17px today) — it is what blocks the facing
-  pins, so it is the measured root-cause lever. Also in `edge-routing__06`.
+- **Reduce `shapeBufferDistance`** — it is what blocks the facing pins, so it is
+  the measured root-cause lever. **SHIPPED in `edge-routing__06` item (b)**: no
+  longer a hardcoded 17px, it is the user setting
+  `ForceLayoutSettings.edgeRoutingClearancePx` ("Edge clearance"), default
+  **11**, clamped to **6-14** — 17 is deliberately out of reach, being the
+  pathological end (40 non-facing attachments at 17 against 22-26 at ≤14 on the
+  same 400-scene corpus). Dense-fixture detour ratio max 1.342 → 1.244.
 - Replace the note-square centre pin with **4 directional side pins** so
   libavoid picks the facing side on that end too — parked: 8 pins on all
   shapes measured ~8838ms vs ~1450ms layout (~64×).
@@ -252,9 +257,11 @@ dormant (last release 2019). Keep as a far-horizon ticket.
 ## E. Suggested sequencing
 
 1. **C1** — parameter-level, attacks the two screenshot symptoms directly.
-   Superseded in part by measurement: what remains is `setExclusive(false)` +
-   a smaller `shapeBufferDistance` (`edge-routing__06`); pin costs and
-   `ClusterRef` are out. Re-measure the dense-fixture perf budget.
+   Superseded in part by measurement, then **DONE**: `setExclusive(false)` and
+   the smaller `shapeBufferDistance` both shipped in `edge-routing__06` (items
+   (a) and (b) — the latter as the user-facing "Edge clearance" setting,
+   default 11, range 6-14). Pin costs and `ClusterRef` are out. Dense-fixture
+   perf budget re-measured and holding (~10x margin under layout).
 2. **C2** worker offload — makes the crossing penalty (the #1
    evidence-backed aesthetic) affordable for good.
 3. **C3** orientation pass — the cheap, testable P4 fix that keeps the look.

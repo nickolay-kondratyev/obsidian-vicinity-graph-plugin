@@ -30,6 +30,9 @@ vi.mock("./libavoidLoader", () => ({ loadAvoid: loadAvoidMock }));
  */
 const SHIPPED_CLEARANCE_PX = EngineDefaults.forceLayoutSettings().edgeRoutingClearancePx;
 
+/** The whole span a slider — or a clamped, hand-edited `data.json` — can reach. */
+const CLEARANCE_RANGE = FORCE_LAYOUT_RANGES.edgeRoutingClearancePx;
+
 describe("extractEdgeRoutingInput", () => {
 	/**
 	 * GIVEN a folder group `notes/` with two members (a, b), an ungrouped root
@@ -132,8 +135,6 @@ describe("extractEdgeRoutingInput", () => {
  * constant that measurably bounds it, so the bound moves when the geometry moves.
  */
 describe("edge-routing clearance range invariants (edge-routing__06)", () => {
-	const CLEARANCE_RANGE = FORCE_LAYOUT_RANGES.edgeRoutingClearancePx;
-
 	it("WHEN the clearance is at its maximum THEN it still stays under the folder-group side padding", () => {
 		// REPLACES `buffer === EDGE_PAIR_CURVATURE_PX / 2` (17), a tie to the hand-drawn
 		// bow curvature that nothing in the routing geometry justified.
@@ -308,17 +309,21 @@ describe("LibavoidEdgeRouter with real wasm", () => {
 	const nodeB: RoutingObstacle = { id: "B", x: 200, y: 40, widthPx: 20, heightPx: 20, kind: "note" }; // centre (210,50)
 	const blocker: RoutingObstacle = { id: "OBS", x: 95, y: 20, widthPx: 40, heightPx: 60, kind: "note" };
 
-	async function route(): Promise<readonly { x: number; y: number }[]> {
+	async function routeAtClearance(shapeBufferPx: number): Promise<readonly { x: number; y: number }[]> {
 		const routes = await new LibavoidEdgeRouter().route({
 			obstacles: [nodeA, nodeB, blocker],
 			edges: [{ id: "A->B", sourceId: "A", targetId: "B" }],
-			shapeBufferPx: SHIPPED_CLEARANCE_PX,
+			shapeBufferPx,
 		});
 		const polyline = routes.get("A->B");
 		if (polyline === undefined) {
 			throw new Error("router produced no route for A->B");
 		}
 		return polyline;
+	}
+
+	async function route(): Promise<readonly { x: number; y: number }[]> {
+		return routeAtClearance(SHIPPED_CLEARANCE_PX);
 	}
 
 	it("WHEN a rectangle blocks the straight path THEN the route bends around it (>2 points)", async (ctx) => {
@@ -329,6 +334,35 @@ describe("LibavoidEdgeRouter with real wasm", () => {
 	it("WHEN routing around the obstacle THEN no waypoint falls strictly inside it", async (ctx) => {
 		requireWasm(ctx);
 		expect((await route()).some((p) => isStrictlyInside(p, blocker))).toBe(false);
+	});
+
+	function polylineLengthPx(polyline: readonly { x: number; y: number }[]): number {
+		let total = 0;
+		for (let i = 1; i < polyline.length; i++) {
+			const from = polyline[i - 1];
+			const to = polyline[i];
+			if (from !== undefined && to !== undefined) {
+				total += Math.hypot(to.x - from.x, to.y - from.y);
+			}
+		}
+		return total;
+	}
+
+	// THE LAST HOP: everything upstream of `router.setRoutingParameter(shapeBufferDistance, …)`
+	// — spec, persistence, cascade, `EdgeRoutingInput`, the route-cache signature — is guarded by
+	// its own test, but the handoff INTO libavoid was not, so re-hardcoding that one line left the
+	// whole suite (and every e2e spec) green while shipping a dead slider.
+	// This closes it from the far side: the same scene, only the clearance differing, must produce
+	// a MEASURABLY different route. A wider clearance pushes the detour further off the blocker, so
+	// route length grows monotonically with it (measured on this scene: 216.6px at 6, 222.6 at 11,
+	// 226.7 at 14, 231.3 at the retired 17). Asserted as the RELATION between the two range
+	// endpoints rather than against either length — the numbers move with the scene, the ordering
+	// does not, and both endpoints come from `FORCE_LAYOUT_RANGES` like the two invariants above.
+	it("WHEN the same scene is routed at the minimum and the maximum clearance THEN the tighter clearance gives the shorter route (the setting reaches libavoid)", async (ctx) => {
+		requireWasm(ctx);
+		const atMin = polylineLengthPx(await routeAtClearance(CLEARANCE_RANGE.min));
+		const atMax = polylineLengthPx(await routeAtClearance(CLEARANCE_RANGE.max));
+		expect(atMin).toBeLessThan(atMax);
 	});
 
 	// WHY these two: they are the regression guard for edge-routing__04's central fix —

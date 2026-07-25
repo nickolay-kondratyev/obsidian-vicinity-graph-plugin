@@ -126,3 +126,81 @@ session. Deserves its own ticket; explicitly out of scope for item (a).
 ## 8. Verdict issued
 
 **READY** for item (a). No blocking findings.
+
+---
+
+# PART 2 — item (b) review (commits `fc94c33` + `dc71503`, base `3786495`)
+
+Written 2026-07-25. Everything below verified first-hand. HEAD at review time was `2f61c7d`
+(a ticket-only commit that TOP_LEVEL_AGENT landed mid-review — `docs(tickets): file the
+plugin-wide settings-slider a11y gap`; it already answers step 5b's question 2).
+
+## 1. Verification commands and REAL results
+
+```
+npm run check                                  -> CHECK_EXIT=0        (.tmp/rev-b/check.log)
+npm test                                       -> 63 files / 779 tests passed (.tmp/rev-b/test.log)
+npx tsc -p e2e/tsconfig.json --noEmit          -> E2E_TSC_EXIT=0
+npm run setup:dev-vault                        -> SETUP_EXIT=0, bundle grep edgeRoutingClearancePx = 2
+npm run test:e2e -- edgeRoutingEval.e2e.ts     -> 5 passed (24.4s), EXIT=0
+npm run test:e2e -- edgeRouting.e2e.ts         -> 2 passed (2.4s)
+npm run test:e2e -- settingsUxVisual.e2e.ts    -> 7 passed (2.6s)
+npm run test:e2e -- edgeRouting.e2e.ts -g "crowded from one side" -> 1 passed (order-independent)
+```
+
+`[eval]` AFTER, my own run, reproduces STEP5B verbatim: dense 1.244/1.046, facing 1.266/1.047.
+PERF BUDGET routingMs=134.1 vs layoutMs=1382.7 (~10.3x).
+
+## 2. Mutation matrix (throwaway worktree `.worktree/rev-b`, removed after)
+
+| # | Mutation | Result |
+|---|---|---|
+| M1 | drop `String(input.shapeBufferPx)` from `routingSignature` | **1 failed** — the cache test. Teeth confirmed. |
+| M2 | `resolveRoutes(..., 17, token)` (ignore the setting) | **2 failed** — arrival + cache. Teeth confirmed. |
+| M3 | spec range → `min: 5, max: 16` | **2 failed** — one per replaced invariant. Teeth confirmed. |
+| M4 | `setRoutingParameter(avoid.shapeBufferDistance, 17)` | **ALL GREEN.** 24/24 unit, 779/779 suite, and **all e2e green** — `[eval]` merely printed dense 1.342/1.067 + facing 1.310/1.061 without asserting. **THE GAP.** |
+| M5 | revert item (a) `pin.setExclusive(false)` → `void pin`, rebuild vault, e2e | facing test **fails**, `facingSide=[top] terminals=[12]`, offenders `left@855,679 left@855,621 left@855,564 bottom@1138,736` — byte-identical to STEP5B §3. Independently reproduced. |
+| M6 | clearance-17 + facing e2e | facing test still **passes** → the facing gate guards item (a) only, NOT item (b). |
+
+M4+M6 together: item (b) has **no assertion anywhere** on the final hop into libavoid.
+
+## 3. Probes I wrote from scratch
+
+- **Clearance-does-reach-libavoid probe** (worktree, real wasm, existing A/B/blocker scene,
+  deleted after): total route length `216.64 @6 · 218.89 @8 · 222.61 @11 · 226.74 @14 · 231.31 @17`.
+  Deterministic and monotone → a `len(min) < len(max)` real-wasm test closes the M4 gap with no
+  new fixture and no flake. This is the concrete fix I recommended.
+- **Pre-change `data.json` probe** (worktree, deleted after): a full version-2 file with
+  non-default forceLayout, pins, exclusion and NO `edgeRoutingClearancePx` →
+  `repelStrength 900 / linkStrengthFactor 3 / linkGapPx 123 / collidePaddingPx 77 /
+  elkNodeSpacingPx 55` all survive, new field defaults to 11, pins + exclusion intact.
+  Clamping: `999 → 14`, `-5 → 6`. **NO-BUMP is verified correct, not taken on trust.**
+  (My `centerPullStrength: 0.42` came back 0.15 — that is the pre-existing clamp max, not a bug.)
+
+## 4. Geometric verdict on `>=` (asked explicitly)
+
+At buffer exactly 6 with `ARROWHEAD_HALF_WIDTH_PX = 6`: libavoid routes on the visibility graph of
+buffer-expanded shapes, so a hugging route sits at distance exactly `buffer` from the box.
+Half-width 6 == buffer 6 → the head's outer vertex lands **ON** the boundary: **tangent, zero-area
+overlap**. `>=` is sound; `min: 7` would be gold-plating. Implementer's resolution of D3's internal
+contradiction is right and was flagged rather than hidden.
+
+Nuance nobody recorded, and it is now the tightest relation in the file: `ROUTED_CORNER_RADIUS_PX
+= 10` is for the first time LARGER than the minimum reachable clearance (6) — impossible when the
+buffer was a fixed 17. Corner rounding cuts inward by `r(1 − 1/√2) ≈ 2.9px`; the diagonal margin at
+a buffer corner is `6√2 ≈ 8.49px`, so the drawn curve still clears. Safe, but undocumented.
+
+## 5. Findings issued (full wording in `IMPLEMENTATION_REVIEW_B__PUBLIC.md`)
+
+No BLOCKING. SHOULD-FIX: (1) the M4 gap — untested last hop; (2) `src/view/edgeGeometry.ts:8`
+comment is now false (it claims `edgeRouting.ts` imports `EDGE_PAIR_CURVATURE_PX`, deleted in
+`fc94c33`); (3) missing CHANGELOG entry for item (b) + `research-layout-aesthetics.md:145,:256`
+still recommending a shipped change as future work (same class as my still-open item-(a) finding).
+NICE-TO-HAVE: arrowhead constants split across `VicinityEdge.tsx` / `edgeGeometry.ts`; the corner-
+radius relation above; "four" over-deleted from the native-parity comments; the retired constant's
+"small relative to inter-node spacing" thread not carried into the spec JSDoc.
+
+## 6. Verdict issued
+
+**READY** for item (b). Outstanding acceptance-criteria items are ticket-notes hygiene owned by
+TOP_LEVEL_AGENT (the ticket file is untouched since `6a64555`), not implementation defects.

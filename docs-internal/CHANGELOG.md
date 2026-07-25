@@ -1,5 +1,52 @@
 # Changelog
 
+## 2026-07-24 — routing clearance is now the "Edge clearance" slider, default 11px (edge-routing__06 item (b))
+
+The gap the obstacle-avoiding router keeps around every box stopped being a hardcoded
+17px view constant (`EDGE_ROUTING_SHAPE_BUFFER_PX`) and became a seventh force-layout
+setting, `ForceLayoutSettings.edgeRoutingClearancePx` — **default 11**, clamp **6-14**
+step 1, shown as **Edge clearance** under *Advanced spacing* on both the settings tab
+and the in-graph panel.
+
+- **Existing installs change look with no user action.** The clearance was never
+  persisted, so every current user is on the old 17 and lands on **11** the moment they
+  upgrade: routes tighten and some edges re-attach elsewhere on a box. Nothing else about
+  their graph moves (node positions are unaffected — the clearance never reaches the elk
+  or d3 passes).
+- **17px is no longer reachable, deliberately.** The slider stops at 14, because 17 IS
+  the pathology this ticket fixed: a group member's clearance escapes the folder-group
+  border (`GROUP_SIDE_PADDING_PX = 16`) and seals the group's own boundary pins from
+  outside. Measured over a 400-scene corpus at realistic group degree: **40 non-facing
+  attachments at 17 against 22-26 at every value from 14 down.** A user who preferred the
+  old spacing cannot restore it.
+- **The bounds are geometric, and machine-checked, over the whole reachable range** —
+  not just the default. `min >= ARROWHEAD_HALF_WIDTH_PX` (6: an arrowhead drawn on a
+  route keeps its own body outside the boxes that route cleared) and
+  `max < GROUP_SIDE_PADDING_PX` (16: the cliff above). These two **replace** the retired
+  pair (`buffer === curvature / 2`, `buffer > arrowhead min inset`) — the first was a tie
+  to the hand-drawn bow curvature that no routing geometry justified, the second compared
+  a perpendicular clearance against a longitudinal offset. Strictly stronger statements,
+  human-decided (D3), each carrying its measured rationale in the test.
+- **11 is measured, not assumed** (5/8/11/14/17 sweep, one screenshot per value). On the
+  dense fixture max detour ratio **1.342 → 1.244** and mean **1.067 → 1.046**; on the new
+  `facing` fixture **1.310 → 1.266** / **1.061 → 1.047**. Routing time is unchanged
+  (~10x under the layout pass, budget untouched). Honest read: on a sparse graph the two
+  pictures look the same; the win shows where routes are crowded.
+- **No settings are lost: `PERSISTED_SHAPE_VERSION` is NOT bumped**, and that is the
+  safe direction. `parseForceLayout` fills each missing field from the engine default
+  individually, so a pre-upgrade `data.json` keeps every stored value and only gains this
+  one; a version bump would instead make `parsePluginData` discard the whole file and
+  return defaults wholesale. Proven by a test that parses a pre-change payload.
+- **Live end-to-end, including the route cache.** Moving the slider re-routes: the cache
+  signature covers the clearance (it was previously keyed on geometry alone, which would
+  have shipped a slider that looked alive and did nothing), and the value's final handoff
+  into libavoid is itself asserted against the real wasm — the same scene routed at 6 and
+  at 14 must differ in length. Accepted cost: this knob triggers a full elk+d3 relayout it
+  does not need (~1.4s on the dense fixture), so the graph visibly re-settles.
+- **First automated gate for the facing-side property** (`e2e/edgeRouting.e2e.ts`, on a
+  new `facing/` dev-vault fixture): with a folder group crowded from one side, no edge may
+  terminate on a border facing away from its neighbours. Reverting item (a) turns it red.
+
 ## 2026-07-24 — crowded group sides stop wrapping: boundary pins are now SHARED (edge-routing__06 item (a))
 
 `registerPinsForShape` calls `setExclusive(false)` on every connection pin it creates, so a
