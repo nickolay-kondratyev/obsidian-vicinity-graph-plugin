@@ -3,7 +3,7 @@ id: nid_3k0a4zl6in0mj8lcjibkjq2dx_e
 title: "EDGE_VISIBILITY_MODES re-lists a union inside persistence with no completeness guard"
 status: open
 deps: []
-links: []
+links: [nid_niz5dz6uqeyv237ckm15ittqa_e, nid_abreq4lmpo8vnvf61y9k9yly0_e, nid_8p0nn2g34d97finokwlz3u1dt_e]
 created_iso: 2026-07-25T03:52:21Z
 status_updated_iso: 2026-07-25T03:52:21Z
 type: chore
