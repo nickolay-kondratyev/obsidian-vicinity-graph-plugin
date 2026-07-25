@@ -13,10 +13,10 @@
 
 | Phase | Status | Result file |
 |-------|--------|-------------|
-| EXPLORE | running | `EXPLORATION_PUBLIC.md` |
-| CLARIFICATION | pending | `CLARIFICATION__PUBLIC.md` |
-| REPRODUCE | pending | `REPRODUCE__PUBLIC.md` |
-| FIND_ROOT_CAUSE | pending | `FIND_ROOT_CAUSE__PUBLIC.md` |
+| EXPLORE | done | `EXPLORATION_PUBLIC.md` |
+| CLARIFICATION | skipped — no blocking ambiguity | — |
+| REPRODUCE | done — RED test at `src/view/edgeRouting.test.ts:675` | `REPRODUCE__PUBLIC.md` |
+| FIND_ROOT_CAUSE | running | `FIND_ROOT_CAUSE__PUBLIC.md` |
 | ROOT_CAUSE_REVIEW | pending | `ROOT_CAUSE_REVIEW__PUBLIC.md` |
 | IMPLEMENTATION_WITH_SELF_PLAN | pending | `IMPLEMENTATION_WITH_SELF_PLAN__PUBLIC.md` |
 | IMPLEMENTATION_REVIEW | pending | `IMPLEMENTATION_REVIEW__PUBLIC.md` |
