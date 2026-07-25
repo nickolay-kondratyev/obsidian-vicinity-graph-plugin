@@ -3,7 +3,7 @@ id: nid_a7uwpxayt6w5vdnw8ogwskwvh_e
 title: "edge routing: non-finite obstacle coordinates abort the wasm module inside processTransaction"
 status: open
 deps: []
-links: []
+links: [nid_oy3vas85xhr34n2dby1mvows4_e]
 created_iso: 2026-07-25T14:54:10Z
 status_updated_iso: 2026-07-25T14:54:10Z
 type: bug
@@ -37,3 +37,9 @@ WHY-NOT validate inside `route()`: the abort happens in `processTransaction()`, 
 - Reachability from the real layout pipeline established (documented either way).
 - `npm run check` and `npm test` green.
 
+
+## Notes
+
+**2026-07-25T15:08:36Z**
+
+PRECONDITION for the linked teardown ticket, not an unrelated find. `AvoidArena.dispose()` now flushes the pending transaction before destroying the Router; that flush executes real routing work, so it ABORTS on non-finite obstacle geometry. Measured residual: with fewer than two connection pins pending, teardown used to be clean and now aborts (probe row `1shape-nan-flush`, `Aborted(Assertion failed: ang >= 0, geometry.cpp,635)`). Doubly gated (needs an in-window throw AND non-finite geometry AND <2 pending pins), so it does not block that fix — but finiteness validation at extraction is what makes the teardown invariant unconditionally safe. See `.ai_out/edge-routing__07-wasm-abort/edge-routing__07-wasm-abort/ROOT_CAUSE_REVIEW__PUBLIC.md` section 3.2.

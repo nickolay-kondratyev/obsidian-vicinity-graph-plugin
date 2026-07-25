@@ -316,6 +316,11 @@ interface AvoidRect {
  * heap corruption → wasm abort. So we track only the leaf objects WE own — Points,
  * Rectangles, ConnEnds — and destroy the Router LAST; router-owned objects are
  * created but never tracked. No libavoid object escapes this class.
+ *
+ * TEARDOWN PROTOCOL: a Router is only destroyable once its queued transaction has run,
+ * so `dispose()` returns it to that state before destroying it. That is what makes the
+ * "even on the throw path" promise above true rather than aspirational — see the WHY in
+ * {@link AvoidArena.dispose}, including the one residual it does NOT cover.
  */
 class AvoidArena {
 	/** Leaf objects we allocated and must free ourselves (Points, Rectangles, ConnEnds). */
@@ -352,6 +357,30 @@ class AvoidArena {
 	}
 
 	dispose(): void {
+		if (this.router !== null) {
+			// TEARDOWN PROTOCOL, step 1: return the Router to a destroyable state.
+			// `~Router()` asserts `visGraph.size() == 0`, but it only unlinks an obstacle's
+			// visibility data when that obstacle is ACTIVE — and an obstacle becomes active
+			// only inside `processTransaction()`. Connection pins, by contrast, build their
+			// visibility edges EAGERLY in their constructor. So destroying a Router whose
+			// transaction never ran (any throw between the first pin and `processTransaction()`
+			// in `route()`) orphans those edges, the assert fires, and the Emscripten abort
+			// kills the load-once wasm module for the WHOLE session — a failure meant to cost
+			// one pass costs every later pass instead.
+			// Flushing is the ONLY teardown libavoid offers: undoing the registrations instead
+			// (`deleteShape()` on a shape with a pending add) asserts too. Unconditional on
+			// purpose: a redundant flush finds an empty action list (measured 0.007ms at 100
+			// shapes / 300 edges), whereas tracking "did a transaction run" adds state that can
+			// drift out of sync with the Router.
+			//
+			// NOT a claim that flushing is always safe: it executes real routing work, so it
+			// ABORTS if a pending obstacle carries non-finite geometry — a scene that (below
+			// two pending pins) tears down cleanly today. Validating finiteness at extraction,
+			// ticket `nid_a7uwpxayt6w5vdnw8ogwskwvh_e`, is what closes that residual.
+			// WHY-NOT try/catch around the flush: `destroy(router)` below throws identically on
+			// an already-aborted module, so the guard would buy nothing and cost clarity.
+			this.router.processTransaction();
+		}
 		for (const obj of this.owned) {
 			this.avoid.destroy(obj);
 		}
