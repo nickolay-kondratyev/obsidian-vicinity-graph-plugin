@@ -12,11 +12,20 @@ outline" rule.
 
 ## Flow status
 
+## Human-approved decisions (CLARIFICATION)
+
+1. **3-way pill**: `Auto` / `Outline` / `Image` — `Auto` preserves today's
+   document-position rule, so **nothing is removed**.
+2. **Default `Auto`** — upgrades look identical until the user opts in.
+3. **Global scope only** — both surfaces edit one `globalView` value.
+
+See `CLARIFICATION__PUBLIC.md` for the binding requirement list.
+
 | Phase | Role | Status |
 |---|---|---|
-| EXPLORATION | Explore ×2 | RUNNING |
-| CLARIFICATION | TOP_LEVEL_AGENT | pending |
-| DETAILED_PLANNING | PLANNER | pending |
+| EXPLORATION | Explore ×2 | DONE |
+| CLARIFICATION | TOP_LEVEL_AGENT | DONE (human-approved) |
+| DETAILED_PLANNING | PLANNER (THINK_HARDER) | RUNNING |
 | DETAILED_PLAN_REVIEW | PLAN_REVIEWER | pending |
 | PLAN_ITERATION | PLANNER ↔ PLAN_REVIEWER | pending |
 | IMPLEMENTATION | IMPLEMENTATION | pending |
