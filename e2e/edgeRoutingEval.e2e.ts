@@ -18,6 +18,9 @@ import { ObsidianHarness, PLUGIN_ID } from "./obsidianHarness";
  * - sparse: `note1.md` vicinity (~9 notes, projects/solo groups).
  * - medium: `hub-medium.md` (five 3-member folder groups + inter-group ring).
  * - dense:  `zzdense-hub.md` (~110 ungrouped spokes + chords).
+ * - facing: `facing/hub-facing.md` (a 5-member folder-group box approached by 12
+ *   SEPARATE edges from one clustered side — the only fixture that can show the
+ *   group facing-side attachment symptom; the others never crowd a group side).
  * `all-edges` visibility is set so sibling chords render and genuinely load the router.
  */
 
@@ -169,6 +172,7 @@ const FORCE_FIXTURES: ReadonlyArray<{ readonly label: string; readonly central: 
 	{ label: "sparse", central: "note1.md" },
 	{ label: "medium", central: "hub-medium.md" },
 	{ label: "dense", central: "zzdense-hub.md" },
+	{ label: "facing", central: "facing/hub-facing.md" },
 ];
 
 for (const { label, central } of FORCE_FIXTURES) {

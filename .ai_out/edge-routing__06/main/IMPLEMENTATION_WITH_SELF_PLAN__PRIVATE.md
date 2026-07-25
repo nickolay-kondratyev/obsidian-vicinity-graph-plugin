@@ -233,3 +233,85 @@ exclusivity tests). Zero skips in the real run — the wasm loads here. Logs: `.
   side", which is TRUE but incomplete; add "first wrong-side terminal at the 3rd edge" and the
   fan-in observation (review §7.3) when pasting.
 - Item (b) (buffer sweep / settings / e2e) still untouched.
+
+---
+
+# STEP 4 — the `facing` dev-vault fixture (edge-routing__06) — DONE, all green, uncommitted
+
+Public result: `STEP4_FIXTURE__PUBLIC.md` (same dir). Two files touched, both outside `src/`:
+`scripts/setup-dev-vault.sh:240-291` and `e2e/edgeRoutingEval.e2e.ts:21-23,:175`.
+`npm test` 774/774, `npx tsc -p e2e/tsconfig.json --noEmit` 0, `test:e2e -- edgeRoutingEval` 5 passed.
+
+## The headline a clone must not re-derive
+
+**The symptom does NOT reproduce on shipped code — because item (a) already fixed it.**
+Same fixture, two arms, exact terminal points read out of the DOM (box rect `855,506 → 1232,736`,
+neighbour blob entirely ABOVE the box, so TOP is the facing side):
+
+```
+shipped (pin.setExclusive(false)):  TOP@1044 x11 , TOP@950 x1                    -> 12/12 facing
+pre-(a) (that line removed):        TOP x7 (7 distinct x) , LEFT@855 x3 ,
+                                    RIGHT@1232,564 x1 , BOTTOM@1044,736 x1        -> 2 far-side wraps
+```
+The 7 distinct TOP x-values in the pre-(a) arm are the CENTRE fallback (12 exclusive pins all
+claimed) clipped at the border by the render-time clip — not 7 pins. There are only 3 pins/side.
+
+**`[eval]` cannot see this.** At the earlier N=8 geometry both arms printed byte-identical
+`maxDetourRatio=1.079 meanDetourRatio=1.014`. Detour ratio is blind to which side an edge lands on.
+Never report a flat `[eval]` line as evidence of correct attachment.
+
+## Fixture design decisions (and why)
+
+- Central note lives INSIDE the group (`facing/hub-facing.md`). That is what turns every
+  hub→neighbour link into a cross-boundary edge collapsed onto the BOX. Precedent: the ticket-03
+  stranding fixture already opens a grouped central note (`p/ep/stranded-hub.md`), so this is not
+  novel behaviour. Depth default is 1/1 (`SettingsSpec.ts:107-109`) — hence everything must be one
+  hop from the hub; that is why the neighbours link the hub rather than each other's chain.
+- Collapse unions by UNORDERED PAIR (`flowMapping.ts:206-257`) → distinct neighbours = distinct
+  edges. Same neighbour linking 2 members would be ONE edge with count 2, not two edges.
+- Neighbours are ROOT notes (root is never a folder group — same trick zzdense uses).
+- `facing-near1` as the cluster mini-hub is the whole reason the blob is compact and the facing side
+  unambiguous. Without it (or with a chain) the blob straddles two sides.
+
+## Geometry iteration — N=8 was measured and REJECTED
+
+N=8: 4 LEFT / 3 BOTTOM / 1 TOP over 6 terminals, fan-in x2, `maxDetourRatio=1.079`
+(counterfactual still produced one RIGHT wrap, so it did work — just weakly).
+N=12: all 12 on TOP, fan-in **x11**, `maxDetourRatio=1.310` — second-highest of all four fixtures,
+so this is the only OTHER fixture besides dense with route-quality headroom for the step-5 sweep.
+Kept 12 even though the brief suggested 5-8. One constant: `setup-dev-vault.sh:261`.
+
+## Traps that cost me time
+
+- **`write_if_missing` never overwrites.** Changing `FACING_NEIGHBOUR_COUNT` does nothing until you
+  `rm -rf .dev-vault/facing .dev-vault/facing-near*.md`. Deleting only `facing-near*.md` is NOT
+  enough — `facing/hub-facing.md` holds the link list and is what actually sets the count.
+- `e2e/tsconfig.json` has no `downlevelIteration`/ES2015 iteration for DOM collections: spreading a
+  `NodeListOf<…>` fails with TS2488, and `[...map.entries()]` would too. Index loops + a
+  `Record<string, number>` work.
+- No PIL in this env; **ImageMagick `convert` IS available** — `convert in.png -crop WxH+X+Y +repage
+  -resize 400% out.png` is how I zoomed into the border to eyeball terminals.
+- The eval screenshot is the sidebar-sized `.vicinity-graph-flow` locator (476x716), while the probe
+  reports WINDOW coordinates (the pane starts at x≈791/791+, y≈54). Offsets differ per layout — do
+  not assume the 791/54 offsets transfer.
+
+## The terminal probe (parked, reusable)
+
+`.tmp/zzFacingTerminalsProbe.e2e.ts.keep` — copy to `e2e/` to re-run, delete after. It prints
+`[probe] {groupRect, edgePathCount, terminalCount, distinctTerminals:["SIDE@x,y xN"]}` by reading
+`getPointAtLength(0|len)` through `getScreenCTM()` and classifying against
+`.vicinity-graph-group[data-folder="facing"]`'s client rect (6px tolerance). Runs in 5.7s.
+**Step 5 should re-run this at buffer 11** — it is the only readout that sees attachment side.
+
+## Mutation discipline (I did touch src/, temporarily)
+
+`cp src/view/edgeRouting.ts .tmp/edgeRouting.ts.bak` → python-replace `pin.setExclusive(false);`
+with `void pin;` → measure → restore → `git diff --stat src/ | wc -l` == 0. Did this twice (N=8 and
+N=12 arms). Final tree has `src/` byte-identical to HEAD. Declared in the PUBLIC §6.
+
+## Still open
+
+- `_tickets/` untouched (TOP_LEVEL_AGENT owns it). Three `#QUESTION_FOR_HUMAN:` in PUBLIC §7 —
+  the important one is Q1: if the human's real vault still wraps WITH item (a) shipped, this
+  fixture does not model their case and we need the real box aspect ratio + neighbour count.
+- Buffer still 17. Step 5 owns lowering it to 11 and capturing AFTER (screenshot + probe + `[eval]`).

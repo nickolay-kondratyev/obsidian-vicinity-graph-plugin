@@ -237,6 +237,55 @@ for i in 1 2 3 4 5; do
 		| write_if_missing "${VAULT}/stranded-crowd${i}.md"
 done
 
+# --- edge-routing__06 fixture: facing-side crowding at a folder-group box -----
+# WHY this exists: no other fixture can show the reported symptom (edges to a
+# folder-group box attaching on a FAR side instead of the side facing their
+# neighbour). The medium fixture's groups each carry ONE collapsed edge, and the
+# dense fixture has no folder groups at all — so neither ever crowds one side of
+# a group box. This one does, and is the automatable stand-in for the human's
+# private-vault screenshot check.
+#
+# Shape (all links are one hop from the hub, so the whole thing fits the default
+# outgoing/incoming depth of 1):
+#   - `facing/` holds the hub + 4 members → a real group box with members inset.
+#   - The hub lives INSIDE the group, so each hub→neighbour link is a
+#     cross-boundary edge that collapses onto the BOX (one edge per neighbour,
+#     since collapsing unions by pair — 12 neighbours give 12 SEPARATE edges, far
+#     more than the 3 boundary pins any single side carries).
+#   - The neighbours all link one cluster mini-hub (`facing-near1`), so the force
+#     layout packs them into a blob on ONE side of the box. That blob is what
+#     makes "the facing side" unambiguous — the whole point of the measurement.
+# Self-contained: nothing here links note1/hub-medium/zzdense/stranded.
+echo "==> Ensuring facing-side crowding fixture (facing/hub-facing + facing-near*)"
+FACING_MEMBER_COUNT=4
+FACING_NEIGHBOUR_COUNT=12
+FACING_CLUSTER_HUB="facing-near1"
+
+{
+	echo "Facing-side crowding hub (edge-routing__06). Inside facing/, so every link"
+	echo "below crosses the group boundary and lands on the group BOX, one edge each."
+	echo
+	for i in $(seq 1 "${FACING_NEIGHBOUR_COUNT}"); do
+		printf 'Neighbour [[facing-near%d]].\n' "${i}"
+	done
+} | write_if_missing "${VAULT}/facing/hub-facing.md"
+
+for i in $(seq 1 "${FACING_MEMBER_COUNT}"); do
+	printf 'facing/ member %d — gives the group box real area and inset members. Hub [[hub-facing]].\n' "${i}" \
+		| write_if_missing "${VAULT}/facing/facing-m${i}.md"
+done
+
+for i in $(seq 1 "${FACING_NEIGHBOUR_COUNT}"); do
+	name="facing-near${i}"
+	if [[ "${name}" == "${FACING_CLUSTER_HUB}" ]]; then
+		printf 'Facing neighbour %d — the cluster mini-hub the other neighbours link to.\n' "${i}" \
+			| write_if_missing "${VAULT}/${name}.md"
+	else
+		printf 'Facing neighbour %d (ungrouped root note). Cluster link [[%s]].\n' "${i}" "${FACING_CLUSTER_HUB}" \
+			| write_if_missing "${VAULT}/${name}.md"
+	fi
+done
+
 echo "==> Ensuring minimal .obsidian config"
 write_if_missing "${OBSIDIAN}/app.json" <<'EOF'
 {}
@@ -286,6 +335,10 @@ cat <<EOF
    - alpha → note1 twice → edge count badge "2"
    - alpha: frontmatter title + png/pdf/csv attachment strip
    - solo/gamma → singleton folder breadcrumb, trimmed fm title
+
+ Edge-routing facing-side check:
+   - open facing/hub-facing.md → 12 separate edges reach the group box;
+     they must attach on the side facing the neighbour blob
 
  Ticket-03 stranding check:
    - open stranded-main.md (outgoing depth >= 2) or stranded-hub.md →
