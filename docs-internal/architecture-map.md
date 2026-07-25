@@ -47,6 +47,10 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   node components reach through `NoteOpenContext` (React Flow instantiates them,
   so context is the only channel). `NodeOutline.tsx` owns in-node outline
   rendering — the tree/label/markup decisions and `node-outline.css`.
+  Refresh reach is two ports: `OwningViewPort` rebuilds just the view that owns
+  the controls panel, `ViewsRefreshPort` (implemented in `main.ts` over
+  `refreshOpenViews()`) rebuilds every open view — which one a settings write
+  uses is the pure `view/settingsWriteScope.ts` decision.
 - `persistence/storagePorts.ts`, `adapters/obsidianPorts.ts` — testable seams,
   each with a `Fake*` implementation used by unit tests.
 

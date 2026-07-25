@@ -15,6 +15,7 @@ import { PersistenceServices } from "./persistence/PersistenceServices";
 import { PluginDataStore } from "./persistence/PluginDataStore";
 import { VicinityGraphSettingTab } from "./view/VicinityGraphSettingTab";
 import { VicinityGraphView, VIEW_TYPE_VICINITY_GRAPH } from "./view/VicinityGraphView";
+import type { ViewsRefreshPort } from "./view/viewPorts";
 
 // manifest.json minAppVersion WHY: 1.12.4 is the first PUBLIC Obsidian release where
 // canvas backlinks are core-indexed (resolvedLinks/graph; EA 1.12.0, 2026-02). It is a
@@ -36,6 +37,13 @@ export default class VicinityGraphPlugin extends Plugin {
 	/** Plugin-lived on purpose: canvas parses survive across graph rebuilds (mtime-keyed). */
 	private readonly canvasParseCache = new CanvasParseCache();
 	private sweepTimer: number | null = null;
+	/**
+	 * {@link ViewsRefreshPort} over this plugin's own leaf walk, handed to every
+	 * view it creates so a global write made INSIDE a controls panel fans out
+	 * exactly like one made in the settings tab. The workspace stays known only
+	 * here; the view layer sees one method.
+	 */
+	private readonly viewsRefresh: ViewsRefreshPort = { refreshAllViews: () => this.refreshOpenViews() };
 
 	async onload(): Promise<void> {
 		this.docIdService = DocIdServices.createDefault(this.app.vault);
@@ -65,7 +73,13 @@ export default class VicinityGraphPlugin extends Plugin {
 		this.registerView(
 			VIEW_TYPE_VICINITY_GRAPH,
 			(leaf) =>
-				new VicinityGraphView(leaf, this.graphBuilder, this.pluginDataStore, this.persistenceServices),
+				new VicinityGraphView(
+					leaf,
+					this.graphBuilder,
+					this.pluginDataStore,
+					this.persistenceServices,
+					this.viewsRefresh,
+				),
 		);
 		// Node hover fires `hover-link` (step-05); registering the source lists
 		// the graph in the Page-preview core-plugin settings. `defaultMod: false`

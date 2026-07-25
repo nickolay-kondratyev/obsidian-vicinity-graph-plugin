@@ -45,6 +45,29 @@ export interface ControlsActionsPort {
 }
 
 /**
+ * Rebuilds EVERY open vicinity-graph view — the fan-out a global write needs,
+ * because globals live in `data.json` and every open view renders from them.
+ * Implemented in `main.ts` over the plugin's own `refreshOpenViews()` (the
+ * workspace leaf walk stays in the one class that owns the workspace), so the
+ * controls executor never has to know that views come from leaves.
+ */
+export interface ViewsRefreshPort {
+	refreshAllViews(): void;
+}
+
+/**
+ * The slice of the OWNING view's controller the controls executor needs: which
+ * doc is currently MAIN (every depth write targets it) and "rebuild just this
+ * view". Structurally satisfied by `GraphViewController`; deliberately narrow so
+ * the executor is testable with a plain fake and cannot reach the rest of the
+ * controller. Contrast {@link ViewsRefreshPort}, which reaches ALL views.
+ */
+export interface OwningViewPort {
+	currentMainPath(): string | null;
+	handleSettingsChanged(): void;
+}
+
+/**
  * Runs the elk layout on an elk graph, returning it annotated with coordinates.
  * `forceLayout` carries the build's resolved tuning values into the d3-force
  * root refinement; when omitted the implementation uses the engine defaults.
