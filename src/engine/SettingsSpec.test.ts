@@ -16,6 +16,7 @@ import {
 	clampOutlineMaxDepth,
 } from "./constants";
 import { SETTINGS_SPEC } from "./SettingsSpec";
+import type { DepthSpec, NodeExclusionSpec, ViewSpec } from "./SettingsSpec";
 import { SettingsDefaults } from "./SettingsDefaults";
 
 /**
@@ -24,15 +25,25 @@ import { SettingsDefaults } from "./SettingsDefaults";
  * edit that drifts a value fails loudly) AND prove the adapters (`EngineDefaults`,
  * `FORCE_LAYOUT_RANGES`, the view bounds) are mechanical projections of the spec.
  */
+
+/**
+ * Exhaustiveness guard for the "exact shipped baseline" tests below: a baseline
+ * literal annotated `satisfies EverySpecField<SomeSpec>` MUST carry one entry per
+ * field of that spec section. WHY: these baselines used to be hand-listed, so a
+ * newly added spec field (this happened with `outlineMaxDepth`) was simply never
+ * baselined and nothing went red. Now it is a `npm run check` error instead.
+ */
+type EverySpecField<TSpec> = Record<keyof TSpec, unknown>;
+
+/** Baseline entry for a spec field that is default-only (no min/max/step to pin). */
+const NO_SPEC_LIMITS = "no limits in the spec";
+
 describe("SETTINGS_SPEC (single source of truth for defaults + limits)", () => {
 	it("WHEN the spec is read THEN its default values equal the exact shipped baseline", () => {
 		const view = SETTINGS_SPEC.globalView;
-		expect({
-			globalDepths: {
-				outgoingDepth: SETTINGS_SPEC.globalDepths.outgoingDepth.default,
-				incomingDepth: SETTINGS_SPEC.globalDepths.incomingDepth.default,
-			},
+		const viewDefaults = {
 			nodeCap: view.nodeCap.default,
+			outlineMaxDepth: view.outlineMaxDepth.default,
 			nodePreviewPreference: view.nodePreviewPreference.default,
 			groupByFolder: view.groupByFolder.default,
 			edgeVisibility: view.edgeVisibility.default,
@@ -47,13 +58,21 @@ describe("SETTINGS_SPEC (single source of truth for defaults + limits)", () => {
 			forceLayout: Object.fromEntries(
 				Object.entries(view.forceLayout).map(([field, s]) => [field, s.default]),
 			),
+		} satisfies EverySpecField<ViewSpec>;
+		expect({
+			globalDepths: {
+				outgoingDepth: SETTINGS_SPEC.globalDepths.outgoingDepth.default,
+				incomingDepth: SETTINGS_SPEC.globalDepths.incomingDepth.default,
+			} satisfies EverySpecField<DepthSpec>,
+			...viewDefaults,
 			nodeExclusion: {
 				enabled: SETTINGS_SPEC.nodeExclusion.enabled.default,
 				patterns: SETTINGS_SPEC.nodeExclusion.patterns.default,
-			},
+			} satisfies EverySpecField<NodeExclusionSpec>,
 		}).toEqual({
 			globalDepths: { outgoingDepth: 1, incomingDepth: 1 },
 			nodeCap: 100,
+			outlineMaxDepth: 2,
 			nodePreviewPreference: "auto",
 			groupByFolder: true,
 			edgeVisibility: "walked-from-center",
@@ -83,21 +102,39 @@ describe("SETTINGS_SPEC (single source of truth for defaults + limits)", () => {
 	});
 
 	it("WHEN the spec is read THEN its limits equal the exact shipped baseline", () => {
+		const view = SETTINGS_SPEC.globalView;
+		const viewLimits = {
+			nodeCap: { min: view.nodeCap.min },
+			outlineMaxDepth: {
+				min: view.outlineMaxDepth.min,
+				max: view.outlineMaxDepth.max,
+				step: view.outlineMaxDepth.step,
+			},
+			nodePreviewPreference: NO_SPEC_LIMITS,
+			groupByFolder: NO_SPEC_LIMITS,
+			edgeVisibility: NO_SPEC_LIMITS,
+			sizing: NO_SPEC_LIMITS,
+			forceLayout: Object.fromEntries(
+				Object.entries(view.forceLayout).map(([field, s]) => [
+					field,
+					{ min: s.min, max: s.max, step: s.step },
+				]),
+			),
+		} satisfies EverySpecField<ViewSpec>;
 		expect({
 			depthStepper: {
 				min: SETTINGS_SPEC.globalDepths.outgoingDepth.min,
 				max: SETTINGS_SPEC.globalDepths.outgoingDepth.max,
 			},
-			nodeCapMin: SETTINGS_SPEC.globalView.nodeCap.min,
-			forceLayout: Object.fromEntries(
-				Object.entries(SETTINGS_SPEC.globalView.forceLayout).map(([field, s]) => [
-					field,
-					{ min: s.min, max: s.max, step: s.step },
-				]),
-			),
+			...viewLimits,
 		}).toEqual({
 			depthStepper: { min: 0, max: 5 },
-			nodeCapMin: 1,
+			nodeCap: { min: 1 },
+			outlineMaxDepth: { min: 1, max: 6, step: 1 },
+			nodePreviewPreference: NO_SPEC_LIMITS,
+			groupByFolder: NO_SPEC_LIMITS,
+			edgeVisibility: NO_SPEC_LIMITS,
+			sizing: NO_SPEC_LIMITS,
 			forceLayout: {
 				centerPullStrength: { min: 0, max: 0.15, step: 0.01 },
 				repelStrength: { min: 50, max: 1000, step: 10 },
