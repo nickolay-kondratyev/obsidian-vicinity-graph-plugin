@@ -30,9 +30,9 @@ See `CLARIFICATION__PUBLIC.md` for the binding requirement list.
 | PLAN_ITERATION | PLANNER ↔ PLAN_REVIEWER | **SKIPPED** (reviewer signalled not needed) |
 | IMPLEMENTATION wave A (plan phases 1–2) | IMPLEMENTATION | DONE — `7b9995a`, `f065510` |
 | IMPLEMENTATION_REVIEW wave A | IMPLEMENTATION_REVIEWER | DONE — APPROVED, 0 blocking |
-| IMPLEMENTATION wave B (plan phases 3–4) | UX_UI_IMPLEMENTATION | RUNNING |
-| IMPLEMENTATION_REVIEW wave B | IMPLEMENTATION_REVIEWER | pending |
-| IMPLEMENTATION wave C (plan phase 5) | IMPLEMENTATION | pending |
+| IMPLEMENTATION wave B (plan phases 3–4) | UX_UI_IMPLEMENTATION | DONE — `2ded9db`, `c50ed40` |
+| IMPLEMENTATION_REVIEW wave B | IMPLEMENTATION_REVIEWER | DONE — APPROVED-WITH-FOLLOWUPS, 0 blocking |
+| IMPLEMENTATION wave C (plan phase 5) | IMPLEMENTATION | RUNNING |
 | IMPLEMENTATION_REVIEW final | IMPLEMENTATION_REVIEWER | pending |
 
 ## Implementation waves (why split)
@@ -56,3 +56,11 @@ is told not to touch it and not to attribute it to their work.
 - `EXPLORATION__CONTENT_RULES__PUBLIC.md` — image/outline decision + fits logic
 - `EXPLORATION__SETTINGS_CONTROLS__PUBLIC.md` — settings model, pill pattern, controls panel
 - `EXPLORATION_PUBLIC.md` — index of the above (written by TOP_LEVEL_AGENT)
+
+## Second human decision (during wave B review)
+
+**Pill trough colour**: the reviewer measured the unselected trough
+(`--background-primary`) as identical to both hosts' backgrounds, leaving only a
+1px border to delineate the control. Human chose **`--background-modifier-form-field`**
+(Obsidian's own form-field interior) so the pill reads as a real inset input.
+Folded into wave C.
