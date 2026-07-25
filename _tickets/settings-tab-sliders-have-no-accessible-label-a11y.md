@@ -1,11 +1,11 @@
 ---
 id: nid_5wiribg2mn0mqcr7ni4ya0cfe_e
 title: "settings-tab sliders have no accessible label (a11y)"
-status: open
+status: in_progress
 deps: []
 links: []
 created_iso: 2026-07-25T04:15:25Z
-status_updated_iso: 2026-07-25T04:15:25Z
+status_updated_iso: 2026-07-25T17:04:46Z
 type: bug
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
