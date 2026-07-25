@@ -66,9 +66,10 @@ The distinction matters because people ask about it, so it is worth reading once
   shows a hidden-node count).
 - **Force layout** — four sliders named like Obsidian's native graph (**Center
   force**, **Repel force**, **Link force**, **Link distance**) plus an *Advanced
-  spacing* group (**Node spacing**, **Group member spacing**). Changes re-layout
-  open graphs immediately; ranges are clamped so no combination can degenerate
-  the layout, and a **Restore defaults** button resets all six.
+  spacing* group (**Node spacing**, **Group member spacing**, **Edge clearance**
+  — how far a connecting line stays off the boxes it bends around). Changes
+  re-layout open graphs immediately; ranges are clamped so no combination can
+  degenerate the layout, and a **Restore defaults** button resets them all.
 - **Restoring defaults** — every section ends with its own restore row whose name
   states exactly what it resets (*Restore node sizing defaults*, *Restore force
   layout defaults*, …). Rows that only reset numeric knobs apply immediately;

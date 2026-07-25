@@ -40,7 +40,7 @@ export const FORCE_LAYOUT_FIELD_META: Readonly<Record<keyof ForceLayoutSettings,
 	},
 	edgeRoutingClearancePx: {
 		label: "Edge clearance",
-		description: "How far (px) a routed edge stays clear of the boxes it passes on its way.",
+		description: "Gap (px) a connecting line keeps from the boxes it bends around on its way.",
 	},
 };
 

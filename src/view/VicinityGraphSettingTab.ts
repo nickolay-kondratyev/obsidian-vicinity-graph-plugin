@@ -145,9 +145,9 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	}
 
 	/**
-	 * Force-layout tuning (ticket-04). The four primary sliders carry the SAME
+	 * Force-layout tuning (ticket-04). The primary sliders carry the SAME
 	 * names as Obsidian's native graph view (POLS — users already know them);
-	 * the two spacing knobs live in a collapsible `<details>` block (Obsidian's
+	 * the px fine-tuning knobs live in a collapsible `<details>` block (Obsidian's
 	 * Setting API has no built-in collapsible group, and a native details
 	 * element keeps it dependency-free). Slider limits come from the engine's
 	 * {@link FORCE_LAYOUT_RANGES} — the SAME table the persistence parser clamps

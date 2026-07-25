@@ -84,7 +84,7 @@ test("exclusion toggle switches on, shows patterns state, and persists", async (
 	await expect(disclosure("Node exclusion").locator(".checkbox-container")).not.toHaveClass(/is-enabled/);
 });
 
-test("force layout: 6 sliders, live write, restore defaults", async () => {
+test("force layout: 7 sliders, live write, restore defaults", async () => {
 	const forceLayout = disclosure("Force layout").first();
 	await setOpen(forceLayout, true);
 	// Target the advanced <details> by its OWN class: a summary-text `has:`
@@ -93,11 +93,12 @@ test("force layout: 6 sliders, live write, restore defaults", async () => {
 	const advanced = forceLayout.locator("details.vicinity-graph-forcelayout__advanced");
 	await setOpen(advanced, true);
 	await expect(advanced).toHaveAttribute("open", "");
-	await expect(forceLayout.locator("input[type=range]")).toHaveCount(6);
-	// toHaveCount alone also counts hidden inputs — additionally prove the two
+	await expect(forceLayout.locator("input[type=range]")).toHaveCount(7);
+	// toHaveCount alone also counts hidden inputs — additionally prove the
 	// advanced sliders are genuinely user-reachable behind the opened disclosure.
 	await expect(forceLayout.getByLabel("Node spacing")).toBeVisible();
 	await expect(forceLayout.getByLabel("Group member spacing")).toBeVisible();
+	await expect(forceLayout.getByLabel("Edge clearance")).toBeVisible();
 	const repel = forceLayout.getByLabel("Repel force");
 	const defaultRepel = await repel.inputValue();
 	await repel.evaluate((el) => {
