@@ -17,8 +17,13 @@ import { ObsidianHarness } from "./obsidianHarness";
  * are always maxPx (160px), which is the only DETERMINISTIC way to be above the
  * 104px threshold that reveals the outline at all.
  *
- * Serial by design: ONE Obsidian instance for the whole file, and later tests
- * build on earlier navigation state.
+ * Serial by design: ONE Obsidian instance for the whole file. E1–E5 share the
+ * MAIN node `beforeAll` established; every case that needs a DIFFERENT one
+ * establishes it ITSELF via {@link showNoteWithRefitGraph}, never by inheriting
+ * whatever the previous case left active. That rule exists because it was once
+ * broken: E7 inherited its rebuild trigger and went permanently red the moment a
+ * case was inserted above it. Insert a case here ⇒ re-run the WHOLE file
+ * (`--grep` removes exactly the neighbours that would expose the coupling).
  */
 
 test.describe.configure({ mode: "serial" });
@@ -259,7 +264,7 @@ test("the wheel scrolls the outline (not the canvas) while its scrollbar is hidd
 	await expect.poll(() => outline.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
 });
 
-// --- E6: the image escape hatch (KEEP LAST — it changes the MAIN note) --------
+// --- E6: the image escape hatch (changes the MAIN note; E1–E5 must precede it) -
 
 test("a note whose first image precedes its first heading shows the image, not an outline", async () => {
 	await harness.openFile(OUTLINE_COVER_PATH);
@@ -270,19 +275,25 @@ test("a note whose first image precedes its first heading shows the image, not a
 });
 
 // --- E8: the Preview preference overrides document position -------------------
-// Placed AFTER E6 (which leaves outline-cover as MAIN, exactly what E8.1 needs)
-// and BEFORE E7 on purpose: E7 shrinks every node below the 104px threshold, so
-// nothing appended after it can observe a rendered preview at all. E8.3 restores
-// the default, so E7 still runs under Auto as it always has.
+// Placed BEFORE E7 on purpose: E7 shrinks every node below the 104px threshold,
+// so nothing appended after it can observe a rendered preview at all. E8.3
+// restores the default, so E7 still runs under Auto as it always has.
 
 /**
- * Re-fits the viewport on the CURRENT graph before observing it. WHY: React Flow
- * culls off-screen nodes, `fitView` runs on MOUNT only, and in a small headless
- * pane a late layout pass can push the MAIN node outside the viewport — where it
- * is UNMOUNTED and no locator can see it (measured: present at mount, gone a few
- * seconds later). Remounting is what a real user does by reopening the view.
- * Tracked as an environment flake in
- * `docs-internal/tickets/ticket-e2e-headless-culling-unmounts-main-node.md`.
+ * Makes `vaultPath` the MAIN node of a FRESHLY MOUNTED graph. Two reasons, both
+ * load-bearing — do not inline it back into the cases:
+ *
+ * 1. **Explicit rebuild.** A store-only write (`setMaxNodeSizePx`) does not
+ *    rebuild, and `openFile` on the ALREADY-active file is a no-op. Remounting
+ *    rebuilds unconditionally, so a case never inherits its rebuild trigger from
+ *    whichever case happened to run before it.
+ * 2. **Re-fits the viewport.** React Flow culls off-screen nodes, `fitView` runs
+ *    on MOUNT only, and in a small headless pane a late layout pass can push the
+ *    MAIN node outside the viewport — where it is UNMOUNTED and no locator can
+ *    see it (measured: present at mount, gone a few seconds later). Tracked in
+ *    `docs-internal/tickets/ticket-e2e-headless-culling-unmounts-main-node.md`.
+ *
+ * Remounting is what a real user does by reopening the view.
  */
 async function showNoteWithRefitGraph(vaultPath: string): Promise<void> {
 	await harness.openFile(vaultPath);
@@ -309,6 +320,9 @@ test("with the Preview preference on Image, an outline-first note shows its thum
 });
 
 test("back on Auto, document position decides again", async () => {
+	// Own your own MAIN node rather than inheriting E8.2's: an outline-bearing note
+	// is what makes "position decides" observable at all.
+	await showNoteWithRefitGraph(OUTLINE_NOTE_PATH);
 	// Restores the shipped default IN the test body, not in afterAll: a flaky
 	// failure here must not leave a dirty preference for the rest of the file.
 	await harness.setNodePreviewPreference("auto");
@@ -338,10 +352,11 @@ const attachmentStripSlackPx = (path: string) =>
 
 test("an outline-bearing node below the outline threshold still pins its attachment strip to the bottom", async () => {
 	await harness.setMaxNodeSizePx(BELOW_OUTLINE_THRESHOLD_PX);
-	// A sizing change alone does not rebuild; an active-file change does (the
-	// current MAIN is outline-cover, so this is a real change).
-	await harness.openFile(OUTLINE_NOTE_PATH);
-	await expect(noteNode(OUTLINE_NOTE_PATH)).toHaveAttribute("data-tier", "main");
+	// A sizing write alone does not rebuild, so the new maxPx needs a rebuild to
+	// take effect. Remount, rather than an active-file change: which file is active
+	// here depends on whichever case ran last, and re-opening the already-active
+	// one is a silent no-op.
+	await showNoteWithRefitGraph(OUTLINE_NOTE_PATH);
 
 	// Preconditions: an outline-bearing node, in the band where the outline is
 	// NOT rendered — exactly where a rule gated on `data-preview` but not on the

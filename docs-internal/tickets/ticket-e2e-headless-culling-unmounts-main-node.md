@@ -2,8 +2,15 @@
 
 **Status:** OPEN — environment/harness flake. **Not** a product bug; the plugin renders correctly.
 **Origin:** `node-content-preference` wave C (Phase 5). Hit while adding e2e cases to
-`e2e/nodeOutline.e2e.ts`; diagnosed with a throwaway probe spec, then reproduced on a
-**pristine `main`** tree, so nothing in that feature branch causes it.
+`e2e/nodeOutline.e2e.ts` and diagnosed there with a throwaway probe spec.
+
+**Attribution — what was actually verified, and by whom.** Wave C's own re-runs were on a
+`git stash` of commit `c96640d` (the wave **B** tip), i.e. waves A+B were still applied —
+so they exonerated wave C only, **not** the feature branch. The IMPLEMENTATION_REVIEWER
+then ran the missing experiment from a `git worktree` on **true `main`** and confirmed the
+flake reproduces there, so the feature branch genuinely does not cause it. The reviewer
+also isolated the trigger: it appears only when the dev vault carries a saved
+`.obsidian/workspace.json` (see below).
 
 ## Symptom
 
@@ -45,18 +52,34 @@ plugin's controller is alive. So:
 - React Flow's `onlyRenderVisibleElements` culling then **unmounts** it, and
   `fitView` does not re-run because it only runs on MOUNT.
 
+## The trigger: a saved `.dev-vault/.obsidian/workspace.json`
+
+`ObsidianHarness.prepareVaultCopy()` copies `.dev-vault` wholesale, `workspace.json`
+included, so Obsidian restores that vault's SAVED pane geometry instead of laying out
+fresh. In a headless window that geometry yields a small graph pane, which is what lets the
+later layout pass push the MAIN node out of view. Measured (reviewer, then reproduced by
+IMPLEMENTATION_ITERATION round 1):
+
+| Dev vault state | `:92` result |
+|---|---|
+| **no** saved `workspace.json` | passes (reviewer 5/5 on `main`; round 1: 3/3 on the branch, plus a full-suite run) |
+| **with** the saved `workspace.json` | fails, and the serial file reports "13 did not run" |
+
+So `mv .dev-vault/.obsidian/workspace.json` aside is the **workaround** for getting an
+informative run out of `nodeOutline.e2e.ts` today — it is not the fix.
+
 Whether a test passes is therefore a pure race between Playwright's first assertion and
-that later layout pass. The very first run in a fresh container passed 11/11 in 2.8s;
-four consecutive later runs (two of them on a stashed, pristine tree) all failed.
+that later layout pass, biased by the restored pane geometry. The very first run in a fresh
+container passed 11/11 in 2.8s; four consecutive later runs all failed.
 
 ## Workaround in place (do not mistake it for the fix)
 
-The three cases added by `node-content-preference` go through a local helper,
+The E8 cases added by `node-content-preference`, plus E7, go through a local helper,
 `showNoteWithRefitGraph()` in `e2e/nodeOutline.e2e.ts`, which calls the existing
 `ObsidianHarness.remountGraphView()` after `openFile` — remounting re-runs `fitView`
 on the CURRENT (settled) positions. It is a real user action (reopen the view), and it
-changes no assertion. The **pre-existing** cases in that file were deliberately left
-untouched, so the file still goes red in this environment.
+changes no assertion. The other pre-existing cases in that file were deliberately left
+untouched, so the file still goes red in this environment (when `workspace.json` is saved).
 
 ## Do this
 
@@ -68,8 +91,14 @@ untouched, so the file still goes red in this environment.
    - `onlyRenderVisibleElements={false}` in the e2e build only — rejected on sight if it
      means shipping a test-only code path.
 2. Whatever is chosen, prove it by running `npm run test:e2e -- nodeOutline.e2e.ts`
-   **five times in a row** on the same machine — a single green run proves nothing here.
-3. Then delete `showNoteWithRefitGraph()` and its WHY comment.
+   **five times in a row** on the same machine, **with** a saved `workspace.json` in
+   `.dev-vault` — a single green run, or a run without that file, proves nothing here.
+   Run the WHOLE file, never `--grep`: in a serial file `--grep` removes exactly the
+   neighbours whose state coupling you need to observe.
+3. Then trim `showNoteWithRefitGraph()`'s reason **2** (the refit) — but KEEP the helper
+   and its reason **1**: E7 and E8.3 depend on it for an EXPLICIT rebuild after a
+   store-only write, which has nothing to do with this flake. Deleting it outright would
+   re-introduce the cross-test coupling that made E7 fail in wave C.
 
 ## Environment where this was measured
 
