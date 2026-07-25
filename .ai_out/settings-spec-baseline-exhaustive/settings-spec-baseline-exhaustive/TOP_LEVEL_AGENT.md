@@ -12,10 +12,38 @@ Branch: `settings-spec-baseline-exhaustive` (off `main`).
 
 ## Flow (straightforward-flow)
 - [x] EXPLORATION (Explore agent) → EXPLORATION_PUBLIC.md
-- [ ] IMPLEMENTATION_WITH_SELF_PLAN
-- [ ] IMPLEMENTATION_REVIEW
-- [ ] IMPLEMENTATION_ITERATION (max 4)
-- [ ] change_log entry + ticket close + merge to main
+- [x] IMPLEMENTATION_WITH_SELF_PLAN → `74671aa`
+- [x] IMPLEMENTATION_REVIEW → READY, 0 blocking, 2 should-fix (`0ee0aa4`)
+- [x] IMPLEMENTATION_ITERATION 1 → both accepted (`1e22168`); re-review CONVERGED (`e2c07cb`)
+- [x] change_log entry + ticket close + merge to main
+
+## Outcome — CONVERGED at iteration 1 (of max 4)
+
+Both acceptance criteria met. Only `src/engine/SettingsSpec.test.ts` changed (+79/-15);
+no production code touched. `npm test` 922 passed / 0 failed, `npm run check` clean —
+verified independently by implementer and reviewer.
+
+Mechanism: `EverySpecField<TSpec>` (defaults) + `SpecLimitsBaseline<TSpec>` (limits,
+derives each field's required bound keys) applied via `satisfies`. Adding, removing, or
+under-pinning a spec key is now a `npm run check` error naming the key.
+
+### Notable calls
+- Reviewer's first-round suggested type would have forced deleting the `max`/`step` pins
+  the ticket had just added (`satisfies` does excess-property checking). Implementer
+  diverged with rationale; reviewer confirmed the divergence was correct on re-review.
+- Scope extended beyond the ticket's literal ask to the **limits** baseline and nested
+  `sizing`/`depthStepper` literals — same structural gap, same ticket intent.
+- Accepted limitation: `SpecLimitsBaseline` sees only DIRECT bound keys, so composite
+  sections (`sizing`, `nodeExclusion`) map to `{}` and nested bound drift stays invisible.
+  Closing only `nodeExclusion` would be false symmetry.
+
+### Out of scope, handled
+- `linkStrengthFactor.max` untouched. It is **not** currently RED (contrary to the ticket) —
+  `main` re-pinned it to `4` in `258ec5a`. Annotated the stale ticket file, left OPEN: its
+  step 1 (human confirmation that `4` is the intended limit) never happened.
+- Follow-up filed: `nid_2yygojiqkdi9hp73pgv0w7qfu_e` — `linkStrengthFactor` JSDoc says
+  `[0.25, 2]` while the spec ships `max: 4`.
 
 ## Log
 - Created branch, spawned Explore agent.
+- IMPLEMENTATION → REVIEW → ITERATION 1 → converged. Ticket closed, change log written.

@@ -42,3 +42,15 @@ an assertion to an unverified change.
 ## Acceptance
 
 - `npm test` green with no assertion loosened (exact value, not a range).
+
+## Note 2026-07-25 — step 2 already happened; only step 1 is left
+
+Observed while closing `nid_abreq4lmpo8vnvf61y9k9yly0_e` (baseline-test exhaustiveness):
+**the RED described above no longer reproduces.** `main` re-pinned the assertion to
+`linkStrengthFactor.max: 4` in `258ec5a`, so test and spec agree and the suite is green
+(922 passed, 0 failed) — verified independently by two agents. The "Problem" table above is
+stale as a statement of current state.
+
+Left OPEN deliberately: the re-pin landed without the **step 1** confirmation this ticket
+asks for — nothing yet records that `4` was validated as the intended shipped limit. That
+is a human call, so only a human should close this.
