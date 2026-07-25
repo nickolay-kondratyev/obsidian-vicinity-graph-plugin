@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-25T04:36:37Z
 id: nid_j2jwp6x9rij34kbkewo03m0mb_e
 title: "edge-routing__06: non-exclusive group boundary pins + reduce and expose the libavoid shape buffer"
-status: open
+status: closed
 deps: []
 links: [nid_4lmhpfc64eb4auw27wqis8wqe_e]
 created_iso: 2026-07-24T23:18:29Z
-status_updated_iso: 2026-07-24T23:18:29Z
+status_updated_iso: 2026-07-25T04:36:37Z
 type: feature
 priority: 1
 assignee: CC_WITH-nickolaykondratyev
@@ -26,7 +27,9 @@ HARD RULE: never push that pin into `AvoidArena.owned` and never `destroy()` it 
 
 `src/view/libavoidLoader.ts` types the `ShapeConnectionPin` constructor result as `unknown`. Narrow it to a named type exposing `setExclusive(b: boolean): void` (and `isExclusive()`), following that file's existing "narrow only what we use" pattern.
 
-WHY: libavoid directional pins default to EXCLUSIVE (one connector per pin). Group boxes carry 3 pins per side, so the 4th edge approaching a given side finds no free pin of its class and silently falls back to the group's CENTRE attachment — the pre-`edge-routing__04` pathology, live in shipped code TODAY. A probe put 5 of 8 left-approaching edges on the group centre.
+WHY: libavoid directional pins default to EXCLUSIVE (one connector per pin), so a group's boundary pins are exhausted by crowding and further edges fall back to the group's CENTRE attachment — the pre-`edge-routing__04` pathology, live in shipped code TODAY.
+
+> **CORRECTED ON CLOSE (measured, see Notes).** The original text said "the 4th edge approaching a given side ... falls back to the group's CENTRE" and "a probe put 5 of 8 left-approaching edges on the group centre". Both are wrong. Exclusivity is per PIN over the whole 12-pin shared-class pool, so CENTRE fallback begins at the **13th** edge, not the 4th; at 8 edges there are **zero** centre attachments and the symptom is **5 of 8 landing on the wrong SIDE**. Separately, "directional pins default to exclusive" is only half the rule: libavoid derives the default from the pin's visibility directions, so `ConnDirAll` pins (the note centre pin) are created NON-exclusive.
 
 MEASURED (reviewer probe, same scene generator and seed as the `edge-routing__05` probes):
 - realistic group degree (1-7 edges per group, 1668 edges): non-facing attachments 82 -> 40, total route length -2.3%.
@@ -47,7 +50,9 @@ WHY THIS LEVER: the `edge-routing__05` probes showed facing-side pins are freque
 - It is DERIVED, not free: `EDGE_ROUTING_SHAPE_BUFFER_PX = EDGE_PAIR_CURVATURE_PX / 2`, tying obstacle clearance to the hand-drawn bowed edge-pair curvature (`src/view/edgeGeometry.ts:58`, 34px) so routed detours read at the same visual scale as bowed pairs.
 - It was deliberately chosen GREATER than the arrowhead minimum inset `EDGE_ARROWHEAD_INSET_MIN_PX = 14` (`src/view/edgeGeometry.ts:45`), so a route clears a box further out than its own arrowhead ever sits.
 - BOTH invariants are asserted in `src/view/edgeRouting.test.ts:109-131`. These are BEHAVIOR-CAPTURING tests: do NOT loosen, skip or delete them without explicit human alignment.
-- At 5px the arrowhead inset (14px) EXCEEDS the obstacle clearance, so arrowheads may visually overlap neighbouring nodes. That is a real visual consequence, not a theoretical one.
+- ~~At 5px the arrowhead inset (14px) EXCEEDS the obstacle clearance, so arrowheads may visually overlap neighbouring nodes. That is a real visual consequence, not a theoretical one.~~
+
+> **CORRECTED ON CLOSE — this premise is measurably BACKWARDS.** Arrowhead overlap of a non-endpoint box falls monotonically as the buffer shrinks: **4.50% at 17px → 3.24% at 5px** (400 scenes, 1668 arrowheads). The comparison was never geometrically meaningful: the buffer is a PERPENDICULAR clearance from an obstacle, while the arrowhead inset is a LONGITUDINAL offset back along the route, so `buffer > inset` never described a containment relation. The constant that does protect the arrowhead body is `ARROWHEAD_HALF_WIDTH_PX` (6), which IS perpendicular — and that is what shipped as the clamp floor.
 
 ### FIRST TASK (before any implementation): resolve the two invariants, human decides
 
@@ -114,3 +119,107 @@ Both:
 - `EDGE_ROUTING_CROSSING_PENALTY_PX` still 0; dense-fixture routing still well under layout time.
 - Screenshot smoke recorded from the real `.out/public` vault opened on `clear-goals.md`: does the Epictetus edge now attach on the facing side?
 
+
+## Notes
+
+**2026-07-25T04:36:27Z**
+
+RESOLUTION — both items shipped. Full evidence: .ai_out/edge-routing__06/main/
+
+## (a) setExclusive(false) on the group boundary pins — commits 2d08ab1, 9f92e77
+
+Measured, 400 seeded scenes per corpus (node probes; e2e cannot see this metric):
+
+| corpus | non-facing before | after | total route length |
+|---|---|---|---|
+| low degree (1-3 edges/group, 802 edges)      | 24 | 22 | -0.3% |
+| realistic degree (1-7 edges/group, 1668 edges) | 82 | 40 | -2.3% |
+
+Routing time flat (387->377ms, 536->530ms). Deterministic 8-leaf side-crowding probe: 5 of 8 edges
+on the wrong side -> 8 of 8 on the facing side; at 16 edges, 4 centre attachments -> 0.
+
+Two corrections to this ticket's own WHY text are inlined in the body above (13th edge not 4th;
+exclusivity is derived from visDirs, so ConnDirAll pins are already non-exclusive). The mandated
+acceptance test ("8 edges -> none at the group centre") is UNSATISFIABLE as a RED test, because at
+8 edges the pre-change router already produced zero centre attachments. It was replaced by a
+strictly stronger pair: the same 8-edge scene asserting every terminal is on the facing border
+(which implies "none at the centre"), plus the centre assertion at 16 edges where the pathology
+actually exists. Both are RED before the change. No pin is pushed into AvoidArena.owned or destroyed.
+
+The note-square centre pin gets the call too, as explicit intent rather than behaviour: it changed
+0 of 949 routes, but the default is invisible and direction-derived, and forcing it exclusive routes
+spokes straight through obstacles (5 of 6 in a probe). A guard test locks that.
+
+## (b) shapeBufferDistance -> the "Edge clearance" setting — commits 0703634, fc94c33, dc71503, d323512
+
+MEASURED SWEEP (realistic-degree corpus + e2e dense fixture, on top of item (a)):
+
+| buffer | non-facing (realistic / low) | dense maxDetour | dense meanDetour | route len | arrowhead overlap | routing ms |
+|---|---|---|---|---|---|---|
+| 5  | 22 / 7  | 1.188 | 1.033 | -2.7% | 3.24% | flat |
+| 8  | 25 / 9  | 1.226 | 1.036 | -2.2% | 3.66% | flat |
+| 11 | 26 / 7  | 1.244 | 1.046 | -1.6% | 3.90% | flat |
+| 14 | 23 / 9  | 1.327 | 1.055 | -0.6% | 4.14% | flat |
+| 16 | 39 / 20 | 1.337 | 1.062 | -0.3% | 4.50% | flat |
+| 17 (shipped before) | 40 / 22 | 1.342 | 1.067 | 0.0% | 4.50% | flat |
+
+Screenshots: one set per value under .out/ (gitignored). Routing ms showed no buffer trend at any
+value; PERF BUDGET passed all 12 runs at roughly 10x margin.
+
+ROOT CAUSE FOUND, and it is not what the ticket assumed. The corridor is sealed by the group's OWN
+member squares, not by neighbouring notes: ELK_GROUP_PADDING insets members 16px, members are
+separate routing obstacles, so once buffer > that padding a member's clearance escapes the group
+border and seals the group's own boundary pins. Proven a mechanism, not a curve fit: the cliff moves
+when the inset moves (inset 10 -> degrades from buffer 11; inset 24 -> never degrades in range).
+The shipped 17 sat 1-2px OVER that cliff, making it the worst plausible value.
+
+DECISIONS (human, 2026-07-24/25):
+- Default 11, clamp 6-14 step 1, exposed as a 7th ForceLayoutSettings field "Edge clearance" in the
+  Advanced spacing group.
+- PERSISTED_SHAPE_VERSION does NOT bump. The parser fills missing known fields from engine defaults
+  per field, so an existing data.json loads with every setting intact and only picks up the new
+  default. A bump would DISCARD all stored user settings. Verified by constructing a real pre-change
+  data.json (clamping also verified: 999 -> 14, -5 -> 6).
+- Invariant option 3, with two REPLACEMENT invariants rather than a plain decoupling. Neither old
+  test was loosened or deleted; both were replaced by stronger relations asserted against the clamp
+  RANGE, so they hold for every value a user can reach:
+      buffer === EDGE_PAIR_CURVATURE_PX / 2  ->  max < GROUP_SIDE_PADDING_PX (16)
+      buffer > EDGE_ARROWHEAD_INSET_MIN_PX   ->  min >= ARROWHEAD_HALF_WIDTH_PX (6)
+  At exactly 6 the arrowhead body is tangent to the box, not overlapping, so >= is sound.
+  GROUP_SIDE_PADDING_PX was extracted from the elk syntax string and ARROWHEAD_HALF_WIDTH_PX
+  exported, so both bounds are machine-checked instead of prose.
+
+AFTER (shipped 11px): dense maxDetourRatio 1.342 -> 1.244, meanDetourRatio 1.067 -> 1.046; facing
+fixture 1.310 -> 1.266. Exactly matches the sweep's prediction for 11. PERF BUDGET passing at 10.6x.
+
+## Acceptance criteria — how each was met
+
+- Real-vault screenshot smoke: REPLACED, at the human's direction, by a permanent `facing` dev-vault
+  fixture (5-member group approached by 12 separate neighbour edges from one side). Better than the
+  manual check it replaces, and it closed a real gap: no prior fixture could show this symptom at all
+  (medium gives each group one collapsed x4 edge; dense has no folder groups).
+  Result: on shipped code all 12 edges attach on the facing side — item (a) alone already fixed the
+  reported symptom. With setExclusive(false) removed, edges wrap to the RIGHT and BOTTOM borders for
+  neighbours that are all ABOVE the box, which is the reported symptom reproduced.
+- The facing-side property is now a committed e2e assertion. It had NO automated gate before: the
+  [eval] detour ratios are byte-identical between the wrapping and non-wrapping arms, so a regression
+  passed a fully green suite.
+- e2e/edgeRoutingEval.e2e.ts repaired first (own commit b4a9d57) and maxDetourRatio/meanDetourRatio
+  now printed. The layered/radial chore ticket is closed by that commit.
+- EDGE_ROUTING_CROSSING_PENALTY_PX still 0. Dense routing ~134ms vs ~1383ms layout.
+- npm run check clean; npm test 780 passed; e2e green including PERF BUDGET.
+
+## Known consequence, accepted (own ticket)
+
+Shared pins make many edges converge on ~3 terminal points per side (3 pins per side is an
+architectural floor; no buffer value changes it). Now visible for the first time on the facing
+fixture: 11 of 12 edges on one border point. Accepted as strictly better than the wrap-around it
+replaced; tracked as nid_g1zb4b06gew54gnwcn5hx237j_e with the screenshot as evidence.
+
+## Follow-ups filed
+- nid_oy3vas85xhr34n2dby1mvows4_e  wasm abort on the routing throw path (pre-existing, priority 1)
+- nid_g1zb4b06gew54gnwcn5hx237j_e  pin fan-in
+- nid_li45606h8uvcnjm7fss17xl1u_e  sparse eval fixture nondeterminism
+- nid_se3h2v45c10x9j42utbm8v2sn_e  e2e vault override (VICINITY_E2E_VAULT)
+- nid_5wiribg2mn0mqcr7ni4ya0cfe_e  settings-slider a11y gap (plugin-wide)
+- nid_sw50n310je164zf8psqig77a9_e  move arrowhead constants into edgeGeometry.ts
