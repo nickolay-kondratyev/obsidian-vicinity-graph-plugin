@@ -45,3 +45,22 @@ destroyed uncommitted work once — commit the good state BEFORE mutation testin
 
 Left open deliberately: ticket `nid_5wiribg2mn0mqcr7ni4ya0cfe_e` (TOP_LEVEL closes it); no
 `change_log` entry (TOP_LEVEL owns it).
+
+## Iteration 3 (review-2 response) — complete
+Review 2 verdict: NOT-READY, 1 BLOCKING (B1). Scope was exactly one revert.
+1. [x] B1 — restored `.setDynamicTooltip()` in `addLabeledSlider`
+   (`src/view/VicinityGraphSettingTab.ts`), WHY-NOT comment replaced by a WHY that records the
+   1.12.x-vs-1.13 typings trap so nobody repeats the removal.
+2. [x] Runtime proof on pinned Obsidian 1.12.7 via throwaway `e2e/zzTooltipProbe.e2e.ts`
+   (created, run before + after, deleted): ours `.tooltip` `[]` → `["1"]`; core control group
+   `["16"]` in both. Compile/green-suite alone would have proved nothing here.
+3. [x] check/test/settingsUxVisual/settingsResetReview all green (verbatim in the PUBLIC file).
+4. [x] Tickets filed, NOT implemented: `nid_14phm98g7w64oparxz5wvfqwh_e` (e2e slider-value
+   assertion) and `nid_6kms4zn8o8c8r7g983oqlvvky_e` (pin `obsidian` devDep + CLAUDE.md guardrail).
+5. [x] Nothing else touched — guard, locators, a11y code all left as reviewed.
+
+**Lesson for future me (the real one):** an `@deprecated` tag in `obsidian.d.ts` describes the
+INSTALLED typings version, not `minAppVersion`. `package.json` pins `"obsidian": "latest"`. Before
+deleting any Obsidian API call, check the shipped bundle of the e2e-pinned build
+(`.tmp/obsidian/obsidian-<ver>/resources/obsidian.asar`) and probe the real DOM. "Deprecated" is not
+"no-op". Also: a fully green suite proves nothing about behaviour nobody asserts.

@@ -220,3 +220,150 @@ Commit: `b334209 test(a11y): make the settings-tab accessible-name guard non-vac
 are accepted (none rejected). No assertion was weakened or removed. The main ticket
 `nid_5wiribg2mn0mqcr7ni4ya0cfe_e` remains open — closing it is TOP_LEVEL_AGENT's call. No
 `change_log` entry was written, per instruction.
+
+---
+
+# Iteration 3 — B1 fix (setDynamicTooltip regression reverted)
+
+Responds to `IMPLEMENTATION_REVIEW_2__PUBLIC.md` (verdict NOT-READY, 1 BLOCKING). Scope was exactly
+one thing: revert the `setDynamicTooltip()` removal. Nothing else was touched — S1/S2/S3/N2/N3 were
+confirmed closed by the reviewer (who independently reproduced M2 and M3), so the guard was left
+alone.
+
+## B1 — ACCEPTED, the reviewer is right and I was wrong
+
+My iteration-2 nit-fix deleted `.setDynamicTooltip()` from `addLabeledSlider` on the strength of the
+`@deprecated` tag reading "the value is now always shown inline next to the slider". That tag ships
+with `obsidian@1.13.1` (`package.json` pins `"latest"`), and the inline readout it describes only
+arrived in 1.13.0. This plugin's floor is `minAppVersion 1.12.4`, e2e pins 1.12.7, and on that
+runtime the method genuinely installs the hover listeners that are a slider's **only** value
+readout. I treated a typings tag as a runtime fact and did not verify against the pinned build —
+that is the lesson, and it is now written into the code.
+
+`src/view/VicinityGraphSettingTab.ts`:
+- `.setDynamicTooltip()` restored in `addLabeledSlider` (the sole slider builder — one call site
+  covers all 10 tab sliders).
+- The WHY-NOT comment is replaced by a WHY that records the trap explicitly:
+
+```ts
+ * WHY `setDynamicTooltip()` despite the `@deprecated` tag: the tag comes from the
+ * 1.13 typings ("the value is now always shown inline"), and the inline readout it
+ * describes only landed in 1.13.0. Our floor is `minAppVersion` 1.12.4 (e2e pins
+ * 1.12.7), where the method still installs the hover listeners that are a slider's
+ * ONLY value readout — verified on 1.12.7. Removing it silently blanks the value on
+ * every supported build below 1.13. Drop it only when `minAppVersion` reaches 1.13.0.
+```
+
+## Runtime proof — before/after on the pinned 1.12.7 build (verbatim)
+
+Throwaway probe `e2e/zzTooltipProbe.e2e.ts`: open the plugin settings tab, hover the first
+`.vicinity-graph-settings input.slider`, read `.tooltip` text; then the same on core's
+Appearance ▸ Font size slider as a control group (core still calls `setDynamicTooltip()`).
+The probe was run before and after the revert against a freshly built plugin, then **deleted**.
+
+BEFORE the revert (HEAD `deff9ea`) — the regression, reproduced:
+```
+PROBE ours tooltip=[[]]
+PROBE core tooltip=[["16"]]
+  ✓  1 e2e/zzTooltipProbe.e2e.ts:25:1 › PROBE: ours vs core slider tooltip (1.8s)
+  1 passed (2.8s)
+```
+
+AFTER the revert — the value readout is back:
+```
+PROBE ours tooltip=[["1"]]
+PROBE core tooltip=[["16"]]
+  ✓  1 e2e/zzTooltipProbe.e2e.ts:25:1 › PROBE: ours vs core slider tooltip (1.8s)
+  1 passed (2.8s)
+```
+
+`[]` → `["1"]` on our slider, control group `["16"]` unchanged in both runs. This is a runtime
+observation on the real Obsidian 1.12.7 binary, not a compile check.
+
+## Verification (verbatim)
+
+`npm run check`:
+```
+CHECK_EXIT=0
+
+> vicinity-graph@0.1.1 check
+> tsc -noEmit
+```
+
+`npm test`:
+```
+TEST_EXIT=0
+ Test Files  70 passed (70)
+      Tests  938 passed (938)
+   Start at  17:38:31
+   Duration  1.06s (transform 8.40s, setup 0ms, import 12.94s, tests 1.39s, environment 5ms)
+```
+
+`npm run test:e2e -- settingsUxVisual.e2e.ts`:
+```
+UX_EXIT=0
+  ✓   1 e2e/settingsUxVisual.e2e.ts:52:1 › panel defaults: every section is a disclosure, only Depth starts open (104ms)
+  ✓   2 e2e/settingsUxVisual.e2e.ts:62:1 › exclusion toggle switches on, shows patterns state, and persists (318ms)
+  ✓   3 e2e/settingsUxVisual.e2e.ts:88:1 › force layout: 7 sliders, live write, restore defaults (237ms)
+  ✓   4 e2e/settingsUxVisual.e2e.ts:122:1 › settings tab renders six framed section cards with plugin CSS applied (260ms)
+  ✓   5 e2e/settingsUxVisual.e2e.ts:158:1 › settings tab: every section card ends with its own scoped restore row (115ms)
+  ✓   6 e2e/settingsUxVisual.e2e.ts:198:1 › settings tab: WHEN the tab renders THEN every input carries its row name as accessible name (35ms)
+  ✓   7 e2e/settingsUxVisual.e2e.ts:226:1 › settings tab: a section restore resets ONLY that section (54ms)
+  ✓   8 e2e/settingsUxVisual.e2e.ts:246:1 › settings tab: restore-all asks first, then resets every section (294ms)
+  ✓   9 e2e/settingsUxVisual.e2e.ts:308:1 › settings tab: the Preview pill shows one segment per option and checks the stored one (45ms)
+  ✓  10 e2e/settingsUxVisual.e2e.ts:320:1 › settings tab: clicking a Preview segment persists the new preference (58ms)
+  ✓  11 e2e/settingsUxVisual.e2e.ts:329:1 › settings tab: the segmented-control stylesheet reaches the settings modal DOM (15ms)
+  ✓  12 e2e/settingsUxVisual.e2e.ts:342:1 › settings tab: the selected Preview segment is filled distinctly from the trough (323ms)
+  ✓  13 e2e/settingsUxVisual.e2e.ts:380:1 › controls panel: clicking its Preview segment writes the SAME global the tab writes (61ms)
+  ✓  14 e2e/settingsUxVisual.e2e.ts:396:1 › controls panel: the pill re-checks itself from the rebuilt snapshot (9ms)
+  14 passed (3.3s)
+```
+
+`npm run test:e2e -- settingsResetReview.e2e.ts`:
+```
+RESET_EXIT=0
+  ✓   1 e2e/settingsResetReview.e2e.ts:105:1 › REVIEW: isolation matrix — each section reset touches only its own keys (359ms)
+  ✓   2 e2e/settingsResetReview.e2e.ts:190:1 › REVIEW: every reset control has a distinct accessible name (21ms)
+  ✓   3 e2e/settingsResetReview.e2e.ts:208:1 › REVIEW: section reset re-renders the tab so displayed values actually move (53ms)
+  ✓   4 e2e/settingsResetReview.e2e.ts:228:1 › REVIEW: exclusion reset shows the hidden patterns it is about to delete (205ms)
+  ✓   5 e2e/settingsResetReview.e2e.ts:244:1 › REVIEW: cancelling the exclusion confirmation keeps every pattern (78ms)
+  ✓   6 e2e/settingsResetReview.e2e.ts:252:1 › REVIEW: with no patterns stored, the exclusion reset applies without a dialog (51ms)
+  ✓   7 e2e/settingsResetReview.e2e.ts:265:1 › REVIEW: confirm modal — Escape is non-destructive and Cancel holds initial focus (141ms)
+  ✓   8 e2e/settingsResetReview.e2e.ts:279:1 › REVIEW: confirm modal — keyboard-only confirm restores everything (81ms)
+  ✓   9 e2e/settingsResetReview.e2e.ts:302:1 › REVIEW: reset survives closing/reopening the tab AND a plugin reload (108ms)
+  ✓  10 e2e/settingsResetReview.e2e.ts:326:1 › REVIEW: tab-wide reset sits further from the last card than cards sit apart (10ms)
+  ✓  11 e2e/settingsResetReview.e2e.ts:340:1 › REVIEW: visual evidence — dark theme and a narrow settings pane (468ms)
+  11 passed (2.6s)
+```
+
+Known pre-existing unrelated failure `vicinityGraph.e2e.ts:160` (gamma breadcrumb,
+`docs-internal/tickets/ticket-e2e-gamma-breadcrumb-fails-headless.md`): not run, per brief.
+
+**Honest caveat, unchanged from the reviewer's note:** every spec above was ALSO green while the
+regression was live. The green suite is not what proves B1 is fixed — the probe before/after is.
+That gap is now ticketed (below) rather than papered over.
+
+## Follow-up tickets filed (not implemented here)
+
+| id | Title |
+|---|---|
+| `nid_14phm98g7w64oparxz5wvfqwh_e` | e2e: assert settings-tab sliders show their value (hover tooltip) |
+| `nid_6kms4zn8o8c8r7g983oqlvvky_e` | Pin the obsidian devDependency to minAppVersion instead of `"latest"` |
+
+Both descriptions carry full relative paths, the 1.12.7-vs-1.13.1 detail, and the before/after probe
+numbers, so a fresh agent can pick either up cold. The second also carries the reviewer's suggested
+`CLAUDE.md` Guardrails line as part of its scope.
+
+## Tree state
+
+`git status --porcelain` empty apart from the `.ai_out/` and `_tickets/` files committed with this
+change. The probe spec `e2e/zzTooltipProbe.e2e.ts` was created, run twice and deleted; it is not in
+the commit.
+
+## Readiness
+
+**READY.** The single blocking finding is fixed and verified at the runtime level, not just the
+compile level. No other file in the delta was touched, no assertion was weakened, and the two
+follow-ups the reviewer surfaced are ticketed instead of silently absorbed. `change_log` entry
+deliberately not written (TOP_LEVEL_AGENT owns it); ticket `nid_5wiribg2mn0mqcr7ni4ya0cfe_e` left
+open for TOP_LEVEL_AGENT to close.
