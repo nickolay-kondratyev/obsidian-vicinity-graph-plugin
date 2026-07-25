@@ -15,7 +15,7 @@ import {
 	LibavoidEdgeRouter,
 	extractEdgeRoutingInput,
 } from "./edgeRouting";
-import type { BoundaryPinSpec, RoutingObstacle } from "./edgeRouting";
+import type { BoundaryPinSpec, EdgeRouteMap, RoutingObstacle } from "./edgeRouting";
 import type { Avoid } from "./libavoidLoader";
 
 // The real libavoid wasm loads via the node build (below); LibavoidEdgeRouter
@@ -457,10 +457,10 @@ describe("LibavoidEdgeRouter with real wasm", () => {
 
 	/**
 	 * `isExclusive()` of a pin read immediately after construction, on a throwaway
-	 * router. The pin is ROUTER-owned (see AvoidArena's OWNERSHIP GOTCHA), so only the
-	 * Points/Rectangle are destroyed here and the Router last; `processTransaction()`
-	 * flushes the pending shape add first, because destroying a Router with unprocessed
-	 * work is a known wasm-abort path (ticket `edge-routing-a-throw-inside-route-kills-…`).
+	 * router. Teardown here mirrors `AvoidArena` by hand: the pin is ROUTER-owned (see
+	 * AvoidArena's OWNERSHIP GOTCHA), so only the Points/Rectangle are destroyed and the
+	 * Router last, and `processTransaction()` flushes the pending shape add first — WHY:
+	 * the TEARDOWN PROTOCOL comment in `AvoidArena.dispose()`.
 	 */
 	function freshPinExclusivity(instance: Avoid, visDirs: number): boolean {
 		const router = new instance.Router(instance.PolyLineRouting);
@@ -640,5 +640,63 @@ describe("LibavoidEdgeRouter with real wasm", () => {
 			return blockers.some((blocker) => routeCrosses(polyline, blocker));
 		});
 		expect(cutting.map((leaf) => leaf.id)).toEqual([]);
+	});
+
+	// Session-survival guard (ticket `edge-routing-a-throw-inside-route-kills-…`). A contract
+	// violation must cost ONE pass, not the session: `route()` throws on an edge whose obstacle
+	// was never registered, and `finally { arena.dispose() }` then destroys the Router. WITHOUT
+	// THIS TEARDOWN FLUSH, that Router's shapes were never flushed by `processTransaction()`;
+	// libavoid's `~Router` asserts `visGraph.size() == 0`, so the tear-down ABORTS the wasm
+	// module — and `loadAvoid()` hands the same dead instance to every later pass, silently
+	// degrading the whole session to straight edges. Only an assertion on a SUBSEQUENT pass can
+	// tell "one pass failed" (correct) from "the module is dead" (the bug); the throw itself
+	// looks identical either way.
+	//
+	// KEEP THE TWO TESTS BELOW LAST IN THIS DESCRIBE, and append new ones ABOVE this comment:
+	// if the teardown flush ever regresses, the first `doomedPass()` aborts the shared wasm
+	// instance and every test AFTER it fails for the wrong reason, hiding the real cause.
+	const UNREGISTERED_OBSTACLE_ID = "NEVER_REGISTERED";
+
+	/**
+	 * One pass that must fail: its only edge names an obstacle that is never registered. The
+	 * scene carries TWO obstacles on purpose — the abort needs at least two connection pins
+	 * pending in the Router (measured: a Router holding a single pin, or none, tears down
+	 * cleanly), so a one-obstacle scene would not exercise the teardown at all.
+	 */
+	function doomedPass(): Promise<EdgeRouteMap> {
+		return new LibavoidEdgeRouter().route({
+			obstacles: [nodeA, nodeB],
+			edges: [{ id: "A->missing", sourceId: nodeA.id, targetId: UNREGISTERED_OBSTACLE_ID }],
+			shapeBufferPx: SHIPPED_CLEARANCE_PX,
+		});
+	}
+
+	/**
+	 * Runs {@link doomedPass} and swallows ONLY its documented throw. A pass that does NOT
+	 * throw means the premise has moved, so it fails loudly here rather than quietly turning
+	 * the test below into a second copy of the plain routing tests.
+	 */
+	async function routeEdgeWithUnregisteredObstacle(): Promise<void> {
+		try {
+			await doomedPass();
+		} catch {
+			return; // expected: the pass-level failure whose AFTERMATH this test is about
+		}
+		throw new Error("premise broken: an edge referencing an unregistered obstacle routed without throwing");
+	}
+
+	// The other half of the same guard: the pass must fail with the diagnostic
+	// `GraphViewController.resolveRoutes()` logs. A wasm abort raised inside
+	// `finally { arena.dispose() }` REPLACES it (measured: `RangeError: Maximum call stack
+	// size exceeded`), so the useful message is lost even before the session dies.
+	it("WHEN a pass throws on an edge referencing an unregistered obstacle THEN it rejects with our own diagnostic error", async (ctx) => {
+		requireWasm(ctx);
+		await expect(doomedPass()).rejects.toThrow("references an obstacle with no registered shape");
+	});
+
+	it("WHEN a pass throws on an edge referencing an unregistered obstacle THEN a later pass still routes (the wasm module survives)", async (ctx) => {
+		requireWasm(ctx);
+		await routeEdgeWithUnregisteredObstacle();
+		expect((await route()).length).toBeGreaterThan(2);
 	});
 });
