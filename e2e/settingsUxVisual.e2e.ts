@@ -171,23 +171,63 @@ test("settings tab: every section card ends with its own scoped restore row", as
 	await page.screenshot({ path: `${OUT_DIR}/settings-tab-resets-light.png` });
 });
 
+/*
+ * Every control family the settings tab can render that MUST carry its own
+ * `aria-label` — deliberately written as "any input EXCEPT …" rather than an
+ * allow-list of types, so a future `addText` (defaults to type=text), `addSearch`
+ * or `addDropdown` (<select>) row cannot ship unnamed with this suite green.
+ *
+ * The two exclusions are intentional, not oversights:
+ * - `radio`: the Preview pill's <label> WRAPS its radio, so the visible segment
+ *   text already IS the accessible name (VicinityGraphSettingTab renders it so).
+ * - `checkbox`: Obsidian toggles are a div.checkbox-container around a hidden
+ *   checkbox and are still unnamed — tracked in nid_d2z2jgt6v49ssej8hxmwd2xi6_e.
+ *   Closing that ticket means deleting the `:not([type=checkbox])` clause here.
+ */
+const NAMED_CONTROL_SELECTORS = ["input:not([type=radio]):not([type=checkbox])", "select", "textarea"] as const;
+const ANY_NAMED_CONTROL = NAMED_CONTROL_SELECTORS.join(", ");
+const ANY_UNNAMED_CONTROL = NAMED_CONTROL_SELECTORS.map((selector) => `${selector}:not([aria-label])`).join(", ");
+/**
+ * Floor for the controls the guard covers (today exactly 20: 10 sliders + 9 number
+ * inputs + the exclusion textarea). A floor, not an exact count, so ADDING a row
+ * does not break this test — but a section that stopped rendering can no longer
+ * let "nothing is unlabeled" pass by matching nothing.
+ */
+const MIN_NAMED_CONTROLS = 20;
+
 test("settings tab: WHEN the tab renders THEN every input carries its row name as accessible name", async () => {
 	await openSettingsTab();
+	// GIVEN node exclusion is ON: its textarea is the tab's only non-<input>
+	// control and renders only while enabled, and the exclusion test above ends by
+	// switching it OFF. Without this the textarea clause would assert 0-out-of-0.
+	await page.evaluate(async (pluginId) => {
+		const plugin = (window as any).app.plugins.plugins[pluginId];
+		const store = plugin.pluginDataStore;
+		await store.saveNodeExclusion({ ...store.nodeExclusion(), enabled: true });
+		plugin.app.setting.activeTab.display();
+	}, PLUGIN_ID);
 	const settings = page.locator(".vicinity-graph-settings");
+
 	// Obsidian puts the row name in a SIBLING of the control, so this only passes
 	// while the tab sets aria-label itself (src/view/VicinityGraphSettingTab.ts).
+	// One positive assertion per covered family — a count of unlabeled controls is
+	// only meaningful once each family is proven present AND named.
 	await expect(settings.getByLabel("Repel force")).toHaveAttribute("type", "range");
 	await expect(settings.getByLabel("Outline depth")).toHaveAttribute("type", "range");
 	await expect(settings.getByLabel("Outgoing depth")).toHaveAttribute("type", "range");
-	// The guarantee for rows added LATER: no input in the tab may lack a name.
-	await expect(settings.locator("input[type=range]:not([aria-label])")).toHaveCount(0);
-	await expect(settings.locator("input[type=number]:not([aria-label])")).toHaveCount(0);
-	await expect(settings.locator("textarea:not([aria-label])")).toHaveCount(0);
+	await expect(settings.getByLabel("Node cap")).toHaveAttribute("type", "number");
+	await expect(settings.getByLabel("Exclusion patterns")).toHaveCount(1);
+
+	// The guarantee for rows added LATER: no control in the tab may lack a name.
+	expect(await settings.locator(ANY_NAMED_CONTROL).count()).toBeGreaterThanOrEqual(MIN_NAMED_CONTROLS);
+	await expect(settings.locator(ANY_UNNAMED_CONTROL)).toHaveCount(0);
 });
 
 test("settings tab: a section restore resets ONLY that section", async () => {
 	await openSettingsTab();
-	const nodeCap = page.getByLabel("Node cap");
+	// Scoped to the settings DOM: page-wide would turn strict-mode-ambiguous the day
+	// the controls panel grows its own node-cap row.
+	const nodeCap = page.locator(".vicinity-graph-settings").getByLabel("Node cap");
 	await page.evaluate(async (pluginId) => {
 		const plugin = (window as any).app.plugins.plugins[pluginId];
 		const store = plugin.pluginDataStore;

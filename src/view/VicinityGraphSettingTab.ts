@@ -455,8 +455,12 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	/**
 	 * EVERY slider row in this tab. Bounds/value/onChange are the only things a
 	 * caller varies, so keeping one row builder means the accessible name (see
-	 * {@link VicinityGraphSettingTab.nameControl}) and the tooltip behaviour are
-	 * decided once — a slider added later cannot forget either.
+	 * {@link VicinityGraphSettingTab.nameControl}) is decided once — a slider added
+	 * later cannot forget it.
+	 *
+	 * WHY-NOT `setDynamicTooltip()`: Obsidian deprecated it to a no-op ("the value is
+	 * now always shown inline next to the slider"), so the call was dropped rather
+	 * than carried forward as dead code.
 	 */
 	private addLabeledSlider(
 		container: HTMLElement,
@@ -473,7 +477,6 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 				slider
 					.setLimits(bounds.min, bounds.max, bounds.step)
 					.setValue(value)
-					.setDynamicTooltip()
 					.then(() => VicinityGraphSettingTab.nameControl(slider.sliderEl, name))
 					.onChange(onChange),
 			);
