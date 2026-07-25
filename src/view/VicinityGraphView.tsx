@@ -13,7 +13,7 @@ import { GraphViewController } from "./GraphViewController";
 import { VicinityGraphFlow } from "./VicinityGraphFlow";
 import { ObsidianGraphUi } from "./ObsidianGraphUi";
 import { ObsidianNoteNavigator } from "./ObsidianNoteNavigator";
-import type { ControlsActionsPort, NoteNavigatorPort } from "./viewPorts";
+import type { ControlsActionsPort, NoteNavigatorPort, ViewsRefreshPort } from "./viewPorts";
 
 export const VIEW_TYPE_VICINITY_GRAPH = "vicinity-graph-view";
 
@@ -34,6 +34,8 @@ export class VicinityGraphView extends ItemView {
 		private readonly graphBuilder: VicinityGraphBuilder,
 		private readonly pluginDataStore: PluginDataStore,
 		private readonly persistenceServices: PersistenceServices,
+		/** Fan-out for global writes made from THIS view's controls panel; owned by the plugin. */
+		private readonly viewsRefresh: ViewsRefreshPort,
 	) {
 		super(leaf);
 	}
@@ -60,7 +62,13 @@ export class VicinityGraphView extends ItemView {
 		);
 		const ui = new ObsidianGraphUi(this.app, VIEW_TYPE_VICINITY_GRAPH);
 		this.controller = controller;
-		const controlsActions = new ControlsActions(controller, this.persistenceServices, this.pluginDataStore, this.app);
+		const controlsActions = new ControlsActions(
+			controller,
+			this.persistenceServices,
+			this.pluginDataStore,
+			this.app.vault,
+			this.viewsRefresh,
+		);
 		this.controlsActions = controlsActions;
 		this.registerGraphEvents(controller, navigator);
 		controller.start();

@@ -30,18 +30,48 @@ export interface GraphSourcePort {
 /**
  * The obsidian executor side of the controls surface (step-06 #2/#6). The pure
  * `planSettingsWrite` decides WHICH write; this port carries it out against
- * `PersistenceServices`/`PluginDataStore`, resolves the target `TFile`,
- * surfaces a `Notice` on a non-persistable doc, then triggers an immediate
- * rebuild. Implemented by `ControlsActions`; consumed by the toolbar + node
- * components via context (Phase C).
+ * `PersistenceServices`/`PluginDataStore`, resolving the target file from a path
+ * via `VaultPort` and surfacing a `Notice` on a non-persistable doc.
+ *
+ * A rebuild follows only what LANDED: a refused or absent-MAIN write changes no
+ * rendered state, so nothing rebuilds. What did land rebuilds as far as its
+ * blast radius reaches (`settingsWriteScope.ts`) — global writes and pin/unpin
+ * fan out to EVERY open view, per-doc writes stay on the owning view.
+ * Implemented by `ControlsActions`; consumed by the toolbar + node components
+ * via context (Phase C).
  */
 export interface ControlsActionsPort {
-	/** Persist a planned settings write (depth / global), then rebuild. */
+	/** Persist a planned settings write (depth / global); rebuilds only if it landed. */
 	applySettings(command: SettingsCommand): Promise<void>;
-	/** Pin a regular node by its vault path (resolves + ensures a docid), then rebuild. */
+	/** Pin a regular node by its vault path (resolves + ensures a docid); rebuilds every view if it landed. */
 	pinNode(path: string): Promise<void>;
-	/** Unpin a pinned central by its docid, then rebuild. */
+	/** Unpin a pinned central by its docid — always lands — then rebuild every view. */
 	unpinNode(docid: string): Promise<void>;
+}
+
+/**
+ * Rebuilds EVERY open vicinity-graph view — the fan-out a global write needs,
+ * because globals live in `data.json` and every open view renders from them.
+ * Implemented in `main.ts` over the plugin's own `refreshOpenViews()` (the
+ * workspace leaf walk stays in the one class that owns the workspace), so the
+ * controls executor never has to know that views come from leaves.
+ */
+export interface ViewsRefreshPort {
+	refreshAllViews(): void;
+}
+
+/**
+ * The slice of the OWNING view's controller the controls executor needs: which
+ * doc is currently MAIN (every depth write targets it) and "rebuild just this
+ * view" — the reach of a per-doc write, kept narrow by scope rather than by any
+ * insulation between views (see `settingsWriteScope.ts`). Structurally
+ * satisfied by `GraphViewController`; deliberately narrow so the executor is
+ * testable with a plain fake and cannot reach the rest of the controller.
+ * Contrast {@link ViewsRefreshPort}, which reaches ALL views.
+ */
+export interface OwningViewPort {
+	currentMainPath(): string | null;
+	handleSettingsChanged(): void;
 }
 
 /**
