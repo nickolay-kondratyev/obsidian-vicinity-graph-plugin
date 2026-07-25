@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-25T15:22:29Z
 id: nid_oy3vas85xhr34n2dby1mvows4_e
 title: "edge routing: a throw inside route() kills the wasm module for the rest of the session"
-status: open
+status: closed
 deps: []
 links: [nid_a7uwpxayt6w5vdnw8ogwskwvh_e]
 created_iso: 2026-07-25T00:04:02Z
-status_updated_iso: 2026-07-25T00:04:02Z
+status_updated_iso: 2026-07-25T15:22:29Z
 type: bug
 priority: 1
 assignee: CC_WITH-nickolaykondratyev
@@ -55,3 +56,21 @@ HONEST SCOPE: the specific trigger named in this ticket is NOT reachable from a 
 RESIDUAL (not covered): the teardown flush executes real routing work, so it aborts on non-finite obstacle geometry. Linked ticket nid_a7uwpxayt6w5vdnw8ogwskwvh_e is the precondition that makes this teardown invariant unconditionally safe.
 
 Tests: `src/view/edgeRouting.test.ts` — the RED session-survival test is now GREEN (kept LAST in its describe block; an abort kills the shared wasm instance for every later test in the file), plus one new test that the doomed pass rejects with our own diagnostic Error instead of the abort's `RangeError`. `npm test` 866 passed (67 files), `npm run check` exit 0, zero `Aborted(` lines.
+
+**2026-07-25T15:22:29Z**
+
+RESOLVED on branch `edge-routing__07-wasm-abort`.
+
+Root cause (deeper than the ticket text): libavoid unlinks a shape's visibility data only once the shape is ACTIVE (activation happens in `processTransaction()`), while `ShapeConnectionPin`'s constructor builds visibility edges EAGERLY. So a Router destroyed with an unprocessed transaction leaves orphaned `EdgeInf`s and trips `COLA_ASSERT(visGraph.size()==0)` (router.cpp:143) -> Emscripten abort -> memoised module dead for the session. Measured trigger is >=2 pending `ShapeConnectionPin`s (not >=1 obstacle).
+
+Fix: unconditional `router.processTransaction()` as the first statement of `AvoidArena.dispose()` (src/view/edgeRouting.ts) -- framed as a teardown invariant of `AvoidArena`, since flushing is the ONLY teardown libavoid offers.
+
+Design option 2 (endpoint pre-resolution) REJECTED: it closes only the specific missing-obstacle hole, leaves the whole class ("any throw between first shape registration and processTransaction") open, and duplicates a rule `extractEdgeRoutingInput` already enforces.
+
+The ticket's `loadAvoid()` de-memoisation idea is IMPOSSIBLE as a recovery lever: `libavoid-js`'s own `AvoidLib.load()` is a load-once singleton, so re-running init returns the same poisoned instance. The fix must prevent the abort, not recover from it.
+
+IMPORTANT scoping note: the `:414` throw is UNREACHABLE from production today (`extractEdgeRoutingInput` filters every missing-endpoint edge, and it is the sole input path). This change closes a latent CLASS of session-killing failure; it does not fix a live user-facing bug.
+
+Known, knowingly-accepted residual: with non-finite obstacle coordinates AND an in-window throw AND <2 pins, the teardown flush itself now aborts where teardown previously survived. Doubly-gated and unreachable; real closure is ticket nid_a7uwpxayt6w5vdnw8ogwskwvh_e.
+
+All 4 acceptance criteria met. Regression tests: src/view/edgeRouting.test.ts (last two tests in the real-wasm describe, must stay last). npm run check + npm test green (67 files / 866 tests, 0 wasm aborts).
