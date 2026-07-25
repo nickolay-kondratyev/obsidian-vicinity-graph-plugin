@@ -10,7 +10,7 @@ under KSAL-2.3 (`LICENSE.md`), **not** OSI open-source.
 - **[`docs-internal/architecture-map.md`](./docs-internal/architecture-map.md)** — directory → responsibility map + layering rules. **Read before changing structure.**
 - **[`docs-internal/plan/high-level-plan.md`](./docs-internal/plan/high-level-plan.md)** — design source of truth (traversal, sizing, truncation, pinning, persistence, canvas). Read before changing behavior.
 - **[`README.md`](./README.md)** — user-facing settings model, pinning semantics, dev + e2e setup.
-- `docs-internal/tickets/` — active follow-ups. `docs-internal/CHANGELOG.md`, `RELEASE_CHECKLIST.md`.
+- `docs-internal/tickets/` — active follow-ups. `docs-internal/RELEASE_CHECKLIST.md`.
 
 ## Layering (enforced — do not violate)
 

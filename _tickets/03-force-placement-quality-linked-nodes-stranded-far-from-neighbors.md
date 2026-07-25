@@ -141,7 +141,7 @@ asserts on the crowd=5 vault mirror only.
    (`p/ep/{hub,sib}.md`, `p/ep/book/enchiridion.md`, 5 crowd notes + main) so repro
    needs no `.out/vaults/public`.
 6. Visual acceptance on dev-vault repro note (+ public vault where available),
-   screenshots → `.out/`; CHANGELOG entry; commit at milestones.
+   screenshots → `.out/`; change log entry; commit at milestones.
 
 ### Deferred (YAGNI unless visual QA shows it)
 - Direction-aware link force (scalar spring presses against the rect collide floor on

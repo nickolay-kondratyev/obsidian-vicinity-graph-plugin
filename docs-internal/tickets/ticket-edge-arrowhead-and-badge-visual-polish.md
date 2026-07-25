@@ -34,7 +34,7 @@ Human-reported: a note with many incoming edges shows all heads stacked into one
 the shared boundary (React Flow's `marker-end` only anchors at the path end). Fixed by
 self-drawing the arrowhead as a `<polygon>` in `VicinityEdge`, inset back from the target by
 `clamp(length × 12%, 14px, 48px)` along the incoming tangent so heads fan apart by arrival
-angle (see `EDGE_ARROWHEAD_INSET_*` in `edgeGeometry.ts`; CHANGELOG 2026-07-21). The RF
+angle (see `EDGE_ARROWHEAD_INSET_*` in `edgeGeometry.ts`; change log 2026-07-21). The RF
 `marker-end`/`EDGE_ARROWHEAD_SIZE` path is retired.
 
 **Open (human, same env limitation):** confirm the inset magnitude and arrowhead
