@@ -54,6 +54,12 @@ const EXCLUSION_TEXTAREA_ROWS = 4;
 /** Outline-depth slider granularity — from the spec, like its bounds (one source of truth). */
 const OUTLINE_DEPTH_SLIDER_STEP = SETTINGS_SPEC.globalView.outlineMaxDepth.step;
 
+/** Depth sliders move one hop at a time — depths are whole hops. */
+const DEPTH_SLIDER_STEP = 1;
+
+/** The node cap is a whole number of nodes. */
+const NODE_CAP_STEP = 1;
+
 /**
  * Shared `name` of the Preview pill's radios. Radio grouping is DOCUMENT-scoped
  * for inputs outside a `<form>`, so this must NOT be shared with the controls
@@ -62,6 +68,13 @@ const OUTLINE_DEPTH_SLIDER_STEP = SETTINGS_SPEC.globalView.outlineMaxDepth.step;
  * there — the shared copy module deliberately does not own the name.
  */
 const NODE_PREVIEW_RADIO_GROUP = "vicinity-graph-node-preview-settings";
+
+/** Inclusive bounds + granularity of one slider row. */
+interface SliderBounds {
+	readonly min: number;
+	readonly max: number;
+	readonly step: number;
+}
 
 /**
  * Textarea → pattern list: one pattern per line, trimmed, blank lines dropped.
@@ -86,6 +99,20 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 
 	private get store(): PluginDataStore {
 		return this.plugin.pluginDataStore;
+	}
+
+	/**
+	 * The tab's ONE accessibility rule: a control carries an `aria-label` equal to
+	 * the row name a sighted user reads (plus the control's role where one row
+	 * holds two controls). Obsidian renders that name in a SIBLING element of
+	 * `.setting-item-control` with no `for`/`id` pairing, so the bare
+	 * `input`/`button` has no accessible name of its own — without this, the seven
+	 * force-layout sliders all announce identically. Stated here once and applied
+	 * from the shared row helpers so new rows inherit it;
+	 * `e2e/settingsUxVisual.e2e.ts` fails if any input in the tab lacks one.
+	 */
+	private static nameControl(el: HTMLElement, accessibleName: string): void {
+		el.setAttribute("aria-label", accessibleName);
 	}
 
 	display(): void {
@@ -131,7 +158,7 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 					// The button alone would be ambiguous once the tab has seven of
 					// them; the accessible name carries the scope, like the row name.
 					.setTooltip(label)
-					.then(() => button.buttonEl.setAttribute("aria-label", label))
+					.then(() => VicinityGraphSettingTab.nameControl(button.buttonEl, label))
 					.onClick(() => this.requestReset(scope)),
 			);
 	}
@@ -166,7 +193,7 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 				button
 					.setButtonText("Restore all defaults")
 					.setTooltip(label)
-					.then(() => button.buttonEl.setAttribute("aria-label", label))
+					.then(() => VicinityGraphSettingTab.nameControl(button.buttonEl, label))
 					.onClick(() => this.requestReset(ALL_SETTINGS_RESET_SCOPE)),
 			);
 	}
@@ -237,7 +264,7 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 			)
 			.addTextArea((text) => {
 				text.inputEl.rows = EXCLUSION_TEXTAREA_ROWS;
-				text.inputEl.setAttribute("aria-label", "Exclusion patterns");
+				VicinityGraphSettingTab.nameControl(text.inputEl, "Exclusion patterns");
 				text.setValue(patterns.join("\n"));
 				text.onChange((raw) => {
 					void this.applyInteraction({
@@ -298,7 +325,9 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 					text.inputEl.step = "0.5";
 					text.setValue(String(metric.weight));
 					text.setDisabled(!metric.enabled);
-					text.inputEl.setAttribute("aria-label", `${label} weight`);
+					// Two controls share this row (toggle + weight), so the row name
+					// alone would not distinguish them.
+					VicinityGraphSettingTab.nameControl(text.inputEl, `${label} weight`);
 					text.onChange((raw) => {
 						const weight = Number(raw);
 						if (!Number.isNaN(weight) && weight >= 0) {
@@ -345,21 +374,19 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 			.setName(NODE_PREVIEW_ROW_LABEL)
 			.setDesc(NODE_PREVIEW_ROW_DESCRIPTION)
 			.then((row) => this.addNodePreviewSegmented(row.controlEl));
-		new Setting(section)
-			.setName("Outline depth")
-			.setDesc("How many heading levels a note's outline shows inside its node.")
-			.addSlider((slider) =>
-				slider
-					.setLimits(MIN_OUTLINE_DEPTH, MAX_OUTLINE_DEPTH, OUTLINE_DEPTH_SLIDER_STEP)
-					.setValue(this.store.globalView().outlineMaxDepth)
-					.setDynamicTooltip()
-					.onChange((value) => {
-						void this.applyInteraction({
-							kind: "global-outline-depth",
-							value: clampOutlineMaxDepth(value),
-						});
-					}),
-			);
+		this.addLabeledSlider(
+			section,
+			"Outline depth",
+			"How many heading levels a note's outline shows inside its node.",
+			{ min: MIN_OUTLINE_DEPTH, max: MAX_OUTLINE_DEPTH, step: OUTLINE_DEPTH_SLIDER_STEP },
+			this.store.globalView().outlineMaxDepth,
+			(value) => {
+				void this.applyInteraction({
+					kind: "global-outline-depth",
+					value: clampOutlineMaxDepth(value),
+				});
+			},
+		);
 		this.addSectionReset(section, "node-contents");
 	}
 
@@ -405,14 +432,16 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	private renderPerformance(): void {
 		const section = this.createSection();
 		new Setting(section).setName("Performance").setHeading();
+		const nodeCapName = "Node cap";
 		new Setting(section)
-			.setName("Node cap")
+			.setName(nodeCapName)
 			.setDesc("Maximum number of non-central nodes rendered. Central and pinned notes are never capped.")
 			.addText((text) => {
 				text.inputEl.type = "number";
 				text.inputEl.min = String(MIN_NODE_CAP);
-				text.inputEl.step = "1";
+				text.inputEl.step = String(NODE_CAP_STEP);
 				text.setValue(String(this.store.globalView().nodeCap));
+				VicinityGraphSettingTab.nameControl(text.inputEl, nodeCapName);
 				text.onChange((raw) => {
 					const value = Number(raw);
 					if (Number.isInteger(value) && value >= MIN_NODE_CAP) {
@@ -423,6 +452,40 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 		this.addSectionReset(section, "performance");
 	}
 
+	/**
+	 * EVERY slider row in this tab. Bounds/value/onChange are the only things a
+	 * caller varies, so keeping one row builder means the accessible name (see
+	 * {@link VicinityGraphSettingTab.nameControl}) and the tooltip behaviour are
+	 * decided once — a slider added later cannot forget either.
+	 *
+	 * WHY `setDynamicTooltip()` despite the `@deprecated` tag: the tag comes from the
+	 * 1.13 typings ("the value is now always shown inline"), and the inline readout it
+	 * describes only landed in 1.13.0. Our floor is `minAppVersion` 1.12.4 (e2e pins
+	 * 1.12.7), where the method still installs the hover listeners that are a slider's
+	 * ONLY value readout — verified on 1.12.7. Removing it silently blanks the value on
+	 * every supported build below 1.13. Drop it only when `minAppVersion` reaches 1.13.0.
+	 */
+	private addLabeledSlider(
+		container: HTMLElement,
+		name: string,
+		desc: string,
+		bounds: SliderBounds,
+		value: number,
+		onChange: (value: number) => void,
+	): void {
+		new Setting(container)
+			.setName(name)
+			.setDesc(desc)
+			.addSlider((slider) =>
+				slider
+					.setLimits(bounds.min, bounds.max, bounds.step)
+					.setValue(value)
+					.setDynamicTooltip()
+					.then(() => VicinityGraphSettingTab.nameControl(slider.sliderEl, name))
+					.onChange(onChange),
+			);
+	}
+
 	private addDepthSlider(
 		container: HTMLElement,
 		name: string,
@@ -430,22 +493,20 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 		direction: Direction,
 		current: number,
 	): void {
-		new Setting(container)
-			.setName(name)
-			.setDesc(desc)
-			.addSlider((slider) =>
-				slider
-					.setLimits(MIN_STEPPER_DEPTH, MAX_STEPPER_DEPTH, 1)
-					.setValue(current)
-					.setDynamicTooltip()
-					.onChange((value) => {
-						void this.applyInteraction({
-							kind: "global-depth",
-							direction,
-							value: clampStepperDepth(value),
-						});
-					}),
-			);
+		this.addLabeledSlider(
+			container,
+			name,
+			desc,
+			{ min: MIN_STEPPER_DEPTH, max: MAX_STEPPER_DEPTH, step: DEPTH_SLIDER_STEP },
+			current,
+			(value) => {
+				void this.applyInteraction({
+					kind: "global-depth",
+					direction,
+					value: clampStepperDepth(value),
+				});
+			},
+		);
 	}
 
 	private addSizingNumber(
@@ -461,6 +522,7 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 			text.inputEl.min = String(min);
 			text.inputEl.step = String(step);
 			text.setValue(String(value));
+			VicinityGraphSettingTab.nameControl(text.inputEl, name);
 			text.onChange((raw) => {
 				const parsed = Number(raw);
 				if (!Number.isNaN(parsed) && parsed >= min) {
@@ -477,20 +539,17 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	 * (same pattern as sizing).
 	 */
 	private addForceLayoutSlider(container: HTMLElement, field: keyof ForceLayoutSettings): void {
-		const range = FORCE_LAYOUT_RANGES[field];
 		const meta = FORCE_LAYOUT_FIELD_META[field];
-		new Setting(container)
-			.setName(meta.label)
-			.setDesc(meta.description)
-			.addSlider((slider) =>
-				slider
-					.setLimits(range.min, range.max, range.step)
-					.setValue(this.store.globalView().forceLayout[field])
-					.setDynamicTooltip()
-					.onChange((value) => {
-						void this.applyForceLayout({ ...this.store.globalView().forceLayout, [field]: value });
-					}),
-			);
+		this.addLabeledSlider(
+			container,
+			meta.label,
+			meta.description,
+			FORCE_LAYOUT_RANGES[field],
+			this.store.globalView().forceLayout[field],
+			(value) => {
+				void this.applyForceLayout({ ...this.store.globalView().forceLayout, [field]: value });
+			},
+		);
 	}
 
 	private applyForceLayout(forceLayout: ForceLayoutSettings): Promise<void> {
