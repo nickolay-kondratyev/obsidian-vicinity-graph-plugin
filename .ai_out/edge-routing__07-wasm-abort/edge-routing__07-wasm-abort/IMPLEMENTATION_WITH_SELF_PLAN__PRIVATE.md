@@ -51,3 +51,28 @@ the whole wasm module.
 - `change_log` is TOP_LEVEL's job — sub-agents must not write changelog entries.
 - Ticket left `open` on purpose (an IMPLEMENTATION_REVIEW stage may follow); the close-out honesty
   note is already appended to it via `ticket add-note`.
+
+## Iteration 2 (post IMPLEMENTATION_REVIEW) — DONE, comment-only
+
+State: converged. Review was APPROVED-WITH-CONDITIONS (0 BLOCKING). Both conditions applied,
+1 of 2 NITs applied, gates re-run green. Convergence record in `IMPLEMENTATION_ITERATION__PUBLIC.md`.
+
+Edits made (all comments — zero production logic, zero test-body/order change):
+1. `src/view/edgeRouting.test.ts:654-657` — S1: KEEP-LAST rule stated in-file, covering BOTH new
+   tests, plus "append new ones ABOVE this comment" so it is actionable.
+2. `src/view/edgeRouting.test.ts:645-653` — S2 companion: `WITHOUT THIS TEARDOWN FLUSH,` scopes the
+   mechanism paragraph to the pre-fix world it describes.
+3. `src/view/edgeRouting.ts:378-381` — S2: `tore down cleanly BEFORE this flush existed` replaces
+   the ambiguous `tears down cleanly today`; trade stated explicitly. +1 line only.
+4. `src/view/edgeRouting.ts:372-374` — N1: half-clause noting the throw path's flush routes what was
+   queued, so the 0.007ms number is not carried over.
+
+Declined: N2 (reviewer itself wrote "No action needed" — it is a recorded derivation, not a defect).
+Deferred by assignment: F1 (ticket priority) and F2 (`GraphViewController.ts:301` warn-once latch)
+belong to TOP_LEVEL_AGENT — do NOT touch them if resumed.
+
+Gates (iteration 2): `npm run check` exit 0; `npm test` exit 0, 67 files / 866 tests;
+`grep -c "Aborted(" .tmp/iter-test.txt` = 0. Same numbers as pre-iteration → nothing moved.
+
+If resumed: there is nothing left on the implementation side. Ticket is still deliberately `open`
+and `change_log` is still unwritten — both are TOP_LEVEL's, not ours.

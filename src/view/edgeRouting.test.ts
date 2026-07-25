@@ -644,12 +644,17 @@ describe("LibavoidEdgeRouter with real wasm", () => {
 
 	// Session-survival guard (ticket `edge-routing-a-throw-inside-route-kills-…`). A contract
 	// violation must cost ONE pass, not the session: `route()` throws on an edge whose obstacle
-	// was never registered, and `finally { arena.dispose() }` then destroys a Router whose shapes
-	// were never flushed by `processTransaction()`. libavoid's `~Router` asserts `visGraph.size()
-	// == 0`, so that tear-down ABORTS the wasm module — and `loadAvoid()` hands the same dead
-	// instance to every later pass, silently degrading the whole session to straight edges.
-	// Only an assertion on a SUBSEQUENT pass can tell "one pass failed" (correct) from "the
-	// module is dead" (the bug); the throw itself looks identical either way.
+	// was never registered, and `finally { arena.dispose() }` then destroys the Router. WITHOUT
+	// THIS TEARDOWN FLUSH, that Router's shapes were never flushed by `processTransaction()`;
+	// libavoid's `~Router` asserts `visGraph.size() == 0`, so the tear-down ABORTS the wasm
+	// module — and `loadAvoid()` hands the same dead instance to every later pass, silently
+	// degrading the whole session to straight edges. Only an assertion on a SUBSEQUENT pass can
+	// tell "one pass failed" (correct) from "the module is dead" (the bug); the throw itself
+	// looks identical either way.
+	//
+	// KEEP THE TWO TESTS BELOW LAST IN THIS DESCRIBE, and append new ones ABOVE this comment:
+	// if the teardown flush ever regresses, the first `doomedPass()` aborts the shared wasm
+	// instance and every test AFTER it fails for the wrong reason, hiding the real cause.
 	const UNREGISTERED_OBSTACLE_ID = "NEVER_REGISTERED";
 
 	/**

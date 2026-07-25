@@ -140,3 +140,81 @@ That is exactly the behaviour the fix restores: today the abort raised inside
    close-out note is already written, so closing it is a one-command action for TOP_LEVEL.
 
 No open `#QUESTION_FOR_HUMAN:` items.
+
+---
+
+# Iteration 2 — response to IMPLEMENTATION_REVIEW__PUBLIC.md
+
+Verdict responded to: APPROVED-WITH-CONDITIONS (0 BLOCKING, 2 SHOULD-FIX, 2 NIT).
+**Comment/doc-only pass — zero production logic changed.** `git diff` on this iteration touches
+only comment lines in `src/view/edgeRouting.ts` and `src/view/edgeRouting.test.ts`; no statement,
+no test body, no test order.
+
+## Findings disposition
+
+### S1 — "keep these tests LAST" rule exists nowhere a maintainer will look — **ACCEPTED**
+
+`src/view/edgeRouting.test.ts:654-657`. Added the rule directly above
+`const UNREGISTERED_OBSTACLE_ID`, as an instruction (not a description), and covering **both**
+tests as the reviewer required:
+
+> `// KEEP THE TWO TESTS BELOW LAST IN THIS DESCRIBE, and append new ones ABOVE this comment:`
+> `// if the teardown flush ever regresses, the first doomedPass() aborts the shared wasm`
+> `// instance and every test AFTER it fails for the wrong reason, hiding the real cause.`
+
+The reviewer's point is correct and was the strongest of the four: the guarantee was enforced only
+by convention recorded in `.ai_out/` and a ticket, neither of which is open when someone appends an
+`it`. The added "append new ones ABOVE this comment" clause is the part that makes it actionable —
+stating the rule without saying where the next test goes leaves the contributor guessing.
+
+### S2 — `edgeRouting.ts:377-378` "tears down cleanly today" reads as post-fix behaviour — **ACCEPTED**
+
+`src/view/edgeRouting.ts:378-381`. The residual sentence now reads:
+
+> `// ABORTS if a pending obstacle carries non-finite geometry — a case that, below two`
+> `// pending pins, tore down cleanly BEFORE this flush existed. That narrow new abort is`
+> `// the price of closing the session-killer class. Validating finiteness at extraction,`
+> `// ticket nid_a7uwpxayt6w5vdnw8ogwskwvh_e, is what closes that residual.`
+
+`tore down cleanly BEFORE this flush existed` removes the tense ambiguity, and the trade is now
+stated explicitly rather than implied. The honest-invariant framing is **untouched**: the positive
+claim is still scoped to *"Flushing is the ONLY teardown libavoid offers"* and the paragraph still
+opens *"NOT a claim that flushing is always safe"*. Net growth: +1 line — no essay.
+
+The reviewer's milder companion note (`edgeRouting.test.ts:646-648` describing pre-fix teardown in
+the present tense) is **also accepted**: the sentence now reads `… destroys the Router. WITHOUT
+THIS TEARDOWN FLUSH, that Router's shapes were never flushed …`, which scopes the whole mechanism
+paragraph to the without-fix world it describes.
+
+### N1 — the `0.007ms` number can be carried over to the throw path — **ACCEPTED**
+
+`src/view/edgeRouting.ts:372-374`. Accepted because the "unconditional on purpose" justification
+*rests* on cheapness, which invites exactly the over-generalisation the reviewer names. Fixed in
+half a clause inside the existing parenthetical rather than a new sentence:
+
+> `(measured 0.007ms at 100 shapes / 300 edges — the throw path instead routes whatever was queued`
+> `before the throw, still trivially cheaper than a dead session)`
+
+### N2 — `dispose()` leaks `owned` + Router if the flush itself throws — **NO CHANGE (as the reviewer directed)**
+
+The reviewer explicitly closed this one: *"No action needed; recorded so the next reviewer does not
+have to re-derive it."* Its three sub-conclusions (ordering flush → free `owned` → `destroy(router)`
+is correct; `dispose()` is idempotent; an aborted module makes the leak moot) are all already true
+in the code and two of them are already stated in the WHY-NOT at `:382-383`. Restating a reviewer's
+derivation in a comment would grow the block for zero decision-changing information — declined on
+KISS/PARETO grounds.
+
+### F1 (ticket priority bump) and F2 (`GraphViewController.ts:301` warn-once latch) — **OUT OF SCOPE**
+
+Explicitly assigned to TOP_LEVEL_AGENT. Not touched by this iteration.
+
+## Iteration 2 gate results (fresh runs)
+
+| Gate | Command | Result |
+|---|---|---|
+| Types | `npm run check > .tmp/iter-check.txt 2>&1` | `CHECK_EXIT=0` |
+| Tests | `npm test > .tmp/iter-test.txt 2>&1` | `TEST_EXIT=0` — `Test Files 67 passed (67)` / `Tests 866 passed (866)` |
+| Wasm health | `grep -c "Aborted(" .tmp/iter-test.txt` | **0** |
+
+Test count is unchanged at 866 — this iteration added no tests and removed none, which is the
+expected signature of a comment-only pass.

@@ -370,12 +370,14 @@ class AvoidArena {
 			// Flushing is the ONLY teardown libavoid offers: undoing the registrations instead
 			// (`deleteShape()` on a shape with a pending add) asserts too. Unconditional on
 			// purpose: a redundant flush finds an empty action list (measured 0.007ms at 100
-			// shapes / 300 edges), whereas tracking "did a transaction run" adds state that can
-			// drift out of sync with the Router.
+			// shapes / 300 edges — the throw path instead routes whatever was queued before the
+			// throw, still trivially cheaper than a dead session), whereas tracking "did a
+			// transaction run" adds state that can drift out of sync with the Router.
 			//
 			// NOT a claim that flushing is always safe: it executes real routing work, so it
-			// ABORTS if a pending obstacle carries non-finite geometry — a scene that (below
-			// two pending pins) tears down cleanly today. Validating finiteness at extraction,
+			// ABORTS if a pending obstacle carries non-finite geometry — a case that, below two
+			// pending pins, tore down cleanly BEFORE this flush existed. That narrow new abort is
+			// the price of closing the session-killer class. Validating finiteness at extraction,
 			// ticket `nid_a7uwpxayt6w5vdnw8ogwskwvh_e`, is what closes that residual.
 			// WHY-NOT try/catch around the flush: `destroy(router)` below throws identically on
 			// an already-aborted module, so the guard would buy nothing and cost clarity.
