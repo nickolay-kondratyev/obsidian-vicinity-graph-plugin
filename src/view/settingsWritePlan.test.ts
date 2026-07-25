@@ -110,14 +110,6 @@ describe("planSettingsWrite outline depth", () => {
 		expect(command).toEqual({ kind: "global-view", view: { ...CTX.globalView, outlineMaxDepth: 4 } });
 	});
 
-	it("WHEN a global-node-preview interaction is planned THEN it merges the preference into the whole globalView object", () => {
-		const command = planSettingsWrite({ kind: "global-node-preview", value: "outline" }, CTX);
-		expect(command).toEqual({
-			kind: "global-view",
-			view: { ...CTX.globalView, nodePreviewPreference: "outline" },
-		});
-	});
-
 	it("WHEN a global-outline-depth interaction is planned THEN every other globalView field is preserved", () => {
 		const command = planSettingsWrite({ kind: "global-outline-depth", value: 4 }, CTX);
 		const view = command.kind === "global-view" ? command.view : undefined;
@@ -125,6 +117,16 @@ describe("planSettingsWrite outline depth", () => {
 			nodeCap: CTX.globalView.nodeCap,
 			sizing: CTX.globalView.sizing,
 			forceLayout: CTX.globalView.forceLayout,
+		});
+	});
+});
+
+describe("planSettingsWrite node preview", () => {
+	it("WHEN a global-node-preview interaction is planned THEN it merges the preference into the whole globalView object", () => {
+		const command = planSettingsWrite({ kind: "global-node-preview", value: "outline" }, CTX);
+		expect(command).toEqual({
+			kind: "global-view",
+			view: { ...CTX.globalView, nodePreviewPreference: "outline" },
 		});
 	});
 });

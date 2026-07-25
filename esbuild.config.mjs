@@ -48,6 +48,8 @@ const AUTHORED_CSS_FILES = [
 	path.join("src", "view", "graph-view.css"),
 	path.join("src", "view", "node-outline.css"),
 	path.join("src", "view", "settings-tab.css"),
+	// Shared by BOTH surfaces above; all-new selectors, so appending last is safe.
+	path.join("src", "view", "segmented-control.css"),
 ];
 
 function generateStylesCss() {

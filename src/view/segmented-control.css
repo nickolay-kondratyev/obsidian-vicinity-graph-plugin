@@ -1,0 +1,100 @@
+/*
+ * Segmented control — one row of mutually exclusive options rendered as a pill.
+ *
+ * WHY its own file: it is SHARED by the settings tab and the in-graph controls
+ * panel, so it belongs to neither `settings-tab.css` nor `graph-view.css`, and
+ * duplicating the rules into both would be knowledge duplication. Concatenated
+ * LAST into the generated styles.css (see AUTHORED_CSS_FILES in
+ * esbuild.config.mjs); every selector here is new, so the position is not
+ * load-bearing.
+ *
+ * Both surfaces build this structure (markup duplicated per surface because
+ * Obsidian's `Setting` API cannot mount inside React; the COPY is shared through
+ * `nodePreviewPreferenceMeta.ts`):
+ *
+ *   div.vicinity-graph-segmented                 role="radiogroup" aria-label="…"
+ *     label.vicinity-graph-segmented__option     title="<what this option does>"
+ *       input[type="radio"]                      the real control — see below
+ *       span.vicinity-graph-segmented__text      the visible segment label
+ *
+ * Keeping a NATIVE radio per segment buys the whole keyboard and screen-reader
+ * contract for free: one tab stop for the group, arrow keys to move the
+ * selection, "radio group, Auto, 1 of 3" announcements. Zero JS.
+ *
+ * Every colour is an Obsidian theme variable, so light and dark both just work.
+ */
+
+.vicinity-graph-segmented {
+	display: inline-flex;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	/* Clips the selected segment's fill to the pill's rounded frame. */
+	overflow: hidden;
+}
+
+/*
+ * The group is the single tab stop, so the focus ring belongs to the GROUP —
+ * which also keeps it visible when the focused segment is the selected one
+ * (an accent ring inside an accent fill would not be). On the block itself, so
+ * its own `overflow: hidden` cannot clip it. Same idiom as the depth stepper.
+ */
+.vicinity-graph-segmented:has(input:focus-visible) {
+	box-shadow: 0 0 0 2px var(--interactive-accent);
+}
+
+.vicinity-graph-segmented__option {
+	/* Anchor for the stretched input below. */
+	position: relative;
+	display: flex;
+	align-items: center;
+	min-width: 0;
+	/* Vertical padding sized so a segment is a comfortable click target next to
+	 * Obsidian's own ~24px controls, not a cramped 21px strip. */
+	padding: var(--size-4-1) var(--size-4-2);
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+	cursor: pointer;
+}
+
+/* A hairline BETWEEN segments only — never doubled against the outer frame. */
+.vicinity-graph-segmented__option + .vicinity-graph-segmented__option {
+	border-left: 1px solid var(--background-modifier-border);
+}
+
+/*
+ * The radio stays a real, focusable radio in the accessibility tree: stretched
+ * over its whole segment and transparent. NEVER `display: none` /
+ * `visibility: hidden`, which would drop it from the tab order and take the free
+ * radiogroup keyboard handling with it.
+ */
+.vicinity-graph-segmented__option > input {
+	position: absolute;
+	inset: 0;
+	margin: 0;
+	appearance: none;
+	opacity: 0;
+	cursor: pointer;
+}
+
+.vicinity-graph-segmented__option:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover);
+}
+
+/*
+ * `:has()` lets the LABEL carry the selected fill, so padding, divider and fill
+ * stay on one box instead of being split with the inner span. Supported by the
+ * Chromium behind manifest.json's minAppVersion (1.12.4); first use in this repo.
+ */
+.vicinity-graph-segmented__option:has(> input:checked) {
+	color: var(--text-on-accent);
+	background: var(--interactive-accent);
+}
+
+/* The pill can be narrower than its labels (260px panel, or a large UI font). */
+.vicinity-graph-segmented__text {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}

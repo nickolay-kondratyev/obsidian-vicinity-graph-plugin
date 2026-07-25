@@ -8,6 +8,22 @@ import type { NodePreviewPreference } from "../engine";
  * inside React.
  */
 
+/**
+ * Names the SETTING, on the settings-tab row and as the `aria-label` of both
+ * radiogroups. The panel repeats it as a visible row label: a bare
+ * Auto/Outline/Image trio never says what it switches.
+ */
+export const NODE_PREVIEW_ROW_LABEL = "Preview";
+
+/**
+ * Row description. It states the case where the preference actually bites (a
+ * note with BOTH), because that is the only situation the three options differ
+ * in — the graceful fallback is the second sentence so nobody fears a blank node.
+ */
+export const NODE_PREVIEW_ROW_DESCRIPTION =
+	"Which preview a node shows when it has both a heading outline and an image. " +
+	"A note that only has one of the two always shows that one.";
+
 export interface NodePreviewOptionMeta {
 	/** Segment label — also the accessible name of the option's radio. */
 	readonly label: string;

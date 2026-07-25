@@ -6,6 +6,7 @@ import {
 	MAX_OUTLINE_DEPTH,
 	MIN_NODE_CAP,
 	MIN_OUTLINE_DEPTH,
+	NODE_PREVIEW_PREFERENCES,
 	SETTINGS_SPEC,
 	clampOutlineMaxDepth,
 } from "../engine";
@@ -18,6 +19,11 @@ import {
 	FORCE_LAYOUT_FIELD_META,
 	FORCE_LAYOUT_MAIN_FIELDS,
 } from "./forceLayoutFieldMeta";
+import {
+	NODE_PREVIEW_OPTION_META,
+	NODE_PREVIEW_ROW_DESCRIPTION,
+	NODE_PREVIEW_ROW_LABEL,
+} from "./nodePreviewPreferenceMeta";
 import type { SettingsResetScope } from "./settingsResetPlan";
 import {
 	ALL_SETTINGS_RESET_SCOPE,
@@ -47,6 +53,15 @@ const EXCLUSION_TEXTAREA_ROWS = 4;
 
 /** Outline-depth slider granularity — from the spec, like its bounds (one source of truth). */
 const OUTLINE_DEPTH_SLIDER_STEP = SETTINGS_SPEC.globalView.outlineMaxDepth.step;
+
+/**
+ * Shared `name` of the Preview pill's radios. Radio grouping is DOCUMENT-scoped
+ * for inputs outside a `<form>`, so this must NOT be shared with the controls
+ * panel's pill: with both mounted, one name would fuse the two groups and they
+ * would un-check each other. Hence a tab-local constant here and a `useId()`
+ * there — the shared copy module deliberately does not own the name.
+ */
+const NODE_PREVIEW_RADIO_GROUP = "vicinity-graph-node-preview-settings";
 
 /**
  * Textarea → pattern list: one pattern per line, trimmed, blank lines dropped.
@@ -315,17 +330,24 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	 * Slider bounds come from the engine's spec, the SAME source the persistence
 	 * parser clamps with, so the slider and a hand-edited `data.json` agree.
 	 *
-	 * No enable/disable toggle by design (CLARIFICATION Q2): a note shows its image
-	 * instead of its outline by putting that image before the first heading.
+	 * Row order is general → specific: the Preview pill decides WHICH preview a
+	 * node shows, the depth slider only refines the outline once the outline won.
+	 *
+	 * There is still no enable/disable toggle: document position remains the
+	 * escape hatch, now as the pill's `Auto` option (it is the shipped default, so
+	 * the behavior the old "by design" note described is unchanged) — a user who
+	 * wants one preview regardless of where the image sits picks it explicitly.
 	 */
 	private renderNodeContents(): void {
 		const section = this.createSection();
 		new Setting(section).setName("Node contents").setHeading();
 		new Setting(section)
+			.setName(NODE_PREVIEW_ROW_LABEL)
+			.setDesc(NODE_PREVIEW_ROW_DESCRIPTION)
+			.then((row) => this.addNodePreviewSegmented(row.controlEl));
+		new Setting(section)
 			.setName("Outline depth")
-			.setDesc(
-				"How many heading levels a note's outline shows inside its node. Notes whose first image comes before the first heading show that image instead.",
-			)
+			.setDesc("How many heading levels a note's outline shows inside its node.")
 			.addSlider((slider) =>
 				slider
 					.setLimits(MIN_OUTLINE_DEPTH, MAX_OUTLINE_DEPTH, OUTLINE_DEPTH_SLIDER_STEP)
@@ -339,6 +361,45 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 					}),
 			);
 		this.addSectionReset(section, "node-contents");
+	}
+
+	/**
+	 * The Preview pill: one NATIVE radio per option inside a `role="radiogroup"`,
+	 * styled as a segmented control by `segmented-control.css`. Native inputs are
+	 * the whole point — one tab stop, arrow-key cycling and correct screen-reader
+	 * announcements come free, with no hand-written key handling to get wrong.
+	 *
+	 * Order comes from {@link NODE_PREVIEW_PREFERENCES} and copy from the shared
+	 * {@link NODE_PREVIEW_OPTION_META} (the panel's pill reads the same table), so
+	 * the two surfaces cannot drift. Deliberately NO `this.display()` on change:
+	 * the browser already moves the selection, and re-rendering the tab would
+	 * throw away the user's keyboard focus mid-arrow-key.
+	 */
+	private addNodePreviewSegmented(controlEl: HTMLElement): void {
+		const selected = this.store.globalView().nodePreviewPreference;
+		const group = controlEl.createDiv({
+			cls: "vicinity-graph-segmented",
+			attr: { role: "radiogroup", "aria-label": NODE_PREVIEW_ROW_LABEL },
+		});
+		for (const preference of NODE_PREVIEW_PREFERENCES) {
+			const { label, description } = NODE_PREVIEW_OPTION_META[preference];
+			// The <label> WRAPS its radio, so the visible text is the radio's
+			// accessible name without any id/for pairing.
+			const option = group.createEl("label", {
+				cls: "vicinity-graph-segmented__option",
+				title: description,
+			});
+			const radio = option.createEl("input", {
+				type: "radio",
+				value: preference,
+				attr: { name: NODE_PREVIEW_RADIO_GROUP },
+			});
+			radio.checked = preference === selected;
+			option.createSpan({ cls: "vicinity-graph-segmented__text", text: label });
+			radio.addEventListener("change", () => {
+				void this.applyInteraction({ kind: "global-node-preview", value: preference });
+			});
+		}
 	}
 
 	private renderPerformance(): void {

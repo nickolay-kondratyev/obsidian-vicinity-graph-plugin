@@ -46,8 +46,11 @@ describe("decideLayout structural identity", () => {
 
 	it("WHEN two builds differ ONLY in nodePreviewPreference THEN it reuses the layout", () => {
 		// The tripwire for the Preview pill: flipping it must stay a data-only
-		// refresh. Any future coupling of node SIZE to the preview would relayout
-		// the whole graph under the user's cursor on every flip.
+		// refresh. What this pins is that nobody adds a
+		// `previous.viewSettings.nodePreviewPreference !== next…` trigger to
+		// `decideLayout` — the fixture's sizePx is fixed, so a future coupling of
+		// node SIZE to the preview would slip past HERE and needs pinning where
+		// sizePx is computed instead.
 		const next = makeGraph({
 			nodes: [makeNode({ path: asVaultPath("a.md") }), makeNode({ path: asVaultPath("b.md") })],
 			edges: [makeEdge("a.md", "b.md")],
