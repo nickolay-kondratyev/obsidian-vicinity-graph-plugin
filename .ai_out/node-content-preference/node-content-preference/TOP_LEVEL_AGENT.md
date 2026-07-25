@@ -32,8 +32,27 @@ See `CLARIFICATION__PUBLIC.md` for the binding requirement list.
 | IMPLEMENTATION_REVIEW wave A | IMPLEMENTATION_REVIEWER | DONE — APPROVED, 0 blocking |
 | IMPLEMENTATION wave B (plan phases 3–4) | UX_UI_IMPLEMENTATION | DONE — `2ded9db`, `c50ed40` |
 | IMPLEMENTATION_REVIEW wave B | IMPLEMENTATION_REVIEWER | DONE — APPROVED-WITH-FOLLOWUPS, 0 blocking |
-| IMPLEMENTATION wave C (plan phase 5) | IMPLEMENTATION | RUNNING |
-| IMPLEMENTATION_REVIEW final | IMPLEMENTATION_REVIEWER | pending |
+| IMPLEMENTATION wave C (plan phase 5) | IMPLEMENTATION | DONE — `ac27f8d` |
+| IMPLEMENTATION_REVIEW final | IMPLEMENTATION_REVIEWER | DONE — NEEDS-ITERATION, 1 blocking (e2e regression) |
+| IMPLEMENTATION_ITERATION round 1 | IMPLEMENTATION | DONE — `1623084` (B1 root fix + S1/S2) |
+| CONFIRMATION | IMPLEMENTATION_REVIEWER | DONE — **SHIP** |
+
+## Final state
+
+`change_log` entry: `jztbtexrke2bsbtiz1gargm0q`
+(`_change_log/2026-07-25_04-27-28Z.md`) — the ONE entry for this whole flow.
+
+**Verified by TOP_LEVEL_AGENT directly** (not taken on trust):
+`npm run check` exit 0 · `npm run build` exit 0 · `npm test` 894 passed / 1
+known-RED (`linkStrengthFactor.max`, author-only) · full `e2e/nodeOutline.e2e.ts`
+via the repo wrapper, no `--grep`: **14 passed, exit 0**.
+
+⚠ `npx playwright test` directly does NOT work (`OBSIDIAN_PATH is not set`) —
+always go through `scripts/run-e2e.sh` / `npm run test:e2e`. I hit this myself
+and briefly mistook it for a real failure.
+
+**Branch NOT merged to `main`** — left for the human's decision (prior features
+in this repo were merged via `git merge`, but merging was not requested here).
 
 ## Implementation waves (why split)
 
