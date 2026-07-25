@@ -206,3 +206,99 @@ No open `#QUESTION_FOR_HUMAN:` items.
 2. Apply **S2** (unambiguous wording of the residual).
 
 Neither needs re-review of the logic; both are comment-only. Gates already green.
+
+---
+
+# Iteration 2 confirmation — **READY**
+
+Reviewer: IMPLEMENTATION_REVIEWER (iteration 2, fresh instance). Scope: confirm convergence on the
+two approval conditions above. Diff inspected: `git diff 2b1dcbb..HEAD -- src/` (iteration commit
+`2484422`, verified against `git log --oneline`). No new lines of review opened.
+
+## Verdict: **APPROVED — no conditions outstanding. READY.**
+
+## 1. Diff scope — genuinely comment-only ✅
+
+`git diff 2b1dcbb..HEAD --stat` → `src/view/edgeRouting.test.ts` (+17/−12 region) and
+`src/view/edgeRouting.ts` (+10/−10 region); the rest of the commit is `.ai_out/`. **Every changed
+line on both sides of the src diff begins with `//`.**
+
+- **No production logic changed.** `this.router.processTransaction();` is still the first statement
+  inside `dispose()`'s `if (this.router !== null)` (`src/view/edgeRouting.ts:384`), still guarded
+  only by that null-check, still without `try`/`catch`. The teardown ordering
+  (flush → free `owned` → `destroy(router)`) at `:384-393` is byte-identical to the reviewed state.
+- **No test body changed, no test reordered, no test added or removed.** The two guard tests are
+  still the last two `it`s in `describe("LibavoidEdgeRouter with real wasm")`
+  (`src/view/edgeRouting.test.ts:692` error-identity, `:697` survival, describe closes at `:702`),
+  in the same order, with the same bodies and the same `requireWasm(ctx)` gate. `doomedPass()` and
+  `routeEdgeWithUnregisteredObstacle()` (`:666`, `:679`) are untouched, including the
+  `premise broken: …` loud-failure guard.
+- **No `ap_XXX_E` anchor touched**, no `expect`/`it`/`describe` on the removed side of the diff.
+- Test count 866 → 866 — the expected signature of a comment-only pass.
+
+## 2. S1 — in-file ordering rule ✅ (covers BOTH tests)
+
+`src/view/edgeRouting.test.ts:655-657`:
+
+> `// KEEP THE TWO TESTS BELOW LAST IN THIS DESCRIBE, and append new ones ABOVE this comment:`
+> `// if the teardown flush ever regresses, the first `doomedPass()` aborts the shared wasm`
+> `// instance and every test AFTER it fails for the wrong reason, hiding the real cause.`
+
+This is what S1 asked for and slightly better: it states the **rule** ("keep last"), scopes it to
+**both** tests ("THE TWO TESTS BELOW" — the point S1 made explicitly), gives the contributor an
+**action** ("append new ones ABOVE this comment") rather than only a prohibition, and gives the
+**consequence** so the rule survives a future reader who is tempted to overrule it. It sits inside
+the describe, immediately before the block it governs, which is where someone appending an `it`
+will pass through. Condition 1 discharged.
+
+## 3. S2 — residual wording ✅ (unambiguous, honest framing survives)
+
+`src/view/edgeRouting.ts:377-381` now reads:
+
+> `// NOT a claim that flushing is always safe: it executes real routing work, so it`
+> `// ABORTS if a pending obstacle carries non-finite geometry — a case that, below two`
+> `// pending pins, tore down cleanly BEFORE this flush existed. That narrow new abort is`
+> `// the price of closing the session-killer class. …`
+
+The ambiguity is gone: `"tore down cleanly BEFORE this flush existed"` is unambiguously past tense
+about pre-fix behaviour, so it can no longer be misread as describing the code in front of the
+reader. Critically, the **honest-invariant framing survives and is strengthened, not softened**:
+the paragraph still opens with the negative headline `NOT a claim that flushing is always safe`,
+still names the abort as a *new* cost (`That narrow new abort is the price of…`) rather than
+burying it, and still points at `nid_a7uwpxayt6w5vdnw8ogwskwvh_e` as what closes it. It reads as a
+declared trade, not as a safety claim. Condition 2 discharged.
+
+Companion S2b at `src/view/edgeRouting.test.ts:647-648` took the suggested `WITHOUT THIS TEARDOWN
+FLUSH,` opener, so the regression-guard comment now describes the pre-fix world explicitly instead
+of implying the shipped code still behaves that way. Good.
+
+## 4. N1 / N2 ✅
+
+- **N1 applied** — `src/view/edgeRouting.ts:373-374` scopes the 0.007ms figure and adds the throw
+  path ("routes whatever was queued before the throw, still trivially cheaper than a dead
+  session"). Exactly the half-clause asked for; no bloat.
+- **N2 declined — rationale accepted.** My predecessor's own text ended `No action needed`, and the
+  three sub-conclusions it recorded (ordering correct, `dispose()` idempotent, leak moot because an
+  abort kills the module) are already true in the code with two of them stated at `:382-383`.
+  Restating a derivation would grow the WHY block for zero decision-changing information. Declining
+  is the KISS-correct call and it was pre-authorised.
+- F1/F2 correctly deferred to TOP_LEVEL_AGENT as ticket work, not patches.
+
+## 5. Gates — re-run independently by me, this iteration ✅
+
+| Gate | Command | Result |
+|---|---|---|
+| Types | `npm run check > .tmp/rev2-check.txt 2>&1` | exit **0** (`> tsc -noEmit`, no diagnostics) |
+| Tests | `npm test > .tmp/rev2-test.txt 2>&1` | exit **0** — `Test Files  67 passed (67)` / `Tests  866 passed (866)` |
+| Wasm health | `grep -c "Aborted(" .tmp/rev2-test.txt` | **0** (condition 11) |
+
+Identical to the numbers from iteration 1, which is the correct signature for a comment-only pass.
+No `sanity_check.sh` in this repo. The bite check was not repeated — nothing executable changed.
+
+## 6. Outstanding
+
+**None.** 0 BLOCKING, 0 SHOULD-FIX, 0 NIT open. Both approval conditions from §8 are discharged in
+the code, not merely claimed. No behaviour-capturing test removed or weakened, no anchor removed,
+no layering or security surface touched. No open `#QUESTION_FOR_HUMAN:` items.
+
+**READY** — handoff to TOP_LEVEL_AGENT for `change_log`, ticket close-out, and F1/F2.

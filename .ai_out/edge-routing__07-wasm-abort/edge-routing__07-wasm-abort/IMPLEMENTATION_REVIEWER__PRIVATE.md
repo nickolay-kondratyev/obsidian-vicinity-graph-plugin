@@ -36,6 +36,30 @@ S2 the word "today" in the residual comment), 2 NIT, 2 follow-up suggestions.
   That was knowingly accepted by ROOT_CAUSE_REVIEW condition 2 (document, don't fix). Do not
   re-litigate it; S2 only asks for unambiguous wording.
 
+## Iteration 2 (done) — CONVERGED, READY. Nothing left for this role.
+
+Confirmed the iteration commit `2484422` (diff base `2b1dcbb`) is **comment-only**: every changed
+line on both sides of the `src/` diff starts with `//`. `processTransaction()` still first statement
+in `dispose()` (now `src/view/edgeRouting.ts:384`, was `:382` — line shifted by +2 comment lines
+only, NOT moved). Guard tests still the last two `it`s in the real-wasm describe
+(`src/view/edgeRouting.test.ts:692` error-identity, `:697` survival, describe closes `:702`), bodies
+and order untouched. 866 → 866 tests.
+
+- S1 landed at `edgeRouting.test.ts:655-657` — states the rule, names BOTH tests, tells you where to
+  append instead, gives the consequence. Better than what I asked for. Discharged.
+- S2 landed at `edgeRouting.ts:377-381` — `"tore down cleanly BEFORE this flush existed"`. Past tense
+  now unambiguous; the `NOT a claim that flushing is always safe` headline and the "narrow new abort
+  is the price" framing both survive, so it still reads as a declared trade. Discharged.
+  S2b companion took the `WITHOUT THIS TEARDOWN FLUSH,` opener at `edgeRouting.test.ts:647-648`.
+- N1 applied (`:373-374`). N2 declined — my own predecessor wrote "No action needed", so the
+  decline is pre-authorised; do NOT reopen it.
+- Gates re-run by me: check exit 0; `Test Files 67 passed (67)` / `Tests 866 passed (866)`;
+  `grep -c "Aborted(" .tmp/rev2-test.txt` = **0**. Bite check deliberately NOT repeated — nothing
+  executable changed.
+
+Verdict written to the PUBLIC file as **READY**. If rehydrated again: there is nothing to review
+unless new src commits land past `2484422`.
+
 ## If asked to re-review after S1/S2 land
 
 Both are comment-only. Re-run `npm run check` + `npm test`, confirm `Aborted(` count 0, confirm the
