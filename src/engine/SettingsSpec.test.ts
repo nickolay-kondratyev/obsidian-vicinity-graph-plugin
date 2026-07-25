@@ -33,6 +33,7 @@ describe("SETTINGS_SPEC (single source of truth for defaults + limits)", () => {
 				incomingDepth: SETTINGS_SPEC.globalDepths.incomingDepth.default,
 			},
 			nodeCap: view.nodeCap.default,
+			nodePreviewPreference: view.nodePreviewPreference.default,
 			groupByFolder: view.groupByFolder.default,
 			edgeVisibility: view.edgeVisibility.default,
 			sizing: {
@@ -53,6 +54,7 @@ describe("SETTINGS_SPEC (single source of truth for defaults + limits)", () => {
 		}).toEqual({
 			globalDepths: { outgoingDepth: 1, incomingDepth: 1 },
 			nodeCap: 100,
+			nodePreviewPreference: "auto",
 			groupByFolder: true,
 			edgeVisibility: "walked-from-center",
 			sizing: {
@@ -114,6 +116,7 @@ describe("adapters derive from SETTINGS_SPEC", () => {
 		expect(EngineDefaults.viewSettings()).toEqual({
 			nodeCap: SETTINGS_SPEC.globalView.nodeCap.default,
 			outlineMaxDepth: SETTINGS_SPEC.globalView.outlineMaxDepth.default,
+			nodePreviewPreference: SETTINGS_SPEC.globalView.nodePreviewPreference.default,
 			groupByFolder: SETTINGS_SPEC.globalView.groupByFolder.default,
 			edgeVisibility: SETTINGS_SPEC.globalView.edgeVisibility.default,
 			sizing: EngineDefaults.sizingSettings(),

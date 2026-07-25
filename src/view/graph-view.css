@@ -757,6 +757,34 @@
 	color: var(--text-faint);
 }
 
+/* --- Node-contents section (toolbar) ------------------------------------ */
+
+/*
+ * The Preview pill in the ~260px panel. Its LOOK is owned by
+ * segmented-control.css (shared with the settings tab); these rules are purely
+ * the panel's layout: the row label stacks above a full-width pill instead of
+ * sitting beside it, because side-by-side leaves no room for three segments.
+ * Same stacked shape as a force-layout slider row.
+ */
+.vicinity-graph-nodecontents__field {
+	display: flex;
+	flex-direction: column;
+	/* Tighter than the body's between-row gap: a label belongs to its control. */
+	gap: var(--size-2-1);
+}
+.vicinity-graph-nodecontents__label {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+.vicinity-graph-nodecontents .vicinity-graph-segmented {
+	display: flex;
+}
+/* Equal thirds, so the selected fill never resizes the segments as it moves. */
+.vicinity-graph-nodecontents .vicinity-graph-segmented__option {
+	flex: 1 1 0;
+	justify-content: center;
+}
+
 /* --- Force-layout section (toolbar) ------------------------------------- */
 
 /*

@@ -45,6 +45,7 @@ export type {
 	GraphEdge,
 	GraphNode,
 	NodeExclusionSettings,
+	NodePreviewPreference,
 	OutlineEntry,
 	VicinityGraph,
 	PinnedNodeDescriptor,
@@ -55,7 +56,7 @@ export type {
 	ViewSettings,
 	ViewSettingsOverride,
 } from "./types";
-export { asDocId, asFolderPath, asVaultPath, DIRECTION_DEPTH_FIELD } from "./types";
+export { asDocId, asFolderPath, asVaultPath, DIRECTION_DEPTH_FIELD, NODE_PREVIEW_PREFERENCES } from "./types";
 
 export type { FileMetadata, LinkProvider } from "./LinkProvider";
 export { NodeEligibility } from "./NodeEligibility";

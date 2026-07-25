@@ -18,6 +18,7 @@ const TUNED_VIEW: ViewSettings = {
 	...EngineDefaults.viewSettings(),
 	nodeCap: 17,
 	outlineMaxDepth: 5,
+	nodePreviewPreference: "image",
 	groupByFolder: false,
 	edgeVisibility: "all-edges",
 	sizing: {
@@ -88,9 +89,19 @@ describe("planSettingsReset node-contents scope", () => {
 		);
 	});
 
+	it("WHEN the node-contents section is reset THEN the node preview returns to its spec default", () => {
+		expect(onlyViewCommand(planSettingsReset("node-contents", TUNED_CTX)).nodePreviewPreference).toBe(
+			EngineDefaults.viewSettings().nodePreviewPreference,
+		);
+	});
+
 	it("WHEN the node-contents section is reset THEN every other view field keeps its tuned value", () => {
 		const view = onlyViewCommand(planSettingsReset("node-contents", TUNED_CTX));
-		expect({ ...view, outlineMaxDepth: TUNED_VIEW.outlineMaxDepth }).toEqual(TUNED_VIEW);
+		expect({
+			...view,
+			outlineMaxDepth: TUNED_VIEW.outlineMaxDepth,
+			nodePreviewPreference: TUNED_VIEW.nodePreviewPreference,
+		}).toEqual(TUNED_VIEW);
 	});
 
 	it("WHEN the node-contents section is reset THEN neither the depths nor the exclusion are written", () => {
@@ -156,6 +167,12 @@ describe("planSettingsReset all scope", () => {
 	it("WHEN everything is reset THEN the outline depth is restored too", () => {
 		expect(onlyViewCommand(planSettingsReset("all", TUNED_CTX)).outlineMaxDepth).toBe(
 			EngineDefaults.viewSettings().outlineMaxDepth,
+		);
+	});
+
+	it("WHEN everything is reset THEN the node preview is restored too", () => {
+		expect(onlyViewCommand(planSettingsReset("all", TUNED_CTX)).nodePreviewPreference).toBe(
+			EngineDefaults.viewSettings().nodePreviewPreference,
 		);
 	});
 

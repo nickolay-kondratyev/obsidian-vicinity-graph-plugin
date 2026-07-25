@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { OutlineEntry } from "../engine";
+import type { GraphNode, OutlineEntry, ViewSettings } from "../engine";
 import { asDocId, asFolderPath, asVaultPath } from "../engine";
 import { OUTLINE_RENDER_LIMIT } from "./constants";
 import { vicinityGraphToFlow, withGroupDimensions, withPositions } from "./flowMapping";
@@ -58,6 +58,7 @@ describe("vicinityGraphToFlow nodes", () => {
 			sizeScore: 0.5,
 			folder: "",
 			outline: [],
+			preview: "none",
 			imageCount: 0,
 			attachmentGroups: [],
 		});
@@ -361,6 +362,7 @@ describe("withPositions", () => {
 				sizeScore: 0.5,
 				folder: "",
 				outline: [],
+				preview: "none",
 				imageCount: 0,
 				attachmentGroups: [],
 			},
@@ -518,5 +520,71 @@ describe("vicinityGraphToFlow outline mapping", () => {
 			],
 		});
 		expect(noteNode(toFlow(graph).nodes, "n.md")?.data.firstImagePath).toBe("img/a.png");
+	});
+});
+
+/**
+ * Which preview region a node claims is decided HERE, from the depth-filtered
+ * outline — not in the React component, and not from the engine's raw outline.
+ */
+describe("vicinityGraphToFlow preview decision", () => {
+	const IMAGE = asVaultPath("img/a.png");
+
+	function mappedData(node: Partial<GraphNode>, view: Partial<ViewSettings> = {}) {
+		const graph = makeGraph({
+			nodes: [makeNode({ path: asVaultPath("n.md"), ...node })],
+			viewSettings: { ...makeGraph().viewSettings, ...view },
+		});
+		return noteNode(toFlow(graph).nodes, "n.md")?.data;
+	}
+
+	function previewOf(node: Partial<GraphNode>, view: Partial<ViewSettings> = {}) {
+		return mappedData(node, view)?.preview;
+	}
+
+	/** A node carrying both regions, with the image ABOVE the first heading. */
+	function coverNode(): Partial<GraphNode> {
+		return {
+			outline: [{ rawText: "Intro", level: 1 }],
+			attachments: [{ path: IMAGE, isImage: true }],
+			firstImagePath: IMAGE,
+			imagePrecedesOutline: true,
+		};
+	}
+
+	it("WHEN the preference is Auto AND a node's image precedes its outline THEN the mapped preview is the thumbnail", () => {
+		expect(previewOf(coverNode(), { nodePreviewPreference: "auto" })).toBe("thumbnail");
+	});
+
+	it("WHEN the preference is Auto AND a node's image does NOT precede its outline THEN the mapped preview is the outline", () => {
+		expect(previewOf({ ...coverNode(), imagePrecedesOutline: false }, { nodePreviewPreference: "auto" })).toBe(
+			"outline",
+		);
+	});
+
+	it("WHEN the preference is Outline AND a node's image precedes its outline THEN the mapped preview is the outline", () => {
+		expect(previewOf(coverNode(), { nodePreviewPreference: "outline" })).toBe("outline");
+	});
+
+	it("WHEN the preference is Image AND a node has both THEN the mapped preview is the thumbnail", () => {
+		expect(previewOf({ ...coverNode(), imagePrecedesOutline: false }, { nodePreviewPreference: "image" })).toBe(
+			"thumbnail",
+		);
+	});
+
+	it("WHEN the preference is Image THEN the node's outline entries are STILL mapped (a decision never deletes data)", () => {
+		const data = mappedData({ ...coverNode(), imagePrecedesOutline: false }, { nodePreviewPreference: "image" });
+		expect(data?.outline).toEqual([{ rawText: "Intro", level: 1 }]);
+	});
+
+	it("WHEN outlineMaxDepth drops every heading AND the node has an image THEN the preview is the thumbnail", () => {
+		// The POST-filter count decides: an outline nobody can see must not claim
+		// the slot, or the node renders an empty box.
+		const deepOnly: Partial<GraphNode> = { ...coverNode(), outline: [{ rawText: "Deep", level: 4 }] };
+		expect(previewOf({ ...deepOnly, imagePrecedesOutline: false }, { outlineMaxDepth: 2 })).toBe("thumbnail");
+	});
+
+	it("WHEN outlineMaxDepth drops every heading AND the node has no image THEN the preview is none", () => {
+		expect(previewOf({ outline: [{ rawText: "Deep", level: 4 }] }, { outlineMaxDepth: 2 })).toBe("none");
 	});
 });

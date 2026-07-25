@@ -3,7 +3,7 @@ id: nid_niz5dz6uqeyv237ckm15ittqa_e
 title: "Expose or remove orphan settings groupByFolder and edgeVisibility"
 status: open
 deps: []
-links: []
+links: [nid_3k0a4zl6in0mj8lcjibkjq2dx_e, nid_abreq4lmpo8vnvf61y9k9yly0_e, nid_8p0nn2g34d97finokwlz3u1dt_e]
 created_iso: 2026-07-24T21:44:19Z
 status_updated_iso: 2026-07-24T21:44:19Z
 type: task

@@ -28,14 +28,24 @@ export interface FileMetadata {
 	readonly attachments: readonly AttachmentRef[];
 	/**
 	 * Heading outline offered as this note's in-node preview, in document order.
-	 * EMPTY when the file has no headings, is not outline-bearing (canvas,
-	 * `*.excalidraw.md`), or when its FIRST IMAGE appears BEFORE its first
-	 * heading — the human's documented "show the picture instead" escape hatch.
-	 * Nothing downstream can act on the difference between those cases: all three
-	 * mean "do not offer an outline for this note". Provider-owned exactly like
+	 * EMPTY only when the file HAS no offerable outline: no headings, or not
+	 * outline-bearing (canvas, `*.excalidraw.md`). Whether the outline or the
+	 * image ends up rendered is NOT decided here — the view owns that choice and
+	 * reads {@link imagePrecedesOutline}. Provider-owned exactly like
 	 * {@link attachments}: only the adapter sees document offsets.
 	 */
 	readonly outline: readonly OutlineEntry[];
+	/**
+	 * A RESOLVED image reference sits above this note's FIRST HEADING — the
+	 * document-position FACT behind the "show the picture instead" preview rule.
+	 * The adapter reports it; the view decides what to do with it.
+	 *
+	 * `false` when there is no first heading (nothing to precede), when the file
+	 * is not outline-bearing, and when the reference above the heading does not
+	 * resolve to an image (an unresolvable embed produces no thumbnail, so it must
+	 * not be allowed to claim the preview slot).
+	 */
+	readonly imagePrecedesOutline: boolean;
 }
 
 /**

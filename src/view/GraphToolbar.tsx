@@ -3,6 +3,7 @@ import { CentralDepthControls } from "./CentralDepthControls";
 import type { ControlsModel } from "./ControlsModel";
 import { Disclosure } from "./Disclosure";
 import { ForceLayoutSection } from "./ForceLayoutSection";
+import { NodeContentsSection } from "./NodeContentsSection";
 import { NodeExclusionSection } from "./NodeExclusionSection";
 import type { SettingsWriteContext } from "./settingsWritePlan";
 import { SizingSection } from "./SizingSection";
@@ -51,6 +52,8 @@ export function GraphToolbar({ controls }: { readonly controls: ControlsModel })
 				)}
 				<NodeExclusionSection ctx={ctx} excludedNodeCount={controls.excludedNodeCount} />
 				<SizingSection view={controls.globalView} ctx={ctx} />
+				{/* Node CONTENTS follow node SIZE, mirroring the settings tab's card order. */}
+				<NodeContentsSection view={controls.globalView} ctx={ctx} />
 				<ForceLayoutSection view={controls.globalView} ctx={ctx} />
 			</div>
 		</details>

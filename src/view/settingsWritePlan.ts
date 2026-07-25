@@ -4,6 +4,7 @@ import type {
 	Direction,
 	ForceLayoutSettings,
 	NodeExclusionSettings,
+	NodePreviewPreference,
 	SizingSettings,
 	ViewSettings,
 } from "../engine";
@@ -38,6 +39,8 @@ export type SettingsInteraction =
 	| { readonly kind: "global-cap"; readonly value: number }
 	/** Global deepest heading level rendered in a node's outline. */
 	| { readonly kind: "global-outline-depth"; readonly value: number }
+	/** Global preview preference: which region a node's preview slot shows. */
+	| { readonly kind: "global-node-preview"; readonly value: NodePreviewPreference }
 	/** Global sizing configuration (whole object). */
 	| { readonly kind: "global-sizing"; readonly sizing: SizingSettings }
 	/** Global force-layout tuning (whole object — sliders and restore-defaults both send it complete). */
@@ -94,6 +97,8 @@ export function planSettingsWrite(interaction: SettingsInteraction, ctx: Setting
 			return { kind: "global-view", view: { ...ctx.globalView, nodeCap: interaction.value } };
 		case "global-outline-depth":
 			return { kind: "global-view", view: { ...ctx.globalView, outlineMaxDepth: interaction.value } };
+		case "global-node-preview":
+			return { kind: "global-view", view: { ...ctx.globalView, nodePreviewPreference: interaction.value } };
 		case "global-sizing":
 			return { kind: "global-view", view: { ...ctx.globalView, sizing: interaction.sizing } };
 		case "global-force-layout":

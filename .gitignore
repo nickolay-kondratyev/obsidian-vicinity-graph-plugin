@@ -4,7 +4,8 @@ node_modules/
 # Build output (bundled by esbuild from src/)
 main.js
 *.map
-# Generated at build time = @xyflow/react base CSS + src/view/graph-view.css.
+# Generated at build time = @xyflow/react base CSS + the src/view/*.css sources
+# listed in esbuild.config.mjs's AUTHORED_CSS_FILES.
 styles.css
 
 # Local Obsidian dev vault (created by the build's copy step)

@@ -10,7 +10,6 @@ import type { FlowNodeData } from "./flowMapping";
 import { useGraphUi } from "./GraphUiContext";
 import { NodeOutline } from "./NodeOutline";
 import { planNodePinAction } from "./nodePinAction";
-import { nodePreviewKind } from "./nodePreviewChoice";
 
 /**
  * The rich note node (step-05): title, lazy first-image thumbnail
@@ -19,6 +18,10 @@ import { nodePreviewKind } from "./nodePreviewChoice";
  * `data-tier`; content density adapts to the node's engine-driven height via
  * CSS container queries — no JS measuring. All Obsidian access goes through
  * {@link GraphUiContext}.
+ *
+ * Renders only: the outline-vs-thumbnail choice arrives pre-made as
+ * `data.preview` (decided in `flowMapping`), so `data-preview` can never
+ * advertise a region this component does not mount.
  */
 
 export type NoteNodeType = Node<FlowNodeData, "note">;
@@ -31,13 +34,6 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
 		[ui, data.firstImagePath],
 	);
 	const extraImages = extraImageCountText(data.imageCount);
-	// The outline and the thumbnail share one slot; the choice is made once, so
-	// `data-preview` can never advertise a region the node does not render.
-	const preview = nodePreviewKind({
-		outlineEntryCount: data.outline.length,
-		hasImage: data.firstImagePath !== undefined,
-	});
-
 	// Pin/unpin is one shared pure decision (title/icon/applicability) driving
 	// BOTH the hover button and the right-click menu (CLARIFICATION Q3).
 	// Every node toggles — including MAIN, whose pin keeps it central after
@@ -85,7 +81,7 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
 			className="vicinity-graph-node"
 			data-tier={data.tier}
 			data-path={data.path}
-			data-preview={preview}
+			data-preview={data.preview}
 			onContextMenu={onContextMenu}
 		>
 			<PinButton action={pinAction} onActivate={runPinAction} />
@@ -96,7 +92,7 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
 				<div className="vicinity-graph-node__title" title={data.title}>
 					{data.title}
 				</div>
-				{preview === "thumbnail" && thumbnailUrl !== null && (
+				{data.preview === "thumbnail" && thumbnailUrl !== null && (
 					<div className="vicinity-graph-node__thumbnail">
 						{/* alt="" — decorative; the adjacent title already names the note. */}
 						<img src={thumbnailUrl} alt="" loading="lazy" draggable={false} />
@@ -109,7 +105,7 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
 			{/* A SIBLING of the preview zone, not a child: its rows are clickable, and
 			    the zone is precisely the region that arms the native page preview —
 			    interactive tiles must stay a hover dead zone. */}
-			{preview === "outline" && <NodeOutline notePath={data.path} entries={data.outline} />}
+			{data.preview === "outline" && <NodeOutline notePath={data.path} entries={data.outline} />}
 			{data.attachmentGroups.length > 0 && (
 				<div className="vicinity-graph-node__attachments">
 					{data.attachmentGroups.map((group) => (

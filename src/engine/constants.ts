@@ -164,6 +164,7 @@ export class EngineDefaults {
 		return {
 			nodeCap: view.nodeCap.default,
 			outlineMaxDepth: view.outlineMaxDepth.default,
+			nodePreviewPreference: view.nodePreviewPreference.default,
 			groupByFolder: view.groupByFolder.default,
 			edgeVisibility: view.edgeVisibility.default,
 			sizing: EngineDefaults.sizingSettings(),

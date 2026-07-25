@@ -120,3 +120,13 @@ describe("planSettingsWrite outline depth", () => {
 		});
 	});
 });
+
+describe("planSettingsWrite node preview", () => {
+	it("WHEN a global-node-preview interaction is planned THEN it merges the preference into the whole globalView object", () => {
+		const command = planSettingsWrite({ kind: "global-node-preview", value: "outline" }, CTX);
+		expect(command).toEqual({
+			kind: "global-view",
+			view: { ...CTX.globalView, nodePreviewPreference: "outline" },
+		});
+	});
+});

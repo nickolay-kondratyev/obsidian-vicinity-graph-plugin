@@ -267,9 +267,10 @@ describe("ObsidianLinkProvider frontmatter display title (step-05 human decision
 });
 
 /**
- * The note outline offered as a node's in-node preview. The adapter owns the
- * whole rule: eligibility (markdown minus excalidraw) AND the image-vs-outline
- * choice, which it encodes by returning an EMPTY outline when the image wins.
+ * The note outline offered as a node's in-node preview. The adapter owns
+ * ELIGIBILITY only (markdown minus excalidraw, headings present) — never the
+ * image-vs-outline choice, which the view makes from the separately reported
+ * `imagePrecedesOutline` fact (see the describe below).
  */
 describe("ObsidianLinkProvider note outline", () => {
 	async function outlineOf(spec: FakeObsidianSpec, path: string) {
@@ -351,7 +352,9 @@ describe("ObsidianLinkProvider note outline", () => {
 		expect(outline?.map((entry) => entry.rawText)).toEqual(["Intro"]);
 	});
 
-	it("WHEN the note's first image is embedded BEFORE the first heading THEN the outline is empty (the image wins)", async () => {
+	it("WHEN the note's first image is embedded BEFORE the first heading THEN the outline STILL carries the headings", async () => {
+		// The adapter no longer deletes the losing side: which region wins is the
+		// view's call (`nodePreviewChoice`), driven by `imagePrecedesOutline`.
 		const outline = await outlineOf(
 			{
 				files: [{ path: "note.md" }, { path: "pic.png" }],
@@ -362,7 +365,7 @@ describe("ObsidianLinkProvider note outline", () => {
 			},
 			"note.md",
 		);
-		expect(outline).toEqual([]);
+		expect(outline?.map((entry) => entry.rawText)).toEqual(["Intro"]);
 	});
 
 	it("WHEN the note's first image is embedded AFTER the first heading THEN the outline carries the headings", async () => {
@@ -379,7 +382,7 @@ describe("ObsidianLinkProvider note outline", () => {
 		expect(outline?.map((entry) => entry.rawText)).toEqual(["Intro"]);
 	});
 
-	it("WHEN the note's image is a FRONTMATTER link THEN the outline is empty (frontmatter sits above all body content)", async () => {
+	it("WHEN the note's image is a FRONTMATTER link THEN the outline STILL carries the headings", async () => {
 		const outline = await outlineOf(
 			{
 				files: [{ path: "note.md" }, { path: "pic.png" }],
@@ -390,7 +393,7 @@ describe("ObsidianLinkProvider note outline", () => {
 			},
 			"note.md",
 		);
-		expect(outline).toEqual([]);
+		expect(outline?.map((entry) => entry.rawText)).toEqual(["Intro"]);
 	});
 
 	it("WHEN the note has an image and no headings THEN the outline is empty", async () => {
@@ -441,5 +444,125 @@ describe("ObsidianLinkProvider note outline", () => {
 			{ path: "pic.png", isImage: true },
 			{ path: "doc.pdf", isImage: false },
 		]);
+	});
+});
+
+/**
+ * The document-position FACT the view's preview rule consumes: "a resolved image
+ * reference sits above this note's first heading". The adapter reports it; it
+ * decides nothing (the `Auto` preference is what acts on it).
+ */
+describe("ObsidianLinkProvider imagePrecedesOutline", () => {
+	async function imagePrecedesOutlineOf(spec: FakeObsidianSpec, path: string) {
+		const provider = await providerOver(spec);
+		return provider.getFileMetadata(asVaultPath(path))?.imagePrecedesOutline;
+	}
+
+	it("WHEN an image is embedded BEFORE the first heading THEN imagePrecedesOutline is true", async () => {
+		const fact = await imagePrecedesOutlineOf(
+			{
+				files: [{ path: "note.md" }, { path: "pic.png" }],
+				fileCaches: {
+					"note.md": { headings: [heading("Intro", 1, 30)], embeds: [ref("pic.png", 5)] },
+				},
+				resolutions: { "pic.png": "pic.png" },
+			},
+			"note.md",
+		);
+		expect(fact).toBe(true);
+	});
+
+	it("WHEN the image sits AFTER the first heading THEN imagePrecedesOutline is false", async () => {
+		const fact = await imagePrecedesOutlineOf(
+			{
+				files: [{ path: "note.md" }, { path: "pic.png" }],
+				fileCaches: {
+					"note.md": { headings: [heading("Intro", 1, 5)], embeds: [ref("pic.png", 30)] },
+				},
+				resolutions: { "pic.png": "pic.png" },
+			},
+			"note.md",
+		);
+		expect(fact).toBe(false);
+	});
+
+	it("WHEN the image is linked from FRONTMATTER THEN imagePrecedesOutline is true (frontmatter sits above all body content)", async () => {
+		const fact = await imagePrecedesOutlineOf(
+			{
+				files: [{ path: "note.md" }, { path: "pic.png" }],
+				fileCaches: {
+					"note.md": { headings: [heading("Intro", 1, 0)], frontmatterLinks: [{ link: "pic.png" }] },
+				},
+				resolutions: { "pic.png": "pic.png" },
+			},
+			"note.md",
+		);
+		expect(fact).toBe(true);
+	});
+
+	it("WHEN a NON-image attachment precedes the first heading and the first image follows it THEN imagePrecedesOutline is false", async () => {
+		const fact = await imagePrecedesOutlineOf(
+			{
+				files: [{ path: "note.md" }, { path: "doc.pdf" }, { path: "pic.png" }],
+				fileCaches: {
+					"note.md": {
+						headings: [heading("Intro", 1, 20)],
+						links: [ref("doc.pdf", 5)],
+						embeds: [ref("pic.png", 50)],
+					},
+				},
+				resolutions: { "doc.pdf": "doc.pdf", "pic.png": "pic.png" },
+			},
+			"note.md",
+		);
+		expect(fact).toBe(false);
+	});
+
+	it("WHEN the note has an image but NO headings THEN imagePrecedesOutline is false (nothing to precede)", async () => {
+		const fact = await imagePrecedesOutlineOf(
+			{
+				files: [{ path: "note.md" }, { path: "pic.png" }],
+				fileCaches: { "note.md": { embeds: [ref("pic.png", 5)] } },
+				resolutions: { "pic.png": "pic.png" },
+			},
+			"note.md",
+		);
+		expect(fact).toBe(false);
+	});
+
+	it("WHEN the reference above the first heading does NOT resolve THEN imagePrecedesOutline is false", async () => {
+		// An unresolvable `![[missing.png]]` produces no thumbnail, so it must not
+		// be allowed to claim the slot — the node would render blank.
+		const fact = await imagePrecedesOutlineOf(
+			{
+				files: [{ path: "note.md" }],
+				fileCaches: {
+					"note.md": { headings: [heading("Intro", 1, 30)], embeds: [ref("missing.png", 5)] },
+				},
+			},
+			"note.md",
+		);
+		expect(fact).toBe(false);
+	});
+
+	it("WHEN the file is an excalidraw drawing THEN imagePrecedesOutline is false (not outline-bearing)", async () => {
+		const fact = await imagePrecedesOutlineOf(
+			{
+				files: [{ path: "draw/x.excalidraw.md" }, { path: "pic.png" }],
+				fileCaches: {
+					"draw/x.excalidraw.md": {
+						headings: [heading("Text Elements", 1, 30)],
+						embeds: [ref("pic.png", 5)],
+					},
+				},
+				resolutions: { "pic.png": "pic.png" },
+			},
+			"draw/x.excalidraw.md",
+		);
+		expect(fact).toBe(false);
+	});
+
+	it("WHEN the file has no cache entry THEN imagePrecedesOutline is false (nothing is KNOWN to sit above a heading)", async () => {
+		expect(await imagePrecedesOutlineOf({ files: [{ path: "note.md" }] }, "note.md")).toBe(false);
 	});
 });

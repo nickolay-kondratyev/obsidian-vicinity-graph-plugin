@@ -61,9 +61,14 @@ The distinction matters because people ask about it, so it is worth reading once
 - **Depth** — how far outbound/incoming traversal reaches from each central note.
 - **Sizing** — which metrics drive node size (own file size is the only one on by
   default) and their weights. Sizing is **global-only in V1.**
+- **Preview** — a three-way pill choosing what a node shows in its preview slot:
+  **Auto** (default), **Outline** or **Image**. See *Node contents* below. The
+  same pill is in the in-view graph controls, under *Node contents* — both edit
+  the one global value.
 - **Outline depth** — how many markdown heading levels a node's outline shows
   (**1–6**, default **2**: sections plus subsections, which is what fits a node).
-  See *Node contents* below. There is no on/off switch.
+  See *Node contents* below. The depth itself has no on/off switch — use the
+  *Preview* pill to choose outline vs image.
 - **Grouping** and the **node cap** (default **100** — above roughly a hundred
   nodes a graph stops being readable, so the view truncates deterministically and
   shows a hidden-node count).
@@ -138,10 +143,20 @@ Keep whole classes of notes out of every graph — index/MOC hubs, templates, a
 A node tall enough to have room shows **one** preview: either the note's
 **heading outline** or its **first image**, never both.
 
-- **Which one you get is decided by document position.** If the note's first
-  image sits **before** its first heading, the node shows the **image**;
-  otherwise it shows the **outline**. That is the escape hatch — move the image
-  above the first heading to say "show the picture for this note".
+- **The *Preview* pill picks which one**, globally. It lives in **Settings →
+  Vicinity Graph → Node contents** *and* in the in-view graph controls under
+  *Node contents*; the two are one setting shown twice, so either writes both.
+  - **Auto** (the default, and what the plugin has always done) — **document
+    position decides.** If the note's first image sits **before** its first
+    heading, the node shows the **image**; otherwise it shows the **outline**.
+    That is the escape hatch: move the image above the first heading to say
+    "show the picture for this note", and it still works exactly as before.
+  - **Outline** — prefer the outline for every note that has headings, whatever
+    document position says.
+  - **Image** — prefer the first image for every note that has one.
+- **A preference never empties a node.** *Outline* on a note without headings
+  still shows its image; *Image* on a note without an image still shows its
+  outline. A node only goes preview-less when the note has neither.
 - The outline is a **nested list** capped by the *Outline depth* setting. It
   scrolls when it does not fit (the scrollbar appears on hover); an over-long
   entry ellipsises on its own, and its full text is in the tooltip.

@@ -109,6 +109,12 @@ export interface GraphNode {
 	readonly outline: readonly OutlineEntry[];
 	/** First image among {@link attachments} in provider order (thumbnail candidate). */
 	readonly firstImagePath?: VaultPath;
+	/**
+	 * Provider-reported document-position fact: a resolved image sits above this
+	 * note's first heading. A FACT, not a decision — the view's preview rule turns
+	 * it into "outline or thumbnail" (see `FileMetadata.imagePrecedesOutline`).
+	 */
+	readonly imagePrecedesOutline: boolean;
 	/** Composed, normalized sizing score in [0, 1]. Centrals are pinned to 1. */
 	readonly sizeScore: number;
 	/** Pixel size mapped from {@link sizeScore}; the stable field step-04 diffs against. */
@@ -147,6 +153,39 @@ export interface GraphEdge extends DirectedLink {
  *   or a link between nodes discovered by different roots).
  */
 export type EdgeVisibilityMode = "walked-from-center" | "all-edges";
+
+/**
+ * Which region a node's single preview slot shows when the note offers BOTH a
+ * heading outline and an image (a note offering only one always shows that one):
+ * - `"auto"` — the note decides by document position: the image wins iff it sits
+ *   above the first heading (the documented "show the picture instead" hatch).
+ * - `"outline"` — prefer the outline, overriding document position.
+ * - `"image"` — prefer the first image, overriding document position.
+ *
+ * A view-layer knob like {@link ViewSettings.outlineMaxDepth}: the engine carries
+ * it and reports the facts, the view's `nodePreviewChoice` applies it.
+ */
+export type NodePreviewPreference = "auto" | "outline" | "image";
+
+/**
+ * THE value list of {@link NodePreviewPreference}, in the order the segmented
+ * control renders them left-to-right. Single-sourced: persistence validates
+ * against it and the UI derives its option order from it.
+ */
+export const NODE_PREVIEW_PREFERENCES = [
+	"auto",
+	"outline",
+	"image",
+] as const satisfies readonly NodePreviewPreference[];
+
+/**
+ * Compile-time completeness: a preference missing from
+ * {@link NODE_PREVIEW_PREFERENCES} surfaces here as a type error naming it,
+ * rather than silently shipping an option nothing can select or persist.
+ */
+type UnlistedPreference = Exclude<NodePreviewPreference, (typeof NODE_PREVIEW_PREFERENCES)[number]>;
+export const _assertEveryNodePreviewPreferenceListed: UnlistedPreference extends never ? true : UnlistedPreference =
+	true;
 
 // ---------------------------------------------------------------------------
 // Settings shapes (persisted by step-03; resolved by the engine's resolvers).
@@ -263,6 +302,8 @@ export interface ViewSettings {
 	 * knob: the engine carries it, the view's mapping applies it.
 	 */
 	readonly outlineMaxDepth: number;
+	/** Which region claims a node's preview slot when the note offers both. */
+	readonly nodePreviewPreference: NodePreviewPreference;
 	readonly groupByFolder: boolean;
 	readonly edgeVisibility: EdgeVisibilityMode;
 	readonly sizing: SizingSettings;

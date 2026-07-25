@@ -1,3 +1,5 @@
+import type { NodePreviewPreference } from "../engine";
+
 /**
  * Which preview region a note node renders. At most ONE — the outline and the
  * thumbnail share the same slot, so the choice is made once, here, rather than
@@ -7,19 +9,41 @@
 export type NodePreviewKind = "outline" | "thumbnail" | "none";
 
 export interface NodePreviewInput {
+	/** The user's resolved `ViewSettings.nodePreviewPreference`. */
+	readonly preference: NodePreviewPreference;
+	/** Entries that will actually RENDER (post depth-filter, post render budget). */
 	readonly outlineEntryCount: number;
 	readonly hasImage: boolean;
+	/** The adapter's document-position fact (`GraphNode.imagePrecedesOutline`). */
+	readonly imagePrecedesOutline: boolean;
 }
 
 /**
- * The outline wins when it has entries — the ADAPTER already applied the
- * image-vs-outline rule (an image before the first heading yields no entries at
- * all), so entries reaching the view mean the outline won. Otherwise the image,
- * if any; otherwise the node is title-only.
+ * THE one place the outline-vs-image precedence lives. The adapter reports facts
+ * and pre-decides nothing, so a node offering both regions is resolved here.
  */
-export function nodePreviewKind({ outlineEntryCount, hasImage }: NodePreviewInput): NodePreviewKind {
-	if (outlineEntryCount > 0) {
+export function nodePreviewKind({
+	preference,
+	outlineEntryCount,
+	hasImage,
+	imagePrecedesOutline,
+}: NodePreviewInput): NodePreviewKind {
+	// A preference is a PREFERENCE, never a blank node: when only one side exists
+	// it wins outright, so the branches below never restate the fallback.
+	if (outlineEntryCount === 0) {
+		return hasImage ? "thumbnail" : "none";
+	}
+	if (!hasImage) {
 		return "outline";
 	}
-	return hasImage ? "thumbnail" : "none";
+	switch (preference) {
+		case "outline":
+			return "outline";
+		case "image":
+			return "thumbnail";
+		case "auto":
+			// The documented escape hatch, unchanged: the image wins iff it sits
+			// above the first heading (the adapter reports that fact).
+			return imagePrecedesOutline ? "thumbnail" : "outline";
+	}
 }

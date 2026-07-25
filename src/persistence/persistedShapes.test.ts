@@ -42,6 +42,33 @@ describe("PersistedShapes.parsePluginData", () => {
 		expect(PersistedShapes.parsePluginData(raw).globalView.edgeVisibility).toBe("walked-from-center");
 	});
 
+	it("WHEN globalView carries a valid nodePreviewPreference THEN it round-trips", () => {
+		const raw = { version: PERSISTED_SHAPE_VERSION, globalView: { nodePreviewPreference: "outline" } };
+		expect(PersistedShapes.parsePluginData(raw).globalView.nodePreviewPreference).toBe("outline");
+	});
+
+	it("WHEN globalView carries no nodePreviewPreference THEN the spec default applies", () => {
+		// The upgrade path: a data.json written before the Preview setting existed.
+		const raw = { version: PERSISTED_SHAPE_VERSION, globalView: { nodeCap: 7 } };
+		expect(PersistedShapes.parsePluginData(raw).globalView.nodePreviewPreference).toBe(
+			SETTINGS_SPEC.globalView.nodePreviewPreference.default,
+		);
+	});
+
+	it("WHEN globalView carries an unrecognized nodePreviewPreference THEN the spec default applies", () => {
+		const raw = { version: PERSISTED_SHAPE_VERSION, globalView: { nodePreviewPreference: "collage" } };
+		expect(PersistedShapes.parsePluginData(raw).globalView.nodePreviewPreference).toBe(
+			SETTINGS_SPEC.globalView.nodePreviewPreference.default,
+		);
+	});
+
+	it("WHEN globalView's nodePreviewPreference is not a string THEN the spec default applies", () => {
+		const raw = { version: PERSISTED_SHAPE_VERSION, globalView: { nodePreviewPreference: 3 } };
+		expect(PersistedShapes.parsePluginData(raw).globalView.nodePreviewPreference).toBe(
+			SETTINGS_SPEC.globalView.nodePreviewPreference.default,
+		);
+	});
+
 	it("WHEN globalView carries a removed layoutMode field THEN it is ignored without error", () => {
 		// layoutMode was removed (force is the only layout); an old persisted value
 		// is simply dropped by the per-field parser — the rest of globalView survives.

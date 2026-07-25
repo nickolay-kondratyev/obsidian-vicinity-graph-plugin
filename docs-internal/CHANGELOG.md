@@ -1,5 +1,51 @@
 # Changelog
 
+## 2026-07-24 — node-content-preference: a Preview pill chooses outline vs image
+
+The outline-vs-image choice is now a user setting instead of a document-layout consequence.
+New global `ViewSettings.nodePreviewPreference` (`auto` | `outline` | `image`, default
+`auto`) rendered as a segmented pill on **both** surfaces the CLARIFICATION required — the
+settings tab's *Node contents* card and the in-view graph controls' new *Node contents*
+disclosure — both writing the one global value.
+
+- **`auto` is the shipped default and reproduces today's behaviour exactly**, so upgrading
+  changes nothing on screen. Under `auto` **document position still decides**: an image
+  above the first heading wins the preview slot, the documented "show the picture" escape
+  hatch. The *Markdown heading outline inside graph nodes* entry's "outline vs image is
+  positional, **not** a preference" is
+  therefore **superseded, not reversed** — position is now the `auto` branch of three.
+- **A preference never empties a node.** `outline` on a note without headings shows its
+  image; `image` on a note without an image shows its outline. Only a note with neither
+  goes preview-less.
+- **Adapter reports facts, the view decides.** `ObsidianLinkProvider` no longer encodes
+  "the image wins" by returning an empty outline — it always extracts the outline and
+  carries the new `FileMetadata.imagePrecedesOutline` fact through
+  `TraversedNode`/`GraphNode` to `FlowNodeData.preview`. The precedence rule is ONE pure
+  function (`view/nodePreviewChoice.ts`), applied over the **depth-filtered** outline so a
+  note whose only headings are deeper than *Outline depth* can never render an empty
+  outline box. `NoteNode` decides nothing.
+- **`sizePx` is deliberately preference-independent**, so a flip is a data-only refresh and
+  never crosses `SIZE_RELAYOUT_THRESHOLD` into a full relayout (tripwire in
+  `GraphStructureDiff.test.ts`). Positions do not move when you flip the pill.
+- **No `PERSISTED_SHAPE_VERSION` bump** (still 2): an additive field with a spec default is
+  the `outlineMaxDepth` precedent — old `data.json` files simply resolve to `auto`.
+  `parseViewOverride` validates against `NODE_PREVIEW_PREFERENCES`, which is declared in
+  `engine/types.ts` with a compile-time completeness assert.
+- **Shared copy, duplicated markup** (`nodePreviewPreferenceMeta.ts`) — the
+  `forceLayoutFieldMeta` contract, because Obsidian's `Setting` API cannot mount inside
+  React. New `src/view/segmented-control.css` (plus its `AUTHORED_CSS_FILES` entry) keeps a
+  native radio per segment, so the whole keyboard/screen-reader radiogroup contract is free:
+  one tab stop, arrow keys move and apply. Trough uses `--background-modifier-form-field`
+  (Obsidian's own form-field interior) so the pill reads as an inset control.
+- *Node contents*' restore row now resets both its fields in one write, and the tab-wide
+  restore covers it.
+
+Tests: +42 vitest (BDD; the full 3×5 preference × note-shape truth table lives in
+`nodePreviewChoice.test.ts`) and +9 Playwright cases against real Obsidian, including that
+the panel pill actually writes the global and that `segmented-control.css` reaches both
+DOMs. Not covered automatically: a human eyeball on `--text-on-accent` legibility in a
+real third-party theme — see `ticket-node-preview-pill-human-smoke-run.md`.
+
 ## 2026-07-24 — routing clearance is now the "Edge clearance" slider, default 11px (edge-routing__06 item (b))
 
 The gap the obstacle-avoiding router keeps around every box stopped being a hardcoded
