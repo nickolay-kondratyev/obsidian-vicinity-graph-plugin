@@ -179,9 +179,10 @@ export function extractEdgeRoutingInput(input: {
  * `FlowNode.width/height` → this obstacle unclamped (`depthDecayK` has no engine-side
  * clamp; the `min` attribute on the settings input does not block typed values).
  *
- * WHY-NOT guard inside `route()`: the abort happens in `processTransaction()`, not on a
- * throw path, so `AvoidArena.dispose()`'s teardown flush cannot protect against it —
- * and validating here keeps the check pure and testable without wasm.
+ * WHY-NOT guard inside `route()`: it could filter obstacles just as effectively, but
+ * extraction is pure — testable without loading wasm — and is already where this file
+ * drops unusable nodes (no position, no group dimensions), so the discipline stays in
+ * one place.
  */
 function hasFiniteGeometry(obstacle: RoutingObstacle): boolean {
 	return (
@@ -409,7 +410,10 @@ class AvoidArena {
 			// ABORTS if a pending obstacle carries non-finite geometry — a case that, below two
 			// pending pins, tore down cleanly BEFORE this flush existed. That residual is now
 			// closed at the SOURCE instead: {@link hasFiniteGeometry} drops such obstacles during
-			// extraction, so a non-finite rect never reaches a Router — here or in `route()`.
+			// extraction, so no obstacle produced by `extractEdgeRoutingInput` — the only
+			// production input path — can carry a non-finite rect into a Router. `route()` is
+			// public and its `EdgeRoutingInput` is unvalidated, so this is a guarantee about
+			// production input, not about the API surface.
 			// WHY-NOT try/catch around the flush: `destroy(router)` below throws identically on
 			// an already-aborted module, so the guard would buy nothing and cost clarity.
 			this.router.processTransaction();

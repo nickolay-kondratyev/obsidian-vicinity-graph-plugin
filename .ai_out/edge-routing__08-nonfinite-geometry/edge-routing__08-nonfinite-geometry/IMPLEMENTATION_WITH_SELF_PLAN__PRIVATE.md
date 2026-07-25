@@ -29,4 +29,16 @@ load-once wasm module.
   already reports `obstacleCount`/`edgeCount`.
 
 ## State
-Complete. Tree committed. See PUBLIC.md for results.
+Complete through ITERATION 2. Tree committed. See PUBLIC.md for results.
+
+## Iteration 2 (review response, verdict was READY — no blockers)
+- S1 comment overclaim (`dispose()`, ~:412) → fixed: guarantee scoped to `extractEdgeRoutingInput`,
+  the only production input path; `route()` explicitly noted as unvalidated public API.
+- S2 WHY-NOT non-sequitur (`hasFiniteGeometry` doc) → fixed: dropped the `dispose()`-flush clause
+  (a guard in `route()` WOULD have worked); reason is purity + discipline locality only.
+- N3 coverage → `it.each` for note position (x/y × NaN/-Infinity) and for group width/height.
+  912 → 916 tests.
+- N1 (extract `obstacleOf`) and N2 (caller-side console.warn) REJECTED — rationale in PUBLIC.md.
+- Confirmed reviewer's 3rd reachability finding: `depthDecayK = Infinity` ⇒ `Infinity*0 = NaN` at
+  NodeSizer.ts:143 for minDepth 0. Follow-up ticket owned by TOP_LEVEL_AGENT; NodeSizer untouched.
+- Final: `npm run check` exit 0, `npm test` exit 0 (68 files / 916 tests).

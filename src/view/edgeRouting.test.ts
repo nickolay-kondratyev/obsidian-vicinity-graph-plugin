@@ -157,8 +157,15 @@ describe("extractEdgeRoutingInput", () => {
 		expect(input.obstacles.map((o) => o.id)).toEqual(["ok.md"]);
 	});
 
-	it("WHEN a note's position is non-finite THEN it is skipped as an obstacle", () => {
-		const input = withBrokenGeometry({ position: { x: Number.NaN, y: 0 } });
+	// Each coordinate separately: the guard is one conjunction, so a transposed field
+	// would still pass if only `x` were exercised.
+	it.each([
+		{ label: "x is NaN", position: { x: Number.NaN, y: 0 } },
+		{ label: "y is NaN", position: { x: 0, y: Number.NaN } },
+		{ label: "x is -Infinity", position: { x: Number.NEGATIVE_INFINITY, y: 0 } },
+		{ label: "y is -Infinity", position: { x: 0, y: Number.NEGATIVE_INFINITY } },
+	])("WHEN a note's position has $label THEN it is skipped as an obstacle", ({ position }) => {
+		const input = withBrokenGeometry({ position });
 		expect(input.obstacles.map((o) => o.id)).toEqual(["ok.md"]);
 	});
 
@@ -168,7 +175,10 @@ describe("extractEdgeRoutingInput", () => {
 		expect(input.edges).toEqual([]);
 	});
 
-	it("WHEN a folder group's elk dimensions are non-finite THEN it is skipped as an obstacle", () => {
+	it.each([
+		{ label: "width", dimensions: { width: Number.POSITIVE_INFINITY, height: 120 } },
+		{ label: "height", dimensions: { width: 120, height: Number.POSITIVE_INFINITY } },
+	])("WHEN a folder group's elk $label is non-finite THEN it is skipped as an obstacle", ({ dimensions }) => {
 		const graph = makeGraph({
 			nodes: [
 				makeNode({ path: asVaultPath("notes/a.md"), folder: asFolderPath("notes") }),
@@ -185,9 +195,7 @@ describe("extractEdgeRoutingInput", () => {
 				["notes/a.md", { x: 10, y: 10 }],
 				["notes/b.md", { x: 60, y: 10 }],
 			]),
-			groupDimensions: new Map<string, Dimensions>([
-				["folder-group:notes", { width: Number.POSITIVE_INFINITY, height: 120 }],
-			]),
+			groupDimensions: new Map<string, Dimensions>([["folder-group:notes", dimensions]]),
 			shapeBufferPx: SHIPPED_CLEARANCE_PX,
 		});
 		expect(input.obstacles.map((o) => o.id)).toEqual(["notes/a.md", "notes/b.md"]);

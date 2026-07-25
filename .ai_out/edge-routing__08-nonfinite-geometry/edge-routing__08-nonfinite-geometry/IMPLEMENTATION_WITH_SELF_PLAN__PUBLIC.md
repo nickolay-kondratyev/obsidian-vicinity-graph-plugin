@@ -95,3 +95,66 @@ the follow-up (suggested scope: a `clampSizingSettings` + a zero-denominator gua
 While verifying non-vacuity I ran `git checkout -- src/view/edgeRouting.ts` to undo a temporary
 guard-disabling edit; it reverted the whole file. All four edits were re-applied and both
 `npm run check` and `npm test` were re-run green afterwards on the final tree.
+
+---
+
+# ITERATION 2 — response to IMPLEMENTATION_REVIEW (verdict READY)
+
+No blocking items. Disposition of every review item below.
+
+## S1 — `dispose()` comment overclaims ("a non-finite rect never reaches a Router") — **INCORPORATED**
+
+The reviewer is right: `route()` is public and `EdgeRoutingInput` is unvalidated, so the guarantee is
+about the production input path, not the API surface. The sentence now reads: no obstacle produced by
+`extractEdgeRoutingInput` — the only production input path — can carry a non-finite rect into a
+Router, with an explicit note that `route()` itself is unvalidated.
+
+## S2 — WHY-NOT clause at `hasFiniteGeometry` is a non-sequitur — **INCORPORATED**
+
+Correct: a guard inside `route()` WOULD have worked; the `dispose()` teardown flush is an unrelated
+mechanism. The misleading first clause is gone. The WHY-NOT now states the real reason only:
+extraction is pure (testable without wasm) and already owns the "drop unusable node" discipline
+(no position / no group dimensions), so the rule stays in one place.
+
+## N1 — extract `obstacleOf(...)` to restore `const` — **REJECTED**
+
+80/20 and the reviewer explicitly would not block. The `let` spans 27 lines inside one loop with two
+branches that both assign before use (compiler-enforced under strict TS); an extra private function
+buys style, not correctness or testability — `extractEdgeRoutingInput` is already fully testable and
+both obstacle shapes are already asserted field-by-field. The reviewer's own trigger ("worth
+considering if this loop grows a third node kind") has not fired. Revisit then.
+
+## N2 — one-shot `console.warn` at the caller when obstacles are dropped — **REJECTED** (unchanged from iteration 1)
+
+The user-visible symptom this would diagnose (`depthDecayK = -1` → straight edges) is caused
+upstream, and the follow-up ticket fixes it at the source; adding a second reporting channel for a
+soon-to-be-unreachable state is net complexity. The caller already logs `obstacleCount` next to
+`flow.nodes.length`-derived data in `console.debug("vicinity-graph: edge routing pass", …)`, so a
+dropped obstacle is already visible to anyone reading the debug log. Reconsider only if the follow-up
+ticket is dropped.
+
+## N3 — coverage granularity (`y`, `heightPx`, `-Infinity` only indirect) — **INCORPORATED**
+
+Cheap and it closes a real transposed-field hole:
+
+- the note-position test became an `it.each` over four cases: `x`/`y` × `NaN`/`-Infinity`;
+- the folder-group test became an `it.each` over non-finite `width` and non-finite `height`.
+
+Note-side `widthPx`/`heightPx` still cannot be split — `sizePx` sets both — which is fine: they come
+from the same source field.
+
+Test count: **912 → 916**.
+
+## Reviewer's third reachability finding — **CONFIRMED** (for the follow-up ticket, not acted on)
+
+`depthDecayK = Infinity` passes both settings guards (`Infinity >= 0`, not `NaN`) and at
+`src/engine/NodeSizer.ts:143` gives `Infinity * 0 = NaN` for the root note (`minDepth === 0`), so
+`1 / (1 + NaN) = NaN` — a **NaN** size, not merely `Infinity`. So the follow-up's `DepthDecayMetric`
+guard must reject a non-finite `k` as well as the `1 + k*minDepth === 0` denominator. Confirmed by
+reading the code; no test added (that would enshrine the buggy sizing) and `NodeSizer.ts` stays
+untouched per scope.
+
+## Verified results (iteration 2, real)
+
+- `npm run check` → **exit 0** (`.tmp/it2_check.log`).
+- `npm test` → **exit 0 — 68 files / 916 tests passed**, 0 failed, 0 skipped (`.tmp/it2_test.log`).
