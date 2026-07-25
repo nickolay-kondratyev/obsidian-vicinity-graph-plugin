@@ -171,9 +171,23 @@ test("settings tab: every section card ends with its own scoped restore row", as
 	await page.screenshot({ path: `${OUT_DIR}/settings-tab-resets-light.png` });
 });
 
+test("settings tab: WHEN the tab renders THEN every input carries its row name as accessible name", async () => {
+	await openSettingsTab();
+	const settings = page.locator(".vicinity-graph-settings");
+	// Obsidian puts the row name in a SIBLING of the control, so this only passes
+	// while the tab sets aria-label itself (src/view/VicinityGraphSettingTab.ts).
+	await expect(settings.getByLabel("Repel force")).toHaveAttribute("type", "range");
+	await expect(settings.getByLabel("Outline depth")).toHaveAttribute("type", "range");
+	await expect(settings.getByLabel("Outgoing depth")).toHaveAttribute("type", "range");
+	// The guarantee for rows added LATER: no input in the tab may lack a name.
+	await expect(settings.locator("input[type=range]:not([aria-label])")).toHaveCount(0);
+	await expect(settings.locator("input[type=number]:not([aria-label])")).toHaveCount(0);
+	await expect(settings.locator("textarea:not([aria-label])")).toHaveCount(0);
+});
+
 test("settings tab: a section restore resets ONLY that section", async () => {
 	await openSettingsTab();
-	const nodeCap = page.getByLabel("Node cap").or(page.locator(".vicinity-graph-settings input[type=number]").last());
+	const nodeCap = page.getByLabel("Node cap");
 	await page.evaluate(async (pluginId) => {
 		const plugin = (window as any).app.plugins.plugins[pluginId];
 		const store = plugin.pluginDataStore;
