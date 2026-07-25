@@ -76,3 +76,83 @@ State for rehydration. Written after both commits landed with a clean tree.
 5. `_assertEveryNodePreviewPreferenceListed` is exported from `types.ts` only
    (not through `index.ts`) — deviation D5. If a reviewer insists on the plan's
    literal wording, adding one name to the index export is a one-line change.
+
+---
+
+# PRIVATE working notes — wave B (Phases 3 + 4)
+
+Appended by the wave-B instance. Wave A's notes above still hold.
+
+## Where things stand
+
+- `2ded9db` = Phase 3 (+ both SHOULD-FIX items), `c50ed40` = Phase 4. Tree clean.
+- Numbers: `npm run check` exit 0; `npm test` **1 failed | 894 passed (895)**,
+  1 failed file | 67 passed (68); `npm run build` exit 0. Logs in `.tmp/`:
+  `p3-red-tsc.log` (the RED), `p3-check.log`, `p3-test.log`, `p3-build.log`,
+  `p4-check.log`, `p4-test.log`, `p4-build.log`.
+- I installed Playwright's Chromium (`~/.cache/ms-playwright`, ~114MB) — it was
+  absent. There is NO Obsidian binary and no `OBSIDIAN_PATH`, so `npm run
+  test:e2e` cannot run here at all, and neither can any dev-vault eyeball.
+- The visual harness is `.tmp/segmented-harness.html` +
+  `.tmp/shoot-segmented.mjs` (`node .tmp/shoot-segmented.mjs`). It links the
+  REAL `graph-view.css` + `segmented-control.css` and stubs Obsidian's theme
+  variables. Rebuild it if you need to re-eyeball; it is throwaway, not shipped.
+
+## Things I verified rather than assumed
+
+- `DomElementInfo` (obsidian.d.ts:137-165) has `type` and `value` fields, so
+  `createEl("input", { type: "radio", value: preference, attr: { name } })`
+  typechecks — no `setAttribute` dance needed except for `checked` (a property).
+- No existing e2e counts the panel's disclosures, so adding a 6th section breaks
+  nothing; `settingsUxVisual.e2e.ts:52-57` hand-enumerates them and simply
+  under-asserts until Phase 5 adds case 56. The settings-tab
+  `toHaveCount(6)` sites are untouched (I added a ROW to an existing card).
+- `hasText` substring matching in `disclosure(...)`: "Node contents" does not
+  collide with "Node sizing" or "Node exclusion". Safe.
+- Playwright treats an `opacity: 0` input as visible/actionable (bounding box is
+  non-empty), so `check()` works on the stretched radios. Confirmed in the probe.
+- The repo has NO jsdom / RTL and zero `*.test.tsx`. Do not promise a component
+  test for `NodeContentsSection` — adding that infra is a separate decision.
+
+## Dead ends / near-misses
+
+- I first wrote the plan's focus rule (`outline` on `__text`) and only found it
+  wrong by rendering: `overflow: hidden` clips it, and focus lands on the
+  *checked* radio, where an accent ring on accent fill is invisible. → group-level
+  `box-shadow` (deviation B1). Do not "restore" the plan's sketch.
+- I considered a `font-weight` bump on the selected segment as a second,
+  non-colour differentiator (WCAG "not colour alone"). Dropped: it changes the
+  segment's intrinsic width, so the pill jiggles on every flip in the tab (the
+  panel's `flex: 1 1 0` would be immune). The selected state is already a filled
+  BOX, not just a hue change, so the luminance difference carries it. If someone
+  insists on the weight lever, they must reserve the bold metrics first.
+- `--size-2-1` vertical padding (plan's sketch) → 21px pill. Measured, bumped to
+  `--size-4-1` → 25px.
+- The 2 tests in `nodePreviewPreferenceMeta.test.ts` are a11y-name guards, not
+  the plan's §6 cases — §6 assigns Phase 3/4 nothing but e2e (54–57). The second
+  one ("row label does not collide with a segment label") passed *vacuously*
+  before the constant existed, because vitest does not typecheck; the honest RED
+  was the tsc error. Said so in the PUBLIC file rather than claiming a red test.
+
+## Doubts / watch items for the next implementer
+
+1. **`--text-on-accent` is not eyeballed in a real Obsidian** (deviation B2). If
+   some theme leaves it unset the checked segment's text inherits `--text-muted`
+   on an accent fill = poor contrast. I deliberately did NOT add a fallback,
+   because every plausible fallback is also illegible and would hide the bug.
+   First real-Obsidian screenshot should check this.
+2. **`:has()` is the repo's first use.** If it ever needs to go, the restructure
+   is: move padding/border/background to `__text` and select it via
+   `input:checked + .vicinity-graph-segmented__text`. The CSS says so.
+3. `graph-view.css` now has panel-scoped overrides of a SHARED block
+   (`.vicinity-graph-nodecontents .vicinity-graph-segmented…`). If a third
+   surface ever wants a stretched pill, promote those two rules into a
+   `--stretch` modifier in `segmented-control.css` rather than copying them.
+4. The tab pill does **not** re-render the tab on change (no `this.display()`).
+   That is deliberate — it would eat keyboard focus mid-arrow-key — but it means
+   the pill is the one tab control whose siblings are not re-read after a write.
+   Nothing in the Node contents card depends on the preference, so this is safe
+   today; adding a control that does would need a rethink.
+5. SHOULD-FIX 1 left a real gap: NOTHING pins "sizePx must not depend on the
+   preference". I reworded the comment to say so honestly. Phase 5 should file
+   the ticket; a `NodeSizer` test is the right home.
