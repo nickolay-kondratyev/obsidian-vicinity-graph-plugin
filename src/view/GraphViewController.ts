@@ -71,6 +71,9 @@ const EMPTY_SNAPSHOT: FlowSnapshot = {
 /** Shared empty route map = every edge stays straight (routing off or failed). */
 const EMPTY_ROUTES: EdgeRouteMap = new Map();
 
+/** Dedup key for a routing failure that cannot be converted to a string at all. */
+const UNSTRINGIFIABLE_FAILURE_SIGNATURE = "<unstringifiable routing failure>";
+
 type Subscriber = () => void;
 
 export class GraphViewController {
@@ -97,8 +100,13 @@ export class GraphViewController {
 	 * off (so a later edge-routing flip recomputes without forcing an elk relayout).
 	 */
 	private routeCache: { readonly signature: string; readonly routes: EdgeRouteMap } | null = null;
-	/** The pass-level routing failure is logged at most once per controller — no per-rebuild spam. */
-	private routingFailureWarned = false;
+	/**
+	 * Signatures of the pass-level routing failures already warned about. Deduping per
+	 * signature rather than with a single latch keeps a rebuild loop from spamming the
+	 * console while still surfacing a structurally DIFFERENT later failure (dead wasm
+	 * module vs. contract violation vs. bad geometry) instead of swallowing it.
+	 */
+	private readonly warnedRoutingFailures = new Set<string>();
 
 	constructor(
 		private readonly navigator: NoteNavigatorPort,
@@ -241,8 +249,9 @@ export class GraphViewController {
 	 * The routing pass always runs (libavoid wasm lazy-loads on first `route`).
 	 * Caches by an input signature so a reuse-layout rebuild with unchanged
 	 * obstacles/edges reuses the previous pass instead of re-running libavoid. A
-	 * wasm-init/routing failure is contained here: warn ONCE, return empty (single
-	 * documented pass-level fallback — no per-edge silent fallbacks).
+	 * wasm-init/routing failure is contained here: warn once per distinct failure,
+	 * return empty (single documented pass-level fallback — no per-edge silent
+	 * fallbacks).
 	 */
 	private async resolveRoutes(
 		flow: FlowGraph,
@@ -298,12 +307,36 @@ export class GraphViewController {
 			this.routeCache = { signature, routes: clippedRoutes };
 			return clippedRoutes;
 		} catch (error: unknown) {
-			if (!this.routingFailureWarned) {
-				this.routingFailureWarned = true;
-				console.warn("vicinity-graph: edge routing failed; rendering straight edges", error);
-			}
+			this.warnRoutingFailureOncePerSignature(error);
 			this.routeCache = null;
 			return EMPTY_ROUTES;
+		}
+	}
+
+	/** Report a routing failure unless one with the same signature was already reported. */
+	private warnRoutingFailureOncePerSignature(error: unknown): void {
+		const signature = GraphViewController.routingFailureSignature(error);
+		if (this.warnedRoutingFailures.has(signature)) {
+			return;
+		}
+		this.warnedRoutingFailures.add(signature);
+		console.warn("vicinity-graph: edge routing failed; rendering straight edges", error);
+	}
+
+	/**
+	 * Dedup key for a thrown routing failure. The `EdgeRouter` contract has no typed
+	 * error channel, so anything can arrive here — `.name`/`.message` are never assumed,
+	 * and even stringification is guarded so the failure REPORTER cannot itself throw
+	 * (a null-prototype or hostile-`toString` throwable would otherwise fail the rebuild).
+	 */
+	private static routingFailureSignature(error: unknown): string {
+		if (error instanceof Error) {
+			return `${error.name}: ${error.message}`;
+		}
+		try {
+			return String(error);
+		} catch {
+			return UNSTRINGIFIABLE_FAILURE_SIGNATURE;
 		}
 	}
 

@@ -108,16 +108,26 @@ class FakeLayout implements GraphLayoutPort {
 }
 
 /**
- * Records every `route(input)` and returns a preset response — a route map, or an
- * Error to throw (failure-fallback tests). Default response is empty (no routing).
+ * A non-`Error` throwable for the router to raise. Wrapped because the raw value
+ * would be indistinguishable from a route-map/Error response.
+ */
+class NonErrorThrow {
+	constructor(readonly value: unknown) {}
+}
+
+type FakeRouterResponse = EdgeRouteMap | Error | NonErrorThrow;
+
+/**
+ * Records every `route(input)` and returns a preset response — a route map, or a
+ * value to throw (failure-fallback tests). Default response is empty (no routing).
  */
 class FakeEdgeRouter implements EdgeRouter {
 	callCount = 0;
 	lastInput: EdgeRoutingInput | null = null;
 
-	constructor(private response: EdgeRouteMap | Error = new Map()) {}
+	constructor(private response: FakeRouterResponse = new Map()) {}
 
-	setResponse(response: EdgeRouteMap | Error): void {
+	setResponse(response: FakeRouterResponse): void {
 		this.response = response;
 	}
 
@@ -126,6 +136,9 @@ class FakeEdgeRouter implements EdgeRouter {
 		this.lastInput = input;
 		if (this.response instanceof Error) {
 			throw this.response;
+		}
+		if (this.response instanceof NonErrorThrow) {
+			throw this.response.value;
 		}
 		return this.response;
 	}
@@ -618,6 +631,64 @@ describe("GraphViewController edge-routing pass", () => {
 		await flush();
 
 		expect(warn).toHaveBeenCalledTimes(1);
+		warn.mockRestore();
+	});
+
+	it("WHEN a later rebuild fails with a DIFFERENT error THEN that new failure warns too", async () => {
+		// The whole point of dedup-by-signature: a structurally different cause (dead wasm
+		// module vs. contract violation) must never be swallowed by an earlier failure.
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+		const router = new FakeEdgeRouter(new Error("wasm boom"));
+		const h = setup(router);
+		h.controller.handleActiveFileChanged("c.md");
+		h.source.resolveBuild(0, graphOf("c.md", "n1.md"));
+		await flush();
+
+		router.setResponse(new Error("edge d.md->n1.md references an obstacle with no registered shape"));
+		h.controller.handleActiveFileChanged("d.md");
+		h.source.resolveBuild(1, graphOf("d.md", "n1.md", "n2.md"));
+		await flush();
+
+		expect(warn).toHaveBeenCalledTimes(2);
+		warn.mockRestore();
+	});
+
+	it("WHEN a later rebuild fails with an equal-but-distinct Error instance THEN it stays silent (dedup is by signature, not identity)", async () => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+		const router = new FakeEdgeRouter(new Error("wasm boom"));
+		const h = setup(router);
+		h.controller.handleActiveFileChanged("c.md");
+		h.source.resolveBuild(0, graphOf("c.md", "n1.md"));
+		await flush();
+
+		router.setResponse(new Error("wasm boom")); // same name+message, different object
+		h.controller.handleActiveFileChanged("d.md");
+		h.source.resolveBuild(1, graphOf("d.md", "n1.md", "n2.md"));
+		await flush();
+
+		expect(warn).toHaveBeenCalledTimes(1);
+		warn.mockRestore();
+	});
+
+	it("WHEN the router throws a non-Error value THEN it still warns (no .name/.message assumed)", async () => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+		const h = setup(new FakeEdgeRouter(new NonErrorThrow("wasm module unavailable")));
+		h.controller.handleActiveFileChanged("c.md");
+		h.source.resolveBuild(0, graphOf("c.md", "n1.md"));
+		await flush();
+
+		expect(warn).toHaveBeenCalledTimes(1);
+		warn.mockRestore();
+	});
+
+	it("WHEN the router throws a non-Error value THEN edges still fall back to straight", async () => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+		const h = setup(new FakeEdgeRouter(new NonErrorThrow(undefined)));
+		h.controller.handleActiveFileChanged("c.md");
+		h.source.resolveBuild(0, graphOf("c.md", "n1.md"));
+		await flush();
+
+		expect(edgeById(h.snapshot(), "c.md->n1.md").routedPoints).toBeUndefined();
 		warn.mockRestore();
 	});
 
