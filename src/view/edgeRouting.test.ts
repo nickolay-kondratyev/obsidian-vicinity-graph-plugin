@@ -121,6 +121,77 @@ describe("extractEdgeRoutingInput", () => {
 		});
 		expect(input.obstacles).toEqual([]);
 	});
+
+	/**
+	 * GIVEN two linked notes where `broken.md` carries the named non-finite geometry.
+	 * A non-finite rect ABORTS the load-once libavoid wasm module for the whole
+	 * session, so it must never reach the routing input — see `hasFiniteGeometry`.
+	 * `sizePx: Infinity` is the reachable shape (depth-decay division by zero).
+	 */
+	function withBrokenGeometry(broken: {
+		readonly sizePx?: number;
+		readonly position?: XY;
+	}): ReturnType<typeof extractEdgeRoutingInput> {
+		const graph = makeGraph({
+			nodes: [
+				makeNode({ path: asVaultPath("broken.md"), sizePx: broken.sizePx ?? 100 }),
+				makeNode({ path: asVaultPath("ok.md") }),
+			],
+			edges: [makeEdge("broken.md", "ok.md")],
+		});
+		const flow = vicinityGraphToFlow(graph, false);
+		return extractEdgeRoutingInput({
+			nodes: flow.nodes,
+			edges: flow.edges,
+			positions: new Map<string, XY>([
+				["broken.md", broken.position ?? { x: 0, y: 0 }],
+				["ok.md", { x: 300, y: 0 }],
+			]),
+			groupDimensions: new Map(),
+			shapeBufferPx: SHIPPED_CLEARANCE_PX,
+		});
+	}
+
+	it("WHEN a note's size is non-finite THEN it is skipped as an obstacle", () => {
+		const input = withBrokenGeometry({ sizePx: Number.POSITIVE_INFINITY });
+		expect(input.obstacles.map((o) => o.id)).toEqual(["ok.md"]);
+	});
+
+	it("WHEN a note's position is non-finite THEN it is skipped as an obstacle", () => {
+		const input = withBrokenGeometry({ position: { x: Number.NaN, y: 0 } });
+		expect(input.obstacles.map((o) => o.id)).toEqual(["ok.md"]);
+	});
+
+	/** `route()` THROWS on an edge whose endpoint has no shape — a leaked edge would kill the pass. */
+	it("WHEN an obstacle is dropped for non-finite geometry THEN edges touching it are dropped too", () => {
+		const input = withBrokenGeometry({ sizePx: Number.POSITIVE_INFINITY });
+		expect(input.edges).toEqual([]);
+	});
+
+	it("WHEN a folder group's elk dimensions are non-finite THEN it is skipped as an obstacle", () => {
+		const graph = makeGraph({
+			nodes: [
+				makeNode({ path: asVaultPath("notes/a.md"), folder: asFolderPath("notes") }),
+				makeNode({ path: asVaultPath("notes/b.md"), folder: asFolderPath("notes") }),
+			],
+			edges: [],
+		});
+		const flow = vicinityGraphToFlow(graph, false);
+		const input = extractEdgeRoutingInput({
+			nodes: flow.nodes,
+			edges: flow.edges,
+			positions: new Map<string, XY>([
+				["folder-group:notes", { x: 0, y: 0 }],
+				["notes/a.md", { x: 10, y: 10 }],
+				["notes/b.md", { x: 60, y: 10 }],
+			]),
+			groupDimensions: new Map<string, Dimensions>([
+				["folder-group:notes", { width: Number.POSITIVE_INFINITY, height: 120 }],
+			]),
+			shapeBufferPx: SHIPPED_CLEARANCE_PX,
+		});
+		expect(input.obstacles.map((o) => o.id)).toEqual(["notes/a.md", "notes/b.md"]);
+	});
 });
 
 /**
