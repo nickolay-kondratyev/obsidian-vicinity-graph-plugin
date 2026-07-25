@@ -904,3 +904,104 @@ real contract, and the e2e cases assert user-visible DOM), no over-engineering.
 **DO NOT SHIP as-is.** One blocking defect (**B1**), entirely inside `e2e/`, no `src/` change
 required. The feature implementation itself is accepted against every binding requirement.
 Fix B1, correct S2's wording, re-run the whole `nodeOutline.e2e.ts` file, and this **SHIPS**.
+
+---
+
+# CONFIRMATION PASS — iteration round 1 (`1623084`, record `a463c1d`)
+
+Focused re-review of the three items only. Everything above is preserved verbatim; the
+whole-feature acceptance granted in the wave C section still stands, unchanged.
+
+## B1 — RESOLVED, and it is a root fix
+
+**The dependency is gone, not the symptom.** E7 (`nodeOutline.e2e.ts:353`) previously relied
+on `openFile(OUTLINE_NOTE_PATH)` being a REAL active-file change to trigger the rebuild that
+applies its store-only `setMaxNodeSizePx(96)` write. It now calls
+`showNoteWithRefitGraph(OUTLINE_NOTE_PATH)` — `openFile` → `remountGraphView()` → assert
+`data-tier="main"`. `ObsidianHarness.remountGraphView()` (`e2e/obsidianHarness.ts:275-283`)
+detaches every graph leaf and re-runs `openGraphView()`, so the view is rebuilt from the
+store **unconditionally**, whether or not the file was already active. E7 is therefore
+correct at any position, under any predecessor. That is the root cause, not a workaround.
+
+**Zero assertions weakened.** Verified line by line: the 18 removed lines in `e2e/` are 16
+comment/docblock lines plus the two statements (`openFile` + the `data-tier="main"`
+expectation) that the helper now performs itself — the tier assert is preserved inside the
+helper, not dropped. No `.skip`, no `.only`, no loosened timeout, no changed matcher, no
+deleted case. E7's five substantive assertions (`data-preview="outline"`,
+`outlineOf(...).toBeHidden()`, the two band bounds, `slackPx ≤ MAX_SUB_PIXEL_SLACK_PX`, plus
+the non-null strip precondition) are byte-identical.
+
+**`src/` untouched.** `git diff --stat b4f3556..a463c1d` = 2 `.ai_out/` records +
+`docs-internal/tickets/ticket-e2e-headless-culling-unmounts-main-node.md` +
+`e2e/nodeOutline.e2e.ts`. No `src/` file, no unit test, no `main.js`/`styles.css` (both are
+untracked build artifacts anyway). The acceptance table needs no re-derivation.
+
+**The lying comment is now accurate.** `:355-358` states the actual mechanism ("a sizing
+write alone does not rebuild … re-opening the already-active one is a silent no-op") — that
+is a fact E7 owns, not an invariant about a neighbour it cannot enforce. The helper docblock
+now carries **two** load-bearing reasons, and reason 1 (explicit rebuild) is the one that
+must survive the culling flake's eventual fix; step 3 of the ticket says exactly that, which
+closes the loop that would otherwise have re-introduced B1.
+
+**E8.3 was in scope, not scope creep.** E8.3 inherited its MAIN from E8.2 — the identical
+class of coupling, one line, same file, same rule, and its assertion remains a real
+transition (the added `showNoteWithRefitGraph` runs while the preference is still `image`, so
+`data-preview` genuinely flips `thumbnail → outline` once
+`setNodePreviewPreference("auto")` fires `refreshOpenViews()`). Fixing the sibling instance
+of the bug you were sent to fix is the right size of fix; the implementer explicitly declined
+the broad refactor of E1–E5 (which carry no B1-class coupling — they do no store writes, and
+`pic.jpg` is non-node-bearing so the MAIN never moves).
+
+## S1 — RESOLVED
+
+The lesson is recorded in all three places where it will be seen at the moment it matters:
+- the **file docblock** (`nodeOutline.e2e.ts:25-26`): "Insert a case here ⇒ re-run the WHOLE
+  file (`--grep` removes exactly the neighbours that would expose the coupling)" — this is
+  the one that counts, because it is in the file being edited;
+- **step 2 of the culling ticket**: "Run the WHOLE file, never `--grep`";
+- the **round-1 PUBLIC record**, with the causal story (wave C's `--grep` verification had no
+  signal about the damage it did).
+
+## S2 — RESOLVED, honest, one precision quibble (non-blocking)
+
+The false "reproduced on a **pristine `main`** tree" claim is gone, replaced by an explicit
+*"Attribution — what was actually verified, and by whom"* section that states wave C's stash
+was to `c96640d` (the wave **B** tip, waves A+B still applied, so it exonerated wave C only),
+that the IMPLEMENTATION_REVIEWER ran the missing experiment from a worktree on true `main`,
+and that the trigger is a saved `.dev-vault/.obsidian/workspace.json` — with the measured
+pass/fail table and an explicit "this is the workaround, not the fix". No overclaim in the
+other direction either: the ticket keeps its "pure race … biased by the restored pane
+geometry" framing and still demands 5 consecutive runs **with** `workspace.json` present as
+its acceptance bar. It also no longer says the pre-existing cases "were deliberately left
+untouched" without qualification, since E7 now uses the helper.
+
+Quibble for whoever picks the ticket up (**not** a blocker, no new ticket warranted): the
+table's *"reviewer 5/5 on `main`"* over-attributes — those five green `:92` observations were
+five runs **in a vault without `workspace.json`**, of which 2 were on true `main` and 3 on
+the branch. And the WITH-`workspace.json` row reads as deterministic; my own measurement on
+`main` was 1 red of 2 runs. The conclusion the ticket draws is correct and the prose elsewhere
+in the ticket says "race", so this is wording precision, not a false claim.
+
+## Nothing regressed
+
+Re-confirmed from the diff, not assumed: `src/` unchanged this round, unit tests unchanged,
+build artifacts untouched, `e2e/` net +24 lines with 0 assertion deletions. The whole-feature
+acceptance above therefore carries over verbatim.
+
+## SHIP / DO-NOT-SHIP
+
+**SHIP.** B1, S1 and S2 are all genuinely resolved. Zero blocking findings remain.
+
+## Residual risk for the human's smoke run (each pre-existing, each ticketed)
+
+| Risk | Caused by this feature? | Ticket |
+|---|---|---|
+| `nodeOutline.e2e.ts:92` culling flake kills the serial file when `.dev-vault/.obsidian/workspace.json` exists | **No** — I reproduced it on true `main` from a worktree | `docs-internal/tickets/ticket-e2e-headless-culling-unmounts-main-node.md` (now carries the trigger + acceptance bar) |
+| `edgeRoutingEval.e2e.ts:171` *radial layout SKIPS routing (gated)* | **No** — the test drives a layout mode a PRIOR ticket removed; it is named explicitly in that ticket's leftovers list | `ticket` CLI `nid_6lxaenl4oamjxqj6f0eh6rr4c_e` (open) |
+| `vicinityGraph.e2e.ts:160` singleton-folder breadcrumb, headless only | **No** — pre-existing headless-only | `docs-internal/tickets/ticket-e2e-gamma-breadcrumb-fails-headless.md` |
+| Deviation **B2**: `--text-on-accent` legibility, focus-ring/fill collision, 260px ellipsis — real-Obsidian eyeball under a **third-party** theme | Yes, feature surface — but unautomatable by nature; default-theme colours already measured | `docs-internal/tickets/ticket-node-preview-pill-human-smoke-run.md` |
+| `npm test` red: `SettingsSpec.test.ts` `linkStrengthFactor.max` | **No** — author-only known-RED, predates the branch | `ticket-settings-spec-baseline-tests-stale-after-node-spacing-bump.md` / `ticket-settings-baseline-tests-stale-after-spacing-change.md` |
+
+Operational note for the human: `nodeOutline.e2e.ts` is only informative today with
+`.dev-vault/.obsidian/workspace.json` moved aside, and `npx playwright test` cannot be used
+directly (`OBSIDIAN_PATH` unset) — always go through `npm run test:e2e`.

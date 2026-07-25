@@ -281,3 +281,69 @@ I verified the underlying claim properly myself.
    comment and the one-line CSS trough).
 5. Housekeeping I did: created and then removed `.worktree/reviewC-main`; left evidence logs
    in `.tmp/reviewC/`. Nothing in `src/` or `e2e/` was modified by me (read-only mandate held).
+
+---
+
+# Run 4 — confirmation pass on iteration round 1 (`1623084` / record `a463c1d`).
+# Verdict: **SHIP**. B1, S1, S2 all resolved. 0 blocking. Public: appended
+# "CONFIRMATION PASS" section (906 → 1007 lines, nothing above rewritten).
+
+## What I checked myself (cheap, targeted — did NOT re-run the suites)
+
+- `git show 1623084` in full + `git diff --stat b4f3556..a463c1d`: touched ONLY
+  2 `.ai_out/` records, the culling ticket, and `e2e/nodeOutline.e2e.ts`.
+  No `src/`, no unit test, no `main.js`/`styles.css` (untracked anyway).
+- `git show 1623084 -- e2e/ | grep -c "^-[^-]"` → 18, and I accounted for **all**
+  of them: 16 comment/docblock lines + the 2 statements the helper absorbed
+  (`openFile` and the `data-tier="main"` expect). The tier assert lives on inside
+  `showNoteWithRefitGraph`. Zero assertion loss; no `.skip/.only/timeout` churn.
+- Read `obsidianHarness.ts:275-283` — `remountGraphView()` detaches every graph
+  leaf then `openGraphView()`. Rebuild is unconditional ⇒ B1's root cause (a
+  no-op `openFile` on the already-active file) is structurally eliminated, not
+  papered over. E7 is now position- and predecessor-independent.
+- Read `obsidianHarness.ts:336-346` — `setNodePreviewPreference` calls
+  `plugin.refreshOpenViews()`. So E8.3's added `showNoteWithRefitGraph` does NOT
+  make it vacuous: the remount happens while the pref is still `image`
+  (thumbnail), then auto → refresh → `outline`. Real transition preserved.
+- Verified the docblock's "E1–E5 share `beforeAll`'s MAIN" is TRUE: E3 opens
+  `pic.jpg`, documented non-node-bearing at `:33-34`, so the graph's MAIN never
+  moves; no E1–E5 case does a store write ⇒ no B1-class coupling there.
+- Ticket existence check for every residual risk: culling flake (file ticket),
+  `edgeRoutingEval:171` → `ticket show nid_6lxaenl4oamjxqj6f0eh6rr4c_e` (open;
+  its leftovers list names the exact failing "radial layout SKIPS routing" case,
+  which is why the failure is pre-existing and NOT ours), `vicinityGraph:160` →
+  `ticket-e2e-gamma-breadcrumb-fails-headless.md`, B2 →
+  `ticket-node-preview-pill-human-smoke-run.md` (default-theme colours already
+  measured; only third-party theme + 2 taste calls left).
+
+## Two things I noted and deliberately did NOT raise as blockers
+
+1. **Ticket precision (recorded in PUBLIC as a quibble, no new ticket).** The new
+   table says "reviewer 5/5 on `main`" — my actual run-3 evidence was 5 green
+   `:92` observations in a vault WITHOUT `workspace.json`, of which only 2 were on
+   true `main` (3 were on HEAD). And the WITH-`workspace.json` row reads
+   deterministic; I measured 1 red of 2 on `main`. The ticket's own prose still
+   says "race" and demands 5 consecutive runs, so the conclusion is sound. Wording.
+2. **Docblock slightly overbroad.** `:21-22` says every case needing a different
+   MAIN establishes it "via `showNoteWithRefitGraph`" — E6 (`:269`) uses a bare
+   `openFile`. E6 is nonetheless CORRECT (no store write ⇒ no rebuild needed, and
+   `outline-cover` is never active before it), so this is one imprecise clause, not
+   a lie and not a latent bug. Not worth a ticket; would be a 5-word edit.
+
+## Honesty assessment of round 1 (for the record)
+
+The best of the four records. It volunteered the run condition (`workspace.json`
+moved aside) instead of burying it, published the A/B control (HEAD-stashed file →
+1 failed at E7, `Expected: hidden / Received: visible`), corrected wave C's
+"pristine tree" overclaim in BOTH the ticket and the feature record without
+rewriting wave C's section, and named the sibling fix (E8.3) as such rather than
+smuggling it. Its 5×14/14 claim is consistent with TOP_LEVEL's independent 14/14.
+
+## If ever rehydrated again
+
+Nothing outstanding on this feature. The only live threads are the 4 tickets in the
+PUBLIC residual-risk table. The reusable environment knowledge is in run 3's
+section (worktree e2e recipe, the `workspace.json` trigger, `--list` for true test
+counts, harness wiping `data.json`); add: **`npx playwright test` directly fails on
+`OBSIDIAN_PATH is not set` — always `npm run test:e2e`** (`scripts/run-e2e.sh`
+supplies env + headless flags).
