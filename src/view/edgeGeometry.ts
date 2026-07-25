@@ -4,8 +4,10 @@
  * the returned strings/coordinates.
  */
 
-// Type-only import: erased at compile time, so it introduces NO runtime import
-// cycle with edgeRouting.ts (which imports EDGE_PAIR_CURVATURE_PX from here).
+// The ONE name this pure-math module borrows from the routing layer. `import type`
+// is erased at compile time, so the emitted module still depends on NOTHING in that
+// layer — the same rule {@link ClipRect} below keeps by staying local instead of
+// importing `RoutingObstacle`.
 import type { RoutedPoint } from "./edgeRouting";
 
 export interface EdgePathGeometry {
@@ -129,9 +131,16 @@ export function edgePathFor(
  * clamped to HALF of each adjacent segment so a short segment can never invert
  * (the shrink from two neighbouring corners never overruns the segment between
  * them). Turns the router's hard right-angle detours into smooth, organic curves.
- * Kept the same order of magnitude as `EDGE_ROUTING_SHAPE_BUFFER_PX` (in
- * edgeRouting.ts, ~17px) so corners read at roughly the routing clearance's
- * visual scale. Held at 10px through the edge-routing__03 tuning pass: on the
+ * Kept the same order of magnitude as the routing clearance (the "Edge clearance"
+ * setting, `ForceLayoutSettings.edgeRoutingClearancePx`, 6-14px) so corners read
+ * at roughly that clearance's visual scale — deliberately NOT derived from it: a
+ * corner radius that moved with a user slider would restyle every routed edge.
+ * Since edge-routing__06 this radius can EXCEED the clearance (10 > the minimum 6),
+ * which was impossible while the clearance was a fixed 17 — still safe, because
+ * rounding cuts inward only `r(1 - 1/sqrt(2))` ~= 2.9px at the vertex, while a
+ * route turning a buffer-expanded corner sits `clearance * sqrt(2)` ~= 8.5px
+ * diagonally off the box even at that minimum. Re-check this if either moves.
+ * Held at 10px through the edge-routing__03 tuning pass: on the
  * sparse/medium/dense dev-vault fixtures it rounds the router's right-angle
  * detours into organic curves without eating so much of a short segment that the
  * corner reads as a diagonal shortcut.

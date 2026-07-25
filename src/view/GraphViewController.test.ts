@@ -635,6 +635,44 @@ describe("GraphViewController edge-routing pass", () => {
 		expect(h.router.callCount).toBe(1);
 	});
 
+	/** A graph whose resolved "Edge clearance" is a NON-default value inside the slider range. */
+	function withClearance(graph: VicinityGraph, edgeRoutingClearancePx: number): VicinityGraph {
+		const forceLayout = { ...EngineDefaults.forceLayoutSettings(), edgeRoutingClearancePx };
+		return { ...graph, viewSettings: { ...graph.viewSettings, forceLayout } };
+	}
+
+	it("WHEN a build routes THEN the graph's resolved edge-routing clearance reaches the router", async () => {
+		// The clearance is a SETTING (edge-routing__06 item (b)), no longer a module
+		// constant: if it does not travel in the routing input the slider is dead and
+		// libavoid keeps routing at its own default.
+		const NON_DEFAULT_CLEARANCE_PX = 7;
+		const h = setup(new FakeEdgeRouter(new Map()));
+		h.controller.handleActiveFileChanged("c.md");
+		h.source.resolveBuild(0, withClearance(graphOf("c.md", "n1.md"), NON_DEFAULT_CLEARANCE_PX));
+		await flush();
+
+		expect(h.router.lastInput?.shapeBufferPx).toBe(NON_DEFAULT_CLEARANCE_PX);
+	});
+
+	it("WHEN only the edge-routing clearance changed THEN the router runs again (the cache signature covers it)", async () => {
+		// THE cache trap: `routingSignature` hashes obstacle geometry + edge endpoints,
+		// and both rebuilds below produce identical geometry. With the clearance outside
+		// the signature the second rebuild serves STALE routes and the slider looks dead.
+		const CLEARANCE_BEFORE_PX = 7;
+		const CLEARANCE_AFTER_PX = 13;
+		const router = new FakeEdgeRouter(new Map([["c.md->n1.md", [{ x: 1, y: 2 }]]]));
+		const h = setup(router);
+		h.controller.handleActiveFileChanged("c.md");
+		h.source.resolveBuild(0, withClearance(graphOf("c.md", "n1.md"), CLEARANCE_BEFORE_PX));
+		await flush();
+
+		h.controller.handleSettingsChanged(); // same id-set and same positions → same obstacles
+		h.source.resolveBuild(1, withClearance(graphOf("c.md", "n1.md"), CLEARANCE_AFTER_PX));
+		await flush();
+
+		expect(h.router.callCount).toBe(2);
+	});
+
 	it("WHEN a reuse-layout rebuild reuses cached routes THEN the edge still carries them", async () => {
 		const route = [{ x: 1, y: 2 }];
 		const router = new FakeEdgeRouter(new Map([["c.md->n1.md", route]]));

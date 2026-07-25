@@ -102,7 +102,10 @@ export const SETTINGS_RESET_SCOPES: Readonly<Record<SettingsResetScope, Settings
 	},
 	"force-layout": {
 		label: "Restore force layout defaults",
-		description: "Resets all six force layout sliders, including the two under Advanced spacing.",
+		// Count-free on purpose: this string said "six" while seven sliders shipped
+		// (edge-routing__06) because no test asserts it. Naming the GROUPS instead of
+		// counting them keeps it true as fields are added.
+		description: "Resets every force layout slider, including the ones under Advanced spacing.",
 		plan: (ctx) => [
 			{ kind: "global-view", view: { ...ctx.globalView, forceLayout: EngineDefaults.forceLayoutSettings() } },
 		],

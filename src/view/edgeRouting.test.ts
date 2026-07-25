@@ -1,16 +1,17 @@
 import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import { asFolderPath, asVaultPath } from "../engine";
-import { EDGE_ARROWHEAD_INSET_MIN_PX } from "./edgeGeometry";
+import type { TestContext } from "vitest";
+import { asFolderPath, asVaultPath, EngineDefaults, FORCE_LAYOUT_RANGES } from "../engine";
+import { GROUP_SIDE_PADDING_PX } from "./constants";
 import { vicinityGraphToFlow } from "./flowMapping";
 import type { Dimensions, XY } from "./flowMapping";
 import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
+import { ARROWHEAD_HALF_WIDTH_PX } from "./VicinityEdge";
 import {
 	BOUNDARY_PIN_SPECS,
 	EDGE_ROUTING_CROSSING_PENALTY_PX,
 	EDGE_ROUTING_SEGMENT_PENALTY_PX,
-	EDGE_ROUTING_SHAPE_BUFFER_PX,
 	LibavoidEdgeRouter,
 	extractEdgeRoutingInput,
 } from "./edgeRouting";
@@ -22,6 +23,15 @@ import type { Avoid } from "./libavoidLoader";
 // under vitest). Mock that seam so the router routes against the node-built engine.
 const { loadAvoidMock } = vi.hoisted(() => ({ loadAvoidMock: vi.fn() }));
 vi.mock("./libavoidLoader", () => ({ loadAvoid: loadAvoidMock }));
+
+/**
+ * Every routing scene below runs at the SHIPPED default "Edge clearance", so these
+ * tests measure what users actually get rather than an arbitrary test value.
+ */
+const SHIPPED_CLEARANCE_PX = EngineDefaults.forceLayoutSettings().edgeRoutingClearancePx;
+
+/** The whole span a slider — or a clamped, hand-edited `data.json` — can reach. */
+const CLEARANCE_RANGE = FORCE_LAYOUT_RANGES.edgeRoutingClearancePx;
 
 describe("extractEdgeRoutingInput", () => {
 	/**
@@ -46,7 +56,13 @@ describe("extractEdgeRoutingInput", () => {
 			["root.md", { x: 400, y: 100 }],
 		]);
 		const groupDimensions = new Map<string, Dimensions>([["folder-group:notes", { width: 120, height: 120 }]]);
-		return extractEdgeRoutingInput({ nodes: flow.nodes, edges: flow.edges, positions, groupDimensions });
+		return extractEdgeRoutingInput({
+			nodes: flow.nodes,
+			edges: flow.edges,
+			positions,
+			groupDimensions,
+			shapeBufferPx: SHIPPED_CLEARANCE_PX,
+		});
 	}
 
 	function obstacle(id: string): RoutingObstacle {
@@ -101,20 +117,47 @@ describe("extractEdgeRoutingInput", () => {
 			edges: flow.edges,
 			positions: new Map(),
 			groupDimensions: new Map(),
+			shapeBufferPx: SHIPPED_CLEARANCE_PX,
 		});
 		expect(input.obstacles).toEqual([]);
 	});
 });
 
-describe("EDGE_ROUTING_SHAPE_BUFFER_PX", () => {
-	it("WHEN derived from the paired-edge curvature THEN it is half of it (17px)", () => {
-		expect(EDGE_ROUTING_SHAPE_BUFFER_PX).toBe(17);
+/**
+ * The routing clearance is the user-facing "Edge clearance" setting
+ * (`ForceLayoutSettings.edgeRoutingClearancePx`), so these lock the whole REACHABLE
+ * RANGE, not merely the shipped default: every value a slider — or a hand-edited,
+ * clamped `data.json` — can produce must satisfy both invariants.
+ *
+ * They REPLACE the pair that shipped before edge-routing__06 (`=== EDGE_PAIR_CURVATURE_PX
+ * / 2` and `> EDGE_ARROWHEAD_INSET_MIN_PX`) — deliberately STRONGER statements, not
+ * looser ones (that ticket's human decision D3). Each relates the clearance to a
+ * constant that measurably bounds it, so the bound moves when the geometry moves.
+ */
+describe("edge-routing clearance range invariants (edge-routing__06)", () => {
+	it("WHEN the clearance is at its maximum THEN it still stays under the folder-group side padding", () => {
+		// REPLACES `buffer === EDGE_PAIR_CURVATURE_PX / 2` (17), a tie to the hand-drawn
+		// bow curvature that nothing in the routing geometry justified.
+		// MEASURED cliff: a group's member squares are their OWN routing obstacles, inset
+		// GROUP_SIDE_PADDING_PX from the container border by ELK_GROUP_PADDING. Once the
+		// clearance exceeds that inset, a member's clearance region escapes the group border
+		// and seals the group's own boundary pins from outside, so cross-boundary edges wrap
+		// around to a non-facing side (400-scene corpus at realistic group degree: 22-26
+		// non-facing attachments at clearance <= 14 against 40 at 17). The cliff MOVES when
+		// the inset moves — that is what makes this a relation and not a magic number
+		// (edge-routing__06 `SWEEP__PUBLIC.md` §4). The old 17 sat 1-2px over it.
+		expect(CLEARANCE_RANGE.max).toBeLessThan(GROUP_SIDE_PADDING_PX);
 	});
 
-	it("WHEN a route clears an obstacle THEN the buffer exceeds the arrowhead min inset (14px)", () => {
-		// The clearance must be larger than where the arrowhead ever sits, so a route
-		// clears a box further out than its own head (edge-routing__03 tuning rationale).
-		expect(EDGE_ROUTING_SHAPE_BUFFER_PX).toBeGreaterThan(EDGE_ARROWHEAD_INSET_MIN_PX);
+	it("WHEN the clearance is at its minimum THEN it is still at least the arrowhead's half-width", () => {
+		// REPLACES `buffer > EDGE_ARROWHEAD_INSET_MIN_PX` (14), which never described a real
+		// containment relation: it compared this PERPENDICULAR clearance against the
+		// arrowhead's LONGITUDINAL inset back along the route — two different axes.
+		// The half-width is perpendicular like the clearance, so THIS one has geometric
+		// meaning: an arrowhead drawn on a route that clears every box by `clearance` keeps
+		// its own body outside those boxes. `>=` rather than `>` is the decided floor (D3):
+		// at the very minimum the head's body grazes the boundary without crossing it.
+		expect(CLEARANCE_RANGE.min).toBeGreaterThanOrEqual(ARROWHEAD_HALF_WIDTH_PX);
 	});
 });
 
@@ -205,7 +248,7 @@ describe("BOUNDARY_PIN_SPECS", () => {
 describe("LibavoidEdgeRouter with real wasm", () => {
 	const require = createRequire(import.meta.url);
 	const LIBAVOID_NODE_BUILD = require.resolve("libavoid-js");
-	let loaded = true;
+	let avoid: Avoid | null = null;
 
 	beforeAll(async () => {
 		try {
@@ -215,11 +258,26 @@ describe("LibavoidEdgeRouter with real wasm", () => {
 				AvoidLib: { load(path?: string): Promise<void>; getInstance(): unknown };
 			};
 			await libavoid.AvoidLib.load();
-			loadAvoidMock.mockResolvedValue(libavoid.AvoidLib.getInstance() as Avoid);
+			avoid = libavoid.AvoidLib.getInstance() as Avoid;
+			loadAvoidMock.mockResolvedValue(avoid);
 		} catch {
-			loaded = false;
+			avoid = null;
 		}
 	});
+
+	/**
+	 * Marks the test SKIPPED when the node wasm build is unavailable in this environment.
+	 * WHY not a bare `return`: that reports a PASS, so a lost wasm build would turn this
+	 * whole block green while asserting nothing. WHY-NOT `it.runIf(loaded)`: availability
+	 * is only known after `beforeAll`, long after `runIf` is evaluated at collection time.
+	 */
+	function requireWasm(ctx: TestContext): Avoid {
+		const instance = avoid;
+		if (instance === null) {
+			ctx.skip("the libavoid node wasm build did not load in this environment");
+		}
+		return instance;
+	}
 
 	function isStrictlyInside(point: { x: number; y: number }, rect: RoutingObstacle): boolean {
 		const eps = 0.01;
@@ -251,10 +309,11 @@ describe("LibavoidEdgeRouter with real wasm", () => {
 	const nodeB: RoutingObstacle = { id: "B", x: 200, y: 40, widthPx: 20, heightPx: 20, kind: "note" }; // centre (210,50)
 	const blocker: RoutingObstacle = { id: "OBS", x: 95, y: 20, widthPx: 40, heightPx: 60, kind: "note" };
 
-	async function route(): Promise<readonly { x: number; y: number }[]> {
+	async function routeAtClearance(shapeBufferPx: number): Promise<readonly { x: number; y: number }[]> {
 		const routes = await new LibavoidEdgeRouter().route({
 			obstacles: [nodeA, nodeB, blocker],
 			edges: [{ id: "A->B", sourceId: "A", targetId: "B" }],
+			shapeBufferPx,
 		});
 		const polyline = routes.get("A->B");
 		if (polyline === undefined) {
@@ -263,20 +322,47 @@ describe("LibavoidEdgeRouter with real wasm", () => {
 		return polyline;
 	}
 
-	it("WHEN a rectangle blocks the straight path THEN the route bends around it (>2 points)", async () => {
-		if (!loaded) {
-			// WHY skip: the node wasm build did not load in this environment. NOT a
-			// fake-pass — the assertion is intentionally not run and this is noted.
-			return;
-		}
+	async function route(): Promise<readonly { x: number; y: number }[]> {
+		return routeAtClearance(SHIPPED_CLEARANCE_PX);
+	}
+
+	it("WHEN a rectangle blocks the straight path THEN the route bends around it (>2 points)", async (ctx) => {
+		requireWasm(ctx);
 		expect((await route()).length).toBeGreaterThan(2);
 	});
 
-	it("WHEN routing around the obstacle THEN no waypoint falls strictly inside it", async () => {
-		if (!loaded) {
-			return;
-		}
+	it("WHEN routing around the obstacle THEN no waypoint falls strictly inside it", async (ctx) => {
+		requireWasm(ctx);
 		expect((await route()).some((p) => isStrictlyInside(p, blocker))).toBe(false);
+	});
+
+	function polylineLengthPx(polyline: readonly { x: number; y: number }[]): number {
+		let total = 0;
+		for (let i = 1; i < polyline.length; i++) {
+			const from = polyline[i - 1];
+			const to = polyline[i];
+			if (from !== undefined && to !== undefined) {
+				total += Math.hypot(to.x - from.x, to.y - from.y);
+			}
+		}
+		return total;
+	}
+
+	// THE LAST HOP: everything upstream of `router.setRoutingParameter(shapeBufferDistance, …)`
+	// — spec, persistence, cascade, `EdgeRoutingInput`, the route-cache signature — is guarded by
+	// its own test, but the handoff INTO libavoid was not, so re-hardcoding that one line left the
+	// whole suite (and every e2e spec) green while shipping a dead slider.
+	// This closes it from the far side: the same scene, only the clearance differing, must produce
+	// a MEASURABLY different route. A wider clearance pushes the detour further off the blocker, so
+	// route length grows monotonically with it (measured on this scene: 216.6px at 6, 222.6 at 11,
+	// 226.7 at 14, 231.3 at the retired 17). Asserted as the RELATION between the two range
+	// endpoints rather than against either length — the numbers move with the scene, the ordering
+	// does not, and both endpoints come from `FORCE_LAYOUT_RANGES` like the two invariants above.
+	it("WHEN the same scene is routed at the minimum and the maximum clearance THEN the tighter clearance gives the shorter route (the setting reaches libavoid)", async (ctx) => {
+		requireWasm(ctx);
+		const atMin = polylineLengthPx(await routeAtClearance(CLEARANCE_RANGE.min));
+		const atMax = polylineLengthPx(await routeAtClearance(CLEARANCE_RANGE.max));
+		expect(atMin).toBeLessThan(atMax);
 	});
 
 	// WHY these two: they are the regression guard for edge-routing__04's central fix —
@@ -301,6 +387,7 @@ describe("LibavoidEdgeRouter with real wasm", () => {
 		const routes = await new LibavoidEdgeRouter().route({
 			obstacles: [source, target],
 			edges: [{ id: "S->T", sourceId: source.id, targetId: target.id }],
+			shapeBufferPx: SHIPPED_CLEARANCE_PX,
 		});
 		const polyline = routes.get("S->T");
 		if (polyline === undefined || polyline.length < 2) {
@@ -314,10 +401,8 @@ describe("LibavoidEdgeRouter with real wasm", () => {
 		return { first, last };
 	}
 
-	it("WHEN two boxes are separated horizontally THEN the edge attaches on the facing (right→left) borders", async () => {
-		if (!loaded) {
-			return;
-		}
+	it("WHEN two boxes are separated horizontally THEN the edge attaches on the facing (right→left) borders", async (ctx) => {
+		requireWasm(ctx);
 		const boxL: RoutingObstacle = { id: "L", x: 0, y: 0, widthPx: 100, heightPx: 100, kind: "folder-group" }; // right border x=100
 		const boxR: RoutingObstacle = { id: "R", x: 300, y: 0, widthPx: 100, heightPx: 100, kind: "folder-group" }; // left border x=300
 		const { first, last } = await routePair(boxL, boxR);
@@ -329,10 +414,8 @@ describe("LibavoidEdgeRouter with real wasm", () => {
 		expect(Math.abs(last.y - 50)).toBeLessThanOrEqual(MID_SPAN_TOL_PX);
 	});
 
-	it("WHEN two boxes are separated vertically THEN the edge attaches on the facing (bottom→top) borders", async () => {
-		if (!loaded) {
-			return;
-		}
+	it("WHEN two boxes are separated vertically THEN the edge attaches on the facing (bottom→top) borders", async (ctx) => {
+		requireWasm(ctx);
 		const boxT: RoutingObstacle = { id: "T", x: 0, y: 0, widthPx: 100, heightPx: 100, kind: "folder-group" }; // bottom border y=100
 		const boxB: RoutingObstacle = { id: "B", x: 0, y: 300, widthPx: 100, heightPx: 100, kind: "folder-group" }; // top border y=300
 		const { first, last } = await routePair(boxT, boxB);
@@ -352,19 +435,210 @@ describe("LibavoidEdgeRouter with real wasm", () => {
 	const boxL: RoutingObstacle = { id: "L", x: 0, y: 0, widthPx: 100, heightPx: 100, kind: "folder-group" };
 	const boxR: RoutingObstacle = { id: "R", x: 300, y: 300, widthPx: 100, heightPx: 100, kind: "folder-group" };
 
-	it("WHEN two group boxes are offset diagonally THEN the source endpoint clears every corner of its box", async () => {
-		if (!loaded) {
-			return;
-		}
+	it("WHEN two group boxes are offset diagonally THEN the source endpoint clears every corner of its box", async (ctx) => {
+		requireWasm(ctx);
 		const { first } = await routePair(boxL, boxR);
 		expect(minCornerDistance(first, boxL)).toBeGreaterThan(CORNER_CLEARANCE_TOL_PX);
 	});
 
-	it("WHEN two group boxes are offset diagonally THEN the target endpoint clears every corner of its box", async () => {
-		if (!loaded) {
-			return;
-		}
+	it("WHEN two group boxes are offset diagonally THEN the target endpoint clears every corner of its box", async (ctx) => {
+		requireWasm(ctx);
 		const { last } = await routePair(boxL, boxR);
 		expect(minCornerDistance(last, boxR)).toBeGreaterThan(CORNER_CLEARANCE_TOL_PX);
+	});
+
+	// The premise the whole non-exclusive-pin fix rests on, measured rather than asserted in
+	// prose: libavoid derives a pin's exclusivity default from its visibility directions. If a
+	// libavoid upgrade flips either default, the WHY block at `registerPinsForShape` stops
+	// being true — and these fail instead of the pathology re-appearing silently in routes.
+	const PROBE_BOX_PX = 100;
+	const PROBE_PIN_CLASS = 1;
+	const PROBE_PIN_FRAC = 0.5; // mid-side: the exclusivity default depends on visDirs only, not placement
+
+	/**
+	 * `isExclusive()` of a pin read immediately after construction, on a throwaway
+	 * router. The pin is ROUTER-owned (see AvoidArena's OWNERSHIP GOTCHA), so only the
+	 * Points/Rectangle are destroyed here and the Router last; `processTransaction()`
+	 * flushes the pending shape add first, because destroying a Router with unprocessed
+	 * work is a known wasm-abort path (ticket `edge-routing-a-throw-inside-route-kills-…`).
+	 */
+	function freshPinExclusivity(instance: Avoid, visDirs: number): boolean {
+		const router = new instance.Router(instance.PolyLineRouting);
+		const topLeft = new instance.Point(0, 0);
+		const bottomRight = new instance.Point(PROBE_BOX_PX, PROBE_BOX_PX);
+		const rectangle = new instance.Rectangle(topLeft, bottomRight);
+		const shape = new instance.ShapeRef(router, rectangle);
+		const pin = new instance.ShapeConnectionPin(shape, PROBE_PIN_CLASS, PROBE_PIN_FRAC, 0, true, 0, visDirs);
+		const exclusive = pin.isExclusive();
+		router.processTransaction();
+		for (const owned of [topLeft, bottomRight, rectangle]) {
+			instance.destroy(owned);
+		}
+		instance.destroy(router);
+		return exclusive;
+	}
+
+	it("WHEN a directional boundary pin is constructed THEN libavoid defaults it to EXCLUSIVE", (ctx) => {
+		const instance = requireWasm(ctx);
+		expect(freshPinExclusivity(instance, instance.ConnDirUp)).toBe(true);
+	});
+
+	it("WHEN the ConnDirAll note centre pin is constructed THEN libavoid defaults it to NON-exclusive", (ctx) => {
+		const instance = requireWasm(ctx);
+		expect(freshPinExclusivity(instance, instance.ConnDirAll)).toBe(false);
+	});
+
+	// Pin-exhaustion guard (edge-routing__06 item (a)). Mechanism and measurements: see the
+	// WHY block at `registerPinsForShape` in `edgeRouting.ts`. In short, exclusive pins are one
+	// finite pool claimed by globally cheapest visible pin, so a crowded side spills onto the
+	// WRONG side (the 8-edge test below) and a fully claimed 12-pin pool falls back to the shape
+	// CENTRE (the 16-edge test). Routes are UNCLIPPED at this layer (GraphViewController clips
+	// them later), so both failures are directly observable in the terminal point of the route.
+	const FACING_SIDE_EDGE_COUNT = 8; // > 3 pins on the facing side: the crowd spills sideways
+	const PIN_POOL_EXHAUSTING_EDGE_COUNT = 16; // > 12 pins on the box: libavoid falls back to the centre
+	const GROUP_CENTRE_TOL_PX = 1; // a centre fallback lands ON the centre, not near it
+	const tallGroup: RoutingObstacle = { id: "G", x: 400, y: 0, widthPx: 200, heightPx: 800, kind: "folder-group" };
+
+	/**
+	 * Terminal (group-side) point of every route in a scene of `edgeCount` leaf notes
+	 * stacked down the LEFT of {@link tallGroup}, one edge each — so every edge's facing
+	 * side is unambiguously the group's left border.
+	 */
+	async function crowdedSideTerminals(edgeCount: number): Promise<{ x: number; y: number }[]> {
+		const leaves: RoutingObstacle[] = Array.from({ length: edgeCount }, (_unused, index) => ({
+			id: `L${index}`,
+			x: 100,
+			y: Math.round(10 + (index * tallGroup.heightPx) / edgeCount),
+			widthPx: 60,
+			heightPx: 30,
+			kind: "note",
+		}));
+		const routes = await new LibavoidEdgeRouter().route({
+			obstacles: [tallGroup, ...leaves],
+			shapeBufferPx: SHIPPED_CLEARANCE_PX,
+			edges: leaves.map((leaf) => ({ id: `${leaf.id}->G`, sourceId: leaf.id, targetId: tallGroup.id })),
+		});
+		return leaves.map((leaf) => {
+			const polyline = routes.get(`${leaf.id}->G`);
+			if (polyline === undefined || polyline.length < 2) {
+				throw new Error(`router produced no route for ${leaf.id}->G`);
+			}
+			const last = polyline[polyline.length - 1];
+			if (last === undefined) {
+				throw new Error(`route ${leaf.id}->G missing its terminal point`);
+			}
+			return last;
+		});
+	}
+
+	it("WHEN more edges approach a group box than it has pins THEN no route terminates at the group centre", async (ctx) => {
+		requireWasm(ctx);
+		const centre = { x: tallGroup.x + tallGroup.widthPx / 2, y: tallGroup.y + tallGroup.heightPx / 2 };
+		const terminals = await crowdedSideTerminals(PIN_POOL_EXHAUSTING_EDGE_COUNT);
+		expect(terminals.filter((p) => Math.hypot(p.x - centre.x, p.y - centre.y) <= GROUP_CENTRE_TOL_PX)).toEqual([]);
+	});
+
+	it("WHEN eight edges approach the same side of a group box THEN every route still terminates on that facing side", async (ctx) => {
+		requireWasm(ctx);
+		const terminals = await crowdedSideTerminals(FACING_SIDE_EDGE_COUNT);
+		expect(terminals.filter((p) => Math.abs(p.x - tallGroup.x) > FACING_BORDER_TOL_PX)).toEqual([]);
+	});
+
+	// The note CENTRE pin is the other half of the exclusivity decision, where the call is a
+	// measured no-op today (see the WHY block at `registerPinsForShape`). This is therefore a
+	// guard, not a fix — and it has teeth: force that pin exclusive (directly, or by giving it
+	// a direction, which flips libavoid's default) and every spoke after the first loses its
+	// pin and routes STRAIGHT THROUGH whatever lies between — 5 of the 6 spokes below do
+	// exactly that when the pin is made exclusive.
+	const HUB_SPOKE_COUNT = 6;
+	const HUB_CENTRE = { x: 500, y: 400 };
+	const SPOKE_RADIUS_PX = 400;
+	const BLOCKER_RADIUS_PX = 200;
+	const hubNote: RoutingObstacle = { id: "H", x: 470, y: 385, widthPx: 60, heightPx: 30, kind: "note" };
+
+	/** Note squares (60x30) evenly around the hub, each shadowed by an 80x80 box mid-spoke. */
+	function hubSpokes(): { leaves: RoutingObstacle[]; blockers: RoutingObstacle[] } {
+		const leaves: RoutingObstacle[] = [];
+		const blockers: RoutingObstacle[] = [];
+		for (let index = 0; index < HUB_SPOKE_COUNT; index++) {
+			const angle = (index / HUB_SPOKE_COUNT) * Math.PI * 2;
+			const at = (radius: number): { x: number; y: number } => ({
+				x: Math.round(HUB_CENTRE.x + Math.cos(angle) * radius),
+				y: Math.round(HUB_CENTRE.y + Math.sin(angle) * radius),
+			});
+			const leaf = at(SPOKE_RADIUS_PX);
+			const blocker = at(BLOCKER_RADIUS_PX);
+			leaves.push({ id: `S${index}`, x: leaf.x - 30, y: leaf.y - 15, widthPx: 60, heightPx: 30, kind: "note" });
+			blockers.push({ id: `X${index}`, x: blocker.x - 40, y: blocker.y - 40, widthPx: 80, heightPx: 80, kind: "note" });
+		}
+		return { leaves, blockers };
+	}
+
+	/**
+	 * WHAT: Liang–Barsky clip of segment a→b against `rect` — true when they overlap at all.
+	 * WHY not `isStrictlyInside`: a route that cuts through a box places NO waypoint inside
+	 * it (it is one straight segment from end to end), so only a segment test can see it.
+	 */
+	function segmentCrosses(a: { x: number; y: number }, b: { x: number; y: number }, rect: RoutingObstacle): boolean {
+		let tMin = 0;
+		let tMax = 1;
+		const dx = b.x - a.x;
+		const dy = b.y - a.y;
+		const clips: readonly (readonly [number, number])[] = [
+			[-dx, a.x - rect.x],
+			[dx, rect.x + rect.widthPx - a.x],
+			[-dy, a.y - rect.y],
+			[dy, rect.y + rect.heightPx - a.y],
+		];
+		for (const [edgeDir, edgeDist] of clips) {
+			if (edgeDir === 0) {
+				if (edgeDist < 0) {
+					return false; // parallel to this edge and outside it
+				}
+				continue;
+			}
+			const t = edgeDist / edgeDir;
+			if (edgeDir < 0) {
+				if (t > tMax) {
+					return false;
+				}
+				tMin = Math.max(tMin, t);
+			} else {
+				if (t < tMin) {
+					return false;
+				}
+				tMax = Math.min(tMax, t);
+			}
+		}
+		return tMax > tMin;
+	}
+
+	function routeCrosses(polyline: readonly { x: number; y: number }[], rect: RoutingObstacle): boolean {
+		for (let i = 1; i < polyline.length; i++) {
+			const from = polyline[i - 1];
+			const to = polyline[i];
+			if (from !== undefined && to !== undefined && segmentCrosses(from, to, rect)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	it("WHEN several edges attach to the same note square THEN no route cuts through the boxes in between", async (ctx) => {
+		requireWasm(ctx);
+		const { leaves, blockers } = hubSpokes();
+		const routes = await new LibavoidEdgeRouter().route({
+			obstacles: [hubNote, ...leaves, ...blockers],
+			shapeBufferPx: SHIPPED_CLEARANCE_PX,
+			edges: leaves.map((leaf) => ({ id: `${leaf.id}->H`, sourceId: leaf.id, targetId: hubNote.id })),
+		});
+		const cutting = leaves.filter((leaf) => {
+			const polyline = routes.get(`${leaf.id}->H`);
+			if (polyline === undefined || polyline.length < 2) {
+				throw new Error(`router produced no route for ${leaf.id}->H`);
+			}
+			return blockers.some((blocker) => routeCrosses(polyline, blocker));
+		});
+		expect(cutting.map((leaf) => leaf.id)).toEqual([]);
 	});
 });

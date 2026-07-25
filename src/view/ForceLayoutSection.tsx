@@ -12,8 +12,8 @@ import type { SettingsWriteContext } from "./settingsWritePlan";
 import { planSettingsWrite } from "./settingsWritePlan";
 
 /**
- * The in-graph force-layout mirror: full settings-tab parity (the four
- * native-parity sliders, the two "Advanced spacing" knobs behind a nested
+ * The in-graph force-layout mirror: full settings-tab parity (the
+ * native-parity sliders, the "Advanced spacing" knobs behind a nested
  * disclosure, and Restore defaults) driven by the SAME shared sources —
  * bounds from the engine's {@link FORCE_LAYOUT_RANGES}, copy from
  * {@link FORCE_LAYOUT_FIELD_META}, writes through the existing

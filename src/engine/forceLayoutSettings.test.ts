@@ -20,6 +20,7 @@ describe("EngineDefaults.forceLayoutSettings (shipped baseline)", () => {
 			linkGapPx: 40,
 			collidePaddingPx: 50,
 			elkNodeSpacingPx: 40,
+			edgeRoutingClearancePx: 11,
 		});
 	});
 

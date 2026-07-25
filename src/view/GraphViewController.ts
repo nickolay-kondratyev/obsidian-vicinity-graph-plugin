@@ -92,7 +92,7 @@ export class GraphViewController {
 	private layoutVersion = 0;
 	/**
 	 * Cached routed polylines keyed by a signature of the routing inputs
-	 * (obstacles + edges). Reused when the signature is unchanged so a reuse-layout
+	 * (obstacles + edges + clearance). Reused when the signature is unchanged so a reuse-layout
 	 * rebuild never re-runs libavoid; dropped on any input change or when routing is
 	 * off (so a later edge-routing flip recomputes without forcing an elk relayout).
 	 */
@@ -223,7 +223,13 @@ export class GraphViewController {
 			groupDimensions = extractElkDimensionsById(laidOut);
 		}
 		// Route AFTER layout, BEFORE publish: obstacles need final absolute positions.
-		const routes = await this.resolveRoutes(flow, positions, groupDimensions, token);
+		const routes = await this.resolveRoutes(
+			flow,
+			positions,
+			groupDimensions,
+			graph.viewSettings.forceLayout.edgeRoutingClearancePx,
+			token,
+		);
 		if (this.isStale(token)) {
 			return;
 		}
@@ -242,6 +248,7 @@ export class GraphViewController {
 		flow: FlowGraph,
 		positions: ReadonlyMap<string, XY>,
 		groupDimensions: ReadonlyMap<string, Dimensions>,
+		edgeRoutingClearancePx: number,
 		token: number,
 	): Promise<EdgeRouteMap> {
 		const input = extractEdgeRoutingInput({
@@ -249,6 +256,7 @@ export class GraphViewController {
 			edges: flow.edges,
 			positions,
 			groupDimensions,
+			shapeBufferPx: edgeRoutingClearancePx,
 		});
 		const signature = routingSignature(input);
 		if (this.routeCache !== null && this.routeCache.signature === signature) {
@@ -354,19 +362,26 @@ export class GraphViewController {
 const ROUTE_SIGNATURE_SEPARATOR = "\u0000";
 
 /**
- * A stable string over every routing input (obstacle geometry + edge endpoints).
- * Two builds with the same obstacles/edges produce the same signature, so the
- * route cache reuses the previous pass instead of re-running libavoid. Insertion
- * order is deterministic (flow node/edge order is stable for a given graph).
+ * A stable string over EVERY routing input — obstacle geometry, edge endpoints AND
+ * the clearance the pass will run at. Two builds with the same inputs produce the
+ * same signature, so the route cache reuses the previous pass instead of re-running
+ * libavoid. Insertion order is deterministic (flow node/edge order is stable for a
+ * given graph).
+ *
+ * The clearance MUST be part of it: changing only the "Edge clearance" setting
+ * leaves every obstacle where it was, so a geometry-only signature would serve the
+ * stale routes back and the slider would look dead (covered by a controller test).
  */
 function routingSignature(input: EdgeRoutingInput): string {
 	const obstacles = input.obstacles.map(
 		(o) => `${o.id}:${o.x},${o.y},${o.widthPx},${o.heightPx}`,
 	);
 	const edges = input.edges.map((e) => `${e.id}:${e.sourceId}->${e.targetId}`);
-	return [obstacles.join(ROUTE_SIGNATURE_SEPARATOR), edges.join(ROUTE_SIGNATURE_SEPARATOR)].join(
-		ROUTE_SIGNATURE_SEPARATOR,
-	);
+	return [
+		String(input.shapeBufferPx),
+		obstacles.join(ROUTE_SIGNATURE_SEPARATOR),
+		edges.join(ROUTE_SIGNATURE_SEPARATOR),
+	].join(ROUTE_SIGNATURE_SEPARATOR);
 }
 
 /**

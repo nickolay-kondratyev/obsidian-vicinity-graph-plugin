@@ -1,4 +1,3 @@
-import { EDGE_PAIR_CURVATURE_PX } from "./edgeGeometry";
 import type { Avoid, AvoidConnEnd, AvoidConnRef, AvoidPoint, AvoidRouter, AvoidShapeRef } from "./libavoidLoader";
 import type { Dimensions, FlowEdge, FlowNode, XY } from "./flowMapping";
 
@@ -47,6 +46,15 @@ export interface RoutingEdge {
 export interface EdgeRoutingInput {
 	readonly obstacles: readonly RoutingObstacle[];
 	readonly edges: readonly RoutingEdge[];
+	/**
+	 * Clearance libavoid keeps around EVERY obstacle (`shapeBufferDistance`) — the
+	 * resolved user setting `ViewSettings.forceLayout.edgeRoutingClearancePx`, whose
+	 * default, bounds and measured rationale live on `SETTINGS_SPEC`. It travels IN
+	 * the routing input (rather than as a second `route()` argument) so the caller's
+	 * cache signature covers it for free: two passes that differ only in clearance
+	 * must not share a cached result.
+	 */
+	readonly shapeBufferPx: number;
 }
 
 /** Routed polyline per edge id. Edges the router could not route are simply absent. */
@@ -56,19 +64,6 @@ export type EdgeRouteMap = ReadonlyMap<string, readonly RoutedPoint[]>;
 export interface EdgeRouter {
 	route(input: EdgeRoutingInput): Promise<EdgeRouteMap>;
 }
-
-/**
- * Clearance libavoid keeps around every obstacle. Derived from the hand-drawn
- * paired-edge bow ({@link EDGE_PAIR_CURVATURE_PX}) so routed detours read at a
- * comparable visual scale: half the curvature = 17px, comfortably beyond the
- * arrowhead's minimum inset (`EDGE_ARROWHEAD_INSET_MIN_PX = 14px`) so a route
- * clears a box further out than the arrowhead ever sits, yet small relative to
- * inter-node spacing (min node 40px, layouts space centres hundreds of px apart)
- * so dense vicinities don't detour absurdly. Kept at 17px after the edge-routing__03
- * tuning pass: screenshots on the sparse/medium/dense dev-vault fixtures showed
- * routes clearing boxes cleanly without ballooning — see that ticket's PUBLIC notes.
- */
-export const EDGE_ROUTING_SHAPE_BUFFER_PX = EDGE_PAIR_CURVATURE_PX / 2;
 
 /**
  * Cost libavoid adds per connector SEGMENT beyond the first, in the same length
@@ -121,6 +116,8 @@ export function extractEdgeRoutingInput(input: {
 	readonly edges: readonly FlowEdge[];
 	readonly positions: ReadonlyMap<string, XY>;
 	readonly groupDimensions: ReadonlyMap<string, Dimensions>;
+	/** The resolved "Edge clearance" setting — see {@link EdgeRoutingInput.shapeBufferPx}. */
+	readonly shapeBufferPx: number;
 }): EdgeRoutingInput {
 	const obstacles: RoutingObstacle[] = [];
 	const obstacleIds = new Set<string>();
@@ -161,7 +158,7 @@ export function extractEdgeRoutingInput(input: {
 		}
 		edges.push({ id: edge.id, sourceId: edge.source, targetId: edge.target });
 	}
-	return { obstacles, edges };
+	return { obstacles, edges, shapeBufferPx: input.shapeBufferPx };
 }
 
 /**
@@ -266,7 +263,7 @@ function visDirsFor(avoid: Avoid, dir: PinDir): number {
 function registerPinsForShape(avoid: Avoid, shape: AvoidShapeRef, kind: RoutingObstacle["kind"]): void {
 	const specs = kind === "folder-group" ? BOUNDARY_PIN_SPECS : [CENTRE_PIN_SPEC];
 	for (const spec of specs) {
-		new avoid.ShapeConnectionPin(
+		const pin = new avoid.ShapeConnectionPin(
 			shape,
 			PIN_CLASS,
 			spec.xFrac,
@@ -275,6 +272,30 @@ function registerPinsForShape(avoid: Avoid, shape: AvoidShapeRef, kind: RoutingO
 			PIN_INSIDE_OFFSET,
 			visDirsFor(avoid, spec.dir),
 		);
+		// WHY (ticket edge-routing__06 item (a)) — SINGLE SOURCE for this rationale; the
+		// loader interface and the tests point here instead of restating it.
+		//
+		// An EXCLUSIVE pin accepts at most ONE connector, and this binding DERIVES that
+		// default from the pin's visibility directions: a directional pin is born exclusive,
+		// a ConnDirAll pin shared (locked by tests in `edgeRouting.test.ts`). The 12
+		// directional BOUNDARY pins are therefore one finite pool that connectors claim, and
+		// libavoid hands them out by globally cheapest VISIBLE pin — not per-side
+		// first-come. Two measured consequences (tall group box, N leaf notes down one side):
+		//   * edges spill onto pins of the WRONG side before that side's three are even used
+		//     up — the first wrong-side terminal appears at N = 3. WHY-NOT a threshold rule:
+		//     the spill point is geometry-dependent (leaves shadow each other's view of the
+		//     facing pins), and a hard "4th edge" rule is exactly what this ticket corrects.
+		//   * from N = 13 the whole pool is claimed; libavoid warns ("no pins with class id
+		//     of 1") and falls back to the shape CENTRE — the pre-edge-routing__04 pathology.
+		// Sharing the pins fixes both at no cost — still one routing pass (400 crowded scenes
+		// at realistic group degree: non-facing attachments 82 -> 40, total length -2.3%).
+		//
+		// On the note CENTRE pin the call is a measured no-op (ConnDirAll is already shared:
+		// 0 of 949 routes changed); applied uniformly so the requirement is stated in code
+		// rather than resting on a default that a change of pin direction would silently flip.
+		// The local const exists ONLY for this call — see the OWNERSHIP GOTCHA on AvoidArena
+		// below: this pin is router-owned, so it must never be tracked or destroyed by us.
+		pin.setExclusive(false);
 	}
 }
 
@@ -371,7 +392,7 @@ export class LibavoidEdgeRouter implements EdgeRouter {
 		const arena = new AvoidArena(avoid);
 		const router = arena.newRouter();
 		try {
-			router.setRoutingParameter(avoid.shapeBufferDistance, EDGE_ROUTING_SHAPE_BUFFER_PX);
+			router.setRoutingParameter(avoid.shapeBufferDistance, input.shapeBufferPx);
 			router.setRoutingParameter(avoid.segmentPenalty, EDGE_ROUTING_SEGMENT_PENALTY_PX);
 			router.setRoutingParameter(avoid.crossingPenalty, EDGE_ROUTING_CROSSING_PENALTY_PX);
 			const shapeById = new Map<string, AvoidShapeRef>();

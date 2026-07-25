@@ -58,6 +58,7 @@ function makeViewSettings(): ViewSettings {
 			linkGapPx: 40,
 			collidePaddingPx: 20,
 			elkNodeSpacingPx: 40,
+			edgeRoutingClearancePx: 11,
 		},
 	};
 }

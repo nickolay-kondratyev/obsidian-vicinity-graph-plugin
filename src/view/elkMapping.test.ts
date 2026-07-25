@@ -99,6 +99,15 @@ describe("vicinityGraphToElk folder-group compounds (step-05)", () => {
 		expect(container()?.layoutOptions?.["elk.padding"]).toBe(ELK_GROUP_PADDING);
 	});
 
+	it("WHEN the group padding is assembled from its numeric parts THEN the elk syntax string is unchanged", () => {
+		// The assertion above compares against the constant itself, so it cannot see a
+		// change in the STRING. `GROUP_SIDE_PADDING_PX` was extracted out of this literal
+		// (it bounds the edge-routing clearance, edge-routing__06) and the string is now
+		// BUILT from it — this locks the elk syntax so that extraction cannot silently
+		// alter every folder group's layout.
+		expect(ELK_GROUP_PADDING).toBe("[top=36.0,left=16.0,bottom=16.0,right=16.0]");
+	});
+
 	it("WHEN the group-member-spacing setting is customized THEN the container spacing option carries it (ticket-04 threading)", () => {
 		const custom = makeGraph({
 			...graph,
