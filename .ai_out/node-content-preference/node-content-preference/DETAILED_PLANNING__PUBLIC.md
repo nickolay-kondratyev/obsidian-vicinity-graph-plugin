@@ -5,6 +5,12 @@ preview slot shows, exposed in the settings tab AND the in-graph controls panel,
 **global scope only**, **default `Auto`** (= today's document-position rule,
 preserved exactly).
 
+> **Reviewed 2026-07-25 (DETAILED_PLAN_REVIEW).** Verdict
+> APPROVED-WITH-INLINE-FIXES; no blocking issues. Seven minor corrections are
+> applied inline below, each marked **[PLAN_REVIEW inline fix]** — the acceptance
+> set is now 57 cases (was 55). See `DETAILED_PLAN_REVIEW__PUBLIC.md`; no
+> PLAN_ITERATION pass is required.
+
 Binding inputs: `CLARIFICATION__PUBLIC.md` (human-approved),
 `EXPLORATION__CONTENT_RULES__PUBLIC.md`, `EXPLORATION__SETTINGS_CONTROLS__PUBLIC.md`.
 Every `file:line` below was re-read against the working tree on this branch
@@ -68,8 +74,8 @@ NoteNode.tsx → data-preview={data.preview}   (renders, decides nothing)
 | Where | Member | Type | Notes |
 |---|---|---|---|
 | `src/engine/types.ts` | `NodePreviewPreference` | `"auto" \| "outline" \| "image"` | Doc-comment per member (the three branches need WHY). Sits next to `EdgeVisibilityMode` (`:140-149`). |
-| `src/engine/types.ts` | `NODE_PREVIEW_PREFERENCES` | `readonly NodePreviewPreference[]` | **Ordered** = the pill's left-to-right order. THE single value list: the persistence parser's `find` and the UI's option order both read it. Precedent for a const in `types.ts`: `DIRECTION_DEPTH_FIELD` (`:187-190`). |
-| `src/engine/types.ts` | `_assertEveryNodePreviewPreferenceListed` | type-guard const | Repo idiom (`settingsResetPlan.ts:183-185`, `forceLayoutFieldMeta.ts:65-67`): a value missing from the array is a compile error, not a silently unrenderable option. |
+| `src/engine/types.ts` | `NODE_PREVIEW_PREFERENCES` | `["auto", "outline", "image"] as const satisfies readonly NodePreviewPreference[]` | **Ordered** = the pill's left-to-right order. THE single value list: the persistence parser's `find` and the UI's option order both read it. Precedent for a const in `types.ts`: `DIRECTION_DEPTH_FIELD` (`:187-190`). **[PLAN_REVIEW inline fix]** it MUST be `as const satisfies …` (the `SECTION_RESET_SCOPES` idiom, `settingsResetPlan.ts:167-174`), NOT annotated `readonly NodePreviewPreference[]` — with the wide annotation `(typeof NODE_PREVIEW_PREFERENCES)[number]` widens back to the full union and the completeness assert below becomes vacuously true. |
+| `src/engine/types.ts` | `_assertEveryNodePreviewPreferenceListed` | type-guard const | Repo idiom (`settingsResetPlan.ts:183-185`, `forceLayoutFieldMeta.ts:65-67`): a value missing from the array is a compile error, not a silently unrenderable option. Shape: `type UnlistedPreference = Exclude<NodePreviewPreference, (typeof NODE_PREVIEW_PREFERENCES)[number]>` — only sound with the `as const satisfies` form above. |
 | `src/engine/types.ts` `ViewSettings` (`:245-258`) | `nodePreviewPreference` | `NodePreviewPreference` | Insert **directly after `outlineMaxDepth`** (both are "node contents" knobs; keeps the spec/defaults/resolver orders aligned). |
 | `src/engine/LinkProvider.ts` `FileMetadata` (`:9-39`) | `imagePrecedesOutline` | `boolean` (**required**) | "A RESOLVED image reference sits above this note's FIRST HEADING." **`false` when the note has no first heading** (nothing to precede) or is not outline-bearing. |
 | `src/engine/VicinityTraversal.ts` `TraversedNode` (`:25-40`) | `imagePrecedesOutline` | `boolean` | Echo, next to `outline`/`firstImagePath`. |
@@ -194,9 +200,16 @@ sibling selectors; do NOT reach for `:has()`):
 .vicinity-graph-segmented__option > input:focus-visible + .vicinity-graph-segmented__text {
     outline: 2px solid var(--background-modifier-border-focus); outline-offset: 2px; }
 ```
-(If the reviewer prefers zero `:has()`, paint the accent on
-`input:checked + .vicinity-graph-segmented__text` itself — the span can carry the
-whole segment box. Either is fine; pick one and keep it to one rule.)
+**[PLAN_REVIEW inline fix — decision made, ambiguity removed]** Keep the `:has()`
+rule above; do NOT restructure so the span carries the box. `:has()` is supported
+by the Chromium behind `minAppVersion` 1.12.4, and the label-carries-the-box form
+keeps padding/border in one place. (This is the repo's first `:has()` — grep
+confirms none today — so it is worth one line of WHY in the CSS.)
+Two variables in the sketch (`--text-on-accent`,
+`--background-modifier-border-focus`) are Obsidian-provided but used **nowhere
+else in this repo** — eyeball them in light AND dark during Phase 3 rather than
+assuming, and fall back (`var(--text-on-accent, var(--text-normal))`) only if a
+theme actually leaves one unset.
 
 **Shared copy module: `src/view/nodePreviewPreferenceMeta.ts`** (sibling of
 `forceLayoutFieldMeta.ts`, the established "share DATA, duplicate MARKUP"
@@ -386,7 +399,12 @@ on the group once, ←/→ move and apply, screen-reader announces
 
 1. New `src/view/NodeContentsSection.tsx` — `<Disclosure summary="Node contents" className="vicinity-graph-nodecontents">`
    containing the same segmented markup as JSX (labels/descriptions from the
-   shared meta, `name` from `useId()`), writing through
+   shared meta, `name` from `useId()`). **[PLAN_REVIEW inline fix]** render
+   `NODE_PREVIEW_ROW_LABEL` as a VISIBLE row label next to the control (the
+   panel's own idiom — every `ForceLayoutSlider`/sizing row is labelled) and put
+   the same string on the radiogroup's `aria-label`; a bare Auto/Outline/Image
+   trio inside a "Node contents" disclosure does not say what it switches.
+   Writes through
    `useControlsActions().applySettings(planSettingsWrite({ kind: "global-node-preview", value }, ctx))`
    — the identical command the tab emits. Fully controlled off
    `view.nodePreviewPreference` (no local state), exactly like
@@ -548,6 +566,10 @@ empty pass-through) and `:509-520` (both outline and image ⇒ firstImagePath st
 
 ### K. Invariant guard (place with B)
 50. WHEN imagePrecedesOutline is true THEN the same metadata also carries a non-empty outline and a first image
+> **[PLAN_REVIEW inline fix]** one assert per test: split into
+> 50a "…THEN the outline is non-empty" and 50b "…THEN a first image is present",
+> or drop 50 entirely — cases 18 and 21 already pin the fact's inputs, and this
+> is the lowest-value case in the set (see the review's PARETO note).
 
 ### L. e2e (release gate — `npm run test:e2e`, not `npm test`)
 - **`e2e/settingsResetReview.e2e.ts`**: add `nodePreviewPreference` to the
@@ -562,6 +584,11 @@ empty pass-through) and `:509-520` (both outline and image ⇒ firstImagePath st
   53. WHEN the preference returns to Auto THEN both nodes show what document position says
   (assert on `[data-preview]` + `.vicinity-graph-outline` visibility; restore the
   default in `afterAll` so later files are unaffected.)
+  **[PLAN_REVIEW inline fix]** the file is `test.describe.configure({ mode: "serial" })`
+  and every pre-existing case assumes the default Auto, so append 51–53 as the
+  LAST cases in the file and have 53 (the restore-to-Auto case) be the one that
+  leaves the store clean — `afterAll` restoration alone would still let a flaky
+  mid-file failure poison the remaining cases.
 - **`e2e/settingsUxVisual.e2e.ts`**: 54. the Node contents card exposes a
   3-radio group whose selected option is Auto, and clicking "Outline" persists
   `nodePreviewPreference` (`getByRole("radio", { name: "Outline" })`);
@@ -569,6 +596,19 @@ empty pass-through) and `:509-520` (both outline and image ⇒ firstImagePath st
   settings DOM (mirrors the `borderTopStyle` idiom at `:129-131`) — `npm test`
   cannot catch a missing `AUTHORED_CSS_FILES` entry; plus light+dark screenshots
   into `.out/`.
+  **[PLAN_REVIEW inline fix — two additions, this is the ONE registration point
+  the plan missed]**
+  56. extend the existing `"panel defaults: every section is a disclosure, only
+  Depth starts open"` test (`e2e/settingsUxVisual.e2e.ts:53-59`) with
+  `await expect(disclosure("Node contents")).not.toHaveAttribute("open", "")` —
+  that test hand-enumerates the panel's disclosures, so a new section that is not
+  added there silently under-asserts (same failure class as the settings-tab
+  enumerations this plan is careful about).
+  57. one assertion that the PANEL pill actually writes: open the Node contents
+  disclosure, click its "Image" radio, and read `pluginDataStore.globalView()
+  .nodePreviewPreference` (the idiom the force-layout test already uses at
+  `:110-115`). Without it the controls-panel half of the binding "exposed in BOTH
+  surfaces" requirement has zero automated coverage at any level.
 - **Section counts DO NOT CHANGE:** `.vicinity-graph-settings-section`
   `toHaveCount(6)` stays in `settingsResetReview.e2e.ts:77`,
   `settingsResetVerify.e2e.ts:59`, `settingsUxVisual.e2e.ts:128`; the
@@ -624,6 +664,12 @@ empty pass-through) and `:509-520` (both outline and image ⇒ firstImagePath st
    home.
 3. (Already ticketed elsewhere — do not duplicate) the `toHaveCount(6)`
    triplication across three e2e files with no shared constant.
+4. **[PLAN_REVIEW inline addition]** `ticket-edge-visibility-modes-belongs-in-engine-types.md`
+   — `EDGE_VISIBILITY_MODES` (`persistedShapes.ts:66`) re-lists a union's values
+   inside persistence with no compile-time completeness guard, while this feature
+   introduces the better idiom (`NODE_PREVIEW_PREFERENCES` in `engine/types.ts`
+   + listing assert). Migrating it is a clean break, out of scope here, and
+   leaving two idioms side by side is the kind of drift worth a ticket.
 
 ---
 
