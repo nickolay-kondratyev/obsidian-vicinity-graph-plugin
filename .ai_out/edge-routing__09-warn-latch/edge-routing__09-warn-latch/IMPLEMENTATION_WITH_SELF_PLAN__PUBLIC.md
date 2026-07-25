@@ -116,6 +116,74 @@ with all 5 new tests and the pre-existing warn-once test shown as `✓`.
   need if another site ever wants it. Today it has exactly one caller — deliberately kept
   local rather than promoted to a `warnOnce` utility (YAGNI). Promote only on a 2nd caller.
 
+## Iteration 1 — response to IMPLEMENTATION_REVIEW__PUBLIC.md
+
+### Accepted: SHOULD-FIX-1 (untested `UNSTRINGIFIABLE_FAILURE_SIGNATURE` branch)
+
+First **confirmed the branch is genuinely reachable** by the proposed input rather than
+assuming: `node -e 'String(Object.create(null))'` →
+`TypeError: Cannot convert object to primitive value`.
+
+Added **2** BDD tests in `src/view/GraphViewController.test.ts` (before the
+reuse-layout/caching test), both driving `new FakeEdgeRouter(new NonErrorThrow(Object.create(null)))`:
+
+1. `WHEN the router throws an unstringifiable value THEN the reporter still warns instead of throwing` → 1 warn.
+2. `WHEN the router throws an unstringifiable value THEN edges still fall back to straight` → `routedPoints` undefined.
+
+Two tests, not one, because the branch has two distinct failure modes: the warning is lost,
+*and* the rebuild breaks rather than degrades. One assertion each, per repo convention.
+
+**Mutation-verified (they fail for the RIGHT reason).** Temporarily replaced the guarded
+body with a bare `return String(error);` and ran the targeted suite:
+
+```
+Tests  2 failed | 46 skipped (48)
+TypeError: Cannot convert object to primitive value
+ ❯ GraphViewController.routingFailureSignature src/view/GraphViewController.ts:336:10
+ ❯ GraphViewController.warnRoutingFailureOncePerSignature src/view/GraphViewController.ts:318:41
+ ❯ GraphViewController.resolveRoutes src/view/GraphViewController.ts:310:9
+```
+
+That is exactly the predicted escape-out-of-the-catch. Guard restored (`git diff` on
+`GraphViewController.ts` empty for this iteration — the production file is untouched).
+
+### Rejected: MINOR-1 (plain objects collapse to `"[object Object]"`)
+
+Rejected — no producer in the routing stack throws plain objects, so a `JSON.stringify`
+attempt would be speculative code (and itself throws on cycles, needing its own guard).
+
+### Rejected: MINOR-2 (unbounded signature string length)
+
+Rejected — truncation would trade a hypothetical few KB for real information loss in the
+warning's own dedup key; no producer emits pathological messages.
+
+Both are non-regressions (the old boolean latch swallowed *everything*), and the reviewer
+graded both "leaving it is fine". No production code changed in this iteration.
+
+### Iteration 1 gate output (verbatim)
+
+`npm run check > .tmp/iter-check.log 2>&1` → `CHECK_EXIT=0`
+
+```
+> vicinity-graph@0.1.1 check
+> tsc -noEmit
+```
+
+`npm test > .tmp/iter-test.log 2>&1` → `TEST_EXIT=0`
+
+```
+ Test Files  68 passed (68)
+      Tests  922 passed (922)
+   Duration  1.07s
+```
+
+920 → 922 tests, +2, no file count change, nothing weakened or removed.
+
+### Corrections to this report
+
+The reviewer is right that the original section above says "5 new tests" while listing 4;
+the code had 4. With this iteration it is 6.
+
 ## For the reviewer to scrutinise
 
 1. The no-cap decision above.

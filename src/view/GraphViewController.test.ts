@@ -692,6 +692,32 @@ describe("GraphViewController edge-routing pass", () => {
 		warn.mockRestore();
 	});
 
+	// `String(Object.create(null))` genuinely throws (no `toString`, no `Symbol.toPrimitive`),
+	// so these two exercise the UNSTRINGIFIABLE_FAILURE_SIGNATURE fallback. Without that
+	// guard the signature derivation throws OUT of the catch block and the rebuild breaks
+	// instead of degrading — i.e. both assertions below would fail.
+	it("WHEN the router throws an unstringifiable value THEN the reporter still warns instead of throwing", async () => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+		const h = setup(new FakeEdgeRouter(new NonErrorThrow(Object.create(null))));
+		h.controller.handleActiveFileChanged("c.md");
+		h.source.resolveBuild(0, graphOf("c.md", "n1.md"));
+		await flush();
+
+		expect(warn).toHaveBeenCalledTimes(1);
+		warn.mockRestore();
+	});
+
+	it("WHEN the router throws an unstringifiable value THEN edges still fall back to straight", async () => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+		const h = setup(new FakeEdgeRouter(new NonErrorThrow(Object.create(null))));
+		h.controller.handleActiveFileChanged("c.md");
+		h.source.resolveBuild(0, graphOf("c.md", "n1.md"));
+		await flush();
+
+		expect(edgeById(h.snapshot(), "c.md->n1.md").routedPoints).toBeUndefined();
+		warn.mockRestore();
+	});
+
 	it("WHEN a reuse-layout rebuild has unchanged inputs THEN routes are cached (router invoked once)", async () => {
 		const router = new FakeEdgeRouter(new Map([["c.md->n1.md", [{ x: 1, y: 2 }]]]));
 		const h = setup(router);

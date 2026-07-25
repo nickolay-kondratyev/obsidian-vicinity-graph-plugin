@@ -38,6 +38,16 @@ Test side: added `NonErrorThrow` wrapper class + `FakeRouterResponse` union so
 - **No shared `warnOnce` utility.** Single caller; grep confirmed no existing dedup helper
   anywhere in `src/`. Promote only on a second caller.
 
+## Iteration 1 (post-review)
+
+Review verdict was READY. Took SHOULD-FIX-1 only: 2 tests for the
+`UNSTRINGIFIABLE_FAILURE_SIGNATURE` branch, test file only, production code byte-identical
+to `8745644`. Confirmed reachability (`String(Object.create(null))` throws `TypeError`) and
+mutation-verified the tests fail without the guard — they are not passing for the wrong
+reason. Rejected MINOR-1 (JSON.stringify for plain objects — speculative, needs its own
+cycle guard) and MINOR-2 (length cap — trades info loss for hypothetical bytes). No-cap
+decision left alone; reviewer endorsed it. 922 tests green, check clean.
+
 ## If resuming
 
 Nothing to resume. If a reviewer pushes back on the no-cap choice, the minimal change is:
