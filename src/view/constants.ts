@@ -120,12 +120,32 @@ export function elkGroupMemberOptions(nodeSpacingPx: number): Readonly<Record<st
 }
 
 /**
- * Inner padding of folder-group containers (elk `ElkPadding` syntax). The
- * extra TOP padding reserves room for the group's folder-name label so member
- * nodes never render underneath it; the other sides give members breathing
- * room inside the container border.
+ * Inset of a folder group's MEMBER squares from the container's left/bottom/right
+ * border. Stated numerically (and not only inside the elk string below) because it
+ * is the measured CEILING of the edge-routing clearance: members are emitted as
+ * their own routing obstacles, so a clearance wider than this inset makes a
+ * member's clearance region poke OUTSIDE the group border and seal the group's own
+ * boundary pins from the outside (edge-routing__06 `SWEEP__PUBLIC.md` §4 — the
+ * cliff moves when this inset moves). Asserted in `edgeRouting.test.ts`.
  */
-export const ELK_GROUP_PADDING = "[top=36.0,left=16.0,bottom=16.0,right=16.0]";
+export const GROUP_SIDE_PADDING_PX = 16;
+
+/**
+ * Room reserved above the members for the group's folder-name label, so member
+ * nodes never render underneath it.
+ */
+const GROUP_TOP_PADDING_PX = 36;
+
+/** [elk `ElkPadding` syntax]: values must be written as float literals (`16.0`, not `16`). */
+function elkPaddingValue(px: number): string {
+	const ELK_PADDING_DECIMALS = 1;
+	return px.toFixed(ELK_PADDING_DECIMALS);
+}
+
+/** Inner padding of folder-group containers, in elk's `ElkPadding` syntax. */
+export const ELK_GROUP_PADDING =
+	`[top=${elkPaddingValue(GROUP_TOP_PADDING_PX)},left=${elkPaddingValue(GROUP_SIDE_PADDING_PX)}` +
+	`,bottom=${elkPaddingValue(GROUP_SIDE_PADDING_PX)},right=${elkPaddingValue(GROUP_SIDE_PADDING_PX)}]`;
 
 /**
  * React Flow zoom floor. RF's default (0.5) clamps `fitView` on dense graphs in

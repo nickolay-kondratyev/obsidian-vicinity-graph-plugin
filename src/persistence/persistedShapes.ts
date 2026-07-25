@@ -193,6 +193,11 @@ function parseForceLayout(raw: unknown): ForceLayoutSettings | undefined {
 		linkGapPx: numberOrUndefined(raw["linkGapPx"]) ?? defaults.linkGapPx,
 		collidePaddingPx: numberOrUndefined(raw["collidePaddingPx"]) ?? defaults.collidePaddingPx,
 		elkNodeSpacingPx: numberOrUndefined(raw["elkNodeSpacingPx"]) ?? defaults.elkNodeSpacingPx,
+		// Added in edge-routing__06 WITHOUT a PERSISTED_SHAPE_VERSION bump (explicit
+		// call): a missing known field already falls back to the engine default here
+		// per field, so an existing data.json parses correctly; a version bump would
+		// instead DISCARD every stored setting (see the version doc above).
+		edgeRoutingClearancePx: numberOrUndefined(raw["edgeRoutingClearancePx"]) ?? defaults.edgeRoutingClearancePx,
 	});
 }
 

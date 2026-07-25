@@ -13,10 +13,26 @@ Branch: `main` · Feature dir: `.ai_out/edge-routing__06/main/`
 | 1b | Fix pre-existing red `SettingsSpec.test.ts` (D2) | DONE — `258ec5a`, `npm test` green |
 | 2 | (a) `setExclusive(false)` — RED real-wasm test first, then 1-line change + loader type narrowing | DONE — `2d08ab1` |
 | 2b | (a) IMPLEMENTATION_REVIEW (verdict READY) + iteration (5/5 incorporated) | DONE — `9f92e77` |
-| 3 | (b) sweep 5/8/11/14/17, record table + screenshots | RUNNING |
-| 4 | (b) **HUMAN DECISION** on the two invariants (`buffer = curvature/2`, `buffer > arrowhead inset`) | pending |
-| 5 | (b) implement setting end-to-end with chosen default (7th force-layout field per D1) | pending |
-| 6 | Ticket notes, change_log, close chore ticket | pending |
+| 3 | (b) sweep 5/8/11/14/17, record table + screenshots | DONE — `0703634`, `SWEEP__PUBLIC.md` |
+| 4 | (b) **HUMAN DECISION** on invariants, default, clamp, UI | DONE — `a15ef8f`, decisions D3-D6 |
+| 4b | `facing` dev-vault fixture (replaces the manual real-vault smoke) | DONE — `3786495`, `STEP4_FIXTURE__PUBLIC.md` |
+| 5a | (b) CORE: constant extraction, replaced invariants, engine setting, routing plumbing + cache fix | RUNNING |
+| 5b | (b) SURFACE: settings tab row, README, "six sliders" copy, e2e count bump, facing-side assertion, AFTER measurement | pending |
+| 6 | IMPLEMENTATION_REVIEW of (b) + iteration | pending |
+| 7 | Ticket notes + close, chore ticket close, change_log | pending |
+
+## Human decisions (see CLARIFICATION__PUBLIC.md)
+- D1 7th `ForceLayoutSettings` field · D2 fix red `SettingsSpec` baseline
+- D3 default **11**, clamp **6-14**, option 3 with two REPLACEMENT invariants
+- D4 label "Edge clearance", in *Advanced spacing*
+- D5 recreate the scenario as a dev-vault fixture (not the real vault)
+- D6 all four follow-ups; plus: facing-side becomes a committed e2e assertion in 5b, fan-in accepted with the ticket left open
+
+## Follow-up tickets filed
+`nid_oy3vas85xhr34n2dby1mvows4_e` wasm abort on routing throw ·
+`nid_g1zb4b06gew54gnwcn5hx237j_e` pin fan-in ·
+`nid_li45606h8uvcnjm7fss17xl1u_e` sparse fixture nondeterminism ·
+`nid_se3h2v45c10x9j42utbm8v2sn_e` e2e vault override
 
 Note: ticket lists ask-human before sweep, but also says "bring the sweep table to that conversation" — so sweep runs first (temporary constant override, uncommitted), human decides with data.
 

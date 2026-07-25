@@ -2,16 +2,16 @@ import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import type { TestContext } from "vitest";
-import { asFolderPath, asVaultPath } from "../engine";
-import { EDGE_ARROWHEAD_INSET_MIN_PX } from "./edgeGeometry";
+import { asFolderPath, asVaultPath, EngineDefaults, FORCE_LAYOUT_RANGES } from "../engine";
+import { GROUP_SIDE_PADDING_PX } from "./constants";
 import { vicinityGraphToFlow } from "./flowMapping";
 import type { Dimensions, XY } from "./flowMapping";
 import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
+import { ARROWHEAD_HALF_WIDTH_PX } from "./VicinityEdge";
 import {
 	BOUNDARY_PIN_SPECS,
 	EDGE_ROUTING_CROSSING_PENALTY_PX,
 	EDGE_ROUTING_SEGMENT_PENALTY_PX,
-	EDGE_ROUTING_SHAPE_BUFFER_PX,
 	LibavoidEdgeRouter,
 	extractEdgeRoutingInput,
 } from "./edgeRouting";
@@ -23,6 +23,12 @@ import type { Avoid } from "./libavoidLoader";
 // under vitest). Mock that seam so the router routes against the node-built engine.
 const { loadAvoidMock } = vi.hoisted(() => ({ loadAvoidMock: vi.fn() }));
 vi.mock("./libavoidLoader", () => ({ loadAvoid: loadAvoidMock }));
+
+/**
+ * Every routing scene below runs at the SHIPPED default "Edge clearance", so these
+ * tests measure what users actually get rather than an arbitrary test value.
+ */
+const SHIPPED_CLEARANCE_PX = EngineDefaults.forceLayoutSettings().edgeRoutingClearancePx;
 
 describe("extractEdgeRoutingInput", () => {
 	/**
@@ -47,7 +53,13 @@ describe("extractEdgeRoutingInput", () => {
 			["root.md", { x: 400, y: 100 }],
 		]);
 		const groupDimensions = new Map<string, Dimensions>([["folder-group:notes", { width: 120, height: 120 }]]);
-		return extractEdgeRoutingInput({ nodes: flow.nodes, edges: flow.edges, positions, groupDimensions });
+		return extractEdgeRoutingInput({
+			nodes: flow.nodes,
+			edges: flow.edges,
+			positions,
+			groupDimensions,
+			shapeBufferPx: SHIPPED_CLEARANCE_PX,
+		});
 	}
 
 	function obstacle(id: string): RoutingObstacle {
@@ -102,20 +114,49 @@ describe("extractEdgeRoutingInput", () => {
 			edges: flow.edges,
 			positions: new Map(),
 			groupDimensions: new Map(),
+			shapeBufferPx: SHIPPED_CLEARANCE_PX,
 		});
 		expect(input.obstacles).toEqual([]);
 	});
 });
 
-describe("EDGE_ROUTING_SHAPE_BUFFER_PX", () => {
-	it("WHEN derived from the paired-edge curvature THEN it is half of it (17px)", () => {
-		expect(EDGE_ROUTING_SHAPE_BUFFER_PX).toBe(17);
+/**
+ * The routing clearance is the user-facing "Edge clearance" setting
+ * (`ForceLayoutSettings.edgeRoutingClearancePx`), so these lock the whole REACHABLE
+ * RANGE, not merely the shipped default: every value a slider — or a hand-edited,
+ * clamped `data.json` — can produce must satisfy both invariants.
+ *
+ * They REPLACE the pair that shipped before edge-routing__06 (`=== EDGE_PAIR_CURVATURE_PX
+ * / 2` and `> EDGE_ARROWHEAD_INSET_MIN_PX`) — deliberately STRONGER statements, not
+ * looser ones (that ticket's human decision D3). Each relates the clearance to a
+ * constant that measurably bounds it, so the bound moves when the geometry moves.
+ */
+describe("edge-routing clearance range invariants (edge-routing__06)", () => {
+	const CLEARANCE_RANGE = FORCE_LAYOUT_RANGES.edgeRoutingClearancePx;
+
+	it("WHEN the clearance is at its maximum THEN it still stays under the folder-group side padding", () => {
+		// REPLACES `buffer === EDGE_PAIR_CURVATURE_PX / 2` (17), a tie to the hand-drawn
+		// bow curvature that nothing in the routing geometry justified.
+		// MEASURED cliff: a group's member squares are their OWN routing obstacles, inset
+		// GROUP_SIDE_PADDING_PX from the container border by ELK_GROUP_PADDING. Once the
+		// clearance exceeds that inset, a member's clearance region escapes the group border
+		// and seals the group's own boundary pins from outside, so cross-boundary edges wrap
+		// around to a non-facing side (400-scene corpus at realistic group degree: 22-26
+		// non-facing attachments at clearance <= 14 against 40 at 17). The cliff MOVES when
+		// the inset moves — that is what makes this a relation and not a magic number
+		// (edge-routing__06 `SWEEP__PUBLIC.md` §4). The old 17 sat 1-2px over it.
+		expect(CLEARANCE_RANGE.max).toBeLessThan(GROUP_SIDE_PADDING_PX);
 	});
 
-	it("WHEN a route clears an obstacle THEN the buffer exceeds the arrowhead min inset (14px)", () => {
-		// The clearance must be larger than where the arrowhead ever sits, so a route
-		// clears a box further out than its own head (edge-routing__03 tuning rationale).
-		expect(EDGE_ROUTING_SHAPE_BUFFER_PX).toBeGreaterThan(EDGE_ARROWHEAD_INSET_MIN_PX);
+	it("WHEN the clearance is at its minimum THEN it is still at least the arrowhead's half-width", () => {
+		// REPLACES `buffer > EDGE_ARROWHEAD_INSET_MIN_PX` (14), which never described a real
+		// containment relation: it compared this PERPENDICULAR clearance against the
+		// arrowhead's LONGITUDINAL inset back along the route — two different axes.
+		// The half-width is perpendicular like the clearance, so THIS one has geometric
+		// meaning: an arrowhead drawn on a route that clears every box by `clearance` keeps
+		// its own body outside those boxes. `>=` rather than `>` is the decided floor (D3):
+		// at the very minimum the head's body grazes the boundary without crossing it.
+		expect(CLEARANCE_RANGE.min).toBeGreaterThanOrEqual(ARROWHEAD_HALF_WIDTH_PX);
 	});
 });
 
@@ -271,6 +312,7 @@ describe("LibavoidEdgeRouter with real wasm", () => {
 		const routes = await new LibavoidEdgeRouter().route({
 			obstacles: [nodeA, nodeB, blocker],
 			edges: [{ id: "A->B", sourceId: "A", targetId: "B" }],
+			shapeBufferPx: SHIPPED_CLEARANCE_PX,
 		});
 		const polyline = routes.get("A->B");
 		if (polyline === undefined) {
@@ -311,6 +353,7 @@ describe("LibavoidEdgeRouter with real wasm", () => {
 		const routes = await new LibavoidEdgeRouter().route({
 			obstacles: [source, target],
 			edges: [{ id: "S->T", sourceId: source.id, targetId: target.id }],
+			shapeBufferPx: SHIPPED_CLEARANCE_PX,
 		});
 		const polyline = routes.get("S->T");
 		if (polyline === undefined || polyline.length < 2) {
@@ -438,6 +481,7 @@ describe("LibavoidEdgeRouter with real wasm", () => {
 		}));
 		const routes = await new LibavoidEdgeRouter().route({
 			obstacles: [tallGroup, ...leaves],
+			shapeBufferPx: SHIPPED_CLEARANCE_PX,
 			edges: leaves.map((leaf) => ({ id: `${leaf.id}->G`, sourceId: leaf.id, targetId: tallGroup.id })),
 		});
 		return leaves.map((leaf) => {
@@ -551,6 +595,7 @@ describe("LibavoidEdgeRouter with real wasm", () => {
 		const { leaves, blockers } = hubSpokes();
 		const routes = await new LibavoidEdgeRouter().route({
 			obstacles: [hubNote, ...leaves, ...blockers],
+			shapeBufferPx: SHIPPED_CLEARANCE_PX,
 			edges: leaves.map((leaf) => ({ id: `${leaf.id}->H`, sourceId: leaf.id, targetId: hubNote.id })),
 		});
 		const cutting = leaves.filter((leaf) => {

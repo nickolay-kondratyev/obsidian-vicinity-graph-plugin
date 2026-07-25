@@ -38,12 +38,18 @@ export const FORCE_LAYOUT_FIELD_META: Readonly<Record<keyof ForceLayoutSettings,
 		label: "Group member spacing",
 		description: "Gap (px) between the notes inside a folder group (also spaces the initial layout pass).",
 	},
+	edgeRoutingClearancePx: {
+		label: "Edge clearance",
+		description: "How far (px) a routed edge stays clear of the boxes it passes on its way.",
+	},
 };
 
 /**
  * Presentation order: the four "native-parity" sliders shown up front (same
- * names as Obsidian's native graph view — POLS), then the two spacing knobs
- * tucked behind an "Advanced spacing" collapsible on both surfaces.
+ * names as Obsidian's native graph view — POLS), then the px fine-tuning knobs
+ * tucked behind an "Advanced spacing" collapsible on both surfaces. "Edge
+ * clearance" belongs in the advanced group (edge-routing__06 decision D4)
+ * precisely because it has no native-graph analogue to be familiar from.
  */
 export const FORCE_LAYOUT_MAIN_FIELDS = [
 	"centerPullStrength",
@@ -55,6 +61,7 @@ export const FORCE_LAYOUT_MAIN_FIELDS = [
 export const FORCE_LAYOUT_ADVANCED_FIELDS = [
 	"collidePaddingPx",
 	"elkNodeSpacingPx",
+	"edgeRoutingClearancePx",
 ] as const satisfies readonly (keyof ForceLayoutSettings)[];
 
 /**

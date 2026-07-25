@@ -315,3 +315,72 @@ N=12 arms). Final tree has `src/` byte-identical to HEAD. Declared in the PUBLIC
   the important one is Q1: if the human's real vault still wraps WITH item (a) shipped, this
   fixture does not model their case and we need the real box aspect ratio + neighbour count.
 - Buffer still 17. Step 5 owns lowering it to 11 and capturing AFTER (screenshot + probe + `[eval]`).
+
+---
+
+# STEP 5a — item (b) CORE: constants, invariants, engine setting, plumbing — DONE, all green, uncommitted
+
+Public result: `STEP5A_CORE__PUBLIC.md` (same dir). Base commit `3786495`. 17 `src/` files touched.
+`npm run check` exit 0; `npm test` 63 files / **779 passed** (baseline 774 — measured by stashing);
+`npx tsc -p e2e/tsconfig.json --noEmit` exit 0. e2e NOT run (step 5b owns the AFTER measurement).
+
+## Final names (and why) — do not rename on a later pass
+
+- Engine field: **`edgeRoutingClearancePx`** (NOT the suggested `edgeClearancePx`).
+  `types.ts:194-201` states the rule outright: force-layout field NAMES describe the MECHANISM, the UI
+  shows the label. `elkNodeSpacingPx` names its subsystem (elk), so this one names its subsystem too
+  (the edge-routing pass). The UI label is still exactly "Edge clearance" (D4).
+- Routing-input field: **`shapeBufferPx`** on `EdgeRoutingInput` — libavoid's own parameter name
+  (`avoid.shapeBufferDistance`) and the retired constant's name. The JSDoc on both sides ties them.
+
+## The two design calls a clone must not re-litigate
+
+1. **The value travels IN `EdgeRoutingInput`, not as a second `route()` argument.** That is what makes
+   `routingSignature` cover it for free (`GraphViewController.ts:381` prepends `String(input.shapeBufferPx)`).
+   A `route(input, px)` shape would have left the cache trap wide open.
+2. **`min: 6` is INCLUSIVE, so the invariant is `>=`, not `>`.** D3's prose says "assert min > 6" but
+   D3's own decided range is 6-14 and SWEEP §7 calls 6 "the arrowhead half-width floor". `>` and
+   `min: 6` cannot both hold. I kept the human's RANGE and used `toBeGreaterThanOrEqual`, with the
+   boundary case stated in the test comment (at the floor the head's body grazes, never crosses).
+   Flagged in PUBLIC §7 as the one deviation-shaped call.
+
+## The RED-first evidence (verbatim, `.tmp/s5a-red1.log`)
+
+Both new controller tests were written and run BEFORE any plumbing existed:
+```
+× WHEN a build routes THEN the graph's resolved edge-routing clearance reaches the router
+  → expected undefined to be 7 // Object.is equality
+× WHEN only the edge-routing clearance changed THEN the router runs again (the cache signature covers it)
+  → expected 1 to be 2 // Object.is equality
+Tests  2 failed | 37 passed (39)
+```
+`expected 1 to be 2` IS the cache trap reproducing: both rebuilds have identical obstacle geometry
+(FakeLayout is deterministic), so a geometry-only signature served the stale routes.
+
+## Invariant teeth, proven by mutation (`.tmp/s5a-mutate.log`)
+
+Temporarily widened the spec to `min: 5, max: 16` → `2 failed | 22 passed (24)`, one failure per
+invariant. Restored from `.tmp/SettingsSpec.ts.bak`; `git diff` shows only the intended 29 insertions.
+
+## Traps worth knowing
+
+- **`src/view/testFixtures/graphFixtures.ts:52` hand-lists `forceLayout`** — it is NOT in any exploration
+  table but `tsc` catches it (TS2741). It ships `collidePaddingPx: 20`, deliberately not the default.
+- **Importing `./VicinityEdge` (a `.tsx` pulling `@xyflow/react`) into the node-env `edgeRouting.test.ts`
+  works.** I expected trouble and had a fallback ready (move the constant to the pure `edgeGeometry.ts`);
+  it was not needed. If a future vitest/RF upgrade breaks it, that fallback is the move.
+- **`GraphStructureDiff.test.ts` gained a test for free** (16 → 17): it iterates `FORCE_LAYOUT_FIELDS`,
+  so the relayout-on-change coverage for the 7th field is automatic. Per-file counts diffed with
+  `--reporter=json` into `.tmp/s5a-{base,now}.json` — much cheaper than eyeballing.
+- **`elkMapping.test.ts:99` was tautological** (`toBe(ELK_GROUP_PADDING)`), so it could not have caught a
+  broken rebuild of the elk string. Added a literal lock next to it.
+- **`FORCE_LAYOUT_FIELD_META` is a compile-time exhaustive `Record`** — leaving it to step 5b would have
+  meant shipping a RED `npm run check`. Adding it was forced, not scope creep; the copy follows D4.
+
+## Still open after me
+
+- Everything in the PUBLIC HANDOFF list (settings tab is already wired by inheritance — 5b VERIFIES it,
+  it does not need to add a row). The ONLY known red surface left is `e2e/settingsUxVisual.e2e.ts:96`
+  `toHaveCount(6)`. `src/view/settingsResetPlan.ts:94` and `README.md:71` say "six" and are now WRONG
+  but have no test asserting the word, so they are silent — 5b must not rely on a failure to find them.
+- `docs-internal/CHANGELOG.md` untouched by me.

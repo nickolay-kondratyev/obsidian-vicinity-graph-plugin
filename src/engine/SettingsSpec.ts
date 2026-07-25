@@ -214,6 +214,35 @@ export const SETTINGS_SPEC: SettingsSpec = {
 			 * container's fixed top padding, not by this spacing.)
 			 */
 			elkNodeSpacingPx: { default: 40, min: 10, max: 120, step: 5 },
+			/**
+			 * UI "Edge clearance" (advanced) — px clearance the obstacle-avoiding
+			 * edge router keeps around EVERY box (libavoid `shapeBufferDistance`,
+			 * applied at `edgeRouting.ts`). Perpendicular to the route: it is how
+			 * far a routed edge stays off a box it passes.
+			 *
+			 * Default 11 is MEASURED, not derived (edge-routing__06 sweep). It
+			 * replaces the old view constant `EDGE_ROUTING_SHAPE_BUFFER_PX = 17`
+			 * (half the paired-edge bow curvature) — a tie that nothing in the
+			 * routing geometry justified and that landed 1-2px INSIDE the
+			 * degeneracy the max below describes: at 17 a 400-scene corpus at
+			 * realistic group degree produced 40 non-facing attachments, against
+			 * 22-26 at every value from 14 down, and dense-fixture detour improved
+			 * monotonically as the clearance shrank (max 1.342 → 1.188).
+			 * 11 sits mid-band, clear of both bounds.
+			 *
+			 * `[6, 14]`: below 6 the clearance drops under the arrowhead's own
+			 * half-width (`ARROWHEAD_HALF_WIDTH_PX`), so a head drawn on a route
+			 * could sit inside a box the route itself cleared; above ~14 (the
+			 * folder-group side padding, `GROUP_SIDE_PADDING_PX = 16`, minus
+			 * measurement margin) a group member's clearance escapes the group
+			 * border and seals the group's own boundary pins, which is exactly
+			 * the wrap-around pathology this ticket fixes. Both bounds are
+			 * asserted against these two view constants in `edgeRouting.test.ts`,
+			 * so the whole REACHABLE range is degeneracy-free — not just the
+			 * default. Deliberate consequence: the old 17px spacing is no longer
+			 * reachable (it is the pathology).
+			 */
+			edgeRoutingClearancePx: { default: 11, min: 6, max: 14, step: 1 },
 		},
 	},
 	nodeExclusion: {

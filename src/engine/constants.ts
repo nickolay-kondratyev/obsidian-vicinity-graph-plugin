@@ -94,6 +94,7 @@ export function clampForceLayoutSettings(settings: ForceLayoutSettings): ForceLa
 		linkGapPx: clamp("linkGapPx"),
 		collidePaddingPx: clamp("collidePaddingPx"),
 		elkNodeSpacingPx: clamp("elkNodeSpacingPx"),
+		edgeRoutingClearancePx: clamp("edgeRoutingClearancePx"),
 	};
 }
 
@@ -140,6 +141,7 @@ export class EngineDefaults {
 			linkGapPx: forceLayout.linkGapPx.default,
 			collidePaddingPx: forceLayout.collidePaddingPx.default,
 			elkNodeSpacingPx: forceLayout.elkNodeSpacingPx.default,
+			edgeRoutingClearancePx: forceLayout.edgeRoutingClearancePx.default,
 		};
 	}
 

@@ -71,6 +71,7 @@ describe("SETTINGS_SPEC (single source of truth for defaults + limits)", () => {
 				linkGapPx: 40,
 				collidePaddingPx: 50,
 				elkNodeSpacingPx: 40,
+				edgeRoutingClearancePx: 11,
 			},
 			nodeExclusion: { enabled: false, patterns: [] },
 		});
@@ -99,6 +100,7 @@ describe("SETTINGS_SPEC (single source of truth for defaults + limits)", () => {
 				linkGapPx: { min: 10, max: 250, step: 5 },
 				collidePaddingPx: { min: 0, max: 100, step: 5 },
 				elkNodeSpacingPx: { min: 10, max: 120, step: 5 },
+				edgeRoutingClearancePx: { min: 6, max: 14, step: 1 },
 			},
 		});
 	});

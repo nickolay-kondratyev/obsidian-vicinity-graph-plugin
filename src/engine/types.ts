@@ -193,10 +193,10 @@ export interface SizingSettings {
 
 /**
  * Force-layout tuning knobs (ticket-04). The first four mirror Obsidian's
- * NATIVE graph sliders (Center/Repel/Link force, Link distance — POLS); the two
- * spacing fields are the "Advanced" section. Field names describe the MECHANISM
- * (what the value drives in the view's elk+d3 pipeline), the UI shows the
- * native-parity labels. One atomic field on {@link ViewSettings} (like
+ * NATIVE graph sliders (Center/Repel/Link force, Link distance — POLS); the
+ * remaining px fields are the "Advanced spacing" section. Field names describe
+ * the MECHANISM (what the value drives in the view's rendering pipeline), the UI
+ * shows the native-parity labels. One atomic field on {@link ViewSettings} (like
  * `sizing`): overrides pin/inherit it wholesale.
  */
 export interface ForceLayoutSettings {
@@ -220,6 +220,18 @@ export interface ForceLayoutSettings {
 	readonly collidePaddingPx: number;
 	/** UI "Group member spacing" (advanced): elk `spacing.nodeNode` px (group internals + root seed). */
 	readonly elkNodeSpacingPx: number;
+	/**
+	 * UI "Edge clearance" (advanced): px clearance the obstacle-avoiding edge
+	 * router keeps around every box (libavoid `shapeBufferDistance`).
+	 *
+	 * WHY it lives here and not on {@link ViewSettings} (edge-routing__06, human
+	 * decision D1): it is a px spacing knob of the same class as the two above,
+	 * and `forceLayout` already carries the whole cascade, both slider surfaces,
+	 * the clamped parse and the relayout-on-change diff. Accepted cost: changing
+	 * it triggers a full elk+d3 relayout it does not actually need. The name says
+	 * ROUTING (not just "spacing") so the mechanism is unmistakable here.
+	 */
+	readonly edgeRoutingClearancePx: number;
 }
 
 /** Fully-resolved view settings. */

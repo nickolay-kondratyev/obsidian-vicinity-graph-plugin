@@ -161,6 +161,20 @@ describe("PersistedShapes force-layout parsing", () => {
 			EngineDefaults.forceLayoutSettings(),
 		);
 	});
+
+	it("WHEN a forceLayout persisted before the edge-clearance field is read THEN only that field defaults, the user's other values survive", () => {
+		// The explicit call behind adding `edgeRoutingClearancePx` WITHOUT bumping
+		// PERSISTED_SHAPE_VERSION (edge-routing__06): per-field defaulting already makes an
+		// older file forward-compatible, whereas a bump would discard every stored setting
+		// (parsePluginData returns defaults wholesale on a version mismatch).
+		const defaults = EngineDefaults.forceLayoutSettings();
+		const { edgeRoutingClearancePx: _absent, ...persistedBeforeTheField } = { ...defaults, repelStrength: 500 };
+		const raw = { version: PERSISTED_SHAPE_VERSION, globalView: { forceLayout: persistedBeforeTheField } };
+		expect(PersistedShapes.parsePluginData(raw).globalView.forceLayout).toEqual({
+			...defaults,
+			repelStrength: 500,
+		});
+	});
 });
 
 describe("PersistedShapes.parseDocData", () => {
