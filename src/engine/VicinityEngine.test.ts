@@ -310,4 +310,22 @@ describe("VicinityEngine outline pass-through", () => {
 			{ rawText: "Intro", level: 1 },
 		]);
 	});
+
+	it("WHEN a traversed node carries imagePrecedesOutline THEN the output node carries it too", () => {
+		// The same spread-through guard as `outline`: the view's preview rule reads
+		// this fact off GraphNode, so a dropped echo would silently change previews.
+		const provider = new FakeLinkProvider({
+			files: [
+				{ path: "hub.md" },
+				{ path: "cover.md", outline: [{ rawText: "Intro", level: 1 }], imagePrecedesOutline: true },
+			],
+			links: { "hub.md": ["cover.md"] },
+		});
+		const graph = new VicinityEngine(provider).build({
+			main: { path: asVaultPath("hub.md") },
+			globalDepths: { outgoingDepth: 1, incomingDepth: 0 },
+			globalView: EngineDefaults.viewSettings(),
+		});
+		expect(graph.nodes.find((candidate) => candidate.path === "cover.md")?.imagePrecedesOutline).toBe(true);
+	});
 });

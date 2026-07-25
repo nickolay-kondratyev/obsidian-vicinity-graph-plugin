@@ -37,6 +37,8 @@ export interface TraversedNode {
 	/** Provider-owned heading outline (empty when this note offers none). */
 	readonly outline: readonly OutlineEntry[];
 	readonly firstImagePath?: VaultPath;
+	/** Provider-owned document-position fact (see `FileMetadata.imagePrecedesOutline`). */
+	readonly imagePrecedesOutline: boolean;
 }
 
 export interface TraversalResult {
@@ -166,6 +168,7 @@ export class VicinityTraversal {
 				attachments: metadata.attachments,
 				outline: metadata.outline,
 				firstImagePath: firstImage?.path,
+				imagePrecedesOutline: metadata.imagePrecedesOutline,
 			});
 		}
 		return { nodes, edges: collector.edges(), excludedNodeCount: collector.excludedCount() };

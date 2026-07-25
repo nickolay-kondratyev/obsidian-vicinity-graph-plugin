@@ -109,6 +109,12 @@ export interface GraphNode {
 	readonly outline: readonly OutlineEntry[];
 	/** First image among {@link attachments} in provider order (thumbnail candidate). */
 	readonly firstImagePath?: VaultPath;
+	/**
+	 * Provider-reported document-position fact: a resolved image sits above this
+	 * note's first heading. A FACT, not a decision — the view's preview rule turns
+	 * it into "outline or thumbnail" (see `FileMetadata.imagePrecedesOutline`).
+	 */
+	readonly imagePrecedesOutline: boolean;
 	/** Composed, normalized sizing score in [0, 1]. Centrals are pinned to 1. */
 	readonly sizeScore: number;
 	/** Pixel size mapped from {@link sizeScore}; the stable field step-04 diffs against. */

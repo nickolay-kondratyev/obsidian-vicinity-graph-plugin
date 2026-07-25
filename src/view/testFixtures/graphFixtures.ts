@@ -20,6 +20,7 @@ export function makeNode(overrides: Partial<GraphNode> = {}): GraphNode {
 		minDepth: 1,
 		attachments: [],
 		outline: [],
+		imagePrecedesOutline: false,
 		sizeScore: 0.5,
 		sizePx: 100,
 		...overrides,

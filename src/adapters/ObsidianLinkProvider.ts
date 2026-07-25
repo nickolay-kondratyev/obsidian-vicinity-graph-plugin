@@ -17,6 +17,20 @@ const OBSIDIAN_ROOT_FOLDER = "/";
 const FRONTMATTER_TITLE_PROPERTIES = ["title", "name"] as const;
 
 /**
+ * The two outline-related facts of one note, computed together because they share
+ * the same eligibility guards. Named fields (never a tuple) and named exactly
+ * like their {@link FileMetadata} counterparts, which lets `getFileMetadata`
+ * spread them.
+ */
+interface NoteOutlineFacts {
+	readonly outline: readonly OutlineEntry[];
+	readonly imagePrecedesOutline: boolean;
+}
+
+/** A file offering no outline: nothing to render, and nothing an image could precede. */
+const NO_OUTLINE_FACTS: NoteOutlineFacts = { outline: [], imagePrecedesOutline: false };
+
+/**
  * The real {@link LinkProvider} over Obsidian's metadata cache (step-03).
  *
  * Async construction, sync queries (binding decision, step-02 CLARIFICATION
@@ -131,46 +145,51 @@ export class ObsidianLinkProvider implements LinkProvider {
 			frontmatterTitle: frontmatterTitleOf(file, cache),
 			isNodeBearing: FileKinds.isNodeBearingPath(file.path),
 			attachments: this.attachmentsOf(file, references),
-			outline: this.outlineOf(file, cache, references),
+			// Field names match {@link FileMetadata} by design — the facts are
+			// computed together (shared guards) and travel unchanged.
+			...this.outlineFactsOf(file, cache, references),
 		};
 	}
 
 	/**
-	 * The note's heading outline, or EMPTY when the note offers none: not
-	 * outline-bearing (canvas, `*.excalidraw.md`), no headings, or its first
-	 * IMAGE sits before its first heading — the documented "show the picture
-	 * instead" escape hatch. Only the adapter can see document offsets, so the
-	 * whole rule lives here (see `FileMetadata.outline`).
+	 * The note's outline and the document-position fact behind the preview rule.
+	 *
+	 * ONE method, not two: the eligibility guards (outline-bearing, cached,
+	 * has a first heading) are shared, and computing the fact separately would
+	 * let the two answers drift apart ("a non-empty outline decided under a
+	 * different guard than the fact"). The adapter reports; the view decides
+	 * (see `FileMetadata.imagePrecedesOutline`).
 	 */
-	private outlineOf(
+	private outlineFactsOf(
 		file: VaultFilePort,
 		cache: CachedMetadataPort | null,
 		references: readonly OrderedReference[] | null,
-	): readonly OutlineEntry[] {
+	): NoteOutlineFacts {
 		if (!FileKinds.isOutlineBearingPath(file.path) || cache === null) {
-			return [];
+			return NO_OUTLINE_FACTS;
 		}
 		const headings = cache.headings ?? [];
 		const firstHeading = headings[0];
 		if (firstHeading === undefined) {
-			return [];
+			return NO_OUTLINE_FACTS;
 		}
 		// `references` is null only when the metadata cache cannot order this file's
 		// links, and then nothing is KNOWN to sit above the first heading.
 		const firstHeadingOffset = firstHeading.position.start.offset;
-		if (references !== null && this.referencesImageAbove(firstHeadingOffset, file.path, references)) {
-			return []; // The image wins.
-		}
-		// Obsidian's `headings` is already in document order — never re-sorted.
-		return headings.map((heading) => ({ rawText: heading.heading, level: heading.level }));
+		return {
+			// Obsidian's `headings` is already in document order — never re-sorted.
+			outline: headings.map((heading) => ({ rawText: heading.heading, level: heading.level })),
+			imagePrecedesOutline:
+				references !== null && this.referencesImageAbove(firstHeadingOffset, file.path, references),
+		};
 	}
 
 	/**
-	 * Whether the note references an IMAGE above `offsetLimit` — the outline rule
-	 * asked directly ("is there an image before the first heading?").
+	 * Whether the note references an IMAGE above `offsetLimit` — the preview rule's
+	 * fact asked directly ("is there an image before the first heading?").
 	 *
 	 * RESOLVED references only (the same resolution `attachments`/`firstImagePath`
-	 * use), so an unresolvable `![[missing.png]]` cannot suppress the outline while
+	 * use), so an unresolvable `![[missing.png]]` cannot claim the preview slot while
 	 * producing no thumbnail — a silently blank node. `references` arrive ascending
 	 * by offset, so the scan stops at the limit rather than resolving the whole
 	 * file: only the references ABOVE the first heading are resolved here, and

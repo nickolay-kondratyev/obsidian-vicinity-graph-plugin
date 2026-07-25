@@ -382,4 +382,18 @@ describe("VicinityTraversal outline echo", () => {
 		const result = traverse(outlineVault(), [root("plain.md")]);
 		expect(result.nodes.get(asVaultPath("plain.md"))?.outline).toEqual([]);
 	});
+
+	it("WHEN the provider reports that the image precedes the outline THEN the traversed node echoes the fact", () => {
+		const provider = new FakeLinkProvider({
+			files: [{ path: "cover.md", outline: [{ rawText: "Intro", level: 1 }], imagePrecedesOutline: true }],
+		});
+		expect(traverse(provider, [root("cover.md")]).nodes.get(asVaultPath("cover.md"))?.imagePrecedesOutline).toBe(
+			true,
+		);
+	});
+
+	it("WHEN the provider does not report the fact THEN the traversed node carries false", () => {
+		const result = traverse(outlineVault(), [root("a.md")]);
+		expect(result.nodes.get(asVaultPath("a.md"))?.imagePrecedesOutline).toBe(false);
+	});
 });

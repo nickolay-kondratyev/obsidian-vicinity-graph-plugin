@@ -1,6 +1,8 @@
-import type { FolderPath, GraphNode, OutlineEntry, VicinityGraph } from "../engine";
+import type { FolderPath, GraphNode, OutlineEntry, ViewSettings, VicinityGraph } from "../engine";
 import { VaultPathFacts } from "../shared/VaultPathFacts";
 import { OUTLINE_RENDER_LIMIT } from "./constants";
+import type { NodePreviewKind } from "./nodePreviewChoice";
+import { nodePreviewKind } from "./nodePreviewChoice";
 import type { AttachmentIconGroup } from "./attachmentIconStrip";
 import { attachmentIconStrip } from "./attachmentIconStrip";
 import { deriveFolderGroups } from "./folderGrouping";
@@ -54,11 +56,18 @@ export type FlowNodeData = {
 	/**
 	 * Heading outline to render inside the node: FLAT, in document order, with RAW
 	 * heading text, already depth-filtered and capped at {@link OUTLINE_RENDER_LIMIT}.
-	 * Empty when the note offers none (including when its image wins — the adapter
-	 * decided that). The flat array is the stable contract between this mapping and
-	 * the outline UI: nesting, labels and markup are the UI's own business.
+	 * Empty when the note offers no outline at all. Carried even when
+	 * {@link preview} is not `"outline"` — the mapping reports, it never deletes
+	 * data. The flat array is the stable contract between this mapping and the
+	 * outline UI: nesting, labels and markup are the UI's own business.
 	 */
 	readonly outline: readonly OutlineEntry[];
+	/**
+	 * Which region claims the node's single preview slot — the DECISION, already
+	 * made (see {@link nodePreviewKind}), so the renderer decides nothing and
+	 * `data-preview` can never advertise a region the node does not render.
+	 */
+	readonly preview: NodePreviewKind;
 	/** Thumbnail candidate (vault path; the component resolves it to a URL). */
 	readonly firstImagePath?: string;
 	/** Total images among attachments — the thumbnail's "+N more" badge is imageCount - 1. */
@@ -184,7 +193,7 @@ export function vicinityGraphToFlow(graph: VicinityGraph, mainPinned: boolean): 
 			width,
 			height,
 			...(groupFolder === undefined ? {} : { parentId: folderGroupIdOf(groupFolder) }),
-			data: toFlowNodeData(node, mainPinned, graph.viewSettings.outlineMaxDepth),
+			data: toFlowNodeData(node, mainPinned, graph.viewSettings),
 		};
 	});
 	return {
@@ -286,8 +295,16 @@ function accumulateCollapsedEdge(
 	}
 }
 
-/** @param outlineMaxDepth deepest heading level to render (`ViewSettings.outlineMaxDepth`). */
-function toFlowNodeData(node: GraphNode, mainPinned: boolean, outlineMaxDepth: number): FlowNodeData {
+/**
+ * @param view the effective view settings — passed whole (not knob by knob) so
+ * every settings-driven derivation below reads one object.
+ */
+function toFlowNodeData(node: GraphNode, mainPinned: boolean, view: ViewSettings): FlowNodeData {
+	// Filter THEN slice: a depth-2 view of a note with 60 deep headings must
+	// still find its shallow ones (slicing first could drop every survivor).
+	const outline = node.outline
+		.filter((entry) => entry.level <= view.outlineMaxDepth)
+		.slice(0, OUTLINE_RENDER_LIMIT);
 	return {
 		path: node.path,
 		title: node.title,
@@ -298,11 +315,15 @@ function toFlowNodeData(node: GraphNode, mainPinned: boolean, outlineMaxDepth: n
 		sizePx: node.sizePx,
 		sizeScore: node.sizeScore,
 		folder: node.folder,
-		// Filter THEN slice: a depth-2 view of a note with 60 deep headings must
-		// still find its shallow ones (slicing first could drop every survivor).
-		outline: node.outline
-			.filter((entry) => entry.level <= outlineMaxDepth)
-			.slice(0, OUTLINE_RENDER_LIMIT),
+		outline,
+		// Decided from the RENDERABLE entry count, never the engine's raw outline:
+		// a note whose every heading is deeper than the cap must not claim the
+		// outline slot and render an empty box.
+		preview: nodePreviewKind({
+			outlineEntryCount: outline.length,
+			hasImage: node.firstImagePath !== undefined,
+			imagePrecedesOutline: node.imagePrecedesOutline,
+		}),
 		...(node.firstImagePath === undefined ? {} : { firstImagePath: node.firstImagePath }),
 		imageCount: node.attachments.filter((attachment) => attachment.isImage).length,
 		attachmentGroups: attachmentIconStrip(node.attachments),

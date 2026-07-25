@@ -7,19 +7,31 @@
 export type NodePreviewKind = "outline" | "thumbnail" | "none";
 
 export interface NodePreviewInput {
+	/** Entries that will actually RENDER (post depth-filter, post render budget). */
 	readonly outlineEntryCount: number;
 	readonly hasImage: boolean;
+	/** The adapter's document-position fact (`GraphNode.imagePrecedesOutline`). */
+	readonly imagePrecedesOutline: boolean;
 }
 
 /**
- * The outline wins when it has entries — the ADAPTER already applied the
- * image-vs-outline rule (an image before the first heading yields no entries at
- * all), so entries reaching the view mean the outline won. Otherwise the image,
- * if any; otherwise the node is title-only.
+ * THE one place the outline-vs-image precedence lives. The adapter reports facts
+ * and pre-decides nothing, so a node offering both regions is resolved here.
  */
-export function nodePreviewKind({ outlineEntryCount, hasImage }: NodePreviewInput): NodePreviewKind {
-	if (outlineEntryCount > 0) {
+export function nodePreviewKind({
+	outlineEntryCount,
+	hasImage,
+	imagePrecedesOutline,
+}: NodePreviewInput): NodePreviewKind {
+	// A node is never made emptier than the facts allow: when only one side
+	// exists it wins outright, so the choice below never restates the fallback.
+	if (outlineEntryCount === 0) {
+		return hasImage ? "thumbnail" : "none";
+	}
+	if (!hasImage) {
 		return "outline";
 	}
-	return hasImage ? "thumbnail" : "none";
+	// The documented escape hatch: the image wins iff it sits above the first
+	// heading — "show the picture instead" for cover-image notes.
+	return imagePrecedesOutline ? "thumbnail" : "outline";
 }

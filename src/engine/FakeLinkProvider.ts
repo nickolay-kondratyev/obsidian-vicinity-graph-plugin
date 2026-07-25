@@ -17,10 +17,17 @@ export interface FakeFileSpec {
 	readonly frontmatterTitle?: string;
 	/**
 	 * Heading outline the real adapter would have produced (raw heading text +
-	 * level, in document order). Default: none — the fixture stands in for the
-	 * ADAPTER's decision, so the image-vs-outline rule is not re-derived here.
+	 * level, in document order). Default: none. Independent of {@link image} and
+	 * of {@link imagePrecedesOutline}: the adapter reports both sides, so a
+	 * fixture supplies both and nothing re-derives the preview rule here.
 	 */
 	readonly outline?: readonly OutlineEntry[];
+	/**
+	 * The adapter's document-position FACT: a resolved image sits above the note's
+	 * first heading. Default `false` — the fixture supplies the fact, and the
+	 * outline-vs-image DECISION stays in the view (`nodePreviewChoice`).
+	 */
+	readonly imagePrecedesOutline?: boolean;
 }
 
 /** Fixture vault: files + ordered outgoing links (incoming derived by inversion). */
@@ -104,6 +111,7 @@ export class FakeLinkProvider implements LinkProvider {
 				isNodeBearing: nodeBearing,
 				attachments: [], // replaced by attachAttachmentsToMetadata()
 				outline: file.outline ?? [],
+				imagePrecedesOutline: file.imagePrecedesOutline ?? false,
 			},
 		});
 	}
