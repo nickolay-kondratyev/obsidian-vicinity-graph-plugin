@@ -1,5 +1,36 @@
 # Changelog
 
+## 2026-07-24 — crowded group sides stop wrapping: boundary pins are now SHARED (edge-routing__06 item (a))
+
+`registerPinsForShape` calls `setExclusive(false)` on every connection pin it creates, so a
+folder-group box's twelve boundary pins are no longer a finite pool that connectors claim
+one-by-one. Measured over 400 random crowded scenes at realistic group degree (1668 edges):
+**non-facing attachments 82 → 40, total route length −2.3%**, routing time unchanged
+(536 → 530 ms — still a single routing pass). At low degree, 24 → 22 and −0.3%.
+
+- **Corrects the mechanism described in the entry below.** That entry (and the
+  `edge-routing__06` ticket text) said "with 3 pins per side, the 4th edge approaching a side
+  silently falls back to the group centre". That is **wrong and superseded**: exclusivity is
+  per pin over ONE shared 12-pin pool, and libavoid assigns pins by globally cheapest *visible*
+  pin rather than per-side first-come. Measured on a 200×800 group box with N leaves down one
+  side: the first **wrong-side** terminal appears at the **3rd** edge (before that side's three
+  pins are even used up), and true group-**CENTRE** fallback starts only at the **13th**.
+- **`libavoid-js` default is direction-derived**, not globally "exclusive": a directional pin is
+  born exclusive, a `ConnDirAll` pin shared. So the same call on the note-square centre pin is a
+  measured **no-op** (0 of 949 routes changed) — kept, uniformly, so the requirement is stated in
+  code instead of resting on a default that a change of pin direction would silently flip.
+- **`libavoidLoader` narrows** the `ShapeConnectionPin` constructor's return from `unknown` to
+  `AvoidShapeConnectionPin { setExclusive, isExclusive }`. `setConnectionCost` stays deliberately
+  untyped (the `edge-routing__05` negative result must stay unreachable).
+- **Tests** (real wasm): the direction-derived exclusivity defaults are now asserted rather than
+  claimed in prose; plus a 16-edge no-centre-attachment test, an 8-edge facing-side test, and a
+  hub-note guard proving no route cuts through obstacles. The real-wasm block now reports
+  **SKIPPED** (dynamic `ctx.skip()`) instead of PASSED when the node wasm build is unavailable.
+- **Unmetered visual consequence, recorded in
+  `docs-internal/research/research-layout-aesthetics.md`:** shared pins collapse distinct terminal
+  points (N=8: 8 → 3 distinct, 6 of them coincident), so N arrowheads can stack on one border
+  point. Net win on length and facing side; judge the fan-in look from a screenshot.
+
 ## 2026-07-24 — edge-routing__05 closed as a measured negative result (docs only)
 
 No production code changed. The ticketed fix for over-stretched wrap-around routes —
@@ -21,6 +52,9 @@ against the real libavoid wasm **before** implementation and proven inert.
   exclusive. The useful move is the **opposite** — `setExclusive(false)`, which also fixes a
   latent bug live in shipped code today: with 3 pins per side, the 4th edge approaching a
   side silently falls back to the group **centre** (the pre-edge-routing__04 pathology).
+  **[Mechanism SUPERSEDED — see the entry above.** The "4th edge → group centre" rule is wrong:
+  exclusivity is per pin over one shared 12-pin pool, so wrong-side spill starts at the 3rd edge
+  and centre fallback only at the 13th. The conclusion — `setExclusive(false)` — still holds.**]**
 - **New research doc** `docs-internal/research/facing-side-edge-attachment.md` parks the
   full measurement history, the two-pass pin-CLASS design (keep-the-better at 1.30× if ever
   built, with the caveat that its headline numbers were measured *without*

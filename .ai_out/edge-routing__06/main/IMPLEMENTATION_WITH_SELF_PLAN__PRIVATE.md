@@ -146,3 +146,90 @@ gone — main fixed it). e2e NOT run (next step). Logs: `.tmp/step1-{red,green,g
   rationale) is in `STEP1_SET_EXCLUSIVE__PUBLIC.md` §6.
 - Item (b) untouched: buffer still 17, no settings plumbing, `e2e/` untouched.
 - If an e2e detour/perf number moves in step 2, note routing ms was flat here (536 -> 530 aggregate).
+
+---
+
+# STEP 2b — iteration on IMPLEMENTATION_REVIEW feedback (item (a)) — DONE, all green, uncommitted
+
+Public result: `IMPLEMENTATION_ITERATION__PUBLIC.md` (same dir). All 5 feedback items INCORPORATED,
+none rejected. Base commit `2d08ab1` (+ `8cdfb4a`, the review's §7.5 ticket, already on main).
+
+## The measurement that mattered (don't re-derive)
+
+`node .tmp/probe27-spill-threshold.mjs` — sweeps N = 1..14 on the EXACT geometry of
+`crowdedSideTerminals()` in the test file, both arms (no `setExclusive` call vs `false`).
+Verbatim result, reproduces the reviewer and kills the "4th edge" claim:
+
+```
+ 1 L   2 LL   3 RLL   4 RLLL   5 TRLLL   6 TRLRLL   7 TTRLRLL   8 TTTRLRLL
+ 9 TTTRRLRLL   10 BTTTRRLRLL   11 BBTTTRLRRLL   12 BBBTTTRLRRLL
+13 ?BBBTTTRLRRLL      14 ??BBTTTBRLRRLL
+FIRST N with any wrong-side terminal (default) = 3
+FIRST N with any group-CENTRE terminal (default) = 13
+```
+
+The `setExclusive(false)` column is `LLL…L` at every N. **Key nuance to keep:** at N=3 the LEFT side
+still has 3 free pins, yet one edge lands on R — proof that libavoid assigns by globally cheapest
+VISIBLE pin, not per-side first-come (the stacked leaves shadow each other's view of the left pins).
+That is WHY the shipped comment now refuses to quote a per-side threshold at all. The 13th-edge
+centre fallback IS a hard, structural number (12 pins) and is quoted.
+
+## Vitest dynamic skip — the working recipe (vitest 4)
+
+`@vitest/runner` types: `readonly skip: { (note?: string): never; (condition: boolean, note?: string): void }`.
+The `never` overload is the one to use. `it.runIf(loaded)` does NOT work here: `runIf` is evaluated at
+COLLECTION time, `loaded` is only known after `beforeAll` — it would always see the initial value.
+
+Shape that type-checks under `noUncheckedIndexedAccess`/strict (copy the local-const, narrowing a
+captured outer `let` directly is fragile):
+```ts
+function requireWasm(ctx: TestContext): Avoid {
+    const instance = avoid;              // avoid: Avoid | null, module-scoped in the describe
+    if (instance === null) { ctx.skip("…"); }
+    return instance;                     // ctx.skip() returns never, so this narrows
+}
+it("…", async (ctx) => { requireWasm(ctx); … });
+```
+`import type { TestContext } from "vitest";` (re-exported from `@vitest/runner`).
+Reporter output is `↓ … [note]` and the summary line reads `13 passed | 11 skipped (24)`.
+
+## Proving the skip (forced-negative recipe)
+
+```bash
+cp src/view/edgeRouting.test.ts .tmp/edgeRouting.test.ts.bak
+# python-replace `avoid = libavoid.AvoidLib.getInstance() as Avoid;` -> `avoid = null; void libavoid;`
+npx vitest run src/view/edgeRouting.test.ts --reporter=verbose   # 13 passed | 11 skipped (24)
+cp .tmp/edgeRouting.test.ts.bak src/view/edgeRouting.test.ts     # restore, then re-run to confirm 24
+```
+`--reporter=verbose` is REQUIRED to see the `↓` lines; the default reporter only prints the summary.
+
+## The isExclusive() test — the wasm-teardown trap I checked first
+
+`node .tmp/probe28-pin-default-teardown.mjs` proves a router+shape+pin arena with NO connectors can
+be torn down safely both with and without `processTransaction()` (review §7.5's abort needs the
+routing path). I still call `processTransaction()` before `destroy(router)` in the test helper —
+cheap, and it keeps the file consistent with the arena discipline. Results (stable):
+`ConnDirUp/Left -> isExclusive() === true`, `ConnDirAll -> false`.
+
+## Files touched in 2b (five)
+
+- `src/view/edgeRouting.ts:278-300` — the WHY block is now the SINGLE SOURCE; no per-side threshold.
+- `src/view/libavoidLoader.ts:71-81` — interface doc reduced to a pointer at the call site.
+- `src/view/edgeRouting.test.ts` — `loaded: boolean` -> `avoid: Avoid | null` + `requireWasm(ctx)`;
+  8 guards converted; 2 new exclusivity-default tests; 2 duplicated WHY blocks reduced to pointers.
+- `docs-internal/research/research-layout-aesthetics.md:121` — corrected mechanism + fan-in note.
+- `docs-internal/CHANGELOG.md` — NEW dated entry; historical entry got a `[Mechanism SUPERSEDED …]`
+  marker only (not rewritten).
+
+## Verification
+
+`npm run check` exit 0. `npm test` exit 0 -> 63 files / **774 passed** (772 before + the 2 new
+exclusivity tests). Zero skips in the real run — the wasm loads here. Logs: `.tmp/s2b-*.log`.
+
+## Still open for the next agent
+
+- `_tickets/` untouched (TOP_LEVEL_AGENT owns it): the paste-ready notes block is in
+  `STEP1_SET_EXCLUSIVE__PUBLIC.md` §6 — it says "not the 4th, at 8 edges 5 of 8 land on the wrong
+  side", which is TRUE but incomplete; add "first wrong-side terminal at the 3rd edge" and the
+  fan-in observation (review §7.3) when pasting.
+- Item (b) (buffer sweep / settings / e2e) still untouched.

@@ -119,10 +119,29 @@ All on the libavoid API we already ship:
   lever is the **class id** on `ConnEnd(shape, classId)`, and it is a hard
   filter (parked two-pass design in the companion doc).
 - ~~Make pins **exclusive** (`setExclusive(true)`).~~ **No-op — directional
-  pins are already exclusive by default.** The useful move is the OPPOSITE:
-  `setExclusive(false)`, so the 4th edge approaching a side stops falling back
-  to the group CENTRE (measured 82 → 40 non-facing; ticketed in
-  `edge-routing__06`).
+  pins are already exclusive by default** (libavoid derives the default from the
+  pin's `visDirs`: directional → exclusive, `ConnDirAll` → shared). The useful
+  move is the OPPOSITE: `setExclusive(false)` — **SHIPPED in
+  `edge-routing__06` item (a)**, measured 82 → 40 non-facing attachments and
+  −2.3% total route length on 400 crowded scenes.
+  - **Mechanism (corrected 2026-07-24 — the earlier "the 4th edge falls back to
+    the group CENTRE" wording here was wrong).** Exclusivity is **per pin over
+    one shared 12-pin pool**, and libavoid assigns pins by globally cheapest
+    *visible* pin, not per-side first-come. So (i) edges spill onto pins of the
+    **wrong side** long before a side's three pins are used up — measured, the
+    first wrong-side terminal appears at the **3rd** edge; and (ii) true
+    group-**CENTRE** fallback only starts at the **13th** edge, once all 12 pins
+    are claimed. Both measured on a 200×800 group box with N leaves stacked down
+    one side (`.tmp/probe27-spill-threshold.mjs`), and locked by real-wasm tests
+    in `src/view/edgeRouting.test.ts`.
+  - **Unmetered visual consequence — fan-in.** Sharing the pins collapses
+    distinct terminal points: on that same scene N=8 goes from 8 distinct
+    terminals to **3** (6 of 8 at one point), N=16 from 13 to **3**. Still a
+    clear net win (−20% / −41% route length, zero centre fallbacks, all on the
+    facing side), and it is the classic fan-in look — but **N arrowheads can
+    stack on one border point**, and no metric in this corpus (non-facing count,
+    total length, detour ratio) can see it. Judge it from a screenshot; the fix
+    if it looks bad is more pins per side or a spread heuristic, not a revert.
 - **Reduce `shapeBufferDistance`** (17px today) — it is what blocks the facing
   pins, so it is the measured root-cause lever. Also in `edge-routing__06`.
 - Replace the note-square centre pin with **4 directional side pins** so

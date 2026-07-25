@@ -1,6 +1,7 @@
 import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 import { beforeAll, describe, expect, it, vi } from "vitest";
+import type { TestContext } from "vitest";
 import { asFolderPath, asVaultPath } from "../engine";
 import { EDGE_ARROWHEAD_INSET_MIN_PX } from "./edgeGeometry";
 import { vicinityGraphToFlow } from "./flowMapping";
@@ -205,7 +206,7 @@ describe("BOUNDARY_PIN_SPECS", () => {
 describe("LibavoidEdgeRouter with real wasm", () => {
 	const require = createRequire(import.meta.url);
 	const LIBAVOID_NODE_BUILD = require.resolve("libavoid-js");
-	let loaded = true;
+	let avoid: Avoid | null = null;
 
 	beforeAll(async () => {
 		try {
@@ -215,11 +216,26 @@ describe("LibavoidEdgeRouter with real wasm", () => {
 				AvoidLib: { load(path?: string): Promise<void>; getInstance(): unknown };
 			};
 			await libavoid.AvoidLib.load();
-			loadAvoidMock.mockResolvedValue(libavoid.AvoidLib.getInstance() as Avoid);
+			avoid = libavoid.AvoidLib.getInstance() as Avoid;
+			loadAvoidMock.mockResolvedValue(avoid);
 		} catch {
-			loaded = false;
+			avoid = null;
 		}
 	});
+
+	/**
+	 * Marks the test SKIPPED when the node wasm build is unavailable in this environment.
+	 * WHY not a bare `return`: that reports a PASS, so a lost wasm build would turn this
+	 * whole block green while asserting nothing. WHY-NOT `it.runIf(loaded)`: availability
+	 * is only known after `beforeAll`, long after `runIf` is evaluated at collection time.
+	 */
+	function requireWasm(ctx: TestContext): Avoid {
+		const instance = avoid;
+		if (instance === null) {
+			ctx.skip("the libavoid node wasm build did not load in this environment");
+		}
+		return instance;
+	}
 
 	function isStrictlyInside(point: { x: number; y: number }, rect: RoutingObstacle): boolean {
 		const eps = 0.01;
@@ -263,19 +279,13 @@ describe("LibavoidEdgeRouter with real wasm", () => {
 		return polyline;
 	}
 
-	it("WHEN a rectangle blocks the straight path THEN the route bends around it (>2 points)", async () => {
-		if (!loaded) {
-			// WHY skip: the node wasm build did not load in this environment. NOT a
-			// fake-pass — the assertion is intentionally not run and this is noted.
-			return;
-		}
+	it("WHEN a rectangle blocks the straight path THEN the route bends around it (>2 points)", async (ctx) => {
+		requireWasm(ctx);
 		expect((await route()).length).toBeGreaterThan(2);
 	});
 
-	it("WHEN routing around the obstacle THEN no waypoint falls strictly inside it", async () => {
-		if (!loaded) {
-			return;
-		}
+	it("WHEN routing around the obstacle THEN no waypoint falls strictly inside it", async (ctx) => {
+		requireWasm(ctx);
 		expect((await route()).some((p) => isStrictlyInside(p, blocker))).toBe(false);
 	});
 
@@ -314,10 +324,8 @@ describe("LibavoidEdgeRouter with real wasm", () => {
 		return { first, last };
 	}
 
-	it("WHEN two boxes are separated horizontally THEN the edge attaches on the facing (right→left) borders", async () => {
-		if (!loaded) {
-			return;
-		}
+	it("WHEN two boxes are separated horizontally THEN the edge attaches on the facing (right→left) borders", async (ctx) => {
+		requireWasm(ctx);
 		const boxL: RoutingObstacle = { id: "L", x: 0, y: 0, widthPx: 100, heightPx: 100, kind: "folder-group" }; // right border x=100
 		const boxR: RoutingObstacle = { id: "R", x: 300, y: 0, widthPx: 100, heightPx: 100, kind: "folder-group" }; // left border x=300
 		const { first, last } = await routePair(boxL, boxR);
@@ -329,10 +337,8 @@ describe("LibavoidEdgeRouter with real wasm", () => {
 		expect(Math.abs(last.y - 50)).toBeLessThanOrEqual(MID_SPAN_TOL_PX);
 	});
 
-	it("WHEN two boxes are separated vertically THEN the edge attaches on the facing (bottom→top) borders", async () => {
-		if (!loaded) {
-			return;
-		}
+	it("WHEN two boxes are separated vertically THEN the edge attaches on the facing (bottom→top) borders", async (ctx) => {
+		requireWasm(ctx);
 		const boxT: RoutingObstacle = { id: "T", x: 0, y: 0, widthPx: 100, heightPx: 100, kind: "folder-group" }; // bottom border y=100
 		const boxB: RoutingObstacle = { id: "B", x: 0, y: 300, widthPx: 100, heightPx: 100, kind: "folder-group" }; // top border y=300
 		const { first, last } = await routePair(boxT, boxB);
@@ -352,32 +358,65 @@ describe("LibavoidEdgeRouter with real wasm", () => {
 	const boxL: RoutingObstacle = { id: "L", x: 0, y: 0, widthPx: 100, heightPx: 100, kind: "folder-group" };
 	const boxR: RoutingObstacle = { id: "R", x: 300, y: 300, widthPx: 100, heightPx: 100, kind: "folder-group" };
 
-	it("WHEN two group boxes are offset diagonally THEN the source endpoint clears every corner of its box", async () => {
-		if (!loaded) {
-			return;
-		}
+	it("WHEN two group boxes are offset diagonally THEN the source endpoint clears every corner of its box", async (ctx) => {
+		requireWasm(ctx);
 		const { first } = await routePair(boxL, boxR);
 		expect(minCornerDistance(first, boxL)).toBeGreaterThan(CORNER_CLEARANCE_TOL_PX);
 	});
 
-	it("WHEN two group boxes are offset diagonally THEN the target endpoint clears every corner of its box", async () => {
-		if (!loaded) {
-			return;
-		}
+	it("WHEN two group boxes are offset diagonally THEN the target endpoint clears every corner of its box", async (ctx) => {
+		requireWasm(ctx);
 		const { last } = await routePair(boxL, boxR);
 		expect(minCornerDistance(last, boxR)).toBeGreaterThan(CORNER_CLEARANCE_TOL_PX);
 	});
 
-	// Pin-exhaustion guard (edge-routing__06 item (a)). An EXCLUSIVE libavoid pin accepts at
-	// most ONE connector, and a directional pin is exclusive by default on this binding, so
-	// a group box's twelve boundary pins form one finite pool. Two consequences, both
-	// measured against the real wasm (implementer probe, tall box + N leaves down its left):
-	//   * from the 4th edge on, the crowd spills onto pins of the WRONG side (8 edges: 5 of
-	//     them terminated on the top/right borders instead of the facing left one), and
-	//   * from the 13th edge on, the pool is exhausted, libavoid warns "no pins with class
-	//     id of 1" and falls back to the shape CENTRE — the pre-edge-routing__04 pathology.
-	// Routes are UNCLIPPED at this layer (GraphViewController clips them later), so both
-	// failures are directly observable in the terminal point of the route.
+	// The premise the whole non-exclusive-pin fix rests on, measured rather than asserted in
+	// prose: libavoid derives a pin's exclusivity default from its visibility directions. If a
+	// libavoid upgrade flips either default, the WHY block at `registerPinsForShape` stops
+	// being true — and these fail instead of the pathology re-appearing silently in routes.
+	const PROBE_BOX_PX = 100;
+	const PROBE_PIN_CLASS = 1;
+	const PROBE_PIN_FRAC = 0.5; // mid-side: the exclusivity default depends on visDirs only, not placement
+
+	/**
+	 * `isExclusive()` of a pin read immediately after construction, on a throwaway
+	 * router. The pin is ROUTER-owned (see AvoidArena's OWNERSHIP GOTCHA), so only the
+	 * Points/Rectangle are destroyed here and the Router last; `processTransaction()`
+	 * flushes the pending shape add first, because destroying a Router with unprocessed
+	 * work is a known wasm-abort path (ticket `edge-routing-a-throw-inside-route-kills-…`).
+	 */
+	function freshPinExclusivity(instance: Avoid, visDirs: number): boolean {
+		const router = new instance.Router(instance.PolyLineRouting);
+		const topLeft = new instance.Point(0, 0);
+		const bottomRight = new instance.Point(PROBE_BOX_PX, PROBE_BOX_PX);
+		const rectangle = new instance.Rectangle(topLeft, bottomRight);
+		const shape = new instance.ShapeRef(router, rectangle);
+		const pin = new instance.ShapeConnectionPin(shape, PROBE_PIN_CLASS, PROBE_PIN_FRAC, 0, true, 0, visDirs);
+		const exclusive = pin.isExclusive();
+		router.processTransaction();
+		for (const owned of [topLeft, bottomRight, rectangle]) {
+			instance.destroy(owned);
+		}
+		instance.destroy(router);
+		return exclusive;
+	}
+
+	it("WHEN a directional boundary pin is constructed THEN libavoid defaults it to EXCLUSIVE", (ctx) => {
+		const instance = requireWasm(ctx);
+		expect(freshPinExclusivity(instance, instance.ConnDirUp)).toBe(true);
+	});
+
+	it("WHEN the ConnDirAll note centre pin is constructed THEN libavoid defaults it to NON-exclusive", (ctx) => {
+		const instance = requireWasm(ctx);
+		expect(freshPinExclusivity(instance, instance.ConnDirAll)).toBe(false);
+	});
+
+	// Pin-exhaustion guard (edge-routing__06 item (a)). Mechanism and measurements: see the
+	// WHY block at `registerPinsForShape` in `edgeRouting.ts`. In short, exclusive pins are one
+	// finite pool claimed by globally cheapest visible pin, so a crowded side spills onto the
+	// WRONG side (the 8-edge test below) and a fully claimed 12-pin pool falls back to the shape
+	// CENTRE (the 16-edge test). Routes are UNCLIPPED at this layer (GraphViewController clips
+	// them later), so both failures are directly observable in the terminal point of the route.
 	const FACING_SIDE_EDGE_COUNT = 8; // > 3 pins on the facing side: the crowd spills sideways
 	const PIN_POOL_EXHAUSTING_EDGE_COUNT = 16; // > 12 pins on the box: libavoid falls back to the centre
 	const GROUP_CENTRE_TOL_PX = 1; // a centre fallback lands ON the centre, not near it
@@ -414,30 +453,25 @@ describe("LibavoidEdgeRouter with real wasm", () => {
 		});
 	}
 
-	it("WHEN more edges approach a group box than it has pins THEN no route terminates at the group centre", async () => {
-		if (!loaded) {
-			return;
-		}
+	it("WHEN more edges approach a group box than it has pins THEN no route terminates at the group centre", async (ctx) => {
+		requireWasm(ctx);
 		const centre = { x: tallGroup.x + tallGroup.widthPx / 2, y: tallGroup.y + tallGroup.heightPx / 2 };
 		const terminals = await crowdedSideTerminals(PIN_POOL_EXHAUSTING_EDGE_COUNT);
 		expect(terminals.filter((p) => Math.hypot(p.x - centre.x, p.y - centre.y) <= GROUP_CENTRE_TOL_PX)).toEqual([]);
 	});
 
-	it("WHEN eight edges approach the same side of a group box THEN every route still terminates on that facing side", async () => {
-		if (!loaded) {
-			return;
-		}
+	it("WHEN eight edges approach the same side of a group box THEN every route still terminates on that facing side", async (ctx) => {
+		requireWasm(ctx);
 		const terminals = await crowdedSideTerminals(FACING_SIDE_EDGE_COUNT);
 		expect(terminals.filter((p) => Math.abs(p.x - tallGroup.x) > FACING_BORDER_TOL_PX)).toEqual([]);
 	});
 
-	// The note CENTRE pin is the other half of the exclusivity decision, and it is a guard,
-	// not a fix: its ConnDirAll visibility already makes libavoid create it non-exclusive, so
-	// `setExclusive(false)` changed 0 of 949 routes there (implementer probe, 200 seeded
-	// scenes at hub degree 2-8). This test has teeth all the same — force that pin exclusive
-	// (directly, or by giving it a direction, which flips libavoid's default) and every spoke
-	// after the first loses its pin and routes STRAIGHT THROUGH whatever lies between: 5 of
-	// the 6 spokes below do exactly that when the pin is made exclusive.
+	// The note CENTRE pin is the other half of the exclusivity decision, where the call is a
+	// measured no-op today (see the WHY block at `registerPinsForShape`). This is therefore a
+	// guard, not a fix — and it has teeth: force that pin exclusive (directly, or by giving it
+	// a direction, which flips libavoid's default) and every spoke after the first loses its
+	// pin and routes STRAIGHT THROUGH whatever lies between — 5 of the 6 spokes below do
+	// exactly that when the pin is made exclusive.
 	const HUB_SPOKE_COUNT = 6;
 	const HUB_CENTRE = { x: 500, y: 400 };
 	const SPOKE_RADIUS_PX = 400;
@@ -512,10 +546,8 @@ describe("LibavoidEdgeRouter with real wasm", () => {
 		return false;
 	}
 
-	it("WHEN several edges attach to the same note square THEN no route cuts through the boxes in between", async () => {
-		if (!loaded) {
-			return;
-		}
+	it("WHEN several edges attach to the same note square THEN no route cuts through the boxes in between", async (ctx) => {
+		requireWasm(ctx);
 		const { leaves, blockers } = hubSpokes();
 		const routes = await new LibavoidEdgeRouter().route({
 			obstacles: [hubNote, ...leaves, ...blockers],

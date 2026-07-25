@@ -275,17 +275,26 @@ function registerPinsForShape(avoid: Avoid, shape: AvoidShapeRef, kind: RoutingO
 			PIN_INSIDE_OFFSET,
 			visDirsFor(avoid, spec.dir),
 		);
-		// WHY (ticket edge-routing__06 item (a)): an EXCLUSIVE pin accepts at most ONE
-		// connector, and this binding derives that default from the pin's visibility —
-		// measured, a directional pin reports `isExclusive() === true`, a ConnDirAll pin
-		// false. The 12 directional BOUNDARY pins are therefore a finite pool: the 4th edge
-		// approaching a side is pushed onto a pin of the WRONG side, and the 13th finds none
-		// at all — libavoid then warns ("no pins with class id of 1") and falls back to the
-		// shape CENTRE, reviving the pre-edge-routing__04 roundabout attachment. Shared pins
-		// fix both and cost nothing: still one routing pass (measured over 400 crowded scenes
+		// WHY (ticket edge-routing__06 item (a)) — SINGLE SOURCE for this rationale; the
+		// loader interface and the tests point here instead of restating it.
+		//
+		// An EXCLUSIVE pin accepts at most ONE connector, and this binding DERIVES that
+		// default from the pin's visibility directions: a directional pin is born exclusive,
+		// a ConnDirAll pin shared (locked by tests in `edgeRouting.test.ts`). The 12
+		// directional BOUNDARY pins are therefore one finite pool that connectors claim, and
+		// libavoid hands them out by globally cheapest VISIBLE pin — not per-side
+		// first-come. Two measured consequences (tall group box, N leaf notes down one side):
+		//   * edges spill onto pins of the WRONG side before that side's three are even used
+		//     up — the first wrong-side terminal appears at N = 3. WHY-NOT a threshold rule:
+		//     the spill point is geometry-dependent (leaves shadow each other's view of the
+		//     facing pins), and a hard "4th edge" rule is exactly what this ticket corrects.
+		//   * from N = 13 the whole pool is claimed; libavoid warns ("no pins with class id
+		//     of 1") and falls back to the shape CENTRE — the pre-edge-routing__04 pathology.
+		// Sharing the pins fixes both at no cost — still one routing pass (400 crowded scenes
 		// at realistic group degree: non-facing attachments 82 -> 40, total length -2.3%).
-		// On the note CENTRE pin this is a measured no-op (ConnDirAll is already shared — 0 of
-		// 949 routes changed); it is applied uniformly so the requirement is stated in code
+		//
+		// On the note CENTRE pin the call is a measured no-op (ConnDirAll is already shared:
+		// 0 of 949 routes changed); applied uniformly so the requirement is stated in code
 		// rather than resting on a default that a change of pin direction would silently flip.
 		// The local const exists ONLY for this call — see the OWNERSHIP GOTCHA on AvoidArena
 		// below: this pin is router-owned, so it must never be tracked or destroyed by us.
