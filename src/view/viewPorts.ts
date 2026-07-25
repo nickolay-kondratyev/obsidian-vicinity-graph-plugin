@@ -30,17 +30,22 @@ export interface GraphSourcePort {
 /**
  * The obsidian executor side of the controls surface (step-06 #2/#6). The pure
  * `planSettingsWrite` decides WHICH write; this port carries it out against
- * `PersistenceServices`/`PluginDataStore`, resolves the target `TFile`,
- * surfaces a `Notice` on a non-persistable doc, then triggers an immediate
- * rebuild. Implemented by `ControlsActions`; consumed by the toolbar + node
- * components via context (Phase C).
+ * `PersistenceServices`/`PluginDataStore`, resolving the target file from a path
+ * via `VaultPort` and surfacing a `Notice` on a non-persistable doc.
+ *
+ * A rebuild follows only what LANDED: a refused or absent-MAIN write changes no
+ * rendered state, so nothing rebuilds. What did land rebuilds as far as its
+ * blast radius reaches (`settingsWriteScope.ts`) — global writes and pin/unpin
+ * fan out to EVERY open view, per-doc writes stay on the owning view.
+ * Implemented by `ControlsActions`; consumed by the toolbar + node components
+ * via context (Phase C).
  */
 export interface ControlsActionsPort {
-	/** Persist a planned settings write (depth / global), then rebuild. */
+	/** Persist a planned settings write (depth / global); rebuilds only if it landed. */
 	applySettings(command: SettingsCommand): Promise<void>;
-	/** Pin a regular node by its vault path (resolves + ensures a docid), then rebuild. */
+	/** Pin a regular node by its vault path (resolves + ensures a docid); rebuilds every view if it landed. */
 	pinNode(path: string): Promise<void>;
-	/** Unpin a pinned central by its docid, then rebuild. */
+	/** Unpin a pinned central by its docid — always lands — then rebuild every view. */
 	unpinNode(docid: string): Promise<void>;
 }
 

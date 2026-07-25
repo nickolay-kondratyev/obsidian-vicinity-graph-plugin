@@ -39,6 +39,39 @@ which two views hold different MAINs.
 Second-highest: `pinNode` fans out even on the not-persistable outcome
 (`ControlsActions.ts:56-57`), and that exact branch is the untested one.
 
+## Round 2 (commit `e777ed4`) — verdict READY, 0 blocking
+
+Gates re-run by me: `npm test` 938/938 exit 0 (`.tmp/test.log`), `npm run check`
+exit 0 (`.tmp/check.log`). No `sanity_check.sh` in this repo.
+
+- S1 closed. Comments are now honest (scope boundary, not invariant); the ticket
+  `docs-internal/tickets/ticket-per-doc-write-leaves-sibling-views-stale.md`
+  carries the evidence and matches directory convention. Do not re-litigate.
+- S2 (`WriteOutcome`) verified SAFE, with the load-bearing evidence, so a later
+  round need not redo it:
+  1. `PersistenceServices.withPersistableIdentity` (:77-87) classifies BEFORE
+     persisting → `not-persisted` ⇔ zero bytes written. Never partial.
+  2. The panel has **no optimistic local state**: grepped `useState`/`useRef`
+     across DepthStepper / CentralDepthControls / SizingSection /
+     NodeExclusionSection / NodeContentsSection / ForceLayoutSection /
+     ToggleSwitch / GraphToolbar → zero hits. Corroborated by the pre-existing
+     `ticket-controls-optimistic-input-latency.md` ("fully controlled off
+     `snapshot.controls`"). Nothing can be visually ahead of storage, so the
+     suppressed rebuild cannot swallow a snap-back.
+  3. Every `value=`/`checked=` input belongs to a GLOBAL command kind, which
+     always returns "persisted" — the not-persisted paths are only the
+     button-driven depth steppers and `pinNode`.
+  4. `unpinNode` unconditional fan-out is correct: `removePins`
+     (`PluginDataStore.ts:61-64`) persists unconditionally, and the sole caller
+     `NoteNode.tsx:46` only exists on an already-pinned node.
+- Revert-test on the round-1 fix: `git checkout caa4e34 -- ControlsActions.ts` →
+  `3 failed | 8 passed`, one failure per new test. Real guards. Tree restored.
+- Test diff: `it(` 8 → 11; removed lines are comments + fixture generalisation
+  only (default-arg `mainPath` keeps old call sites intact). Nothing weakened.
+- Only leftover, deliberately non-blocking: `viewPorts.ts:30-44`
+  (`ControlsActionsPort`) still says "resolves the target `TFile`" and "then
+  rebuild" unconditionally — the same staleness S3 fixed one file over.
+
 ## Positions I would defend if challenged
 
 - Pin/unpin fan-out is CORRECT (pinned set is `data.json`, rendered by all views),
