@@ -307,3 +307,354 @@ items are comment/organisation touch-ups that can be folded into the wave B
 commits.
 
 No `#QUESTION_FOR_HUMAN:` — nothing here needs human judgement.
+
+---
+
+# IMPLEMENTATION REVIEW — `node-content-preference`, wave B (Phases 3–4)
+
+Reviewed commits: `2ded9db` (Phase 3 — settings-tab pill, + both wave-A
+SHOULD-FIX items), `c50ed40` (Phase 4 — controls-panel pill). Record commit
+`fb5371f` read but not itself reviewed as code.
+
+Scope: **Phases 3–4 only.** Phase 5 (docs, e2e, tickets) is not yet implemented
+and its absence is **not** reported as a defect. Wave A was re-examined only
+where wave B could disturb it.
+
+## Verdict — **APPROVED-WITH-FOLLOWUPS**
+
+**0 BLOCKING.** The feature works end to end on both surfaces, the accessibility
+is real (I rendered and probed it myself — results below, not taken on trust),
+the copy is genuinely single-sourced, and wave A's two guarantees (`sizePx`
+independence, one precedence site) are intact. **Wave C may proceed.**
+
+One SHOULD-FIX, doc-only: the DOM contract handed to wave C is missing the one
+timing fact that will actually bite its e2e (the panel radio is *controlled*, so
+it does not reflect a click until the rebuild lands; the tab radio does so
+immediately). Two surfaces, two timing semantics — write it down before wave C
+starts guessing.
+
+## Independently verified (I ran these; I did not re-litigate the gates the
+## TOP_LEVEL_AGENT already confirmed)
+
+| Gate | Result |
+|---|---|
+| The 6 test files wave B touches or depends on (`nodePreviewPreferenceMeta`, `settingsWritePlan`, `GraphStructureDiff`, `nodePreviewChoice`, `settingsResetPlan`, `engine/importGuard`) | **6 files / 100 tests passed** (`.tmp/rev-b-tests.log`) |
+| `segmented-control.css` actually reaches the shipped bundle (plan risk §7.4 — no unit test can catch a missing `AUTHORED_CSS_FILES` entry) | **yes** — `esbuild.config.mjs:51` registers it; the generated `styles.css` contains 13 `vicinity-graph-segmented` occurrences |
+| `:has()` safe at `minAppVersion` 1.12.4 | **yes** — `:has()` shipped in Chromium 105 (Aug 2022); Obsidian 1.12.x is far past it. Also verified it *computes* against the real `styles.css` (see probe row "selected fill"). First use in this repo, correctly flagged in the CSS comment. |
+| Class-name collision with the node-exclusion "pill"/chip | **none** — the `pill`/`chip` hits in `graph-view.css` (`:230`, `:268-303`, `:379-382`) are all prose in comments; the only new block is `vicinity-graph-segmented*` + `vicinity-graph-nodecontents*`, both previously unused |
+| Layering | clean. `NodeContentsSection.tsx` imports `../engine` (barrel, not a deep path) + `react`; nothing new in `src/engine/` or `src/shared/`; `importGuard.test.ts` green |
+| No new `it.skip` / `it.only` / `@ts-expect-error`; no `main.js` / `styles.css` committed | confirmed |
+
+### Probe 1 — the accessibility claims, measured
+
+I rebuilt the exact markup of **both** surfaces from the documented DOM contract,
+loaded the repo's real generated `styles.css`, and drove it in Chromium
+(scratchpad script, not added to the repo):
+
+| Claim | Measured |
+|---|---|
+| Native radios inside a named group (not ARIA theatre) | aria snapshot: `- radiogroup "Preview": - radio "Auto" [checked] - radio "Outline" - radio "Image"` — **identical for the tab and the panel** |
+| Each radio has an accessible name | `["Auto","Outline","Image"]`, from the wrapping `<label>` — no `id`/`for` needed |
+| The group has an accessible name | `"Preview"` (from `aria-label`) |
+| ONE tab stop | `Tab` from a radio leaves the group entirely (lands on the next focusable) |
+| ArrowRight moves the selection **and** fires `change` (so it writes) | `input:checked` `auto` → `outline`; exactly one `change` event, `value="outline"` |
+| 3-radio group cycles | 3 × ArrowRight returns to `auto` — confirms wave C's note |
+| Focus ring visible, on the group, not clipped | `box-shadow: rgb(139,108,239) 0 0 0 2px` when a radio is keyboard-focused; `none` otherwise |
+| `:has(> input:checked)` fill applies | checked label `background-color rgb(139,108,239)`, `color rgb(255,255,255)` |
+| The transparent radio is still hittable | input box == label box (80×23), `display:block`, `visibility:visible`, `opacity:0` — `click()`/`check()`/`toBeChecked()` all work |
+| Panel geometry at 260px | pill 244px inside a 260px body (no overflow); segments 80/81/81 = equal thirds |
+
+**The `name`-scoping decision is load-bearing, and correct.** With the shipped
+names (tab constant vs `useId()`) I had the tab on `auto` and the panel on
+`image` simultaneously. When I forced both groups onto the *same* name, checking
+in the tab left the panel with **0 checked radios** — the exact fusion the code
+comments predict. There is a second, sharper reason the split matters that the
+comments do not mention: React's `updateNamedCousins`
+(`node_modules/react-dom/cjs/react-dom.development.js:1937`) **throws**
+`"Mixing React and non-React radio inputs with the same name is not supported"`
+when a same-named radio has no React fiber — i.e. a shared name between the
+Obsidian-built tab pill and the React panel pill would not merely look wrong, it
+would raise an invariant error on the first change. The code is right; the
+rationale is under-sold.
+
+### Probe 2 — two React roots, and the controlled-input timing
+
+Two `createRoot()`s (as two open graph-view leaves would be), each rendering the
+section under `StrictMode`, with the async write path modelled:
+
+- `useId()` produced `:r1:` and `:r3:` — **distinct across roots**, because both
+  roots share one bundled `react-dom` instance. So the multi-view case is safe
+  and no `identifierPrefix` is needed. (Worth knowing: React's cross-root
+  uniqueness is not guaranteed in general — it is guaranteed *here* by the single
+  bundled copy.)
+- **Immediately after `click()` on "Image", `input:checked` is still `auto`.**
+  Only after the async snapshot lands does it become `image`. That is textbook
+  controlled-input behaviour (React restores the DOM to `props.checked` at the
+  end of the event when state has not changed yet) and it is the deliberate
+  house pattern — `SizingSection`/`ForceLayoutSection` behave identically. Not a
+  defect. But it *is* the fact wave C needs. See SHOULD-FIX 1.
+- Keyboard is coherent through that window: after ArrowRight, focus sits on the
+  newly focused radio while `checked` momentarily snaps back to the old value,
+  then settles on the new one when the rebuild lands; focus is retained across
+  the re-render (`document.activeElement` unchanged). No page errors.
+
+## End-to-end trace (both surfaces, read in the code)
+
+**Settings tab.** `VicinityGraphSettingTab.ts:399` radio `change` →
+`applyInteraction({kind:"global-node-preview", value})` (`:400`) →
+`planSettingsWrite` (`settingsWritePlan.ts:101`) → `{kind:"global-view", view:
+{...globalView, nodePreviewPreference}}` → `persist()` →
+`store.saveGlobalView` (`:551`) → `plugin.refreshOpenViews()` (`:512`) →
+`main.ts:95-101` → every `VicinityGraphView.refresh()` → rebuild.
+
+**Controls panel.** `NodeContentsSection.tsx:73` `onChange` → `apply()` (`:104`)
+→ **the same** `planSettingsWrite({kind:"global-node-preview"})` →
+`ControlsActions.applySettings` → `executeSettings` `case "global-view"` →
+`pluginDataStore.saveGlobalView` (`ControlsActions.ts:88-89`) →
+`controller.handleSettingsChanged()` → `runRebuild()`
+(`GraphViewController.ts:152-154`).
+
+**Both converge** on the one `globalView.nodePreviewPreference` — no per-doc
+override path is reachable from either surface, so CLARIFICATION Q3 (global only)
+holds. From there:
+
+`saveGlobalView` → `ViewSettingsResolver.ts:49` → `graph.viewSettings` →
+`vicinityGraphToFlow` (`flowMapping.ts:165-166`) → `toFlowNodeData` (`:302`) →
+`nodePreviewKind({preference: view.nodePreviewPreference, …})` (`:322-327`) →
+`FlowNodeData.preview` → `NoteNode.tsx:84` `data-preview={data.preview}`, with
+`:95` / `:108` gating the thumbnail and `NodeOutline` on the same value. Chain
+unbroken.
+
+**Cross-surface reflection.** Tab → panel: `refreshOpenViews()` rebuilds *every*
+open view, whose `ControlsModel.globalView` is re-read from the same snapshot the
+graph was built from, and the panel radio is fully controlled off it → reflected.
+Panel → tab: the tab re-seeds from `this.store.globalView()` on every `display()`
+(`:379`), and the settings modal is modal, so the panel is unreachable while the
+tab is on screen → the next open shows the new value. Correct.
+
+**Restore-defaults honesty.** `settingsResetPlan.ts:101-110` resets
+`outlineMaxDepth` **and** `nodePreviewPreference` in ONE `global-view` command,
+and its description reads the default's label from `NODE_PREVIEW_OPTION_META`
+(`:100`) rather than re-typing "Auto". `applyReset` then calls `this.display()`
+(`VicinityGraphSettingTab.ts:528`), so the pill's checked state actually moves
+back — the one path where the tab *does* re-render, correctly. `TUNED_VIEW`
+carries `nodePreviewPreference: "image"` (`settingsResetPlan.test.ts:21`), so the
+reset assertions are non-vacuous. `SECTION_RESET_SCOPES` still has **6** entries
+(`:176-183`).
+
+## 🚨 CRITICAL / BLOCKING
+
+**None.**
+
+## ⚠️ SHOULD-FIX
+
+### 1. The DOM contract omits the timing difference between the two surfaces — wave C will write flaky selectors
+
+`IMPLEMENTATION__PUBLIC.md:288-289` says only *"Assert state with
+`toBeChecked()`, never on colours."* That is right but under-specified, and the
+two pills are **not** symmetric:
+
+- Settings tab (`VicinityGraphSettingTab.ts:392-397`): plain uncontrolled DOM
+  radios. A click is reflected in `.checked` **synchronously**.
+- Controls panel (`NodeContentsSection.tsx:66-71`): a **controlled** React radio
+  whose `checked` comes from the snapshot. Measured above: right after
+  `click()`/`check()` the DOM still reports the OLD value until persist + rebuild
+  + re-render complete.
+
+Concrete failure for wave C: `expect(await panelRadio("Image").isChecked())
+.toBe(true)` immediately after `.check()` → **false**. Same for
+`page.evaluate(el => el.checked)`, `inputValue()`, or any computed-style probe
+taken in the same tick. Only the *auto-retrying* form
+(`await expect(locator).toBeChecked()`) survives, and case 57's "the panel pill
+WRITES the setting" assertion (reading `pluginDataStore.globalView()`) must
+likewise be retried or awaited, not sampled once.
+
+Fix (doc-only, ~4 lines in the "Notes wave C needs" list): state that the panel
+pill is controlled off the rebuilt snapshot, so every panel-side assertion must
+be a retrying `expect(...)`, and that the tab pill is uncontrolled and immediate.
+
+## 💡 Suggestions (NICE-TO-HAVE, none blocking)
+
+1. **The pill has no trough contrast against either host.** Measured on the real
+   `styles.css`: `.vicinity-graph-segmented` background, the settings-modal page
+   background, and `.vicinity-graph-disclosure`'s background are **all
+   `--background-primary`** (`rgb(255,255,255)` in my light stub), and unselected
+   segments are transparent. So the pill reads as a 1px hairline box around plain
+   text; only the selected segment has a fill. Obsidian's own form controls use
+   `--background-modifier-form-field` for exactly this affordance. Swapping
+   `segmented-control.css:29` to that (still a theme variable, still light/dark
+   safe) would make the control look like a control. Taste call — see the human
+   question below.
+2. **Focus ring and selected fill are the same colour.** Both are
+   `--interactive-accent` (`segmented-control.css:43` and `:91`). When the
+   selected segment sits at the group's edge — which it does for `Auto`, the
+   shipped default — the 2px ring abuts the fill with only the 1px
+   `--background-modifier-border` between them, so the focus indicator is
+   effectively only visible on the group's other three sides. Not a violation,
+   but a `--text-accent`-toned ring or a 1–2px offset would read better.
+3. **`useId()`'s docblock oversells its guarantee** (`NodeContentsSection.tsx:98-102`
+   "must be unique per mount, or two graph views … would fuse"). Measured: the
+   two roots do get distinct ids, but that is because both share one bundled
+   `react-dom`, not because `useId` promises cross-root uniqueness. Consider
+   saying that; and consider mentioning the sharper reason for the split (React's
+   `updateNamedCousins` *throws* on a React/non-React same-name mix), which makes
+   the tab-constant-vs-`useId` choice a correctness requirement rather than a
+   cosmetic one.
+4. **A panel write does not refresh *other* open graph views** —
+   `ControlsActions.applySettings` calls only `this.controller.handleSettingsChanged()`,
+   while the settings tab fans out via `refreshOpenViews()`. Pre-existing and
+   shared by `SizingSection`/`ForceLayoutSection`, so **not** wave B's doing; the
+   new pill just makes it more visible (a second view keeps showing the old
+   segment selected until it rebuilds for another reason). Ticket, not a fix here.
+5. `NodeContentsSection` does not pass `bodyClassName="nowheel"` the way
+   `SizingSection.tsx:39` does. Correct as-is — the toolbar root already carries
+   `nowheel nodrag nopan` (`GraphToolbar.tsx:38`) — so `SizingSection` is the
+   redundant outlier. No action, recorded so nobody "fixes" the new file.
+
+## Explicit call on deviation **B2** (`--text-on-accent`, no fallback)
+
+**Accept as implemented. Do not add a fallback.** Reasoning:
+
+- `--text-on-accent` is a core Obsidian variable (the one `.mod-cta` and the
+  native checkbox use) and is defined for both light and dark in `app.css`. It is
+  the *paired* variable for `--interactive-accent`, which this repo already uses
+  in three places (`graph-view.css:469`, `:606-609`, and now here) — a theme that
+  overrides one overrides both, so the pair travels together.
+- The rejected fallback `var(--text-on-accent, var(--text-normal))` would indeed
+  be **worse than nothing**: `--text-normal` on an accent fill is illegible in
+  dark themes, so the fallback would convert a loud failure into a quiet one.
+  The implementer's reasoning is sound and I agree with it.
+- Residual risk is genuinely low but *not* zero-verified: my grep confirms this
+  is the repo's **first** use of `--text-on-accent`, so there is no shipped
+  precedent to lean on, and my probe used stubbed values rather than a real
+  `app.css`. Keep it on wave C's real-Obsidian eyeball list (light **and** dark),
+  where it is already recorded.
+
+## Did wave B disturb wave A?
+
+- **`sizePx` still preference-independent.** Nothing in `NodeSizer`,
+  `elkMapping.ts` or `GraphStructureDiff.ts` mentions `preview`/`Preview`
+  (grepped: zero hits), and wave B's only production changes are the two UI
+  surfaces plus CSS. CLARIFICATION req 3 holds; a flip stays a data-only refresh.
+- **The precedence rule is still in exactly ONE place.** `nodePreviewKind` is
+  defined in `nodePreviewChoice.ts:25` and called from exactly one non-test site,
+  `flowMapping.ts:322`. Nothing in wave B added a second decision.
+- **SHOULD-FIX 1 (the lying tripwire comment) is genuinely resolved.**
+  `GraphStructureDiff.test.ts:47-56` no longer claims to guard a size↔preview
+  coupling; it states what it pins (no `nodePreviewPreference` trigger in
+  `decideLayout`) *and* names the gap it cannot see, with a pointer to where that
+  belongs. Reworded rather than strengthened — the right choice, and honest.
+- **SHOULD-FIX 2 (the misfiled write-plan test) is genuinely resolved.** Moved
+  verbatim from `describe("planSettingsWrite outline depth")` into
+  `describe("planSettingsWrite node preview")` (`settingsWritePlan.test.ts:124-132`),
+  assertion byte-identical. Correctly filed now.
+
+## DRY / SRP
+
+- **Copy is single-sourced, with zero duplicated strings.** `NODE_PREVIEW_ROW_LABEL`,
+  `NODE_PREVIEW_ROW_DESCRIPTION` and the per-option `label`/`description` live
+  only in `nodePreviewPreferenceMeta.ts`; grepping `"Auto"`/`"Outline"`/`"Image"`
+  across `src/` and `e2e/` finds them **only** in that file (plus one mention
+  inside a comment in `settingsResetPlan.ts:96`). All three consumers — the tab
+  (`VicinityGraphSettingTab.ts:382-398`), the panel
+  (`NodeContentsSection.tsx:114-136`) and the reset description
+  (`settingsResetPlan.ts:100`) — read the table. Render order comes from
+  `NODE_PREVIEW_PREFERENCES` on both surfaces, never `Object.keys`.
+- **The markup duplication is the sanctioned kind**, matching the
+  `forceLayoutFieldMeta` contract the CLARIFICATION named (derived req 6): shared
+  DATA, per-surface MARKUP, because Obsidian's `Setting` API cannot mount inside
+  React. No business rule is duplicated — both surfaces emit the identical
+  `{kind:"global-node-preview"}` interaction and neither merges fields itself.
+- **`NodeContentsSection.tsx` is cohesive** (80 lines, one section, one control,
+  no local state, no decision), and `addNodePreviewSegmented`
+  (`VicinityGraphSettingTab.ts:378-403`) is a single focused private method
+  consistent with the file's other `addX` helpers.
+
+## Settings-tab UX
+
+- The "Preview" row is `new Setting(section).setName(...).setDesc(...)` with its
+  control in `controlEl` — **structurally identical** to the sibling "Outline
+  depth" row, so name/description/control sit at the same altitude in the same
+  card. Row order general → specific (which preview, then how deep) is right, and
+  the docblock (`:333-339`) now explains it.
+- The superseded "No enable/disable toggle by design (CLARIFICATION Q2)" docblock
+  and the "Outline depth" description's stale image clause are both fixed, and I
+  confirmed no e2e asserts either string (`grep` over `e2e/` for
+  `setting-item-description` / the old sentence: zero hits), so nothing goes red.
+- Section count is still **6** (`SECTION_RESET_SCOPES`), reset labels unchanged.
+
+## Test quality (not count)
+
+- `nodePreviewPreferenceMeta.test.ts` — 2 cases, BDD-named, one behaviour each,
+  **not** vacuous: both would fail on a real collision (duplicate segment labels;
+  row label equal to a segment label), and the docblock explains why a `Record`
+  over the union cannot catch either. Modest value, honestly scoped — they guard
+  the accessible names wave C will select by. No theatre.
+- **No test covers either pill's markup or the panel's write**, and the
+  implementation says so plainly rather than papering over it. I verified the
+  stated reason: `package.json` has **no jsdom and no React testing library**,
+  vitest runs in the `node` environment, and there is not a single `*.test.tsx`
+  in `src/`. So a React section genuinely cannot be rendered in `npm test`, and
+  faking it with a non-rendering test would be exactly the kind of lie CLAUDE.md
+  forbids. The gap is real but correctly located in e2e cases 54–57 (Phase 5).
+  **Wave C must actually deliver case 57** (the panel pill writes the global) —
+  that is now the only automated proof of the panel half.
+
+## PARETO / over-engineering
+
+Nothing over-built. The CSS is ~60 lines of rules for a control used twice; the
+segmented-control file earns its separate existence (two surfaces, and
+`AUTHORED_CSS_FILES` makes the concatenation explicit). `NODE_PREVIEW_RADIO_GROUP`
+as a tab-local constant instead of a shared export is the *right* asymmetry and is
+documented on both sides. No speculative abstraction, no unused symbol
+(`NODE_PREVIEW_ROW_DESCRIPTION` is consumed by the tab; the panel deliberately
+uses per-option `title` tooltips instead, which is the panel's existing idiom per
+`ForceLayoutSection`).
+
+Under-specified for wave C: only SHOULD-FIX 1. Otherwise the DOM contract at
+`IMPLEMENTATION__PUBLIC.md:233-296` is accurate — I built my probe from it and it
+matched the code and the shipped CSS exactly, including the `useId()` warning,
+the option order, the scoping requirement for the two simultaneous radiogroups,
+and the `overflow: hidden` / `borderTopStyle` computed-style probe suggestion.
+
+## Documentation Updates Needed
+
+Unchanged from wave A's list minus the two items wave B absorbed (the settings-tab
+docblock, and the "Outline depth" description). Still owed by Phase 5:
+`README.md:59-66` + `:137-146` (`:138` "**heading outline** or its **first
+image**, never both" now needs the pill), `docs-internal/plan/high-level-plan.md:93`
+("decided by document position" is now the `Auto` branch only),
+`src/engine/SettingsSpec.ts:118-124`, `docs-internal/architecture-map.md`
+("Key seams" + the `src/adapters/` bullet), `docs-internal/CHANGELOG.md` (incl.
+the WHY-NOT for keeping `PERSISTED_SHAPE_VERSION` at 2),
+`scripts/setup-dev-vault.sh:359-368`. I grepped `README.md`, `CLAUDE.md`,
+`architecture-map.md`, `high-level-plan.md` and `scripts/*.sh` for references to
+the authored-CSS source list: **none** — so the new CSS file creates no further
+doc debt beyond the `.gitignore` comment wave B already fixed.
+
+Plus the tickets Phase 5 owes, which I endorse: §8.4 (`EDGE_VISIBILITY_MODES`
+completeness guard), pinning the `sizePx`-independence invariant where `sizePx`
+is computed, the panel's missing Outline-depth slider, and — new from this review
+— suggestion 4 above (panel writes not fanning out to other open views).
+
+## Wave C
+
+**May proceed.** Nothing in wave B blocks it. Carry these three into wave C:
+
+1. Fold SHOULD-FIX 1 into the DOM contract before writing selectors.
+2. Case 57 (panel pill writes the global) is now the only automated proof of the
+   panel half — it must land.
+3. The real-Obsidian light+dark eyeball must specifically judge
+   `--text-on-accent` on the selected segment (deviation B2) and the trough
+   contrast raised in suggestion 1.
+
+`#QUESTION_FOR_HUMAN:` The segmented control's unselected trough uses
+`--background-primary`, which is byte-identical to the background of both hosts
+(the settings-modal page and `.vicinity-graph-disclosure`) — I measured all three
+resolving to the same colour. The pill is therefore delineated only by its 1px
+`--background-modifier-border`, and its unselected segments look like plain text.
+Obsidian's own inputs use `--background-modifier-form-field` for this trough.
+**Do you want the pill's trough switched to `--background-modifier-form-field`,
+or is the hairline-only frame the look you want?** (Purely a visual call, and one
+I cannot settle without a real Obsidian; the current code is theme-safe either
+way.)
