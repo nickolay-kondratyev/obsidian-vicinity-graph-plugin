@@ -106,10 +106,11 @@ export const EDGE_ROUTING_CROSSING_PENALTY_PX = 0;
  * intra-group edge's are member note paths (→ child-square obstacle). So no
  * per-edge group logic is needed here — the ids line up with the obstacles.
  *
- * A node lacking a position (or a group lacking dimensions) is skipped as an
- * obstacle; an edge whose endpoint is not among the emitted obstacles is dropped
- * from the routing input (defines valid input — post-layout this never fires
- * because every flow node has a position).
+ * A node lacking a position, a group lacking dimensions, or a node whose geometry
+ * is not finite ({@link hasFiniteGeometry}) is skipped as an obstacle; an edge whose
+ * endpoint is not among the emitted obstacles is dropped from the routing input.
+ * Together these define valid router input: every emitted obstacle has finite
+ * geometry and every emitted edge has an obstacle at both ends.
  */
 export function extractEdgeRoutingInput(input: {
 	readonly nodes: readonly FlowNode[];
@@ -126,29 +127,34 @@ export function extractEdgeRoutingInput(input: {
 		if (position === undefined) {
 			continue;
 		}
+		let obstacle: RoutingObstacle;
 		if (node.kind === "folder-group") {
 			const size = input.groupDimensions.get(node.id);
 			if (size === undefined) {
 				continue;
 			}
-			obstacles.push({
+			obstacle = {
 				id: node.id,
 				x: position.x,
 				y: position.y,
 				widthPx: size.width,
 				heightPx: size.height,
 				kind: "folder-group",
-			});
+			};
 		} else {
-			obstacles.push({
+			obstacle = {
 				id: node.id,
 				x: position.x,
 				y: position.y,
 				widthPx: node.width,
 				heightPx: node.height,
 				kind: "note",
-			});
+			};
 		}
+		if (!hasFiniteGeometry(obstacle)) {
+			continue; // edges touching it are dropped by the id-membership pass below.
+		}
+		obstacles.push(obstacle);
 		obstacleIds.add(node.id);
 	}
 	const edges: RoutingEdge[] = [];
@@ -159,6 +165,32 @@ export function extractEdgeRoutingInput(input: {
 		edges.push({ id: edge.id, sourceId: edge.source, targetId: edge.target });
 	}
 	return { obstacles, edges, shapeBufferPx: input.shapeBufferPx };
+}
+
+/**
+ * Guards the ONE input class libavoid cannot survive: a `NaN`/`±Infinity` rectangle
+ * makes `processTransaction()` ABORT the Emscripten module, and `loadAvoid()` is a
+ * load-once singleton — so a single bad obstacle silently degrades EVERY later pass
+ * of the Obsidian session to straight edges. Zero-size and negative-size rects are
+ * fine; only non-finiteness is fatal, so nothing else is rejected here.
+ *
+ * NOT paranoia: `Depth decay k = -1` in the sizing panel makes `NodeSizer`'s
+ * `1 / (1 + k * minDepth)` divide by zero, and that `Infinity` reaches `sizePx` →
+ * `FlowNode.width/height` → this obstacle unclamped (`depthDecayK` has no engine-side
+ * clamp; the `min` attribute on the settings input does not block typed values).
+ *
+ * WHY-NOT guard inside `route()`: it could filter obstacles just as effectively, but
+ * extraction is pure — testable without loading wasm — and is already where this file
+ * drops unusable nodes (no position, no group dimensions), so the discipline stays in
+ * one place.
+ */
+function hasFiniteGeometry(obstacle: RoutingObstacle): boolean {
+	return (
+		Number.isFinite(obstacle.x) &&
+		Number.isFinite(obstacle.y) &&
+		Number.isFinite(obstacle.widthPx) &&
+		Number.isFinite(obstacle.heightPx)
+	);
 }
 
 /**
@@ -376,9 +408,12 @@ class AvoidArena {
 			//
 			// NOT a claim that flushing is always safe: it executes real routing work, so it
 			// ABORTS if a pending obstacle carries non-finite geometry — a case that, below two
-			// pending pins, tore down cleanly BEFORE this flush existed. That narrow new abort is
-			// the price of closing the session-killer class. Validating finiteness at extraction,
-			// ticket `nid_a7uwpxayt6w5vdnw8ogwskwvh_e`, is what closes that residual.
+			// pending pins, tore down cleanly BEFORE this flush existed. That residual is now
+			// closed at the SOURCE instead: {@link hasFiniteGeometry} drops such obstacles during
+			// extraction, so no obstacle produced by `extractEdgeRoutingInput` — the only
+			// production input path — can carry a non-finite rect into a Router. `route()` is
+			// public and its `EdgeRoutingInput` is unvalidated, so this is a guarantee about
+			// production input, not about the API surface.
 			// WHY-NOT try/catch around the flush: `destroy(router)` below throws identically on
 			// an already-aborted module, so the guard would buy nothing and cost clarity.
 			this.router.processTransaction();

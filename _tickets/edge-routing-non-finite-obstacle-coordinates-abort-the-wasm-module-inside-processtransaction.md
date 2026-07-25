@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-25T15:59:22Z
 id: nid_a7uwpxayt6w5vdnw8ogwskwvh_e
 title: "edge routing: non-finite obstacle coordinates abort the wasm module inside processTransaction"
-status: open
+status: closed
 deps: []
-links: [nid_oy3vas85xhr34n2dby1mvows4_e]
+links: [nid_oy3vas85xhr34n2dby1mvows4_e, nid_8vmo5ibhv1bvh2ukrgmafpofj_e]
 created_iso: 2026-07-25T14:54:10Z
-status_updated_iso: 2026-07-25T14:54:10Z
+status_updated_iso: 2026-07-25T15:59:22Z
 type: bug
 priority: 1
 assignee: CC_WITH-nickolaykondratyev
@@ -49,3 +50,15 @@ PRECONDITION for the linked teardown ticket, not an unrelated find. `AvoidArena.
 Priority raised 2 -> 1 as part of closing nid_oy3vas85xhr34n2dby1mvows4_e (teardown-flush fix).
 
 WHY: the teardown flush added to `AvoidArena.dispose()` (src/view/edgeRouting.ts) means a non-finite obstacle coordinate can now abort during TEARDOWN as well as during the routing pass. Measured by ROOT_CAUSE_REVIEWER: with one obstacle carrying non-finite coords plus an in-window throw (<2 pins), teardown previously survived and propagated our diagnostic Error -- it now aborts (`ang >= 0`, geometry.cpp:635) and kills the module. That path is doubly-gated and unreachable from production today, and no alternative teardown avoids it (conditional flush and try/catch were both measured useless), so it was knowingly accepted. THIS ticket is the real closure: guarantee finite geometry at the input boundary so libavoid never sees a non-finite coordinate in the first place.
+
+**2026-07-25T15:59:22Z**
+
+RESOLVED on branch `edge-routing__08-nonfinite-geometry`.
+
+`extractEdgeRoutingInput` (`src/view/edgeRouting.ts`) now drops any obstacle whose x/y/widthPx/heightPx is non-finite, via a module-private `hasFiniteGeometry`. A dropped obstacle id never enters `obstacleIds`, so the pre-existing edge pass drops its edges too -- required, because `route()` throws on an edge whose endpoint has no registered shape. Zero-size and negative-size rects are still ACCEPTED (libavoid tolerates them; dropping them would have been an unrequested behavior change). The stale forward-reference comment in `AvoidArena.dispose()` was corrected: the guarantee is now scoped to obstacles produced by `extractEdgeRoutingInput` (the only production input path), and it says outright that `route()` is public with an unvalidated `EdgeRoutingInput`.
+
+REACHABILITY: REACHABLE today, but NOT via the layout runners the ticket hypothesized. d3-force refinement (`src/view/d3ForceRefinement.ts`) is clamped and jiggles coincident bodies via a seeded LCG; no persisted node coordinates exist in this repo at all (only pins: docid + timestamp). The live path is SIZING: `src/engine/NodeSizer.ts:143` computes `1 / (1 + k * minDepth)` unguarded, so `depthDecayK = -1` yields an `Infinity` sizePx that flows through `nodeDimensionsPx` into `FlowNode.width/height` and into a note obstacle. `depthDecayK = Infinity` yields `NaN` instead (`Infinity * 0` at the root note). `1e999` parses to `Infinity` for minPx/maxPx and passes the guards too. That upstream defect is OUT OF SCOPE here and is filed as `nid_8vmo5ibhv1bvh2ukrgmafpofj_e`.
+
+GATES: `npm run check` exit 0; `npm test` exit 0 -- 68 files / 916 tests, 0 failed, 0 skipped. Verified independently by IMPLEMENTATION_REVIEWER, not just self-reported. New tests were confirmed to FAIL with the guard disabled.
+
+Flow record: `.ai_out/edge-routing__08-nonfinite-geometry/edge-routing__08-nonfinite-geometry/`.
