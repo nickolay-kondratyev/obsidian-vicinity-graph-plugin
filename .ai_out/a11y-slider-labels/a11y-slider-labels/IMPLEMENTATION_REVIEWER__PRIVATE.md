@@ -76,3 +76,66 @@ Re-run only `npm run test:e2e -- settingsUxVisual.e2e.ts` and re-check that enab
 the new test does not break tests 7-14 in that serial file (they share one Obsidian instance;
 test 8 does a restore-all which resets exclusion anyway, so ordering is probably fine — but verify,
 don't assume).
+
+---
+
+# ITERATION 2 (delta f4a193b..3b9403f) — PRIVATE notes
+
+## Verdict flip: NOT-READY, 1 BLOCKING (B1)
+
+**My own iteration-1 nit N1 caused a regression.** I wrote "either drop the `setDynamicTooltip()`
+call or drop the tooltip clause from the comment", trusting the `@deprecated` tag in
+`node_modules/obsidian/obsidian.d.ts`. That d.ts is **obsidian@1.13.1** (`package.json` pins
+`"obsidian": "latest"`), and `setDisplayFormat` on the same interface is `@since 1.13.0` — the
+inline-value behaviour the deprecation note describes landed in **1.13.0**, AFTER our floor.
+`manifest.json` minAppVersion = 1.12.4; e2e pins 1.12.7. Lesson for any future pass: never treat a
+d.ts `@deprecated` tag as a statement about the minAppVersion floor.
+
+## Decisive evidence for B1 (two independent methods)
+
+1. Bytes from the pinned runtime, `.tmp/obsidian/obsidian-1.12.7/resources/obsidian.asar`
+   (grep -a finds 3 chunks; the class body appears at offsets ~1869162, ~4775377, ~23799505):
+   `setDynamicTooltip` adds `mouseenter`/`mouseleave` listeners and calls
+   `showTooltip -> Oe(this.sliderEl, this.getValuePretty(), {placement:"top"})`. Not a no-op.
+2. DOM probe (`e2e/zzReview2Probe.e2e.ts`, created + run + `rm` in one bash call):
+   - our slider hover -> `.tooltip` list = `[]`, row HTML = bare `<input class="slider">`, no value node
+   - CONTROL: core Appearance ▸ Font size slider (core 1.12.7 DOES call setDynamicTooltip) hover ->
+     `.tooltip` = `["16"]`
+   Same build, same markup class. So the removal costs all 10 tab sliders their only value readout.
+   `app.appVersion` came back `undefined` in the renderer — version established from the pin script
+   and the asar path instead.
+
+## Mutation reproductions (my own, not the maker's)
+
+`.tmp/review2_mutate.py` — patch src, run spec under NEW guard (HEAD) AND under OLD guard
+(`git show f4a193b:e2e/settingsUxVisual.e2e.ts`), `git checkout --` restore each case.
+- M2 (textarea `nameControl` deleted): NEW=RED (`toHaveCount` 1 -> 0, the positive
+  `getByLabel("Exclusion patterns")`), OLD=GREEN. Note it fails on the POSITIVE assertion, not the
+  unlabeled count — either way the vacuity is closed.
+- M3 (unlabeled `addText` row added to the exclusion section): NEW=RED (unlabeled 0 -> 1),
+  OLD=GREEN. Before/after count for the S2 leak: old guard blind at 0, new guard 1.
+`git status --porcelain` empty afterwards, verified.
+
+## Things checked and cleared this pass (do not redo)
+
+- Serial-order leak from test 6 enabling exclusion: tests 7-8 are unaffected (7 touches only
+  nodeCap/depths in the Performance section; 8 restore-all resets nodeExclusion), so the on-disk
+  end state for later spec files is unchanged. 6 full-file green runs total.
+- Deny-list completeness: covers text/search/select/textarea/color/momentFormat; buttons excluded
+  (visible text names them; settingsResetReview:190 owns that contract, re-run green). Only
+  theoretical false positive is `input[type=hidden]`, which Obsidian's Setting API never creates.
+- MIN_NAMED_CONTROLS=20 matches my iteration-1 dump (19 range+number) + 1 textarea. Floor semantics
+  correct; a section removal fails loudly, which is the point.
+- Non-retrying `expect(await …count())` — fine, runs after awaited web-first assertions on a
+  synchronously rendered tab.
+- No new `Restore`-prefixed label in the delta; settingsResetReview ordered list untouched.
+
+## Judgement call
+
+Escalated B1 to BLOCKING rather than the brief's suggested SHOULD-FIX: the brief said "if you
+cannot CONFIRM behaviour-neutrality, mark SHOULD-FIX". I confirmed the OPPOSITE — a reproduced,
+user-visible loss of functionality on the supported floor, unapproved by a human, orthogonal to the
+ticket. CLAUDE.md's "guard against loss of previous functionality" makes that blocking.
+
+Suggested follow-ups (non-blocking): a hover-value e2e assertion so this class of regression cannot
+recur, and pinning the `obsidian` devDependency instead of `"latest"`.
