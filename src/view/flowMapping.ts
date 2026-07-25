@@ -320,6 +320,7 @@ function toFlowNodeData(node: GraphNode, mainPinned: boolean, view: ViewSettings
 		// a note whose every heading is deeper than the cap must not claim the
 		// outline slot and render an empty box.
 		preview: nodePreviewKind({
+			preference: view.nodePreviewPreference,
 			outlineEntryCount: outline.length,
 			hasImage: node.firstImagePath !== undefined,
 			imagePrecedesOutline: node.imagePrecedesOutline,

@@ -1,4 +1,5 @@
 import { EngineDefaults, SETTINGS_SPEC } from "../engine";
+import { NODE_PREVIEW_OPTION_META } from "./nodePreviewPreferenceMeta";
 import type { SettingsCommand, SettingsWriteContext } from "./settingsWritePlan";
 
 /**
@@ -92,11 +93,19 @@ export const SETTINGS_RESET_SCOPES: Readonly<Record<SettingsResetScope, Settings
 	},
 	"node-contents": {
 		label: "Restore node contents defaults",
-		description: `Resets the outline depth to ${SETTINGS_SPEC.globalView.outlineMaxDepth.default} heading levels.`,
+		// The preview LABEL is read from the shared option copy — a re-typed "Auto"
+		// here could outlive a copy change and describe a value that never resets.
+		description:
+			`Resets the outline depth to ${SETTINGS_SPEC.globalView.outlineMaxDepth.default} heading levels ` +
+			`and the node preview to ${NODE_PREVIEW_OPTION_META[SETTINGS_SPEC.globalView.nodePreviewPreference.default].label}.`,
 		plan: (ctx) => [
 			{
 				kind: "global-view",
-				view: { ...ctx.globalView, outlineMaxDepth: SETTINGS_SPEC.globalView.outlineMaxDepth.default },
+				view: {
+					...ctx.globalView,
+					outlineMaxDepth: SETTINGS_SPEC.globalView.outlineMaxDepth.default,
+					nodePreviewPreference: SETTINGS_SPEC.globalView.nodePreviewPreference.default,
+				},
 			},
 		],
 	},

@@ -38,6 +38,7 @@ function makeViewSettings(): ViewSettings {
 	return {
 		nodeCap: 100,
 		outlineMaxDepth: 2,
+		nodePreviewPreference: "auto",
 		groupByFolder: true,
 		edgeVisibility: "walked-from-center",
 		sizing: {

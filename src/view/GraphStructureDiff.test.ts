@@ -43,6 +43,18 @@ describe("decideLayout structural identity", () => {
 		});
 		expect(decideLayout(base, next, SIZE_RELAYOUT_THRESHOLD)).toBe("relayout");
 	});
+
+	it("WHEN two builds differ ONLY in nodePreviewPreference THEN it reuses the layout", () => {
+		// The tripwire for the Preview pill: flipping it must stay a data-only
+		// refresh. Any future coupling of node SIZE to the preview would relayout
+		// the whole graph under the user's cursor on every flip.
+		const next = makeGraph({
+			nodes: [makeNode({ path: asVaultPath("a.md") }), makeNode({ path: asVaultPath("b.md") })],
+			edges: [makeEdge("a.md", "b.md")],
+			viewSettings: { ...base.viewSettings, nodePreviewPreference: "image" },
+		});
+		expect(decideLayout(base, next, SIZE_RELAYOUT_THRESHOLD)).toBe("reuse-layout");
+	});
 });
 
 describe("decideLayout size-growth exception", () => {

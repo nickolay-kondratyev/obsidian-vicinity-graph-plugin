@@ -197,3 +197,20 @@ describe("ViewSettingsResolver outline depth cascade", () => {
 		expect(resolved.outlineMaxDepth).toBe(global.outlineMaxDepth);
 	});
 });
+
+describe("ViewSettingsResolver node preview cascade", () => {
+	const global: ViewSettings = EngineDefaults.viewSettings();
+
+	it("WHEN MAIN pins nodePreviewPreference THEN the resolved value is MAIN's", () => {
+		const resolved = ViewSettingsResolver.resolve({ global, mainOverride: { nodePreviewPreference: "image" } });
+		expect(resolved.nodePreviewPreference).toBe("image");
+	});
+
+	it("WHEN nobody pins nodePreviewPreference THEN the resolved value is the global one", () => {
+		const resolved = ViewSettingsResolver.resolve({
+			global,
+			pinnedOverrides: [pinned("p.md", "docid_p_e", 1, { nodeCap: 5 })],
+		});
+		expect(resolved.nodePreviewPreference).toBe(global.nodePreviewPreference);
+	});
+});

@@ -19,6 +19,7 @@
 import type {
 	EdgeVisibilityMode,
 	ForceLayoutSettings,
+	NodePreviewPreference,
 	SizeMetricId,
 	SizingMetricSetting,
 } from "./types";
@@ -67,6 +68,7 @@ export type ForceLayoutSpec = Readonly<Record<keyof ForceLayoutSettings, Bounded
 export interface ViewSpec {
 	readonly nodeCap: MinBoundedNumberSpec;
 	readonly outlineMaxDepth: BoundedNumberSpec;
+	readonly nodePreviewPreference: DefaultSpec<NodePreviewPreference>;
 	readonly groupByFolder: DefaultSpec<boolean>;
 	readonly edgeVisibility: DefaultSpec<EdgeVisibilityMode>;
 	readonly sizing: SizingSpec;
@@ -123,6 +125,12 @@ export const SETTINGS_SPEC: SettingsSpec = {
 		 * to get an image instead is to put it before the first heading.
 		 */
 		outlineMaxDepth: { default: 2, min: 1, max: 6, step: 1 },
+		/**
+		 * `auto` preserves the documented document-position rule (an image above the
+		 * first heading wins the preview slot) exactly as it shipped, so upgrading
+		 * changes nothing on screen; `outline`/`image` are opt-in overrides.
+		 */
+		nodePreviewPreference: { default: "auto" },
 		/** Folder grouping ships ON — the richer, folder-aware layout is the whole point of the plugin. */
 		groupByFolder: { default: true },
 		/**

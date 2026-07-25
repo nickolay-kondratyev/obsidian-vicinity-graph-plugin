@@ -9,7 +9,7 @@ import type {
 	ViewSettings,
 	ViewSettingsOverride,
 } from "../engine";
-import { EngineDefaults, clampForceLayoutSettings, clampOutlineMaxDepth } from "../engine";
+import { EngineDefaults, NODE_PREVIEW_PREFERENCES, clampForceLayoutSettings, clampOutlineMaxDepth } from "../engine";
 
 /**
  * Versioned JSON shapes persisted by step-03 (every shape carries `version`
@@ -134,6 +134,7 @@ function parseViewOverride(raw: unknown): ViewSettingsOverride {
 		return {};
 	}
 	const edgeVisibility = raw["edgeVisibility"];
+	const nodePreviewPreference = raw["nodePreviewPreference"];
 	const outlineMaxDepth = numberOrUndefined(raw["outlineMaxDepth"]);
 	return {
 		...definedOnly("nodeCap", numberOrUndefined(raw["nodeCap"])),
@@ -142,6 +143,12 @@ function parseViewOverride(raw: unknown): ViewSettingsOverride {
 		...definedOnly(
 			"outlineMaxDepth",
 			outlineMaxDepth === undefined ? undefined : clampOutlineMaxDepth(outlineMaxDepth),
+		),
+		// Unrecognized values (hand-edited JSON, a downgrade from a future version)
+		// fall through as absent, so the spec default applies.
+		...definedOnly(
+			"nodePreviewPreference",
+			NODE_PREVIEW_PREFERENCES.find((preference) => preference === nodePreviewPreference),
 		),
 		...definedOnly(
 			"groupByFolder",
