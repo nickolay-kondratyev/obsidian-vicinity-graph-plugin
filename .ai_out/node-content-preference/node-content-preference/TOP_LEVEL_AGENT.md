@@ -25,12 +25,31 @@ See `CLARIFICATION__PUBLIC.md` for the binding requirement list.
 |---|---|---|
 | EXPLORATION | Explore ×2 | DONE |
 | CLARIFICATION | TOP_LEVEL_AGENT | DONE (human-approved) |
-| DETAILED_PLANNING | PLANNER (THINK_HARDER) | RUNNING |
-| DETAILED_PLAN_REVIEW | PLAN_REVIEWER | pending |
-| PLAN_ITERATION | PLANNER ↔ PLAN_REVIEWER | pending |
-| IMPLEMENTATION | IMPLEMENTATION | pending |
-| IMPLEMENTATION_REVIEW | IMPLEMENTATION_REVIEWER | pending |
-| IMPLEMENTATION_ITERATION | both | pending |
+| DETAILED_PLANNING | PLANNER (THINK_HARDER) | DONE |
+| DETAILED_PLAN_REVIEW | PLAN_REVIEWER | DONE — approved, 0 blocking, 7 inline fixes |
+| PLAN_ITERATION | PLANNER ↔ PLAN_REVIEWER | **SKIPPED** (reviewer signalled not needed) |
+| IMPLEMENTATION wave A (plan phases 1–2) | IMPLEMENTATION | RUNNING |
+| IMPLEMENTATION_REVIEW wave A | IMPLEMENTATION_REVIEWER | pending |
+| IMPLEMENTATION wave B (plan phases 3–4) | IMPLEMENTATION | pending |
+| IMPLEMENTATION_REVIEW wave B | IMPLEMENTATION_REVIEWER | pending |
+| IMPLEMENTATION wave C (plan phase 5) | IMPLEMENTATION | pending |
+| IMPLEMENTATION_REVIEW final | IMPLEMENTATION_REVIEWER | pending |
+
+## Implementation waves (why split)
+
+The approved plan has 5 phases. Delegated in 3 serial waves — code-modifying
+agents must never overlap (merge conflicts), and splitting keeps each agent well
+clear of compaction.
+
+| Wave | Plan phases | Content |
+|---|---|---|
+| A | 1–2 | Decision moves downstream (adapter reports `imagePrecedesOutline`); setting end-to-end. **Zero behavior change.** |
+| B | 3–4 | Settings-tab row + shared copy + CSS; controls-panel section. |
+| C | 5 | Docs, e2e, tickets. |
+
+**Baseline note**: `linkStrengthFactor.max` in `SettingsSpec.test.ts` is a
+known-RED pre-existing failure (author-only per its ticket) — every implementer
+is told not to touch it and not to attribute it to their work.
 
 ## Artifacts
 
