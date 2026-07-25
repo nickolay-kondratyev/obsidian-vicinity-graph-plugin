@@ -1,6 +1,6 @@
 # IMPLEMENTATION_REVIEWER__PRIVATE — edge-routing__09-warn-latch
 
-## State: COMPLETE (iteration 1)
+## State: COMPLETE — CONVERGED (iteration 1 confirmation done)
 
 Verdict issued: **READY**. 0 BLOCKING, 1 SHOULD-FIX, 2 MINOR. PUBLIC review written and
 committed. `src/` untouched by me (read-only, honoured).
@@ -52,3 +52,19 @@ Only SHOULD-FIX-1 is outstanding (the unstringifiable-branch test). If the imple
 adds it, re-run `npm test` and flip to READY with 0 open findings. Do not accept a cap
 being added in response to this review — that would be a regression of intent; push back.
 Nothing else in the diff needs re-review.
+
+## Iteration 1 confirmation (commit `f680a7d`)
+
+- **Converged. 0 open findings.** Do not reopen.
+- Ran the mutation MYSELF in `.worktree/mut-check` (bare `return String(error);`):
+  exactly the 2 new tests failed, 46 passed. The tests are discriminating, not incidental.
+  Worktree removed, tree clean.
+- Verified via `--stat` that this iteration touched ONLY the test file + md. Production
+  `GraphViewController.ts` untouched since `8745644`.
+- Re-ran gates: check exit 0, test exit 0, 68 files / **922** tests (920 → 922, +2).
+- Accepted both MINOR rejections. One nuance I noted but did not press: the implementer's
+  cycle-throw argument against `JSON.stringify` is wrong (the existing try would catch it);
+  the conclusion (speculative, no producer) still stands, so it changes nothing.
+- No cap was sneaked in — my firmest position held.
+- Only process items remain, all TOP_LEVEL_AGENT's: ticket close, `change_log` entry,
+  typed-error-channel follow-up ticket.

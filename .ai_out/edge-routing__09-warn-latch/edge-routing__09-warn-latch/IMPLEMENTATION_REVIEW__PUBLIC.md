@@ -148,3 +148,61 @@ The implementer's noted follow-up — `EdgeRouter.route()` having no typed error
 which is *why* the dedup key must be scraped from a string — is a legitimate, non-trivial
 seam change and belongs in `docs-internal/tickets/`, not in this diff. Endorsed as a
 follow-up ticket.
+
+---
+
+## Iteration 1 confirmation (commit `f680a7d`, diff `7bd2599..HEAD`)
+
+### Verdict: **CONVERGED — READY, 0 open findings**
+
+**SHOULD-FIX-1 is genuinely closed — I verified the mutation myself, I did not take the
+implementer's word for it.** In a throwaway worktree at `f680a7d` I replaced the guarded
+body with a bare `return String(error);` and ran the targeted suite:
+
+```
+Tests  2 failed | 46 passed (48)
+FAIL … WHEN the router throws an unstringifiable value THEN the reporter still warns instead of throwing
+FAIL … WHEN the router throws an unstringifiable value THEN edges still fall back to straight
+```
+
+Exactly the two new tests fail and nothing else — so they are discriminating for the
+`UNSTRINGIFIABLE_FAILURE_SIGNATURE` branch specifically, not incidentally green. The
+reachability claim also holds: `Object.create(null)` has no `toString` and no
+`Symbol.toPrimitive`, so `String(...)` throws `TypeError` and, unguarded, escapes *out of*
+the `catch` in `resolveRoutes` — the predicted failure mode. Worktree removed; tree clean.
+
+Splitting into two tests (warn-not-lost / rebuild-degrades-not-breaks) rather than the one
+I sketched is the better call — two distinct failure modes, one assertion each.
+
+### Production code unchanged — confirmed
+
+`git diff 7bd2599..HEAD --stat` touches only `src/view/GraphViewController.test.ts` (+26)
+and two `.ai_out` md files. `src/view/GraphViewController.ts` does not appear. No
+behaviour-capturing test removed or weakened; 920 → 922 tests, 68 files unchanged.
+
+### MINOR rejections — both accepted
+
+- **MINOR-1 (JSON.stringify for plain objects)**: reasonable. No producer throws plain
+  objects; it would be speculative code. (Small correction to the stated reason: a cycle
+  would be caught by the *existing* try, so it needs no extra guard — but the conclusion is
+  right either way, and I graded it "leaving it is fine" originally.)
+- **MINOR-2 (length cap)**: reasonable, and consistent with the no-cap-on-the-Set position
+  we both hold — truncation trades a hypothetical few KB for real information loss in the
+  dedup key.
+
+No cap was added in response to the review. Good.
+
+### Real gate output (re-run by me, this tree, this commit)
+
+```
+npm run check > .tmp/confirm-check.log 2>&1   → CHECK_EXIT=0
+npm test      > .tmp/confirm-test.log  2>&1   → TEST_EXIT=0
+     Test Files  68 passed (68)
+          Tests  922 passed (922)
+```
+
+### Remaining (process, not code)
+
+Unchanged from iteration 0 and owned by TOP_LEVEL_AGENT: close the ticket, add the
+`change_log` entry, and file the `EdgeRouter.route()` typed-error-channel follow-up ticket
+in `docs-internal/tickets/`.
