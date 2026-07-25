@@ -156,3 +156,110 @@ Appended by the wave-B instance. Wave A's notes above still hold.
 5. SHOULD-FIX 1 left a real gap: NOTHING pins "sizePx must not depend on the
    preference". I reworded the comment to say so honestly. Phase 5 should file
    the ticket; a `NodeSizer` test is the right home.
+
+---
+
+# PRIVATE working notes — wave C (Phase 5: docs, e2e, tickets)
+
+Appended by the wave-C instance. Waves A and B above still hold **except** the
+"no Obsidian binary" claim, which was false (see below).
+
+## Where things stand
+
+- `ac27f8d` = Phase 5. Tree clean. Feature is complete; nothing of the plan is left.
+- Numbers: `npm run check` exit 0; `npm test` **1 failed | 894 passed (895)**,
+  1 failed file | 67 passed (68) — unchanged from wave B (Phase 5 adds no vitest);
+  `npm run build` exit 0; `npx tsc -p e2e/tsconfig.json` exit 0.
+  Logs: `.tmp/wc-check.log`, `wc-test.log`, `wc-build.log`, `wc-e2e-tsc.log`,
+  `wc-e2e-full.log`, `wc-e2e-new3.log`, `wc-e2e-ux2.log`, `wc-probe{,2,3}.log`.
+
+## 🔴 THE BIG CORRECTION: e2e runs here
+
+Waves A and B both wrote "there is NO Obsidian binary … `npm run test:e2e` cannot run
+here at all". **Wrong, and it cost both waves their verification story.**
+
+- `scripts/run-e2e.sh` auto-provisions Obsidian when `OBSIDIAN_PATH` is unset, and a
+  **cached 1.12.7 was already sitting in `.tmp/obsidian/obsidian-1.12.7/obsidian`**.
+  `npm run setup:obsidian` → "using cached binary". No network needed.
+- No display server ⇒ the script adds `--ozone-platform=headless --disable-gpu` itself.
+- **Lesson for the next instance: TRY the command before declaring an environment
+  can't do something.** `resolveObsidianPath()` throwing on a bare `OBSIDIAN_PATH` is
+  not evidence; `run-e2e.sh` sets it for you.
+
+You can also read Obsidian's REAL `app.css` without launching anything:
+`.tmp/obsidian/obsidian-1.12.7/resources/obsidian.asar` is a plain file — grep it with
+python for `--some-variable:` and walk back to the enclosing selector. That is how the
+trough values were settled.
+
+## Things I verified rather than assumed
+
+- **The trough change is a no-op in the DEFAULT LIGHT theme.** `body` sets
+  `--background-modifier-form-field: var(--color-base-00)` = `--background-primary`;
+  only `.theme-dark` overrides it (`--color-base-25`). Confirmed twice (asar + a live
+  computed-style probe: light trough `rgb(255,255,255)`, dark `rgb(42,42,42)`).
+  The CSS comment says so — **do not "fix" it back to something non-native.**
+- `--text-on-accent` = `rgb(255,255,255)` in BOTH default themes ⇒ deviation B2's
+  main risk is retired for stock Obsidian. ≈3.4:1 on the accent, which is Obsidian's
+  own `.mod-cta` pairing; not ours to unilaterally improve.
+- `grep -rn "CLARIFICATION Q2" src/` — the `SettingsSpec.ts:124` one was the LAST
+  superseded reference. All remaining hits are unrelated Q2s from other steps
+  (canvas detection, ctrl/cmd-click, depth-stepper bounds). Don't "clean" those.
+- The three `toHaveCount(6)` sites and both reset-name lists are still correct and
+  were left byte-identical. Verified by the suite passing them, not by reasoning.
+- `_tickets/` is **tracked** (git status shows existing ones as committed, only new
+  ones as `??`) and is where the repo's *current* engineering follow-ups live
+  (`ticket ls`). `docs-internal/tickets/*.md` is the older + smoke-run convention and
+  the one referenced from code/CHANGELOG. I used both, deliberately split by kind.
+- The plan's §8.3 claim that the e2e-baseline triplication was "already ticketed
+  elsewhere" is **false** — I searched both stores. Filed it.
+
+## The nodeOutline flake — read this before touching that file
+
+`nodeOutline.e2e.ts:92` is RED in this container and it is **not ours**. Proof chain:
+passed on the first-ever run (11/11, 2.8s) → failed 4× after, **twice on a stashed
+pristine tree** (11 tests ⇒ stash really applied) → probe showed the node present and
+correct at `t0` (`main`/`outline`/160px) and **unmounted by `t1500`**, permanently,
+with a healthy metadata cache. React Flow culling + `fitView`-on-mount-only.
+Ticket: `docs-internal/tickets/ticket-e2e-headless-culling-unmounts-main-node.md`.
+
+Consequences you will hit:
+- Because the file is `serial`, that one red hides every later case as "did not run".
+  To verify anything you add there, use `--grep`.
+- My 3 cases go through `showNoteWithRefitGraph()` (openFile → `remountGraphView()` →
+  assert tier). **Delete it when the flake is fixed**; its docblock says so.
+- Full-suite red is 3 files: nodeOutline (above), `vicinityGraph.e2e.ts:160`
+  (`ticket-e2e-gamma-breadcrumb-fails-headless.md`), `edgeRoutingEval.e2e.ts:171`
+  (`nid_6lxaenl4oamjxqj6f0eh6rr4c_e`). All pre-existing. Baseline for next time.
+
+## Dead ends / near-misses
+
+- I first suspected the metadata cache wasn't indexed (empty `headings` ⇒ thumbnail).
+  The probe killed that: `headings.length = 13` the whole time. **Don't re-chase it.**
+- Playwright's `check()` on the PANEL radio would sometimes pass (it re-clicks and
+  re-verifies) — which is exactly why it is the wrong tool: it hides the controlled/
+  uncontrolled asymmetry. `.click()` + retrying `expect` is deliberate. Same for
+  reading the store: `expect.poll`, never a single `page.evaluate`.
+- I considered restoring `nodePreviewPreference` at the end of `settingsUxVisual`'s last
+  case. Not needed — `prepareVaultCopy()` wipes `.tmp/e2e/vault` and deletes its
+  `data.json` on every `launch()`, and each spec file launches its own instance.
+- A throwaway probe spec (`e2e/zzprobe.e2e.ts`) is the cheapest diagnostic in this repo:
+  Playwright's `testMatch` is `**/*.e2e.ts` in `e2e/`, so dropping a file there and
+  running `npm run test:e2e -- zzprobe.e2e.ts` works. **Delete it before committing** (I did).
+
+## Doubts / watch items for whoever comes next
+
+1. **The light-theme trough.** If the human dislikes the hairline look in light, the
+   next lever is NOT another background variable (they all resolve to the page colour
+   in light) — it's a border/shadow treatment, or accepting Obsidian's own look.
+   Filed as part of the smoke-run ticket, item 2.
+2. **The focus ring shares `--interactive-accent` with the selected fill.** With `Auto`
+   (the default) selected at the group's edge, the ring abuts the fill across a 1px
+   border. Recorded as a taste call in the smoke-run ticket; I did not change it
+   because wave B chose that idiom deliberately and it matches `graph-view.css:606-609`.
+3. `settingsUxVisual.e2e.ts` now ends with the panel pill set to `"image"`. Anything
+   appended to that file must not assume `auto`.
+4. My `setNodePreviewPreference()` harness helper calls `refreshOpenViews()`. If a
+   future test needs to observe the *no-fan-out* bug (`nid_u36pqr4zljs44jt42lk9ln8ry_e`),
+   it must NOT use this helper — it papers over exactly that.
+5. `e2e/` is still outside `npm run check` (tsconfig includes `src/**` only). Run
+   `npx tsc -p e2e/tsconfig.json` by hand, or trust `run-e2e.sh` which does it for you.

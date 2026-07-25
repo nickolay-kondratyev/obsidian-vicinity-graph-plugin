@@ -400,3 +400,238 @@ Unchanged from wave A's list, minus the two items wave B absorbed
 
 No `#QUESTION_FOR_HUMAN:` — nothing forced a hack, and nothing here departs from
 the approved CLARIFICATION.
+
+---
+
+# IMPLEMENTATION — wave C: Phase 5 (docs, e2e, tickets) + the trough decision
+
+Scope: **plan Phase 5 only**, plus the human's trough decision and wave B's
+doc-only SHOULD-FIX. Waves A and B above are unchanged.
+
+Branch `node-content-preference`, 1 commit, working tree clean:
+
+| Commit | Scope |
+|---|---|
+| `ac27f8d` `feat(node-preview): inset trough + Phase 5 docs, e2e and follow-up tickets` | Phase 5 |
+
+## ⚠️ CORRECTION to waves A and B: **e2e DOES run in this container**
+
+Both earlier waves reported "there is NO Obsidian binary and no `OBSIDIAN_PATH`, so
+`npm run test:e2e` cannot run here at all". **That was wrong.** `scripts/run-e2e.sh`
+auto-provisions a pinned Obsidian when `OBSIDIAN_PATH` is unset, and a **cached
+Obsidian 1.12.7 was already present** at `.tmp/obsidian/obsidian-1.12.7/obsidian`
+(`npm run setup:obsidian` printed "using cached binary"). With no display server the
+script supplies `--ozone-platform=headless --disable-gpu` on its own. Everything the
+earlier waves deferred as "impossible here" — the e2e suite, real-theme colour
+measurements, the light/dark screenshots — was in fact available. Recorded plainly
+because two waves of "unverified" claims rested on it.
+
+## VERIFIED results (actually run)
+
+- `npm run check` (tsc strict): **exit 0** (`.tmp/wc-check.log`).
+- `npm test`: **1 failed | 894 passed (895)**; **1 failed file | 67 passed (68)**
+  (`.tmp/wc-test.log`). The one failure is the known-RED, pre-existing
+  `SettingsSpec.test.ts > … limits equal the exact shipped baseline`
+  (`linkStrengthFactor.max`). Not touched. Identical to wave B's numbers — Phase 5
+  adds no vitest tests by design (docs + e2e + tickets).
+- `npm run build`: **exit 0**; the generated `styles.css` carries 15
+  `vicinity-graph-segmented`/`-nodecontents` occurrences and the new
+  `background-modifier-form-field` trough at `:1156`.
+- `npx tsc -p e2e/tsconfig.json`: **exit 0** (`npm run check` does NOT cover `e2e/`).
+- **`npm run test:e2e` (real Obsidian 1.12.7, headless):** full suite
+  **53 passed | 3 failed | 20 did not run** (`.tmp/wc-e2e-full.log`).
+  **All 3 failures are pre-existing, ticketed environment flakes, none of them mine:**
+
+  | Failing case | Status |
+  |---|---|
+  | `vicinityGraph.e2e.ts:160` singleton-folder breadcrumb | already ticketed: `ticket-e2e-gamma-breadcrumb-fails-headless.md` |
+  | `edgeRoutingEval.e2e.ts:171` radial layout SKIPS routing | already ticketed: `nid_6lxaenl4oamjxqj6f0eh6rr4c_e` (stale layered/radial references) |
+  | `nodeOutline.e2e.ts:92` outline lists its headings | **newly diagnosed by me**, ticketed: `ticket-e2e-headless-culling-unmounts-main-node.md` |
+
+  The "20 did not run" are the cases after each failure in a `serial` file.
+
+- **All 9 of my new e2e cases pass.** The 6 in `settingsUxVisual.e2e.ts` passed in the
+  FULL suite run (cases 51–56 of `.tmp/wc-e2e-full.log`, and again 8–13 in
+  `.tmp/wc-e2e-ux2.log`). The 3 in `nodeOutline.e2e.ts` are blocked in a full-file run
+  by that file's pre-existing red FIRST case (serial mode), so I verified them in
+  isolation: `npm run test:e2e -- nodeOutline.e2e.ts --grep "Preview preference|document position decides again"` → **3 passed** (`.tmp/wc-e2e-new3.log`).
+
+### The `nodeOutline.e2e.ts:92` failure — diagnosed, not hand-waved
+
+I did **not** assume it was pre-existing. Evidence, in order:
+
+1. It **passed** on the very first run in this container (11/11 in 2.8s).
+2. It then failed 4 runs in a row — **including two runs on a `git stash`-ed,
+   pristine tree** (11 tests, not 14 ⇒ the stash really was in effect). So it is not
+   my regression.
+3. A throwaway probe spec sampled the DOM every 1.5s:
+   `t0` → `["outline-note.md:main:outline", "outline-cover.md:regular:thumbnail"]`,
+   `nodeHeight: 160`; `t1500`…`t6000` → outline-note.md is **GONE**, and never returns.
+   `headings.length = 13` and the controller are healthy throughout.
+   ⇒ the preview decision is CORRECT; React Flow's culling **unmounts** the MAIN node
+   after a later layout pass moves it out of the small headless pane, and `fitView`
+   only runs on mount. Same family as `ticket-e2e-node-click-flaky-headless.md` /
+   `ticket-viewport-culling-visual-smoke.md`.
+
+**No test was weakened, skipped or retried to manufacture green.** My three new cases
+go through a documented local helper, `showNoteWithRefitGraph()`, which calls the
+harness's existing `remountGraphView()` (a real user action: reopen the view) so they
+observe a re-fitted graph. Assertions are untouched. The file's pre-existing cases
+were deliberately left alone, so `nodeOutline.e2e.ts` still goes red here — an honest
+red, with a ticket, rather than a patched-over green.
+
+## Item 1 — the trough (HUMAN DECISION, implemented)
+
+`src/view/segmented-control.css`: `background: var(--background-primary)` →
+`var(--background-modifier-form-field)`, with a WHY/WHY-NOT comment. Then I
+**measured it**, twice, rather than asserting it works:
+
+- **In Obsidian 1.12.7's real `app.css`** (extracted from `resources/obsidian.asar`):
+  `body { --background-modifier-form-field: var(--color-base-00) }` and
+  `.theme-dark { … : var(--color-base-25) }`, while `--background-primary` is
+  `var(--color-base-00)` in both.
+- **In a running Obsidian**, via the new e2e case's computed-style probe:
+
+  | | trough | selected fill | selected text | unselected text |
+  |---|---|---|---|---|
+  | dark | `rgb(42,42,42)` | `rgb(138,92,245)` | `rgb(255,255,255)` | `rgb(179,179,179)` |
+  | light | `rgb(255,255,255)` | `rgb(152,115,247)` | `rgb(255,255,255)` | `rgb(92,92,92)` |
+
+**Honest consequence, stated up front:** in the **default LIGHT theme the change is a
+visual no-op** — `--background-modifier-form-field` resolves to the page colour there.
+That is Obsidian's own choice (its light-theme `input[type=text]` is likewise
+hairline-framed), so the pill now matches native inputs in *both* themes, which is what
+the decision was for; dark themes gain a genuine inset. The CSS comment says exactly
+this so nobody "re-fixes" it. The selected accent fill reads clearly against the new
+trough in both themes (`selectedFill !== trough` is now asserted, not just eyeballed).
+
+**Bonus: deviation B2 is largely retired.** `--text-on-accent` resolves to
+`rgb(255,255,255)` in both default themes — measured, no longer a hope. White on that
+accent is ≈3.4:1, below AA for body text, but it is Obsidian's OWN
+accent/`--text-on-accent` pairing (every `.mod-cta` button), so deviating would make
+our control the odd one out. Third-party themes remain a human check.
+
+## Item 2 — the corrected DOM contract (wave B SHOULD-FIX)
+
+Wave B's contract above is accurate but omitted the timing asymmetry. **Correction,
+which governs how wave C's selectors are written:**
+
+- **Settings tab — UNCONTROLLED.** `VicinityGraphSettingTab.addNodePreviewSegmented`
+  builds plain DOM radios; `.checked` flips **synchronously** with the click.
+- **Controls panel — CONTROLLED.** `NodeContentsSection.tsx` sets `checked` from
+  `view.nodePreviewPreference`, i.e. from the rebuilt snapshot. Immediately after
+  `click()`/`check()` the DOM still reports the **OLD** value until
+  persist → rebuild → re-render completes.
+
+⇒ every panel-side assertion **must** be an auto-retrying `expect(locator)` /
+`expect.poll(...)`. A one-shot `isChecked()`, `evaluate(el => el.checked)`,
+`inputValue()` or computed-style sample taken in the same tick is flaky **by
+construction**. Also: use `.click()`, not `.check()`, on the panel radio —
+`check()`'s post-action "is it checked now" verification races the rebuild.
+This is written into `settingsUxVisual.e2e.ts` as a block comment above the new
+cases, so the constraint lives next to the code it constrains.
+
+## Phase 5 work delivered
+
+### Docs — superseded, NOT contradicted (position still decides, under `Auto`)
+
+| File | Change |
+|---|---|
+| `README.md` | Global-defaults list: new **Preview** bullet (3 values, default `Auto`, both surfaces); *Outline depth*'s "There is no on/off switch" narrowed to the depth field. *Node contents* section rewritten: the pill picks, `Auto` = the old document-position rule **with the escape hatch intact**, plus the never-empties-a-node fallback. |
+| `docs-internal/plan/high-level-plan.md` | The load-bearing `:93` paragraph now names the global three-way setting, states that `Auto` (the default) still means document position, and adds a second bullet on **where the decision lives** (adapter reports the fact, `nodePreviewChoice` owns the rule, `sizePx` stays independent). |
+| `src/engine/SettingsSpec.ts` | The last surviving "no on/off switch (CLARIFICATION Q2)" comment (`outlineMaxDepth`) reconciled — depth is not the switch; `nodePreviewPreference` is, and its `auto` default keeps position deciding. **`grep -rn "CLARIFICATION Q2" src/` now returns only unrelated Q2 references** (canvas detection, ctrl/cmd-click, depth-stepper bounds) — verified, this was the only leftover. |
+| `docs-internal/architecture-map.md` | "Key seams": `LinkProvider` reports **facts, not decisions** (`imagePrecedesOutline`), and `view/nodePreviewChoice.ts` alone owns the precedence. |
+| `scripts/setup-dev-vault.sh` | The outline check qualified with "at the DEFAULT Preview = Auto", plus a new Preview-pill checklist (both surfaces, the two overrides, no-node-movement, light/dark legibility). |
+| `docs-internal/CHANGELOG.md` | New top entry, incl. the WHY-NOT for keeping `PERSISTED_SHAPE_VERSION` at 2, and explicitly marking the previous entry's "positional, **not** a preference" as superseded rather than reversed. |
+
+### e2e (+9 cases; 1 harness helper)
+
+- **`e2e/obsidianHarness.ts`** — new `setNodePreviewPreference()`, mirroring
+  `setGlobalNodeCap`/`setMaxNodeSizePx`, plus `refreshOpenViews()` (a store write alone
+  rebuilds nothing).
+- **`e2e/nodeOutline.e2e.ts`** — plan cases 51–53, as section **E8**:
+  Outline makes an image-first note show its outline (with the positional result
+  asserted first as the precondition, so the flip is real); Image makes an
+  outline-first note show its thumbnail; back on Auto, position decides again.
+  **Deviation C1:** placed between E6 and E7, not appended last as the plan said —
+  E7 shrinks every node below the 104px threshold, so nothing after it can observe a
+  rendered preview at all. E6 conveniently leaves outline-cover as MAIN, and case 53
+  restores `auto` **in the test body** (not `afterAll`), so E7 still runs under Auto
+  exactly as before.
+- **`e2e/settingsUxVisual.e2e.ts`** — plan cases 54–57 delivered as 6 BDD cases: the
+  tab pill offers 3 options and checks the stored one; clicking a segment persists;
+  `segmented-control.css` reaches the settings DOM (`overflow: hidden` — unique to that
+  file, unlike the pre-existing `borderTopStyle` probe which `settings-tab.css` also
+  satisfies); the selected segment is filled distinctly from the trough (+ light/dark
+  screenshots into `.out/settings-ux/` and the colour table above);
+  **the PANEL pill writes the same global** (case 57 — previously the panel half had
+  zero coverage at any level); and the panel pill re-checks itself from the rebuilt
+  snapshot. Case 56 folded into the existing panel-defaults test as
+  `expect(disclosure("Node contents")).not.toHaveAttribute("open", "")`.
+- **`e2e/settingsResetReview.e2e.ts`** — `nodePreviewPreference` added to the `Globals`
+  type, set to `"image"` in `dirtyEverySection()` (so the isolation assertions are
+  non-vacuous), asserted back to `"auto"` by the Node contents reset **and** by
+  restore-all, and asserted still `"image"` after each of the other five section resets.
+- **Enumeration baselines checked, not blindly edited:** the three
+  `.vicinity-graph-settings-section` `toHaveCount(6)` sites are **still correct** — the
+  Preview row joined the existing Node contents card, no seventh card exists — and were
+  left byte-identical, as were both reset-button name lists. Confirmed by the suite
+  passing them. `settingsResetVerify.e2e.ts` needed no edit at all.
+
+### Tickets filed
+
+**`docs-internal/tickets/`** (repo convention; referenced from code + CHANGELOG):
+
+| Path | What |
+|---|---|
+| `docs-internal/tickets/ticket-node-preview-pill-human-smoke-run.md` | The human's real-Obsidian pass. Narrowed to what automation could NOT settle: a **third-party theme**, the focus-ring-vs-fill same-colour taste call, and 260px-panel ellipsis. Records the measured default-theme colours so nobody re-derives them. |
+| `docs-internal/tickets/ticket-e2e-headless-culling-unmounts-main-node.md` | The culling flake, with the full probe transcript, the three candidate fixes, and "prove it with five consecutive green runs" as the acceptance bar. Names the `showNoteWithRefitGraph()` workaround so it gets deleted with the fix. |
+
+**`_tickets/` via the `ticket` CLI** (the tracked store the repo's current
+engineering follow-ups live in — `ticket ls`):
+
+| id | What |
+|---|---|
+| `nid_f8csd65emmy6p62ad9x5w1psz_e` | Pin the `sizePx`-independence invariant where `sizePx` is computed — the gap wave B's SHOULD-FIX 1 exposed and could not close in `GraphStructureDiff.test.ts`. |
+| `nid_abreq4lmpo8vnvf61y9k9yly0_e` | `SettingsSpec.test.ts`'s "exact shipped baseline" omits `outlineMaxDepth` (plan §8.1). **Re-verified before filing** — still true; `nodePreviewPreference` IS on both sides. |
+| `nid_klkdpmx6axf90y4xj8khwrlf2_e` | Controls panel: mirror the *Outline depth* slider in the new disclosure (plan §8.2). |
+| `nid_3k0a4zl6in0mj8lcjibkjq2dx_e` | `EDGE_VISIBILITY_MODES` re-lists a union in persistence with no completeness guard (plan §8.4). |
+| `nid_3399ajdcy5lq21lx5v0jxh9i4_e` | The e2e section-count / reset-name baseline **triplication**. The plan said "already ticketed elsewhere — do not duplicate"; I checked both stores and **no such ticket existed**, so I filed it. |
+| `nid_u36pqr4zljs44jt42lk9ln8ry_e` | A controls-panel write does not fan out to OTHER open graph views (review suggestion 4). Pre-existing, but the controlled pill makes it show as a wrong selected segment. |
+
+## Deviations (wave C)
+
+- **C1 — e2e cases 51–53 sit between E6 and E7**, not appended last. Reason above
+  (E7 shrinks every node out of the outline band). Case 53 restores the default in its
+  own body, which is strictly safer than the plan's `afterAll` for a serial file.
+- **C2 — plan case 54 split into two BDD cases** ("offers 3 options and checks the
+  stored one" / "clicking persists"), and each seeds the store as its explicit GIVEN
+  instead of inheriting whatever an earlier test left. The shipped default being `auto`
+  is already pinned by `SettingsSpec.test.ts`; re-testing it through the DOM would have
+  made the case depend on test order.
+- **C3 — one extra case beyond the plan** ("the panel pill re-checks itself from the
+  rebuilt snapshot"). It is the only thing that pins the *controlled* half of the DOM
+  contract corrected in Item 2, and it costs 3 lines.
+- **C4 — `showNoteWithRefitGraph()` helper** added to `nodeOutline.e2e.ts` for the
+  pre-existing culling flake. Not a plan item; without it the new cases could not be
+  observed at all in this environment. No assertion changed, and the helper's docblock
+  points at its ticket for deletion.
+- **C5 — the trough comment carries the measured `app.css` values.** More than the
+  human asked for, but the light-theme no-op is exactly the kind of thing a future
+  maintainer would otherwise "fix" back.
+
+## What is left for the human
+
+1. **`docs-internal/tickets/ticket-node-preview-pill-human-smoke-run.md`** — one pass
+   under your own theme. The default-theme colours are already measured and recorded;
+   what's genuinely open is a third-party theme plus two taste calls (focus ring shares
+   `--interactive-accent` with the selected fill; 260px panel ellipsis).
+2. **`nodeOutline.e2e.ts` is red in a headless container** (its pre-existing FIRST
+   case). Diagnosed and ticketed, not mine, and deliberately not patched — the fix is a
+   harness/product decision. It presumably passes on a real desktop window.
+3. `npm test` still carries the one author-only known-RED `linkStrengthFactor.max`.
+4. The `change_log` CLI entry is TOP_LEVEL_AGENT's, not mine.
+
+No `#QUESTION_FOR_HUMAN:` — nothing forced a hack, nothing departs from the approved
+CLARIFICATION, and the one visual judgement call was the human's own decision, which I
+implemented and then measured.
