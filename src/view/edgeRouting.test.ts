@@ -641,4 +641,40 @@ describe("LibavoidEdgeRouter with real wasm", () => {
 		});
 		expect(cutting.map((leaf) => leaf.id)).toEqual([]);
 	});
+
+	// Session-survival guard (ticket `edge-routing-a-throw-inside-route-kills-…`). A contract
+	// violation must cost ONE pass, not the session: `route()` throws on an edge whose obstacle
+	// was never registered, and `finally { arena.dispose() }` then destroys a Router whose shapes
+	// were never flushed by `processTransaction()`. libavoid's `~Router` asserts `visGraph.size()
+	// == 0`, so that tear-down ABORTS the wasm module — and `loadAvoid()` hands the same dead
+	// instance to every later pass, silently degrading the whole session to straight edges.
+	// Only an assertion on a SUBSEQUENT pass can tell "one pass failed" (correct) from "the
+	// module is dead" (the bug); the throw itself looks identical either way.
+	const UNREGISTERED_OBSTACLE_ID = "NEVER_REGISTERED";
+
+	/**
+	 * Runs one doomed pass and swallows ONLY its documented throw. The scene carries TWO
+	 * obstacles on purpose: the abort needs at least two connection pins pending in the Router
+	 * (measured — a Router holding a single pin, or none, tears down cleanly). A pass that does
+	 * NOT throw means the premise has moved, so it fails loudly here rather than quietly turning
+	 * the test below into a second copy of the plain routing tests.
+	 */
+	async function routeEdgeWithUnregisteredObstacle(): Promise<void> {
+		try {
+			await new LibavoidEdgeRouter().route({
+				obstacles: [nodeA, nodeB],
+				edges: [{ id: "A->missing", sourceId: nodeA.id, targetId: UNREGISTERED_OBSTACLE_ID }],
+				shapeBufferPx: SHIPPED_CLEARANCE_PX,
+			});
+		} catch {
+			return; // expected: the pass-level failure whose AFTERMATH this test is about
+		}
+		throw new Error("premise broken: an edge referencing an unregistered obstacle routed without throwing");
+	}
+
+	it("WHEN a pass throws on an edge referencing an unregistered obstacle THEN a later pass still routes (the wasm module survives)", async (ctx) => {
+		requireWasm(ctx);
+		await routeEdgeWithUnregisteredObstacle();
+		expect((await route()).length).toBeGreaterThan(2);
+	});
 });
