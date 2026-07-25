@@ -58,9 +58,11 @@ export interface ViewsRefreshPort {
 /**
  * The slice of the OWNING view's controller the controls executor needs: which
  * doc is currently MAIN (every depth write targets it) and "rebuild just this
- * view". Structurally satisfied by `GraphViewController`; deliberately narrow so
- * the executor is testable with a plain fake and cannot reach the rest of the
- * controller. Contrast {@link ViewsRefreshPort}, which reaches ALL views.
+ * view" — the reach of a per-doc write, kept narrow by scope rather than by any
+ * insulation between views (see `settingsWriteScope.ts`). Structurally
+ * satisfied by `GraphViewController`; deliberately narrow so the executor is
+ * testable with a plain fake and cannot reach the rest of the controller.
+ * Contrast {@link ViewsRefreshPort}, which reaches ALL views.
  */
 export interface OwningViewPort {
 	currentMainPath(): string | null;

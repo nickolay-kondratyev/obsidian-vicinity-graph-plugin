@@ -14,21 +14,24 @@ import type { OwningViewPort } from "./viewPorts";
 
 // `ControlsActions` imports `Notice` from the type-only `obsidian` package (no
 // runtime entry point), so the module needs a stand-in to be importable at all.
-// Nothing here asserts on notices — the non-persistable paths are not exercised.
+// The non-persistable tests below exercise the notice path; none assert on it.
 vi.mock("obsidian", () => ({ Notice: class {} }));
 
 /**
  * Refresh fan-out tests for the controls executor: a GLOBAL write lands in
  * data.json, which every open graph view renders from, so it must rebuild ALL of
- * them; a PER-DOC write only concerns the doc that is MAIN in the writing view.
- * Collaborators are the real persistence classes over their in-memory fakes plus
- * a structural fake for the owning view's controller — no obsidian runtime.
+ * them; a PER-DOC write rebuilds only the writing view (ticket scope), and a
+ * write that never landed rebuilds nothing at all. Collaborators are the real
+ * persistence classes over their in-memory fakes plus a structural fake for the
+ * owning view's controller — no obsidian runtime.
  */
 
 const ORIGINATING_VIEW_ID = "view-originating";
 const OTHER_VIEW_ID = "view-other";
 const MAIN_PATH = "main.md";
 const MAIN_DOCID = "docid_main_e";
+/** Resolves to a real file, but id-lib can mint no docid for it → `not-persistable`. */
+const ID_LESS_PATH = "id-less.md";
 
 /** Records rebuilds of the ONE view that owns the controls panel. */
 class FakeOwningView implements OwningViewPort {
@@ -49,23 +52,26 @@ function fileAt(path: string): VaultFilePort {
 	return { path, extension: path.split(".").pop() ?? "", stat: { mtime: 0, size: 0 }, parent: { path: "/" } };
 }
 
-/** Serves exactly the MAIN file; anything else is unresolved, as an empty vault would be. */
+/** Serves the MAIN and the id-less file; anything else is unresolved, as an empty vault would be. */
+const RESOLVABLE_PATHS: readonly string[] = [MAIN_PATH, ID_LESS_PATH];
 const VAULT: VaultPort = {
-	getFileByPath: (path) => (path === MAIN_PATH ? fileAt(MAIN_PATH) : null),
-	getFiles: () => [fileAt(MAIN_PATH)],
+	getFileByPath: (path) => (RESOLVABLE_PATHS.includes(path) ? fileAt(path) : null),
+	getFiles: () => RESOLVABLE_PATHS.map(fileAt),
 	cachedRead: () => Promise.resolve(""),
 };
 
-async function actionsUnderTest() {
+async function actionsUnderTest(mainPath: string | null = MAIN_PATH) {
 	const pluginDataStore = new PluginDataStore(new FakePluginDataPort());
 	await pluginDataStore.init();
+	const docIdPort = new FakeDocIdPort({ [MAIN_PATH]: MAIN_DOCID });
+	docIdPort.markUnidentifiable(ID_LESS_PATH);
 	const persistenceServices = new PersistenceServices(
-		new FakeDocIdPort({ [MAIN_PATH]: MAIN_DOCID }),
+		docIdPort,
 		pluginDataStore,
 		new DocDataStore(new FakeFileStorage(), "doc-data"),
 		new PathDocIdMap(),
 	);
-	const owningView = new FakeOwningView(MAIN_PATH);
+	const owningView = new FakeOwningView(mainPath);
 	const viewsRefresh = new FakeViewsRefresh([ORIGINATING_VIEW_ID, OTHER_VIEW_ID]);
 	const actions = new ControlsActions(owningView, persistenceServices, pluginDataStore, VAULT, viewsRefresh);
 	return { actions, owningView, viewsRefresh, pluginDataStore };
@@ -104,6 +110,19 @@ describe("ControlsActions.applySettings", () => {
 		await actions.applySettings({ kind: "doc-depth-field", field: "outgoingDepth", value: 3 });
 		expect(viewsRefresh.refreshedViewIds).toEqual([]);
 	});
+
+	it("WHEN a per-doc write has no MAIN to target THEN not even the originating view rebuilds", async () => {
+		// Nothing was written, so a rebuild could only redisplay what is already shown.
+		const { actions, owningView } = await actionsUnderTest(null);
+		await actions.applySettings({ kind: "doc-depth-field", field: "outgoingDepth", value: 3 });
+		expect(owningView.rebuildCount).toBe(0);
+	});
+
+	it("WHEN a per-doc write is refused as not-persistable THEN not even the originating view rebuilds", async () => {
+		const { actions, owningView } = await actionsUnderTest(ID_LESS_PATH);
+		await actions.applySettings({ kind: "doc-depth-field", field: "outgoingDepth", value: 3 });
+		expect(owningView.rebuildCount).toBe(0);
+	});
 });
 
 describe("ControlsActions pinning", () => {
@@ -123,6 +142,13 @@ describe("ControlsActions pinning", () => {
 	it("WHEN the pinned path resolves to no file THEN nothing is refreshed", async () => {
 		const { actions, viewsRefresh } = await actionsUnderTest();
 		await actions.pinNode("gone.md");
+		expect(viewsRefresh.refreshedViewIds).toEqual([]);
+	});
+
+	it("WHEN a pin is refused as not-persistable THEN nothing is refreshed", async () => {
+		// The user gets a Notice instead; no pin landed, so N rebuilds would be pure waste.
+		const { actions, viewsRefresh } = await actionsUnderTest();
+		await actions.pinNode(ID_LESS_PATH);
 		expect(viewsRefresh.refreshedViewIds).toEqual([]);
 	});
 });

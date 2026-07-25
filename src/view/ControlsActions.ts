@@ -11,24 +11,34 @@ import type { ControlsActionsPort, OwningViewPort, ViewsRefreshPort } from "./vi
  * Obsidian executor for the controls surface (step-06 #6/#8). Thin glue: it
  * switches a pure {@link SettingsCommand} (or a pin/unpin) onto the matching
  * {@link PersistenceServices}/{@link PluginDataStore} call, resolves the target
- * `TFile` from a path, surfaces a `Notice` when the doc can't be persisted, then
- * asks the controller to rebuild. This is one of the few view files allowed to
- * import `obsidian`; the decision of WHICH write to make lives in the pure
- * `planSettingsWrite`, keeping this a switch with no business logic.
+ * file from a path via {@link VaultPort}, surfaces a `Notice` when the doc can't
+ * be persisted, then triggers a rebuild. This is one of the few view files
+ * allowed to import `obsidian`; the decision of WHICH write to make lives in the
+ * pure `planSettingsWrite`, keeping this a switch with no business logic.
  *
  * WHICH views rebuild afterwards is likewise a pure decision
  * ({@link settingsWriteScope}): a global write reaches every open view through
- * {@link ViewsRefreshPort}, a per-doc write only the view that made it.
+ * {@link ViewsRefreshPort}; a per-doc write rebuilds only the view that made it.
+ * NOTHING rebuilds when the write did not land ({@link WriteOutcome}) — no
+ * rendered state changed, so a rebuild could only redisplay what is on screen.
  *
  * Depth writes ALL target the MAIN file (own depths → `setDocDepthField`; a
  * pinned central's depth → MAIN's `centralDepths` → `setCentralDepthField`), so
- * the executor reads the current MAIN via `controller.currentMainPath()` rather
- * than threading a path through React. A null/unresolvable MAIN is a silent
- * no-op (nothing to write against).
+ * the executor reads the current MAIN via {@link OwningViewPort.currentMainPath}
+ * rather than threading a path through React. A null/unresolvable MAIN is a
+ * silent no-op (nothing to write against).
  */
 
 const NOT_PERSISTABLE_NOTICE = "This note can't carry graph settings (no stable id).";
 const NOT_PINNABLE_NOTICE = "This note can't be pinned (no stable id).";
+
+/**
+ * Whether a requested write actually reached storage. A refused doc (no stable
+ * id) and an absent MAIN both leave every byte and every view unchanged, so this
+ * is what gates the rebuild — otherwise a rejected pin would cost one graph build
+ * plus layout in EVERY open view, next to a "can't be pinned" Notice.
+ */
+type WriteOutcome = "persisted" | "not-persisted";
 
 export class ControlsActions implements ControlsActionsPort {
 	constructor(
@@ -40,7 +50,9 @@ export class ControlsActions implements ControlsActionsPort {
 	) {}
 
 	async applySettings(command: SettingsCommand): Promise<void> {
-		await this.executeSettings(command);
+		if ((await this.executeSettings(command)) === "not-persisted") {
+			return;
+		}
 		if (settingsWriteScope(command) === "global") {
 			this.refreshEveryView();
 			return;
@@ -53,10 +65,13 @@ export class ControlsActions implements ControlsActionsPort {
 		if (file === null) {
 			return;
 		}
-		this.noticeIfNotPersistable(await this.persistenceServices.pinDoc(file), NOT_PINNABLE_NOTICE);
+		if (this.persistOutcome(await this.persistenceServices.pinDoc(file), NOT_PINNABLE_NOTICE) === "not-persisted") {
+			return;
+		}
 		this.refreshEveryView();
 	}
 
+	/** Unpinning always lands: `unpinDoc` removes the pin unconditionally and reports no verdict. */
 	async unpinNode(docid: string): Promise<void> {
 		await this.persistenceServices.unpinDoc(docid);
 		this.refreshEveryView();
@@ -72,25 +87,24 @@ export class ControlsActions implements ControlsActionsPort {
 		this.viewsRefresh.refreshAllViews();
 	}
 
-	private async executeSettings(command: SettingsCommand): Promise<void> {
+	private async executeSettings(command: SettingsCommand): Promise<WriteOutcome> {
 		switch (command.kind) {
 			case "doc-depth-field": {
 				const mainFile = this.mainFile();
 				if (mainFile === null) {
-					return;
+					return "not-persisted";
 				}
-				this.noticeIfNotPersistable(
+				return this.persistOutcome(
 					await this.persistenceServices.setDocDepthField(mainFile, command.field, command.value),
 					NOT_PERSISTABLE_NOTICE,
 				);
-				return;
 			}
 			case "central-depth-field": {
 				const mainFile = this.mainFile();
 				if (mainFile === null) {
-					return;
+					return "not-persisted";
 				}
-				this.noticeIfNotPersistable(
+				return this.persistOutcome(
 					await this.persistenceServices.setCentralDepthField(
 						mainFile,
 						command.centralDocid,
@@ -99,17 +113,17 @@ export class ControlsActions implements ControlsActionsPort {
 					),
 					NOT_PERSISTABLE_NOTICE,
 				);
-				return;
 			}
+			// Globals carry no doc identity, so nothing can refuse them.
 			case "global-depths":
 				await this.pluginDataStore.saveGlobalDepths(command.depths);
-				return;
+				return "persisted";
 			case "global-view":
 				await this.pluginDataStore.saveGlobalView(command.view);
-				return;
+				return "persisted";
 			case "node-exclusion":
 				await this.pluginDataStore.saveNodeExclusion(command.nodeExclusion);
-				return;
+				return "persisted";
 		}
 	}
 
@@ -118,9 +132,12 @@ export class ControlsActions implements ControlsActionsPort {
 		return mainPath === null ? null : this.vault.getFileByPath(mainPath);
 	}
 
-	private noticeIfNotPersistable(identity: PersistableIdentity, message: string): void {
+	/** Turns a persistence verdict into a rebuild decision, telling the user when the write was refused. */
+	private persistOutcome(identity: PersistableIdentity, message: string): WriteOutcome {
 		if (identity.kind === "not-persistable") {
 			new Notice(message);
+			return "not-persisted";
 		}
+		return "persisted";
 	}
 }

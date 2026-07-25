@@ -40,6 +40,7 @@ Ticket `nid_u36pqr4zljs44jt42lk9ln8ry_e` (bug, p3). Branch `controls-global-refr
 | `global-depths` / `global-view` / `node-exclusion` | `viewsRefresh.refreshAllViews()` — every open view |
 | `doc-depth-field` / `central-depth-field` | `owningView.handleSettingsChanged()` — only the writing view |
 | `pinNode` / `unpinNode` | `refreshAllViews()` — pinned set is global `data.json` state |
+| ANY write that did not land (no MAIN / not-persistable doc) | **nothing** — added in review iteration 1 |
 
 **No double rebuild.** For a global write the originating view is NOT also
 asked to rebuild directly: it is itself an open view, so the plugin's leaf walk
@@ -62,9 +63,15 @@ one-line application, covered by two tests.
 - `docs-internal/architecture-map.md` — key-seams entry for the two refresh ports
 
 ## Tests
-`npm test` 935/935 pass (70 files); `npm run check` clean; `npm run build` OK.
-Started from a genuinely failing run: 7 of the 13 new tests failed before the
-implementation landed.
+After review iteration 1: `npm test` **938/938** pass (70 files); `npm run check`
+clean. Started from a genuinely failing run in both rounds (round 0: 7 of 13 new
+tests failed pre-implementation; iteration 1: all 3 new tests failed first).
+
+## Review iteration 1 (see `IMPLEMENTATION_ITERATION__PUBLIC.md`)
+All 3 SHOULD-FIX accepted. `WriteOutcome` now gates every rebuild, the scope
+comments state the real (scope-boundary) reason, and
+`docs-internal/tickets/ticket-per-doc-write-leaves-sibling-views-stale.md`
+records the newly-understood sibling-view defect.
 
 ## Untouched paths (verified)
 - `VicinityGraphSettingTab` → `plugin.refreshOpenViews()`: unchanged, and now

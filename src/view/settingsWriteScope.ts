@@ -5,7 +5,14 @@ import type { SettingsCommand } from "./settingsWritePlan";
  *
  * `global` writes land in `data.json`, which EVERY open graph view reads on its
  * next rebuild, so every open view is stale until it rebuilds. `per-doc` writes
- * land in the MAIN doc's own file and only concern the view that made them.
+ * land in the MAIN doc's own file and rebuild ONLY the writing view.
+ *
+ * WHY-NOT fan `per-doc` out as well: that is a scope boundary, not an invariant.
+ * Sibling views are NOT insulated — every view follows the active file
+ * (`VicinityGraphView.registerGraphEvents`), so two open views normally share the
+ * same MAIN and the non-writing one DOES go stale on a depth write. Widening it
+ * is deliberately deferred: see
+ * `docs-internal/tickets/ticket-per-doc-write-leaves-sibling-views-stale.md`.
  */
 export type SettingsWriteScope = "global" | "per-doc";
 

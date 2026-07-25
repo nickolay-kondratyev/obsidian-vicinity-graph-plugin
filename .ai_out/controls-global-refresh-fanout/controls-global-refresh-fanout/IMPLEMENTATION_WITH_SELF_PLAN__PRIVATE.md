@@ -1,6 +1,17 @@
 # PRIVATE memory — controls-global-refresh-fanout (IMPLEMENTATION_WITH_SELF_PLAN)
 
-## State: DONE. Implemented, all tests + check + build green, committed on `controls-global-refresh-fanout`.
+## State: DONE through REVIEW ITERATION 1. 938/938 tests + check green, committed on `controls-global-refresh-fanout`.
+
+## Iteration 1 (all 3 SHOULD-FIX accepted — details in IMPLEMENTATION_ITERATION__PUBLIC.md)
+- `WriteOutcome = "persisted" | "not-persisted"` in `ControlsActions.ts` now gates EVERY rebuild.
+  `noticeIfNotPersistable` → `persistOutcome`; `executeSettings` returns it. Rule: nothing landed ⇒ nothing rebuilds.
+- Scope comments made honest: per-doc is narrow BY SCOPE, not because views are insulated
+  (they are not — every view follows the active file, `VicinityGraphView.tsx:119-124`).
+- New ticket `docs-internal/tickets/ticket-per-doc-write-leaves-sibling-views-stale.md`.
+- NICE-TO-HAVE N1–N5 deliberately NOT taken (scope). N3 (deferred-view WHY-NOT in `main.ts`) is the
+  only one worth revisiting.
+- Test-fixture facts: `FakeDocIdPort.markUnidentifiable(path)` is how you produce a `not-persistable`
+  verdict; the fake `VaultPort` must ALSO serve that path or you hit the earlier `file === null` branch.
 
 ## Plan (all steps done)
 1. [x] Pure `settingsWriteScope` + test (5 tests, one per command kind).
