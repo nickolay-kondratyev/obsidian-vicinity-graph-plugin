@@ -325,6 +325,27 @@ export class ObsidianHarness {
 	}
 
 	/**
+	 * Sets the global node-preview preference through the plugin's own persistence
+	 * API (mirrors {@link setGlobalNodeCap}), then fans the change out to every open
+	 * graph view — a store write alone does not rebuild anything.
+	 *
+	 * WHY not drive the pill: the two pills' own click paths are covered in
+	 * `settingsUxVisual.e2e.ts`; suites that only need a given RENDERED preview
+	 * want the setting, not the UI, in the middle.
+	 */
+	async setNodePreviewPreference(preference: "auto" | "outline" | "image"): Promise<void> {
+		await this.page.evaluate(
+			async ({ pluginId, value }) => {
+				const app = (window as unknown as { app: any }).app;
+				const plugin = app.plugins.plugins[pluginId];
+				await plugin.pluginDataStore.saveGlobalView({ ...plugin.pluginDataStore.globalView(), nodePreviewPreference: value });
+				plugin.refreshOpenViews();
+			},
+			{ pluginId: PLUGIN_ID, value: preference },
+		);
+	}
+
+	/**
 	 * Reads the plugin's persisted global view settings straight from the store —
 	 * the source of truth that a restart reloads. Used to assert settings
 	 * round-trip through {@link relaunch} without depending on rendered pixels.

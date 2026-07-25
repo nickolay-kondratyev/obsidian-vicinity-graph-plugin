@@ -269,6 +269,53 @@ test("a note whose first image precedes its first heading shows the image, not a
 	await expect(outlineOf(OUTLINE_COVER_PATH)).toHaveCount(0);
 });
 
+// --- E8: the Preview preference overrides document position -------------------
+// Placed AFTER E6 (which leaves outline-cover as MAIN, exactly what E8.1 needs)
+// and BEFORE E7 on purpose: E7 shrinks every node below the 104px threshold, so
+// nothing appended after it can observe a rendered preview at all. E8.3 restores
+// the default, so E7 still runs under Auto as it always has.
+
+/**
+ * Re-fits the viewport on the CURRENT graph before observing it. WHY: React Flow
+ * culls off-screen nodes, `fitView` runs on MOUNT only, and in a small headless
+ * pane a late layout pass can push the MAIN node outside the viewport — where it
+ * is UNMOUNTED and no locator can see it (measured: present at mount, gone a few
+ * seconds later). Remounting is what a real user does by reopening the view.
+ * Tracked as an environment flake in
+ * `docs-internal/tickets/ticket-e2e-headless-culling-unmounts-main-node.md`.
+ */
+async function showNoteWithRefitGraph(vaultPath: string): Promise<void> {
+	await harness.openFile(vaultPath);
+	await harness.remountGraphView();
+	await expect(noteNode(vaultPath)).toHaveAttribute("data-tier", "main");
+}
+
+test("with the Preview preference on Outline, an image-first note shows its outline instead", async () => {
+	await showNoteWithRefitGraph(OUTLINE_COVER_PATH);
+	// Precondition: E6's positional result, i.e. the thing the preference overrides.
+	await expect(noteNode(OUTLINE_COVER_PATH)).toHaveAttribute("data-preview", "thumbnail");
+
+	await harness.setNodePreviewPreference("outline");
+
+	await expect(noteNode(OUTLINE_COVER_PATH)).toHaveAttribute("data-preview", "outline");
+});
+
+test("with the Preview preference on Image, an outline-first note shows its thumbnail instead", async () => {
+	await showNoteWithRefitGraph(OUTLINE_NOTE_PATH);
+
+	await harness.setNodePreviewPreference("image");
+
+	await expect(noteNode(OUTLINE_NOTE_PATH)).toHaveAttribute("data-preview", "thumbnail");
+});
+
+test("back on Auto, document position decides again", async () => {
+	// Restores the shipped default IN the test body, not in afterAll: a flaky
+	// failure here must not leave a dirty preference for the rest of the file.
+	await harness.setNodePreviewPreference("auto");
+
+	await expect(noteNode(OUTLINE_NOTE_PATH)).toHaveAttribute("data-preview", "outline");
+});
+
 // --- E7: the outline's layout rule must not leak below its own threshold ------
 // KEEP LAST: it shrinks every node for the rest of the file.
 

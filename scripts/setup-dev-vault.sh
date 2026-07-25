@@ -366,6 +366,17 @@ cat <<EOF
    - clicking an entry opens the note AT that heading (check BOTH
      editing and reading view — Obsidian scrolls to and flashes it)
    - outline-cover's MAIN node shows the image, never an outline
+     (true at the DEFAULT Preview = Auto; the pill can override it)
+
+ Preview-pill check (Node contents, on the settings tab AND in the
+ in-view graph controls — one global value, two surfaces):
+   - Outline: outline-cover's MAIN node swaps its image for its outline
+   - Image: outline-note's MAIN node swaps its outline for a thumbnail
+   - back to Auto: both nodes return to what document position says
+   - flipping the pill must NOT move any node (data-only refresh)
+   - eyeball the pill in LIGHT and DARK: the selected segment's label
+     must stay legible on the accent fill (--text-on-accent), and the
+     unselected trough must read as an inset field
 
  Ticket-03 stranding check:
    - open stranded-main.md (outgoing depth >= 2) or stranded-hub.md →

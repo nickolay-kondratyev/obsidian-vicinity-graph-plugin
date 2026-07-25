@@ -121,8 +121,9 @@ export const SETTINGS_SPEC: SettingsSpec = {
 		 * How many markdown heading levels a node's in-node outline renders.
 		 * Markdown has 6 levels; `2` shows sections + subsections, which is what
 		 * fits the ≤160px node the engine's sizing can produce. `min 1` (never 0):
-		 * the outline has no on/off switch (CLARIFICATION Q2) — the documented way
-		 * to get an image instead is to put it before the first heading.
+		 * DEPTH is not an on/off switch — choosing outline vs image is
+		 * {@link ViewSpec.nodePreviewPreference}'s job, and under its `auto` default
+		 * document position still decides (image above the first heading wins).
 		 */
 		outlineMaxDepth: { default: 2, min: 1, max: 6, step: 1 },
 		/**

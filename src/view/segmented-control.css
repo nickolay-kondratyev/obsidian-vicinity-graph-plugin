@@ -26,7 +26,22 @@
 
 .vicinity-graph-segmented {
 	display: inline-flex;
-	background: var(--background-primary);
+	/*
+	 * The TROUGH — the exact variable Obsidian's own `input[type=text|number|…]`
+	 * fills itself with, so this control is inset like every native field in
+	 * whatever theme is loaded. WHY-NOT `--background-primary` (the first cut):
+	 * it is by definition identical to both hosts' backgrounds (the settings-modal
+	 * page and `.vicinity-graph-disclosure`), so the pill was delineated by
+	 * nothing but its 1px border. Human decision after reviewing the rendered
+	 * control.
+	 *
+	 * Measured in Obsidian 1.12.7's app.css: `body` sets this to `--color-base-00`
+	 * and `.theme-dark` overrides it to `--color-base-25`. So in the DEFAULT LIGHT
+	 * theme it still resolves to the page colour — that is Obsidian's own choice
+	 * (its light-theme inputs are hairline-framed too), and matching it is the
+	 * point; dark themes gain a genuinely darker inset.
+	 */
+	background: var(--background-modifier-form-field);
 	border: 1px solid var(--background-modifier-border);
 	border-radius: var(--radius-m);
 	/* Clips the selected segment's fill to the pill's rounded frame. */

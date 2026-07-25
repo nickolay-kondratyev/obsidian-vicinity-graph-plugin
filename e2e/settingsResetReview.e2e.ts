@@ -33,6 +33,7 @@ interface Globals {
 	readonly view: {
 		readonly nodeCap: number;
 		readonly outlineMaxDepth: number;
+		readonly nodePreviewPreference: string;
 		readonly groupByFolder: boolean;
 		readonly edgeVisibility: string;
 		readonly sizing: { readonly minPx: number; readonly maxPx: number; readonly depthDecayK: number };
@@ -60,6 +61,9 @@ async function dirtyEverySection(): Promise<void> {
 			...view,
 			nodeCap: 42,
 			outlineMaxDepth: 5,
+			// The Node contents card's SECOND field. A non-default here is what makes
+			// every "…and left the preference dirty" assertion below non-vacuous.
+			nodePreviewPreference: "image",
 			sizing: { ...view.sizing, minPx: 11, maxPx: 99, depthDecayK: 0.75 },
 			forceLayout: { ...view.forceLayout, repelStrength: 800, collidePaddingPx: 77 },
 		});
@@ -110,6 +114,7 @@ test("REVIEW: isolation matrix — each section reset touches only its own keys"
 	expect(after.view.sizing.minPx).toBe(11);
 	expect(after.view.forceLayout.repelStrength).toBe(800);
 	expect(after.view.outlineMaxDepth).toBe(5);
+	expect(after.view.nodePreviewPreference).toBe("image");
 	expect(after.exclusion.patterns).toEqual(["^archive/", "templates/"]);
 
 	// --- Node sizing --------------------------------------------------------
@@ -125,6 +130,7 @@ test("REVIEW: isolation matrix — each section reset touches only its own keys"
 	// Node CONTENTS is the adjacent card and shares the `global-view` slice with
 	// sizing — the pairing most likely to reset each other by accident.
 	expect(after.view.outlineMaxDepth).toBe(5);
+	expect(after.view.nodePreviewPreference).toBe("image");
 	expect(after.exclusion.enabled).toBe(true);
 
 	// --- Node contents ------------------------------------------------------
@@ -132,6 +138,8 @@ test("REVIEW: isolation matrix — each section reset touches only its own keys"
 	await resetButton("Node contents").click();
 	after = await readGlobals();
 	expect(after.view.outlineMaxDepth).toBe(2);
+	// The card resets BOTH its fields in one write — depth alone would be a half fix.
+	expect(after.view.nodePreviewPreference).toBe("auto");
 	expect(after.depths.outgoingDepth).toBe(4);
 	expect(after.view.nodeCap).toBe(42);
 	expect(after.view.sizing.minPx).toBe(11);
@@ -148,6 +156,7 @@ test("REVIEW: isolation matrix — each section reset touches only its own keys"
 	expect(after.view.nodeCap).toBe(42);
 	expect(after.view.sizing.minPx).toBe(11);
 	expect(after.view.outlineMaxDepth).toBe(5);
+	expect(after.view.nodePreviewPreference).toBe("image");
 	expect(after.exclusion.enabled).toBe(true);
 
 	// --- Node exclusion -----------------------------------------------------
@@ -163,6 +172,7 @@ test("REVIEW: isolation matrix — each section reset touches only its own keys"
 	expect(after.view.sizing.minPx).toBe(11);
 	expect(after.view.forceLayout.repelStrength).toBe(800);
 	expect(after.view.outlineMaxDepth).toBe(5);
+	expect(after.view.nodePreviewPreference).toBe("image");
 
 	// --- Performance --------------------------------------------------------
 	await dirtyEverySection();
@@ -173,6 +183,7 @@ test("REVIEW: isolation matrix — each section reset touches only its own keys"
 	expect(after.view.sizing.minPx).toBe(11);
 	expect(after.view.forceLayout.repelStrength).toBe(800);
 	expect(after.view.outlineMaxDepth).toBe(5);
+	expect(after.view.nodePreviewPreference).toBe("image");
 	expect(after.exclusion.enabled).toBe(true);
 });
 
@@ -285,6 +296,7 @@ test("REVIEW: confirm modal — keyboard-only confirm restores everything", asyn
 	// "Restore ALL" must include the newest section too, not just the ones that
 	// existed when the footer button was written.
 	expect(after.view.outlineMaxDepth).toBe(2);
+	expect(after.view.nodePreviewPreference).toBe("auto");
 });
 
 test("REVIEW: reset survives closing/reopening the tab AND a plugin reload", async () => {

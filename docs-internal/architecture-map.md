@@ -36,7 +36,11 @@ view  ──▶  adapters  ──▶  engine  (pure core)
 ## Key seams (interfaces — extend by adding implementations, not editing)
 
 - `engine/LinkProvider.ts` — the sole Obsidian→engine boundary; canvas
-  detection lives here.
+  detection lives here. It reports **facts, not decisions**: e.g.
+  `FileMetadata.imagePrecedesOutline` says where the note's first image sits
+  relative to its first heading, and `view/nodePreviewChoice.ts` alone owns the
+  resulting outline-vs-image precedence (one pure function, honouring the global
+  `nodePreviewPreference`).
 - `view/viewPorts.ts` — `GraphSourcePort`, `GraphLayoutPort`, `NoteNavigatorPort`
   (opens a note, optionally at a `heading` — the RAW heading text; the adapter
   sanitises it into a link subpath), and `NoteOpenPort`, the one-method slice

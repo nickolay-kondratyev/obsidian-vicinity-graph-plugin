@@ -54,6 +54,7 @@ test("panel defaults: every section is a disclosure, only Depth starts open", as
 	await expect(disclosure("Depth").first()).toHaveAttribute("open", "");
 	await expect(disclosure("Node exclusion")).not.toHaveAttribute("open", "");
 	await expect(disclosure("Node sizing")).not.toHaveAttribute("open", "");
+	await expect(disclosure("Node contents")).not.toHaveAttribute("open", "");
 	await expect(disclosure("Force layout").first()).not.toHaveAttribute("open", "");
 	await page.screenshot({ path: `${OUT_DIR}/panel-default-open.png` });
 });
@@ -203,4 +204,145 @@ test("settings tab: restore-all asks first, then resets every section", async ()
 	await modal.getByRole("button", { name: "Restore all defaults" }).click();
 	const after = await readGlobals();
 	expect(after.depths.outgoingDepth).toBe(1);
+});
+
+// --- The Preview pill, on BOTH surfaces ---------------------------------------
+/*
+ * The two pills are NOT symmetric, and it changes how they must be asserted:
+ *
+ * - The settings tab builds plain UNCONTROLLED DOM radios, so `.checked` flips
+ *   synchronously with the click.
+ * - The controls panel's radio is CONTROLLED by React off the rebuilt snapshot,
+ *   so right after the click the DOM still reports the OLD value until persist +
+ *   rebuild + re-render land.
+ *
+ * Therefore every assertion here is a RETRYING `expect(...)` / `expect.poll(...)`.
+ * A one-shot `isChecked()` / `evaluate(el => el.checked)` / `inputValue()` sample
+ * is flaky on the panel by construction — do not "simplify" these back.
+ */
+
+/** The plugin's persisted preview preference, straight from the store. */
+const storedPreviewPreference = (): Promise<string> =>
+	page.evaluate(
+		(pluginId) => (window as any).app.plugins.plugins[pluginId].pluginDataStore.globalView().nodePreviewPreference,
+		PLUGIN_ID,
+	);
+
+/**
+ * Writes the preference straight to the store and re-renders the settings tab, so
+ * a test's GIVEN does not depend on what an earlier test left behind.
+ */
+async function seedPreviewPreference(value: string): Promise<void> {
+	await page.evaluate(
+		async ({ pluginId, preference }) => {
+			const store = (window as any).app.plugins.plugins[pluginId].pluginDataStore;
+			await store.saveGlobalView({ ...store.globalView(), nodePreviewPreference: preference });
+			(window as any).app.setting.activeTab?.display();
+		},
+		{ pluginId: PLUGIN_ID, preference: value },
+	);
+}
+
+/** The tab's pill. Scoped to the settings DOM: the panel has a second radiogroup. */
+function tabPreviewRadio(optionLabel: string): Locator {
+	return page
+		.locator(".vicinity-graph-settings-section", { hasText: "Node contents" })
+		.getByRole("radio", { name: optionLabel, exact: true });
+}
+
+test("settings tab: the Preview pill shows one segment per option and checks the stored one", async () => {
+	await openSettingsTab();
+	await seedPreviewPreference("auto");
+	// Precondition: all three options are offered (a pill that lost one would
+	// still satisfy the checked-state assertion below).
+	await expect(
+		page.locator(".vicinity-graph-settings-section", { hasText: "Node contents" }).getByRole("radio"),
+	).toHaveCount(3);
+
+	await expect(tabPreviewRadio("Auto")).toBeChecked();
+});
+
+test("settings tab: clicking a Preview segment persists the new preference", async () => {
+	await openSettingsTab();
+	await seedPreviewPreference("auto");
+
+	await tabPreviewRadio("Outline").click();
+
+	await expect.poll(storedPreviewPreference).toBe("outline");
+});
+
+test("settings tab: the segmented-control stylesheet reaches the settings modal DOM", async () => {
+	await openSettingsTab();
+	// `npm test` cannot catch a missing AUTHORED_CSS_FILES entry — only the
+	// generated styles.css inside a real Obsidian can. `overflow` is the cheapest
+	// probe unique to segmented-control.css (a bare div's default is "visible").
+	const overflow = await page
+		.locator(".vicinity-graph-settings .vicinity-graph-segmented")
+		.first()
+		.evaluate((el) => getComputedStyle(el).overflow);
+
+	expect(overflow).toBe("hidden");
+});
+
+test("settings tab: the selected Preview segment is filled distinctly from the trough", async () => {
+	await openSettingsTab();
+	await seedPreviewPreference("auto");
+	const card = page.locator(".vicinity-graph-settings-section", { hasText: "Node contents" });
+	const pill = card.locator(".vicinity-graph-segmented");
+
+	/**
+	 * Resolved colours, both themes. Logged as EVIDENCE, not asserted: the exact
+	 * values are the theme's business, and this is the record a human uses to judge
+	 * `--text-on-accent` legibility on the selected segment and how the trough reads
+	 * against its host (see
+	 * `docs-internal/tickets/ticket-node-preview-pill-human-smoke-run.md`).
+	 */
+	const measure = (): Promise<Record<string, string>> =>
+		pill.evaluate((group) => {
+			const checked = group.querySelector("input:checked")?.parentElement as HTMLElement;
+			const unchecked = group.querySelector("input:not(:checked)")?.parentElement as HTMLElement;
+			return {
+				trough: getComputedStyle(group).backgroundColor,
+				selectedFill: getComputedStyle(checked).backgroundColor,
+				selectedText: getComputedStyle(checked).color,
+				unselectedText: getComputedStyle(unchecked).color,
+			};
+		});
+
+	await harness.setTheme("dark");
+	await card.screenshot({ path: `${OUT_DIR}/preview-pill-dark.png` });
+	console.log(`preview-pill colors (dark)=[${JSON.stringify(await measure())}]`);
+	await harness.setTheme("light");
+	await card.screenshot({ path: `${OUT_DIR}/preview-pill-light.png` });
+	const light = await measure();
+	console.log(`preview-pill colors (light)=[${JSON.stringify(light)}]`);
+
+	// The one theme-independent promise: the selected segment must not be
+	// indistinguishable from the trough it sits in.
+	expect(light.selectedFill).not.toBe(light.trough);
+});
+
+test("controls panel: clicking its Preview segment writes the SAME global the tab writes", async () => {
+	// The settings modal must go: with it open there are TWO Preview radiogroups
+	// in the document and every unscoped radio locator is strict-mode ambiguous.
+	await page.evaluate(() => (window as any).app.setting.close());
+	await setOpen(toolbar(), true);
+	const nodeContents = disclosure("Node contents");
+	await setOpen(nodeContents, true);
+
+	// `.click()`, never `.check()`: this radio is controlled off the rebuilt
+	// snapshot, so `check()`'s post-action "is it checked now" verification races
+	// the rebuild.
+	await nodeContents.getByRole("radio", { name: "Image", exact: true }).click();
+
+	await expect.poll(storedPreviewPreference).toBe("image");
+});
+
+test("controls panel: the pill re-checks itself from the rebuilt snapshot", async () => {
+	const nodeContents = disclosure("Node contents");
+	await setOpen(nodeContents, true);
+
+	// Retrying, because the controlled radio only flips once the write has round-
+	// tripped through persist → rebuild → re-render (the previous test wrote "image").
+	await expect(nodeContents.getByRole("radio", { name: "Image", exact: true })).toBeChecked();
 });
