@@ -3,8 +3,9 @@
 #
 # Ensures a real Obsidian binary is available before running: when OBSIDIAN_PATH
 # is unset it auto-downloads a pinned build via setup-obsidian-bin.sh (Linux /
-# Docker); an already-set OBSIDIAN_PATH is honoured untouched. Then seeds the dev
-# vault, type-checks the specs, and runs Playwright. Extra args pass through, e.g.
+# Docker); an already-set OBSIDIAN_PATH is honoured untouched. Then builds (which
+# type-checks src + e2e), seeds the dev vault, and runs Playwright. Extra args pass
+# through, e.g.
 #   npm run test:e2e -- vicinityGraph.e2e.ts
 # VICINITY_E2E_VAULT (opt-in) drives an arbitrary vault in place instead of the
 # dev vault — see the README e2e section.

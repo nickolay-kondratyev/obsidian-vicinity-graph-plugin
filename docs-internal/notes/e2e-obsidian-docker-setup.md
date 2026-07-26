@@ -75,9 +75,9 @@ if [[ -z "${OBSIDIAN_E2E_EXTRA_ARGS:-}" && -z "${DISPLAY:-}" && -z "${WAYLAND_DI
   export OBSIDIAN_E2E_EXTRA_ARGS="--ozone-platform=headless --disable-gpu"
 fi
 
-# 3. Seed the vault, type-check specs, run Playwright (extra args pass through).
+# 3. Build + seed the vault, run Playwright (extra args pass through).
+#    No `tsc -p e2e/tsconfig.json` here: the build's `check` step already covers `e2e/`.
 npm run setup:dev-vault
-npx tsc -p e2e/tsconfig.json
 exec npx playwright test --config e2e/playwright.config.ts "$@"
 ```
 
