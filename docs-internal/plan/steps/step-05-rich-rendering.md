@@ -42,7 +42,7 @@ Nodes that carry information — the plugin's reason to exist. Replace plain nod
 
 ## Testing
 
-- Pure logic vitest-covered: edge collapsing/pairing, group-membership derivation (2+ rule), attachment→icon-strip mapping, title/breadcrumb derivation. *(Folder-color-hash test dropped with the palette deferral — 2026-07-18.)*
+- Pure logic vitest-covered: edge collapsing/pairing, group-membership derivation (2+ rule), attachment→icon-strip mapping, title derivation (~~breadcrumb derivation~~ — **SUPERSEDED 2026-07-23** by `998fdac`, which deleted `breadcrumbFolderOf` together with its tests). *(Folder-color-hash test dropped with the palette deferral — 2026-07-18.)*
 - **Playwright e2e (in scope, clarified 2026-07-18)**: harness launches Obsidian (Electron) on the dev-vault and asserts DOM/state (node counts, badge text, CSS classes, edge markers) — no screenshot/LLM judgment; re-runnable at release.
 - Visual/behavioral: dev-vault manual-QA checklist per feature as smoke test; light + dark theme pass; human smoke-run ticket per step-04 pattern.
 - Per master UI memory (`${MY_DEEP_MEM}/my-frontend-design.md`): load it during step-level planning — this is the UI-heavy step.

@@ -4,7 +4,7 @@ id: nid_yccejkvl0ccqc77olsgg5deka_e
 title: "e2e release gate is RED: vicinityGraph.e2e.ts:160 breadcrumb never appears"
 status: closed
 deps: []
-links: []
+links: [nid_c5acy7gm7lj3afz0vtq79k8bx_e, nid_rdx8ea6w1km9eywyvhpx1v7rt_e]
 created_iso: 2026-07-26T05:34:46Z
 status_updated_iso: 2026-07-26T16:05:03Z
 type: bug

@@ -82,21 +82,6 @@ test("node title comes from frontmatter when present", async () => {
 	await expect(noteNode(ALPHA_PATH).locator(".vicinity-graph-node__title")).toHaveText(ALPHA_FM_TITLE);
 });
 
-/**
- * The grayed `folder/` prefix on ungrouped nodes was REMOVED by design in
- * `998fdac` ("snug capped node width + remove folder prefix", 2026-07-23), which
- * also rewrote the authoritative `high-level-plan.md` sizing model — node width
- * now hugs the title alone. Folder identity comes from the group box label; the
- * old step-05 breadcrumb spec is superseded.
- *
- * This asserts vault-wide, not per-node: the previous note1-only version passed
- * vacuously (nothing rendered the class anywhere) and so could not tell "absent
- * for root notes" from "feature gone".
- */
-test("no node renders a folder-prefix breadcrumb", async () => {
-	await expect(page.locator(".vicinity-graph-node__breadcrumb")).toHaveCount(0);
-});
-
 test("projects folder renders as a group with its label and no truncation badge", async () => {
 	await expect(folderGroup("projects")).toHaveCount(1);
 	await expect(folderGroup("projects").locator(".vicinity-graph-group__label")).toHaveText("projects");
@@ -166,6 +151,31 @@ test("first embedded image renders as a thumbnail resolved to an app:// URL", as
 	await expect(img).toHaveAttribute("src", /^app:\/\//);
 	// Single image ⇒ no "+N" extra-images badge.
 	await expect(noteNode(NOTE1_PATH).locator(".vicinity-graph-node__thumbnail-badge")).toHaveCount(0);
+});
+
+/**
+ * The grayed `folder/` prefix on ungrouped nodes was REMOVED by design in
+ * `998fdac` ("snug capped node width + remove folder prefix", 2026-07-23), which
+ * also rewrote the authoritative `high-level-plan.md` sizing model — node width
+ * now hugs the title alone. Folder identity comes from the group box label; the
+ * old step-05 breadcrumb spec is superseded.
+ *
+ * Deliberately placed in the note1 section, whose vicinity contains
+ * `solo/gamma.md` — an ungrouped note in a NON-root folder. That is the exact
+ * shape the deleted `breadcrumbFolderOf(node, isGrouped)` rendered for (it
+ * returned `undefined` only for grouped nodes and for vault-root nodes), so
+ * gamma would carry a `solo/` breadcrumb if the removed code ever came back and
+ * this assertion goes red. The alpha vicinity cannot serve here: alpha + beta
+ * are grouped and note1 is at the vault root, so all three would have been
+ * `undefined` even pre-`998fdac` — asserting there passes vacuously.
+ *
+ * Verified by mutation on 2026-07-26: temporarily re-rendering the breadcrumb
+ * with the deleted `!isGrouped && folder !== root` condition turned THIS test red
+ * (`Expected: 0, Received: 1` — gamma) while every alpha-section test stayed
+ * green. The guard bites; the old placement would not have.
+ */
+test("no node renders a folder-prefix breadcrumb", async () => {
+	await expect(page.locator(".vicinity-graph-node__breadcrumb")).toHaveCount(0);
 });
 
 /**

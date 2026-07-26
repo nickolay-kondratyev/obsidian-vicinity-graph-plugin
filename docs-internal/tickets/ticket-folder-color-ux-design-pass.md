@@ -7,6 +7,8 @@
 
 The original step-05 spec had folder-group colors via a deterministic hash of folder path into a palette. The human rejected shipping colors "just for the heck of it": rainbow coloring is an important UX addition that deserves deliberate design, not a random hash thrown in. Step 05 shipped **neutral** group styling (subtle border, `--background-secondary` fill, folder-name label) and folder identity via breadcrumb titles on ungrouped nodes.
 
+**UPDATE 2026-07-26 — the premise above no longer holds.** `998fdac` ("snug capped node width + remove folder prefix", 2026-07-23) removed the breadcrumb end-to-end, so ungrouped nodes now carry **no folder identity at all**; only 2+-member folder groups show a folder name. That raises the stakes for this pass — see `_tickets/decide-ungrouped-non-root-notes-show-no-folder-identity-since-the-breadcrumb-removal.md` (`nid_rdx8ea6w1km9eywyvhpx1v7rt_e`), which asks the human whether that gap should be closed and how.
+
 ## Scope of the design pass
 
 - Decide IF colors add value at all (the neutral UX must already work well — validate first).
