@@ -30,3 +30,13 @@ Also: all three specs are `test.describe.configure({ mode: "serial" })` and late
 
 One shared settings-e2e page-object/helper module (alongside `e2e/settingsBaseline.ts`) provides openSettingsTab / card / resetButton / confirmDialog; the three specs consume it. Exactly ONE setTheme API across the suite. `npm test` and `npm run test:e2e` both green, with no test reordered.
 
+
+## Notes
+
+**2026-07-26T16:35:41Z**
+
+Scope addition (folded in while closing nid_xwfw86nqr8af7eygqod8lh5cp_e, the edge-visibility DRY chore):
+
+Those same three specs also inline the plugin data-store shape ~14 times as `(window as any).app.plugins.plugins[PLUGIN_ID].pluginDataStore` inside `page.evaluate`, duplicating knowledge of the persisted global-view schema. `e2e/obsidianHarness.ts` now owns that shape behind typed methods (`setGlobalNodeCap`, `setMaxNodeSizePx`, `setNodePreviewPreference`, `readGlobalView`, and the new `setEdgeVisibility`) — migrate the three specs onto those instead of adding a fourth idiom.
+
+Also noted, same file: `ObsidianHarness.setNodePreviewPreference` hand-repeats its literal union ("auto" | "outline" | "image") instead of importing `NodePreviewPreference` from the `src/engine` barrel. `setEdgeVisibility` establishes the better pattern (type-only import of `EdgeVisibilityMode`); align it while in here.
