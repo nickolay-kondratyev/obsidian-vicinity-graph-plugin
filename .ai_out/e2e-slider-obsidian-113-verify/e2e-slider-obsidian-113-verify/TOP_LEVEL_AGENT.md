@@ -47,7 +47,21 @@ Work that IS doable now, and is what this branch delivers:
 
 - [x] Feasibility probe (TOP_LEVEL_AGENT) — see table above.
 - [x] Branch `e2e-slider-obsidian-113-verify` created off `main`.
-- [ ] EXPLORATION → `EXPLORATION_PUBLIC.md`
-- [ ] IMPLEMENTATION_WITH_SELF_PLAN (scope decided from exploration)
-- [ ] IMPLEMENTATION_REVIEW
-- [ ] Ticket update + change_log
+- [x] EXPLORATION → `EXPLORATION_PUBLIC.md` (explorer is write-less; TOP_LEVEL_AGENT transcribed).
+      Actionable finding: the union assertion fails as ONE opaque timeout — that IS the confusing
+      RED the ticket predicts, and it is fixable without a 1.13 build.
+- [x] IMPLEMENTATION_WITH_SELF_PLAN → commit `8d8fe32`.
+- [x] IMPLEMENTATION_REVIEW → **VERDICT READY, 0 BLOCKING, 0 SHOULD-FIX**. Converged in ONE
+      iteration; no IMPLEMENTATION_ITERATION round was needed. Reviewer independently re-ran
+      check/test/e2e and re-ran the perturbation rather than trusting the maker's claims, and
+      proved "assertion not weakened" mechanically (test body byte-identical to parent once
+      try/catch scaffolding is removed).
+- [x] Ticket annotated (stays OPEN — externally blocked) + change_log `hziud87mutz3tsq7iy8z1kvzt`.
+- [x] Merged to `main`.
+
+## Outcome
+
+Ticket acceptance criterion **NOT met** — and cannot be met here. What shipped is the half of the
+ticket that does not depend on a 1.13 build: the predicted confusing-RED is defused, and
+`setDynamicTooltip()` is confirmed to stay. The ticket carries the evidence and a precise re-check
+trigger for when 1.13 reaches GA.
