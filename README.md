@@ -272,10 +272,12 @@ VICINITY_E2E_VAULT=/path/to/vault VICINITY_E2E_NOTE='some/note.md' \
   npm run test:e2e -- externalVault.e2e.ts
 ```
 
-The harness deliberately refuses to install or enable the plugin for you (that
-would rewrite your `community-plugins.json`), and refuses e2e fixture notes in
-this mode; it fails with the exact fix when either prerequisite is missing.
-Unset the variable and everything above behaves exactly as before.
+The harness deliberately refuses to install or enable the plugin for you — adding
+it would rewrite your vault's `community-plugins.json` — and refuses e2e fixture
+notes in this mode; it fails with the exact fix when a prerequisite is missing.
+(It does flip the "community plugins on" master switch, but that flag lives in
+the throwaway sandbox `--user-data-dir`, not in your vault.) Unset the variable
+and everything above behaves exactly as before.
 
 > ⚠️ **Caveat — use a scratch or backed-up vault.** Obsidian itself writes into
 > whatever vault it opens: `.obsidian/workspace.json`, the plugin's

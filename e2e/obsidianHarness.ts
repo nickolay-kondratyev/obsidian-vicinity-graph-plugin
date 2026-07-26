@@ -512,15 +512,24 @@ export class ObsidianHarness {
 	}
 
 	/**
-	 * External-vault mode: waits for the plugin the USER already enabled, and
-	 * deliberately does NOT call `setEnable(true)`/`enablePlugin(...)` — both
-	 * persist into the real vault's `.obsidian/community-plugins.json` (and
-	 * `setEnable(true)` would switch on every other community plugin they have).
+	 * External-vault mode: loads the plugin the USER already enabled, WITHOUT
+	 * writing to their vault.
+	 *
+	 * `setEnable(true)` is unavoidable — the "community plugins on" flag lives in
+	 * the Obsidian USER-DATA dir (our throwaway sandbox), so a fresh sandbox always
+	 * boots with plugins off and nothing loads at all. It is sandbox-local and
+	 * merely loads what `<vault>/.obsidian/community-plugins.json` already lists.
+	 * WHY-NOT also `enablePlugin(pluginId)` (as the dev-vault path does): THAT call
+	 * appends to and rewrites the vault's own `community-plugins.json`. We require
+	 * the plugin to be listed there already instead.
 	 */
 	private static async waitForAlreadyEnabledPlugin(page: Page): Promise<void> {
 		// A fresh sandbox user-data-dir shows first-boot modals (vault trust /
 		// release notes); Escape dismisses them (best-effort, same as above).
 		await page.keyboard.press("Escape");
+		await page.evaluate(async () => {
+			await (window as unknown as { app: any }).app.plugins.setEnable(true);
+		});
 		try {
 			await page.waitForFunction(
 				(pluginId) => Boolean((window as unknown as { app: any }).app.plugins.plugins[pluginId]),
