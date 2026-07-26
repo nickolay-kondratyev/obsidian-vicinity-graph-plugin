@@ -30,3 +30,9 @@ Alternative considered: run `test:e2e` in CI on every push. Correct but not chea
 
 `npm test` goes RED when a CSS class asserted anywhere under `e2e/` exists nowhere in `src/view/`. Verified by a mutation: delete/rename one class in `src/view/*.tsx` and observe the failure. Test lives with the other harness guards already covered by `npm test` (see the `e2e/**/*.test.ts` glob in the vitest config).
 
+
+## Notes
+
+**2026-07-26T16:23:42Z**
+
+Reviewer note: as written, the tripwire criteria would false-positive on the new absence guard at e2e/vicinityGraph.e2e.ts:177 (it asserts a class is ABSENT). Exempt toHaveCount(0) assertions from the check.

@@ -1,12 +1,12 @@
 ---
-closed_iso: 2026-07-26T16:05:03Z
+closed_iso: 2026-07-26T16:23:42Z
 id: nid_yccejkvl0ccqc77olsgg5deka_e
 title: "e2e release gate is RED: vicinityGraph.e2e.ts:160 breadcrumb never appears"
 status: closed
 deps: []
 links: [nid_c5acy7gm7lj3afz0vtq79k8bx_e, nid_rdx8ea6w1km9eywyvhpx1v7rt_e]
 created_iso: 2026-07-26T05:34:46Z
-status_updated_iso: 2026-07-26T16:05:03Z
+status_updated_iso: 2026-07-26T16:23:42Z
 type: bug
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
@@ -50,3 +50,17 @@ rationale for why the old expectation was wrong.
 **2026-07-26T16:05:03Z**
 
 Root-caused: STALE TEST, not a missing feature. The folder breadcrumb was removed by design in 998fdac (2026-07-23), which also rewrote high-level-plan.md's sizing model; the e2e file was missed because e2e is not part of npm test. Corrected the expectations in e2e/vicinityGraph.e2e.ts (vault-wide guard that the prefix stays removed + kept the real trimmed-frontmatter-title assertion). Gate green: 78 passed, 0 failed, 1 env-gated skip (externalVault, needs VICINITY_E2E_VAULT). No src/ behavior change.
+
+**2026-07-26T16:23:42Z**
+
+RESOLVED — the failing assertion was stale, not a broken feature.
+
+Root cause: commit 998fdac ('feat(node-real-estate): snug capped node width + remove folder prefix', 2026-07-23) deliberately removed the folder breadcrumb end-to-end (render, CSS, breadcrumbFolderOf helper, its unit tests, and the sentence in high-level-plan.md). The e2e assertions in e2e/vicinityGraph.e2e.ts were left behind. Corroborated by _change_log/2026-07-23_22-16-50Z.md:17.
+
+Fix (no src/ behavior change): retired the stale breadcrumb expectations; kept the still-valid trimmed-frontmatter-title assertion (unit-covered at src/adapters/ObsidianLinkProvider.test.ts:286); replaced the vacuous toHaveCount(0) sibling test with a real regression guard relocated to the note1-active section (e2e/vicinityGraph.e2e.ts:177), whose vicinity contains the ungrouped non-root singleton solo/gamma.md. Non-vacuity proven empirically: temporarily re-threading the removed breadcrumb turned the guard RED while the old placement stayed green.
+
+Acceptance met: npm run test:e2e exit 0 — 78 passed, 1 env-gated skip (externalVault.e2e.ts), 0 'did not run'. npm test 990 passed; check and build exit 0. Independently re-run by the reviewer role.
+
+Follow-ups: nid_rdx8ea6w1km9eywyvhpx1v7rt_e [decide] (ungrouped non-root notes now show no folder identity), nid_c5acy7gm7lj3afz0vtq79k8bx_e (npm test excludes e2e, so feature removals cannot go red in the fast loop).
+
+Change log: 883m2pjjyscv9m3a5a51kvd6d
