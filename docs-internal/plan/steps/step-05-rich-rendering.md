@@ -13,7 +13,7 @@ Nodes that carry information — the plugin's reason to exist. Replace plain nod
 
 - Title, **first image as thumbnail**: lazy-loaded, fixed height, "+N" badge when more images exist.
 - **Title source**: frontmatter `title` or `name` property when present; otherwise filename without extension. *(Clarified 2026-07-18.)*
-- **Ungrouped nodes** show folder identity as a breadcrumb title: `<folder-name>/<node-title>` (folder part muted, clearly a folder). *(Clarified 2026-07-18 — replaces the folder-colored accent.)*
+- ~~**Ungrouped nodes** show folder identity as a breadcrumb title: `<folder-name>/<node-title>` (folder part muted, clearly a folder).~~ *(Clarified 2026-07-18 — replaced the folder-colored accent. **SUPERSEDED 2026-07-23** by `998fdac` "snug capped node width + remove folder prefix": the breadcrumb was removed end-to-end so node width hugs the title alone. See `high-level-plan.md` §Sizing — that is the authoritative model.)*
 - **Icon strip per attachment extension with counts**; clicking an icon opens a dropdown listing those files.
 - Everything past the first image loads lazily; rely on React Flow viewport culling.
 - Distinct styling tiers: **MAIN**, **pinned centrals** (distinct from MAIN), regular nodes. Node size from the engine's sizing score.
@@ -21,7 +21,7 @@ Nodes that carry information — the plugin's reason to exist. Replace plain nod
 
 ### Folder groups
 
-- React Flow subflows; groups render **only at 2+ members**; singletons get the breadcrumb title (see node component).
+- React Flow subflows; groups render **only at 2+ members**; singletons render ungrouped (~~with the breadcrumb title~~ — breadcrumb superseded 2026-07-23, see node component).
 - **No folder colors in step 05** *(human decision 2026-07-18)*: neutral Obsidian theme styling — subtle border, `--background-secondary`-style fill, folder-name label on the group. Color UX deferred to a deliberate design pass (follow-up ticket); original color-hash idea recorded there.
 - elkjs compound layout drives group geometry (options baseline chosen in step 04).
 

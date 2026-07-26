@@ -82,8 +82,19 @@ test("node title comes from frontmatter when present", async () => {
 	await expect(noteNode(ALPHA_PATH).locator(".vicinity-graph-node__title")).toHaveText(ALPHA_FM_TITLE);
 });
 
-test("root-folder note carries no breadcrumb", async () => {
-	await expect(noteNode(NOTE1_PATH).locator(".vicinity-graph-node__breadcrumb")).toHaveCount(0);
+/**
+ * The grayed `folder/` prefix on ungrouped nodes was REMOVED by design in
+ * `998fdac` ("snug capped node width + remove folder prefix", 2026-07-23), which
+ * also rewrote the authoritative `high-level-plan.md` sizing model — node width
+ * now hugs the title alone. Folder identity comes from the group box label; the
+ * old step-05 breadcrumb spec is superseded.
+ *
+ * This asserts vault-wide, not per-node: the previous note1-only version passed
+ * vacuously (nothing rendered the class anywhere) and so could not tell "absent
+ * for root notes" from "feature gone".
+ */
+test("no node renders a folder-prefix breadcrumb", async () => {
+	await expect(page.locator(".vicinity-graph-node__breadcrumb")).toHaveCount(0);
 });
 
 test("projects folder renders as a group with its label and no truncation badge", async () => {
@@ -141,7 +152,7 @@ test("no corner overlay badge when nothing is truncated", async () => {
 	await expect(page.locator(".vicinity-graph-overlay-badge")).toHaveCount(0);
 });
 
-// --- note1 focused: thumbnail, breadcrumb, groups ---------------------------
+// --- note1 focused: thumbnail, titles, groups -------------------------------
 
 test("switching the active file re-renders the graph around note1", async () => {
 	await harness.openFile(NOTE1_PATH);
@@ -157,11 +168,15 @@ test("first embedded image renders as a thumbnail resolved to an app:// URL", as
 	await expect(noteNode(NOTE1_PATH).locator(".vicinity-graph-node__thumbnail-badge")).toHaveCount(0);
 });
 
-test("singleton-folder note shows a folder breadcrumb and its trimmed frontmatter title", async () => {
-	await expect(noteNode(GAMMA_PATH).locator(".vicinity-graph-node__breadcrumb")).toHaveText("solo/");
-	await expect(noteNode(GAMMA_PATH).locator(".vicinity-graph-node__title")).toHaveText(
-		`solo/${GAMMA_TRIMMED_TITLE}`,
-	);
+/**
+ * gamma is the singleton-folder fixture (`solo/` has one note, so it renders
+ * ungrouped — groups need 2+ members). It used to be asserted as
+ * `solo/<title>`; the `solo/` prefix went away with the breadcrumb removal
+ * above, leaving the fixture's real point: its frontmatter title is padded
+ * (`title: "  Gamma (solo, trimmed title)  "`) and must render trimmed.
+ */
+test("singleton-folder note shows its trimmed frontmatter title", async () => {
+	await expect(noteNode(GAMMA_PATH).locator(".vicinity-graph-node__title")).toHaveText(GAMMA_TRIMMED_TITLE);
 });
 
 test("both multi-member folders render as groups", async () => {
