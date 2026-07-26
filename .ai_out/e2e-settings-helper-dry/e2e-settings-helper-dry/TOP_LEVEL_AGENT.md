@@ -15,12 +15,36 @@ Branch: `e2e-settings-helper-dry` (off `main`)
 - All three specs are `mode: "serial"` with cross-test state deps — DO NOT reorder tests.
 - Gates: `npm test` and `npm run test:e2e` both green.
 
-## Flow (straightforward-flow)
-- [x] EXPLORATION
-- [ ] IMPLEMENTATION_WITH_SELF_PLAN
-- [ ] IMPLEMENTATION_REVIEW
-- [ ] IMPLEMENTATION_ITERATION
-- [ ] change_log + ticket close + merge to main
+## Flow (straightforward-flow) — COMPLETE
+- [x] EXPLORATION — `EXPLORATION_PUBLIC.md` (`a9c86fd`)
+- [x] IMPLEMENTATION_WITH_SELF_PLAN — `967aade`, `457b708`
+- [x] IMPLEMENTATION_REVIEW — `d43bfbb`; **VERDICT READY, 0 blocking**
+- [x] IMPLEMENTATION_ITERATION (1 round) — `3f325d8`; 1 item incorporated, 4 NITs rejected
+- [x] change_log `oixow5osqvi5udypyu613hrra` + ticket closed + merge to `main`
 
-## Log
-- EXPLORATION agent spawned.
+## Outcome
+All four acceptance criteria met. Converged in ONE review round.
+
+Gates (run by the implementer, `npm test`/`check` independently re-run by the reviewer):
+| Gate | Baseline (clean tree) | After |
+|---|---|---|
+| `npm run test:e2e` | 79 passed / 1 skipped / exit 0 | 79 passed / 1 skipped / exit 0 |
+| `npm test` | — | 990 passed / 74 files |
+| `npm run check` | — | exit 0 |
+
+Nothing was pre-failing; no test reordered, renamed, deleted, or weakened.
+
+## Key judgement calls (for future readers)
+- **Which `setTheme` survived** — the harness body-class toggle, NOT the real-API
+  variant. Verified as not-a-weakening: neither theme-touching test asserts anything
+  about the theme, and `e2e/vicinityGraph.e2e.ts` independently proves the lever
+  restyles (arrowhead fill vs resolved `var(--text-faint)`). The deleted variant's
+  only unique effect was persisting the theme id into the vault appearance config —
+  unread, and a real-vault mutation under `VICINITY_E2E_VAULT`.
+- **The ticket understated criterion 3.** The harness had no method for any
+  `globalDepths`/`nodeExclusion` read-or-write, `forceLayout`, or the preview-preference
+  *read*; and `readGlobalView()` was NOT a drop-in for the specs' `readGlobals()`
+  (non-overlapping `sizing` shape). Migration required adding harness primitives,
+  not just swapping call sites.
+- **`seedPreviewPreference` kept its own side effect** (settings-tab `redisplay()`)
+  rather than collapsing into `refreshOpenViews()` — different refresh, documented why-not.
