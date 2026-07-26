@@ -1,6 +1,6 @@
 ---
 id: nid_s676x55uojmtcwh9t4l9mc6zl_e
-title: "[decide] Canvas link regime is re-detected per rebuild from a racing resolvedLinks, so canvas text-node edges appear or vanish depending on boot timing"
+title: "Canvas link regime is re-detected per rebuild from a racing resolvedLinks, so canvas text-node edges appear or vanish depending on boot timing"
 status: open
 deps: []
 links: [nid_li45606h8uvcnjm7fss17xl1u_e]
@@ -59,12 +59,15 @@ Should a wikilink written inside a canvas TEXT node produce a graph edge?
 
 Either way the SECOND half of the fix is the same and is not a product question: the regime must stop being a coin flip.
 
+HUMAN DECISION: "Should a wikilink written inside a canvas TEXT node produce a graph edge" -> YES we want to have support for Canvas and a wiki link inside a node in canvas (AS Long as performance for this approach holds). 
+
 ## Candidate fixes
 
 1. **Detect capability once, late.** Detect at plugin load, after the first `metadataCache "resolved"` event, and cache it on a collaborator injected into `VicinityGraphBuilder` instead of re-detecting per `build()`. Cheap, removes the race, but freezes a decision made from one snapshot (a vault whose only canvas file is created later would stay on the fallback).
 2. **Unify the two regimes.** Make both link sources yield the SAME edge set for a canvas (per the product answer above), so which one wins stops mattering. More work, but the race becomes benign by construction and the two code paths stop being able to disagree.
 
 Option 2 is the durable one; option 1 is the 80/20 stopgap. Recommend deciding the product question first, since option 2 depends on it.
+Human Decision: Yes option 2 sounds more aligned with canvas support 
 
 ## Note on scope
 
