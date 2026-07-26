@@ -396,6 +396,49 @@ test("settings tab: the selected Preview segment is filled distinctly from the t
 	expect(light.selectedFill).not.toBe(light.trough);
 });
 
+/**
+ * Short on purpose: this only runs on a path that is ALREADY failing, and the
+ * elements it reads are ones the test just located — so a slow read here means
+ * "gone", which is itself the answer. Keeps one assertion timeout from becoming several.
+ */
+const READOUT_DIAGNOSTIC_TIMEOUT_MS = 1_000;
+
+/**
+ * The DOM a maintainer would otherwise have to reproduce by hand after a slider-readout red.
+ *
+ * WHY: the assertion is a locator UNION and Playwright reports a union miss as ONE opaque
+ * timeout — it names both sub-locators but never says which arm missed or what the row
+ * actually rendered. The likeliest future red is a `minAppVersion` bump to 1.13, where the
+ * unverified INLINE arm has to do the matching; that red must read as "our locator is wrong"
+ * rather than "the product regressed", and only the captured DOM can tell those apart.
+ *
+ * Best-effort per field: a diagnostic must never replace the failure it is describing, so
+ * each read that throws degrades to a note and the caller still re-throws the original.
+ */
+async function sliderReadoutDiagnostic(row: Locator, expectedValue: string): Promise<string> {
+	const capture = async (what: string, read: () => Promise<string>): Promise<string> => {
+		try {
+			return `${what}=[${await read()}]`;
+		} catch (error) {
+			return `${what}=[UNREADABLE: ${String(error)}]`;
+		}
+	};
+	const control = row.locator(".setting-item-control");
+	const readOptions = { timeout: READOUT_DIAGNOSTIC_TIMEOUT_MS };
+	return [
+		`expected value=[${expectedValue}]`,
+		// Empty list ⇒ the 1.12-style tooltip arm had nothing to match at all.
+		await capture("body .tooltip texts", async () =>
+			JSON.stringify(await page.locator(".tooltip").allTextContents()),
+		),
+		await capture("row .setting-item-control text", async () => await control.innerText(readOptions)),
+		await capture("row .setting-item-control html", async () => await control.innerHTML(readOptions)),
+		// The whole row, because "rendered, but OUTSIDE .setting-item-control" is a
+		// scoping bug in the inline arm and is invisible in the two captures above.
+		await capture("row html", async () => await row.innerHTML(readOptions)),
+	].join("\n  ");
+}
+
 /*
  * A slider whose value is nowhere on screen is unreadable, and NOTHING else in
  * this repo asserts that readout: `aria-label` and the `value` attribute both
@@ -408,6 +451,13 @@ test("settings tab: the selected Preview segment is filled distinctly from the t
  * in a body-level `.tooltip` on hover; from 1.13 it renders inline in the row.
  * Either satisfies "the value is readable", so a future `minAppVersion` bump
  * needs no edit here.
+ *
+ * As of 2026-07-26 ONLY the `.tooltip` arm is verified: 1.13 is not GA (newest
+ * public release 1.12.7; 1.13.x is Catalyst-gated), so the inline arm has never
+ * run against a shipped build. Its ENTIRE basis is one line of `obsidian.d.ts` —
+ * "@deprecated The value is now always shown inline next to the slider." — which
+ * names no selector, no ancestry and no number formatting. It is a reasoned guess.
+ * Hence the catch below: a 1.13 red is likelier a locator miss than a regression.
  *
  * Two things the assertion must NOT be satisfiable by, hence its exact shape:
  * - the `<input value=…>` attribute → match on rendered TEXT only;
@@ -442,7 +492,18 @@ test("settings tab: WHEN a slider is hovered THEN its current value is readable"
 	await slider.hover();
 
 	// `.first()`: a 1.13 build may well render BOTH readouts, and one is enough.
-	await expect(valueReadout.first()).toBeVisible();
+	try {
+		await expect(valueReadout.first()).toBeVisible();
+	} catch (error) {
+		// Enrich, never soften: same reds as before, with the DOM attached.
+		throw new Error(
+			`Slider value is not readable by EITHER mechanism (body .tooltip, or inline text in the row's ` +
+				`.setting-item-control). If the value IS present below but we did not match it, this is a ` +
+				`test-locator problem — most likely the 1.13 inline readout differing in placement or number ` +
+				`formatting from what the union guesses. See the WHY block above this test.\n  ` +
+				`${await sliderReadoutDiagnostic(row, value)}\n  cause=[${String(error)}]`,
+		);
+	}
 });
 
 test("controls panel: clicking its Preview segment writes the SAME global the tab writes", async () => {

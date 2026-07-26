@@ -15,6 +15,11 @@
 # version, and a floating "latest" would let a new Obsidian release break e2e
 # with NO code change. Bump OBSIDIAN_VERSION deliberately.
 #
+# Bumping to 1.13+ specifically: the slider value-readout e2e switches to a second,
+# NEVER-VERIFIED matching arm there (inline readout replaces the hover tooltip) — see
+# the WHY block on "WHEN a slider is hovered THEN its current value is readable" in
+# e2e/settingsUxVisual.e2e.ts. A red there is likelier a locator miss than a regression.
+#
 # WHY-NOT integrity checksum: Obsidian publishes a hash only for the `.asar`
 # payload, not the platform tarball; `curl --fail` + `tar` validity is the 80/20
 # guard. Revisit if a pinned asset is ever re-published.
