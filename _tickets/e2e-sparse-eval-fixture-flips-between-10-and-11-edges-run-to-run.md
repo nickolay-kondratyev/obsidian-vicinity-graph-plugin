@@ -1,12 +1,12 @@
 ---
-closed_iso: 2026-07-26T06:13:55Z
+closed_iso: 2026-07-26T06:28:07Z
 id: nid_li45606h8uvcnjm7fss17xl1u_e
 title: "e2e: sparse eval fixture flips between 10 and 11 edges run-to-run"
 status: closed
 deps: []
 links: [nid_s676x55uojmtcwh9t4l9mc6zl_e]
 created_iso: 2026-07-25T03:33:28Z
-status_updated_iso: 2026-07-26T06:13:55Z
+status_updated_iso: 2026-07-26T06:28:07Z
 type: chore
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
