@@ -13,7 +13,7 @@ Nodes that carry information — the plugin's reason to exist. Replace plain nod
 
 - Title, **first image as thumbnail**: lazy-loaded, fixed height, "+N" badge when more images exist.
 - **Title source**: frontmatter `title` or `name` property when present; otherwise filename without extension. *(Clarified 2026-07-18.)*
-- **Ungrouped nodes** show folder identity as a breadcrumb title: `<folder-name>/<node-title>` (folder part muted, clearly a folder). *(Clarified 2026-07-18 — replaces the folder-colored accent.)*
+- ~~**Ungrouped nodes** show folder identity as a breadcrumb title: `<folder-name>/<node-title>` (folder part muted, clearly a folder).~~ *(Clarified 2026-07-18 — replaced the folder-colored accent. **SUPERSEDED 2026-07-23** by `998fdac` "snug capped node width + remove folder prefix": the breadcrumb was removed end-to-end so node width hugs the title alone. See `high-level-plan.md` §Sizing — that is the authoritative model.)*
 - **Icon strip per attachment extension with counts**; clicking an icon opens a dropdown listing those files.
 - Everything past the first image loads lazily; rely on React Flow viewport culling.
 - Distinct styling tiers: **MAIN**, **pinned centrals** (distinct from MAIN), regular nodes. Node size from the engine's sizing score.
@@ -21,7 +21,7 @@ Nodes that carry information — the plugin's reason to exist. Replace plain nod
 
 ### Folder groups
 
-- React Flow subflows; groups render **only at 2+ members**; singletons get the breadcrumb title (see node component).
+- React Flow subflows; groups render **only at 2+ members**; singletons render ungrouped (~~with the breadcrumb title~~ — breadcrumb superseded 2026-07-23, see node component).
 - **No folder colors in step 05** *(human decision 2026-07-18)*: neutral Obsidian theme styling — subtle border, `--background-secondary`-style fill, folder-name label on the group. Color UX deferred to a deliberate design pass (follow-up ticket); original color-hash idea recorded there.
 - elkjs compound layout drives group geometry (options baseline chosen in step 04).
 
@@ -42,7 +42,7 @@ Nodes that carry information — the plugin's reason to exist. Replace plain nod
 
 ## Testing
 
-- Pure logic vitest-covered: edge collapsing/pairing, group-membership derivation (2+ rule), attachment→icon-strip mapping, title/breadcrumb derivation. *(Folder-color-hash test dropped with the palette deferral — 2026-07-18.)*
+- Pure logic vitest-covered: edge collapsing/pairing, group-membership derivation (2+ rule), attachment→icon-strip mapping, title derivation (~~breadcrumb derivation~~ — **SUPERSEDED 2026-07-23** by `998fdac`, which deleted `breadcrumbFolderOf` together with its tests). *(Folder-color-hash test dropped with the palette deferral — 2026-07-18.)*
 - **Playwright e2e (in scope, clarified 2026-07-18)**: harness launches Obsidian (Electron) on the dev-vault and asserts DOM/state (node counts, badge text, CSS classes, edge markers) — no screenshot/LLM judgment; re-runnable at release.
 - Visual/behavioral: dev-vault manual-QA checklist per feature as smoke test; light + dark theme pass; human smoke-run ticket per step-04 pattern.
 - Per master UI memory (`${MY_DEEP_MEM}/my-frontend-design.md`): load it during step-level planning — this is the UI-heavy step.

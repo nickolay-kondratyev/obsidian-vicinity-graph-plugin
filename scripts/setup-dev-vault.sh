@@ -110,7 +110,7 @@ write_if_missing "${VAULT}/solo/gamma.md" <<'EOF'
 ---
 title: "  Gamma (solo, trimmed title)  "
 ---
-Singleton folder note: solo/ has one note → breadcrumb title, no group box.
+Singleton folder note: solo/ has one note → renders ungrouped, no group box.
 Links to [[note1]].
 
 Second recognizable image, so the thumbnail feature isn't only exercised by one shared file: ![[pic2.jpg]].
@@ -406,7 +406,7 @@ cat <<EOF
    - projects/ (alpha, beta) → folder group; alpha↔beta bidirectional
    - alpha → note1 twice → edge count badge "2"
    - alpha: frontmatter title + png/pdf/csv attachment strip
-   - solo/gamma → singleton folder breadcrumb, trimmed fm title
+   - solo/gamma → ungrouped singleton (no group box), trimmed fm title
 
  Node-outline check (open outline-note.md, then outline-cover.md):
    - outline-note's MAIN node lists its headings, nested, with no

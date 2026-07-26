@@ -310,7 +310,7 @@ function frontmatterTitleOf(file: VaultFilePort, cache: CachedMetadataPort | nul
 		const value = frontmatter[property];
 		if (typeof value === "string" && value.trim() !== "") {
 			// Trimmed: quoted YAML like `title: "  My Note  "` keeps its padding,
-			// which would leak into rendered titles and breadcrumbs.
+			// which would leak into rendered node titles.
 			return value.trim();
 		}
 	}
