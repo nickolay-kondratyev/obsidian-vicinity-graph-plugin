@@ -1,6 +1,6 @@
 import { PluginSettingTab, Setting } from "obsidian";
 import type { App } from "obsidian";
-import type { Direction, ForceLayoutSettings, SizingSettings } from "../engine";
+import type { Direction, ForceLayoutSettings, SettingsRange, SizingSettings } from "../engine";
 import {
 	FORCE_LAYOUT_RANGES,
 	MAX_OUTLINE_DEPTH,
@@ -8,6 +8,7 @@ import {
 	MIN_OUTLINE_DEPTH,
 	NODE_PREVIEW_PREFERENCES,
 	SETTINGS_SPEC,
+	SIZING_RANGES,
 	clampOutlineMaxDepth,
 } from "../engine";
 import type VicinityGraphPlugin from "../main";
@@ -33,6 +34,7 @@ import {
 } from "./settingsResetPlan";
 import type { SettingsCommand, SettingsInteraction, SettingsWriteContext } from "./settingsWritePlan";
 import { planSettingsWrite } from "./settingsWritePlan";
+import { parseSizingInput } from "./sizingInput";
 import { SIZING_METRICS } from "./sizingMetrics";
 
 /**
@@ -321,16 +323,15 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 				)
 				.addText((text) => {
 					text.inputEl.type = "number";
-					text.inputEl.min = "0";
-					text.inputEl.step = "0.5";
+					VicinityGraphSettingTab.applyRange(text.inputEl, SIZING_RANGES.metricWeight);
 					text.setValue(String(metric.weight));
 					text.setDisabled(!metric.enabled);
 					// Two controls share this row (toggle + weight), so the row name
 					// alone would not distinguish them.
 					VicinityGraphSettingTab.nameControl(text.inputEl, `${label} weight`);
 					text.onChange((raw) => {
-						const weight = Number(raw);
-						if (!Number.isNaN(weight) && weight >= 0) {
+						const weight = parseSizingInput(raw);
+						if (weight !== undefined) {
 							const current = this.store.globalView().sizing;
 							void this.applySizing({
 								...current,
@@ -341,13 +342,13 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 				});
 		}
 
-		this.addSizingNumber(section, "Minimum node size (px)", sizing.minPx, 1, 4, (minPx) =>
+		this.addSizingNumber(section, "Minimum node size (px)", sizing.minPx, SIZING_RANGES.minPx, (minPx) =>
 			this.applySizing({ ...this.store.globalView().sizing, minPx }),
 		);
-		this.addSizingNumber(section, "Maximum node size (px)", sizing.maxPx, 1, 4, (maxPx) =>
+		this.addSizingNumber(section, "Maximum node size (px)", sizing.maxPx, SIZING_RANGES.maxPx, (maxPx) =>
 			this.applySizing({ ...this.store.globalView().sizing, maxPx }),
 		);
-		this.addSizingNumber(section, "Depth decay k", sizing.depthDecayK, 0, 0.5, (depthDecayK) =>
+		this.addSizingNumber(section, "Depth decay k", sizing.depthDecayK, SIZING_RANGES.depthDecayK, (depthDecayK) =>
 			this.applySizing({ ...this.store.globalView().sizing, depthDecayK }),
 		);
 		this.addSectionReset(section, "node-sizing");
@@ -509,27 +510,38 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 		);
 	}
 
+	/**
+	 * One sizing number input. Bounds come from {@link SIZING_RANGES}, the SAME
+	 * table the write planner clamps with, so the input and the stored value
+	 * agree, and {@link parseSizingInput} decides what counts as typed input —
+	 * the same rule the in-view sizing mirror uses.
+	 */
 	private addSizingNumber(
 		container: HTMLElement,
 		name: string,
 		value: number,
-		min: number,
-		step: number,
+		range: SettingsRange,
 		onChange: (value: number) => Promise<void>,
 	): void {
 		new Setting(container).setName(name).addText((text) => {
 			text.inputEl.type = "number";
-			text.inputEl.min = String(min);
-			text.inputEl.step = String(step);
+			VicinityGraphSettingTab.applyRange(text.inputEl, range);
 			text.setValue(String(value));
 			VicinityGraphSettingTab.nameControl(text.inputEl, name);
 			text.onChange((raw) => {
-				const parsed = Number(raw);
-				if (!Number.isNaN(parsed) && parsed >= min) {
+				const parsed = parseSizingInput(raw);
+				if (parsed !== undefined) {
 					void onChange(parsed);
 				}
 			});
 		});
+	}
+
+	/** Mirrors a {@link SettingsRange} onto a number input's stepper attributes. */
+	private static applyRange(input: HTMLInputElement, range: SettingsRange): void {
+		input.min = String(range.min);
+		input.max = String(range.max);
+		input.step = String(range.step);
 	}
 
 	/**

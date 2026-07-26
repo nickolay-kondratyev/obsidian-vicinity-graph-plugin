@@ -8,7 +8,7 @@ import type {
 	SizingSettings,
 	ViewSettings,
 } from "../engine";
-import { DIRECTION_DEPTH_FIELD } from "../engine";
+import { DIRECTION_DEPTH_FIELD, clampSizingSettings } from "../engine";
 
 /**
  * The "which write lands where" contract layer (step-06 #2). Mirrors
@@ -100,7 +100,11 @@ export function planSettingsWrite(interaction: SettingsInteraction, ctx: Setting
 		case "global-node-preview":
 			return { kind: "global-view", view: { ...ctx.globalView, nodePreviewPreference: interaction.value } };
 		case "global-sizing":
-			return { kind: "global-view", view: { ...ctx.globalView, sizing: interaction.sizing } };
+			// Clamped HERE, the one choke point both sizing surfaces (the in-view
+			// React panel and the settings tab) write through: an `<input min=…>`
+			// does not block a TYPED value, so a `-1` / `1e999` would otherwise
+			// reach the live session's node geometry unvetted.
+			return { kind: "global-view", view: { ...ctx.globalView, sizing: clampSizingSettings(interaction.sizing) } };
 		case "global-force-layout":
 			return { kind: "global-view", view: { ...ctx.globalView, forceLayout: interaction.forceLayout } };
 		case "global-node-exclusion":

@@ -58,9 +58,11 @@ export interface DepthSpec {
 
 export interface SizingSpec {
 	readonly metrics: Readonly<Record<SizeMetricId, DefaultSpec<SizingMetricSetting>>>;
-	readonly depthDecayK: DefaultSpec<number>;
-	readonly minPx: DefaultSpec<number>;
-	readonly maxPx: DefaultSpec<number>;
+	/** Bounds for EVERY metric's weight (the per-metric spec above carries only its default). */
+	readonly metricWeight: BoundedNumberSpec;
+	readonly depthDecayK: BoundedNumberSpec;
+	readonly minPx: BoundedNumberSpec;
+	readonly maxPx: BoundedNumberSpec;
 }
 
 export type ForceLayoutSpec = Readonly<Record<keyof ForceLayoutSettings, BoundedNumberSpec>>;
@@ -100,6 +102,17 @@ const DEPTH_STEPPER_BOUNDS = { min: 0, max: 5, step: 1 } as const;
 
 /** Default weight of every sizing metric (equal-weight composition until a metric slider ships). */
 const DEFAULT_METRIC_WEIGHT = 1;
+
+/**
+ * Node pixel-size input bounds, shared by `minPx` and `maxPx`. These numbers
+ * BECOME geometry: `sizePx` is a React-Flow node width/height and then a
+ * libavoid obstacle rectangle, so the reachable range must stay inside what the
+ * layout and the router can render. `min 1`: a 0/negative box is not a box (and
+ * it is the floor both size inputs already shipped with). `max 400`: 2.5x the
+ * shipped 160 default — one node past that fills a typical vicinity pane and
+ * the graph stops being an overview.
+ */
+const NODE_SIZE_PX_BOUNDS = { min: 1, max: 400, step: 4 } as const;
 
 // ---------------------------------------------------------------------------
 // THE spec
@@ -149,10 +162,28 @@ export const SETTINGS_SPEC: SettingsSpec = {
 				"outlink-count": { default: { enabled: false, weight: DEFAULT_METRIC_WEIGHT } },
 				"depth-decay": { default: { enabled: false, weight: DEFAULT_METRIC_WEIGHT } },
 			},
-			/** Default `k` of depth-decay `1 / (1 + k * depth)`. */
-			depthDecayK: { default: 1 },
-			minPx: { default: 40 },
-			maxPx: { default: 160 },
+			/**
+			 * Relative weight of one metric in the weighted average. Only RATIOS
+			 * matter (the composition divides by the total weight), so the range
+			 * only has to span "ignored" to "dominant": `min 0` mutes a metric
+			 * without untoggling it, and at `max 100` a metric already outvotes an
+			 * equal-weight peer 100:1 — past that nothing on screen changes, while
+			 * an unbounded weight makes `weightedSum / totalWeight` `Infinity/Infinity`
+			 * = `NaN` and poisons every node's size.
+			 */
+			metricWeight: { default: DEFAULT_METRIC_WEIGHT, min: 0, max: 100, step: 0.5 },
+			/**
+			 * `k` of depth-decay `1 / (1 + k * depth)`.
+			 *
+			 * `min 0` is a CORRECTNESS bound, not taste: the denominator vanishes at
+			 * `k = -1 / depth` (`k = -1` at depth 1 → `Infinity` `sizePx`), and a
+			 * `k >= 0` keeps it `>= 1` at every depth. `k = 0` disables the decay
+			 * (every node scores 1). `max 10`: a depth-1 node already decays to
+			 * 1/11 of the central there, so a steeper curve is indistinguishable.
+			 */
+			depthDecayK: { default: 1, min: 0, max: 10, step: 0.5 },
+			minPx: { default: 40, ...NODE_SIZE_PX_BOUNDS },
+			maxPx: { default: 160, ...NODE_SIZE_PX_BOUNDS },
 		},
 		// -------------------------------------------------------------------
 		// Force-layout defaults + slider ranges (ticket-04). Defaults are the

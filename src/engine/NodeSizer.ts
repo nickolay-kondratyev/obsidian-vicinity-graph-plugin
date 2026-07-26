@@ -1,4 +1,4 @@
-import { CENTRAL_SIZE_SCORE, NEUTRAL_NORMALIZED_VALUE } from "./constants";
+import { CENTRAL_SIZE_SCORE, NEUTRAL_NORMALIZED_VALUE, clampSizingSettings } from "./constants";
 import type { LinkProvider } from "./LinkProvider";
 import { NodeEligibility } from "./NodeEligibility";
 import type { TraversedNode } from "./VicinityTraversal";
@@ -36,8 +36,13 @@ export class NodeSizer {
 
 	computeSizes(
 		nodes: ReadonlyMap<VaultPath, TraversedNode>,
-		settings: SizingSettings,
+		rawSettings: SizingSettings,
 	): ReadonlyMap<VaultPath, NodeSize> {
+		// The sizer is TOTAL: `sizePx` becomes node geometry a downstream wasm
+		// router cannot survive being handed non-finite, so hostile settings are
+		// clamped here with the SAME single-source table the settings boundary
+		// uses — never with a bespoke guard that could drift from it.
+		const settings = clampSizingSettings(rawSettings);
 		const enabledMetrics = this.enabledWeightedMetrics(settings);
 		const totalWeight = enabledMetrics.reduce((sum, entry) => sum + entry.weight, 0);
 		const normalizedPerMetric = enabledMetrics.map((entry) => ({
@@ -133,14 +138,30 @@ class MinMaxNormalizedMetric implements SizeMetric {
 	}
 }
 
-/** `1 / (1 + k * minDepth)` — inherently in (0, 1], no min-max pass needed. */
-class DepthDecayMetric implements SizeMetric {
+/**
+ * `1 / (1 + k * minDepth)` — inherently in (0, 1] for the `k >= 0` the settings
+ * bounds allow, so no min-max pass is needed.
+ *
+ * The finite guard is DELIBERATE defence in depth, and it is honestly unreachable
+ * from {@link NodeSizer.computeSizes} today: that method clamps `k` into
+ * `SIZING_RANGES.depthDecayK` before constructing this metric, so removing the
+ * guard breaks nothing there. It exists because the class is constructible with
+ * any number and must be total in its own right — the denominator vanishes at
+ * `k = -1/minDepth` (`Infinity`) and `k = Infinity` gives `Infinity * 0 = NaN` at
+ * depth 0. A non-finite result degrades to {@link NEUTRAL_NORMALIZED_VALUE}, the
+ * same "cannot discriminate" convention {@link MinMaxNormalizedMetric} uses.
+ *
+ * Exported ONLY so `NodeSizer.test.ts` can exercise that guard directly (it is
+ * not re-exported from `src/engine/index.ts`); an untestable guard would rot.
+ */
+export class DepthDecayMetric implements SizeMetric {
 	constructor(private readonly k: number) {}
 
 	normalizedValues(nodes: ReadonlyMap<VaultPath, TraversedNode>): ReadonlyMap<VaultPath, number> {
 		const normalized = new Map<VaultPath, number>();
 		for (const [path, node] of nodes) {
-			normalized.set(path, 1 / (1 + this.k * node.minDepth));
+			const decayed = 1 / (1 + this.k * node.minDepth);
+			normalized.set(path, Number.isFinite(decayed) ? decayed : NEUTRAL_NORMALIZED_VALUE);
 		}
 		return normalized;
 	}

@@ -73,34 +73,55 @@ export const NEUTRAL_NORMALIZED_VALUE = 0.5;
 export const CENTRAL_SIZE_SCORE = 1;
 
 // ---------------------------------------------------------------------------
-// Force-layout slider ranges — derived from SETTINGS_SPEC's per-field bounds.
-// Single source of truth for the tuning-slider limits: the settings-tab sliders
-// take their bounds here and the persistence parser clamps with the same table,
-// so out-of-range values are unreachable end-to-end. The WHY per field lives on
-// `SETTINGS_SPEC.globalView.forceLayout`.
+// Settings input ranges — derived from SETTINGS_SPEC's per-field bounds.
+// Single source of truth for the tuning-input limits: the settings surfaces
+// take their bounds here and the same tables clamp on the way in, so
+// out-of-range values are unreachable end-to-end. The WHY per field lives on
+// `SETTINGS_SPEC.globalView.{forceLayout,sizing}`.
 // ---------------------------------------------------------------------------
 
-/** Inclusive slider bounds + step for one force-layout field. */
-export interface ForceLayoutRange {
+/** Inclusive slider/stepper bounds + step for one numeric settings field. */
+export interface SettingsRange {
 	readonly min: number;
 	readonly max: number;
 	readonly step: number;
 }
 
-export const FORCE_LAYOUT_RANGES: Readonly<Record<keyof ForceLayoutSettings, ForceLayoutRange>> =
-	Object.fromEntries(
-		Object.entries(SETTINGS_SPEC.globalView.forceLayout).map(([field, spec]) => [
+/** Projects the `{min,max,step}` of a spec section's bounded fields into a range table. */
+function rangesOf<TField extends string>(
+	specSection: Readonly<Record<TField, SettingsRange>>,
+): Readonly<Record<TField, SettingsRange>> {
+	return Object.fromEntries(
+		Object.entries<SettingsRange>(specSection).map(([field, spec]) => [
 			field,
 			{ min: spec.min, max: spec.max, step: spec.step },
 		]),
-	) as Readonly<Record<keyof ForceLayoutSettings, ForceLayoutRange>>;
+	) as Readonly<Record<TField, SettingsRange>>;
+}
+
+/**
+ * Clamps one value into `range`. `±Infinity` needs no special case — it carries
+ * an intent ("as large/small as possible") that `Math.min`/`Math.max` already
+ * resolve to the finite bound. `NaN` carries none and DOES: those two propagate
+ * it rather than filtering it, so without this branch a bare min/max clamp
+ * would let `NaN` straight through to the field's consumer.
+ */
+function clampIntoRange(value: number, range: SettingsRange, fallback: number): number {
+	if (Number.isNaN(value)) {
+		return fallback; // The field's spec default — the only meaning left.
+	}
+	return Math.min(range.max, Math.max(range.min, value));
+}
+
+export const FORCE_LAYOUT_RANGES: Readonly<Record<keyof ForceLayoutSettings, SettingsRange>> = rangesOf(
+	SETTINGS_SPEC.globalView.forceLayout,
+);
 
 /** Clamps every field into its {@link FORCE_LAYOUT_RANGES} bounds (steps are a UI affordance, not enforced). */
 export function clampForceLayoutSettings(settings: ForceLayoutSettings): ForceLayoutSettings {
-	const clamp = (field: keyof ForceLayoutSettings): number => {
-		const range = FORCE_LAYOUT_RANGES[field];
-		return Math.min(range.max, Math.max(range.min, settings[field]));
-	};
+	const spec = SETTINGS_SPEC.globalView.forceLayout;
+	const clamp = (field: keyof ForceLayoutSettings): number =>
+		clampIntoRange(settings[field], FORCE_LAYOUT_RANGES[field], spec[field].default);
 	return {
 		centerPullStrength: clamp("centerPullStrength"),
 		repelStrength: clamp("repelStrength"),
@@ -109,6 +130,45 @@ export function clampForceLayoutSettings(settings: ForceLayoutSettings): ForceLa
 		collidePaddingPx: clamp("collidePaddingPx"),
 		elkNodeSpacingPx: clamp("elkNodeSpacingPx"),
 		edgeRoutingClearancePx: clamp("edgeRoutingClearancePx"),
+	};
+}
+
+/** The bounded sizing fields (`metrics` carries defaults only — its weights are bounded by `metricWeight`). */
+type SizingRangeField = "metricWeight" | "depthDecayK" | "minPx" | "maxPx";
+
+export const SIZING_RANGES: Readonly<Record<SizingRangeField, SettingsRange>> = rangesOf({
+	metricWeight: SETTINGS_SPEC.globalView.sizing.metricWeight,
+	depthDecayK: SETTINGS_SPEC.globalView.sizing.depthDecayK,
+	minPx: SETTINGS_SPEC.globalView.sizing.minPx,
+	maxPx: SETTINGS_SPEC.globalView.sizing.maxPx,
+});
+
+/**
+ * Clamps every sizing number into its {@link SIZING_RANGES} bounds — applied on
+ * the persistence-LOAD path, on every settings-WRITE path, and once more by the
+ * sizer itself.
+ *
+ * Stricter than {@link clampForceLayoutSettings} (load-only) on purpose: these
+ * numbers become node GEOMETRY (`sizePx` → React-Flow width/height → a libavoid
+ * obstacle, and a non-finite rectangle ABORTS the router's wasm module for the
+ * rest of the session), and a typed `-1` / `1e999` in a number input reaches the
+ * live session without ever round-tripping through disk.
+ */
+export function clampSizingSettings(settings: SizingSettings): SizingSettings {
+	const spec = SETTINGS_SPEC.globalView.sizing;
+	const clamp = (field: SizingRangeField, value: number): number =>
+		clampIntoRange(value, SIZING_RANGES[field], spec[field].default);
+	const metrics = Object.fromEntries(
+		Object.entries(settings.metrics).map(([metricId, metric]) => [
+			metricId,
+			{ ...metric, weight: clamp("metricWeight", metric.weight) },
+		]),
+	) as SizingSettings["metrics"];
+	return {
+		metrics,
+		depthDecayK: clamp("depthDecayK", settings.depthDecayK),
+		minPx: clamp("minPx", settings.minPx),
+		maxPx: clamp("maxPx", settings.maxPx),
 	};
 }
 

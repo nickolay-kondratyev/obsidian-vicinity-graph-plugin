@@ -51,6 +51,16 @@ describe("clampForceLayoutSettings (degenerate values are unreachable)", () => {
 		expect(clampForceLayoutSettings(undershooting)).toEqual(expected);
 	});
 
+	// `Math.min`/`Math.max` PROPAGATE NaN, so the shared `clampIntoRange` helper
+	// carries an explicit NaN branch. Pinned here because this file is where a
+	// future "simplify the clamp back to min/max" would land.
+	it("WHEN a field is NaN THEN it falls back to its spec default", () => {
+		const defaults = EngineDefaults.forceLayoutSettings();
+		expect(clampForceLayoutSettings({ ...defaults, repelStrength: Number.NaN }).repelStrength).toBe(
+			defaults.repelStrength,
+		);
+	});
+
 	it("WHEN the center pull is maxed and the link factor is minimized THEN links still dominate the pull (anti-collapse invariant)", () => {
 		// A degree-1 leaf's weakest spring is linkStrengthFactor.min / 1; the
 		// strongest reachable center pull must stay below it or the hub-collapse
