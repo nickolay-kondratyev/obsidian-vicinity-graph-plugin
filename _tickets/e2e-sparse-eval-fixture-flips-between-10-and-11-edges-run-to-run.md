@@ -1,11 +1,11 @@
 ---
 id: nid_li45606h8uvcnjm7fss17xl1u_e
 title: "e2e: sparse eval fixture flips between 10 and 11 edges run-to-run"
-status: open
+status: in_progress
 deps: []
 links: []
 created_iso: 2026-07-25T03:33:28Z
-status_updated_iso: 2026-07-25T03:33:28Z
+status_updated_iso: 2026-07-26T05:43:39Z
 type: chore
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
