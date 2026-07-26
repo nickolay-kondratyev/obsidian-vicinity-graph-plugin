@@ -6,6 +6,8 @@
 # Docker); an already-set OBSIDIAN_PATH is honoured untouched. Then seeds the dev
 # vault, type-checks the specs, and runs Playwright. Extra args pass through, e.g.
 #   npm run test:e2e -- vicinityGraph.e2e.ts
+# VICINITY_E2E_VAULT (opt-in) drives an arbitrary vault in place instead of the
+# dev vault — see the README e2e section.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -25,6 +27,14 @@ if [[ -z "${OBSIDIAN_E2E_EXTRA_ARGS:-}" && -z "${DISPLAY:-}" && -z "${WAYLAND_DI
 	echo "run-e2e: no display detected — using headless Obsidian flags: ${OBSIDIAN_E2E_EXTRA_ARGS}" >&2
 fi
 
-npm run setup:dev-vault
+# VICINITY_E2E_VAULT drives an arbitrary vault IN PLACE, so the dev vault is never
+# opened — seeding it would be pointless work. The plugin bundle is still built so
+# a symlinked install inside that vault picks up the current code.
+if [[ -n "${VICINITY_E2E_VAULT:-}" ]]; then
+	echo "run-e2e: VICINITY_E2E_VAULT set — skipping dev-vault seeding: ${VICINITY_E2E_VAULT}" >&2
+	npm run build
+else
+	npm run setup:dev-vault
+fi
 npx tsc -p e2e/tsconfig.json
 exec npx playwright test --config e2e/playwright.config.ts "$@"

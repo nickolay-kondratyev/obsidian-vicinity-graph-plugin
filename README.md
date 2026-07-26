@@ -256,6 +256,33 @@ The suite is idempotent (fresh vault copy + fresh sandbox config per run under
 `.tmp/e2e/`) and never touches your real Obsidian config or the dev-vault
 fixtures.
 
+#### Driving your own vault (`VICINITY_E2E_VAULT`) — opt-in
+
+To reproduce "the graph looks wrong in MY vault", point the harness at that
+vault. It is then opened **in place** — no copy, no wipe, no fixture writes — and
+the `externalVault.e2e.ts` spec centres the graph on one note and screenshots it
+to `.out/external-vault-graph.png`:
+
+```bash
+# one-time, in the target vault: install + enable the plugin yourself
+ln -s "$PWD" /path/to/vault/.obsidian/plugins/vicinity-graph   # after: npm run build
+# …then enable "Vicinity Graph" in that vault's Settings → Community plugins
+
+VICINITY_E2E_VAULT=/path/to/vault VICINITY_E2E_NOTE='some/note.md' \
+  npm run test:e2e -- externalVault.e2e.ts
+```
+
+The harness deliberately refuses to install or enable the plugin for you (that
+would rewrite your `community-plugins.json`), and refuses e2e fixture notes in
+this mode; it fails with the exact fix when either prerequisite is missing.
+Unset the variable and everything above behaves exactly as before.
+
+> ⚠️ **Caveat — use a scratch or backed-up vault.** Obsidian itself writes into
+> whatever vault it opens: `.obsidian/workspace.json`, the plugin's
+> `.obsidian/plugins/vicinity-graph/data.json`, and anything a test does through
+> the app. That is unavoidable. The harness never deletes or copies over the
+> vault (guarded by `e2e/vaultTarget.test.ts`), but the run is not read-only.
+
 ### `minAppVersion` (manifest.json)
 
 `1.12.4` — the first public Obsidian release with core canvas backlink/graph link
