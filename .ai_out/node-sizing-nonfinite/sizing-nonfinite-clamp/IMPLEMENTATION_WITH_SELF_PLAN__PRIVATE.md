@@ -56,10 +56,30 @@ metric weight `[0, 100] step .5`. All shipped defaults (1 / 40 / 160 / 1) sit in
   pre-fix because `minDepth === 0` implies `isCentral`, which bypasses metric composition. All of
   this is disclosed in the PUBLIC file — do not quietly restate the coverage as stronger than it is.
 
+## ITERATION 1 (review response) — commit `062be14`
+
+All 5 SHOULD-FIX incorporated, both actionable NITs turned into follow-up ticket
+`nid_hatwq2jlkhno5t6awcz0q6t9q_e`, one NIT (`MinMaxNormalizedMetric` totality) rejected as a
+different trust boundary. `npm run check` exit 0; `npm test` 72 files / 966 tests, 0 failures.
+
+- The `Number("")` regression was REAL and mine. Fix: new `src/view/sizingInput.ts`
+  `parseSizingInput(raw: string): number | undefined` — the single acceptance rule for all four
+  sizing inputs. React sites now pass `event.target.value` (string), NOT `valueAsNumber`, so both
+  surfaces share one rule instead of two that agree by luck. Do not "simplify" a site back inline.
+- `DepthDecayMetric` is now `export`ed from `NodeSizer.ts` SOLELY so its guard is directly testable;
+  it is deliberately NOT in `src/engine/index.ts`. Keep it that way.
+- `k = Infinity` is NOT a reachable NaN — `minDepth === 0` ⟺ `isCentral`, centrals bypass metrics.
+  Recorded as a note on the ticket. The new "non-central minDepth >= 1" test asserts `[1, 2]`
+  (not `.every(...)`) so it cannot pass vacuously.
+- Mutation-verified this iteration (run, not assumed): removing the `DepthDecayMetric` guard →
+  2 RED; removing `clampIntoRange`'s NaN branch → 3 RED including the new force-layout test.
+  CAUTION learned the hard way: `git checkout <file>` to revert a mutation also throws away
+  UNCOMMITTED work in that file — I lost and had to re-apply the `NodeSizer.ts` export. Commit first.
+
 ## State
 
-DONE. `npm run check` exit 0; `npm test` 956/956 pass. Committed as `4822bf7` on
-`sizing-nonfinite-clamp`. Ticket NOT closed, no change_log entry, not merged (all TOP_LEVEL's job).
+DONE (iteration 1). `npm run check` exit 0; `npm test` 966/966 pass. Commits `4822bf7` + `062be14`
+on `sizing-nonfinite-clamp`. Ticket NOT closed, no change_log entry, not merged (all TOP_LEVEL's job).
 
 See `IMPLEMENTATION_WITH_SELF_PLAN__PUBLIC.md` for the final result, files touched and the REAL
 `npm run check` / `npm test` output. Work is committed on `sizing-nonfinite-clamp`.

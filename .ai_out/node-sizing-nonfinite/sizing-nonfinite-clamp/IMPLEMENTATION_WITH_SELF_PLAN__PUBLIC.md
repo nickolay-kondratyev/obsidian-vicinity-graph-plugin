@@ -100,3 +100,118 @@ baseline tests. No behavior-capturing test was weakened or removed.
   natively, and the load path already clamps — the gap is theoretical, so no ticket was filed.
 - The ticket was NOT closed and no `change_log` entry was written (TOP_LEVEL_AGENT's job). Not merged
   to main.
+
+---
+
+# ITERATION 1 — response to `IMPLEMENTATION_REVIEW__PUBLIC.md`
+
+Commit `062be14` on `sizing-nonfinite-clamp`.
+**`npm run check`: PASS (exit 0). `npm test`: PASS — 72 files, 966 tests, 0 failures** (was 71/956;
++1 file, +10 tests). Every number below was produced by running the command, not estimated.
+
+## Disposition per finding
+
+| # | Finding | Disposition |
+|---|---|---|
+| SHOULD-FIX 1 | `Number("") === 0` — clearing a sizing field persists a clamped `1` | **INCORPORATED** |
+| SHOULD-FIX 2 | Finite-input rule duplicated at 4 sites, zero coverage | **INCORPORATED** |
+| SHOULD-FIX 3 | `DepthDecayMetric` guard dead + unpinned, comment overstates reachability | **INCORPORATED** (pinned, not deleted) |
+| SHOULD-FIX 4 | `k = Infinity` test vacuous; ticket premise wrong | **INCORPORATED** (reframed + ticket corrected) |
+| SHOULD-FIX 5 | `clampForceLayoutSettings` NaN→default untested | **INCORPORATED** |
+| NIT | `minPx <= maxPx` unenforced | **INCORPORATED as follow-up ticket** `nid_hatwq2jlkhno5t6awcz0q6t9q_e` |
+| NIT | Per-keystroke clamp snaps the React field | **INCORPORATED as follow-up ticket** (same one) |
+| NIT | `MinMaxNormalizedMetric` not total for a non-finite `sizeBytes` | **REJECTED** (no change) — rationale below |
+| Re-examined | `metricWeight [0,100]` = scope creep? | **KEPT** — rationale below |
+
+### 1 + 2 — the regression and the duplication, fixed together
+
+The review is right and this was a real behavioural regression I introduced: `Number("")` is `0`,
+`Number.isFinite(0)` is `true`, so select-all-delete forwarded a value the old `parsed >= min` check
+had rejected. Started from the failing test (`src/view/sizingInput.test.ts`, red before the helper
+existed).
+
+New **`src/view/sizingInput.ts`** — `parseSizingInput(raw: string): number | undefined`. One rule,
+one place: blank / whitespace / non-numeric / non-finite → `undefined`; anything else forwarded for
+the DOWNSTREAM clamp (so a mid-typing out-of-range value is never silently dropped). All four sites
+now call it — `VicinityGraphSettingTab.addSizingNumber` and its metric-weight input, and
+`SizingSection`'s `SizingNumber` and weight input. The React sites switched from
+`event.target.valueAsNumber` to `event.target.value`, so both surfaces genuinely share ONE rule
+rather than two rules that happen to agree today.
+
+I did NOT fold the `Node cap` input into this helper: its rule is different (integer + `>= MIN_NODE_CAP`)
+and merging them would have produced a parameterised parser that is harder to read than either. Out
+of scope for this ticket.
+
+### 3 — the `DepthDecayMetric` guard: kept, and now genuinely pinned
+
+Three options were on the table: delete it as dead code, keep it as declared-untested defence in
+depth, or pin it. I chose to **pin** it, because the ticket's decided design explicitly mandates the
+guard ("a `DepthDecayMetric` guard is still warranted as the last line of defence"), and a guard that
+no test can kill is a guard the next refactor deletes.
+
+`DepthDecayMetric` is now `export`ed from `NodeSizer.ts` (deliberately NOT re-exported from
+`src/engine/index.ts`, so the engine's public surface is unchanged), and two tests construct it
+directly with `k = -1` and `k = Infinity`. The class doc no longer implies reachability — it states
+plainly that `computeSizes` clamps `k` first, so the guard is unreachable there, and that it exists
+so the metric is total in its own right.
+
+Mutation-verified: with `Number.isFinite(decayed) ? … :` removed, those two tests go RED (before this
+iteration, removing it left all 956 green).
+
+### 4 — `k = Infinity`: the ticket's premise was wrong, stated plainly
+
+Confirmed independently. `VicinityTraversal` tags neighbours `currentDepth + 1`, so `minDepth === 0`
+holds for roots only, and roots are exactly the centrals — which `computeSizes` gives
+`CENTRAL_SIZE_SCORE` without composing metrics. The `Infinity * 0 = NaN` the ticket predicted is
+computed and then discarded. **There was never a reachable NaN from `k` alone.** The genuinely
+reachable defects were `k = -1`, `k = NaN`, non-finite `minPx`/`maxPx` and an `Infinity` metric
+weight.
+
+Actions: the `k = Infinity` row stays in the acceptance-criteria table (the ticket asks for it) but no
+longer claims to catch `Infinity * 0`; the describe-level comment now says which rows die without the
+clamp and which do not; and a NEW test pins the `minDepth === 0 ⇒ isCentral` coupling directly
+(`WHEN a node is not central THEN its minDepth is at least 1`) — that is the invariant whose breakage
+would make the predicted NaN reachable, and it asserts the actual depths `[1, 2]` so it cannot pass
+vacuously on an empty set. The correction is recorded as a note on ticket
+`nid_8vmo5ibhv1bvh2ukrgmafpofj_e`.
+
+### 5 — force-layout NaN branch pinned
+
+One test in `forceLayoutSettings.test.ts`: `WHEN a field is NaN THEN it falls back to its spec
+default`. Mutation-verified RED when `clampIntoRange`'s NaN branch is removed. The comment says WHY
+it lives there: that file is where a "simplify this back to `Math.min`/`Math.max`" would land.
+
+### `metricWeight [0, 100]` — re-examined, KEPT
+
+Re-checked against the scope-creep concern, and the review's own analysis agrees. The pre-fix React
+weight input guarded `NaN` only, so `1e999` gave an `Infinity` weight and
+`weightedSum / totalWeight` = `Infinity / Infinity` = `NaN` → `NaN sizePx` — the same defect, in the
+same settings object, through the same input surface. Mutation A (reviewer's) proves the test is
+non-vacuous. Excluding it would have made `clampSizingSettings` a lie about the object it clamps.
+
+### REJECTED: `MinMaxNormalizedMetric` totality for a non-finite `sizeBytes`
+
+No change. That would harden against a hostile *LinkProvider*, not hostile *settings* — a different
+trust boundary and a different ticket. `sizeBytes` comes from Obsidian's `stat.size`, `hasFiniteGeometry`
+still backstops the geometry, and the review itself notes this only so the "the sizer is TOTAL"
+comment is read as scoped to settings, which is how it is written.
+
+## New tests (all 10)
+
+- `src/view/sizingInput.test.ts` (6): plain number, negative forwarded, blank rejected, whitespace
+  rejected, `1e999` rejected, non-numeric rejected.
+- `src/engine/NodeSizer.test.ts` (3): non-central `minDepth >= 1` coupling; `DepthDecayMetric` with
+  `k = -1`; `DepthDecayMetric` with `k = Infinity`.
+- `src/engine/forceLayoutSettings.test.ts` (1): NaN → spec default.
+
+## Honest coverage statement
+
+`sizingInput` is unit-tested; the *wiring* of those four inputs is still not covered (there is no
+`SizingSection` / `VicinityGraphSettingTab` test harness in this repo, and building one is well beyond
+this ticket). The helper is a pure function called from four one-line call sites, which is the 80/20
+line I drew.
+
+## Not done, deliberately
+
+- No `change_log` entry, ticket not closed, not merged to main (TOP_LEVEL_AGENT's job).
+- Follow-up ticket `nid_hatwq2jlkhno5t6awcz0q6t9q_e` filed for the two NITs; not fixed here.
