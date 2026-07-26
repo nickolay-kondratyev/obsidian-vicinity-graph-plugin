@@ -14,6 +14,27 @@ verification), `3b42b81` (review round 1: B1 + S1–S5).
 | **S4** symlink recipe | **Fixed**: README + the error message now symlink `main.js`/`manifest.json`/`styles.css` individually, never the repo root. `doc-data/` added to `.gitignore` as belt-and-braces. |
 | **S5** truncation caveat | **Fixed**: folded into the README caveat, which now also names `core-plugins.json` (observed in this round's scratch run). Graceful-close-before-SIGKILL was **not** implemented — out of scope for this ticket and it would touch the shared shutdown path used by the green default suite. |
 
+## Review round 2 — the remaining NIT, closed
+
+The scan keys off the literal `fs.` prefix, so `import { unlinkSync } from "node:fs"` or
+`fs.promises.*` would have slipped past it. Now enforced rather than assumed:
+
+- New BDD test: **"WHEN an e2e source imports node:fs THEN it uses the `import * as fs`
+  namespace form the scan keys off"** — every line mentioning `"node:fs` in a scanned file
+  must be exactly `import * as fs from "node:fs";`.
+- The async-API test was widened from "does not import `node:fs/promises`" to "does not USE
+  the async fs API" (also catches `fs.promises.*`).
+- Three pre-existing specs (`settingsResetReview`, `settingsResetVerify`, `settingsUxVisual`)
+  used the default-import form `import fs from "node:fs"`. That is equally prefix-safe, but
+  normalising them to the namespace form leaves ONE enforceable rule instead of two accepted
+  spellings. Import form only — no behaviour touched.
+- **Mutation-tested**: dropped `e2e/zzprobe.ts` containing
+  `import { unlinkSync } from "node:fs"` → the new test failed, naming the file and line;
+  removed it → green again.
+
+Round-2 gates (observed): `npm test` **green, 986 tests** (was 985), `npm run check` green,
+`npx tsc -p e2e/tsconfig.json` green. No e2e re-run (source-scan/import-form change only).
+
 NITs: added the WHY-NOT line about `target.copyDir` vs the `VAULT_COPY_DIR` constant.
 `~` expansion and the import-time scratch dir were left alone (cosmetic, and moving the
 scratch dir into `beforeAll` buys nothing for a file that needs it in every test).

@@ -3,6 +3,14 @@
 STATUS: **DONE, review round 1 addressed**. Commits `8b1c026` (feature), `debb1d7`
 (setEnable fix), `3b42b81` (B1 + S1–S5) on `e2e-vault-override`.
 
+## Round 2 notes
+- Import-form guard added (`NAMESPACE_FS_IMPORT`) so the scan's `fs.` prefix assumption is
+  enforced. `settingsResetReview/Verify/UxVisual.e2e.ts` were normalised from
+  `import fs from "node:fs"` to the namespace form — that is the ONLY change to those files.
+- Mutation check recipe: `printf 'import { unlinkSync } from "node:fs";\n' > e2e/zzprobe.ts`,
+  run the test (fails, names the file), `rm e2e/zzprobe.ts`.
+- Gates after round 2: `npm test` 986 green, `check` green, `tsc -p e2e/tsconfig.json` green.
+
 ## Round 1 notes
 - B1 gate lives in `vaultTarget.ts::assertExternalLaunchAllowed` (pure ⇒ unit-testable
   without launching Obsidian). `LaunchOptions` moved there too, so the harness imports

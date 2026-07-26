@@ -149,6 +149,8 @@ const DEFAULT_DESTINATION_ARG_INDICES: readonly number[] = [0];
  * None of them can ever BE the vault under `VICINITY_E2E_VAULT`.
  */
 const SAFE_WRITE_ROOTS = /^(VAULT_COPY_DIR|SANDBOX_CONFIG_DIR|OUT_DIR)\b/;
+/** The ONE `node:fs` import form that guarantees every fs call carries the `fs.` prefix. */
+const NAMESPACE_FS_IMPORT = /^import \* as fs from "node:fs";$/;
 
 describe("e2e harness destructive calls", () => {
 	/**
@@ -175,11 +177,28 @@ describe("e2e harness destructive calls", () => {
 		expect(offenders).toEqual([]);
 	});
 
-	it("WHEN scanning the e2e sources THEN none of them import the async fs API (which this scan cannot see)", () => {
-		const importers = scannedFiles.filter((name) =>
-			/from "node:fs\/promises"|require\("node:fs\/promises"\)/.test(fs.readFileSync(path.join(REPO_ROOT, "e2e", name), "utf8")),
+	it("WHEN scanning the e2e sources THEN none of them use the async fs API (which this scan cannot see)", () => {
+		const offenders = scannedFiles.filter((name) =>
+			/node:fs\/promises|\bfs\.promises\b/.test(fs.readFileSync(path.join(REPO_ROOT, "e2e", name), "utf8")),
 		);
-		expect(importers).toEqual([]);
+		expect(offenders).toEqual([]);
+	});
+
+	/**
+	 * The scan above keys off the literal `fs.` call prefix, so a bare-member
+	 * import (`import { unlinkSync } from "node:fs"`) or a default import would
+	 * write to any path unseen. Enforce the one import form that makes the
+	 * prefix assumption true instead of assuming it.
+	 */
+	it("WHEN an e2e source imports node:fs THEN it uses the `import * as fs` namespace form the scan keys off", () => {
+		const offenders = scannedFiles.flatMap((name) =>
+			fs
+				.readFileSync(path.join(REPO_ROOT, "e2e", name), "utf8")
+				.split("\n")
+				.filter((line) => line.includes('"node:fs') && !NAMESPACE_FS_IMPORT.test(line))
+				.map((line) => `${name}: ${line.trim()}`),
+		);
+		expect(offenders).toEqual([]);
 	});
 
 	it("WHEN scanning a harness that wrote to an arbitrary path THEN the scan reports it", () => {

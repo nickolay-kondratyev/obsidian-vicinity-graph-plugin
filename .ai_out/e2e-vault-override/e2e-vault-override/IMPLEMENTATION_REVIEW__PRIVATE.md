@@ -1,5 +1,36 @@
 # IMPLEMENTATION REVIEW — private notes
 
+## ROUND 1 (re-review of `3b42b81`, `57fd27b`) — READY
+
+Verification technique worth reusing: I mutation-tested the S3 guard instead of reading
+it. Dropped `e2e/zzScanProbe.ts` (`fs.unlinkSync(dir + "/note.md")`) into the tree, ran
+`npx vitest run e2e/vaultTarget.test.ts` → failed with the offender listed; then deleted
+the file and confirmed `git status --porcelain` empty. Second probe (named import +
+`fs.promises.writeFile`) stayed green → that is the real residual, reported as a NIT.
+Logs: `.tmp/rev2-probe.log`, `.tmp/rev2-probe2.log`, `.tmp/rev2-test.log`.
+
+B1 airtightness argument (checked, not assumed): env is read in exactly one place
+(`launch`), constructor is private, `spawnAndConnect` has two callers (`launch`
+post-gate, `relaunch` which reuses the carried `vaultMode`), and the gate precedes
+`prepareSandboxConfigDir` + `spawn`. `allowExternalVault?: true` (literal type) is a nice
+touch — `false` is unrepresentable, so the flag cannot be "explicitly disabled" by
+accident.
+
+I deliberately did NOT re-litigate: the declined `run-e2e.sh` spec-filter default (I had
+marked it optional and their rationale — don't silently change what `test:e2e` runs — is
+sound), the declined graceful shutdown (shared path, green suite, documented), or the two
+cosmetic NITs they left (`~` expansion, import-time scratch dir). Coordinator asked for no
+new nitpick fronts and there was nothing load-bearing left.
+
+Not re-run: the real e2e suite (needs a live Obsidian). Accepted the implementer's
+round-1 numbers (71 passed / 1 skipped / 1 pre-existing gamma failure; scratch-vault run
+1 passed with a clean working tree afterwards) — consistent with round 0 and with the
+ticketed gamma failure predating the branch.
+
+---
+
+## ROUND 0 notes
+
 ## Evidence gathered (so a re-review doesn't redo it)
 
 - Obsidian bundle available at `.tmp/obsidian/obsidian-1.12.7/resources/obsidian.asar`;

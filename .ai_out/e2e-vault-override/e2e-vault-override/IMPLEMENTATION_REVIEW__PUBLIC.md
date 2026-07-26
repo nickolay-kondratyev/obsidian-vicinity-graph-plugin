@@ -1,6 +1,123 @@
 # IMPLEMENTATION REVIEW — `VICINITY_E2E_VAULT` (ticket nid_se3h2v45c10x9j42utbm8v2sn_e)
 
-Diff reviewed: `edc9941..HEAD` (`8b1c026`, `debb1d7`, `9c34020`) on branch `e2e-vault-override`.
+Diff reviewed: `edc9941..HEAD` on branch `e2e-vault-override`.
+
+---
+
+# ROUND 1 RE-REVIEW (`3b42b81`, `57fd27b`) — VERDICT: **READY TO MERGE**
+
+All six round-0 findings (B1, S1–S5) are **fully addressed**. No regressions, no new
+BLOCKING or SHOULD-FIX issues. One bounded NIT below, optional.
+
+### Gates re-run
+
+`npm test` green — 73 files / **985** tests (was 979; +6). `npm run check` green.
+`npx tsc -p e2e/tsconfig.json` green. Working tree clean.
+
+### B1 — `allowExternalVault` opt-in: AIRTIGHT ✅
+
+`e2e/vaultTarget.ts:95-110` + `e2e/obsidianHarness.ts:145-154`.
+
+- `launch()` is the **only** place `process.env[VAULT_OVERRIDE_ENV_VAR]` is read and the
+  only public constructor (the class constructor is `private`), so there is no second
+  entry point. `spawnAndConnect()` is `private static` with exactly two callers:
+  `launch()` (after the gate) and `relaunch()` (an instance method — only reachable from
+  an already-gated harness, and it carries `vaultMode` rather than re-reading the env).
+- The gate fires **before** `prepareSandboxConfigDir()` and before `childProcess.spawn`,
+  i.e. before anything is written or launched. Verified by reading the call order at
+  `obsidianHarness.ts:146-154`; the implementer also verified it live
+  (`settingsResetVerify.e2e.ts` refuses before Obsidian starts).
+- `assertExternalLaunchAllowed` now owns both external-mode refusals (opt-in +
+  `extraFixtures`) — better SRP than the inline throw it replaces, and unit-tested
+  (4 BDD tests, `vaultTarget.test.ts:80-100`).
+- `externalVault.e2e.ts:41` is the sole opt-in caller; `allowExternalVault?: true`
+  (literal `true`, not `boolean`) makes `allowExternalVault: false` non-expressible.
+- Declining the `run-e2e.sh` spec-filter default is fine — I had marked it optional, and
+  the throw covers the case at the only point that matters.
+
+### S3 — inverted allowlist scan: GENUINELY BITES ✅ (mutation-tested by the reviewer)
+
+`e2e/vaultTarget.test.ts:126-235`. I did not take this on trust — I dropped a **new**
+file into `e2e/` that the implementer never anticipated:
+
+```ts
+// e2e/zzScanProbe.ts   (temporary, removed afterwards)
+import * as fs from "node:fs";
+export function bad(dir: string): void { fs.unlinkSync(dir + "/note.md"); }
+```
+
+→ `npm test` **failed**: `expected [ 'dir + "/note.md"' ] to deeply equal []`. So the
+scan covers every `e2e/*.ts`, an fs member nobody listed, and a non-constant destination.
+Destination-arg positions are sound (`cpSync`/`copyFileSync`/`link`/`symlink` → arg 2,
+`renameSync` → both, default arg 1), and `topLevelArguments`'s depth counter handles
+nested `path.join(...)`/object args and multi-line calls. Unresolvable destinations fail
+**closed** (anything not rooted at a safe constant is an offender), which is the right
+default. Adding `OUT_DIR` to the safe roots is legitimate — every spec already
+screenshots to `.out/`.
+
+### S1 / S2 — corrected comments are factually true ✅
+
+`vaultTarget.ts:112-121` and `obsidianHarness.ts:522-540` now match the decompiled
+Obsidian 1.12.7 exactly: `setEnable` writes only `localStorage["enable-plugin-<appId>"]`
+(user-data dir); the false "`enablePlugin` rewrites the vault's `community-plugins.json`"
+claim is gone from all three places incl. the README. The replacement WHY-NOT (loading
+our code would write `data.json`/`doc-data/` into a vault where the human never enabled
+it) is true, and "no per-plugin lever: `enablePlugin` requires the master switch anyway"
+checks out — `loadPlugin` early-returns unless `isEnabled()`. S2's "ACCEPTED
+CONSEQUENCE: every community plugin enabled in that vault loads and runs" now states
+what the code does instead of contradicting it.
+
+### S4 / S5 — README ✅
+
+The recipe symlinks `main.js`/`manifest.json`/`styles.css` individually after
+`npm run build`, never the repo root, with the WHY inline; `assertExternalVaultReady`'s
+error message carries the same command, and its `main.js` existence check still works
+through a symlink (dangling link ⇒ correct "not installed" error). `.gitignore` gains
+`doc-data/` as belt-and-braces. The caveat is honest and now complete: `workspace.json`
+(incl. **0-byte truncation** on signal shutdown), `core-plugins.json`, the plugin's
+`data.json`, and every other community plugin loading and running. The pre-existing
+idempotency sentence is correctly re-scoped to "In its default mode". Declining the
+graceful-shutdown change is right — it would touch the shared path under the green
+default suite; the caveat documents the consequence.
+
+### 💡 NIT (optional, non-blocking) — residual scan bypasses worth one line
+
+`e2e/vaultTarget.test.ts:198` keys off the literal `fs.` prefix. Two forms slip through
+silently (I probed both; suite stayed green):
+
+```ts
+import { unlinkSync } from "node:fs"; unlinkSync(dir + "/a.md");   // named import
+import * as fsp from "node:fs";       fsp.promises.writeFile(…);   // fs.promises.*
+```
+
+Neither matches the style of any of the nine existing `e2e/` files (all use an
+`fs.`-prefixed namespace/default import) and the test's doc comment scopes itself to
+node-side `fs`, so this is a small residual, not false confidence. One-line hardening if
+desired: assert every scanned file's `node:fs` import matches
+`/^import (?:\* as )?fs from "node:fs";$/m` and that no file contains `fs.promises`.
+Same class of limit applies to the name-based `SAFE_WRITE_ROOTS` (a future file could
+define its own `OUT_DIR`) — inherent to a source scan and acceptable.
+
+### Round-0 findings — status
+
+| # | Status |
+|---|---|
+| B1 opt-in gate | **Closed** — verified airtight, no bypass path |
+| S1 false WHY-NOT | **Closed** — all three sites corrected |
+| S2 accepted consequence | **Closed** — comment + README |
+| S3 guard scope | **Closed** — mutation-tested by the reviewer |
+| S4 symlink recipe | **Closed** — per-artifact symlinks + `doc-data/` ignored |
+| S5 caveat honesty | **Closed** — truncation + `core-plugins.json` + plugin loading |
+
+The gamma-breadcrumb e2e failure remains pre-existing and ticketed
+(`docs-internal/tickets/ticket-e2e-gamma-breadcrumb-fails-headless.md`, last touched in
+`507a27a`, before this branch).
+
+---
+
+# ROUND 0 (original review, for the record)
+
+Diff reviewed: `edc9941..4b3e3c4` (`8b1c026`, `debb1d7`, `9c34020`).
 
 ## Summary
 
