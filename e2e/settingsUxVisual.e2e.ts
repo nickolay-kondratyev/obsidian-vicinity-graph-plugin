@@ -377,6 +377,48 @@ test("settings tab: the selected Preview segment is filled distinctly from the t
 	expect(light.selectedFill).not.toBe(light.trough);
 });
 
+/*
+ * A slider whose value is nowhere on screen is unreadable, and NOTHING else in
+ * this repo asserts that readout: `aria-label` and the `value` attribute both
+ * survive its removal. This test exists because `setDynamicTooltip()` was once
+ * deleted from `addLabeledSlider` on the strength of the `@deprecated` tag in
+ * the 1.13 typings — blanking the value of all 10 sliders on every supported
+ * build below 1.13 — with the whole suite green.
+ *
+ * Deliberately mechanism-agnostic: on the pinned 1.12.7 runtime the value lands
+ * in a body-level `.tooltip` on hover; from 1.13 it renders inline in the row.
+ * Either satisfies "the value is readable", so a future `minAppVersion` bump
+ * needs no edit here.
+ *
+ * Two things the assertion must NOT be satisfiable by, hence its exact shape:
+ * - the `<input value=…>` attribute → match on rendered TEXT only;
+ * - a digit in the row's own name/desc → scoped to `.setting-item-control`
+ *   (name and desc live in the sibling `.setting-item-info`) and matched exactly.
+ * And it asserts only the post-hover state — WHY-NOT a "hidden before hover"
+ * precondition: from 1.13 the inline readout is there before any hover, and that
+ * precondition would then fail for a reason that is not a regression.
+ */
+test("settings tab: WHEN a slider is hovered THEN its current value is readable", async () => {
+	await openSettingsTab();
+	// "Outline depth", because the advanced force-layout sliders sit inside a
+	// collapsed <details> and cannot be hovered without opening it.
+	const row = page.locator(".vicinity-graph-settings .setting-item", {
+		has: page.locator('input[aria-label="Outline depth"]'),
+	});
+	const slider = row.locator('input[type="range"]');
+	const value = await slider.inputValue();
+	const exactly = new RegExp(`^${value}$`);
+	const valueReadout = page
+		.locator(".tooltip")
+		.filter({ hasText: exactly })
+		.or(row.locator(".setting-item-control").getByText(value, { exact: true }));
+
+	await slider.hover();
+
+	// `.first()`: a 1.13 build may well render BOTH readouts, and one is enough.
+	await expect(valueReadout.first()).toBeVisible();
+});
+
 test("controls panel: clicking its Preview segment writes the SAME global the tab writes", async () => {
 	// The settings modal must go: with it open there are TWO Preview radiogroups
 	// in the document and every unscoped radio locator is strict-mode ambiguous.
