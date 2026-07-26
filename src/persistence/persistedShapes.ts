@@ -9,7 +9,13 @@ import type {
 	ViewSettings,
 	ViewSettingsOverride,
 } from "../engine";
-import { EngineDefaults, NODE_PREVIEW_PREFERENCES, clampForceLayoutSettings, clampOutlineMaxDepth } from "../engine";
+import {
+	EngineDefaults,
+	NODE_PREVIEW_PREFERENCES,
+	clampForceLayoutSettings,
+	clampOutlineMaxDepth,
+	clampSizingSettings,
+} from "../engine";
 
 /**
  * Versioned JSON shapes persisted by step-03 (every shape carries `version`
@@ -168,6 +174,10 @@ function parseViewOverride(raw: unknown): ViewSettingsOverride {
  * WHOLESALE in the view cascade — so a partially-mangled persisted sizing must
  * come out as a COMPLETE {@link SizingSettings}: recognized fields survive,
  * unusable ones are repaired from the engine default. Non-object → inherit.
+ * The result is CLAMPED into the input ranges, so a hand-edited `data.json`
+ * cannot reach a size or a decay `k` the inputs make unreachable (a FINITE
+ * `depthDecayK: -1` passes the non-finite gate below — the clamp is what stops
+ * it dividing `1 / (1 + k * depth)` by zero).
  */
 function parseSizing(raw: unknown): SizingSettings | undefined {
 	if (!isRecord(raw)) {
@@ -179,12 +189,12 @@ function parseSizing(raw: unknown): SizingSettings | undefined {
 	for (const metricId of Object.keys(defaults.metrics) as SizeMetricId[]) {
 		metrics[metricId] = parseMetricSetting(rawMetrics[metricId]) ?? defaults.metrics[metricId];
 	}
-	return {
+	return clampSizingSettings({
 		metrics,
 		depthDecayK: numberOrUndefined(raw["depthDecayK"]) ?? defaults.depthDecayK,
 		minPx: numberOrUndefined(raw["minPx"]) ?? defaults.minPx,
 		maxPx: numberOrUndefined(raw["maxPx"]) ?? defaults.maxPx,
-	};
+	});
 }
 
 /**

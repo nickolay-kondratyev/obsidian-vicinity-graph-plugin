@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EngineDefaults, SETTINGS_SPEC } from "../engine";
+import { EngineDefaults, SETTINGS_SPEC, SIZING_RANGES } from "../engine";
 import { PersistedShapes, PERSISTED_SHAPE_VERSION } from "./persistedShapes";
 
 describe("PersistedShapes.parsePluginData", () => {
@@ -137,6 +137,31 @@ describe("PersistedShapes sizing parsing", () => {
 		};
 		const defaults = EngineDefaults.viewSettings().sizing;
 		expect(PersistedShapes.parseDocData(raw)?.view?.sizing).toEqual({ ...defaults, minPx: 12 });
+	});
+
+	it("WHEN persisted sizing carries out-of-range values THEN they are clamped into the input ranges", () => {
+		// `-1` is FINITE, so the non-finite gate lets it through: it is the clamp
+		// that stops `depthDecayK = -1` reaching `1 / (1 + k * minDepth)`.
+		const raw = {
+			version: PERSISTED_SHAPE_VERSION,
+			view: { sizing: { depthDecayK: -1, minPx: -50, maxPx: 1e10 } },
+		};
+		const parsed = PersistedShapes.parseDocData(raw)?.view?.sizing;
+		expect({ depthDecayK: parsed?.depthDecayK, minPx: parsed?.minPx, maxPx: parsed?.maxPx }).toEqual({
+			depthDecayK: SIZING_RANGES.depthDecayK.min,
+			minPx: SIZING_RANGES.minPx.min,
+			maxPx: SIZING_RANGES.maxPx.max,
+		});
+	});
+
+	it("WHEN a persisted metric weight is out of range THEN it is clamped into the weight range", () => {
+		const raw = {
+			version: PERSISTED_SHAPE_VERSION,
+			view: { sizing: { metrics: { "backlink-count": { enabled: true, weight: -3 } } } },
+		};
+		expect(PersistedShapes.parseDocData(raw)?.view?.sizing?.metrics["backlink-count"].weight).toBe(
+			SIZING_RANGES.metricWeight.min,
+		);
 	});
 
 	it("WHEN persisted sizing is not an object THEN the sizing field inherits (absent)", () => {

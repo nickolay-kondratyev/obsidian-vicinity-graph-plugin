@@ -1,4 +1,4 @@
-import { CENTRAL_SIZE_SCORE, NEUTRAL_NORMALIZED_VALUE } from "./constants";
+import { CENTRAL_SIZE_SCORE, NEUTRAL_NORMALIZED_VALUE, clampSizingSettings } from "./constants";
 import type { LinkProvider } from "./LinkProvider";
 import { NodeEligibility } from "./NodeEligibility";
 import type { TraversedNode } from "./VicinityTraversal";
@@ -36,8 +36,13 @@ export class NodeSizer {
 
 	computeSizes(
 		nodes: ReadonlyMap<VaultPath, TraversedNode>,
-		settings: SizingSettings,
+		rawSettings: SizingSettings,
 	): ReadonlyMap<VaultPath, NodeSize> {
+		// The sizer is TOTAL: `sizePx` becomes node geometry a downstream wasm
+		// router cannot survive being handed non-finite, so hostile settings are
+		// clamped here with the SAME single-source table the settings boundary
+		// uses — never with a bespoke guard that could drift from it.
+		const settings = clampSizingSettings(rawSettings);
 		const enabledMetrics = this.enabledWeightedMetrics(settings);
 		const totalWeight = enabledMetrics.reduce((sum, entry) => sum + entry.weight, 0);
 		const normalizedPerMetric = enabledMetrics.map((entry) => ({
@@ -133,14 +138,25 @@ class MinMaxNormalizedMetric implements SizeMetric {
 	}
 }
 
-/** `1 / (1 + k * minDepth)` — inherently in (0, 1], no min-max pass needed. */
+/**
+ * `1 / (1 + k * minDepth)` — inherently in (0, 1] for the `k >= 0` the settings
+ * bounds allow, so no min-max pass is needed.
+ *
+ * Last line of defence for a `k` those bounds did not vet (this class is
+ * constructible with any number): the denominator vanishes at `k = -1/minDepth`
+ * (`Infinity`) and `k = Infinity` gives `Infinity * 0 = NaN` at the root, so a
+ * non-finite result degrades to {@link NEUTRAL_NORMALIZED_VALUE} — the same
+ * "this metric cannot discriminate" convention {@link MinMaxNormalizedMetric}
+ * uses — rather than poisoning `sizePx`.
+ */
 class DepthDecayMetric implements SizeMetric {
 	constructor(private readonly k: number) {}
 
 	normalizedValues(nodes: ReadonlyMap<VaultPath, TraversedNode>): ReadonlyMap<VaultPath, number> {
 		const normalized = new Map<VaultPath, number>();
 		for (const [path, node] of nodes) {
-			normalized.set(path, 1 / (1 + this.k * node.minDepth));
+			const decayed = 1 / (1 + this.k * node.minDepth);
+			normalized.set(path, Number.isFinite(decayed) ? decayed : NEUTRAL_NORMALIZED_VALUE);
 		}
 		return normalized;
 	}

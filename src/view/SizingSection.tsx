@@ -1,4 +1,5 @@
-import type { SizeMetricId, SizingSettings, ViewSettings } from "../engine";
+import type { SettingsRange, SizeMetricId, SizingSettings, ViewSettings } from "../engine";
+import { SIZING_RANGES } from "../engine";
 import type { ReactElement } from "react";
 import { useControlsActions } from "./ControlsActionsContext";
 import { Disclosure } from "./Disclosure";
@@ -55,12 +56,13 @@ export function SizingSection({
 									className="vicinity-graph-sizing__weight"
 									aria-label={`${label} weight`}
 									title="Weight"
-									min={0}
-									step={0.5}
+									min={SIZING_RANGES.metricWeight.min}
+									max={SIZING_RANGES.metricWeight.max}
+									step={SIZING_RANGES.metricWeight.step}
 									value={metric.weight}
 									disabled={!metric.enabled}
 									onChange={(event) => {
-										if (!Number.isNaN(event.target.valueAsNumber)) {
+										if (Number.isFinite(event.target.valueAsNumber)) {
 											setMetric(id, { weight: event.target.valueAsNumber });
 										}
 									}}
@@ -73,22 +75,19 @@ export function SizingSection({
 					<SizingNumber
 						label="Min px"
 						value={sizing.minPx}
-						min={1}
-						step={4}
+						range={SIZING_RANGES.minPx}
 						onChange={(minPx) => applySizing({ ...sizing, minPx })}
 					/>
 					<SizingNumber
 						label="Max px"
 						value={sizing.maxPx}
-						min={1}
-						step={4}
+						range={SIZING_RANGES.maxPx}
 						onChange={(maxPx) => applySizing({ ...sizing, maxPx })}
 					/>
 					<SizingNumber
 						label="Depth decay k"
 						value={sizing.depthDecayK}
-						min={0}
-						step={0.5}
+						range={SIZING_RANGES.depthDecayK}
 						onChange={(depthDecayK) => applySizing({ ...sizing, depthDecayK })}
 					/>
 				</div>
@@ -96,18 +95,21 @@ export function SizingSection({
 	);
 }
 
-/** A labelled numeric field that only fires `onChange` on a valid number. */
+/**
+ * A labelled numeric field that only fires `onChange` on a FINITE number —
+ * `1e999` parses to `Infinity`, which is a number and not `NaN`. The bounds are
+ * the engine's, the same ones {@link planSettingsWrite} clamps with (the `min`
+ * attribute alone only drives the steppers, never a typed value).
+ */
 function SizingNumber({
 	label,
 	value,
-	min,
-	step,
+	range,
 	onChange,
 }: {
 	readonly label: string;
 	readonly value: number;
-	readonly min: number;
-	readonly step: number;
+	readonly range: SettingsRange;
 	readonly onChange: (value: number) => void;
 }): ReactElement {
 	return (
@@ -115,11 +117,12 @@ function SizingNumber({
 			<span>{label}</span>
 			<input
 				type="number"
-				min={min}
-				step={step}
+				min={range.min}
+				max={range.max}
+				step={range.step}
 				value={value}
 				onChange={(event) => {
-					if (!Number.isNaN(event.target.valueAsNumber)) {
+					if (Number.isFinite(event.target.valueAsNumber)) {
 						onChange(event.target.valueAsNumber);
 					}
 				}}

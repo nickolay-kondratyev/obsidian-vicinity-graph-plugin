@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EngineDefaults } from "../engine";
+import { EngineDefaults, SIZING_RANGES } from "../engine";
 import type { SettingsWriteContext } from "./settingsWritePlan";
 import { planSettingsWrite } from "./settingsWritePlan";
 
@@ -72,6 +72,24 @@ describe("planSettingsWrite global writes", () => {
 		expect(planSettingsWrite({ kind: "global-sizing", sizing }, CTX)).toEqual({
 			kind: "global-view",
 			view: { ...CTX.globalView, sizing },
+		});
+	});
+
+	it("WHEN global-sizing carries an out-of-range value THEN the planned write is clamped", () => {
+		// The React sizing panel and the settings tab both write through here, and
+		// an `<input type=number min=…>` does NOT block a TYPED value — so the LIVE
+		// session (not just a reloaded data.json) needs the clamp.
+		const sizing = { ...EngineDefaults.viewSettings().sizing, depthDecayK: -1, maxPx: Number.POSITIVE_INFINITY };
+		expect(planSettingsWrite({ kind: "global-sizing", sizing }, CTX)).toEqual({
+			kind: "global-view",
+			view: {
+				...CTX.globalView,
+				sizing: {
+					...sizing,
+					depthDecayK: SIZING_RANGES.depthDecayK.min,
+					maxPx: SIZING_RANGES.maxPx.max,
+				},
+			},
 		});
 	});
 

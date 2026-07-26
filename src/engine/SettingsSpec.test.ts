@@ -13,10 +13,11 @@ import {
 	MIN_NODE_CAP,
 	MIN_OUTLINE_DEPTH,
 	MIN_STEPPER_DEPTH,
+	SIZING_RANGES,
 	clampOutlineMaxDepth,
 } from "./constants";
 import { SETTINGS_SPEC } from "./SettingsSpec";
-import type { DepthSpec, NodeExclusionSpec, SizingSpec, ViewSpec } from "./SettingsSpec";
+import type { BoundedNumberSpec, DepthSpec, NodeExclusionSpec, SizingSpec, ViewSpec } from "./SettingsSpec";
 import { SettingsDefaults } from "./SettingsDefaults";
 
 /**
@@ -53,6 +54,11 @@ type SpecLimitsBaseline<TSpec> = {
 /** Baseline entry for a spec field that is default-only (no min/max/step to pin). */
 const NO_SPEC_LIMITS = "no limits in the spec";
 
+/** The three bounds of one bounded spec field, as the baselines pin them. */
+function limitsOf(spec: BoundedNumberSpec): { min: number; max: number; step: number } {
+	return { min: spec.min, max: spec.max, step: spec.step };
+}
+
 describe("SETTINGS_SPEC (single source of truth for defaults + limits)", () => {
 	it("WHEN the spec is read THEN its default values equal the exact shipped baseline", () => {
 		const view = SETTINGS_SPEC.globalView;
@@ -66,6 +72,7 @@ describe("SETTINGS_SPEC (single source of truth for defaults + limits)", () => {
 				metrics: Object.fromEntries(
 					Object.entries(view.sizing.metrics).map(([id, m]) => [id, m.default]),
 				),
+				metricWeight: view.sizing.metricWeight.default,
 				depthDecayK: view.sizing.depthDecayK.default,
 				minPx: view.sizing.minPx.default,
 				maxPx: view.sizing.maxPx.default,
@@ -99,6 +106,7 @@ describe("SETTINGS_SPEC (single source of truth for defaults + limits)", () => {
 					"outlink-count": { enabled: false, weight: 1 },
 					"depth-decay": { enabled: false, weight: 1 },
 				},
+				metricWeight: 1,
 				depthDecayK: 1,
 				minPx: 40,
 				maxPx: 160,
@@ -128,7 +136,15 @@ describe("SETTINGS_SPEC (single source of truth for defaults + limits)", () => {
 			nodePreviewPreference: NO_SPEC_LIMITS,
 			groupByFolder: NO_SPEC_LIMITS,
 			edgeVisibility: NO_SPEC_LIMITS,
-			sizing: NO_SPEC_LIMITS,
+			// `sizing` is a composite, so the ViewSpec-level guard cannot demand its
+			// leaves' bounds — they are pinned one level down instead.
+			sizing: {
+				metrics: NO_SPEC_LIMITS,
+				metricWeight: limitsOf(view.sizing.metricWeight),
+				depthDecayK: limitsOf(view.sizing.depthDecayK),
+				minPx: limitsOf(view.sizing.minPx),
+				maxPx: limitsOf(view.sizing.maxPx),
+			} satisfies SpecLimitsBaseline<SizingSpec>,
 			forceLayout: Object.fromEntries(
 				Object.entries(view.forceLayout).map(([field, s]) => [
 					field,
@@ -161,7 +177,13 @@ describe("SETTINGS_SPEC (single source of truth for defaults + limits)", () => {
 			nodePreviewPreference: NO_SPEC_LIMITS,
 			groupByFolder: NO_SPEC_LIMITS,
 			edgeVisibility: NO_SPEC_LIMITS,
-			sizing: NO_SPEC_LIMITS,
+			sizing: {
+				metrics: NO_SPEC_LIMITS,
+				metricWeight: { min: 0, max: 100, step: 0.5 },
+				depthDecayK: { min: 0, max: 10, step: 0.5 },
+				minPx: { min: 1, max: 400, step: 4 },
+				maxPx: { min: 1, max: 400, step: 4 },
+			},
 			forceLayout: {
 				centerPullStrength: { min: 0, max: 0.15, step: 0.01 },
 				repelStrength: { min: 50, max: 1000, step: 10 },
@@ -211,6 +233,16 @@ describe("adapters derive from SETTINGS_SPEC", () => {
 				step: spec.step,
 			});
 		}
+	});
+
+	it("WHEN SIZING_RANGES is read THEN each field mirrors the spec's min/max/step", () => {
+		const sizing = SETTINGS_SPEC.globalView.sizing;
+		expect(SIZING_RANGES).toEqual({
+			metricWeight: limitsOf(sizing.metricWeight),
+			depthDecayK: limitsOf(sizing.depthDecayK),
+			minPx: limitsOf(sizing.minPx),
+			maxPx: limitsOf(sizing.maxPx),
+		});
 	});
 
 	it("WHEN the DEFAULT_* named constants are read THEN they alias the spec defaults", () => {

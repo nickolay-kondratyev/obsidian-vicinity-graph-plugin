@@ -100,10 +100,12 @@ export {
 	MIN_OUTLINE_DEPTH,
 	MIN_STEPPER_DEPTH,
 	NEUTRAL_NORMALIZED_VALUE,
+	SIZING_RANGES,
 	clampForceLayoutSettings,
 	clampOutlineMaxDepth,
+	clampSizingSettings,
 } from "./constants";
-export type { ForceLayoutRange } from "./constants";
+export type { SettingsRange } from "./constants";
 
 // Settings defaults + limits, single source of truth (see SettingsSpec.ts).
 // `SettingsDefaults` is a discoverability shim that points back at SETTINGS_SPEC.

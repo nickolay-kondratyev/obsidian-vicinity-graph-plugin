@@ -140,6 +140,51 @@ describe("NodeSizer depth-decay metric", () => {
 	});
 });
 
+/**
+ * `sizePx` becomes a React-Flow node width/height and then a libavoid obstacle —
+ * a non-finite one ABORTS the router's wasm module for the whole session. The
+ * sizer is therefore TOTAL: no settings object, however hostile, produces a
+ * non-finite size. (`depthDecayK = -1` divides `1 / (1 + k * minDepth)` by zero
+ * at depth 1; `k = Infinity` makes `Infinity * 0 = NaN` at the root.)
+ */
+describe("NodeSizer hostile sizing settings (sizePx stays finite)", () => {
+	// GIVEN a chain m -> a -> b traversed from m at depth 2 (depths 0, 1, 2)
+	const spec: FakeVaultSpec = {
+		files: [{ path: "m.md" }, { path: "a.md" }, { path: "b.md" }],
+		links: { "m.md": ["a.md"], "a.md": ["b.md"] },
+	};
+
+	function everySizePx(settings: SizingSettings): readonly number[] {
+		const provider = new FakeLinkProvider(spec);
+		const traversal = new VicinityTraversal(provider).traverse([
+			{ descriptor: { path: asVaultPath("m.md") }, depths: { outgoingDepth: 2, incomingDepth: 0 } },
+		]);
+		const sizes = new NodeSizer(provider).computeSizes(traversal.nodes, settings);
+		return [...sizes.values()].map((size) => size.sizePx);
+	}
+
+	it.each([
+		["k = -1 (the 1 + k * minDepth singularity at depth 1)", -1],
+		["k = Infinity (Infinity * 0 = NaN at the root)", Number.POSITIVE_INFINITY],
+		["k = NaN", Number.NaN],
+	])("WHEN depth decay has %s THEN every sizePx is finite", (_case, depthDecayK) => {
+		expect(everySizePx(sizingWith({ "depth-decay": 1 }, depthDecayK)).every(Number.isFinite)).toBe(true);
+	});
+
+	it.each([
+		["minPx", Number.POSITIVE_INFINITY],
+		["maxPx", Number.NaN],
+	])("WHEN %s is non-finite THEN every sizePx is finite", (field, value) => {
+		const settings = { ...sizingWith({ "own-file-size": 1 }), [field]: value };
+		expect(everySizePx(settings).every(Number.isFinite)).toBe(true);
+	});
+
+	it("WHEN a metric weight is Infinity THEN every sizePx is finite (the weighted average keeps a usable divisor)", () => {
+		const settings = sizingWith({ "own-file-size": Number.POSITIVE_INFINITY });
+		expect(everySizePx(settings).every(Number.isFinite)).toBe(true);
+	});
+});
+
 describe("NodeSizer metric composition", () => {
 	// GIVEN two metrics with different weights over m -> [a, b]
 	const spec: FakeVaultSpec = {
