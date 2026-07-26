@@ -75,4 +75,8 @@ Do NOT change the edge semantics without the human decision recorded here — bo
 - The canvas link regime no longer varies between sessions for the same vault (repeat the 5x e2e measurement above and get one capability / one edge count).
 - The chosen text-node-wikilink semantics are recorded in `docs-internal/plan/high-level-plan.md` and covered by an adapter test in `src/adapters/ObsidianLinkProvider.test.ts` for BOTH regimes.
 - `src/adapters/CanvasFallbackParser.ts` header no longer describes a V1 skip that contradicts the shipped behaviour.
+- The e2e eval row is re-baselined and its now-vestigial workaround removed: with the regime pinned in the
+  plugin, `ensureCanvasFixtureIsIndexed()` in `e2e/edgeRoutingEval.e2e.ts` exists only to force
+  `core-indexed`, so delete it and update the expected `[eval] force/sparse` edge count (11 today under
+  `core-indexed`; 10 if the decision is that text-node wikilinks produce no edge).
 

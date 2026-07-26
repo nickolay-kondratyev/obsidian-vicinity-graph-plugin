@@ -152,3 +152,111 @@ fixture's own layout pass before the quiet window may end (commit
 - WHY Obsidian's boot sweep indexes this canvas in only ~half of launches was not isolated
   (the Canvas core plugin is enabled either way). Not needed for the fix, and it is
   Obsidian-internal — noted here rather than chased.
+
+---
+
+# Iteration 2 — the reviewer's three SHOULD-FIX items
+
+Verdict was READY with three non-blocking items. Two accepted, one accepted-in-part
+(its premise was factually wrong and I say so below rather than implement a redundant guard).
+
+## 1. `LAYOUTS_PER_FIXTURE_RENDER = 2` contradicts its docstring — ACCEPTED
+
+The reviewer is right: the docstring says an open fires SEVERAL rebuilds "each logging a
+layout", so a count of 2 is satisfiable by BOUNCE passes alone, and the dense-row regression
+returns SILENTLY. Fixed as suggested, content-based:
+
+- Constant deleted. The gate is now "some layout pass is STRICTLY LARGER than the first one".
+  `note2.md`'s vicinity is the smallest graph in the spec, so a bigger layout can only be the
+  central fixture's — true by construction for all four fixtures, and it survives any number
+  of extra bounce rebuilds. Docstring rewritten to state exactly this, with WHY-NOT count.
+- **Loud instead of silent** (the part the reviewer did not ask for but the mandate did):
+  new `assertMetricsDescribeRenderedGraph()` cross-checks the published `edgeCount` against
+  the `.react-flow__edge-path` count in the DOM after settle. The published pass must describe
+  the graph that is on screen, so ANY mis-settle — bounce pass, half-warmed rebuild, future
+  variant — now THROWS with both numbers instead of printing a wrong `[eval]` row. Verified
+  1:1 empirically on all four fixtures including dense (`edges=292` = 292 rendered paths).
+- REJECTED the reviewer's alternative ("add the central path to the controller's debug
+  payload"): that edits `src/` production logging for a test-harness chore.
+
+## 2. `app.vault.modify` breaks "no fixture writes under `VICINITY_E2E_VAULT`" — ACCEPTED IN PART
+
+**The stated danger does not exist.** The review says "with `VICINITY_E2E_VAULT` pointed at a
+real vault, this spec will append a newline to that user's `test.canvas` (or throw)". It
+throws — always, and before Obsidian is even connected:
+
+`beforeAll` calls `ObsidianHarness.launch()` with NO options → `obsidianHarness.ts:150`
+`assertExternalLaunchAllowed(target.vaultDir, options)` → `vaultTarget.ts:96` throws for any
+spec without `allowExternalVault: true`. `grep -rn allowExternalVault e2e/` shows
+`externalVault.e2e.ts:43` is the ONLY opt-in spec. So `ensureCanvasFixtureIsIndexed` is
+unreachable in override mode and the harness's invariant already holds BY CONSTRUCTION.
+
+- **REJECTED the suggested `test.skip(process.env[VAULT_OVERRIDE_ENV_VAR] !== undefined, …)`.**
+  It is redundant with the launch gate, and it is *worse* than the status quo: it would
+  silently skip where all ~10 other non-opt-in specs fail loudly with an actionable message
+  ("Run only the spec that opts in: …"). That breaks the consistency the mandate asked me to
+  preserve. A skip also hides a real misconfiguration.
+- **ACCEPTED the legibility half**: the write's safety was implicit, which is why the reviewer
+  (reasonably) read it as a hazard. `ensureCanvasFixtureIsIndexed`'s docstring now has a
+  SAFETY paragraph naming the launch gate, the `.tmp/e2e/vault` throwaway copy, and the
+  WHY-NOT for a local `test.skip`.
+
+## 3. The settle silently assumes the elk layout log is emitted — ACCEPTED
+
+Both halves the reviewer asked for:
+
+- The `waitForRebuildBurstToSettle` docstring now states the assumption ("ASSUMES the central
+  rebuild is STRUCTURAL, so elk actually runs and logs") and names the `reuse-layout` path in
+  `src/view/GraphViewController.ts` that skips it.
+- The throw now names the unmet condition, the fixture, the observed `layoutNodeCounts`, and
+  points at `reuse-layout` / `"structural diff skipped elk layout"` as the likely cause,
+  instead of `Rebuild logs never settled: passesCaptured=[N]`.
+
+## NITs
+
+- **#4 `passesCaptured` counted promises — FIXED** as part of #3: the throw reports the
+  resolved `captured.length` plus the actual per-layout node counts.
+- **#5 `setAllEdgesVisibility` duplication — TICKETED** `nid_xwfw86nqr8af7eygqod8lh5cp_e`
+  (pre-existing; correctly out of this chore's scope).
+- **#6 eval re-baselining — ADDED** to `nid_s676x55uojmtcwh9t4l9mc6zl_e`'s acceptance criteria:
+  delete `ensureCanvasFixtureIsIndexed` and re-baseline the sparse row once the decision lands.
+
+## Evidence (iteration 2)
+
+`npm run check` → exit 0. `npm test` → exit 0, 74 files / 990 tests.
+
+Only `e2e/edgeRoutingEval.e2e.ts` changed (`git status`), so no shared harness code is at risk
+and no other spec's timing moved.
+
+4 consecutive `npm run test:e2e -- edgeRoutingEval.e2e.ts`, all `5 passed`. Raw `[eval]` lines
+from the last 3 (the 4th is the pre-verification probe run, identical):
+
+```
+== run 1
+[eval] force/sparse: routingMs=3.5999999940395355 layoutMs=34.30000001192093 obstacles=13 edges=11 maxDetourRatio=1.007 meanDetourRatio=1.001
+[eval] force/medium: routingMs=12.5 layoutMs=37.30000001192093 obstacles=21 edges=20 maxDetourRatio=1.000 meanDetourRatio=1.000
+[eval] force/dense: routingMs=137.80000001192093 layoutMs=1448.8999999761581 obstacles=101 edges=292 maxDetourRatio=1.244 meanDetourRatio=1.046
+[eval] force/facing: routingMs=3.300000011920929 layoutMs=40.599999994039536 obstacles=18 edges=27 maxDetourRatio=1.266 meanDetourRatio=1.047
+[eval] PERF dense/force: routingMs=134.40000000596046 layoutMs=1452.5 obstacles=101 edges=292 maxDetourRatio=1.244 meanDetourRatio=1.046
+  5 passed (14.5s)
+== run 2
+[eval] force/sparse: routingMs=3.300000011920929 layoutMs=32.70000001788139 obstacles=13 edges=11 maxDetourRatio=1.007 meanDetourRatio=1.001
+[eval] force/medium: routingMs=13.100000023841858 layoutMs=44.099999994039536 obstacles=21 edges=20 maxDetourRatio=1.000 meanDetourRatio=1.000
+[eval] force/dense: routingMs=139.80000001192093 layoutMs=1441.0999999940395 obstacles=101 edges=292 maxDetourRatio=1.244 meanDetourRatio=1.046
+[eval] force/facing: routingMs=3.4000000059604645 layoutMs=38.5 obstacles=18 edges=27 maxDetourRatio=1.266 meanDetourRatio=1.047
+[eval] PERF dense/force: routingMs=134.09999999403954 layoutMs=1377.5999999940395 obstacles=101 edges=292 maxDetourRatio=1.244 meanDetourRatio=1.046
+  5 passed (14.4s)
+== run 3
+[eval] force/sparse: routingMs=3.2999999821186066 layoutMs=34.5 obstacles=13 edges=11 maxDetourRatio=1.007 meanDetourRatio=1.001
+[eval] force/medium: routingMs=13.200000017881393 layoutMs=36.900000005960464 obstacles=21 edges=20 maxDetourRatio=1.000 meanDetourRatio=1.000
+[eval] force/dense: routingMs=139.7999999821186 layoutMs=1442 obstacles=101 edges=292 maxDetourRatio=1.244 meanDetourRatio=1.046
+[eval] force/facing: routingMs=3.600000023841858 layoutMs=41.900000005960464 obstacles=18 edges=27 maxDetourRatio=1.266 meanDetourRatio=1.047
+[eval] PERF dense/force: routingMs=133.69999998807907 layoutMs=1375.7000000178814 obstacles=101 edges=292 maxDetourRatio=1.244 meanDetourRatio=1.046
+  5 passed (14.5s)
+```
+
+Every non-timing field (`obstacles`, `edges`, both detour ratios) is byte-identical across all
+runs — machine-diffed, not eyeballed. Runtime unchanged at ~14.5s, so nothing was traded for
+the extra safety. No timeout was raised and no `waitForTimeout` was reintroduced
+(`grep waitForTimeout e2e/*.ts` still finds only the pre-existing 200ms in
+`settingsResetVerify.e2e.ts`).

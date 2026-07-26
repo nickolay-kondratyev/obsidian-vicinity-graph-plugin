@@ -195,3 +195,71 @@ no `TEMP`/`probe` strings remain in `src/` or `e2e/`.
 Logs kept under `.tmp/flake/` (measure-1..5, probe-1..3, diag-1..4, verify-1..5, final-1..5,
 full-suite).
 
+
+---
+
+## ITERATION 2 — reviewer SHOULD-FIX items (fresh instance)
+
+Review verdict was READY; three non-blocking items. Only `e2e/edgeRoutingEval.e2e.ts` touched.
+
+### Changed
+
+1. **Settle gate** — deleted `LAYOUTS_PER_FIXTURE_RENDER`. Gate is now
+   `layouts.some(l => nodeCount > layouts[0].nodeCount)`; new `layoutsOf()` helper. Docstring
+   rewritten (states the bounce-is-smallest invariant + WHY-NOT a count). The count/docstring
+   contradiction the reviewer flagged is gone because the count is gone.
+2. **`assertMetricsDescribeRenderedGraph()`** (new) — published `edgeCount` must equal
+   `page.locator(".vicinity-graph-flow .react-flow__edge-path").count()`. This is the "loud not
+   silent" mechanism. VERIFIED empirically 1:1 on all 4 fixtures (sparse 11, medium 20, dense
+   292, facing 27) — the 1:1 assumption was NOT taken on faith, it was measured in
+   `.tmp/it2-e2e-probe.log`. If it ever trips, the message carries both numbers.
+3. **`renderFixture` now returns `EvalMetrics`** instead of `PerfEntry[]` — needed so the DOM
+   cross-check lives next to the settle rather than being repeated in both call sites. Both
+   tests simplified by one line each.
+4. **Settle throw** — takes `centralPath`, reports resolved `captured.length` (was
+   `pendingPerf.length`, i.e. promises — reviewer NIT #4) plus `layoutNodeCounts`, and names
+   the `reuse-layout` / "structural diff skipped elk layout" path as the likely cause.
+   Docstring gained an explicit ASSUMES paragraph.
+5. **`ensureCanvasFixtureIsIndexed` docstring** — new SAFETY paragraph.
+
+### Rejected (with reasons, do not silently re-apply)
+
+- **`test.skip` under `VICINITY_E2E_VAULT`** (reviewer item #3). Premise is factually wrong.
+  Chain verified by reading, not assuming: `beforeAll` → `ObsidianHarness.launch()` with no
+  options → `obsidianHarness.ts:150 assertExternalLaunchAllowed` → `vaultTarget.ts:96` throws
+  unless `allowExternalVault: true`. `grep -rn allowExternalVault e2e/` ⇒ only
+  `externalVault.e2e.ts:43` opts in. So the `vault.modify` is UNREACHABLE in override mode; the
+  user's vault cannot be mutated. Adding `test.skip` would be redundant AND inconsistent — every
+  other non-opt-in spec fails loudly with an actionable message; a skip would hide a real
+  misconfiguration. Kept the loud failure, documented the guarantee instead.
+- **Add the central path to the controller's debug payload** (reviewer's alternative for #1) —
+  edits `src/` production logging for a test-harness chore; forbidden by the task constraints
+  and unnecessary now that the DOM cross-check exists.
+
+### Considered and not done (recorded so it is not re-litigated)
+
+Draining the bounce burst separately (settle after the bounce open, clear `pendingPerf`, then
+open the central) would make bounce contamination structurally impossible, but costs ~1.5s per
+fixture (~7.5s on a 14.5s run) and does not remove the need for a settle condition on the
+central. The size gate + DOM cross-check get the same protection for free. If the bounce ever
+stops being the smallest fixture, revisit this.
+
+### Verification
+
+- `npm run check` → 0 (`.tmp/it2-check.log`).
+- `npm test` → 0, 74 files / 990 tests (`.tmp/it2-npmtest.log`).
+- 4 e2e runs, all `5 passed` (`.tmp/it2-e2e-probe.log`, `.tmp/it2-final-{1,2,3}.log`). Rows
+  machine-diffed with timing fields stripped (`.tmp/it2-rows-{1,2,3}.txt`) ⇒ ALL IDENTICAL.
+  Raw `[eval]` lines are in the PUBLIC file.
+- Full suite NOT re-run: the diff is one spec file, no shared harness code. (Known pre-existing
+  unrelated failure remains `vicinityGraph.e2e.ts:160`.)
+
+### Tickets
+
+- `nid_xwfw86nqr8af7eygqod8lh5cp_e` — DRY the duplicated `setAllEdgesVisibility` (NIT #5).
+- `nid_s676x55uojmtcwh9t4l9mc6zl_e` — appended an acceptance criterion for re-baselining the
+  eval row and deleting `ensureCanvasFixtureIsIndexed` once decided (NIT #6).
+
+### State
+
+Complete. No follow-up work pending on this branch.
