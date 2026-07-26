@@ -4,10 +4,21 @@ import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium, expect } from "@playwright/test";
 import type { Browser, Page } from "@playwright/test";
+import {
+	assertExternalLaunchAllowed,
+	assertExternalVaultReady,
+	resolveVaultTarget,
+	VAULT_OVERRIDE_ENV_VAR,
+	vaultDirOf,
+} from "./vaultTarget";
+import type { DevVaultCopyTarget, LaunchOptions, VaultTarget } from "./vaultTarget";
 
 /**
  * Launches a REAL Obsidian (Electron) on a throwaway copy of `.dev-vault`,
  * fully sandboxed from any system Obsidian install.
+ *
+ * Opt-in override: with `VICINITY_E2E_VAULT` set, Obsidian opens THAT vault in
+ * place instead (see `vaultTarget.ts`) — no copy, no wipe, no fixture writes.
  *
  * Connection: Obsidian is spawned with `--remote-debugging-port=0` and the
  * suite attaches via `chromium.connectOverCDP` to the "DevTools listening on
@@ -49,7 +60,6 @@ export const OPEN_GRAPH_COMMAND_ID = `${PLUGIN_ID}:open-vicinity-graph`;
 const VIEW_TYPE_VICINITY_GRAPH = "vicinity-graph-view";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const DEV_VAULT_DIR = path.join(REPO_ROOT, ".dev-vault");
 const E2E_TMP_DIR = path.join(REPO_ROOT, ".tmp", "e2e");
 const VAULT_COPY_DIR = path.join(E2E_TMP_DIR, "vault");
 const SANDBOX_CONFIG_DIR = path.join(E2E_TMP_DIR, "obsidian-config");
@@ -101,6 +111,8 @@ export class ObsidianHarness {
 		private readonly browser: Browser,
 		private readonly obsidianProcess: childProcess.ChildProcess,
 		readonly page: Page,
+		/** Carried so {@link relaunch} keeps the same mode without re-reading the env. */
+		private readonly vaultMode: VaultTarget["mode"],
 	) {}
 
 	/** Fails fast with an actionable message when the binary env var is absent. */
@@ -126,11 +138,20 @@ export class ObsidianHarness {
 	 * Obsidian. `extraFixtures` are extra `vaultRelativePath → content` notes
 	 * layered on top of the built-in `crowd/` set (used by suites that need their
 	 * own graph shape, e.g. depth chains for restart round-trips).
+	 *
+	 * `allowExternalVault` is the per-spec opt-in required under
+	 * `VICINITY_E2E_VAULT` — see {@link assertExternalLaunchAllowed}.
 	 */
-	static async launch(options: { extraFixtures?: Record<string, string> } = {}): Promise<ObsidianHarness> {
-		ObsidianHarness.prepareVaultCopy(options.extraFixtures);
-		ObsidianHarness.prepareSandboxConfigDir();
-		return ObsidianHarness.spawnAndConnect();
+	static async launch(options: LaunchOptions = {}): Promise<ObsidianHarness> {
+		const target = resolveVaultTarget(process.env[VAULT_OVERRIDE_ENV_VAR], REPO_ROOT);
+		if (target.mode === "dev-vault-copy") {
+			ObsidianHarness.prepareVaultCopy(target, options.extraFixtures);
+		} else {
+			assertExternalLaunchAllowed(target.vaultDir, options);
+			assertExternalVaultReady(target.vaultDir, PLUGIN_ID, REPO_ROOT);
+		}
+		ObsidianHarness.prepareSandboxConfigDir(vaultDirOf(target));
+		return ObsidianHarness.spawnAndConnect(target.mode);
 	}
 
 	/**
@@ -149,11 +170,11 @@ export class ObsidianHarness {
 		// culling unmounts off-screen nodes. Window geometry is environment
 		// plumbing (not the persisted plugin state under test), so re-seed it.
 		ObsidianHarness.seedWindowState();
-		return ObsidianHarness.spawnAndConnect();
+		return ObsidianHarness.spawnAndConnect(this.vaultMode);
 	}
 
 	/** Spawns the Obsidian process against the already-prepared dirs and attaches over CDP. */
-	private static async spawnAndConnect(): Promise<ObsidianHarness> {
+	private static async spawnAndConnect(vaultMode: VaultTarget["mode"]): Promise<ObsidianHarness> {
 		const executablePath = ObsidianHarness.resolveObsidianPath();
 		const obsidianProcess = childProcess.spawn(executablePath, [
 			`--user-data-dir=${SANDBOX_CONFIG_DIR}`,
@@ -170,8 +191,12 @@ export class ObsidianHarness {
 			const browser = await chromium.connectOverCDP(cdpEndpoint, { timeout: LAUNCH_TIMEOUT_MS });
 			const page = await ObsidianHarness.waitForObsidianWindow(browser);
 			await ObsidianHarness.waitForWorkspaceReady(page);
-			await ObsidianHarness.enableCommunityPlugins(page);
-			return new ObsidianHarness(browser, obsidianProcess, page);
+			if (vaultMode === "dev-vault-copy") {
+				await ObsidianHarness.enableCommunityPlugins(page);
+			} else {
+				await ObsidianHarness.waitForAlreadyEnabledPlugin(page);
+			}
+			return new ObsidianHarness(browser, obsidianProcess, page, vaultMode);
 		} catch (error) {
 			obsidianProcess.kill();
 			throw error;
@@ -360,33 +385,44 @@ export class ObsidianHarness {
 	 * mutations (nodeCap, plugin data.json) never leak into the human's vault,
 	 * and e2e-only fixtures never pollute manual QA.
 	 */
-	private static prepareVaultCopy(extraFixtures: Record<string, string> = {}): void {
-		if (!fs.existsSync(DEV_VAULT_DIR)) {
-			throw new Error(`Dev vault missing: dir=[${DEV_VAULT_DIR}]. Run: npm run setup:dev-vault`);
+	private static prepareVaultCopy(target: DevVaultCopyTarget, extraFixtures: Record<string, string> = {}): void {
+		// Belt and braces: the union already keeps an external vault out of this
+		// method; this asserts the ONE directory below is the throwaway copy dir
+		// before anything destructive runs.
+		// WHY-NOT write through `target.copyDir` afterwards: the destructive calls
+		// deliberately name the module constant so the source scan in
+		// `vaultTarget.test.ts` can verify their destination statically. This assert
+		// is what keeps the two spellings from drifting.
+		if (path.resolve(target.copyDir) !== path.resolve(VAULT_COPY_DIR)) {
+			throw new Error(`Refusing to wipe a non-throwaway directory: copyDir=[${target.copyDir}]`);
 		}
-		const builtPluginFile = path.join(DEV_VAULT_DIR, ".obsidian", "plugins", PLUGIN_ID, "main.js");
+		if (!fs.existsSync(target.sourceDir)) {
+			throw new Error(`Dev vault missing: dir=[${target.sourceDir}]. Run: npm run setup:dev-vault`);
+		}
+		const builtPluginFile = path.join(target.sourceDir, ".obsidian", "plugins", PLUGIN_ID, "main.js");
 		if (!fs.existsSync(builtPluginFile)) {
 			throw new Error(`Plugin build missing in dev vault: file=[${builtPluginFile}]. Run: npm run setup:dev-vault`);
 		}
 		fs.rmSync(VAULT_COPY_DIR, { recursive: true, force: true });
-		fs.cpSync(DEV_VAULT_DIR, VAULT_COPY_DIR, { recursive: true });
+		fs.cpSync(target.sourceDir, VAULT_COPY_DIR, { recursive: true });
 		// Fresh plugin settings: a stale data.json (e.g. from a previous aborted
 		// run) would silently change caps/settings under the assertions.
 		fs.rmSync(path.join(VAULT_COPY_DIR, ".obsidian", "plugins", PLUGIN_ID, "data.json"), { force: true });
 		for (const [relativePath, content] of Object.entries({ ...CROWD_FIXTURES, ...extraFixtures })) {
-			const target = path.join(VAULT_COPY_DIR, relativePath);
-			fs.mkdirSync(path.dirname(target), { recursive: true });
-			fs.writeFileSync(target, content);
+			// Written through the VAULT_COPY_DIR constant (not a local alias) so the
+			// destructive-call source scan in vaultTarget.test.ts can see the destination.
+			fs.mkdirSync(path.dirname(path.join(VAULT_COPY_DIR, relativePath)), { recursive: true });
+			fs.writeFileSync(path.join(VAULT_COPY_DIR, relativePath), content);
 		}
 	}
 
-	private static prepareSandboxConfigDir(): void {
+	private static prepareSandboxConfigDir(vaultDir: string): void {
 		fs.rmSync(SANDBOX_CONFIG_DIR, { recursive: true, force: true });
 		fs.mkdirSync(SANDBOX_CONFIG_DIR, { recursive: true });
 		const obsidianJson = {
 			updateDisabled: true,
 			vaults: {
-				[E2E_VAULT_ID]: { path: VAULT_COPY_DIR, ts: Date.now(), open: true },
+				[E2E_VAULT_ID]: { path: vaultDir, ts: Date.now(), open: true },
 			},
 		};
 		fs.writeFileSync(path.join(SANDBOX_CONFIG_DIR, "obsidian.json"), JSON.stringify(obsidianJson));
@@ -481,5 +517,47 @@ export class ObsidianHarness {
 			PLUGIN_ID,
 			{ timeout: PLUGIN_READY_TIMEOUT_MS },
 		);
+	}
+
+	/**
+	 * External-vault mode: loads the plugin the USER already enabled in that vault.
+	 *
+	 * `setEnable(true)` is unavoidable — the "community plugins on" flag is written
+	 * to `localStorage` (`enable-plugin-<appId>`), which lives in the Obsidian
+	 * USER-DATA dir, i.e. our throwaway sandbox. So a fresh sandbox always boots
+	 * with plugins off and nothing loads at all. Verified against Obsidian 1.12.7:
+	 * the call writes no vault file, it just loads whatever this vault's
+	 * `.obsidian/community-plugins.json` already lists.
+	 *
+	 * ACCEPTED CONSEQUENCE: that means EVERY community plugin enabled in the target
+	 * vault loads and runs, exactly as when the human opens the vault themselves —
+	 * documented in the README caveat. There is no per-plugin lever: `enablePlugin`
+	 * requires the master switch to be on anyway.
+	 *
+	 * WHY-NOT `enablePlugin(pluginId)` (which the dev-vault path calls): it is not
+	 * needed once the vault lists the plugin, and calling it here would mean loading
+	 * our code — which then writes `data.json`/`doc-data/` into that vault — even
+	 * when the human has NOT enabled it there.
+	 */
+	private static async waitForAlreadyEnabledPlugin(page: Page): Promise<void> {
+		// A fresh sandbox user-data-dir shows first-boot modals (vault trust /
+		// release notes); Escape dismisses them (best-effort, same as above).
+		await page.keyboard.press("Escape");
+		await page.evaluate(async () => {
+			await (window as unknown as { app: any }).app.plugins.setEnable(true);
+		});
+		try {
+			await page.waitForFunction(
+				(pluginId) => Boolean((window as unknown as { app: any }).app.plugins.plugins[pluginId]),
+				PLUGIN_ID,
+				{ timeout: PLUGIN_READY_TIMEOUT_MS },
+			);
+		} catch (error) {
+			throw new Error(
+				`Plugin never loaded in the ${VAULT_OVERRIDE_ENV_VAR} vault: pluginId=[${PLUGIN_ID}]. ` +
+					"Open that vault in Obsidian, turn on community plugins and enable it there, then re-run. " +
+					`cause=[${String(error)}]`,
+			);
+		}
 	}
 }

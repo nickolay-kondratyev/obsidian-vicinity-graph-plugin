@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-26T05:12:02Z
 id: nid_se3h2v45c10x9j42utbm8v2sn_e
 title: "e2e: allow pointing the Obsidian harness at an arbitrary vault (VICINITY_E2E_VAULT)"
-status: open
+status: closed
 deps: []
 links: []
 created_iso: 2026-07-25T03:33:44Z
-status_updated_iso: 2026-07-25T03:33:44Z
+status_updated_iso: 2026-07-26T05:12:02Z
 type: chore
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
@@ -41,3 +42,19 @@ Keep the default path completely unchanged: with the env var unset, behaviour mu
 - A test or explicit guard proves the source vault is never `rm -rf`ed or otherwise mutated when the override is used.
 - README e2e section documents the variable, including the safety caveat about pointing it at a real vault.
 
+
+## Notes
+
+**2026-07-26T05:12:02Z**
+
+Resolved on branch `e2e-vault-override` (8b1c026..260a205).
+
+`VICINITY_E2E_VAULT` is implemented as a structurally separate harness mode, not a parameter:
+- New pure `e2e/vaultTarget.ts` resolves env -> a discriminated `VaultTarget`: `dev-vault-copy` (today's rm -rf + cpSync into `.tmp/e2e/vault`) or `external-in-place`. The destructive path is unreachable in external mode by construction.
+- External mode performs ZERO harness writes into the target vault: the plugin must already be installed and enabled there, else it fails loudly with the exact symlink recipe. `extraFixtures` throws. `app.plugins.setEnable(true)` is kept because it writes only localStorage in the sandbox user-data-dir (verified against the decompiled Obsidian 1.12.7 asar); `enablePluginAndSave` -- the call that rewrites the vault's `community-plugins.json` -- is never made.
+- Per-spec opt-in `allowExternalVault: true` is REQUIRED, so exporting the env var cannot silently point destructive specs (e.g. `settingsResetVerify.e2e.ts`, which drives "Restore defaults") at a real vault.
+- `e2e/vaultTarget.test.ts` (vitest include widened to `e2e/**/*.test.ts`) proves criterion 3: an allowlist scan asserts every mutating `fs` destination in `e2e/*.ts` roots at `.tmp/e2e`, plus a test enforcing the `import * as fs from "node:fs"` form the scan keys off. Both mutation-tested with injected offenders.
+- `e2e/externalVault.e2e.ts` (skipped unless the var is set) opens `VICINITY_E2E_NOTE` and screenshots the graph to `.out/`.
+- README e2e section documents the variable and states honestly what Obsidian itself still writes into whatever vault it opens (`workspace.json`, incl. 0-byte truncation on SIGKILL, `core-plugins.json`, plugin `data.json`, and that the vault's other community plugins load).
+
+Verified: `npm test` (986), `npm run check`, `tsc -p e2e/tsconfig.json`, `npm run build` green. e2e with the var unset: 71 passed / 1 skipped / 1 pre-existing gamma-breadcrumb failure (tracked separately in docs-internal/tickets/ticket-e2e-gamma-breadcrumb-fails-headless.md). e2e against a scratch vault: passed, screenshot written, vault diffed before/after -- notes and `community-plugins.json` byte-identical.

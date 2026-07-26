@@ -25,10 +25,11 @@ under KSAL-2.3 (`LICENSE.md`), **not** OSI open-source.
 ```bash
 npm run dev              # esbuild watch; re-copies artifacts into .dev-vault/
 npm run setup:dev-vault  # idempotent: build + create/copy plugin into .dev-vault/
-npm test                 # vitest (our suite: src/**/*.test.{ts,tsx})
+npm test                 # vitest (src/**/*.test.{ts,tsx} + e2e/**/*.test.ts harness guards)
 npm run check            # tsc -noEmit (strict)
 npm run build            # check + production bundle → main.js
 npm run test:e2e         # Playwright against a REAL Obsidian (release gate, not npm test)
+                         # VICINITY_E2E_VAULT drives an arbitrary vault — see README safety caveat
 ```
 
 Redirect verbose build/test output to `.tmp/` to conserve context.

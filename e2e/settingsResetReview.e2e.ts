@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
-import fs from "node:fs";
+import * as fs from "node:fs";
 import { ObsidianHarness, PLUGIN_ID } from "./obsidianHarness";
 
 /**

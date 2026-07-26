@@ -20,5 +20,7 @@ styles.css
 .vscode/
 .DS_Store
 
-# Obsidian plugin runtime settings
+# Obsidian plugin runtime settings. `doc-data/` too: when the repo is symlinked
+# into a vault as the plugin dir, the vault's per-doc state lands in the checkout.
 data.json
+doc-data/
