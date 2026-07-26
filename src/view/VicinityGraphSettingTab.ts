@@ -465,6 +465,9 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	 * 1.12.7), where the method still installs the hover listeners that are a slider's
 	 * ONLY value readout — verified on 1.12.7. Removing it silently blanks the value on
 	 * every supported build below 1.13. Drop it only when `minAppVersion` reaches 1.13.0.
+	 *
+	 * @see e2e/settingsUxVisual.e2e.ts — "settings tab: WHEN a slider is hovered THEN its
+	 *      current value is readable" is the test that catches this removal.
 	 */
 	private addLabeledSlider(
 		container: HTMLElement,
