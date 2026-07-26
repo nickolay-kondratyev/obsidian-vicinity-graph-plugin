@@ -109,6 +109,47 @@ against `harness.setTheme("light"|"dark")`. Ticket records the `vaultTarget.test
 Default-value literals (`nodeCap` 100, `outlineMaxDepth` 2, …) were left alone —
 already covered by the pre-existing research ticket on per-setting plumbing cost.
 
+## Review round 1 dispositions
+
+| Finding | Disposition | What changed |
+|---|---|---|
+| **S-1** — compile-time guard run by no command | **ACCEPTED** | `package.json`: `"check:e2e": "tsc -noEmit -p e2e/tsconfig.json"`, `"check": "tsc -noEmit && npm run check:e2e"`. `scripts/run-e2e.sh`: its own `npx tsc -p e2e/tsconfig.json` line **removed** (WHY-NOT comment left in place) — both branches of that script already run `npm run build` → `check` → `check:e2e`, so keeping the line would only make every e2e run slower for zero extra coverage. `e2e/settingsBaseline.ts` comment now names `npm run check`. `CLAUDE.md` Commands line updated. |
+| **S-2** — heading test asserts hand-written literals against a hand-written const | **ACCEPTED** | Deleted from `e2e/settingsBaseline.test.ts`. Agreed with the reasoning: the test had no independent authority (both sides live in `e2e/`) and made a card rename a two-file edit. The heading pin that *does* have authority is the DOM assertion in `settingsUxVisual.e2e.ts` — real Obsidian, verified green below. |
+| **N-2** — two change-detector tests | **ACCEPTED** (suggestion, taken) | Deleted "heading and reset name are both present" (vacuous by construction) and "exactly one starts open" (restates the const's own literals). |
+| *(beyond N-2, same criterion)* `EVERY_SETTINGS_RESET_NAME` ordering test | **DELETED** | It asserted `EVERY === [...SECTION, ALL]` — verbatim the const's own definition. The real order authority is the DOM `toEqual(EVERY_SETTINGS_RESET_NAME)` in `settingsResetReview.e2e.ts`. |
+| **N-1** — panel disclosures have no exhaustiveness pin | **DEFERRED → ticket** `nid_vqw34wdpmb5qzn52cy6qugqgd_e` | Out of scope for the DRY ticket; needs a scoped (direct-child) count to avoid the conditional / nested disclosures. |
+| **N-3** — `ALL_SETTINGS_RESET_CONFIRM_TITLE` mirrors src's `` `${label}?` `` | **REJECTED (no change)** | Deriving it needs a `SettingsWriteContext`, which cannot be built from `e2e/`. The reviewer agrees it is a reasonable 80/20; recording it as the conscious choice they asked for. |
+
+**Surviving test file** — `e2e/settingsBaseline.test.ts` is now 2 tests, both pinning
+values **derived from `src`** (the 6 section reset names, the tab-wide reset name).
+The file's docstring states the retained criterion: a literal here is only worth
+writing when it is an independent second opinion on derived copy. **No assertion was
+weakened** — the deleted tests were all same-file tautologies added by this branch,
+never assertions the specs previously carried.
+
+**Guard re-proved under the new command**: deleting the `performance` key made
+`npm run check` exit **2** with
+`e2e/settingsBaseline.ts(41,7): error TS2741: Property 'performance' is missing …`
+(restored; `npm run check` exit 0 again).
+
+**Pre-existing e2e red — verified and ticketed, not fixed.** Ran
+`npm run test:e2e -- vicinityGraph` in a **clean `main` worktree** (`d10b817`,
+node_modules symlinked, `OBSIDIAN_PATH` reused): **13 passed, 1 failed**, the same
+`vicinityGraph.e2e.ts:160` breadcrumb timeout. `git diff --stat main...HEAD -- src/`
+is empty. Confirmed pre-existing → ticket `nid_yccejkvl0ccqc77olsgg5deka_e` (bug, p2)
+with the failure output attached. Worktree removed.
+
+## Round-1 verification (actual results)
+
+- `npm run check` (now src + e2e) → **exit 0**.
+- `npm test` → **74 files / 988 tests passed** (992 − 4 deleted tautologies).
+- `npm run test:e2e -- settingsUxVisual settingsReset` (real Obsidian; filter matches
+  `settingsUxVisual.e2e.ts`, `settingsResetReview.e2e.ts`, `settingsResetVerify.e2e.ts`)
+  → **34 passed (8.2s), exit 0**. This run also exercised the run-e2e.sh change (the
+  e2e type-check now happens inside `npm run build`). Log: `.tmp/r1_e2e_settings.log`.
+- Full `npm run test:e2e` still red on `vicinityGraph.e2e.ts:160` only — pre-existing,
+  ticketed above.
+
 ## Not done (owner: TOP_LEVEL_AGENT)
 
 - No `change_log` entry written (per brief).

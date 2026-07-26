@@ -36,5 +36,7 @@ if [[ -n "${VICINITY_E2E_VAULT:-}" ]]; then
 else
 	npm run setup:dev-vault
 fi
-npx tsc -p e2e/tsconfig.json
+# WHY-NOT a `tsc -p e2e/tsconfig.json` line here: both branches above run
+# `npm run build`, whose `check` step now type-checks `e2e/` too. Repeating it
+# would only make every e2e run slower.
 exec npx playwright test --config e2e/playwright.config.ts "$@"

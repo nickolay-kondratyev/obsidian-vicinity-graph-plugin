@@ -34,8 +34,9 @@ export type SectionResetScope = (typeof SECTION_RESET_SCOPES)[number];
 
 /**
  * Card heading → reset scope. `Record` over the scope union on purpose: adding a
- * seventh section scope in `settingsResetPlan` fails `tsc` HERE, naming the
- * missing heading, instead of leaving a spec under-asserting at runtime.
+ * seventh section scope in `settingsResetPlan` fails `tsc` HERE (under
+ * `npm run check`, which covers `e2e/` via `check:e2e`), naming the missing
+ * heading, instead of leaving a spec under-asserting at runtime.
  */
 const SECTION_CARD_HEADINGS: Readonly<Record<SectionResetScope, string>> = {
 	"depth-defaults": "Depth defaults",
