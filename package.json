@@ -10,7 +10,8 @@
 		"setup:dev-vault": "bash scripts/setup-dev-vault.sh",
 		"setup:obsidian": "bash scripts/setup-obsidian-bin.sh",
 		"build": "npm run check && node esbuild.config.mjs production",
-		"check": "tsc -noEmit",
+		"check": "tsc -noEmit && npm run check:e2e",
+		"check:e2e": "tsc -noEmit -p e2e/tsconfig.json",
 		"test": "vitest run",
 		"test:e2e": "bash scripts/run-e2e.sh",
 		"test:watch": "vitest"

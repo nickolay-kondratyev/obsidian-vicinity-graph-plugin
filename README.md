@@ -211,8 +211,9 @@ re-running never clobbers local edits.
 | Script | What it does |
 |---|---|
 | `npm run dev` | esbuild watch build; copies artifacts into the dev vault on every rebuild |
-| `npm run build` | `tsc -noEmit` type check, then production bundle to `main.js` + dev-vault copy |
-| `npm run check` | `tsc -noEmit` (strict type check) |
+| `npm run build` | `npm run check`, then production bundle to `main.js` + dev-vault copy |
+| `npm run check` | strict `tsc -noEmit` over `src/`, then `check:e2e` |
+| `npm run check:e2e` | `tsc -noEmit -p e2e/tsconfig.json` (type-checks the e2e specs) |
 | `npm test` | our vitest suite (`obsidian-id-lib` ships its own tested build from npm) |
 | `npm run setup:dev-vault` | build + create/copy the plugin into `.dev-vault/` |
 | `npm run test:e2e` | release-time Playwright e2e: drives a REAL Obsidian on a copy of the dev vault (see below) |
