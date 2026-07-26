@@ -144,3 +144,111 @@ it is a conscious choice.
 
 None required. If S-1 is taken, update the `CLAUDE.md` "Commands" table so
 `npm run check` is described as covering `e2e/` too.
+
+---
+
+# Round 2 — convergence check (delta `817cd23`)
+
+**Verdict: SIGNAL READINESS to converge. 0 BLOCKING, 0 SHOULD-FIX beyond one
+one-line doc line, everything else NIT.**
+
+## My own re-run (real numbers, this environment)
+
+| Command | Result |
+|---|---|
+| `npm run check` | exit **0** (`.tmp/r2_check.txt`). Wall time **2.3s**; bare `tsc -noEmit` alone is 1.4s → the added `check:e2e` costs **~0.9s**. Negligible. |
+| `npm test` | **74 files / 988 tests passed**, exit 0 (`.tmp/r2_test.txt`) — matches the implementer's claim exactly. |
+| `npm run test:e2e -- settingsUxVisual settingsReset` (real Obsidian; filter matches the 3 settings specs) | **34 passed (8.2s), exit 0** (`.tmp/r2_e2e_settings.log`). |
+
+Full e2e suite deliberately NOT re-run: the `vicinityGraph.e2e.ts:160` red is
+already confirmed pre-existing and ticketed (`nid_yccejkvl0ccqc77olsgg5deka_e`).
+
+## 1. Round-1 findings — dispositions
+
+- **S-1 — RESOLVED.** `package.json` now `"check": "tsc -noEmit && npm run check:e2e"`,
+  `"check:e2e": "tsc -noEmit -p e2e/tsconfig.json"`. `e2e/settingsBaseline.ts:36-39`
+  now names `npm run check`, so the advertised guard matches a real command. `CLAUDE.md`
+  Commands line updated.
+- **S-2 — RESOLVED.** The heading tautology is gone; the surviving
+  `settingsBaseline.test.ts` is 2 tests, both pinning **src-derived** values. The
+  added WHY-NOT docstring states the retained criterion — good, it stops the
+  tautology from being re-added later.
+- **N-2 — ACCEPTED and taken**, plus one further self-referential test
+  (`EVERY_SETTINGS_RESET_NAME === [...SECTION, ALL]`) they spotted themselves.
+- **N-1 — DEFERRED to `nid_vqw34wdpmb5qzn52cy6qugqgd_e`.** Correct call; the ticket
+  even records the direct-child-scoping trap. Agreed.
+- **N-3 — REJECTED with the right rationale** (`planSettingsResetConfirmation` needs a
+  `SettingsWriteContext` unbuildable from `e2e/`). Accepted.
+
+## 2. `scripts/run-e2e.sh` regression risk — CLAIM VERIFIED, no gap
+
+Read end to end (42 lines, `set -euo pipefail`, no `exit`, no `return`, no other
+`if`/`case` that can skip work):
+
+- L16-19 `OBSIDIAN_PATH` branch — binary resolution only, both arms fall through.
+- L25-28 display-flag branch — env only, both arms fall through.
+- L33-38 the only build-relevant fork:
+  - `VICINITY_E2E_VAULT` set → `npm run build` → `check` → `tsc` + `check:e2e`. ✅
+  - unset → `npm run setup:dev-vault` → `scripts/setup-dev-vault.sh:377` runs
+    `npm run build` and **`exit 1` on failure** (`set -euo pipefail` also propagates). ✅
+- L42 `exec npx playwright test`.
+
+There is **no skip-build / reuse-artifact / cached path**. Every route to Playwright
+still type-checks `e2e/`. The deletion is a strict de-duplication, not a coverage loss,
+and my `test:e2e` run above exercised the non-vault branch for real.
+
+## 3. Test deletions — all 4 were introduced by THIS branch
+
+`git show main:e2e/settingsBaseline.test.ts` → *"exists on disk, but not in `main`"*.
+`git diff main...HEAD --stat -- '*.test.ts' '*.test.tsx' ':!e2e/settingsBaseline.test.ts'`
+is **empty**: not a single pre-existing test file is touched by the branch. 992 → 988
+is 4 same-file tautologies removed from a file this branch created. **No
+behaviour-capturing test was removed** — CLAUDE.md's rule is not engaged.
+
+## 4. `npm run check` cost / ordering — fine
+
+`build` = `check` + esbuild, unchanged and green (it ran inside the e2e run above).
+`dev` does not call `check`, so the watch loop is untouched. `e2e/tsconfig.json`
+extends the root config and re-checks `src/` transitively, so `src/` is compiled
+twice per `check` — measured cost **~0.9s**, well under any threshold worth
+engineering around. Ordering (`tsc && check:e2e`) means an `src/` error short-circuits,
+which is the right failure order.
+
+## 5. Round-1 core verdicts re-confirmed
+
+`817cd23` touches no spec file (`e2e/settingsBaseline.ts` diff is comment-only), so
+round 1's conclusions stand unchanged: no assertion weakened (one strengthened), the
+one-edit property holds, `.first()`/`summaryAlsoMatchesAnAncestor` semantics preserved,
+`mode: "serial"` and test order intact, `vaultTarget.test.ts` fs guards still vacuously
+green (neither new file uses `fs`), `ap_XXX_E` anchors byte-identical. `CLAUDE.md`'s
+Commands table is now accurate.
+
+## 🚨 BLOCKING
+
+None.
+
+## ⚠️ SHOULD-FIX
+
+**R2-1 — `README.md:215` still documents the old `check`.** The Scripts table says
+`| npm run check | tsc -noEmit (strict type check) |` and the `build` row says
+`tsc -noEmit type check`. `CLAUDE.md` was updated; the developer-facing README was not,
+so the two now disagree. One-line fix: mirror the CLAUDE.md wording (src, then `e2e/`
+via `check:e2e`).
+
+## 💡 NITs
+
+- **R2-2** — `docs-internal/notes/e2e-obsidian-docker-setup.md:80` reproduces
+  `run-e2e.sh` verbatim *including* the deleted `npx tsc -p e2e/tsconfig.json` line
+  (and the prose "Seed the vault, type-check specs, run Playwright"). It is a
+  historical setup recipe, but it is now a wrong recipe for this repo.
+- **R2-3** — `scripts/run-e2e.sh:7` header still reads "seeds the dev vault,
+  type-checks the specs, and runs Playwright". Still true, but only indirectly; the
+  WHY-NOT at L39-41 already explains it, so the header could just say "builds".
+- **R2-4 (conscious tradeoff, no action)** — producing `main.js` now fails on an
+  **e2e-only** type error, since `build` → `check` → `check:e2e`. That is the point of
+  S-1's fix and the cost is ~0.9s, but it is a new coupling of the production bundle to
+  test-code type health. Flagging so it is a chosen property, not a surprise.
+
+## Documentation Updates Needed
+
+R2-1 (README Scripts table). R2-2 optional.

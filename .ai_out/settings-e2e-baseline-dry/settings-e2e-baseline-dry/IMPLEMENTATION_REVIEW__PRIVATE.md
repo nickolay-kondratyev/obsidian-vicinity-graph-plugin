@@ -48,3 +48,28 @@
   reproduction + zero-src-diff was judged sufficient; if someone wants belt and
   braces, `git stash` is not needed — just `git checkout main && npm run
   test:e2e -- vicinityGraph`.
+
+## Round 2 (restarted reviewer) — evidence
+
+- Delta commit `817cd23`: `package.json` (`check`/`check:e2e`), `scripts/run-e2e.sh`
+  (tsc line → WHY-NOT comment), `CLAUDE.md` Commands line, `e2e/settingsBaseline.ts`
+  comment-only, `e2e/settingsBaseline.test.ts` 6→2 tests, 2 new `_tickets/`.
+  **No spec file touched** → all round-1 spec verdicts carry over untouched.
+- run-e2e.sh traced line by line: only forks are L16 (OBSIDIAN_PATH), L25 (display),
+  L33 (VICINITY_E2E_VAULT). No early exit. Vault branch → `npm run build`; else branch
+  → `setup-dev-vault.sh:377` `npm run build` (exits 1 on failure). Claim TRUE.
+- `git show main:e2e/settingsBaseline.test.ts` → not in main. `git diff main...HEAD
+  --stat` over `*.test.ts` excluding that file → EMPTY. Deletion concern closed hard.
+- Timings: `npm run check` 2.3s vs bare `tsc -noEmit` 1.4s → check:e2e ≈ 0.9s. `dev`
+  script does NOT call check, so watch loop unaffected.
+- Re-ran: check 0, `npm test` 988/74 files, `test:e2e -- settingsUxVisual settingsReset`
+  34 passed exit 0. Logs `.tmp/r2_check.txt`, `.tmp/r2_test.txt`, `.tmp/r2_e2e_settings.log`.
+- Did NOT re-prove the TS2741 guard by mutating a key (review-only mandate); it is the
+  same `tsc -p e2e/tsconfig.json` invocation round 1 proved, now merely chained from
+  `check`. Mechanically sound.
+- New docs staleness found by grepping `npm run check|tsc -p|run-e2e`: README:215
+  Scripts table (SHOULD-FIX), docs-internal/notes/e2e-obsidian-docker-setup.md:80
+  (NIT), run-e2e.sh header L7 (NIT).
+
+## Verdict
+SIGNAL READINESS. 0 blocking. Only R2-1 (README one-liner) is worth a fix before merge.
