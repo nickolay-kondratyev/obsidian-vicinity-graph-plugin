@@ -4,7 +4,7 @@ import { FakeLinkProvider } from "./FakeLinkProvider";
 import type { FakeVaultSpec } from "./FakeLinkProvider";
 import { VicinityTraversal } from "./VicinityTraversal";
 import type { NodeSize } from "./NodeSizer";
-import { NodeSizer } from "./NodeSizer";
+import { DepthDecayMetric, NodeSizer } from "./NodeSizer";
 import type { SizeMetricId, SizingSettings, VaultPath } from "./types";
 import { asVaultPath } from "./types";
 
@@ -145,7 +145,13 @@ describe("NodeSizer depth-decay metric", () => {
  * a non-finite one ABORTS the router's wasm module for the whole session. The
  * sizer is therefore TOTAL: no settings object, however hostile, produces a
  * non-finite size. (`depthDecayK = -1` divides `1 / (1 + k * minDepth)` by zero
- * at depth 1; `k = Infinity` makes `Infinity * 0 = NaN` at the root.)
+ * at depth 1.)
+ *
+ * Honest scope, measured by deleting the clamp and re-running: `k = -1`,
+ * `k = NaN`, non-finite `minPx`/`maxPx` and an `Infinity` weight each go RED
+ * without it. The `k = Infinity` row does NOT — see the coupling test below for
+ * why that scenario was never reachable; it is kept only because the ticket
+ * lists it as an acceptance criterion.
  */
 describe("NodeSizer hostile sizing settings (sizePx stays finite)", () => {
 	// GIVEN a chain m -> a -> b traversed from m at depth 2 (depths 0, 1, 2)
@@ -165,10 +171,30 @@ describe("NodeSizer hostile sizing settings (sizePx stays finite)", () => {
 
 	it.each([
 		["k = -1 (the 1 + k * minDepth singularity at depth 1)", -1],
-		["k = Infinity (Infinity * 0 = NaN at the root)", Number.POSITIVE_INFINITY],
+		["k = Infinity", Number.POSITIVE_INFINITY],
 		["k = NaN", Number.NaN],
 	])("WHEN depth decay has %s THEN every sizePx is finite", (_case, depthDecayK) => {
 		expect(everySizePx(sizingWith({ "depth-decay": 1 }, depthDecayK)).every(Number.isFinite)).toBe(true);
+	});
+
+	/**
+	 * The ticket predicted `k = Infinity` -> `Infinity * 0 = NaN` at the root.
+	 * That product is computed but never used: `minDepth === 0` holds for roots
+	 * ONLY (neighbours are tagged `currentDepth + 1`), and roots are exactly the
+	 * centrals, which bypass metric composition for {@link CENTRAL_SIZE_SCORE}.
+	 * This test pins THAT coupling — the thing that would have to break for the
+	 * predicted NaN to become reachable.
+	 */
+	it("WHEN a node is not central THEN its minDepth is at least 1 (no non-central multiplies k by 0)", () => {
+		const provider = new FakeLinkProvider(spec);
+		const traversal = new VicinityTraversal(provider).traverse([
+			{ descriptor: { path: asVaultPath("m.md") }, depths: { outgoingDepth: 2, incomingDepth: 0 } },
+		]);
+		const nonCentralDepths = [...traversal.nodes.values()]
+			.filter((node) => !node.isCentral)
+			.map((node) => node.minDepth)
+			.sort();
+		expect(nonCentralDepths).toEqual([1, 2]); // a.md, b.md — never 0.
 	});
 
 	it.each([
@@ -182,6 +208,35 @@ describe("NodeSizer hostile sizing settings (sizePx stays finite)", () => {
 	it("WHEN a metric weight is Infinity THEN every sizePx is finite (the weighted average keeps a usable divisor)", () => {
 		const settings = sizingWith({ "own-file-size": Number.POSITIVE_INFINITY });
 		expect(everySizePx(settings).every(Number.isFinite)).toBe(true);
+	});
+});
+
+/**
+ * The metric's OWN guard, exercised directly because `computeSizes` clamps `k`
+ * before construction and so can never reach it (see the class doc). Without
+ * these two tests the guard is deletable with the whole suite still green.
+ */
+describe("DepthDecayMetric is total for an unvetted k", () => {
+	// GIVEN the same m -> a -> b chain: minDepth 0, 1, 2.
+	const spec: FakeVaultSpec = {
+		files: [{ path: "m.md" }, { path: "a.md" }, { path: "b.md" }],
+		links: { "m.md": ["a.md"], "a.md": ["b.md"] },
+	};
+
+	function decayedValue(k: number, path: string): number | undefined {
+		const provider = new FakeLinkProvider(spec);
+		const traversal = new VicinityTraversal(provider).traverse([
+			{ descriptor: { path: asVaultPath("m.md") }, depths: { outgoingDepth: 2, incomingDepth: 0 } },
+		]);
+		return new DepthDecayMetric(k).normalizedValues(traversal.nodes).get(asVaultPath(path));
+	}
+
+	it("WHEN k = -1 THEN the depth-1 node's vanishing denominator yields the neutral value, not Infinity", () => {
+		expect(decayedValue(-1, "a.md")).toBe(NEUTRAL_NORMALIZED_VALUE);
+	});
+
+	it("WHEN k is Infinity THEN the depth-0 node's Infinity * 0 yields the neutral value, not NaN", () => {
+		expect(decayedValue(Number.POSITIVE_INFINITY, "m.md")).toBe(NEUTRAL_NORMALIZED_VALUE);
 	});
 });
 

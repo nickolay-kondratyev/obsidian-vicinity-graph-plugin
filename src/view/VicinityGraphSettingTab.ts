@@ -34,6 +34,7 @@ import {
 } from "./settingsResetPlan";
 import type { SettingsCommand, SettingsInteraction, SettingsWriteContext } from "./settingsWritePlan";
 import { planSettingsWrite } from "./settingsWritePlan";
+import { parseSizingInput } from "./sizingInput";
 import { SIZING_METRICS } from "./sizingMetrics";
 
 /**
@@ -329,8 +330,8 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 					// alone would not distinguish them.
 					VicinityGraphSettingTab.nameControl(text.inputEl, `${label} weight`);
 					text.onChange((raw) => {
-						const weight = Number(raw);
-						if (Number.isFinite(weight)) {
+						const weight = parseSizingInput(raw);
+						if (weight !== undefined) {
 							const current = this.store.globalView().sizing;
 							void this.applySizing({
 								...current,
@@ -512,10 +513,8 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	/**
 	 * One sizing number input. Bounds come from {@link SIZING_RANGES}, the SAME
 	 * table the write planner clamps with, so the input and the stored value
-	 * agree. Only FINITE input is forwarded (`Number("1e999")` is `Infinity`,
-	 * which is neither `NaN` nor blocked by the `min` attribute); an in-band but
-	 * out-of-range value is forwarded and CLAMPED downstream rather than
-	 * silently dropped, so the field never sticks on a rejected keystroke.
+	 * agree, and {@link parseSizingInput} decides what counts as typed input —
+	 * the same rule the in-view sizing mirror uses.
 	 */
 	private addSizingNumber(
 		container: HTMLElement,
@@ -530,8 +529,8 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 			text.setValue(String(value));
 			VicinityGraphSettingTab.nameControl(text.inputEl, name);
 			text.onChange((raw) => {
-				const parsed = Number(raw);
-				if (Number.isFinite(parsed)) {
+				const parsed = parseSizingInput(raw);
+				if (parsed !== undefined) {
 					void onChange(parsed);
 				}
 			});

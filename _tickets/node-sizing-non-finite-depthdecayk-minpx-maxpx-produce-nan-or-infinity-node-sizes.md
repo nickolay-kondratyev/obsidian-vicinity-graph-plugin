@@ -42,3 +42,13 @@ A `DepthDecayMetric` guard is still warranted as the last line of defence, and i
 - Sizing settings are clamped on the persistence-load path and on the React `SizingSection.tsx` write path.
 - `npm run check` and `npm test` green.
 
+
+## Notes
+
+**2026-07-26T01:21:58Z**
+
+CORRECTION to this ticket's premise, found during the iteration-1 review of branch `sizing-nonfinite-clamp` and confirmed by mutation testing.
+
+The described `depthDecayK = Infinity` -> `Infinity * 0 = NaN` at the root note is NOT reachable. In `src/engine/VicinityTraversal.ts` only traversal ROOTS ever get a depth-0 tag (neighbours are tagged `currentDepth + 1`), and `isCentral` is exactly "is a root". `src/engine/NodeSizer.ts` `computeSizes` gives centrals `CENTRAL_SIZE_SCORE` and skips metric composition entirely, so the `Infinity * 0` product is computed and then discarded. Removing BOTH the new clamp and the `DepthDecayMetric` guard leaves the `k = Infinity` case green.
+
+The defects that WERE real and are now caught by failing-without-the-fix tests: `depthDecayK = -1` (`1/0` -> Infinity at depth 1), `depthDecayK = NaN`, non-finite `minPx`/`maxPx`, and an `Infinity` metric weight (`Infinity/Infinity` -> NaN in the weighted average). The `minDepth === 0 <=> isCentral` coupling that makes the k = Infinity case moot is now pinned by its own test in `src/engine/NodeSizer.test.ts`.

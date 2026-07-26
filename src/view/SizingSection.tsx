@@ -5,6 +5,7 @@ import { useControlsActions } from "./ControlsActionsContext";
 import { Disclosure } from "./Disclosure";
 import type { SettingsWriteContext } from "./settingsWritePlan";
 import { planSettingsWrite } from "./settingsWritePlan";
+import { parseSizingInput } from "./sizingInput";
 import { SIZING_METRICS } from "./sizingMetrics";
 
 /**
@@ -62,8 +63,9 @@ export function SizingSection({
 									value={metric.weight}
 									disabled={!metric.enabled}
 									onChange={(event) => {
-										if (Number.isFinite(event.target.valueAsNumber)) {
-											setMetric(id, { weight: event.target.valueAsNumber });
+										const weight = parseSizingInput(event.target.value);
+										if (weight !== undefined) {
+											setMetric(id, { weight });
 										}
 									}}
 								/>
@@ -96,10 +98,10 @@ export function SizingSection({
 }
 
 /**
- * A labelled numeric field that only fires `onChange` on a FINITE number —
- * `1e999` parses to `Infinity`, which is a number and not `NaN`. The bounds are
- * the engine's, the same ones {@link planSettingsWrite} clamps with (the `min`
- * attribute alone only drives the steppers, never a typed value).
+ * A labelled numeric field. What counts as typed input is {@link parseSizingInput}'s
+ * single rule (shared with the settings tab); the bounds are the engine's, the
+ * same ones {@link planSettingsWrite} clamps with (the `min` attribute alone
+ * only drives the steppers, never a typed value).
  */
 function SizingNumber({
 	label,
@@ -122,8 +124,9 @@ function SizingNumber({
 				step={range.step}
 				value={value}
 				onChange={(event) => {
-					if (Number.isFinite(event.target.valueAsNumber)) {
-						onChange(event.target.valueAsNumber);
+					const parsed = parseSizingInput(event.target.value);
+					if (parsed !== undefined) {
+						onChange(parsed);
 					}
 				}}
 			/>

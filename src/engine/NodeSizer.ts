@@ -142,14 +142,19 @@ class MinMaxNormalizedMetric implements SizeMetric {
  * `1 / (1 + k * minDepth)` — inherently in (0, 1] for the `k >= 0` the settings
  * bounds allow, so no min-max pass is needed.
  *
- * Last line of defence for a `k` those bounds did not vet (this class is
- * constructible with any number): the denominator vanishes at `k = -1/minDepth`
- * (`Infinity`) and `k = Infinity` gives `Infinity * 0 = NaN` at the root, so a
- * non-finite result degrades to {@link NEUTRAL_NORMALIZED_VALUE} — the same
- * "this metric cannot discriminate" convention {@link MinMaxNormalizedMetric}
- * uses — rather than poisoning `sizePx`.
+ * The finite guard is DELIBERATE defence in depth, and it is honestly unreachable
+ * from {@link NodeSizer.computeSizes} today: that method clamps `k` into
+ * `SIZING_RANGES.depthDecayK` before constructing this metric, so removing the
+ * guard breaks nothing there. It exists because the class is constructible with
+ * any number and must be total in its own right — the denominator vanishes at
+ * `k = -1/minDepth` (`Infinity`) and `k = Infinity` gives `Infinity * 0 = NaN` at
+ * depth 0. A non-finite result degrades to {@link NEUTRAL_NORMALIZED_VALUE}, the
+ * same "cannot discriminate" convention {@link MinMaxNormalizedMetric} uses.
+ *
+ * Exported ONLY so `NodeSizer.test.ts` can exercise that guard directly (it is
+ * not re-exported from `src/engine/index.ts`); an untestable guard would rot.
  */
-class DepthDecayMetric implements SizeMetric {
+export class DepthDecayMetric implements SizeMetric {
 	constructor(private readonly k: number) {}
 
 	normalizedValues(nodes: ReadonlyMap<VaultPath, TraversedNode>): ReadonlyMap<VaultPath, number> {
