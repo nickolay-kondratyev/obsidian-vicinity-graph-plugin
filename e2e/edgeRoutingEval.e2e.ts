@@ -46,6 +46,8 @@ const SETTLE_POLL_INTERVAL_MS = 250;
 const SETTLE_QUIET_MS = 1_500;
 /** Upper bound on the whole settle (slowest observed burst: dense, ~2s of logs). */
 const SETTLE_TIMEOUT_MS = 30_000;
+/** `renderFixture` bounces first, so the fixture's own graph is the SECOND one laid out. */
+const LAYOUTS_PER_FIXTURE_RENDER = 2;
 
 interface PerfEntry {
 	readonly kind: "routing" | "layout";
@@ -179,26 +181,34 @@ async function renderFixture(centralPath: string): Promise<PerfEntry[]> {
 }
 
 /**
- * Condition-driven settle: opening a note fires several rebuilds (the immediate
- * `file-open` one, then the 500ms-debounced `metadataCache "resolved"` one, each of which
- * logs a pass), and the LAST of them is the one that saw the whole vicinity. Wait until
- * the log stream goes quiet instead of guessing a duration — the previous fixed 4.5s sleep
- * was both slower than needed and silent about whether it had actually been enough.
+ * Condition-driven settle, replacing a fixed sleep: opening a note fires several rebuilds
+ * (the immediate `file-open` one, then the 500ms-debounced `metadataCache "resolved"` one),
+ * each logging a layout and a routing pass, and the LAST of them is the settled graph.
+ *
+ * Two conditions, both required:
+ * 1. the CENTRAL fixture's own pass has been logged — {@link renderFixture} bounces first,
+ *    so its graph is the SECOND one laid out. Quiescence alone is not enough: the dense
+ *    fixture's elk layout takes ~1.5s, and the silence while it runs looks exactly like
+ *    the end of the burst (observed: the dense row reporting the 3-obstacle bounce pass).
+ * 2. no further pass for {@link SETTLE_QUIET_MS}, so a trailing debounced rebuild is in.
  */
 async function waitForRebuildBurstToSettle(): Promise<void> {
 	const deadline = Date.now() + SETTLE_TIMEOUT_MS;
 	let seenCount = -1;
 	let unchangedSince = Date.now();
 	while (Date.now() < deadline) {
-		if (pendingPerf.length !== seenCount) {
-			seenCount = pendingPerf.length;
+		const captured = (await Promise.all(pendingPerf)).filter((e): e is PerfEntry => e !== null);
+		const centralFixtureLaidOut =
+			captured.filter((entry) => entry.kind === "layout").length >= LAYOUTS_PER_FIXTURE_RENDER;
+		if (captured.length !== seenCount) {
+			seenCount = captured.length;
 			unchangedSince = Date.now();
-		} else if (seenCount > 0 && Date.now() - unchangedSince >= SETTLE_QUIET_MS) {
+		} else if (centralFixtureLaidOut && Date.now() - unchangedSince >= SETTLE_QUIET_MS) {
 			return;
 		}
 		await new Promise((tick) => setTimeout(tick, SETTLE_POLL_INTERVAL_MS));
 	}
-	throw new Error(`Rebuild logs never went quiet: passesCaptured=[${pendingPerf.length}]`);
+	throw new Error(`Rebuild logs never settled: passesCaptured=[${pendingPerf.length}]`);
 }
 
 /**
