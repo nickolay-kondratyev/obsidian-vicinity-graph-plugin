@@ -101,3 +101,79 @@ by-name one. If S1 is applied, update the "Exact `toHaveText`…" comment at `:1
 the regex tolerates the numeric badge only.
 
 VERDICT: READY
+
+---
+
+## Round 2 — iteration confirmation
+
+Scope: `git diff 9262aa8..HEAD` only — one commit, `06a97fe test(e2e): tighten the
+controls-panel disclosure pin (review round 1)`. Touched: `e2e/settingsUxVisual.e2e.ts`,
+`e2e/settingsBaseline.ts` (doc comment only), 2 `.ai_out` docs, 2 new `_tickets/` files.
+No `src/` change, no deletions, `git status` clean.
+
+### S1 — anchored summary regexes: CORRECT
+
+`new RegExp(`^${escaped}\\d*$`)` at `e2e/settingsUxVisual.e2e.ts:123-125`.
+
+- **Badge absent** → `\d*` matches empty → `"Depth"` passes. Confirmed by
+  `.tmp/e2e-iter-final.log` (18 passed) with no exclusion seeded.
+- **Badge present, 1 digit** → `"Node exclusion1"` passes. Confirmed empirically by the
+  temporary probe dump quoted in the implementer's notes (`.tmp/e2e-iter-badge-proof.log`) —
+  the badge contributes NO separator, so `\d*` is the right and sufficient tolerance.
+- **2+ digits** → `\d*` is unbounded, so `"Node exclusion12"` also passes. Not over-tight.
+- **Over-loose?** No. `.tmp/e2e-iter-rename-proof.log:275-276` shows the anchored form
+  rejecting `"Depth & scope"` (`- /^Depth\d*$/ / + "Depth & scope"`), and
+  `.tmp/e2e-iter-old-form-lets-rename-through.log:266` shows the OLD prefix form passing
+  16/16 with the same rename in place. The hole is demonstrated closed, not asserted.
+- **`$` vs trailing whitespace**: the anchor would be brittle if Playwright matched raw
+  un-normalized `textContent`; the green runs above with `$` in place are direct evidence
+  it does not bite here.
+
+The escaping of `text` before interpolation is retained, so a future summary containing
+regex metacharacters stays literal.
+
+### N1 — full-text pinned-centrals exclusion: CORRECT, cannot over-filter
+
+`filter({ hasNotText: new RegExp(`^${PINNED_CENTRALS_SUMMARY} \\(\\d+\\)$`) })` matches
+exactly `GraphToolbar.tsx:47` (`` `Pinned centrals (${pinned.length})` ``) — space, parens,
+one-or-more digits. A future real section `"Pinned centrals defaults"` no longer matches, so
+it can no longer be silently dropped from the count. That was the point.
+
+Can it silently mask a regression? No, and the failure direction is worth stating: if the
+regex ever STOPS matching the real disclosure (rename, count formatting change), the
+disclosure is no longer excluded and `toHaveCount(5)` fails loudly with 6. There is no
+silent-pass direction. Note the filter is not exercised today in a pinned state — that is
+acceptable precisely because the untested direction fails loud, and the adjacent gap is now
+ticketed (`nid_d9j4o9ecp93g5zhury5m1fb43_e`).
+
+### Claimed verification — credible
+
+`.tmp/e2e-iter-{base,rename-proof,old-form-lets-rename-through,badge-proof,sixth-proof,final}.log`
+all exist (16:50–16:53, consistent with the commit). Spot-checked contents:
+`sixth-proof.log:267-271` = real `toHaveCount` failure `Expected: 5 / Received: 6` with the
+new locator string including `/^Pinned centrals \(\d+\)$/`; `rename-proof.log:302-305` =
+`1 failed`; `old-form-…log:266` = `16 passed`; `final.log:268` = `18 passed`. Matches the
+report exactly. I re-ran `npm run check` → exit 0 (`.tmp/review-r2-check.log`); e2e not
+re-run, per instruction.
+
+### Nothing weakened or crept in
+
+Per-entry open-state loop (`:61-72`) untouched. `CONTROLS_PANEL_DISCLOSURES` list unchanged
+(5 entries, same order/flags). No `ap_` anchors touched. The `PINNED_CENTRALS_SUMMARY` doc
+update is accurate — it no longer claims "invariant prefix" and now states callers spell the
+count out; the `CONTROLS_PANEL_DISCLOSURES` doc's "filters it out explicitly by
+{@link PINNED_CENTRALS_SUMMARY}" remains true. The round-1 documentation follow-up (rewrite
+the "Exact toHaveText…" rationale) was done. N2/N3 filed as tickets.
+
+Ticket-location nit, non-blocking: the two new tickets landed in `_tickets/` while CLAUDE.md
+points follow-ups at `docs-internal/tickets/`. That matches what the `ticket` tool does in
+this repo, so I read it as a repo-wide convention drift, not this change's problem.
+
+### Residual NICE-TO-HAVE (not blocking, no action required)
+
+`PINNED_CENTRALS_SUMMARY` is interpolated into the `hasNotText` regex WITHOUT the escape
+helper used two lines below for the summary list. Harmless today ("Pinned centrals" has no
+metacharacters) and adding an escape would arguably hurt readability of a one-off, but the
+asymmetry is visible. Mentioning only so it is a conscious choice.
+
+VERDICT: READY
