@@ -127,8 +127,9 @@ export const CONTROLS_PANEL_DISCLOSURE_SUMMARIES: readonly string[] = CONTROLS_P
 );
 
 /**
- * The conditional "Pinned centrals (n)" disclosure, matched by its INVARIANT
- * prefix (the "(n)" suffix is a live count). Not a {@link PanelDisclosure}: it is
+ * The conditional "Pinned centrals (n)" disclosure, without its "(n)" suffix —
+ * that is a live count, so callers wrap this in a regex that spells the count
+ * out rather than matching a bare prefix. Not a {@link PanelDisclosure}: it is
  * absent unless the view has a pinned central, so it has no default open/closed
  * state to assert on a fresh view — it exists here only so the exhaustiveness pin
  * can exclude it BY NAME instead of relying on a fixture happening not to pin.

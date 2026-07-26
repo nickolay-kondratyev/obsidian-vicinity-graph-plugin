@@ -115,4 +115,106 @@ Logs: `.tmp/e2e.log`, `.tmp/e2e-proof.log`, `.tmp/e2e-after-revert.log`.
 - `e2e/controlsRestart.e2e.ts:80` and `e2e/pinnedCentralScenario.e2e.ts:95` still hard-code the
   literal `"Pinned centrals"`, which now also exists as `PINNED_CENTRALS_SUMMARY` in the
   baseline. Three literals for one string. Left alone to keep this change scoped; a two-line
-  DRY pass would fold them in.
+  DRY pass would fold them in. **(Now filed — see ITERATION / N3.)**
+
+---
+
+# ITERATION (review round 1)
+
+Review verdict was READY / 0 blocking. Disposition: **4 incorporated, 0 rejected**
+(2 as code, 2 as tickets). Only `e2e/` touched; no `src/` change.
+
+## S1 — tail-anchor the summary regexes → **INCORPORATED**
+
+`e2e/settingsUxVisual.e2e.ts` now builds `new RegExp(`^${escaped}\\d*$`)` instead of an
+open-ended `^`-prefix. The `\d*` exists solely for the `NodeExclusionSection` count badge, and
+the comment now says so, including that a non-numeric badge failing is *intended*.
+
+**Verified against the REAL DOM, not reasoned:** a temporary probe inside the spec seeded
+`nodeExclusion = { enabled: true, patterns: ["^projects/beta"] }`, asserted the badge rendered
+(`.vicinity-graph-exclusion__count` count 1) and dumped the raw summary `textContent`:
+
+```
+TEMP-PROOF summary textContent=["Depth" | "Node exclusion1" | "Node sizing" | "Node contents" | "Force layout"]
+  ✓   2 e2e/settingsUxVisual.e2e.ts:100:1 › panel: … top-level disclosures are exactly the listed ones, in order (51ms)
+```
+
+So the badge introduces **no separator** (`"Node exclusion1"`), and the anchored form passes
+**with** the badge rendered as well as without it. (`.tmp/e2e-iter-badge-proof.log`. That run's
+overall exit was 1: the temp seeding broke the *later* "No patterns yet" test — expected
+collateral of the probe, and the probe was removed afterwards.)
+
+A `data-` hook on `Disclosure`'s `<summary>` was considered and NOT proposed: `\d*$` is one
+token, needs no `src` change, and the empirical dump above shows the DOM is simple enough that
+regex "gymnastics" never materialised.
+
+## N1 — exact, not substring, exclusion of "Pinned centrals" → **INCORPORATED**
+
+`filter({ hasNotText: PINNED_CENTRALS_SUMMARY })` → `filter({ hasNotText: new
+RegExp(`^${PINNED_CENTRALS_SUMMARY} \\(\\d+\\)$`) })`, matching exactly what
+`GraphToolbar.tsx:47` renders. A future *real* section named "Pinned centrals defaults" is no
+longer silently dropped from the count — which was the precise hole this test exists to close.
+`PINNED_CENTRALS_SUMMARY`'s doc in `e2e/settingsBaseline.ts` was updated: it is no longer "an
+invariant prefix", it is the name minus the live count, and callers spell the count out.
+
+## N2 — no spec asserts "Pinned centrals" is ABSENT when unpinned → **INCORPORATED as a ticket**
+
+`nid_d9j4o9ecp93g5zhury5m1fb43_e`. Agreed with the reviewer that this belongs in its own spec
+rather than growing this one (the filter here is deliberate, and asserting absence is a
+different behavior).
+
+## N3 — DRY the three `"Pinned centrals"` literals → **INCORPORATED as a ticket**
+
+`nid_iwd08rsdnsbdziltw1odisuoc_e`. Kept out of this change to preserve its scope, as the
+reviewer also recommended.
+
+## Documentation-updates-needed → **INCORPORATED**
+
+The "Exact `toHaveText`…" rationale comment was rewritten to state that the regex tolerates the
+numeric badge *only*. `CONTROLS_PANEL_DISCLOSURES`' own doc needed no change (it never claimed
+exact strings).
+
+## Empirical re-proofs (real output)
+
+**(a) 6th top-level disclosure → spec FAILS.** Temporary
+`<Disclosure summary="TEMPORARY PROOF">` added to `GraphToolbar.tsx` before
+`<ForceLayoutSection/>` (`.tmp/e2e-iter-sixth-proof.log`):
+
+```
+    Error: expect(locator).toHaveCount(expected) failed
+    Locator:  locator('.vicinity-graph-toolbar__body > .vicinity-graph-disclosure >
+              .vicinity-graph-disclosure__summary').filter({ hasNotText: /^Pinned centrals \(\d+\)$/ })
+    Expected: 5
+    Received: 6
+```
+
+**(b) prefix-preserving rename → spec now FAILS where it previously PASSED.** `"Depth"` →
+`"Depth & scope"` in `GraphToolbar.tsx`:
+
+- with the NEW anchored regexes (`.tmp/e2e-iter-rename-proof.log`) — **1 failed**:
+  ```
+      Error: expect(locator).toHaveText(expected) failed
+        Array [
+      -   /^Depth\d*$/,
+      +   "Depth & scope",
+          "Node exclusion",
+          …
+  ```
+- with the OLD prefix-only regexes restored and the SAME rename in place
+  (`.tmp/e2e-iter-old-form-lets-rename-through.log`) — **16 passed**, test #2 green. That is the
+  hole, demonstrated rather than asserted.
+
+Both temporary edits reverted via `git checkout -- src/view/GraphToolbar.tsx`; the probe block
+was removed; `git diff` shows only the two intended `e2e/` hunks.
+
+## Iteration verification (real results)
+
+| Command | Result |
+|---|---|
+| `npm run check` | exit 0 |
+| `npm test` | exit 0 — 74 files, 990 tests passed |
+| `npm run test:e2e -- settingsUxVisual` | exit 0 — 16 passed |
+| `npm run test:e2e -- settingsUxVisual pinnedCentralScenario` (final) | exit 0 — **18 passed** |
+
+Full suite still deliberately NOT run: pre-existing RED at `e2e/vicinityGraph.e2e.ts:160`
+(`nid_yccejkvl0ccqc77olsgg5deka_e`).

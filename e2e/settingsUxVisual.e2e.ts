@@ -85,11 +85,16 @@ test("panel defaults: every section is a disclosure, only Depth starts open", as
  * centrals (n)". It is filtered out BY NAME rather than left to the fixture: this
  * spec happens never to pin a central today, but that is an invisible invariant,
  * and the day a test above it pins one the count would silently become 6.
+ *
+ * That filter is a FULL-TEXT regex, not a substring: a substring `hasNotText`
+ * would also swallow a future REAL section whose name merely contains the phrase
+ * ("Pinned centrals defaults"), i.e. the exhaustiveness hole this test exists to
+ * close. `\(\d+\)` is exactly the shape `GraphToolbar` renders.
  */
 function topLevelPanelSummaries(): Locator {
 	return page
 		.locator(".vicinity-graph-toolbar__body > .vicinity-graph-disclosure > .vicinity-graph-disclosure__summary")
-		.filter({ hasNotText: PINNED_CENTRALS_SUMMARY });
+		.filter({ hasNotText: new RegExp(`^${PINNED_CENTRALS_SUMMARY} \\(\\d+\\)$`) });
 }
 
 test("panel: WHEN the controls panel renders THEN its top-level disclosures are exactly the listed ones, in order", async () => {
@@ -103,12 +108,18 @@ test("panel: WHEN the controls panel renders THEN its top-level disclosures are 
 	// Identity + order too, mirroring the settings tab's heading assertion — a
 	// section that was renamed or reordered still counts.
 	//
-	// PREFIX regexes, not exact strings: "Node exclusion" renders an OPTIONAL
-	// excluded-count badge inside its own <summary> (NodeExclusionSection), so its
-	// textContent is "Node exclusion" or "Node exclusion12" depending on the
-	// fixture. Exact `toHaveText` would be a latent flake for that one entry.
+	// Fully anchored regexes rather than plain strings, for ONE reason: "Node
+	// exclusion" renders an OPTIONAL excluded-count badge inside its own <summary>
+	// (NodeExclusionSection), so its textContent is "Node exclusion" or
+	// "Node exclusion12" depending on the fixture, and an exact string would be a
+	// latent flake for that entry. `\d*` tolerates that badge and NOTHING else —
+	// tail-anchoring keeps a rename like "Depth" → "Depth & scope" failing, which
+	// an open-ended prefix would have let through. If the badge ever stops being a
+	// bare integer, the resulting failure is intended, not a flake.
 	await expect(summaries).toHaveText(
-		CONTROLS_PANEL_DISCLOSURE_SUMMARIES.map((text) => new RegExp(`^${text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`)),
+		CONTROLS_PANEL_DISCLOSURE_SUMMARIES.map(
+			(text) => new RegExp(`^${text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\d*$`),
+		),
 	);
 });
 

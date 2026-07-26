@@ -28,4 +28,23 @@ Ticket `nid_vqw34wdpmb5qzn52cy6qugqgd_e`. Branch `e2e-controls-panel-disclosure-
 
 ## State
 
-See PUBLIC file for results.
+Implementation DONE + review round 1 DONE. See PUBLIC file for results.
+
+## Iteration (review round 1) — done
+
+- S1 tail-anchored regexes (`^…\d*$`) + N1 exact pinned-centrals filter regex → code.
+- N2 → ticket `nid_d9j4o9ecp93g5zhury5m1fb43_e`; N3 → ticket `nid_iwd08rsdnsbdziltw1odisuoc_e`.
+- Nothing rejected.
+
+**Empirically established DOM fact (do not re-derive):** with the exclusion badge rendered the
+summary `textContent` is `"Node exclusion1"` — NO separator, bare integer. Probe:
+seed `saveNodeExclusion({enabled:true, patterns:["^projects/beta"]})` + `refreshOpenViews()` in
+the fixture, which excludes exactly 1 node from `projects/alpha.md`'s vicinity.
+
+Logs (this iteration): `.tmp/e2e-iter-base.log`, `.tmp/e2e-iter-rename-proof.log`,
+`.tmp/e2e-iter-old-form-lets-rename-through.log`, `.tmp/e2e-iter-badge-proof.log`,
+`.tmp/e2e-iter-sixth-proof.log`, `.tmp/e2e-iter-final.log`.
+
+## Next steps
+
+None — ticket closure + change_log are TOP_LEVEL_AGENT's.
