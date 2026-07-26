@@ -4,7 +4,9 @@ import * as fs from "node:fs";
 import { ObsidianHarness, PLUGIN_ID } from "./obsidianHarness";
 import {
 	ALL_SETTINGS_RESET_CONFIRM_TITLE,
+	CONTROLS_PANEL_DISCLOSURE_SUMMARIES,
 	CONTROLS_PANEL_DISCLOSURES,
+	PINNED_CENTRALS_SUMMARY,
 	SECTION_RESET_NAMES,
 	SETTINGS_TAB_SECTION_HEADINGS,
 	SETTINGS_TAB_SECTIONS,
@@ -69,6 +71,56 @@ test("panel defaults: every section is a disclosure, only Depth starts open", as
 		}
 	}
 	await page.screenshot({ path: `${OUT_DIR}/panel-default-open.png` });
+});
+
+/**
+ * The panel's TOP-LEVEL disclosure summaries, in DOM order.
+ *
+ * `>` twice, deliberately: the panel's sections are direct children of
+ * `.vicinity-graph-toolbar__body`, so a direct-child chain both scopes the count
+ * to the top level and drops the NESTED "Advanced spacing" disclosure (and its
+ * summary) structurally — no name to maintain.
+ *
+ * The one direct child the baseline does NOT list is the CONDITIONAL "Pinned
+ * centrals (n)". It is filtered out BY NAME rather than left to the fixture: this
+ * spec happens never to pin a central today, but that is an invisible invariant,
+ * and the day a test above it pins one the count would silently become 6.
+ *
+ * That filter is a FULL-TEXT regex, not a substring: a substring `hasNotText`
+ * would also swallow a future REAL section whose name merely contains the phrase
+ * ("Pinned centrals defaults"), i.e. the exhaustiveness hole this test exists to
+ * close. `\(\d+\)` is exactly the shape `GraphToolbar` renders.
+ */
+function topLevelPanelSummaries(): Locator {
+	return page
+		.locator(".vicinity-graph-toolbar__body > .vicinity-graph-disclosure > .vicinity-graph-disclosure__summary")
+		.filter({ hasNotText: new RegExp(`^${PINNED_CENTRALS_SUMMARY} \\(\\d+\\)$`) });
+}
+
+test("panel: WHEN the controls panel renders THEN its top-level disclosures are exactly the listed ones, in order", async () => {
+	await setOpen(toolbar(), true);
+	const summaries = topLevelPanelSummaries();
+
+	// The count first, for a failure that names the arithmetic ("6 vs 5") before
+	// the text diff does. This is what closes the hole the per-entry loop above
+	// leaves: a NEW top-level disclosure that nobody added to the baseline.
+	await expect(summaries).toHaveCount(CONTROLS_PANEL_DISCLOSURE_SUMMARIES.length);
+	// Identity + order too, mirroring the settings tab's heading assertion — a
+	// section that was renamed or reordered still counts.
+	//
+	// Fully anchored regexes rather than plain strings, for ONE reason: "Node
+	// exclusion" renders an OPTIONAL excluded-count badge inside its own <summary>
+	// (NodeExclusionSection), so its textContent is "Node exclusion" or
+	// "Node exclusion12" depending on the fixture, and an exact string would be a
+	// latent flake for that entry. `\d*` tolerates that badge and NOTHING else —
+	// tail-anchoring keeps a rename like "Depth" → "Depth & scope" failing, which
+	// an open-ended prefix would have let through. If the badge ever stops being a
+	// bare integer, the resulting failure is intended, not a flake.
+	await expect(summaries).toHaveText(
+		CONTROLS_PANEL_DISCLOSURE_SUMMARIES.map(
+			(text) => new RegExp(`^${text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\d*$`),
+		),
+	);
 });
 
 test("exclusion toggle switches on, shows patterns state, and persists", async () => {

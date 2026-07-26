@@ -100,6 +100,18 @@ export interface PanelDisclosure {
  * the tab cards on purpose — the two surfaces genuinely differ: the panel has no
  * "Performance" and no "Depth defaults" card, and the tab has no "Pinned
  * centrals" (conditional, hence unlisted) or nested "Advanced spacing".
+ *
+ * This list is EXHAUSTIVE for the panel's TOP LEVEL, and that is enforced against
+ * the real DOM: `settingsUxVisual.e2e.ts` asserts the direct-child
+ * `.vicinity-graph-disclosure` elements of `.vicinity-graph-toolbar__body` against
+ * {@link CONTROLS_PANEL_DISCLOSURE_SUMMARIES} — count, identity and order. So a
+ * sixth top-level disclosure fails that spec until it is listed here.
+ *
+ * The two exclusions survive that pin for DIFFERENT reasons, both deliberate:
+ * - "Advanced spacing" is NESTED inside Force layout, so the direct-child
+ *   selector never sees it (structural — nothing to maintain).
+ * - "Pinned centrals (n)" IS a direct child when it renders, so the spec filters
+ *   it out explicitly by {@link PINNED_CENTRALS_SUMMARY}.
  */
 export const CONTROLS_PANEL_DISCLOSURES: readonly PanelDisclosure[] = [
 	{ summaryText: "Depth", startsOpen: true, summaryAlsoMatchesAnAncestor: true },
@@ -108,3 +120,18 @@ export const CONTROLS_PANEL_DISCLOSURES: readonly PanelDisclosure[] = [
 	{ summaryText: "Node contents", startsOpen: false, summaryAlsoMatchesAnAncestor: false },
 	{ summaryText: "Force layout", startsOpen: false, summaryAlsoMatchesAnAncestor: true },
 ];
+
+/** Panel disclosure summaries, in panel order. */
+export const CONTROLS_PANEL_DISCLOSURE_SUMMARIES: readonly string[] = CONTROLS_PANEL_DISCLOSURES.map(
+	(disclosure) => disclosure.summaryText,
+);
+
+/**
+ * The conditional "Pinned centrals (n)" disclosure, without its "(n)" suffix —
+ * that is a live count, so callers wrap this in a regex that spells the count
+ * out rather than matching a bare prefix. Not a {@link PanelDisclosure}: it is
+ * absent unless the view has a pinned central, so it has no default open/closed
+ * state to assert on a fresh view — it exists here only so the exhaustiveness pin
+ * can exclude it BY NAME instead of relying on a fixture happening not to pin.
+ */
+export const PINNED_CENTRALS_SUMMARY = "Pinned centrals";
