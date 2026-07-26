@@ -153,3 +153,119 @@ place the shared helper is most likely to be "simplified" back. Add one
 change — and take #2–#5 either now or as a tracked follow-up ticket. The core design (single-source
 bounds in the spec, clamp on load + on the one write choke point + inside the sizer) is correct,
 consistent with the force-layout precedent, and preserves engine purity.
+
+---
+
+# ITERATION 1 RE-REVIEW (commits `062be14` fix, `59d902e`/`68d7dec` docs)
+
+Same read-only method: every claim below re-verified against the code or by a throwaway mutation that
+was reverted (`git status` clean afterwards). The prior review above is unchanged.
+
+## Verified commands (run by the reviewer)
+
+| Command | Result |
+|---|---|
+| `npm run check` | **PASS**, exit 0 |
+| `npm test` | **PASS**, exit 0 — **72 files, 966 tests, 0 failures** (was 71/956; +1 file, +10 tests) |
+
+The implementer's reported numbers are **exact and honest**.
+
+Mutation probes (reverted immediately):
+
+| Mutation | Result |
+|---|---|
+| Drop the `Number.isFinite(decayed)` guard in `DepthDecayMetric` | **2 failures** in `DepthDecayMetric is total for an unvetted k` (was 0 last iteration) |
+| Drop the `raw.trim() === ""` branch in `parseSizingInput` | **2 failures** (blank, whitespace) |
+
+Both new guards are now genuinely killable by the suite. Claim verified.
+
+## Disposition of my prior findings
+
+| # | Finding | Status |
+|---|---|---|
+| SHOULD-FIX 1 | `Number("") === 0` writes on a cleared field | **RESOLVED** |
+| SHOULD-FIX 2 | Rule duplicated 4× / uncovered | **RESOLVED** |
+| SHOULD-FIX 3 | `DepthDecayMetric` guard unpinned + dishonest comment | **RESOLVED** |
+| SHOULD-FIX 4 | Vacuous `k = Infinity` test, wrong ticket premise | **RESOLVED** |
+| SHOULD-FIX 5 | `clampForceLayoutSettings` NaN branch unpinned | **RESOLVED** |
+| NIT | `minPx <= maxPx`, per-keystroke snap | **RESOLVED** as ticket `nid_hatwq2jlkhno5t6awcz0q6t9q_e` (read it; scope + acceptance criteria are accurate) |
+| NIT | `MinMaxNormalizedMetric` totality | **REJECTED — AND I ACCEPT.** The rejection is correct: that is the *provider* trust boundary, not the settings one, and this ticket is scoped to settings. `hasFiniteGeometry` remains the backstop. No disagreement. |
+| Re-examined | `metricWeight [0,100]` bound | **KEPT — correct.** My own mutation A last iteration proved it is load-bearing, not scope creep. |
+
+### #1 verified in detail — the `valueAsNumber` → `value` switch is behaviour-preserving
+
+I checked each input class against both surfaces (both React fields are `type="number"`,
+`SizingSection.tsx:56,121`; both settings-tab fields go through `TextComponent.onChange(raw)`):
+
+| Typed | old React (`valueAsNumber`) | old tab (main, `>= min`) | new (`parseSizingInput`) |
+|---|---|---|---|
+| `"3.5"` | 3.5 accepted | accepted | 3.5 accepted — same |
+| `"1e999"` | `Infinity` → rejected | rejected | rejected — same |
+| `"abc"` | `NaN` → rejected (browser also blanks `value`) | `NaN` → rejected | rejected — same |
+| `""` (cleared) | `NaN` → rejected | **rejected on main**, wrongly accepted in iter-0 | **rejected** — regression gone |
+| `" "` | n/a for `type=number` | `Number(" ") === 0` → would pass the weight's `>= 0` | rejected — strictly better |
+| `"-1"` | accepted | dropped by `>= min` | accepted, clamped downstream |
+
+The last row is the one intentional delta vs `main`, and it is the previously-accepted judgement call
+#4 (forward-and-clamp instead of silently drop), now ticketed. Note the settings-tab **weight** input
+on `main` guarded `!Number.isNaN(w) && w >= 0`, so `""` → `0` was accepted there *before* this branch —
+iteration 1 fixes a latent `main` bug too. No accept/reject behaviour was lost.
+
+### New seam review — `src/view/sizingInput.ts`
+
+- **Layer is right.** Both consumers are `view/`; the file imports nothing, stays out of `engine/`
+  (which must not know about DOM input strings), and `importGuard.test.ts` is unaffected.
+- **Every call site converted, none left behind.** `grep` over `src/view` for
+  `valueAsNumber|Number(raw)|Number.isFinite` leaves exactly three non-sizing hits:
+  `ForceLayoutSection.tsx:93` (bounded `<input type=range>`, natively clamped — out of scope),
+  `edgeRouting.ts` (geometry guard), and `VicinityGraphSettingTab.ts:447` (node cap: `Number.isInteger
+  && >= MIN_NODE_CAP`, a genuinely different rule that already rejects blank). Not folding node cap in
+  is the right call — a parameterised parser would be harder to read than either.
+- **No duplication with anything pre-existing.** `persistence`'s `numberOrUndefined` is the JSON trust
+  boundary and unreachable from `view/` by layering; no overlap.
+- **Doc comment is honest and states WHY** for each rejected class. Good.
+
+### Widened `NodeSizer.ts` export surface — acceptable
+
+`DepthDecayMetric` is exported from the module but deliberately **not** from `src/engine/index.ts`,
+and `grep` confirms the only importer anywhere is `NodeSizer.test.ts`. The repo rule is "import engine
+symbols from `index.ts`, not deep paths", so production code cannot legitimately reach it; the engine's
+public surface is unchanged. Exporting an internal purely for testability is a small leak, but here it
+buys a guard that is otherwise deletable-with-everything-green, and the class doc says exactly that.
+Right trade.
+
+### The reframed `k = Infinity` work — verified non-vacuous and worth pinning
+
+The new test asserts `nonCentralDepths` equals `[1, 2]` over a concrete `m -> a -> b` fixture, so it
+cannot pass on an empty set. The coupling it pins (`minDepth === 0` ⟺ `isCentral`) is the exact
+premise that makes the ticket's predicted NaN unreachable — if traversal ever tagged a neighbour with
+depth 0, or centrals stopped bypassing composition, the `Infinity * 0` path would come back. Worth
+pinning. The ticket note recording the correction is present and accurate.
+
+## New findings from iteration 1
+
+**None blocking. Two NITs, neither worth another round:**
+
+- `src/engine/NodeSizer.test.ts` — `.map(node => node.minDepth).sort()` uses the **default
+  lexicographic** comparator. Correct for `[1, 2]`, but a latent trap if the fixture ever reaches
+  depth 10 (`[1, 10, 2]`). `.sort((a, b) => a - b)` costs nothing.
+- Placement: that coupling test asserts a `VicinityTraversal` invariant from inside a `NodeSizer`
+  describe. Someone editing traversal will not look there. Its doc comment mitigates this, so I would
+  leave it — mentioning only so the choice is deliberate.
+
+## Regression / integrity checks (all clean)
+
+- `git diff main..HEAD -- src/**/*.test.ts` contains **zero** removed `it(`/`describe(` lines — no
+  behaviour-capturing test weakened or deleted. The only test edit is a *title* correction on the
+  `k = Infinity` row, which still runs.
+- `git diff main..HEAD | grep '^-.*ap_..._E'` is empty — no anchor point removed.
+- Engine purity intact (no `obsidian`/`react` import added to `engine/`; the new file is in `view/`).
+- No dead code, no swallowed exception, no hack, no secret, no injection surface. Tree left clean.
+
+## Readiness verdict
+
+**READY TO MERGE.** All five SHOULD-FIX items are genuinely resolved (two of them mutation-verified by
+me, not taken on trust), the one rejection is well-argued and I accept it, both NITs are tracked in a
+correctly-scoped follow-up ticket, and the ticket's factually wrong premise has been corrected in
+writing rather than papered over. `npm run check` exit 0; `npm test` 72 files / 966 tests / 0 failures.
+The two NITs above are optional and need no further review round.

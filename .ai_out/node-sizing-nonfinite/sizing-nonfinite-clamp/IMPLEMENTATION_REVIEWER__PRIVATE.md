@@ -45,3 +45,37 @@ Open items I asked for: (1) blank-input rejection in the settings tab, (2) extra
 input parser, (3) honest comment on the `DepthDecayMetric` guard, (4) rename/re-comment the
 `k = Infinity` test + correct the ticket, (5) one NaN test for `clampForceLayoutSettings`.
 Follow-up ticket candidates: `minPx <= maxPx` invariant, clamp-on-blur for the controlled fields.
+
+---
+
+## ITERATION 1 RE-REVIEW (fresh instance) — verdict: READY TO MERGE
+
+Reviewed `062be14` (fix) + docs commits. Public doc has an appended `ITERATION 1 RE-REVIEW` section.
+
+### Commands actually run (logs in `.tmp/`)
+- `npm run check` → exit 0 (`.tmp/rev2-check.log`).
+- `npm test` → exit 0, **72 files / 966 tests** (`.tmp/rev2-test.log`). Implementer's numbers exact.
+- `git diff 5e3618b..HEAD -- src/` → `.tmp/rev2-src.diff` (310 lines).
+- Mutation D: delete `raw.trim() === ""` branch in `sizingInput.ts` → **2 RED** (blank, whitespace).
+- Mutation B': delete `Number.isFinite(decayed)` in `DepthDecayMetric` → **2 RED** (was 0 GREEN in
+  iteration 0). Guard now genuinely pinned. Both reverted; `git status` clean.
+
+### Facts established (don't re-derive)
+- All 5 SHOULD-FIX RESOLVED. `MinMaxNormalizedMetric` NIT rejection ACCEPTED (provider vs settings
+  trust boundary — correct). Both other NITs → ticket `nid_hatwq2jlkhno5t6awcz0q6t9q_e` (read it,
+  scope accurate). Ticket `...nan-or-infinity...` carries the premise correction note.
+- `valueAsNumber` → `value` switch is behaviour-preserving; verified per input class (`3.5`, `1e999`,
+  `abc`, ``, ` `, `-1`). Both React fields are `type="number"`. Only delta vs main is the already-
+  accepted forward-and-clamp of out-of-range values.
+- Bonus: main's settings-tab weight guard was `!isNaN && >= 0`, so `""`→0 was accepted on main too —
+  iteration 1 fixes that latent main bug as well.
+- All call sites converted. Remaining non-sizing hits are legit: `ForceLayoutSection.tsx:93` (range
+  slider), `edgeRouting.ts` (geometry), `VicinityGraphSettingTab.ts:447` (node cap, different rule).
+- `DepthDecayMetric` exported from `NodeSizer.ts` only; NOT in `src/engine/index.ts`; only importer
+  anywhere is `NodeSizer.test.ts`. Acceptable leak.
+- New coupling test asserts `[1,2]` — non-vacuous.
+- Zero removed `it(`/`describe(` lines across `main..HEAD`; zero `ap_..._E` removals; engine purity ok.
+
+### Open (non-blocking) NITs I raised, no further round needed
+1. `.sort()` in the new coupling test is lexicographic (fine for `[1,2]`, latent for depth >= 10).
+2. That test pins a `VicinityTraversal` invariant but lives in `NodeSizer.test.ts`.
