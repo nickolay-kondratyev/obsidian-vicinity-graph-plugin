@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-26T01:27:45Z
 id: nid_8vmo5ibhv1bvh2ukrgmafpofj_e
 title: "node sizing: non-finite depthDecayK / minPx / maxPx produce NaN or Infinity node sizes"
-status: open
+status: closed
 deps: []
 links: [nid_a7uwpxayt6w5vdnw8ogwskwvh_e]
 created_iso: 2026-07-25T15:58:59Z
-status_updated_iso: 2026-07-25T15:58:59Z
+status_updated_iso: 2026-07-26T01:27:45Z
 type: bug
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
@@ -52,3 +53,11 @@ CORRECTION to this ticket's premise, found during the iteration-1 review of bran
 The described `depthDecayK = Infinity` -> `Infinity * 0 = NaN` at the root note is NOT reachable. In `src/engine/VicinityTraversal.ts` only traversal ROOTS ever get a depth-0 tag (neighbours are tagged `currentDepth + 1`), and `isCentral` is exactly "is a root". `src/engine/NodeSizer.ts` `computeSizes` gives centrals `CENTRAL_SIZE_SCORE` and skips metric composition entirely, so the `Infinity * 0` product is computed and then discarded. Removing BOTH the new clamp and the `DepthDecayMetric` guard leaves the `k = Infinity` case green.
 
 The defects that WERE real and are now caught by failing-without-the-fix tests: `depthDecayK = -1` (`1/0` -> Infinity at depth 1), `depthDecayK = NaN`, non-finite `minPx`/`maxPx`, and an `Infinity` metric weight (`Infinity/Infinity` -> NaN in the weighted average). The `minDepth === 0 <=> isCentral` coupling that makes the k = Infinity case moot is now pinned by its own test in `src/engine/NodeSizer.test.ts`.
+
+**2026-07-26T01:27:45Z**
+
+Fixed on branch sizing-nonfinite-clamp (merged to main). Bounds declared once in src/engine/SettingsSpec.ts (depthDecayK [0,10], minPx/maxPx [1,400], metricWeight [0,100]) and applied by clampSizingSettings on the persistence-load path, the single UI write choke point (planSettingsWrite) and inside NodeSizer; DepthDecayMetric keeps a last-line finite guard, now pinned by direct tests. Extracted src/view/sizingInput.ts parseSizingInput as the single input rule for all four UI number inputs, which also fixed a regression where a cleared field (Number('') === 0) persisted a clamped 1.
+
+Correction to this ticket's premise: the depthDecayK = Infinity case was NOT reachable - minDepth === 0 implies isCentral, and centrals bypass metrics, so Infinity*0 is discarded. Real reachable defects were k = -1, k = NaN, non-finite minPx/maxPx, and an Infinity metric weight. A test now pins that coupling.
+
+Verified: npm run check exit 0; npm test 72 files / 966 tests / 0 failures. Deferred nits tracked in nid_hatwq2jlkhno5t6awcz0q6t9q_e. Change log: pwasnpfc482sy4vkyp5s1b1rl.
