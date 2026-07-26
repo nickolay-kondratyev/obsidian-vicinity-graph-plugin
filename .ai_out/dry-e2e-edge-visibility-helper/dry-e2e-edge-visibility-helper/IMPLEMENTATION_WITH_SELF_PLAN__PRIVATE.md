@@ -1,8 +1,24 @@
 # IMPLEMENTATION_WITH_SELF_PLAN — PRIVATE (rehydration memory)
 
 Ticket: `nid_xwfw86nqr8af7eygqod8lh5cp_e` — DRY the duplicated e2e `setAllEdgesVisibility`.
-Branch: `dry-e2e-edge-visibility-helper`. Commit: `2abd131`. **STATUS: DONE, all gates green,
-tree clean.** Nothing outstanding.
+Branch: `dry-e2e-edge-visibility-helper`. Commits: `2abd131` (implementation) + one
+doc-only iteration commit. **STATUS: DONE, reviewed READY, NIT incorporated, tree clean.**
+Nothing outstanding.
+
+## IMPLEMENTATION_ITERATION round (after review)
+
+Review came back READY / 0 BLOCKING / 0 SHOULD-FIX / 2 NITs. Only NIT 1 was mine.
+
+- **NIT 1 INCORPORATED** — reworded the `setEdgeVisibility` JSDoc so the WHY-NOT is framed as
+  a PRECONDITION ("call BEFORE the graph view renders the central file … a caller that sets it
+  against an already-rendered view must trigger an explicit rebuild itself"). Agreed with the
+  reviewer: the old phrasing asserted something about the two current callers, so it would rot
+  the moment a third appeared. Doc-only; no executable token changed.
+- **NIT 2 NOT MINE** — ticket bookkeeping (fold the deferred settings-spec duplication into
+  `nid_g4iae40tww9abtwrexdrvic0y_e`) belongs to TOP_LEVEL_AGENT. Touched no ticket files.
+- Gate: `npm run check` exit 0 (`.tmp/iter-check.log`). **Did NOT re-run `test:e2e`** — a JSDoc
+  body edit cannot change its outcome. Said so explicitly in the PUBLIC docs rather than
+  implying coverage I did not produce.
 
 ## Plan (executed as written, no deviations)
 

@@ -345,8 +345,10 @@ export class ObsidianHarness {
 	 * render, which the routing suites need — the default `walked-from-center` shows
 	 * only the radial star, whose edges never cross.
 	 *
-	 * WHY-NOT fan out to open views like {@link setNodePreviewPreference}: callers set
-	 * this BEFORE opening the central file, so the next rebuild already picks it up.
+	 * PRECONDITION: call this BEFORE the graph view renders the central file — this is a
+	 * store write only. WHY-NOT fan out to open views like {@link setNodePreviewPreference}:
+	 * the next rebuild already picks the value up, so a caller that sets it against an
+	 * already-rendered view must trigger an explicit rebuild itself.
 	 */
 	async setEdgeVisibility(mode: EdgeVisibilityMode): Promise<void> {
 		await this.page.evaluate(

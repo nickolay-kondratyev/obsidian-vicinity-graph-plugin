@@ -1,7 +1,9 @@
 # IMPLEMENTATION_WITH_SELF_PLAN — PUBLIC
 
-Ticket `nid_xwfw86nqr8af7eygqod8lh5cp_e` — **DONE**. Branch `dry-e2e-edge-visibility-helper`,
-single commit `2abd131`, `git status` clean.
+Ticket `nid_xwfw86nqr8af7eygqod8lh5cp_e` — **DONE**, reviewed **READY**.
+Branch `dry-e2e-edge-visibility-helper`: commit `2abd131` (implementation) plus one doc-only
+iteration commit incorporating the reviewer's single in-scope NIT. `git status` clean.
+Per-item review disposition lives in `IMPLEMENTATION_ITERATION__PUBLIC.md`.
 
 ## What changed and WHY
 
@@ -40,8 +42,9 @@ import was dropped from both (verified it had no other use in either file).
 
 The new method does **not** call `plugin.refreshOpenViews()`, even though its neighbour
 `setNodePreviewPreference` does. The old duplicated helper did not call it, and this is a pure
-refactor. The JSDoc states the WHY-NOT: both call sites set visibility before opening the
-central file, so the next rebuild picks it up. No assertions, timings, or semantics changed.
+refactor. The JSDoc states this as a PRECONDITION of the method — call it before the graph view
+renders the central file; a caller that sets it against an already-rendered view must trigger an
+explicit rebuild. No assertions, timings, or semantics changed.
 
 ## Verification — all green, e2e really ran
 
