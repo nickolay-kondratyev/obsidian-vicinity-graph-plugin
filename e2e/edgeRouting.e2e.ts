@@ -3,7 +3,7 @@ import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
-import { ObsidianHarness, PLUGIN_ID } from "./obsidianHarness";
+import { ObsidianHarness } from "./obsidianHarness";
 
 /**
  * Visual-smoke e2e for edge routing: obstacle-avoiding routing is always on, so an
@@ -84,7 +84,8 @@ test.beforeAll(async () => {
 	harness = await ObsidianHarness.launch({ extraFixtures: ROUTING_FIXTURES });
 	page = harness.page;
 	await harness.openGraphView();
-	await setAllEdgesVisibility();
+	// `all-edges` so sibling chords (which can cross the hub) render and load the router.
+	await harness.setEdgeVisibility("all-edges");
 	await harness.openFile(HUB_PATH);
 	await expect(page.locator(EDGE_PATH_SELECTOR).first()).toBeAttached();
 });
@@ -103,15 +104,6 @@ function edgePathData(): Promise<string[]> {
 /** Count of edges whose path is a multi-segment routed detour (>=2 `L` commands). */
 function bentEdgeCount(pathData: readonly string[]): number {
 	return pathData.filter((d) => (d.match(/L/g) ?? []).length >= 2).length;
-}
-
-/** Sets edge visibility to the induced-subgraph mode so sibling chords (which can cross the hub) render. */
-async function setAllEdgesVisibility(): Promise<void> {
-	await page.evaluate(async (pluginId) => {
-		const app = (window as unknown as { app: any }).app;
-		const store = app.plugins.plugins[pluginId].pluginDataStore;
-		await store.saveGlobalView({ ...store.globalView(), edgeVisibility: "all-edges" });
-	}, PLUGIN_ID);
 }
 
 /** Where each rendered edge endpoint lands on the `facing` group box, and which side faces the neighbours. */
