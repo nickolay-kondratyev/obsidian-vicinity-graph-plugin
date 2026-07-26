@@ -57,3 +57,33 @@ symbol's absence would be theatre. The e2e guard covers "the prefix stays gone".
 - e2e is slow (~several min). Obsidian 1.12.7 cached at `.tmp/obsidian/obsidian-1.12.7/obsidian`.
 - `npm run test:e2e` re-runs `setup:dev-vault` and wipes/recopies `.tmp/e2e/vault` each run.
 - Redirect all verbose output to `.tmp/`.
+
+---
+
+## Iteration 1 (fresh instance, 2026-07-26) — rehydration notes
+
+Rehydrated from: project `CLAUDE.md`, this file, `IMPLEMENTATION_WITH_SELF_PLAN__PUBLIC.md`,
+`IMPLEMENTATION_REVIEW__PUBLIC.md`, and `git diff f45082d..HEAD` (`60b6383`, `c2ea883`).
+Did NOT read `IMPLEMENTATION_REVIEWER__PRIVATE.md` (other role's private file).
+
+**State: DONE.** Commit `1635709` on `e2e-breadcrumb-red-gate`; working tree clean; all four
+gates green. Full write-up in `IMPLEMENTATION_ITERATION__PUBLIC.md` — read that first.
+
+Facts worth carrying forward if anyone picks this up again:
+
+- The breadcrumb guard now lives at `e2e/vicinityGraph.e2e.ts:177`, in the **note1** section.
+  Its placement is load-bearing, not cosmetic: it is only non-vacuous where an ungrouped
+  non-root node (`solo/gamma.md`) is in the rendered vicinity. Moving it back into the alpha
+  section silently disarms it. The JSDoc says so.
+- Mutation-testing recipe (used to prove non-vacuity, ~1 min): add
+  `breadcrumbFolderMUTATION?: string` to `FlowNodeData`, populate it in the `noteNodes` map of
+  `flowMapping.ts` when `groupFolder === undefined && node.folder !== ""`, render it as
+  `<span className="vicinity-graph-node__breadcrumb">` inside `.vicinity-graph-node__title` in
+  `NoteNode.tsx`, then `npm run test:e2e -- vicinityGraph.e2e.ts`. Revert with `git checkout --`.
+  Naive variants that prefix grouped nodes too will trip the alpha title assertion first and,
+  because the file is serial, abort before reaching the guard.
+- e2e is serial per file: an early failure strands everything after it. Always read the
+  numbered `✓/✘/-` lines, not just the summary count.
+- Two ticket systems coexist (`_tickets/` via the CLI vs `docs-internal/tickets/` per CLAUDE.md).
+  Flagged in the PUBLIC file as a human call; not resolved here.
+- No `change_log` entry written — TOP_LEVEL_AGENT owns that.

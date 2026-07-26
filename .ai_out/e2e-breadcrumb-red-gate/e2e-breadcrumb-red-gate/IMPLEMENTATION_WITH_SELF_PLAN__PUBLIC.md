@@ -23,8 +23,10 @@ That commit deleted, in one coherent change:
 - **`docs-internal/plan/high-level-plan.md:59`** — the design source of truth — rewritten to
   the snug-capped-width model (width hugs the title, wraps at `NODE_MAX_LABEL_WIDTH_PX`)
 
-`grep -n breadcrumb docs-internal/plan/high-level-plan.md` → **0 hits today.** The authoritative
-plan documents the *absence*. The only surviving mentions are historical: the superseded
+`grep -n breadcrumb docs-internal/plan/high-level-plan.md` → **0 hits today.** *(Corrected in
+iteration 1: the plan doc is SILENT about the breadcrumb, it does not document the absence. The
+stronger, accurate claim is that `998fdac` **deleted** the plan doc's breadcrumb sentence at
+`high-level-plan.md:59` — an affirmative removal from the design source of truth.)* The only surviving mentions are historical: the superseded
 `plan/steps/step-05-rich-rendering.md` and old tickets — and `998fdac`'s own PUBLIC file states
 it left historical docs as record and updated "only the authoritative `high-level-plan.md`".
 
