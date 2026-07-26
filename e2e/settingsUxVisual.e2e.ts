@@ -407,12 +407,19 @@ test("settings tab: WHEN a slider is hovered THEN its current value is readable"
 	});
 	const slider = row.locator('input[type="range"]');
 	const value = await slider.inputValue();
-	const exactly = new RegExp(`^${value}$`);
+	// Escape before interpolating: a fractional-step slider ("0.5") would otherwise
+	// build `/^0.5$/`, whose `.` matches any char — "015" would pass.
+	const exactly = new RegExp(`^${value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`);
 	const valueReadout = page
 		.locator(".tooltip")
 		.filter({ hasText: exactly })
 		.or(row.locator(".setting-item-control").getByText(value, { exact: true }));
 
+	// Clear pointer state FIRST: `.tooltip` is body-level and this file is serial, so a
+	// tooltip left behind by an earlier test must not be able to satisfy the assertion —
+	// and a mouse already parked on the slider would make `hover()` a no-op. It is an
+	// action, not an assertion — see the WHY-NOT above on the missing pre-hover check.
+	await page.mouse.move(0, 0);
 	await slider.hover();
 
 	// `.first()`: a 1.13 build may well render BOTH readouts, and one is enough.

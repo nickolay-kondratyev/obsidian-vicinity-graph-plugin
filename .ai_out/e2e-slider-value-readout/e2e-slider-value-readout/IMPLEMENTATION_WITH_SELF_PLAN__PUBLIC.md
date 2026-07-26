@@ -125,3 +125,118 @@ TEST_EXIT=0       (npm test)
   not be covered. That is the same coverage shape as the existing accessible-name test.
 - No new e2e helper was introduced; if a third spec ever needs the readout locator, the per-file
   duplication convention (exploration §3) should be revisited deliberately.
+
+---
+
+# Iteration 1 — review response
+
+Reviewer verdict was READY (0 BLOCKING / 2 SHOULD-FIX / 4 NIT). Dispositions below.
+
+## SHOULD-FIX
+
+### SF-1 — reset the mouse before the hover — **INCORPORATED**
+`await page.mouse.move(0, 0)` now precedes `slider.hover()`, with a WHY comment naming both
+reasons (body-level `.tooltip` + serial file → a stale tooltip must not be able to satisfy the
+assertion; a mouse already parked on the target makes `hover()` a no-op).
+
+**REJECTED the optional companion**: asserting the readout is ABSENT before the hover. The union
+locator's inline arm is *present before any hover* on >= 1.13, so a pre-assertion on the union
+would false-RED on a `minAppVersion` bump; narrowing it to only the `.tooltip` arm would instead
+race Obsidian's tooltip teardown (a negative assertion that passes only until it doesn't). The
+`mouse.move(0, 0)` action gives the same guarantee deterministically, with no timing dependency —
+which is exactly why the reviewer framed it as an action, not an assertion. Documented in the test.
+
+### SF-2 — production WHY doc points at the guarding test — **INCORPORATED**
+`src/view/VicinityGraphSettingTab.ts` — an `@see e2e/settingsUxVisual.e2e.ts` line naming the test
+by its full title was added to the `addLabeledSlider` doc block, closing the loop for a maintainer
+who reads src and meets the `@deprecated` tag. Comment-only; no behaviour change (re-verified by
+the full e2e + unit runs below).
+
+## NITs
+
+- **N-1 — unescaped interpolation into the regex — INCORPORATED.** The value is now regex-escaped
+  before building `/^…$/`, with a WHY naming the concrete failure it prevents (`^0.5$` matching
+  `015` if this test is ever repointed at a fractional-step slider). One expression, no new
+  abstraction.
+- **N-2 — trailing `mouse.move(0, 0)` — REJECTED.** SF-1 establishes the correct pattern: the test
+  that *depends* on clean pointer state clears it itself, at its own start. A trailing reset makes
+  every later test's correctness depend on its predecessors being tidy — the weaker contract, and
+  the one that silently rots. Adding both would duplicate the same guarantee in two places (DRY).
+- **N-3 — the test name is partly nominal on >= 1.13 — REJECTED (no action).** This is the accepted,
+  already-documented price of mechanism-agnosticism; the alternative is a version gate that
+  exploration §5 established cannot be written from verified information here. The reviewer agreed
+  it is acceptable. No change.
+- **N-4 — PRIVATE doc line-number drift — INCORPORATED.** `IMPLEMENTATION_WITH_SELF_PLAN__PRIVATE.md`
+  now records the correct location.
+
+## Re-verification (verbatim, after all changes)
+
+### (a) whole file — `npm run test:e2e -- settingsUxVisual.e2e.ts` → EXIT=0
+```
+Running 15 tests using 1 worker
+  ✓   1 e2e/settingsUxVisual.e2e.ts:52:1 › panel defaults: every section is a disclosure, only Depth starts open (115ms)
+  ✓   2 e2e/settingsUxVisual.e2e.ts:62:1 › exclusion toggle switches on, shows patterns state, and persists (293ms)
+  ✓   3 e2e/settingsUxVisual.e2e.ts:88:1 › force layout: 7 sliders, live write, restore defaults (228ms)
+  ✓   4 e2e/settingsUxVisual.e2e.ts:122:1 › settings tab renders six framed section cards with plugin CSS applied (277ms)
+  ✓   5 e2e/settingsUxVisual.e2e.ts:158:1 › settings tab: every section card ends with its own scoped restore row (115ms)
+  ✓   6 e2e/settingsUxVisual.e2e.ts:198:1 › settings tab: WHEN the tab renders THEN every input carries its row name as accessible name (41ms)
+  ✓   7 e2e/settingsUxVisual.e2e.ts:226:1 › settings tab: a section restore resets ONLY that section (72ms)
+  ✓   8 e2e/settingsUxVisual.e2e.ts:246:1 › settings tab: restore-all asks first, then resets every section (290ms)
+  ✓   9 e2e/settingsUxVisual.e2e.ts:308:1 › settings tab: the Preview pill shows one segment per option and checks the stored one (43ms)
+  ✓  10 e2e/settingsUxVisual.e2e.ts:320:1 › settings tab: clicking a Preview segment persists the new preference (48ms)
+  ✓  11 e2e/settingsUxVisual.e2e.ts:329:1 › settings tab: the segmented-control stylesheet reaches the settings modal DOM (20ms)
+  ✓  12 e2e/settingsUxVisual.e2e.ts:342:1 › settings tab: the selected Preview segment is filled distinctly from the trough (330ms)
+  ✓  13 e2e/settingsUxVisual.e2e.ts:401:1 › settings tab: WHEN a slider is hovered THEN its current value is readable (82ms)
+  ✓  14 e2e/settingsUxVisual.e2e.ts:429:1 › controls panel: clicking its Preview segment writes the SAME global the tab writes (66ms)
+  ✓  15 e2e/settingsUxVisual.e2e.ts:445:1 › controls panel: the pill re-checks itself from the rebuilt snapshot (8ms)
+
+  15 passed (3.4s)
+```
+(`.tmp/it1-a.log`)
+
+### (b) teeth probe re-run — `.setDynamicTooltip()` deleted → FAIL, EXIT=1
+```
+Running 1 test using 1 worker
+
+  ✘  1 e2e/settingsUxVisual.e2e.ts:401:1 › settings tab: WHEN a slider is hovered THEN its current value is readable (15.1s)
+
+  1) e2e/settingsUxVisual.e2e.ts:401:1 › settings tab: WHEN a slider is hovered THEN its current value is readable
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: locator('.tooltip').filter({ hasText: /^2$/ }).or(locator('.vicinity-graph-settings .setting-item').filter({ has: locator('input[aria-label="Outline depth"]') }).locator('.setting-item-control').getByText('2', { exact: true })).first()
+    Expected: visible
+    Timeout: 15000ms
+    Error: element(s) not found
+
+      424 |
+      425 | 	// `.first()`: a 1.13 build may well render BOTH readouts, and one is enough.
+    > 426 | 	await expect(valueReadout.first()).toBeVisible();
+          | 	                                   ^
+      427 | });
+  1 failed
+```
+(`.tmp/it1-b.log`. The teeth survive the SF-1/N-1 hardening: the union still finds NEITHER arm.)
+
+**CALLOUT — a trap I walked into and caught**: restoring the probe with
+`git checkout src/view/VicinityGraphSettingTab.ts` also reverted the *committed-nothing-yet* SF-2
+comment in the same file. Caught by grepping for `@see e2e` after the restore; the comment was
+re-applied and is present in the committed tree. Anyone repeating this probe on a file that also
+carries uncommitted edits must restore surgically, not with `git checkout`.
+
+Post-restore whole-file re-run: `B_RESTORED_EXIT=0`, `15 passed (3.3s)` (`.tmp/it1-b-restored.log`).
+
+### (c) static checks + unit suite
+```
+CHECK_EXIT=0      (npm run check → tsc -noEmit)
+TEST_EXIT=0       (npm test)
+ Test Files  72 passed (72)
+      Tests  966 passed (966)
+```
+(`.tmp/it1-c-check.log`, `.tmp/it1-c-test.log`)
+
+## Final state
+
+`e2e/settingsUxVisual.e2e.ts` (test at 401-426, WHY block from 380) + a comment-only addition to
+`src/view/VicinityGraphSettingTab.ts`. Production behaviour unchanged. Ready to merge; the ticket
+`nid_14phm98g7w64oparxz5wvfqwh_e`, the `change_log` entry and the merge are TOP_LEVEL's to close.

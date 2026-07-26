@@ -33,9 +33,25 @@ both candidates are unverified) and a gate would need a second, untestable 1.13 
 
 ## Progress
 - [x] plan
-- [x] test inserted (e2e/settingsUxVisual.e2e.ts:380-404)
+- [x] test inserted (e2e/settingsUxVisual.e2e.ts — WHY block from 380, test 401-426)
 - [x] 3a PASS
 - [x] 3b FAIL-without-fix confirmed, line restored, green again
 - [x] 3c whole file 15/15
 - [x] 3d check + npm test green
 - [x] commit
+
+## Iteration 1 (review response)
+- SF-1 incorporated: `page.mouse.move(0, 0)` before `slider.hover()`. Rejected the optional
+  pre-hover ABSENT assertion (union's inline arm exists pre-hover on >=1.13 → false RED; a
+  .tooltip-only negative races teardown).
+- SF-2 incorporated: `@see e2e/...` line in the `addLabeledSlider` doc block (comment-only).
+- N-1 incorporated (regex-escape the interpolated value). N-2 rejected (leading reset is the
+  stronger contract; trailing would duplicate it). N-3 rejected/no-op (already documented).
+  N-4 fixed above.
+- **GOTCHA for the next probe**: `git checkout <file>` to restore the deleted
+  `.setDynamicTooltip()` ALSO wiped the uncommitted SF-2 comment in the same file. Caught via
+  `grep -n "@see e2e"` and re-applied. Restore surgically next time.
+- Re-verify: (a) 15/15 EXIT=0 `.tmp/it1-a.log`; (b) probe FAIL EXIT=1 `.tmp/it1-b.log`
+  ("element(s) not found", both arms), restored → 15/15 `.tmp/it1-b-restored.log`;
+  (c) CHECK_EXIT=0, TEST_EXIT=0, 966 tests.
+- [x] committed, tree clean.
