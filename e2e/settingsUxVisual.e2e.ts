@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import * as fs from "node:fs";
-import { ObsidianHarness, PLUGIN_ID } from "./obsidianHarness";
+import { ObsidianHarness } from "./obsidianHarness";
 import {
 	ALL_SETTINGS_RESET_CONFIRM_TITLE,
 	CONTROLS_PANEL_DISCLOSURE_SUMMARIES,
@@ -11,6 +11,9 @@ import {
 	SETTINGS_TAB_SECTION_HEADINGS,
 	SETTINGS_TAB_SECTIONS,
 } from "./settingsBaseline";
+import { SettingsTabPage } from "./settingsTabPage";
+// Type-only, so the pure engine barrel never loads in the node-side test process.
+import type { NodePreviewPreference } from "../src/engine";
 
 /**
  * Settings-ux-improvements feature spec: asserts the controls panel's default
@@ -28,11 +31,13 @@ const OUT_DIR = ".out/settings-ux";
 
 let harness: ObsidianHarness;
 let page: Page;
+let settingsTab: SettingsTabPage;
 
 test.beforeAll(async () => {
 	fs.mkdirSync(OUT_DIR, { recursive: true });
 	harness = await ObsidianHarness.launch();
 	page = harness.page;
+	settingsTab = new SettingsTabPage(page);
 	await harness.openGraphView();
 	await harness.openFile(ALPHA_PATH);
 	await expect(page.locator(`.vicinity-graph-node[data-path="${ALPHA_PATH}"]`)).toHaveAttribute("data-tier", "main");
@@ -130,18 +135,12 @@ test("exclusion toggle switches on, shows patterns state, and persists", async (
 	// Fixture vault has no patterns → designed empty state must appear.
 	await expect(page.locator(".vicinity-graph-exclusion__hint")).toContainText("No patterns yet");
 	await expect(disclosure("Node exclusion").locator(".checkbox-container")).toHaveClass(/is-enabled/);
-	const persisted = await page.evaluate(
-		(pluginId) => (window as any).app.plugins.plugins[pluginId].pluginDataStore.nodeExclusion(),
-		PLUGIN_ID,
-	);
+	const persisted = (await harness.readGlobals()).exclusion;
 	expect(persisted.enabled).toBe(true);
 	await page.screenshot({ path: `${OUT_DIR}/panel-exclusion-on.png` });
 	// Seed patterns straight into the store to photograph the read-only list.
-	await page.evaluate(async (pluginId) => {
-		const store = (window as any).app.plugins.plugins[pluginId].pluginDataStore;
-		await store.saveNodeExclusion({ enabled: true, patterns: ["^archive/", "templates/"] });
-		(window as any).app.plugins.plugins[pluginId].refreshOpenViews();
-	}, PLUGIN_ID);
+	await harness.saveNodeExclusion({ enabled: true, patterns: ["^archive/", "templates/"] });
+	await harness.refreshOpenViews();
 	await expect(page.locator(".vicinity-graph-exclusion__patterns li")).toHaveCount(2);
 	await page.screenshot({ path: `${OUT_DIR}/panel-exclusion-patterns.png` });
 	// Toggle back off through the UI.
@@ -173,10 +172,7 @@ test("force layout: 7 sliders, live write, restore defaults", async () => {
 		input.dispatchEvent(new Event("input", { bubbles: true }));
 	});
 	await expect(forceLayout.locator(".vicinity-graph-forcelayout__value").nth(1)).toHaveText("800");
-	const persisted = await page.evaluate(
-		(pluginId) => (window as any).app.plugins.plugins[pluginId].pluginDataStore.globalView().forceLayout,
-		PLUGIN_ID,
-	);
+	const persisted = (await harness.readGlobalView()).forceLayout;
 	expect(persisted.repelStrength).toBe(800);
 	await page.screenshot({ path: `${OUT_DIR}/panel-forcelayout.png` });
 	await forceLayout.getByRole("button", { name: "Restore defaults" }).click();
@@ -184,11 +180,7 @@ test("force layout: 7 sliders, live write, restore defaults", async () => {
 });
 
 test("settings tab renders one framed card per section, headed and with plugin CSS applied", async () => {
-	await page.evaluate((pluginId) => {
-		const app = (window as any).app;
-		app.setting.open();
-		app.setting.openTabById(pluginId);
-	}, PLUGIN_ID);
+	await settingsTab.open();
 	const sections = page.locator(".vicinity-graph-settings-section");
 	await expect(sections).toHaveCount(SETTINGS_TAB_SECTIONS.length);
 	// The headings, not just the count: a card that lost or renamed its heading
@@ -208,24 +200,8 @@ test("settings tab renders one framed card per section, headed and with plugin C
 	await page.screenshot({ path: `${OUT_DIR}/settings-tab-cards-light.png` });
 });
 
-/** The plugin's persisted globals, straight from the store (no UI in the middle). */
-function readGlobals(): Promise<{ view: { nodeCap: number }; depths: { outgoingDepth: number } }> {
-	return page.evaluate((pluginId) => {
-		const store = (window as any).app.plugins.plugins[pluginId].pluginDataStore;
-		return { view: store.globalView(), depths: store.globalDepths() };
-	}, PLUGIN_ID);
-}
-
-async function openSettingsTab(): Promise<void> {
-	await page.evaluate((pluginId) => {
-		const app = (window as any).app;
-		app.setting.open();
-		app.setting.openTabById(pluginId);
-	}, PLUGIN_ID);
-}
-
 test("settings tab: every section card ends with its own scoped restore row", async () => {
-	await openSettingsTab();
+	await settingsTab.open();
 	const resets = page.locator(".vicinity-graph-settings-section .vicinity-graph-settings-reset");
 	await expect(resets).toHaveCount(SECTION_RESET_NAMES.length);
 	// Scope must be readable from the row itself — no bare "Restore defaults".
@@ -258,16 +234,12 @@ const ANY_UNNAMED_CONTROL = NAMED_CONTROL_SELECTORS.map((selector) => `${selecto
 const MIN_NAMED_CONTROLS = 20;
 
 test("settings tab: WHEN the tab renders THEN every input carries its row name as accessible name", async () => {
-	await openSettingsTab();
+	await settingsTab.open();
 	// GIVEN node exclusion is ON: its textarea is the tab's only non-<input>
 	// control and renders only while enabled, and the exclusion test above ends by
 	// switching it OFF. Without this the textarea clause would assert 0-out-of-0.
-	await page.evaluate(async (pluginId) => {
-		const plugin = (window as any).app.plugins.plugins[pluginId];
-		const store = plugin.pluginDataStore;
-		await store.saveNodeExclusion({ ...store.nodeExclusion(), enabled: true });
-		plugin.app.setting.activeTab.display();
-	}, PLUGIN_ID);
+	await harness.saveNodeExclusion({ ...(await harness.readGlobals()).exclusion, enabled: true });
+	await settingsTab.redisplay();
 	const settings = page.locator(".vicinity-graph-settings");
 
 	// Obsidian puts the row name in a SIBLING of the control, so this only passes
@@ -286,40 +258,34 @@ test("settings tab: WHEN the tab renders THEN every input carries its row name a
 });
 
 test("settings tab: a section restore resets ONLY that section", async () => {
-	await openSettingsTab();
+	await settingsTab.open();
 	// Scoped to the settings DOM: page-wide would turn strict-mode-ambiguous the day
 	// the controls panel grows its own node-cap row.
 	const nodeCap = page.locator(".vicinity-graph-settings").getByLabel("Node cap");
-	await page.evaluate(async (pluginId) => {
-		const plugin = (window as any).app.plugins.plugins[pluginId];
-		const store = plugin.pluginDataStore;
-		await store.saveGlobalView({ ...store.globalView(), nodeCap: 42 });
-		await store.saveGlobalDepths({ outgoingDepth: 4, incomingDepth: 4 });
-		plugin.app.setting.activeTab.display();
-	}, PLUGIN_ID);
+	await harness.saveGlobalView({ nodeCap: 42 });
+	await harness.saveGlobalDepths({ outgoingDepth: 4, incomingDepth: 4 });
+	await settingsTab.redisplay();
 	await expect(nodeCap).toHaveValue("42");
-	await page.locator(".vicinity-graph-settings-section", { hasText: "Performance" }).getByRole("button").click();
-	const after = await readGlobals();
+	await settingsTab.resetButton("Performance").click();
+	const after = await harness.readGlobals();
 	expect(after.view.nodeCap).toBe(100);
 	// The other section stays exactly as the user left it.
 	expect(after.depths.outgoingDepth).toBe(4);
 });
 
 test("settings tab: restore-all asks first, then resets every section", async () => {
-	await openSettingsTab();
-	const restoreAll = page.locator(".vicinity-graph-settings-reset-all").getByRole("button");
+	await settingsTab.open();
+	const restoreAll = settingsTab.resetAllButton();
 	await restoreAll.click();
-	// `.last()`: the settings window is itself a `.modal-container`; the confirm
-	// dialog stacks on top of it.
-	const modal = page.locator(".modal-container").last();
+	const modal = settingsTab.confirmDialog();
 	await expect(modal).toContainText(ALL_SETTINGS_RESET_CONFIRM_TITLE);
 	await page.screenshot({ path: `${OUT_DIR}/settings-tab-restore-all-confirm.png` });
 	await modal.getByRole("button", { name: "Cancel" }).click();
 	// Cancel must be a true no-op.
-	expect((await readGlobals()).depths.outgoingDepth).toBe(4);
+	expect((await harness.readGlobals()).depths.outgoingDepth).toBe(4);
 	await restoreAll.click();
 	await modal.getByRole("button", { name: "Restore all defaults" }).click();
-	const after = await readGlobals();
+	const after = await harness.readGlobals();
 	expect(after.depths.outgoingDepth).toBe(1);
 });
 
@@ -339,48 +305,39 @@ test("settings tab: restore-all asks first, then resets every section", async ()
  */
 
 /** The plugin's persisted preview preference, straight from the store. */
-const storedPreviewPreference = (): Promise<string> =>
-	page.evaluate(
-		(pluginId) => (window as any).app.plugins.plugins[pluginId].pluginDataStore.globalView().nodePreviewPreference,
-		PLUGIN_ID,
-	);
+const storedPreviewPreference = async (): Promise<NodePreviewPreference> =>
+	(await harness.readGlobalView()).nodePreviewPreference;
 
 /**
- * Writes the preference straight to the store and re-renders the settings tab, so
+ * Writes the preference straight to the store and re-renders the SETTINGS TAB, so
  * a test's GIVEN does not depend on what an earlier test left behind.
+ *
+ * WHY-NOT `harness.setNodePreviewPreference`: that one fans the write out to the
+ * open GRAPH views instead — a different side effect, and the tab would keep
+ * showing the old segment.
  */
-async function seedPreviewPreference(value: string): Promise<void> {
-	await page.evaluate(
-		async ({ pluginId, preference }) => {
-			const store = (window as any).app.plugins.plugins[pluginId].pluginDataStore;
-			await store.saveGlobalView({ ...store.globalView(), nodePreviewPreference: preference });
-			(window as any).app.setting.activeTab?.display();
-		},
-		{ pluginId: PLUGIN_ID, preference: value },
-	);
+async function seedPreviewPreference(value: NodePreviewPreference): Promise<void> {
+	await harness.saveGlobalView({ nodePreviewPreference: value });
+	await settingsTab.redisplay();
 }
 
 /** The tab's pill. Scoped to the settings DOM: the panel has a second radiogroup. */
 function tabPreviewRadio(optionLabel: string): Locator {
-	return page
-		.locator(".vicinity-graph-settings-section", { hasText: "Node contents" })
-		.getByRole("radio", { name: optionLabel, exact: true });
+	return settingsTab.card("Node contents").getByRole("radio", { name: optionLabel, exact: true });
 }
 
 test("settings tab: the Preview pill shows one segment per option and checks the stored one", async () => {
-	await openSettingsTab();
+	await settingsTab.open();
 	await seedPreviewPreference("auto");
 	// Precondition: all three options are offered (a pill that lost one would
 	// still satisfy the checked-state assertion below).
-	await expect(
-		page.locator(".vicinity-graph-settings-section", { hasText: "Node contents" }).getByRole("radio"),
-	).toHaveCount(3);
+	await expect(settingsTab.card("Node contents").getByRole("radio")).toHaveCount(3);
 
 	await expect(tabPreviewRadio("Auto")).toBeChecked();
 });
 
 test("settings tab: clicking a Preview segment persists the new preference", async () => {
-	await openSettingsTab();
+	await settingsTab.open();
 	await seedPreviewPreference("auto");
 
 	await tabPreviewRadio("Outline").click();
@@ -389,7 +346,7 @@ test("settings tab: clicking a Preview segment persists the new preference", asy
 });
 
 test("settings tab: the segmented-control stylesheet reaches the settings modal DOM", async () => {
-	await openSettingsTab();
+	await settingsTab.open();
 	// `npm test` cannot catch a missing AUTHORED_CSS_FILES entry — only the
 	// generated styles.css inside a real Obsidian can. `overflow` is the cheapest
 	// probe unique to segmented-control.css (a bare div's default is "visible").
@@ -402,9 +359,9 @@ test("settings tab: the segmented-control stylesheet reaches the settings modal 
 });
 
 test("settings tab: the selected Preview segment is filled distinctly from the trough", async () => {
-	await openSettingsTab();
+	await settingsTab.open();
 	await seedPreviewPreference("auto");
-	const card = page.locator(".vicinity-graph-settings-section", { hasText: "Node contents" });
+	const card = settingsTab.card("Node contents");
 	const pill = card.locator(".vicinity-graph-segmented");
 
 	/**
@@ -461,7 +418,7 @@ test("settings tab: the selected Preview segment is filled distinctly from the t
  * precondition would then fail for a reason that is not a regression.
  */
 test("settings tab: WHEN a slider is hovered THEN its current value is readable", async () => {
-	await openSettingsTab();
+	await settingsTab.open();
 	// "Outline depth", because the advanced force-layout sliders sit inside a
 	// collapsed <details> and cannot be hovered without opening it.
 	const row = page.locator(".vicinity-graph-settings .setting-item", {
@@ -491,7 +448,7 @@ test("settings tab: WHEN a slider is hovered THEN its current value is readable"
 test("controls panel: clicking its Preview segment writes the SAME global the tab writes", async () => {
 	// The settings modal must go: with it open there are TWO Preview radiogroups
 	// in the document and every unscoped radio locator is strict-mode ambiguous.
-	await page.evaluate(() => (window as any).app.setting.close());
+	await settingsTab.close();
 	await setOpen(toolbar(), true);
 	const nodeContents = disclosure("Node contents");
 	await setOpen(nodeContents, true);

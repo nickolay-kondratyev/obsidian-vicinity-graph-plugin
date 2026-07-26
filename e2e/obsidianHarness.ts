@@ -13,7 +13,14 @@ import {
 } from "./vaultTarget";
 import type { DevVaultCopyTarget, LaunchOptions, VaultTarget } from "./vaultTarget";
 // Type-only, so it is erased at transpile — the pure engine barrel never loads in the node-side test process.
-import type { EdgeVisibilityMode } from "../src/engine";
+import type {
+	DepthSettings,
+	EdgeVisibilityMode,
+	NodeExclusionSettings,
+	NodePreviewPreference,
+	ViewSettings,
+	ViewSettingsOverride,
+} from "../src/engine";
 
 /**
  * Launches a REAL Obsidian (Electron) on a throwaway copy of `.dev-vault`,
@@ -45,10 +52,18 @@ import type { EdgeVisibilityMode } from "../src/engine";
  *   requires a leveldb writer dependency for zero extra value here).
  */
 
-/** The subset of the plugin's persisted global view settings the e2e suite asserts on. */
-export interface GlobalViewSnapshot {
-	readonly nodeCap: number;
-	readonly sizing: { readonly metrics: Record<string, { readonly enabled: boolean; readonly weight: number }> };
+/**
+ * The plugin's three persisted GLOBAL slices, as the store exposes them.
+ *
+ * Typed off the engine's own settings interfaces rather than a hand-written
+ * subset: those shapes are already declared once in `src/engine/types.ts`, so a
+ * field rename there becomes a `tsc` error in the specs that read it instead of
+ * a silently-`undefined` assertion at runtime.
+ */
+export interface PluginGlobalsSnapshot {
+	readonly view: ViewSettings;
+	readonly depths: DepthSettings;
+	readonly exclusion: NodeExclusionSettings;
 }
 
 export const PLUGIN_ID = "vicinity-graph";
@@ -309,41 +324,124 @@ export class ObsidianHarness {
 		await this.openGraphView();
 	}
 
+	// --- persisted plugin state --------------------------------------------
+	//
+	// THE one place in the e2e suite that knows the `pluginDataStore` shape: every
+	// spec goes through the typed methods below instead of hand-writing its own
+	// `app.plugins.plugins[id].pluginDataStore` evaluate block.
+
+	/**
+	 * Reads all three persisted global slices in ONE round trip — the source of
+	 * truth a restart reloads, with no rendered pixels in the middle.
+	 */
+	async readGlobals(): Promise<PluginGlobalsSnapshot> {
+		return this.page.evaluate((pluginId) => {
+			const store = (window as unknown as { app: any }).app.plugins.plugins[pluginId].pluginDataStore;
+			return {
+				view: store.globalView(),
+				depths: store.globalDepths(),
+				exclusion: store.nodeExclusion(),
+			} as PluginGlobalsSnapshot;
+		}, PLUGIN_ID);
+	}
+
+	/** The persisted global VIEW slice alone (see {@link readGlobals}). */
+	async readGlobalView(): Promise<ViewSettings> {
+		return (await this.readGlobals()).view;
+	}
+
+	/**
+	 * Merges `patch` over the stored global view slice.
+	 *
+	 * SHALLOW merge, exactly like the store's own callers: a nested field
+	 * (`sizing`, `forceLayout`) is REPLACED wholesale, so a caller changing one of
+	 * its keys must spread the current value in itself (read it via
+	 * {@link readGlobalView}). Explicit beats a deep-merge that silently decides
+	 * which level it is patching.
+	 */
+	async saveGlobalView(patch: ViewSettingsOverride): Promise<void> {
+		await this.page.evaluate(
+			async ({ pluginId, viewPatch }) => {
+				const store = (window as unknown as { app: any }).app.plugins.plugins[pluginId].pluginDataStore;
+				await store.saveGlobalView({ ...store.globalView(), ...viewPatch });
+			},
+			{ pluginId: PLUGIN_ID, viewPatch: patch },
+		);
+	}
+
+	/** Replaces the persisted global traversal depths (both directions are always written). */
+	async saveGlobalDepths(depths: DepthSettings): Promise<void> {
+		await this.page.evaluate(
+			async ({ pluginId, value }) => {
+				const store = (window as unknown as { app: any }).app.plugins.plugins[pluginId].pluginDataStore;
+				await store.saveGlobalDepths(value);
+			},
+			{ pluginId: PLUGIN_ID, value: depths },
+		);
+	}
+
+	/** Replaces the persisted node-exclusion slice (toggle + patterns are one atomic write). */
+	async saveNodeExclusion(exclusion: NodeExclusionSettings): Promise<void> {
+		await this.page.evaluate(
+			async ({ pluginId, value }) => {
+				const store = (window as unknown as { app: any }).app.plugins.plugins[pluginId].pluginDataStore;
+				await store.saveNodeExclusion(value);
+			},
+			{ pluginId: PLUGIN_ID, value: exclusion },
+		);
+	}
+
+	/**
+	 * Rebuilds every OPEN graph view against the current store. A store write alone
+	 * changes nothing on screen, so a caller that wants the graph (not the settings
+	 * tab — that is `SettingsTabPage.redisplay()`) to reflect a write says so here.
+	 */
+	async refreshOpenViews(): Promise<void> {
+		await this.page.evaluate((pluginId) => {
+			(window as unknown as { app: any }).app.plugins.plugins[pluginId].refreshOpenViews();
+		}, PLUGIN_ID);
+	}
+
+	/**
+	 * Disables and re-enables the plugin, then waits for the new instance to be
+	 * registered. WHY: it drops every in-memory store, so a read afterwards proves
+	 * the value came back off `data.json` rather than out of RAM.
+	 *
+	 * PRECONDITION: close any UI owned by the outgoing instance first (e.g.
+	 * `SettingsTabPage.close()`) — this method deliberately knows nothing about it.
+	 */
+	async reloadPlugin(): Promise<void> {
+		await this.page.evaluate(async (pluginId) => {
+			const app = (window as unknown as { app: any }).app;
+			await app.plugins.disablePlugin(pluginId);
+			await app.plugins.enablePlugin(pluginId);
+		}, PLUGIN_ID);
+		await this.page.waitForFunction(
+			(pluginId) => Boolean((window as unknown as { app: any }).app.plugins.plugins[pluginId]),
+			PLUGIN_ID,
+			{ timeout: PLUGIN_READY_TIMEOUT_MS },
+		);
+	}
+
 	/** Sets the global nodeCap through the plugin's own persistence API (no settings UI until step 06). */
 	async setGlobalNodeCap(nodeCap: number): Promise<void> {
-		await this.page.evaluate(
-			async ({ pluginId, cap }) => {
-				const app = (window as unknown as { app: any }).app;
-				const store = app.plugins.plugins[pluginId].pluginDataStore;
-				await store.saveGlobalView({ ...store.globalView(), nodeCap: cap });
-			},
-			{ pluginId: PLUGIN_ID, cap: nodeCap },
-		);
+		await this.saveGlobalView({ nodeCap });
 	}
 
 	/**
-	 * Sets the largest node size through the plugin's own persistence API (mirrors
-	 * {@link setGlobalNodeCap}). Centrals are always sized at `maxPx`, so this is
-	 * the one deterministic lever for putting the MAIN node in a chosen density
-	 * band (the CSS container-query thresholds).
+	 * Sets the largest node size (mirrors {@link setGlobalNodeCap}). Centrals are
+	 * always sized at `maxPx`, so this is the one deterministic lever for putting
+	 * the MAIN node in a chosen density band (the CSS container-query thresholds).
 	 */
 	async setMaxNodeSizePx(maxPx: number): Promise<void> {
-		await this.page.evaluate(
-			async ({ pluginId, px }) => {
-				const app = (window as unknown as { app: any }).app;
-				const store = app.plugins.plugins[pluginId].pluginDataStore;
-				const globalView = store.globalView();
-				await store.saveGlobalView({ ...globalView, sizing: { ...globalView.sizing, maxPx: px } });
-			},
-			{ pluginId: PLUGIN_ID, px: maxPx },
-		);
+		const view = await this.readGlobalView();
+		await this.saveGlobalView({ sizing: { ...view.sizing, maxPx } });
 	}
 
 	/**
-	 * Sets the global edge-visibility mode through the plugin's own persistence API
-	 * (mirrors {@link setGlobalNodeCap}). `all-edges` is what makes SIBLING links
-	 * render, which the routing suites need — the default `walked-from-center` shows
-	 * only the radial star, whose edges never cross.
+	 * Sets the global edge-visibility mode (mirrors {@link setGlobalNodeCap}).
+	 * `all-edges` is what makes SIBLING links render, which the routing suites need —
+	 * the default `walked-from-center` shows only the radial star, whose edges never cross.
 	 *
 	 * PRECONDITION: call this BEFORE the graph view renders the central file — this is a
 	 * store write only. WHY-NOT fan out to open views like {@link setNodePreviewPreference}:
@@ -351,50 +449,36 @@ export class ObsidianHarness {
 	 * already-rendered view must trigger an explicit rebuild itself.
 	 */
 	async setEdgeVisibility(mode: EdgeVisibilityMode): Promise<void> {
-		await this.page.evaluate(
-			async ({ pluginId, value }) => {
-				const app = (window as unknown as { app: any }).app;
-				const store = app.plugins.plugins[pluginId].pluginDataStore;
-				await store.saveGlobalView({ ...store.globalView(), edgeVisibility: value });
-			},
-			{ pluginId: PLUGIN_ID, value: mode },
-		);
+		await this.saveGlobalView({ edgeVisibility: mode });
 	}
 
 	/**
-	 * Sets the global node-preview preference through the plugin's own persistence
-	 * API (mirrors {@link setGlobalNodeCap}), then fans the change out to every open
-	 * graph view — a store write alone does not rebuild anything.
+	 * Sets the global node-preview preference (mirrors {@link setGlobalNodeCap}),
+	 * then fans the change out to every open GRAPH view — a store write alone does
+	 * not rebuild anything. A caller that needs the SETTINGS TAB to re-render
+	 * instead wants `saveGlobalView` + `SettingsTabPage.redisplay()`.
 	 *
 	 * WHY not drive the pill: the two pills' own click paths are covered in
 	 * `settingsUxVisual.e2e.ts`; suites that only need a given RENDERED preview
 	 * want the setting, not the UI, in the middle.
 	 */
-	async setNodePreviewPreference(preference: "auto" | "outline" | "image"): Promise<void> {
-		await this.page.evaluate(
-			async ({ pluginId, value }) => {
-				const app = (window as unknown as { app: any }).app;
-				const plugin = app.plugins.plugins[pluginId];
-				await plugin.pluginDataStore.saveGlobalView({ ...plugin.pluginDataStore.globalView(), nodePreviewPreference: value });
-				plugin.refreshOpenViews();
-			},
-			{ pluginId: PLUGIN_ID, value: preference },
-		);
+	async setNodePreviewPreference(preference: NodePreviewPreference): Promise<void> {
+		await this.saveGlobalView({ nodePreviewPreference: preference });
+		await this.refreshOpenViews();
 	}
 
 	/**
-	 * Reads the plugin's persisted global view settings straight from the store —
-	 * the source of truth that a restart reloads. Used to assert settings
-	 * round-trip through {@link relaunch} without depending on rendered pixels.
+	 * Forces the given Obsidian theme by body class — the MECHANISM Obsidian's own
+	 * theme switch drives, so every `--theme-*` / `--text-*` variable resolves to
+	 * that theme afterwards (`vicinityGraph.e2e.ts` asserts exactly that, per theme,
+	 * through this lever).
+	 *
+	 * WHY-NOT `app.changeTheme(...)`: it additionally PERSISTS the choice into the
+	 * vault's appearance config, which under `VICINITY_E2E_VAULT` would mutate the
+	 * human's real vault for a purely visual assertion. Nothing in the suite reads
+	 * the persisted theme id, and a class toggle is synchronous — so it also needs
+	 * no post-switch wait.
 	 */
-	async readGlobalView(): Promise<GlobalViewSnapshot> {
-		return this.page.evaluate((pluginId) => {
-			const app = (window as unknown as { app: any }).app;
-			return app.plugins.plugins[pluginId].pluginDataStore.globalView() as GlobalViewSnapshot;
-		}, PLUGIN_ID);
-	}
-
-	/** Forces the given Obsidian theme by body class (how Obsidian itself switches). */
 	async setTheme(theme: "dark" | "light"): Promise<void> {
 		await this.page.evaluate((mode) => {
 			document.body.classList.toggle("theme-dark", mode === "dark");
