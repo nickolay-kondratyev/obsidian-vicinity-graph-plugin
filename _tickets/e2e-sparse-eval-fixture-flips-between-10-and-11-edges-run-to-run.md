@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-26T06:13:55Z
 id: nid_li45606h8uvcnjm7fss17xl1u_e
 title: "e2e: sparse eval fixture flips between 10 and 11 edges run-to-run"
-status: in_progress
+status: closed
 deps: []
 links: [nid_s676x55uojmtcwh9t4l9mc6zl_e]
 created_iso: 2026-07-25T03:33:28Z
-status_updated_iso: 2026-07-26T05:43:39Z
+status_updated_iso: 2026-07-26T06:13:55Z
 type: chore
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
@@ -39,3 +40,9 @@ Prefer waiting on a deterministic CONDITION (a settled edge count, or an explici
 - If the cause turns out to be plugin-side, file/point at a separate bug ticket -- do not bury a real routing race inside an e2e chore.
 - No fixed-timeout increase used as the fix.
 
+
+## Notes
+
+**2026-07-26T06:13:55Z**
+
+Root cause MEASURED as plugin-side (5/5 correlation between the detected CanvasCapability and edges=10 vs 11); the lastDurations tie-break contributed nothing (only one 13-obstacle pass per window). Plugin bug escalated as nid_s676x55uojmtcwh9t4l9mc6zl_e ([decide]). Harness fixed in e2e/edgeRoutingEval.e2e.ts: index the canvas fixture before measuring (waiting alone is impossible - in fallback sessions the .canvas key NEVER arrives, verified 60s past a settled index), replace waitForTimeout(4500) with a condition-driven settle, and make the tie-break report the LAST heaviest pass while throwing when tied passes disagree. Acceptance met: 5 consecutive runs all report obstacles=13 edges=11 (and identical medium/dense/facing rows). Details: .ai_out/sparse-eval-edge-flake/sparse-eval-edge-flake/IMPLEMENTATION_WITH_SELF_PLAN__PUBLIC.md

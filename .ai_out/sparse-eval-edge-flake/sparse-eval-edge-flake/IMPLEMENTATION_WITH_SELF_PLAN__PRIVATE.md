@@ -126,4 +126,72 @@ Probe extended to, in a fallback session: report `internalPlugins.plugins.canvas
 then try `app.internalPlugins.enablePlugin("canvas")` and, failing that, rewrite `test.canvas`
 via `vault.modify` — re-polling for the key after each.
 
-<!-- DIAG_RESULTS -->
+RAW (`.tmp/flake/diag-*.log`):
+
+```
+diag 1
+[probe] settled total=166 canvas=1
+[probe] canvasPlugin enabled=true hasInstance=true
+[probe] vaultHasCanvas=true
+[probe] fileCache={}
+[eval] force/sparse: ... obstacles=13 edges=11 ...
+diag 2
+[probe] settled total=165 canvas=0
+[probe] canvasPlugin enabled=true hasInstance=true
+[probe] vaultHasCanvas=true
+[probe] fileCache={}
+[probe] enablePlugin failed: TypeError: app.internalPlugins.enablePlugin is not a function
+[probe] afterEnable canvas=0
+[probe] rewrote test.canvas
+[probe] afterRewrite canvas=1
+[eval] force/sparse: ... obstacles=13 edges=11 ...
+diag 3  -> settled total=166 canvas=1 ... edges=11
+diag 4  -> settled total=165 canvas=0 ... rewrote test.canvas -> afterRewrite canvas=1 ... edges=11
+```
+
+Conclusions:
+- The Canvas CORE PLUGIN is always enabled (`enabled=true hasInstance=true`) — plugin
+  enablement is NOT the discriminator.
+- `app.internalPlugins.enablePlugin` does not exist on Obsidian 1.12.7 — dead end.
+- **`vault.modify` on the canvas file deterministically makes the index take it: 2/2 misses
+  went `canvas=0 → canvas=1` within the poll.** This is the lever the harness fix uses.
+- With the canvas indexed, all 4 diag runs reported `edges=11`.
+
+## Step 4 — the fix (`e2e/edgeRoutingEval.e2e.ts`)
+
+1. `ensureCanvasFixtureIsIndexed()` in `beforeAll`: if `test.canvas` is absent from
+   `resolvedLinks`, rewrite it (append `\n` — a no-op for the JSON, a real content change
+   for Obsidian) and then `page.waitForFunction` on the key appearing.
+2. `waitForRebuildBurstToSettle()` replaces `page.waitForTimeout(4500)`.
+3. `lastDurations` → `settledMetrics`: LAST pass at the max `obstacleCount`, and a THROW
+   when tied passes disagree on `edgeCount`.
+4. `src/adapters/ObsidianLinkProvider.test.ts`: 2 characterization tests pinning the
+   text-node-wikilink divergence between the two regimes.
+
+### DEAD END / self-inflicted regression, caught before shipping
+
+First cut of `waitForRebuildBurstToSettle` used quiescence ALONE (`SETTLE_QUIET_MS = 1500`).
+Sparse went 5/5 at 11, but runs 1 and 4 published `[eval] force/dense: obstacles=3 edges=4`
+— the 3-obstacle BOUNCE pass. Cause: the dense fixture's elk layout takes ~1.4s and logs
+only on completion, so the silence while it runs is indistinguishable from the end of the
+burst. Fixed by also requiring `LAYOUTS_PER_FIXTURE_RENDER = 2` layout passes (bounce +
+central) before the quiet window may end. Do NOT revert to quiescence-only.
+
+## Step 5 — plugin ticket
+
+`nid_s676x55uojmtcwh9t4l9mc6zl_e` — `[decide] Canvas link regime is re-detected per rebuild
+from a racing resolvedLinks…`. Linked to `nid_li45606h8uvcnjm7fss17xl1u_e`.
+
+## Step 6 — verification
+
+`npm run check` = 0. `npm test` = 0 (74 files / 990 tests).
+Final acceptance: 5 consecutive `npm run test:e2e -- edgeRoutingEval.e2e.ts`, raw lines in
+the PUBLIC file. All 5 identical on every row; `5 passed` each.
+
+Temp instrumentation removed: `VicinityGraphBuilder.ts` `TEMP build pass` log, the `build`
+PerfEntry kind, the `[temp]` dump, and the `[probe]` block. Verified by `git show`/diff —
+no `TEMP`/`probe` strings remain in `src/` or `e2e/`.
+
+Logs kept under `.tmp/flake/` (measure-1..5, probe-1..3, diag-1..4, verify-1..5, final-1..5,
+full-suite).
+
