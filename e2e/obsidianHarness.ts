@@ -4,8 +4,14 @@ import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium, expect } from "@playwright/test";
 import type { Browser, Page } from "@playwright/test";
-import { assertExternalVaultReady, resolveVaultTarget, VAULT_OVERRIDE_ENV_VAR, vaultDirOf } from "./vaultTarget";
-import type { DevVaultCopyTarget, VaultTarget } from "./vaultTarget";
+import {
+	assertExternalLaunchAllowed,
+	assertExternalVaultReady,
+	resolveVaultTarget,
+	VAULT_OVERRIDE_ENV_VAR,
+	vaultDirOf,
+} from "./vaultTarget";
+import type { DevVaultCopyTarget, LaunchOptions, VaultTarget } from "./vaultTarget";
 
 /**
  * Launches a REAL Obsidian (Electron) on a throwaway copy of `.dev-vault`,
@@ -132,18 +138,16 @@ export class ObsidianHarness {
 	 * Obsidian. `extraFixtures` are extra `vaultRelativePath → content` notes
 	 * layered on top of the built-in `crowd/` set (used by suites that need their
 	 * own graph shape, e.g. depth chains for restart round-trips).
+	 *
+	 * `allowExternalVault` is the per-spec opt-in required under
+	 * `VICINITY_E2E_VAULT` — see {@link assertExternalLaunchAllowed}.
 	 */
-	static async launch(options: { extraFixtures?: Record<string, string> } = {}): Promise<ObsidianHarness> {
+	static async launch(options: LaunchOptions = {}): Promise<ObsidianHarness> {
 		const target = resolveVaultTarget(process.env[VAULT_OVERRIDE_ENV_VAR], REPO_ROOT);
 		if (target.mode === "dev-vault-copy") {
 			ObsidianHarness.prepareVaultCopy(target, options.extraFixtures);
 		} else {
-			if (options.extraFixtures !== undefined) {
-				throw new Error(
-					`extraFixtures cannot be used with ${VAULT_OVERRIDE_ENV_VAR}: writing fixture notes would mutate ` +
-						`your vault. vaultDir=[${target.vaultDir}]`,
-				);
-			}
+			assertExternalLaunchAllowed(target.vaultDir, options);
 			assertExternalVaultReady(target.vaultDir, PLUGIN_ID, REPO_ROOT);
 		}
 		ObsidianHarness.prepareSandboxConfigDir(vaultDirOf(target));
@@ -385,6 +389,10 @@ export class ObsidianHarness {
 		// Belt and braces: the union already keeps an external vault out of this
 		// method; this asserts the ONE directory below is the throwaway copy dir
 		// before anything destructive runs.
+		// WHY-NOT write through `target.copyDir` afterwards: the destructive calls
+		// deliberately name the module constant so the source scan in
+		// `vaultTarget.test.ts` can verify their destination statically. This assert
+		// is what keeps the two spellings from drifting.
 		if (path.resolve(target.copyDir) !== path.resolve(VAULT_COPY_DIR)) {
 			throw new Error(`Refusing to wipe a non-throwaway directory: copyDir=[${target.copyDir}]`);
 		}
@@ -512,16 +520,24 @@ export class ObsidianHarness {
 	}
 
 	/**
-	 * External-vault mode: loads the plugin the USER already enabled, WITHOUT
-	 * writing to their vault.
+	 * External-vault mode: loads the plugin the USER already enabled in that vault.
 	 *
-	 * `setEnable(true)` is unavoidable — the "community plugins on" flag lives in
-	 * the Obsidian USER-DATA dir (our throwaway sandbox), so a fresh sandbox always
-	 * boots with plugins off and nothing loads at all. It is sandbox-local and
-	 * merely loads what `<vault>/.obsidian/community-plugins.json` already lists.
-	 * WHY-NOT also `enablePlugin(pluginId)` (as the dev-vault path does): THAT call
-	 * appends to and rewrites the vault's own `community-plugins.json`. We require
-	 * the plugin to be listed there already instead.
+	 * `setEnable(true)` is unavoidable — the "community plugins on" flag is written
+	 * to `localStorage` (`enable-plugin-<appId>`), which lives in the Obsidian
+	 * USER-DATA dir, i.e. our throwaway sandbox. So a fresh sandbox always boots
+	 * with plugins off and nothing loads at all. Verified against Obsidian 1.12.7:
+	 * the call writes no vault file, it just loads whatever this vault's
+	 * `.obsidian/community-plugins.json` already lists.
+	 *
+	 * ACCEPTED CONSEQUENCE: that means EVERY community plugin enabled in the target
+	 * vault loads and runs, exactly as when the human opens the vault themselves —
+	 * documented in the README caveat. There is no per-plugin lever: `enablePlugin`
+	 * requires the master switch to be on anyway.
+	 *
+	 * WHY-NOT `enablePlugin(pluginId)` (which the dev-vault path calls): it is not
+	 * needed once the vault lists the plugin, and calling it here would mean loading
+	 * our code — which then writes `data.json`/`doc-data/` into that vault — even
+	 * when the human has NOT enabled it there.
 	 */
 	private static async waitForAlreadyEnabledPlugin(page: Page): Promise<void> {
 		// A fresh sandbox user-data-dir shows first-boot modals (vault trust /

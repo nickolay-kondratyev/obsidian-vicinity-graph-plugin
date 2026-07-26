@@ -70,13 +70,54 @@ export function resolveVaultTarget(vaultOverride: string | undefined, repoRoot: 
 	return { mode: "external-in-place", vaultDir };
 }
 
+/** Options a spec passes to `ObsidianHarness.launch`. */
+export interface LaunchOptions {
+	/** Extra `vaultRelativePath → content` notes seeded into the throwaway dev-vault copy. */
+	readonly extraFixtures?: Record<string, string>;
+	/**
+	 * Per-spec opt-in to `VICINITY_E2E_VAULT`. Only set it in a spec that is
+	 * VAULT-AGNOSTIC and changes no plugin settings — see
+	 * {@link assertExternalLaunchAllowed}.
+	 */
+	readonly allowExternalVault?: true;
+}
+
+/**
+ * Gates which specs may run against a real vault.
+ *
+ * WHY: the env var is global, so a bare `npm run test:e2e` with it exported would
+ * point EVERY spec at the user's vault — and most of ours drive the app into
+ * writing plugin state there (restore-defaults, exclusion patterns, per-doc pins).
+ * The harness cannot delete that vault by construction, but Obsidian and the
+ * plugin can still rewrite the human's saved settings, so external runs are
+ * opt-in per spec rather than opt-out.
+ */
+export function assertExternalLaunchAllowed(vaultDir: string, options: LaunchOptions): void {
+	if (options.allowExternalVault !== true) {
+		throw new Error(
+			`This spec is not vault-agnostic and would write plugin settings into your vault, so it refuses to run ` +
+				`with ${VAULT_OVERRIDE_ENV_VAR}. vaultDir=[${vaultDir}]\n` +
+				"Run only the spec that opts in:\n" +
+				"  npm run test:e2e -- externalVault.e2e.ts",
+		);
+	}
+	if (options.extraFixtures !== undefined) {
+		throw new Error(
+			`extraFixtures cannot be used with ${VAULT_OVERRIDE_ENV_VAR}: writing fixture notes would mutate ` +
+				`your vault. vaultDir=[${vaultDir}]`,
+		);
+	}
+}
+
 /**
  * Requires the plugin to be ALREADY installed and enabled in an external vault.
  *
- * WHY-NOT install/enable it ourselves: enabling persists into the user's own
- * `.obsidian/community-plugins.json` (and `setEnable(true)` would switch on every
- * other community plugin they have). The harness therefore writes nothing and
- * tells the human the exact commands instead.
+ * WHY pre-enablement rather than enabling it ourselves: (a) we only turn on the
+ * community-plugins MASTER switch, which is sandbox-local and merely loads what
+ * this vault's `community-plugins.json` already lists — so without the human's
+ * own enablement nothing loads at all; and (b) loading our plugin code into a
+ * vault where the human has not enabled it would start writing plugin state
+ * (`data.json`, `doc-data/`) there behind their back.
  */
 export function assertExternalVaultReady(vaultDir: string, pluginId: string, repoRoot: string): void {
 	const pluginDir = path.join(vaultDir, ".obsidian", "plugins", pluginId);
@@ -84,8 +125,12 @@ export function assertExternalVaultReady(vaultDir: string, pluginId: string, rep
 	if (!fs.existsSync(mainJs)) {
 		throw new Error(
 			`Plugin not installed in the ${VAULT_OVERRIDE_ENV_VAR} vault: file=[${mainJs}]\n` +
-				"Install it (symlink keeps it in sync with your builds):\n" +
-				`  npm run build && ln -s ${repoRoot} ${pluginDir}`,
+				// Per-artifact symlinks, NOT `ln -s <repoRoot> <pluginDir>`: with the repo AS the
+				// plugin dir, Obsidian writes the vault's plugin state (data.json, doc-data/) into
+				// the checkout.
+				"Install it (symlinks keep it in sync with your builds):\n" +
+				`  npm run build && mkdir -p ${pluginDir} && \\\n` +
+				`    for f in main.js manifest.json styles.css; do ln -sf ${repoRoot}/$f ${pluginDir}/$f; done`,
 		);
 	}
 	const communityPluginsFile = path.join(vaultDir, ".obsidian", "community-plugins.json");

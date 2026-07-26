@@ -38,7 +38,9 @@ test.beforeAll(async () => {
 				`  ${NOTE_OVERRIDE_ENV_VAR}='projects/some-note.md' ${VAULT_OVERRIDE_ENV_VAR}='${vaultDir}' npm run test:e2e -- externalVault.e2e.ts`,
 		);
 	}
-	harness = await ObsidianHarness.launch();
+	// The ONE spec allowed to run against a real vault: it changes no setting and
+	// depends on no fixture. Every other spec drives plugin settings and is refused.
+	harness = await ObsidianHarness.launch({ allowExternalVault: true });
 	await harness.openGraphView();
 	// openFile itself throws with the offending path when the note is missing.
 	await harness.openFile(notePath);

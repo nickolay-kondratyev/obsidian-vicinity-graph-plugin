@@ -252,9 +252,9 @@ export OBSIDIAN_PATH='/Applications/Obsidian.app/Contents/MacOS/Obsidian'
 npm run test:e2e
 ```
 
-The suite is idempotent (fresh vault copy + fresh sandbox config per run under
-`.tmp/e2e/`) and never touches your real Obsidian config or the dev-vault
-fixtures.
+In its default mode the suite is idempotent (fresh vault copy + fresh sandbox
+config per run under `.tmp/e2e/`) and never touches your real Obsidian config or
+the dev-vault fixtures.
 
 #### Driving your own vault (`VICINITY_E2E_VAULT`) — opt-in
 
@@ -264,26 +264,42 @@ the `externalVault.e2e.ts` spec centres the graph on one note and screenshots it
 to `.out/external-vault-graph.png`:
 
 ```bash
-# one-time, in the target vault: install + enable the plugin yourself
-ln -s "$PWD" /path/to/vault/.obsidian/plugins/vicinity-graph   # after: npm run build
+# one-time: install the plugin into the target vault (symlinks track your builds)
+npm run build
+VAULT=/path/to/vault
+mkdir -p "$VAULT/.obsidian/plugins/vicinity-graph"
+for f in main.js manifest.json styles.css; do
+  ln -sf "$PWD/$f" "$VAULT/.obsidian/plugins/vicinity-graph/$f"
+done
 # …then enable "Vicinity Graph" in that vault's Settings → Community plugins
 
-VICINITY_E2E_VAULT=/path/to/vault VICINITY_E2E_NOTE='some/note.md' \
+VICINITY_E2E_VAULT="$VAULT" VICINITY_E2E_NOTE='some/note.md' \
   npm run test:e2e -- externalVault.e2e.ts
 ```
 
-The harness deliberately refuses to install or enable the plugin for you — adding
-it would rewrite your vault's `community-plugins.json` — and refuses e2e fixture
-notes in this mode; it fails with the exact fix when a prerequisite is missing.
-(It does flip the "community plugins on" master switch, but that flag lives in
-the throwaway sandbox `--user-data-dir`, not in your vault.) Unset the variable
-and everything above behaves exactly as before.
+(Symlink the three artifacts, **not** the repo root as the plugin folder — with
+the repo as the plugin dir, Obsidian writes that vault's plugin state,
+`data.json` and `doc-data/*.json`, into your checkout.)
 
-> ⚠️ **Caveat — use a scratch or backed-up vault.** Obsidian itself writes into
-> whatever vault it opens: `.obsidian/workspace.json`, the plugin's
-> `.obsidian/plugins/vicinity-graph/data.json`, and anything a test does through
-> the app. That is unavoidable. The harness never deletes or copies over the
-> vault (guarded by `e2e/vaultTarget.test.ts`), but the run is not read-only.
+`externalVault.e2e.ts` is the only spec that may run this way; every other spec
+drives plugin settings (restore-defaults, exclusion patterns, per-doc pins) and
+refuses to start against a real vault, as does passing e2e fixture notes. The
+harness also refuses to install or enable the plugin for you — you enable it, and
+we then only load what your vault already lists. Unset the variable and
+everything above behaves exactly as before.
+
+> ⚠️ **Caveat — use a scratch or backed-up vault. The run is not read-only.**
+> The harness never deletes, copies over or writes files into the vault, but
+> Obsidian and the plugins do:
+> - `.obsidian/workspace.json` is rewritten (the graph opens in the right
+>   sidebar and detaches the other sidebar leaves), and because the harness
+>   ends Obsidian with a signal it can be left **truncated to 0 bytes** — i.e.
+>   your saved layout for that vault is lost.
+> - The plugin writes its own `.obsidian/plugins/vicinity-graph/data.json`.
+> - Turning on community plugins is required to load anything at all, so
+>   **every community plugin enabled in that vault loads and runs** (Templater,
+>   periodic notes, sync, …), each free to write to it — exactly as when you
+>   open the vault yourself.
 
 ### `minAppVersion` (manifest.json)
 
