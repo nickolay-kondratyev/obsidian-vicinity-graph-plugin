@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-26T16:05:03Z
 id: nid_yccejkvl0ccqc77olsgg5deka_e
 title: "e2e release gate is RED: vicinityGraph.e2e.ts:160 breadcrumb never appears"
-status: open
+status: closed
 deps: []
 links: []
 created_iso: 2026-07-26T05:34:46Z
-status_updated_iso: 2026-07-26T05:34:46Z
+status_updated_iso: 2026-07-26T16:05:03Z
 type: bug
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
@@ -43,3 +44,9 @@ folder fixture or the breadcrumb-suppression rule, not the whole feature.
 breadcrumb behaviour is either fixed in `src/` or the test corrected with a written
 rationale for why the old expectation was wrong.
 
+
+## Notes
+
+**2026-07-26T16:05:03Z**
+
+Root-caused: STALE TEST, not a missing feature. The folder breadcrumb was removed by design in 998fdac (2026-07-23), which also rewrote high-level-plan.md's sizing model; the e2e file was missed because e2e is not part of npm test. Corrected the expectations in e2e/vicinityGraph.e2e.ts (vault-wide guard that the prefix stays removed + kept the real trimmed-frontmatter-title assertion). Gate green: 78 passed, 0 failed, 1 env-gated skip (externalVault, needs VICINITY_E2E_VAULT). No src/ behavior change.

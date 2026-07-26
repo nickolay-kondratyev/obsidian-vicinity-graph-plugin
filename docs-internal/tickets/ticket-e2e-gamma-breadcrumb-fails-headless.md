@@ -1,6 +1,29 @@
 # Ticket: e2e gamma singleton-breadcrumb test fails (pre-existing on main)
 
-**Status:** OPEN — pre-existing; isolated during ticket-03 e2e triage (2026-07-24).
+**Status:** CLOSED 2026-07-26 — root-caused as a STALE TEST, not a product bug.
+
+## Resolution
+
+Neither lead below was right. The breadcrumb was **removed by design** in `998fdac`
+("snug capped node width + remove folder prefix", 2026-07-23), which deleted the render,
+the CSS, `FlowNodeData.breadcrumbFolder`, `breadcrumbFolderOf` **and its unit tests**, and
+rewrote the authoritative `docs-internal/plan/high-level-plan.md` sizing model so node
+width hugs the title alone. `.vicinity-graph-node__breadcrumb` has existed nowhere in
+`src/` since. `npm test` stayed green because the unit tests went with the feature; the
+e2e file was simply missed (e2e is not in `npm test`).
+
+So "the breadcrumb element specifically is missing" was correct — it no longer exists.
+The `breadcrumbFolderOf` note below is wrong: it was **deleted**, not moved.
+
+The "do NOT weaken the test" instruction below was written on the false premise that the
+breadcrumb was live behavior. It is not, and the design source of truth says so, so the
+expectation was corrected instead (see `e2e/vicinityGraph.e2e.ts`, which now guards
+vault-wide that the folder prefix stays removed and keeps the real trimmed-title
+assertion). Gate verified green: 78 passed, 0 failed, 1 env-gated skip.
+
+---
+
+**Original triage (kept for the record) — was:** OPEN — pre-existing; isolated during ticket-03 e2e triage (2026-07-24).
 **Scope:** e2e release gate is RED on main independent of the ticket-03 force-collide
 change. May be test-infra OR a product regression — needs root-causing.
 
