@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-26T05:42:12Z
 id: nid_3399ajdcy5lq21lx5v0jxh9i4_e
 title: "e2e: settings section-count and reset-name baselines are triplicated with no shared constant"
-status: open
+status: closed
 deps: []
 links: []
 created_iso: 2026-07-25T03:54:05Z
-status_updated_iso: 2026-07-25T03:54:05Z
+status_updated_iso: 2026-07-26T05:42:12Z
 type: chore
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
@@ -25,3 +26,25 @@ Noted as a deferred DRY target by the `node-content-preference` plan (which beli
 
 One shared e2e-side source for the expected section names + reset-row names (a const in a small `e2e/settingsBaseline.ts`, or derived from the plugin at runtime), consumed by all three specs; counts become `EXPECTED.length` rather than a literal 6. The panel-disclosure list gets the same treatment. No assertion is weakened — the point is that ONE edit updates every site.
 
+
+## Notes
+
+**2026-07-26T05:42:12Z**
+
+Resolved on branch settings-e2e-baseline-dry.
+
+New `e2e/settingsBaseline.ts` is the single e2e-side source: reset-row names derived from
+`src/view/settingsResetPlan` (SECTION_RESET_SCOPES + SETTINGS_RESET_SCOPES[scope].label +
+ALL_SETTINGS_RESET_SCOPE); card headings hand-written but keyed `Record<SectionResetScope, string>`
+so a new scope fails `tsc`. Separate CONTROLS_PANEL_DISCLOSURES const for the toolbar panel list
+(different from the tab list), carrying a per-entry `.first()` flag so strict-mode locator
+semantics are unchanged.
+
+All three specs (settingsResetReview / settingsResetVerify / settingsUxVisual) consume it; every
+count is now <CONST>.length. No assertion weakened (card headings are now DOM-asserted, which is
+additive). Also added `npm run check:e2e` chained from `npm run check` so the compile-time
+exhaustiveness guard actually runs in CI/build.
+
+Verified: npm run check exit 0; npm test 74 files / 988 passed; the three settings specs in real
+Obsidian 34/34 passed. Pre-existing unrelated e2e failure at e2e/vicinityGraph.e2e.ts:160 tracked
+separately as nid_yccejkvl0ccqc77olsgg5deka_e.
