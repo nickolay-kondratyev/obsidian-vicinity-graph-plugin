@@ -262,7 +262,7 @@ test("settings tab: a section restore resets ONLY that section", async () => {
 	// Scoped to the settings DOM: page-wide would turn strict-mode-ambiguous the day
 	// the controls panel grows its own node-cap row.
 	const nodeCap = page.locator(".vicinity-graph-settings").getByLabel("Node cap");
-	await harness.saveGlobalView({ nodeCap: 42 });
+	await harness.setGlobalNodeCap(42);
 	await harness.saveGlobalDepths({ outgoingDepth: 4, incomingDepth: 4 });
 	await settingsTab.redisplay();
 	await expect(nodeCap).toHaveValue("42");

@@ -1,7 +1,24 @@
 # IMPLEMENTATION_WITH_SELF_PLAN__PRIVATE — rehydration memory
 
-Status: **DONE**. Commit `967aade` on `e2e-settings-helper-dry`, tree clean, all gates green.
+Status: **DONE, review round 1 incorporated.** Code commits `967aade` + the round-1
+one-liner, on `e2e-settings-helper-dry`, tree clean, all gates green.
 If you are rehydrating after this point there is nothing outstanding except closing the ticket.
+
+## Review round 1 (verdict was READY / 0 blocking) — what I did
+
+One line: `settingsUxVisual.e2e.ts:265` `harness.saveGlobalView({nodeCap:42})` →
+`harness.setGlobalNodeCap(42)`. VERIFIED SAFE FIRST, do not re-litigate:
+`setGlobalNodeCap` is a bare delegation to `saveGlobalView({nodeCap})` with **zero**
+extra side effects, so the serial spec's left-behind state is unchanged. (The sibling
+setters are NOT like this — `setNodePreviewPreference` adds `refreshOpenViews()`,
+`setMaxNodeSizePx` adds a `readGlobalView()`. That asymmetry is why the check mattered.)
+
+All four NITs REJECTED with rationale in `IMPLEMENTATION_ITERATION__PUBLIC.md`; the
+reviewer had marked them "no iteration required" and none survives a 80/20 test.
+
+Round-1 gates: check exit 0; vitest 990/74 exit 0; **e2e 79 passed / 1 skipped / exit 0**
+(re-run because an `*.e2e.ts` was touched — matches baseline exactly).
+Logs `.tmp/iter-{check,vitest,e2e}.log`.
 
 ## Exact command invocations used
 

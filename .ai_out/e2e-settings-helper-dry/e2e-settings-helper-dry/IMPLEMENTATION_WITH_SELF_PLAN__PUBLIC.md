@@ -1,7 +1,14 @@
 # IMPLEMENTATION_WITH_SELF_PLAN__PUBLIC — settings-e2e DRY refactor
 
-Ticket: `nid_g4iae40tww9abtwrexdrvic0y_e`. Branch `e2e-settings-helper-dry`, one commit
-`967aade`. Tree clean.
+Ticket: `nid_g4iae40tww9abtwrexdrvic0y_e`. Branch `e2e-settings-helper-dry`. Tree clean.
+Code: `967aade` + a one-line review-round-1 follow-up.
+
+> **Review round 1 (verdict READY, 0 blocking) is incorporated.** The single ⚠️ item was
+> taken: `settingsUxVisual.e2e.ts:265` now calls `harness.setGlobalNodeCap(42)` instead of
+> the raw `saveGlobalView({ nodeCap: 42 })`. Verified behavior-identical before swapping —
+> `setGlobalNodeCap` is a bare delegation with no extra side effect. All four NITs were
+> evaluated and rejected. Details + re-run gate numbers:
+> [`IMPLEMENTATION_ITERATION__PUBLIC.md`](./IMPLEMENTATION_ITERATION__PUBLIC.md).
 
 ---
 
