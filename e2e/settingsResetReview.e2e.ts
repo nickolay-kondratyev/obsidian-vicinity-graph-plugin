@@ -2,6 +2,11 @@ import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import * as fs from "node:fs";
 import { ObsidianHarness, PLUGIN_ID } from "./obsidianHarness";
+import {
+	ALL_SETTINGS_RESET_CONFIRM_TITLE,
+	EVERY_SETTINGS_RESET_NAME,
+	SETTINGS_TAB_SECTIONS,
+} from "./settingsBaseline";
 
 /**
  * UI_IMPLEMENTATION_REVIEW spec for the restore-defaults affordances
@@ -78,7 +83,7 @@ async function openSettingsTab(): Promise<void> {
 		app.setting.open();
 		app.setting.openTabById(pluginId);
 	}, PLUGIN_ID);
-	await expect(page.locator(".vicinity-graph-settings-section")).toHaveCount(6);
+	await expect(page.locator(".vicinity-graph-settings-section")).toHaveCount(SETTINGS_TAB_SECTIONS.length);
 }
 
 function card(headingText: string): Locator {
@@ -193,15 +198,7 @@ test("REVIEW: every reset control has a distinct accessible name", async () => {
 		.locator(".vicinity-graph-settings button")
 		.evaluateAll((els) => els.map((el) => el.getAttribute("aria-label")));
 	const resetNames = names.filter((name): name is string => name?.startsWith("Restore") === true);
-	expect(resetNames).toEqual([
-		"Restore depth defaults",
-		"Restore node sizing defaults",
-		"Restore node contents defaults",
-		"Restore force layout defaults",
-		"Restore node exclusion defaults",
-		"Restore performance defaults",
-		"Restore all Vicinity Graph settings",
-	]);
+	expect(resetNames).toEqual(EVERY_SETTINGS_RESET_NAME);
 	expect(new Set(resetNames).size).toBe(resetNames.length);
 });
 
@@ -267,7 +264,7 @@ test("REVIEW: confirm modal — Escape is non-destructive and Cancel holds initi
 	await dirtyEverySection();
 	await page.locator(".vicinity-graph-settings-reset-all button").click();
 	const modal = page.locator(".modal-container").last();
-	await expect(modal).toContainText("Restore all Vicinity Graph settings?");
+	await expect(modal).toContainText(ALL_SETTINGS_RESET_CONFIRM_TITLE);
 	const focused = await page.evaluate(() => document.activeElement?.textContent ?? "");
 	expect(focused).toBe("Cancel");
 	await page.screenshot({ path: `${OUT_DIR}/confirm-modal-focus.png` });
@@ -280,7 +277,7 @@ test("REVIEW: confirm modal — keyboard-only confirm restores everything", asyn
 	await openSettingsTab();
 	await dirtyEverySection();
 	await page.locator(".vicinity-graph-settings-reset-all button").click();
-	await expect(page.locator(".modal-container").last()).toContainText("Restore all Vicinity Graph settings?");
+	await expect(page.locator(".modal-container").last()).toContainText(ALL_SETTINGS_RESET_CONFIRM_TITLE);
 	// Tab from Cancel → confirm, then activate with the keyboard only.
 	await page.keyboard.press("Tab");
 	const focused = await page.evaluate(() => document.activeElement?.textContent ?? "");

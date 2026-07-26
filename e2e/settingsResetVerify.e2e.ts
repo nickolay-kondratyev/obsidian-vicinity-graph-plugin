@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import * as fs from "node:fs";
 import { ObsidianHarness, PLUGIN_ID } from "./obsidianHarness";
+import { ALL_SETTINGS_RESET_NAME, SETTINGS_TAB_SECTIONS } from "./settingsBaseline";
 
 /**
  * UI_IMPLEMENTATION_REVIEW iteration-1 verification, kept as the complement to
@@ -56,7 +57,7 @@ async function openSettingsTab(): Promise<void> {
 		app.setting.open();
 		app.setting.openTabById(pluginId);
 	}, PLUGIN_ID);
-	await expect(page.locator(".vicinity-graph-settings-section")).toHaveCount(6);
+	await expect(page.locator(".vicinity-graph-settings-section")).toHaveCount(SETTINGS_TAB_SECTIONS.length);
 }
 
 function card(headingText: string): Locator {
@@ -162,7 +163,7 @@ test("VERIFY: tab-wide description names the survivors and never says 'this tab'
 	const text = (await footer.textContent()) ?? "";
 	expect(text).toContain("Per-note depth overrides and pinned notes are kept.");
 	expect(text).not.toContain("this tab");
-	expect(text).toContain("Restore all Vicinity Graph settings");
+	expect(text).toContain(ALL_SETTINGS_RESET_NAME);
 
 	await setTheme("moonstone");
 	await footer.scrollIntoViewIfNeeded();

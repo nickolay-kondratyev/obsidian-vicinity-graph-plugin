@@ -2,6 +2,13 @@ import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import * as fs from "node:fs";
 import { ObsidianHarness, PLUGIN_ID } from "./obsidianHarness";
+import {
+	ALL_SETTINGS_RESET_CONFIRM_TITLE,
+	CONTROLS_PANEL_DISCLOSURES,
+	SECTION_RESET_NAMES,
+	SETTINGS_TAB_SECTION_HEADINGS,
+	SETTINGS_TAB_SECTIONS,
+} from "./settingsBaseline";
 
 /**
  * Settings-ux-improvements feature spec: asserts the controls panel's default
@@ -51,11 +58,16 @@ async function setOpen(details: Locator, open: boolean): Promise<void> {
 
 test("panel defaults: every section is a disclosure, only Depth starts open", async () => {
 	await setOpen(toolbar(), true);
-	await expect(disclosure("Depth").first()).toHaveAttribute("open", "");
-	await expect(disclosure("Node exclusion")).not.toHaveAttribute("open", "");
-	await expect(disclosure("Node sizing")).not.toHaveAttribute("open", "");
-	await expect(disclosure("Node contents")).not.toHaveAttribute("open", "");
-	await expect(disclosure("Force layout").first()).not.toHaveAttribute("open", "");
+	for (const { summaryText, startsOpen, summaryAlsoMatchesAnAncestor } of CONTROLS_PANEL_DISCLOSURES) {
+		// `.first()` per entry, never uniformly — see PanelDisclosure's field doc.
+		const details = summaryAlsoMatchesAnAncestor ? disclosure(summaryText).first() : disclosure(summaryText);
+		const openState = expect(details, `panel disclosure=[${summaryText}]`);
+		if (startsOpen) {
+			await openState.toHaveAttribute("open", "");
+		} else {
+			await openState.not.toHaveAttribute("open", "");
+		}
+	}
 	await page.screenshot({ path: `${OUT_DIR}/panel-default-open.png` });
 });
 
@@ -119,15 +131,20 @@ test("force layout: 7 sliders, live write, restore defaults", async () => {
 	await expect(repel).toHaveValue(defaultRepel);
 });
 
-test("settings tab renders six framed section cards with plugin CSS applied", async () => {
+test("settings tab renders one framed card per section, headed and with plugin CSS applied", async () => {
 	await page.evaluate((pluginId) => {
 		const app = (window as any).app;
 		app.setting.open();
 		app.setting.openTabById(pluginId);
 	}, PLUGIN_ID);
 	const sections = page.locator(".vicinity-graph-settings-section");
-	// Depth defaults, node sizing, node contents, force layout, node exclusion, performance.
-	await expect(sections).toHaveCount(6);
+	await expect(sections).toHaveCount(SETTINGS_TAB_SECTIONS.length);
+	// The headings, not just the count: a card that lost or renamed its heading
+	// still counts. This is what makes the shared baseline load-bearing rather
+	// than a prose comment nobody updates.
+	await expect(sections.locator(".setting-item-heading .setting-item-name")).toHaveText(
+		SETTINGS_TAB_SECTION_HEADINGS,
+	);
 	// The framed-card border proves settings-tab.css reached the settings DOM.
 	const borderStyle = await sections.first().evaluate((el) => getComputedStyle(el).borderTopStyle);
 	expect(borderStyle).toBe("solid");
@@ -158,16 +175,9 @@ async function openSettingsTab(): Promise<void> {
 test("settings tab: every section card ends with its own scoped restore row", async () => {
 	await openSettingsTab();
 	const resets = page.locator(".vicinity-graph-settings-section .vicinity-graph-settings-reset");
-	await expect(resets).toHaveCount(6);
+	await expect(resets).toHaveCount(SECTION_RESET_NAMES.length);
 	// Scope must be readable from the row itself — no bare "Restore defaults".
-	await expect(resets.locator(".setting-item-name")).toHaveText([
-		"Restore depth defaults",
-		"Restore node sizing defaults",
-		"Restore node contents defaults",
-		"Restore force layout defaults",
-		"Restore node exclusion defaults",
-		"Restore performance defaults",
-	]);
+	await expect(resets.locator(".setting-item-name")).toHaveText(SECTION_RESET_NAMES);
 	await page.screenshot({ path: `${OUT_DIR}/settings-tab-resets-light.png` });
 });
 
@@ -250,7 +260,7 @@ test("settings tab: restore-all asks first, then resets every section", async ()
 	// `.last()`: the settings window is itself a `.modal-container`; the confirm
 	// dialog stacks on top of it.
 	const modal = page.locator(".modal-container").last();
-	await expect(modal).toContainText("Restore all Vicinity Graph settings?");
+	await expect(modal).toContainText(ALL_SETTINGS_RESET_CONFIRM_TITLE);
 	await page.screenshot({ path: `${OUT_DIR}/settings-tab-restore-all-confirm.png` });
 	await modal.getByRole("button", { name: "Cancel" }).click();
 	// Cancel must be a true no-op.
