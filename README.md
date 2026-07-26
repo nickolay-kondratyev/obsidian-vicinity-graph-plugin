@@ -291,10 +291,12 @@ everything above behaves exactly as before.
 > ⚠️ **Caveat — use a scratch or backed-up vault. The run is not read-only.**
 > The harness never deletes, copies over or writes files into the vault, but
 > Obsidian and the plugins do:
-> - `.obsidian/workspace.json` is rewritten (the graph opens in the right
->   sidebar and detaches the other sidebar leaves), and because the harness
->   ends Obsidian with a signal it can be left **truncated to 0 bytes** — i.e.
->   your saved layout for that vault is lost.
+> - Obsidian rewrites its own config in that vault (observed:
+>   `.obsidian/workspace.json`, `.obsidian/core-plugins.json`).
+>   `workspace.json` is rewritten because the graph opens in the right sidebar
+>   and detaches the other sidebar leaves — and because the harness ends
+>   Obsidian with a signal, it can be left **truncated to 0 bytes**, i.e. your
+>   saved layout for that vault is lost.
 > - The plugin writes its own `.obsidian/plugins/vicinity-graph/data.json`.
 > - Turning on community plugins is required to load anything at all, so
 >   **every community plugin enabled in that vault loads and runs** (Templater,

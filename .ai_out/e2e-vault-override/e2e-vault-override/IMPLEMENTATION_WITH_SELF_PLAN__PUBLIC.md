@@ -1,6 +1,35 @@
 # IMPLEMENTATION (self-plan) — `VICINITY_E2E_VAULT` (ticket nid_se3h2v45c10x9j42utbm8v2sn_e)
 
-Branch `e2e-vault-override`. Commits: `8b1c026` (feature), `debb1d7` (fix found by real verification).
+Branch `e2e-vault-override`. Commits: `8b1c026` (feature), `debb1d7` (fix found by real
+verification), `3b42b81` (review round 1: B1 + S1–S5).
+
+## Review round 1 — disposition (all 6 INCORPORATED, none rejected)
+
+| # | Disposition |
+|---|---|
+| **B1** opt-in | **Fixed** as suggested. New `LaunchOptions.allowExternalVault` + pure `assertExternalLaunchAllowed()` in `vaultTarget.ts` (it now owns BOTH external-mode refusals: no opt-in, and no `extraFixtures`). `externalVault.e2e.ts` is the sole opt-in caller. 4 new unit tests. **Verified live**: `VICINITY_E2E_VAULT=… run-e2e.sh settingsResetVerify.e2e.ts` now fails *before Obsidian launches* with the actionable message. The optional `run-e2e.sh` spec-filter default was **skipped** — the throw already blocks it at the only place that matters, and defaulting a spec filter would silently change what `test:e2e` runs. |
+| **S1** false WHY-NOT | **Fixed** in `vaultTarget.ts` (`assertExternalVaultReady` doc), `obsidianHarness.ts` (`waitForAlreadyEnabledPlugin` doc) and the README. Honest reason recorded: `setEnable(true)` only loads what the vault already lists, and we refuse to load plugin code (which writes `data.json`/`doc-data/`) into a vault where the human has not enabled it. |
+| **S2** consequence, not rejected option | **Fixed**: the comment now says "ACCEPTED CONSEQUENCE — every community plugin enabled in that vault loads and runs"; the README caveat gained the same sentence. |
+| **S3** guard under-scoped | **Fixed**: the scan is now an ALLOWLIST of read-only `fs` members over every `e2e/*.ts` (the test file itself excluded — it builds scratch vaults on purpose), with per-member destination arg positions (`cpSync`→arg2, `renameSync`→both), a balanced-paren arg splitter, an assertion that no scanned file imports `node:fs/promises`, and a test proving the scan REPORTS an injected `fs.unlinkSync(path.join(target.vaultDir, …))`. Safe roots are `VAULT_COPY_DIR`/`SANDBOX_CONFIG_DIR`/`OUT_DIR` (the last is `.out/`, where every spec already screenshots). Doc comment states the node-side-only scope. |
+| **S4** symlink recipe | **Fixed**: README + the error message now symlink `main.js`/`manifest.json`/`styles.css` individually, never the repo root. `doc-data/` added to `.gitignore` as belt-and-braces. |
+| **S5** truncation caveat | **Fixed**: folded into the README caveat, which now also names `core-plugins.json` (observed in this round's scratch run). Graceful-close-before-SIGKILL was **not** implemented — out of scope for this ticket and it would touch the shared shutdown path used by the green default suite. |
+
+NITs: added the WHY-NOT line about `target.copyDir` vs the `VAULT_COPY_DIR` constant.
+`~` expansion and the import-time scratch dir were left alone (cosmetic, and moving the
+scratch dir into `beforeAll` buys nothing for a file that needs it in every test).
+
+### Round-1 verification (all observed)
+
+`npm test` **green 985 tests** (was 979; +6). `npm run check`, `tsc -p e2e/tsconfig.json`,
+`npm run build` — green. `bash scripts/run-e2e.sh` (var unset) — **71 passed / 1 skipped /
+1 failed**, the failure being the same accepted pre-existing gamma-breadcrumb test
+(`.tmp/e2e-default-r2.log`). Scratch-vault run with the new flag — **1 passed**,
+`.out/external-vault-graph.png` regenerated; afterwards the vault's plugin dir held only
+the 3 symlinks, `community-plugins.json` was unchanged, and the repo working tree was
+clean (no `doc-data/` leak).
+
+---
+*(Original round-0 record below.)*
 
 ## What changed
 

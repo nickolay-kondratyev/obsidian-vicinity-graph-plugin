@@ -1,6 +1,23 @@
 # IMPLEMENTATION (self-plan) — VICINITY_E2E_VAULT — working notes
 
-STATUS: **DONE**. Commits `8b1c026` (feature) + `debb1d7` (setEnable fix) on `e2e-vault-override`.
+STATUS: **DONE, review round 1 addressed**. Commits `8b1c026` (feature), `debb1d7`
+(setEnable fix), `3b42b81` (B1 + S1–S5) on `e2e-vault-override`.
+
+## Round 1 notes
+- B1 gate lives in `vaultTarget.ts::assertExternalLaunchAllowed` (pure ⇒ unit-testable
+  without launching Obsidian). `LaunchOptions` moved there too, so the harness imports
+  the type rather than declaring it.
+- Reviewer decompiled Obsidian 1.12.7 and CONFIRMED `setEnable(true)` writes only
+  `localStorage["enable-plugin-<appId>"]`; the vault writer is `enablePluginAndSave`
+  (via `saveConfig` → `writeConfigJson("community-plugins", …)`). Our exploration doc and
+  my round-0 comments said `enablePlugin` was the writer — wrong, now corrected in code.
+- Source-scan gotcha: `fs.cpSync(target.sourceDir, VAULT_COPY_DIR, …)`'s arg1 is a READ
+  source, so destination arg positions are per-member (`DESTINATION_ARG_INDICES`).
+  `OUT_DIR` had to join the safe roots — 5 existing specs `fs.mkdirSync(OUT_DIR, …)`.
+- Live proof of the gate: `VICINITY_E2E_VAULT=… bash scripts/run-e2e.sh
+  settingsResetVerify.e2e.ts` → throws before spawn (`.tmp/e2e-refuse.log`).
+- Scratch-vault install now uses per-artifact symlinks; Obsidian additionally created
+  `core-plugins.json` in the target vault (added to the README caveat).
 Working tree clean apart from these `.ai_out/` docs. See `IMPLEMENTATION_WITH_SELF_PLAN__PUBLIC.md`
 for decisions/verification; this file holds the rehydration details.
 
