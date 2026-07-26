@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-26T15:30:54Z
 id: nid_w8co2gp7cok2a2hwwsm88brfo_e
 title: "Edge routing via libavoid-js (obstacle-avoiding edges for all layouts, force-directed first)"
-status: open
+status: closed
 deps: []
 links: [nid_o1f05i1pu3lgkmaxpbaj13x3x_e, nid_54ura771jb1b82dah6macdqvj_e]
 created_iso: 2026-07-22T15:57:36Z
-status_updated_iso: 2026-07-22T15:57:36Z
+status_updated_iso: 2026-07-26T15:30:54Z
 type: epic
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
@@ -122,3 +123,9 @@ Phase summaries below are kept for overview; the child tickets are the source of
 - `esbuild.config.mjs` — wasm base64 loader + bundling
 - `docs-internal/vicinity-graph-specs/arrows.md` — edge spec to keep updated
 
+
+## Notes
+
+**2026-07-26T15:30:54Z**
+
+Closing: delivered. All four child phases are closed; routing ships in src/view/edgeRouting.ts (EdgeRouter/LibavoidEdgeRouter), is wired post-layout with caching + failure containment in src/view/GraphViewController.ts:234-281, and renders via routedPoints in src/view/VicinityEdge.tsx:45,62-65. The on/off setting was intentionally dropped for always-on with a tunable edgeRoutingClearancePx (src/engine/SettingsSpec.ts:294). The epic's original layered/radial scope was superseded by the closed force-layout-only child.

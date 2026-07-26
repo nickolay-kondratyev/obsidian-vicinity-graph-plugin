@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-26T15:30:54Z
 id: nid_oa8qzdnnz8lqx1bbwcxsyjnmz_E
 title: "Hover pin button blankets tiny nodes and eats the open-click"
-status: resolved
+status: closed
 deps: []
 links: []
 created_iso: 2026-07-21T00:04:22Z
-status_updated_iso: 2026-07-21T01:30:00Z
+status_updated_iso: 2026-07-26T15:30:54Z
 type: bug
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
@@ -49,3 +50,9 @@ Severity: minor/edge-case for real users (they rarely click ~20px nodes; they zo
 
 Workaround already in place: the e2e interaction tests now click on the ALPHA graph (3 large nodes) instead of note1's dense graph.
 
+
+## Notes
+
+**2026-07-26T15:30:54Z**
+
+Closing: fix is in the tree — .vicinity-graph-pin-button is display:none + pointer-events:none by default, revealed only under @container (min-height: 72px), and pointer-events:auto only on node hover / :focus-visible (src/view/graph-view.css:274-313). Ticket had been left at status 'resolved'; normalizing to closed.

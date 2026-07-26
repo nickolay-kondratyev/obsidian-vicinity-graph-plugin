@@ -1,6 +1,6 @@
 ---
 id: nid_niz5dz6uqeyv237ckm15ittqa_e
-title: "Expose or remove orphan settings groupByFolder and edgeVisibility"
+title: "[decide] Expose or remove orphan settings groupByFolder and edgeVisibility"
 status: open
 deps: []
 links: [nid_3k0a4zl6in0mj8lcjibkjq2dx_e, nid_abreq4lmpo8vnvf61y9k9yly0_e, nid_8p0nn2g34d97finokwlz3u1dt_e]
@@ -22,3 +22,9 @@ Context: .ai_out/settings-ux-improvements/settings/EXPLORATION_PUBLIC.md
 
 - Either both settings are user-changeable through the UI and covered by tests, or the fields (and their persistence) are removed.
 
+
+## Notes
+
+**2026-07-26T15:30:39Z**
+
+[decide] Product fork the human must resolve: ship real UI controls for groupByFolder + edgeVisibility, or delete the fields and their persistence. Materially different scope. Verified still open: both persist (src/engine/types.ts:307-308) and are read (src/engine/VicinityEngine.ts:92, src/view/flowMapping.ts:166) but have no interaction case in src/view/settingsWritePlan.ts:28-49 and no control anywhere.

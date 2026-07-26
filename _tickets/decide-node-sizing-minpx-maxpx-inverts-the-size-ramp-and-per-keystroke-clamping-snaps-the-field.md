@@ -1,6 +1,6 @@
 ---
 id: nid_hatwq2jlkhno5t6awcz0q6t9q_e
-title: "node sizing: minPx > maxPx inverts the size ramp, and per-keystroke clamping snaps the field"
+title: "[decide] node sizing: minPx > maxPx inverts the size ramp, and per-keystroke clamping snaps the field"
 status: open
 deps: []
 links: []
@@ -24,3 +24,9 @@ Two follow-ups raised in the iteration-1 implementation review of branch `sizing
 - Typing a multi-digit out-of-range value no longer snaps the field mid-keystroke.
 - `npm run check` and `npm test` green.
 
+
+## Notes
+
+**2026-07-26T15:30:38Z**
+
+[decide] Needs a human UX call before implementation: (a) inverted minPx>maxPx — silently normalize (auto-swap / clamp maxPx up) vs. visibly reject with validation UI; (b) commit timing — clamp-on-blur vs. accept out-of-range text locally and clamp on commit. Both choices apply to TWO surfaces (src/view/SizingSection.tsx and src/view/VicinityGraphSettingTab.ts addSizingNumber) and must be consistent. Verified still open: src/engine/constants.ts clampSizingSettings clamps minPx/maxPx independently.

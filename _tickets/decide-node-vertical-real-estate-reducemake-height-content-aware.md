@@ -1,6 +1,6 @@
 ---
 id: nid_s773ums7z92dkgzcqmpksdnt4_e
-title: "Node vertical real-estate: reduce/make height content-aware"
+title: "[decide] Node vertical real-estate: reduce/make height content-aware"
 status: open
 deps: []
 links: []
@@ -20,3 +20,9 @@ WHEN nodes start rendering richer content (thumbnails, attachment strips, snippe
 
 Context dir: .ai_out/node-real-estate/node-real-estate-sizing/ (EXPLORATION_PUBLIC.md has the file:line map).
 
+
+## Notes
+
+**2026-07-26T15:30:39Z**
+
+[decide] Needs a human call: the ticket is conditional ('WHEN nodes render richer content') and names two competing designs — content-aware shrink-to-fit vs. simply lowering the height range in the sizing spec. The second weakens the size-as-importance signal. Verified still open: height is engine-driven via nodeDimensionsPx (src/view/flowMapping.ts:188), content gated by container queries in src/view/graph-view.css:232,237.

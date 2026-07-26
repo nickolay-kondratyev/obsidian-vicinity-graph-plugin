@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-26T15:30:54Z
 id: nid_6ussqlms9b5eqryjrmxsqktos_E
 title: "Vicinity rename: view-type string changed — reopen stale panes in existing dev vaults"
-status: open
+status: closed
 deps: []
 links: []
 created_iso: 2026-07-21T16:31:36Z
-status_updated_iso: 2026-07-21T16:31:36Z
+status_updated_iso: 2026-07-26T15:30:54Z
 type: chore
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
@@ -23,3 +24,9 @@ Close once the maintainer has refreshed their local dev vault(s).
 
 Local dev vault(s) re-provisioned under the vicinity-graph plugin id; Vicinity Graph view opens cleanly; no stale obsidian-neighborhood-graph plugin folder remains.
 
+
+## Notes
+
+**2026-07-26T15:30:54Z**
+
+Closing: the rename landed (manifest.json id=vicinity-graph; VIEW_TYPE_VICINITY_GRAPH='vicinity-graph-view' in src/view/VicinityGraphView.tsx:18) and .dev-vault/.obsidian/plugins contains only vicinity-graph — no stale obsidian-neighborhood-graph folder. Old strings survive only in historical .ai_out/ docs. Caveat: vaults outside this repo cannot be verified here; reopening a stale pane there is a one-off manual step, not tracked work.

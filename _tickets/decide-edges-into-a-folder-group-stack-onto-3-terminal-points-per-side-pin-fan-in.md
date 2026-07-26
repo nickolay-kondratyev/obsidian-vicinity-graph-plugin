@@ -1,6 +1,6 @@
 ---
 id: nid_g1zb4b06gew54gnwcn5hx237j_e
-title: "edges into a folder group stack onto 3 terminal points per side (pin fan-in)"
+title: "[decide] edges into a folder group stack onto 3 terminal points per side (pin fan-in)"
 status: open
 deps: []
 links: []
@@ -45,3 +45,9 @@ Prefer 1 if perf allows; it keeps the fix inside the routing model instead of pa
 - No route terminates at a group CENTRE.
 - `npm run check` and `npm test` green.
 
+
+## Notes
+
+**2026-07-26T15:30:39Z**
+
+[decide] Gated on a subjective visual judgement only the maintainer can make: with the now-existing fixture (e2e/edgeRouting.e2e.ts:31,55 — 'facing' folder group approached by 12 edges), is the 3-pins-per-side stacking objectionable on screen? If yes, second decision: more boundary pins (src/view/edgeRouting.ts BOUNDARY_PIN_SPECS:250-262) vs. a render-time spread heuristic in src/view/edgeGeometry.ts. If no, close as measured non-issue.

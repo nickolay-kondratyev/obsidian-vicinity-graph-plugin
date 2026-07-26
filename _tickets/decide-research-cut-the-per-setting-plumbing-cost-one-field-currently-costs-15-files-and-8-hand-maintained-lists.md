@@ -1,6 +1,6 @@
 ---
 id: nid_8p0nn2g34d97finokwlz3u1dt_e
-title: "RESEARCH: cut the per-setting plumbing cost — one field currently costs ~15 files and ~8 hand-maintained lists"
+title: "[decide] RESEARCH: cut the per-setting plumbing cost — one field currently costs ~15 files and ~8 hand-maintained lists"
 status: open
 deps: []
 links: [nid_3k0a4zl6in0mj8lcjibkjq2dx_e, nid_niz5dz6uqeyv237ckm15ittqa_e, nid_abreq4lmpo8vnvf61y9k9yly0_e]
@@ -129,3 +129,9 @@ Start by re-deriving the touch-point list from the actual source (do not trust t
 
 1) A written comparison of the options with the measured per-field cost before/after each. 2) A single recommended direction with explicit rationale, and explicit rejection rationale for the others (including why NOT to build a full settings framework if that is the call). 3) Confirmation the recommendation preserves every constraint listed in the description. 4) Follow-up implementation tickets created for the chosen direction, split so each fits one agent's context. 5) An explicit statement of which of the three existing symptom tickets the recommendation resolves, and which it does not.
 
+
+## Notes
+
+**2026-07-26T15:30:39Z**
+
+[decide] Research can be executed by an agent, but CLOSING it requires the owner to pick among options A-E, which differ hugely in blast radius (compile-time completeness guards vs. a field-descriptor rewrite vs. accepting the cost). No research artifact exists yet; the three linked symptom tickets are all still open.

@@ -1,6 +1,6 @@
 ---
 id: nid_r8lm69vcsybjkgffqyrfex6j1_e
-title: "edge routing: EdgeRouter.route() has no typed error channel"
+title: "[decide] edge routing: EdgeRouter.route() has no typed error channel"
 status: open
 deps: []
 links: [nid_eim1ftv60ybxzcucgf7rf4gk8_e]
@@ -32,3 +32,9 @@ Weigh honestly against 80/20: the ONLY consumer today is one catch block that lo
 
 Either a typed failure channel exists and GraphViewController branches meaningfully on it, OR the ticket is closed with a written rationale for keeping the untyped channel.
 
+
+## Notes
+
+**2026-07-26T15:30:39Z**
+
+[decide] The ticket itself lists three materially different outcomes — discriminated RoutingFailure result type, thrown error subclasses, or close as WONTFIX (explicitly acceptable). Human must pick. Verified still open: src/view/edgeRouting.ts:65 returns Promise<EdgeRouteMap>; GraphViewController.resolveRoutes (src/view/GraphViewController.ts:256-281) uses a plain try/catch + warn-once latch.
