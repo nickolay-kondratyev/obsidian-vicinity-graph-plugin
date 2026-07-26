@@ -35,6 +35,18 @@ const OUT_DIR = path.join(REPO_ROOT, ".out");
 /** Detour ratios are raw floats (1.2843901…); trim them so the eval lines stay scannable. */
 const DETOUR_RATIO_DIGITS = 3;
 
+/** The dev-vault canvas in the `sparse` fixture's vicinity. See {@link ensureCanvasFixtureIsIndexed}. */
+const CANVAS_FIXTURE_PATH = "test.canvas";
+/** Generous bound on Obsidian re-indexing ONE touched file (measured: sub-second). */
+const CANVAS_INDEX_TIMEOUT_MS = 20_000;
+
+/** How often the settle poll re-reads the captured-log count. */
+const SETTLE_POLL_INTERVAL_MS = 250;
+/** No new routing/layout log for this long ⇒ the rebuild burst for this fixture is over. */
+const SETTLE_QUIET_MS = 1_500;
+/** Upper bound on the whole settle (slowest observed burst: dense, ~2s of logs). */
+const SETTLE_TIMEOUT_MS = 30_000;
+
 interface PerfEntry {
 	readonly kind: "routing" | "layout";
 	readonly data: {
@@ -90,6 +102,7 @@ test.beforeAll(async () => {
 	page = harness.page;
 	page.on("console", onConsole);
 	await harness.openGraphView();
+	await ensureCanvasFixtureIsIndexed();
 	await setAllEdgesVisibility();
 	fs.mkdirSync(OUT_DIR, { recursive: true });
 });
@@ -97,6 +110,57 @@ test.beforeAll(async () => {
 test.afterAll(async () => {
 	await harness?.close();
 });
+
+/**
+ * Precondition for a DETERMINISTIC `sparse` readout: get `test.canvas` into Obsidian's
+ * link index before anything is measured.
+ *
+ * WHY: the plugin re-detects its canvas link source on every rebuild from
+ * `metadataCache.resolvedLinks` (`src/adapters/ObsidianLinkProvider.create` →
+ * `CanvasCapabilityDetector`), and the two regimes disagree about ONE edge — the
+ * wikilink inside the canvas's TEXT node (`test.canvas → note2.md`), which core
+ * indexing reports and `CanvasFallbackParser` deliberately skips. So an unindexed
+ * canvas silently turns the sparse row into 10-or-11 noise.
+ *
+ * WHY-NOT just wait for the key: measured over 8 launches, Obsidian's boot sweep indexed
+ * this canvas in only half of them, and in the misses it NEVER did — polling 60s past a
+ * fully settled 165-key index still found no `.canvas` key. Re-writing the file is what
+ * makes the index take it (2/2 on misses), so the wait below is a genuine condition on
+ * observed state rather than a hopeful sleep.
+ *
+ * The plugin-side regime split is a product question tracked in its own ticket
+ * (`nid_s676x55uojmtcwh9t4l9mc6zl_e`); this helper only pins the MEASUREMENT to the
+ * settled, fully-indexed state.
+ *
+ * SAFETY — this is the suite's ONLY vault write, and it can never touch a human's vault:
+ * `ObsidianHarness.launch()` is called here WITHOUT `allowExternalVault`, so under
+ * `VICINITY_E2E_VAULT` `assertExternalLaunchAllowed` (`e2e/vaultTarget.ts`) throws before
+ * Obsidian is even connected — this spec only ever reaches a throwaway `.dev-vault` copy
+ * under `.tmp/e2e/vault`. That launch gate is why the harness's "no fixture writes in
+ * override mode" invariant still holds, and WHY-NOT a local `test.skip` guard: it would
+ * silently skip where every other non-opt-in spec fails loudly with an actionable message.
+ */
+async function ensureCanvasFixtureIsIndexed(): Promise<void> {
+	await page.evaluate(async (canvasPath) => {
+		const app = (window as unknown as { app: any }).app;
+		if (Object.keys(app.metadataCache.resolvedLinks).includes(canvasPath)) {
+			return;
+		}
+		const file = app.vault.getAbstractFileByPath(canvasPath);
+		if (file === null) {
+			throw new Error(`Canvas fixture missing from the e2e vault: path=[${canvasPath}]`);
+		}
+		// A trailing newline is a no-op for the canvas JSON but IS a real content change,
+		// so Obsidian re-reads the file and indexes its links.
+		await app.vault.modify(file, `${await app.vault.read(file)}\n`);
+	}, CANVAS_FIXTURE_PATH);
+	await page.waitForFunction(
+		(canvasPath) =>
+			Object.keys((window as unknown as { app: any }).app.metadataCache.resolvedLinks).includes(canvasPath),
+		CANVAS_FIXTURE_PATH,
+		{ timeout: CANVAS_INDEX_TIMEOUT_MS },
+	);
+}
 
 async function setAllEdgesVisibility(): Promise<void> {
 	await page.evaluate(async (pluginId) => {
@@ -107,44 +171,132 @@ async function setAllEdgesVisibility(): Promise<void> {
 }
 
 /**
- * Opens `centralPath`, waits for the graph to render, and returns the perf entries
- * captured during THIS rebuild. Bounces through another note first so re-opening the
- * central file is a real active-file change (a same-path open is a no-op that would
- * not re-run the pipeline).
+ * Opens `centralPath`, waits for the graph to settle, and returns the metrics of the
+ * settled rebuild — cross-checked against what is actually on screen. Bounces through
+ * another note first so re-opening the central file is a real active-file change (a
+ * same-path open is a no-op that would not re-run the pipeline).
  */
-async function renderFixture(centralPath: string): Promise<PerfEntry[]> {
+async function renderFixture(centralPath: string): Promise<EvalMetrics> {
 	pendingPerf = [];
 	await harness.openFile(BOUNCE_PATH);
 	await harness.openFile(centralPath);
 	await expect(page.locator(EDGE_PATH_SELECTOR).first()).toBeAttached();
-	// Fixed settle window that exceeds the SLOWEST layout (force on the dense fixture
-	// is ~1.5s) so its trailing routing pass is logged before we read the entries.
-	// Deliberately a fixed wait, not a condition poll: this is an EVAL/measurement
-	// spec (see file header), not a gating regression, and the timing/screenshot
-	// readout has no crisp DOM signal to poll on — a generous fixed window keeps it
-	// simple. The committed perf-BUDGET assertion below has a ~10x margin, so this is
-	// not timing-brittle.
-	await page.waitForTimeout(4500);
+	await waitForRebuildBurstToSettle(centralPath);
 	const entries = (await Promise.all(pendingPerf)).filter((e): e is PerfEntry => e !== null);
-	return entries;
+	const metrics = settledMetrics(entries);
+	await assertMetricsDescribeRenderedGraph(metrics, centralPath);
+	return metrics;
 }
 
-/** Fresh rebuild's routing/layout durations + routing input scale and detour ratios. */
-function lastDurations(entries: PerfEntry[]): EvalMetrics {
-	// Pick the HEAVIEST pass of each kind (max input size), not the last: a rebuild
-	// sequence includes the small bounce-note pass whose trailing log can otherwise
-	// mask the dense central-file pass we actually want to measure.
-	const heaviest = (kind: PerfEntry["kind"], sizeOf: (e: PerfEntry) => number): PerfEntry | undefined =>
-		entries
-			.filter((e) => e.kind === kind)
-			.sort((a, b) => sizeOf(b) - sizeOf(a))[0];
-	const routing = heaviest("routing", (e) => e.data.obstacleCount ?? 0);
+/** Layout passes in log order; the FIRST is the bounce note's. See {@link waitForRebuildBurstToSettle}. */
+function layoutsOf(entries: readonly PerfEntry[]): readonly PerfEntry[] {
+	return entries.filter((entry) => entry.kind === "layout");
+}
+
+/**
+ * Condition-driven settle, replacing a fixed sleep: opening a note fires several rebuilds
+ * (the immediate `file-open` one, then the 500ms-debounced `metadataCache "resolved"` one),
+ * each logging a layout and a routing pass, and the LAST of them is the settled graph.
+ *
+ * Two conditions, both required:
+ * 1. a layout STRICTLY LARGER than the first one has been logged. {@link renderFixture}
+ *    bounces through `note2.md`, whose vicinity is the smallest graph in this spec, so a
+ *    bigger layout can only be the central fixture's. WHY-NOT count layouts instead: the
+ *    bounce open fires "several rebuilds" exactly as described above, so a fixed count is
+ *    satisfiable by bounce passes alone. Quiescence alone is not enough either: the dense
+ *    fixture's elk layout takes ~1.5s, and the silence while it runs looks exactly like the
+ *    end of the burst (observed: the dense row reporting the 3-obstacle bounce pass).
+ * 2. no further pass for {@link SETTLE_QUIET_MS}, so a trailing debounced rebuild is in.
+ *
+ * ASSUMES the central rebuild is STRUCTURAL, so elk actually runs and logs. When
+ * `decideLayout` returns `reuse-layout` (`src/view/GraphViewController.ts`), the pass is
+ * skipped and a different, unmatched line is logged — condition 1 could then never be met,
+ * which is what the throw below spells out.
+ */
+async function waitForRebuildBurstToSettle(centralPath: string): Promise<void> {
+	const deadline = Date.now() + SETTLE_TIMEOUT_MS;
+	let seenCount = -1;
+	let unchangedSince = Date.now();
+	let captured: readonly PerfEntry[] = [];
+	while (Date.now() < deadline) {
+		captured = (await Promise.all(pendingPerf)).filter((e): e is PerfEntry => e !== null);
+		const layouts = layoutsOf(captured);
+		const bounceNodeCount = layouts[0]?.data.nodeCount ?? 0;
+		const centralFixtureLaidOut = layouts.some((entry) => (entry.data.nodeCount ?? 0) > bounceNodeCount);
+		if (captured.length !== seenCount) {
+			seenCount = captured.length;
+			unchangedSince = Date.now();
+		} else if (centralFixtureLaidOut && Date.now() - unchangedSince >= SETTLE_QUIET_MS) {
+			return;
+		}
+		await new Promise((tick) => setTimeout(tick, SETTLE_POLL_INTERVAL_MS));
+	}
+	const layoutSizes = layoutsOf(captured).map((entry) => entry.data.nodeCount);
+	throw new Error(
+		`Rebuild burst never settled for central=[${centralPath}]: expected an elk+d3 layout pass LARGER than ` +
+			`the bounce note's, then ${SETTLE_QUIET_MS}ms of quiet. Saw capturedPasses=[${captured.length}] ` +
+			`layoutNodeCounts=[${layoutSizes.join(", ")}].\n` +
+			"If the layout list is empty or never grows past its first entry, the central rebuild probably took " +
+			"GraphViewController's `reuse-layout` path (logged as 'structural diff skipped elk layout'), which " +
+			"emits no pass for this settle to observe.",
+	);
+}
+
+/**
+ * The published pass must describe the graph that is actually ON SCREEN. Without this, a
+ * mis-settled readout (the tiny bounce pass, or a half-warmed rebuild) would quietly print
+ * a wrong `[eval]` row — the exact silent failure this spec exists to not have.
+ */
+async function assertMetricsDescribeRenderedGraph(metrics: EvalMetrics, centralPath: string): Promise<void> {
+	const renderedEdgeCount = await page.locator(EDGE_PATH_SELECTOR).count();
+	if (metrics.edgeCount !== renderedEdgeCount) {
+		throw new Error(
+			`Settled routing pass does not describe the rendered graph, so the readout would be wrong: ` +
+				`central=[${centralPath}] reportedEdges=[${metrics.edgeCount}] renderedEdges=[${renderedEdgeCount}]`,
+		);
+	}
+}
+
+/**
+ * The passes at the maximum input size, in log order — the HEAVIEST pass of a kind, not
+ * the last: a rebuild sequence includes the small bounce-note pass whose trailing log
+ * would otherwise mask the dense central-file pass we actually want to measure.
+ */
+function heaviestPasses(
+	entries: readonly PerfEntry[],
+	kind: PerfEntry["kind"],
+	sizeOf: (entry: PerfEntry) => number,
+): readonly PerfEntry[] {
+	const ofKind = entries.filter((entry) => entry.kind === kind);
+	const maxSize = Math.max(...ofKind.map(sizeOf), 0);
+	return ofKind.filter((entry) => sizeOf(entry) === maxSize);
+}
+
+/** The SETTLED pass at the maximum input size: later passes supersede earlier ones. */
+function lastOf(passes: readonly PerfEntry[]): PerfEntry | undefined {
+	return passes[passes.length - 1];
+}
+
+/** Settled rebuild's routing/layout durations + routing input scale and detour ratios. */
+function settledMetrics(entries: PerfEntry[]): EvalMetrics {
+	const routingPasses = heaviestPasses(entries, "routing", (entry) => entry.data.obstacleCount ?? 0);
+	// Same-sized passes reporting DIFFERENT edge counts mean the graph was still changing,
+	// so any single one of them is an arbitrary readout. Fail loudly rather than let a
+	// stable-sort accident decide which number gets published (the 10-vs-11 flake).
+	const edgeCounts = new Set(routingPasses.map((entry) => entry.data.edgeCount));
+	if (edgeCounts.size > 1) {
+		throw new Error(
+			"Routing passes at the same obstacle count disagree on edgeCount, so the readout would be " +
+				`arbitrary: obstacles=[${routingPasses[0]?.data.obstacleCount}] edgeCounts=[${[...edgeCounts].join(", ")}]`,
+		);
+	}
+	const routing = lastOf(routingPasses);
 	return {
 		routingMs: routing?.data.durationMs,
-		layoutMs: heaviest("layout", (e) => e.data.nodeCount ?? 0)?.data.durationMs,
+		layoutMs: lastOf(heaviestPasses(entries, "layout", (entry) => entry.data.nodeCount ?? 0))?.data.durationMs,
 		obstacleCount: routing?.data.obstacleCount,
 		edgeCount: routing?.data.edgeCount,
-		// Same heaviest routing entry, so cost and quality always describe ONE pass.
+		// Same settled routing entry, so cost and quality always describe ONE pass.
 		maxDetourRatio: routing?.data.maxDetourRatio,
 		meanDetourRatio: routing?.data.meanDetourRatio,
 	};
@@ -177,8 +329,7 @@ const FORCE_FIXTURES: ReadonlyArray<{ readonly label: string; readonly central: 
 
 for (const { label, central } of FORCE_FIXTURES) {
 	test(`force layout routes the ${label} fixture and captures a screenshot`, async () => {
-		const entries = await renderFixture(central);
-		const metrics = lastDurations(entries);
+		const metrics = await renderFixture(central);
 		console.log(`[eval] force/${label}: ${formatMetrics(metrics)}`);
 		await screenshot(`force-${label}`);
 		await expect(page.locator(EDGE_PATH_SELECTOR).first()).toBeAttached();
@@ -189,8 +340,7 @@ test("PERF BUDGET: on the dense fixture the routing pass stays well under the el
 	// Force is the ONLY layout: routing (~140ms) must stay comfortably under the
 	// elk+d3 layout (~1460ms) on the ~100-node/~292-edge dense fixture. Routing is
 	// unconditional, so this budget covers every render the plugin performs.
-	const entries = await renderFixture("zzdense-hub.md");
-	const metrics = lastDurations(entries);
+	const metrics = await renderFixture("zzdense-hub.md");
 	const { routingMs, layoutMs } = metrics;
 	console.log(`[eval] PERF dense/force: ${formatMetrics(metrics)}`);
 	expect(routingMs, "routing pass duration was logged").toBeGreaterThanOrEqual(0);

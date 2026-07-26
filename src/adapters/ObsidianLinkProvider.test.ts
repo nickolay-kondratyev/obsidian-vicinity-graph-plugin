@@ -137,6 +137,41 @@ describe("ObsidianLinkProvider canvas handling", () => {
 	});
 });
 
+/**
+ * CHARACTERIZATION, not endorsement: the two canvas regimes do NOT agree, and which one
+ * a rebuild lands in is decided per build from a racing `metadataCache.resolvedLinks`
+ * (`ObsidianLinkProvider.create` → `CanvasCapabilityDetector`). These two tests pin the
+ * exact difference — a wikilink inside a canvas TEXT node — so it is visible in `npm test`
+ * instead of only as an e2e flake. WHICH behaviour is correct is a product decision,
+ * tracked in ticket `nid_s676x55uojmtcwh9t4l9mc6zl_e`; neither test asserts a preference.
+ */
+describe("ObsidianLinkProvider canvas TEXT-node wikilinks (the two regimes disagree)", () => {
+	// GIVEN one canvas with a FILE node pointing at note-a and a TEXT node whose body
+	// carries a `[[note-b]]` wikilink.
+	const files = [
+		{ path: "note-a.md" },
+		{ path: "note-b.md" },
+		{
+			path: "board.canvas",
+			content:
+				'{"nodes": [{"type": "file", "file": "note-a.md"}, {"type": "text", "text": "see [[note-b]]"}]}',
+		},
+	];
+
+	it("WHEN the canvas is NOT core-indexed THEN the text-node wikilink produces no edge (fallback V1 scope)", async () => {
+		const provider = await providerOver({ files, resolvedLinks: { "note-a.md": {} } });
+		expect(provider.getOutgoingLinks(asVaultPath("board.canvas"))).toEqual(["note-a.md"]);
+	});
+
+	it("WHEN the canvas IS core-indexed THEN the text-node wikilink produces an edge (core reports it)", async () => {
+		const provider = await providerOver({
+			files,
+			resolvedLinks: { "board.canvas": { "note-a.md": 1, "note-b.md": 1 } },
+		});
+		expect(provider.getOutgoingLinks(asVaultPath("board.canvas"))).toEqual(["note-a.md", "note-b.md"]);
+	});
+});
+
 describe("ObsidianLinkProvider file metadata", () => {
 	const spec: FakeObsidianSpec = {
 		files: [
