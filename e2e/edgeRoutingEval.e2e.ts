@@ -3,7 +3,7 @@ import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import type { ConsoleMessage, Page } from "@playwright/test";
-import { ObsidianHarness, PLUGIN_ID } from "./obsidianHarness";
+import { ObsidianHarness } from "./obsidianHarness";
 
 /**
  * Evaluation harness for edge routing — NOT a tight regression (that is
@@ -103,7 +103,8 @@ test.beforeAll(async () => {
 	page.on("console", onConsole);
 	await harness.openGraphView();
 	await ensureCanvasFixtureIsIndexed();
-	await setAllEdgesVisibility();
+	// `all-edges` so sibling chords render and genuinely load the router.
+	await harness.setEdgeVisibility("all-edges");
 	fs.mkdirSync(OUT_DIR, { recursive: true });
 });
 
@@ -160,14 +161,6 @@ async function ensureCanvasFixtureIsIndexed(): Promise<void> {
 		CANVAS_FIXTURE_PATH,
 		{ timeout: CANVAS_INDEX_TIMEOUT_MS },
 	);
-}
-
-async function setAllEdgesVisibility(): Promise<void> {
-	await page.evaluate(async (pluginId) => {
-		const app = (window as unknown as { app: any }).app;
-		const store = app.plugins.plugins[pluginId].pluginDataStore;
-		await store.saveGlobalView({ ...store.globalView(), edgeVisibility: "all-edges" });
-	}, PLUGIN_ID);
 }
 
 /**

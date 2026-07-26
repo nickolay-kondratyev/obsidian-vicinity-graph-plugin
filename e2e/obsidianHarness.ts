@@ -12,6 +12,8 @@ import {
 	vaultDirOf,
 } from "./vaultTarget";
 import type { DevVaultCopyTarget, LaunchOptions, VaultTarget } from "./vaultTarget";
+// Type-only, so it is erased at transpile — the pure engine barrel never loads in the node-side test process.
+import type { EdgeVisibilityMode } from "../src/engine";
 
 /**
  * Launches a REAL Obsidian (Electron) on a throwaway copy of `.dev-vault`,
@@ -334,6 +336,26 @@ export class ObsidianHarness {
 				await store.saveGlobalView({ ...globalView, sizing: { ...globalView.sizing, maxPx: px } });
 			},
 			{ pluginId: PLUGIN_ID, px: maxPx },
+		);
+	}
+
+	/**
+	 * Sets the global edge-visibility mode through the plugin's own persistence API
+	 * (mirrors {@link setGlobalNodeCap}). `all-edges` is what makes SIBLING links
+	 * render, which the routing suites need — the default `walked-from-center` shows
+	 * only the radial star, whose edges never cross.
+	 *
+	 * WHY-NOT fan out to open views like {@link setNodePreviewPreference}: callers set
+	 * this BEFORE opening the central file, so the next rebuild already picks it up.
+	 */
+	async setEdgeVisibility(mode: EdgeVisibilityMode): Promise<void> {
+		await this.page.evaluate(
+			async ({ pluginId, value }) => {
+				const app = (window as unknown as { app: any }).app;
+				const store = app.plugins.plugins[pluginId].pluginDataStore;
+				await store.saveGlobalView({ ...store.globalView(), edgeVisibility: value });
+			},
+			{ pluginId: PLUGIN_ID, value: mode },
 		);
 	}
 
