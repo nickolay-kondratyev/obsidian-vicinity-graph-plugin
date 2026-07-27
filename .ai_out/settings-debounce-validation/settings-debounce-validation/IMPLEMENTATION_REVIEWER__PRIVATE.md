@@ -1,39 +1,52 @@
-# IMPLEMENTATION_REVIEWER — PRIVATE (round 1)
+# IMPLEMENTATION_REVIEWER — PRIVATE (cumulative: rounds 1–2)
 
-Reviewed commits `489b281..8fd9647` on `settings-debounce-validation`. Public output:
-`IMPLEMENTATION_REVIEW__PUBLIC.md` (same dir).
+Branch `settings-debounce-validation`. Public outputs: `IMPLEMENTATION_REVIEW__PUBLIC.md` (r1),
+`IMPLEMENTATION_REVIEW_ROUND2__PUBLIC.md` (r2).
 
-## Verification actually performed
-- `npm test` → 1038 passed / 78 files, exit 0 (`.tmp/review-test.log`).
-- `npm run check` → clean src + e2e, exit 0 (`.tmp/review-check.log`).
-- Read in full: `settingsDebounce.ts`, `settingsValidation.ts`, `VicinityGraphSettingTab.ts`,
-  both new test files, the `settingsWritePlan.test.ts` delta, `constants.ts`/`settings-tab.css`/
-  `README.md` deltas, `PathExclusionMatcher.ts`, `sizingInput.ts`, `PluginDataStore.ts`,
-  the two `[decide]` tickets.
-- Checked for removed tests / anchor points via `git diff main...HEAD -- src/ | grep '^-'`: only the
-  code moved into `settingsValidation.ts`. Clean.
-- No `sanity_check.sh` in repo (confirmed).
+## Round 1 (commits `489b281..8fd9647`) — summary
 
-## Reasoning behind the severity calls (for round 2)
-- **Decay-k cross-contamination (SF1)**: verified by reading `addSizingNumber` — the cross-field
-  check runs for all three rows. Not BLOCKING because the user can still repair the pair via the
-  min/max rows, and it needs an already-inverted store (only reachable via hand-edit /
-  `SizingSection.tsx`). Still the sharpest real bug on the branch.
-- **Test vacuity (SF2)**: the two `elapse()` tests `await flush()` right after, so a no-op scheduler
-  would keep them green. This is the one I would push hardest on — AC #1 is otherwise unpinned.
-- **Flush-time re-validation (SF3)**: narrow in practice (blur-flush + synchronous in-memory
-  `PluginDataStore.persist`), but one line and the code already claims the invariant.
-- **Silent clamp (SF5)**: pre-existing, and it is item 2 of `nid_hatwq2jlkhno5t6awcz0q6t9q_e`.
-  Deliberately NOT called a regression; ticket is an acceptable resolution.
-- Considered and rejected as findings: shared-window design (documented trade-off), keying by visible
-  row name (unique, documented), `drop()` not cancelling the window (harmless), `Number(raw)` for
-  node cap (`""`→0 correctly rejected by the `>= MIN_NODE_CAP` guard).
+0 BLOCKING, 5 SHOULD-FIX, 4 CONSIDER, 3 NIT. `npm test` 1038/78, `npm run check` clean.
+Must-fixes: SF1 decay-k cross-contamination, SF2 vacuous debounce-timer tests, SF3 no flush-time
+re-validation. Considered-and-rejected as findings: keying by visible row name (unique, documented),
+`drop()` not cancelling the window (harmless), `Number(raw)` for node cap (`""`→0 caught by the
+`>= MIN_NODE_CAP` guard).
 
-## If asked for round 2
-Re-check: (a) decay-k row no longer carries the min/max verdict; (b) a test that proves the timer
-alone writes; (c) thunk-side re-validation. Everything else can ride as tickets.
+## Round 2 (commits `7207d02`, `09c8360`) — VERDICT: READY TO MERGE
+
+10 verified fixed, 2 rejections accepted (C9 shared window — my own r1 note said no action; NIT12
+untracked ticket file — implementer was told not to touch it), 0 disputed, 0 new findings.
+AC verdicts moved 1:PARTIAL→MET, 2:PARTIAL→MET, 5:PARTIAL→MET; 3 and 4 stayed MET.
+
+### Verification actually performed in r2 (do not re-derive)
+- `npm test` → **1053 / 79 files, exit 0** (`.tmp/r2-test.log`); `npm run check` → clean, exit 0
+  (`.tmp/r2-check.log`).
+- **I ran the sabotage checks MYSELF** rather than trusting the disposition table. Method: `git archive
+  HEAD | tar -x -C .tmp/sabotage`, symlink `node_modules`, patch with python, `npx vitest run`.
+  `.tmp/sabotage` deleted afterwards; repo `src/` never touched (verified with `git status` mid-run).
+  - S1 `CROSS_FIELD_ROWS` += `depthDecayK` → `sizingRowWrite.test.ts` fails (exit 1).
+  - S2 `restartWindow()` → early-return no-op → exactly the 2 `elapse()` tests fail, ~1.0 s each
+    (the `TIMER_TEST_TIMEOUT_MS` guard works). **SF2 is genuinely non-vacuous.**
+  - S3 drop the re-check in `persistIfAccepted` → 2 tests fail incl. "the flushed write persists NOTHING".
+- Removals audit `git diff d905a6d..HEAD -- src/ | grep '^-'`: only moved code + the 2 rewritten
+  (strengthened, same names) debounce tests. No deletions, no weakening, no anchors.
+- Confirmed `settlePendingWrites()` precedes **every** `this.display()` site (`:321/:327`, `:406/:413`,
+  `applyReset :713/:719`), and that `flush()` chains on `draining` so overlapping flushes are ordered.
+- Confirmed the cap message is computed with the SAME `clampSizingSettings` that
+  `settingsWritePlan.ts:107` applies → the warning cannot lie about the stored value.
+  `NODE_SIZE_PX_BOUNDS = {min:1, max:400}` shared by `minPx`/`maxPx`.
+
+### Judgement calls made in r2 (rationale, if challenged)
+- `sizingRowWrite.ts` is NOT added ceremony: the double-verdict (keystroke + flush) is the real reason
+  it exists, and it is the only way SF1/3/5 became unit-testable given the tab has no harness.
+- Deliberately did NOT open a nitpick round. One observation left as no-action: `judge()` applies the
+  cross-field rule to the RAW typed value before the cap notice, so `minPx=500` vs stored `maxPx=400`
+  is refused although clamping (500→400) would make it valid. Conservative + honest message ⇒ fine.
+- SF5 was allowed to be a ticket; the implementer fixed it instead. Accepted as better than asked.
+
+## Left for the human (called out publicly, not blocking)
+- Untracked `_tickets/nodes-in-groups-folder-to-be-tighther-together.md` (pre-existing; commit or delete).
+- `[decide]` tickets: `nid_9jiira82snkh7bgy8zv060c9r_e` (engine-level cross-field guard) and
+  `nid_hatwq2jlkhno5t6awcz0q6t9q_e` (`SizingSection.tsx` still clamps silently / snaps mid-keystroke).
 
 ## Working tree
-Wrote only the two artifact files here plus `.tmp/review-*.log`. Did not touch `src/`.
-Pre-existing untracked `_tickets/nodes-in-groups-folder-to-be-tighther-together.md` was already
-there before this review — left alone, flagged as NIT 12.
+Wrote only this file + `IMPLEMENTATION_REVIEW_ROUND2__PUBLIC.md` and `.tmp/r2-*.log`. `src/` untouched.
