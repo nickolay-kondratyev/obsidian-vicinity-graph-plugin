@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-27T19:00:41Z
 id: nid_9k11zke41l6ze3p7n7suuo4v2_e
 title: "Settings tab: avoid full display() rebuild for dependent rows"
-status: open
+status: closed
 deps: []
 links: []
 created_iso: 2026-07-24T21:44:19Z
-status_updated_iso: 2026-07-24T21:44:19Z
+status_updated_iso: 2026-07-27T19:00:41Z
 type: task
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
