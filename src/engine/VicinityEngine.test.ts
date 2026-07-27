@@ -3,8 +3,8 @@ import { EngineDefaults } from "./constants";
 import { FakeLinkProvider } from "./FakeLinkProvider";
 import type { GraphBuildRequest } from "./VicinityEngine";
 import { VicinityEngine } from "./VicinityEngine";
-import type { VicinityGraph, PinnedNodeDescriptor } from "./types";
-import { asDocId, asVaultPath } from "./types";
+import type { NodePreviewPreference, VicinityGraph, PinnedNodeDescriptor } from "./types";
+import { asDocId, asVaultPath, NODE_PREVIEW_PREFERENCES } from "./types";
 
 /**
  * GIVEN a small "vault": MAIN hub.md with two neighbors (one attachment-heavy),
@@ -327,5 +327,26 @@ describe("VicinityEngine outline pass-through", () => {
 			globalView: EngineDefaults.viewSettings(),
 		});
 		expect(graph.nodes.find((candidate) => candidate.path === "cover.md")?.imagePrecedesOutline).toBe(true);
+	});
+});
+
+/**
+ * The `ViewSettingsResolver -> NodeSizer` seam counterpart of the invariant
+ * pinned in `NodeSizer.test.ts`: only `viewSettings.sizing` may reach sizing.
+ * Someone routing `viewSettings` wholesale into a new size metric surfaces HERE,
+ * and every preview-pill flip would then force a relayout instead of the
+ * data-only refresh it promises.
+ */
+describe("VicinityEngine sizing ignores the node preview preference", () => {
+	it("WHEN two builds differ ONLY in nodePreviewPreference THEN every node's sizePx is identical", () => {
+		const sizesUnderPreference = (preference: NodePreviewPreference) =>
+			build({
+				globalView: { ...EngineDefaults.viewSettings(), nodePreviewPreference: preference },
+			}).nodes.map((candidate) => ({ path: candidate.path, sizePx: candidate.sizePx }));
+
+		const baseline = sizesUnderPreference(NODE_PREVIEW_PREFERENCES[0]);
+		// Keyed by preference so a failure names the offending value.
+		const actual = Object.fromEntries(NODE_PREVIEW_PREFERENCES.map((p) => [p, sizesUnderPreference(p)]));
+		expect(actual).toEqual(Object.fromEntries(NODE_PREVIEW_PREFERENCES.map((p) => [p, baseline])));
 	});
 });

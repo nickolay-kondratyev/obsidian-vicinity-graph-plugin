@@ -5,8 +5,8 @@ import type { FakeVaultSpec } from "./FakeLinkProvider";
 import { VicinityTraversal } from "./VicinityTraversal";
 import type { NodeSize } from "./NodeSizer";
 import { DepthDecayMetric, NodeSizer } from "./NodeSizer";
-import type { SizeMetricId, SizingSettings, VaultPath } from "./types";
-import { asVaultPath } from "./types";
+import type { NodePreviewPreference, SizeMetricId, SizingSettings, VaultPath, ViewSettings } from "./types";
+import { asVaultPath, NODE_PREVIEW_PREFERENCES } from "./types";
 
 /** Sizing settings with exactly the given metrics enabled (weight 1 unless given). */
 function sizingWith(enabled: Partial<Record<SizeMetricId, number>>, depthDecayK = 1): SizingSettings {
@@ -305,5 +305,44 @@ describe("NodeSizer central sizing", () => {
 			["main.md", "island.md"],
 		);
 		expect(score(sizes, "island.md")).toBe(1);
+	});
+});
+
+/**
+ * CLARIFICATION requirement 3 of `node-content-preference`: flipping the node
+ * preview pill re-renders node CONTENT only. If `sizePx` ever moved with the
+ * preference, every flip would cross `SIZE_RELAYOUT_THRESHOLD` and force a full
+ * relayout instead of the data-only refresh the pill promises.
+ *
+ * WHY-NOT in `GraphStructureDiff.test.ts`: that fixture hands `decideLayout` its
+ * sizes, so a coupling introduced INSIDE the sizer slips straight past it. The
+ * invariant belongs where `sizePx` is produced.
+ *
+ * To make this bite rather than pass vacuously, the settings object handed to
+ * `computeSizes` deliberately CARRIES the preference: a future sizer that widens
+ * its parameter to read it goes red here instead of shipping.
+ */
+describe("NodeSizer node preview preference independence", () => {
+	// GIVEN a hub whose neighbours differ in file size, so sizes actually spread
+	const spec: FakeVaultSpec = {
+		files: [
+			{ path: "m.md", sizeBytes: 10 },
+			{ path: "a.md", sizeBytes: 5000 },
+			{ path: "b.md", sizeBytes: 0 },
+		],
+		links: { "m.md": ["a.md", "b.md"], "b.md": ["a.md"] },
+	};
+
+	function sizesUnderPreference(preference: NodePreviewPreference): readonly NodeSize[] {
+		const viewSettings: ViewSettings = { ...EngineDefaults.viewSettings(), nodePreviewPreference: preference };
+		const settings = { ...viewSettings.sizing, nodePreviewPreference: viewSettings.nodePreviewPreference };
+		return [...sizeAll(spec, settings, ["m.md"]).values()];
+	}
+
+	it("WHEN only nodePreviewPreference varies THEN every node keeps the same sizeScore and sizePx", () => {
+		const baseline = sizesUnderPreference(NODE_PREVIEW_PREFERENCES[0]);
+		// Keyed by preference so a failure names the offending value.
+		const actual = Object.fromEntries(NODE_PREVIEW_PREFERENCES.map((p) => [p, sizesUnderPreference(p)]));
+		expect(actual).toEqual(Object.fromEntries(NODE_PREVIEW_PREFERENCES.map((p) => [p, baseline])));
 	});
 });

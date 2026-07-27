@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-27T17:19:16Z
 id: nid_f8csd65emmy6p62ad9x5w1psz_e
 title: "Pin the sizePx-independence invariant where sizePx is computed (node preview must not resize a node)"
-status: open
+status: closed
 deps: []
 links: []
 created_iso: 2026-07-25T03:51:51Z
-status_updated_iso: 2026-07-25T03:51:51Z
+status_updated_iso: 2026-07-27T17:19:16Z
 type: task
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
