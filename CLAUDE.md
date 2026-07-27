@@ -48,3 +48,4 @@ Redirect verbose build/test output to `.tmp/` to conserve context.
 - Preserve `ap_XXX_E` anchor identifiers; don't remove anchor points or behavior-capturing tests without explicit alignment.
 - Spot issues outside your task → file a `docs-internal/tickets/` ticket, don't silently patch.
 - Temp files → `$PWD/.tmp/`. Test screenshots → `.out/` (never source-controlled).
+- `obsidian` typings are pinned to the floor (`1.12.3`, nearest published npm version ≤ `minAppVersion` 1.12.4), never `latest` — a newer tag's `@deprecated` may describe an API still live on the floor, so verify against the pinned e2e build (1.12.7) before deleting a call.
