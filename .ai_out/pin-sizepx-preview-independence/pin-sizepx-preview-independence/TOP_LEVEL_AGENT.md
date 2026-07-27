@@ -7,14 +7,24 @@ Branch: `pin-sizepx-preview-independence` (from `main`).
 
 ## Flow (straightforward)
 
-- [x] EXPLORATION
-- [ ] IMPLEMENTATION_WITH_SELF_PLAN
-- [ ] IMPLEMENTATION_REVIEW
-- [ ] IMPLEMENTATION_ITERATION
-- [ ] change_log entry + ticket close + merge to `main`
+- [x] EXPLORATION (`d9dcabc`)
+- [x] IMPLEMENTATION_WITH_SELF_PLAN (`16bed89`) — NodeSizer + VicinityEngine guards
+- [x] IMPLEMENTATION_REVIEW — APPROVE, 0 blocking, 2 SHOULD-FIX
+- [x] IMPLEMENTATION_ITERATION (`517b391`) — both SHOULD-FIX addressed; round-2 review: CONVERGED
+- [x] change_log entry `yx3mxxn5s3w95aizp1iv1kjmi`; ticket closed; merged to `main`
 
-## Notes
+## Outcome
 
-Acceptance: a NodeSizer-suite test composing the same node under all three
-`nodePreviewPreference` values, asserting identical `sizePx`. Must NOT live in
-`src/view/GraphStructureDiff.test.ts`.
+Three test-only guards, each mutation-verified at its own layer:
+`NodeSizer.test.ts`, `VicinityEngine.test.ts`, `flowMapping.test.ts`.
+No production code changed. 1014 tests green, `npm run check` clean.
+
+Declined: a `nodeDimensionsPx` guard in `graphIdentity.test.ts` — it takes a
+`GraphNode` with no settings, so the assertion would be `f(x) === f(x)`.
+
+## Residual risk (accepted, not ticketed)
+
+The `flowMapping` guard asserts geometry while relying on its fixture to make
+`data.preview` actually flip across preferences. Round-2 review empirically
+confirmed it does flip today; a future fixture trim could silently make the test
+vacuous. Reviewer rated this optional-only.

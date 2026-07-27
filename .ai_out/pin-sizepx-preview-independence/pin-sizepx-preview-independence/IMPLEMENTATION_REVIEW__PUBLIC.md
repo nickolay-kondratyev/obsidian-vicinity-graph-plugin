@@ -145,3 +145,82 @@ follow-up `docs-internal/tickets/` entry rather than reopening this one.
 - `GraphStructureDiff.test.ts` comment (S1) — the only doc-shaped debt.
 - No `CLAUDE.md` change warranted; this adds no new convention.
 - `change_log` entry is owned by TOP_LEVEL_AGENT per the implementation notes — still outstanding at review time.
+
+---
+
+## Round 2 — delta review of commit `517b391`
+
+**Verdict: CONVERGED. Ready to merge. 0 blocking, 0 SHOULD-FIX.**
+
+Scope: only `517b391` (the S1/S2 response). Round-1 approved material not re-litigated.
+
+### Independent verification (re-run by the reviewer)
+
+| Check | Result |
+|---|---|
+| `npm test` | exit 0 — **76 files / 1014 tests** (`.tmp/rev2-test.log`); +1 vs round 1, as claimed |
+| `npm run check` | exit 0 — strict tsc for `src/` and `e2e/` (`.tmp/rev2-check.log`) |
+| `git diff main...HEAD --stat -- src` | 4 files, **all `*.test.ts`**. Zero `src/**` production files. |
+| Working tree after my mutation replay | clean; worktree removed |
+
+### S1 — pointer comment: ACCURATE
+
+`src/view/GraphStructureDiff.test.ts:49-54` now reads "…would slip past HERE; that half is
+pinned where sizes are produced: `NodeSizer.test.ts`, `VicinityEngine.test.ts` and
+`flowMapping.test.ts`." All three named guards exist and pin what the sentence claims
+(`NodeSizer.test.ts:325`, `VicinityEngine.test.ts:340`, `flowMapping.test.ts:600`). The diff
+touches the comment only — the `decideLayout` WHY (nobody may add a `nodePreviewPreference`
+trigger) and the test body/assertion are byte-identical. Closed correctly.
+
+### S2 — new flowMapping guard: NON-TAUTOLOGICAL, mutation-confirmed
+
+I did not take the implementer's mutation on trust; I re-ran both halves in a throwaway
+worktree.
+
+1. **Fixture really flips `data.preview`** (the vacuity risk). Probe test dumping
+   `data.preview` per preference for the exact fixture:
+   `auto → ["thumbnail","none"]`, `outline → ["outline","none"]`, `image → ["thumbnail","none"]`.
+   Node `a.md` carries a renderable outline entry (level 1 ≤ `outlineMaxDepth` 2) **and**
+   `firstImagePath`, with `imagePrecedesOutline: true`, so it hits `nodePreviewKind`'s
+   preference `switch` rather than either single-sided short circuit. The mapped preview
+   genuinely changes while geometry must not — the test is not `f(x) === f(x)`.
+2. **Mutation claim credible — reproduced exactly.** Emitting
+   `nodePreviewPreference === "image" ? height + 30 : height` in the `noteNodes` map of
+   `src/view/flowMapping.ts` → `1 failed | 62 passed` in `flowMapping.test.ts`, and the single
+   failure is the new test, diffing `"height": 160 → 190` / `40 → 70` keyed under `"image"`
+   (the keyed map does buy the naming benefit N1 was rejected to preserve). Log:
+   `.tmp/rev2-mut.log`.
+
+Test quality: BDD naming, one behavior, reuses `makeGraph`/`makeNode`/`toFlow`, iterates
+`NODE_PREVIEW_PREFERENCES` so a fourth preference is covered for free, WHY block explains the
+`SIZE_RELAYOUT_THRESHOLD` stake. No behavior-capturing test or anchor removed.
+
+### Rejected NITs — both rejections REASONABLE, accepted
+
+- **N1 (self-comparing baseline entry).** Upheld. The keyed map is what produced the
+  "which preference broke it" diff I saw in the mutation run above — the rejection is
+  empirically justified, not just stylistic. Consistency across all three guards is the
+  right call.
+- **N2 (extract the `Object.fromEntries(NODE_PREVIEW_PREFERENCES.map(...))` idiom).**
+  Upheld, and the argument got *stronger* than at review time: the idiom now spans
+  `src/engine/` and `src/view/`, and a shared test helper would have no natural home without
+  coupling the two layers' test suites. Four readable lines is below the DRY threshold for
+  knowledge duplication (this is idiom, not business rule). No push-back.
+
+### Optional (do NOT block the merge)
+
+- The new test asserts geometry only; the preview-flips property it depends on lives in a
+  comment, not an assertion. If someone later trims `firstImagePath` from the fixture the test
+  silently becomes vacuous. A one-line companion assertion (or noting the flip in the WHY as a
+  *verified* fact) would make the fixture self-defending. Genuinely optional — the fixture is
+  local to the `describe`, so the blast radius is small.
+- Pedantic: `flowMapping.test.ts` is grouped under "where sizes are produced" in the S1
+  comment; it pins where sizes are *consumed into node geometry*. Harmless and arguably the
+  more useful grouping for a reader.
+
+### Still outstanding (owned by TOP_LEVEL_AGENT, unchanged from round 1)
+
+`change_log` entry, branch merge, ticket state. Also note `517b391` incidentally adds a new
+open ticket `nid_brwl5gfd2l2ephq9pdiqfkqzp_e` (nodes with images need enough space) — that is
+follow-up capture, not scope creep, and it is worth flagging that it points at behavior this
+very invariant constrains: whoever picks it up must not make `sizePx` preference-dependent.
