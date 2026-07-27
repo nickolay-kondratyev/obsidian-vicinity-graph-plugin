@@ -10,13 +10,18 @@
  * Obsidian core does for these links, and sharing the one resolution path is
  * what keeps relative paths, folder notes and shortest-path targets agreeing
  * between the canvas link regimes (ticket `nid_ygo7h95ssgmunaqsprc1zlmfh_e`).
+ * Path-shaped destinations therefore go to that resolver VERBATIM: real Obsidian
+ * accepts `./x.md` and `../folder/x.md` as-is, measured by
+ * `e2e/canvasMarkdownLinkIndexing.e2e.ts`, so no path normalisation belongs here.
  *
  * A small honest matcher, NOT a markdown parser (same spirit as
  * {@link Wikilinks}): one left-to-right pass, no code-span or escape analysis.
  * DELIBERATELY NOT HANDLED: links inside code spans/fences (harvested as if
- * they were real — ticket `nid_869bt9d9rlrbr8of1403dnmf3_e`), brackets inside
- * the label, and parentheses inside the destination — all rare enough that
- * recognising them is not worth a parser.
+ * they were real — ticket `nid_869bt9d9rlrbr8of1403dnmf3_e`), ESCAPED brackets
+ * (`\[not a link\](x.md)` is harvested though core yields nothing), brackets
+ * inside the label, and parentheses inside the destination — all rare enough
+ * that recognising them is not worth a parser. The first two OVER-match (a
+ * spurious edge), the last two UNDER-match (a missed edge).
  */
 
 /**
@@ -29,8 +34,15 @@ const INLINE_LINK_SOURCE = "!?\\[[^\\[\\]]*\\]\\(([^()]*)\\)";
 /** An angle-bracket-wrapped destination — the markdown escape hatch for spaces. */
 const ANGLE_WRAPPED_DESTINATION = /^<([^>]*)>/;
 
-/** Splits the destination from a trailing `"title"` (or `'title'`, `(title)`). */
+/** Ends a bare destination — CommonMark forbids unescaped spaces inside one. */
 const DESTINATION_TERMINATOR = /\s/;
+
+/**
+ * What may legally follow a bare destination: whitespace then a title, opened by
+ * `"`, `'` or `(`. Anything else means the "destination" simply contains a space
+ * and is therefore no link at all.
+ */
+const TITLE_START = /^\s+["'(]/;
 
 /** Ends the DOCUMENT part of a destination: a `#heading`/`#^block` subpath or a `?query`. */
 const DOCUMENT_PART_TERMINATOR = /[#?]/;
@@ -81,14 +93,25 @@ export class MarkdownInlineLinks {
 		return MarkdownInlineLinks.decoded(MarkdownInlineLinks.documentPartOf(destination)).trim();
 	}
 
-	/** The destination alone: angle brackets unwrapped, any trailing title dropped. */
+	/**
+	 * The destination alone: angle brackets unwrapped, any trailing title dropped.
+	 *
+	 * A space that does NOT open a title means the destination itself contains an
+	 * unencoded space, which CommonMark (and hence Obsidian) does not accept — so
+	 * `[a](my note.md)` is not a link. Answering `""` rather than truncating to
+	 * `my` matters: a vault may well hold a note named `my`, and an edge to the
+	 * WRONG document is worse than a missing one.
+	 */
 	private static destinationOf(parenthetical: string): string {
 		const angleWrapped = ANGLE_WRAPPED_DESTINATION.exec(parenthetical);
 		if (angleWrapped !== null) {
 			return angleWrapped[1] ?? "";
 		}
 		const terminator = parenthetical.search(DESTINATION_TERMINATOR);
-		return terminator === -1 ? parenthetical : parenthetical.slice(0, terminator);
+		if (terminator === -1) {
+			return parenthetical;
+		}
+		return TITLE_START.test(parenthetical.slice(terminator)) ? parenthetical.slice(0, terminator) : "";
 	}
 
 	private static documentPartOf(destination: string): string {

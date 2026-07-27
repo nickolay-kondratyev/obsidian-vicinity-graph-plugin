@@ -30,6 +30,18 @@ describe("MarkdownInlineLinks.linkTargetsOf", () => {
 		expect(MarkdownInlineLinks.linkTargetsOf('[a](note-b.md "Nice Title")')).toEqual(["note-b.md"]);
 	});
 
+	it("WHEN a destination carries a single-quoted title THEN only the destination is returned", () => {
+		expect(MarkdownInlineLinks.linkTargetsOf("[a](note-b.md 'Nice Title')")).toEqual(["note-b.md"]);
+	});
+
+	it("WHEN a destination carries an unencoded space THEN it names no document", () => {
+		// CommonMark: a bare (non-angle-bracketed) destination may not contain spaces,
+		// so this is not a link at all. Truncating at the space would target `my` and
+		// could manufacture an edge to the WRONG note — a phantom edge is worse than
+		// a missing one.
+		expect(MarkdownInlineLinks.linkTargetsOf("[a](my note.md)")).toEqual([]);
+	});
+
 	it("WHEN a destination carries a heading subpath THEN only the document part is returned", () => {
 		expect(MarkdownInlineLinks.linkTargetsOf("[a](note-b.md#Section)")).toEqual(["note-b.md"]);
 	});

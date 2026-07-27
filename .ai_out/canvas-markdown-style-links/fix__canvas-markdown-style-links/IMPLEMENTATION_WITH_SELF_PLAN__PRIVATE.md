@@ -27,6 +27,25 @@ diverges on exactly those cases.
    `CanvasFallbackParser` header + `CanvasReference` doc,
    `resolvedCanvasTargetsOf` doc, high-level-plan "### Canvas support".
 
+## Review iteration (round 2)
+
+Both SHOULD-FIX findings INCORPORATED. Key facts learned, so a future instance
+does not re-derive them:
+
+- **The premise is TRUE and now measured.** Real Obsidian 1.12.7, canvas text
+  node → `resolvedLinks["md-links/board.canvas"] =
+  {"md-links/target.md": 4, "md-links/spaced target.md": 1}`. Markdown-style
+  links ARE indexed, keyed by resolved path; `%20` resolves; an unencoded space
+  and an external URL yield nothing.
+- **`getFirstLinkpathDest` accepts `./x.md` and `../folder/x.md` verbatim**
+  (observed in the same spec) — so reviewer finding 4 is a non-issue and NO path
+  normalisation belongs in the matcher.
+- The observation spec launches with its OWN `extraFixtures` under `md-links/`.
+  Do NOT move those fixtures into `.dev-vault`: `vicinityGraph.e2e.ts` asserts
+  node/orphan counts to the unit and any extra vault file breaks them.
+- `expect(obj).toHaveProperty("a/b.md")` reads the DOT as a property chain —
+  assert over `Object.keys(...)` instead.
+
 ## State at exit
 
 DONE — see `IMPLEMENTATION_WITH_SELF_PLAN__PUBLIC.md` for the executed result,
