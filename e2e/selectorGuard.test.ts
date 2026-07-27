@@ -10,7 +10,7 @@ import { describe, expect, it } from "vitest";
  * release gate), so removing a rendered element, its CSS class AND its unit tests
  * in one commit keeps the fast gate green BY CONSTRUCTION while the e2e suite
  * goes red — and stays red unnoticed. This scan runs inside `npm test`: every
- * `.vicinity-graph-*` class the e2e sources assert must be produced somewhere
+ * `.vicinity-graph-*` class the e2e sources assert must be RENDERED somewhere
  * under `src/view/`. It is a pure string scan (no Obsidian, no browser,
  * milliseconds) and would have caught `998fdac` in seconds.
  *
@@ -18,9 +18,8 @@ import { describe, expect, it } from "vitest";
  * - Text / DOM-structure drift. `toHaveText("solo/Gamma")` going stale when the
  *   `solo/` title prefix is deleted is invisible here (that was the OTHER half of
  *   the same `998fdac` failure).
- * - Whether the class is actually RENDERED at runtime, in the right place, under
- *   the right conditions. A class that survives only in dead code or a stale CSS
- *   rule satisfies this scan.
+ * - Whether the class reaches the DOM at runtime, in the right place, under the
+ *   right conditions. A class surviving only in dead render code satisfies this scan.
  * - Attribute selectors, `hasText` filters, and every non-class targeting form.
  */
 
@@ -35,12 +34,12 @@ const CLASS_NAME_TAIL = "[\\w-]+";
  */
 const SELECTOR_CLASS_PATTERN = new RegExp(`\\.${OWNED_CLASS_PREFIX}${CLASS_NAME_TAIL}`, "g");
 /**
- * src side: classes appear as bare string literals with NO dot (`className="…"`,
- * Obsidian's `{ cls: "…" }`) in `.tsx`/`.ts`, and WITH a dot only in `.css` rules.
- * Matching dotless covers both — requiring the dot here would falsely report every
- * JSX-only class as missing.
+ * src side: classes appear as bare string literals with NO dot — `className="…"`
+ * in JSX, Obsidian's `{ cls: "…" }` in `VicinityGraphSettingTab.ts`. Requiring the
+ * dot here (as the e2e side does) would falsely report EVERY rendered class as
+ * missing, since only CSS rules carry it. This asymmetry is the trap.
  */
-const PRODUCED_CLASS_PATTERN = new RegExp(`${OWNED_CLASS_PREFIX}${CLASS_NAME_TAIL}`, "g");
+const RENDERED_CLASS_PATTERN = new RegExp(`${OWNED_CLASS_PREFIX}${CLASS_NAME_TAIL}`, "g");
 /**
  * ABSENCE assertions ("this class must render nowhere") name a class that SHOULD
  * be gone from `src/view/` — exempting them is the whole point, otherwise the
@@ -58,7 +57,15 @@ const PRODUCED_CLASS_PATTERN = new RegExp(`${OWNED_CLASS_PREFIX}${CLASS_NAME_TAI
  */
 const ABSENCE_ASSERTION_PATTERN = /toHaveCount\(\s*0\s*\)/;
 
-const SCANNED_SOURCE_EXTENSIONS = [".ts", ".tsx", ".css"] as const;
+/** e2e sources are all `.ts` — page objects and harness helpers included (see `E2E_DIR` scan). */
+const E2E_SOURCE_EXTENSIONS = [".ts"] as const;
+/**
+ * `.css` is deliberately NOT a producer: a stylesheet rule renders nothing, so a
+ * surviving `.vicinity-graph-node__title { … }` rule would mask the very `.tsx`
+ * deletion this guard exists to catch. Verified at introduction that all 39
+ * e2e-asserted classes appear in render code, so this costs zero false positives.
+ */
+const RENDER_SOURCE_EXTENSIONS = [".tsx", ".ts"] as const;
 
 const E2E_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.join(E2E_DIR, "..");
@@ -67,9 +74,10 @@ const VIEW_DIR = path.join(REPO_ROOT, "src", "view");
 const SELF_FILE_NAME = path.basename(fileURLToPath(import.meta.url));
 
 const OFFENDER_REMEDIATION = [
-	"An e2e spec targets a .vicinity-graph-* class that src/view/ no longer produces —",
+	"An e2e spec targets a .vicinity-graph-* class that src/view/ no longer renders —",
 	"`npm run test:e2e` would go red. Either restore the class in src/view/,",
 	"or update the e2e assertion to the class that replaced it.",
+	"A CSS rule alone does NOT count: only className/cls in .tsx/.ts renders a class.",
 	"If the class is asserted ABSENT on purpose, keep the assertion as a single chained",
 	"`expect(<locator>).toHaveCount(0)` on ONE line so this guard can exempt it.",
 ].join("\n");
@@ -82,9 +90,10 @@ interface AssertedSelectorClass {
 	readonly location: string;
 }
 
-function sourceFilesUnder(dir: string): readonly string[] {
-	return fs.readdirSync(dir, { withFileTypes: true, recursive: true })
-		.filter((entry) => entry.isFile() && SCANNED_SOURCE_EXTENSIONS.some((ext) => entry.name.endsWith(ext)))
+function sourceFilesUnder(dir: string, extensions: readonly string[]): readonly string[] {
+	return fs
+		.readdirSync(dir, { withFileTypes: true, recursive: true })
+		.filter((entry) => entry.isFile() && extensions.some((ext) => entry.name.endsWith(ext)))
 		.map((entry) => path.join(entry.parentPath, entry.name));
 }
 
@@ -105,17 +114,19 @@ function assertedSelectorClassesIn(source: string, fileLabel: string): readonly 
 	);
 }
 
-/** Owned classes a `src/view/` source produces — as JSX/`cls` literals or as CSS rules. */
-function producedClassesIn(source: string): readonly string[] {
-	return [...source.matchAll(PRODUCED_CLASS_PATTERN)].map((match) => match[0]);
+/** Owned classes a `src/view/` render source puts on an element (JSX `className`, Obsidian `cls`). */
+function renderedClassesIn(source: string): readonly string[] {
+	return [...source.matchAll(RENDERED_CLASS_PATTERN)].map((match) => match[0]);
 }
 
-const assertedSelectorClasses: readonly AssertedSelectorClass[] = sourceFilesUnder(E2E_DIR)
+const assertedSelectorClasses: readonly AssertedSelectorClass[] = sourceFilesUnder(E2E_DIR, E2E_SOURCE_EXTENSIONS)
 	.filter((file) => path.basename(file) !== SELF_FILE_NAME)
 	.flatMap((file) => assertedSelectorClassesIn(fs.readFileSync(file, "utf8"), path.relative(REPO_ROOT, file)));
 
-const producedClasses: ReadonlySet<string> = new Set(
-	sourceFilesUnder(VIEW_DIR).flatMap((file) => producedClassesIn(fs.readFileSync(file, "utf8"))),
+const renderedClasses: ReadonlySet<string> = new Set(
+	sourceFilesUnder(VIEW_DIR, RENDER_SOURCE_EXTENSIONS).flatMap((file) =>
+		renderedClassesIn(fs.readFileSync(file, "utf8")),
+	),
 );
 
 describe("e2e selector guard", () => {
@@ -123,14 +134,14 @@ describe("e2e selector guard", () => {
 		expect(assertedSelectorClasses.length).toBeGreaterThan(0);
 	});
 
-	it("WHEN scanning src/view THEN it produces at least one owned class (guard is not vacuous)", () => {
-		expect(producedClasses.size).toBeGreaterThan(0);
+	it("WHEN scanning src/view THEN it renders at least one owned class (guard is not vacuous)", () => {
+		expect(renderedClasses.size).toBeGreaterThan(0);
 	});
 
-	it("WHEN an e2e source asserts an owned class THEN src/view still produces it", () => {
+	it("WHEN an e2e source asserts an owned class THEN src/view still renders it", () => {
 		const offenders = assertedSelectorClasses
-			.filter((asserted) => !producedClasses.has(asserted.className))
-			.map((asserted) => `${asserted.location} asserts .${asserted.className}, produced nowhere under src/view/`);
+			.filter((asserted) => !renderedClasses.has(asserted.className))
+			.map((asserted) => `${asserted.location} asserts .${asserted.className}, rendered nowhere under src/view/`);
 		expect(offenders, OFFENDER_REMEDIATION).toEqual([]);
 	});
 });
@@ -179,17 +190,20 @@ describe("e2e selector guard matcher", () => {
 		]);
 	});
 
-	it("WHEN src renders a class as a dotless JSX literal THEN it counts as produced", () => {
-		expect(producedClassesIn('<div className="vicinity-graph-sizing">')).toEqual(["vicinity-graph-sizing"]);
+	it("WHEN src names a class in a dotless JSX className THEN it counts as rendered", () => {
+		expect(renderedClassesIn('<div className="vicinity-graph-sizing">')).toEqual(["vicinity-graph-sizing"]);
 	});
 
-	it("WHEN src declares a class only as a CSS rule THEN it counts as produced", () => {
-		expect(producedClassesIn(".vicinity-graph-flow { height: 100%; }")).toEqual(["vicinity-graph-flow"]);
-	});
-
-	it("WHEN src names a class via Obsidian's cls option THEN it counts as produced", () => {
-		expect(producedClassesIn('createDiv({ cls: "vicinity-graph-settings-section" })')).toEqual([
+	it("WHEN src names a class via Obsidian's cls option THEN it counts as rendered", () => {
+		expect(renderedClassesIn('createDiv({ cls: "vicinity-graph-settings-section" })')).toEqual([
 			"vicinity-graph-settings-section",
+		]);
+	});
+
+	it("WHEN one className lists several owned classes THEN every one counts as rendered", () => {
+		expect(renderedClassesIn('className="vicinity-graph-node vicinity-graph-node--pinned"')).toEqual([
+			"vicinity-graph-node",
+			"vicinity-graph-node--pinned",
 		]);
 	});
 });
