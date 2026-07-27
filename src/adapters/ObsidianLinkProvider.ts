@@ -305,10 +305,14 @@ export class ObsidianLinkProvider implements LinkProvider {
  * Resolution lives here, not in the parser, because the two reference kinds
  * resolve through different Obsidian facilities and only this layer holds them:
  * a file node's `file` is already a literal vault path (exact lookup — Obsidian
- * writes it that way), while a text-node wikilink is link TEXT and goes through
- * the SAME `getFirstLinkpathDest` resolution as a markdown body link, relative
- * to the canvas itself. That is precisely what makes the fallback regime agree
- * with the core-indexed one (ticket `nid_s676x55uojmtcwh9t4l9mc6zl_e`).
+ * writes it that way), while a text-node link is link TEXT and goes through the
+ * SAME `getFirstLinkpathDest` resolution as a markdown body link, relative to
+ * the canvas itself. That is precisely what makes the fallback regime agree
+ * with the core-indexed one (tickets `nid_s676x55uojmtcwh9t4l9mc6zl_e`,
+ * `nid_ygo7h95ssgmunaqsprc1zlmfh_e`) — markdown-style destinations included:
+ * they arrive already normalised to link text, so they share this one resolver
+ * rather than a second literal-path lookup that would diverge on relative
+ * paths, folder notes and shortest-path targets.
  */
 function resolvedCanvasTargetsOf(
 	vault: VaultPort,

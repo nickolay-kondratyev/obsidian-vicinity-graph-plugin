@@ -36,6 +36,20 @@ describe("CanvasFallbackParser on a valid canvas", () => {
 		});
 	});
 
+	it("WHEN a text node contains a markdown-style link THEN it is reported as link TEXT too", () => {
+		// A canvas text node is markdown, so core indexes `[a](b.md)` there just like a
+		// wikilink; the destination arrives normalised (decoded, no title) as link text.
+		const raw = '{"nodes": [{"type": "text", "text": "see [label](my%20note.md)"}]}';
+		expect(CanvasFallbackParser.parseReferences("board.canvas", raw)).toEqual([
+			{ kind: "text-node-link", linkText: "my note.md" },
+		]);
+	});
+
+	it("WHEN a text node's markdown-style link is external THEN it references no vault document", () => {
+		const raw = '{"nodes": [{"type": "text", "text": "see [label](https://example.com)"}]}';
+		expect(CanvasFallbackParser.parseReferences("board.canvas", raw)).toEqual([]);
+	});
+
 	it("WHEN a node is an external link node THEN it references no vault document", () => {
 		const references = CanvasFallbackParser.parseReferences("board.canvas", fixture("board.canvas"));
 		expect(JSON.stringify(references)).not.toContain("example.com");
@@ -78,7 +92,7 @@ describe("CanvasFallbackParser on degenerate shapes", () => {
 		);
 	});
 
-	it("WHEN a text node carries no wikilink THEN it contributes nothing", () => {
+	it("WHEN a text node carries no link of either syntax THEN it contributes nothing", () => {
 		const raw = '{"nodes": [{"type": "text", "text": "just prose"}]}';
 		expect(CanvasFallbackParser.parseReferences("odd.canvas", raw)).toEqual([]);
 	});

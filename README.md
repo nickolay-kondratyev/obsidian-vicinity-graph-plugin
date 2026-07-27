@@ -180,8 +180,10 @@ A node tall enough to have room shows **one** preview: either the note's
 - **No unresolved (ghost) links.**
 - **Sizing configuration is global only;** per-view sizing overrides come later.
 - **No manual node dragging persistence; layout is computed.**
-- Default **node cap is 100** (the readable ceiling); canvas text-node wikilinks
-  are skipped.
+- Default **node cap is 100** (the readable ceiling).
+- **Canvas text-node links count** — `[[wikilinks]]` and markdown-style
+  `[a](note.md)` alike — but a link written inside a **code span** in a canvas
+  text node may still produce an edge Obsidian itself would not draw.
 - **Outline entries jump to the FIRST heading with that text** — same as any
   `[[Note#Heading]]` link in Obsidian, so duplicate headings are ambiguous.
 - **`*.excalidraw.md` drawings show no outline** (they stay graph nodes; their

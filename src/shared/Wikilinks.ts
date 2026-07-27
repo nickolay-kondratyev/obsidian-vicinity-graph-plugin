@@ -7,8 +7,12 @@
  * A small honest matcher, NOT a markdown parser (same spirit as
  * `outlineEntryLabel`): one left-to-right pass, no code-span or escape
  * analysis. DELIBERATELY NOT HANDLED: `[[links]]` inside code spans/fences
- * (they are harvested as if they were real), and markdown-style `[a](b.md)`
- * links (see ticket `nid_ygo7h95ssgmunaqsprc1zlmfh_e`).
+ * (they are harvested as if they were real — ticket
+ * `nid_869bt9d9rlrbr8of1403dnmf3_e`).
+ *
+ * Wikilinks ONLY, by design — markdown-style `[a](b.md)` links are the sibling
+ * `MarkdownInlineLinks`'s job (different syntax, different rules), and canvas
+ * text-node harvesting runs both.
  */
 
 /** Wikilinks and embeds; capture group 1 is the raw inner text (`target`, `target#heading|alias`, …). */
