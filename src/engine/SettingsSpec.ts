@@ -224,9 +224,16 @@ export const SETTINGS_SPEC: SettingsSpec = {
 			 * the behavior shipped before the "Link force" slider introduced an
 			 * explicit override.
 			 *
-			 * `[0.25, 2]`: min keeps links dominant over the max center pull (see
-			 * above); above ~2 the stiff springs overshoot within the fixed-tick
-			 * static run and the layout stops converging cleanly.
+			 * `[0.25, 4]`: `min 0.25` keeps a degree-1 leaf's spring dominant over
+			 * the strongest center pull the ranges allow (see above). `max 4` is a
+			 * maintainer-chosen ceiling, NOT a measured stability limit — it was
+			 * raised 2 → 4 as a bare hand-edit in `dee64c3` with no rationale
+			 * recorded (tracked by
+			 * `docs-internal/tickets/ticket-settings-baseline-tests-stale-after-spacing-change.md`).
+			 * What IS mechanical: the factor scales d3's `1 / min(degree)`, so a
+			 * degree-1 leaf's spring strength IS the factor — past 1 the spring
+			 * over-corrects its resting distance every tick and only d3's alpha
+			 * decay settles it within the fixed-tick static run.
 			 */
 			linkStrengthFactor: { default: 1, min: 0.25, max: 4, step: 0.05 },
 			/**
