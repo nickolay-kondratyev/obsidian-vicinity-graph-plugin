@@ -21,6 +21,13 @@ import { describe, expect, it } from "vitest";
  * - Whether the class reaches the DOM at runtime, in the right place, under the
  *   right conditions. A class surviving only in dead render code satisfies this scan.
  * - Attribute selectors, `hasText` filters, and every non-class targeting form.
+ * - Class names ASSEMBLED BY INTERPOLATION on either side (`` `.vicinity-graph-node--${tier}` ``,
+ *   `className={`vicinity-graph-node--${tier}`}`). A static scan cannot know the
+ *   runtime value, so such selectors are skipped rather than guessed at.
+ * - A class name surviving only in a TRAILING `//` comment on a line of code. Whole-line
+ *   and block comments ARE stripped; mid-line `//` is not, because `//` also occurs
+ *   inside regex literals and URLs (e.g. `src/view/testFixtures/graphFixtures.ts`), and
+ *   truncating there would produce spurious REDs. This is a text scan, not a parser.
  */
 
 /** The class-name namespace this plugin owns; anything else in a selector is Obsidian's or React Flow's. */
@@ -31,8 +38,16 @@ const CLASS_NAME_TAIL = "[\\w-]+";
  * e2e side: classes appear inside SELECTOR strings, so they carry the leading dot
  * (`page.locator(".vicinity-graph-node")`). The dot is what distinguishes a
  * selector from prose, so we require it here and strip it before comparing.
+ *
+ * The trailing group captures a template-literal interpolation that the class name
+ * runs straight into: in `` `.vicinity-graph-node--${tier}` `` the tail stops at `$`,
+ * so the token is the truncated PREFIX `vicinity-graph-node--`, which nothing renders.
+ * Reporting it would be a spurious RED on a perfectly fine selector — and a tripwire
+ * that cries wolf gets deleted. Capturing the boundary lets us skip such matches.
  */
-const SELECTOR_CLASS_PATTERN = new RegExp(`\\.${OWNED_CLASS_PREFIX}${CLASS_NAME_TAIL}`, "g");
+const SELECTOR_CLASS_PATTERN = new RegExp(`\\.${OWNED_CLASS_PREFIX}${CLASS_NAME_TAIL}(\\$\\{)?`, "g");
+/** Index of `SELECTOR_CLASS_PATTERN`'s interpolation-boundary group; defined ⇔ the token is truncated. */
+const INTERPOLATION_BOUNDARY_GROUP = 1;
 /**
  * src side: classes appear as bare string literals with NO dot — `className="…"`
  * in JSX, Obsidian's `{ cls: "…" }` in `VicinityGraphSettingTab.ts`. Requiring the
@@ -57,15 +72,32 @@ const RENDERED_CLASS_PATTERN = new RegExp(`${OWNED_CLASS_PREFIX}${CLASS_NAME_TAI
  */
 const ABSENCE_ASSERTION_PATTERN = /toHaveCount\(\s*0\s*\)/;
 
+/**
+ * Comments are stripped from render sources before scanning: a class name surviving only
+ * in a WHY-NOT comment ("removed `vicinity-graph-group__label` in favour of …") would
+ * otherwise count as rendered and mask exactly the commit shape this guard exists to
+ * catch — and CLAUDE.md actively encourages writing such comments. Deliberately only the
+ * two unambiguous forms; see the "DOES NOT CATCH" note on trailing `//`.
+ */
+const BLOCK_COMMENT_PATTERN = /\/\*[\s\S]*?\*\//g;
+const WHOLE_LINE_COMMENT_PATTERN = /^[ \t]*\/\/.*$/gm;
+
 /** e2e sources are all `.ts` — page objects and harness helpers included (see `E2E_DIR` scan). */
 const E2E_SOURCE_EXTENSIONS = [".ts"] as const;
 /**
  * `.css` is deliberately NOT a producer: a stylesheet rule renders nothing, so a
  * surviving `.vicinity-graph-node__title { … }` rule would mask the very `.tsx`
- * deletion this guard exists to catch. Verified at introduction that all 39
- * e2e-asserted classes appear in render code, so this costs zero false positives.
+ * deletion this guard exists to catch. Verified at introduction that every
+ * non-exempt e2e-asserted class appears in render code, so this costs zero
+ * false positives.
  */
 const RENDER_SOURCE_EXTENSIONS = [".tsx", ".ts"] as const;
+/**
+ * A `src/view/` unit test naming a class ASSERTS it, it does not RENDER it — counting
+ * those would let a class live on in test fixtures alone and mask the guard. No unit
+ * test under `src/view/` names an owned class today, so this costs nothing.
+ */
+const UNIT_TEST_FILE_SUFFIXES = [".test.ts", ".test.tsx"] as const;
 
 const E2E_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.join(E2E_DIR, "..");
@@ -102,7 +134,14 @@ function assertedClassesOnLine(line: string): readonly string[] {
 	if (ABSENCE_ASSERTION_PATTERN.test(line)) {
 		return [];
 	}
-	return [...line.matchAll(SELECTOR_CLASS_PATTERN)].map((match) => match[0].slice(".".length));
+	return [...line.matchAll(SELECTOR_CLASS_PATTERN)]
+		.filter((match) => match[INTERPOLATION_BOUNDARY_GROUP] === undefined)
+		.map((match) => match[0].slice(".".length));
+}
+
+/** A unit test naming a class does not render it — see `UNIT_TEST_FILE_SUFFIXES`. */
+function isUnitTestFile(filePath: string): boolean {
+	return UNIT_TEST_FILE_SUFFIXES.some((suffix) => filePath.endsWith(suffix));
 }
 
 function assertedSelectorClassesIn(source: string, fileLabel: string): readonly AssertedSelectorClass[] {
@@ -116,7 +155,8 @@ function assertedSelectorClassesIn(source: string, fileLabel: string): readonly 
 
 /** Owned classes a `src/view/` render source puts on an element (JSX `className`, Obsidian `cls`). */
 function renderedClassesIn(source: string): readonly string[] {
-	return [...source.matchAll(RENDERED_CLASS_PATTERN)].map((match) => match[0]);
+	const code = source.replace(BLOCK_COMMENT_PATTERN, "").replace(WHOLE_LINE_COMMENT_PATTERN, "");
+	return [...code.matchAll(RENDERED_CLASS_PATTERN)].map((match) => match[0]);
 }
 
 const assertedSelectorClasses: readonly AssertedSelectorClass[] = sourceFilesUnder(E2E_DIR, E2E_SOURCE_EXTENSIONS)
@@ -124,9 +164,9 @@ const assertedSelectorClasses: readonly AssertedSelectorClass[] = sourceFilesUnd
 	.flatMap((file) => assertedSelectorClassesIn(fs.readFileSync(file, "utf8"), path.relative(REPO_ROOT, file)));
 
 const renderedClasses: ReadonlySet<string> = new Set(
-	sourceFilesUnder(VIEW_DIR, RENDER_SOURCE_EXTENSIONS).flatMap((file) =>
-		renderedClassesIn(fs.readFileSync(file, "utf8")),
-	),
+	sourceFilesUnder(VIEW_DIR, RENDER_SOURCE_EXTENSIONS)
+		.filter((file) => !isUnitTestFile(file))
+		.flatMap((file) => renderedClassesIn(fs.readFileSync(file, "utf8"))),
 );
 
 describe("e2e selector guard", () => {
@@ -180,6 +220,16 @@ describe("e2e selector guard matcher", () => {
 		]);
 	});
 
+	it("WHEN a selector interpolates the class TAIL THEN the truncated prefix is not reported", () => {
+		expect(assertedClassesOnLine("page.locator(`.vicinity-graph-node--${tier}`)")).toEqual([]);
+	});
+
+	it("WHEN an interpolated class shares a line with a complete one THEN only the complete one is extracted", () => {
+		expect(assertedClassesOnLine("page.locator(`.vicinity-graph-flow .vicinity-graph-node--${tier}`)")).toEqual([
+			"vicinity-graph-flow",
+		]);
+	});
+
 	it("WHEN a line asserts a class is ABSENT THEN it is exempt from the guard", () => {
 		expect(assertedClassesOnLine('await expect(page.locator(".vicinity-graph-gone")).toHaveCount(0);')).toEqual([]);
 	});
@@ -205,5 +255,25 @@ describe("e2e selector guard matcher", () => {
 			"vicinity-graph-node",
 			"vicinity-graph-node--pinned",
 		]);
+	});
+
+	it("WHEN a class survives only in a whole-line comment THEN it does NOT count as rendered", () => {
+		expect(renderedClassesIn("\t// legacy: vicinity-graph-group__label was replaced by the caption\n")).toEqual([]);
+	});
+
+	it("WHEN a class survives only in a block comment THEN it does NOT count as rendered", () => {
+		expect(renderedClassesIn("/**\n * WHY-NOT: vicinity-graph-group__label is gone.\n */\n")).toEqual([]);
+	});
+
+	it("WHEN a trailing comment follows real render code THEN the rendered class still counts", () => {
+		expect(renderedClassesIn('<div className="vicinity-graph-sizing"> // note')).toEqual(["vicinity-graph-sizing"]);
+	});
+
+	it("WHEN a src/view unit test names a class THEN that file is excluded from render sources", () => {
+		expect(isUnitTestFile("/repo/src/view/NoteNode.test.tsx")).toBe(true);
+	});
+
+	it("WHEN a src/view render source is checked THEN it is not mistaken for a unit test", () => {
+		expect(isUnitTestFile("/repo/src/view/NoteNode.tsx")).toBe(false);
 	});
 });
