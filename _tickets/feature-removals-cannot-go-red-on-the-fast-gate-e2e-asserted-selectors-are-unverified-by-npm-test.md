@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-27T14:58:00Z
 id: nid_c5acy7gm7lj3afz0vtq79k8bx_e
 title: "feature removals cannot go red on the fast gate: e2e-asserted selectors are unverified by npm test"
-status: open
+status: closed
 deps: []
 links: [nid_yccejkvl0ccqc77olsgg5deka_e]
 created_iso: 2026-07-26T16:16:00Z
-status_updated_iso: 2026-07-26T16:16:00Z
+status_updated_iso: 2026-07-27T14:58:00Z
 type: task
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
@@ -36,3 +37,15 @@ Alternative considered: run `test:e2e` in CI on every push. Correct but not chea
 **2026-07-26T16:23:42Z**
 
 Reviewer note: as written, the tripwire criteria would false-positive on the new absence guard at e2e/vicinityGraph.e2e.ts:177 (it asserts a class is ABSENT). Exempt toHaveCount(0) assertions from the check.
+
+**2026-07-27T14:58:00Z**
+
+RESOLVED on branch `e2e-selector-tripwire` — new guard `e2e/selectorGuard.test.ts` (runs under `npm test` via the existing `e2e/**/*.test.ts` glob; 20 tests, ~3ms).
+
+AC verified by mutation: renaming a class in `src/view/*.tsx` (CSS rule left intact) turns `npm test` RED, naming the class, every asserting e2e `file:line`, and the remediation. Reproduced independently by the reviewer with a different class.
+
+Deviation from the ticket text, reviewed and endorsed: producers scanned are render code (`.tsx`/`.ts`) ONLY, **not** `.css`. Empirically, a surviving CSS rule masks a `.tsx` rename, so a CSS-inclusive scan would have been GREEN on this ticket own AC. Zero currently-asserted classes are CSS-only. Trade-off documented in the guard file.
+
+Scope: scans all `e2e/**/*.ts` (including page-object helpers), so centralizing a selector into a helper cannot silently disable the guard. Absence assertions exempt via line-scoped `toHaveCount(0)`; split absence assertions fail loud with a re-chain remediation rather than being silently mis-handled. Interpolated class names are skipped (documented limit). Comments (block + whole-line) and `src/view/**/*.test.ts(x)` are excluded from render sources so they cannot mask a removal; mid-line `//` deliberately not stripped (a real fixture contains `.replace(/^.*\//, "")`).
+
+Known limits stated in the file: catches stranded SELECTORS, not stranded text/DOM structure (the `solo/` title-prefix half of the original failure is still only caught by the release gate).
