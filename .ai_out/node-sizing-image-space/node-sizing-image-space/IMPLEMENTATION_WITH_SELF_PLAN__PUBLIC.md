@@ -88,3 +88,110 @@ The floor makes image-bearing nodes at least 104px where they could previously b
 40px, so **an image-heavy vicinity lays out larger** (elk gets bigger boxes). This is
 the intended trade of the ticket, but it is a real layout-density change worth seeing
 in the dev vault.
+
+---
+
+# Iteration 2 — responding to the review
+
+**Status: DONE**, working tree only (iteration 1 is committed as `898c48f`).
+`npm test` **1093/1093 pass**, `npm run check` **clean** (`.tmp/it2-test-final.txt`,
+`.tmp/it2-check-final.txt`). `npm run test:e2e` still NOT run — see *Not verified*.
+
+Both BLOCKING items are resolved, plus S1, S2 and S4. S3 and the rendering proof
+are filed as tickets (explicitly out of scope per instruction). No change_log entry.
+
+## B1 — the floor was 18px short, so the feature was inert
+
+Confirmed independently, in real Chromium against `src/view/graph-view.css` with
+the real `NoteNode` markup (probe: `.tmp/it2-probe.mjs`). The chrome numbers were
+re-derived from the stylesheet, not taken from the review: `.vicinity-graph-node`
+is `box-sizing: border-box`, `border: 1px`, `padding: var(--size-4-2)` = 8px, and
+a size container query measures the **content** box → `content = sizePx − 18`.
+
+`src/engine/constants.ts` now composes the floor from named parts:
+
+```
+THUMBNAIL_REVEAL_CONTENT_BOX_PX = 104   (module-private: it is CSS's number)
+NODE_VERTICAL_CHROME_PX         = 2 * (1 + 8)   (exported, so the guard can pin it)
+THUMBNAIL_VISIBLE_MIN_NODE_PX   = 104 + 18 = 122
+```
+
+Measured result on the shipped CSS: thumbnail `display: none` at node height 120,
+`block` with the **full 56px slot** at 122 — i.e. the floor is now exactly the
+smallest height that works, no slack.
+
+## B2 — the guard asserted the wrong relation
+
+`src/view/thumbnailDensityThreshold.test.ts` now parses the node's own chrome out
+of the same stylesheet (`border: Npx`, `padding: var(--size-4-N)` resolved through
+Obsidian's documented `--size-4-N = N*4px` scale) and asserts
+`engine === cssThreshold + parsedChrome`, plus `NODE_VERTICAL_CHROME_PX ===
+parsedChrome` as its own case. The two strengths the reviewer credited are kept
+verbatim: the non-vacuous `REVEALS_THUMBNAIL` match and "exactly one container
+query reveals the thumbnail". It went **red** before the fix and green after.
+
+## S1 — fixed in CSS, not by inflating the floor
+
+Measured worst case (narrowest node — width is `max(sizePx, …)`, so width == height
+is the floor's own worst case — long title, chip strip, fonts 12/13/14):
+
+| node height | visible thumbnail px (slot wants 56) |
+|---|---|
+| 120 | 0 (`display: none`) |
+| 122 | **30** before / **56** after |
+| 150 | 56 before / 72 after |
+
+So "budget the title into the floor" would have meant a floor of ~150 against a
+default `maxPx` of 160 — nearly every image-bearing note pinned at maximum size.
+Instead the reveal block now **enforces** the 2 title lines its 104px budget
+always claimed to allot:
+
+```css
+.vicinity-graph-node[data-preview="thumbnail"] .vicinity-graph-node__title {
+    -webkit-line-clamp: 2;
+}
+```
+
+CSS-first per CLAUDE.md, scoped to `data-preview="thumbnail"` so the outline keeps
+its 4-line title, and it makes the 56px slot whole at *exactly* the reveal
+threshold. Trade-off, stated: a long note title is truncated at 2 lines when the
+node shows its image (the full title stays in the node's `title` tooltip) — chosen
+over a 28px-taller floor on every image node. Rejected alternative: dropping the
+title's `flex-shrink: 0` — `-webkit-line-clamp` counts lines, not pixels, so
+shrinking merely clips text mid-line.
+
+Density trade-off (unchanged in kind from iteration 1, larger in degree): image
+nodes now floor at 122px instead of a possible 40px, so image-heavy vicinities lay
+out noticeably bigger. That is the ticket's intent, but worth eyeballing in the
+dev vault.
+
+## S2 / S4 / NIT
+
+- New BDD case: *WHEN sizing settings are inverted (minPx > maxPx) THEN the floor
+  never shrinks an image node* — it bites (a naive trailing `min(_, maxPx)` returns
+  50 instead of 162).
+- `README.md` and `high-level-plan.md` now state 122px and, in the plan, spell out
+  the content-box-vs-node-height distinction and why the title is clamped.
+- NIT: the central-node test is renamed to what it actually captures
+  ("keeps the full central height"), rather than dressed up to bite.
+- Bonus: `node-outline.css`'s "would overflow a 104px node" comment carried the
+  same misconception and is corrected.
+
+## Filed instead of fixed here
+
+- `docs-internal/tickets/ticket-e2e-content-box-vs-node-height-comments.md` — S3,
+  pre-existing, out of scope by instruction.
+- `docs-internal/tickets/ticket-e2e-thumbnail-floor-rendering-proof.md` — B2's
+  requested rendering proof. **Judgment call:** `npm run test:e2e` needs a real
+  Obsidian and cannot run here, and an e2e written blind is a coin flip on the
+  release gate — worse than none. I did do the rendering proof *manually* with the
+  probe above; the ticket records both the requirement and the probe.
+
+## Not verified
+
+`npm run test:e2e` was NOT run and no e2e result is claimed. E7 is unaffected by
+construction (it sets `maxPx: 96`, and `min(122, 96) = 96`), but other suites may
+see image-bearing nodes grow from 104 to 122 — worth a full e2e pass before merge.
+Also unmeasured: a *wrapping* (multi-row) attachment strip can still crowd the
+slot; my 4-chip case did not wrap at the floor's width, so the case is untested
+rather than proven safe.

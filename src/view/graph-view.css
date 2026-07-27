@@ -229,9 +229,13 @@
 /* Density thresholds (see container comment above). 72px ≈ two title lines +
  * one chip row; 104px additionally fits the fixed-height thumbnail OR the
  * outline that replaces it (mutually exclusive — same slot).
- * 104 is MIRRORED by `THUMBNAIL_VISIBLE_MIN_NODE_PX` (src/engine/constants.ts),
- * which floors the height of image-bearing nodes so their thumbnail is reachable
- * at all; `thumbnailDensityThreshold.test.ts` fails if the two drift. */
+ *
+ * These are CONTENT-box heights: a size container query measures the container's
+ * content box, which is `sizePx` MINUS this node's border + padding. The engine
+ * mirrors 104 as `THUMBNAIL_VISIBLE_MIN_NODE_PX` (src/engine/constants.ts) —
+ * 104 PLUS that chrome — to floor the height of image-bearing nodes so their
+ * thumbnail is reachable at all. `thumbnailDensityThreshold.test.ts` re-derives
+ * the chrome from the rules above and fails if either half drifts. */
 @container (min-height: 72px) {
 	.vicinity-graph-node__attachments {
 		display: flex;
@@ -240,6 +244,17 @@
 @container (min-height: 104px) {
 	.vicinity-graph-node__thumbnail {
 		display: block;
+	}
+	/* The 104px budget above allots the title TWO lines — so enforce two, instead
+	 * of assuming it. The title is `flex-shrink: 0`, so at the default 4-line clamp
+	 * a long name on a narrow node takes its lines first and pushes the thumbnail's
+	 * 56px slot out through `overflow: hidden` — the image is then revealed but
+	 * two-thirds clipped. Capping the lines keeps the slot whole at exactly the
+	 * threshold, which is what lets the engine floor stay as low as it does.
+	 * Only when the thumbnail is the preview: the outline absorbs spare height
+	 * itself (rule below) and reads better with the full 4-line title. */
+	.vicinity-graph-node[data-preview="thumbnail"] .vicinity-graph-node__title {
+		-webkit-line-clamp: 2;
 	}
 	/* Everything else about the outline (appearance, scrolling, nesting) lives in
 	 * node-outline.css; only its visibility belongs to this density ladder. */

@@ -355,7 +355,14 @@ describe("NodeSizer image-bearing height floor", () => {
 		expect(pxOf(tall, "withImage.md")).toBe(tall.minPx);
 	});
 
-	it("WHEN an image note is central THEN it still gets full central height, not the floor", () => {
+	it("WHEN sizing settings are inverted (minPx > maxPx) THEN the floor never shrinks an image node", () => {
+		// `clampSizingSettings` bounds each field independently, so minPx > maxPx is
+		// reachable at the engine boundary — the floor must stay a floor there.
+		const inverted = { ...bottomScoring, minPx: THUMBNAIL_VISIBLE_MIN_NODE_PX + 40, maxPx: 50 };
+		expect(pxOf(inverted, "withImage.md")).toBe(inverted.minPx);
+	});
+
+	it("WHEN an image note is central THEN it keeps the full central height", () => {
 		const sizes = sizeAll(
 			{
 				files: [{ path: "m.md" }, { path: "pic.png" }],

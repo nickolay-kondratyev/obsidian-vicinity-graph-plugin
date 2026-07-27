@@ -73,18 +73,39 @@ export const NEUTRAL_NORMALIZED_VALUE = 0.5;
 export const CENTRAL_SIZE_SCORE = 1;
 
 /**
- * Node height (px) at which a note's image thumbnail becomes visible AND
- * legible: the node's density budget for the fixed-height thumbnail slot on top
- * of the title lines and padding. Nodes below it show the title only, so a note
- * that HAS an image but scores low would never display it — {@link NodeSizer}
- * floors image-bearing nodes here.
+ * Content-box height (px) at which `src/view/graph-view.css` reveals the node's
+ * image thumbnail — its density budget for the fixed-height thumbnail slot on
+ * top of two title lines and one attachment-chip row.
+ *
+ * NOT a node height: a CSS size container query measures the container's CONTENT
+ * box, so this number must be grown by {@link NODE_VERTICAL_CHROME_PX} before it
+ * can be compared to `sizePx`.
+ */
+const THUMBNAIL_REVEAL_CONTENT_BOX_PX = 104;
+
+/**
+ * How much taller a node's BORDER box is than the content box the container
+ * query sees: `.vicinity-graph-node` is `box-sizing: border-box` with a 1px
+ * border and `--size-4-2` (8px) of padding, top and bottom.
+ *
+ * (The `[data-tier]` centrals use a 2px border, so their chrome is 20 — not
+ * modelled here, because centrals are sized at `maxPx` and never need the floor.)
+ */
+export const NODE_VERTICAL_CHROME_PX = 2 * (1 + 8);
+
+/**
+ * Node height (px) at which a note's image thumbnail is actually displayed —
+ * the CSS reveal threshold expressed as the border-box height React Flow gives
+ * the node. Nodes below it show the title only, so a note that HAS an image but
+ * scores low would never display it: {@link NodeSizer} floors image-bearing
+ * nodes here.
  *
  * DUPLICATED KNOWLEDGE, deliberately guarded: the reveal itself is a CSS
- * container query in `src/view/graph-view.css` and CSS cannot import a TS
- * constant. `src/view/thumbnailDensityThreshold.test.ts` parses the stylesheet
- * and fails if the two drift — change both together.
+ * container query and CSS cannot import a TS constant.
+ * `src/view/thumbnailDensityThreshold.test.ts` parses the stylesheet — both the
+ * threshold and the chrome — and fails if either half drifts.
  */
-export const THUMBNAIL_VISIBLE_MIN_NODE_PX = 104;
+export const THUMBNAIL_VISIBLE_MIN_NODE_PX = THUMBNAIL_REVEAL_CONTENT_BOX_PX + NODE_VERTICAL_CHROME_PX;
 
 // ---------------------------------------------------------------------------
 // Settings input ranges — derived from SETTINGS_SPEC's per-field bounds.

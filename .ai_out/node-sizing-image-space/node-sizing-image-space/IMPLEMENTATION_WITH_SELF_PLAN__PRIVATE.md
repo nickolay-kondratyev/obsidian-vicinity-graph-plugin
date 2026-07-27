@@ -55,3 +55,51 @@ No change_log entry written (top-level agent owns that).
   working as designed, not a bug. Change both numbers together.
 - Per-view sizing overrides (future) must apply the floor after resolution, i.e. keep it
   inside `NodeSizer.computeSizes`, which already receives the resolved settings.
+
+---
+
+# Iteration 2 (response to IMPLEMENTATION_REVIEW__PUBLIC.md — verdict NEEDS-ITERATION)
+
+## State: COMPLETE. Working tree only (iteration 1 is committed as `898c48f`).
+`npm test` 1093/1093, `npm run check` clean. No commit, no change_log entry.
+
+## The one thing that was wrong in iteration 1
+`THUMBNAIL_VISIBLE_MIN_NODE_PX = 104` compared a CSS **content-box** number to a
+**border-box** `sizePx`. Container queries measure the content box; the node is
+`box-sizing: border-box` with 1px border + 8px padding → content = `sizePx - 18`.
+So the floor was 18px short and the thumbnail stayed `display:none`. VERIFIED
+MYSELF in Chromium, not taken on trust.
+
+## Measurement rig (reusable — this is the useful artifact)
+`.tmp/it2-probe.mjs` — Playwright + local chromium (installed: `~/.cache/ms-playwright`,
+playwright 1.61.1 is a devDependency). Reads `src/view/graph-view.css` directly
+(styles.css is only a concatenation, so no build needed), renders the real
+`NoteNode` markup with Obsidian-ish CSS vars, sweeps node height × font size ×
+title length × chip count, and reports the WORST visible thumbnail height per
+node height. `node .tmp/it2-probe.mjs [extraCandidate.css]` to A/B a CSS patch.
+Note: **width = max(sizePx, …) ≥ height**, so width == height is the worst case.
+
+Measured (real CSS, before the title clamp): reveal at node 122, but the slot is
+clipped to 30–51px until node **150**. With the 2-line title clamp: full 56px at
+exactly **122**, across fonts 12/13/14, short/long title, 0/1/4 chips.
+
+## Decisions a clone must not re-litigate
+1. Floor = `THUMBNAIL_REVEAL_CONTENT_BOX_PX (104) + NODE_VERTICAL_CHROME_PX (18)`
+   = 122. The 104 stays module-private; the chrome is exported so the guard can
+   pin it. Do NOT collapse this back into a literal.
+2. The S1 "knife edge" was fixed in **CSS, not by inflating the floor**: inside
+   the reveal block, `[data-preview="thumbnail"] .title { -webkit-line-clamp: 2 }`.
+   Rejected: floor ≈150 (would push nearly every image node to maxPx 160) and
+   dropping the title's `flex-shrink: 0` (line-clamp is line-count based, so
+   shrinking just clips text mid-line).
+3. Everything iteration 1 got right is untouched: score never floored, keyed on
+   `firstImagePath`, `max(sizePx, min(floor, maxPx))` clamp order.
+
+## Still open / handed off
+- `docs-internal/tickets/ticket-e2e-content-box-vs-node-height-comments.md` (S3)
+- `docs-internal/tickets/ticket-e2e-thumbnail-floor-rendering-proof.md` (B2's
+  rendering proof — deliberately NOT written blind, since e2e cannot run here)
+- `npm run test:e2e` NOT run. E7 (`maxPx: 96`) is unaffected (`min(122,96)=96`),
+  but other suites may see image nodes grow 104 → 122.
+- Wrapping (multi-row) attachment strip still clips the slot in principle; my
+  4-chip case did not wrap at 104px content width, so it is unmeasured.
