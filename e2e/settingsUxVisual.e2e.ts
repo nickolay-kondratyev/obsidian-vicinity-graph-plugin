@@ -234,23 +234,25 @@ test("settings tab: every section card ends with its own scoped restore row", as
  * allow-list of types, so a future `addText` (defaults to type=text), `addSearch`
  * or `addDropdown` (<select>) row cannot ship unnamed with this suite green.
  *
- * The two exclusions are intentional, not oversights:
+ * The one exclusion is intentional, not an oversight:
  * - `radio`: the Preview pill's <label> WRAPS its radio, so the visible segment
  *   text already IS the accessible name (VicinityGraphSettingTab renders it so).
- * - `checkbox`: Obsidian toggles are a div.checkbox-container around a hidden
- *   checkbox and are still unnamed — tracked in nid_d2z2jgt6v49ssej8hxmwd2xi6_e.
- *   Closing that ticket means deleting the `:not([type=checkbox])` clause here.
+ *
+ * Toggles are NOT exempt: Obsidian wraps its checkbox in a bare
+ * `<label class="checkbox-container">` that carries no text, so the checkbox has
+ * no name of its own and the tab must set one (VicinityGraphSettingTab.nameToggle).
  */
-const NAMED_CONTROL_SELECTORS = ["input:not([type=radio]):not([type=checkbox])", "select", "textarea"] as const;
+const NAMED_CONTROL_SELECTORS = ["input:not([type=radio])", "select", "textarea"] as const;
 const ANY_NAMED_CONTROL = NAMED_CONTROL_SELECTORS.join(", ");
 const ANY_UNNAMED_CONTROL = NAMED_CONTROL_SELECTORS.map((selector) => `${selector}:not([aria-label])`).join(", ");
 /**
- * Floor for the controls the guard covers (today exactly 20: 10 sliders + 9 number
- * inputs + the exclusion textarea). A floor, not an exact count, so ADDING a row
- * does not break this test — but a section that stopped rendering can no longer
- * let "nothing is unlabeled" pass by matching nothing.
+ * Floor for the controls the guard covers (today exactly 26: 10 sliders + 9 number
+ * inputs + the exclusion textarea + 6 toggles — 5 sizing metrics and the exclusion
+ * enable). A floor, not an exact count, so ADDING a row does not break this test —
+ * but a section that stopped rendering can no longer let "nothing is unlabeled"
+ * pass by matching nothing.
  */
-const MIN_NAMED_CONTROLS = 20;
+const MIN_NAMED_CONTROLS = 26;
 
 test("settings tab: WHEN the tab renders THEN every input carries its row name as accessible name", async () => {
 	await settingsTab.open();
@@ -270,6 +272,14 @@ test("settings tab: WHEN the tab renders THEN every input carries its row name a
 	await expect(settings.getByLabel("Outgoing depth")).toHaveAttribute("type", "range");
 	await expect(settings.getByLabel("Node cap")).toHaveAttribute("type", "number");
 	await expect(settings.getByLabel("Exclusion patterns")).toHaveCount(1);
+	await expect(settings.getByLabel("Exclude notes from the graph")).toHaveAttribute("type", "checkbox");
+	// Two controls share a sizing-metric row, so its toggle carries the row name
+	// plus its role — same convention as the "<metric> weight" input beside it.
+	await expect(settings.getByLabel("Own file size enabled")).toHaveAttribute("type", "checkbox");
+	// By ROLE, not just by attribute: this is the only assertion that proves the
+	// browser's own accessible-name computation resolves the label we set — an
+	// aria-label parked on an element with no role would satisfy everything else here.
+	await expect(settings.getByRole("checkbox", { name: "Depth decay enabled" })).toHaveCount(1);
 
 	// The guarantee for rows added LATER: no control in the tab may lack a name.
 	expect(await settings.locator(ANY_NAMED_CONTROL).count()).toBeGreaterThanOrEqual(MIN_NAMED_CONTROLS);
