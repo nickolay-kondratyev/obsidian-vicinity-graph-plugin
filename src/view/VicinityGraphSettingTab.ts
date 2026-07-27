@@ -1,5 +1,5 @@
 import { PluginSettingTab, Setting } from "obsidian";
-import type { App } from "obsidian";
+import type { App, TextComponent } from "obsidian";
 import type { Direction, ForceLayoutSettings, SettingsRange, SizingSettings } from "../engine";
 import {
 	FORCE_LAYOUT_RANGES,
@@ -303,34 +303,63 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	 * interaction, so there is no bespoke merge logic here.
 	 *
 	 * WHEN disabled the pattern textarea is hidden (the patterns are inactive), but the
-	 * stored patterns are untouched so re-enabling restores them. The toggle re-renders
-	 * the tab so the textarea appears/disappears immediately.
+	 * stored patterns are untouched so re-enabling restores them. The toggle swaps that
+	 * ONE row in and out of its own slot — see {@link showExclusionPatterns}.
 	 */
 	private renderExclusion(): void {
 		const section = this.createSection();
 		new Setting(section).setName("Node exclusion").setHeading();
 		const exclusion = this.store.nodeExclusion();
-		new Setting(section)
+		const toggleRow = new Setting(section)
 			.setName("Exclude notes from the graph")
-			.setDesc("Hide matching neighbor notes before the graph is built. Central and pinned notes are never excluded.")
-			.addToggle((toggle) =>
-				toggle.setValue(exclusion.enabled).onChange(async (enabled) => {
-					// Pending typed edits first: `display()` below re-seeds every control
-					// from the store, so a later-landing write would leave the tab
-					// showing a value the store no longer has.
-					await this.settlePendingWrites();
-					await this.applyInteraction({
-						kind: "global-node-exclusion",
-						nodeExclusion: { ...this.store.nodeExclusion(), enabled },
-					});
-					// Re-render so the patterns textarea tracks the toggle.
-					this.display();
-				}),
-			);
-		if (exclusion.enabled) {
-			this.addExclusionPatterns(section, exclusion.patterns);
-		}
+			.setDesc("Hide matching neighbor notes before the graph is built. Central and pinned notes are never excluded.");
+		// The patterns row's own slot. Created HERE for two reasons: the toggle wired
+		// below has to name it, and a `Setting` appended to `section` later would land
+		// under the card's restore footer instead of above it.
+		const patternsSlot = section.createDiv();
+		toggleRow.addToggle((toggle) =>
+			toggle.setValue(exclusion.enabled).onChange(async (enabled) => {
+				// Pending typed edits first, and this is the subtle one: the patterns
+				// textarea persists on a debounce, while `showExclusionPatterns` below
+				// re-seeds the rebuilt row by reading the store SYNCHRONOUSLY. A write
+				// draining afterwards would leave that row showing patterns the store no
+				// longer has. It also keeps this toggle's write — built from a snapshot
+				// taken before the await — from clobbering a still-pending one.
+				await this.settlePendingWrites();
+				await this.applyInteraction({
+					kind: "global-node-exclusion",
+					nodeExclusion: { ...this.store.nodeExclusion(), enabled },
+				});
+				this.showExclusionPatterns(patternsSlot, enabled);
+			}),
+		);
+		this.showExclusionPatterns(patternsSlot, exclusion.enabled);
 		this.addSectionReset(section, "node-exclusion");
+	}
+
+	/**
+	 * Builds or tears down the patterns row inside its own slot — and touches
+	 * NOTHING else in the tab.
+	 *
+	 * WHY-NOT `this.display()`, which this replaces: rebuilding all six cards to
+	 * reveal one row discards the user's scroll position and keyboard focus. Same
+	 * reasoning as the Preview pill (see {@link addNodePreviewSegmented}), one step
+	 * further: there the fix was to re-render nothing, here it is to re-render only
+	 * the row that actually depends on the control that changed.
+	 *
+	 * WHY-NOT rendering the row always and merely disabling it (Obsidian's own
+	 * preference, since a hidden row also drops out of 1.13's settings search): that
+	 * is a deliberate UX change, not a refresh-mechanics one — tracked separately in
+	 * `nid_qp56jugz8en8wkgjirwcb269p_e`. This method keeps today's hide/show behaviour
+	 * exactly.
+	 */
+	private showExclusionPatterns(slot: HTMLElement, enabled: boolean): void {
+		slot.empty();
+		if (enabled) {
+			// Read fresh: the caller has just drained the debounce window, so this is
+			// the first read that can see everything the user typed.
+			this.addExclusionPatterns(slot, this.store.nodeExclusion().patterns);
+		}
 	}
 
 	private addExclusionPatterns(section: HTMLElement, patterns: readonly string[]): void {
@@ -398,22 +427,35 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 		const sizing = this.store.globalView().sizing;
 		for (const { id, label } of SIZING_METRICS) {
 			const metric = sizing.metrics[id];
+			// The weight input this row's toggle enables and disables. Definite
+			// assignment, not an optional: `Setting.addText` below invokes its builder
+			// SYNCHRONOUSLY, so the input exists before the row is ever on screen — and
+			// the toggle handler can only run once it is.
+			let weightInput!: TextComponent;
 			new Setting(section)
 				.setName(label)
 				.addToggle((toggle) =>
 					toggle.setValue(metric.enabled).onChange(async (enabled) => {
-						// See the exclusion toggle: `display()` re-seeds from the store.
+						// The paired weight input is the ONLY thing on screen that depends
+						// on this toggle, so flip it directly instead of rebuilding the tab
+						// with `display()` — that discarded the user's scroll position and
+						// focus (same reasoning as {@link addNodePreviewSegmented}). Done
+						// BEFORE the await so the row answers the click immediately.
+						weightInput.setDisabled(!enabled);
+						// Pending typed edits first: the write below is built from a
+						// snapshot of the sizing object taken before its own await, so a
+						// weight still inside the debounce window would otherwise be
+						// clobbered by it.
 						await this.settlePendingWrites();
 						const current = this.store.globalView().sizing;
 						await this.applySizing({
 							...current,
 							metrics: { ...current.metrics, [id]: { ...current.metrics[id], enabled } },
 						});
-						// Re-render so the weight field's enabled state tracks the toggle.
-						this.display();
 					}),
 				)
 				.addText((text) => {
+					weightInput = text;
 					// Two controls share this row (toggle + weight), so the row name
 					// alone would not distinguish them.
 					const weightName = `${label} weight`;
