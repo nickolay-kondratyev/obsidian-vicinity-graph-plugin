@@ -172,3 +172,109 @@ Commits: `621ece9` (fix + tests), `42076cb` (docs/fixture/e2e).
   `write_if_missing` and would not have refreshed it.
 - **Not done, per instructions**: no `change_log` entry, ticket not closed, branch
   not merged.
+
+---
+
+# ITERATION 1 — review response
+
+Review: APPROVE-WITH-FIXES (0 blocking, 1 should-fix, 3 nice-to-have).
+**The should-fix was real and I could not refute it — I reproduced it.** All four
+findings are now addressed; nothing was deferred. Commits `72ba519`, `bbdebf0`.
+
+## Finding 1 (should-fix) — regime detection was still GLOBAL. FIXED.
+
+**Confirmed by a failing test before touching the code**, exactly as asked:
+
+```
+FAIL … canvas regime is decided PER CANVAS >
+       WHEN a SIBLING canvas is not indexed yet THEN it is still fallback-parsed
+AssertionError: expected [] to deeply equal [ 'note-b.md' ]
+```
+
+`a.canvas` indexed + `b.canvas` not ⇒ `b.canvas` reported **zero** edges. The
+reviewer's reading was correct and the consequence is worse than the original bug:
+not one divergent edge, but a blank canvas.
+
+**Did the vault-wide concept survive? No — and it should not have.** Making the
+decision per file leaves `CanvasCapabilityDetector.detect(keys)` with nothing to
+be: it collapses into `detectFor(resolvedLinks, canvasPath)`, an exact key lookup.
+That is strictly better on three axes, which is how I know it is the honest seam
+rather than a second mode bolted on:
+
+- **Correct** for partially-indexed vaults (the finding).
+- **Cheaper** — no `Object.keys(resolvedLinks)` sweep per rebuild; O(1) lookup.
+- **Narrower** — the old suffix scan needed a guard test against `my.canvas.md`
+  matching; an exact path lookup cannot make that mistake at all.
+
+`ObsidianLinkProvider` followed the same collapse: map MEMBERSHIP is now the
+per-canvas answer ("in the map ⇒ we serve it"), so `getLinkCount` and
+`outgoingPathsOf` **lost** their capability+extension conditionals rather than
+gaining a branch — the diff removes logic. The one deliberate addition is
+`fallbackServedCanvasPaths`, replacing the `canvasCapability` field: an
+install-wide verdict can no longer be told honestly, and `main.ts`'s provenance
+log is more useful now that it names the canvases we serve.
+
+Guarded by 4 new provider tests (incl. "core-indexed canvas is not ALSO
+fallback-reported", so the either/or cannot regress into double-counting) and 6
+rewritten detector tests.
+
+## Finding 1b — e2e guard. DONE (it was cheap).
+
+`.dev-vault` had exactly ONE canvas, which is precisely why no e2e could see this.
+Added `test2.canvas` (file node → note3, text node → `[[note2]]`) plus one spec.
+
+Chosen so it disturbs nothing: it reaches note2/note3, putting it at **depth 2**
+from note1 and therefore outside every count the existing specs assert. Verified,
+not assumed — `vicinityGraph.e2e.ts` went 20 → 21 tests with no other assertion
+touched, 2.7s → 2.8s, and the 5x sparse gate still reads 11.
+
+Honest limit, stated because it matters: this guard is *probabilistically*
+diagnostic, not deterministic. We cannot force Obsidian to index one canvas and
+not the other, so pre-fix it would have gone red in the subset of runs where
+`test.canvas` was indexed and `test2.canvas` was not (roughly half, given the
+measured 4-of-8 indexing rate). **Post-fix it is stable in all four combinations**,
+which is what makes it a keeper rather than a flake. The deterministic guard
+remains the unit test.
+
+## Nice-to-haves — triage
+
+| # | Finding | Verdict |
+|---|---|---|
+| 2 | Dead `!== null` branch | **ACCEPTED.** Correct — both producers are `?.path` on a nullable, so the type is `string \| undefined`. Removed. |
+| 3 | Fake ignores `sourcePath`, so "resolves relative to the canvas" is untested | **ACCEPTED.** This one guards a load-bearing claim, so it was worth the ~10 lines: `FakeObsidianSpec.resolutionsFrom` (source path → link text → target) is consulted before the flat `resolutions` map, which stays the terse default for every existing fixture. New test resolves `[[note-b]]` ONLY from `board.canvas`, so passing any other source path now goes red. |
+| 4 | Stale "detects per-install capabilities ONCE" docblock | **ACCEPTED.** It was doubly wrong after this round (not once, not per-install). Rewritten to say the decision is per canvas, re-read per rebuild, and safe *because* the sources now agree. |
+
+Nothing rejected this round — all three were cheap and each closed a real gap.
+I did NOT reopen the two conclusions marked settled (ordering vs truncation,
+cache placement); both were left untouched.
+
+## Test results after iteration 1
+
+- `npm test` → **1082 passed / 80 files** (was 1075; +7 from this round).
+- `npm run check` → exit 0.
+- `npm run test:e2e -- vicinityGraph.e2e.ts` → **21 passed**.
+
+### 5-run determinism gate, re-run (the vault and the resolution path both changed)
+
+| run | `[eval] force/sparse` edges | routingMs | layoutMs |
+|-----|------|-----------|-----------|
+| 1 | **11** | 3.30 | 32.5 |
+| 2 | **11** | 3.40 | 30.4 |
+| 3 | **11** | 3.30 | 29.1 |
+| 4 | **11** | 3.30 | 29.8 |
+| 5 | **11** | 3.30 | 28.9 |
+
+All five agree at 11, obstacles 13, **with two canvases now in the vault**. Routing
+cost is if anything slightly better than round 0 (3.3–3.5ms vs 3.4–4.2ms), consistent
+with dropping the per-build `Object.keys(resolvedLinks)` sweep.
+
+## Files changed in iteration 1
+
+- `src/adapters/CanvasCapability.ts` (+ test) — `detect` → `detectFor`, per canvas.
+- `src/adapters/ObsidianLinkProvider.ts` (+ test) — per-canvas build loop,
+  membership-driven queries, `fallbackServedCanvasPaths`, docblock, dead branch.
+- `src/adapters/CanvasFallbackParser.ts` — header now says dormancy is per canvas.
+- `src/adapters/FakeObsidianPorts.ts` — `resolutionsFrom`.
+- `src/main.ts` — provenance log names the fallback-served canvases.
+- `docs-internal/plan/high-level-plan.md` — records the per-canvas decision and why.
+- `scripts/setup-dev-vault.sh`, `e2e/vicinityGraph.e2e.ts` — second canvas + guard.

@@ -1,7 +1,42 @@
 # PRIVATE rehydration notes — canvas link regime unify
 
-State: **COMPLETE**. All AC items done, acceptance gate passed. Nothing in flight.
-Working tree clean at commit `42076cb`. Branch `canvas-link-regime-unify`, NOT merged.
+State: **COMPLETE through review ITERATION 1**. Nothing in flight.
+Working tree clean at commit `bbdebf0`. Branch `canvas-link-regime-unify`, NOT merged.
+
+## ITERATION 1 (review response) — read this first
+
+Review `.ai_out/.../IMPLEMENTATION_REVIEW__PUBLIC.md`: APPROVE-WITH-FIXES, 1 should-fix
+(regime still global) + 3 nice-to-haves. ALL four addressed; none deferred.
+
+- Commits: `72ba519` (per-canvas fix + all 3 nice-to-haves), `bbdebf0` (e2e second canvas).
+- **The should-fix was real** — reproduced with a failing test before fixing:
+  `a.canvas` in resolvedLinks, `b.canvas` not ⇒ `b.canvas` returned `[]`.
+- API changes this round (breaking, all call sites updated):
+  - `CanvasCapabilityDetector.detect(keys)` → `detectFor(resolvedLinks, canvasPath)`.
+    Vault-wide concept deleted; presence of the canvas's OWN key is the test (`{}` counts
+    as indexed).
+  - `ObsidianLinkProvider.canvasCapability` field → `fallbackServedCanvasPaths` getter.
+    `main.ts` `logBacklinkProvenance` updated to name the served canvases.
+  - `canvasOutgoingByPath` membership is now the per-canvas regime answer, so
+    `getLinkCount`/`outgoingPathsOf` no longer test extension or capability.
+  - `FakeObsidianSpec.resolutionsFrom` (source path → link text → target) added, checked
+    before flat `resolutions`. Existing fixtures untouched.
+- `create()` now always walks `vault.getFiles()` (previously skipped entirely when
+  core-indexed). Still O(vault) per build, same as the old `Object.keys` sweep it replaced
+  — measured routing time went slightly DOWN. Don't "optimize" this back into a global check.
+- e2e: `test2.canvas` added to `scripts/setup-dev-vault.sh` (file node note3 + text node
+  `[[note2]]`). Deliberately at depth 2 from note1 so no existing count moves. New test in
+  `e2e/vicinityGraph.e2e.ts` sits BEFORE the truncation test, which must KEEP LAST (it
+  mutates the global node cap without restoring it).
+- The e2e guard is probabilistic pre-fix (we can't force a partial index), stable post-fix.
+  The deterministic guard is the unit test. Said so in PUBLIC.md; don't overclaim it.
+- Gates after iteration 1: `npm test` 1082 passed, `npm run check` exit 0,
+  `vicinityGraph.e2e.ts` 21 passed, 5x sparse gate 11/11/11/11/11
+  (`.tmp/e2e-final-{1..5}.log`).
+- Two review conclusions the coordinator marked closed — ordering does not feed truncation,
+  and the scan sits inside the mtime cache. Both left untouched. Do not reopen.
+
+## Round 0 notes (still accurate unless contradicted above)
 
 ## What to know if resuming
 
