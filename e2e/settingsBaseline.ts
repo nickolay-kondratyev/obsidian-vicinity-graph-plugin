@@ -128,8 +128,11 @@ export const CONTROLS_PANEL_DISCLOSURE_SUMMARIES: readonly string[] = CONTROLS_P
 
 /**
  * The conditional "Pinned centrals (n)" disclosure, without its "(n)" suffix —
- * that is a live count, so callers wrap this in a regex that spells the count
- * out rather than matching a bare prefix. Not a {@link PanelDisclosure}: it is
+ * that is a live count no fixture can hard-code. How to use it depends on the
+ * caller: an EXHAUSTIVENESS filter must spell the count out in an anchored regex
+ * (a bare prefix would also swallow any future sibling starting with these
+ * words); a plain LOCATOR may match this prefix as a substring, since it only has
+ * to find the disclosure. Not a {@link PanelDisclosure}: it is
  * absent unless the view has a pinned central, so it has no default open/closed
  * state to assert on a fresh view — it exists here only so the exhaustiveness pin
  * can exclude it BY NAME instead of relying on a fixture happening not to pin.

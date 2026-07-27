@@ -49,3 +49,31 @@ low value: they are 4 lines each and consolidating would create a shared page-ob
 - `npm run test:e2e -- controlsRestart pinnedCentralScenario` exit 0 — 3 passed (23.3s).
 
 Raw logs (may be pruned): `.tmp/check.txt`, `.tmp/test.txt`, `.tmp/e2e.txt`, `.tmp/grep-after.txt`.
+
+---
+
+## Iteration 1 (fresh instance, post-review) — DONE
+
+Review verdict was READY TO MERGE / no blockers. One SHOULD-FIX, doc-only. Actions:
+
+- **Accepted SHOULD-FIX 1.** Edited ONLY the JSDoc on `PINNED_CENTRALS_SUMMARY`
+  (`e2e/settingsBaseline.ts`, the paragraph above line 137). Old text asserted "callers wrap
+  this in a regex"; true of the one pre-fold caller, false for 2 of 3 after. New text splits the
+  guidance by caller kind: exhaustiveness filter → anchored `\(\d+\)` regex (bare prefix would
+  swallow a future "Pinned centrals …" sibling); plain locator → prefix substring is fine.
+  Verified the claim myself before accepting: `settingsUxVisual.e2e.ts:102` is the `hasNotText`
+  exhaustiveness filter; `controlsRestart.e2e.ts:81` and `pinnedCentralScenario.e2e.ts:96` are
+  navigation locators. Reviewer was right.
+- **Rejected nothing.** NIT 2 (duplicated `pinnedDisclosure()`) left alone per reviewer's own
+  recommendation — out of scope, negative ROI, no ticket.
+- No code, test, assertion or import touched this iteration. Working tree now: the original
+  4-line change + this one comment block.
+
+### Iteration verification
+- `npm run check` exit 0 (`.tmp/iter-check.txt`).
+- `npm test` exit 0, 75 files / 1010 tests (`.tmp/iter-test.txt`).
+- e2e intentionally NOT re-run: JSDoc-only change, no runtime effect. Prior run stands.
+
+### State
+COMPLETE again. Remaining: TOP_LEVEL_AGENT commits; close ticket
+`nid_iwd08rsdnsbdziltw1odisuoc_e`.

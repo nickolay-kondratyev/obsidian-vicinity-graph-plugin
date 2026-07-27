@@ -51,3 +51,33 @@ The e2e environment DID run here — no skips, no weakened assertions, no fallba
 
 - Nothing broken or removed. No behavior-capturing test touched; both edits are pure substitutions of an identical string value.
 - The `src/view/GraphToolbar.tsx` ↔ `settingsBaseline.ts` duplication is intentional (test baseline as independent mirror of production copy) and is what the real-Obsidian e2e run verifies. Not folded.
+
+---
+
+## Iteration 1 — response to IMPLEMENTATION_REVIEW__PUBLIC.md
+
+Reviewer verdict was READY TO MERGE, no blocking issues. Disposition of every point:
+
+| # | Review point | Disposition |
+|---|---|---|
+| SHOULD-FIX 1 | `settingsBaseline.ts:130-132` doc comment over-claims that "callers wrap this in a regex" | **ACCEPTED — fixed.** The claim was true of the sole pre-existing caller and became false for 2 of the 3 after the fold; read literally it told a future maintainer their (correct) bare-substring locator was wrong. Comment now distinguishes exhaustiveness filters (must anchor the count in a regex) from plain locators (prefix substring is fine). Comment only — no code, test or assertion touched. |
+| NIT 2 | `pinnedDisclosure()` duplicated verbatim between the two specs | **LEFT ALONE**, as the reviewer recommended. Pre-existing, 4 lines, two callers; a shared page object here is negative ROI. No ticket. |
+| Judgment call | Not folding `src/view/GraphToolbar.tsx:47` into the e2e const | Reviewer independently confirmed the call and grounded it in `e2e/settingsBaseline.test.ts:4-18` (hand-written baseline literals are pinned by the DOM, not by a mirror literal). No change. |
+
+### Comment as it now reads (`e2e/settingsBaseline.ts`)
+
+> The conditional "Pinned centrals (n)" disclosure, without its "(n)" suffix — that is a live
+> count no fixture can hard-code. How to use it depends on the caller: an EXHAUSTIVENESS filter
+> must spell the count out in an anchored regex (a bare prefix would also swallow any future
+> sibling starting with these words); a plain LOCATOR may match this prefix as a substring,
+> since it only has to find the disclosure. …
+
+### Verification of the iteration
+
+| Command | Result |
+|---|---|
+| `npm run check` | exit 0 — PASS |
+| `npm test` | exit 0 — **75 files / 1010 tests passed** |
+| `npm run test:e2e` | **NOT re-run.** Deliberate: this iteration changed a JSDoc block only — zero runtime bytes reach the bundle or the specs. The prior full-fidelity e2e run (3 passed, 23.3s) remains valid for the code under test. Called out rather than implied. |
+
+Raw logs: `.tmp/iter-check.txt`, `.tmp/iter-test.txt`.
