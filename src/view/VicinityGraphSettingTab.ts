@@ -46,6 +46,7 @@ import type { SizingNumberField, SizingRowVerdict } from "./sizingRowWrite";
 import { SizingRowWrite } from "./sizingRowWrite";
 import type { SettingsCommand, SettingsInteraction, SettingsWriteContext } from "./settingsWritePlan";
 import { planSettingsWrite } from "./settingsWritePlan";
+import { SettingsWriteQueue } from "./settingsWriteQueue";
 import { parseSizingInput } from "./sizingInput";
 import { SIZING_METRICS } from "./sizingMetrics";
 
@@ -98,6 +99,12 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	 * there is no parallel id table to keep in sync.
 	 */
 	private readonly debounced = new DebouncedSettingsWrites(SETTINGS_WRITE_DEBOUNCE_MS);
+
+	/**
+	 * Every INTERACTION handler runs through here, so two clicks on one control
+	 * land in click order instead of finish order — see {@link enqueueWrite}.
+	 */
+	private readonly writeQueue = new SettingsWriteQueue();
 
 	constructor(
 		app: App,
@@ -278,10 +285,15 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	private requestReset(scope: SettingsResetScope): void {
 		const confirmation = planSettingsResetConfirmation(scope, this.writeContext());
 		if (confirmation === null) {
-			void this.applyReset(scope);
+			void this.enqueueWrite(() => this.applyReset(scope));
 			return;
 		}
-		new ConfirmModal(this.app, { ...confirmation, onConfirm: () => this.applyReset(scope) }).open();
+		// Queued like every other interaction: a reset that overtook a click still in
+		// flight would be undone by it, defaults and all.
+		new ConfirmModal(this.app, {
+			...confirmation,
+			onConfirm: () => this.enqueueWrite(() => this.applyReset(scope)),
+		}).open();
 	}
 
 	/**
@@ -355,20 +367,24 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 		toggleRow.addToggle((toggle) => {
 			// The row's only control, so the row name alone identifies it.
 			VicinityGraphSettingTab.nameToggle(toggle, name);
-			toggle.setValue(exclusion.enabled).onChange(async (enabled) => {
-				// Pending typed edits first, and this is the subtle one: the patterns
-				// textarea persists on a debounce, while `showExclusionPatterns` below
-				// re-seeds the rebuilt row by reading the store SYNCHRONOUSLY. A write
-				// draining afterwards would leave that row showing patterns the store no
-				// longer has. It also keeps this toggle's write — built from a snapshot
-				// taken before the await — from clobbering a still-pending one.
-				await this.settlePendingWrites();
-				await this.applyInteraction({
-					kind: "global-node-exclusion",
-					nodeExclusion: { ...this.store.nodeExclusion(), enabled },
-				});
-				this.showExclusionPatterns(patternsSlot);
-			});
+			// Queued as ONE unit: the snapshot below is read after an await, so two fast
+			// clicks would otherwise both plan from the same pre-write state.
+			toggle.setValue(exclusion.enabled).onChange((enabled) =>
+				this.enqueueWrite(async () => {
+					// Pending typed edits first, and this is the subtle one: the patterns
+					// textarea persists on a debounce, while `showExclusionPatterns` below
+					// re-seeds the rebuilt row by reading the store SYNCHRONOUSLY. A write
+					// draining afterwards would leave that row showing patterns the store no
+					// longer has. It also keeps this toggle's write — built from a snapshot
+					// taken before the await — from clobbering a still-pending one.
+					await this.settlePendingWrites();
+					await this.applyInteraction({
+						kind: "global-node-exclusion",
+						nodeExclusion: { ...this.store.nodeExclusion(), enabled },
+					});
+					this.showExclusionPatterns(patternsSlot);
+				}),
+			);
 		});
 		this.showExclusionPatterns(patternsSlot);
 		this.addSectionReset(section, "node-exclusion");
@@ -503,24 +519,27 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 				// Two controls share this row (toggle + weight), so the row name alone
 				// would not distinguish them — same reason as `${label} weight` below.
 				VicinityGraphSettingTab.nameToggle(toggle, `${label} enabled`);
-				toggle.setValue(seed.enabled).onChange(async (enabled) => {
+				toggle.setValue(seed.enabled).onChange((enabled) => {
 					// The paired weight input is the ONLY thing on screen that depends on
 					// this toggle, so flip it directly instead of rebuilding the tab with
 					// `display()` — that discarded the user's scroll position and focus
-					// (same reasoning as {@link addNodePreviewSegmented}). Done BEFORE the
-					// await so the row answers the click immediately; unlike
+					// (same reasoning as {@link addNodePreviewSegmented}). Done OUTSIDE the
+					// queue so the row answers the click immediately; unlike
 					// {@link showExclusionPatterns} this cannot paint a stale value,
-					// because at this point `enabled` IS the newest truth — the store has
-					// not been told yet.
+					// because it runs in click order — the newest click paints last.
 					weightInput.setDisabled(!enabled);
-					// Pending typed edits first: the write below is built from a snapshot
-					// of the sizing object taken before its own await, so a weight still
-					// inside the debounce window would otherwise be clobbered by it.
-					await this.settlePendingWrites();
-					const current = this.store.globalView().sizing;
-					await this.applySizing({
-						...current,
-						metrics: { ...current.metrics, [id]: { ...current.metrics[id], enabled } },
+					// Queued as ONE unit: the sizing snapshot below is read after an await,
+					// so two fast clicks would otherwise both plan from the same state.
+					return this.enqueueWrite(async () => {
+						// Pending typed edits first: the write below is built from a snapshot
+						// of the sizing object taken before its own await, so a weight still
+						// inside the debounce window would otherwise be clobbered by it.
+						await this.settlePendingWrites();
+						const current = this.store.globalView().sizing;
+						await this.applySizing({
+							...current,
+							metrics: { ...current.metrics, [id]: { ...current.metrics[id], enabled } },
+						});
 					});
 				});
 			})
@@ -578,10 +597,12 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 			{ min: MIN_OUTLINE_DEPTH, max: MAX_OUTLINE_DEPTH, step: OUTLINE_DEPTH_SLIDER_STEP },
 			this.store.globalView().outlineMaxDepth,
 			(value) => {
-				void this.applyInteraction({
-					kind: "global-outline-depth",
-					value: clampOutlineMaxDepth(value),
-				});
+				void this.enqueueWrite(() =>
+					this.applyInteraction({
+						kind: "global-outline-depth",
+						value: clampOutlineMaxDepth(value),
+					}),
+				);
 			},
 		);
 		this.addSectionReset(section, "node-contents");
@@ -621,7 +642,7 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 			radio.checked = preference === selected;
 			option.createSpan({ cls: "vicinity-graph-segmented__text", text: label });
 			radio.addEventListener("change", () => {
-				void this.applyInteraction({ kind: "global-node-preview", value: preference });
+				void this.enqueueWrite(() => this.applyInteraction({ kind: "global-node-preview", value: preference }));
 			});
 		}
 	}
@@ -704,11 +725,13 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 			{ min: MIN_STEPPER_DEPTH, max: MAX_STEPPER_DEPTH, step: DEPTH_SLIDER_STEP },
 			current,
 			(value) => {
-				void this.applyInteraction({
-					kind: "global-depth",
-					direction,
-					value: clampStepperDepth(value),
-				});
+				void this.enqueueWrite(() =>
+					this.applyInteraction({
+						kind: "global-depth",
+						direction,
+						value: clampStepperDepth(value),
+					}),
+				);
 			},
 		);
 	}
@@ -780,7 +803,12 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 			FORCE_LAYOUT_RANGES[field],
 			this.store.globalView().forceLayout[field],
 			(value) => {
-				void this.applyForceLayout({ ...this.store.globalView().forceLayout, [field]: value });
+				// The other six fields are read INSIDE the queued write: a read taken at
+				// enqueue time could predate a queued write that has not run yet, and this
+				// slider persists the whole object — it would carry that staleness back.
+				void this.enqueueWrite(() =>
+					this.applyForceLayout({ ...this.store.globalView().forceLayout, [field]: value }),
+				);
 			},
 		);
 	}
@@ -791,6 +819,25 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 
 	private applySizing(sizing: SizingSettings): Promise<void> {
 		return this.applyInteraction({ kind: "global-sizing", sizing });
+	}
+
+	/**
+	 * The entry point for a USER INTERACTION: runs `write` after every interaction
+	 * enqueued before it, so the store ends on the value clicked last rather than
+	 * the one that happened to finish last.
+	 *
+	 * The whole handler goes inside `write`, not just its persist: the handlers that
+	 * race read the globals AFTER `settlePendingWrites()`, so serializing only the
+	 * persist would still let two of them resume off the same pre-write snapshot.
+	 *
+	 * NOT re-entrant (see {@link SettingsWriteQueue}). A write reached from INSIDE a
+	 * queued task — the debounced thunks that task's `settlePendingWrites()` drains —
+	 * must call {@link applyInteraction} directly; those are already ordered by the
+	 * drain running them, and enqueuing there would deadlock on the tail its own
+	 * caller holds.
+	 */
+	private enqueueWrite(write: () => Promise<void>): Promise<void> {
+		return this.writeQueue.enqueue(write);
 	}
 
 	/**
