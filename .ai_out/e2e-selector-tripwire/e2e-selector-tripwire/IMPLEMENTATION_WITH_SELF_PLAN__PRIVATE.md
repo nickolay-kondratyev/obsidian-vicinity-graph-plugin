@@ -54,3 +54,29 @@ extraction/exemption against synthetic snippets (importGuard precedent).
   Bare-member fs imports turn it red. (importGuard.test.ts lives in src/ so it is not subject to this.)
 - Mutation recipe used: replace `vicinity-graph-node__title` -> `__heading` in
   `src/view/NoteNode.tsx`; revert with `git checkout -- src/view/`.
+
+## ITERATION round 2 (review response) — commit `6344134`
+
+Addressed both SHOULD-FIX from `IMPLEMENTATION_REVIEW__PUBLIC.md`. See
+`IMPLEMENTATION_ITERATION__PUBLIC.md` for the per-finding disposition + verbatim runs.
+
+- **S1 interpolated tail**: pattern gained an optional `(\$\{)?` capture; matches with
+  that group defined are dropped. **Do NOT "simplify" this to a `(?!\$\{)` lookahead** —
+  the greedy `[\w-]+` backtracks, gives back the trailing `-`, and yields the equally
+  bogus token `vicinity-graph-node-`. Verified. Also chose the boundary capture over the
+  reviewer's "token ends in `-`" because it additionally covers `` `.vicinity-graph-node${s}` ``.
+- **S2 unit-test files**: `UNIT_TEST_FILE_SUFFIXES` + `isUnitTestFile`, applied to the
+  render-source list only.
+- **S2 comments**: strip block + WHOLE-LINE `//` only. Mid-line `//` deliberately left
+  alone — `src/view/testFixtures/graphFixtures.ts:14` has `.replace(/^.*\//, "")`, a regex
+  literal a naive strip would truncate, turning a render-side false-GREEN into a
+  false-RED. Argued in the PUBLIC doc; do not "finish the job" without re-checking that.
+- Empirical safety measurement (script pattern worth reusing): distinct `vicinity-graph-*`
+  tokens under `src/view` = 74 raw / 74 excl. tests / 74 after comment strip → both
+  tightenings cost zero today.
+- Mutation matrix re-run: A (rename, CSS intact) RED; B (A + masking comment) RED
+  (was GREEN pre-fix); C (B + class in a `src/view/*.test.ts`) RED; D (interpolated-tail
+  selector in a real spec) GREEN, and RED on the pre-fix guard — fix is load-bearing.
+- Gates: `npm test` 1010 passed / 75 files (1003 + 7 new matcher tests); `npm run check`
+  exit 0. Guard alone: 20 tests, 3 ms.
+- Tree clean, all mutations reverted. Nothing left open.
