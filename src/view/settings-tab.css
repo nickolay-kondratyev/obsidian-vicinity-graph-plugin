@@ -85,3 +85,18 @@
 	font-size: var(--font-ui-small);
 	word-break: break-all;
 }
+
+/* Inline feedback for one settings row (a refused value, or a pattern line that
+ * will never match). Lives under the row description, in the info column, so it
+ * needs no override of Obsidian's flex row. Hidden while empty, so showing and
+ * clearing it is a single text assignment with no visibility state in JS. */
+.vicinity-graph-settings .vicinity-graph-settings-error {
+	margin-top: var(--size-2-2);
+	color: var(--text-error);
+	font-size: var(--font-ui-smaller);
+	/* Messages are newline-joined, one per offending line. */
+	white-space: pre-line;
+}
+.vicinity-graph-settings .vicinity-graph-settings-error:empty {
+	display: none;
+}
