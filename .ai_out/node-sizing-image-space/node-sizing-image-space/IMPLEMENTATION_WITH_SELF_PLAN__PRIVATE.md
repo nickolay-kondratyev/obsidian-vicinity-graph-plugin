@@ -103,3 +103,37 @@ exactly **122**, across fonts 12/13/14, short/long title, 0/1/4 chips.
   but other suites may see image nodes grow 104 → 122.
 - Wrapping (multi-row) attachment strip still clips the slot in principle; my
   4-chip case did not wrap at 104px content width, so it is unmeasured.
+
+---
+
+# Iteration 3 (closing pass on the reviewer's non-blocking follow-ups; verdict was READY)
+
+## State: COMPLETE. Working tree only, no commit, no change_log entry.
+`npm test` **1094/1094** (baseline 1093, +1), `npm run check` exit 0. `test:e2e` not run (out of scope).
+
+## Diff surface (3 files)
+- `src/view/thumbnailDensityThreshold.test.ts` — new `DECLARES_SIZE_CONTAINER`
+  regex + one BDD case pinning `container-type: size` on `.vicinity-graph-node`.
+- `src/engine/constants.ts` — comment only, on `NODE_VERTICAL_CHROME_PX`
+  (the central-node aside now states the real condition, `maxPx >= 124`).
+- `docs-internal/tickets/ticket-attachment-strip-overflows-onto-title.md` — NEW.
+
+## Red-first evidence (do not re-do)
+Flipped `container-type: size` → `inline-size` in `graph-view.css`:
+`1 failed | 4 passed` — i.e. ONLY the new case bit, which is exactly the silent
+degradation the reviewer described. CSS restored via `git checkout --`; log in
+`.tmp/it3-red.txt`.
+
+## Regex note
+`DECLARES_SIZE_CONTAINER = /(?:^|\n)\tcontainer-type:\s*size;/` is anchored to a
+line start and applied to `nodeRootDeclarations()` ONLY, so a `container-type` on
+any other rule cannot satisfy it. It uses `(?:^|\n)` rather than the file's
+existing `\n\t` style because `container-type` is currently the first declaration
+after the custom property and could legitimately move to line 1 of the block.
+
+## Deliberately NOT done
+- Multi-row chip strip over the title: ticketed, not fixed (reviewer PROVED it
+  pre-existing with the old 4-line clamp). Ticket names the two `.out/` screenshots
+  and explicitly says the overlap MECHANISM was not isolated — do not trust a
+  mechanism claim that was never measured.
+- Nothing else touched. No refactors.

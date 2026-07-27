@@ -89,7 +89,11 @@ const THUMBNAIL_REVEAL_CONTENT_BOX_PX = 104;
  * border and `--size-4-2` (8px) of padding, top and bottom.
  *
  * (The `[data-tier]` centrals use a 2px border, so their chrome is 20 — not
- * modelled here, because centrals are sized at `maxPx` and never need the floor.)
+ * modelled here. Centrals are sized at `maxPx`, so they clear the reveal on
+ * their own only once `maxPx >= 124`; between 122 and 123 a central hides its
+ * thumbnail while a non-central of the same height shows one. Deliberately left
+ * unmodelled: the default `maxPx` is 160, and that 2px band is not worth a
+ * per-tier floor.)
  */
 export const NODE_VERTICAL_CHROME_PX = 2 * (1 + 8);
 

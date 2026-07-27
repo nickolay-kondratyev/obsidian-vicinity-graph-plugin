@@ -28,6 +28,11 @@ const REVEALS_THUMBNAIL = /\.vicinity-graph-node__thumbnail\s*\{[^}]*display:\s*
 // The node root's OWN rule block (not `:hover`, not the `[data-tier]` variants).
 const NODE_ROOT_RULE = /\n\.vicinity-graph-node \{\n([\s\S]*?)\n\}/;
 const NODE_BORDER_WIDTH = /\n\tborder:\s*(\d+)px\s/;
+// `container-type` decides which axes the query can read: only `size` exposes
+// HEIGHT. Downgrading it to `inline-size` would leave every number below in
+// agreement while the min-height query silently never matches again.
+// (Anchored to a line start so a `container-type` on some OTHER rule cannot pass.)
+const DECLARES_SIZE_CONTAINER = /(?:^|\n)\tcontainer-type:\s*size;/;
 // Padding is an Obsidian spacing token, e.g. `padding: var(--size-4-2)` = 2 * 4px.
 const NODE_PADDING_SPACING_STEPS = /\n\tpadding:\s*var\(--size-4-(\d+)\)/;
 /** Obsidian's spacing scale: `--size-4-N` is `N * 4px`. */
@@ -69,6 +74,10 @@ function parsedNodeVerticalChromePx(): number {
 describe("thumbnail density threshold", () => {
 	it("WHEN scanning graph-view.css THEN exactly one container query reveals the thumbnail", () => {
 		expect(thumbnailRevealBlocks()).toHaveLength(1);
+	});
+
+	it("WHEN the node root is styled THEN it is a SIZE container, so the reveal's min-height query can match", () => {
+		expect(nodeRootDeclarations()).toMatch(DECLARES_SIZE_CONTAINER);
 	});
 
 	it("WHEN the node root is styled THEN its vertical chrome matches the engine's border-box correction", () => {

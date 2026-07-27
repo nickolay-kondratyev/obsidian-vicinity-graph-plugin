@@ -195,3 +195,55 @@ see image-bearing nodes grow from 104 to 122 — worth a full e2e pass before me
 Also unmeasured: a *wrapping* (multi-row) attachment strip can still crowd the
 slot; my 4-chip case did not wrap at the floor's width, so the case is untested
 rather than proven safe.
+
+---
+
+# Iteration 3 — closing pass (reviewer verdict was READY; both follow-ups were worth doing)
+
+Scope was exactly the two non-blocking items from `IMPLEMENTATION_ITERATION__PUBLIC.md`
+§"Follow-up ticket suggestions" (1) and (3). Nothing else changed.
+
+## 1. Guard now pins `container-type: size` — the last silent-failure path is closed
+
+`src/view/thumbnailDensityThreshold.test.ts` gained one BDD case:
+
+> WHEN the node root is styled THEN it is a SIZE container, so the reveal's
+> min-height query can match
+
+**Made to fail first.** Flipping `.vicinity-graph-node` to
+`container-type: inline-size` (which would hide EVERY thumbnail at every size)
+gives `1 failed | 4 passed` — only the new case bites, confirming the exact
+silent-degradation hole the reviewer identified. CSS restored immediately;
+`git status` shows `graph-view.css` unmodified.
+
+The matcher is anchored to a line start and applied only to the parsed
+`.vicinity-graph-node` rule body, so a `container-type` elsewhere in the
+stylesheet cannot satisfy it. A rename/removal of that rule still throws loudly
+via the existing `nodeRootDeclarations()` guard.
+
+## 2. Stale comment on `NODE_VERTICAL_CHROME_PX` corrected
+
+`src/engine/constants.ts` previously claimed centrals "never need the floor".
+That is only true for `maxPx >= 124` (central chrome is 20, so their content box
+is `maxPx - 20` against the 104 reveal). The comment now states the condition,
+names the 122–123 band where a central hides its thumbnail while a non-central of
+the same height shows one, and records WHY it stays unmodelled (default `maxPx`
+is 160; a per-tier floor is not worth 2px of edge case).
+
+## 3. Multi-row chip strip — ticketed, NOT fixed (as instructed)
+
+`docs-internal/tickets/ticket-attachment-strip-overflows-onto-title.md`. It
+records the reviewer's proof that this is pre-existing (identical under the old
+4-line clamp), points at both `.out/` screenshots, and — honestly — flags that
+the overlap MECHANISM was never isolated, so the fixer must reproduce before
+choosing between `max-height` and `flex-wrap: nowrap`.
+
+## Verification (real numbers)
+
+| Command | Result | Log |
+|---|---|---|
+| `npm test` | **PASS** — 81 files, **1094 tests** (baseline 1093, +1 new) | `.tmp/it3-test.txt` |
+| `npm run check` | **PASS** — exit 0, `src/` + `e2e/` | `.tmp/it3-check.txt` |
+| `npm run test:e2e` | not run (out of scope; still the merge gate) | — |
+
+No commit, no `change_log` entry — both belong to the top-level agent.

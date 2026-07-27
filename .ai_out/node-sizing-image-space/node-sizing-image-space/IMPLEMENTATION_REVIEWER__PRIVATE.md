@@ -1,6 +1,10 @@
 # IMPLEMENTATION_REVIEWER — private working notes
 
-Branch `node-sizing-image-space`, single commit `898c48f`. Iteration 1 of review.
+Branch `node-sizing-image-space`. Iteration 1 = `898c48f`, iteration 2 = `afed443`.
+
+> **Iteration 2 outcome: READY.** Full record in `IMPLEMENTATION_ITERATION__PUBLIC.md`.
+> Notes below the `## ITERATION 2` heading at the bottom; everything above it is
+> the iteration-1 record, kept as-is.
 
 ## Verification actually performed (not inferred)
 
@@ -84,3 +88,55 @@ mode the prompt warned about, arrived at by a different route.
 NEEDS-ITERATION. Design/architecture/tests are good work; the single number the
 whole feature rests on is wrong by the node's chrome, so the requirement is not
 met. Everything else is minor.
+
+---
+
+## ITERATION 2 (`afed443`) — verification pass
+
+### Gates actually run
+- `npm test` → PASS, 81 files / **1093** tests (`.tmp/rev2-npm-test.txt`).
+- `npm run check` → PASS, silent (`.tmp/rev2-npm-check.txt`).
+- `npm run test:e2e` still NOT run (needs real Obsidian). Merge gate, not a finding.
+
+### Rig (rebuilt, do not reuse iteration-1 numbers)
+`styles.css` at repo root is **untracked and was stale** — it did NOT contain the
+new clamp rule. I rebuilt the concatenation the way `esbuild.config.mjs` does into
+`.tmp/rev2-styles.css` (react-flow + graph-view + node-outline + settings-tab +
+segmented-control) and measured that. Probes: `.tmp/rev2-probe.mjs` (sweep),
+`rev2-probe2.mjs` (font sensitivity), `rev2-probe3/4.mjs` (occlusion + hit test).
+Screenshots `.out/rev2*.png`.
+
+### Measured facts (mine, not the implementer's)
+- Reveal boundary is **exactly 122** node px: `display:none` at 121, `block` at 122,
+  across narrow(120)/wide(250) × short/long title × 0/2/6/12 chips.
+- At 122 the thumbnail is **56/56 px unobstructed** in every variant, including the
+  wrapping multi-row strip the implementer flagged as unmeasured. Verified with a
+  per-pixel `elementFromPoint` walk, not just rect clipping — my first metric
+  (rect ∩ padding box) was blind to occlusion and nearly misled me.
+- `--font-ui-smaller` 11→20px: still 56/56 at 122. The clamp counts lines, and the
+  overflow lands on the chip strip, not the thumbnail.
+- Computed `-webkit-line-clamp`: 2 for `data-preview="thumbnail"`, 4 for `outline`
+  and `none`. Scoping correct.
+
+### Guard-test analysis (B2)
+Right relation now pinned. Not vacuous: `?? 0` / `?? ""` fallbacks are neutralised
+by the `toHaveLength(1)` sibling. Every plausible CSS refactor either parses
+correctly (2-value padding shorthand — the first value IS top/bottom) or `throw`s
+red; nothing degrades silently. **Residual gap:** `container-type: size` is not
+pinned; flipping it to `inline-size` hides every thumbnail with all four cases
+green. Filed as a follow-up suggestion, not a blocker — the e2e rendering-proof
+ticket covers the same hole more thoroughly.
+
+### Things I checked and deliberately did NOT raise as findings
+- Multi-row chip strip painting over the title at 122: **pre-existing**, proved by
+  re-rendering with the old 4-line clamp (`.out/rev2c-old-clamp4.png`) — identical
+  breakage. Follow-up ticket suggestion only.
+- Central 2px border ⇒ chrome 20: only bites for `maxPx` ∈ [122,123]. Comment in
+  `constants.ts:156-158` slightly overstates. Suggestion only.
+- `NODE_VERTICAL_CHROME_PX` exported from `engine/index.ts` solely for the guard
+  test — acceptable, CLAUDE.md mandates importing engine symbols from `index.ts`.
+- Still no `change_log` entry (raised in iteration 1, still open) — suggestion.
+
+### Verdict
+**READY.** Both blockers genuinely fixed and independently measured; docs accurate;
+tickets correctly scoped. Remaining items are follow-ups, not gates.
