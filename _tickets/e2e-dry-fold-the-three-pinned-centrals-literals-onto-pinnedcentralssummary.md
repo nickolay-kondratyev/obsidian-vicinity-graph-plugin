@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-27T15:06:01Z
 id: nid_iwd08rsdnsbdziltw1odisuoc_e
 title: "e2e DRY: fold the three 'Pinned centrals' literals onto PINNED_CENTRALS_SUMMARY"
-status: open
+status: closed
 deps: []
 links: []
 created_iso: 2026-07-26T16:53:34Z
-status_updated_iso: 2026-07-26T16:53:34Z
+status_updated_iso: 2026-07-27T15:06:01Z
 type: chore
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
