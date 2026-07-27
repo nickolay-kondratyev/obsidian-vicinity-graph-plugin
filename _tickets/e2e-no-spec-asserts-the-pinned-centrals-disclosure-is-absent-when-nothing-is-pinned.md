@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-27T15:19:02Z
 id: nid_d9j4o9ecp93g5zhury5m1fb43_e
 title: "e2e: no spec asserts the 'Pinned centrals' disclosure is ABSENT when nothing is pinned"
-status: open
+status: closed
 deps: []
-links: []
+links: [nid_6mack3e3ql9qtaxf1edezjpfs_e]
 created_iso: 2026-07-26T16:53:34Z
-status_updated_iso: 2026-07-26T16:53:34Z
+status_updated_iso: 2026-07-27T15:19:02Z
 type: task
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
