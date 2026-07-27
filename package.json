@@ -33,7 +33,7 @@
 		"@types/react": "^18.3.12",
 		"@types/react-dom": "^18.3.1",
 		"esbuild": "^0.25.5",
-		"obsidian": "latest",
+		"obsidian": "1.12.3",
 		"typescript": "^5.8.3",
 		"vitest": "^4.1.10"
 	}
