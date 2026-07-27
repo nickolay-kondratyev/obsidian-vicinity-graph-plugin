@@ -58,6 +58,21 @@ describe("PathExclusionMatcher invalid patterns", () => {
 	});
 });
 
+describe("PathExclusionMatcher.compileFailure (what a UI may warn about)", () => {
+	it("WHEN a pattern is reported as failing THEN that same pattern is one the matcher skips", () => {
+		expect(PathExclusionMatcher.compileFailure("(")).toBeDefined();
+		expect(excludes(["("], "rel/x.md")).toBe(false);
+	});
+
+	it("WHEN a pattern compiles THEN no failure is reported", () => {
+		expect(PathExclusionMatcher.compileFailure("^archive/")).toBeUndefined();
+	});
+
+	it("WHEN a pattern fails THEN the regex engine's own reason is returned", () => {
+		expect(PathExclusionMatcher.compileFailure("(")).toContain("Invalid regular expression");
+	});
+});
+
 describe("PathExclusionMatcher empty list", () => {
 	it("WHEN there are no patterns THEN nothing is excluded (no-op matcher)", () => {
 		expect(excludes([], "rel/x.md")).toBe(false);

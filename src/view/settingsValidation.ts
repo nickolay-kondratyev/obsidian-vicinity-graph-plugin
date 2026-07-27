@@ -1,4 +1,5 @@
 import type { SizingSettings } from "../engine";
+import { PathExclusionMatcher } from "../engine";
 
 /**
  * What the settings tab REFUSES to persist, and what it merely warns about —
@@ -43,7 +44,9 @@ export function parseExclusionPatterns(raw: string): readonly string[] {
 export function invalidExclusionPatterns(raw: string): readonly InvalidExclusionPattern[] {
 	const invalid: InvalidExclusionPattern[] = [];
 	for (const { lineNumber, pattern } of numberedPatternLines(raw)) {
-		const reason = compileFailure(pattern);
+		// Asked of the ENGINE, not re-implemented here: the whole point of the warning
+		// is that it names exactly the lines the matcher will skip.
+		const reason = PathExclusionMatcher.compileFailure(pattern);
 		if (reason !== undefined) {
 			invalid.push({ lineNumber, pattern, reason });
 		}
@@ -83,14 +86,4 @@ function numberedPatternLines(raw: string): readonly { lineNumber: number; patte
 		.split("\n")
 		.map((line, index) => ({ lineNumber: index + 1, pattern: line.trim() }))
 		.filter(({ pattern }) => pattern.length > 0);
-}
-
-/** The regex engine's message when `pattern` does not compile, `undefined` when it does. */
-function compileFailure(pattern: string): string | undefined {
-	try {
-		new RegExp(pattern);
-		return undefined;
-	} catch (error) {
-		return error instanceof Error ? error.message : String(error);
-	}
 }

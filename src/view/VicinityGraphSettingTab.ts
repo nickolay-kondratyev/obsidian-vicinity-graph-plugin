@@ -34,11 +34,9 @@ import {
 	planSettingsResetConfirmation,
 } from "./settingsResetPlan";
 import type { SettingsFeedback } from "./settingsValidation";
-import {
-	describeInvalidExclusionPatterns,
-	describeSizingRejection,
-	parseExclusionPatterns,
-} from "./settingsValidation";
+import { describeInvalidExclusionPatterns, parseExclusionPatterns } from "./settingsValidation";
+import type { SizingNumberField, SizingRowVerdict } from "./sizingRowWrite";
+import { SizingRowWrite } from "./sizingRowWrite";
 import type { SettingsCommand, SettingsInteraction, SettingsWriteContext } from "./settingsWritePlan";
 import { planSettingsWrite } from "./settingsWritePlan";
 import { parseSizingInput } from "./sizingInput";
@@ -119,6 +117,12 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 		el.setAttribute("aria-label", accessibleName);
 	}
 
+	/**
+	 * Re-seeds every control from the store. Callers that re-render after a write
+	 * must `await this.settlePendingWrites()` FIRST — this method reads the globals
+	 * synchronously, so a debounced write draining afterwards would leave the tab
+	 * displaying a value the store no longer holds.
+	 */
 	display(): void {
 		const { containerEl } = this;
 		containerEl.empty();
@@ -140,7 +144,7 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	 * window — a debounce that swallows the user's last edit is worse than none.
 	 */
 	hide(): void {
-		void this.debounced.flush();
+		void this.settlePendingWrites();
 		super.hide();
 	}
 
@@ -150,8 +154,25 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	 */
 	private flushOnBlur(input: HTMLElement): void {
 		input.addEventListener("blur", () => {
-			void this.debounced.flush();
+			void this.settlePendingWrites();
 		});
+	}
+
+	/**
+	 * Drains the debounce window and RESOLVES either way. Awaited before anything
+	 * that re-reads the globals (a reset, a re-render), because a write still inside
+	 * the window would otherwise drain afterwards and quietly undo part of it.
+	 *
+	 * Swallowing-with-a-log is deliberate: a failed `data.json` write must not abort
+	 * the reset the user just asked for, and `flush()`'s rejection has nowhere else
+	 * to go — the alternative is the unhandled rejection this replaces.
+	 */
+	private async settlePendingWrites(): Promise<void> {
+		try {
+			await this.debounced.flush();
+		} catch (error) {
+			console.error("vicinity-graph: failed to persist a settings change", error);
+		}
 	}
 
 	/**
@@ -159,15 +180,19 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	 * Empty text hides it (CSS `:empty`), so showing and clearing are the SAME
 	 * assignment — no visibility state to get out of sync with the message.
 	 * Must be created AFTER `setDesc()`, which owns `descEl`'s text.
+	 *
+	 * `role` is the caller's choice because urgency differs: a REFUSED value must
+	 * interrupt (`alert`), while a per-keystroke advisory must not — `alert` there
+	 * would talk over a screen-reader user on every character they type.
 	 */
-	private static addFeedbackSlot(row: Setting): HTMLElement {
-		return row.descEl.createDiv({ cls: "vicinity-graph-settings-error", attr: { role: "alert" } });
+	private static addFeedbackSlot(row: Setting, role: "alert" | "status"): HTMLElement {
+		return row.descEl.createDiv({ cls: "vicinity-graph-settings-error", attr: { role } });
 	}
 
-	/** The typed value was REFUSED: say why, and mark the control invalid for assistive tech. */
-	private static showRejection(slot: HTMLElement, input: HTMLElement, message: string | undefined): void {
-		slot.textContent = message ?? "";
-		input.setAttribute("aria-invalid", String(message !== undefined));
+	/** Renders one row's verdict: the message, and `aria-invalid` only when it REFUSED the value. */
+	private static showVerdict(slot: HTMLElement, input: HTMLElement, verdict: SizingRowVerdict): void {
+		slot.textContent = verdict.message ?? "";
+		input.setAttribute("aria-invalid", String(verdict.rejected));
 	}
 
 	/**
@@ -290,6 +315,10 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 			.setDesc("Hide matching neighbor notes before the graph is built. Central and pinned notes are never excluded.")
 			.addToggle((toggle) =>
 				toggle.setValue(exclusion.enabled).onChange(async (enabled) => {
+					// Pending typed edits first: `display()` below re-seeds every control
+					// from the store, so a later-landing write would leave the tab
+					// showing a value the store no longer has.
+					await this.settlePendingWrites();
 					await this.applyInteraction({
 						kind: "global-node-exclusion",
 						nodeExclusion: { ...this.store.nodeExclusion(), enabled },
@@ -311,7 +340,9 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 			.setDesc(
 				"One regular expression per line, tested (case-sensitively, unanchored) against each note's vault path including extension. E.g. `^archive/` matches the archive folder at the vault root; `templates/` matches anywhere. Invalid patterns are ignored.",
 			);
-		const feedback = VicinityGraphSettingTab.addFeedbackSlot(row);
+		// "status", not "alert": this slot updates on EVERY keystroke while a regex is
+		// half-typed, and an assertive region would interrupt on every character.
+		const feedback = VicinityGraphSettingTab.addFeedbackSlot(row, "status");
 		row.addTextArea((text) => {
 			text.inputEl.rows = EXCLUSION_TEXTAREA_ROWS;
 			VicinityGraphSettingTab.nameControl(text.inputEl, name);
@@ -371,6 +402,8 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 				.setName(label)
 				.addToggle((toggle) =>
 					toggle.setValue(metric.enabled).onChange(async (enabled) => {
+						// See the exclusion toggle: `display()` re-seeds from the store.
+						await this.settlePendingWrites();
 						const current = this.store.globalView().sizing;
 						await this.applySizing({
 							...current,
@@ -407,18 +440,9 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 				});
 		}
 
-		this.addSizingNumber(section, "Minimum node size (px)", sizing.minPx, SIZING_RANGES.minPx, (minPx) => ({
-			...this.store.globalView().sizing,
-			minPx,
-		}));
-		this.addSizingNumber(section, "Maximum node size (px)", sizing.maxPx, SIZING_RANGES.maxPx, (maxPx) => ({
-			...this.store.globalView().sizing,
-			maxPx,
-		}));
-		this.addSizingNumber(section, "Depth decay k", sizing.depthDecayK, SIZING_RANGES.depthDecayK, (depthDecayK) => ({
-			...this.store.globalView().sizing,
-			depthDecayK,
-		}));
+		this.addSizingNumber(section, "Minimum node size (px)", "minPx");
+		this.addSizingNumber(section, "Maximum node size (px)", "maxPx");
+		this.addSizingNumber(section, "Depth decay k", "depthDecayK");
 		this.addSectionReset(section, "node-sizing");
 	}
 
@@ -586,35 +610,31 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	}
 
 	/**
-	 * One sizing number input. Bounds come from {@link SIZING_RANGES}, the SAME
-	 * table the write planner clamps with, so the input and the stored value
-	 * agree, and {@link parseSizingInput} decides what counts as typed input —
-	 * the same rule the in-view sizing mirror uses.
-	 *
-	 * `toSizing` returns the WHOLE prospective sizing object (built from the store
-	 * read fresh) rather than performing the write: the row needs it twice, once to
-	 * validate the keystroke immediately and once at flush time, when the globals
-	 * may have moved on. A REJECTED value stays in the field with its reason beside
-	 * it — never silently persisted, never silently reverted.
+	 * One sizing number input. Pure obsidian glue: {@link parseSizingInput} decides
+	 * what counts as typed input (the same rule the in-view sizing mirror uses) and
+	 * {@link SizingRowWrite} owns everything else — bounds feedback, the cross-field
+	 * rule, and the deferred write that re-checks against the globals as they are at
+	 * FLUSH time. A REJECTED value stays in the field with its reason beside it —
+	 * never silently persisted, never silently reverted.
 	 */
-	private addSizingNumber(
-		container: HTMLElement,
-		name: string,
-		value: number,
-		range: SettingsRange,
-		toSizing: (value: number) => SizingSettings,
-	): void {
+	private addSizingNumber(container: HTMLElement, name: string, field: SizingNumberField): void {
+		const write = new SizingRowWrite(
+			field,
+			() => this.store.globalView().sizing,
+			(sizing) => this.applySizing(sizing),
+		);
 		const row = new Setting(container).setName(name);
-		const feedback = VicinityGraphSettingTab.addFeedbackSlot(row);
+		const feedback = VicinityGraphSettingTab.addFeedbackSlot(row, "alert");
 		row.addText((text) => {
 			text.inputEl.type = "number";
-			VicinityGraphSettingTab.applyRange(text.inputEl, range);
-			text.setValue(String(value));
+			VicinityGraphSettingTab.applyRange(text.inputEl, SIZING_RANGES[field]);
+			const stored = write.storedValue();
+			text.setValue(String(stored));
 			VicinityGraphSettingTab.nameControl(text.inputEl, name);
 			this.flushOnBlur(text.inputEl);
 			// A hand-edited data.json can still hold an inverted pair; say so on open
 			// rather than only once the user types.
-			VicinityGraphSettingTab.showRejection(feedback, text.inputEl, describeSizingRejection(toSizing(value)));
+			VicinityGraphSettingTab.showVerdict(feedback, text.inputEl, write.judge(stored));
 			text.onChange((raw) => {
 				const parsed = parseSizingInput(raw);
 				if (parsed === undefined) {
@@ -623,13 +643,13 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 					this.debounced.drop(name);
 					return;
 				}
-				const rejection = describeSizingRejection(toSizing(parsed));
-				VicinityGraphSettingTab.showRejection(feedback, text.inputEl, rejection);
-				if (rejection !== undefined) {
+				const verdict = write.judge(parsed);
+				VicinityGraphSettingTab.showVerdict(feedback, text.inputEl, verdict);
+				if (verdict.rejected) {
 					this.debounced.drop(name);
 					return;
 				}
-				this.debounced.schedule(name, () => this.applySizing(toSizing(parsed)));
+				this.debounced.schedule(name, () => write.persistIfAccepted(parsed));
 			});
 		});
 	}
@@ -688,6 +708,9 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	 * a multi-slice reset cannot half-apply a stale view object.
 	 */
 	private async applyReset(scope: SettingsResetScope): Promise<void> {
+		// A keystroke still inside the settle window would otherwise land AFTER the
+		// defaults and silently un-reset its field.
+		await this.settlePendingWrites();
 		for (const command of planSettingsReset(scope, this.writeContext())) {
 			await this.persist(command);
 		}

@@ -83,7 +83,8 @@ The distinction matters because people ask about it, so it is worth reading once
   entering `160` re-builds open graphs once instead of once per digit. Leaving a
   field, or closing the tab, applies it immediately — nothing you typed is lost. A
   value the plugin cannot accept (a **maximum node size below the minimum**) stays
-  in the field with the reason beside it, rather than being silently saved.
+  in the field with the reason beside it, rather than being silently saved, and a
+  sizing number outside its allowed range says what will be stored instead of it.
 - **Restoring defaults** — every section ends with its own restore row whose name
   states exactly what it resets (*Restore node sizing defaults*, *Restore force
   layout defaults*, …). Rows that only reset numeric knobs apply immediately;
