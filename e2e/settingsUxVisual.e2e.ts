@@ -6,7 +6,7 @@ import {
 	ALL_SETTINGS_RESET_CONFIRM_TITLE,
 	CONTROLS_PANEL_DISCLOSURE_SUMMARIES,
 	CONTROLS_PANEL_DISCLOSURES,
-	PINNED_CENTRALS_SUMMARY,
+	PINNED_CENTRALS_SUMMARY_PATTERN,
 	SECTION_RESET_NAMES,
 	SETTINGS_TAB_SECTION_HEADINGS,
 	SETTINGS_TAB_SECTIONS,
@@ -79,27 +79,28 @@ test("panel defaults: every section is a disclosure, only Depth starts open", as
 });
 
 /**
- * The panel's TOP-LEVEL disclosure summaries, in DOM order.
+ * Every TOP-LEVEL panel disclosure's summary.
  *
  * `>` twice, deliberately: the panel's sections are direct children of
  * `.vicinity-graph-toolbar__body`, so a direct-child chain both scopes the count
  * to the top level and drops the NESTED "Advanced spacing" disclosure (and its
  * summary) structurally — no name to maintain.
+ */
+const TOP_LEVEL_PANEL_SUMMARY_SELECTOR =
+	".vicinity-graph-toolbar__body > .vicinity-graph-disclosure > .vicinity-graph-disclosure__summary";
+
+/**
+ * The panel's top-level disclosure summaries MINUS the conditional "Pinned
+ * centrals (n)", in DOM order.
  *
- * The one direct child the baseline does NOT list is the CONDITIONAL "Pinned
- * centrals (n)". It is filtered out BY NAME rather than left to the fixture: this
- * spec happens never to pin a central today, but that is an invisible invariant,
- * and the day a test above it pins one the count would silently become 6.
- *
- * That filter is a FULL-TEXT regex, not a substring: a substring `hasNotText`
- * would also swallow a future REAL section whose name merely contains the phrase
- * ("Pinned centrals defaults"), i.e. the exhaustiveness hole this test exists to
- * close. `\(\d+\)` is exactly the shape `GraphToolbar` renders.
+ * That one is filtered out BY NAME rather than left to the fixture: this spec
+ * happens never to pin a central today, but that is an invisible invariant, and
+ * the day a test above it pins one the count would silently become 6. The price
+ * is that this locator cannot see the disclosure rendering UNCONDITIONALLY —
+ * covered by the absence test below.
  */
 function topLevelPanelSummaries(): Locator {
-	return page
-		.locator(".vicinity-graph-toolbar__body > .vicinity-graph-disclosure > .vicinity-graph-disclosure__summary")
-		.filter({ hasNotText: new RegExp(`^${PINNED_CENTRALS_SUMMARY} \\(\\d+\\)$`) });
+	return page.locator(TOP_LEVEL_PANEL_SUMMARY_SELECTOR).filter({ hasNotText: PINNED_CENTRALS_SUMMARY_PATTERN });
 }
 
 test("panel: WHEN the controls panel renders THEN its top-level disclosures are exactly the listed ones, in order", async () => {
@@ -126,6 +127,24 @@ test("panel: WHEN the controls panel renders THEN its top-level disclosures are 
 			(text) => new RegExp(`^${text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\d*$`),
 		),
 	);
+});
+
+/*
+ * The blind spot the filter above creates, closed. The exhaustiveness pin removes
+ * "Pinned centrals (n)" from its own locator by name, so a `GraphToolbar` that
+ * dropped the `pinned.length > 0` guard and rendered "Pinned centrals (0)" on
+ * every view would leave it — and every other spec — green: the two specs that
+ * touch this disclosure only assert PRESENCE, and only AFTER pinning.
+ *
+ * Ordering matters and is why this lives here: the file is serial and its fixture
+ * never pins, so the GIVEN holds only as long as no test above it clicks a pin.
+ */
+test("panel: WHEN no central is pinned THEN the panel has no Pinned centrals disclosure", async () => {
+	await setOpen(toolbar(), true);
+
+	// One chained statement on ONE line, so `selectorGuard.test.ts` can recognise it
+	// as an absence assertion — see its ABSENCE_ASSERTION_PATTERN note.
+	await expect(page.locator(TOP_LEVEL_PANEL_SUMMARY_SELECTOR).filter({ hasText: PINNED_CENTRALS_SUMMARY_PATTERN })).toHaveCount(0);
 });
 
 test("exclusion toggle switches on, shows patterns state, and persists", async () => {
