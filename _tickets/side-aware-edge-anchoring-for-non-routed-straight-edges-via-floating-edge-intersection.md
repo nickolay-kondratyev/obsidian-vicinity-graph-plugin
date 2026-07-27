@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-27T21:48:27Z
 id: nid_var2o7krxq7ribq3iofni3aw1_e
 title: "Side-aware edge anchoring for non-routed (straight) edges via floating-edge intersection"
-status: open
+status: closed
 deps: [nid_wku3029kwmnei7e86rbb1dk7w_e]
 links: [nid_wku3029kwmnei7e86rbb1dk7w_e, nid_ub30ndqyp6ikq76hv4ba6yqss_e, nid_bq5k5gx5k3112otsbz1u0h7ba_e]
 created_iso: 2026-07-22T20:37:35Z
-status_updated_iso: 2026-07-22T20:37:35Z
+status_updated_iso: 2026-07-27T21:48:27Z
 type: feature
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
@@ -78,3 +79,41 @@ the existing `edgePathFor`, `src/view/edgeGeometry.ts`).
   the facing sides of both endpoints (notes AND folder groups).
 - No regression in routed rendering, bidirectional arrowheads, or `hasOpposite` bow.
 - Spec updated; unit tests pass; full `npm test` + e2e green.
+
+## Notes
+
+**2026-07-27T21:48:27Z**
+
+RESOLUTION — implemented, with narrower reach than this ticket assumed.
+
+Delivered: pure `facingSideAnchorsFor(sourceRect, targetRect)` in `src/view/edgeGeometry.ts`, built on the
+existing Liang-Barsky `segmentRectEntryPoint` (no second intersection routine) and reusing `ClipRect`.
+`VicinityEdge.tsx` resolves both endpoint rects via `useInternalNode` + `internals.positionAbsolute` and
+falls back to the handle-derived endpoints when a node is unresolved or no facing anchor exists.
+`edgePathFor` is byte-unchanged; handles, layout and the routed branch untouched.
+
+STALE PREMISE — this ticket's two stated triggers no longer exist:
+  - the `edgeRouting` ViewSetting was deleted (routing is now unconditional);
+  - `radial` / `ROUTING_SKIPPED_LAYOUT_MODE` was deleted by the force-layout-only ticket.
+Both closed 2026-07-24. Neither symbol is in src/ anymore.
+
+NO-OP IN NORMAL OPERATION. The degenerate `clipRouteToEndpointRects` chord looked like the remaining
+normal-operation case, but it emits a 2-point route and so takes the ROUTED branch. That degeneration
+was shown mutually exclusive with having usable facing anchors. The new anchoring is therefore active
+only on: router/wasm failure fallback, edges absent from the route map, edges dropped by
+`extractEdgeRoutingInput`, and `routedPoints.length < 2`. Stated plainly in the spec.
+
+Review caught a real bug: partially overlapping boxes produced a REVERSED segment (arrowhead pointing at
+the wrong node). Fixed with a dot-product ordering guard; degenerate/touching/non-finite rects fall back
+rather than emitting NaN.
+
+Acceptance criteria deviations:
+  - 'routing OFF and radial layout' — not applicable, both removed.
+  - E2E — NOT added. No fixture can produce a non-routed edge (routing cannot be disabled, no harness
+    seam, router does not fail in e2e) and a test-only failure seam was refused as a hack. Covered by
+    unit tests instead. Existing e2e suite green (84 passed / 1 skipped).
+
+Spec: docs-internal/specs/graph/arrows.md (NOT the vicinity-graph-specs/ path named above, which does not exist).
+Tests: 1109 pass (edgeGeometry 40 -> 55); npm run check clean.
+Follow-ups filed: nid_bq5k5gx5k3112otsbz1u0h7ba_e [decide] (multi-vertex corner-overlap remainder, ~0.5%),
+nid_ub30ndqyp6ikq76hv4ba6yqss_e (stale VicinityGraphFlow culling comment).
