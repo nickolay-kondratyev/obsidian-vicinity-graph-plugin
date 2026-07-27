@@ -92,3 +92,7 @@ When Obsidian 1.13.x reaches GA (`desktop-releases.json` `latestVersion` >= 1.13
 `scripts/setup-obsidian-bin.sh`, run `npm run test:e2e -- settingsUxVisual.e2e.ts`, and confirm the
 INLINE arm does the matching by temporarily removing the `.tooltip` arm. Then re-evaluate dropping
 `setDynamicTooltip()` alongside any `minAppVersion` bump.
+
+**2026-07-27T15:21:12Z**
+
+RE-CHECK 2026-07-27: trigger has NOT fired. `desktop-releases.json` `latestVersion` is still `1.12.7`; newest tag on `obsidianmd/obsidian-releases` is still `v1.12.7` (no 1.13.x asset). No new work done — the 2026-07-26 analysis and its two rejected shortcuts stand unchanged. Ticket stays OPEN awaiting 1.13.x GA.
