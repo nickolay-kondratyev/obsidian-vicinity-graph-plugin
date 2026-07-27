@@ -1,10 +1,11 @@
 import { Wikilinks } from "../shared/Wikilinks";
 
 /**
- * Fallback `.canvas` JSON parser — the ACTIVE canvas link source on installs
- * whose `metadataCache.resolvedLinks` does not index canvas files (verified on
- * the target install, see step-03 CLARIFICATION Q2). When the install DOES
- * index canvas, `CanvasCapability` keeps this parser dormant.
+ * Fallback `.canvas` JSON parser — the ACTIVE link source for each canvas that
+ * `metadataCache.resolvedLinks` does not index (verified on the target install,
+ * see step-03 CLARIFICATION Q2). `CanvasCapability` decides that PER CANVAS, so
+ * this parser can be dormant for one canvas and serving another in the same
+ * vault; core-indexed canvases never reach it.
  *
  * Scope: FILE-type nodes AND the wikilinks written inside TEXT-type node
  * bodies, because those two together are what Obsidian's own indexer reports

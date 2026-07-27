@@ -36,8 +36,11 @@ const NO_OUTLINE_FACTS: NoteOutlineFacts = { outline: [], imagePrecedesOutline: 
  *
  * Async construction, sync queries (binding decision, step-02 CLARIFICATION
  * Q2): {@link create} performs everything that cannot be answered
- * synchronously — reading `.canvas` files for the fallback parser — and
- * detects per-install capabilities ONCE. Queries then answer synchronously
+ * synchronously — reading `.canvas` files for the fallback parser — and settles
+ * PER CANVAS which link source serves it. A provider is built per rebuild, so
+ * that settling is a fresh read of `resolvedLinks` every time rather than a
+ * once-per-install decision; it is safe because the two sources now report the
+ * same edge set (ticket `nid_s676x55uojmtcwh9t4l9mc6zl_e`). Queries answer synchronously
  * against the live metadata cache (`getFileCache`, `resolvedLinks` and
  * `getBacklinksForFile` are all sync at runtime), so a provider never holds a
  * stale copy of markdown links.
@@ -54,10 +57,14 @@ export class ObsidianLinkProvider implements LinkProvider {
 	private constructor(
 		private readonly vault: VaultPort,
 		private readonly metadataCache: MetadataCachePort,
-		readonly canvasCapability: CanvasCapability,
-		/** Only populated in fallback mode: canvas path → resolved targets in canvas reference order (duplicates kept, they are the link COUNT). */
+		/**
+		 * The canvases THIS provider serves from the fallback parser (one entry per
+		 * canvas core has not indexed) → their resolved targets in canvas reference
+		 * order, duplicates kept because they are the link COUNT. Membership is also
+		 * the per-canvas regime answer: in the map ⇒ we serve it, absent ⇒ core does.
+		 */
 		private readonly canvasOutgoingByPath: ReadonlyMap<string, readonly string[]>,
-		/** Only populated in fallback mode: target path → canvas paths referencing it. */
+		/** Target path → the fallback-served canvases referencing it. */
 		private readonly canvasIncomingByPath: ReadonlyMap<string, readonly string[]>,
 		backlinksAvailable: boolean,
 	) {
@@ -72,30 +79,41 @@ export class ObsidianLinkProvider implements LinkProvider {
 		metadataCache: MetadataCachePort,
 		canvasParseCache: CanvasParseCache,
 	): Promise<ObsidianLinkProvider> {
-		const capability = CanvasCapabilityDetector.detect(Object.keys(metadataCache.resolvedLinks));
 		const canvasOutgoing = new Map<string, readonly string[]>();
 		const canvasIncoming = new Map<string, string[]>();
-		if (capability === "fallback-required") {
-			for (const file of vault.getFiles()) {
-				if (file.extension !== CANVAS_EXTENSION) {
-					continue;
-				}
-				const references = await canvasParseCache.referencesOf(vault, file);
-				const targets = resolvedCanvasTargetsOf(vault, metadataCache, file.path, references);
-				canvasOutgoing.set(file.path, targets);
-				for (const target of new Set(targets)) {
-					appendToMultimap(canvasIncoming, target, file.path);
-				}
+		for (const file of vault.getFiles()) {
+			if (file.extension !== CANVAS_EXTENSION) {
+				continue;
+			}
+			// Asked per canvas, so a partially-indexed vault cannot strand the canvases
+			// core has not reached yet (see {@link CanvasCapabilityDetector}).
+			if (CanvasCapabilityDetector.detectFor(metadataCache.resolvedLinks, file.path) === "core-indexed") {
+				continue; // Core serves this one; parsing it too would double-report.
+			}
+			const references = await canvasParseCache.referencesOf(vault, file);
+			const targets = resolvedCanvasTargetsOf(vault, metadataCache, file.path, references);
+			canvasOutgoing.set(file.path, targets);
+			for (const target of new Set(targets)) {
+				appendToMultimap(canvasIncoming, target, file.path);
 			}
 		}
 		return new ObsidianLinkProvider(
 			vault,
 			metadataCache,
-			capability,
 			canvasOutgoing,
 			canvasIncoming,
 			BacklinksAdapter.isAvailable(metadataCache),
 		);
+	}
+
+	/**
+	 * The canvases THIS build serves from the fallback parser, i.e. the ones core has
+	 * not indexed. A provenance surface for manual QA (`main.ts`), and deliberately a
+	 * LIST rather than a single install-wide verdict: a partially-indexed vault
+	 * legitimately has canvases on both sides.
+	 */
+	get fallbackServedCanvasPaths(): readonly string[] {
+		return [...this.canvasOutgoingByPath.keys()];
 	}
 
 	getOutgoingLinks(path: VaultPath): readonly VaultPath[] {
@@ -115,11 +133,11 @@ export class ObsidianLinkProvider implements LinkProvider {
 	}
 
 	getLinkCount(source: VaultPath, target: VaultPath): number {
-		const file = this.vault.getFileByPath(source);
-		if (file !== null && file.extension === CANVAS_EXTENSION && this.canvasCapability === "fallback-required") {
+		const fallbackTargets = this.canvasOutgoingByPath.get(source);
+		if (fallbackTargets !== undefined) {
 			// Fallback-parsed canvas links exist nowhere in resolvedLinks — count occurrences.
 			let count = 0;
-			for (const parsed of this.canvasOutgoingByPath.get(source) ?? []) {
+			for (const parsed of fallbackTargets) {
 				if (parsed === target) {
 					count += 1;
 				}
@@ -221,9 +239,10 @@ export class ObsidianLinkProvider implements LinkProvider {
 	 * file's links — the two cases the fallbacks below exist for.
 	 */
 	private outgoingPathsOf(file: VaultFilePort, references: readonly OrderedReference[] | null): readonly string[] {
-		if (file.extension === CANVAS_EXTENSION && this.canvasCapability === "fallback-required") {
-			// Already resolved (and unresolvable references dropped) at build time.
-			return dedupe(this.canvasOutgoingByPath.get(file.path) ?? []);
+		const fallbackTargets = this.canvasOutgoingByPath.get(file.path);
+		if (fallbackTargets !== undefined) {
+			// A canvas we serve: already resolved (and unresolvable references dropped) at build time.
+			return dedupe(fallbackTargets);
 		}
 		if (references !== null) {
 			const resolved: string[] = [];
@@ -303,7 +322,7 @@ function resolvedCanvasTargetsOf(
 			reference.kind === "file-node"
 				? vault.getFileByPath(reference.filePath)?.path
 				: metadataCache.getFirstLinkpathDest(reference.linkText, canvasPath)?.path;
-		if (target !== undefined && target !== null) {
+		if (target !== undefined) {
 			targets.push(target);
 		}
 	}

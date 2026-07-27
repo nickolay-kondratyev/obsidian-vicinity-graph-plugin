@@ -26,6 +26,12 @@ export interface FakeObsidianSpec {
 	/** link text → target path, backing `getFirstLinkpathDest`. Unlisted texts are unresolved. */
 	readonly resolutions?: Readonly<Record<string, string>>;
 	/**
+	 * SOURCE path → (link text → target path), for the fixtures that care that a link
+	 * resolves RELATIVE TO the file it was written in (Obsidian resolves shortest-path
+	 * link text against the source). Consulted before {@link resolutions}.
+	 */
+	readonly resolutionsFrom?: Readonly<Record<string, Readonly<Record<string, string>>>>;
+	/**
 	 * target path → linker source paths, served through a fake
 	 * `getBacklinksForFile`. Omit to fake an install WITHOUT that API.
 	 */
@@ -80,8 +86,11 @@ export class FakeObsidianPorts {
 				Record<string, number>
 			>,
 			getFileCache: (file) => this.spec.fileCaches?.[file.path] ?? null,
-			getFirstLinkpathDest: (linkpath) => {
-				const targetPath = this.spec.resolutions?.[linkpath];
+			getFirstLinkpathDest: (linkpath, sourcePath) => {
+				// Source-scoped resolutions win, so a fixture can prove that the caller
+				// passes the RIGHT source path; the flat map stays the terse default.
+				const targetPath =
+					this.spec.resolutionsFrom?.[sourcePath]?.[linkpath] ?? this.spec.resolutions?.[linkpath];
 				return targetPath === undefined ? null : (this.filesByPath.get(targetPath) ?? null);
 			},
 		};
