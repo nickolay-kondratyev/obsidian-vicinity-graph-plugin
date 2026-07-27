@@ -1,3 +1,4 @@
+import { MarkdownInlineLinks } from "../shared/MarkdownInlineLinks";
 import { Wikilinks } from "../shared/Wikilinks";
 
 /**
@@ -7,8 +8,9 @@ import { Wikilinks } from "../shared/Wikilinks";
  * this parser can be dormant for one canvas and serving another in the same
  * vault; core-indexed canvases never reach it.
  *
- * Scope: FILE-type nodes AND the wikilinks written inside TEXT-type node
- * bodies, because those two together are what Obsidian's own indexer reports
+ * Scope: FILE-type nodes AND the links written inside TEXT-type node bodies
+ * (wikilinks and markdown-style inline links alike — a text node is markdown),
+ * because those two together are what Obsidian's own indexer reports
  * for a canvas — the two regimes must yield the same edge set or the boot race
  * over which one runs becomes user-visible (ticket
  * `nid_s676x55uojmtcwh9t4l9mc6zl_e`). `link`-type (external URL) and `group`
@@ -67,15 +69,33 @@ export class CanvasFallbackParser {
 			return typeof file === "string" && file.length > 0 ? [{ kind: "file-node", filePath: file }] : [];
 		}
 		if (type === "text" && typeof text === "string") {
-			return Wikilinks.linkTargetsOf(text).map((linkText) => ({ kind: "text-node-link", linkText }) as const);
+			return CanvasFallbackParser.textNodeReferencesOf(text);
 		}
 		return [];
+	}
+
+	/**
+	 * BOTH link syntaxes a markdown body can carry — wikilinks and markdown-style
+	 * inline links — because a canvas text node IS markdown and core indexes both
+	 * (ticket `nid_ygo7h95ssgmunaqsprc1zlmfh_e`). One reference kind for the two,
+	 * since both come out as link TEXT resolved the same way.
+	 *
+	 * Two scans, so the result is "wikilinks, then inline links" rather than
+	 * strictly written order. Deliberate: edge ORDER is not contractual on either
+	 * regime, while the edge SET and the per-target COUNT — which is all the
+	 * caller derives — are order-insensitive.
+	 */
+	private static textNodeReferencesOf(text: string): readonly CanvasReference[] {
+		return [...Wikilinks.linkTargetsOf(text), ...MarkdownInlineLinks.linkTargetsOf(text)].map(
+			(linkText) => ({ kind: "text-node-link", linkText }) as const,
+		);
 	}
 }
 
 /**
  * One thing a canvas points at, tagged with HOW it must be resolved — a literal
- * vault path (file node) or Obsidian link text (text-node wikilink). The tag is
+ * vault path (file node) or Obsidian link text (a text-node wikilink or
+ * markdown-style inline link, both normalised to link text). The tag is
  * the whole point: resolving link text as a path, or vice versa, silently loses
  * edges.
  */

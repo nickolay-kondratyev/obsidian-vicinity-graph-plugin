@@ -316,6 +316,100 @@ describe("ObsidianLinkProvider canvas TEXT-node link reconciliation (fallback re
 	});
 });
 
+/**
+ * Canvas text nodes are markdown, so core indexes the markdown-style inline links written
+ * there just as it indexes wikilinks (ticket `nid_ygo7h95ssgmunaqsprc1zlmfh_e`). Same guard as
+ * the wikilink parity block above: the regime a rebuild lands in is a boot race, benign only
+ * while both regimes report the same edge set.
+ */
+describe("ObsidianLinkProvider canvas TEXT-node markdown-style links (both regimes must agree)", () => {
+	// GIVEN one canvas whose TEXT node carries a `[label](note-b.md)` inline link.
+	const files = [
+		{ path: "note-a.md" },
+		{ path: "note-b.md" },
+		{
+			path: "board.canvas",
+			content: JSON.stringify({ nodes: [{ type: "text", text: "see [label](note-b.md)" }] }),
+		},
+	];
+	const resolutions = { "note-b.md": "note-b.md" };
+
+	it("WHEN the canvas is NOT core-indexed THEN the markdown-style link produces an edge", async () => {
+		const provider = await providerOver({ files, resolutions, resolvedLinks: { "note-a.md": {} } });
+		expect(provider.getOutgoingLinks(asVaultPath("board.canvas"))).toEqual(["note-b.md"]);
+	});
+
+	it("WHEN the canvas IS core-indexed THEN the markdown-style link produces an edge (core reports it)", async () => {
+		const provider = await providerOver({
+			files,
+			resolutions,
+			resolvedLinks: { "board.canvas": { "note-b.md": 1 } },
+		});
+		expect(provider.getOutgoingLinks(asVaultPath("board.canvas"))).toEqual(["note-b.md"]);
+	});
+
+	it("WHEN the canvas is NOT core-indexed THEN the markdown-style target counts the canvas as a backlink", async () => {
+		const provider = await providerOver({ files, resolutions, resolvedLinks: { "note-a.md": {} } });
+		expect(provider.getIncomingLinks(asVaultPath("note-b.md"))).toEqual(["board.canvas"]);
+	});
+});
+
+/** The reconciliation cases specific to the markdown-style syntax's own rules. */
+describe("ObsidianLinkProvider canvas TEXT-node markdown-style link reconciliation (fallback regime)", () => {
+	function canvasWith(text: string) {
+		return {
+			path: "board.canvas",
+			content: JSON.stringify({ nodes: [{ type: "text", text }] }),
+		};
+	}
+
+	it("WHEN a markdown-style destination is percent-encoded THEN it resolves to the note on disk", async () => {
+		const provider = await providerOver({
+			files: [{ path: "note-a.md" }, { path: "my note.md" }, canvasWith("[a](my%20note.md)")],
+			resolutions: { "my note.md": "my note.md" },
+			resolvedLinks: { "note-a.md": {} },
+		});
+		expect(provider.getOutgoingLinks(asVaultPath("board.canvas"))).toEqual(["my note.md"]);
+	});
+
+	it("WHEN a markdown-style destination is an external URL THEN it produces no edge", async () => {
+		const provider = await providerOver({
+			files: [{ path: "note-a.md" }, canvasWith("[a](https://example.com)")],
+			resolvedLinks: { "note-a.md": {} },
+		});
+		expect(provider.getOutgoingLinks(asVaultPath("board.canvas"))).toEqual([]);
+	});
+
+	it("WHEN a text node EMBEDS an image markdown-style THEN the embed produces an edge", async () => {
+		const provider = await providerOver({
+			files: [{ path: "note-a.md" }, { path: "pic.png" }, canvasWith("![alt](pic.png)")],
+			resolutions: { "pic.png": "pic.png" },
+			resolvedLinks: { "note-a.md": {} },
+		});
+		expect(provider.getOutgoingLinks(asVaultPath("board.canvas"))).toEqual(["pic.png"]);
+	});
+
+	it("WHEN a wikilink and a markdown-style link name the SAME note THEN the link COUNT reports both", async () => {
+		const provider = await providerOver({
+			files: [{ path: "note-b.md" }, canvasWith("[[note-b]] and again [again](note-b.md)")],
+			resolutions: { "note-b": "note-b.md", "note-b.md": "note-b.md" },
+			resolvedLinks: { "note-b.md": {} },
+		});
+		expect(provider.getLinkCount(asVaultPath("board.canvas"), asVaultPath("note-b.md"))).toBe(2);
+	});
+
+	it("WHEN a markdown-style link is resolved THEN it is resolved relative to the CANVAS itself", async () => {
+		// The SAME resolution seam wikilinks use — a destination is link text, not a
+		// literal path, so relative and shortest-path targets behave identically.
+		const provider = await providerOver({
+			files: [{ path: "note-a.md" }, { path: "sub/note-b.md" }, canvasWith("[a](note-b.md)")],
+			resolutionsFrom: { "board.canvas": { "note-b.md": "sub/note-b.md" } },
+			resolvedLinks: { "note-a.md": {} },
+		});
+		expect(provider.getOutgoingLinks(asVaultPath("board.canvas"))).toEqual(["sub/note-b.md"]);
+	});
+});
+
 describe("ObsidianLinkProvider file metadata", () => {
 	const spec: FakeObsidianSpec = {
 		files: [
