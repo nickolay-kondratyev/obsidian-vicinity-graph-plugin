@@ -49,8 +49,9 @@ describe("decideLayout structural identity", () => {
 		// refresh. What this pins is that nobody adds a
 		// `previous.viewSettings.nodePreviewPreference !== next…` trigger to
 		// `decideLayout` — the fixture's sizePx is fixed, so a future coupling of
-		// node SIZE to the preview would slip past HERE and needs pinning where
-		// sizePx is computed instead.
+		// node SIZE to the preview would slip past HERE; that half is pinned where
+		// sizes are produced: `NodeSizer.test.ts`, `VicinityEngine.test.ts` and
+		// `flowMapping.test.ts`.
 		const next = makeGraph({
 			nodes: [makeNode({ path: asVaultPath("a.md") }), makeNode({ path: asVaultPath("b.md") })],
 			edges: [makeEdge("a.md", "b.md")],
