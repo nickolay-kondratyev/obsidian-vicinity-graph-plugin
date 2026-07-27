@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import { ObsidianHarness } from "./obsidianHarness";
+import { PINNED_CENTRALS_SUMMARY } from "./settingsBaseline";
 
 /**
  * Step-06 RESTART round-trip (QA §1/§6/§11/§13) — the step's hard exit criterion
@@ -77,7 +78,7 @@ function toolbar(): Locator {
 
 function pinnedDisclosure(): Locator {
 	return page.locator(".vicinity-graph-disclosure", {
-		has: page.locator(".vicinity-graph-disclosure__summary", { hasText: "Pinned centrals" }),
+		has: page.locator(".vicinity-graph-disclosure__summary", { hasText: PINNED_CENTRALS_SUMMARY }),
 	});
 }
 
