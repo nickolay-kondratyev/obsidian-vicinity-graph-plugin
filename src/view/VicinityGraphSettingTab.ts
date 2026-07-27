@@ -1,6 +1,13 @@
 import { PluginSettingTab, Setting } from "obsidian";
 import type { App, TextComponent } from "obsidian";
-import type { Direction, ForceLayoutSettings, SettingsRange, SizingSettings } from "../engine";
+import type {
+	Direction,
+	ForceLayoutSettings,
+	SettingsRange,
+	SizeMetricId,
+	SizingMetricSetting,
+	SizingSettings,
+} from "../engine";
 import {
 	FORCE_LAYOUT_RANGES,
 	MAX_OUTLINE_DEPTH,
@@ -330,10 +337,10 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 					kind: "global-node-exclusion",
 					nodeExclusion: { ...this.store.nodeExclusion(), enabled },
 				});
-				this.showExclusionPatterns(patternsSlot, enabled);
+				this.showExclusionPatterns(patternsSlot);
 			}),
 		);
-		this.showExclusionPatterns(patternsSlot, exclusion.enabled);
+		this.showExclusionPatterns(patternsSlot);
 		this.addSectionReset(section, "node-exclusion");
 	}
 
@@ -352,13 +359,20 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	 * is a deliberate UX change, not a refresh-mechanics one — tracked separately in
 	 * `nid_qp56jugz8en8wkgjirwcb269p_e`. This method keeps today's hide/show behaviour
 	 * exactly.
+	 *
+	 * Takes NO `enabled` parameter on purpose. The toggle handler paints AFTER its own
+	 * await, so a handler passing the value it captured at click time could repaint a
+	 * stale reveal once two fast clicks finish out of order. Reading the store here —
+	 * both flags from ONE snapshot — makes the contract literally true: the slot shows
+	 * what the store says.
 	 */
-	private showExclusionPatterns(slot: HTMLElement, enabled: boolean): void {
+	private showExclusionPatterns(slot: HTMLElement): void {
+		// Read fresh: the caller has just drained the debounce window, so this is the
+		// first read that can see everything the user typed.
+		const exclusion = this.store.nodeExclusion();
 		slot.empty();
-		if (enabled) {
-			// Read fresh: the caller has just drained the debounce window, so this is
-			// the first read that can see everything the user typed.
-			this.addExclusionPatterns(slot, this.store.nodeExclusion().patterns);
+		if (exclusion.enabled) {
+			this.addExclusionPatterns(slot, exclusion.patterns);
 		}
 	}
 
@@ -426,66 +440,83 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 
 		const sizing = this.store.globalView().sizing;
 		for (const { id, label } of SIZING_METRICS) {
-			const metric = sizing.metrics[id];
-			// The weight input this row's toggle enables and disables. Definite
-			// assignment, not an optional: `Setting.addText` below invokes its builder
-			// SYNCHRONOUSLY, so the input exists before the row is ever on screen — and
-			// the toggle handler can only run once it is.
-			let weightInput!: TextComponent;
-			new Setting(section)
-				.setName(label)
-				.addToggle((toggle) =>
-					toggle.setValue(metric.enabled).onChange(async (enabled) => {
-						// The paired weight input is the ONLY thing on screen that depends
-						// on this toggle, so flip it directly instead of rebuilding the tab
-						// with `display()` — that discarded the user's scroll position and
-						// focus (same reasoning as {@link addNodePreviewSegmented}). Done
-						// BEFORE the await so the row answers the click immediately.
-						weightInput.setDisabled(!enabled);
-						// Pending typed edits first: the write below is built from a
-						// snapshot of the sizing object taken before its own await, so a
-						// weight still inside the debounce window would otherwise be
-						// clobbered by it.
-						await this.settlePendingWrites();
-						const current = this.store.globalView().sizing;
-						await this.applySizing({
-							...current,
-							metrics: { ...current.metrics, [id]: { ...current.metrics[id], enabled } },
-						});
-					}),
-				)
-				.addText((text) => {
-					weightInput = text;
-					// Two controls share this row (toggle + weight), so the row name
-					// alone would not distinguish them.
-					const weightName = `${label} weight`;
-					text.inputEl.type = "number";
-					VicinityGraphSettingTab.applyRange(text.inputEl, SIZING_RANGES.metricWeight);
-					text.setValue(String(metric.weight));
-					text.setDisabled(!metric.enabled);
-					VicinityGraphSettingTab.nameControl(text.inputEl, weightName);
-					this.flushOnBlur(text.inputEl);
-					text.onChange((raw) => {
-						const weight = parseSizingInput(raw);
-						if (weight === undefined) {
-							this.debounced.drop(weightName);
-							return;
-						}
-						this.debounced.schedule(weightName, () => {
-							const current = this.store.globalView().sizing;
-							return this.applySizing({
-								...current,
-								metrics: { ...current.metrics, [id]: { ...current.metrics[id], weight } },
-							});
-						});
-					});
-				});
+			this.addSizingMetricRow(section, id, label, sizing.metrics[id]);
 		}
 
 		this.addSizingNumber(section, "Minimum node size (px)", "minPx");
 		this.addSizingNumber(section, "Maximum node size (px)", "maxPx");
 		this.addSizingNumber(section, "Depth decay k", "depthDecayK");
 		this.addSectionReset(section, "node-sizing");
+	}
+
+	/**
+	 * One metric row: an enable toggle plus the weight input that toggle governs, in
+	 * a single `Setting` (they are one decision, not two).
+	 *
+	 * `seed` is the row's INITIAL displayed state, taken from the card's one store
+	 * snapshot; every later write re-reads the store so successive edits compose.
+	 */
+	private addSizingMetricRow(
+		section: HTMLElement,
+		id: SizeMetricId,
+		label: string,
+		seed: SizingMetricSetting,
+	): void {
+		// The weight input this row's toggle enables and disables. Definite
+		// assignment, not an optional: `Setting.addText` below invokes its builder
+		// SYNCHRONOUSLY, so the input exists before the row is ever on screen — and
+		// the toggle handler can only run once it is.
+		let weightInput!: TextComponent;
+		new Setting(section)
+			.setName(label)
+			.addToggle((toggle) =>
+				toggle.setValue(seed.enabled).onChange(async (enabled) => {
+					// The paired weight input is the ONLY thing on screen that depends on
+					// this toggle, so flip it directly instead of rebuilding the tab with
+					// `display()` — that discarded the user's scroll position and focus
+					// (same reasoning as {@link addNodePreviewSegmented}). Done BEFORE the
+					// await so the row answers the click immediately; unlike
+					// {@link showExclusionPatterns} this cannot paint a stale value,
+					// because at this point `enabled` IS the newest truth — the store has
+					// not been told yet.
+					weightInput.setDisabled(!enabled);
+					// Pending typed edits first: the write below is built from a snapshot
+					// of the sizing object taken before its own await, so a weight still
+					// inside the debounce window would otherwise be clobbered by it.
+					await this.settlePendingWrites();
+					const current = this.store.globalView().sizing;
+					await this.applySizing({
+						...current,
+						metrics: { ...current.metrics, [id]: { ...current.metrics[id], enabled } },
+					});
+				}),
+			)
+			.addText((text) => {
+				weightInput = text;
+				// Two controls share this row (toggle + weight), so the row name alone
+				// would not distinguish them.
+				const weightName = `${label} weight`;
+				text.inputEl.type = "number";
+				VicinityGraphSettingTab.applyRange(text.inputEl, SIZING_RANGES.metricWeight);
+				text.setValue(String(seed.weight));
+				text.setDisabled(!seed.enabled);
+				VicinityGraphSettingTab.nameControl(text.inputEl, weightName);
+				this.flushOnBlur(text.inputEl);
+				text.onChange((raw) => {
+					const weight = parseSizingInput(raw);
+					if (weight === undefined) {
+						this.debounced.drop(weightName);
+						return;
+					}
+					this.debounced.schedule(weightName, () => {
+						const current = this.store.globalView().sizing;
+						return this.applySizing({
+							...current,
+							metrics: { ...current.metrics, [id]: { ...current.metrics[id], weight } },
+						});
+					});
+				});
+			});
 	}
 
 	/**

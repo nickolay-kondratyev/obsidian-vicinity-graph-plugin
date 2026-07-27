@@ -166,6 +166,33 @@ async function expectTabUndisturbed(offset: number): Promise<void> {
 /** The stored patterns the exclusion tests seed, so a re-shown row has something to re-seed FROM. */
 const SEEDED_PATTERNS = ["^archive/"];
 
+/**
+ * The flip must still be PERSISTED, not merely painted. Asserted separately from the
+ * row's appearance because the two now come from different halves of the handler: the
+ * row updates optimistically, the write lands after an await. Without this, deleting
+ * the write from either handler would leave every assertion above it green.
+ *
+ * `expect.poll` rather than a bare read: the handler's `saveData` is still in flight
+ * when the DOM assertions resolve.
+ */
+async function expectExclusionPersisted(enabled: boolean): Promise<void> {
+	await expect
+		.poll(async () => (await harness.readGlobals()).exclusion.enabled, {
+			message: "the exclusion toggle must persist, not just repaint its row",
+		})
+		.toBe(enabled);
+}
+
+// An arrow const, not a `function` declaration: a hoisted declaration is callable
+// before the throw above, so TS would not see `METRIC_UNDER_TEST` as narrowed.
+const expectMetricEnabledPersisted = async (enabled: boolean): Promise<void> => {
+	await expect
+		.poll(async () => (await harness.readGlobalView()).sizing.metrics[METRIC_UNDER_TEST.id]?.enabled, {
+			message: "the metric toggle must persist, not just disable its weight input",
+		})
+		.toBe(enabled);
+};
+
 test("settings tab: WHEN the exclusion toggle is switched off THEN only its patterns row goes, keeping scroll and focus", async () => {
 	await settingsTab.open();
 	await harness.saveNodeExclusion({ enabled: true, patterns: SEEDED_PATTERNS });
@@ -178,6 +205,7 @@ test("settings tab: WHEN the exclusion toggle is switched off THEN only its patt
 	await flipToggleIn(card);
 
 	await expect(card.locator("textarea")).toHaveCount(0);
+	await expectExclusionPersisted(false);
 	await expectTabUndisturbed(offset);
 	await page.screenshot({ path: `${OUT_DIR}/01-exclusion-off-scroll-kept.png` });
 });
@@ -194,6 +222,7 @@ test("settings tab: WHEN the exclusion toggle is switched back on THEN the patte
 
 	// Re-seeded from the store, not from a stale closure captured at first render.
 	await expect(card.locator("textarea")).toHaveValue(SEEDED_PATTERNS.join("\n"));
+	await expectExclusionPersisted(true);
 	await expectTabUndisturbed(offset);
 	await page.screenshot({ path: `${OUT_DIR}/02-exclusion-on-scroll-kept.png` });
 });
@@ -223,6 +252,10 @@ test("settings tab: WHEN a sizing metric is switched off THEN its weight input i
 
 	await expect(weight).toBeDisabled();
 	expect(await isSameNodeAsMarked(weight), "the weight input was rebuilt instead of disabled in place").toBe(true);
+	// Also settles the handler before `expectTabUndisturbed` measures the tab: the
+	// disabled assertion above can resolve while `applySizing` is still in flight, so
+	// without this the "nothing else moved" claim would be measuring a half-run handler.
+	await expectMetricEnabledPersisted(false);
 	await expectTabUndisturbed(offset);
 	await page.screenshot({ path: `${OUT_DIR}/03-sizing-metric-off-scroll-kept.png` });
 });
