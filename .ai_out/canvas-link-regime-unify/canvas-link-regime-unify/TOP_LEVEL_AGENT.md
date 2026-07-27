@@ -13,9 +13,9 @@ Ticket: `nid_s676x55uojmtcwh9t4l9mc6zl_e` — canvas link regime is a per-sessio
 ## Flow (straightforward-flow)
 - [x] EXPLORATION (2 agents: code path + e2e/doc surface)
 - [x] IMPLEMENTATION_WITH_SELF_PLAN (621ece9, 42076cb, a46e826)
-- [ ] IMPLEMENTATION_REVIEW
-- [ ] IMPLEMENTATION_ITERATION (max 4)
-- [ ] change_log entry + ticket closure (TOP_LEVEL only)
+- [x] IMPLEMENTATION_REVIEW (APPROVE-WITH-FIXES: 0 blocking, 1 should-fix)
+- [x] IMPLEMENTATION_ITERATION round 1 → reviewer APPROVE, converged (72ba519, bbdebf0, dfc8e3c)
+- [x] change_log entry `oj02wel9ai3vc7rxb9lggnjf9` + ticket `nid_s676x55uojmtcwh9t4l9mc6zl_e` closed
 
 ## Log
 - Created branch + out dir; spawned EXPLORATION and EXPLORATION_E2E.

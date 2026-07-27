@@ -157,3 +157,117 @@ degrades, by documented design), no resource leaks, no dead code beyond item 2.
 None beyond finding 1's follow-up (plan-doc line or ticket for the per-canvas
 partial-index case) and finding 4's docblock correction. `CLAUDE.md` needs no
 change.
+
+---
+
+# ITERATION 1 — convergence check
+
+Diff `f869216..HEAD` (72ba519, bbdebf0, dfc8e3c). Gates re-run by me:
+`npm test` → **1082 passed / 80 files**, exit 0. `npm run check` → exit 0.
+Did not re-run the 5x e2e gate — no reason to doubt it (see item 4).
+
+## Verdict: APPROVE
+
+All four of my round-0 findings are genuinely fixed, not nodded at. **Converged.**
+
+## 1. Is the per-canvas fix real and complete?
+
+Yes, and the refactor is better than the patch I asked for. The vault-wide concept
+is *gone*, not merely bypassed:
+
+- `src/adapters/CanvasCapability.ts:23` — `detect(Iterable<string>)` →
+  `detectFor(resolvedLinks, canvasPath)`, an exact key lookup
+  (`resolvedLinks[canvasPath] === undefined`). No suffix scan survives anywhere.
+- `src/adapters/ObsidianLinkProvider.ts:82-95` — the `if (capability === "fallback-required")`
+  wrapper is replaced by a per-file `detectFor(...) === "core-indexed" → continue`.
+- `canvasCapability` the **field is deleted**; regime is now *membership in*
+  `canvasOutgoingByPath`. `getLinkCount` (`:136-137`) and `outgoingPathsOf`
+  (`:242-245`) each **lost** their two-condition guard for a single
+  `map.get() !== undefined`. Branches removed, not added — the claim holds.
+
+**Grep sweep for dropped behaviour** (`canvasCapability|CanvasCapabilityDetector|\.detect\(`
+across `src/` and `e2e/`): every hit is either the new `detectFor` or prose. The one
+real consumer, `src/main.ts:237-243` (a debug-only provenance command), was migrated
+to `fallbackServedCanvasPaths` and now *names* the served canvases — a strictly better
+diagnostic for exactly this bug. No view or persistence consumer ever read the old
+field. Nothing quietly dropped.
+
+**Does the new test fail without the fix?** Yes, provably.
+`ObsidianLinkProvider.test.ts` "WHEN a SIBLING canvas is not indexed yet THEN it is
+still fallback-parsed (no blank canvas)" uses `resolvedLinks: { "a.canvas": {...} }`
+with `b.canvas` absent. Under the old vault-wide `detect`, `a.canvas`'s key forces
+`core-indexed`, `canvasOutgoingByPath` stays empty, and `getOutgoingLinks("b.canvas")`
+resolves to `Object.keys(resolvedLinks["b.canvas"] ?? {})` = `[]` — against an
+asserted `["note-b.md"]`. Deterministic red. Same for
+`CanvasCapability.test.ts` "WHEN ANOTHER canvas is indexed but this one is not".
+
+Two bonus correctness points I checked and agree with:
+- **Presence, not truthiness.** `{}` (indexed, genuinely link-free) correctly reads as
+  `core-indexed`. Testing `Object.keys(...).length` instead would have re-created the
+  bug for link-free canvases. Both the unit test and the provider-level test pin it.
+- **`my.canvas.md` false positive** genuinely gone — exact lookup, and the old test was
+  updated to assert the right thing (`detectFor({"my.canvas.md":{}}, "my.canvas")`)
+  rather than deleted.
+
+## 2. No divergence reintroduced
+
+Re-swept my round-0 list against the new dispatch. The regime switch moved from
+`(extension === canvas && capability)` to `canvasOutgoingByPath.has(path)`, and that
+map is keyed **only** by canvas paths that were fallback-parsed — so a markdown file
+can never collide into the canvas branch, and a core-indexed canvas can never be
+double-reported (pinned by "WHEN a canvas is core-indexed THEN the fallback does not
+ALSO report its links", asserting `getLinkCount === 1`). Aliases, subpaths, embeds,
+dangling links, dupes, attachments, canvas→canvas, malformed JSON: all untouched by
+this diff and still passing. `resolvedLinks[canvasPath]` cannot hit a prototype key,
+since no `Object.prototype` member name ends in `.canvas`.
+
+## 3. My three nice-to-haves — all actually implemented
+
+1. **Dead null branch** — `ObsidianLinkProvider.ts:325` is now `if (target !== undefined)`. Done.
+2. **`sourcePath` fidelity** — `FakeObsidianPorts` gained `resolutionsFrom` (source →
+   link text → target), consulted *before* the flat map, plus a dedicated test ("resolved
+   relative to the CANVAS itself") whose fixture resolves `note-b` **only** from
+   `board.canvas`. That test goes red if the wrong source path is ever passed. This is
+   the real version of the fix, not a comment.
+3. **Stale docblock** — `ObsidianLinkProvider.ts:39-44` now states plainly that a
+   provider is built per rebuild and the settling is a fresh read each time. The
+   misleading "detects per-install capabilities ONCE" is gone.
+
+## 4. Is the `test2.canvas` e2e guard honest, or a guard that guards nothing?
+
+**Honestly scoped, and it is not vacuous.** Judged on its own merits:
+
+- **Post-fix it is a deterministic guard**: opening `test2.canvas` must show exactly 3
+  nodes — itself, `note3.md` (file node) and `note2.md` (text-node wikilink) — on
+  *every* run and under *either* regime. That is real end-to-end coverage of the
+  settled semantics in a real Obsidian, which no unit test provides.
+- **Pre-fix it is probabilistic, and the docblock says so precisely**: it names the one
+  combination that turns it red (test.canvas indexed, test2.canvas not) rather than
+  claiming general failing-first. Given that a partial index cannot be forced from
+  outside Obsidian, that is the honest ceiling, and pairing it with the deterministic
+  unit test is the right split.
+- **It does not disturb existing baselines**: `test2.canvas` reaches only note2/note3,
+  putting it at depth 2 from `note1`, outside the vicinity every other count asserts —
+  consistent with the reported unchanged `NOTE1_NODE_COUNT = 11`, sparse eval 11, and
+  obstacles 13. The seed uses `write_if_missing`, so it lands in fresh vaults.
+
+That is the opposite of a decorative test. No finding.
+
+## Remaining findings
+
+**None.** No BLOCKING, no SHOULD-FIX, no new NICE-TO-HAVE.
+
+One thing I checked and deliberately am *not* raising as a finding: the canvas loop in
+`create()` now runs `vault.getFiles()` unconditionally, where previously a core-indexed
+install skipped it entirely. For a fully-indexed vault that is one array walk plus a
+hash lookup per canvas — no reads, no parsing — which is noise against the ~30ms layout
+pass, and it is the unavoidable cost of asking the question per canvas. The human's
+"as long as performance holds" caveat is satisfied.
+
+## Standards (iteration)
+
+The refactor improved SRP and honesty simultaneously: `CanvasCapabilityDetector` now
+answers one question about one canvas, the provider's regime state *is* its data
+(no parallel flag to drift), and `fallbackServedCanvasPaths` is correctly a list with a
+WHY explaining why a single verdict would be a lie. Comments explain WHY and WHY-NOT
+throughout, with the measured 4-of-8 evidence cited where the decision rests on it.

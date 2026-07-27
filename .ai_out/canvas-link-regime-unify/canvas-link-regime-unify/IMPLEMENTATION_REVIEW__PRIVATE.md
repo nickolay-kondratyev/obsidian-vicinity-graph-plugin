@@ -75,3 +75,81 @@ and external-URL rejection). Do not reopen.
 Only finding 1. Everything else in their §4 reconciliation table held up under an
 adversarial sweep (aliases, subpaths, block refs, embeds, dangling, dupes,
 attachments, canvas→canvas, malformed JSON, degenerate node shapes, ReDoS).
+
+---
+
+# ITERATION 1 — PRIVATE notes
+
+Verdict **APPROVE**. Converged with the implementer. Diff `f869216..HEAD`
+(72ba519 fix, bbdebf0 e2e guard, dfc8e3c notes).
+
+## Gates I ran myself this round
+- `npm test` → exit 0, **1082 passed / 80 files** (log `.tmp/test2.log`). Matches
+  their report exactly (+7 over round 0's 1075).
+- `npm run check` → exit 0 (log `.tmp/check2.log`).
+- Did NOT re-run e2e. Reasoning: the per-canvas logic is deterministic in unit
+  tests; the e2e numbers they report (11 five times, obstacles 13, 21 specs) are
+  consistent with `test2.canvas` sitting at depth 2 from note1.
+
+## How I convinced myself the fix is real (not just renamed)
+
+Decisive evidence, in order:
+1. `CanvasCapability.ts` no longer contains `CANVAS_KEY_SUFFIX` or any iteration —
+   `detectFor` is a one-line exact key lookup. The vault-wide concept is deleted,
+   not wrapped.
+2. `canvasCapability` field removed from the constructor. Grep
+   `canvasCapability|CanvasCapabilityDetector|\.detect\(` over `src/` + `e2e/`
+   returns only `detectFor` call sites and prose. Only external consumer was
+   `main.ts:237` (debug provenance command) → migrated to
+   `fallbackServedCanvasPaths`. No view/persistence consumer existed.
+3. Both `getLinkCount` and `outgoingPathsOf` went from a 2-condition guard to a
+   single `map.get() !== undefined`. Regime state IS the data now — no parallel
+   flag that can drift. This is genuinely better than the fix I proposed.
+
+**Failing-first proof (reasoned, not run):** the sibling test uses
+`resolvedLinks: {"a.canvas": {...}}` with `b.canvas` absent. Old vault-wide
+`detect` ⇒ `core-indexed` ⇒ empty `canvasOutgoingByPath` ⇒
+`getOutgoingLinks("b.canvas")` = `Object.keys(resolvedLinks["b.canvas"] ?? {})`
+= `[]` vs asserted `["note-b.md"]`. Unambiguous red. I did not mutate src (read-only
+role) but the code path admits no other outcome.
+
+## Subtleties I checked this round
+
+- **Presence vs truthiness**: `resolvedLinks[path] === undefined`, so `{}` reads as
+  core-indexed. Had they used `Object.keys(...).length` the bug would return for
+  link-free indexed canvases. Both a unit test and a provider test pin it. Good.
+- **Prototype-key hazard** on `resolvedLinks[canvasPath]`: no `Object.prototype`
+  member name ends in `.canvas`, so no false `core-indexed`. Safe.
+- **Map-key collision**: `canvasOutgoingByPath` only ever holds fallback-parsed
+  canvas paths, so a markdown file cannot fall into the canvas branch now that the
+  extension check is gone from the query methods. Verified by construction in `create()`.
+- **Nice-to-have #3 is the real thing**: `resolutionsFrom` is consulted BEFORE the
+  flat `resolutions` map, and the new test supplies ONLY `{"board.canvas": {...}}`,
+  so a wrong source path ⇒ null ⇒ empty result ⇒ red. Not a cosmetic fix.
+
+## e2e guard judgement (item 4) — reasoning, in case it is challenged
+
+Not vacuous. Post-fix it is deterministic (3 nodes, every run, either regime) and
+covers the settled semantics end-to-end in real Obsidian — file node + text-node
+wikilink both owed. Pre-fix it is probabilistic and the docblock names the exact
+combination that reddens it rather than overclaiming. Partial indexing cannot be
+forced externally, so that is the honest ceiling; the deterministic guard is the
+unit test, which exists. Baselines undisturbed because test2.canvas is depth 2 from
+note1 (reaches note2/note3 only), consistent with NOTE1_NODE_COUNT still 11.
+
+## Deliberately NOT raised (do not let a later round manufacture it)
+
+`create()` now calls `vault.getFiles()` unconditionally, where a core-indexed
+install previously skipped it. Cost: one array walk + a hash lookup per canvas, no
+reads/parses, vs ~30ms layout. That is the irreducible price of asking per canvas.
+Mentioned as informational in PUBLIC, explicitly not a finding.
+
+Also still standing from round 0 and correctly left alone: markdown-style
+`[a](b.md)` + code-span links deferred to `nid_ygo7h95ssgmunaqsprc1zlmfh_e`;
+edge ORDER non-contractual (does not feed truncation — `NodePriorityChain` ends in
+a total lexicographic path order).
+
+## State
+
+No open findings. If a round 2 is requested, there is nothing outstanding from me —
+say so plainly rather than opening new ground.
