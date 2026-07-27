@@ -3,62 +3,60 @@
 Ticket: `nid_2yygojiqkdi9hp73pgv0w7qfu_e`
 Branch: `settingsspec-jsdoc-range-drift` (base `3e85ecb`).
 
-## State: DONE (uncommitted). Single file touched.
+## State: round 1 (post-review) DONE, uncommitted. Two files touched.
 
-`src/engine/SettingsSpec.ts` — JSDoc block above `linkStrengthFactor` rewritten.
-No other file changed. No commit made (TOP_LEVEL_AGENT owns commit + change_log +
-ticket closure).
+1. `src/engine/SettingsSpec.ts` — JSDoc above `linkStrengthFactor`. Comment-only.
+   Now 7 insertions / 3 deletions vs base (was 10/3 in round 0 commit `7892edf`).
+2. `docs-internal/tickets/ticket-settings-baseline-tests-stale-after-spacing-change.md` —
+   attribution fix + one dated note. Status left OPEN, no restructuring.
 
-## Plan (all steps complete)
+No commit. TOP_LEVEL_AGENT owns commit + change_log + ticket closure.
 
-1. [x] Read EXPLORATION_PUBLIC.md + ticket.
-2. [x] Re-verify line numbers on branch (`linkStrengthFactor` spec entry was at :231,
-       JSDoc :221-230; centerPullStrength cross-ref at :203-207). Matched exploration.
-3. [x] Git-archaeology the `max: 2 → 4` change (this was the whole point — see below).
-4. [x] Rewrite the JSDoc honestly.
-5. [x] Spot-check the sweep (acceptance criterion 2).
-6. [x] `npm run check` (exit 0) + `npm test` (79 files / 1053 tests passed).
-7. [x] Write PUBLIC + PRIVATE.
+## Round 0 archaeology (still valid, now kept OUT of source)
 
-## Archaeology result (the load-bearing finding)
+- `07c4db7` introduced `max: 2` with the "above ~2 … stops converging cleanly" prose.
+- `dee64c3` (2026-07-24 15:39, msg literally "Modified file: SettingsSpec.ts") = the bare
+  one-line `max: 2 → 4` hand-edit. The JSDoc above was NOT updated → the drift.
+- `22bd5cb` touched ONLY `linkGapPx.max 150→250` + `collidePaddingPx 20→50 / max 80→100`.
+  It PRECEDES `dee64c3` (`git merge-base --is-ancestor dee64c3 22bd5cb` → NO).
 
-`git log -L '/linkStrengthFactor: {/,+1:src/engine/SettingsSpec.ts'` gives exactly two
-commits:
+## Round 1 — the fact I had missed
 
-- `07c4db7` — introduced the entry as `max: 2` **with** the "above ~2 the stiff springs
-  overshoot … stops converging cleanly" prose.
-- `dee64c3` (2026-07-24 15:39, author nickolaykondratyev, message literally
-  **"Modified file: SettingsSpec.ts"**) — a **one-line bare hand-edit** `max: 2 → 4`.
-  Diff is 1 file, 1 insertion, 1 deletion. The JSDoc three lines above was NOT touched.
-  That IS the drift's origin.
+`git log -1 --format=%B 258ec5a` ends:
+`Human-decided (2026-07-24): the shipped spec value is the intended one.`
+→ `max: 4` is INTENDED, not accidental. Round-0 wording insinuated accident; removed.
 
-Cross-check: `docs-internal/tickets/ticket-settings-baseline-tests-stale-after-spacing-change.md`
-attributes the raise to `22bd5cb` — **that attribution is wrong**. Verified
-`git merge-base --is-ancestor dee64c3 22bd5cb` → NO, and `22bd5cb` only moved
-`linkGapPx.max 150→250` and `collidePaddingPx 20→50 / max 80→100`. Same author, same
-day, ~2.5h earlier. (Left uncorrected — not my ticket; noted in PUBLIC for the human.)
+## Round 1 dispositions (all 3 SHOULD-FIX incorporated, none rejected)
 
-That ticket also states, in its own words: "nothing records what `4` was validated
-against". So **there is no substantiable WHY for `max: 4`.** Hence the honest doc
-rather than a rationale swap.
+1. Stale/wrong-attribution ticket pointer → removed the `docs-internal/` path from source
+   entirely (root fix), AND corrected the ticket's own `22bd5cb` → `dee64c3` line.
+2. Proportionality → dropped hash + ticket path from the JSDoc (CLAUDE.md: SUCCINCT, stable
+   knowledge not volatile details; `git log -L` reproduces it for free).
+3. "past 1 the spring over-corrects every tick" → deleted. It was the same class of
+   unsubstantiated dynamics claim I removed from the old comment. Replaced with the
+   code-readable statement: fixed-tick static run (`d3ForceRefinement.ts:96-98`) relies on
+   alpha decay.
 
-## Mechanically-true claim I DID keep
+Reviewer's proposed wording adopted with 2 small edits (see PUBLIC). Deliberately did NOT
+cite `258ec5a` in-source — "maintainer-chosen" already asserts intent, and the citation would
+re-add the volatile archaeology item #2 asks to remove.
 
-`src/view/d3ForceRefinement.ts:83-87` sets
-`strength = linkStrengthFactor / min(linkCount(source), linkCount(target))`.
-So for a degree-1 leaf the spring strength *is* the factor; above 1 d3 forceLink's
-per-tick correction exceeds the distance error (only alpha damps it). Static run is
-fixed-tick (`d3ForceRefinement.ts:98`). This is verifiable from the code, so it stayed.
+## Invariants preserved (re-checked this round)
 
-## Invariants preserved
+- `centerPullStrength` JSDoc (:203-207) cross-refs `linkStrengthFactor` min 0.25 — accurate;
+  the new text still explains the 0.25-vs-0.15 relation. Machine-pinned by
+  `forceLayoutSettings.test.ts:64-68`.
+- No `ap_XXX_E` anchors in/near the region. Zero spec/test/behavior changes.
 
-- `centerPullStrength` JSDoc (:203-207) cross-references `linkStrengthFactor` **min 0.25** —
-  min untouched, cross-ref still accurate. Also machine-pinned by
-  `src/engine/forceLayoutSettings.test.ts:68`.
-- No `ap_XXX_E` anchors in or near the edited region.
-- Zero spec/test values changed.
+## Verification (round 1)
+
+`npm run check` exit 0. `npm test` exit 0 — 79 files / 1053 tests passed.
+`git diff 3e85ecb -- src/` filtered for non-comment changed lines → EMPTY.
 
 ## If picked up again
 
-Nothing outstanding except the two items flagged for the human in PUBLIC §5
-(unsubstantiated `max: 4`; misattribution in the docs-internal ticket).
+Nothing outstanding. Signalled readiness to converge in
+`IMPLEMENTATION_ITERATION__PUBLIC.md`. Open items belong to TOP_LEVEL/human:
+commit/change_log/closure; optional follow-up ticket for `outlineMaxDepth`'s "≤160px" prose
+vs user-settable `maxPx` 400; and whether `258ec5a`'s trailer discharges step 1 of the
+baseline-stale ticket.
