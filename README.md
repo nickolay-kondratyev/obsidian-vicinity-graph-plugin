@@ -78,6 +78,13 @@ The distinction matters because people ask about it, so it is worth reading once
   — how far a connecting line stays off the boxes it bends around). Changes
   re-layout open graphs immediately; ranges are clamped so no combination can
   degenerate the layout, and a **Restore defaults** button resets them all.
+- **Typed fields settle before they apply** — the numeric and text fields (sizing
+  numbers, node cap, exclusion patterns) wait for a short pause in typing, so
+  entering `160` re-builds open graphs once instead of once per digit. Leaving a
+  field, or closing the tab, applies it immediately — nothing you typed is lost. A
+  value the plugin cannot accept (a **maximum node size below the minimum**) stays
+  in the field with the reason beside it, rather than being silently saved, and a
+  sizing number outside its allowed range says what will be stored instead of it.
 - **Restoring defaults** — every section ends with its own restore row whose name
   states exactly what it resets (*Restore node sizing defaults*, *Restore force
   layout defaults*, …). Rows that only reset numeric knobs apply immediately;
@@ -130,9 +137,10 @@ Keep whole classes of notes out of every graph — index/MOC hubs, templates, a
 - **Matching is regex-lite.** Each line is a JavaScript regex tested
   **unanchored** and **case-sensitively** against the full vault-relative path
   **including extension**. So `rel/` matches `rel/some-relationship.md` (and
-  `rel/` anywhere in the path), while `^rel/` anchors it to the vault root. An
-  invalid pattern is silently ignored (it excludes nothing and never breaks the
-  graph).
+  `rel/` anywhere in the path), while `^rel/` anchors it to the vault root. A
+  line that is not a valid regex still never breaks the graph (it excludes
+  nothing) — and the settings tab now names it, with its line number, right under
+  the box, instead of ignoring it silently.
 - **Only discovered neighbors are excluded** — the active note and pinned
   centrals stay even if they match a pattern. Excluded notes are pruned at the
   data layer (during traversal, before rendering), so a note reachable *only*

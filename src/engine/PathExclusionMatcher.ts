@@ -33,12 +33,33 @@ export class PathExclusionMatcher {
 		return this.regexes.some((regex) => regex.test(path));
 	}
 
+	/**
+	 * The regex engine's own complaint about `pattern`, `undefined` when it compiles.
+	 *
+	 * Exposed so a UI can tell the user WHICH lines this matcher will silently skip
+	 * (settings tab). It must stay the same call as {@link compilePattern} or the
+	 * warning would describe a rule the engine does not apply.
+	 */
+	static compileFailure(pattern: string): string | undefined {
+		try {
+			PathExclusionMatcher.compilePattern(pattern);
+			return undefined;
+		} catch (error) {
+			return error instanceof Error ? error.message : String(error);
+		}
+	}
+
 	/** `undefined` when the pattern is not a valid regex (the silent-skip contract). */
 	private static compile(pattern: string): RegExp | undefined {
 		try {
-			return new RegExp(pattern);
+			return PathExclusionMatcher.compilePattern(pattern);
 		} catch {
 			return undefined; // Invalid regex → excludes nothing (never throws).
 		}
+	}
+
+	/** The ONE place the compile rule lives: raw regex, no flags (see the class doc). */
+	private static compilePattern(pattern: string): RegExp {
+		return new RegExp(pattern);
 	}
 }

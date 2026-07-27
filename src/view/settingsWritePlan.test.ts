@@ -93,6 +93,29 @@ describe("planSettingsWrite global writes", () => {
 		});
 	});
 
+	// The sizing UPPER bounds are what keeps a typed `1e9` out of node geometry (a
+	// non-finite/absurd rectangle aborts the edge router's wasm module for the rest
+	// of the session). They live in SETTINGS_SPEC; these pin that they still BITE.
+	it("WHEN global-sizing minPx exceeds its upper bound THEN the planned write is capped at that bound", () => {
+		const sizing = { ...EngineDefaults.viewSettings().sizing, minPx: SIZING_RANGES.minPx.max + 1 };
+		const command = planSettingsWrite({ kind: "global-sizing", sizing }, CTX);
+		expect(command.kind === "global-view" ? command.view.sizing.minPx : undefined).toBe(SIZING_RANGES.minPx.max);
+	});
+
+	it("WHEN global-sizing maxPx exceeds its upper bound THEN the planned write is capped at that bound", () => {
+		const sizing = { ...EngineDefaults.viewSettings().sizing, maxPx: SIZING_RANGES.maxPx.max + 1 };
+		const command = planSettingsWrite({ kind: "global-sizing", sizing }, CTX);
+		expect(command.kind === "global-view" ? command.view.sizing.maxPx : undefined).toBe(SIZING_RANGES.maxPx.max);
+	});
+
+	it("WHEN global-sizing depthDecayK exceeds its upper bound THEN the planned write is capped at that bound", () => {
+		const sizing = { ...EngineDefaults.viewSettings().sizing, depthDecayK: SIZING_RANGES.depthDecayK.max + 1 };
+		const command = planSettingsWrite({ kind: "global-sizing", sizing }, CTX);
+		expect(command.kind === "global-view" ? command.view.sizing.depthDecayK : undefined).toBe(
+			SIZING_RANGES.depthDecayK.max,
+		);
+	});
+
 	it("WHEN global-force-layout THEN it merges the forceLayout object over ctx.globalView", () => {
 		const forceLayout = { ...EngineDefaults.forceLayoutSettings(), repelStrength: 500, linkGapPx: 60 };
 		expect(planSettingsWrite({ kind: "global-force-layout", forceLayout }, CTX)).toEqual({

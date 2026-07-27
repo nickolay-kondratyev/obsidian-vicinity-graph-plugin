@@ -26,6 +26,16 @@ export const SIZE_RELAYOUT_THRESHOLD = 1.0;
 export const REBUILD_DEBOUNCE_MS = 500;
 
 /**
+ * Settle window for a TYPED settings field (numbers, text, textarea) before it
+ * persists and rebuilds every open graph. Long enough to swallow a multi-digit
+ * entry like `160` (three keystrokes = three full rebuilds without it), short
+ * enough that the graph still reacts while the settings tab is open. Shorter than
+ * {@link REBUILD_DEBOUNCE_MS} on purpose: this window starts at a deliberate
+ * keystroke, not at a burst of vault events.
+ */
+export const SETTINGS_WRITE_DEBOUNCE_MS = 400;
+
+/**
  * Approximate average glyph advance (px) of the node-title font
  * (`--font-ui-smaller`, ~12–13px in Obsidian's default theme). Used to size a
  * node's width to fit its title on one line. Snug (not generous) because the

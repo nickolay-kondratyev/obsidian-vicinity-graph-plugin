@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-27T18:07:19Z
 id: nid_x6l6x07rd1d1h4cefqmnyrbec_e
 title: "Settings tab: debounce numeric/text writes and validate bounds"
-status: open
+status: closed
 deps: []
 links: []
 created_iso: 2026-07-24T21:44:09Z
-status_updated_iso: 2026-07-24T21:44:09Z
+status_updated_iso: 2026-07-27T18:07:19Z
 type: task
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
@@ -26,3 +27,9 @@ Also: sizing min/max px and depth-decay-k have only a lower bound - no upper bou
 - Invalid regex lines surfaced to the user.
 - BDD tests cover each.
 
+
+## Notes
+
+**2026-07-27T18:07:19Z**
+
+Done on branch settings-debounce-validation (merged to main). Typed number/text/textarea fields now settle before persisting+rebuilding (settingsDebounce.ts, flush on blur + tab hide); maxPx<minPx rejected with inline feedback and re-checked at flush (settingsValidation.ts, sizingRowWrite.ts); invalid exclusion-regex lines surfaced per line. Sizing px + decay-k upper bounds already existed in SETTINGS_SPEC - pinned with tests rather than re-added. nodeCap ceiling and engine-level cross-field clamp deferred as [decide] tickets. 1053 tests passing.
