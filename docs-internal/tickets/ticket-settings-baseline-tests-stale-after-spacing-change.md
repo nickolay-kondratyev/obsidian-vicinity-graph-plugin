@@ -29,9 +29,11 @@ re-pinned.
 ## Why it is NOT fixed in passing
 
 Re-pinning a baseline is a statement that the NEW value is the intended shipped limit. That
-is the author's call, not a passing implementer's: `22bd5cb` raised the max deliberately but
-nothing records what `4` was validated against, so "just update the number" would be aligning
-an assertion to an unverified change.
+is the author's call, not a passing implementer's: the `linkStrengthFactor.max 2 → 4` raise
+landed separately, in `dee64c3` ("Modified file: SettingsSpec.ts"), as a one-line hand-edit —
+NOT in `22bd5cb`, which touched only `linkGapPx.max` and `collidePaddingPx`. Nothing there
+records what `4` was validated against, so "just update the number" would be aligning an
+assertion to an unverified change.
 
 ## Fix (when picked up)
 
@@ -54,3 +56,10 @@ stale as a statement of current state.
 Left OPEN deliberately: the re-pin landed without the **step 1** confirmation this ticket
 asks for — nothing yet records that `4` was validated as the intended shipped limit. That
 is a human call, so only a human should close this.
+
+## Note 2026-07-27 — `258ec5a` carries a human intent statement (step 1, partially)
+
+`258ec5a`'s commit message ends: `Human-decided (2026-07-24): the shipped spec value is the
+intended one.` So `4` being **intended** is on record; what is still not on record is what it
+was **validated against** (step 1 asks for the dev-vault look). Whether that trailer is enough
+to close remains the human's call — status left untouched.

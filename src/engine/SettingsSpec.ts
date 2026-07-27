@@ -224,9 +224,13 @@ export const SETTINGS_SPEC: SettingsSpec = {
 			 * the behavior shipped before the "Link force" slider introduced an
 			 * explicit override.
 			 *
-			 * `[0.25, 2]`: min keeps links dominant over the max center pull (see
-			 * above); above ~2 the stiff springs overshoot within the fixed-tick
-			 * static run and the layout stops converging cleanly.
+			 * `[0.25, 4]`: the factor scales d3's `1 / min(degree)`, so for a
+			 * degree-1 leaf the spring strength IS the factor — `min 0.25` therefore
+			 * keeps such a leaf's spring dominant over the strongest center pull the
+			 * ranges allow (see above). `max 4` is a maintainer-chosen headroom
+			 * ceiling, NOT a measured stability limit: well above 1 the fixed-tick
+			 * static run relies on d3's alpha decay rather than on the spring
+			 * settling by itself.
 			 */
 			linkStrengthFactor: { default: 1, min: 0.25, max: 4, step: 0.05 },
 			/**
