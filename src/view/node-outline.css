@@ -17,7 +17,9 @@
 .vicinity-graph-outline {
 	/* Take the node's spare height and SHRINK rather than push the attachment
 	 * strip out of the box. Deliberately not the thumbnail's fixed min-height,
-	 * which would overflow a 104px node. */
+	 * which would overflow a node sitting right at the 104px threshold (the
+	 * thumbnail instead budgets for its slot — see the reveal block in
+	 * graph-view.css). */
 	flex: 1 1 auto;
 	min-height: 0;
 	overflow-y: auto;

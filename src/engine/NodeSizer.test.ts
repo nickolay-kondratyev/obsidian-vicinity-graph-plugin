@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EngineDefaults, NEUTRAL_NORMALIZED_VALUE } from "./constants";
+import { EngineDefaults, NEUTRAL_NORMALIZED_VALUE, THUMBNAIL_VISIBLE_MIN_NODE_PX } from "./constants";
 import { FakeLinkProvider } from "./FakeLinkProvider";
 import type { FakeVaultSpec } from "./FakeLinkProvider";
 import { VicinityTraversal } from "./VicinityTraversal";
@@ -305,6 +305,79 @@ describe("NodeSizer central sizing", () => {
 			["main.md", "island.md"],
 		);
 		expect(score(sizes, "island.md")).toBe(1);
+	});
+});
+
+/**
+ * A note that HAS an image must be tall enough for the stylesheet to actually
+ * reveal its thumbnail — otherwise a low-relevance note's image is simply never
+ * shown. The floor is geometry-only (`sizePx`); `sizeScore` stays pure relevance
+ * because it also ranks truncation.
+ */
+describe("NodeSizer image-bearing height floor", () => {
+	// GIVEN a hub whose small neighbour embeds an image and whose big one does not
+	const spec: FakeVaultSpec = {
+		files: [
+			{ path: "m.md", sizeBytes: 10 },
+			{ path: "withImage.md", sizeBytes: 0 },
+			{ path: "pic.png" },
+			{ path: "plain.md", sizeBytes: 5000 },
+		],
+		links: { "m.md": ["withImage.md", "plain.md"], "withImage.md": ["pic.png"] },
+	};
+
+	function pxOf(settings: SizingSettings, path: string): number | undefined {
+		return sizeAll(spec, settings, ["m.md"]).get(asVaultPath(path))?.sizePx;
+	}
+
+	const bottomScoring = { ...sizingWith({ "own-file-size": 1 }), minPx: 40, maxPx: 160 };
+
+	it("WHEN a bottom-scoring note has an image THEN its height is floored at the thumbnail threshold", () => {
+		expect(pxOf(bottomScoring, "withImage.md")).toBe(THUMBNAIL_VISIBLE_MIN_NODE_PX);
+	});
+
+	it("WHEN a bottom-scoring note has NO image THEN its height stays the score-driven minimum", () => {
+		const sizes = sizeAll(
+			{ ...spec, files: spec.files.map((f) => (f.path === "plain.md" ? { ...f, sizeBytes: 0 } : f)) },
+			bottomScoring,
+			["m.md"],
+		);
+		expect(sizes.get(asVaultPath("plain.md"))?.sizePx).toBe(bottomScoring.minPx);
+	});
+
+	it("WHEN the floor exceeds the user's maxPx THEN the node is capped at maxPx", () => {
+		const cramped = { ...bottomScoring, maxPx: THUMBNAIL_VISIBLE_MIN_NODE_PX - 20 };
+		expect(pxOf(cramped, "withImage.md")).toBe(cramped.maxPx);
+	});
+
+	it("WHEN an image note already scores above the floor THEN its height is untouched", () => {
+		const tall = { ...bottomScoring, minPx: THUMBNAIL_VISIBLE_MIN_NODE_PX + 20 };
+		expect(pxOf(tall, "withImage.md")).toBe(tall.minPx);
+	});
+
+	it("WHEN sizing settings are inverted (minPx > maxPx) THEN the floor never shrinks an image node", () => {
+		// `clampSizingSettings` bounds each field independently, so minPx > maxPx is
+		// reachable at the engine boundary — the floor must stay a floor there.
+		const inverted = { ...bottomScoring, minPx: THUMBNAIL_VISIBLE_MIN_NODE_PX + 40, maxPx: 50 };
+		expect(pxOf(inverted, "withImage.md")).toBe(inverted.minPx);
+	});
+
+	it("WHEN an image note is central THEN it keeps the full central height", () => {
+		const sizes = sizeAll(
+			{
+				files: [{ path: "m.md" }, { path: "pic.png" }],
+				links: { "m.md": ["pic.png"] },
+			},
+			bottomScoring,
+			["m.md"],
+		);
+		expect(sizes.get(asVaultPath("m.md"))?.sizePx).toBe(bottomScoring.maxPx);
+	});
+
+	it("WHEN a bottom-scoring note has an image THEN its sizeScore stays the composed relevance", () => {
+		// The floor is geometry: promoting the score would also promote the node in
+		// truncation ranking (NodePriorityChain), which it must not.
+		expect(score(sizeAll(spec, bottomScoring, ["m.md"]), "withImage.md")).toBe(0);
 	});
 });
 

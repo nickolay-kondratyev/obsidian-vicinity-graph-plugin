@@ -15,9 +15,18 @@ instead of generating the old 1x1 placeholder, and copies `pic2.jpg` into
 live `.dev-vault/` (gitignored, local-only) was updated to match.
 
 Still needs a human to re-verify the actual thumbnail render in Obsidian per
-the QA_CHECKLIST §1 criteria (fixed-height cropped cover, appears only once
-the node is large enough, no spurious "+N" badge for a single image) — that
-manual check is outside what this change can confirm.
+the QA_CHECKLIST §1 criteria (appears only once the node is large enough, no
+spurious "+N" badge for a single image) — that manual check is outside what
+this change can confirm.
+
+**Stale criterion, corrected (2026-07-27):** the QA_CHECKLIST wording said
+"fixed-height cropped **cover**". The shipped stylesheet
+(`src/view/graph-view.css`, `.vicinity-graph-node__thumbnail img`) deliberately
+uses `object-fit: contain` with a WHY comment — never crop, the node is square
+while images are any aspect ratio. The code is authoritative; that checklist
+phrase predates it. Whether `contain` (letterboxed) or `cover` (cropped) is the
+better look is a human call, now tracked in
+`docs-internal/tickets/ticket-thumbnail-contain-vs-cover-decide.md`.
 
 ## Context
 
