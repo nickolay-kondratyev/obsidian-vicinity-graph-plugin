@@ -38,3 +38,30 @@ computed purely in `edgeGeometry.ts`, wired with a thin line in `VicinityEdge.ts
   chord fallback (`edgeGeometry.ts:190-201`), which fires in NORMAL operation.
 - Spec path is `docs-internal/specs/graph/arrows.md` (not `docs-internal/vicinity-graph-specs/`).
 - `e2e/selectorGuard.test.ts:205` is a tripwire on the edge-path selector — not touched.
+
+## ITERATION 1 (post-review) — facts learned, do NOT re-derive
+
+- **The straight branch is NOT reached in normal operation.** `clipRouteToEndpointRects`'s
+  degenerate chord is a 2-point `routedPoints` array → `VicinityEdge` takes the ROUTED
+  branch. My original CALLOUT 1 was wrong; corrected in PUBLIC + `arrows.md`.
+- **No un-routed first frame either**: `GraphViewController.runRebuild` awaits
+  `resolveRoutes` BEFORE `publish` (line ~234-241), so nothing is published un-routed.
+  Live paths for the straight branch: whole-pass router failure, edge missing from the
+  route map, endpoint dropped from `extractEdgeRoutingInput` (no position / no group
+  dimensions / `hasFiniteGeometry`).
+- **Degenerate chord ⟂ facing anchors.** Brute force (200k random rect pairs, throwaway
+  vitest harness under `src/view/__scratch.test.ts`, deleted): for a 2-point centre→centre
+  chord, **0 of ~37,700** degenerate cases have usable anchors; for 3-point routes,
+  191/~37,600 (~0.5%). Structural reason: a chord degenerates exactly when a box swallows
+  the other's border crossing = exactly when the ordering guard returns null. Pinned by a
+  test. → B2(b) REJECTED, ticket `nid_bq5k5gx5k3112otsbz1u0h7ba_e` (`[decide]`).
+- **Scratch-harness trick**: vitest here swallows `console.log`; write to `.tmp/…` with
+  `appendFileSync` instead. Put the scratch file under `src/**/*.test.ts` so vitest picks
+  it up, and DELETE it before committing.
+- Guards now in `facingSideAnchorsFor`: `undefined` rect → `isAnchorableRect` (finite AND
+  positive extent) → strictly-inside → crossing null → **dot(drawn, centre) <= 0**.
+  The last one covers partial overlap (<0) and touching (==0).
+- `isAnchorableRect`'s `widthPx>0 && heightPx>0` is what RESTORES `segmentRectEntryPoint`'s
+  "`to` strictly inside" precondition — do not delete it thinking it is redundant.
+- Did NOT edit `CLAUDE.md` (C5): project config, and `docs-internal/tickets/` does still
+  exist. Flagged to the human as CALLOUT 7 instead.

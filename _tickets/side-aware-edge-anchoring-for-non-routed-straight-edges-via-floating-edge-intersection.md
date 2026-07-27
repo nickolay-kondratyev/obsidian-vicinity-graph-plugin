@@ -3,7 +3,7 @@ id: nid_var2o7krxq7ribq3iofni3aw1_e
 title: "Side-aware edge anchoring for non-routed (straight) edges via floating-edge intersection"
 status: open
 deps: [nid_wku3029kwmnei7e86rbb1dk7w_e]
-links: [nid_wku3029kwmnei7e86rbb1dk7w_e, nid_ub30ndqyp6ikq76hv4ba6yqss_e]
+links: [nid_wku3029kwmnei7e86rbb1dk7w_e, nid_ub30ndqyp6ikq76hv4ba6yqss_e, nid_bq5k5gx5k3112otsbz1u0h7ba_e]
 created_iso: 2026-07-22T20:37:35Z
 status_updated_iso: 2026-07-22T20:37:35Z
 type: feature

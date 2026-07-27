@@ -55,9 +55,12 @@ export type VicinityEdgeType = Edge<VicinityEdgeData, "vicinity">;
  * so a measurement may never have happened, but the node stays in the RF store.
  */
 function clipRectOf(node: InternalNode<Node> | undefined): ClipRect | undefined {
-	const widthPx = node?.measured.width ?? node?.width;
-	const heightPx = node?.measured.height ?? node?.height;
-	if (node === undefined || widthPx === undefined || heightPx === undefined) {
+	if (node === undefined) {
+		return undefined;
+	}
+	const widthPx = node.measured.width ?? node.width;
+	const heightPx = node.measured.height ?? node.height;
+	if (widthPx === undefined || heightPx === undefined) {
 		return undefined;
 	}
 	return { x: node.internals.positionAbsolute.x, y: node.internals.positionAbsolute.y, widthPx, heightPx };

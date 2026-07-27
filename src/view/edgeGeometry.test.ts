@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { assert, describe, expect, it } from "vitest";
 import {
 	EDGE_ARROWHEAD_INSET_FRACTION,
 	EDGE_ARROWHEAD_INSET_MAX_PX,
@@ -213,13 +213,64 @@ describe("facingSideAnchorsFor anchors a straight edge on the sides the boxes fa
 		expect(facingSideAnchorsFor(rect(0, 0, 300, 300), rect(100, 100, 100, 100))).toBeNull();
 	});
 
-	it("WHEN a node rect is unavailable THEN it reports no facing side rather than guessing one", () => {
+	it("WHEN the boxes overlap PARTIALLY THEN it reports no facing side rather than a BACKWARDS segment", () => {
+		// Centres (50,50) and (110,50) — neither inside the other, yet the border
+		// crossings come out ordered target(60) BEFORE source(100): drawing that
+		// would aim the arrowhead at the wrong node.
+		expect(facingSideAnchorsFor(box, rect(60, 0, 100, 100))).toBeNull();
+	});
+
+	it("WHEN the centre→centre chord DEGENERATES on overlapping boxes THEN there is no facing side either", () => {
+		// Pins WHY the routed branch's degenerate chord fallback is NOT rewired through
+		// these anchors: a 2-point centre→centre route degenerates only when a box swallows
+		// the other's border crossing, which is exactly when no facing side exists. The two
+		// conditions never co-occur, so wiring them together would be a guaranteed no-op.
+		const source = box;
+		const target = rect(60, 0, 100, 100);
+		const chord = [
+			{ x: 50, y: 50 },
+			{ x: 110, y: 50 },
+		];
+		assert(
+			clipRouteToEndpointRects(chord, source, target)[0]?.x === chord[0]?.x,
+			"expected the clip to degenerate back to the raw centre→centre chord",
+		);
+		expect(facingSideAnchorsFor(source, target)).toBeNull();
+	});
+
+	it("WHEN the boxes merely TOUCH THEN it reports no facing side rather than a zero-length segment", () => {
+		// Both anchors collapse onto the shared border point (100,50); a zero-length
+		// segment has no direction, so edgePathFor's degenerate branch would aim the
+		// arrowhead +x regardless of where the target really is.
+		expect(facingSideAnchorsFor(box, rect(100, 0, 100, 100))).toBeNull();
+	});
+
+	it("WHEN the SOURCE rect is unavailable THEN it reports no facing side rather than guessing one", () => {
 		expect(facingSideAnchorsFor(undefined, box)).toBeNull();
+	});
+
+	it("WHEN the TARGET rect is unavailable THEN it reports no facing side rather than guessing one", () => {
+		expect(facingSideAnchorsFor(box, undefined)).toBeNull();
+	});
+
+	it("WHEN a rect has NON-FINITE geometry THEN it reports no facing side instead of NaN anchors", () => {
+		// NaN anchors would render as `M NaN,50 …` — an SVG path that draws nothing,
+		// i.e. the edge silently vanishes.
+		expect(facingSideAnchorsFor(rect(Number.NaN, 0, 100, 100), rect(200, 0, 100, 100))).toBeNull();
+	});
+
+	it("WHEN a rect has ZERO size THEN it reports no facing side", () => {
+		// A zero-size rect's centre is ON its border, not strictly inside it, which
+		// would break segmentRectEntryPoint's precondition.
+		expect(facingSideAnchorsFor(rect(0, 0, 0, 0), rect(200, 0, 100, 100))).toBeNull();
 	});
 
 	it("WHEN the anchors feed a paired edge THEN the bow is drawn between the BORDER points", () => {
 		const anchors = facingSideAnchorsFor(box, rect(200, 0, 100, 100));
-		const geometry = edgePathFor(anchors?.sourceX ?? 0, anchors?.sourceY ?? 0, anchors?.targetX ?? 0, anchors?.targetY ?? 0, true);
+		// Fail HERE, on its own line, if the anchors are absent — a `?? 0` fallback
+		// would silently redraw the bow from the origin and still match below.
+		assert(anchors !== null, "expected facing-side anchors for two separated boxes");
+		const geometry = edgePathFor(anchors.sourceX, anchors.sourceY, anchors.targetX, anchors.targetY, true);
 		expect(geometry.path).toBe(`M 100,50 Q 150,${50 + EDGE_PAIR_CURVATURE_PX} 200,50`);
 	});
 });

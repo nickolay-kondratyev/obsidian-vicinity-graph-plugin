@@ -48,9 +48,10 @@ the true approach segments).
   layout and routing is unconditional, with no per-layout exclusion.
 - **Straight-line fallback** (`edgePathFor`) when the wasm/router fails (one
   `console.warn`, whole pass yields no routes), an edge is absent from the route
-  map, an endpoint was dropped from the routing input, or the boundary clip hits
-  its degenerate case below. A cleanly-routed edge returns a 2-point line,
-  byte-identical to the straight form.
+  map, or an endpoint was dropped from the routing input. A cleanly-routed edge
+  returns a 2-point line, byte-identical to the straight form. The boundary clip's
+  degenerate chord is **not** in this list: it is a `routedPoints` polyline like
+  any other and renders through `routedGeometryFor`.
 - Routed edges do **not** re-apply the paired-edge bow — libavoid's clearance
   buffer already separates opposite edges.
 - **Connection pins:** folder-group boxes carry 12 directional boundary pins
@@ -79,14 +80,24 @@ there. This gives the straight path the same facing-side attachment the routed
 path already gets from **Boundary clipping** above; arrowheads then sit just
 OUTSIDE the box (the inset rules are unchanged), matching routed edges.
 
+**Reach — read this before assuming a visual change.** Only the edges in the
+straight-line-fallback list above reach this code: router failure, missing route,
+endpoint dropped from routing input. When routing works, *every* edge — including
+the boundary clip's degenerate chord — renders through `routedGeometryFor`, so
+this is a **no-op in normal operation**. It makes the fallback path render like
+the routed one instead of springing from a top/bottom handle.
+
 - Reuses the routed clipper's Liang–Barsky primitive — one segment-vs-rect-border
   implementation in `edgeGeometry.ts`, and the same `ClipRect` shape.
 - Rects come from the React Flow store (`useInternalNode` → `positionAbsolute` +
   measured-or-explicit size), never from DOM measurement: `onlyRenderVisibleElements`
   unmounts culled nodes.
-- **Falls back to the handle endpoints** when a node is not yet in the store, or
-  the boxes are nested/overlapping (a note inside its folder-group container) —
-  no side faces the other, so there is nothing to anchor to.
+- **Falls back to the handle endpoints** — which always point the right way —
+  whenever no honest facing side exists: a node is not yet in the store, a rect is
+  non-finite or zero-size, the boxes are nested (a note inside its folder-group
+  container), or the two border crossings come out ordered BACKWARDS along the
+  centre line, which partially overlapping and merely touching boxes do. Never NaN,
+  and never an arrowhead pointing at the wrong node.
 - The `hasOpposite` bow and the bidirectional double-arrowhead are recomputed from
   these border endpoints; the hidden `<Handle>`s stay (React Flow needs them to
   address an edge at all).
@@ -99,8 +110,9 @@ OUTSIDE the box (the inset rules are unchanged), matching routed edges.
 - `groupByFolder` off → no projection, behavior unchanged.
 - Group with cross-boundary links in one direction only → single arrowhead.
 - Straight-edge facing-side anchors: target above/below/left/right/diagonal lands
-  on the facing border, source anchor mirrors, nested/missing rects fall back to
-  the handle endpoints, paired bow drawn between the border points
+  on the facing border, source anchor mirrors, paired bow drawn between the border
+  points; and every fallback pinned — nested, partially overlapping, touching,
+  missing, non-finite and zero-size rects all keep the handle endpoints
   (`edgeGeometry.test.ts`). **No e2e coverage** — no fixture can produce a
   non-routed edge (routing is unconditional and does not fail in e2e).
 

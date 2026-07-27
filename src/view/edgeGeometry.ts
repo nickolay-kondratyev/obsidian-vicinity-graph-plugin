@@ -315,17 +315,28 @@ export interface StraightEdgeAnchors {
  * detour that isn't there. The routed path already gets facing sides for free from
  * {@link clipRouteToEndpointRects}; this brings the straight path in line with it.
  *
- * Returns `null` — meaning "keep the caller's existing handle endpoints" — when a
- * rect is unavailable (React Flow has not registered the node yet) or the geometry
- * is degenerate: either centre strictly inside the other rect (overlapping or
- * nested boxes, e.g. a note inside its folder-group container) has no facing side
- * to speak of. Same fallback spirit as {@link clipRouteToEndpointRects}'s chord.
+ * Returns `null` — meaning "keep the caller's existing handle endpoints" — for
+ * every case where no honest facing side exists:
+ *
+ * - a rect is unavailable (React Flow has not registered the node yet);
+ * - a rect is not {@link isAnchorableRect} (non-finite or zero-size);
+ * - either centre is strictly inside the other rect (nested boxes, e.g. a note
+ *   inside its folder-group container);
+ * - the two border crossings come out ORDERED BACKWARDS along the centre line,
+ *   which partially overlapping and merely touching boxes do;
+ * - the crossing is indeterminate.
+ *
+ * Same fallback spirit as {@link clipRouteToEndpointRects}'s chord: total, and
+ * never NaN. No heuristic invents a facing side that the geometry does not have.
  */
 export function facingSideAnchorsFor(
 	sourceRect: ClipRect | undefined,
 	targetRect: ClipRect | undefined,
 ): StraightEdgeAnchors | null {
 	if (sourceRect === undefined || targetRect === undefined) {
+		return null;
+	}
+	if (!isAnchorableRect(sourceRect) || !isAnchorableRect(targetRect)) {
 		return null;
 	}
 	const sourceCentre = rectCentreOf(sourceRect);
@@ -335,7 +346,42 @@ export function facingSideAnchorsFor(
 	if (target === null || source === null) {
 		return null;
 	}
+	// Overlapping (or touching) boxes can put the two crossings in the WRONG ORDER
+	// along the centre line — the source anchor landing PAST the target anchor —
+	// so the drawn segment, and with it the arrowhead, would point at the wrong
+	// node. Arrow direction is this graph's semantic payload, so rather than draw
+	// a lie we hand the caller back to its handle endpoints, which always point
+	// the right way. A dot product of exactly 0 is the zero-length touching case.
+	const drawnAlongCentreLine =
+		(target.x - source.x) * (targetCentre.x - sourceCentre.x) +
+		(target.y - source.y) * (targetCentre.y - sourceCentre.y);
+	if (drawnAlongCentreLine <= 0) {
+		return null;
+	}
 	return { sourceX: source.x, sourceY: source.y, targetX: target.x, targetY: target.y };
+}
+
+/**
+ * A rect we can anchor on: finite coordinates AND a real extent. Mirrors the
+ * `hasFiniteGeometry` obstacle filter in `edgeRouting.ts` — restated here rather
+ * than imported, because this pure math layer deliberately carries no routing
+ * types (see {@link ClipRect}).
+ *
+ * WHY it matters: Liang–Barsky propagates NaN silently (`Math.max(0, NaN)` is
+ * `NaN`, and `NaN > leave` is false), so a non-finite rect would yield an
+ * `M NaN,… ` path — an SVG that draws NOTHING, i.e. the edge would vanish. And a
+ * zero-size rect's centre sits ON its border, not strictly inside it, breaking
+ * {@link segmentRectEntryPoint}'s precondition.
+ */
+function isAnchorableRect(rect: ClipRect): boolean {
+	return (
+		Number.isFinite(rect.x) &&
+		Number.isFinite(rect.y) &&
+		Number.isFinite(rect.widthPx) &&
+		Number.isFinite(rect.heightPx) &&
+		rect.widthPx > 0 &&
+		rect.heightPx > 0
+	);
 }
 
 /**
@@ -343,7 +389,9 @@ export function facingSideAnchorsFor(
  * anchor on the side of `rect` that faces `toward`. Reuses the SAME Liang–Barsky
  * primitive the route clipper uses ({@link segmentRectEntryPoint}, whose contract
  * is `from` outside / `to` strictly inside), so there is exactly one
- * segment-vs-rect-border implementation in this module.
+ * segment-vs-rect-border implementation in this module. That precondition holds
+ * here because callers reject a non-{@link isAnchorableRect} rect first, and a
+ * rect with a real extent strictly contains its own centre.
  *
  * `null` when `toward` is not strictly outside `rect` (nothing faces anything) or
  * the crossing is indeterminate.
