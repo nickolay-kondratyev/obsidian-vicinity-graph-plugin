@@ -131,3 +131,89 @@ known-false attribution) should be resolved before merge. Adopting the tighter w
 resolves #1, #2 and #3 in a single edit and needs no re-review beyond a `npm run check`.
 If the human explicitly prefers to retain the archaeology in-source, then only #1 must be
 handled (correct the ticket) and I would sign off.
+
+---
+
+# ROUND 2 — confirmation review (fresh instance)
+
+Reviewing the **cumulative** result `git diff 3e85ecb..HEAD -- src/ docs-internal/`
+(`7892edf` + fix `8b6ea39`; `1445343` adds only an untracked draft ticket, out of scope).
+
+**Verdict: 0 BLOCKING, 0 SHOULD-FIX. All three round-1 items genuinely resolved. I signal
+readiness to converge.**
+
+## 1. Round-1 SHOULD-FIX disposition — all confirmed resolved
+
+| # | Item | Confirmed |
+|---|---|---|
+| 1 | Source pointed at a stale ticket with a false attribution | **Resolved twice over**: the `docs-internal/` path is gone from the JSDoc, AND the ticket's attribution is corrected. |
+| 2 | Archaeology / proportionality (commit hash + ticket path in source) | **Resolved.** No hash, no path, no repo meta-commentary remains. Range paragraph is 7 lines, all about the setting. |
+| 3 | "past 1 the spring over-corrects every tick" overclaim | **Resolved.** Sentence removed; replaced by the softened wording. |
+
+## 2. Truthfulness of the final comment text — each clause checked against code
+
+Final text at `src/engine/SettingsSpec.ts:227-233`.
+
+| Clause | Verdict |
+|---|---|
+| "the factor scales d3's `1 / min(degree)`" | **TRUE** — `src/view/d3ForceRefinement.ts:83-87`: `forceLayout.linkStrengthFactor / Math.min(linkCountOf(source), linkCountOf(target))`. Corroborated by the WHY comment at `:55-58` ("at factor 1 the values are bit-identical to leaving strength unset"). |
+| "for a degree-1 leaf the spring strength IS the factor" | **TRUE** — `min(1, anything ≥ 1) === 1`, and `linkCountOf` floors at 1 (`:65`). |
+| "`min 0.25` … keeps such a leaf's spring dominant over the strongest center pull the ranges allow" | **TRUE and mutually consistent** — `centerPullStrength.max 0.15` (`:209`) < `0.25`. It is the same relative-magnitude framing the `centerPullStrength` JSDoc (`:203-207`) already states from the other side; the two now agree exactly. |
+| "`max 4` is a maintainer-chosen headroom ceiling, NOT a measured stability limit" | **TRUE and now the honest framing.** `258ec5a`'s trailer (`Human-decided (2026-07-24): the shipped spec value is the intended one.`) establishes *intent*; nothing in the repo measures stability at 4. The round-0 insinuation of accident is gone without swinging into an invented rationale. |
+| "well above 1 the fixed-tick static run relies on d3's alpha decay rather than on the spring settling by itself" | **Defensible — no longer an overclaim.** The run is a precomputed tick count (`:96-98`, `ceil(log(alphaMin)/log(1-alphaDecay))`) on a `.stop()`ed sim, so "fixed-tick static run" is literally readable off the code. Unlike the deleted "above ~2 … stops converging cleanly", this asserts no threshold, no instability, and no measured behavior — only that with strength > 1 (over-relaxation past the resting distance) what bounds the springs is decaying alpha, not equilibrium. That follows from d3's documented `strength ∈ [0,1]` relaxation semantics, and this is the exact wording round 1 proposed as the acceptable softening. I do not re-open it. |
+
+*Observation, explicitly NOT a finding:* the tick count is factor-independent, so the run
+terminates on alpha decay at **every** factor; the "well above 1" qualifier therefore
+discriminates less sharply than it reads. The sentence is still true as written (it makes no
+claim about factor ≤ 1) and is a net improvement over what it replaced. Not worth another round.
+
+## 3. Ticket edits — accurate, minimal, not restructured, not closed
+
+`docs-internal/tickets/ticket-settings-baseline-tests-stale-after-spacing-change.md`.
+
+- **Attribution correction verified at source:** `git show 22bd5cb -- src/engine/SettingsSpec.ts`
+  → 2 insertions / 2 deletions, **only** `linkGapPx.max 150→250` and
+  `collidePaddingPx default 20→50 / max 80→100`. `git show dee64c3` → 1 insertion / 1 deletion,
+  `linkStrengthFactor … max: 2 → 4`, message literally `Modified file: SettingsSpec.ts`.
+  The ticket's new sentence matches both exactly.
+- **`258ec5a` note verified:** quoted trailer is verbatim from `git log -1 --format=%B 258ec5a`.
+  The note's distinction (**intended** is on record; **validated against** is not) is correct
+  and does not overstate what the trailer discharges.
+- **`**Origin:** 22bd5cb`** header left intact — correct, since `22bd5cb` genuinely originates
+  the wider baseline staleness this ticket was filed for.
+- **Status still `OPEN`**, section order unchanged, nothing deleted; the only additions are the
+  corrected sentence and the appended dated note. No unauthorized closure.
+
+## 4. `src/` diff purity — re-proved mechanically
+
+`git diff 3e85ecb..HEAD -- src/ | grep -E "^[+-]" | grep -v "^[+-][+-]" | grep -vE "^[+-]\s*\*"`
+→ **empty**. Comment-only. `linkStrengthFactor: { default: 1, min: 0.25, max: 4, step: 0.05 }`
+unchanged; no test file in the diff; `centerPullStrength` cross-reference to
+`linkStrengthFactor` **min 0.25** still accurate (min never touched, and machine-pinned by
+`src/engine/forceLayoutSettings.test.ts`).
+
+## 5. Gates — actually re-run this round
+
+| Command | Result |
+|---|---|
+| `npm run check > .tmp/rev2-check.log 2>&1` | **exit 0** |
+| `npm test > .tmp/rev2-test.log 2>&1` | **exit 0** — `Test Files 79 passed (79)`, `Tests 1053 passed (1053)` |
+| `./sanity_check.sh` | not present in repo (n/a) |
+
+## 6. Acceptance criteria
+
+1. **JSDoc range matches shipped min/max** — `[0.25, 4]` vs `{ min: 0.25, max: 4 }`. **MET.**
+2. **No other `SettingsSpec` JSDoc range contradicts its entry** — the round-1 independent
+   sweep of all 12 bounded entries stands (nothing in `SettingsSpec.ts` changed since except
+   this one block). **MET.**
+
+## Regression / functionality-loss check
+
+No test removed, skipped, or loosened. No `ap_XXX_E` anchor touched. No ticket closed or
+restructured. Nothing to flag.
+
+## Convergence
+
+**Converged.** Ship it. Remaining items are the human's, unchanged and non-blocking: the
+optional `outlineMaxDepth` "≤160px" follow-up ticket, and the human read on whether
+`258ec5a`'s trailer discharges step 1 of the baseline ticket.

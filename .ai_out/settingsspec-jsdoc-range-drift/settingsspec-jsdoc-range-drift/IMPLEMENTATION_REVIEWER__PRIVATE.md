@@ -41,3 +41,30 @@ no-new-test decision endorsed.
 NOT ready to converge on #1. Adopting the §2 wording collapses #1/#2/#3 into one edit.
 If the human insists on keeping the archaeology in-source, only #1 (fix the ticket's
 attribution) blocks, then I sign off.
+
+---
+
+## Round 2 (fresh instance, 2026-07-27) — CONVERGED, work is DONE
+
+Reviewed cumulative `3e85ecb..HEAD` (`7892edf` + fix `8b6ea39`). Verdict: 0 BLOCKING,
+0 SHOULD-FIX. Round-2 section appended to `IMPLEMENTATION_REVIEW__PUBLIC.md`.
+
+Re-verified independently this round (not trusted from round 1 or the implementer):
+- `npm run check` exit 0; `npm test` exit 0, 79 files / 1053 tests. Logs `.tmp/rev2-*.log`.
+- Non-comment `src/` diff filter → empty. Spec entry `{1, 0.25, 4, 0.05}` untouched.
+- `d3ForceRefinement.ts:83-87` strength = factor / min(degree); `:65` linkCountOf floors at 1;
+  `:96-98` precomputed tick count on a `.stop()`ed sim. All three comment claims TRUE.
+- `centerPullStrength.max 0.15` (`:209`) < `0.25` ⇒ the "dominant over strongest center pull"
+  clause is true and now mutually consistent with the `centerPullStrength` JSDoc (`:203-207`).
+- `22bd5cb` spec diff = linkGapPx.max + collidePaddingPx only; `dee64c3` = the 2→4 raise.
+  Ticket's corrected sentence matches both. `258ec5a` trailer quoted verbatim. Status still
+  OPEN, Origin header intact, no restructure, no closure.
+
+Judgment call I made (record it, don't re-litigate): the surviving "well above 1 … relies on
+alpha decay rather than on the spring settling by itself" is DEFENSIBLE, not an overclaim —
+it is round 1's own proposed softening, asserts no threshold/instability/measurement, and
+follows from d3's strength∈[0,1] relaxation semantics. Noted in PUBLIC as an explicit
+NON-finding that the fixed tick count is factor-independent, so the "well above 1" qualifier
+discriminates weakly; still true as written, not worth a round.
+
+Nothing left for the reviewer role on this branch.
