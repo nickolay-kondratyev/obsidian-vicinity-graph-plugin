@@ -232,12 +232,15 @@ export default class VicinityGraphPlugin extends Plugin {
 		const coreSources = new Set<string>(coreBacklinks ?? []);
 		const fallbackOnly = providerIncoming.filter((source) => !coreSources.has(source));
 
+		// Per canvas, not per install: a partially-indexed vault has canvases on BOTH
+		// sides, and naming the ones we serve is what makes the delta below explainable.
+		const fallbackServed = provider.fallbackServedCanvasPaths;
 		const capabilityNote =
-			provider.canvasCapability === "core-indexed"
-				? "Obsidian core indexes .canvas ⇒ core supplies canvas edges; our fallback parser stays DORMANT"
-				: "core does NOT index .canvas ⇒ OUR fallback parser supplies canvas edges";
+			fallbackServed.length === 0
+				? "Obsidian core indexes every canvas in this vault ⇒ core supplies all canvas edges; our fallback parser stays DORMANT"
+				: `core has NOT indexed these ⇒ OUR fallback parser supplies their edges: [${fallbackServed.join(", ")}]`;
 		console.log(`vicinity-graph debug: === backlink provenance for main=[${mainFile.path}] ===`);
-		console.log(`vicinity-graph debug: canvasCapability=[${provider.canvasCapability}] (${capabilityNote})`);
+		console.log(`vicinity-graph debug: fallback-served canvases=[${fallbackServed.length}] (${capabilityNote})`);
 		console.log(
 			`vicinity-graph debug: [OBSIDIAN core] resolvedLinks .canvas-key count=[${canvasKeyCount}] ⇒ core canvas backlinks on this install=[${canvasKeyCount > 0 ? "YES" : "NO"}]`,
 		);

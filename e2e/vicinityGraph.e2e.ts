@@ -31,6 +31,11 @@ const NOTE1_PATH = "note1.md";
 /** note1 + note2 + note3 + test.canvas + alpha + beta + gamma + crowd c1..c4. */
 const NOTE1_NODE_COUNT = 11;
 const GAMMA_PATH = "solo/gamma.md";
+
+/** The second dev-vault canvas; sits at depth 2 from note1, so it joins no count above. */
+const SECOND_CANVAS_PATH = "test2.canvas";
+/** test2.canvas (MAIN) + note3 (file node) + note2 (text-node wikilink). */
+const SECOND_CANVAS_NODE_COUNT = 3;
 const GAMMA_TRIMMED_TITLE = "Gamma (solo, trimmed title)";
 
 /** Truncation scenario: cap 2 keeps exactly crowd/c1+c2 (largest depth-1 neighbors). */
@@ -249,6 +254,32 @@ test("ctrl/cmd-clicking a node opens the note in a NEW tab", async () => {
 	await noteNode(NOTE1_PATH).click({ modifiers: ["ControlOrMeta"] });
 	await expect.poll(markdownLeafCount).toBe(leavesBefore + 1);
 	await expect.poll(activeFilePath).toBe(NOTE1_PATH);
+});
+
+// --- multi-canvas: the link regime is decided per canvas --------------------
+
+/**
+ * The partial-index guard. Obsidian indexes canvases ONE FILE AT A TIME, so across
+ * runs this vault genuinely lands in all four combinations of (test.canvas indexed?,
+ * test2.canvas indexed?) — measured while building this harness: a canvas made it
+ * into `resolvedLinks` in only 4 of 8 launches, and never later in the misses.
+ *
+ * A provider that picked ONE link source for the whole vault would blank whichever
+ * canvas sat on the wrong side of that split — with a vault-wide switch this
+ * assertion goes red (1 node, no edges) in exactly the runs where test.canvas is
+ * indexed and test2.canvas is not. Deciding per canvas is what makes it stable, so
+ * the count below must hold on every run, not most of them.
+ *
+ * WHY-NOT rely on the sparse eval row instead: `.dev-vault` had a single canvas, so
+ * no single-canvas fixture can observe this at all.
+ */
+test("a second, independently-indexed canvas still reports its own edges", async () => {
+	await harness.openFile(SECOND_CANVAS_PATH);
+	await expect(noteNode(SECOND_CANVAS_PATH)).toHaveAttribute("data-tier", "main");
+	// Its file node (note3) AND its text-node wikilink (note2) — both regimes owe both.
+	await expect(page.locator(".vicinity-graph-node")).toHaveCount(SECOND_CANVAS_NODE_COUNT);
+	await expect(noteNode("note3.md")).toHaveCount(1);
+	await expect(noteNode("note2.md")).toHaveCount(1);
 });
 
 // --- truncation badges: group "+N" and corner "+N hidden" overlay -----------

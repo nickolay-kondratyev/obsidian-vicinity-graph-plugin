@@ -35,11 +35,6 @@ const OUT_DIR = path.join(REPO_ROOT, ".out");
 /** Detour ratios are raw floats (1.2843901…); trim them so the eval lines stay scannable. */
 const DETOUR_RATIO_DIGITS = 3;
 
-/** The dev-vault canvas in the `sparse` fixture's vicinity. See {@link ensureCanvasFixtureIsIndexed}. */
-const CANVAS_FIXTURE_PATH = "test.canvas";
-/** Generous bound on Obsidian re-indexing ONE touched file (measured: sub-second). */
-const CANVAS_INDEX_TIMEOUT_MS = 20_000;
-
 /** How often the settle poll re-reads the captured-log count. */
 const SETTLE_POLL_INTERVAL_MS = 250;
 /** No new routing/layout log for this long ⇒ the rebuild burst for this fixture is over. */
@@ -102,7 +97,6 @@ test.beforeAll(async () => {
 	page = harness.page;
 	page.on("console", onConsole);
 	await harness.openGraphView();
-	await ensureCanvasFixtureIsIndexed();
 	// `all-edges` so sibling chords render and genuinely load the router.
 	await harness.setEdgeVisibility("all-edges");
 	fs.mkdirSync(OUT_DIR, { recursive: true });
@@ -111,57 +105,6 @@ test.beforeAll(async () => {
 test.afterAll(async () => {
 	await harness?.close();
 });
-
-/**
- * Precondition for a DETERMINISTIC `sparse` readout: get `test.canvas` into Obsidian's
- * link index before anything is measured.
- *
- * WHY: the plugin re-detects its canvas link source on every rebuild from
- * `metadataCache.resolvedLinks` (`src/adapters/ObsidianLinkProvider.create` →
- * `CanvasCapabilityDetector`), and the two regimes disagree about ONE edge — the
- * wikilink inside the canvas's TEXT node (`test.canvas → note2.md`), which core
- * indexing reports and `CanvasFallbackParser` deliberately skips. So an unindexed
- * canvas silently turns the sparse row into 10-or-11 noise.
- *
- * WHY-NOT just wait for the key: measured over 8 launches, Obsidian's boot sweep indexed
- * this canvas in only half of them, and in the misses it NEVER did — polling 60s past a
- * fully settled 165-key index still found no `.canvas` key. Re-writing the file is what
- * makes the index take it (2/2 on misses), so the wait below is a genuine condition on
- * observed state rather than a hopeful sleep.
- *
- * The plugin-side regime split is a product question tracked in its own ticket
- * (`nid_s676x55uojmtcwh9t4l9mc6zl_e`); this helper only pins the MEASUREMENT to the
- * settled, fully-indexed state.
- *
- * SAFETY — this is the suite's ONLY vault write, and it can never touch a human's vault:
- * `ObsidianHarness.launch()` is called here WITHOUT `allowExternalVault`, so under
- * `VICINITY_E2E_VAULT` `assertExternalLaunchAllowed` (`e2e/vaultTarget.ts`) throws before
- * Obsidian is even connected — this spec only ever reaches a throwaway `.dev-vault` copy
- * under `.tmp/e2e/vault`. That launch gate is why the harness's "no fixture writes in
- * override mode" invariant still holds, and WHY-NOT a local `test.skip` guard: it would
- * silently skip where every other non-opt-in spec fails loudly with an actionable message.
- */
-async function ensureCanvasFixtureIsIndexed(): Promise<void> {
-	await page.evaluate(async (canvasPath) => {
-		const app = (window as unknown as { app: any }).app;
-		if (Object.keys(app.metadataCache.resolvedLinks).includes(canvasPath)) {
-			return;
-		}
-		const file = app.vault.getAbstractFileByPath(canvasPath);
-		if (file === null) {
-			throw new Error(`Canvas fixture missing from the e2e vault: path=[${canvasPath}]`);
-		}
-		// A trailing newline is a no-op for the canvas JSON but IS a real content change,
-		// so Obsidian re-reads the file and indexes its links.
-		await app.vault.modify(file, `${await app.vault.read(file)}\n`);
-	}, CANVAS_FIXTURE_PATH);
-	await page.waitForFunction(
-		(canvasPath) =>
-			Object.keys((window as unknown as { app: any }).app.metadataCache.resolvedLinks).includes(canvasPath),
-		CANVAS_FIXTURE_PATH,
-		{ timeout: CANVAS_INDEX_TIMEOUT_MS },
-	);
-}
 
 /**
  * Opens `centralPath`, waits for the graph to settle, and returns the metrics of the
@@ -275,7 +218,7 @@ function settledMetrics(entries: PerfEntry[]): EvalMetrics {
 	const routingPasses = heaviestPasses(entries, "routing", (entry) => entry.data.obstacleCount ?? 0);
 	// Same-sized passes reporting DIFFERENT edge counts mean the graph was still changing,
 	// so any single one of them is an arbitrary readout. Fail loudly rather than let a
-	// stable-sort accident decide which number gets published (the 10-vs-11 flake).
+	// stable-sort accident decide which number gets published.
 	const edgeCounts = new Set(routingPasses.map((entry) => entry.data.edgeCount));
 	if (edgeCounts.size > 1) {
 		throw new Error(

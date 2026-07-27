@@ -83,7 +83,10 @@ An Obsidian plugin that replaces the local graph view with a React Flow based vi
 ### Canvas support
 
 - Canvases are first-class docs: they can be nodes, centrals, and pinned.
-- **We prefer not to own canvas parsing.** Adaptive strategy: at build time, detect whether the install's `resolvedLinks` contains `.canvas` keys. If yes, canvas edges flow through the same code path as markdown and our parser never runs. If no, a fallback provider parses `.canvas` JSON (file-type nodes; text-node wikilinks are skipped in V1).
+- **We prefer not to own canvas parsing.** Adaptive strategy, decided **per canvas** at build time: if `resolvedLinks` holds that canvas's own key, its edges flow through the same code path as markdown and our parser never runs for it; otherwise the fallback parses that canvas's JSON. Per canvas and not per install because Obsidian indexes canvases one file at a time and can leave one indefinitely unindexed — a vault-wide verdict would leave every canvas on the wrong side of a partial index with NO link source at all. Presence of the key is the test, since an indexed but link-free canvas appears as `{}`.
+- **Settled canvas edge semantics (ticket `nid_s676x55uojmtcwh9t4l9mc6zl_e`), binding on BOTH paths:** a canvas links whatever its FILE nodes reference AND whatever the wikilinks (`[[note]]`, `![[note]]`) inside its TEXT nodes reference. Text-node link text resolves exactly like a markdown body link (`getFirstLinkpathDest`, relative to the canvas), so aliases and `#subpaths` resolve to the document and dangling links produce no edge. External `link` nodes and `group` nodes reference no document.
+- **Why both paths must agree, not merely both exist:** `resolvedLinks` fills asynchronously at vault boot, so which regime a rebuild lands in is a race we do not control. That race is only harmless while the two regimes report the same edge set — a divergence turns into "the graph depends on how fast you opened it". Known residual divergence: markdown-style `[a](b.md)` links and `[[links]]` inside code spans within text nodes (ticket `nid_ygo7h95ssgmunaqsprc1zlmfh_e`). Edge ORDER is not contractual on either path.
+- The fallback's text-node scan rides the existing mtime-keyed `CanvasParseCache`, so it costs nothing per rebuild; only link RESOLUTION re-runs, because a rename changes a target without touching the canvas's mtime.
 - The user's install shows canvas backlinks in the backlinks pane; plugin-ecosystem evidence suggests stock Obsidian historically did not index canvases, so this may be core now or plugin-provided. Verify in devtools, but the adaptive design is correct on every install either way.
 - The fallback path is a known stale-data risk and gets dedicated test coverage, including fixtures with canvas entries deliberately absent to exercise detection.
 
@@ -107,7 +110,7 @@ An Obsidian plugin that replaces the local graph view with a React Flow based vi
 ### Testing
 
 - **The engine is pure**: traversal, sizing, truncation, and settings resolution are functions with no Obsidian imports, tested against a fixture-driven **FakeLinkProvider**. The `LinkProvider` interface is the only boundary to Obsidian and the seam where canvas detection lives.
-- Fixture suite includes canvas JSON files for the fallback parser and provider variants without canvas entries.
+- Fixture suite includes canvas JSON files for the fallback parser and provider variants without canvas entries. Because the regime is chosen by a boot race, canvas coverage is written as PARITY tests: the same canvas is asserted through both paths, which must AGREE on the edge set (see the settled semantics under **Canvas support**).
 - Obsidian adapter code stays thin; correctness lives in the tested core.
 
 ## Phased Plan
@@ -134,7 +137,6 @@ Rationale for the order: Phases 1 through 3 contain every design decision in thi
 
 - Per-view sizing overrides (data format is already shaped for it).
 - Position-seeded incremental layout.
-- Canvas text-node wikilink parsing.
 - Unresolved link ghost nodes (toggle, off by default).
 - User-assignable folder colors.
 - Manual node position persistence, if ever.

@@ -20,10 +20,10 @@
  *   its raw text, the sole path by which a `#` marker reaches the display.
  */
 
+import { Wikilinks } from "../shared/Wikilinks";
+
 /** Leading `#` marker + WHITESPACE. The whitespace is required so a `#tag` heading survives. */
 const LEADING_MARKER = /^#{1,6}\s+/;
-/** Wikilinks and embeds; the capture is `target` or `target|alias`. */
-const WIKILINK = /!?\[\[([^\]]+)\]\]/g;
 /** Markdown links and images; the capture is the link text. */
 const MARKDOWN_LINK = /!?\[([^\]]*)\]\([^)]*\)/g;
 const CODE_SPAN = /`([^`]+)`/g;
@@ -38,7 +38,10 @@ export function outlineEntryLabel(rawText: string): string {
 		.replace(LEADING_MARKER, "")
 		// `lastIndexOf` returns -1 without an alias pipe, so `slice(0)` keeps the
 		// whole target — which is what Obsidian displays for an unaliased link.
-		.replace(WIKILINK, (_match, link: string) => link.slice(link.lastIndexOf("|") + 1))
+		// Shared syntax knowledge (`Wikilinks`), local display rule: this strips the
+		// markup down to the ALIAS-or-target Obsidian shows, which is a different
+		// question from `Wikilinks.linkTargetsOf`'s "what does this link point at".
+		.replace(Wikilinks.globalPattern(), (_match, link: string) => link.slice(link.lastIndexOf("|") + 1))
 		.replace(MARKDOWN_LINK, "$1")
 		.replace(CODE_SPAN, "$1")
 		.replace(STRONG, "$1")
