@@ -228,7 +228,10 @@
 
 /* Density thresholds (see container comment above). 72px ≈ two title lines +
  * one chip row; 104px additionally fits the fixed-height thumbnail OR the
- * outline that replaces it (mutually exclusive — same slot). */
+ * outline that replaces it (mutually exclusive — same slot).
+ * 104 is MIRRORED by `THUMBNAIL_VISIBLE_MIN_NODE_PX` (src/engine/constants.ts),
+ * which floors the height of image-bearing nodes so their thumbnail is reachable
+ * at all; `thumbnailDensityThreshold.test.ts` fails if the two drift. */
 @container (min-height: 72px) {
 	.vicinity-graph-node__attachments {
 		display: flex;

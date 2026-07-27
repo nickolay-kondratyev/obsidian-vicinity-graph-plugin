@@ -101,6 +101,7 @@ export {
 	MIN_STEPPER_DEPTH,
 	NEUTRAL_NORMALIZED_VALUE,
 	SIZING_RANGES,
+	THUMBNAIL_VISIBLE_MIN_NODE_PX,
 	clampForceLayoutSettings,
 	clampOutlineMaxDepth,
 	clampSizingSettings,

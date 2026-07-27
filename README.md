@@ -60,7 +60,10 @@ The distinction matters because people ask about it, so it is worth reading once
 
 - **Depth** — how far outbound/incoming traversal reaches from each central note.
 - **Sizing** — which metrics drive node size (own file size is the only one on by
-  default) and their weights. Sizing is **global-only in V1.**
+  default) and their weights. Sizing is **global-only in V1.** One exception to
+  pure score-driven size: a note that has an image is never sized below the height
+  where its thumbnail fits — capped by your **max size**, so an explicit maximum
+  still wins.
 - **Preview** — a three-way pill choosing what a node shows in its preview slot:
   **Auto** (default), **Outline** or **Image**. See *Node contents* below. The
   same pill is in the in-view graph controls, under *Node contents* — both edit

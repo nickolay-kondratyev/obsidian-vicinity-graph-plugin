@@ -72,6 +72,20 @@ export const NEUTRAL_NORMALIZED_VALUE = 0.5;
  */
 export const CENTRAL_SIZE_SCORE = 1;
 
+/**
+ * Node height (px) at which a note's image thumbnail becomes visible AND
+ * legible: the node's density budget for the fixed-height thumbnail slot on top
+ * of the title lines and padding. Nodes below it show the title only, so a note
+ * that HAS an image but scores low would never display it — {@link NodeSizer}
+ * floors image-bearing nodes here.
+ *
+ * DUPLICATED KNOWLEDGE, deliberately guarded: the reveal itself is a CSS
+ * container query in `src/view/graph-view.css` and CSS cannot import a TS
+ * constant. `src/view/thumbnailDensityThreshold.test.ts` parses the stylesheet
+ * and fails if the two drift — change both together.
+ */
+export const THUMBNAIL_VISIBLE_MIN_NODE_PX = 104;
+
 // ---------------------------------------------------------------------------
 // Settings input ranges — derived from SETTINGS_SPEC's per-field bounds.
 // Single source of truth for the tuning-input limits: the settings surfaces

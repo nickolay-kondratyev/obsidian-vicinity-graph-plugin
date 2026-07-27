@@ -1,4 +1,9 @@
-import { CENTRAL_SIZE_SCORE, NEUTRAL_NORMALIZED_VALUE, clampSizingSettings } from "./constants";
+import {
+	CENTRAL_SIZE_SCORE,
+	NEUTRAL_NORMALIZED_VALUE,
+	THUMBNAIL_VISIBLE_MIN_NODE_PX,
+	clampSizingSettings,
+} from "./constants";
 import type { LinkProvider } from "./LinkProvider";
 import { NodeEligibility } from "./NodeEligibility";
 import type { TraversedNode } from "./VicinityTraversal";
@@ -26,6 +31,9 @@ interface SizeMetric {
  *
  * Centrals (MAIN + pinned — even when disconnected from MAIN) bypass metric
  * composition entirely and get {@link CENTRAL_SIZE_SCORE} → maxPx.
+ *
+ * Image-bearing nodes then get a pixel FLOOR so their thumbnail actually fits
+ * (see {@link NodeSizer.withImageSpace}).
  */
 export class NodeSizer {
 	private readonly eligibility: NodeEligibility;
@@ -53,11 +61,38 @@ export class NodeSizer {
 		for (const [path, node] of nodes) {
 			const score = node.isCentral ? CENTRAL_SIZE_SCORE : this.composeScore(path, normalizedPerMetric, totalWeight);
 			sizes.set(path, {
+				// The floor is applied to the PIXELS only, never to the score: the score
+				// is pure relevance and also ranks truncation (`NodePriorityChain`), so
+				// raising it would let an image promote a note over more relevant ones.
 				sizeScore: score,
-				sizePx: settings.minPx + score * (settings.maxPx - settings.minPx),
+				sizePx: NodeSizer.withImageSpace(node, settings.minPx + score * (settings.maxPx - settings.minPx), settings),
 			});
 		}
 		return sizes;
+	}
+
+	/**
+	 * Guarantees a note that HAS an image is tall enough for its thumbnail to be
+	 * displayed ({@link THUMBNAIL_VISIBLE_MIN_NODE_PX}) — without it, a low-scoring
+	 * note's image is silently never shown.
+	 *
+	 * Keyed on the STABLE fact `firstImagePath !== undefined`, deliberately NOT on
+	 * the resolved preview kind (`nodePreviewChoice`): `sizePx` must not move with
+	 * `nodePreviewPreference`, or flipping the preview pill would cross
+	 * `SIZE_RELAYOUT_THRESHOLD` and force a full relayout instead of the data-only
+	 * refresh the pill promises. So a note with an image reserves the space even
+	 * when the preference currently shows its outline there instead.
+	 *
+	 * The floor itself is capped by the user's `maxPx` (an explicit maximum is never
+	 * overruled) and can only ever GROW a node — the outer `Math.max` keeps it a
+	 * floor even under inverted `minPx > maxPx` settings, which the per-field clamp
+	 * permits.
+	 */
+	private static withImageSpace(node: TraversedNode, sizePx: number, settings: SizingSettings): number {
+		if (node.firstImagePath === undefined) {
+			return sizePx;
+		}
+		return Math.max(sizePx, Math.min(THUMBNAIL_VISIBLE_MIN_NODE_PX, settings.maxPx));
 	}
 
 	private composeScore(
