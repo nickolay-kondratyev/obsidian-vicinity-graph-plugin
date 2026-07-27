@@ -490,8 +490,10 @@ export class ObsidianHarness {
 
 	/**
 	 * Fresh copy of `.dev-vault` per run: tests stay idempotent, runtime
-	 * mutations (nodeCap, plugin data.json) never leak into the human's vault,
-	 * and e2e-only fixtures never pollute manual QA.
+	 * mutations (nodeCap, plugin `data.json`/`doc-data/`) never leak into the
+	 * human's vault, and e2e-only fixtures never pollute manual QA. The reverse
+	 * leak is closed too — the copy's plugin state is wiped after the copy, so
+	 * manual-QA settings and pins never reach a run.
 	 */
 	private static prepareVaultCopy(target: DevVaultCopyTarget, extraFixtures: Record<string, string> = {}): void {
 		// Belt and braces: the union already keeps an external vault out of this
@@ -513,9 +515,21 @@ export class ObsidianHarness {
 		}
 		fs.rmSync(VAULT_COPY_DIR, { recursive: true, force: true });
 		fs.cpSync(target.sourceDir, VAULT_COPY_DIR, { recursive: true });
-		// Fresh plugin settings: a stale data.json (e.g. from a previous aborted
-		// run) would silently change caps/settings under the assertions.
+		// Fresh plugin state: BOTH persisted slices are wiped, so a run only ever sees
+		// what the specs themselves put there.
+		// - `data.json` = GLOBAL settings; a stale one (e.g. from a previously aborted
+		//   run) would silently change caps/settings under the assertions.
+		// - `doc-data/` = the PER-DOC `<docid>.json` files, i.e. where PINS live. These
+		//   come from `.dev-vault` itself: a pin a human makes during manual QA is
+		//   copied in by `cpSync` above and would break absence assertions such as
+		//   "no central pinned THEN no Pinned centrals disclosure" (settingsUxVisual).
+		// Both destinations name the VAULT_COPY_DIR constant literally — see the
+		// WHY-NOT above and the source scan in `vaultTarget.test.ts`.
 		fs.rmSync(path.join(VAULT_COPY_DIR, ".obsidian", "plugins", PLUGIN_ID, "data.json"), { force: true });
+		fs.rmSync(path.join(VAULT_COPY_DIR, ".obsidian", "plugins", PLUGIN_ID, "doc-data"), {
+			recursive: true,
+			force: true,
+		});
 		for (const [relativePath, content] of Object.entries({ ...CROWD_FIXTURES, ...extraFixtures })) {
 			// Written through the VAULT_COPY_DIR constant (not a local alias) so the
 			// destructive-call source scan in vaultTarget.test.ts can see the destination.
