@@ -202,3 +202,197 @@ the path both the exploration and the spec present as the motivation, meaning th
 no-op in normal operation; the write-up and the spec must say so, and the cheap follow-up that would
 actually deliver that win belongs in a ticket. With B1 fixed, S1/S2 landed, and the docs corrected,
 this is ready.
+
+---
+
+# ROUND 2 — convergence check (`0d509ca`, diff `4ee4233..HEAD`)
+
+Fresh reviewer instance. Round 1 above is unchanged and kept for audit.
+
+## Verified test results (run by me, this round)
+
+| Command | Result |
+|---|---|
+| `npm test` | **`Test Files 81 passed (81)` / `Tests 1109 passed (1109)`**, exit 0 |
+| `npm run check` (`tsc -noEmit`, src + e2e) | exit 0, no diagnostics |
+| `npm run test:e2e` | **NOT re-run this round** — see note below |
+
+Matches the implementer's claims (1109, +6 over round 1's 1103). Logs: `.tmp/r2-npm-test.log`,
+`.tmp/r2-npm-check.log`.
+
+**Why no e2e re-run:** the only `src/view` change touching rendering this iteration is `clipRectOf`'s
+early return, which I read line-by-line and which is behaviour-identical to the previous
+`node?.…` form (same three `undefined` outcomes, same rect). The routed branch, `hasOpposite` bow,
+bidirectional arrowhead block and `routedGeometryFor` are byte-unchanged in the iteration diff, and
+the `routedGeometryFor([2 pts]) === edgePathFor(...)` parity test (`edgeGeometry.test.ts:352`) is
+green. Round 1's e2e run (84 passed / 1 skipped) therefore still stands. Stated plainly rather than
+claimed as re-verified.
+
+## B1 — reversed/zero-length segment: **FIXED, and verified far beyond the reported counterexample**
+
+The three round-1 counterexamples now all return `null`:
+
+```
+{0,0,100,100}/{60,0,100,100}  (partial overlap)   => null
+{0,0,100,100}/{50,0,100,100}  (centre on border)  => null
+{0,0,100,100}/{100,0,100,100} (touching)          => null
+```
+
+I did not stop there. Two brute-force sweeps executing the real module
+(`.tmp/scratch3.ts`, `.tmp/scratch4.ts`, esbuild-bundled and run under node):
+
+- **structured grid** — 5×5×5×5 size combinations × integer offsets over ±300 in both axes:
+  **2,846,638 non-`null` results, 0 violations**;
+- **random floats** at plugin-realistic sizes (20–900 × 20–600, positions ±1000), 3M pairs:
+  **2,711,199 non-`null` results, 0 violations**.
+
+Invariants asserted on every non-`null` result — all held:
+NaN-free; `(targetAnchor − sourceAnchor) · (targetCentre − sourceCentre) > 0` (never reversed, never
+zero); source anchor exactly on the SOURCE rect border and target anchor on the TARGET rect border;
+neither anchor strictly inside the *other* rect; and `edgePathFor(...).arrowAngleDeg` within 90° of
+the true centre→centre bearing (i.e. the arrowhead never points at the wrong node).
+
+Also probed the awkward extremes by hand: `Infinity` width → `null`; sub-pixel `1e-9` rects and
+`1e15` coordinates → correctly-ordered finite anchors. The dot-product guard is correct and complete
+as far as I can drive it.
+
+**The tests are genuine.** I checked out `58f5ede`'s `edgeGeometry.ts` into a throwaway worktree
+against the CURRENT test file: `Tests 5 failed | 50 passed (55)` — the partial-overlap,
+degenerate-chord pin, touching, non-finite and zero-size tests all fail without the guards. (The
+write-up says "4 failed | 50 passed (54)"; that was an honest intermediate snapshot taken before the
+degenerate-chord pin was written — the count is 5 at final state, not fewer.) The `assert(anchors
+!== null, …)` replacing `?? 0` is vitest's real `assert`, imported at line 1 and throwing on `null` —
+a genuine assertion, not a silent pass.
+
+## B2(a) — truthfulness: **CORRECTED, and the correction is truthful, not softened**
+
+`docs-internal/specs/graph/arrows.md` now (a) *removes* the degenerate boundary clip from the
+straight-line-fallback list and states outright that it "is a `routedPoints` polyline like any other
+and renders through `routedGeometryFor`", and (b) carries a **"Reach — read this before assuming a
+visual change"** paragraph saying in so many words that this is **"a no-op in normal operation"**.
+ITERATION 1's CALLOUT 1 correction says the same and labels the original claim "**Both halves are
+wrong**". That is the honest statement, not a hedge.
+
+Their added claim checks out: `GraphViewController.runRebuild` does `await this.resolveRoutes(...)`
+at line 234 and only then `this.publish(..., withRoutedPoints(flow, routes))` at line 244 — there is
+no un-routed first frame.
+
+Minor: the "Reach" paragraph lists three fallback triggers and omits `routedPoints.length < 2`, which
+`VicinityEdge:97` also treats as non-routed. Incomplete, not false — noted under CONSIDER.
+
+## B2(b) — ticketed rather than implemented: **defensible, and the mutual-exclusivity argument is a real proof**
+
+I scrutinised this hardest, because "0 out of 200k random samples" is not a proof and structured
+real-world geometry is not uniformly random. It holds anyway — I derived it from the code rather than
+from the sample:
+
+For a 2-point centre→centre chord `[cS, cT]`, `clipRouteToEndpointRects` degenerates in exactly three
+ways, and each one forces `facingSideAnchorsFor` to `null`:
+
+1. `cS` strictly inside `targetRect` → `rectBorderPointToward(targetRect, cS)` returns `null` on the
+   identical `isStrictlyInsideRect` test.
+2. `segmentRectEntryPoint(cS, cT, targetRect)` indeterminate → `facingSideAnchorsFor` makes the
+   *literally identical call* (`rectBorderPointToward(targetRect, cS)` = `segmentRectEntryPoint(cS,
+   rectCentreOf(targetRect), targetRect)`, and `cT === rectCentreOf(targetRect)` for a centre chord).
+3. The target crossing `T` lands strictly inside `sourceRect` → parametrise the centre line from `cS`
+   (t=0) to `cT` (t=1): the source anchor `S` is `sourceRect`'s exit crossing, so `t_T < t_S`, hence
+   `(T − S) · (cT − cS) < 0` and the new dot guard returns `null`.
+
+So the exclusion is structural for the named case, not statistical. My own independent structured
+sweep (15M pairs, 549,036 degenerate 2-point chords, 14.6M non-`null` anchor results) found
+**BOTH = 0**, consistent.
+
+The pinning test is **not tautological**: it `assert`s the clip actually degenerates for that
+configuration and *then* expects `null`, so it fails if either side of the relation changes. It is a
+single sample where the underlying property is universal — thin, but as a maintainer tripwire it does
+its job, and the WHY comment carries the reasoning.
+
+The residual value is the **3-point / multi-vertex** case, which the ticket honestly reports as
+191/~37,600 (~0.5%), all corner-overlap, with an explicit caveat that the anchors are not guaranteed
+to fall outside both boxes there. Editing `clipRouteToEndpointRects` is the routed branch, explicitly
+out of this ticket's scope. Ticketing ~0.5% of an already-rare fallback with the measurement, the
+exact 5-line change and the caveat written down (`nid_bq5k5gx5k3112otsbz1u0h7ba_e`, `[decide]`) is
+textbook Pareto, not a dodge. **Accepted.**
+
+## S1 / S3 — **both genuinely fixed**
+
+`isAnchorableRect` (finite `x/y/w/h` **and** positive extent) rejects before any arithmetic. Swept
+`NaN`, `±Infinity`, `0` and negative extents across every field on both rects: **0 NaN leaks, 0
+non-finite rects accepted**. The "never NaN" doc claim is now true. Restating the predicate instead
+of importing `edgeRouting.hasFiniteGeometry` is the right call for the layering (same rationale as
+the local `ClipRect`) and the WHY-comment names the precedent.
+
+S3: the implementer took the *narrowing* option, so `segmentRectEntryPoint`'s original contract
+("`to` strictly inside") is once again true at every call site — the positive-extent half of
+`isAnchorableRect` guarantees a rect strictly contains its own centre, and `rectBorderPointToward`'s
+doc now records *why* the precondition holds. Contract and call sites agree; no widening. Correct
+resolution.
+
+## S2 / C1 / C2 — spot-checked, all fine
+
+S2: 6 tests added (partial overlap, degenerate-chord pin, touching, target-undefined symmetry,
+non-finite, zero-size), each BDD, one behaviour, exact expectation, all proven to fail pre-fix. The
+`?? 0` silent fallback is gone. C1: `clipRectOf` early-returns first — behaviour-identical, reads
+forward now. C2: accepted as a framing correction in CALLOUT 5, honestly restated; no code change
+needed.
+
+## C5 — rejection is reasonable
+
+Declining to edit `CLAUDE.md` on a sub-agent's say-so is the correct instinct, `docs-internal/tickets/`
+does still exist (so the line is incomplete rather than false), and it is flagged for the human in
+CALLOUT 7. Not re-litigated.
+
+## Regression check
+
+No regressions found. Cumulative `git diff 4eab96c..HEAD -- src/ e2e/` removes no test, no
+`ap_XXX_E` anchor and no behaviour; the only deleted source lines are the two `VicinityEdge` lines
+this feature replaces plus one test-file import line. Routed branch, `routedGeometryFor`,
+`hasOpposite` bow, bidirectional arrowhead and `edgePathFor` are untouched; the OFF-parity
+byte-identity test is intact and green.
+
+---
+
+## BLOCKING
+
+None.
+
+## SHOULD
+
+None.
+
+## CONSIDER
+
+- **The "Reach" paragraph in `arrows.md` omits `routedPoints.length < 2`** from the list of triggers
+  that reach the straight branch (`VicinityEdge.tsx:97` treats a 0- or 1-point route as non-routed).
+  One clause, purely additive; the paragraph's headline claim is unaffected.
+- **`VicinityEdge.tsx:81`'s inline comment** still says `null` means "node not in the store yet, or
+  nested/overlapping rects" — now also non-finite/zero-size/backwards-ordered. Still true, just no
+  longer exhaustive; `facingSideAnchorsFor`'s doc is the authoritative and complete list.
+- **The degenerate-chord pin is one sample of a universal property.** If the human wants it stronger,
+  a small table of overlap configurations would make the mutual exclusivity harder to break silently.
+  Not required — the WHY comment plus the ticket carry the reasoning.
+
+## Documentation Updates Needed
+
+None blocking. `CLAUDE.md`'s `docs-internal/tickets/` line remains a human call (round-1 C5).
+
+---
+
+## VERDICT: READY
+
+Both round-1 blockers are properly resolved and the resolutions survive far harder scrutiny than the
+originals. B1 is fixed by construction, not patched around the reported counterexample: 5.5M
+non-`null` results across structured-integer and realistic-float sweeps produced zero reversed, zero
+zero-length, zero off-border, zero misdirected-arrowhead and zero NaN outcomes. B2(a) is corrected
+honestly — the spec now says "no-op in normal operation" in plain words rather than softening the
+claim, and the no-un-routed-first-frame assertion checks out in `GraphViewController`. B2(b) is the
+one I expected to push back on, and it survives: the mutual exclusivity is provable from the code
+(three degeneracy branches, each forcing `null`), not merely sampled, and the ~0.5% multi-vertex
+remainder — routed-branch, out of scope, with a real correctness caveat — is exactly what a `[decide]`
+ticket is for. S1 and S3 are fixed, not documented away. The new tests are real: 5 of them fail
+against the pre-fix module, and the `?? 0` smell is now a throwing `assert`. Nothing was removed or
+weakened. `npm test` 1109/1109 and `npm run check` are green, verified by me.
+
+The human still owns the judgement ITERATION 1 correctly surfaces: this change improves only the
+router-failure fallback path. That is a value question, not a correctness one, and it is now stated
+truthfully everywhere it is stated at all — which is what round 1 asked for.

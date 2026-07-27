@@ -64,3 +64,51 @@ return `null` and the docs in B2 are corrected, everything else was already fine
 - Follow-up ticket `nid_ub30ndqyp6ikq76hv4ba6yqss_e` (stale `VicinityGraphFlow` handle comment) is a
   legitimate spot-and-file, correctly left unpatched.
 - CALLOUT 3 (no e2e possible) and CALLOUT 4 (`_tickets/` is the live dir) are both correct.
+
+---
+
+# ROUND 2 (fresh instance) — reviewed `0d509ca`. **VERDICT: READY.**
+
+## Numbers I ran myself
+- `npm test` → 81 files / **1109** tests, exit 0 (`.tmp/r2-npm-test.log`).
+- `npm run check` → exit 0 (`.tmp/r2-npm-check.log`).
+- e2e **not re-run** (only view change was `clipRectOf`'s early return, behaviour-identical;
+  routed branch byte-unchanged). Round 1's 84/1-skipped still stands. Said so plainly in the review.
+
+## Techniques worth reusing
+- Scratch probe (round-1 recipe still works): `.tmp/scratchN.ts` → `npx esbuild --bundle
+  --platform=node` → `node`. **Watch the angle-wrap formula**: my first attempt inverted the
+  hemisphere test AND used `viol.length<12` as both the print cap and the counter, producing 12
+  fake violations. Re-derived with a `counts` map — 0 real violations.
+- **Proving the tests fail pre-fix**: `git worktree add .worktree/r2-prefix HEAD`, symlink
+  `node_modules` from the main checkout, `git checkout 58f5ede -- src/view/edgeGeometry.ts
+  src/view/VicinityEdge.tsx`, `npx vitest run src/view/edgeGeometry.test.ts`. Got
+  `5 failed | 50 passed (55)`. Remove with `git worktree remove --force`.
+
+## Verification outcomes
+- **B1 fixed by construction.** 2,846,638 non-null structured-grid + 2,711,199 random-float
+  non-null results → 0 violations on: NaN, reversed/zero dot, off-border anchor, anchor inside the
+  other rect, arrow angle outside the correct hemisphere. Extremes fine (Infinity→null, 1e-9 rects,
+  1e15 coords).
+- **B2(b) mutual exclusivity is a REAL PROOF, not just sampling.** 2-point centre→centre chord
+  degenerates in exactly 3 ways, each forcing `facingSideAnchorsFor` null: (1) `cS` inside
+  targetRect → same `isStrictlyInsideRect` test; (2) indeterminate crossing → the *identical*
+  `segmentRectEntryPoint` call; (3) target crossing T inside sourceRect → t_T < t_S along the centre
+  line → dot < 0. My own sweep: 549,036 degenerate chords, 14.6M non-null anchors, BOTH = 0.
+  The ~0.5% remainder is the 3-point routed case only → correctly `[decide]`-ticketed
+  (`nid_bq5k5gx5k3112otsbz1u0h7ba_e`).
+- **B2(a) truthful**: spec says "no-op in normal operation" outright; `GraphViewController` line 234
+  `await resolveRoutes` precedes line 244 `publish` → no un-routed first frame. Confirmed.
+- S1/S3 fixed (narrowing option chosen → original `segmentRectEntryPoint` precondition true again).
+  S2/C1/C2 fine. `assert` is vitest's real throwing assert.
+- No regressions: cumulative diff removes no test, no `ap_XXX_E`, no behaviour; OFF-parity
+  byte-identity test (`edgeGeometry.test.ts:352`) intact and green.
+
+## Left as CONSIDER only (do not escalate)
+"Reach" paragraph omits `routedPoints.length < 2`; `VicinityEdge.tsx:81` comment no longer
+exhaustive; degenerate-chord pin is one sample of a universal property. C5 (`CLAUDE.md` ticket dir)
+is a human call — implementer's refusal to self-edit `CLAUDE.md` is correct.
+
+## If a round 3 somehow arrives
+Everything above was re-verified from the code, not the write-up. Re-run only `npm test` +
+`npm run check`, then diff against `0d509ca`; the geometry is settled.
