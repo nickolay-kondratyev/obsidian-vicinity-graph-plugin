@@ -153,3 +153,67 @@ it skips that bootstrap and throws `OBSIDIAN_PATH is not set`).
 Complete. Both fixes in, tests green, ticket `nid_9k11zke41l6ze3p7n7suuo4v2_e` left
 **open** for the review round (TOP_LEVEL_AGENT owns closure and the change_log).
 Follow-up ticket `nid_qp56jugz8en8wkgjirwcb269p_e` filed.
+
+---
+
+## 9. Round 1 (review response) — working notes
+
+Commit `b1c13e2`. Read the review's 2 SHOULD-FIX + 2 NIT; verified each myself first.
+
+### Edits
+
+`src/view/VicinityGraphSettingTab.ts`
+- `showExclusionPatterns(slot)` — **param dropped entirely** (reviewer suggested passing
+  `this.store.nodeExclusion().enabled`; going one step further makes the stale value
+  unrepresentable and puts `enabled` + `patterns` in one snapshot). Both call sites
+  updated. Doc comment gained the WHY-NOT-a-param paragraph.
+- Extracted `addSizingMetricRow(section, id, label, seed)` from the `renderSizing()`
+  loop. New imports: `SizeMetricId`, `SizingMetricSetting` from `../engine`.
+  `let weightInput!: TextComponent` STAYS — see below.
+- Sizing toggle comment now names the contrast with `showExclusionPatterns` (param is the
+  freshest truth there because the paint precedes the write).
+
+`e2e/settingsDependentRows.e2e.ts`
+- `expectExclusionPersisted` (function decl) + `expectMetricEnabledPersisted`
+  (**arrow const** — a hoisted `function` is callable before the module-level throw that
+  unwraps `SIZING_METRICS[0]`, so TS loses the narrowing → `TS18048`. Cost me one check
+  cycle; the WHY is now in the file).
+- Both called before `expectTabUndisturbed` in all three tests.
+
+### Verified the reviewer's race claim before acting
+No serialization anywhere on the write path (`applyInteraction` at `:740` is a plain
+async method, no queue), so overlapping handlers are real. BUT: fixing the paint does
+NOT fix the underlying divergence — the store itself can end up holding the older
+click's value, and the checkbox is browser-driven. That residual is pre-existing and
+tab-wide → ticket `nid_7ni3rjx3bx6w2bdfvpp7wj0xb_e` (bug/p3) with the
+one-promise-chain design sketch. Do not let a future round "fix" it by re-seeding
+controls after each write — that reintroduces the focus theft this whole ticket removes.
+
+### Rejected / corrected
+- **NIT 1's stated benefit is wrong**: extraction does not turn `weightInput` into an
+  ordinary local. `addToggle`'s builder still runs before `addText`'s, so the forward
+  declaration is structural. Did the extraction anyway (SRP + house `addX` style), kept
+  the definite-assignment assertion.
+- **Did NOT make sizing read the store.** It would read a pre-write value → paints the
+  OLD state. Documented in both comments so nobody symmetrises them later.
+- **NIT 2**: acknowledged in PUBLIC only. No comment added — documenting a re-seed that
+  no longer happens is a ghost.
+
+### Non-vacuity proof (sabotage runs, then `git checkout`)
+- deleted `applySizing(...)` from the sizing handler → `.tmp/r1-e2e-nowrite-sizing.log`,
+  1 failed / 2 passed, message "the metric toggle must persist…". Specificity confirmed.
+- deleted `applyInteraction(...)` from the exclusion handler →
+  `.tmp/r1-e2e-nowrite-exclusion.log`, exclusion test 1 fails (on `toHaveCount`, because
+  the paint now reads the store — the poll would have caught it too).
+- restored, re-ran the spec: 3 passed (`.tmp/r1-e2e-spec-restored.log`).
+- **No test written for the double-toggle race** — two back-to-back clicks resolve FIFO,
+  so it would pass either way. Said so plainly instead.
+
+### Results
+`npm run check` exit 0 (`.tmp/r1-check.log`); `npm test` 79 files / 1053 tests
+(`.tmp/r1-test.log`); `npm run test:e2e` **83 passed, 1 skipped, 54.8s**
+(`.tmp/r1-e2e-full.log`). Matches the reviewer's baselines exactly.
+
+### State
+Round 1 complete, committed on the branch. Nothing merged, change_log untouched,
+`nid_9k11zke41l6ze3p7n7suuo4v2_e` still open for TOP_LEVEL_AGENT.
