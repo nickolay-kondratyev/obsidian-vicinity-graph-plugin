@@ -1,5 +1,5 @@
 import { PluginSettingTab, Setting } from "obsidian";
-import type { App, TextComponent } from "obsidian";
+import type { App, TextComponent, ToggleComponent } from "obsidian";
 import type {
 	Direction,
 	ForceLayoutSettings,
@@ -119,9 +119,35 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	 * force-layout sliders all announce identically. Stated here once and applied
 	 * from the shared row helpers so new rows inherit it;
 	 * `e2e/settingsUxVisual.e2e.ts` fails if any input in the tab lacks one.
+	 *
+	 * Note (verified on 1.12.7): Obsidian pops its own hover tooltip for ANY element
+	 * carrying an `aria-label`, so a named control gains a tooltip of that same text
+	 * for free — which is why nothing here calls `setTooltip` as well.
 	 */
 	private static nameControl(el: HTMLElement, accessibleName: string): void {
 		el.setAttribute("aria-label", accessibleName);
+	}
+
+	/**
+	 * The same rule for a toggle, which cannot use {@link nameControl} directly:
+	 * `ToggleComponent` exposes only `toggleEl`, and on Obsidian 1.12.7 that is the
+	 * wrapping `<label class="checkbox-container">` — not the checkbox. Verified
+	 * against the RENDERED DOM (the typings say only `HTMLElement`); the label is
+	 * empty, which is exactly why the checkbox inside it has no name to inherit.
+	 *
+	 * The name must land on the `<input>`: `aria-label` on a `<label>` does not name
+	 * the control it wraps — a label names it by its TEXT, and putting text here
+	 * would change how the pill looks.
+	 *
+	 * Does nothing (rather than throwing) if that markup ever changes: a missing
+	 * a11y attribute must not take the whole settings tab down. `e2e/settingsUxVisual.e2e.ts`
+	 * is what fails loudly, on any unnamed checkbox in the tab.
+	 */
+	private static nameToggle(toggle: ToggleComponent, accessibleName: string): void {
+		const checkbox = toggle.toggleEl.querySelector("input");
+		if (checkbox !== null) {
+			VicinityGraphSettingTab.nameControl(checkbox, accessibleName);
+		}
 	}
 
 	/**
@@ -317,14 +343,18 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 		const section = this.createSection();
 		new Setting(section).setName("Node exclusion").setHeading();
 		const exclusion = this.store.nodeExclusion();
+		// One string, read visibly AND announced — they cannot drift apart.
+		const name = "Exclude notes from the graph";
 		const toggleRow = new Setting(section)
-			.setName("Exclude notes from the graph")
+			.setName(name)
 			.setDesc("Hide matching neighbor notes before the graph is built. Central and pinned notes are never excluded.");
 		// The patterns row's own slot. Created HERE for two reasons: the toggle wired
 		// below has to name it, and a `Setting` appended to `section` later would land
 		// under the card's restore footer instead of above it.
 		const patternsSlot = section.createDiv();
-		toggleRow.addToggle((toggle) =>
+		toggleRow.addToggle((toggle) => {
+			// The row's only control, so the row name alone identifies it.
+			VicinityGraphSettingTab.nameToggle(toggle, name);
 			toggle.setValue(exclusion.enabled).onChange(async (enabled) => {
 				// Pending typed edits first, and this is the subtle one: the patterns
 				// textarea persists on a debounce, while `showExclusionPatterns` below
@@ -338,8 +368,8 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 					nodeExclusion: { ...this.store.nodeExclusion(), enabled },
 				});
 				this.showExclusionPatterns(patternsSlot);
-			}),
-		);
+			});
+		});
 		this.showExclusionPatterns(patternsSlot);
 		this.addSectionReset(section, "node-exclusion");
 	}
@@ -469,7 +499,10 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 		let weightInput!: TextComponent;
 		new Setting(section)
 			.setName(label)
-			.addToggle((toggle) =>
+			.addToggle((toggle) => {
+				// Two controls share this row (toggle + weight), so the row name alone
+				// would not distinguish them — same reason as `${label} weight` below.
+				VicinityGraphSettingTab.nameToggle(toggle, `${label} enabled`);
 				toggle.setValue(seed.enabled).onChange(async (enabled) => {
 					// The paired weight input is the ONLY thing on screen that depends on
 					// this toggle, so flip it directly instead of rebuilding the tab with
@@ -489,12 +522,10 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 						...current,
 						metrics: { ...current.metrics, [id]: { ...current.metrics[id], enabled } },
 					});
-				}),
-			)
+				});
+			})
 			.addText((text) => {
 				weightInput = text;
-				// Two controls share this row (toggle + weight), so the row name alone
-				// would not distinguish them.
 				const weightName = `${label} weight`;
 				text.inputEl.type = "number";
 				VicinityGraphSettingTab.applyRange(text.inputEl, SIZING_RANGES.metricWeight);
