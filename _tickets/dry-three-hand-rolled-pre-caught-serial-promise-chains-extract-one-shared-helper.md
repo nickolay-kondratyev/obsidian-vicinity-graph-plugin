@@ -1,0 +1,38 @@
+---
+id: nid_4zffe7mj5p1eabi9m6wfh06k0_e
+title: "DRY: three hand-rolled pre-caught serial promise chains — extract one shared helper"
+status: open
+deps: []
+links: []
+created_iso: 2026-07-27T23:42:49Z
+status_updated_iso: 2026-07-27T23:42:49Z
+type: chore
+priority: 3
+assignee: CC_WITH-nickolaykondratyev
+tags: [settings, persistence]
+---
+
+The idiom `tail = tail.catch(() => undefined).then(task)` (a serial write chain where one rejection cannot wedge the chain, while the failure still reaches its own caller) is now hand-rolled in three places:
+
+- `src/persistence/PluginDataStore.ts` — `writeChain` (~L70-71)
+- `src/view/settingsDebounce.ts` — `draining` (~L96-106)
+- `src/view/settingsWriteQueue.ts` — `tail` (added by nid_7ni3rjx3bx6w2bdfvpp7wj0xb_e)
+
+The knowledge duplicated is subtle and easy to get wrong: the pre-catch must be applied to the STORED tail, not to the RETURNED promise, or callers stop seeing their own failures.
+
+Raised as a non-blocking DRY observation by IMPLEMENTATION_REVIEWER in .ai_out/settings-write-serialization/settings-write-serialization/IMPLEMENTATION_REVIEW__PUBLIC.md.
+
+## Design
+
+Extract a small pure `SerialPromiseChain` (or similar) into a shared module — likely `src/shared/` so both `src/persistence/` and `src/view/` may import it without violating layering (verify against docs-internal/architecture-map.md; `src/shared/` is guarded pure by an import test).
+
+Each of the three sites then holds an instance instead of a raw promise field. Keep the existing per-site public API (`persist`, `drain`, `enqueue`) unchanged so no caller moves.
+
+80/20 check: three occurrences is the threshold where extraction pays; below that, leave it. Do not generalize beyond what the three sites actually need (no priorities, no cancellation, no keying — `DocDataStore.enqueue` keys by docid and may or may not fit; if forcing it in adds complexity, leave it out and say so).
+
+## Acceptance Criteria
+
+GIVEN the three chaining sites
+WHEN the shared helper is in place
+THEN each site delegates to it, the helper has colocated BDD tests covering ordering + rejection-isolation + caller-surfacing, and `npm test` / `npm run check` stay green.
+
