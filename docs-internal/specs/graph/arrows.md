@@ -46,10 +46,12 @@ the true approach segments).
 
 - **Always runs.** The `edgeRouting` view setting was removed — force is the only
   layout and routing is unconditional, with no per-layout exclusion.
-- **Straight-line fallback** (`edgePathFor`) when the wasm/router
-  fails (one `console.warn`, whole pass yields no routes), or an edge is absent
-  from the route map. A cleanly-routed edge returns a 2-point line, byte-identical
-  to the straight form.
+- **Straight-line fallback** (`edgePathFor`) when the wasm/router fails (one
+  `console.warn`, whole pass yields no routes), an edge is absent from the route
+  map, or an endpoint was dropped from the routing input. A cleanly-routed edge
+  returns a 2-point line, byte-identical to the straight form. The boundary clip's
+  degenerate chord is **not** in this list: it is a `routedPoints` polyline like
+  any other and renders through `routedGeometryFor`.
 - Routed edges do **not** re-apply the paired-edge bow — libavoid's clearance
   buffer already separates opposite edges.
 - **Connection pins:** folder-group boxes carry 12 directional boundary pins
@@ -67,6 +69,39 @@ Tuning (named constants in `edgeRouting.ts` / `edgeGeometry.ts`): shape buffer
 17px, segment penalty 50, crossing penalty 0 (disabled — too costly interactively),
 corner radius 10px.
 
+## Straight (non-routed) edge anchoring
+
+A straight edge anchors where the **centre→centre line crosses each endpoint
+box's border** (`edgeGeometry.facingSideAnchorsFor`, fed into `edgePathFor` by
+`VicinityEdge`) — React Flow's "floating edge" pattern. Without it an edge starts
+at the node's fixed `<Handle>` (Top/Bottom here), so a link to a node on the LEFT
+still leaves from the bottom and loops back up, reading as a detour that isn't
+there. This gives the straight path the same facing-side attachment the routed
+path already gets from **Boundary clipping** above; arrowheads then sit just
+OUTSIDE the box (the inset rules are unchanged), matching routed edges.
+
+**Reach — read this before assuming a visual change.** Only the edges in the
+straight-line-fallback list above reach this code: router failure, missing route,
+endpoint dropped from routing input. When routing works, *every* edge — including
+the boundary clip's degenerate chord — renders through `routedGeometryFor`, so
+this is a **no-op in normal operation**. It makes the fallback path render like
+the routed one instead of springing from a top/bottom handle.
+
+- Reuses the routed clipper's Liang–Barsky primitive — one segment-vs-rect-border
+  implementation in `edgeGeometry.ts`, and the same `ClipRect` shape.
+- Rects come from the React Flow store (`useInternalNode` → `positionAbsolute` +
+  measured-or-explicit size), never from DOM measurement: `onlyRenderVisibleElements`
+  unmounts culled nodes.
+- **Falls back to the handle endpoints** — which always point the right way —
+  whenever no honest facing side exists: a node is not yet in the store, a rect is
+  non-finite or zero-size, the boxes are nested (a note inside its folder-group
+  container), or the two border crossings come out ordered BACKWARDS along the
+  centre line, which partially overlapping and merely touching boxes do. Never NaN,
+  and never an arrowhead pointing at the wrong node.
+- The `hasOpposite` bow and the bidirectional double-arrowhead are recomputed from
+  these border endpoints; the hidden `<Handle>`s stay (React Flow needs them to
+  address an edge at all).
+
 ## Test coverage
 
 - Many members → one collapsed arrow; `count` = sum of member link counts.
@@ -74,6 +109,12 @@ corner radius 10px.
 - Intra-group edges stay member-to-member (no group self-loop).
 - `groupByFolder` off → no projection, behavior unchanged.
 - Group with cross-boundary links in one direction only → single arrowhead.
+- Straight-edge facing-side anchors: target above/below/left/right/diagonal lands
+  on the facing border, source anchor mirrors, paired bow drawn between the border
+  points; and every fallback pinned — nested, partially overlapping, touching,
+  missing, non-finite and zero-size rects all keep the handle endpoints
+  (`edgeGeometry.test.ts`). **No e2e coverage** — no fixture can produce a
+  non-routed edge (routing is unconditional and does not fail in e2e).
 
 ## Follow-ups
 

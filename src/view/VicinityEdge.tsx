@@ -1,8 +1,9 @@
-import { BaseEdge, EdgeLabelRenderer } from "@xyflow/react";
-import type { Edge, EdgeProps } from "@xyflow/react";
+import { BaseEdge, EdgeLabelRenderer, useInternalNode } from "@xyflow/react";
+import type { Edge, EdgeProps, InternalNode, Node } from "@xyflow/react";
 import type { ReactElement } from "react";
 import { linkCountBadgeText } from "./badgeText";
-import { edgePathFor, routedGeometryFor } from "./edgeGeometry";
+import { edgePathFor, facingSideAnchorsFor, routedGeometryFor } from "./edgeGeometry";
+import type { ClipRect } from "./edgeGeometry";
 import type { RoutedPoint } from "./edgeRouting";
 
 /**
@@ -47,14 +48,46 @@ export type VicinityEdgeData = {
 
 export type VicinityEdgeType = Edge<VicinityEdgeData, "vicinity">;
 
+/**
+ * The node's absolute rect, or `undefined` while React Flow has not registered it.
+ * Falls back from the MEASURED size to the explicit `width`/`height` every node
+ * carries (`toReactFlowNode`) — `onlyRenderVisibleElements` unmounts culled nodes,
+ * so a measurement may never have happened, but the node stays in the RF store.
+ */
+function clipRectOf(node: InternalNode<Node> | undefined): ClipRect | undefined {
+	if (node === undefined) {
+		return undefined;
+	}
+	const widthPx = node.measured.width ?? node.width;
+	const heightPx = node.measured.height ?? node.height;
+	if (widthPx === undefined || heightPx === undefined) {
+		return undefined;
+	}
+	return { x: node.internals.positionAbsolute.x, y: node.internals.positionAbsolute.y, widthPx, heightPx };
+}
+
 export function VicinityEdge({
 	id,
+	source,
+	target,
 	sourceX,
 	sourceY,
 	targetX,
 	targetY,
 	data,
 }: EdgeProps<VicinityEdgeType>): ReactElement {
+	// Straight edges anchor on the sides the two boxes FACE, not on the fixed
+	// top/bottom handles React Flow derives sourceX/Y from — see facingSideAnchorsFor.
+	// `null` (node not in the store yet, or nested/overlapping rects) keeps RF's
+	// handle endpoints, which is exactly today's behaviour.
+	const sourceNode = useInternalNode(source);
+	const targetNode = useInternalNode(target);
+	const anchors = facingSideAnchorsFor(clipRectOf(sourceNode), clipRectOf(targetNode)) ?? {
+		sourceX,
+		sourceY,
+		targetX,
+		targetY,
+	};
 	// When the routing pass produced an obstacle-avoiding polyline (edge routing
 	// ON), draw it; otherwise fall back to EXACTLY the straight/curved geometry.
 	// routedPoints are ABSOLUTE flow coords and RF gives us absolute sourceX/Y too,
@@ -63,7 +96,13 @@ export function VicinityEdge({
 	const geometry =
 		routedPoints !== undefined && routedPoints.length >= 2
 			? routedGeometryFor(routedPoints)
-			: edgePathFor(sourceX, sourceY, targetX, targetY, data?.hasOpposite ?? false);
+			: edgePathFor(
+					anchors.sourceX,
+					anchors.sourceY,
+					anchors.targetX,
+					anchors.targetY,
+					data?.hasOpposite ?? false,
+				);
 	const badge = linkCountBadgeText(data?.count ?? 1);
 	// Triangle authored tip-at-origin pointing +x, then translated to the tip
 	// and rotated to the edge's arrival angle.

@@ -293,6 +293,121 @@ function segmentRectEntryPoint(from: RoutedPoint, to: RoutedPoint, rect: ClipRec
 }
 
 /**
+ * Endpoint pair for a STRAIGHT (non-routed) edge, in ABSOLUTE flow coordinates —
+ * the four values {@link edgePathFor} takes, so callers can splice these in place
+ * of React Flow's handle-derived `sourceX/Y`/`targetX/Y`.
+ */
+export interface StraightEdgeAnchors {
+	readonly sourceX: number;
+	readonly sourceY: number;
+	readonly targetX: number;
+	readonly targetY: number;
+}
+
+/**
+ * Side-aware ("floating edge") endpoints for a straight edge: where the
+ * centre→centre segment crosses each endpoint rect's border, so the line leaves
+ * and arrives on the sides the two boxes actually FACE.
+ *
+ * React Flow otherwise anchors every edge at its node's fixed `<Handle>` — this
+ * graph pins those to Top/Bottom (`NoteNode`, `FolderGroupNode`), so an edge to a
+ * node on the LEFT still departs from the bottom and loops back up, reading as a
+ * detour that isn't there. The routed path already gets facing sides for free from
+ * {@link clipRouteToEndpointRects}; this brings the straight path in line with it.
+ *
+ * Returns `null` — meaning "keep the caller's existing handle endpoints" — for
+ * every case where no honest facing side exists:
+ *
+ * - a rect is unavailable (React Flow has not registered the node yet);
+ * - a rect is not {@link isAnchorableRect} (non-finite or zero-size);
+ * - either centre is strictly inside the other rect (nested boxes, e.g. a note
+ *   inside its folder-group container);
+ * - the two border crossings come out ORDERED BACKWARDS along the centre line,
+ *   which partially overlapping and merely touching boxes do;
+ * - the crossing is indeterminate.
+ *
+ * Same fallback spirit as {@link clipRouteToEndpointRects}'s chord: total, and
+ * never NaN. No heuristic invents a facing side that the geometry does not have.
+ */
+export function facingSideAnchorsFor(
+	sourceRect: ClipRect | undefined,
+	targetRect: ClipRect | undefined,
+): StraightEdgeAnchors | null {
+	if (sourceRect === undefined || targetRect === undefined) {
+		return null;
+	}
+	if (!isAnchorableRect(sourceRect) || !isAnchorableRect(targetRect)) {
+		return null;
+	}
+	const sourceCentre = rectCentreOf(sourceRect);
+	const targetCentre = rectCentreOf(targetRect);
+	const target = rectBorderPointToward(targetRect, sourceCentre);
+	const source = rectBorderPointToward(sourceRect, targetCentre);
+	if (target === null || source === null) {
+		return null;
+	}
+	// Overlapping (or touching) boxes can put the two crossings in the WRONG ORDER
+	// along the centre line — the source anchor landing PAST the target anchor —
+	// so the drawn segment, and with it the arrowhead, would point at the wrong
+	// node. Arrow direction is this graph's semantic payload, so rather than draw
+	// a lie we hand the caller back to its handle endpoints, which always point
+	// the right way. A dot product of exactly 0 is the zero-length touching case.
+	const drawnAlongCentreLine =
+		(target.x - source.x) * (targetCentre.x - sourceCentre.x) +
+		(target.y - source.y) * (targetCentre.y - sourceCentre.y);
+	if (drawnAlongCentreLine <= 0) {
+		return null;
+	}
+	return { sourceX: source.x, sourceY: source.y, targetX: target.x, targetY: target.y };
+}
+
+/**
+ * A rect we can anchor on: finite coordinates AND a real extent. Mirrors the
+ * `hasFiniteGeometry` obstacle filter in `edgeRouting.ts` — restated here rather
+ * than imported, because this pure math layer deliberately carries no routing
+ * types (see {@link ClipRect}).
+ *
+ * WHY it matters: Liang–Barsky propagates NaN silently (`Math.max(0, NaN)` is
+ * `NaN`, and `NaN > leave` is false), so a non-finite rect would yield an
+ * `M NaN,… ` path — an SVG that draws NOTHING, i.e. the edge would vanish. And a
+ * zero-size rect's centre sits ON its border, not strictly inside it, breaking
+ * {@link segmentRectEntryPoint}'s precondition.
+ */
+function isAnchorableRect(rect: ClipRect): boolean {
+	return (
+		Number.isFinite(rect.x) &&
+		Number.isFinite(rect.y) &&
+		Number.isFinite(rect.widthPx) &&
+		Number.isFinite(rect.heightPx) &&
+		rect.widthPx > 0 &&
+		rect.heightPx > 0
+	);
+}
+
+/**
+ * Where `rect`'s border meets the segment from `toward` to `rect`'s centre — the
+ * anchor on the side of `rect` that faces `toward`. Reuses the SAME Liang–Barsky
+ * primitive the route clipper uses ({@link segmentRectEntryPoint}, whose contract
+ * is `from` outside / `to` strictly inside), so there is exactly one
+ * segment-vs-rect-border implementation in this module. That precondition holds
+ * here because callers reject a non-{@link isAnchorableRect} rect first, and a
+ * rect with a real extent strictly contains its own centre.
+ *
+ * `null` when `toward` is not strictly outside `rect` (nothing faces anything) or
+ * the crossing is indeterminate.
+ */
+function rectBorderPointToward(rect: ClipRect, toward: RoutedPoint): { readonly x: number; readonly y: number } | null {
+	if (isStrictlyInsideRect(toward, rect)) {
+		return null;
+	}
+	return segmentRectEntryPoint(toward, rectCentreOf(rect), rect);
+}
+
+function rectCentreOf(rect: ClipRect): RoutedPoint {
+	return { x: rect.x + rect.widthPx / 2, y: rect.y + rect.heightPx / 2 };
+}
+
+/**
  * SVG path over a routed polyline with rounded interior corners. Each interior
  * vertex is replaced by a quadratic arc between the two points {@link ROUTED_CORNER_RADIUS_PX}
  * back along its adjacent segments (clamped to half each segment length). A
