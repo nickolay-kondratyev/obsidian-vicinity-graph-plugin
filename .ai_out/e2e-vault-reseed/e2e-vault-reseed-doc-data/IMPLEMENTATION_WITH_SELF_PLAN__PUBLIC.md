@@ -28,6 +28,10 @@ to the docs, so those needed no edit.
 
 ## Testing decision — no new automated test (justified)
 
+> **SUPERSEDED** by `IMPLEMENTATION_ITERATION__PUBLIC.md`. The rejections below hold for
+> *behavioral* tests, but a read-only *source-scan* test was always available and has since
+> been added (`e2e/vaultCopyReseed.test.ts`). Read this section as "why no behavioral test".
+
 `prepareVaultCopy` is `private static`, so the only lever is a permanent test file in
 `e2e/`. I verified that is **not** achievable without weakening the guard:
 

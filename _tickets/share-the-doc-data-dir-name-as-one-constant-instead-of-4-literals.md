@@ -25,3 +25,9 @@ WHY it was not done inline: `e2e/` currently imports from `src/` TYPE-ONLY (see 
 
 One exported constant (e.g. `DOC_DATA_DIR_NAME` in `src/persistence/`) is the single source of the literal, consumed by `src/main.ts`, the persistence tests, and `e2e/obsidianHarness.ts`; `npm test`, `npm run check` (incl. `check:e2e`), the engine/shared import guards, and the esbuild bundle all stay green, and the runtime-import-from-src precedent is verified to actually run in the node-side e2e process (not just typecheck).
 
+
+## Notes
+
+**2026-07-27T16:28:51Z**
+
+Interim guard added while this refactor is deferred: `e2e/vaultCopyReseed.test.ts` cross-checks the `doc-data` literal in `src/main.ts` `docDataDirPath()` against the wipe in `e2e/obsidianHarness.ts` by source scan, so a plugin-side rename that the harness does not follow fails `npm test`. DELETE that file as part of this ticket — the shared constant makes it redundant (its doc comment says so and names this ticket id).
