@@ -1,20 +1,33 @@
+import { Wikilinks } from "../shared/Wikilinks";
+
 /**
  * Fallback `.canvas` JSON parser — the ACTIVE canvas link source on installs
  * whose `metadataCache.resolvedLinks` does not index canvas files (verified on
  * the target install, see step-03 CLARIFICATION Q2). When the install DOES
  * index canvas, `CanvasCapability` keeps this parser dormant.
  *
- * V1 scope (step doc): file-type nodes only. Wikilinks inside text nodes are
- * deliberately skipped. Malformed JSON NEVER throws (matches obsidian-id-lib's
- * philosophy): it logs `console.error` and yields no links.
+ * Scope: FILE-type nodes AND the wikilinks written inside TEXT-type node
+ * bodies, because those two together are what Obsidian's own indexer reports
+ * for a canvas — the two regimes must yield the same edge set or the boot race
+ * over which one runs becomes user-visible (ticket
+ * `nid_s676x55uojmtcwh9t4l9mc6zl_e`). `link`-type (external URL) and `group`
+ * nodes reference no vault document and yield nothing.
+ *
+ * PARSING ONLY: the two node kinds speak different languages — a file node
+ * carries a literal vault PATH, a text node carries LINK TEXT needing
+ * Obsidian's resolution — so both travel out as {@link CanvasReference}s and
+ * the caller (which owns the metadata cache) resolves them. Malformed JSON
+ * NEVER throws (matches obsidian-id-lib's philosophy): it logs `console.error`
+ * and yields no links.
  */
 export class CanvasFallbackParser {
 	/**
-	 * Vault paths referenced by the canvas's file-type nodes, in node-array
-	 * order (the canvas's notion of reference order). May contain duplicates
-	 * and unresolved paths — callers resolve and dedupe.
+	 * Everything the canvas references, in node-array order (the canvas's notion
+	 * of reference order) and, within a text node, in written order. May contain
+	 * duplicates and references that resolve to nothing — callers resolve and
+	 * dedupe.
 	 */
-	static parseFilePaths(canvasPath: string, rawJson: string): readonly string[] {
+	static parseReferences(canvasPath: string, rawJson: string): readonly CanvasReference[] {
 		let parsed: unknown;
 		try {
 			parsed = JSON.parse(rawJson);
@@ -22,10 +35,10 @@ export class CanvasFallbackParser {
 			console.error(`vicinity-graph: malformed canvas JSON, skipping links of [${canvasPath}]`);
 			return [];
 		}
-		return CanvasFallbackParser.filePathsOf(parsed);
+		return CanvasFallbackParser.referencesOf(parsed);
 	}
 
-	private static filePathsOf(parsed: unknown): readonly string[] {
+	private static referencesOf(parsed: unknown): readonly CanvasReference[] {
 		if (typeof parsed !== "object" || parsed === null) {
 			return [];
 		}
@@ -33,25 +46,38 @@ export class CanvasFallbackParser {
 		if (!Array.isArray(nodes)) {
 			return [];
 		}
-		const paths: string[] = [];
+		const references: CanvasReference[] = [];
 		for (const node of nodes) {
-			const path = CanvasFallbackParser.filePathOfNode(node);
-			if (path !== null) {
-				paths.push(path);
-			}
+			references.push(...CanvasFallbackParser.referencesOfNode(node));
 		}
-		return paths;
+		return references;
 	}
 
-	/** A file-type node with a string `file`; anything else (text/link/group/garbage) is null. */
-	private static filePathOfNode(node: unknown): string | null {
+	/**
+	 * A file node yields exactly one reference, a text node zero-or-many, and
+	 * every other node kind (link/group/garbage) none.
+	 */
+	private static referencesOfNode(node: unknown): readonly CanvasReference[] {
 		if (typeof node !== "object" || node === null) {
-			return null;
+			return [];
 		}
-		const { type, file } = node as { type?: unknown; file?: unknown };
-		if (type !== "file" || typeof file !== "string" || file.length === 0) {
-			return null;
+		const { type, file, text } = node as { type?: unknown; file?: unknown; text?: unknown };
+		if (type === "file") {
+			return typeof file === "string" && file.length > 0 ? [{ kind: "file-node", filePath: file }] : [];
 		}
-		return file;
+		if (type === "text" && typeof text === "string") {
+			return Wikilinks.linkTargetsOf(text).map((linkText) => ({ kind: "text-node-link", linkText }) as const);
+		}
+		return [];
 	}
 }
+
+/**
+ * One thing a canvas points at, tagged with HOW it must be resolved — a literal
+ * vault path (file node) or Obsidian link text (text-node wikilink). The tag is
+ * the whole point: resolving link text as a path, or vice versa, silently loses
+ * edges.
+ */
+export type CanvasReference =
+	| { readonly kind: "file-node"; readonly filePath: string }
+	| { readonly kind: "text-node-link"; readonly linkText: string };

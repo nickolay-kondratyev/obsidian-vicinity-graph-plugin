@@ -3,7 +3,7 @@ id: nid_s676x55uojmtcwh9t4l9mc6zl_e
 title: "Canvas link regime is re-detected per rebuild from a racing resolvedLinks, so canvas text-node edges appear or vanish depending on boot timing"
 status: open
 deps: []
-links: [nid_li45606h8uvcnjm7fss17xl1u_e]
+links: [nid_li45606h8uvcnjm7fss17xl1u_e, nid_ygo7h95ssgmunaqsprc1zlmfh_e]
 created_iso: 2026-07-26T05:58:40Z
 status_updated_iso: 2026-07-26T05:58:40Z
 type: bug

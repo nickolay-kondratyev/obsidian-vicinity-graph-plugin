@@ -6,6 +6,7 @@ import type { OrderedReference } from "./ReferenceOrder";
 import { ReferenceOrder } from "./ReferenceOrder";
 import type { CanvasCapability } from "./CanvasCapability";
 import { CanvasCapabilityDetector } from "./CanvasCapability";
+import type { CanvasReference } from "./CanvasFallbackParser";
 import type { CanvasParseCache } from "./CanvasParseCache";
 import type { CachedMetadataPort, MetadataCachePort, VaultFilePort, VaultPort } from "./obsidianPorts";
 
@@ -54,7 +55,7 @@ export class ObsidianLinkProvider implements LinkProvider {
 		private readonly vault: VaultPort,
 		private readonly metadataCache: MetadataCachePort,
 		readonly canvasCapability: CanvasCapability,
-		/** Only populated in fallback mode: canvas path → ordered resolved-or-not file paths. */
+		/** Only populated in fallback mode: canvas path → resolved targets in canvas reference order (duplicates kept, they are the link COUNT). */
 		private readonly canvasOutgoingByPath: ReadonlyMap<string, readonly string[]>,
 		/** Only populated in fallback mode: target path → canvas paths referencing it. */
 		private readonly canvasIncomingByPath: ReadonlyMap<string, readonly string[]>,
@@ -79,9 +80,10 @@ export class ObsidianLinkProvider implements LinkProvider {
 				if (file.extension !== CANVAS_EXTENSION) {
 					continue;
 				}
-				const filePaths = await canvasParseCache.filePathsOf(vault, file);
-				canvasOutgoing.set(file.path, filePaths);
-				for (const target of new Set(filePaths)) {
+				const references = await canvasParseCache.referencesOf(vault, file);
+				const targets = resolvedCanvasTargetsOf(vault, metadataCache, file.path, references);
+				canvasOutgoing.set(file.path, targets);
+				for (const target of new Set(targets)) {
 					appendToMultimap(canvasIncoming, target, file.path);
 				}
 			}
@@ -220,8 +222,8 @@ export class ObsidianLinkProvider implements LinkProvider {
 	 */
 	private outgoingPathsOf(file: VaultFilePort, references: readonly OrderedReference[] | null): readonly string[] {
 		if (file.extension === CANVAS_EXTENSION && this.canvasCapability === "fallback-required") {
-			const parsedPaths = this.canvasOutgoingByPath.get(file.path) ?? [];
-			return dedupe(parsedPaths.filter((target) => this.vault.getFileByPath(target) !== null));
+			// Already resolved (and unresolvable references dropped) at build time.
+			return dedupe(this.canvasOutgoingByPath.get(file.path) ?? []);
 		}
 		if (references !== null) {
 			const resolved: string[] = [];
@@ -274,6 +276,38 @@ export class ObsidianLinkProvider implements LinkProvider {
 			.filter((target) => !FileKinds.isNodeBearingPath(target))
 			.map((target) => ({ path: asVaultPath(target), isImage: FileKinds.isImagePath(target) }));
 	}
+}
+
+/**
+ * The vault paths a canvas's parsed references point at, in reference order,
+ * with everything that resolves to nothing dropped and duplicates KEPT (they
+ * are what `getLinkCount` counts).
+ *
+ * Resolution lives here, not in the parser, because the two reference kinds
+ * resolve through different Obsidian facilities and only this layer holds them:
+ * a file node's `file` is already a literal vault path (exact lookup — Obsidian
+ * writes it that way), while a text-node wikilink is link TEXT and goes through
+ * the SAME `getFirstLinkpathDest` resolution as a markdown body link, relative
+ * to the canvas itself. That is precisely what makes the fallback regime agree
+ * with the core-indexed one (ticket `nid_s676x55uojmtcwh9t4l9mc6zl_e`).
+ */
+function resolvedCanvasTargetsOf(
+	vault: VaultPort,
+	metadataCache: MetadataCachePort,
+	canvasPath: string,
+	references: readonly CanvasReference[],
+): readonly string[] {
+	const targets: string[] = [];
+	for (const reference of references) {
+		const target =
+			reference.kind === "file-node"
+				? vault.getFileByPath(reference.filePath)?.path
+				: metadataCache.getFirstLinkpathDest(reference.linkText, canvasPath)?.path;
+		if (target !== undefined && target !== null) {
+			targets.push(target);
+		}
+	}
+	return targets;
 }
 
 /**

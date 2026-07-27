@@ -1,7 +1,7 @@
 {
 	"nodes": [
 		{ "id": "n1", "type": "file", "file": "notes/alpha.md", "x": 0, "y": 0, "width": 400, "height": 400 },
-		{ "id": "n2", "type": "text", "text": "A wikilink to [[beta]] is skipped in V1", "x": 500, "y": 0, "width": 250, "height": 60 },
+		{ "id": "n2", "type": "text", "text": "A wikilink to [[beta]] and an embed of ![[images/pic.png]]", "x": 500, "y": 0, "width": 250, "height": 60 },
 		{ "id": "n3", "type": "file", "file": "images/pic.png", "x": 0, "y": 500, "width": 400, "height": 400 },
 		{ "id": "n4", "type": "link", "url": "https://example.com", "x": 500, "y": 500, "width": 250, "height": 60 },
 		{ "id": "n5", "type": "group", "x": -100, "y": -100, "width": 1000, "height": 1200, "label": "group" },
