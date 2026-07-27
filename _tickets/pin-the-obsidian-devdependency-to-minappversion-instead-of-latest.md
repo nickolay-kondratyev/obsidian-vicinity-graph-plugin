@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-27T21:11:30Z
 id: nid_6kms4zn8o8c8r7g983oqlvvky_e
 title: "Pin the obsidian devDependency to minAppVersion instead of \"latest\""
-status: open
+status: closed
 deps: []
 links: []
 created_iso: 2026-07-25T17:39:23Z
-status_updated_iso: 2026-07-25T17:39:23Z
+status_updated_iso: 2026-07-27T21:11:30Z
 type: chore
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
@@ -34,3 +35,9 @@ Work:
   typings must track `minAppVersion` (1.12.4), not `latest` — an `@deprecated` API may still be live
   on the floor; verify against the pinned e2e build before deleting a call."
 
+
+## Notes
+
+**2026-07-27T21:11:30Z**
+
+Resolved on branch chore/pin-obsidian-typings. Pinned obsidian devDependency to exact 1.12.3 (npm publishes no 1.12.4/1.12.7; 1.12.3 is the highest published typings <= the minAppVersion 1.12.4 floor), regenerated package-lock.json via npm install, and added one Guardrails bullet to CLAUDE.md. Verified: npm run check exit 0, npm test 81 files/1094 tests pass, npm run build exit 0. Confirmed setDynamicTooltip() carries no @deprecated tag on 1.12.3 and the call in src/view/VicinityGraphSettingTab.ts remains intact.
