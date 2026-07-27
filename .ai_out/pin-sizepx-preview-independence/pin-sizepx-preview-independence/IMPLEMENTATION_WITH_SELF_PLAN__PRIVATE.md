@@ -1,29 +1,41 @@
 # PRIVATE rehydration notes
 
-Status: **DONE**. Ticket `nid_f8csd65emmy6p62ad9x5w1psz_e` closed. Committed.
+Status: **DONE** (impl + review follow-ups S1/S2). Test-only throughout.
+See `IMPLEMENTATION_ITERATION__PUBLIC.md` for the iteration record.
 
 ## Files changed (test-only)
-- `src/engine/NodeSizer.test.ts` — import line widened
-  (`NodePreviewPreference`, `ViewSettings` types; `NODE_PREVIEW_PREFERENCES` value)
-  + trailing `describe("NodeSizer node preview preference independence")`.
-- `src/engine/VicinityEngine.test.ts` — same import widening + trailing
+Round 1 (commit `16bed89`):
+- `src/engine/NodeSizer.test.ts` — import widened (`NodePreviewPreference`,
+  `ViewSettings`, `NODE_PREVIEW_PREFERENCES`) + trailing
+  `describe("NodeSizer node preview preference independence")`.
+- `src/engine/VicinityEngine.test.ts` — same widening + trailing
   `describe("VicinityEngine sizing ignores the node preview preference")`.
 
-## Facts verified during work (EXPLORATION_PUBLIC.md was accurate)
-- `NODE_PREVIEW_PREFERENCES` is a const tuple (`as const satisfies`), so `[0]`
-  type-checks under `noUncheckedIndexedAccess` — no non-null assertion needed.
-- `EngineDefaults.viewSettings()` returns a fresh object incl. `sizing`.
-- `VicinityEngine.ts:63` is the single sizing call site.
-- `NodeSizer.computeSizes` clamps via `clampSizingSettings(rawSettings)`.
+Round 2 (this iteration):
+- `src/view/GraphStructureDiff.test.ts` — S1: pointer comment now names the
+  three guards instead of saying the work is outstanding.
+- `src/view/flowMapping.test.ts` — S2: import widened + trailing
+  `describe("vicinityGraphToFlow node geometry ignores the node preview preference")`.
 
-## Mutation replay recipe (if a reviewer wants to re-check)
-Widen `computeSizes` param to `SizingSettings & { nodePreviewPreference?: string }`,
-double `maxPx` when it is `"image"`; and at `VicinityEngine.ts:63` pass
-`{ ...viewSettings.sizing, nodePreviewPreference: viewSettings.nodePreviewPreference }`.
-`npx vitest run src/engine/NodeSizer.test.ts src/engine/VicinityEngine.test.ts`
-→ 2 failed / 52 passed. Revert with `git checkout -- src/engine/NodeSizer.ts src/engine/VicinityEngine.ts`.
+## Facts verified during work
+- `NODE_PREVIEW_PREFERENCES` is a const tuple, so `[0]` type-checks under
+  `noUncheckedIndexedAccess` — no non-null assertion needed.
+- `VicinityEngine.ts:63` is the single sizing call site.
+- `vicinityGraphToFlow` sets note width/height at `flowMapping.ts:186-198` via
+  `nodeDimensionsPx(node)`; `nodePreviewPreference` enters only through
+  `toFlowNodeData` → `nodePreviewKind` (`:322`). That adjacency is the S2 risk.
+
+## Mutation replay recipes
+- Engine: widen `computeSizes` param to `SizingSettings & { nodePreviewPreference?: string }`,
+  double `maxPx` for `"image"`, and pass the preference at `VicinityEngine.ts:63`.
+- View (S2): in `flowMapping.ts` `noteNodes` map, emit
+  `height + 30` when `graph.viewSettings.nodePreviewPreference === "image"`
+  → `npx vitest run src/view/flowMapping.test.ts` = 1 failed / 62 passed.
+  Revert: `git checkout -- src/view/flowMapping.ts`.
 
 ## Not done deliberately
-- No `graphIdentity.test.ts` guard (no settings in `nodeDimensionsPx` scope → tautology).
-- No change_log entry (TOP_LEVEL_AGENT owns it).
+- No `graphIdentity.test.ts` guard (`nodeDimensionsPx` takes no settings → tautology).
+- NITs N1 (self-comparing baseline) and N2 (extract the shared idiom) REJECTED —
+  rationale in `IMPLEMENTATION_ITERATION__PUBLIC.md`.
+- No change_log entry, no merge, no ticket state change (TOP_LEVEL_AGENT owns them).
 - No production behavior change of any kind.

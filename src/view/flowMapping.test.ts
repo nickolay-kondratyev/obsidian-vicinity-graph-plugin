@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { GraphNode, OutlineEntry, ViewSettings } from "../engine";
-import { asDocId, asFolderPath, asVaultPath } from "../engine";
+import type { GraphNode, NodePreviewPreference, OutlineEntry, ViewSettings } from "../engine";
+import { asDocId, asFolderPath, asVaultPath, NODE_PREVIEW_PREFERENCES } from "../engine";
 import { OUTLINE_RENDER_LIMIT } from "./constants";
 import { vicinityGraphToFlow, withGroupDimensions, withPositions } from "./flowMapping";
 import type { FlowNode, NoteFlowNode } from "./flowMapping";
@@ -586,5 +586,46 @@ describe("vicinityGraphToFlow preview decision", () => {
 
 	it("WHEN outlineMaxDepth drops every heading AND the node has no image THEN the preview is none", () => {
 		expect(previewOf({ outline: [{ rawText: "Deep", level: 4 }] }, { outlineMaxDepth: 2 })).toBe("none");
+	});
+});
+
+/**
+ * The view-layer half of the invariant pinned engine-side in `NodeSizer.test.ts`
+ * / `VicinityEngine.test.ts`: flipping the Preview pill must stay a data-only
+ * refresh. `vicinityGraphToFlow` has the preference in scope (it decides
+ * `data.preview`) AND sets each flow node's box, so "image previews need a
+ * taller node" is the most plausible way node geometry starts moving with the
+ * pill — which would cross `SIZE_RELAYOUT_THRESHOLD` and force a full relayout.
+ */
+describe("vicinityGraphToFlow node geometry ignores the node preview preference", () => {
+	const IMAGE = asVaultPath("img/cover.png");
+
+	// GIVEN nodes that differ in size AND carry both preview regions, so the
+	// mapped preview really does change as the preference flips.
+	const nodes = [
+		makeNode({
+			path: asVaultPath("a.md"),
+			sizePx: 160,
+			outline: [{ rawText: "Intro", level: 1 }],
+			attachments: [{ path: IMAGE, isImage: true }],
+			firstImagePath: IMAGE,
+			imagePrecedesOutline: true,
+		}),
+		makeNode({ path: asVaultPath("folder/b.md"), folder: asFolderPath("folder"), sizePx: 40 }),
+	];
+
+	function boxesUnderPreference(preference: NodePreviewPreference) {
+		const graph = makeGraph({
+			nodes,
+			viewSettings: { ...makeGraph().viewSettings, nodePreviewPreference: preference },
+		});
+		return toFlow(graph).nodes.map((node) => ({ id: node.id, width: node.width, height: node.height }));
+	}
+
+	it("WHEN only nodePreviewPreference varies THEN every flow node keeps the same width and height", () => {
+		const baseline = boxesUnderPreference(NODE_PREVIEW_PREFERENCES[0]);
+		// Keyed by preference so a failure names the offending value.
+		const actual = Object.fromEntries(NODE_PREVIEW_PREFERENCES.map((p) => [p, boxesUnderPreference(p)]));
+		expect(actual).toEqual(Object.fromEntries(NODE_PREVIEW_PREFERENCES.map((p) => [p, baseline])));
 	});
 });
