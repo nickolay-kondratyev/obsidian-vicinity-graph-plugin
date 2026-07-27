@@ -64,12 +64,15 @@ write_if_missing "${VAULT}/note3.md" <<'EOF'
 Leaf note: reachable from note1 (body link) and from test.canvas (file node).
 EOF
 
+# test.canvas exercises BOTH canvas reference kinds the plugin must report
+# identically on either link regime: file nodes (note1, note3) and a text-node
+# wikilink (note2). Ticket nid_s676x55uojmtcwh9t4l9mc6zl_e.
 write_if_missing "${VAULT}/test.canvas" <<'EOF'
 {
 	"nodes": [
 		{ "id": "n1", "type": "file", "file": "note1.md", "x": 0, "y": 0, "width": 300, "height": 200 },
 		{ "id": "n2", "type": "file", "file": "note3.md", "x": 400, "y": 0, "width": 300, "height": 200 },
-		{ "id": "n3", "type": "text", "text": "Text node with a [[note2]] wikilink — skipped in V1.", "x": 0, "y": 300, "width": 300, "height": 100 }
+		{ "id": "n3", "type": "text", "text": "Text node with a [[note2]] wikilink — a real edge, on BOTH canvas link regimes.", "x": 0, "y": 300, "width": 300, "height": 100 }
 	],
 	"edges": []
 }
