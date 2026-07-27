@@ -3,7 +3,7 @@ id: nid_hatwq2jlkhno5t6awcz0q6t9q_e
 title: "[decide] node sizing: minPx > maxPx inverts the size ramp, and per-keystroke clamping snaps the field"
 status: open
 deps: []
-links: []
+links: [nid_9jiira82snkh7bgy8zv060c9r_e]
 created_iso: 2026-07-26T01:21:48Z
 status_updated_iso: 2026-07-26T01:21:48Z
 type: task
@@ -30,3 +30,10 @@ Two follow-ups raised in the iteration-1 implementation review of branch `sizing
 **2026-07-26T15:30:38Z**
 
 [decide] Needs a human UX call before implementation: (a) inverted minPx>maxPx — silently normalize (auto-swap / clamp maxPx up) vs. visibly reject with validation UI; (b) commit timing — clamp-on-blur vs. accept out-of-range text locally and clamp on commit. Both choices apply to TWO surfaces (src/view/SizingSection.tsx and src/view/VicinityGraphSettingTab.ts addSizingNumber) and must be consistent. Verified still open: src/engine/constants.ts clampSizingSettings clamps minPx/maxPx independently.
+
+**2026-07-27T18:00:15Z**
+
+Partially answered by branch `settings-debounce-validation` (settings TAB only):
+
+- Item 1: the settings tab now VISIBLY REJECTS an inverted pair (`src/view/sizingRowWrite.ts` + `src/view/settingsValidation.ts` `describeSizingRejection`) — inline message, `aria-invalid`, not persisted, and re-checked again at flush time. The ENGINE-level guard is still absent and is tracked separately as nid_9jiira82snkh7bgy8zv060c9r_e (which needs the same human call: swap vs. clamp vs. reject). `src/view/SizingSection.tsx` (the in-view mirror) is UNCHANGED and can still store an inverted pair.
+- Item 2: the tab no longer writes per keystroke (debounced, `src/view/settingsDebounce.ts`), and an out-of-range typed value now states what will be stored instead of silently differing. That field is uncontrolled, so it does not snap. `src/view/SizingSection.tsx` still snaps — that half of the item is untouched and still needs the decision above.

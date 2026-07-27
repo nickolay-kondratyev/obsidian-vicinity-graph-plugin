@@ -76,6 +76,43 @@ npm run check > .tmp/check.log 2>&1
 - `vi.useFakeTimers` for the debounce tests — works, but the injected `FakeDebounceScheduler` makes the
   seam explicit and the tests shorter.
 
+## Round 1 (IMPLEMENTATION_ITERATION) — review follow-ups
+
+Commit `7207d02`. Disposition table + rationale: `IMPLEMENTATION_ITERATION__PUBLIC.md`.
+10 of 12 findings incorporated; CONSIDER 9 (shared settle window) and NIT 12 (untracked ticket file
+I was told not to touch) rejected with rationale. No open disagreement with the reviewer.
+
+### What changed structurally
+
+- NEW `src/view/sizingRowWrite.ts` — `SizingRowWrite(field, readSizing, persist)` owns ONE sizing
+  row's whole write policy: `storedValue()`, `judge(value) → {message, rejected}`,
+  `persistIfAccepted(value)`. This is the key move of the round: three reviewer findings (wrong-field
+  rejection, no re-validation at flush time, silent capping) were all "logic living in untestable
+  obsidian glue". Now they are one unit-tested object and the tab is `addSizingNumber(section, name,
+  field)` — the three `toSizing` lambdas are gone.
+- `CROSS_FIELD_ROWS = {minPx, maxPx}` — `depthDecayK` participates in NO cross-field rule. Under the
+  old code an inverted stored pair made decay-k **uneditable** (every keystroke dropped).
+- `persistIfAccepted` re-takes the verdict at FLUSH time. Confirmed exploitable: `SizingSection.tsx`
+  / a second view / a reset can move the globals inside the settle window.
+- Cap warning: `Stored as 400 — the allowed range is 40–400.`, computed with the engine's own
+  `clampSizingSettings` so the message cannot claim a cap the write path does not perform.
+- `PathExclusionMatcher.compileFailure()` is public; `new RegExp(pattern)` now exists once
+  (`compilePattern`). `settingsValidation` asks the engine.
+- `settlePendingWrites()` = awaited flush that logs instead of leaking a rejection; awaited before
+  `applyReset` and before the two toggle handlers that re-`display()`. `display()` doc states it.
+- `addFeedbackSlot(row, role)`: `alert` for refusals, `status` for the per-keystroke regex warning.
+
+### Test-strength technique worth reusing
+
+The debounce tests were VACUOUS: `elapse()` followed by `await flush()` drains the same map, so a
+dead timer stayed green. Fix: the harness hands out a promise the WRITE THUNK itself resolves
+(`written(count)`), plus a 1 s per-test timeout so a dead timer fails fast. **Every fix this round
+was sabotage-checked** — break the implementation, watch the new test fail, restore. Cheap
+(`cp` the file to `.tmp/`, patch with python, run vitest, `cp` back) and it is the only honest way to
+claim a test pins anything.
+
 ## State
 
-Implemented + committed; `npm test` and `npm run check` green (see PUBLIC).
+Round 1 delivered and committed. `npm test` 1053 passed / 79 files; `npm run check` clean.
+Working tree clean except the pre-existing untracked `_tickets/nodes-in-groups-…md`.
+No `change_log` entry written (TOP_LEVEL_AGENT owns it).

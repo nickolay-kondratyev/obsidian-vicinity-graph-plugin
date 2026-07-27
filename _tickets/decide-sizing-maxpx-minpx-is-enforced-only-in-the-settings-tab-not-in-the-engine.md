@@ -3,7 +3,7 @@ id: nid_9jiira82snkh7bgy8zv060c9r_e
 title: "[decide] Sizing maxPx >= minPx is enforced only in the settings tab, not in the engine"
 status: open
 deps: []
-links: []
+links: [nid_hatwq2jlkhno5t6awcz0q6t9q_e]
 created_iso: 2026-07-27T17:44:26Z
 status_updated_iso: 2026-07-27T17:44:26Z
 type: task

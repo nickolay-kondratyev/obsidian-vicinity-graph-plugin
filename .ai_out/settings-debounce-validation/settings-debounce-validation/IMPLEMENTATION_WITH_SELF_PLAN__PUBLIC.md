@@ -53,7 +53,7 @@ message on hover. Shown on open as well as on typing.
   edit. Deliberate, and stated in the code.
 
 **5. BDD tests.** All `WHEN … THEN …`, one behavior each.
-- `src/view/settingsDebounce.test.ts` (12): keystrokes inside the window write nothing; a burst writes
+- `src/view/settingsDebounce.test.ts` (9 — corrected in round 1, the count below was mis-stated as 12): keystrokes inside the window write nothing; a burst writes
   only the LAST value; two fields in one window both write in edit order; flush before the window
   still lands the write; the window after a flush does not repeat it; flushing nothing writes nothing;
   a rejected write does not wedge the next one; `drop` forgets one field and leaves the other.
