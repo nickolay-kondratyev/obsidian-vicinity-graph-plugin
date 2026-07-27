@@ -9,6 +9,7 @@ import {
 	clipRouteToEndpointRects,
 	detourRatio,
 	edgePathFor,
+	facingSideAnchorsFor,
 	polylineMidpoint,
 	routedGeometryFor,
 	routedPathFor,
@@ -174,6 +175,52 @@ describe("clipRouteToEndpointRects terminates routes on the endpoint boundaries"
 		const clipped = clipRouteToEndpointRects([pt(50, 50), pt(50, 250), pt(250, 250)], farSourceRect, rect(200, 200, 100, 100));
 		const geometry = routedGeometryFor(clipped);
 		expect(isStrictlyInside({ x: geometry.arrowX, y: geometry.arrowY }, rect(200, 200, 100, 100))).toBe(false);
+	});
+});
+
+describe("facingSideAnchorsFor anchors a straight edge on the sides the boxes face", () => {
+	// 100x100 boxes on a 200px grid so every border crossing is an exact integer.
+	const box = rect(0, 0, 100, 100); // centre (50,50)
+
+	it("WHEN the target sits to the RIGHT THEN the target anchor lands on its LEFT border", () => {
+		expect(facingSideAnchorsFor(box, rect(200, 0, 100, 100))).toMatchObject({ targetX: 200, targetY: 50 });
+	});
+
+	it("WHEN the target sits to the LEFT THEN the target anchor lands on its RIGHT border", () => {
+		expect(facingSideAnchorsFor(rect(200, 0, 100, 100), box)).toMatchObject({ targetX: 100, targetY: 50 });
+	});
+
+	it("WHEN the target sits ABOVE THEN the target anchor lands on its BOTTOM border", () => {
+		expect(facingSideAnchorsFor(rect(0, 200, 100, 100), box)).toMatchObject({ targetX: 50, targetY: 100 });
+	});
+
+	it("WHEN the target sits BELOW THEN the target anchor lands on its TOP border", () => {
+		expect(facingSideAnchorsFor(box, rect(0, 200, 100, 100))).toMatchObject({ targetX: 50, targetY: 200 });
+	});
+
+	it("WHEN the target sits DIAGONALLY THEN the anchor still lands on the border the centre line crosses", () => {
+		// (50,50) -> (250,150) crosses the target's LEFT border (x=200) at y=125.
+		expect(facingSideAnchorsFor(box, rect(200, 100, 100, 100))).toMatchObject({ targetX: 200, targetY: 125 });
+	});
+
+	it("WHEN the target sits DIAGONALLY THEN the SOURCE anchor mirrors onto the source's facing border", () => {
+		// (250,150) -> (50,50) crosses the source's RIGHT border (x=100) at y=75.
+		expect(facingSideAnchorsFor(box, rect(200, 100, 100, 100))).toMatchObject({ sourceX: 100, sourceY: 75 });
+	});
+
+	it("WHEN the rects are nested THEN it reports no facing side so the caller keeps its handle endpoints", () => {
+		// A note inside its folder-group container: neither box faces the other.
+		expect(facingSideAnchorsFor(rect(0, 0, 300, 300), rect(100, 100, 100, 100))).toBeNull();
+	});
+
+	it("WHEN a node rect is unavailable THEN it reports no facing side rather than guessing one", () => {
+		expect(facingSideAnchorsFor(undefined, box)).toBeNull();
+	});
+
+	it("WHEN the anchors feed a paired edge THEN the bow is drawn between the BORDER points", () => {
+		const anchors = facingSideAnchorsFor(box, rect(200, 0, 100, 100));
+		const geometry = edgePathFor(anchors?.sourceX ?? 0, anchors?.sourceY ?? 0, anchors?.targetX ?? 0, anchors?.targetY ?? 0, true);
+		expect(geometry.path).toBe(`M 100,50 Q 150,${50 + EDGE_PAIR_CURVATURE_PX} 200,50`);
 	});
 });
 

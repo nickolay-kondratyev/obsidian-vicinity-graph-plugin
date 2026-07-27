@@ -293,6 +293,73 @@ function segmentRectEntryPoint(from: RoutedPoint, to: RoutedPoint, rect: ClipRec
 }
 
 /**
+ * Endpoint pair for a STRAIGHT (non-routed) edge, in ABSOLUTE flow coordinates —
+ * the four values {@link edgePathFor} takes, so callers can splice these in place
+ * of React Flow's handle-derived `sourceX/Y`/`targetX/Y`.
+ */
+export interface StraightEdgeAnchors {
+	readonly sourceX: number;
+	readonly sourceY: number;
+	readonly targetX: number;
+	readonly targetY: number;
+}
+
+/**
+ * Side-aware ("floating edge") endpoints for a straight edge: where the
+ * centre→centre segment crosses each endpoint rect's border, so the line leaves
+ * and arrives on the sides the two boxes actually FACE.
+ *
+ * React Flow otherwise anchors every edge at its node's fixed `<Handle>` — this
+ * graph pins those to Top/Bottom (`NoteNode`, `FolderGroupNode`), so an edge to a
+ * node on the LEFT still departs from the bottom and loops back up, reading as a
+ * detour that isn't there. The routed path already gets facing sides for free from
+ * {@link clipRouteToEndpointRects}; this brings the straight path in line with it.
+ *
+ * Returns `null` — meaning "keep the caller's existing handle endpoints" — when a
+ * rect is unavailable (React Flow has not registered the node yet) or the geometry
+ * is degenerate: either centre strictly inside the other rect (overlapping or
+ * nested boxes, e.g. a note inside its folder-group container) has no facing side
+ * to speak of. Same fallback spirit as {@link clipRouteToEndpointRects}'s chord.
+ */
+export function facingSideAnchorsFor(
+	sourceRect: ClipRect | undefined,
+	targetRect: ClipRect | undefined,
+): StraightEdgeAnchors | null {
+	if (sourceRect === undefined || targetRect === undefined) {
+		return null;
+	}
+	const sourceCentre = rectCentreOf(sourceRect);
+	const targetCentre = rectCentreOf(targetRect);
+	const target = rectBorderPointToward(targetRect, sourceCentre);
+	const source = rectBorderPointToward(sourceRect, targetCentre);
+	if (target === null || source === null) {
+		return null;
+	}
+	return { sourceX: source.x, sourceY: source.y, targetX: target.x, targetY: target.y };
+}
+
+/**
+ * Where `rect`'s border meets the segment from `toward` to `rect`'s centre — the
+ * anchor on the side of `rect` that faces `toward`. Reuses the SAME Liang–Barsky
+ * primitive the route clipper uses ({@link segmentRectEntryPoint}, whose contract
+ * is `from` outside / `to` strictly inside), so there is exactly one
+ * segment-vs-rect-border implementation in this module.
+ *
+ * `null` when `toward` is not strictly outside `rect` (nothing faces anything) or
+ * the crossing is indeterminate.
+ */
+function rectBorderPointToward(rect: ClipRect, toward: RoutedPoint): { readonly x: number; readonly y: number } | null {
+	if (isStrictlyInsideRect(toward, rect)) {
+		return null;
+	}
+	return segmentRectEntryPoint(toward, rectCentreOf(rect), rect);
+}
+
+function rectCentreOf(rect: ClipRect): RoutedPoint {
+	return { x: rect.x + rect.widthPx / 2, y: rect.y + rect.heightPx / 2 };
+}
+
+/**
  * SVG path over a routed polyline with rounded interior corners. Each interior
  * vertex is replaced by a quadratic arc between the two points {@link ROUTED_CORNER_RADIUS_PX}
  * back along its adjacent segments (clamped to half each segment length). A
