@@ -47,3 +47,39 @@ S1: greedy `[\w-]+` on the e2e side yields `vicinity-graph-node--` for interpola
 S2: comments and `src/view/*.test.ts` count as "rendered". Exclude `*.test.ts(x)` from
     the render glob; document the comment limit in the "WHAT IT DOES NOT CATCH" block.
 Neither blocks merge. Both are ~5-line changes.
+
+---
+
+## PASS 2 (iteration confirmation, commits 6344134 + a1fa304) — DONE, READY
+
+Scope was ONLY `git diff 571c730..HEAD -- e2e/selectorGuard.test.ts`. Verdict
+**READY, 0 BLOCKING**. Public doc: `IMPLEMENTATION_ITERATION_REVIEW__PUBLIC.md`.
+Tree left CLEAN.
+
+### What I ran (all reverted)
+1. `npm test` exit=0 (75 files / **1010** tests = 1003 + 7 new, 1.12s);
+   `npm run check` exit=0; guard alone 20 tests / **3 ms**.
+   Logs `.tmp/rev2-test.log`, `.tmp/rev2-check.log`, `.tmp/rev2-guard.log`.
+2. `.tmp/rev2_probe.mjs` — 10 selector shapes through the new matcher logic.
+3. `.tmp/rev2_corpus.mjs` — OLD-vs-NEW regex **differential over the whole e2e
+   corpus**: only 4 tokens dropped, all `.vicinity-graph-node--` on the guard's own
+   doc/test lines. Zero legitimate classes lost. Also: 34/94 `src/view` files
+   excluded as unit tests, none contains an owned class; class set 74 raw → 74 final.
+4. Masking probe re-run (FolderGroupNode `__label`→`__caption` + whole-line comment
+   in NoteNode.tsx) → **exit=1**, offender `e2e/vicinityGraph.e2e.ts:87`. Was exit=0
+   pre-fix. `.tmp/rev2-mask.log`.
+5. Mid-line carve-out probe (`const x = 1; // …class…`) → exit=0, i.e. the limit is
+   real — and it IS documented in "WHAT IT DOES NOT CATCH" lines 26-29 with the WHY.
+   Verified the cited rationale is factual: `graphFixtures.ts:14` has `.replace(/^.*\//, "")`
+   and that file IS a scanned render source.
+6. Grepped diff deletions for `it(` / `describe(` / `expect(` → none. Nothing weakened.
+
+### Judgement calls a clone should NOT re-litigate
+- Probe 1 answer: **no false-GREEN hole on any real shape.** The corpus's only
+  interpolated selectors are `[data-attr="${x}"]` forms, which still extract the
+  class correctly. The one theoretical hole (`` `.vicinity-graph-node${nonClassSuffix}` ``)
+  occurs zero times and is unnatural style — recorded as informational, NOT a finding.
+- Implementer's rejection of `(?!\$\{)` lookahead (backtracking gives back the `-`)
+  is correct; my original "ends in `-`" suggestion was strictly weaker. Their call wins.
+- Mid-line `//` NOT stripped is the right trade for a tripwire. Honest, documented.
+
