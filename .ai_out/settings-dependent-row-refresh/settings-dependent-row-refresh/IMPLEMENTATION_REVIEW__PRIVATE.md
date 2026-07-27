@@ -87,3 +87,88 @@ dir — pre-existing ambiguity, not this change's problem).
 - Extra always-present empty `<div>` in the exclusion card: no CSS or e2e selector
   depends on child position. Inert.
 - `renderSizing()` length / SRP: mildly long now, but not new complexity.
+
+---
+
+# Round 2 (fresh instance) — `b1c13e2` + `8d5142e`
+
+## Re-run myself, not taken on trust
+
+| Command | Real result | Log |
+|---|---|---|
+| `npm run check` | exit 0 | `.tmp/r2-check.log` |
+| `npm test` | 79 files / **1053 passed** | `.tmp/r2-test.log` |
+| `npm run test:e2e` (full, real Obsidian) | **83 passed, 1 skipped (55.5s)**, exit 0 | `.tmp/r2-e2e.log` |
+
+The `1 skipped` is **not** new and not a regression: `e2e/externalVault.e2e.ts:30`
+`test.skip(vaultDir === undefined ...)` — env-gated on `VICINITY_E2E_VAULT`. Round 1's log
+just did not surface the line. Grep for `test.skip|\.skip\(|test.fail` across `e2e/` and
+`src/` returns only that one plus a pre-existing wasm `ctx.skip` in
+`src/view/edgeRouting.test.ts:356`. Nothing was skipped to make this branch green.
+
+## The implementer's pushback — both claims are CORRECT. I was wrong twice.
+
+**(a) Sizing has no paint hazard, and reading the store there would be a bug.**
+Verified in `src/view/VicinityGraphSettingTab.ts` `addSizingMetricRow`:
+`weightInput.setDisabled(!enabled)` is the FIRST statement of the handler, before
+`await this.settlePendingWrites()`. At that instant the store has not been told about
+`enabled` yet, so `this.store.globalView()` would return the PREVIOUS value — reading the
+store there paints backwards. Exclusion paints *after* its own write, so there the store
+is the freshest truth. Their rule — "paint from the freshest truth at paint time" — is the
+correct generalization; "always read the store" was my over-generalization. The asymmetry
+is now named in both comments so nobody "fixes" it.
+
+**(b) The `let weightInput!: TextComponent` NIT premise was wrong.** Verified: the fluent
+chain builds `addToggle` before `addText`, and the toggle's `onChange` closure must
+reference the weight component. Making it an ordinary local would require swapping the
+builder order, which swaps the two controls' DOM order inside the row. So the definite-
+assignment assertion is structural, not a symptom of the long method. The extraction was
+still worth doing (consistency with `addSizingNumber` / `addExclusionPatterns`), and they
+applied it while correcting my stated reason. That is the right way to take a NIT.
+
+## `expect.poll` non-vacuity — sanity-checked independently
+
+Each test SEEDS the opposite value before flipping (`saveNodeExclusion({enabled:true})`
+then poll `false`; `{enabled:false}` then poll `true`; `saveGlobalView(... enabled:true)`
+then poll `false`), followed by `redisplay()`. With the handler's write deleted the store
+retains the seeded value and the poll times out. Genuinely non-vacuous by construction —
+no need to take the sabotage run on faith.
+
+**"1 failed / 2 passed" for the sizing sabotage is exactly right**, not a vacuous test:
+tests 1–2 are the two *exclusion* tests and do not touch `applySizing`, so they must stay
+green; test 3 is the only sizing test and it failed. If a sizing test had been vacuous the
+symptom would have been 0 failed. Also note `toBeDisabled()` still passes with the write
+deleted (setDisabled is unconditional) — so the poll is precisely the assertion that
+catches it.
+
+## `addSizingMetricRow` extraction — pure move
+
+Diffed body-by-body: identical statements, only `metric` → `seed` param and the added
+contrast comment. No behavior delta, no DOM order change, no selector/aria-label change
+(`${label} weight`, `nameControl`, `applyRange`, `flushOnBlur`, debounce key all
+identical). No `ap_XXX_E` anchor exists in this file. No test file added/removed/modified
+outside the new spec (`git diff 70b4133..HEAD -- '*test*'` is empty).
+
+## Double-toggle race — their honesty position is sound, and stronger than they claim
+
+They say no deterministic test exists and they did not fake one. I pushed on whether one
+COULD be written: you would need a delay seam in the persist path (or a browser-side
+monkeypatch of the store's save) to force handler A to finish after handler B. But even
+with such a seam, the stale-param divergence is hard to *force*, because in each handler
+the paint is the statement immediately after the write's await — paint order follows write
+order. So the pre-fix stale param would usually still agree with the store. That means the
+fix is justified on **contract** grounds (unrepresentable stale value, one snapshot for
+both flags), which is exactly what they claimed, and my round-1 "genuine regression"
+framing was stronger than the evidence supports. The residual checkbox-vs-store divergence
+IS real and IS the unserialized-writes ticket.
+
+## Both tickets — legitimate
+
+- `nid_qp56jugz8en8wkgjirwcb269p_e` `[decide]` — unchanged assessment from round 1.
+- `nid_7ni3rjx3bx6w2bdfvpp7wj0xb_e` — read it. Correctly scoped as PRE-EXISTING and
+  tab-wide, names the mechanism, gives the 80/20 design (one promise chain), records the
+  rejected alternative, has GIVEN/WHEN/THEN acceptance criteria, and explicitly warns
+  against writing a double-click test that cannot fail. That last line is the opposite of
+  a scope dodge.
+
+## Verdict: READY TO MERGE. 0 blocking, 0 should-fix. No new findings.
