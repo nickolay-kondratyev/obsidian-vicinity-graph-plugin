@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import { ObsidianHarness } from "./obsidianHarness";
+import { PINNED_CENTRALS_SUMMARY } from "./settingsBaseline";
 
 /**
  * Step-06 HEADLINE scenario (QA §10, goal-3/goal-4) driven end-to-end through the
@@ -92,7 +93,7 @@ function toolbar(): Locator {
 
 function pinnedDisclosure(): Locator {
 	return page.locator(".vicinity-graph-disclosure", {
-		has: page.locator(".vicinity-graph-disclosure__summary", { hasText: "Pinned centrals" }),
+		has: page.locator(".vicinity-graph-disclosure__summary", { hasText: PINNED_CENTRALS_SUMMARY }),
 	});
 }
 
