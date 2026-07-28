@@ -3,7 +3,7 @@ id: nid_869bt9d9rlrbr8of1403dnmf3_e
 title: "Canvas text-node links inside code spans/fences produce phantom edges in the fallback regime"
 status: open
 deps: []
-links: []
+links: [nid_fay1hu5sxcoygizopkkg0f0d7_e]
 created_iso: 2026-07-27T23:10:42Z
 status_updated_iso: 2026-07-27T23:10:42Z
 type: bug

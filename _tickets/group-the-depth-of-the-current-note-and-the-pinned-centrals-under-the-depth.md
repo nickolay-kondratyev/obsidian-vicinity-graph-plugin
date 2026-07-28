@@ -3,7 +3,7 @@ id: nid_1rslube8at5xj60ji4jeve0b0_e
 title: "Group the depth of the current note and the pinned centrals under the Depth"
 status: open
 deps: []
-links: []
+links: [nid_fay1hu5sxcoygizopkkg0f0d7_e]
 created_iso: 2026-07-28T17:27:47Z
 status_updated_iso: 2026-07-28T17:27:47Z
 type: task

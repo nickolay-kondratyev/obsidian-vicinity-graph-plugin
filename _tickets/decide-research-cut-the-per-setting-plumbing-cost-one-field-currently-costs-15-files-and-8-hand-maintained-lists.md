@@ -3,7 +3,7 @@ id: nid_8p0nn2g34d97finokwlz3u1dt_e
 title: "[decide] RESEARCH: cut the per-setting plumbing cost — one field currently costs ~15 files and ~8 hand-maintained lists"
 status: open
 deps: []
-links: [nid_3k0a4zl6in0mj8lcjibkjq2dx_e, nid_niz5dz6uqeyv237ckm15ittqa_e, nid_abreq4lmpo8vnvf61y9k9yly0_e]
+links: [nid_3k0a4zl6in0mj8lcjibkjq2dx_e, nid_niz5dz6uqeyv237ckm15ittqa_e, nid_abreq4lmpo8vnvf61y9k9yly0_e, nid_fay1hu5sxcoygizopkkg0f0d7_e]
 created_iso: 2026-07-25T14:37:25Z
 status_updated_iso: 2026-07-25T14:37:25Z
 type: task
