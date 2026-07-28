@@ -19,4 +19,4 @@ As well as canvas having two ways to embed a note
 Another is by adding the file directly as:
 {"id":"bbdb169bfabab45d","type":"file","file":"tmp1.canvas","x":-460,"y":-320,"width":400,"height":400}
 
-The outcome of this ticket is the updated ticket with the research finding and feasibility of fully respecting embedded as first class citizen of relationship.
+The outcome of this ticket is the updated ticket with the research finding and feasibility of fully respecting embedded as first class citizen of relationship. 
