@@ -117,7 +117,7 @@ describe("SETTINGS_SPEC (single source of truth for defaults + limits)", () => {
 				linkStrengthFactor: 1,
 				linkGapPx: 40,
 				collidePaddingPx: 50,
-				elkNodeSpacingPx: 40,
+				elkNodeSpacingPx: 20,
 				edgeRoutingClearancePx: 11,
 			},
 			nodeExclusion: { enabled: false, patterns: [] },

@@ -58,7 +58,8 @@ view  ──▶  adapters  ──▶  engine  (pure core)
 
 - **elkjs** (`ElkLayoutRunner`, `elkMapping.ts`) — hierarchical/compound layout
   so folder groups nest correctly. The root runs elk's `force` algorithm as a
-  seed; folder-group members are laid out with elk `layered` internally.
+  seed; folder-group members are packed with elk `rectpacking` internally
+  (density, not edge flow — intra-group edges are re-routed by `edgeRouting.ts`).
 - **d3-force** (`d3ForceRefinement.ts`) — force-mode refinement.
 - **libavoid-js** (`edgeRouting.ts`, `libavoidLoader.ts`) — orthogonal edge
   routing (WASM; see build note below).

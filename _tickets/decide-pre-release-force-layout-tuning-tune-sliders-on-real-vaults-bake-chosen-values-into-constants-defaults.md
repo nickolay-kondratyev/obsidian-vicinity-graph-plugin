@@ -29,4 +29,4 @@ Context: .ai_out/04-force-layout-sliders/main/IMPLEMENTATION_WITH_SELF_PLAN__PUB
 
 **2026-07-26T15:30:39Z**
 
-[decide] Remaining work is a subjective tuning pass on real vaults that only the maintainer can perform and judge. Partial progress: commit 22bd5cb baked collidePaddingPx 20->50 and linkGapPx max 150->250 (src/engine/SettingsSpec.ts:243,255). Still at the ship-time defaults: centerPullStrength 0.05, repelStrength 300, linkStrengthFactor 1, linkGapPx 40, elkNodeSpacingPx 40 — and no tuning rationale recorded.
+[decide] Remaining work is a subjective tuning pass on real vaults that only the maintainer can perform and judge. Partial progress: commit 22bd5cb baked collidePaddingPx 20->50 and linkGapPx max 150->250 (src/engine/SettingsSpec.ts:243,255). elkNodeSpacingPx has since been baked 40->20 with a recorded, measured rationale (src/engine/SettingsSpec.ts) — no longer part of this ticket. Still at the ship-time defaults: centerPullStrength 0.05, repelStrength 300, linkStrengthFactor 1, linkGapPx 40 — and no tuning rationale recorded.

@@ -81,13 +81,6 @@ export const OUTLINE_RENDER_LIMIT = 40;
 export const ELK_ROOT_ID = "root";
 
 /**
- * Primary axis elk lays the folder-group members along (the layered pass inside
- * each container — see {@link ELK_GROUP_MEMBER_OPTIONS}). Kept as a constant (not
- * inlined) so it is trivially retargetable. `DOWN` = classic top-to-bottom rows.
- */
-export const ELK_DIRECTION = "DOWN";
-
-/**
  * The root's elk algorithm id — the marker {@link GraphLayoutRunner} keys the
  * d3-force refinement on. The tunable spacing/force VALUES live on
  * `ViewSettings.forceLayout` (engine defaults, ticket-04 sliders); this file
@@ -96,20 +89,45 @@ export const ELK_DIRECTION = "DOWN";
 export const ELK_FORCE_ALGORITHM = "force";
 
 /**
+ * WHAT: the separation the root elk `force` SEED asks for between root-level boxes.
+ * The seed is only a starting arrangement — the d3 refinement that runs after it
+ * (`d3ForceRefinement.ts`) sets the final root gaps from `forceLayout.collidePaddingPx`
+ * ("Node spacing"). The seed still MATTERS though: the arrangement d3 starts from
+ * decides which boxes end up stranded (see below), so this is not a free parameter.
+ *
+ * WHY IT IS PINNED, and pinned at 40: 40 is the value the "Group member spacing"
+ * knob used to hand BOTH elk passes, so freezing it here is what keeps the root pass
+ * byte-identical while this ticket tightens only the GROUP INTERIOR (CLARIFICATION
+ * D4). WHAT BREAKS IF IT MOVES: taking it down to 20 with the interiors blew the
+ * `d3ForceStranding.test.ts` boundary-gap budget — 113px against 100px, measured, and
+ * measured back to green with the seed pinned. Any change here must re-run that suite.
+ *
+ * WHY IT IS NOT THE USER KNOB (DECIDED — do not re-couple them): the slider is labelled
+ * "Group member spacing" and now means exactly that — one knob, one meaning (SRP). The
+ * two spacings were a single knob by accident, not by design. TRADE-OFF, accepted with
+ * eyes open: a user who had SAVED a non-default value (say 90) was previously feeding it
+ * to this seed as well, and after the split their saved value no longer reaches it — for
+ * them the root arrangement changes, with nothing in the UI to explain it. Accepted
+ * because the seed is refined away by d3 and the label never promised root-level reach.
+ *
+ * 40 is inherited, not derived. Giving the root seed a justification of its own is
+ * tracked in `nid_zvoay26y4y9h1e2p2b1y9glfk_e`. Value-locked by `elkMapping.test.ts`.
+ */
+const ELK_ROOT_SEED_NODE_SPACING_PX = 40;
+
+/**
  * Root layout options. elk's `force` algorithm is only the SEED: it computes
  * folder-container dimensions and a rough untangled arrangement, then the
  * d3-force refinement (`d3ForceRefinement.ts`) packs the root-level boxes
  * tightly. `force` does not support `INCLUDE_CHILDREN`, so the root runs elk's
- * default `SEPARATE_CHILDREN` hierarchy handling: folder containers are laid out
- * internally first (see {@link elkGroupMemberOptions}), then the root arranges
- * the resulting fixed-size boxes. `nodeSpacingPx` comes from
- * `ViewSettings.forceLayout.elkNodeSpacingPx` (the "Group member spacing" knob
- * feeds the root seed too — one spacing concept across both elk passes).
+ * default `SEPARATE_CHILDREN` hierarchy handling: folder containers pack their
+ * members first (see {@link elkGroupMemberOptions}), then the root arranges
+ * the resulting fixed-size boxes.
  */
-export function elkForceRootOptions(nodeSpacingPx: number): Readonly<Record<string, string>> {
+export function elkForceRootOptions(): Readonly<Record<string, string>> {
 	return {
 		"elk.algorithm": ELK_FORCE_ALGORITHM,
-		"elk.spacing.nodeNode": String(nodeSpacingPx),
+		"elk.spacing.nodeNode": String(ELK_ROOT_SEED_NODE_SPACING_PX),
 	};
 }
 
@@ -124,16 +142,68 @@ export function elkForceRootOptions(nodeSpacingPx: number): Readonly<Record<stri
 export const D3_FORCE_COLLIDE_ITERATIONS = 2;
 
 /**
+ * Shape elk aims the packed group box at (width / height): 3:4 PORTRAIT, mildly
+ * taller than wide. Without it rectpacking defaults to landscape (1.3).
+ *
+ * WHY portrait and not square/landscape: the graph usually lives in a tall narrow
+ * pane, and — measured — landscape containers regress the ticket-03 stranding
+ * budget (`d3ForceStranding.test.ts`): the root d3 pass treats the box as one
+ * rigid rectangle whose link resting distance comes from its SMALLER half-extent,
+ * so a wide box lets its own width push linked neighbours past that distance.
+ * WHY not more extreme (<= 0.6): boxes drift back towards strips, which is the
+ * shape this whole pass exists to avoid.
+ *
+ * 0.75 sits at the flat part of both curves — measured across 120 fixtures
+ * (member counts 2-20 x four intra-group link shapes), box area lands ~6% below
+ * the previous `layered` pass while |log(w/h)| drops from 0.72 to 0.26.
+ * elk treats this as a soft goal of its width APPROXIMATION step (compaction
+ * afterwards may overshoot), so individual boxes still vary around it.
+ */
+const GROUP_PACKING_ASPECT_RATIO = 0.75;
+
+/**
  * Layout of the INSIDE of a folder-group container. The force root runs
  * `SEPARATE_CHILDREN`, laying out every container independently: members are
- * arranged with elk's proven layered algorithm, then the container is placed as
- * a fixed-size box by the root force/d3 pass. `nodeSpacingPx` is the "Group
- * member spacing" knob (`ViewSettings.forceLayout.elkNodeSpacingPx`).
+ * packed here, then the container is placed as a fixed-size box by the root
+ * force/d3 pass. `nodeSpacingPx` is the "Group member spacing" knob
+ * (`ViewSettings.forceLayout.elkNodeSpacingPx`).
+ *
+ * WHY `rectpacking` and not `layered`: layered optimizes edge FLOW, not density,
+ * and its edge routing is discarded anyway (edges are re-routed by
+ * `edgeRouting.ts`). Worse, a folder whose members all link one hub member — the
+ * commonest shape in a note vault — puts every member in a single layer, i.e. one
+ * very wide row with a mostly empty box around it. `rectpacking` packs
+ * heterogeneous rectangles by area instead, which is what a group box needs.
+ *
+ * Measured against `layered` across 120 fixtures (member counts 2-20 x four
+ * intra-group link shapes): hub/star groups 45-55% LESS box area, mean area ~6%
+ * better, and the durable win is shape regularity — mean |log(w/h)| 0.72 -> 0.26,
+ * which also feeds the root d3 pass since it treats each container as one rigid
+ * rectangle. `layered` beat it on edge-free and chain groups at the 40px member
+ * spacing of the day; at the shipped 20px it no longer does (the table in
+ * `groupPacking.test.ts` has the per-shape numbers).
+ *
+ * WHY these options and not others: every rectpacking sub-option in elkjs 0.12
+ * was swept against real fixtures at 40px AND 20px spacing (width approximation
+ * strategy + goal, compaction iterations, row-height re-evaluation, trybox,
+ * whitespace elimination, expandNodes, contentAlignment). None beat this set
+ * except by collapsing groups into single-column strips. A hand-written skyline
+ * packer over the same rectangles was also measured: within ~5% of elk, i.e. the
+ * PLACEMENT has no headroom left, which is why the member GAP is where the group
+ * interior got its space back.
+ *
+ * WHY-NOT keep any edge awareness inside a group: rectpacking ignores intra-group
+ * edges, so members no longer read top-to-bottom along their links. Accepted —
+ * those edges render as routed curves, never as clean layered orthogonals.
+ *
+ * `orderBySize` packs the largest members first; without it rectpacking keeps
+ * input order and leaves measurably more ragged white space.
  */
 export function elkGroupMemberOptions(nodeSpacingPx: number): Readonly<Record<string, string>> {
 	return {
-		"elk.algorithm": "layered",
-		"elk.direction": ELK_DIRECTION,
+		"elk.algorithm": "rectpacking",
+		"elk.aspectRatio": String(GROUP_PACKING_ASPECT_RATIO),
+		"elk.rectpacking.orderBySize": "true",
 		"elk.spacing.nodeNode": String(nodeSpacingPx),
 	};
 }

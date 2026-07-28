@@ -77,8 +77,9 @@ The distinction matters because people ask about it, so it is worth reading once
   shows a hidden-node count).
 - **Force layout** — four sliders named like Obsidian's native graph (**Center
   force**, **Repel force**, **Link force**, **Link distance**) plus an *Advanced
-  spacing* group (**Node spacing**, **Group member spacing**, **Edge clearance**
-  — how far a connecting line stays off the boxes it bends around). Changes
+  spacing* group (**Node spacing**, **Group member spacing** — the gap between
+  notes *inside* one folder group, nothing else, and **Edge clearance** — how far
+  a connecting line stays off the boxes it bends around). Changes
   re-layout open graphs immediately; ranges are clamped so no combination can
   degenerate the layout, and a **Restore defaults** button resets them all.
 - **Typed fields settle before they apply** — the numeric and text fields (sizing

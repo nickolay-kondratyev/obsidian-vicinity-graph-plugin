@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { asFolderPath, asVaultPath } from "../engine";
 import { GraphLayoutRunner } from "./GraphLayoutRunner";
 import { extractElkDimensionsById, extractElkPositions, vicinityGraphToElk } from "./elkMapping";
+import { folderGroupIdOf } from "./graphIdentity";
 import { countOverlappingAabbPairs } from "./testFixtures/aabbOverlap";
 import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
 import type { ElkNode } from "elkjs";
@@ -29,6 +30,13 @@ const D3_FORCE_MAX_BOUNDARY_GAP_PX = 100;
 
 const HUB_SIZE_PX = 160;
 const NEIGHBOR_SIZE_PX = 80;
+/**
+ * Small square + long title => a node much wider than tall, so its folder group
+ * comes out LANDSCAPE. Realistic: `NodeSizer` takes height from link/size
+ * metrics and width from title length (capped at 250px).
+ */
+const WIDE_MEMBER_SIZE_PX = 40;
+const WIDE_MEMBER_TITLE = "a deliberately long note title that saturates the label width cap";
 /** Crowd size of the faithful vault mirror (hub with 5 crowd links + 1 leaf). */
 const STRANDED_CROWD_COUNT = 5;
 const STRANDED_HUB_FOLDER = "p/ep";
@@ -36,11 +44,29 @@ const STRANDED_BOOK_FOLDER = "p/ep/book";
 const crowdPath = (index: number): string => `crowd${index}.md`;
 
 /**
+ * Shape of the two notes that make up the folder-group container, which is what
+ * decides whether that container is portrait or landscape: node width is
+ * `max(sizePx, labelWidth(title))` capped at 250px, node height is `sizePx`.
+ * The same shape is used for both members — this fixture only cares about their
+ * geometry, never their text.
+ */
+interface GroupMemberShape {
+	readonly sizePx: number;
+	readonly title: string;
+}
+
+/** Two 160px squares — the vault-mirror shape; packs into a PORTRAIT container. */
+const SQUARE_GROUP_MEMBERS: GroupMemberShape = { sizePx: HUB_SIZE_PX, title: "note" };
+
+/** Two 250x40 strips — packs into a LANDSCAPE container even at `elk.aspectRatio` 0.75. */
+const WIDE_GROUP_MEMBERS: GroupMemberShape = { sizePx: WIDE_MEMBER_SIZE_PX, title: WIDE_MEMBER_TITLE };
+
+/**
  * Mirror of the public-vault Enchiridion cluster: `main` links a hub note that
  * shares a folder (=> folder-group container) with a sibling; the hub fans out
  * to a crowd of leaves plus ONE degree-1 leaf in its own singleton folder.
  */
-function strandedHubGraph(crowdCount: number): VicinityGraph {
+function strandedHubGraph(crowdCount: number, members: GroupMemberShape = SQUARE_GROUP_MEMBERS): VicinityGraph {
 	const crowd = Array.from({ length: crowdCount }, (_, index) =>
 		makeNode({ path: asVaultPath(crowdPath(index)), minDepth: 1, sizePx: NEIGHBOR_SIZE_PX }),
 	);
@@ -49,15 +75,17 @@ function strandedHubGraph(crowdCount: number): VicinityGraph {
 			makeNode({ path: asVaultPath("main.md"), isCentral: true, isMain: true, minDepth: 0, sizePx: 100 }),
 			makeNode({
 				path: asVaultPath("p/ep/hub.md"),
+				title: members.title,
 				folder: asFolderPath(STRANDED_HUB_FOLDER),
 				minDepth: 1,
-				sizePx: HUB_SIZE_PX,
+				sizePx: members.sizePx,
 			}),
 			makeNode({
 				path: asVaultPath("p/ep/sib.md"),
+				title: members.title,
 				folder: asFolderPath(STRANDED_HUB_FOLDER),
 				minDepth: 1,
-				sizePx: HUB_SIZE_PX,
+				sizePx: members.sizePx,
 			}),
 			...crowd,
 			makeNode({
@@ -163,4 +191,46 @@ describe("d3-force stranding around a folder-grouped hub (ticket 03 Enchiridion 
 		const layout = await layoutStranded(strandedHubGraph(STRANDED_CROWD_COUNT));
 		expect(overlappingRootPairCount(layout)).toBe(0);
 	});
+});
+
+/**
+ * The same cluster with a LANDSCAPE container, which the portrait fixture above
+ * cannot reach. WHY this matters: the budget above holds partly because that
+ * fixture's container happens to be taller than wide. `elk.aspectRatio` only
+ * makes portrait LIKELY (it is a soft goal of elk's width-approximation step),
+ * so the coupling would otherwise be invisible.
+ *
+ * The landscape case is BROKEN today, and the cause is not the group interior:
+ * `d3ForceRefinement.minHalfExtent()` feeds every forceLink resting distance the
+ * SMALLER half-extent whatever the edge direction, so a wide box's own width
+ * pushes a horizontally-linked neighbour past that distance. Measured worst gap
+ * on this fixture: 113px against the 100px budget — and 130px with the previous
+ * elk `layered` group interiors, i.e. PRE-EXISTING and already improved by
+ * rectpacking. Tracked as `nid_y45ndtq65f15pnrwfvpgz5pks_e`; when that lands,
+ * `it.fails` reports "expected test to fail" and becomes a plain `it`.
+ */
+describe("d3-force stranding around a LANDSCAPE folder-group container", () => {
+	const landscapeLayout = (): Promise<StrandedLayout> =>
+		layoutStranded(strandedHubGraph(STRANDED_CROWD_COUNT, WIDE_GROUP_MEMBERS));
+
+	function containerAspectRatio(layout: StrandedLayout): number {
+		const dims = layout.dimensions.get(folderGroupIdOf(asFolderPath(STRANDED_HUB_FOLDER)));
+		if (dims === undefined) {
+			throw new Error("the folder-group container is missing from the layout");
+		}
+		return dims.width / dims.height;
+	}
+
+	// Guards the fixture itself: without this, the `it.fails` below could "pass"
+	// on a portrait container for some unrelated reason.
+	it("WHEN the group members are wide strips THEN the container really is landscape", async () => {
+		expect(containerAspectRatio(await landscapeLayout())).toBeGreaterThan(1);
+	});
+
+	it.fails(
+		"WHEN the folder-group container is LANDSCAPE THEN no projected root edge is stranded beyond the boundary-gap budget",
+		async () => {
+			expect(worstBoundaryGapPx(await landscapeLayout())).toBeLessThanOrEqual(D3_FORCE_MAX_BOUNDARY_GAP_PX);
+		},
+	);
 });

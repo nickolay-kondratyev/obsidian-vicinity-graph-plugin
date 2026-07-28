@@ -277,7 +277,7 @@ export interface ForceLayoutSettings {
 	readonly linkGapPx: number;
 	/** UI "Node spacing" (advanced): min gap px the rect-collide force enforces per box pair. */
 	readonly collidePaddingPx: number;
-	/** UI "Group member spacing" (advanced): elk `spacing.nodeNode` px (group internals + root seed). */
+	/** UI "Group member spacing" (advanced): elk `spacing.nodeNode` px INSIDE a folder group. */
 	readonly elkNodeSpacingPx: number;
 	/**
 	 * UI "Edge clearance" (advanced): px clearance the obstacle-avoiding edge
