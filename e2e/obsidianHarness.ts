@@ -69,6 +69,10 @@ export interface PluginGlobalsSnapshot {
 export const PLUGIN_ID = "vicinity-graph";
 /** Command id = `<pluginId>:<commandId>` (Obsidian namespacing). */
 export const OPEN_GRAPH_COMMAND_ID = `${PLUGIN_ID}:open-vicinity-graph`;
+/** Places the graph in a main-area pane BELOW the active note (see GraphViewOpener). */
+export const OPEN_GRAPH_BELOW_COMMAND_ID = `${PLUGIN_ID}:open-vicinity-graph-below`;
+/** Mirrors `GraphViewPlacement`, plus the "neither region" case a spec must be able to see. */
+export type ObservedGraphPlacement = "right-sidebar" | "main-area" | "other";
 /**
  * Duplicates `VIEW_TYPE_VICINITY_GRAPH` from `src/view/VicinityGraphView.tsx`
  * on purpose: importing that module here would drag the `obsidian` package (types-only,
@@ -266,15 +270,34 @@ export class ObsidianHarness {
 		}, vaultPath);
 	}
 
-	/** Runs the plugin's "Open vicinity graph" command and waits for the RF canvas to mount. */
-	async openGraphView(): Promise<void> {
+	/** Runs a plugin command by id, failing loudly when Obsidian reports it unavailable. */
+	async executeCommand(commandId: string): Promise<void> {
 		const executed = await this.page.evaluate(
-			(commandId) => (window as unknown as { app: any }).app.commands.executeCommandById(commandId),
-			OPEN_GRAPH_COMMAND_ID,
+			(id) => (window as unknown as { app: any }).app.commands.executeCommandById(id),
+			commandId,
 		);
 		if (!executed) {
-			throw new Error(`e2e: command did not execute: commandId=[${OPEN_GRAPH_COMMAND_ID}]`);
+			throw new Error(`e2e: command did not execute: commandId=[${commandId}]`);
 		}
+	}
+
+	/** The workspace region of every open graph view, in leaf order. */
+	async graphViewPlacements(): Promise<ObservedGraphPlacement[]> {
+		return this.page.evaluate((viewType) => {
+			const app = (window as unknown as { app: any }).app;
+			return app.workspace.getLeavesOfType(viewType).map((leaf: any) => {
+				const root = leaf.getRoot();
+				if (root === app.workspace.rightSplit) {
+					return "right-sidebar";
+				}
+				return root === app.workspace.rootSplit ? "main-area" : "other";
+			});
+		}, VIEW_TYPE_VICINITY_GRAPH);
+	}
+
+	/** Runs the plugin's "Open vicinity graph" command and waits for the RF canvas to mount. */
+	async openGraphView(): Promise<void> {
+		await this.executeCommand(OPEN_GRAPH_COMMAND_ID);
 		// The mounted view shows the empty state until a note-bearing file becomes
 		// active (fresh boot lands on "New tab"), so wait for EITHER render mode.
 		await expect(this.page.locator(".vicinity-graph-flow, .vicinity-graph-empty")).toBeAttached();

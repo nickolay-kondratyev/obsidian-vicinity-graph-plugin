@@ -30,6 +30,8 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   `events → engine → structural diff → layout → React Flow` and is the **only**
   view class that touches Obsidian + the async engine (latest-wins via a
   monotonic rebuild token); `VicinityGraphView.tsx` stays a thin lifecycle shell.
+  `GraphViewOpener.ts` owns WHERE the single graph view lives (right sidebar vs a
+  main-area split-down) and moves it between the two.
 - **`src/main.ts`** — plugin entry: wires the object graph in `onload`,
   registers the view/commands/vault-lifecycle handlers, schedules the sweep.
 

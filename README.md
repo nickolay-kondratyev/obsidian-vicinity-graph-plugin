@@ -40,7 +40,8 @@ it one of two ways:
    `.obsidian/plugins/vicinity-graph/` (create the folder if needed).
 3. In Obsidian: **Settings → Community plugins**, enable community plugins, then
    enable **Vicinity Graph**.
-4. Run the **Open vicinity graph** command.
+4. Run the **Open vicinity graph in right sidebar** command (see
+   [Where the graph opens](#where-the-graph-opens)).
 
 ### BRAT
 
@@ -50,6 +51,19 @@ pre-release updates. Add this repo as a beta plugin in BRAT, then enable
 **Vicinity Graph** as above.
 
 Requires Obsidian **1.12.4** or newer (see [minAppVersion](#minappversion-manifestjson)).
+
+## Where the graph opens
+
+Two commands, both bindable to a hotkey:
+
+| Command | Places the graph |
+|---|---|
+| **Open vicinity graph in right sidebar** | docked in the right sidebar |
+| **Open vicinity graph below active note** | in a main-area pane split **below** the current tab |
+
+There is only ever **one** graph view: running either command while the graph is
+open somewhere else **moves** it there. Running the command for where it already
+is just focuses it — no rebuild.
 
 ## Settings model
 
@@ -214,7 +228,7 @@ npm run dev                   # esbuild watch; re-copies artifacts on every rebu
 ```
 
 Then open `.dev-vault/` as a vault in Obsidian, enable community plugins, enable
-**Vicinity Graph**, and run the **Open vicinity graph** command.
+**Vicinity Graph**, and run the **Open vicinity graph in right sidebar** command.
 
 `npm run setup:dev-vault` is idempotent: it creates `.dev-vault/` fixtures and a
 minimal `.obsidian/` config (which auto-enables the plugin) only when missing, so

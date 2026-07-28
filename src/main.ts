@@ -1,4 +1,4 @@
-import { Plugin, WorkspaceLeaf } from "obsidian";
+import { Plugin } from "obsidian";
 import type { TFile } from "obsidian";
 import { DocIdServices } from "obsidian-id-lib";
 import type { DocIdService } from "obsidian-id-lib";
@@ -13,6 +13,7 @@ import { OrphanSweeper, SWEEP_DELAY_MS } from "./persistence/OrphanSweeper";
 import { PathDocIdMap } from "./persistence/PathDocIdMap";
 import { PersistenceServices } from "./persistence/PersistenceServices";
 import { PluginDataStore } from "./persistence/PluginDataStore";
+import { GraphViewOpener } from "./view/GraphViewOpener";
 import { VicinityGraphSettingTab } from "./view/VicinityGraphSettingTab";
 import { VicinityGraphView, VIEW_TYPE_VICINITY_GRAPH } from "./view/VicinityGraphView";
 import type { ViewsRefreshPort } from "./view/viewPorts";
@@ -89,10 +90,18 @@ export default class VicinityGraphPlugin extends Plugin {
 			defaultMod: false,
 		});
 
+		// Two placements, two hotkey-bindable commands (mirrors core's "Split
+		// right"/"Split down"); the opener MOVES a graph that is open elsewhere.
+		const opener = new GraphViewOpener(this.app.workspace);
 		this.addCommand({
 			id: "open-vicinity-graph",
-			name: "Open vicinity graph",
-			callback: () => void this.activateView(),
+			name: "Open vicinity graph in right sidebar",
+			callback: () => void opener.open("right-sidebar"),
+		});
+		this.addCommand({
+			id: "open-vicinity-graph-below",
+			name: "Open vicinity graph below active note",
+			callback: () => void opener.open("main-area"),
 		});
 		this.addCommand({
 			id: "debug-log-vicinity-graph",
@@ -255,14 +264,4 @@ export default class VicinityGraphPlugin extends Plugin {
 		);
 	}
 
-	private async activateView(): Promise<void> {
-		const { workspace } = this.app;
-		const leaf: WorkspaceLeaf | null =
-			workspace.getLeavesOfType(VIEW_TYPE_VICINITY_GRAPH)[0] ?? workspace.getRightLeaf(false);
-		if (leaf === null) {
-			return;
-		}
-		await leaf.setViewState({ type: VIEW_TYPE_VICINITY_GRAPH, active: true });
-		await workspace.revealLeaf(leaf);
-	}
 }
