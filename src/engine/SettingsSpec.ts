@@ -258,15 +258,33 @@ export const SETTINGS_SPEC: SettingsSpec = {
 			 */
 			collidePaddingPx: { default: 50, min: 0, max: 100, step: 5 },
 			/**
-			 * UI "Group member spacing" (advanced) — minimum gap between sibling
-			 * nodes in elk passes (folder-group internals + root seed).
+			 * UI "Group member spacing" (advanced) — minimum gap elk leaves between
+			 * sibling members INSIDE a folder group. (The root force seed keeps its
+			 * own internal separation; this knob no longer reaches it.)
 			 *
 			 * `[10, 120]`: elk spacing separates node BOUNDARIES, so members can
 			 * never overlap; min 10 keeps them readable, above 120 the folder
 			 * containers balloon. (The folder-name label is protected by the
 			 * container's fixed top padding, not by this spacing.)
+			 *
+			 * Shipped default lowered 40 -> 20: at 40 a member sat FARTHER from its
+			 * folder-mates than from the group's own wall (the container's 16px side
+			 * padding), which reads as scattered items rather than one cluster, and —
+			 * measured on the real-vault group in `groupPacking.test.ts` — left half
+			 * the group interior empty (fill 0.51). 20 is the first value on this
+			 * slider's 5px grid at or above that 16px interior gutter, so the interior
+			 * rhythm is uniform without members ever crowding tighter than the wall
+			 * inset. Fill 0.51 -> 0.59; the packing ALGORITHM had no headroom left
+			 * (elk rectpacking already lands within ~5% of an optimal skyline packer
+			 * on these shapes — spacing, not placement, was the wasted area).
+			 *
+			 * WHY-NOT migrate installs that already persisted 40: deliberately not done
+			 * — the plugin is pre-release and a saved value is a user choice we do not
+			 * overwrite. Existing installs (including the maintainer's own, which
+			 * matters when re-testing layout) keep 40 until "Restore force layout
+			 * defaults".
 			 */
-			elkNodeSpacingPx: { default: 40, min: 10, max: 120, step: 5 },
+			elkNodeSpacingPx: { default: 20, min: 10, max: 120, step: 5 },
 			/**
 			 * UI "Edge clearance" (advanced) — px clearance the obstacle-avoiding
 			 * edge router keeps around EVERY box (libavoid `shapeBufferDistance`,

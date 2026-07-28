@@ -36,7 +36,7 @@ export const FORCE_LAYOUT_FIELD_META: Readonly<Record<keyof ForceLayoutSettings,
 	},
 	elkNodeSpacingPx: {
 		label: "Group member spacing",
-		description: "Gap (px) between the notes inside a folder group (also spaces the initial layout pass).",
+		description: "Gap (px) between the notes inside a folder group.",
 	},
 	edgeRoutingClearancePx: {
 		label: "Edge clearance",

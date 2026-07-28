@@ -19,7 +19,30 @@ describe("vicinityGraphToElk", () => {
 		expect(vicinityGraphToElk(graph).layoutOptions?.["elk.hierarchyHandling"]).toBeUndefined();
 	});
 
-	it("WHEN the group-member-spacing setting is customized THEN the root spacing option carries it (ticket-04 threading)", () => {
+	/**
+	 * VALUE LOCK on the root force seed's separation, deliberately written as a
+	 * LITERAL rather than as `String(ELK_ROOT_SEED_NODE_SPACING_PX)`: importing the
+	 * constant would make this test move with the code it is supposed to pin, and
+	 * the sibling test below — which only compares the default and customized
+	 * mappings to each other — would pass vacuously if the option stopped being
+	 * emitted at all. 40 is the value the root pass has always seen (see
+	 * `constants.ts` `ELK_ROOT_SEED_NODE_SPACING_PX` for WHY it is frozen there);
+	 * if this test fails, the root arrangement changed and `d3ForceStranding.test.ts`
+	 * boundary gaps must be re-measured before the new value is accepted.
+	 */
+	it("WHEN mapping THEN the root seed asks elk for 40px between root-level boxes", () => {
+		expect(vicinityGraphToElk(graph).layoutOptions?.["elk.spacing.nodeNode"]).toBe("40");
+	});
+
+	/**
+	 * BEHAVIOUR CHANGE, stated plainly: this knob used to reach the root seed too
+	 * (it asserted "80" here). It no longer does — the root force pass keeps its own
+	 * internal seed separation, so tightening group interiors cannot disturb the
+	 * root arrangement (`constants.ts` `ELK_ROOT_SEED_NODE_SPACING_PX`, and the
+	 * boundary-gap budget in `d3ForceStranding.test.ts` that measured the coupling).
+	 * The knob is named "Group member spacing" and now means exactly that.
+	 */
+	it("WHEN the group-member-spacing setting is customized THEN the ROOT seed spacing is unaffected", () => {
 		const custom = makeGraph({
 			...graph,
 			viewSettings: {
@@ -27,7 +50,9 @@ describe("vicinityGraphToElk", () => {
 				forceLayout: { ...graph.viewSettings.forceLayout, elkNodeSpacingPx: 80 },
 			},
 		});
-		expect(vicinityGraphToElk(custom).layoutOptions?.["elk.spacing.nodeNode"]).toBe("80");
+		expect(vicinityGraphToElk(custom).layoutOptions?.["elk.spacing.nodeNode"]).toBe(
+			vicinityGraphToElk(graph).layoutOptions?.["elk.spacing.nodeNode"],
+		);
 	});
 
 	it("WHEN mapping THEN each node becomes a root child sized by its sizePx", () => {
@@ -166,10 +191,10 @@ describe("vicinityGraphToElk cross-boundary projection (force SEPARATE_CHILDREN 
 		expect(vicinityGraphToElk(graph).layoutOptions?.["elk.hierarchyHandling"]).toBeUndefined();
 	});
 
-	it("WHEN mapping THEN containers lay out their members with layered internally", () => {
+	it("WHEN mapping THEN containers pack their members internally", () => {
 		const container = vicinityGraphToElk(graph).children?.find((child) => child.id === "folder-group:notes");
 		expect(container?.layoutOptions).toMatchObject({
-			"elk.algorithm": "layered",
+			"elk.algorithm": "rectpacking",
 			"elk.padding": ELK_GROUP_PADDING,
 		});
 	});
@@ -185,7 +210,10 @@ describe("vicinityGraphToElk cross-boundary projection (force SEPARATE_CHILDREN 
 		expect(flipped).toEqual({ id: "root.md->solo/only.md", sources: ["root.md"], targets: ["solo/only.md"] });
 	});
 
-	it("WHEN mapping THEN intra-group edges still live on their container (member layout hint)", () => {
+	// elk's JSON contract: an edge must sit on the closest common ancestor of its
+	// endpoints. rectpacking ignores them for placement, but a misplaced edge is
+	// still a contract violation.
+	it("WHEN mapping THEN intra-group edges still live on their container", () => {
 		const container = vicinityGraphToElk(graph).children?.find((child) => child.id === "folder-group:notes");
 		expect(container?.edges?.map((edge) => edge.id)).toEqual(["notes/a.md->notes/b.md"]);
 	});

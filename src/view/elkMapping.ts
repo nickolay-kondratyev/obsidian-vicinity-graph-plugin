@@ -19,8 +19,8 @@ import type { Dimensions, XY } from "./flowMapping";
  *
  * The root runs elk's `force` algorithm ({@link elkForceRootOptions}), which
  * does not support `INCLUDE_CHILDREN`, so elk's default `SEPARATE_CHILDREN`
- * applies: each container is laid out internally (layered,
- * {@link elkGroupMemberOptions}), then the root arranges containers and
+ * applies: each container packs its members internally
+ * ({@link elkGroupMemberOptions}), then the root arranges containers and
  * ungrouped leaves as fixed boxes. Cross-boundary edges are PROJECTED onto
  * containers (see {@link projectedRootEdges}). The elk root pass is only a seed —
  * `GraphLayoutRunner` then refines the root boxes with d3-force
@@ -29,8 +29,8 @@ import type { Dimensions, XY } from "./flowMapping";
 
 export function vicinityGraphToElk(graph: VicinityGraph): ElkNode {
 	const grouping = deriveFolderGroups(graph.nodes, graph.viewSettings.groupByFolder);
-	// The "Group member spacing" knob drives BOTH elk passes (group internals and
-	// the root force seed) — one spacing concept, resolved per build.
+	// The "Group member spacing" knob drives the group INTERIORS only; the root
+	// force seed keeps its own internal separation (see `elkForceRootOptions`).
 	const nodeSpacingPx = graph.viewSettings.forceLayout.elkNodeSpacingPx;
 	const leafById = new Map(
 		graph.nodes.map((node): [string, ElkNode] => {
@@ -69,7 +69,7 @@ export function vicinityGraphToElk(graph: VicinityGraph): ElkNode {
 	const rootEdges = projectedRootEdges(crossBoundaryEdges, grouping, graph.nodes);
 	return {
 		id: ELK_ROOT_ID,
-		layoutOptions: { ...elkForceRootOptions(nodeSpacingPx) },
+		layoutOptions: { ...elkForceRootOptions() },
 		children: [...containers, ...ungroupedLeaves],
 		edges: rootEdges,
 	};
