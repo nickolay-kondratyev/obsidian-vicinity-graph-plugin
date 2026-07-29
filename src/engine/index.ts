@@ -14,12 +14,10 @@
  *    returned {@link VicinityGraph} (nodes carry depth tags, attachments,
  *    first image and a diff-stable `sizePx`).
  *
- * ## Edge semantics ({@link EdgeVisibilityMode}, CLARIFICATION Q5)
- * `ViewSettings.edgeVisibility` picks which links become edges:
- * `"walked-from-center"` (default) renders only the edges the BFS walked;
- * `"all-edges"` renders every link between two visible nodes (induced
- * subgraph, swept post-truncation). A view-class setting — it cascades like
- * sizing/grouping/cap; the UI toggle lands in step-06.
+ * ## Edge semantics (CLARIFICATION Q5)
+ * Only the edges the BFS walked from a central render — a link between two
+ * frontier nodes shows up only when the walk itself reached it. See
+ * {@link EdgeCounts}.
  *
  * ## Adapter contract for pins / per-doc overrides (step-03, MUST honor)
  * A note that receives a pin or a per-doc override MUST have a docid: the
@@ -39,7 +37,6 @@ export type {
 	DirectedLink,
 	Direction,
 	DocId,
-	EdgeVisibilityMode,
 	FolderPath,
 	ForceLayoutSettings,
 	GraphEdge,
@@ -75,8 +72,8 @@ export { NodeSizer } from "./NodeSizer";
 export type { NodeSize } from "./NodeSizer";
 export { GraphTruncator } from "./GraphTruncator";
 export type { TruncationInput, TruncationResult } from "./GraphTruncator";
-export { EdgeVisibility } from "./EdgeVisibility";
-export type { EdgeVisibilityInput } from "./EdgeVisibility";
+export { EdgeCounts } from "./EdgeCounts";
+export type { EdgeCountsInput } from "./EdgeCounts";
 export { NodePriorityChain } from "./NodePriorityChain";
 export type { PriorityRankable } from "./NodePriorityChain";
 export { TraversalSettingsResolver } from "./TraversalSettingsResolver";
@@ -86,7 +83,6 @@ export type { PinnedViewOverride, ViewSettingsResolutionInput } from "./ViewSett
 export {
 	CENTRAL_SIZE_SCORE,
 	DEFAULT_DEPTH_DECAY_K,
-	DEFAULT_EDGE_VISIBILITY,
 	DEFAULT_INCOMING_DEPTH,
 	DEFAULT_MAX_NODE_PX,
 	DEFAULT_MIN_NODE_PX,

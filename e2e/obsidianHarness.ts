@@ -15,7 +15,6 @@ import type { DevVaultCopyTarget, LaunchOptions, VaultTarget } from "./vaultTarg
 // Type-only, so it is erased at transpile — the pure engine barrel never loads in the node-side test process.
 import type {
 	DepthSettings,
-	EdgeVisibilityMode,
 	NodeExclusionSettings,
 	NodePreviewPreference,
 	ViewSettings,
@@ -459,20 +458,6 @@ export class ObsidianHarness {
 	async setMaxNodeSizePx(maxPx: number): Promise<void> {
 		const view = await this.readGlobalView();
 		await this.saveGlobalView({ sizing: { ...view.sizing, maxPx } });
-	}
-
-	/**
-	 * Sets the global edge-visibility mode (mirrors {@link setGlobalNodeCap}).
-	 * `all-edges` is what makes SIBLING links render, which the routing suites need —
-	 * the default `walked-from-center` shows only the radial star, whose edges never cross.
-	 *
-	 * PRECONDITION: call this BEFORE the graph view renders the central file — this is a
-	 * store write only. WHY-NOT fan out to open views like {@link setNodePreviewPreference}:
-	 * the next rebuild already picks the value up, so a caller that sets it against an
-	 * already-rendered view must trigger an explicit rebuild itself.
-	 */
-	async setEdgeVisibility(mode: EdgeVisibilityMode): Promise<void> {
-		await this.saveGlobalView({ edgeVisibility: mode });
 	}
 
 	/**

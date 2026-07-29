@@ -28,7 +28,7 @@ import type { Dimensions, XY } from "./flowMapping";
  */
 
 export function vicinityGraphToElk(graph: VicinityGraph): ElkNode {
-	const grouping = deriveFolderGroups(graph.nodes, graph.viewSettings.groupByFolder);
+	const grouping = deriveFolderGroups(graph.nodes);
 	// The "Group member spacing" knob drives the group INTERIORS only; the root
 	// force seed keeps its own internal separation (see `elkForceRootOptions`).
 	const nodeSpacingPx = graph.viewSettings.forceLayout.elkNodeSpacingPx;

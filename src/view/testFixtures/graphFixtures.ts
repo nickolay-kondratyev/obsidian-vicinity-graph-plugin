@@ -39,8 +39,6 @@ function makeViewSettings(): ViewSettings {
 		nodeCap: 100,
 		outlineMaxDepth: 2,
 		nodePreviewPreference: "auto",
-		groupByFolder: true,
-		edgeVisibility: "walked-from-center",
 		sizing: {
 			metrics: {
 				"own-file-size": { enabled: true, weight: 1 },

@@ -34,8 +34,6 @@ export interface FlowSnapshot {
 	readonly status: FlowStatus;
 	readonly nodes: readonly FlowNode[];
 	readonly edges: readonly FlowEdge[];
-	/** Whether folder groups are rendered (the build's resolved view setting). */
-	readonly groupByFolder: boolean;
 	/** Graph-corner "+N hidden" overlay data (zero-total constant when nothing is hidden). */
 	readonly orphanTruncation: OrphanTruncation;
 	/** The toolbar's read-model for this build (MAIN + pinned centrals, empty when no graph). */
@@ -62,7 +60,6 @@ const EMPTY_SNAPSHOT: FlowSnapshot = {
 	status: "empty",
 	nodes: [],
 	edges: [],
-	groupByFolder: false,
 	orphanTruncation: NO_ORPHAN_TRUNCATION,
 	controls: EMPTY_CONTROLS,
 	layoutVersion: 0,
@@ -363,7 +360,6 @@ export class GraphViewController {
 			status: "ready",
 			nodes: withGroupDimensions(withPositions(flow.nodes, positions), groupDimensions),
 			edges: flow.edges,
-			groupByFolder: flow.groupByFolder,
 			orphanTruncation: flow.orphanTruncation,
 			controls: this.controls,
 			layoutVersion: this.layoutVersion,

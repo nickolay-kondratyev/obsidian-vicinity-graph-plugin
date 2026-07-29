@@ -82,15 +82,6 @@ describe("decideLayout size-growth exception", () => {
 	});
 });
 
-describe("decideLayout groupByFolder flip (step-05)", () => {
-	it("WHEN only groupByFolder changed THEN a relayout is forced (group nodes appear/disappear)", () => {
-		const nodes = [makeNode({ path: asVaultPath("a.md") })];
-		const previous = makeGraph({ nodes });
-		const next = makeGraph({ nodes, viewSettings: { ...previous.viewSettings, groupByFolder: false } });
-		expect(decideLayout(previous, next, 1.0)).toBe("relayout");
-	});
-});
-
 describe("decideLayout force-layout tuning change (ticket-04 live sliders)", () => {
 	const nodes = [makeNode({ path: asVaultPath("a.md") })];
 	const previous = makeGraph({ nodes });

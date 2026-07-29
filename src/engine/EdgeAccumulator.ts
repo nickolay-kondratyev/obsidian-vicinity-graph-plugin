@@ -2,11 +2,9 @@ import type { DirectedLink, VaultPath } from "./types";
 
 /**
  * Accumulates directed (source, target) pairs, deduplicating while preserving
- * first-insertion order (determinism). Shared by the traversal collector and
- * the induced-subgraph sweep of {@link EdgeVisibility} so the dedupe-key
- * knowledge lives in ONE place. Deliberately count-free: multi-root walks
+ * first-insertion order (determinism). Deliberately count-free: multi-root walks
  * revisit the same pair, so tallying here would over-count — multiplicity is
- * attached once, from provider truth, in {@link EdgeVisibility}.
+ * attached once, from provider truth, in {@link EdgeCounts}.
  */
 export class EdgeAccumulator {
 	private readonly keys = new Set<string>();

@@ -144,7 +144,6 @@ export interface FlowEdge {
 export interface FlowGraph {
 	readonly nodes: readonly FlowNode[];
 	readonly edges: readonly FlowEdge[];
-	readonly groupByFolder: boolean;
 	/** Graph-corner "+N hidden" overlay data (zero-total constant when nothing is hidden). */
 	readonly orphanTruncation: OrphanTruncation;
 }
@@ -163,7 +162,7 @@ const UNSIZED_GROUP_PX = 0;
  * (the engine skips main-as-pin, so this fact must be supplied by the caller).
  */
 export function vicinityGraphToFlow(graph: VicinityGraph, mainPinned: boolean): FlowGraph {
-	const grouping = deriveFolderGroups(graph.nodes, graph.viewSettings.groupByFolder);
+	const grouping = deriveFolderGroups(graph.nodes);
 	const badges = deriveTruncationBadges(
 		graph.hiddenNodeCountsByFolder,
 		new Set(grouping.groups.map((group) => group.folder)),
@@ -199,7 +198,6 @@ export function vicinityGraphToFlow(graph: VicinityGraph, mainPinned: boolean): 
 	return {
 		nodes: [...groupNodes, ...noteNodes],
 		edges: buildFlowEdges(graph, grouping.groupFolderByMemberPath),
-		groupByFolder: graph.viewSettings.groupByFolder,
 		orphanTruncation: badges.orphan,
 	};
 }

@@ -101,14 +101,14 @@ describe("GraphRequestAssembler view overrides", () => {
 			inputs({
 				pins: [{ docid: "docid_pin_e", pinTimestamp: 7 }],
 				docDataByDocid: new Map([
-					["docid_pin_e", { version: PERSISTED_SHAPE_VERSION, view: { groupByFolder: true } }],
+					["docid_pin_e", { version: PERSISTED_SHAPE_VERSION, view: { nodeCap: 42 } }],
 				]),
 			}),
 		);
 		expect(request.pinnedViewOverrides).toEqual([
 			{
 				descriptor: { path: "pinned.md", docid: "docid_pin_e", pinTimestamp: 7 },
-				override: { groupByFolder: true },
+				override: { nodeCap: 42 },
 			},
 		]);
 	});

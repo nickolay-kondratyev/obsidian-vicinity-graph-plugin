@@ -185,14 +185,6 @@ describe("vicinityGraphToFlow folder groups", () => {
 		expect(noteNode(toFlow(groupedGraph()).nodes, "solo/only.md")?.parentId).toBeUndefined();
 	});
 
-	it("WHEN groupByFolder is off THEN no folder-group nodes are emitted", () => {
-		const graph = makeGraph({
-			nodes: groupedGraph().nodes,
-			viewSettings: { ...groupedGraph().viewSettings, groupByFolder: false },
-		});
-		expect(toFlow(graph).nodes.every((node) => node.kind === "note")).toBe(true);
-	});
-
 	it("WHEN a rendered group's folder has hidden nodes THEN the group carries the +N badge count", () => {
 		const graph = makeGraph({
 			nodes: groupedGraph().nodes,
@@ -301,19 +293,6 @@ describe("vicinityGraphToFlow group-collapsed edges", () => {
 		]);
 	});
 
-	it("WHEN groupByFolder is off THEN edges are NOT projected onto groups", () => {
-		const graph = makeGraph({
-			nodes: collapsedGraph().nodes,
-			edges: collapsedGraph().edges,
-			viewSettings: { ...collapsedGraph().viewSettings, groupByFolder: false },
-		});
-		const edges = toFlow(graph).edges;
-		expect(edges.map((edge) => ({ source: edge.source, target: edge.target }))).toEqual([
-			{ source: "hub.md", target: "notes/a.md" },
-			{ source: "hub.md", target: "notes/b.md" },
-		]);
-	});
-
 	it("WHEN a two-way pair collapses THEN the emitted orientation is the first-seen direction", () => {
 		const graph = makeGraph({
 			nodes: collapsedGraph().nodes,
@@ -325,10 +304,6 @@ describe("vicinityGraphToFlow group-collapsed edges", () => {
 });
 
 describe("vicinityGraphToFlow snapshot extras", () => {
-	it("WHEN mapping THEN the resolved groupByFolder setting is forwarded", () => {
-		expect(toFlow(groupedGraph()).groupByFolder).toBe(true);
-	});
-
 	it("WHEN nothing was hidden THEN the orphan truncation is the shared zero constant", () => {
 		expect(toFlow(groupedGraph()).orphanTruncation).toBe(NO_ORPHAN_TRUNCATION);
 	});

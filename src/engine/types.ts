@@ -135,24 +135,13 @@ export interface DirectedLink {
 }
 
 /**
- * Final output edge. Which links become edges is governed by
- * {@link EdgeVisibilityMode}.
+ * Final output edge. Only links the BFS walked from a central become edges
+ * (step-02 CLARIFICATION Q5); see {@link import("./EdgeCounts").EdgeCounts}.
  */
 export interface GraphEdge extends DirectedLink {
 	/** Number of distinct links source→target (>= 1) — the UI's edge count badge. */
 	readonly count: number;
 }
-
-/**
- * Which links between visible nodes become edges (binding decision, see
- * step-02 CLARIFICATION Q5; naming follows the human's wording):
- * - `"walked-from-center"` — only edges the BFS walked while expanding from
- *   the centrals; links between two frontier nodes are NOT shown.
- * - `"all-edges"` — induced subgraph: after truncation, EVERY link between two
- *   visible nodes gets an edge (e.g. two depth-1 siblings linking each other,
- *   or a link between nodes discovered by different roots).
- */
-export type EdgeVisibilityMode = "walked-from-center" | "all-edges";
 
 /**
  * Which region a node's single preview slot shows when the note offers BOTH a
@@ -304,8 +293,6 @@ export interface ViewSettings {
 	readonly outlineMaxDepth: number;
 	/** Which region claims a node's preview slot when the note offers both. */
 	readonly nodePreviewPreference: NodePreviewPreference;
-	readonly groupByFolder: boolean;
-	readonly edgeVisibility: EdgeVisibilityMode;
 	readonly sizing: SizingSettings;
 	readonly forceLayout: ForceLayoutSettings;
 }

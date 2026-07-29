@@ -154,14 +154,6 @@ describe("vicinityGraphToElk folder-group compounds (step-05)", () => {
 		expect(rootEdgeIds).toEqual(["folder-group:notes->solo/only.md", "root.md->folder-group:notes"]);
 	});
 
-	it("WHEN groupByFolder is off THEN the elk graph stays flat", () => {
-		const flat = makeGraph({
-			nodes: graph.nodes,
-			edges: graph.edges,
-			viewSettings: { ...graph.viewSettings, groupByFolder: false },
-		});
-		expect(vicinityGraphToElk(flat).children?.every((child) => child.children === undefined)).toBe(true);
-	});
 });
 
 describe("vicinityGraphToElk cross-boundary projection (force SEPARATE_CHILDREN root)", () => {

@@ -21,7 +21,8 @@ import { ObsidianHarness } from "./obsidianHarness";
  * - facing: `facing/hub-facing.md` (a 5-member folder-group box approached by 12
  *   SEPARATE edges from one clustered side — the only fixture that can show the
  *   group facing-side attachment symptom; the others never crowd a group side).
- * `all-edges` visibility is set so sibling chords render and genuinely load the router.
+ * Outgoing depth 2 is set so sibling chords are WALKED (only walked links become
+ * edges) and therefore genuinely load the router.
  */
 
 test.describe.configure({ mode: "serial" });
@@ -97,8 +98,8 @@ test.beforeAll(async () => {
 	page = harness.page;
 	page.on("console", onConsole);
 	await harness.openGraphView();
-	// `all-edges` so sibling chords render and genuinely load the router.
-	await harness.setEdgeVisibility("all-edges");
+	// Depth 2 outgoing so sibling chords are walked, render, and load the router.
+	await harness.saveGlobalDepths({ outgoingDepth: 2, incomingDepth: 1 });
 	fs.mkdirSync(OUT_DIR, { recursive: true });
 });
 

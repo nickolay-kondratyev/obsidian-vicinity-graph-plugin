@@ -194,8 +194,8 @@ medium_group e a
 # DENSE: an ungrouped root hub with ~110 spokes (kept at vault root so they do NOT
 # collapse into a folder group — the router then sees ~100 individual square
 # obstacles once the default nodeCap of 100 applies). Each spoke also links a chord
-# 7 ahead, so under `all-edges` visibility the chords cross the hub-centred disk and
-# force genuine obstacle detours — the dense stress case for perf + route quality.
+# 7 ahead, so at outgoing depth 2 (which walks them) the chords cross the
+# hub-centred disk and force genuine obstacle detours — the dense stress case for perf + route quality.
 # `zz` prefix sorts them to the bottom of the file explorer so manual QA of the
 # other fixtures stays uncluttered.
 echo "==> Ensuring dense routing fixture (zzdense-hub + 110 ungrouped spokes)"
