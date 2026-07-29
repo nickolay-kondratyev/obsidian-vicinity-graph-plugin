@@ -1,6 +1,24 @@
 # PHASE 1 — per-doc removal (global-only settings) — PRIVATE state
 
-STATUS: **COMPLETE incl. ITERATION_PHASE_1** (review findings addressed in `6c6c7f9`).
+STATUS: **PHASE 1 + ITERATION_PHASE_1 + PHASE 2 COMPLETE.**
+
+## PHASE 2 state (for a future clone)
+Commits `89ec065` (docs), `336c977` (e2e + depth-controls CSS), `4019f90` (CLAUDE.md + step-06 gate).
+Gates re-run after every commit: `npm test` 1083/1083, `npm run check` exit 0
+(`.tmp/phase2-final-test.log`, `.tmp/phase2-final-check.log`). Full account:
+`IMPLEMENTATION_PHASE2__PUBLIC.md` (same dir) — including the ticket-bookkeeping list
+TOP_LEVEL must execute (nothing was closed here, no change_log entry written).
+- Handoff item 6 (Depth summary copy) → NOT done, escalated as `#QUESTION_FOR_HUMAN` at the end of
+  `IMPLEMENTATION_PHASE2__PUBLIC.md`. Do not invent the wording.
+- Handoff item 7 (depth-controls card chrome) → DONE; it was a real cascade defect (background repainted
+  the ancestor's own variable; extra padding mis-indented the rows), not a taste call.
+- `npm run test:e2e` still unrun (needs real Obsidian). The two new `pinnedCentralScenario` specs are the
+  riskiest artifact of this phase.
+- Restatement of the ratified bar in `docs-internal/notes/settings.md` is LANDED (owner accepted). It
+  names the guards that actually exist (`ParsedViewFields` + `Exclude<keyof ViewSettings, …>`), NOT the
+  `satisfies Record<…>` phrasing from the brief — no such construct is in the tree.
+
+(PHASE 1, for history:) review findings addressed in `6c6c7f9`.
 `npm test` 1083/1083 (was 1085; two dead `currentMainPath` tests deleted with the method),
 `npm run check` clean. Logs: `.tmp/iter1-test.log`, `.tmp/iter1-check.log`.
 
