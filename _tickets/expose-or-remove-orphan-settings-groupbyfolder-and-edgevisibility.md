@@ -1,17 +1,17 @@
 ---
 id: nid_niz5dz6uqeyv237ckm15ittqa_e
-title: "Expose or remove orphan settings groupByFolder and edgeVisibility"
-status: open
+title: Expose or remove orphan settings groupByFolder and edgeVisibility
+status: in_progress
 deps: []
 links: [nid_3k0a4zl6in0mj8lcjibkjq2dx_e, nid_abreq4lmpo8vnvf61y9k9yly0_e, nid_8p0nn2g34d97finokwlz3u1dt_e]
-created_iso: 2026-07-24T21:44:19Z
-status_updated_iso: 2026-07-24T21:44:19Z
+created_iso: '2026-07-24T21:44:19Z'
+status_updated_iso: '2026-07-29T17:56:57Z'
 type: task
 priority: 1
 assignee: CC_WITH-nickolaykondratyev
 tags: [settings, settings-cleanup]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin
 ---
-
 Overarching context and chain ordering for the settings cleanup: docs-internal/notes/settings.md (grouping tag: settings-cleanup).
 `groupByFolder` and `edgeVisibility` are persisted ViewSettings fields with defaults in src/engine/SettingsSpec.ts:69-70 but have ZERO write UI: no settings-tab control, no in-graph control, and no SettingsInteraction case in src/view/settingsWritePlan.ts. They can never be changed by a user.
 
