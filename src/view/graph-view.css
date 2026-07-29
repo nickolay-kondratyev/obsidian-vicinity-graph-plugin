@@ -26,7 +26,6 @@
 	--xy-controls-button-color: var(--text-muted);
 	--xy-controls-button-color-hover: var(--text-normal);
 	--xy-controls-button-border-color: var(--background-modifier-border);
-	--xy-attribution-background-color: transparent;
 }
 
 /*
@@ -43,10 +42,6 @@
 	border-radius: var(--radius-s);
 	overflow: hidden;
 	box-shadow: var(--shadow-s);
-}
-
-.vicinity-graph-flow .react-flow__attribution {
-	color: var(--text-faint);
 }
 
 .vicinity-graph-empty {
