@@ -21,12 +21,61 @@ Adding ONE settings field costs **~180 lines across ~15 files** and touches
 (measured in research ticket `nid_8p0nn2g34d97finokwlz3u1dt_e`, closed). The
 genuinely silent holes are:
 
-1. `src/persistence/persistedShapes.ts` — `parseViewOverride` branch table
-2. the reset-scope table (`src/engine/settingsResetPlan.ts` / `settingsWriteScope`)
-3. settings-tab vs in-graph-panel UI parity (no guard at all)
+1. ~~`src/persistence/persistedShapes.ts` — `parseViewOverride` branch table~~
+   **CLOSED by ticket 2** — the `ParsedViewFields` mapped type makes an unparsed
+   field a compile error (TS2741) naming it.
+2. ~~the reset-scope table (`src/view/settingsResetPlan.ts` / `settingsWriteScope`)~~
+   **CLOSED by ticket 2** — `src/view/settingsSectionFields.ts` declares which
+   fields each section owns, the reset plans derive from it, and a field in no
+   section is a compile error naming it.
+3. settings-tab vs in-graph-panel UI parity (no guard at all) — **still open**,
+   ticket 4 (dual presenters) + ticket 5 (parity test).
 
 (`ViewSettingsResolver.resolve` is NOT a hole — its `ViewSettings` return type
 makes an omitted field a compile error.)
+
+### Three more silent holes, found and closed while doing ticket 2
+
+4. `src/engine/SettingsSpec.ts` — the spec interfaces were independent of the
+   settings types, so a field could exist with no default and no bounds. The
+   ROOT of the family: everything downstream derives from the spec. Now guarded
+   in **both** directions (missing entry, and orphan entry for a deleted field).
+5. `src/engine/constants.ts` — `SizingRangeField` was a hand-typed union, so a
+   new bounded sizing field silently got no range and no clamp. Now
+   `Exclude<keyof SizingSpec, "metrics">`.
+6. `src/view/sizingMetrics.ts` — `SIZING_METRICS` is an order-bearing array, so
+   a missing metric vanished from both sizing surfaces without a compile error.
+   Now `as const satisfies` + a completeness guard. (The unit test stays: it
+   catches a metric listed TWICE, which a type guard cannot see.)
+
+Plus one live structural defect: the in-graph panel's force-layout "Restore
+defaults" built its own defaults object instead of using the shared reset plan —
+a fourth opinion on what a default is. Now routed through `planSettingsReset`,
+and `src/view/engineDefaultsSingleSource.test.ts` keeps it that way.
+
+### Cost of adding one field AFTER ticket 2
+
+The compiler now NAMES every site you miss except the last:
+
+1. `src/engine/types.ts` — the field on `ViewSettings` / `DepthSettings` *(forces 2–4)*
+2. `src/engine/SettingsSpec.ts` — spec entry + `SETTINGS_SPEC` value *(guarded)*
+3. `src/persistence/persistedShapes.ts` — one parse expression *(guarded)*
+4. `src/view/settingsSectionFields.ts` — one key in one section *(guarded)*
+5. UI copy + row rendering in the tab and the panel *(ticket 4's job to guard)*
+
+This is "compile-forced N declarations", NOT the ticket's literal "ONE
+declaration". Deriving the `ViewSettings` TYPE from a runtime descriptor array
+was declined: it weakens `ViewSettingsResolver.resolve()`'s return-type
+guarantee (forbidden by the owner's standing constraints) and costs the
+per-field doc comments. The failure mode this chain exists to kill is *silent*
+drift — compile-forced is not silent.
+
+**Ratified by the owner on 2026-07-29**: "compile-forced N declarations" replaces
+the descriptor ticket's literal "ONE declaration" as the standing acceptance bar
+for this chain. The original clause and the standing constraint "do not weaken
+`ViewSettingsResolver.resolve()`'s return-type completeness" were in direct
+tension; the owner resolved it in favour of the constraint. Tickets 4/5/6 inherit
+the amended bar, not the original wording.
 
 This drift has already produced real symptom tickets: stale baseline tests
 (twice), reset racing a queued write, sibling-field clobbering from stale
@@ -91,6 +140,10 @@ upper bound), `nid_uwnew3dok0gn8ijar54hiozst_e` (pre-release slider tuning),
   becomes a declarative `disabledWhen` flag.
 - **Depth naming** (full rename, no migration): `linkDepthOut` / `embedDepthOut`
   (new) / `linkDepthIn`; UI: "Links out" / "Embeds out" / "Links in".
+  **DEFERRED to ticket 6** (owner decision D2, 2026-07-29): ticket 2 keeps
+  `outgoingDepth` / `incomingDepth` and their current UI copy. The rename only
+  pays off once `embedDepthOut` disambiguates the names; doing it earlier churns
+  user-facing copy plus ~6 e2e literals for no structural benefit.
 - **Tests**: structural spec-iterating tests, but KEEP a small number of literal
   assertions for product-meaningful defaults (e.g. nodeCap 100).
 - **Obsidian constraint**: the Setting API cannot mount inside React, so there

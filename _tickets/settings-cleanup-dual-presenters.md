@@ -28,3 +28,9 @@ CONSTRAINT (do not fight this): Obsidian's Setting API cannot mount inside React
 
 Carries the owner UX decision that exclusion patterns render always-but-disabled -- see that ticket for the full rationale and the three e2e specs that must be updated.
 
+
+## Notes
+
+**2026-07-29T19:31:12Z**
+
+From the descriptor-model ticket (nid_wimjq4ewgbg21n4zx9d4qq3a0_e), a pointer for this ticket's row-copy table: NODE_PREVIEW_ROW_LABEL and NODE_PREVIEW_ROW_DESCRIPTION in src/view/nodePreviewPreferenceMeta.ts are row copy for a keyof ViewSettings field (nodePreviewPreference), so they belong in this ticket's row table — unlike NODE_PREVIEW_OPTION_META, which stays keyed by NodePreviewPreference and should NOT move. Recorded so this ticket finds them instead of re-authoring the strings. Also: the section->field map now lives at src/view/settingsSectionFields.ts (SECTION_SETTINGS_FIELDS); extend that shape (per-family key COLUMNS) rather than inventing a {family, key} row union.

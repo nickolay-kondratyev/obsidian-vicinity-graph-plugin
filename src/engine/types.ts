@@ -200,11 +200,12 @@ export interface NodeExclusionSettings {
 	readonly patterns: readonly string[];
 }
 
-/** Partial per-doc depth override (absence = inherit the global default). */
-export interface DepthOverride {
-	readonly outgoingDepth?: number;
-	readonly incomingDepth?: number;
-}
+/**
+ * Partial per-doc depth override (absence = inherit the global default).
+ * `Partial<DepthSettings>` rather than a parallel interface, for the same reason
+ * {@link ViewSettingsOverride} is: the two shapes then cannot drift field-for-field.
+ */
+export type DepthOverride = Partial<DepthSettings>;
 
 /**
  * Single source of truth mapping a {@link Direction} to the depth field it controls

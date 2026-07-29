@@ -120,41 +120,71 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** Keeps only recognized, correctly-typed depth fields (absence = inherit). */
+/**
+ * THE inherit rule, implemented exactly once: a field reaches the override only
+ * when its parsed value is `!== undefined`. Never truthiness, never `||` — a
+ * pinned `0` / `false` / `""` is a PIN, not an absence. Every per-field
+ * `definedOnly(...)` spread this replaced was an independent chance to get that
+ * wrong.
+ */
+function definedFieldsOnly<T extends object>(values: { readonly [K in keyof T]: T[K] | undefined }): Partial<T> {
+	const defined: Record<string, unknown> = {};
+	for (const key of Object.keys(values)) {
+		const value = (values as Record<string, unknown>)[key];
+		if (value !== undefined) {
+			defined[key] = value;
+		}
+	}
+	// Safe by construction: every surviving key/value pair came out of `values`,
+	// whose type is `T`'s own key space. TS cannot follow that through `Object.keys`.
+	return defined as Partial<T>;
+}
+
+/**
+ * Keeps only recognized, correctly-typed depth fields (absence = inherit).
+ *
+ * The argument type is the completeness guard: a new {@link DepthSettings} field
+ * that no expression below parses is a compile error (TS2345) naming it.
+ */
 function parseDepthOverride(raw: unknown): DepthOverride {
 	if (!isRecord(raw)) {
 		return {};
 	}
-	return {
-		...definedOnly("outgoingDepth", numberOrUndefined(raw["outgoingDepth"])),
-		...definedOnly("incomingDepth", numberOrUndefined(raw["incomingDepth"])),
-	};
+	return definedFieldsOnly<DepthSettings>({
+		outgoingDepth: numberOrUndefined(raw["outgoingDepth"]),
+		incomingDepth: numberOrUndefined(raw["incomingDepth"]),
+	});
 }
+
+/**
+ * Every {@link ViewSettings} field's parsed value, `undefined` where the raw
+ * object holds nothing usable. **This mapped type IS the completeness guard**:
+ * the properties are REQUIRED (only their values may be `undefined`), so a new
+ * `ViewSettings` field that no branch below parses is a compile error naming it —
+ * instead of a persisted value that silently never round-trips through disk.
+ */
+type ParsedViewFields = { readonly [K in keyof ViewSettings]: ViewSettings[K] | undefined };
 
 /** Keeps only recognized, correctly-typed view fields. */
 function parseViewOverride(raw: unknown): ViewSettingsOverride {
 	if (!isRecord(raw)) {
 		return {};
 	}
-	const nodePreviewPreference = raw["nodePreviewPreference"];
 	const outlineMaxDepth = numberOrUndefined(raw["outlineMaxDepth"]);
-	return {
-		...definedOnly("nodeCap", numberOrUndefined(raw["nodeCap"])),
+	const parsed: ParsedViewFields = {
+		nodeCap: numberOrUndefined(raw["nodeCap"]),
 		// Clamped with the SAME function the slider uses, so hand-edited JSON cannot
 		// reach 0 (a silent off-switch the feature does not have) or an undefined level.
-		...definedOnly(
-			"outlineMaxDepth",
-			outlineMaxDepth === undefined ? undefined : clampOutlineMaxDepth(outlineMaxDepth),
-		),
+		outlineMaxDepth: outlineMaxDepth === undefined ? undefined : clampOutlineMaxDepth(outlineMaxDepth),
 		// Unrecognized values (hand-edited JSON, a downgrade from a future version)
 		// fall through as absent, so the spec default applies.
-		...definedOnly(
-			"nodePreviewPreference",
-			NODE_PREVIEW_PREFERENCES.find((preference) => preference === nodePreviewPreference),
+		nodePreviewPreference: NODE_PREVIEW_PREFERENCES.find(
+			(preference) => preference === raw["nodePreviewPreference"],
 		),
-		...definedOnly("sizing", parseSizing(raw["sizing"])),
-		...definedOnly("forceLayout", parseForceLayout(raw["forceLayout"])),
+		sizing: parseSizing(raw["sizing"]),
+		forceLayout: parseForceLayout(raw["forceLayout"]),
 	};
+	return definedFieldsOnly<ViewSettings>(parsed);
 }
 
 /**

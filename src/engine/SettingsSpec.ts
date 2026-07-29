@@ -17,10 +17,13 @@
  */
 
 import type {
+	DepthSettings,
 	ForceLayoutSettings,
+	NodeExclusionSettings,
 	NodePreviewPreference,
 	SizeMetricId,
 	SizingMetricSetting,
+	ViewSettings,
 } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -84,6 +87,44 @@ export interface SettingsSpec {
 	readonly globalView: ViewSpec;
 	readonly nodeExclusion: NodeExclusionSpec;
 }
+
+// ---------------------------------------------------------------------------
+// Spec completeness — the ROOT guard of the settings family
+// ---------------------------------------------------------------------------
+
+/**
+ * A settings field with no spec entry has no default and no bounds, so every
+ * table downstream (defaults, ranges, clamps, reset plans, parsers) is built on
+ * sand — and nothing about that is a compile error today. These two guards make
+ * it one, in both directions, because BOTH have bitten this repo: a field with
+ * no spec entry, and a spec entry for a field that no longer exists
+ * (`groupByFolder` / `edgeVisibility`, deleted by the previous ticket).
+ *
+ * The error names the offending key, e.g.
+ *   Type 'true' is not assignable to type '"embedDepthOut"'.
+ *
+ * NOTE: only TOP-LEVEL keys are compared. {@link SizingSpec} deliberately carries
+ * an extra `metricWeight` (bounds shared by every metric's weight) with no
+ * `SizingSettings` counterpart, so a leaf-level guard would false-positive.
+ *
+ * WHY-NOT a generic `assertTotal<A, B>()` helper for the idiom: it would make the
+ * compiler report the helper's type parameters instead of the missing key name,
+ * and naming the key IS the feature.
+ */
+type UnspeccedSettingsField =
+	| Exclude<keyof ViewSettings, keyof ViewSpec>
+	| Exclude<keyof DepthSettings, keyof DepthSpec>
+	| Exclude<keyof NodeExclusionSettings, keyof NodeExclusionSpec>;
+export const _assertEverySettingsFieldSpecced: UnspeccedSettingsField extends never
+	? true
+	: UnspeccedSettingsField = true;
+
+/** The reverse: a spec entry whose settings field was deleted (an orphan default). */
+type OrphanSpecField =
+	| Exclude<keyof ViewSpec, keyof ViewSettings>
+	| Exclude<keyof DepthSpec, keyof DepthSettings>
+	| Exclude<keyof NodeExclusionSpec, keyof NodeExclusionSettings>;
+export const _assertNoOrphanSpecField: OrphanSpecField extends never ? true : OrphanSpecField = true;
 
 // ---------------------------------------------------------------------------
 // Shared leaf building blocks (kept single-source to avoid duplicated literals)

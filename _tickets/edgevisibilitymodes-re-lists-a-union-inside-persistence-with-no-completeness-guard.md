@@ -1,12 +1,12 @@
 ---
-closed_iso: 2026-07-29T17:30:46Z
+closed_iso: 2026-07-29T19:43:22Z
 id: nid_3k0a4zl6in0mj8lcjibkjq2dx_e
 title: "EDGE_VISIBILITY_MODES re-lists a union inside persistence with no completeness guard"
 status: closed
 deps: []
 links: [nid_niz5dz6uqeyv237ckm15ittqa_e, nid_abreq4lmpo8vnvf61y9k9yly0_e, nid_8p0nn2g34d97finokwlz3u1dt_e]
 created_iso: 2026-07-25T03:52:21Z
-status_updated_iso: 2026-07-29T17:30:46Z
+status_updated_iso: 2026-07-29T19:43:22Z
 type: chore
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
@@ -40,3 +40,11 @@ NOT closed because the underlying concern was wrong -- "a union re-listed in per
 completeness guard" is a real class of bug. It is now covered generically by the compile-time
 exhaustiveness guards in settings cleanup E1 (nid_wimjq4ewgbg21n4zx9d4qq3a0_e), which is where any
 SURVIVING union should get its guard. Reopen only if edgeVisibility comes back as a real feature.
+
+**2026-07-29T19:43:22Z**
+
+Closed as MOOT by the settings descriptor-model ticket (nid_wimjq4ewgbg21n4zx9d4qq3a0_e).
+
+Premise is stale: EDGE_VISIBILITY_MODES no longer exists anywhere in the repo. The 'edgeVisibility' field was deleted outright as an orphan by the preceding chain ticket nid_niz5dz6uqeyv237ckm15ittqa_e, so there is no re-listed union left to guard.
+
+The underlying CONCERN — 'a union re-listed in persistence with no completeness guard' — is nonetheless addressed in general: the descriptor-model work added compile-time completeness guards across the settings surface (parse table, section reset map, SIZING_METRICS, spec entries, sizing range keys), each verified to fail compilation and NAME the offending field. The pattern to copy for any future union is _assertEveryNodePreviewPreferenceListed in src/engine/types.ts.
