@@ -1,11 +1,11 @@
 ---
 id: nid_wimjq4ewgbg21n4zx9d4qq3a0_e
 title: "Settings cleanup — descriptor model: one declarative field descriptor drives spec, type, defaults, parse, write plan and reset scope"
-status: open
+status: in_progress
 deps: [nid_niz5dz6uqeyv237ckm15ittqa_e]
 links: []
 created_iso: 2026-07-29T17:29:26Z
-status_updated_iso: 2026-07-29T17:29:26Z
+status_updated_iso: 2026-07-29T18:20:29Z
 type: task
 priority: 1
 assignee: CC_WITH-nickolaykondratyev
