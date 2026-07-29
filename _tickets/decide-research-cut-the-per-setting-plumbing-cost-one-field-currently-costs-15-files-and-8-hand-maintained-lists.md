@@ -116,7 +116,12 @@ and stop there). Include this in the comparison so the recommendation is real.
 - The `ViewSettings` / `ViewSettingsOverride` cascade (main-doc override -> pinned
   -> global, absent field = inherit) is deliberate and must survive.
 - `PERSISTED_SHAPE_VERSION` must not be bumped for additive fields with a spec
-  default (bumping would discard every user's stored globals).
+  default. **NOTE (2026-07-29): the stated reason — "bumping would discard every
+  user's stored globals" — is void.** The plugin is unpublished and the repo now
+  defaults to clean breaks on stored data (`CLAUDE.md` → Conventions). The
+  constraint survives on KISS grounds only: additive fields already fall back to
+  their spec default, so a bump buys nothing. Do not let this constraint push a
+  design toward migration shims — those are explicitly unwanted here.
 - Prefer compile-time checks over runtime (repo standard). Prefer KISS/PARETO —
   do NOT build a settings framework.
 - Restore-defaults semantics: only scopes that destroy user-authored content confirm.

@@ -331,13 +331,18 @@ Owner chose the clean break over a migration shim (consistent with the repo's
 
 **Required mitigation (cheap, turns silent into announced):** a release-note line
 in `docs-internal/RELEASE_CHECKLIST.md` stating that saved depth overrides reset
-on this upgrade. Losing user-authored settings is acceptable; losing them
-*silently* is not.
+on this upgrade. Losing settings is acceptable; losing them *silently* is not.
 
-**Do NOT bump `PERSISTED_SHAPE_VERSION` for this.** The constraint in
-`nid_8p0nn2g34d97finokwlz3u1dt_e` still binds — bumping would discard every
-user's stored globals wholesale, which is strictly worse than the scoped
-key-level loss above. Unknown/renamed keys already fall back to spec defaults.
+This is now the repo-wide default, not a one-off: **the plugin is unpublished, so
+stored-data changes take clean breaks** (`CLAUDE.md` → Conventions). No migration,
+no dual-key read window.
+
+**Still don't bump `PERSISTED_SHAPE_VERSION` for this** — but note the *reason has
+changed*. The original rationale ("it would discard every user's stored globals")
+is void with no users. It holds now only on KISS grounds: unknown/renamed keys
+already fall back to spec defaults, so a bump buys nothing and merely widens the
+blast radius from three depth keys to every global. If a future change genuinely
+needs the wholesale reset, bumping is now cheap and allowed.
 
 ## D3 — Stage 2 visual embed distinction: **YES, but AFTER Stage 3**
 Depth control is the point; the dashed/weighted stroke on
