@@ -278,8 +278,13 @@ dependency edge.
 type SizingRangeField = Exclude<keyof SizingSpec, "metrics">;
 ```
 
-(`SizingSpec` becomes a type-only import from `./SettingsSpec`, which
-`constants.ts` already imports from.)
+`constants.ts` already imports `SETTINGS_SPEC` from `./SettingsSpec`, but that is
+a VALUE import; under `isolatedModules` the type needs its own statement (or an
+inline `type` modifier), so add above it:
+
+```ts
+import type { SizingSpec } from "./SettingsSpec";
+```
 
 ### 4.2 Persistence — parse completeness (closes hole #1), the inherit rule in ONE place
 
@@ -513,7 +518,18 @@ confirmation are untouched — byte-identical.**
 six-section list structurally the same thing:
 
 ```ts
-export type SettingsResetScope = SettingsSection | typeof ALL_SETTINGS_RESET_SCOPE;
+/**
+ * NOT `SettingsSection | typeof ALL_SETTINGS_RESET_SCOPE`: `ALL_SETTINGS_RESET_SCOPE`
+ * is declared as `"all" satisfies SettingsResetScope`, so referring to its
+ * `typeof` here closes a cycle — `tsc` rejects it with
+ *   TS2456: Type alias 'SettingsResetScope' circularly references itself
+ *   TS7022: 'ALL_SETTINGS_RESET_SCOPE' implicitly has type 'any' …
+ * and the fallout cascades into `VicinityGraphSettingTab.ts` and
+ * `settingsResetPlan.test.ts` (reproduced by PLAN_REVIEWER). The literal keeps
+ * the two in lockstep just as well, because `ALL_SETTINGS_RESET_SCOPE`'s own
+ * `satisfies SettingsResetScope` still checks it against this union.
+ */
+export type SettingsResetScope = SettingsSection | "all";
 
 /** Re-exported under its established name so every existing import keeps working. */
 export const SECTION_RESET_SCOPES = SETTINGS_SECTIONS;
@@ -696,8 +712,9 @@ Additive test:
 - `docs-internal/notes/settings.md`: mark holes 1–3 closed, record the two extra
   holes found (spec completeness, `SizingRangeField`), and record the D2
   deferral so ticket 6 is not surprised.
-- `docs-internal/architecture-map.md`: one line for `settingsSectionFields.ts` if
-  the map enumerates view modules (check at implementation time).
+- `docs-internal/architecture-map.md`: **no edit needed** — PLAN_REVIEWER checked;
+  the map does not enumerate individual view modules (`sizingMetrics`,
+  `settingsResetPlan`, `forceLayoutFieldMeta` are all absent from it). Leave it alone.
 - `change_log` entry; close the ticket; TOP_LEVEL_AGENT closes the moot
   sub-ticket `nid_3k0a4zl6in0mj8lcjibkjq2dx_e`.
 - **No release-note "stored data reset" entry** — no persisted shape changed and
