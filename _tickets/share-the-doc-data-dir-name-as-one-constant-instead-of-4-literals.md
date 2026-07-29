@@ -1,17 +1,17 @@
 ---
 id: nid_7fq9y51mbucmduzf9z31hmwmq_e
 tags: [settings]
-title: "Share the `doc-data` dir name as one constant instead of 4+ literals"
-status: open
+title: Share the `doc-data` dir name as one constant instead of 4+ literals
+status: in_progress
 deps: []
 links: []
-created_iso: 2026-07-27T16:20:57Z
-status_updated_iso: 2026-07-27T16:20:57Z
+created_iso: '2026-07-27T16:20:57Z'
+status_updated_iso: '2026-07-29T22:03:23Z'
 type: chore
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 ---
-
 The per-doc persistence dir name `doc-data` is currently spelled as a bare string literal in at least 5 places:
 
 - `src/main.ts` `docDataDirPath()` (private) — the AUTHORITATIVE producer.
