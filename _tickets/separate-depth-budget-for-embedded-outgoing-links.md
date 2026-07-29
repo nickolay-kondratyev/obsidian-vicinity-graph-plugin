@@ -1,8 +1,8 @@
 ---
 id: nid_fay1hu5sxcoygizopkkg0f0d7_e
-title: "[decide] Depth should have separate name for embedded outgoing link"
+title: "Separate depth budget for embedded outgoing links (decisions settled)"
 status: open
-deps: []
+deps: [nid_8p0nn2g34d97finokwlz3u1dt_e]
 links: [nid_869bt9d9rlrbr8of1403dnmf3_e, nid_8p0nn2g34d97finokwlz3u1dt_e, nid_1rslube8at5xj60ji4jeve0b0_e]
 created_iso: 2026-07-28T17:29:00Z
 status_updated_iso: 2026-07-28T17:29:00Z
@@ -296,10 +296,85 @@ must become channel-aware, else `EdgeVisibility`'s `all-edges` induced sweep
 
 ---
 
-## DECISIONS NEEDED FROM THE OWNER (why this is `[decide]`)
+---
 
-**Decision 1 is now settled by the scope cut above (6a, kind-pure channels).**
-Remaining:
+# OWNER DECISIONS — ALL SETTLED (2026-07-29)
+
+Every open question is now answered. **This ticket is no longer `[decide]`;** what
+remains is splitting implementation tickets per the staging below.
+
+## D1 — Traversal semantics: **(6a) kind-pure channels**
+Settled by the scope cut. At equal defaults the two outgoing channels union to
+exactly today's outgoing BFS ⇒ zero observable change at ship.
+
+## D2 — Naming: **`Links out` / `Embeds out` / `Links in`**, full rename, **no migration**
+
+| TS + persisted key | UI label |
+|---|---|
+| `linkDepthOut` (renamed from `outgoingDepth`) | Links out |
+| `embedDepthOut` (**new**) | Embeds out |
+| `linkDepthIn` (renamed from `incomingDepth`) | Links in |
+
+**BREAKING, DELIBERATE, AND DESTRUCTIVE — must not be discovered by surprise.**
+These are literal JSON keys in every user's saved data, verified in-repo:
+per-doc `depths: { outgoingDepth: 3 }` and per-central
+`centralDepths: { <docid>: { incomingDepth: 2 } }`
+(`src/persistence/DocDataMutations.ts`, `DocDataStore`, `OrphanSweeper`).
+
+Owner chose the clean break over a migration shim (consistent with the repo's
+"make clean breaks, avoid `@Deprecated`" rule). Consequences, accepted:
+
+- Every stored **per-doc** depth override and every **per-pinned-central** depth
+  override silently reverts to defaults on upgrade. Global defaults likewise.
+- Old keys are simply ignored by `parseDepthOverride` — no read-shim, no dual-key
+  window.
+
+**Required mitigation (cheap, turns silent into announced):** a release-note line
+in `docs-internal/RELEASE_CHECKLIST.md` stating that saved depth overrides reset
+on this upgrade. Losing user-authored settings is acceptable; losing them
+*silently* is not.
+
+**Do NOT bump `PERSISTED_SHAPE_VERSION` for this.** The constraint in
+`nid_8p0nn2g34d97finokwlz3u1dt_e` still binds — bumping would discard every
+user's stored globals wholesale, which is strictly worse than the scoped
+key-level loss above. Unknown/renamed keys already fall back to spec defaults.
+
+## D3 — Stage 2 visual embed distinction: **YES, but AFTER Stage 3**
+Depth control is the point; the dashed/weighted stroke on
+`vicinity-graph-edge` (`src/view/graph-view.css:38`) follows it.
+**Note the consequence:** this forfeits the "see it before you buy it" rationale
+that originally justified Stage 2 first — the settings field gets paid for before
+there is any visual evidence embed-vs-link separation is useful. Accepted; the
+owner wants the budget regardless.
+
+## D4 — Stage 0 still **GATES** this work
+Land the compile-time completeness guards (`nid_8p0nn2g34d97finokwlz3u1dt_e`)
+first. Reinforced by D2: this change now touches persistence key parsing on
+**three** fields (two renames + one addition), so the silent-omission bug class
+is exactly what would bite. **`deps` frontmatter updated accordingly.**
+
+## D5 — §7 attachments: **REJECTED — keep attachments orthogonal to embed-ness**
+Owner: *"A diagram should be an attachment, they should be clearly separated from
+embedded out links."*
+
+Interpretation, for implementors:
+
+- **Attachment-ness is decided by node-bearing-ness, NOT by kind.** A diagram is
+  an attachment whether written `[[diagram.png]]` or `![[diagram.png]]`.
+  The §7 redefinition ("attachment = embedded non-node-bearing file") is
+  **dropped, not deferred** — no follow-up ticket. A plain `[[diagram.png]]`
+  keeps its thumbnail.
+- **`embedDepthOut` covers embedded NOTES only.** Attachments never enter the
+  channel — `VicinityTraversal` already guarantees this via the
+  `eligibility.isNodeBearing` gate before enqueue, so **no new code is needed to
+  honour this decision**; it is a constraint to preserve and pin with a test, not
+  to build.
+- Canvas `type:"file"` nodes pointing at non-node-bearing files therefore stay
+  attachments too, despite being embeds.
+
+---
+
+## Superseded decision list (kept for provenance)
 
 1. ~~§6 traversal semantics~~ — **SETTLED: (6a) kind-pure channels.** See the
    scope decision above; the cut makes (6a) observably identical to today at
@@ -341,3 +416,15 @@ SS6 is thereby settled: 6a kind-pure channels, since at equal defaults the two o
 Accepted asymmetry: no "embedded in" budget; adding incoming-embed later is additive to the enum (OCP), so reversible.
 
 Still open for owner: naming (decision 2, coordinate with nid_1rslube8at5xj60ji4jeve0b0_e), stage-2 visual distinction (4), attachment redefinition (5).
+
+**2026-07-29T16:48:53Z**
+
+All owner decisions settled; [decide] dropped from title.
+
+D1 traversal: 6a kind-pure channels (outgoing-link | outgoing-embed | incoming).
+D2 naming: Links out / Embeds out / Links in -- FULL rename of TS+JSON keys to linkDepthOut / embedDepthOut / linkDepthIn, NO migration. Deliberate destructive break: saved per-doc and per-central depth overrides reset on upgrade. Mitigation required: release-note line in docs-internal/RELEASE_CHECKLIST.md so the loss is announced, not silent. Do NOT bump PERSISTED_SHAPE_VERSION (that would discard globals wholesale, strictly worse).
+D3 visual embed distinction: yes, but AFTER Stage 3 -- forfeits the see-it-before-you-buy-it rationale; accepted.
+D4 Stage 0 STILL GATES: deps frontmatter now points at nid_8p0nn2g34d97finokwlz3u1dt_e.
+D5 attachments: SS7 redefinition REJECTED outright, no follow-up ticket. Attachment-ness stays decided by node-bearing-ness, not kind -- a diagram is an attachment whether [[x.png]] or ![[x.png]]. embedDepthOut covers embedded NOTES only; VicinityTraversal isNodeBearing gate already guarantees this, so it is an invariant to pin with a test, not code to write.
+
+Next: split implementation tickets (blocked on Stage 0).
