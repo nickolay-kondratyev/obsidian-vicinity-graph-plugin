@@ -1,6 +1,23 @@
 # PHASE 1 — per-doc removal (global-only settings) — PRIVATE state
 
-STATUS: **COMPLETE**. `npm test` 1085/1085, `npm run check` clean, `npm run build` ok.
+STATUS: **COMPLETE incl. ITERATION_PHASE_1** (review findings addressed in `6c6c7f9`).
+`npm test` 1083/1083 (was 1085; two dead `currentMainPath` tests deleted with the method),
+`npm run check` clean. Logs: `.tmp/iter1-test.log`, `.tmp/iter1-check.log`.
+
+## ITERATION_PHASE_1 notes for a future clone
+- B1 root fix: reset copy now flows e2e-ward through `ALL_SETTINGS_RESET_DESCRIPTION` in
+  `e2e/settingsBaseline.ts` (derived from `SETTINGS_RESET_SCOPES.all.description`). The literal
+  copy assertion stays exactly once, in `src/view/settingsResetPlan.test.ts:283`. If you ever want a
+  second literal opinion on the e2e side, `e2e/settingsBaseline.test.ts` is that file — deliberately
+  NOT added, it would be a third copy.
+- Suggestions 1 (Depth summary wording) and 2 (depth-controls card chrome) were REJECTED for this
+  phase and are handoff items 6 and 7 in PUBLIC.md.
+- `docs-internal/notes/settings.md` standing-decision text was left untouched ON PURPOSE — the
+  reviewer's `#QUESTION_FOR_HUMAN` about restating the ratified `ViewSettingsResolver.resolve()`
+  guard is still with the human.
+
+(PHASE 1 baseline, for history:)
+`npm test` 1085/1085, `npm run check` clean, `npm run build` ok.
 Authoritative outcome + PHASE 2 pointers: `IMPLEMENTATION_WITH_SELF_PLAN__PUBLIC.md` (same dir).
 
 ## Commits (branch CC_nid_ez38gf1mrdgh5kxedzrdicwzl_e__settings-simplification-remove-per-doc-saved-state_opus)
