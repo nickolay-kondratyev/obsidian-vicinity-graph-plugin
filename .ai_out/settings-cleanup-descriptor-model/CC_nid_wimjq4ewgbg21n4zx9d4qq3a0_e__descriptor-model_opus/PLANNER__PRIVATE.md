@@ -225,9 +225,134 @@ name. The error legibility (see §3's `"embedDepthOut"` messages) IS the feature
 
 The load-bearing conclusions, ranked by how much re-deriving they'd cost:
 1. Row space ≠ field space (§4.9) — kills every "one big row descriptor" design.
-2. A flat unified list cannot yield a `keyof ViewSettings`-keyed compile guard
-   (§4.1) — kills D3 option A.
+2. ~~A flat unified list cannot yield a `keyof ViewSettings`-keyed compile guard
+   (§4.1) — kills D3 option A.~~ **RETRACTED in round 2 — this was FALSE.**
+   See §8.2. The real killers are the layering dilemma and the dead `cascade`
+   field.
 3. The repo is currently consistent, so the holes are latent (§2) — dictates the
    test strategy.
 4. `settingsResetPlan.test.ts:269` forbids narrowing that table (§2).
 5. The compiler probes (§3) — re-run rather than re-argue.
+
+---
+
+# ROUND 2 — PLAN_ITERATION 1 (fresh PLANNER instance, same session date)
+
+Task: address F2/F3/F4 + fold rulings. Do NOT redesign (reviewer verified the
+design end-to-end: 1129 assertions, zero test edits, guards fire and name the
+field). F1 already fixed inline by the reviewer.
+
+## 8. The big lesson of this round: I was wrong, AND SO WAS THE REVIEWER
+
+### 8.1 What the reviewer got right
+My §4.1/§2.2 "fatal objection" — *a flat list can't produce a
+`keyof ViewSettings`-keyed guard because you'd need a runtime `filter`* — is
+**false**. `Extract<(typeof LIST)[number], {family:"view"}>["key"]` gets there
+purely at the type level, given `as const satisfies` (a widening annotation
+`: readonly Descriptor[]` DOES make it vacuous — worth knowing).
+
+### 8.2 What the reviewer got wrong — and why I did not just adopt his fix
+He proposed resting D3 on: *"the consumer needs a hand-written type predicate
+TS does not verify, or a cast."* **Also false here.** TS 5.5 shipped INFERRED
+TYPE PREDICATES and this repo is on **5.9.3** (`package.json` says `^5.8.3`).
+
+```ts
+const viewKeys: readonly (keyof ViewSettings)[] = SETTINGS_FIELDS
+  .filter((d) => d.family === "view").map((d) => d.key);   // exit 0, no cast
+```
+Negative control (`.filter(d => d.family !== "exclusion")`) →
+`TS2322 … '"outgoingDepth"' is not assignable to 'keyof ViewSettings'`.
+So mis-narrowing is **loud**, not silent.
+
+**Meta-lesson for any future round: a reviewer who has just caught you in a
+factual error is not thereby correct about the replacement.** Verify the fix
+with the same rigor as the finding. I nearly shipped a second false premise.
+
+### 8.3 The arguments that ACTUALLY sustain D3 Option B (re-derived from scratch)
+Both are **compiler-version-independent** — deliberately, given how this arose.
+
+1. **Layering dilemma (decisive).** Three consumers, three layers: engine
+   (`SettingsSpec.ts`), persistence (`persistedShapes.ts`), view
+   (`settingsSectionFields.ts`). A unified list is ONE module:
+   - in view (forced if it carries `section`) ⇒ `persistence → view`, an outward
+     edge. `architecture-map.md:7-13` = `view → adapters → engine`,
+     `persistence → engine`. **Illegal.**
+   - in engine without `section` ⇒ view still needs its own section table (not
+     unified), and the flat list sits next to `SETTINGS_SPEC` which is **already**
+     family-partitioned (`globalDepths`/`globalView`/`nodeExclusion`) and already
+     the single source of defaults+bounds ⇒ **a NEW parallel list**, in the ticket
+     that exists to delete parallel lists.
+2. **`cascade` would be data nothing reads.** Verified by reading both resolvers:
+   `ViewSettingsResolver.resolve()` = ranked-pinned chain + explicit 5-field
+   literal; `TraversalSettingsResolver.resolveForRoot()` = 2-field `??`;
+   `NodeExclusionSettings` has **NO RESOLVER AT ALL** (so "cascade: none" is the
+   absence of a class, not a 3rd strategy instance). CLARIFICATION constraint 5
+   forbids a runtime loop replacing `resolve()` ⇒ nothing may consume `cascade`,
+   nothing checks it against the code it describes. Unread + unverified string
+   describing behaviour = the exact silent-drift defect being removed.
+3. (Support) Payload differs per family: `MinBoundedNumberSpec` /
+   `BoundedNumberSpec` / `DefaultSpec<T>` / nested `SizingSpec`+`ForceLayoutSpec`.
+   Unified row = union narrowed everywhere, or a `{family,key}` husk.
+
+Also had to fix §4.3's proposed CODE COMMENT, which repeated the false claim —
+it would have shipped the error into the repo.
+
+## 9. F3 — the write-up described something §4 doesn't build
+Reviewer right, and his framing is better than mine. §4 ships **ONE** table
+(`SECTION_SETTINGS_FIELDS`, columns `{view;depth;exclusion}`) + two 3-arm
+`Exclude<>` aliases. No third table. No third parse guard either
+(`NodeExclusionSettings` has no override).
+⇒ Added **§2.5 artifact inventory table** (artifact→layer→shape→§). Retitled the
+decision to *"key spaces keyed by their own `keyof`; tables organised by
+CONSUMER; multi-family tables use per-family COLUMNS, not a row union."*
+Columns matter because each is directly consumable by `restoreFields<T>`.
+
+## 10. F4 — generalised tripwire; I found a hazard the reviewer missed
+`EngineDefaults.*Settings()` = 5 factories (`depth/sizing/nodeExclusion/view/
+forceLayout`). 3 production callers = `settingsResetPlan.ts`,
+`GraphLayoutRunner.ts`, `GraphViewController.ts` (exactly the reviewer's list).
+
+**MY ADDITION — load-bearing:** the scan MUST exclude `*.test.ts(x)`.
+**14 view test files** call these factories for fixtures
+(`settingsResetPlan.test.ts` alone = 22 calls). Without exclusion the guard is
+red for correct reasons and gets neutered. The hazard pre-existed (the narrow
+version would have hit 6 test files) but is now unmissable.
+Added **test 3**: every allowlist entry must still read a factory (anti-rot),
+since the allowlist just tripled in reach.
+
+Simulated (`.tmp/f2probe/scan.mjs`): 65 non-test modules, offenders =
+`["src/view/ForceLayoutSection.tsx"]` only, all 3 allowlist entries live. 
+Renamed the test file → `engineDefaultsSingleSource.test.ts`.
+
+## 11. Minors — all six incorporated, none rejected
+- m2: keep `_assertEveryResetScopePlaced` **but annotate** it tautological-by-
+  construction + name A11's `Record<SettingsResetScope,…>` as the real guarantee.
+  My predecessor's "don't remove guards" instinct is satisfied by annotating.
+  A guard that silently can't fail = POLS violation. → A12.
+- m3: dropped Step 2's test 3. **Verified** `settingsResetPlan.test.ts:241-246`
+  already covers every non-exclusion section scope incl. `force-layout`.
+  Numbering unaffected — Step 1's new test 3 takes the vacated slot.
+- m5: R1 now names BOTH codes — TS2741 (new `ViewSettings` field, named
+  `ParsedViewFields`) vs TS2345 (new `DepthSettings` field, inline arg type at
+  `parseDepthOverride`).
+- m4: WHY on the re-export + follow-up ticket in Step 8.
+
+## 12. Bonus recorded as a delivered guarantee (A11)
+Deriving `SettingsResetScope` from `SETTINGS_SECTIONS` makes the pre-existing
+`Readonly<Record<SettingsResetScope,…>>` on `SETTINGS_RESET_SCOPES` compile-force
+a reset spec for a **new SECTION**. Previously a new *scope* was guarded, a new
+*section* was not. This is also what makes A12 (keeping the tautological guard)
+honest.
+
+## 13. Probes from this round (rerun rather than re-argue)
+`.tmp/f2probe/optA.ts` (exit 0 — both guard AND consumer reachable from a flat
+list), `.tmp/f2probe/optA_neg.ts` (TS2322 — mis-narrowing is loud),
+`.tmp/f2probe/scan.mjs` (F4 simulation). All throwaway; `src/`+`e2e/` untouched.
+
+## 14. If there is a round 3
+- Do NOT reopen D3. Two independent, version-independent arguments now carry it
+  (§8.3), and the type-safety axis is settled as a non-differentiator (R15).
+- Do NOT re-add Step 2's confirmation test (m3) — it duplicates :241-246.
+- Do NOT drop the test-file exclusion from the Step 1 scan (§10) — 14 files.
+- The plan is READY. Remaining risk is implementation discipline, not design:
+  §6's "stop if you edit an existing assertion" is the whole correctness proof.

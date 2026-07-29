@@ -1,6 +1,14 @@
 # DETAILED PLAN — settings descriptor model (ticket 2, `nid_wimjq4ewgbg21n4zx9d4qq3a0_e`)
 
-Status: ready for PLAN_REVIEWER. Author: PLANNER.
+Status: **READY FOR IMPLEMENTATION** (plan iteration 1 applied). Author: PLANNER.
+
+> Iteration 1 closed PLAN_REVIEWER's F1 (inline, §4.4), F2 (§2.2 justification
+> rewritten onto sound grounds), F3 (§2.5 inventory added; §0/§2.3 retitled),
+> F4 (§5 Step 1 generalised), plus m1–m6 and both rulings. The full record is in
+> `PLAN_ITERATION__PUBLIC.md`. **The design did not change** — it was verified
+> end-to-end by PLAN_REVIEWER against the real compiler and the real test suite
+> (1129 assertions, zero test edits).
+
 Binding inputs: `CLARIFICATION__PUBLIC.md` (D1/D2 not re-litigated), the three
 `EXPLORATION_PUBLIC__*.md` reports, `docs-internal/notes/settings.md`,
 `docs-internal/architecture-map.md`, `CLAUDE.md`.
@@ -13,12 +21,20 @@ repo's flags (`strict`, `noUncheckedIndexedAccess`, `isolatedModules`,
 
 ## 0. Executive summary — what I recommend and what I decline
 
-**D3 decision: three per-family key spaces, one table per family, no unified
-"cascade strategy" abstraction.** The three families do not share a cascade, do
-not share an override type, and (critically) do not share a *key space*. A
-unified list would have to be a heterogeneous union that every consumer narrows
-by hand — and narrowing by hand is exactly the silent hole the ticket exists to
-close. Details and the rejected alternatives: §2.
+**D3 decision: every key space stays keyed by its own `keyof` — never flattened
+into one heterogeneous `{family, key}` row union. Tables are organised by
+CONSUMER (and therefore by layer); a table that serves several families carries
+per-family key *columns* rather than a `family` discriminant per row.**
+
+Concretely that is **one** new section table with three family columns, plus
+three-armed `Exclude<>` aliases at each guard site — not three parallel tables.
+The inventory of what §4 actually builds is in §2.5; the decision, the
+alternatives, and what is *not* a reason to prefer it are in §2.1–§2.4.
+
+Note up front, because the record must be honest: **type safety does not
+decide this.** A flat unified list can produce the same compile guards and the
+same correctly-typed runtime key arrays (verified — §2.2, §8 R15). The decision
+rests on layering and on the `cascade` field having no consumer.
 
 **Placement decision:** machine-facing descriptor data (defaults, bounds, spec
 completeness) stays in `src/engine/SettingsSpec.ts`; the persistence
@@ -45,7 +61,9 @@ No labels, no descriptions, no "sections" enter `src/engine/`. Rationale: §3.
    row space is not the field space. Merging three unrelated key spaces into one
    module is an SRP regression that buys nothing. The two D1 items that *do*
    have a home (`settingsResetPlan`, `sizingMetrics`) are folded in. **Flagged
-   for reviewer sign-off**, not blocking.
+   **DECLINE SUSTAINED by PLAN_REVIEWER** (§7.2) — with one carve-out handed to
+   ticket 4: `NODE_PREVIEW_ROW_LABEL` / `NODE_PREVIEW_ROW_DESCRIPTION` are row
+   copy for a `keyof ViewSettings` field and do belong in ticket 4's row table.
 3. **DRY-ing `EngineDefaults.forceLayoutSettings()` against
    `clampForceLayoutSettings()`** (the 7 field names, twice). Both are already
    return-type-forced — they are duplication, not *silent* duplication.
@@ -110,6 +128,16 @@ And one live structural defect (not silent, just wrong):
 
 ## 2. D3 — family shape: the decision and the alternatives
 
+> **Correction notice (plan iteration 1).** An earlier draft rejected Option A on
+> the grounds that a flat list "cannot produce the completeness guard the ticket
+> asks for". **That claim was false**, and PLAN_REVIEWER reproduced the
+> counterexample. A second candidate rescue argument — that the *consumer* side
+> needs an unverifiable hand-written type predicate — **is also false on this
+> repo's TypeScript** (5.9.3; verified below). Both are recorded here rather than
+> quietly deleted, because D3 asked for a justification and a justification built
+> on a false premise is worthless even when it happens to reach the right answer.
+> The decision below is unchanged; the reasons under it are entirely new.
+
 ### 2.1 The three families are not three instances of one thing
 
 | Family | Key space | Override type | Cascade | Reset write |
@@ -133,40 +161,133 @@ type SettingsFieldDescriptor =
 const SETTINGS_FIELDS: readonly SettingsFieldDescriptor[] = [ … ];
 ```
 
-Fatal objection: **it cannot produce the completeness guard the ticket asks
-for.** `parseViewOverride`'s guard has to be keyed by `keyof ViewSettings`. From
-a flat heterogeneous array you get there only via
-`SETTINGS_FIELDS.filter(d => d.family === "view")` — a *runtime predicate*. A
-wrong or stale predicate does not fail to compile. The unified list would
-therefore reintroduce, at the descriptor layer, exactly the silent hole it was
-built to close.
+#### What is NOT wrong with Option A (both verified — do not re-argue these)
 
-Secondary objections: it invents a `cascade` strategy abstraction with exactly
-three instances, two of which have 1–2 fields (over-generalisation, YAGNI); and
-every consumer narrows the union by hand before it can do anything useful, which
-is more ceremony than the tables it replaces.
+**(i) The type-level completeness guard IS reachable from a flat list.** Via
+`Extract` on the tuple's element union, no runtime predicate involved — provided
+the list is declared `as const satisfies readonly SettingsFieldDescriptor[]`
+rather than with the widening annotation sketched above (a plain
+`: readonly SettingsFieldDescriptor[]` erases the literals and makes the guard
+vacuous — the same trap §4.3 documents for `SECTION_SETTINGS_FIELDS`):
 
-### 2.3 Option B — three per-family tables — **RECOMMENDED**
+```ts
+type ListedViewField = Extract<(typeof SETTINGS_FIELDS)[number], { family: "view" }>["key"];
+type UnlistedViewField = Exclude<keyof ViewSettings, ListedViewField>;
+export const _assertEveryViewFieldListed: UnlistedViewField extends never ? true : UnlistedViewField = true;
+```
 
-Each family's table is a `Record`/mapped type over *its own* `keyof`, so
+With `forceLayout` removed from the list, `tsc` says
+`TS2322: Type 'true' is not assignable to type '"forceLayout"'` — identical
+guard, identical error legibility.
+
+**(ii) The runtime consumer array is ALSO correctly typed, with no cast and no
+hand-written predicate.** TypeScript ≥ 5.5 *infers* type predicates from
+one-expression discriminant checks, and this repo is on **5.9.3**:
+
+```ts
+const viewKeys: readonly (keyof ViewSettings)[] = SETTINGS_FIELDS
+	.filter((d) => d.family === "view")   // inferred predicate — narrows the union
+	.map((d) => d.key);                   // ⇒ keyof ViewSettings, assignment compiles
+```
+
+And a *wrong* predicate fails loudly rather than silently — swapping in
+`d.family !== "exclusion"` yields
+`TS2322: … Type '"outgoingDepth"' is not assignable to type 'keyof ViewSettings'`.
+
+⇒ **Type safety does not distinguish the two options.** Any argument of the form
+"Option A reintroduces a silent hole" is wrong on this toolchain. (§8 R15.)
+
+#### What is actually wrong with Option A
+
+**Objection 1 — the layering dilemma. This is the decisive one.** The
+completeness knowledge has three consumers sitting in three different layers:
+
+| Consumer | Layer | Needs |
+|---|---|---|
+| spec completeness (`SettingsSpec.ts`) | `src/engine/` | `keyof ViewSettings` etc. vs `keyof ViewSpec` etc. |
+| parse completeness (`persistedShapes.ts`) | `src/persistence/` | `keyof ViewSettings` |
+| section coverage + reset plans (`settingsSectionFields.ts`, `settingsResetPlan.ts`) | `src/view/` | field keys **per settings card** |
+
+A unified list is, by definition, **one module**. Which layer owns it?
+
+- **Put it in `src/view/`** — it must be, if it carries the `section` axis, since
+  a "settings card" is view knowledge. Then `src/persistence/persistedShapes.ts`
+  must import from `src/view/` to build its parse guard. The architecture map's
+  layering is `view → adapters → engine` with `persistence → engine`;
+  `persistence → view` is an outward edge and is **not a legal dependency**.
+- **Put it in `src/engine/` and drop `section`** — now the view still needs its
+  own section table, so the list is not unified after all; and the engine gains a
+  flat `{family, key}` enumeration sitting *next to* `SETTINGS_SPEC`, which is
+  **already** family-partitioned (`globalDepths: DepthSpec` / `globalView:
+  ViewSpec` / `nodeExclusion: NodeExclusionSpec`) and is already the single
+  source of every default and bound. That flat list would replace nothing and
+  would have to be kept in sync with the spec by hand — **a new parallel list, in
+  a ticket whose entire purpose is deleting parallel lists.**
+
+Both horns lose. Option B's tables are split along the seam that already exists
+and that the layering rule already enforces.
+
+**Objection 2 — the `cascade` field would be data nothing reads, and nothing
+checks.** D3's Option A is specifically "a unified list *with a declared cascade
+strategy*". But the cascades are implemented as **code**, not data:
+
+- `ViewSettingsResolver.resolve()` — ranked-pinned chain, returning an explicit
+  five-field object literal typed `ViewSettings`;
+- `TraversalSettingsResolver.resolveForRoot()` — a two-field `??` literal;
+- `NodeExclusionSettings` — **no resolver at all**. "Cascade: none" is the
+  *absence* of a class, not a third strategy instance.
+
+CLARIFICATION constraint 5 forbids replacing `resolve()`'s return-type guarantee
+with a runtime loop over descriptors. So no code may consume `cascade`, and
+nothing would verify that `cascade: "own-global"` still describes what
+`TraversalSettingsResolver` actually does. **An unread, unverified string that
+purports to describe behaviour is precisely the silent-drift defect this ticket
+exists to remove.** Adding one in order to close others is a net loss.
+
+**Objection 3 (supporting) — the per-family payload genuinely differs.** A
+descriptor is only worth having if it carries more than a key. `ViewSpec`'s
+fields carry `MinBoundedNumberSpec` (`nodeCap`), `BoundedNumberSpec`
+(`outlineMaxDepth`), `DefaultSpec<NodePreviewPreference>`, and the nested
+composites `SizingSpec` / `ForceLayoutSpec`. A unified row is therefore either a
+union that every consumer narrows, or a `{family, key}` husk carrying none of the
+data that makes a descriptor useful. Option A's "ONE declaration" would be one
+declaration of the *key*, not of the field.
+
+**What Option A would genuinely have bought** (stated so the trade is visible):
+one place to read all nine fields at once, and one `Extract`-based guard idiom
+instead of three `Exclude` arms. Real, but small — and §4.3's
+`SECTION_SETTINGS_FIELDS` already delivers "one table covering all three
+families" on the axis where that view is actually useful.
+
+### 2.3 Option B — key spaces stay keyed by their own `keyof`; tables split by consumer — **RECOMMENDED**
+
+Every completeness guard is a `Record`/mapped type over *its own* `keyof`, so
 completeness is enforced by TypeScript with zero runtime machinery — the pattern
 that **already works** in this repo at `ForceLayoutSpec`
 (`SettingsSpec.ts:67`), `FORCE_LAYOUT_RANGES` (`constants.ts:151`),
 `FORCE_LAYOUT_FIELD_META` and `NODE_PREVIEW_OPTION_META`.
 
+Where one *consumer* legitimately spans several families — the section axis does,
+because a settings card is a UI grouping that cuts across families — the table is
+**one table with per-family key columns** (`{ view; depth; exclusion }`, §4.3),
+not three tables and not a row union. That keeps a single place to read "what
+does this card own" while each column stays typed by its own `keyof`.
+
 Against the ticket's acceptance criterion — *"adding a new field requires
 editing ONE declaration"*: within a family, yes. Ticket 6 adds `embedDepthOut`,
-a **depth** field: one entry in the depth spec, one entry in the depth key list
-of the owning section, one parse expression — and the compiler names each one
-you skip (§8 proves it, with the error messages). Cross-family generality would
+a **depth** field: one entry in the depth spec, one entry in the depth column of
+the owning section, one parse expression — and the compiler names each one you
+skip (§8 proves it, with the error messages). Cross-family generality would
 buy nothing, because no workflow ever adds "a field of an unknown family".
 
-Against DRY: the three tables share no *knowledge*, only a 3-line type idiom.
-DRY is about knowledge duplication, not syntactic similarity — and I explicitly
-decline to extract the idiom into a generic helper (§7.4) because doing so
-degrades the compiler's error message, which is the entire point of the guard.
+Against DRY: the guards share no *knowledge*, only a 3-line type idiom. DRY is
+about knowledge duplication, not syntactic similarity — and I explicitly decline
+to extract the idiom into a generic helper (§7.4) because doing so degrades the
+compiler's error message, which is the entire point of the guard.
 
-Against SRP: one table = one family = one cascade = one reason to change. ✔
+Against SRP: each table has one consumer and therefore one reason to change —
+spec completeness changes when the spec shape changes, the section table changes
+when a card gains or loses a row. ✔
 
 ### 2.4 Option C — extend `SETTINGS_SPEC` entries into full descriptors carrying `parse` — REJECTED
 
@@ -186,6 +307,30 @@ currently clean split:
 
 The guard can be a **type** that crosses the boundary at zero runtime cost
 (§4.2). That gets 100% of the safety at 0% of the layering damage.
+
+### 2.5 What the decision actually ships — read this before extending it
+
+The phrase "per-family" describes the *key spaces*, **not** the file count.
+There is no such thing as "three parallel tables" anywhere in §4. The complete
+inventory, so ticket 4 and ticket 5 extend the real shape:
+
+| Artifact | Layer | Shape | §|
+|---|---|---|---|
+| `ViewSpec` / `DepthSpec` / `NodeExclusionSpec` | engine | pre-existing per-family interfaces — **unchanged**, now guarded | 4.1 |
+| `UnspeccedSettingsField`, `OrphanSpecField` | engine | **one** type alias each, three `Exclude<>` arms | 4.1 |
+| `SizingRangeField` | engine | one `Exclude<>`, derived from `SizingSpec` | 4.1 |
+| `ParsedViewFields` | persistence | one mapped type over `keyof ViewSettings` | 4.2 |
+| (depth parse guard) | persistence | inline mapped type at the `definedFieldsOnly<DepthSettings>` call — no named alias, and **no third** one: `NodeExclusionSettings` has no override, so it has no parse guard | 4.2 |
+| **`SECTION_SETTINGS_FIELDS`** | view | **ONE** table, `Record<SettingsSection, SectionSettingsFields>`, with per-family key **columns** `{ view; depth; exclusion }` | 4.3 |
+| `UnsectionedSettingsField` | view | **one** type alias, three `Exclude<>` arms | 4.3 |
+| `_assertEverySizingMetricListed` | view | one `Exclude<>` over `SizeMetricId` | 4.5 |
+
+So on the section axis the plan already *is* the unified structure Option A
+reached for — a single table covering all three families — but with per-family
+**columns** instead of a `{family, key}` **row union**. Columns keep each key
+list typed by its own `keyof` and directly consumable by `restoreFields<T>`;
+a row union would have to be re-grouped at every consumer. That is the shape to
+extend, and the reason to extend it that way.
 
 ---
 
@@ -387,12 +532,12 @@ import type { DepthSettings, NodeExclusionSettings, ViewSettings } from "../engi
  * fact both the settings tab's six cards and their scoped "Restore defaults"
  * buttons are built from.
  *
- * Split by FAMILY, not flattened: the three families cascade differently, carry
- * different override types and land in different persistence commands
- * (`global-view` / `global-depths` / `node-exclusion`). Flattening them would
- * force every consumer to re-derive the family with a runtime predicate, and a
- * runtime predicate is exactly the kind of unguarded branch this table exists
- * to eliminate.
+ * ONE table, with a key COLUMN PER FAMILY rather than a `{family, key}` row
+ * union. The three families carry different override types and land in
+ * different persistence commands (`global-view` / `global-depths` /
+ * `node-exclusion`), so each column is consumed by a different `restoreFields<T>`
+ * call and must stay typed by its own `keyof`. Columns hand that over directly;
+ * a row union would be re-grouped by family at every consumer for no gain.
  *
  * View-layer on purpose: a "section" is a settings-tab CARD. The pure engine has
  * no notion of one and must not acquire it (architecture-map layering).
@@ -531,13 +676,41 @@ six-section list structurally the same thing:
  */
 export type SettingsResetScope = SettingsSection | "all";
 
-/** Re-exported under its established name so every existing import keeps working. */
+/**
+ * Re-exported under its established name: `e2e/settingsBaseline.ts` and
+ * `settingsResetPlan.test.ts` import `SECTION_RESET_SCOPES`, and preserving both
+ * the name AND the tuple type is what keeps this refactor's zero-test-edit proof
+ * (§6) intact. A value binding, not `export { … } from` — `isolatedModules`-safe.
+ *
+ * DEBT, deliberately taken: this leaves two exported names for one tuple
+ * (`SETTINGS_SECTIONS` / `SECTION_RESET_SCOPES`) and two for one union
+ * (`SettingsSection` / `SettingsResetScope`). Collapsing them means editing the
+ * e2e harness and a behaviour-capturing test in the same change that refactors
+ * the code they check — exactly the coupling §6 exists to avoid. Follow-up
+ * ticket filed for ticket 4/5 to collapse them once the presenters move.
+ */
 export const SECTION_RESET_SCOPES = SETTINGS_SECTIONS;
 ```
 
-`_assertEveryResetScopePlaced` **stays** (it becomes tautological, costs
-nothing, and removing a guard needs a reason better than "it can no longer
-fail").
+`_assertEveryResetScopePlaced` **stays, but must be annotated**, because once
+`SettingsResetScope = SettingsSection | "all"` and
+`SECTION_RESET_SCOPES = SETTINGS_SECTIONS`, its `UnplacedScope` is `never` **by
+construction** — it can no longer fail:
+
+```ts
+/**
+ * TAUTOLOGICAL BY CONSTRUCTION as of ticket 2, and kept deliberately: with
+ * `SettingsResetScope` derived from `SETTINGS_SECTIONS`, `UnplacedScope` cannot
+ * be anything but `never`.
+ *
+ * What actually carries this guarantee now is the
+ * `Readonly<Record<SettingsResetScope, SettingsResetScopeSpec>>` annotation on
+ * `SETTINGS_RESET_SCOPES` — which is STRICTLY STRONGER, because it also forces a
+ * reset spec for a newly added SECTION (previously unguarded).
+ *
+ * Retained rather than deleted so that it goes live again the moment the scope
+ * union and the section list are ever decoupled.
+ */
 
 **`all` stays bespoke** — whole-slice writes, not a merge:
 
@@ -621,7 +794,7 @@ is deliberately red until Step 2). Redirect verbose output: `npm run check >
 
 | # | Step | Kind | Depends on |
 |---|---|---|---|
-| 1 | **RED**: add the force-layout-defaults single-source tripwire test | design-bearing | — |
+| 1 | **RED**: add the `EngineDefaults.*Settings()` single-source tripwire test | design-bearing | — |
 | 2 | **GREEN**: route `ForceLayoutSection`'s restore through `planSettingsReset` | mechanical | 1 |
 | 3 | Engine: spec-completeness guards; `SizingRangeField` derived; `DepthOverride := Partial<DepthSettings>` | mostly mechanical, one small design call | — |
 | 4 | Persistence: `definedFieldsOnly` + `ParsedViewFields` mapped-type guard | **design-bearing** (the inherit invariant) | 3 |
@@ -632,31 +805,78 @@ is deliberately red until Step 2). Redirect verbose output: `npm run check >
 
 ### Step 1 — RED: the only genuinely broken thing today
 
-New `src/view/forceLayoutDefaultsSingleSource.test.ts`, in the repo's
-established source-scan idiom (`importGuard.test.ts`, `selectorGuard.test.ts`,
-`thumbnailDensityThreshold.test.ts`, `vaultTarget.test.ts`):
+New `src/view/engineDefaultsSingleSource.test.ts`, in the repo's established
+source-scan idiom (`importGuard.test.ts`, `selectorGuard.test.ts`,
+`thumbnailDensityThreshold.test.ts`, `vaultTarget.test.ts`).
 
-- **RED today**: `ForceLayoutSection.tsx` calls `EngineDefaults.forceLayoutSettings()`.
-- Allowlist with a per-entry WHY, so the guard is self-documenting rather than
-  arbitrary:
-  - `settingsResetPlan.ts` — THE reset plan; this is the single source.
-  - `GraphLayoutRunner.ts:26` — a *parameter default* for a rendering fallback,
-    not a settings write. (Verified: those are the only two legitimate callers.)
-- Second test: the scan finds ≥ 1 view file (non-vacuous guard) — same
-  discipline as `importGuard.test.ts`.
+**Scope: all five `EngineDefaults.*Settings()` factories, not just
+`forceLayoutSettings()`.** `depthSettings`, `sizingSettings`,
+`nodeExclusionSettings`, `viewSettings` and `forceLayoutSettings` carry the
+*identical* "a second opinion on what a default is" hazard, and ticket 4 gives
+the panel restore buttons for the other five sections — which is exactly when
+the un-guarded four would start being copied. Guarding one of five would also
+read as "the other four are fine". Same allowlist cost, ~4× the coverage.
+
+```ts
+const DEFAULTS_CALL = /EngineDefaults\.[a-zA-Z]+Settings\s*\(/;
+```
+
+Allowlist, with a WHY per entry so the guard is self-documenting rather than
+arbitrary (all three verified as the *only* legitimate production callers):
+
+| Module | WHY allowed |
+|---|---|
+| `settingsResetPlan.ts` | THE reset plan — this **is** the single source every other module must route through. |
+| `GraphLayoutRunner.ts:26` | A *parameter default* for a rendering fallback, not a settings write. |
+| `GraphViewController.ts:53-55` | Pre-load placeholder state, before persistence has answered. Not a user-visible default. |
+
+**Scan `src/view/**/*.{ts,tsx}` excluding `*.test.ts` / `*.test.tsx`.** This
+exclusion is load-bearing, not incidental: **14 view test files** legitimately
+call these factories to build fixtures (`settingsResetPlan.test.ts` alone has 22
+calls). Without the exclusion the guard is red for entirely correct reasons and
+would have to be neutered.
+
+Verified by simulating the scan against today's tree:
+
+```
+view modules scanned (non-test) = 65
+offenders TODAY                 = ["src/view/ForceLayoutSection.tsx"]     ← the RED
+allowlist entries actually used = ["GraphLayoutRunner.ts", "GraphViewController.ts", "settingsResetPlan.ts"]
+```
+
+So the guard is red today naming exactly the defect, green after Step 2, and no
+allowlist entry is dead weight.
 
 Tests (BDD, one behaviour each):
-1. `WHEN src/view is scanned THEN only the allowlisted modules read the force-layout defaults directly`
+1. `WHEN src/view is scanned THEN only the allowlisted modules read EngineDefaults settings factories directly`
 2. `WHEN the scan runs THEN it finds at least one view module (the guard is not vacuous)`
+3. `WHEN the allowlist is checked THEN every entry still reads a defaults factory (no stale exemption)`
 
-> This test is **optional-but-recommended**. If PLAN_REVIEWER judges a tripwire
-> disproportionate for one call site, strike it and keep Step 2 — the structural
-> fix stands on its own. But then the ticket has *no* red-first test, and that
-> should be an explicit choice, not an accident.
+Test 3 is what keeps the allowlist honest: an exemption that outlives its call
+site is how source-scan guards quietly rot.
+
+> **Reviewer ruling (Q-B): KEEP.** The repo has **no** React component-test
+> infrastructure — no `*.test.tsx` under `src/view/`, and no
+> `@testing-library/*` / `jsdom` / `happy-dom` in `package.json` — so a
+> behavioural test of `ForceLayoutSection`'s restore button is not cheaply
+> available. Source-scan guards have four precedents here. This is the ticket's
+> only genuinely red-first test.
 
 ### Step 2 — GREEN: `ForceLayoutSection` restore through the shared plan
-Per §4.6. Plus, in `settingsResetPlan.test.ts` (additive):
-3. `WHEN the force-layout scope's confirmation is read THEN it is absent (the in-graph panel applies this scope with no confirm dialog)` — a tripwire so a confirmation added later cannot be silently skipped by the panel.
+Per §4.6. **No new test.** An earlier draft added a "the force-layout scope
+declares no confirmation" assertion here; PLAN_REVIEWER verified that
+`settingsResetPlan.test.ts:241-246` **already** asserts exactly that, for *every*
+non-exclusion section scope at once:
+
+```ts
+const confirmed = SECTION_RESET_SCOPES.filter(
+    (scope) => scope !== "node-exclusion" && planSettingsResetConfirmation(scope, TUNED_CTX) !== null,
+);
+expect(confirmed).toEqual([]);
+```
+
+A second, weaker assertion of the same fact is test-level duplication. Cite this
+existing test in §4.6's WHY-NOT comment instead (the plan already does).
 
 Verify: `npm test` (Step 1 now green), `npm run check`.
 
@@ -715,6 +935,15 @@ Additive test:
 - `docs-internal/architecture-map.md`: **no edit needed** — PLAN_REVIEWER checked;
   the map does not enumerate individual view modules (`sizingMetrics`,
   `settingsResetPlan`, `forceLayoutFieldMeta` are all absent from it). Leave it alone.
+- **Two follow-up tickets to file** (spotted here, out of scope here):
+  1. Collapse the duplicate `SETTINGS_SECTIONS` / `SECTION_RESET_SCOPES` and
+     `SettingsSection` / `SettingsResetScope` names once ticket 4 moves the
+     presenters (the alias is what preserves this ticket's zero-test-edit proof —
+     see §4.4). `deps`: ticket 4.
+  2. Ticket-4 pointer: `NODE_PREVIEW_ROW_LABEL` / `NODE_PREVIEW_ROW_DESCRIPTION`
+     are row copy for a `keyof ViewSettings` field and belong in ticket 4's row
+     table (§7.2). Record on ticket 4 rather than as a standalone ticket if that
+     ticket already exists.
 - `change_log` entry; close the ticket; TOP_LEVEL_AGENT closes the moot
   sub-ticket `nid_3k0a4zl6in0mj8lcjibkjq2dx_e`.
 - **No release-note "stored data reset" entry** — no persisted shape changed and
@@ -755,7 +984,7 @@ quietly re-baseline. A test edited to match new output is the exact failure mode
 
 **New files:** `src/view/settingsSectionFields.ts`,
 `src/view/settingsSectionFields.test.ts`,
-`src/view/forceLayoutDefaultsSingleSource.test.ts`.
+`src/view/engineDefaultsSingleSource.test.ts`.
 
 ---
 
@@ -784,7 +1013,7 @@ A new **depth** field (which is what `embedDepthOut` is) costs the same shape
 against `DepthSettings` / `DepthSpec` / `parseDepthOverride` / the
 `depth-defaults` section.
 
-### 7.2 Declining the file-merge reading of D1 — needs reviewer sign-off
+### 7.2 Declining the file-merge reading of D1 — **reviewer ruling: DECLINE SUSTAINED**
 
 D1 lists four "shared view meta tables" to fold in. Two are folded:
 `settingsResetPlan` (→ the section map drives its plans) and `sizingMetrics`
@@ -805,6 +1034,19 @@ D1 lists four "shared view meta tables" to fold in. Two are folded:
 
 Cost of the decline: none that I can find. Anything ticket 4 needs from them, it
 imports from where they live today.
+
+**Reviewer-added nuance — carry this to ticket 4.** Two constants in
+`nodePreviewPreferenceMeta.ts` are *not* covered by the argument above, because
+they are not keyed by the enum at all:
+
+- `NODE_PREVIEW_ROW_LABEL` (`nodePreviewPreferenceMeta.ts:16`) — `"Preview"`
+- `NODE_PREVIEW_ROW_DESCRIPTION` (`nodePreviewPreferenceMeta.ts:23`)
+
+These **are** row copy for a `keyof ViewSettings` field
+(`nodePreviewPreference`), so they *do* belong in ticket 4's row-copy table —
+unlike `NODE_PREVIEW_OPTION_META`, which stays keyed by `NodePreviewPreference`.
+Nothing moves in this ticket; the pointer is recorded so ticket 4 finds them
+instead of re-authoring the strings.
 
 ### 7.3 Declining the `EngineDefaults.forceLayoutSettings()` / `clampForceLayoutSettings()` DRY
 Both hand-list the same 7 field names. Both are **return-type-forced** — a
@@ -838,7 +1080,7 @@ proposed. Probes are in `.tmp/scratch/` (throwaway).
 
 | # | Risk | Mitigation / evidence |
 |---|---|---|
-| R1 | The mapped type `{ [K in keyof ViewSettings]: T \| undefined }` might not force keys present, making the parse guard vacuous | **Verified.** Omitting a key errors: `TS2741: Property 'embedDepthOut' is missing in type … but required in type 'ParsedViewFields'`. (`exactOptionalPropertyTypes` is OFF in this repo, which does not affect *required* properties.) |
+| R1 | The mapped type `{ [K in keyof ViewSettings]: T \| undefined }` might not force keys present, making the parse guard vacuous | **Verified.** Omitting a key errors: `TS2741: Property 'embedDepthOut' is missing in type … but required in type 'ParsedViewFields'`. (`exactOptionalPropertyTypes` is OFF in this repo, which does not affect *required* properties.) **Error-code nuance:** a new `ViewSettings` field surfaces as **TS2741** at the named `ParsedViewFields` annotation; a new `DepthSettings` field surfaces as **TS2345** at `parseDepthOverride`'s `definedFieldsOnly<DepthSettings>` call site, because the guard there is an inline argument type rather than a named alias. Both name the missing field — do not read TS2345 as a misfire. |
 | R2 | `as const satisfies` over-narrowing a table breaks `===` comparisons in existing tests — e.g. `settingsResetPlan.test.ts:269` compares `label === "Restore defaults"`, which TS rejects as "no overlap" once labels are literal types | **Designed around.** `SETTINGS_RESET_SCOPES` keeps its current annotation; the literal tuples live only in the new `SECTION_SETTINGS_FIELDS`. This is the main reason the section map is a *separate* table rather than a `resets` field on the existing one. |
 | R3 | `restoreFields`'s readonly-strip cast on a generic | One documented cast; every write is `T[K] = T[K]`. **Verified compiling**, returns `ViewSettings` (no `Partial` leakage). Chosen over `{...current, ...pick(defaults, keys)}` precisely to avoid relying on TS's `Partial`-spread inference. |
 | R4 | `noUncheckedIndexedAccess` making `SECTION_SETTINGS_FIELDS[section]` `\| undefined` | **Verified** not an issue: `section` is a literal union and the object has all those keys, so no `undefined` is introduced. `fields.view.length` and the `readonly (keyof ViewSettings)[]` widening both compile. |
@@ -849,7 +1091,8 @@ proposed. Probes are in `.tmp/scratch/` (throwaway).
 | R9 | Reset command *order* changing (observable — `applyReset` awaits each in sequence, each a full `data.json` rewrite) | Every section owns exactly one family today, so the derived order is byte-identical. The chosen view→depth→exclusion order is documented in code for the day a section spans families. Pinned by the unchanged `settingsResetPlan.test.ts` `.map(c => c.kind)` assertions. |
 | R10 | The `all` scope silently becoming "only as complete as the section map" | Deliberately **not** derived. Whole-slice writes retained, with the WHY-NOT in code. |
 | R11 | `SIZING_METRICS` tuple-narrowing breaking a consumer | `SizingSection.tsx` / `VicinityGraphSettingTab.ts` destructure `{id, label}` — narrower types are strictly more permissive at those call sites (`id` becomes a literal used to index `metrics`). `e2e/settingsDependentRows.e2e.ts` gets one dead guard branch (Step 5) — compiles, left alone. |
-| R12 | The source-scan tripwire (Step 1) going stale / false-positive | Bounded: one symbol, one directory, an explicit allowlist with a WHY per entry, plus a non-vacuity test. Same idiom as four existing scans. Marked optional so the reviewer can strike it. |
+| R12 | The source-scan tripwire (Step 1) going stale / false-positive | Bounded: one symbol family (`EngineDefaults.*Settings()`), one directory, tests excluded, an explicit allowlist with a WHY per entry, a non-vacuity test, and test 3 which fails if an allowlist entry outlives its call site. Same idiom as four existing scans. **Simulated against today's tree**: 65 non-test modules scanned, exactly one offender (`ForceLayoutSection.tsx`), all three allowlist entries live. Reviewer ruled KEEP (Q-B). |
+| R15 | **The D3 justification resting on a false claim about the compiler** — the original "a flat list cannot produce the guard" objection, and the fallback "the consumer needs an unverifiable hand-written predicate" | **Both disproven and retracted (§2.2).** `Extract<(typeof LIST)[number], {family:"view"}>["key"]` yields the guard; `.filter(d => d.family === "view").map(d => d.key)` yields a correctly-typed `readonly (keyof ViewSettings)[]` with no cast and no hand-written predicate (TS ≥ 5.5 inferred type predicates; repo is on **5.9.3**), and a wrong predicate errors loudly (`TS2322 … '"outgoingDepth"' is not assignable to 'keyof ViewSettings'`). The decision now rests on the layering dilemma and on `cascade` having no consumer — neither of which depends on a compiler version. **If the repo ever pins TypeScript below 5.5, the decision is unaffected** for exactly that reason. |
 | R13 | Engine purity regression | Zero new imports in `src/engine/`; zero UI strings added there. `importGuard.test.ts` green by construction. |
 | R14 | Scope creep into ticket 4 via "descriptor drives the rows" | Hard boundary stated in §7.1/§7.2: no row-copy table, no renderer change. The one renderer edit (§4.6) swaps a defaults source and touches no markup, class, or text. |
 
@@ -862,9 +1105,10 @@ proposed. Probes are in `.tmp/scratch/` (throwaway).
 - A1 `npm run check` is green — and, per §8, a `ViewSettings` field added without
   a spec entry / parse branch / section entry makes it **red, naming the field**.
   (Reviewer may verify with a throwaway field; do not commit one.)
-- A2 Tests 1–2 (force-layout single source): red before Step 2, green after.
+- A2 Tests 1–3 (`EngineDefaults` single source): red before Step 2 naming
+  `ForceLayoutSection.tsx`, green after.
 - A3 Tests 7–10 (section map): red before Step 6, green after.
-- A4 Tests 3–6, 11: green.
+- A4 Tests 4–6, 11: green.
 - A5 **Every pre-existing test file passes with zero edits** (§6).
 - A6 `e2e/selectorGuard.test.ts` and `e2e/settingsBaseline.test.ts` green,
   unedited.
@@ -875,21 +1119,42 @@ proposed. Probes are in `.tmp/scratch/` (throwaway).
 
 - A8 `parseViewOverride` no longer contains a hand-enumerated property list that
   can be short; `!== undefined` presence semantics appear in exactly one function.
-- A9 `EngineDefaults.forceLayoutSettings()` has exactly two callers in
-  `src/view/` (the reset plan and the layout-runner parameter default).
+- A9 `EngineDefaults.*Settings()` has exactly **three** non-test callers in
+  `src/view/`: `settingsResetPlan.ts`, `GraphLayoutRunner.ts` (parameter
+  default), `GraphViewController.ts` (pre-load placeholder). Machine-checked by
+  Step 1's tripwire.
 - A10 No label/description/section string exists under `src/engine/`.
+- A11 **New guarantee, previously absent:** adding a settings **section** now
+  compile-forces a reset spec for it. `SettingsResetScope` derives from
+  `SETTINGS_SECTIONS`, so the pre-existing
+  `SETTINGS_RESET_SCOPES: Readonly<Record<SettingsResetScope, …>>` annotation
+  fails on a section with no entry. Before this ticket a new *scope* was guarded
+  (by `_assertEveryResetScopePlaced`) but a new *section* was not — that hole is
+  closed as a side effect, and it is the guard that makes A12 fair.
+- A12 `_assertEveryResetScopePlaced` is retained but **annotated in code as
+  tautological-by-construction**, naming A11's annotation as what now carries
+  the guarantee. A guard that silently cannot fail while reading as protection is
+  a POLS violation; keeping it unannotated would be the quiet kind of untruth
+  `CLAUDE.md` warns about. It stays because the two definitions could decouple
+  again, at which point it goes live.
 
 ---
 
 ## 10. Open questions
 
-None blocking. Two items want a reviewer opinion, both argued above and both
-safe to proceed on if the reviewer is silent:
+**None. Both are now ruled on and folded into the plan above.**
 
-- **Q-A (§7.2)** — I decline the file-merge reading of D1 for
-  `forceLayoutFieldMeta` / `nodePreviewPreferenceMeta`, on the grounds that the
-  row space is not the field space. If the owner intended a literal file merge,
-  say so and I will re-plan that slice — but I believe it would be an SRP
-  regression that ticket 4 then has to undo.
-- **Q-B (§5, Step 1)** — the source-scan tripwire is the ticket's only genuinely
-  red-first test. Keep it (recommended) or accept that the ticket has none.
+- **Q-A (§7.2)** — merge `forceLayoutFieldMeta` / `nodePreviewPreferenceMeta`?
+  **DECLINE SUSTAINED** by PLAN_REVIEWER, on the evidence: both are already
+  single-source and compile-exhaustive over key spaces that are not
+  `keyof ViewSettings`, so merging is file-count theatre and an SRP regression
+  ticket 4 would have to undo. Follow-up recorded in §7.2 and Step 8:
+  `NODE_PREVIEW_ROW_LABEL` / `NODE_PREVIEW_ROW_DESCRIPTION` *are* row copy for a
+  `keyof ViewSettings` field and belong to ticket 4.
+- **Q-B (§5, Step 1)** — keep the source-scan tripwire? **KEEP**, and generalised
+  from `forceLayoutSettings()` to all five `EngineDefaults.*Settings()` factories.
+  No React component-test infrastructure exists in this repo, so there is no
+  cheaper honest red-first test.
+
+Nothing in this plan requires further human input. **`#QUESTION_FOR_HUMAN:` —
+none.**
