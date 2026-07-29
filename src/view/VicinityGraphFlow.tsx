@@ -100,6 +100,11 @@ export function VicinityGraphFlow({
 							// Culling math never needs DOM measurement: every node carries
 							// explicit width/height (toReactFlowNode).
 							onlyRenderVisibleElements
+							// Hide React Flow's "React Flow" attribution badge: inside an
+							// Obsidian pane it reads as chrome from another app and overlaps
+							// the bottom-right of the graph. NOTE: xyflow asks that only Pro
+							// subscribers set this — see the ticket/release note.
+							proOptions={{ hideAttribution: true }}
 							// WHY-NOT the `fitView` prop: it fires exactly once at mount,
 							// racing Obsidian's pane layout (observed producing an off-graph
 							// viewport in a fresh sidebar) and never refitting after rebuilds.
