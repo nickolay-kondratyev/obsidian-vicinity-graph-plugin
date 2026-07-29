@@ -17,3 +17,9 @@ In the settings and in the graph controls lets group both under 'depth'
 
 Possibly give it a more clear name maybe something of depth of links?
 
+
+## Notes
+
+**2026-07-29T22:11:13Z**
+
+SCOPE CHANGE (owner, 2026-07-29): per-pinned-central depth dials are removed by nid_ez38gf1mrdgh5kxedzrdicwzl_e (settings global-only; pins global). The Depth group therefore contains only the GLOBAL depth controls (currently outgoing/incoming; +embed later via nid_fay1hu5sxcoygizopkkg0f0d7_e). The pinned-centrals list stays as a disclosure but carries no depth steppers to regroup. Update any relevant specs/docs describing the Depth grouping.

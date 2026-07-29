@@ -5,7 +5,7 @@ tags: [settings]
 title: Share the `doc-data` dir name as one constant instead of 4+ literals
 status: closed
 deps: []
-links: []
+links: [nid_m5hxe4eo9jgt7cfic7s2o3uvi_e, nid_ez38gf1mrdgh5kxedzrdicwzl_e]
 created_iso: '2026-07-27T16:20:57Z'
 status_updated_iso: 2026-07-29T22:07:01Z
 type: chore
@@ -53,3 +53,10 @@ executes `prepareVaultCopy()` and therefore proves the runtime import actually l
 the node-side process, not just typechecks. The `vaultTarget.test.ts` destructive-call
 source scan still passes: the wipe's destination still roots at the literal
 `VAULT_COPY_DIR` constant.
+**2026-07-29T22:11:26Z**
+
+FOLLOW-UP CONTEXT: nid_ez38gf1mrdgh5kxedzrdicwzl_e (settings simplification) deletes the
+`doc-data/` dir entirely — per-doc saved state is being removed in favor of global-only
+settings. That ticket therefore also deletes `DOC_DATA_DIR_NAME` and its consumers; this
+refactor landed first (see Resolution above), so the removal is a straight delete of one
+constant instead of 5+ scattered literals.

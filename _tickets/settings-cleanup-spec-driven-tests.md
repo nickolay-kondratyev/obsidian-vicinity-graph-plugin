@@ -25,3 +25,9 @@ GOAL:
 
 Keep a SMALL number of literal assertions for genuinely product-meaningful defaults (e.g. nodeCap default 100) -- structural tests must not erase the ability to notice an unintended default change.
 
+
+## Notes
+
+**2026-07-29T22:11:13Z**
+
+SCOPE CHANGE (owner, 2026-07-29): per-doc saved state is removed by nid_ez38gf1mrdgh5kxedzrdicwzl_e before this ticket. Spec-iterating tests cover GLOBAL round-trip/reset/bounds only — do NOT write per-doc override round-trip tests (CentralDepthRoundTrip.test.ts is deleted by the simplification ticket). Parity test scope unchanged.
