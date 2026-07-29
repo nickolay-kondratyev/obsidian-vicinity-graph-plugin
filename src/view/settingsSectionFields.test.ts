@@ -82,8 +82,8 @@ describe("section resets together cover every settings field", () => {
 					case "node-exclusion":
 						ctx = { ...ctx, nodeExclusion: command.nodeExclusion };
 						break;
-					default:
-						throw new Error(`a section reset emitted an unexpected command: ${command.kind}`);
+					// No default arm: every SettingsCommand kind is handled above, so a NEW
+					// kind is a compile error here rather than a runtime surprise.
 				}
 			}
 		}

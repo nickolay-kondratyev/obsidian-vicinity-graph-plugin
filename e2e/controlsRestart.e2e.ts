@@ -1,12 +1,11 @@
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import { ObsidianHarness } from "./obsidianHarness";
-import { PINNED_CENTRALS_SUMMARY } from "./settingsBaseline";
 
 /**
  * Step-06 RESTART round-trip (QA §1/§6/§11/§13) — the step's hard exit criterion
- * and the one thing the unit suite structurally cannot reach. Mutate a depth
- * stepper, a pin, a sizing weight and the node cap through the real UI/store, do
+ * and the one thing the unit suite structurally cannot reach. Mutate the global
+ * depth stepper, a pin, a sizing weight and the node cap through the real UI/store, do
  * ONE real Obsidian restart via {@link ObsidianHarness.relaunch}, then assert each
  * reloaded from `data.json`.
  *
@@ -21,10 +20,9 @@ test.describe.configure({ mode: "serial" });
 
 /**
  * The MAIN hub and the pin target carry a seeded `id` (obsidian-id-lib's
- * frontmatter key): per-doc depth settings are only editable once a note has a
- * stable docid — a fresh, never-id-stamped note correctly shows DISABLED
- * steppers. Seeding models the normal steady state and avoids an id-minting
- * frontmatter write on pin.
+ * frontmatter key): a note can only be PINNED once it has a stable docid.
+ * Seeding models the normal steady state and avoids an id-minting frontmatter
+ * write on pin.
  */
 const RESTART_FIXTURES: Record<string, string> = {
 	"rt_hub.md": "---\nid: docid_restarthub_e\n---\nRestart MAIN — links out to [[rt_x]].\n",
@@ -61,12 +59,13 @@ function noteNode(path: string): Locator {
 	return page.locator(`.vicinity-graph-node[data-path="${path}"]`);
 }
 
-function mainRow(): Locator {
-	return page.locator('.vicinity-graph-central[data-kind="main"]');
+/** The panel's Depth section: the ONE global depth setting (drives MAIN and every pinned central). */
+function depthSection(): Locator {
+	return page.locator(".vicinity-graph-depth-controls");
 }
 
-function mainIncomingValue(): Locator {
-	return mainRow()
+function incomingDepthValue(): Locator {
+	return depthSection()
 		.locator(".vicinity-graph-stepper")
 		.filter({ hasText: "Incoming" })
 		.locator(".vicinity-graph-stepper__value");
@@ -74,12 +73,6 @@ function mainIncomingValue(): Locator {
 
 function toolbar(): Locator {
 	return page.locator(".vicinity-graph-toolbar");
-}
-
-function pinnedDisclosure(): Locator {
-	return page.locator(".vicinity-graph-disclosure", {
-		has: page.locator(".vicinity-graph-disclosure__summary", { hasText: PINNED_CENTRALS_SUMMARY }),
-	});
 }
 
 /**
@@ -107,8 +100,8 @@ async function clickPin(path: string): Promise<void> {
  * off-viewport in a headless window, so we invoke the same onClick/onChange the
  * UI wires up — the control→persist→rebuild chain is what's under test.
  */
-async function bumpMainIncoming(): Promise<void> {
-	await mainRow()
+async function bumpIncomingDepth(): Promise<void> {
+	await depthSection()
 		.getByRole("button", { name: "Increase incoming depth" })
 		.evaluate((el) => (el as HTMLButtonElement).click());
 }
@@ -134,10 +127,10 @@ test("depth, pin, node cap and sizing all survive an Obsidian restart", async ()
 	await clickPin(PIN_TARGET);
 	await expect(noteNode(PIN_TARGET)).toHaveAttribute("data-tier", "pinned-central");
 
-	// §1 MAIN depth: raise rt_hub's incoming depth 1 → 2, pulling the rt_in2 hop.
+	// §1 Global depth: raise the incoming depth 1 → 2, pulling the rt_in2 hop.
 	await ensureOpen(toolbar());
-	await bumpMainIncoming();
-	await expect(mainIncomingValue()).toHaveText("2");
+	await bumpIncomingDepth();
+	await expect(incomingDepthValue()).toHaveText("2");
 	await expect(noteNode(IN2)).toHaveCount(1);
 
 	// §11 Sizing (in-view mirror): set a distinctive Own-file-size weight.
@@ -159,9 +152,8 @@ test("depth, pin, node cap and sizing all survive an Obsidian restart", async ()
 	await expect(noteNode(HUB)).toHaveAttribute("data-tier", "main");
 	await ensureOpen(toolbar());
 
-	// §1 depth + §11/§13 globals reload immediately (MAIN's seeded docid resolves
-	// on the first build; globals are plain data.json fields):
-	await expect(mainIncomingValue()).toHaveText("2"); // §1
+	// §1 depth + §11/§13 globals reload immediately (they are all plain data.json fields):
+	await expect(incomingDepthValue()).toHaveText("2"); // §1
 	await expect(noteNode(IN2)).toHaveCount(1); // §1 — the value actually drives exploration
 	const view = await harness.readGlobalView();
 	expect(view.sizing.metrics[OWN_FILE_SIZE_METRIC]?.weight).toBe(DISTINCTIVE_WEIGHT); // §11
@@ -175,6 +167,4 @@ test("depth, pin, node cap and sizing all survive an Obsidian restart", async ()
 		await harness.remountGraphView();
 		await expect(noteNode(PIN_TARGET)).toHaveAttribute("data-tier", "pinned-central", { timeout: 3_000 });
 	}).toPass({ timeout: 40_000 });
-	await ensureOpen(toolbar());
-	await expect(pinnedDisclosure()).toBeAttached();
 });

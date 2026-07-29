@@ -59,8 +59,8 @@ import { SIZING_METRICS } from "./sizingMetrics";
  * {@link SettingsCommand} is persisted through the store, then every open graph
  * view is refreshed so the change is visible immediately (CLARIFICATION Q-C).
  *
- * Node-cap lives here ONLY (CLARIFICATION Q4): it is a global-only knob with no
- * per-doc/per-view surface.
+ * EVERY setting on this tab is global (owner decision 2026-07-29): there is no
+ * per-note or per-view stored state for anything here to override.
  */
 
 /** Visible height of the exclusion-patterns textarea (one pattern per line). */
@@ -843,8 +843,7 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	/**
 	 * The single settings-tab write path: plan the command from the CURRENT
 	 * globals (read fresh so successive edits compose), persist it, then fan the
-	 * change out to every open view. Only the two global command kinds can result
-	 * from a global-* interaction; the per-doc kinds are unreachable here.
+	 * change out to every open view.
 	 */
 	private async applyInteraction(interaction: SettingsInteraction): Promise<void> {
 		await this.persist(planSettingsWrite(interaction, this.writeContext()));
@@ -879,11 +878,7 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 		};
 	}
 
-	/**
-	 * The single persistence executor. Only the three global command kinds can
-	 * result from a global-* interaction or a reset; the per-doc kinds are
-	 * unreachable from this surface.
-	 */
+	/** The single persistence executor — every settings command writes `data.json`. */
 	private async persist(command: SettingsCommand): Promise<void> {
 		switch (command.kind) {
 			case "global-depths":
@@ -894,9 +889,6 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 				return;
 			case "node-exclusion":
 				await this.store.saveNodeExclusion(command.nodeExclusion);
-				return;
-			case "doc-depth-field":
-			case "central-depth-field":
 				return;
 		}
 	}

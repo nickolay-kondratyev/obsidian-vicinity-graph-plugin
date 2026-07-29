@@ -12,18 +12,8 @@ import {
 	vaultDirOf,
 } from "./vaultTarget";
 import type { DevVaultCopyTarget, LaunchOptions, VaultTarget } from "./vaultTarget";
-// The ONE runtime import from `src/` into the node-side harness process: a leaf module
-// holding just the per-doc dir name, so the wipe below cannot drift from the dir the
-// plugin writes. Safe because that module imports nothing (no `obsidian`, no DOM).
-import { DOC_DATA_DIR_NAME } from "../src/persistence/docDataDirName";
 // Type-only, so it is erased at transpile — the pure engine barrel never loads in the node-side test process.
-import type {
-	DepthSettings,
-	NodeExclusionSettings,
-	NodePreviewPreference,
-	ViewSettings,
-	ViewSettingsOverride,
-} from "../src/engine";
+import type { DepthSettings, NodeExclusionSettings, NodePreviewPreference, ViewSettings } from "../src/engine";
 
 /**
  * Launches a REAL Obsidian (Electron) on a throwaway copy of `.dev-vault`,
@@ -385,7 +375,7 @@ export class ObsidianHarness {
 	 * {@link readGlobalView}). Explicit beats a deep-merge that silently decides
 	 * which level it is patching.
 	 */
-	async saveGlobalView(patch: ViewSettingsOverride): Promise<void> {
+	async saveGlobalView(patch: Partial<ViewSettings>): Promise<void> {
 		await this.page.evaluate(
 			async ({ pluginId, viewPatch }) => {
 				const store = (window as unknown as { app: any }).app.plugins.plugins[pluginId].pluginDataStore;
@@ -528,21 +518,14 @@ export class ObsidianHarness {
 		}
 		fs.rmSync(VAULT_COPY_DIR, { recursive: true, force: true });
 		fs.cpSync(target.sourceDir, VAULT_COPY_DIR, { recursive: true });
-		// Fresh plugin state: BOTH persisted slices are wiped, so a run only ever sees
-		// what the specs themselves put there.
-		// - `data.json` = GLOBAL settings; a stale one (e.g. from a previously aborted
-		//   run) would silently change caps/settings under the assertions.
-		// - `doc-data/` = the PER-DOC `<docid>.json` files, i.e. where PINS live. These
-		//   come from `.dev-vault` itself: a pin a human makes during manual QA is
-		//   copied in by `cpSync` above and would break absence assertions such as
-		//   "no central pinned THEN no Pinned centrals disclosure" (settingsUxVisual).
-		// Both destinations name the VAULT_COPY_DIR constant literally — see the
-		// WHY-NOT above and the source scan in `vaultTarget.test.ts`.
+		// Fresh plugin state: `data.json` is the plugin's ONLY persisted file — it holds
+		// the global settings AND the pinned set — so wiping it is enough for a run to
+		// see only what the specs themselves put there. Without it, a stale file (from a
+		// previously aborted run, or a pin/setting a human left during manual QA in
+		// `.dev-vault`, which `cpSync` above copies in) would silently change the state
+		// under the assertions. The destination names the VAULT_COPY_DIR constant
+		// literally — see the WHY-NOT above and the source scan in `vaultTarget.test.ts`.
 		fs.rmSync(path.join(VAULT_COPY_DIR, ".obsidian", "plugins", PLUGIN_ID, "data.json"), { force: true });
-		fs.rmSync(path.join(VAULT_COPY_DIR, ".obsidian", "plugins", PLUGIN_ID, DOC_DATA_DIR_NAME), {
-			recursive: true,
-			force: true,
-		});
 		// Same class of manual-QA leak, one level up: `.dev-vault/.obsidian/workspace.json`
 		// records whatever leaves/splits/active file a human last left open, and `cpSync`
 		// carries that into every run. Deleting it makes Obsidian regenerate its DEFAULT

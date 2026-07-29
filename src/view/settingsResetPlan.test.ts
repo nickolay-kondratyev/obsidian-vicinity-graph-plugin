@@ -275,10 +275,12 @@ describe("settings reset scope catalogue", () => {
 
 	/**
 	 * The label claims "all Vicinity Graph settings", so the description MUST say
-	 * what survives — otherwise a user reads it as "my per-note work is gone too".
+	 * what survives — otherwise a user reads it as "my pins are gone too". Pins are
+	 * the only user-created state a reset leaves behind now that settings are
+	 * global-only (there is no per-note override layer left to mention).
 	 */
-	it("WHEN the tab-wide scope's description is read THEN it states that per-note overrides and pins are kept", () => {
-		expect(SETTINGS_RESET_SCOPES.all.description).toContain("Per-note depth overrides and pinned notes are kept.");
+	it("WHEN the tab-wide scope's description is read THEN it states that pinned notes are kept", () => {
+		expect(SETTINGS_RESET_SCOPES.all.description).toContain("Pinned notes are kept.");
 	});
 
 	it("WHEN the tab-wide scope's description is read THEN it does NOT scope itself to 'this tab'", () => {

@@ -9,49 +9,6 @@ const CTX: SettingsWriteContext = {
 	nodeExclusion: EngineDefaults.nodeExclusionSettings(),
 };
 
-describe("planSettingsWrite main depth", () => {
-	it("WHEN main-depth outgoing value 3 THEN a doc-depth-field write targets outgoingDepth", () => {
-		expect(planSettingsWrite({ kind: "main-depth", direction: "outgoing", value: 3 }, CTX)).toEqual({
-			kind: "doc-depth-field",
-			field: "outgoingDepth",
-			value: 3,
-		});
-	});
-
-	it("WHEN main-depth incoming is reset THEN the write carries value undefined", () => {
-		expect(planSettingsWrite({ kind: "main-depth", direction: "incoming", value: undefined }, CTX)).toEqual({
-			kind: "doc-depth-field",
-			field: "incomingDepth",
-			value: undefined,
-		});
-	});
-
-	it("WHEN main-depth value EQUALS the global default THEN a write is STILL emitted (pin-on-toggle)", () => {
-		const command = planSettingsWrite(
-			{ kind: "main-depth", direction: "outgoing", value: CTX.globalDepths.outgoingDepth },
-			CTX,
-		);
-		expect(command).toEqual({ kind: "doc-depth-field", field: "outgoingDepth", value: 1 });
-	});
-});
-
-describe("planSettingsWrite central depth", () => {
-	it("WHEN central-depth outgoing value 2 THEN a central-depth-field write carries the central docid", () => {
-		expect(
-			planSettingsWrite({ kind: "central-depth", centralDocid: "docid_x_e", direction: "outgoing", value: 2 }, CTX),
-		).toEqual({ kind: "central-depth-field", centralDocid: "docid_x_e", field: "outgoingDepth", value: 2 });
-	});
-
-	it("WHEN central-depth is reset THEN the write carries value undefined", () => {
-		expect(
-			planSettingsWrite(
-				{ kind: "central-depth", centralDocid: "docid_x_e", direction: "incoming", value: undefined },
-				CTX,
-			),
-		).toEqual({ kind: "central-depth-field", centralDocid: "docid_x_e", field: "incomingDepth", value: undefined });
-	});
-});
-
 describe("planSettingsWrite global writes", () => {
 	it("WHEN global-depth outgoing value 2 THEN it merges over ctx.globalDepths preserving the other field", () => {
 		expect(planSettingsWrite({ kind: "global-depth", direction: "outgoing", value: 2 }, CTX)).toEqual({
@@ -134,14 +91,14 @@ describe("planSettingsWrite global writes", () => {
 });
 
 describe("planSettingsWrite direction to field mapping (guards inversion)", () => {
-	it("WHEN direction is outgoing THEN the field is outgoingDepth", () => {
-		const command = planSettingsWrite({ kind: "main-depth", direction: "outgoing", value: 0 }, CTX);
-		expect(command).toMatchObject({ field: "outgoingDepth" });
+	it("WHEN direction is outgoing THEN only outgoingDepth moves", () => {
+		const command = planSettingsWrite({ kind: "global-depth", direction: "outgoing", value: 4 }, CTX);
+		expect(command).toEqual({ kind: "global-depths", depths: { ...CTX.globalDepths, outgoingDepth: 4 } });
 	});
 
-	it("WHEN direction is incoming THEN the field is incomingDepth", () => {
-		const command = planSettingsWrite({ kind: "main-depth", direction: "incoming", value: 0 }, CTX);
-		expect(command).toMatchObject({ field: "incomingDepth" });
+	it("WHEN direction is incoming THEN only incomingDepth moves", () => {
+		const command = planSettingsWrite({ kind: "global-depth", direction: "incoming", value: 4 }, CTX);
+		expect(command).toEqual({ kind: "global-depths", depths: { ...CTX.globalDepths, incomingDepth: 4 } });
 	});
 });
 
