@@ -79,3 +79,71 @@ Nothing else touched. `src/` and `e2e/` untouched (read-only respected).
   test 3), m4 (WHY on the `SECTION_RESET_SCOPES` alias + follow-up note),
   m5 (TS2345 clause) — optional, do not block on these.
 - Re-run the probe recipe against the iterated plan before signing off.
+
+---
+
+# Round 2 — iteration confirmation (fresh instance, 2026-07-29)
+
+Verdict: **PLAN_APPROVED_FOR_IMPLEMENTATION.** Appended to
+`DETAILED_PLAN_REVIEW__PUBLIC.md` as "## Round 2 — iteration confirmation".
+
+## Bottom line for a rehydrating successor
+
+Round 1's end-to-end verification **still applies** — I diffed the plan and the
+production-code sections (§4.1/§4.2/§4.5/§4.6) are byte-identical; §4.3/§4.4
+changed only in comments. Do NOT re-run the probe recipe; it buys nothing.
+
+## Where round 1 was wrong (important — do not re-assert it)
+
+Round 1's F2 remedy claimed a flat descriptor list needs a hand-written,
+unverified type predicate to produce `readonly (keyof ViewSettings)[]`.
+**That is false on this repo.** Reproduced at `.tmp/r2probe/` (throwaway),
+`tsc 5.9.3`, repo flags, real `src/engine/types.ts`:
+
+- `.filter((d) => d.family === "view").map((d) => d.key)` assigns to
+  `readonly (keyof ViewSettings)[]` — **exit 0**, no cast, no annotation
+  (TS ≥ 5.5 inferred type predicates).
+- Wrong predicate (`d.family !== "exclusion"`) → `TS2322 … '"outgoingDepth"' is
+  not assignable to 'keyof ViewSettings'`. It cannot lie silently.
+- `Extract<…>` guard with a field dropped → `TS2322: Type 'true' is not
+  assignable to type '"forceLayout"'` (round 1's own probe, re-confirmed).
+
+Recipe if needed again: single .ts file importing `../../src/engine/types`,
+`npx tsc --noEmit --strict --noImplicitReturns --noUncheckedIndexedAccess
+--isolatedModules --target ES2021 --module ESNext --moduleResolution node
+--skipLibCheck --lib ES2021,DOM <file>`.
+
+The planner's substituted arguments (layering dilemma; `cascade` unread) are the
+ones that hold. I verified their premises: `architecture-map.md:7-13` layering,
+`SettingsSpec.ts:83-85` already family-partitioned, `ViewSettingsResolver` /
+`TraversalSettingsResolver` cascades are code, no `NodeExclusionSettings`
+resolver exists. Known soft spot, non-blocking: the dilemma calls itself
+exhaustive but `src/shared/` is a legal third home (today only path/link/file
+utilities; no persistence imports it).
+
+## F4 scan — measured myself
+
+```
+src/view: 105 files → 65 non-test, 40 test
+non-test callers = ForceLayoutSection.tsx (RED) + the 3 allowlist entries
+                   (GraphLayoutRunner.ts, GraphViewController.ts, settingsResetPlan.ts)
+test files calling = 12 (48 sites)   [repo-wide: 25]
+```
+
+Plan said "14 view test files" — wrong; corrected inline to 12. Exclusion of
+`*.test.ts(x)` is correct: production offenders are non-test by definition, and a
+fixture calling the real factory is DRY-correct, not the hazard.
+
+## Inline edits I made to DETAILED_PLANNING__PUBLIC.md this round
+
+1. §4.4 — closed an unterminated ```ts fence introduced by the m2 annotation
+   (doc had 39 fences, odd; every fence after §4.4 was inverted). Now 40.
+2. §5 Step 1 — "14 view test files" → 12, with a marked correction note.
+
+`src/` and `e2e/` untouched. Probes in `.tmp/r2probe/`, throwaway.
+
+## If a round 3 somehow arrives
+
+There should not be one. Nothing is open. If the planner touches §4.1/§4.2/
+§4.5/§4.6 or the `SettingsResetScope` line, round 1's verification no longer
+transfers and the probe recipe above §"How I verified" must be re-run.

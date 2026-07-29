@@ -463,3 +463,196 @@ owner asked for, and it currently rests on a claim that does not reproduce.
 - **Q-B ruling: KEEP the tripwire**, generalised per F4. No React component-test
   infrastructure exists in this repo, so there is no cheaper honest red-first
   test; source-scan guards have four precedents here.
+
+---
+---
+
+# Round 2 — iteration confirmation
+
+Reviewer: PLAN_REVIEWER (fresh instance). Reviewing `PLAN_ITERATION__PUBLIC.md`
++ the iterated `DETAILED_PLANNING__PUBLIC.md` against round 1's findings.
+Scope: confirmation only — round 1's end-to-end verification (13-error repro,
+1129 assertions, five injected-field probes, inherit invariant) was **not**
+re-run and is not re-litigated.
+
+## R2.1 — Is the design genuinely unchanged? **YES.**
+
+`git diff 6cea6fa..2c50baf` on `DETAILED_PLANNING__PUBLIC.md` is 573 lines. I
+read all of it. Classified:
+
+| Change | Kind | Verdict |
+|---|---|---|
+| §0 decision retitled; §2.2 rewritten; §2.5 inventory added; §2.3 retitled | prose | no code shape |
+| §4.3 table doc-comment rewritten (columns-vs-rows rationale) | **comment text only** — the declaration, its type and its contents are byte-identical | no code shape |
+| §4.4 `SECTION_RESET_SCOPES` doc-comment expanded (m4 debt WHY) | comment only | no code shape |
+| §4.4 `_assertEveryResetScopePlaced` gains a tautology annotation (m2) | comment only; the guard itself is unchanged | no code shape |
+| §5 Step 1 — tripwire generalised, regex + allowlist + test-exclusion + new test 3 | **real change**, in a NEW test file that round 1 never compiled | verified below (R2.3) |
+| §5 Step 2 — the proposed new test 3 dropped (m3) | removes a planned test | correct; see R2.4 |
+| test file renamed `forceLayoutDefaultsSingleSource` → `engineDefaultsSingleSource` | naming | fine |
+| §8 R1/R12 + new R15; §9 A2/A4/A9/A11/A12; §10 | prose | no code shape |
+
+**§4.1, §4.2, §4.5, §4.6 are untouched.** Every production-code artifact the
+predecessor compiled — the spec guards, `SizingRangeField`, `DepthOverride :=
+Partial<DepthSettings>`, `definedFieldsOnly`, `ParsedViewFields`,
+`SECTION_SETTINGS_FIELDS`, `restoreFields`, the `SIZING_METRICS` guard, the
+`ForceLayoutSection` swap, and F1's `SettingsResetScope = SettingsSection |
+"all"` fix — survives verbatim. **No code-shape change slipped in under cover of
+a write-up fix.** The round-1 verification transfers intact.
+
+## R2.2 — F2: the planner is right and I (round 1) was wrong. **Overruled, correctly.**
+
+My predecessor's proposed replacement argument — that a flat list forces a
+hand-written, unverified type predicate to reach `readonly (keyof
+ViewSettings)[]` — **does not hold on this repo.** I reproduced it myself at
+`.tmp/r2probe/`, `tsc 5.9.3` with the repo's exact flags (`strict`,
+`noUncheckedIndexedAccess`, `isolatedModules`, `noImplicitReturns`, `target
+ES2021`), importing the real `src/engine/types.ts`:
+
+| Probe | Result |
+|---|---|
+| `.filter((d) => d.family === "view").map((d) => d.key)` assigned to `readonly (keyof ViewSettings)[]`, no cast, no annotation | **exit 0** — TS ≥ 5.5 inferred type predicates do the narrowing |
+| same for `depth` → `readonly (keyof DepthSettings)[]` | **exit 0** |
+| negative control, predicate swapped to `d.family !== "exclusion"` | `TS2322: … Type '"outgoingDepth"' is not assignable to type 'keyof ViewSettings'` — a wrong predicate is **loud**, not silent |
+| `Extract<(typeof LIST)[number], {family:"view"}>["key"]` guard with `forceLayout` dropped | `TS2322: Type 'true' is not assignable to type '"forceLayout"'` |
+
+So **type safety does not distinguish Option A from Option B on this toolchain**,
+exactly as the plan now says. Round 1's remedy would have swapped one false
+premise for another; rejecting it was the right call, and the planner reproduced
+before asserting. Being overruled with evidence is the correct outcome here.
+
+**Are the two substituted arguments sound and sufficient? Yes — with one
+non-blocking gap.**
+
+- **Objection 1 (layering) — sound and decisive.** Verified
+  `architecture-map.md:7-13`: `view → adapters → engine`, `persistence →
+  engine`. `persistence → view` is an outward edge and is not a legal
+  dependency, so a unified list carrying the `section` axis (view knowledge)
+  cannot be imported by `persistedShapes.ts`. The other horn is also real: I
+  confirmed `SETTINGS_SPEC` is **already** family-partitioned
+  (`SettingsSpec.ts:83-85` — `globalDepths: DepthSpec` / `globalView: ViewSpec` /
+  `nodeExclusion: NodeExclusionSpec`), so an engine-side `{family,key}` list
+  would replace nothing and would be a new hand-synced parallel list.
+  *Gap (minor, non-blocking):* the dilemma is presented as exhaustive but there
+  is a third horn — `src/shared/`, which both `src/persistence/` and `src/view/`
+  may legally import. I checked: `src/shared/` today holds only path/link/file
+  parsing utilities (`VaultPathFacts`, `Wikilinks`, `MarkdownInlineLinks`,
+  `FileKinds`) and no persistence module imports it at all. Putting settings-card
+  knowledge there would be a cohesion regression, and Objections 2 and 3 apply to
+  it unchanged. The conclusion is unaffected; only the word "both horns" is
+  slightly overclaimed.
+- **Objection 2 (`cascade` is data nothing reads) — sound.** Verified:
+  `ViewSettingsResolver.resolve()` returns an explicit object literal typed
+  `ViewSettings`; `TraversalSettingsResolver.resolveForRoot()` is a two-field
+  `??` literal; there is **no** `NodeExclusionSettings` resolver in
+  `src/engine/` (only `PathExclusionMatcher`, a matcher, not a cascade). The
+  cascades are code. With CLARIFICATION constraint 5 forbidding a runtime loop,
+  a `cascade` string would be unread and unchecked — adding a silent-drift
+  surface inside the ticket that exists to remove them. This argument is
+  independently sufficient even if Objection 1 were softened.
+- **Objection 3 (payload differs per family) — supporting, correctly labelled as
+  such.**
+
+Both load-bearing objections are compiler-version-independent, which is the
+right property given how this finding arose. §8 R15 records the retraction
+honestly rather than deleting it. **F2 closed.**
+
+## R2.3 — F4: the test-file exclusion is correct, the allowlist is right, one count was wrong
+
+I ran the generalised scan myself against today's tree with the plan's regex
+`EngineDefaults\.[a-zA-Z]+Settings\s*\(`:
+
+```
+src/view modules: 105 total → 65 non-test, 40 test
+NON-TEST callers: ForceLayoutSection.tsx  ← the RED
+                  GraphLayoutRunner.ts, GraphViewController.ts, settingsResetPlan.ts  ← the 3 allowlist entries
+TEST files calling: 12 (48 call sites; settingsResetPlan.test.ts alone = 22)
+```
+
+- **The `*.test.ts(x)` exclusion is correct and does NOT blind the guard.** The
+  hazard being guarded is a *second opinion on what a user-visible default is* in
+  **shipped** code; production offenders are non-test files by definition. A
+  fixture calling the real factory is the DRY-correct thing to do — the guard
+  firing on it would be a false positive that forces an implementer to neuter it.
+  There is no production offender that could hide behind this exclusion.
+- **The allowlist is exactly right.** The three entries are the complete set of
+  non-test callers other than the RED, each with a WHY, and each is live —
+  so after Step 2 the offender set is empty and no entry is dead weight. The
+  generalisation correctly covers all five factories (`depthSettings`,
+  `sizingSettings`, `nodeExclusionSettings`, `viewSettings`,
+  `forceLayoutSettings` — confirmed against `EngineDefaults`).
+- **Test 3 (every allowlist entry still reads a defaults factory) is the right
+  anti-rot guard** and is what makes the tripled reach safe.
+- **One factual error, corrected inline by me:** the plan said "**14** view test
+  files". The real number is **12** under `src/view/` (25 across all of `src/`).
+  The conclusion — the exclusion is load-bearing — is unchanged and if anything
+  understated. Fixed in §5 Step 1 with a marked correction note.
+
+**F4 closed.**
+
+## R2.4 — F3 and the minors: the write-up now describes what is built
+
+- **§2.5 artifact inventory** is exactly what was missing: eight rows, artifact →
+  layer → shape → §, stating explicitly that "per-family" describes *key spaces,
+  not file count*, that `SECTION_SETTINGS_FIELDS` is **ONE** table with per-family
+  **columns**, and that there is no third parse guard because
+  `NodeExclusionSettings` has no override. This is the section chain tickets 4/5
+  need. The retitled §0 decision matches §4. No "three per-family tables" text
+  survives anywhere in the document.
+- **m3 verified independently.** I re-checked the numbering the planner claims is
+  unaffected by dropping Step 2's test 3: §5 now runs 1–3 (Step 1), 4–6 (Step 4),
+  7–10 (Step 6), 11 (Step 7) — contiguous, no gap — and §9's A2 (1–3), A3 (7–10),
+  A4 (4–6, 11) match. Correct.
+- **m2's annotation** says the honest thing (tautological by construction, A11's
+  `Record<SettingsResetScope, …>` annotation carries the guarantee now, retained
+  so it goes live if the definitions decouple). This resolves the POLS concern
+  without deleting a guard. A11/A12 are properly stated as new guarantees.
+- **m1/m5/m6** landed as agreed; m4's debt WHY + follow-up ticket is recorded in
+  Step 8.
+
+**Is it a single coherent implementable document?** Yes. The one structural
+concession to errata — the §2 "Correction notice (plan iteration 1)" block and
+§8 R15 — is *deliberate and correct*: D3 asked for a justification, so the record
+of a retracted one is part of the deliverable, not clutter. It is confined to §2
+and §8 and does not fragment §4/§5, which are what IMPLEMENTATION executes.
+
+**One defect I found and fixed inline:** the m2 annotation block opened a ```ts
+fence at §4.4 and never closed it, leaving the document with 39 fences (odd) and
+every code fence from §4.4 onward inverted. Closed. Fence count now 40, balanced.
+
+**Is `DETAILED_PLANNING__PUBLIC.md` + `CLARIFICATION__PUBLIC.md` sufficient for
+IMPLEMENTATION?** Yes. §4 carries the code, §5 the ordered steps with per-step
+verify commands and the hard Step 3→Step 4 ordering constraint, §6 the
+zero-test-edit escalation rule, §8 the expected compiler error codes, §9 the
+acceptance criteria. Nothing in `PLAN_ITERATION__PUBLIC.md` or in this review is
+needed to build.
+
+## R2.5 — Inline edits I made this round
+
+1. §4.4 — closed the unterminated ```ts fence after the
+   `_assertEveryResetScopePlaced` annotation.
+2. §5 Step 1 — corrected "14 view test files" → **12**, with a marked
+   PLAN_REVIEWER correction note carrying the measured numbers.
+
+No approach, architecture, scope or code-shape change. `src/` and `e2e/` are
+unmodified (read-only respected); probes live in `.tmp/r2probe/` and are
+throwaway.
+
+## R2.6 — New blocking issues
+
+**None.** The one non-blocking item worth carrying: §2.2's layering dilemma is
+presented as exhaustive when `src/shared/` is a third (bad, but legal) home —
+optional one-clause fix, and it does not change the decision.
+
+---
+
+**PLAN_APPROVED_FOR_IMPLEMENTATION**
+
+- F1 fixed (round 1, inline). F2 closed — **the planner's rejection of my
+  predecessor's replacement argument is correct, and I reproduced it**: TS 5.9.3
+  inferred type predicates make the flat-list consumer array type-safe with no
+  cast, so the decision now rests on layering + the unread `cascade`, neither
+  compiler-version-dependent. F3 closed (§2.5 inventory + retitled decision).
+  F4 closed (generalised tripwire; exclusion verified correct; count corrected).
+  m1–m6 all applied.
+- The design is unchanged from what round 1 verified end-to-end against the real
+  compiler and the real suite. Build it.

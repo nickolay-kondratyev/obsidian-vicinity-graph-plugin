@@ -711,6 +711,7 @@ construction** — it can no longer fail:
  * Retained rather than deleted so that it goes live again the moment the scope
  * union and the section list are ever decoupled.
  */
+```
 
 **`all` stays bespoke** — whole-slice writes, not a merge:
 
@@ -831,10 +832,15 @@ arbitrary (all three verified as the *only* legitimate production callers):
 | `GraphViewController.ts:53-55` | Pre-load placeholder state, before persistence has answered. Not a user-visible default. |
 
 **Scan `src/view/**/*.{ts,tsx}` excluding `*.test.ts` / `*.test.tsx`.** This
-exclusion is load-bearing, not incidental: **14 view test files** legitimately
+exclusion is load-bearing, not incidental: **12 view test files** legitimately
 call these factories to build fixtures (`settingsResetPlan.test.ts` alone has 22
 calls). Without the exclusion the guard is red for entirely correct reasons and
 would have to be neutered.
+
+> Count corrected by PLAN_REVIEWER (round 2): the scan regex
+> `EngineDefaults\.[a-zA-Z]+Settings\s*\(` matches **12** files under
+> `src/view/` (48 call sites), and 25 across all of `src/`. The plan previously
+> said 14. The conclusion is unchanged and if anything understated.
 
 Verified by simulating the scan against today's tree:
 
