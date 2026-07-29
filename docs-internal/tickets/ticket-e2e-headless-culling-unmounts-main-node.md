@@ -68,6 +68,14 @@ IMPLEMENTATION_ITERATION round 1):
 So `mv .dev-vault/.obsidian/workspace.json` aside is the **workaround** for getting an
 informative run out of `nodeOutline.e2e.ts` today — it is not the fix.
 
+**UPDATE (ticket `nid_0jzq3ev878kjd0zhn3zxyje8q_e`):** that manual `mv` is now permanent
+and automatic — `prepareVaultCopy()` deletes `<copy>/.obsidian/workspace.json` after the
+`cpSync`, so EVERY run boots on Obsidian's default layout regardless of what a human left
+in `.dev-vault`. The trigger above can therefore no longer fire from the dev vault. The
+underlying fragility (a later layout pass pushes the MAIN node out of a small pane and
+culling unmounts it, with `fitView` running on mount only) is untouched — this ticket stays
+open for that.
+
 Whether a test passes is therefore a pure race between Playwright's first assertion and
 that later layout pass, biased by the restored pane geometry. The very first run in a fresh
 container passed 11/11 in 2.8s; four consecutive later runs all failed.

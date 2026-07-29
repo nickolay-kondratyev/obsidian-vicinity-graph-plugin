@@ -500,8 +500,9 @@ export class ObsidianHarness {
 	 * Fresh copy of `.dev-vault` per run: tests stay idempotent, runtime
 	 * mutations (nodeCap, plugin `data.json`/`doc-data/`) never leak into the
 	 * human's vault, and e2e-only fixtures never pollute manual QA. The reverse
-	 * leak is closed too — the copy's plugin state is wiped after the copy, so
-	 * manual-QA settings and pins never reach a run.
+	 * leak is closed too — the copy's plugin state AND the vault's saved workspace
+	 * layout are wiped after the copy, so manual-QA settings, pins and window
+	 * layout never reach a run.
 	 */
 	private static prepareVaultCopy(target: DevVaultCopyTarget, extraFixtures: Record<string, string> = {}): void {
 		// Belt and braces: the union already keeps an external vault out of this
@@ -538,6 +539,14 @@ export class ObsidianHarness {
 			recursive: true,
 			force: true,
 		});
+		// Same class of manual-QA leak, one level up: `.dev-vault/.obsidian/workspace.json`
+		// records whatever leaves/splits/active file a human last left open, and `cpSync`
+		// carries that into every run. Deleting it makes Obsidian regenerate its DEFAULT
+		// layout, so a run's starting layout is the same on every machine.
+		// WHY the post-launch leaf detaching in openGraphView stays: the DEFAULT layout
+		// still populates the right sidebar (backlinks, outline, …), so the graph pane
+		// still needs it cleared — this only removes the human-specific variance.
+		fs.rmSync(path.join(VAULT_COPY_DIR, ".obsidian", "workspace.json"), { force: true });
 		for (const [relativePath, content] of Object.entries({ ...CROWD_FIXTURES, ...extraFixtures })) {
 			// Written through the VAULT_COPY_DIR constant (not a local alias) so the
 			// destructive-call source scan in vaultTarget.test.ts can see the destination.
