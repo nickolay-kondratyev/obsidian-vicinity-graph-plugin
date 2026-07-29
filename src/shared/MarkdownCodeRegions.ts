@@ -27,6 +27,13 @@
 /** Opens a fenced block: up to three spaces of indent, then three-plus backticks or tildes. */
 const FENCE_OPENER = /^ {0,3}(`{3,}|~{3,})/;
 
+/**
+ * Closes a fenced block: same shape as an opener but with NOTHING after the run
+ * except trailing whitespace — CommonMark gives a CLOSING fence no info string,
+ * so a "```ts" line inside an open fence is content, not a closer.
+ */
+const FENCE_CLOSER = /^ {0,3}(`{3,}|~{3,})[ \t]*$/;
+
 const BACKTICK = "`";
 
 export class MarkdownCodeRegions {
@@ -46,8 +53,8 @@ export class MarkdownCodeRegions {
 				masked.push(MarkdownCodeRegions.blanked(line));
 				continue;
 			}
-			const opener = FENCE_OPENER.exec(line)?.[1];
-			if (opener !== undefined) {
+			const opener = MarkdownCodeRegions.fenceOpenerOf(line);
+			if (opener !== null) {
 				openFence = opener;
 				masked.push(MarkdownCodeRegions.blanked(line));
 				continue;
@@ -60,9 +67,29 @@ export class MarkdownCodeRegions {
 		return masked.join("\n");
 	}
 
+	/**
+	 * The fence run this line opens, or `null` if it opens none. Beyond the
+	 * {@link FENCE_OPENER} shape, a BACKTICK fence's info string may not contain
+	 * a backtick (CommonMark) — "```cmd``` prose" is an inline code span, and
+	 * treating it as an opener would swallow every following line. Tilde info
+	 * strings carry no such rule.
+	 */
+	private static fenceOpenerOf(line: string): string | null {
+		const match = FENCE_OPENER.exec(line);
+		if (match === null) {
+			return null;
+		}
+		const opener = match[1] as string;
+		const infoString = line.slice(match[0].length);
+		if (opener[0] === BACKTICK && infoString.includes(BACKTICK)) {
+			return null;
+		}
+		return opener;
+	}
+
 	/** A closer is the same fence character, at least as long, with nothing but whitespace after it. */
 	private static closesFence(line: string, openFence: string): boolean {
-		const closer = FENCE_OPENER.exec(line)?.[1];
+		const closer = FENCE_CLOSER.exec(line)?.[1];
 		return closer !== undefined && closer[0] === openFence[0] && closer.length >= openFence.length;
 	}
 

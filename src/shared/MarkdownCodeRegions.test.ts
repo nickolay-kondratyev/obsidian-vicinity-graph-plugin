@@ -58,6 +58,29 @@ describe("MarkdownCodeRegions.withCodeMasked", () => {
 		);
 	});
 
+	it("WHEN a fence-content line carries an info string THEN the fence stays open (a closer takes no info string)", () => {
+		// CommonMark: a CLOSING fence may not carry an info string, so "```ts" is
+		// fence CONTENT — treating it as a closer would leak [[phantom]] as prose.
+		expect(MarkdownCodeRegions.withCodeMasked(["```", "```ts", "[[phantom]]", "```"].join("\n"))).toBe(
+			["   ", "     ", "           ", "   "].join("\n"),
+		);
+	});
+
+	it("WHEN a closer carries only trailing spaces THEN it still closes the fence", () => {
+		expect(MarkdownCodeRegions.withCodeMasked(["```", "[[b]]", "```  ", "[[kept]]"].join("\n"))).toBe(
+			["   ", "     ", "     ", "[[kept]]"].join("\n"),
+		);
+	});
+
+	it("WHEN a line is an inline triple-backtick span THEN it opens no fence (backtick info strings hold no backtick)", () => {
+		// CommonMark: a BACKTICK fence's info string may not contain a backtick, so
+		// this line is an inline code span — the span is blanked, the prose around
+		// it and every following line stay prose.
+		expect(MarkdownCodeRegions.withCodeMasked(["```cmd``` prose [[kept]]", "[[also-prose]]"].join("\n"))).toBe(
+			[`${blank("```cmd```")} prose [[kept]]`, "[[also-prose]]"].join("\n"),
+		);
+	});
+
 	it("WHEN a fence is never closed THEN it masks to the end of the text (CommonMark)", () => {
 		expect(MarkdownCodeRegions.withCodeMasked(["```", "[[b]]"].join("\n"))).toBe(["   ", "     "].join("\n"));
 	});

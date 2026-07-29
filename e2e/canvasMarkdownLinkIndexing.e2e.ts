@@ -145,9 +145,7 @@ test("core makes no link for a destination with an unencoded space (no phantom e
  * indexes them and the masking is the bug.
  */
 test("core makes no link for a link inside an inline code span", async () => {
-	const links = await indexedCanvasLinks();
-	console.log(`[observed] resolvedLinks[${CANVAS_PATH}]=${JSON.stringify(links)}`);
-	expect(Object.keys(links)).not.toContain(CODE_SPAN_TARGET_PATH);
+	expect(Object.keys(await indexedCanvasLinks())).not.toContain(CODE_SPAN_TARGET_PATH);
 });
 
 test("core makes no link for a link inside a fenced code block", async () => {
