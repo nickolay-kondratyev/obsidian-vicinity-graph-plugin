@@ -10,16 +10,17 @@ Phase B added `onlyRenderVisibleElements` to `<ReactFlow>`
 (`src/view/VicinityGraphFlow.tsx`) so React Flow culls off-screen nodes and
 edges on image-heavy / dense vaults. Code analysis found **no** break: RF v12
 computes visibility per-node from `internals.positionAbsolute` (folder-group
-children are handled correctly), and `forceInitialRender = !handleBounds` keeps
-folder-group parent nodes (which render no `<Handle>`) always mounted, so a group
-container never disappears out from under its children.
+children are handled correctly), and group members are not DOM children of their
+container — `NodeRenderer` renders every visible node as a flat sibling of
+`.react-flow__nodes` — so culling a group container cannot take its members with
+it.
 
-**But** that safety rests on a React Flow **internal** (`forceInitialRender`), not
-a public contract — it is fragile across RF upgrades — and there is currently **no
-automated regression net** for the culling behavior (no `.test.tsx` infra; it
-needs a browser / real Obsidian). Runtime culling of folder-group subflows,
-parent/child positioning when panned off-screen, and edge culling are all
-untested.
+**But** that safety rests on React Flow **internals** (flat node rendering,
+`positionAbsolute` culling) rather than a public contract — it is fragile across
+RF upgrades — and there is currently **no automated regression net** for the
+culling behavior (no `.test.tsx` infra; it needs a browser / real Obsidian).
+Runtime culling of folder-group subflows, parent/child positioning when panned
+off-screen, and edge culling are all untested.
 
 ## What to do
 
@@ -29,7 +30,8 @@ untested.
    correctly (nothing vanishes, no orphaned children, edges reappear on pan-back).
 2. **Guard against the RF-internal fragility:** if feasible, add an e2e assertion
    (or a note pinning the RF version) so a future `@xyflow/react` upgrade that
-   changes `forceInitialRender` semantics is caught.
+   nests group members under their container in the DOM — which would make
+   container culling orphan them — is caught.
 
 ## Related: revert the e2e sparse-graph workaround
 
