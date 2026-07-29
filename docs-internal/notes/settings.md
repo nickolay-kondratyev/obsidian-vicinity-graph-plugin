@@ -69,7 +69,9 @@ graph LR
   `nid_klkdpmx6axf90y4xj8khwrlf2_e` (panel outline-depth control),
   `nid_que9qloigra7ku2boh83qizz0_e` (panel a11y nits),
   `nid_hatwq2jlkhno5t6awcz0q6t9q_e` (minPx/maxPx validation UX — fix once in
-  the unified renderer, not twice).
+  the unified renderer, not twice),
+  `nid_puf4a4q6fgn5lpehh5dowfm1r_e` ("Show cross links" — new full-cascade
+  boolean, default OFF; decided wanted 2026-07-29, both presenters).
 - Behind **tests (5)**: `nid_ek3wrqoh1rsftk6ulg836mghf_e` (e2e types into a
   settings input).
 - Behind **descriptor model (2)** only: `nid_zvoay26y4y9h1e2p2b1y9glfk_e`
