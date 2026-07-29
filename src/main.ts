@@ -8,6 +8,7 @@ import { CanvasParseCache } from "./adapters/CanvasParseCache";
 import { VicinityGraphBuilder } from "./adapters/VicinityGraphBuilder";
 import { ObsidianLinkProvider } from "./adapters/ObsidianLinkProvider";
 import { DocDataStore } from "./persistence/DocDataStore";
+import { DOC_DATA_DIR_NAME } from "./persistence/docDataDirName";
 import { DocPersistEligibility } from "./persistence/DocPersistEligibility";
 import { OrphanSweeper, SWEEP_DELAY_MS } from "./persistence/OrphanSweeper";
 import { PathDocIdMap } from "./persistence/PathDocIdMap";
@@ -133,7 +134,7 @@ export default class VicinityGraphPlugin extends Plugin {
 	/** `.obsidian/plugins/<id>/doc-data` — the per-doc `<docid>.json` folder. */
 	private docDataDirPath(): string {
 		const pluginDir = this.manifest.dir ?? `${this.app.vault.configDir}/plugins/${this.manifest.id}`;
-		return `${pluginDir}/doc-data`;
+		return `${pluginDir}/${DOC_DATA_DIR_NAME}`;
 	}
 
 	private registerVaultLifecycleHandlers(): void {

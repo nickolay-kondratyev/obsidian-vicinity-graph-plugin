@@ -3,13 +3,14 @@ import { FakeDocIdPort } from "../adapters/FakeDocIdPort";
 import type { VaultFilePort } from "../adapters/obsidianPorts";
 import { EngineDefaults } from "../engine";
 import { DocDataStore } from "./DocDataStore";
+import { DOC_DATA_DIR_NAME } from "./docDataDirName";
 import { FakeFileStorage } from "./FakeFileStorage";
 import { FakePluginDataPort } from "./FakePluginDataPort";
 import { PathDocIdMap } from "./PathDocIdMap";
 import { PersistenceServices } from "./PersistenceServices";
 import { PluginDataStore } from "./PluginDataStore";
 
-const DIR = "doc-data";
+const DIR = DOC_DATA_DIR_NAME;
 const FIXED_NOW = 777;
 
 function fileAt(path: string): VaultFilePort {

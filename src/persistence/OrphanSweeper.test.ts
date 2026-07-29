@@ -3,6 +3,7 @@ import { FakeDocIdPort } from "../adapters/FakeDocIdPort";
 import { FakeObsidianPorts } from "../adapters/FakeObsidianPorts";
 import { DocDataMutations } from "./DocDataMutations";
 import { DocDataStore } from "./DocDataStore";
+import { DOC_DATA_DIR_NAME } from "./docDataDirName";
 import { FakeFileStorage } from "./FakeFileStorage";
 import { FakePluginDataPort } from "./FakePluginDataPort";
 import { OrphanSweeper } from "./OrphanSweeper";
@@ -10,7 +11,7 @@ import { PathDocIdMap } from "./PathDocIdMap";
 import { PERSISTED_SHAPE_VERSION } from "./persistedShapes";
 import { PluginDataStore } from "./PluginDataStore";
 
-const DIR = "plugins/vicinity-graph/doc-data";
+const DIR = `plugins/vicinity-graph/${DOC_DATA_DIR_NAME}`;
 /** > the sweeper's internal batch size of 20, so the warm phase must yield at least once. */
 const LIVE_NOTE_COUNT = 25;
 /** A file this plugin never wrote (unsafe stem: dots + space) — sync tools drop these next to ours. */
