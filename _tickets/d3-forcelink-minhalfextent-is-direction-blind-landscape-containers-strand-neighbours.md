@@ -1,16 +1,17 @@
 ---
 id: nid_y45ndtq65f15pnrwfvpgz5pks_e
-title: "d3 forceLink minHalfExtent() is direction-blind: landscape containers strand neighbours"
-status: open
+title: 'd3 forceLink minHalfExtent() is direction-blind: landscape containers strand
+  neighbours'
+status: in_progress
 deps: []
 links: []
-created_iso: 2026-07-28T00:44:12Z
-status_updated_iso: 2026-07-28T00:44:12Z
+created_iso: '2026-07-28T00:44:12Z'
+status_updated_iso: '2026-07-29T17:58:38Z'
 type: bug
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 ---
-
 Found while reviewing the compact-group-layout change (branch compact-group-layout).
 
 `src/view/d3ForceRefinement.ts` computes each forceLink resting distance from `minHalfExtent(body)` = `Math.min(halfWidth, halfHeight)`, regardless of the edge direction. For a LANDSCAPE box the resting distance is therefore set by its (small) half-HEIGHT while a horizontally-linked neighbour must still clear its (large) half-width — so the neighbour ends up stranded along the box long axis.
@@ -27,4 +28,3 @@ Likely fix: make the resting distance direction-aware (project the box half-exte
 
 - Landscape-container boundary gap <= D3_FORCE_MAX_BOUNDARY_GAP_PX with a plain `it(...)`.
 - Portrait stranding test and all D3ForceLayout guarantees still green.
-
