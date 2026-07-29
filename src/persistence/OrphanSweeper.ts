@@ -1,7 +1,5 @@
 import type { DocIdPort, VaultPort } from "../adapters/obsidianPorts";
 import { ChunkedWork } from "./ChunkedWork";
-import { DocDataMutations } from "./DocDataMutations";
-import type { DocDataStore } from "./DocDataStore";
 import type { PathDocIdMap } from "./PathDocIdMap";
 import type { PluginDataStore } from "./PluginDataStore";
 import { SweepPlanner } from "./SweepPlanner";
@@ -11,21 +9,20 @@ export const SWEEP_DELAY_MS = 15_000;
 /** Items handled between main-thread yields; small enough that a batch is never felt. */
 const SWEEP_BATCH_SIZE = 20;
 
-/** What a single sweep actually removed — the completion-log payload (all zero ⇒ nothing was stale). */
+/** What a single sweep actually removed — the completion-log payload (zero ⇒ nothing was stale). */
 export interface SweepSummary {
-	readonly docDataFilesRemoved: number;
 	readonly pinsRemoved: number;
-	readonly centralEntriesRemoved: number;
-	/** Owner docs whose file was rewritten to drop stale `centralDepths` entries. */
-	readonly ownersRewritten: number;
 }
 
 /**
  * Delayed self-healing pass (step doc): warms the path↔docid map over all
- * eligible files (getDocId — READ-ONLY, never creates ids), then drops
- * exactly the orphans — doc-data files, pins and `centralDepths` entries
- * whose docid no longer resolves. All bulk phases are chunked with yields
- * ({@link ChunkedWork}); the judgment itself is pure ({@link SweepPlanner}).
+ * eligible files (getDocId — READ-ONLY, never creates ids), then drops exactly
+ * the orphans — pins whose docid no longer resolves. The bulk warm-up is
+ * chunked with yields ({@link ChunkedWork}); the judgment itself is pure
+ * ({@link SweepPlanner}).
+ *
+ * Pins are the only docid-keyed persisted state (settings are global-only since
+ * 2026-07-29), so pruning them is the whole job.
  *
  * This is also the deferred cleanup path for unpin and for deletes that the
  * live `vault.on('delete')` handler could not map to a docid.
@@ -36,20 +33,16 @@ export class OrphanSweeper {
 		private readonly docIdPort: DocIdPort,
 		private readonly pathDocIdMap: PathDocIdMap,
 		private readonly pluginDataStore: PluginDataStore,
-		private readonly docDataStore: DocDataStore,
 		private readonly yieldBetweenBatches: () => Promise<void> = ChunkedWork.sleepZero,
 	) {}
 
 	async run(): Promise<SweepSummary> {
 		const liveDocids = await this.warmMapAndCollectLiveDocids();
-		const docDataDocids = await this.docDataStore.listDocIds();
 		const plan = SweepPlanner.plan({
 			liveDocids,
-			docDataDocids,
 			pinnedDocids: this.pluginDataStore.pins().map((pin) => pin.docid),
-			centralDocidsByOwner: await this.collectCentralDocidsByOwner(docDataDocids, liveDocids),
 		});
-		return this.apply(plan.docDataToDelete, plan.pinsToRemove, plan.staleCentralDocidsByOwner);
+		return this.apply(plan.pinsToRemove);
 	}
 
 	private async warmMapAndCollectLiveDocids(): Promise<ReadonlySet<string>> {
@@ -65,63 +58,21 @@ export class OrphanSweeper {
 		return liveDocids;
 	}
 
-	/** Reads each LIVE owner's doc-data to learn which centrals it references (orphan files get deleted whole). */
-	private async collectCentralDocidsByOwner(
-		docDataDocids: readonly string[],
-		liveDocids: ReadonlySet<string>,
-	): Promise<ReadonlyMap<string, readonly string[]>> {
-		const centralDocidsByOwner = new Map<string, readonly string[]>();
-		const liveOwners = docDataDocids.filter((docid) => liveDocids.has(docid));
-		await this.forEachChunked(liveOwners, async (owner) => {
-			const centralDepths = (await this.docDataStore.load(owner))?.centralDepths;
-			if (centralDepths !== undefined) {
-				centralDocidsByOwner.set(owner, Object.keys(centralDepths));
-			}
-		});
-		return centralDocidsByOwner;
-	}
-
-	private async apply(
-		docDataToDelete: readonly string[],
-		pinsToRemove: readonly string[],
-		staleCentralDocidsByOwner: ReadonlyMap<string, readonly string[]>,
-	): Promise<SweepSummary> {
-		let docDataFilesRemoved = 0;
-		await this.forEachChunked(docDataToDelete, async (docid) => {
-			if (this.isConfirmedOrphan(docid)) {
-				await this.docDataStore.remove(docid);
-				docDataFilesRemoved += 1;
-			}
-		});
+	private async apply(pinsToRemove: readonly string[]): Promise<SweepSummary> {
 		const confirmedPinsToRemove = pinsToRemove.filter((docid) => this.isConfirmedOrphan(docid));
 		if (confirmedPinsToRemove.length > 0) {
 			// One data.json write for all stale pins — no reason to chunk a single call.
 			await this.pluginDataStore.removePins(confirmedPinsToRemove);
 		}
-		let centralEntriesRemoved = 0;
-		let ownersRewritten = 0;
-		await this.forEachChunked([...staleCentralDocidsByOwner], async ([owner, staleCentralDocids]) => {
-			const confirmed = staleCentralDocids.filter((docid) => this.isConfirmedOrphan(docid));
-			if (confirmed.length > 0) {
-				await this.docDataStore.update(owner, (doc) => DocDataMutations.withoutCentralDepths(doc, confirmed));
-				centralEntriesRemoved += confirmed.length;
-				ownersRewritten += 1;
-			}
-		});
-		return {
-			docDataFilesRemoved,
-			pinsRemoved: confirmedPinsToRemove.length,
-			centralEntriesRemoved,
-			ownersRewritten,
-		};
+		return { pinsRemoved: confirmedPinsToRemove.length };
 	}
 
 	/**
 	 * Drop-time re-verification: `liveDocids` is a SNAPSHOT from warm-up start —
-	 * a doc created (and pinned / given settings) while the chunked phases were
-	 * yielding would look orphaned. Every write intent maps its docid
+	 * a doc created (and pinned) while the chunked warm-up was yielding would
+	 * look orphaned. Every write intent maps its docid
 	 * (PersistenceServices.withPersistableIdentity), so map presence at drop
-	 * time means alive; checked per item because apply itself also yields.
+	 * time means alive.
 	 */
 	private isConfirmedOrphan(docid: string): boolean {
 		return this.pathDocIdMap.getPath(docid) === undefined;

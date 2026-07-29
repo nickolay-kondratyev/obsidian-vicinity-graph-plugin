@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
+import type { ViewSettings } from "../engine";
 import { EngineDefaults, SETTINGS_SPEC, SIZING_RANGES } from "../engine";
 import { PersistedShapes, PERSISTED_SHAPE_VERSION } from "./persistedShapes";
+
+/** The parsed `globalView` — the one surface every view field is stored on. */
+function parsedGlobalView(globalView: unknown): ViewSettings {
+	return PersistedShapes.parsePluginData({ version: PERSISTED_SHAPE_VERSION, globalView }).globalView;
+}
 
 describe("PersistedShapes.parsePluginData", () => {
 	it("WHEN loadData yields null (first run) THEN engine-default plugin data is seeded", () => {
@@ -125,8 +131,8 @@ describe("PersistedShapes node-exclusion parsing", () => {
 });
 
 describe("PersistedShapes sizing parsing", () => {
-	// Sizing replaces the default WHOLESALE in the view cascade, so a parsed
-	// sizing must always be complete — mangled pieces are repaired from defaults.
+	// Sizing replaces the default WHOLESALE, so a parsed sizing must always be
+	// complete — mangled pieces are repaired from defaults.
 
 	it("WHEN a persisted sizing round-trips through JSON THEN it parses back unchanged", () => {
 		const sizing = {
@@ -134,28 +140,19 @@ describe("PersistedShapes sizing parsing", () => {
 			depthDecayK: 0.75,
 			metrics: { ...EngineDefaults.viewSettings().sizing.metrics, "backlink-count": { enabled: false, weight: 2 } },
 		};
-		const raw = { version: PERSISTED_SHAPE_VERSION, view: { sizing: JSON.parse(JSON.stringify(sizing)) } };
-		expect(PersistedShapes.parseDocData(raw)?.view?.sizing).toEqual(sizing);
+		expect(parsedGlobalView({ sizing: JSON.parse(JSON.stringify(sizing)) }).sizing).toEqual(sizing);
 	});
 
 	it("WHEN persisted sizing is partially mangled THEN unusable pieces are repaired from defaults (complete shape out)", () => {
-		const raw = {
-			version: PERSISTED_SHAPE_VERSION,
-			view: { sizing: { depthDecayK: "broken", minPx: 12, metrics: { "backlink-count": { enabled: true } } } },
-		};
-		const defaults = EngineDefaults.viewSettings().sizing;
-		expect(PersistedShapes.parseDocData(raw)?.view?.sizing).toEqual({ ...defaults, minPx: 12 });
+		const raw = { sizing: { depthDecayK: "broken", minPx: 12, metrics: { "backlink-count": { enabled: true } } } };
+		expect(parsedGlobalView(raw).sizing).toEqual({ ...EngineDefaults.viewSettings().sizing, minPx: 12 });
 	});
 
 	it("WHEN persisted sizing carries out-of-range values THEN they are clamped into the input ranges", () => {
 		// `-1` is FINITE, so the non-finite gate lets it through: it is the clamp
 		// that stops `depthDecayK = -1` reaching `1 / (1 + k * minDepth)`.
-		const raw = {
-			version: PERSISTED_SHAPE_VERSION,
-			view: { sizing: { depthDecayK: -1, minPx: -50, maxPx: 1e10 } },
-		};
-		const parsed = PersistedShapes.parseDocData(raw)?.view?.sizing;
-		expect({ depthDecayK: parsed?.depthDecayK, minPx: parsed?.minPx, maxPx: parsed?.maxPx }).toEqual({
+		const parsed = parsedGlobalView({ sizing: { depthDecayK: -1, minPx: -50, maxPx: 1e10 } }).sizing;
+		expect({ depthDecayK: parsed.depthDecayK, minPx: parsed.minPx, maxPx: parsed.maxPx }).toEqual({
 			depthDecayK: SIZING_RANGES.depthDecayK.min,
 			minPx: SIZING_RANGES.minPx.min,
 			maxPx: SIZING_RANGES.maxPx.max,
@@ -163,63 +160,55 @@ describe("PersistedShapes sizing parsing", () => {
 	});
 
 	it("WHEN a persisted metric weight is out of range THEN it is clamped into the weight range", () => {
-		const raw = {
-			version: PERSISTED_SHAPE_VERSION,
-			view: { sizing: { metrics: { "backlink-count": { enabled: true, weight: -3 } } } },
-		};
-		expect(PersistedShapes.parseDocData(raw)?.view?.sizing?.metrics["backlink-count"].weight).toBe(
-			SIZING_RANGES.metricWeight.min,
+		const raw = { sizing: { metrics: { "backlink-count": { enabled: true, weight: -3 } } } };
+		expect(parsedGlobalView(raw).sizing.metrics["backlink-count"].weight).toBe(SIZING_RANGES.metricWeight.min);
+	});
+
+	it("WHEN persisted sizing is not an object THEN the whole default sizing applies", () => {
+		expect(parsedGlobalView({ nodeCap: 5, sizing: "scrambled" }).sizing).toEqual(
+			EngineDefaults.viewSettings().sizing,
 		);
 	});
 
-	it("WHEN persisted sizing is not an object THEN the sizing field inherits (absent)", () => {
-		const raw = { version: PERSISTED_SHAPE_VERSION, view: { nodeCap: 5, sizing: "scrambled" } };
-		expect(PersistedShapes.parseDocData(raw)?.view).toEqual({ nodeCap: 5 });
+	it("WHEN persisted sizing is unusable THEN its SIBLING fields still survive", () => {
+		expect(parsedGlobalView({ nodeCap: 5, sizing: "scrambled" }).nodeCap).toBe(5);
 	});
 });
 
 describe("PersistedShapes force-layout parsing", () => {
-	// forceLayout replaces the default WHOLESALE in the view cascade (like
-	// sizing), so a parsed value must always be complete AND inside the slider
-	// ranges — mangled pieces are repaired from defaults, excesses are clamped.
+	// forceLayout replaces the default WHOLESALE (like sizing), so a parsed value
+	// must always be complete AND inside the slider ranges — mangled pieces are
+	// repaired from defaults, excesses are clamped.
 
 	it("WHEN a persisted forceLayout round-trips through JSON THEN it parses back unchanged", () => {
 		const forceLayout = { ...EngineDefaults.forceLayoutSettings(), repelStrength: 500, linkGapPx: 60 };
-		const raw = { version: PERSISTED_SHAPE_VERSION, view: { forceLayout: JSON.parse(JSON.stringify(forceLayout)) } };
-		expect(PersistedShapes.parseDocData(raw)?.view?.forceLayout).toEqual(forceLayout);
+		expect(parsedGlobalView({ forceLayout: JSON.parse(JSON.stringify(forceLayout)) }).forceLayout).toEqual(
+			forceLayout,
+		);
 	});
 
 	it("WHEN persisted forceLayout is partially mangled THEN unusable pieces are repaired from defaults (complete shape out)", () => {
-		const raw = {
-			version: PERSISTED_SHAPE_VERSION,
-			view: { forceLayout: { repelStrength: "broken", linkGapPx: 60 } },
-		};
-		const defaults = EngineDefaults.forceLayoutSettings();
-		expect(PersistedShapes.parseDocData(raw)?.view?.forceLayout).toEqual({ ...defaults, linkGapPx: 60 });
+		const raw = { forceLayout: { repelStrength: "broken", linkGapPx: 60 } };
+		expect(parsedGlobalView(raw).forceLayout).toEqual({ ...EngineDefaults.forceLayoutSettings(), linkGapPx: 60 });
 	});
 
 	it("WHEN persisted forceLayout carries out-of-range values THEN they are clamped into the slider ranges", () => {
-		const raw = {
-			version: PERSISTED_SHAPE_VERSION,
-			view: { forceLayout: { centerPullStrength: 99, repelStrength: -5 } },
-		};
-		expect(PersistedShapes.parseDocData(raw)?.view?.forceLayout).toEqual({
+		const raw = { forceLayout: { centerPullStrength: 99, repelStrength: -5 } };
+		expect(parsedGlobalView(raw).forceLayout).toEqual({
 			...EngineDefaults.forceLayoutSettings(),
 			centerPullStrength: 0.15,
 			repelStrength: 50,
 		});
 	});
 
-	it("WHEN persisted forceLayout is not an object THEN the forceLayout field inherits (absent)", () => {
-		const raw = { version: PERSISTED_SHAPE_VERSION, view: { nodeCap: 5, forceLayout: "scrambled" } };
-		expect(PersistedShapes.parseDocData(raw)?.view).toEqual({ nodeCap: 5 });
+	it("WHEN persisted forceLayout is not an object THEN the whole default forceLayout applies", () => {
+		expect(parsedGlobalView({ nodeCap: 5, forceLayout: "scrambled" }).forceLayout).toEqual(
+			EngineDefaults.forceLayoutSettings(),
+		);
 	});
 
 	it("WHEN an old data.json lacks forceLayout THEN the global view gets the engine default (backward compatible, no version bump)", () => {
-		const raw = { version: PERSISTED_SHAPE_VERSION, globalView: { nodeCap: 7 } };
-		expect(PersistedShapes.parsePluginData(raw).globalView.forceLayout).toEqual(
-			EngineDefaults.forceLayoutSettings(),
-		);
+		expect(parsedGlobalView({ nodeCap: 7 }).forceLayout).toEqual(EngineDefaults.forceLayoutSettings());
 	});
 
 	it("WHEN a forceLayout persisted before the edge-clearance field is read THEN only that field defaults, the user's other values survive", () => {
@@ -229,78 +218,70 @@ describe("PersistedShapes force-layout parsing", () => {
 		// (parsePluginData returns defaults wholesale on a version mismatch).
 		const defaults = EngineDefaults.forceLayoutSettings();
 		const { edgeRoutingClearancePx: _absent, ...persistedBeforeTheField } = { ...defaults, repelStrength: 500 };
-		const raw = { version: PERSISTED_SHAPE_VERSION, globalView: { forceLayout: persistedBeforeTheField } };
-		expect(PersistedShapes.parsePluginData(raw).globalView.forceLayout).toEqual({
+		expect(parsedGlobalView({ forceLayout: persistedBeforeTheField }).forceLayout).toEqual({
 			...defaults,
 			repelStrength: 500,
 		});
 	});
 });
 
-describe("PersistedShapes.parseDocData", () => {
-	it("WHEN a doc override round-trips through JSON THEN it parses back unchanged", () => {
-		const doc = {
-			version: PERSISTED_SHAPE_VERSION,
-			depths: { outgoingDepth: 2 },
-			view: { nodeCap: 10, nodePreviewPreference: "outline" },
-			centralDepths: { docid_c_e: { incomingDepth: 0 } },
-		};
-		expect(PersistedShapes.parseDocData(JSON.parse(JSON.stringify(doc)))).toEqual(doc);
-	});
+describe("PersistedShapes global depth parsing", () => {
+	function parsedGlobalDepths(globalDepths: unknown) {
+		return PersistedShapes.parsePluginData({ version: PERSISTED_SHAPE_VERSION, globalDepths }).globalDepths;
+	}
 
-	it("WHEN the version is foreign THEN the doc data is unusable (null)", () => {
-		expect(PersistedShapes.parseDocData({ version: 999, depths: { outgoingDepth: 1 } })).toBeNull();
-	});
-
-	it("WHEN the content is not an object THEN the doc data is unusable (null)", () => {
-		expect(PersistedShapes.parseDocData("scrambled")).toBeNull();
-	});
-
-	it("WHEN depth fields carry wrong types THEN they are dropped field-by-field", () => {
-		const raw = { version: PERSISTED_SHAPE_VERSION, depths: { outgoingDepth: "3", incomingDepth: 1 } };
-		expect(PersistedShapes.parseDocData(raw)).toEqual({
-			version: PERSISTED_SHAPE_VERSION,
-			depths: { incomingDepth: 1 },
+	it("WHEN a depth field carries the wrong type THEN only that field falls back to the default", () => {
+		expect(parsedGlobalDepths({ outgoingDepth: "3", incomingDepth: 2 })).toEqual({
+			outgoingDepth: EngineDefaults.depthSettings().outgoingDepth,
+			incomingDepth: 2,
 		});
 	});
 
-	it("WHEN a zero depth was pinned THEN zero survives parsing (presence = pinned)", () => {
-		const raw = { version: PERSISTED_SHAPE_VERSION, depths: { outgoingDepth: 0 } };
-		expect(PersistedShapes.parseDocData(raw)?.depths).toEqual({ outgoingDepth: 0 });
+	it("WHEN a stored depth is zero THEN zero survives parsing (a real value, never an absence)", () => {
+		expect(parsedGlobalDepths({ outgoingDepth: 0 }).outgoingDepth).toBe(0);
 	});
 });
 
 /**
- * The RUNTIME companion to the `ParsedViewFields` compile guard: presence
- * semantics (`!== undefined`, never truthiness) and per-field coverage. The
- * compile guard proves every field is PARSED; these prove a parsed field is
- * KEPT, that an absent one stays absent, and that a pinned falsy value is not
+ * The RUNTIME companion to the `ParsedViewFields` compile guard: the compile
+ * guard proves every view field is PARSED; these prove a parsed field is KEPT
+ * (never quietly replaced by its default) and that a stored FALSY value is not
  * mistaken for an absence.
  */
-describe("PersistedShapes view override presence semantics", () => {
-	/** The parsed per-doc view override — the only surface where a PARTIAL view survives. */
-	function parsedViewKeys(view: unknown): string[] {
-		return Object.keys(PersistedShapes.parseDocData({ version: PERSISTED_SHAPE_VERSION, view })?.view ?? {}).sort();
-	}
-
-	it("WHEN a persisted view override pins nodeCap to zero THEN the zero survives (presence = pinned)", () => {
-		expect(PersistedShapes.parseDocData({ version: PERSISTED_SHAPE_VERSION, view: { nodeCap: 0 } })?.view).toEqual({
-			nodeCap: 0,
-		});
-	});
-
-	it("WHEN a persisted view override omits a field THEN the parsed override omits its key (absence = inherit)", () => {
-		expect(parsedViewKeys({ nodeCap: 10 })).toEqual(["nodeCap"]);
-	});
-
+describe("PersistedShapes view field presence semantics", () => {
 	/**
-	 * Driven off the defaults object rather than a hand-written key list, so it
-	 * grows by itself the day a `ViewSettings` field is added — the same property
-	 * the compile guard enforces, asserted on real parsed output.
+	 * Every view field at a NON-default value. Typed as the complete
+	 * {@link ViewSettings} on purpose: a newly added field is a compile error here
+	 * until it gets a value, so the round-trip below keeps covering every field.
 	 */
-	it("WHEN a persisted view override carries every ViewSettings field THEN every field survives parsing", () => {
-		const everyField: unknown = JSON.parse(JSON.stringify(EngineDefaults.viewSettings()));
-		expect(parsedViewKeys(everyField)).toEqual(Object.keys(EngineDefaults.viewSettings()).sort());
+	const NON_DEFAULT_VIEW: ViewSettings = {
+		nodeCap: 7,
+		outlineMaxDepth: 4,
+		nodePreviewPreference: "image",
+		sizing: { ...EngineDefaults.viewSettings().sizing, minPx: 30 },
+		forceLayout: { ...EngineDefaults.forceLayoutSettings(), linkGapPx: 60 },
+	};
+
+	it("WHEN the fixture is compared to the defaults THEN every field differs (else the round-trip proves nothing)", () => {
+		const defaults = EngineDefaults.viewSettings();
+		const same = Object.keys(defaults).filter(
+			(key) =>
+				JSON.stringify(NON_DEFAULT_VIEW[key as keyof ViewSettings]) ===
+				JSON.stringify(defaults[key as keyof ViewSettings]),
+		);
+		expect(same).toEqual([]);
+	});
+
+	it("WHEN every view field is persisted at a non-default value THEN all of them survive parsing", () => {
+		expect(parsedGlobalView(JSON.parse(JSON.stringify(NON_DEFAULT_VIEW)))).toEqual(NON_DEFAULT_VIEW);
+	});
+
+	it("WHEN a persisted view stores nodeCap zero THEN the zero survives (a real value, not an absence)", () => {
+		expect(parsedGlobalView({ nodeCap: 0 }).nodeCap).toBe(0);
+	});
+
+	it("WHEN a persisted view omits a field THEN that field takes the spec default", () => {
+		expect(parsedGlobalView({ nodeCap: 10 }).outlineMaxDepth).toBe(SETTINGS_SPEC.globalView.outlineMaxDepth.default);
 	});
 });
 

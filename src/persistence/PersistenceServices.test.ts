@@ -1,16 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { FakeDocIdPort } from "../adapters/FakeDocIdPort";
 import type { VaultFilePort } from "../adapters/obsidianPorts";
-import { EngineDefaults } from "../engine";
-import { DocDataStore } from "./DocDataStore";
-import { DOC_DATA_DIR_NAME } from "./docDataDirName";
-import { FakeFileStorage } from "./FakeFileStorage";
 import { FakePluginDataPort } from "./FakePluginDataPort";
 import { PathDocIdMap } from "./PathDocIdMap";
 import { PersistenceServices } from "./PersistenceServices";
 import { PluginDataStore } from "./PluginDataStore";
 
-const DIR = DOC_DATA_DIR_NAME;
 const FIXED_NOW = 777;
 
 function fileAt(path: string): VaultFilePort {
@@ -18,13 +13,11 @@ function fileAt(path: string): VaultFilePort {
 }
 
 async function services(docIdPort: FakeDocIdPort) {
-	const storage = new FakeFileStorage();
-	const docDataStore = new DocDataStore(storage, DIR);
 	const pluginDataStore = new PluginDataStore(new FakePluginDataPort());
 	await pluginDataStore.init();
 	const pathDocIdMap = new PathDocIdMap();
-	const persistence = new PersistenceServices(docIdPort, pluginDataStore, docDataStore, pathDocIdMap, () => FIXED_NOW);
-	return { persistence, storage, docDataStore, pluginDataStore, pathDocIdMap };
+	const persistence = new PersistenceServices(docIdPort, pluginDataStore, pathDocIdMap, () => FIXED_NOW);
+	return { persistence, pluginDataStore, pathDocIdMap };
 }
 
 describe("PersistenceServices.pinDoc", () => {
@@ -67,41 +60,10 @@ describe("PersistenceServices.pinDoc", () => {
 });
 
 describe("PersistenceServices.unpinDoc", () => {
-	it("WHEN a doc is unpinned THEN only its pin disappears (centralDepths traces are left to the sweep)", async () => {
+	it("WHEN a doc is unpinned THEN its pin disappears", async () => {
 		const { persistence, pluginDataStore } = await services(new FakeDocIdPort({ "a.md": "docid_a_e" }));
 		await persistence.pinDoc(fileAt("a.md"));
 		await persistence.unpinDoc("docid_a_e");
 		expect(pluginDataStore.pins()).toEqual([]);
-	});
-});
-
-describe("PersistenceServices per-doc settings", () => {
-	it("WHEN a depth field is set THEN it round-trips through the doc's own file", async () => {
-		const { persistence, docDataStore } = await services(new FakeDocIdPort({ "a.md": "docid_a_e" }));
-		await persistence.setDocDepthField(fileAt("a.md"), "outgoingDepth", 4);
-		expect((await docDataStore.load("docid_a_e"))?.depths).toEqual({ outgoingDepth: 4 });
-	});
-
-	it("WHEN a view field is set EQUAL to the global default THEN it is still written (pin-on-toggle)", async () => {
-		const { persistence, docDataStore } = await services(new FakeDocIdPort({ "a.md": "docid_a_e" }));
-		const defaultCap = EngineDefaults.viewSettings().nodeCap;
-		await persistence.setDocViewField(fileAt("a.md"), "nodeCap", defaultCap);
-		expect((await docDataStore.load("docid_a_e"))?.view).toEqual({ nodeCap: defaultCap });
-	});
-
-	it("WHEN a central's depth is adjusted under MAIN THEN it persists in MAIN's centralDepths", async () => {
-		const { persistence, docDataStore } = await services(new FakeDocIdPort({ "main.md": "docid_main_e" }));
-		await persistence.setCentralDepthField(fileAt("main.md"), "docid_pin_e", "incomingDepth", 1);
-		expect((await docDataStore.load("docid_main_e"))?.centralDepths).toEqual({
-			docid_pin_e: { incomingDepth: 1 },
-		});
-	});
-
-	it("WHEN a setting is attempted on an unidentifiable doc THEN no doc-data file is created", async () => {
-		const docIdPort = new FakeDocIdPort();
-		docIdPort.markUnidentifiable("weird.md");
-		const { persistence, storage } = await services(docIdPort);
-		await persistence.setDocDepthField(fileAt("weird.md"), "outgoingDepth", 2);
-		expect(storage.fileCount()).toBe(0);
 	});
 });
