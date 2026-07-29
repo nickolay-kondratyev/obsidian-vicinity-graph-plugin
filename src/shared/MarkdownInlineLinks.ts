@@ -16,12 +16,12 @@
  *
  * A small honest matcher, NOT a markdown parser (same spirit as
  * {@link Wikilinks}): one left-to-right pass, no code-span or escape analysis.
- * DELIBERATELY NOT HANDLED: links inside code spans/fences (harvested as if
- * they were real — ticket `nid_869bt9d9rlrbr8of1403dnmf3_e`), ESCAPED brackets
+ * Callers that must skip CODE mask those regions first with
+ * {@link MarkdownCodeRegions}. DELIBERATELY NOT HANDLED: ESCAPED brackets
  * (`\[not a link\](x.md)` is harvested though core yields nothing), brackets
  * inside the label, and parentheses inside the destination — all rare enough
- * that recognising them is not worth a parser. The first two OVER-match (a
- * spurious edge), the last two UNDER-match (a missed edge).
+ * that recognising them is not worth a parser. The first OVER-matches (a
+ * spurious edge), the other two UNDER-match (a missed edge).
  */
 
 /**

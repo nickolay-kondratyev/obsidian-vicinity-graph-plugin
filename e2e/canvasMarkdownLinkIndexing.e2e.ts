@@ -29,6 +29,9 @@ const TARGET_PATH = `${FIXTURE_FOLDER}/target.md`;
 const SPACED_TARGET_PATH = `${FIXTURE_FOLDER}/spaced target.md`;
 /** A note named by the FIRST WORD of the spaced destination — the phantom-edge bait. */
 const PHANTOM_BAIT_PATH = `${FIXTURE_FOLDER}/spaced.md`;
+/** Existing notes linked ONLY from inside a code span / fenced block — the code-region bait. */
+const CODE_SPAN_TARGET_PATH = `${FIXTURE_FOLDER}/code-span-target.md`;
+const FENCE_TARGET_PATH = `${FIXTURE_FOLDER}/fence-target.md`;
 
 /** Canvas re-index after a content touch; the metadata pass is not instant. */
 const CANVAS_INDEX_TIMEOUT_MS = 20_000;
@@ -48,8 +51,25 @@ const CANVAS_TEXT = [
 	'titled [titled](target.md "A Title")',
 ].join(" — ");
 
+/**
+ * A SEPARATE text node whose only links sit inside code regions — an inline code
+ * span and a fenced block, in BOTH link syntaxes. The targets exist in the vault,
+ * so anything core indexes here is a real edge, not a resolution failure.
+ */
+const CODE_REGION_TEXT = [
+	"inline `[[code-span-target]]` and `[cs](code-span-target.md)`",
+	"",
+	"```",
+	"[[fence-target]]",
+	"[f](fence-target.md)",
+	"```",
+].join("\n");
+
 const CANVAS_JSON = JSON.stringify({
-	nodes: [{ id: "t1", type: "text", text: CANVAS_TEXT, x: 0, y: 0, width: 600, height: 300 }],
+	nodes: [
+		{ id: "t1", type: "text", text: CANVAS_TEXT, x: 0, y: 0, width: 600, height: 300 },
+		{ id: "t2", type: "text", text: CODE_REGION_TEXT, x: 0, y: 400, width: 600, height: 300 },
+	],
 	edges: [],
 });
 
@@ -58,6 +78,8 @@ const EXTRA_FIXTURES: Record<string, string> = {
 	[TARGET_PATH]: "Target of the markdown-style canvas links.\n",
 	[SPACED_TARGET_PATH]: "Target whose name contains a space.\n",
 	[PHANTOM_BAIT_PATH]: "Bait: exists only so a truncated destination would resolve to something.\n",
+	[CODE_SPAN_TARGET_PATH]: "Bait: linked ONLY from inside an inline code span.\n",
+	[FENCE_TARGET_PATH]: "Bait: linked ONLY from inside a fenced code block.\n",
 };
 
 let harness: ObsidianHarness;
@@ -114,6 +136,20 @@ test("core makes no link for a destination with an unencoded space (no phantom e
 	// The bait note exists, so truncating `spaced target.md` at the space WOULD
 	// resolve — to the wrong document. Core does not; neither may the fallback.
 	expect(Object.keys(await indexedCanvasLinks())).not.toContain(PHANTOM_BAIT_PATH);
+});
+
+/**
+ * GATES the code-region masking in `src/shared/MarkdownCodeRegions.ts` (ticket
+ * `nid_869bt9d9rlrbr8of1403dnmf3_e`): the fallback parser may only DROP links
+ * inside code spans/fences while core drops them too. If this goes red, core
+ * indexes them and the masking is the bug.
+ */
+test("core makes no link for a link inside an inline code span", async () => {
+	expect(Object.keys(await indexedCanvasLinks())).not.toContain(CODE_SPAN_TARGET_PATH);
+});
+
+test("core makes no link for a link inside a fenced code block", async () => {
+	expect(Object.keys(await indexedCanvasLinks())).not.toContain(FENCE_TARGET_PATH);
 });
 
 test("core makes no link for an external URL", async () => {

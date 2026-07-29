@@ -50,6 +50,27 @@ describe("CanvasFallbackParser on a valid canvas", () => {
 		expect(CanvasFallbackParser.parseReferences("board.canvas", raw)).toEqual([]);
 	});
 
+	it("WHEN a text node's only links sit in an inline code span THEN nothing is referenced (core indexes none)", () => {
+		const raw = '{"nodes": [{"type": "text", "text": "sample: `[[beta]]` and `[l](beta.md)`"}]}';
+		expect(CanvasFallbackParser.parseReferences("board.canvas", raw)).toEqual([]);
+	});
+
+	it("WHEN a text node's only links sit in a fenced block THEN nothing is referenced (core indexes none)", () => {
+		const raw = JSON.stringify({
+			nodes: [{ type: "text", text: ["```md", "[[beta]]", "[l](beta.md)", "```"].join("\n") }],
+		});
+		expect(CanvasFallbackParser.parseReferences("board.canvas", raw)).toEqual([]);
+	});
+
+	it("WHEN a text node mixes prose and code links THEN only the prose ones are referenced", () => {
+		const raw = JSON.stringify({
+			nodes: [{ type: "text", text: "real [[beta]], sample `[[gamma]]`" }],
+		});
+		expect(CanvasFallbackParser.parseReferences("board.canvas", raw)).toEqual([
+			{ kind: "text-node-link", linkText: "beta" },
+		]);
+	});
+
 	it("WHEN a node is an external link node THEN it references no vault document", () => {
 		const references = CanvasFallbackParser.parseReferences("board.canvas", fixture("board.canvas"));
 		expect(JSON.stringify(references)).not.toContain("example.com");
