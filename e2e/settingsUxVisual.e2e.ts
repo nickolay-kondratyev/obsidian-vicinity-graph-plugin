@@ -114,7 +114,7 @@ test("panel: WHEN the controls panel renders THEN its top-level disclosures are 
 	// (NodeExclusionSection), so its textContent is "Node exclusion" or
 	// "Node exclusion12" depending on the fixture, and an exact string would be a
 	// latent flake for that entry. `\d*` tolerates that badge and NOTHING else —
-	// tail-anchoring keeps a rename like "Depth" → "Depth & scope" failing, which
+	// tail-anchoring keeps a rename like "Depth (all notes)" → "Depth & scope" failing, which
 	// an open-ended prefix would have let through. If the badge ever stops being a
 	// bare integer, the resulting failure is intended, not a flake.
 	await expect(summaries).toHaveText(

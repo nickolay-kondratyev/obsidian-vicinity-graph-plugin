@@ -458,19 +458,23 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 
 	private renderDepthDefaults(): void {
 		const section = this.createSection();
-		new Setting(section).setName("Depth defaults").setHeading();
+		// Heading and row copy say "every"/"all notes" rather than "defaults" (owner
+		// decision 2026-07-29): "default" implies a per-note override layer, and there
+		// is none — this IS the one value every graph traverses with. Same words as the
+		// controls panel's Depth disclosure, so the two surfaces read as one setting.
+		new Setting(section).setName("Depth (all notes)").setHeading();
 		const depths = this.store.globalDepths();
 		this.addDepthSlider(
 			section,
 			"Outgoing depth",
-			"How many hops of outgoing links to expand from a central note by default.",
+			"How many hops of outgoing links to expand from every central note.",
 			"outgoing",
 			depths.outgoingDepth,
 		);
 		this.addDepthSlider(
 			section,
 			"Incoming depth",
-			"How many hops of incoming links (backlinks) to expand by default.",
+			"How many hops of incoming links (backlinks) to expand from every central note.",
 			"incoming",
 			depths.incomingDepth,
 		);

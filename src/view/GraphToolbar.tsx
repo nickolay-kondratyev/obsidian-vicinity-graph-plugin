@@ -34,7 +34,14 @@ export function GraphToolbar({ controls }: { readonly controls: ControlsModel })
 				<span className="vicinity-graph-toolbar__title">Graph controls</span>
 			</summary>
 			<div className="vicinity-graph-toolbar__body">
-				<Disclosure summary="Depth" defaultOpen>
+				{/*
+				 * "(all notes)" is load-bearing copy, not decoration (owner decision
+				 * 2026-07-29): these steppers write the ONE global depth setting, so a
+				 * bump here changes every note's graph and every open view. Plain
+				 * "Depth" on an in-view panel reads as "this graph's depth" (POLS).
+				 * The settings tab's depth card carries the same words.
+				 */}
+				<Disclosure summary="Depth (all notes)" defaultOpen>
 					<GlobalDepthControls depths={controls.globalDepths} ctx={ctx} />
 				</Disclosure>
 				<NodeExclusionSection ctx={ctx} excludedNodeCount={controls.excludedNodeCount} />

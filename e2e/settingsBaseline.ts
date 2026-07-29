@@ -39,7 +39,9 @@ export type SectionResetScope = (typeof SECTION_RESET_SCOPES)[number];
  * heading, instead of leaving a spec under-asserting at runtime.
  */
 const SECTION_CARD_HEADINGS: Readonly<Record<SectionResetScope, string>> = {
-	"depth-defaults": "Depth defaults",
+	// The scope KEY stays `depth-defaults` (internal, and the reset row still restores
+	// shipped defaults); the card HEADING is user-facing copy and now names its scope.
+	"depth-defaults": "Depth (all notes)",
 	"node-sizing": "Node sizing",
 	"node-contents": "Node contents",
 	"force-layout": "Force layout",
@@ -109,8 +111,9 @@ export interface PanelDisclosure {
 /**
  * The controls-panel disclosures, in `GraphToolbar` order. A SEPARATE list from
  * the tab cards on purpose — the two surfaces genuinely differ: the panel has no
- * "Performance" and no "Depth defaults" card, and the tab has no nested
- * "Advanced spacing".
+ * "Performance" card, and the tab has no nested "Advanced spacing". (The depth
+ * section is deliberately named identically on both surfaces — one setting, one
+ * wording.)
  *
  * This list is EXHAUSTIVE for the panel's TOP LEVEL, with NO exceptions, and that
  * is enforced against the real DOM: `settingsUxVisual.e2e.ts` asserts the
@@ -127,7 +130,7 @@ export interface PanelDisclosure {
  * unconditionally, so the pin needs no name-based exemption.)
  */
 export const CONTROLS_PANEL_DISCLOSURES: readonly PanelDisclosure[] = [
-	{ summaryText: "Depth", startsOpen: true, summaryAlsoMatchesAnAncestor: true },
+	{ summaryText: "Depth (all notes)", startsOpen: true, summaryAlsoMatchesAnAncestor: true },
 	{ summaryText: "Node exclusion", startsOpen: false, summaryAlsoMatchesAnAncestor: false },
 	{ summaryText: "Node sizing", startsOpen: false, summaryAlsoMatchesAnAncestor: false },
 	{ summaryText: "Node contents", startsOpen: false, summaryAlsoMatchesAnAncestor: false },
