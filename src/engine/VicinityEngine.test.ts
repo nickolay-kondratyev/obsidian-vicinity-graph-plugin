@@ -278,7 +278,12 @@ describe("VicinityEngine pinned-central depth exploration", () => {
 	});
 
 	it("WHEN MAIN changes THEN the pinned central's reach is unchanged (no per-MAIN depth memory)", () => {
-		expect(node(build("z.md", 3), "x3.md")?.depthTags).toEqual(node(build("y.md", 3), "x3.md")?.depthTags);
+		// The CONCRETE tag, not a comparison against the other build: with two
+		// `?.depthTags` sides a pinned root that stopped being walked at all would
+		// leave both `undefined` and keep this green — a silent fallback.
+		expect(node(build("z.md", 3), "x3.md")?.depthTags).toEqual([
+			{ rootPath: "x.md", direction: "outgoing", depth: 3 },
+		]);
 	});
 });
 

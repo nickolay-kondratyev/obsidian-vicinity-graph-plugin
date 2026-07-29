@@ -74,6 +74,17 @@ export const SECTION_RESET_NAMES: readonly string[] = SETTINGS_TAB_SECTIONS.map(
 /** The tab-wide restore row, rendered once below the last card. */
 export const ALL_SETTINGS_RESET_NAME = SETTINGS_RESET_SCOPES[ALL_SETTINGS_RESET_SCOPE].label;
 
+/**
+ * The tab-wide restore row's description, verbatim from `settingsResetPlan`.
+ *
+ * DERIVED, never re-typed: `settingsResetVerify.e2e.ts` used to hard-code this
+ * sentence and went stale the moment the copy dropped its per-note-overrides
+ * clause (the per-doc layer was removed) — a guaranteed-red release gate no
+ * `npm test` run could catch. The e2e's job is "this copy reaches the screen";
+ * WHAT the copy must say is asserted once, in `settingsResetPlan.test.ts`.
+ */
+export const ALL_SETTINGS_RESET_DESCRIPTION = SETTINGS_RESET_SCOPES[ALL_SETTINGS_RESET_SCOPE].description;
+
 /** Every restore affordance in the tab, in DOM order: the six cards, then the footer. */
 export const EVERY_SETTINGS_RESET_NAME: readonly string[] = [...SECTION_RESET_NAMES, ALL_SETTINGS_RESET_NAME];
 

@@ -158,11 +158,6 @@ export class GraphViewController {
 		void this.runRebuild();
 	}
 
-	/** The current MAIN file path (pure string getter — the executor targets it). `null` before any build. */
-	currentMainPath(): string | null {
-		return this.mainPath;
-	}
-
 	/** Vault content changed while the view is open — debounce the resolve burst. */
 	handleMetadataResolved(): void {
 		this.clearDebounce();

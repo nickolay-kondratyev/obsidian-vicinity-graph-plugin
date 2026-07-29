@@ -294,17 +294,6 @@ describe("GraphViewController settings-changed rebuild", () => {
 
 		expect(h.source.calls).toEqual(["a.md", "a.md"]);
 	});
-
-	it("WHEN no MAIN is set THEN currentMainPath is null", () => {
-		const h = setup();
-		expect(h.controller.currentMainPath()).toBeNull();
-	});
-
-	it("WHEN a MAIN file is active THEN currentMainPath returns it", () => {
-		const h = setup();
-		h.controller.handleActiveFileChanged("a.md");
-		expect(h.controller.currentMainPath()).toBe("a.md");
-	});
 });
 
 describe("GraphViewController structural diff", () => {

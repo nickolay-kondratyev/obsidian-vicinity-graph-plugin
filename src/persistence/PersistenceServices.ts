@@ -27,6 +27,13 @@ export class PersistenceServices {
 		return this.withPersistableIdentity(file, (docid) => this.pluginDataStore.addPin(docid, this.clock()));
 	}
 
+	/**
+	 * Unpin lands unconditionally and returns NO verdict — unlike {@link pinDoc},
+	 * which must classify the file first (a docid may be unassignable). Removing a
+	 * pin needs only the docid the pin is keyed by, and a docid that is no longer
+	 * there is already the desired state. WHY it matters to callers:
+	 * `ControlsActions.unpinNode` therefore has no refusal to gate on.
+	 */
 	async unpinDoc(docid: string): Promise<void> {
 		await this.pluginDataStore.removePins([docid]);
 	}
