@@ -1,4 +1,7 @@
 import { SETTINGS_SPEC } from "./SettingsSpec";
+// Separate statement: the line above is a VALUE import, and `isolatedModules`
+// needs the type to come across as a type.
+import type { SizingSpec } from "./SettingsSpec";
 import type {
 	DepthSettings,
 	ForceLayoutSettings,
@@ -168,8 +171,13 @@ export function clampForceLayoutSettings(settings: ForceLayoutSettings): ForceLa
 	};
 }
 
-/** The bounded sizing fields (`metrics` carries defaults only — its weights are bounded by `metricWeight`). */
-type SizingRangeField = "metricWeight" | "depthDecayK" | "minPx" | "maxPx";
+/**
+ * The bounded sizing fields — DERIVED from the spec, so a new bounded sizing
+ * field fails to compile in {@link SIZING_RANGES} below until it is given a
+ * range, instead of silently getting no range and no clamp.
+ * (`metrics` carries defaults only — its weights are bounded by `metricWeight`.)
+ */
+type SizingRangeField = Exclude<keyof SizingSpec, "metrics">;
 
 export const SIZING_RANGES: Readonly<Record<SizingRangeField, SettingsRange>> = rangesOf({
 	metricWeight: SETTINGS_SPEC.globalView.sizing.metricWeight,
