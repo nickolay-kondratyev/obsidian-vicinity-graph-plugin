@@ -1,18 +1,20 @@
 ---
 id: nid_armoson86j0ii8c33r1odo1rc_e
-title: "Settings cleanup E3: settings tab and in-graph panel become two presenters of one descriptor model"
+title: "Settings cleanup — dual presenters: settings tab and in-graph panel become two presenters of one descriptor model"
 status: open
-deps: [nid_wimjq4ewgbg21n4zx9d4qq3a0_e]
+deps: [nid_wimjq4ewgbg21n4zx9d4qq3a0_e, nid_m5hxe4eo9jgt7cfic7s2o3uvi_e]
 links: [nid_1rslube8at5xj60ji4jeve0b0_e, nid_qp56jugz8en8wkgjirwcb269p_e, nid_klkdpmx6axf90y4xj8khwrlf2_e, nid_que9qloigra7ku2boh83qizz0_e]
 created_iso: 2026-07-29T17:29:52Z
 status_updated_iso: 2026-07-29T17:29:52Z
-type: epic
+type: task
 priority: 1
 assignee: CC_WITH-nickolaykondratyev
-tags: [settings, ui, ux, a11y]
+tags: [settings, settings-cleanup, ui, ux, a11y]
 ---
 
-Part of the settings cleanup approved by the owner on 2026-07-29. Depends on E1 (descriptors).
+Overarching context, ordering rationale and standing owner decisions: docs-internal/notes/settings.md (grouping tag: settings-cleanup, step 4 of the chain).
+
+Part of the settings cleanup approved by the owner on 2026-07-29. Depends on the descriptor model (nid_wimjq4ewgbg21n4zx9d4qq3a0_e) for rows-as-data, and on the write pipeline (nid_m5hxe4eo9jgt7cfic7s2o3uvi_e) so both presenters wire to the final write path once instead of being rewired after.
 
 PROBLEM: VicinityGraphSettingTab.ts and the in-graph React sections are two INDEPENDENTLY hand-written renderers of the same settings model, so they drift. Every drift shows up as its own ticket:
 - nid_klkdpmx6axf90y4xj8khwrlf2_e -- outlineMaxDepth has a tab row but NO panel control

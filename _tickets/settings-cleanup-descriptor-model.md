@@ -1,16 +1,18 @@
 ---
 id: nid_wimjq4ewgbg21n4zx9d4qq3a0_e
-title: "Settings cleanup E1: one declarative field descriptor drives spec, type, defaults, parse, write plan and reset scope"
+title: "Settings cleanup — descriptor model: one declarative field descriptor drives spec, type, defaults, parse, write plan and reset scope"
 status: open
 deps: [nid_niz5dz6uqeyv237ckm15ittqa_e]
 links: []
 created_iso: 2026-07-29T17:29:26Z
 status_updated_iso: 2026-07-29T17:29:26Z
-type: epic
+type: task
 priority: 1
 assignee: CC_WITH-nickolaykondratyev
-tags: [settings, architecture, dx]
+tags: [settings, settings-cleanup, architecture, dx]
 ---
+
+Overarching context, ordering rationale and standing owner decisions: docs-internal/notes/settings.md (grouping tag: settings-cleanup, step 2 of the chain).
 
 Part of the settings cleanup approved by the owner on 2026-07-29 (larger rewrite explicitly authorised). Root-cause ticket: nid_8p0nn2g34d97finokwlz3u1dt_e.
 

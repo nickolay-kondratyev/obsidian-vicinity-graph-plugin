@@ -9,9 +9,10 @@ status_updated_iso: 2026-07-27T23:43:06Z
 type: bug
 priority: 4
 assignee: CC_WITH-nickolaykondratyev
-tags: [settings]
+tags: [settings, settings-cleanup]
 ---
 
+Overarching context and chain ordering for the settings cleanup: docs-internal/notes/settings.md (grouping tag: settings-cleanup).
 Narrow residual gap found while reviewing nid_7ni3rjx3bx6w2bdfvpp7wj0xb_e (the settings write queue).
 
 `VicinityGraphSettingTab.applyReset()` (src/view/VicinityGraphSettingTab.ts) ends its queued task with a full `this.display()`, which tears down and rebuilds every control. If the user clicks a control in the same tick that a reset is still finishing, that click enqueues behind the reset, but `display()` has already replaced the DOM node the click came from — so the write lands on the store while the freshly-rebuilt control shows the post-reset value.

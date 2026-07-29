@@ -9,9 +9,10 @@ status_updated_iso: 2026-07-27T18:39:36Z
 type: task
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
-tags: [settings, ux]
+tags: [settings, ux, settings-cleanup]
 ---
 
+Overarching context and chain ordering for the settings cleanup: docs-internal/notes/settings.md (grouping tag: settings-cleanup).
 The settings tab (`src/view/VicinityGraphSettingTab.ts`, `renderExclusion` / `showExclusionPatterns`) HIDES the "Exclusion patterns" textarea row whenever the "Exclude notes from the graph" toggle is off. That behaviour predates the row-refresh fix in ticket nid_9k11zke41l6ze3p7n7suuo4v2_e, which only changed HOW the row is swapped (one slot, no full `display()` rebuild) and deliberately kept the hide/show semantics.
 
 Obsidian's own settings guidance (see the `obsidian-settings` skill, "Progressive disclosure") argues the other way:
@@ -60,6 +61,6 @@ COSTS: update e2e/settingsResetVerify.e2e.ts:64,100, settingsUxVisual.e2e.ts MIN
 settingsDependentRows.e2e.ts. Replace the WHY-NOT comment at VicinityGraphSettingTab.ts:~403 that
 points at this ticket.
 
-In the new descriptor model (see settings-cleanup epics) this becomes a declarative disabledWhen
-flag rather than hand-written branching -- prefer landing it that way if the descriptor epic lands
+In the new descriptor model (see docs-internal/notes/settings.md) this becomes a declarative disabledWhen
+flag rather than hand-written branching -- prefer landing it that way if the descriptor-model ticket (nid_wimjq4ewgbg21n4zx9d4qq3a0_e) lands
 first.

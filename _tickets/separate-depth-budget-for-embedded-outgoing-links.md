@@ -1,16 +1,18 @@
 ---
 id: nid_fay1hu5sxcoygizopkkg0f0d7_e
-tags: [settings]
-title: "Separate depth budget for embedded outgoing links (decisions settled)"
+tags: [settings, settings-cleanup]
+title: "Separate depth budget for embedded outgoing links (decisions settled; measures the new settings model's plumbing cost)"
 status: open
-deps: [nid_8p0nn2g34d97finokwlz3u1dt_e, nid_wimjq4ewgbg21n4zx9d4qq3a0_e]
+deps: [nid_8p0nn2g34d97finokwlz3u1dt_e, nid_wimjq4ewgbg21n4zx9d4qq3a0_e, nid_armoson86j0ii8c33r1odo1rc_e, nid_x6hgehsu5il1d1shuraz3ufqy_e]
 links: [nid_869bt9d9rlrbr8of1403dnmf3_e, nid_8p0nn2g34d97finokwlz3u1dt_e, nid_1rslube8at5xj60ji4jeve0b0_e, nid_d57npvuvjk95n03c2xqgl3y6o_e]
 created_iso: 2026-07-28T17:29:00Z
 status_updated_iso: 2026-07-28T17:29:00Z
 type: task
-priority: 3
+priority: 2
 assignee: nickolaykondratyev
 ---
+
+Overarching context, ordering rationale and standing owner decisions: docs-internal/notes/settings.md (grouping tag: settings-cleanup, step 6 — the FINAL step of the chain). This ticket absorbed former ticket nid_d57npvuvjk95n03c2xqgl3y6o_e ("prove the plumbing cost dropped"); see MEASUREMENT MANDATE at the bottom.
 
 First research if we have a solid way to gather the data if something is embedded or NOT both from the notes which would be the `![[note]]` syntax.
 
@@ -434,3 +436,20 @@ D4 Stage 0 STILL GATES: deps frontmatter now points at nid_8p0nn2g34d97finokwlz3
 D5 attachments: SS7 redefinition REJECTED outright, no follow-up ticket. Attachment-ness stays decided by node-bearing-ness, not kind -- a diagram is an attachment whether [[x.png]] or ![[x.png]]. embedDepthOut covers embedded NOTES only; VicinityTraversal isNodeBearing gate already guarantees this, so it is an invariant to pin with a test, not code to write.
 
 Next: split implementation tickets (blocked on Stage 0).
+
+---
+
+# MEASUREMENT MANDATE (absorbed from dissolved ticket nid_d57npvuvjk95n03c2xqgl3y6o_e, 2026-07-29)
+
+This is the MEASUREMENT step for the whole settings cleanup, not just a feature.
+Implement this depth field as the FIRST new settings field added under the
+declarative descriptor model (nid_wimjq4ewgbg21n4zx9d4qq3a0_e).
+
+ACCEPTANCE: record how many files and lines the new field actually cost, and
+compare against the pre-cleanup baseline of ~15 files / ~8 hand-maintained lists
+documented in nid_8p0nn2g34d97finokwlz3u1dt_e. If it is not dramatically
+cheaper, the descriptor design did not deliver and the descriptor-model ticket
+should be revisited rather than declared done.
+
+Be honest in the write-up -- a disappointing number here is the single most
+valuable signal the cleanup can produce.

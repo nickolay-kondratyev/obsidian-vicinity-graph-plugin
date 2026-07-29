@@ -1,18 +1,20 @@
 ---
 id: nid_m5hxe4eo9jgt7cfic7s2o3uvi_e
-title: "Settings cleanup E2: one settings write/refresh pipeline (single serial chain, reset drains it, one fan-out rule)"
+title: "Settings cleanup — write pipeline: one settings write/refresh pipeline (single serial chain, reset drains it, one fan-out rule)"
 status: open
 deps: [nid_wimjq4ewgbg21n4zx9d4qq3a0_e]
 links: [nid_4zffe7mj5p1eabi9m6wfh06k0_e, nid_8b97fdqznqsncc5kgya1p871w_e]
 created_iso: 2026-07-29T17:29:52Z
 status_updated_iso: 2026-07-29T17:29:52Z
-type: epic
+type: task
 priority: 1
 assignee: CC_WITH-nickolaykondratyev
-tags: [settings, persistence, architecture]
+tags: [settings, settings-cleanup, persistence, architecture]
 ---
 
-Part of the settings cleanup approved by the owner on 2026-07-29. Builds on E1 (descriptors).
+Overarching context, ordering rationale and standing owner decisions: docs-internal/notes/settings.md (grouping tag: settings-cleanup, step 3 of the chain).
+
+Part of the settings cleanup approved by the owner on 2026-07-29. Builds on the descriptor-model ticket (nid_wimjq4ewgbg21n4zx9d4qq3a0_e).
 
 PROBLEM: the settings write path is three hand-rolled serial promise chains plus ad-hoc refresh, which produces four separate open bugs that are really ONE subsystem defect:
 - nid_8b97fdqznqsncc5kgya1p871w_e -- reset display() rebuilds AHEAD of a queued write
@@ -27,5 +29,5 @@ GOAL:
 4. ONE refresh fan-out rule that covers per-doc writes AND sibling views on the same doc.
 5. Controls stay optimistic locally so typing does not feel laggy, while the persisted write is serialised.
 
-These four tickets should be closed as merged into this epic once it lands; do not fix them piecemeal, the whole point is that they share a cause.
+These four tickets should be closed as merged into this ticket once it lands; do not fix them piecemeal, the whole point is that they share a cause.
 

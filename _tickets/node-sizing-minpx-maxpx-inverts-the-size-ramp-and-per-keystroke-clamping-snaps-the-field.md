@@ -2,16 +2,17 @@
 id: nid_hatwq2jlkhno5t6awcz0q6t9q_e
 title: "node sizing: minPx > maxPx inverts the size ramp, and per-keystroke clamping snaps the field"
 status: open
-deps: []
+deps: [nid_armoson86j0ii8c33r1odo1rc_e]
 links: [nid_9jiira82snkh7bgy8zv060c9r_e]
 created_iso: 2026-07-26T01:21:48Z
 status_updated_iso: 2026-07-26T01:21:48Z
 type: task
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
-tags: [sizing, settings, ux]
+tags: [sizing, settings, ux, settings-cleanup]
 ---
 
+Overarching context and chain ordering for the settings cleanup: docs-internal/notes/settings.md (grouping tag: settings-cleanup).
 Two follow-ups raised in the iteration-1 implementation review of branch `sizing-nonfinite-clamp` (see `.ai_out/node-sizing-nonfinite/sizing-nonfinite-clamp/IMPLEMENTATION_REVIEW__PUBLIC.md`, NIT section). Neither is a regression; both predate that branch.
 
 1. `minPx <= maxPx` is unenforced. `src/engine/constants.ts` `clampSizingSettings` clamps `minPx` and `maxPx` into the SAME `[1, 400]` interval, so clamping can never create an inversion — but a user can still type `minPx = 400`, `maxPx = 40`. `src/engine/NodeSizer.ts` then computes `sizePx = minPx + score * (maxPx - minPx)`, giving a finite but INVERTED ramp (higher score -> smaller node). Geometry stays finite, so nothing downstream breaks; it is a confusing UX only.

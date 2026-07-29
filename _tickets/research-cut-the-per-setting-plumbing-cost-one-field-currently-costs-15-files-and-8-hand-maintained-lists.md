@@ -144,7 +144,7 @@ Start by re-deriving the touch-point list from the actual source (do not trust t
 
 **2026-07-29T17:31:41Z**
 
-DECISION (owner, 2026-07-29): DO THE FULL REWRITE. Superseded by 5 epics; closing this as the decision record.
+DECISION (owner, 2026-07-29): DO THE FULL REWRITE. Superseded by the settings-cleanup ticket chain (grouping tag: settings-cleanup, ordering via deps; see docs-internal/notes/settings.md); closing this as the decision record.
 
 Owner: "we want a clean up settings even if it requires a larger re-write, this is the time to do it."
 So Option E (accept the cost) and the minimal guards-only Option A were both rejected in favour of

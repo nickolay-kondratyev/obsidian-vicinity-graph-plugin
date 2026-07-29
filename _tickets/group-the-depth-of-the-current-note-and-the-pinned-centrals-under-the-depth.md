@@ -1,6 +1,6 @@
 ---
 id: nid_1rslube8at5xj60ji4jeve0b0_e
-tags: [settings]
+tags: [settings, settings-cleanup]
 title: "Group the depth of the current note and the pinned centrals under the Depth"
 status: open
 deps: [nid_armoson86j0ii8c33r1odo1rc_e]
@@ -12,6 +12,7 @@ priority: 3
 assignee: nickolaykondratyev
 ---
 
+Overarching context and chain ordering for the settings cleanup: docs-internal/notes/settings.md (grouping tag: settings-cleanup).
 In the settings and in the graph controls lets group both under 'depth'
 
 Possibly give it a more clear name maybe something of depth of links?

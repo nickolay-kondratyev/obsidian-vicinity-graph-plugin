@@ -9,9 +9,10 @@ status_updated_iso: 2026-07-27T23:42:49Z
 type: chore
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
-tags: [settings, persistence]
+tags: [settings, persistence, settings-cleanup]
 ---
 
+Overarching context and chain ordering for the settings cleanup: docs-internal/notes/settings.md (grouping tag: settings-cleanup).
 The idiom `tail = tail.catch(() => undefined).then(task)` (a serial write chain where one rejection cannot wedge the chain, while the failure still reaches its own caller) is now hand-rolled in three places:
 
 - `src/persistence/PluginDataStore.ts` — `writeChain` (~L70-71)
