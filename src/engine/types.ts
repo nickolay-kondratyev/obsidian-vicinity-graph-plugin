@@ -181,14 +181,14 @@ export const _assertEveryNodePreviewPreferenceListed: UnlistedPreference extends
 // no per-doc override layer — one value drives every root and every view.
 // ---------------------------------------------------------------------------
 
-/** Fully-resolved traversal depths for one root. */
+/** The traversal depths every root walks with (MAIN and every pinned central). */
 export interface DepthSettings {
 	readonly outgoingDepth: number;
 	readonly incomingDepth: number;
 }
 
 /**
- * Global node-exclusion settings (vault-wide, no per-doc override). Each pattern
+ * Global node-exclusion settings (vault-wide). Each pattern
  * is a raw JS regex tested UNANCHORED and CASE-SENSITIVELY against the full
  * vault-relative path (including extension); an invalid pattern is silently
  * skipped. `enabled === false` or an empty list is a no-op. A settings shape (like
@@ -239,7 +239,7 @@ export interface SizingSettings {
  * remaining px fields are the "Advanced spacing" section. Field names describe
  * the MECHANISM (what the value drives in the view's rendering pipeline), the UI
  * shows the native-parity labels. One atomic field on {@link ViewSettings} (like
- * `sizing`): overrides pin/inherit it wholesale.
+ * `sizing`): it is stored, parsed and written WHOLESALE, never per knob.
  */
 export interface ForceLayoutSettings {
 	/** UI "Center force": d3 `forceX`/`forceY` pull of every box toward the layout centre. */
@@ -276,7 +276,7 @@ export interface ForceLayoutSettings {
 	readonly edgeRoutingClearancePx: number;
 }
 
-/** Fully-resolved view settings. */
+/** The view settings a build renders with. */
 export interface ViewSettings {
 	/** Hard cap on NON-central node count (centrals are exempt). */
 	readonly nodeCap: number;
