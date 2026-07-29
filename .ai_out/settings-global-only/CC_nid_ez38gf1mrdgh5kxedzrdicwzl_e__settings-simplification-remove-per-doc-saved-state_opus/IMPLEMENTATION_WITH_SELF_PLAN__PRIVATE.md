@@ -1,36 +1,36 @@
 # PHASE 1 — per-doc removal (global-only settings) — PRIVATE state
 
-## Goal
-Delete ALL per-doc saved graph state. Settings global-only. Pins stay global. ONE global depth
-drives MAIN + every pinned central.
+STATUS: **COMPLETE**. `npm test` 1085/1085, `npm run check` clean, `npm run build` ok.
+Authoritative outcome + PHASE 2 pointers: `IMPLEMENTATION_WITH_SELF_PLAN__PUBLIC.md` (same dir).
 
-## Plan (commit-sized steps)
-1. **engine**: drop `DepthOverride`/`ViewSettingsOverride` aliases, delete `TraversalSettingsResolver`
-   (becomes identity) + `ViewSettingsResolver` (collapses to `return global`), drop
-   `depthOverridesByRoot` / `mainViewOverride` / `pinnedViewOverrides` from `GraphBuildRequest`,
-   update `index.ts`, delete `settingsResolvers.test.ts`, port "globals drive every root / view
-   output" into `VicinityEngine.test.ts`.
-2. **persistence**: delete `DocDataStore`(+test), `DocDataMutations`(+test), `FakeFileStorage`,
-   `docDataDirName`, `FileStoragePort`; drop `DocData`/`parseDocData`/`emptyDocData`; strip
-   `PersistenceServices` to pin/unpin; `SweepPlanner`/`OrphanSweeper` keep ONLY stale-pin pruning.
-3. **adapters**: `GraphRequestInputs` loses `mainPersistable`/`mainDocData`/`docDataByDocid`;
-   inline pin resolution into `GraphRequestAssembler` and delete `resolvePinnedDescriptors.ts`
-   + `CentralDepthRoundTrip.test.ts`; `VicinityGraphBuilder` loses docDataStore.
-4. **view**: `settingsWriteScope` → constant `"global"`; drop `main-depth`/`central-depth`
-   interactions + `doc-depth-field`/`central-depth-field` commands; `ControlsActions` loses
-   per-doc arms/`mainFile()`/NOT_PERSISTABLE_NOTICE; `ControlsModel` loses `centrals`; new
-   `GlobalDepthControls.tsx` replaces `CentralDepthControls.tsx` (panel Depth section now writes
-   `global-depth`); `DepthStepper` loses `pinned`/reset/`disabled`; settings tab `persist()`
-   loses ignore-arms; reset copy stops promising per-note overrides survive.
-5. **main.ts** wiring + CSS cleanup + e2e `obsidianHarness` doc-data wipe removal.
+## Commits (branch CC_nid_ez38gf1mrdgh5kxedzrdicwzl_e__settings-simplification-remove-per-doc-saved-state_opus)
+- `2ee62a0` engine, `347dc77` persistence, `af8cc11` view/adapters (+ minimal e2e), `2a49713` comment scrub.
+Base was `4edddb6`.
 
-## Notes / decisions
-- Stale `doc-data/` dirs are IGNORED (orchestrator decision) — no delete-on-load code.
-- Deleting `TraversalSettingsResolver`/`ViewSettingsResolver` goes one step past the ticket's
-  literal wording (which said "collapse"); both would be identity functions, i.e. dead weight.
-- `resolvePinnedDescriptors.ts` had exactly one remaining consumer after the merge logic dies
-  → inlined into `GraphRequestAssembler`.
-- `OwningViewPort.currentMainPath()` becomes unused once depth writes are global → check.
+## Where things ended up (for a future clone)
+- Depth UI: `src/view/GlobalDepthControls.tsx` → `planSettingsWrite({kind:"global-depth"})`.
+  CSS hook is `.vicinity-graph-depth-controls` (was `.vicinity-graph-central[data-kind=…]`).
+- `ControlsModel` = global slices + `mainPinned` + `excludedNodeCount`. `mainPinned` is still the only
+  carrier of "MAIN is itself pinned" (assembler skips main-as-pin) and feeds `flowMapping`.
+- Every settings write is global ⇒ `ControlsActions.applySettings` always calls
+  `viewsRefresh.refreshAllViews()`. `OwningViewPort` is gone; `GraphViewController.handleSettingsChanged`
+  survives because `VicinityGraphView.refresh()` (the fan-out target) calls it.
+- Parse layer: `parseDepthFields` / `parseViewFields` in `persistedShapes.ts`, both returning
+  `Partial<…>` merged over `PersistedShapes.defaultPluginData()`. `ParsedViewFields` mapped type is
+  still THE completeness guard for view fields.
+- `PERSISTED_SHAPE_VERSION` was NOT bumped: doc-data files are simply orphaned on disk and `data.json`
+  keeps its shape (no removed keys inside it), so a bump would have needlessly discarded globals.
 
-## Status
-See PUBLIC.md (authoritative for outcome).
+## Things a reviewer may push on (with the reasoning already made)
+1. Deleting the two resolvers / `resolvePinnedDescriptors.ts` / `settingsWriteScope.ts` goes a step
+   past the ticket's "collapse to constant" wording — all three would have been identity/one-value
+   indirections. See PUBLIC.md §Decisions 1–3.
+2. `DocPersistEligibility`'s filename rule now has a softer justification (documented in the file).
+   If the owner wants pins for foreign unsafe docids, that is a NEW ticket.
+3. `settingsSectionFields.test.ts` lost its `default:` throw arm — the switch over `SettingsCommand`
+   is now exhaustive, so the arm's `command` was `never`.
+
+## Not done here (PHASE 2)
+Docs/README/plan/architecture-map/release-note/tickets, and the e2e rewrite adding a global-depth
+spec + deleting `PINNED_CENTRALS_SUMMARY*` from `e2e/settingsBaseline.ts` and its use in
+`e2e/settingsUxVisual.e2e.ts`. Exact line pointers are listed in PUBLIC.md.
