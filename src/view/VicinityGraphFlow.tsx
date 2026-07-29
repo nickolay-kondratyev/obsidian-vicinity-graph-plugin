@@ -93,12 +93,15 @@ export function VicinityGraphFlow({
 							// Mount only nodes overlapping the pan/zoom viewport so a
 							// large/image-heavy graph doesn't hold every node (and its lazy
 							// <img> thumbnail) in the DOM at once. Safe with folder-group
-							// subflows: group parents render no <Handle>, so React Flow's
-							// `forceInitialRender` (keyed on missing handleBounds) keeps them
-							// always mounted, and children are culled by their own absolute
-							// rect — the container never disappears out from under them.
-							// Culling math never needs DOM measurement: every node carries
-							// explicit width/height (toReactFlowNode).
+							// subflows: React Flow renders EVERY visible node as a flat
+							// sibling of `.react-flow__nodes`, transformed by its own
+							// `positionAbsolute` — group members are not DOM children of
+							// their container, so culling the container cannot take them
+							// with it. (Culling is "partially visible" anyway, so a group
+							// box only unmounts once it is fully off-pane, by which point
+							// its members are too.) Culling math never needs DOM
+							// measurement: every node carries explicit width/height
+							// (toReactFlowNode).
 							onlyRenderVisibleElements
 							// Hide React Flow's "React Flow" attribution badge: inside an
 							// Obsidian pane it reads as chrome from another app and overlaps
