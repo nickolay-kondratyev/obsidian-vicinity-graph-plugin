@@ -202,19 +202,119 @@ Deliberately ordered so each stage ships value alone and the risky part is last.
   before paying for them.
 - **Stage 3 — separate depth budgets.** Only after §6 is decided.
 
+---
+
+# SCOPE DECISION (2026-07-29, owner)
+
+**Outgoing embeds only.** Embed-ness becomes a first-class relationship on the
+OUTGOING side. Incoming stays kind-blind. Rationale: the incoming side is where
+all the cost and all the API risk live, and it buys the least.
+
+## What this cut removes outright
+
+- **§4 (the incoming gap) — GONE.** That was the only path with no documented
+  API: `getBacklinksForFile` is absent from the pinned `obsidian@1.12.3` typings
+  (single isolated cast at `src/adapters/BacklinksAdapter.ts:46`). Both routes
+  (4a keep-map-values, 4b re-derive-from-source) are now unnecessary. No live
+  probe on the e2e build needed. **The single largest risk in the ticket is
+  retired by scoping, not by engineering.**
+- **The `resolvedLinks`-inversion fallback** (§1, "NO, ever") stops mattering —
+  it only ever fed incoming.
+- **One of the two new depth fields**, and its stepper, spec entry, parse branch,
+  reset row, and per-field test cases.
+
+## What stays required
+
+- **§3a always-parse canvases** — still needed; core-indexed canvases are an
+  OUTGOING path. Retains the bonus of being the permanent fix shape for the
+  closed race ticket `nid_s676x55uojmtcwh9t4l9mc6zl_e`.
+- Markdown provenance tagging, the two shared regex `!` captures, canvas
+  `file-node` ⇒ embed. All High confidence, all free.
+
+## Revised traversal shape — the axis collapses, it does not widen
+
+The 2×2 `Direction × LinkKind` (4 BFS runs) that made §6 hard **does not
+happen**. What is actually needed is one flat enum of traversal channels:
+
+    outgoing-link | outgoing-embed | incoming
+
+This is a *generalisation of the existing `Direction`*, not a second axis
+alongside it, and it lands on machinery already built for exactly this:
+
+| Today | Becomes |
+|---|---|
+| `DIRECTIONS = ["outgoing","incoming"]` (`VicinityTraversal.ts:52`) | 3-element channel list |
+| `DIRECTION_DEPTH_FIELD` 2 entries (`types.ts:226-229`) | `CHANNEL_DEPTH_FIELD` 3 entries |
+| `bfs()` ternary picking the depth limit (`VicinityTraversal.ts:96`) | map lookup on channel |
+| `neighborsOf(current, direction)` | switches on channel; outgoing splits by kind |
+| `DepthTag.direction` | `DepthTag.channel` |
+| `DepthSettings` 2 fields | 3 fields |
+
+**3 BFS runs per root, one new depth field.** Roughly **half** the cost model in
+§2 — and the remaining half is mechanical, in files that already enumerate
+`Direction` and would now fail to compile if a channel were missed (the
+`Record<Direction, …>` at `types.ts:226` becomes the completeness guard for free).
+
+### §6 is largely answered by the cut
+
+Kind-pure BFS (6a) was rejected on the mixed-chain surprise: `A ![[B]] → B [[C]]`
+leaves `C` invisible. That case survives — but now it is confined to two
+same-direction channels rather than four, and both budgets default equal (§ below),
+under which the union of the two outgoing BFS runs is **exactly** today's single
+outgoing BFS. So (6a) ships with **zero observable change at defaults**, and the
+mixed-chain gap only appears once a user deliberately diverges the budgets.
+That makes (6a) the Pareto answer. (6b) per-kind hop accounting is **not**
+recommended: it breaks the "expand once, shallowest first" invariant
+(`VicinityTraversal.ts:56-59`) for a case the defaults hide.
+
+### Accepted asymmetry (POLS — call it out in the UI, not just the code)
+
+A note embedded by the current note is an `outgoing-embed` neighbour; a note that
+embeds the current note arrives as a plain `incoming` neighbour, indistinguishable
+from one that merely links it. This is a deliberate scope line, not an oversight.
+The UI labels must not imply an "embedded in" budget exists. Cheap escape hatch
+later: adding an `incoming-embed` channel is additive to the enum (OCP), so this
+decision is reversible without rework.
+
+### §5 multiplicity — still open, but smaller
+
+`A` can both embed and link `B`, so an outgoing pair can belong to both channels.
+`getLinkCount` (`LinkProvider.ts:73`) remains the sole multiplicity authority and
+must become channel-aware, else `EdgeVisibility`'s `all-edges` induced sweep
+(`EdgeVisibility.ts:49-59`) renders kind-blind. Unchanged by the cut.
+
+## Revised staging
+
+- **Stage 0** — unchanged prerequisite: compile-time completeness guards
+  (`nid_8p0nn2g34d97finokwlz3u1dt_e`). Now guards **one** new field, not two.
+- **Stage 1** — carry `LinkKind`, change no behavior: markdown provenance, the two
+  regex captures, canvas `file-node` ⇒ embed, adopt **3a always-parse**.
+  Drop 4b entirely.
+- **Stage 2** — visual distinction for embed edges (CSS-only,
+  `src/view/graph-view.css:38`). Still gated on decision 4.
+- **Stage 3** — the `outgoing-embed` channel + its depth field, via **6a**.
+
+---
+
 ## DECISIONS NEEDED FROM THE OWNER (why this is `[decide]`)
 
-1. **§6 traversal semantics: (6a) kind-pure BFS ×4 (cheap, mixed chains
-   invisible) or (6b) per-kind hop accounting (intuitive, real complexity)?**
-   This is the single highest-leverage choice; everything else is mechanical.
-2. **Naming** (the ticket's literal title). Proposal:
-   `outgoingDepth`/`incomingDepth` keep meaning *plain links*, plus
-   `outgoingEmbedDepth` / `incomingEmbedDepth`. UI labels: "Outgoing links",
-   "Embedded notes", "Incoming links", "Embedded in". Owner picks the words.
-3. **Defaults.** Recommendation: `embedDepth === linkDepth` (both `1`) at ship.
-   This has a valuable property — while the defaults match, every "kind unknown ⇒
-   treat as link" degradation is **unobservable**, so the residual data-path risk
-   only materialises for users who deliberately diverge the budgets.
+**Decision 1 is now settled by the scope cut above (6a, kind-pure channels).**
+Remaining:
+
+1. ~~§6 traversal semantics~~ — **SETTLED: (6a) kind-pure channels.** See the
+   scope decision above; the cut makes (6a) observably identical to today at
+   default settings.
+2. **Naming** (the ticket's literal title) — now **three** budgets, not four.
+   Proposal: `outgoingDepth` (keeps meaning *plain links*), `outgoingEmbedDepth`
+   (new), `incomingDepth` (unchanged, kind-blind). UI labels: "Outgoing links",
+   "Embedded notes", "Incoming links". Owner picks the words. **Coordinate with
+   `nid_1rslube8at5xj60ji4jeve0b0_e`** — that ticket groups these under a "Depth"
+   heading and asks the same naming question; the third row lands inside its group.
+3. **Defaults.** Recommendation: `outgoingEmbedDepth === outgoingDepth` (both `1`)
+   at ship. Under the scope cut this is stronger than before: at equal defaults
+   the two outgoing channels union to exactly today's outgoing BFS, so both the
+   new channel AND every "kind unknown ⇒ treat as link" degradation are
+   **unobservable** until a user deliberately diverges the budgets.
 4. **Scope of stage 2** — is a visual embed distinction wanted at all, or is depth
    control the whole point?
 5. **§7 attachment redefinition** — separate ticket, yes/no?
@@ -227,3 +327,17 @@ determine their shape.
 **2026-07-28T17:41:23Z**
 
 Research complete (see RESEARCH FINDINGS in body). Verdict: feasible; embed-ness is discarded by 4 places in this repo, not withheld by Obsidian. Two data paths need real work (core-indexed canvases, backlinks). Ticket is now [decide]: owner must pick traversal semantics (kind-pure BFS x4 vs per-kind hop accounting) and the field/label naming before implementation tickets can be split.
+
+**2026-07-29T15:40:01Z**
+
+SCOPE CUT (owner): outgoing embeds only; incoming stays kind-blind.
+
+This retires the ticket's biggest risk by scoping rather than engineering: SS4 (backlinks) was the only path with no documented API in pinned obsidian@1.12.3 -- both routes 4a/4b are dropped, no live e2e probe needed. SS3a (always-parse canvases) still required.
+
+Traversal collapses from a 2x2 Direction x LinkKind (4 BFS) to a flat 3-value channel enum (outgoing-link | outgoing-embed | incoming): 3 BFS runs, ONE new depth field, and the existing Record<Direction,...> at types.ts:226 becomes the completeness guard for free. ~half the SS2 cost model.
+
+SS6 is thereby settled: 6a kind-pure channels, since at equal defaults the two outgoing channels union to exactly today's outgoing BFS => zero observable change at ship.
+
+Accepted asymmetry: no "embedded in" budget; adding incoming-embed later is additive to the enum (OCP), so reversible.
+
+Still open for owner: naming (decision 2, coordinate with nid_1rslube8at5xj60ji4jeve0b0_e), stage-2 visual distinction (4), attachment redefinition (5).
