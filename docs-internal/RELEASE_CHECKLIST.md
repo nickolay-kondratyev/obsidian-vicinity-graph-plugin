@@ -76,7 +76,25 @@ Optional fields not set (fine for V1): `authorUrl`, `fundingUrl`.
       assets** (not only inside the source zip — Obsidian/BRAT fetch the raw
       files).
 
-## 7. License note
+## 7. Release notes — stored-data breaks and behaviour shifts
+
+While unpublished we take clean breaks on stored data (`CLAUDE.md`), but **never
+silently**: every break gets a line in the release body. Carry these forward until
+they ship, then drop them.
+
+- [ ] **Per-note depth and view overrides are removed; settings are global-only.**
+      Any per-note overrides stored by an earlier build are **discarded** — the
+      whole `.obsidian/plugins/vicinity-graph/doc-data/` directory is no longer
+      read or written and can be deleted by hand. Nothing else is lost: global
+      settings and **pinned notes are kept** (they live in `data.json`).
+      Ticket `nid_ez38gf1mrdgh5kxedzrdicwzl_e`.
+- [ ] **UX shift in the same change:** the graph controls panel's depth steppers now
+      change a **GLOBAL** setting — a bump there affects every note's graph and
+      every open view, where it used to affect only the active note. One depth pair
+      also drives MAIN and every pinned central; the per-pinned-central dials are
+      gone.
+
+## 8. License note
 
 - [ ] Ship with `LICENSE.md` (KSAL-2.3, source-available — NOT OSI open-source).
       The README states this plainly and points to `LICENSE.md` as authoritative.
