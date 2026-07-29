@@ -7,7 +7,7 @@ import { GROUP_SIDE_PADDING_PX } from "./constants";
 import { vicinityGraphToFlow } from "./flowMapping";
 import type { Dimensions, XY } from "./flowMapping";
 import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
-import { ARROWHEAD_HALF_WIDTH_PX } from "./VicinityEdge";
+import { ARROWHEAD_HALF_WIDTH_PX } from "./edgeGeometry";
 import {
 	BOUNDARY_PIN_SPECS,
 	EDGE_ROUTING_CROSSING_PENALTY_PX,

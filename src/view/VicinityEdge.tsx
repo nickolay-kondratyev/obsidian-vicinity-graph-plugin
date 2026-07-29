@@ -2,7 +2,13 @@ import { BaseEdge, EdgeLabelRenderer, useInternalNode } from "@xyflow/react";
 import type { Edge, EdgeProps, InternalNode, Node } from "@xyflow/react";
 import type { ReactElement } from "react";
 import { linkCountBadgeText } from "./badgeText";
-import { edgePathFor, facingSideAnchorsFor, routedGeometryFor } from "./edgeGeometry";
+import {
+	ARROWHEAD_HALF_WIDTH_PX,
+	ARROWHEAD_LENGTH_PX,
+	edgePathFor,
+	facingSideAnchorsFor,
+	routedGeometryFor,
+} from "./edgeGeometry";
 import type { ClipRect } from "./edgeGeometry";
 import type { RoutedPoint } from "./edgeRouting";
 
@@ -18,19 +24,6 @@ import type { RoutedPoint } from "./edgeRouting";
  * into a single smudge at the shared boundary
  * (see [[ticket-edge-arrowhead-and-badge-visual-polish]]).
  */
-
-/** Triangle drawn tip-forward (+x, pre-rotation): length back from the tip and half-width. */
-const ARROWHEAD_LENGTH_PX = 11;
-/**
- * Half-width of the arrowhead triangle — the head's PERPENDICULAR reach off its
- * own route. Exported (not module-private) because it is the measured FLOOR of
- * the edge-routing clearance: a head drawn on a route that clears every box by
- * `clearance` px keeps its body outside those boxes as long as
- * `clearance >= ARROWHEAD_HALF_WIDTH_PX` (at equality the head's body grazes the
- * boundary without crossing it, which is the decided floor — the shipped minimum
- * clearance IS 6). Asserted in `edgeRouting.test.ts`.
- */
-export const ARROWHEAD_HALF_WIDTH_PX = 6;
 
 /** Payload threaded from {@link FlowEdge} at the render boundary. */
 export type VicinityEdgeData = {

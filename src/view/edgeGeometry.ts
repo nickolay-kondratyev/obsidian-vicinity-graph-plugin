@@ -47,6 +47,18 @@ export const EDGE_ARROWHEAD_INSET_FRACTION = 0.12;
 export const EDGE_ARROWHEAD_INSET_MIN_PX = 14;
 export const EDGE_ARROWHEAD_INSET_MAX_PX = 48;
 
+/** Triangle drawn tip-forward (+x, pre-rotation): length back from the tip and half-width. */
+export const ARROWHEAD_LENGTH_PX = 11;
+/**
+ * Half-width of the arrowhead triangle — the head's PERPENDICULAR reach off its
+ * own route. It is the measured FLOOR of the edge-routing clearance: a head drawn
+ * on a route that clears every box by `clearance` px keeps its body outside those
+ * boxes as long as `clearance >= ARROWHEAD_HALF_WIDTH_PX` (at equality the head's
+ * body grazes the boundary without crossing it, which is the decided floor — the
+ * shipped minimum clearance IS 6). Asserted in `edgeRouting.test.ts`.
+ */
+export const ARROWHEAD_HALF_WIDTH_PX = 6;
+
 /**
  * Perpendicular offset of a paired edge's control point. Both edges of an
  * A↔B pair bow to the RIGHT of their OWN travel direction, so the pair mirrors
