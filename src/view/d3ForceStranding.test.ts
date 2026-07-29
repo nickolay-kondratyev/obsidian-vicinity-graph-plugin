@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { asFolderPath, asVaultPath } from "../engine";
 import { GraphLayoutRunner } from "./GraphLayoutRunner";
 import { extractElkDimensionsById, extractElkPositions, vicinityGraphToElk } from "./elkMapping";
+import { rectExtentAlong } from "./forceRectLink";
 import { folderGroupIdOf } from "./graphIdentity";
 import { countOverlappingAabbPairs } from "./testFixtures/aabbOverlap";
 import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
@@ -107,7 +108,7 @@ function strandedHubGraph(crowdCount: number, members: GroupMemberShape = SQUARE
 interface StrandedLayout {
 	readonly positions: ReadonlyMap<string, { x: number; y: number }>;
 	readonly dimensions: ReadonlyMap<string, { width: number; height: number }>;
-	/** The PROJECTED root edges — what the d3 forceLink actually acts on. */
+	/** The PROJECTED root edges — what the link force actually acts on. */
 	readonly rootEdges: readonly { source: string; target: string }[];
 	readonly rootIds: readonly string[];
 }
@@ -145,22 +146,20 @@ function centerOf(layout: StrandedLayout, id: string): { x: number; y: number } 
 function boundaryGapPx(layout: StrandedLayout, sourceId: string, targetId: string): number {
 	const source = centerOf(layout, sourceId);
 	const target = centerOf(layout, targetId);
-	const dist = Math.hypot(target.x - source.x, target.y - source.y);
+	const dx = target.x - source.x;
+	const dy = target.y - source.y;
+	const dist = Math.hypot(dx, dy);
 	if (dist === 0) {
 		return 0;
 	}
-	const ux = Math.abs((target.x - source.x) / dist);
-	const uy = Math.abs((target.y - source.y) / dist);
-	// Distance from a box centre to its rectangle boundary along the edge direction.
+	// Same projected extent the link force rests at — measuring with a different
+	// formula would test the measurement, not the layout.
 	const extentAlongEdge = (id: string): number => {
 		const dims = layout.dimensions.get(id);
 		if (dims === undefined) {
 			throw new Error(`missing dims for ${id}`);
 		}
-		return Math.min(
-			ux > 0 ? dims.width / 2 / ux : Number.POSITIVE_INFINITY,
-			uy > 0 ? dims.height / 2 / uy : Number.POSITIVE_INFINITY,
-		);
+		return rectExtentAlong({ halfWidth: dims.width / 2, halfHeight: dims.height / 2 }, dx, dy);
 	};
 	return dist - extentAlongEdge(sourceId) - extentAlongEdge(targetId);
 }
@@ -200,14 +199,11 @@ describe("d3-force stranding around a folder-grouped hub (ticket 03 Enchiridion 
  * makes portrait LIKELY (it is a soft goal of elk's width-approximation step),
  * so the coupling would otherwise be invisible.
  *
- * The landscape case is BROKEN today, and the cause is not the group interior:
- * `d3ForceRefinement.minHalfExtent()` feeds every forceLink resting distance the
- * SMALLER half-extent whatever the edge direction, so a wide box's own width
- * pushes a horizontally-linked neighbour past that distance. Measured worst gap
- * on this fixture: 113px against the 100px budget — and 130px with the previous
- * elk `layered` group interiors, i.e. PRE-EXISTING and already improved by
- * rectpacking. Tracked as `nid_y45ndtq65f15pnrwfvpgz5pks_e`; when that lands,
- * `it.fails` reports "expected test to fail" and becomes a plain `it`.
+ * This case used to FAIL (113px worst gap) because d3's `forceLink` resolves a
+ * resting distance once, direction-blind, and it was fed the SMALLER half-extent:
+ * a horizontally-linked neighbour of a wide box still had to clear its half-WIDTH
+ * and was pushed out along the long axis. `forceRectLink` rests at the extents
+ * PROJECTED onto the live link direction instead — 73px here.
  */
 describe("d3-force stranding around a LANDSCAPE folder-group container", () => {
 	const landscapeLayout = (): Promise<StrandedLayout> =>
@@ -221,16 +217,13 @@ describe("d3-force stranding around a LANDSCAPE folder-group container", () => {
 		return dims.width / dims.height;
 	}
 
-	// Guards the fixture itself: without this, the `it.fails` below could "pass"
+	// Guards the fixture itself: without this, the budget test below could pass
 	// on a portrait container for some unrelated reason.
 	it("WHEN the group members are wide strips THEN the container really is landscape", async () => {
 		expect(containerAspectRatio(await landscapeLayout())).toBeGreaterThan(1);
 	});
 
-	it.fails(
-		"WHEN the folder-group container is LANDSCAPE THEN no projected root edge is stranded beyond the boundary-gap budget",
-		async () => {
-			expect(worstBoundaryGapPx(await landscapeLayout())).toBeLessThanOrEqual(D3_FORCE_MAX_BOUNDARY_GAP_PX);
-		},
-	);
+	it("WHEN the folder-group container is LANDSCAPE THEN no projected root edge is stranded beyond the boundary-gap budget", async () => {
+		expect(worstBoundaryGapPx(await landscapeLayout())).toBeLessThanOrEqual(D3_FORCE_MAX_BOUNDARY_GAP_PX);
+	});
 });

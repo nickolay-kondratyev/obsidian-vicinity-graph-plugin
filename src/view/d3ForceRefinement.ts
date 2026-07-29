@@ -1,10 +1,11 @@
-import { forceLink, forceManyBody, forceSimulation, forceX, forceY } from "d3-force";
-import type { SimulationLinkDatum } from "d3-force";
+import { forceManyBody, forceSimulation, forceX, forceY } from "d3-force";
 import type { ElkNode } from "elkjs";
 import type { ForceLayoutSettings } from "../engine";
 import { D3_FORCE_COLLIDE_ITERATIONS } from "./constants";
 import { forceRectCollide } from "./forceRectCollide";
 import type { RectCollideBody } from "./forceRectCollide";
+import { forceRectLink } from "./forceRectLink";
+import type { RectLink } from "./forceRectLink";
 
 /**
  * d3-force refinement of a `force`-mode root (the reactflow.dev force-layout
@@ -24,6 +25,11 @@ import type { RectCollideBody } from "./forceRectCollide";
  * container (e.g. 192x392 ⇒ radius ~238px) stranded every external neighbour
  * off its diagonal — ticket 03. Colliding the boxes themselves cut the
  * worst root-edge boundary gap 207px → 33px on the reproduction fixture.
+ *
+ * The link spring is likewise rectangular and DIRECTION-AWARE
+ * ({@link forceRectLink}) rather than d3's `forceLink`, whose resting distance is
+ * fixed before the first tick: any single scalar is wrong for one of a landscape
+ * box's two axes (113px → 73px gap on the landscape stranding fixture).
  */
 
 /** A root child as a simulation body. d3 mutates `x`/`y` (centre coordinates). */
@@ -48,44 +54,22 @@ export function refineForceRootLayout(root: ElkNode, forceLayout: ForceLayoutSet
 		};
 	});
 	recentre(bodies);
-	const links: SimulationLinkDatum<ForceBody>[] = (root.edges ?? []).map((edge) => ({
-		source: edge.sources[0] as string,
-		target: edge.targets[0] as string,
-	}));
-	// Replicates d3 forceLink's internal per-node link count so the explicit
-	// strength override below can scale d3's DEFAULT strength
-	// (`1 / min(count(source), count(target))`) by the "Link force" factor —
-	// at factor 1 the values are bit-identical to leaving strength unset.
-	const linkCountById = new Map<string, number>();
-	for (const link of links) {
-		for (const endpoint of [link.source as string, link.target as string]) {
-			linkCountById.set(endpoint, (linkCountById.get(endpoint) ?? 0) + 1);
-		}
-	}
-	const linkCountOf = (body: ForceBody): number => linkCountById.get(body.id) ?? 1;
+	const bodyById = new Map(bodies.map((body) => [body.id, body]));
+	const links = (root.edges ?? []).flatMap((edge): RectLink<ForceBody>[] => {
+		const source = bodyById.get(edge.sources[0] as string);
+		const target = bodyById.get(edge.targets[0] as string);
+		// Root edges whose endpoint is nested inside a container are projected onto
+		// the container by the mapping layer, so both ends resolve in practice.
+		return source === undefined || target === undefined ? [] : [{ source, target }];
+	});
 	const simulation = forceSimulation(bodies)
 		.randomSource(seededRandom())
-		.force(
-			"link",
-			forceLink<ForceBody, SimulationLinkDatum<ForceBody>>(links)
-				.id((body) => body.id)
-				// Resting distance = sum of MIN half-extents + gap: the spring only
-				// pulls partners into touching range and the rect collide owns the
-				// actual separation. Circumscribed-radius resting distances were the
-				// ticket-03 stranding mechanism (leaf→hub member distance 375px; with
-				// min half-extents + AABB collide it settles at 193px).
-				.distance(
-					(link) =>
-						minHalfExtent(link.source as ForceBody) +
-						minHalfExtent(link.target as ForceBody) +
-						forceLayout.linkGapPx,
-				)
-				.strength(
-					(link) =>
-						forceLayout.linkStrengthFactor /
-						Math.min(linkCountOf(link.source as ForceBody), linkCountOf(link.target as ForceBody)),
-				),
-		)
+		// Resting distance = the two boxes' extents PROJECTED onto the current link
+		// direction + gap: the spring only pulls partners into touching range and
+		// the rect collide owns the actual separation. Circumscribed-radius resting
+		// distances were the ticket-03 stranding mechanism; direction-blind MIN
+		// half-extents then stranded neighbours of landscape containers.
+		.force("link", forceRectLink<ForceBody>(links, forceLayout.linkGapPx, forceLayout.linkStrengthFactor))
 		// repelStrength is stored as a positive magnitude (intuitive slider value);
 		// d3's forceManyBody repels on NEGATIVE strength, hence the negation here.
 		.force("charge", forceManyBody<ForceBody>().strength(-forceLayout.repelStrength))
@@ -96,7 +80,6 @@ export function refineForceRootLayout(root: ElkNode, forceLayout: ForceLayoutSet
 	// Run to convergence synchronously (the d3 "static layout" recipe): the tick
 	// count is exactly how many decays alpha needs to fall below alphaMin.
 	simulation.tick(Math.ceil(Math.log(simulation.alphaMin()) / Math.log(1 - simulation.alphaDecay())));
-	const bodyById = new Map(bodies.map((body) => [body.id, body]));
 	return {
 		...root,
 		children: children.map((child) => {
@@ -108,11 +91,6 @@ export function refineForceRootLayout(root: ElkNode, forceLayout: ForceLayoutSet
 			return { ...child, x: body.x - body.halfWidth, y: body.y - body.halfHeight };
 		}),
 	};
-}
-
-/** Smaller half-extent of a body's box — the closest its rectangle boundary can be to its centre. */
-function minHalfExtent(body: ForceBody): number {
-	return Math.min(body.halfWidth, body.halfHeight);
 }
 
 /** Shift seed centres so their centroid is the origin — the point the centring forces pull toward. */
