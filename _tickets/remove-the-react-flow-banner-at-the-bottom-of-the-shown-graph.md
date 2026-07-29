@@ -1,7 +1,7 @@
 ---
 id: nid_1k8ty4nr1z4a3v6k3kehwgnm6_e
 title: Remove the react flow banner at the bottom of the shown graph
-status: in_progress
+status: closed
 deps: []
 links: []
 created_iso: '2026-07-28T17:26:56Z'
