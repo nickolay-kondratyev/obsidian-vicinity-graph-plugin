@@ -9,7 +9,7 @@ status_updated_iso: 2026-07-27T23:10:42Z
 type: bug
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
-tags: [canvas, links]
+tags: [canvas, links, decide]
 ---
 
 The fallback canvas link regime harvests `[[wikilinks]]` and markdown-style `[a](b.md)` links out of canvas TEXT-node bodies with small honest regex matchers (`src/shared/Wikilinks.ts`, `src/shared/MarkdownInlineLinks.ts`), used by `src/adapters/CanvasFallbackParser.ts`. Neither matcher is code-span aware: a link written inside a code span (`` `[[note]]` ``) or a fenced code block is harvested as if it were real.
