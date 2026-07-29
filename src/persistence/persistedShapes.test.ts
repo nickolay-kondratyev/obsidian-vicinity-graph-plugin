@@ -270,6 +270,40 @@ describe("PersistedShapes.parseDocData", () => {
 	});
 });
 
+/**
+ * The RUNTIME companion to the `ParsedViewFields` compile guard: presence
+ * semantics (`!== undefined`, never truthiness) and per-field coverage. The
+ * compile guard proves every field is PARSED; these prove a parsed field is
+ * KEPT, that an absent one stays absent, and that a pinned falsy value is not
+ * mistaken for an absence.
+ */
+describe("PersistedShapes view override presence semantics", () => {
+	/** The parsed per-doc view override — the only surface where a PARTIAL view survives. */
+	function parsedViewKeys(view: unknown): string[] {
+		return Object.keys(PersistedShapes.parseDocData({ version: PERSISTED_SHAPE_VERSION, view })?.view ?? {}).sort();
+	}
+
+	it("WHEN a persisted view override pins nodeCap to zero THEN the zero survives (presence = pinned)", () => {
+		expect(PersistedShapes.parseDocData({ version: PERSISTED_SHAPE_VERSION, view: { nodeCap: 0 } })?.view).toEqual({
+			nodeCap: 0,
+		});
+	});
+
+	it("WHEN a persisted view override omits a field THEN the parsed override omits its key (absence = inherit)", () => {
+		expect(parsedViewKeys({ nodeCap: 10 })).toEqual(["nodeCap"]);
+	});
+
+	/**
+	 * Driven off the defaults object rather than a hand-written key list, so it
+	 * grows by itself the day a `ViewSettings` field is added — the same property
+	 * the compile guard enforces, asserted on real parsed output.
+	 */
+	it("WHEN a persisted view override carries every ViewSettings field THEN every field survives parsing", () => {
+		const everyField: unknown = JSON.parse(JSON.stringify(EngineDefaults.viewSettings()));
+		expect(parsedViewKeys(everyField)).toEqual(Object.keys(EngineDefaults.viewSettings()).sort());
+	});
+});
+
 describe("PersistedShapes outline depth parsing", () => {
 	function parsedDepth(globalView: unknown): number {
 		return PersistedShapes.parsePluginData({ version: PERSISTED_SHAPE_VERSION, globalView }).globalView
