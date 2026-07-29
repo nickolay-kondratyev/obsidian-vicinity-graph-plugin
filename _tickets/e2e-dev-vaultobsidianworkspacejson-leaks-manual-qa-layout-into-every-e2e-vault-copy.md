@@ -1,16 +1,17 @@
 ---
 id: nid_0jzq3ev878kjd0zhn3zxyje8q_e
-title: "e2e: .dev-vault/.obsidian/workspace.json leaks manual-QA layout into every e2e vault copy"
-status: open
+title: 'e2e: .dev-vault/.obsidian/workspace.json leaks manual-QA layout into every
+  e2e vault copy'
+status: in_progress
 deps: []
 links: [nid_6mack3e3ql9qtaxf1edezjpfs_e]
-created_iso: 2026-07-27T16:28:40Z
-status_updated_iso: 2026-07-27T16:28:40Z
+created_iso: '2026-07-27T16:28:40Z'
+status_updated_iso: '2026-07-29T18:38:43Z'
 type: task
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-4
 ---
-
 `ObsidianHarness.prepareVaultCopy` (`e2e/obsidianHarness.ts`) copies `.dev-vault/` wholesale into the throwaway vault copy (`.tmp/e2e/vault`) with `fs.cpSync`, then wipes the plugin's persisted state (`.obsidian/plugins/vicinity-graph/data.json` and, since ticket nid_6mack3e3ql9qtaxf1edezjpfs_e, `.obsidian/plugins/vicinity-graph/doc-data/`).
 
 Nothing wipes `.obsidian/workspace.json`. `.dev-vault/` is NOT git-tracked (`git ls-files .dev-vault` is empty), so every byte of its `.obsidian/` is whatever a human left behind during manual QA — including a ~6 KB `workspace.json` recording open leaves, split layout, active file, sidebar state and recent files. That state rides `cpSync` into EVERY e2e run.
@@ -24,4 +25,3 @@ Candidate fix (evaluate, do not assume): delete `<copy>/.obsidian/workspace.json
 ## Acceptance Criteria
 
 Either (a) the e2e vault copy no longer inherits `.dev-vault/.obsidian/workspace.json`, with `npm test`, `npm run check` and a full `npm run test:e2e` green against a `.dev-vault` deliberately left in a messy layout (extra splits, non-default active file); or (b) a written WHY-NOT recorded in the `prepareVaultCopy` doc comment explaining why the leak is deliberately tolerated.
-
