@@ -19,9 +19,9 @@ Primary invariant: **absent override = inherit** (ViewSettings vs ViewSettingsOv
 
 | Phase | Status | Result file |
 |-------|--------|-------------|
-| EXPLORATION | running | `EXPLORATION_PUBLIC.md` (index) + 3 area files |
-| CLARIFICATION | pending | `CLARIFICATION__PUBLIC.md` |
-| DETAILED_PLANNING | pending | `DETAILED_PLANNING__PUBLIC.md` |
+| EXPLORATION | done | `EXPLORATION_PUBLIC.md` (index) + 3 area files |
+| CLARIFICATION | done (owner answered D1/D2/D3) | `CLARIFICATION__PUBLIC.md` |
+| DETAILED_PLANNING | running (ULTRATHINK) | `DETAILED_PLANNING__PUBLIC.md` |
 | DETAILED_PLAN_REVIEW | pending | `DETAILED_PLAN_REVIEW__PUBLIC.md` |
 | PLAN_ITERATION | pending | `PLAN_ITERATION__PUBLIC.md` |
 | IMPLEMENTATION | pending | `IMPLEMENTATION__PUBLIC.md` |
