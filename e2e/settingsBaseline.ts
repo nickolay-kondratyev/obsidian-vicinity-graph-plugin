@@ -109,21 +109,22 @@ export interface PanelDisclosure {
 /**
  * The controls-panel disclosures, in `GraphToolbar` order. A SEPARATE list from
  * the tab cards on purpose — the two surfaces genuinely differ: the panel has no
- * "Performance" and no "Depth defaults" card, and the tab has no "Pinned
- * centrals" (conditional, hence unlisted) or nested "Advanced spacing".
+ * "Performance" and no "Depth defaults" card, and the tab has no nested
+ * "Advanced spacing".
  *
- * This list is EXHAUSTIVE for the panel's TOP LEVEL, and that is enforced against
- * the real DOM: `settingsUxVisual.e2e.ts` asserts the direct-child
- * `.vicinity-graph-disclosure` elements of `.vicinity-graph-toolbar__body` against
- * {@link CONTROLS_PANEL_DISCLOSURE_SUMMARIES} — count, identity and order. So a
- * sixth top-level disclosure fails that spec until it is listed here.
+ * This list is EXHAUSTIVE for the panel's TOP LEVEL, with NO exceptions, and that
+ * is enforced against the real DOM: `settingsUxVisual.e2e.ts` asserts the
+ * direct-child `.vicinity-graph-disclosure` elements of
+ * `.vicinity-graph-toolbar__body` against {@link CONTROLS_PANEL_DISCLOSURE_SUMMARIES}
+ * — count, identity and order. So a sixth top-level disclosure fails that spec
+ * until it is listed here.
  *
- * The two exclusions survive that pin for DIFFERENT reasons, both deliberate:
- * - "Advanced spacing" is NESTED inside Force layout, so the direct-child
- *   selector never sees it (structural — nothing to maintain).
- * - "Pinned centrals (n)" IS a direct child when it renders, so the spec filters
- *   it out explicitly by {@link PINNED_CENTRALS_SUMMARY_PATTERN}, and asserts
- *   SEPARATELY that it does not render while nothing is pinned.
+ * "Advanced spacing" is the one summary that pin does not see, and structurally so:
+ * it is NESTED inside Force layout, out of reach of a direct-child selector —
+ * nothing to maintain. (The panel's one CONDITIONAL disclosure, "Pinned centrals
+ * (n)", went with the per-central depth dials in ticket
+ * `nid_ez38gf1mrdgh5kxedzrdicwzl_e`; every entry below now renders
+ * unconditionally, so the pin needs no name-based exemption.)
  */
 export const CONTROLS_PANEL_DISCLOSURES: readonly PanelDisclosure[] = [
 	{ summaryText: "Depth", startsOpen: true, summaryAlsoMatchesAnAncestor: true },
@@ -137,29 +138,3 @@ export const CONTROLS_PANEL_DISCLOSURES: readonly PanelDisclosure[] = [
 export const CONTROLS_PANEL_DISCLOSURE_SUMMARIES: readonly string[] = CONTROLS_PANEL_DISCLOSURES.map(
 	(disclosure) => disclosure.summaryText,
 );
-
-/**
- * The conditional "Pinned centrals (n)" disclosure, without its "(n)" suffix —
- * that is a live count no fixture can hard-code. Use this bare prefix for a plain
- * LOCATOR (`hasText` substring), which only has to FIND the disclosure; use
- * {@link PINNED_CENTRALS_SUMMARY_PATTERN} whenever the match must be the
- * disclosure and nothing else. Not a {@link PanelDisclosure}: it is absent unless
- * the view has a pinned central, so it has no default open/closed state to assert
- * on a fresh view — it exists here only so the exhaustiveness pin can exclude it
- * BY NAME instead of relying on a fixture happening not to pin.
- */
-export const PINNED_CENTRALS_SUMMARY = "Pinned centrals";
-
-/**
- * The disclosure's summary text EXACTLY as `GraphToolbar` renders it, anchored
- * end to end. Fully anchored rather than a prefix for one reason: a substring
- * match would also claim a future REAL sibling section whose name merely starts
- * with these words ("Pinned centrals defaults").
- *
- * Shared because two specs in `settingsUxVisual.e2e.ts` depend on the SAME shape
- * and must not drift apart: the exhaustiveness pin filters this summary OUT with
- * it, which is precisely what blinds that pin to the disclosure rendering
- * unconditionally — and the absence test that covers that blind spot filters
- * summaries IN with it.
- */
-export const PINNED_CENTRALS_SUMMARY_PATTERN = new RegExp(`^${PINNED_CENTRALS_SUMMARY} \\(\\d+\\)$`);

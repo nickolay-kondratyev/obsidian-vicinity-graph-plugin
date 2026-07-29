@@ -87,7 +87,7 @@ export interface LaunchOptions {
  *
  * WHY: the env var is global, so a bare `npm run test:e2e` with it exported would
  * point EVERY spec at the user's vault — and most of ours drive the app into
- * writing plugin state there (restore-defaults, exclusion patterns, per-doc pins).
+ * writing plugin state there (restore-defaults, exclusion patterns, pins).
  * The harness cannot delete that vault by construction, but Obsidian and the
  * plugin can still rewrite the human's saved settings, so external runs are
  * opt-in per spec rather than opt-out.
@@ -117,7 +117,7 @@ export function assertExternalLaunchAllowed(vaultDir: string, options: LaunchOpt
  * this vault's `community-plugins.json` already lists — so without the human's
  * own enablement nothing loads at all; and (b) loading our plugin code into a
  * vault where the human has not enabled it would start writing plugin state
- * (`data.json`, `doc-data/`) there behind their back.
+ * (`data.json`) there behind their back.
  */
 export function assertExternalVaultReady(vaultDir: string, pluginId: string, repoRoot: string): void {
 	const pluginDir = path.join(vaultDir, ".obsidian", "plugins", pluginId);
@@ -126,7 +126,7 @@ export function assertExternalVaultReady(vaultDir: string, pluginId: string, rep
 		throw new Error(
 			`Plugin not installed in the ${VAULT_OVERRIDE_ENV_VAR} vault: file=[${mainJs}]\n` +
 				// Per-artifact symlinks, NOT `ln -s <repoRoot> <pluginDir>`: with the repo AS the
-				// plugin dir, Obsidian writes the vault's plugin state (data.json, doc-data/) into
+				// plugin dir, Obsidian writes the vault's plugin state (data.json) into
 				// the checkout.
 				"Install it (symlinks keep it in sync with your builds):\n" +
 				`  npm run build && mkdir -p ${pluginDir} && \\\n` +

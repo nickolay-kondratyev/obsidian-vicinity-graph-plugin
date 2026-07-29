@@ -498,13 +498,20 @@
 
 /* ===== depth rows (the ONE global depth setting) ======================== */
 
+/*
+ * LAYOUT ONLY: the card background/padding/radius this inherited from the old
+ * per-central row are gone. Those made sense when several central rows had to be
+ * told apart INSIDE one disclosure; with a single block per disclosure the
+ * background repeated `--background-primary` over an ancestor already painting it
+ * (invisible), while the extra padding inset the two depth rows deeper than every
+ * other section's rows — an altitude mismatch, not a grouping cue. The tighter
+ * `--size-4-1` gap stays: two stepper rows read as one control, unlike the
+ * disclosure body's looser inter-block rhythm.
+ */
 .vicinity-graph-depth-controls {
 	display: flex;
 	flex-direction: column;
 	gap: var(--size-4-1);
-	padding: var(--size-4-2);
-	background: var(--background-primary);
-	border-radius: var(--radius-s);
 }
 
 /* ===== depth stepper =================================================== */

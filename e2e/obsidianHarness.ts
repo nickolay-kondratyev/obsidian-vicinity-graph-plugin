@@ -492,7 +492,7 @@ export class ObsidianHarness {
 
 	/**
 	 * Fresh copy of `.dev-vault` per run: tests stay idempotent, runtime
-	 * mutations (nodeCap, plugin `data.json`/`doc-data/`) never leak into the
+	 * mutations (nodeCap, the plugin's `data.json`) never leak into the
 	 * human's vault, and e2e-only fixtures never pollute manual QA. The reverse
 	 * leak is closed too — the copy's plugin state AND the vault's saved workspace
 	 * layout are wiped after the copy, so manual-QA settings, pins and window
@@ -662,7 +662,7 @@ export class ObsidianHarness {
 	 *
 	 * WHY-NOT `enablePlugin(pluginId)` (which the dev-vault path calls): it is not
 	 * needed once the vault lists the plugin, and calling it here would mean loading
-	 * our code — which then writes `data.json`/`doc-data/` into that vault — even
+	 * our code — which then writes `data.json` into that vault — even
 	 * when the human has NOT enabled it there.
 	 */
 	private static async waitForAlreadyEnabledPlugin(page: Page): Promise<void> {
