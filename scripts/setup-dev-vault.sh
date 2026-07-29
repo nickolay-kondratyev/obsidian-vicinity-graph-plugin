@@ -335,8 +335,7 @@ EOF
 # a group box. This one does, and is the automatable stand-in for the human's
 # private-vault screenshot check.
 #
-# Shape (all links are one hop from the hub, so the whole thing fits the default
-# outgoing/incoming depth of 1):
+# Shape (every NODE is one hop from the hub, but see the DEPTH note below):
 #   - `facing/` holds the hub + 4 members → a real group box with members inset.
 #   - The hub lives INSIDE the group, so each hub→neighbour link is a
 #     cross-boundary edge that collapses onto the BOX (one edge per neighbour,
@@ -345,6 +344,12 @@ EOF
 #   - The neighbours all link one cluster mini-hub (`facing-near1`), so the force
 #     layout packs them into a blob on ONE side of the box. That blob is what
 #     makes "the facing side" unambiguous — the whole point of the measurement.
+# DEPTH: view this at OUTGOING DEPTH 2. The cluster links are sibling links between
+# depth-1 neighbours, and only WALKED links become edges — so at depth 1 they are not
+# edges, exert no force, and the 12 neighbours spread evenly AROUND the box instead of
+# crowding one side (i.e. the fixture silently stops testing what it exists to test;
+# this cost the e2e a red assertion, ticket nid_uv3al1mhaxmz37ooiit15iq0w_e). Depth 2
+# walks them and adds NO node, since every neighbour is already present at depth 1.
 # Self-contained: nothing here links note1/hub-medium/zzdense/stranded.
 echo "==> Ensuring facing-side crowding fixture (facing/hub-facing + facing-near*)"
 FACING_MEMBER_COUNT=4
@@ -446,8 +451,9 @@ cat <<EOF
      unselected trough must read as an inset field
 
  Edge-routing facing-side check:
-   - open facing/hub-facing.md → 12 separate edges reach the group box;
-     they must attach on the side facing the neighbour blob
+   - open facing/hub-facing.md at OUTGOING DEPTH 2 (depth 1 does not walk the
+     cluster links, so no blob forms) → 12 separate edges reach the group box;
+     each must attach on a border its own neighbour actually sits past
 
  Ticket-03 stranding check:
    - open stranded-main.md (outgoing depth >= 2) or stranded-hub.md →
