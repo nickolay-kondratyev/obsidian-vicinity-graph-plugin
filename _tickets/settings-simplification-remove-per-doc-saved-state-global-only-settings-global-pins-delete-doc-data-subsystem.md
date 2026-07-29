@@ -1,17 +1,18 @@
 ---
 id: nid_ez38gf1mrdgh5kxedzrdicwzl_e
-title: "Settings simplification — remove per-doc saved state: global-only settings, global pins (delete doc-data subsystem)"
-status: open
+title: "Settings simplification \u2014 remove per-doc saved state: global-only settings,\
+  \ global pins (delete doc-data subsystem)"
+status: in_progress
 deps: [nid_wimjq4ewgbg21n4zx9d4qq3a0_e]
 links: [nid_m5hxe4eo9jgt7cfic7s2o3uvi_e, nid_7fq9y51mbucmduzf9z31hmwmq_e]
-created_iso: 2026-07-29T22:10:23Z
-status_updated_iso: 2026-07-29T22:10:23Z
+created_iso: '2026-07-29T22:10:23Z'
+status_updated_iso: '2026-07-29T22:30:23Z'
 type: task
 priority: 1
 assignee: CC_WITH-nickolaykondratyev
 tags: [settings, settings-cleanup, persistence, architecture]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin
 ---
-
 Overarching context: docs-internal/notes/settings.md (grouping tag: settings-cleanup, step 2.5 of the chain — between the descriptor model and the write pipeline).
 
 OWNER DECISION (2026-07-29): drop ALL per-doc saved graph state for now. Settings are GLOBAL-only. Pinned nodes stay, and they are GLOBAL pins (they already live in data.json `pins` — that part does not change). Per-pinned-central depth dials go away too: ONE global depth setting drives MAIN and every pinned central (owner picked "all-global" over "per-pin stored globally").
@@ -69,4 +70,3 @@ Respect BDD conventions; behavior-capturing tests for the deleted subsystem are 
 GIVEN the plugin after this ticket
 WHEN any setting (depth, sizing, view, exclusion) is changed from either surface
 THEN it persists globally in data.json only, applies to MAIN and all pinned centrals, no doc-data/ file is ever written, npm test and npm run check are green, and the listed specs/docs and e2e specs describe the global-only model.
-
