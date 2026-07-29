@@ -20,7 +20,16 @@ import { describe, expect, it } from "vitest";
 
 const VIEW_DIR = dirname(fileURLToPath(import.meta.url));
 
-/** Any of the five factories — `depth`/`view`/`sizing`/`forceLayout`/`nodeExclusion`. */
+/**
+ * Any of the five factories — `depth`/`view`/`sizing`/`forceLayout`/`nodeExclusion`.
+ *
+ * Matched against raw source, comments included. Deliberately conservative: a
+ * prose mention of the call form inside a comment also trips this, which costs a
+ * reword. Stripping comments first would instead risk a false NEGATIVE (a real
+ * call trailing a string that contains `//`), and a guard that misses a call is
+ * worth less than nothing. If this fires on prose, name the factory without its
+ * parentheses.
+ */
 const DEFAULTS_CALL = /EngineDefaults\.[a-zA-Z]+Settings\s*\(/;
 
 /**

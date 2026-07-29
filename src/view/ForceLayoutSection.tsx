@@ -1,6 +1,6 @@
 import type { ReactElement } from "react";
 import type { ForceLayoutSettings, ViewSettings } from "../engine";
-import { EngineDefaults, FORCE_LAYOUT_RANGES } from "../engine";
+import { FORCE_LAYOUT_RANGES } from "../engine";
 import { useControlsActions } from "./ControlsActionsContext";
 import { Disclosure } from "./Disclosure";
 import {
@@ -8,6 +8,7 @@ import {
 	FORCE_LAYOUT_FIELD_META,
 	FORCE_LAYOUT_MAIN_FIELDS,
 } from "./forceLayoutFieldMeta";
+import { planSettingsReset } from "./settingsResetPlan";
 import type { SettingsWriteContext } from "./settingsWritePlan";
 import { planSettingsWrite } from "./settingsWritePlan";
 
@@ -35,6 +36,21 @@ export function ForceLayoutSection({
 	const apply = (forceLayout: ForceLayoutSettings): void => {
 		void actions.applySettings(planSettingsWrite({ kind: "global-force-layout", forceLayout }, ctx));
 	};
+	/**
+	 * The SAME plan the settings tab's "Restore force layout defaults" row runs —
+	 * never the engine's defaults factory directly, or the panel becomes a second
+	 * opinion on what a force-layout default is (guarded by
+	 * `engineDefaultsSingleSource.test.ts`).
+	 *
+	 * WHY-NOT `planSettingsResetConfirmation` too: the panel has no confirm modal.
+	 * The force-layout scope declares no confirmation — pinned for every non-exclusion
+	 * section scope at once by `settingsResetPlan.test.ts` — so nothing is skipped.
+	 */
+	const restoreDefaults = async (): Promise<void> => {
+		for (const command of planSettingsReset("force-layout", ctx)) {
+			await actions.applySettings(command);
+		}
+	};
 	const slider = (field: keyof ForceLayoutSettings): ReactElement => (
 		<ForceLayoutSlider
 			key={field}
@@ -54,7 +70,7 @@ export function ForceLayoutSection({
 				type="button"
 				className="vicinity-graph-forcelayout__restore"
 				title="Reset all force layout sliders to their shipped defaults."
-				onClick={() => apply(EngineDefaults.forceLayoutSettings())}
+				onClick={() => void restoreDefaults()}
 			>
 				Restore defaults
 			</button>
