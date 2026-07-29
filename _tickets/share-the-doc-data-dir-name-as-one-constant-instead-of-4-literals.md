@@ -1,12 +1,13 @@
 ---
+closed_iso: 2026-07-29T22:07:01Z
 id: nid_7fq9y51mbucmduzf9z31hmwmq_e
 tags: [settings]
 title: Share the `doc-data` dir name as one constant instead of 4+ literals
-status: in_progress
+status: closed
 deps: []
 links: []
 created_iso: '2026-07-27T16:20:57Z'
-status_updated_iso: '2026-07-29T22:03:23Z'
+status_updated_iso: 2026-07-29T22:07:01Z
 type: chore
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
@@ -32,3 +33,23 @@ One exported constant (e.g. `DOC_DATA_DIR_NAME` in `src/persistence/`) is the si
 **2026-07-27T16:28:51Z**
 
 Interim guard added while this refactor is deferred: `e2e/vaultCopyReseed.test.ts` cross-checks the `doc-data` literal in `src/main.ts` `docDataDirPath()` against the wipe in `e2e/obsidianHarness.ts` by source scan, so a plugin-side rename that the harness does not follow fails `npm test`. DELETE that file as part of this ticket — the shared constant makes it redundant (its doc comment says so and names this ticket id).
+
+## Resolution (2026-07-29, commit `c7669e0`)
+
+DONE. `src/persistence/docDataDirName.ts` exports `DOC_DATA_DIR_NAME = "doc-data"` — a
+leaf module with NO imports on purpose, so the node-side e2e process can load it at
+runtime. Consumers: `src/main.ts` `docDataDirPath()`, `e2e/obsidianHarness.ts`
+`prepareVaultCopy()` wipe, and the 5 tests that hardcoded the name
+(`PersistenceServices`, `DocDataStore`, `OrphanSweeper`, plus `VicinityGraphBuilder.test.ts`
+and `ControlsActions.test.ts` for consistency). `e2e/vaultCopyReseed.test.ts` deleted.
+
+The runtime-import-from-`src/` precedent is now established in `e2e/obsidianHarness.ts`
+(WHY comment next to the import states the no-imports requirement).
+
+Verified: `npm test` (87 files / 1174 tests), `npm run check` incl. `check:e2e`,
+`node esbuild.config.mjs production` (bundle still contains the literal once), and a
+REAL Obsidian run — `npm run test:e2e -- pinnedCentralScenario.e2e.ts` (2 passed), which
+executes `prepareVaultCopy()` and therefore proves the runtime import actually loads in
+the node-side process, not just typechecks. The `vaultTarget.test.ts` destructive-call
+source scan still passes: the wipe's destination still roots at the literal
+`VAULT_COPY_DIR` constant.

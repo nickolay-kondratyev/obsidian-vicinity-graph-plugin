@@ -3,6 +3,7 @@ import { FakeDocIdPort } from "../adapters/FakeDocIdPort";
 import type { VaultFilePort, VaultPort } from "../adapters/obsidianPorts";
 import { EngineDefaults } from "../engine";
 import { DocDataStore } from "../persistence/DocDataStore";
+import { DOC_DATA_DIR_NAME } from "../persistence/docDataDirName";
 import { FakeFileStorage } from "../persistence/FakeFileStorage";
 import { FakePluginDataPort } from "../persistence/FakePluginDataPort";
 import { PathDocIdMap } from "../persistence/PathDocIdMap";
@@ -68,7 +69,7 @@ async function actionsUnderTest(mainPath: string | null = MAIN_PATH) {
 	const persistenceServices = new PersistenceServices(
 		docIdPort,
 		pluginDataStore,
-		new DocDataStore(new FakeFileStorage(), "doc-data"),
+		new DocDataStore(new FakeFileStorage(), DOC_DATA_DIR_NAME),
 		new PathDocIdMap(),
 	);
 	const owningView = new FakeOwningView(mainPath);

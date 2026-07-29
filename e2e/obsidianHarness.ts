@@ -12,6 +12,10 @@ import {
 	vaultDirOf,
 } from "./vaultTarget";
 import type { DevVaultCopyTarget, LaunchOptions, VaultTarget } from "./vaultTarget";
+// The ONE runtime import from `src/` into the node-side harness process: a leaf module
+// holding just the per-doc dir name, so the wipe below cannot drift from the dir the
+// plugin writes. Safe because that module imports nothing (no `obsidian`, no DOM).
+import { DOC_DATA_DIR_NAME } from "../src/persistence/docDataDirName";
 // Type-only, so it is erased at transpile — the pure engine barrel never loads in the node-side test process.
 import type {
 	DepthSettings,
@@ -535,7 +539,7 @@ export class ObsidianHarness {
 		// Both destinations name the VAULT_COPY_DIR constant literally — see the
 		// WHY-NOT above and the source scan in `vaultTarget.test.ts`.
 		fs.rmSync(path.join(VAULT_COPY_DIR, ".obsidian", "plugins", PLUGIN_ID, "data.json"), { force: true });
-		fs.rmSync(path.join(VAULT_COPY_DIR, ".obsidian", "plugins", PLUGIN_ID, "doc-data"), {
+		fs.rmSync(path.join(VAULT_COPY_DIR, ".obsidian", "plugins", PLUGIN_ID, DOC_DATA_DIR_NAME), {
 			recursive: true,
 			force: true,
 		});

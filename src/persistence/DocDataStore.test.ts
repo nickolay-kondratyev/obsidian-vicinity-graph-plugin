@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { DocDataMutations } from "./DocDataMutations";
 import { DocDataStore } from "./DocDataStore";
+import { DOC_DATA_DIR_NAME } from "./docDataDirName";
 import { FakeFileStorage } from "./FakeFileStorage";
 import { PERSISTED_SHAPE_VERSION } from "./persistedShapes";
 
-const DIR = ".obsidian/plugins/vicinity-graph/doc-data";
+const DIR = `.obsidian/plugins/vicinity-graph/${DOC_DATA_DIR_NAME}`;
 
 function storeOverFakeStorage(): { store: DocDataStore; storage: FakeFileStorage } {
 	const storage = new FakeFileStorage();
