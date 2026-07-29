@@ -31,6 +31,9 @@ import { ObsidianHarness } from "./obsidianHarness";
  * a folder-group box approached by 12 separate edges from one clustered side. It
  * guards a different property (which BORDER of a group box an edge attaches to)
  * that no other automated check in the repo can see; see that test's docblock.
+ * It shares this file's outgoing-depth-2 driving for the SAME reason the ring does:
+ * its cluster links are sibling links between depth-1 neighbours, so only the second
+ * hop walks them — and without them walked there is no clustering force and no crowd.
  */
 
 test.describe.configure({ mode: "serial" });
@@ -52,15 +55,15 @@ const ROUTING_FIXTURES: Record<string, string> = {
 
 const EDGE_PATH_SELECTOR = ".vicinity-graph-flow .react-flow__edge-path";
 
-/** Ring fixture depths: the second outgoing hop is what walks the diameter chords. */
-const RING_DEPTHS = { outgoingDepth: 2, incomingDepth: 1 };
-/** The shipped defaults, restored for the `facing/` fixture so it renders its own vicinity. */
-const DEFAULT_DEPTHS = { outgoingDepth: 1, incomingDepth: 1 };
+/**
+ * Depths both fixtures here run at: the second outgoing hop is what walks the ring's
+ * diameter chords AND the `facing/` neighbours' cluster links (see the file header).
+ */
+const WALK_SIBLINGS_DEPTHS = { outgoingDepth: 2, incomingDepth: 1 };
 
 /** `facing` fixture (scripts/setup-dev-vault.sh): a folder-group box crowded from one side. */
 const FACING_HUB_PATH = "facing/hub-facing.md";
 const FACING_GROUP_FOLDER = "facing";
-const FACING_NEIGHBOUR_PREFIX = "facing-near";
 
 /**
  * How close (px) an endpoint must sit to a border to count as ATTACHED to it.
@@ -72,8 +75,8 @@ const BORDER_HIT_TOL_PX = 6;
 
 /**
  * Non-vacuity floor. The fixture puts 12 separate cross-boundary edges on the box,
- * so "no edge attaches off the facing side" would pass trivially if the selectors
- * broke and we saw ZERO terminals. Deliberately loose (not 12): it must catch a dead
+ * so "no edge attaches on a border its neighbour is not past" would pass trivially if
+ * the selectors broke and we saw ZERO terminals. Deliberately loose (not 12): it must catch a dead
  * selector or vanished edges without failing on layout jitter or corner rounding.
  */
 const MIN_FACING_BOX_TERMINALS = 8;
@@ -91,7 +94,7 @@ test.beforeAll(async () => {
 	await harness.openGraphView();
 	// Depth 2 outgoing so the sibling chords (which can cross the hub) are WALKED,
 	// and therefore render and load the router. See the file header.
-	await harness.saveGlobalDepths(RING_DEPTHS);
+	await harness.saveGlobalDepths(WALK_SIBLINGS_DEPTHS);
 	await harness.openFile(HUB_PATH);
 	await expect(page.locator(EDGE_PATH_SELECTOR).first()).toBeAttached();
 });
@@ -112,50 +115,38 @@ function bentEdgeCount(pathData: readonly string[]): number {
 	return pathData.filter((d) => (d.match(/L/g) ?? []).length >= 2).length;
 }
 
-/** Where each rendered edge endpoint lands on the `facing` group box, and which side faces the neighbours. */
+/** Where each rendered group-box edge endpoint lands on the `facing` box, per counterpart. */
 interface FacingAttachmentReport {
-	readonly facingSide: string;
 	readonly terminalCount: number;
-	/** Terminals on a border OTHER than the facing one, as `side@x,y` for a readable failure. */
-	readonly offFacingTerminals: readonly string[];
+	/**
+	 * Terminals on a border their OWN counterpart node does not sit outside of, as
+	 * `counterpart:side@x,y` for a readable failure.
+	 */
+	readonly wrongSideTerminals: readonly string[];
 }
 
 /**
  * Reads, from the live DOM, which border of the `facing/` group box each edge
- * terminates on, and derives which border the neighbours actually sit off.
+ * INCIDENT ON THAT BOX terminates on, and whether that border is the one facing the
+ * edge's own counterpart node.
  *
  * Endpoints come from `getPointAtLength` + `getScreenCTM` because the rendered `d`
  * is in the flow's transformed coordinate space — the group box's client rect is not.
  */
 function readFacingAttachment(): Promise<FacingAttachmentReport> {
 	return page.evaluate(
-		({ folder, neighbourPrefix, tol }) => {
+		({ folder, tol }) => {
 			const group = document.querySelector(`.vicinity-graph-group[data-folder="${folder}"]`);
 			if (group === null) {
 				throw new Error(`facing group box not rendered: folder=[${folder}]`);
 			}
 			const box = group.getBoundingClientRect();
-			const neighbours = Array.from(
-				document.querySelectorAll(`.vicinity-graph-node[data-path^="${neighbourPrefix}"]`),
-			);
-			if (neighbours.length === 0) {
-				throw new Error(`no facing neighbours rendered: prefix=[${neighbourPrefix}]`);
+			// The flow node id of the box, READ from the DOM rather than reconstructed from
+			// the folder name, so this spec does not encode the `folder-group:` id scheme.
+			const groupId = group.closest(".react-flow__node")?.getAttribute("data-id") ?? null;
+			if (groupId === null) {
+				throw new Error(`facing group box has no flow node id: folder=[${folder}]`);
 			}
-			// The facing side is DERIVED from where the neighbours actually settled
-			// (dominant axis of centroid - box centre), never hardcoded: if the layout
-			// ever parks the blob elsewhere, the assertion follows it instead of going
-			// green against the wrong border.
-			let sumX = 0;
-			let sumY = 0;
-			for (const neighbour of neighbours) {
-				const rect = neighbour.getBoundingClientRect();
-				sumX += rect.left + rect.width / 2;
-				sumY += rect.top + rect.height / 2;
-			}
-			const dx = sumX / neighbours.length - (box.left + box.width / 2);
-			const dy = sumY / neighbours.length - (box.top + box.height / 2);
-			const facingSide =
-				Math.abs(dy) > Math.abs(dx) ? (dy < 0 ? "top" : "bottom") : dx < 0 ? "left" : "right";
 
 			const sideOf = (x: number, y: number): string | null => {
 				if (x < box.left - tol || x > box.right + tol || y < box.top - tol || y > box.bottom + tol) {
@@ -178,12 +169,54 @@ function readFacingAttachment(): Promise<FacingAttachmentReport> {
 				return nearest !== null && nearest.distance <= tol ? nearest.side : null;
 			};
 
-			const offFacingTerminals: string[] = [];
+			/**
+			 * The other end of an edge incident on the box, or `null` for an edge that does
+			 * not touch it at all (the fixture's intra-group member→hub edges). Matched on
+			 * the WHOLE endpoint id rather than splitting on `->`, so a path containing the
+			 * separator could not mis-split.
+			 */
+			const counterpartIdOf = (edgeId: string): string | null => {
+				if (edgeId.startsWith(`${groupId}->`)) {
+					return edgeId.slice(groupId.length + 2);
+				}
+				if (edgeId.endsWith(`->${groupId}`)) {
+					return edgeId.slice(0, edgeId.length - groupId.length - 2);
+				}
+				return null;
+			};
+
+			/** True when `counterpart`'s CENTRE lies outside the box border it attached to. */
+			const facesFrom = (side: string, counterpart: DOMRect): boolean => {
+				const cx = counterpart.left + counterpart.width / 2;
+				const cy = counterpart.top + counterpart.height / 2;
+				switch (side) {
+					case "left":
+						return cx < box.left;
+					case "right":
+						return cx > box.right;
+					case "top":
+						return cy < box.top;
+					default:
+						return cy > box.bottom;
+				}
+			};
+
+			const wrongSideTerminals: string[] = [];
 			let terminalCount = 0;
-			const paths = document.querySelectorAll<SVGPathElement>(".vicinity-graph-flow .react-flow__edge-path");
-			for (const path of Array.from(paths)) {
-				const ctm = path.getScreenCTM();
-				if (ctm === null) {
+			const edges = document.querySelectorAll<SVGGElement>(".vicinity-graph-flow .react-flow__edge");
+			for (const edge of Array.from(edges)) {
+				const counterpartId = counterpartIdOf(edge.getAttribute("data-id") ?? "");
+				if (counterpartId === null) {
+					continue;
+				}
+				const counterpart = document.querySelector(`.react-flow__node[data-id="${counterpartId}"]`);
+				if (counterpart === null) {
+					throw new Error(`edge counterpart node not rendered: id=[${counterpartId}]`);
+				}
+				const counterpartRect = counterpart.getBoundingClientRect();
+				const path = edge.querySelector<SVGPathElement>(".react-flow__edge-path");
+				const ctm = path?.getScreenCTM() ?? null;
+				if (path === null || ctm === null) {
 					continue;
 				}
 				for (const length of [0, path.getTotalLength()]) {
@@ -195,14 +228,14 @@ function readFacingAttachment(): Promise<FacingAttachmentReport> {
 						continue;
 					}
 					terminalCount += 1;
-					if (side !== facingSide) {
-						offFacingTerminals.push(`${side}@${Math.round(x)},${Math.round(y)}`);
+					if (!facesFrom(side, counterpartRect)) {
+						wrongSideTerminals.push(`${counterpartId}:${side}@${Math.round(x)},${Math.round(y)}`);
 					}
 				}
 			}
-			return { facingSide, terminalCount, offFacingTerminals };
+			return { terminalCount, wrongSideTerminals };
 		},
-		{ folder: FACING_GROUP_FOLDER, neighbourPrefix: FACING_NEIGHBOUR_PREFIX, tol: BORDER_HIT_TOL_PX },
+		{ folder: FACING_GROUP_FOLDER, tol: BORDER_HIT_TOL_PX },
 	);
 }
 
@@ -228,14 +261,24 @@ test("WHEN routing runs THEN at least one edge bends around a node, and a screen
  * LENGTH, and a wrong-side attachment barely moves it. Without this assertion a
  * regression in boundary-pin selection sails through a fully green suite.
  *
- * The property: all 12 `facing-nearN` neighbours sit off ONE side of the `facing/`
- * group box, so every edge must terminate on THAT border — none may wrap around to
- * the far or flanking sides.
+ * The property, asserted PER EDGE: each of the 12 edges terminates on a border of the
+ * `facing/` box that its OWN counterpart node sits outside of — so an edge may never
+ * wrap round to the far border, nor onto a flank the counterpart is not actually past.
+ *
+ * WHY-NOT the earlier form ("every edge attaches on the ONE side the neighbour centroid
+ * lies off"): it is unachievable by construction and was red from the day it landed
+ * (ticket nid_uv3al1mhaxmz37ooiit15iq0w_e). Even with the crowd formed, individual
+ * neighbours legitimately settle past a FLANKING border (measured: 3 of 12 sit ~180px
+ * off the left border while the centroid is above), and attaching those on the flank is
+ * the CORRECT routing result — the old assertion scored it as a wrap-around. The
+ * per-edge form keeps the full strictness against the real pathology (a terminal on a
+ * border its counterpart is not past) without asserting a geometry the fixture cannot have.
  */
-test("WHEN a folder group is crowded from one side THEN no edge attaches on a border facing away from the neighbours", async () => {
-	// This fixture is a DEFAULT-depth graph (the ring test above widened the depths
-	// globally); the next open picks the restored value up.
-	await harness.saveGlobalDepths(DEFAULT_DEPTHS);
+test("WHEN a folder group is crowded from one side THEN every edge attaches on a border its own neighbour sits past", async () => {
+	// Depth 2 outgoing so the neighbours' cluster links are WALKED and the crowd forms
+	// at all — see the file header. (The ring test above already set this; restated so
+	// this test does not depend on execution order.)
+	await harness.saveGlobalDepths(WALK_SIBLINGS_DEPTHS);
 	await harness.openFile(FACING_HUB_PATH);
 	await expect(page.locator(`.vicinity-graph-group[data-folder="${FACING_GROUP_FOLDER}"]`)).toBeAttached();
 	// Poll for READINESS only (terminals present), so the settle is condition-driven
@@ -248,7 +291,7 @@ test("WHEN a folder group is crowded from one side THEN no edge attaches on a bo
 
 	const report = await readFacingAttachment();
 	expect(
-		report.offFacingTerminals,
-		`edges wrapped past the facing side: facingSide=[${report.facingSide}] terminals=[${report.terminalCount}]`,
+		report.wrongSideTerminals,
+		`edges attached on a border their neighbour is not past: terminals=[${report.terminalCount}]`,
 	).toEqual([]);
 });
