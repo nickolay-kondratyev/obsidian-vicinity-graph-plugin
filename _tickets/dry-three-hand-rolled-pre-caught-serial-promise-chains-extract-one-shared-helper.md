@@ -2,16 +2,17 @@
 id: nid_4zffe7mj5p1eabi9m6wfh06k0_e
 title: "DRY: three hand-rolled pre-caught serial promise chains — extract one shared helper"
 status: open
-deps: []
-links: []
+deps: [nid_m5hxe4eo9jgt7cfic7s2o3uvi_e]
+links: [nid_m5hxe4eo9jgt7cfic7s2o3uvi_e, nid_8b97fdqznqsncc5kgya1p871w_e]
 created_iso: 2026-07-27T23:42:49Z
 status_updated_iso: 2026-07-27T23:42:49Z
 type: chore
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
-tags: [settings, persistence]
+tags: [settings, persistence, settings-cleanup]
 ---
 
+Overarching context and chain ordering for the settings cleanup: docs-internal/notes/settings.md (grouping tag: settings-cleanup).
 The idiom `tail = tail.catch(() => undefined).then(task)` (a serial write chain where one rejection cannot wedge the chain, while the failure still reaches its own caller) is now hand-rolled in three places:
 
 - `src/persistence/PluginDataStore.ts` — `writeChain` (~L70-71)

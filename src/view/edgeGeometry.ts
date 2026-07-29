@@ -187,6 +187,12 @@ export function clipRouteToEndpointRects(
 	if (points.length < 2 || first === undefined || last === undefined) {
 		return points.map((point) => ({ x: point.x, y: point.y }));
 	}
+	// WHY-NOT facing-side anchors here: measured 0 of ~37,700 cases reach this fallback via the
+	// 2-point branch — the "degenerate" and "2-point" conditions are mutually exclusive, which this
+	// function's own test pins. And facingSideAnchorsFor deliberately returns null on
+	// backwards-ordered crossings precisely to avoid drawing a wrong-DIRECTION arrow, so using it as
+	// a fallback would reintroduce that failure mode to fix a case that does not occur.
+	// (Owner decision 2026-07-29; the only real win, 191/37,600, is in the 3-point ROUTED branch.)
 	const chordFallback: RoutedPoint[] = [
 		{ x: first.x, y: first.y },
 		{ x: last.x, y: last.y },

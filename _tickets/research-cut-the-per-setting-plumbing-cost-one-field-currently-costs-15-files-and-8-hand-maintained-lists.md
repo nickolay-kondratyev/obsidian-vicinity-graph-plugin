@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-29T17:31:41Z
 id: nid_8p0nn2g34d97finokwlz3u1dt_e
-title: "[decide] RESEARCH: cut the per-setting plumbing cost — one field currently costs ~15 files and ~8 hand-maintained lists"
-status: open
+title: "RESEARCH: cut the per-setting plumbing cost — one field currently costs ~15 files and ~8 hand-maintained lists"
+status: closed
 deps: []
 links: [nid_3k0a4zl6in0mj8lcjibkjq2dx_e, nid_niz5dz6uqeyv237ckm15ittqa_e, nid_abreq4lmpo8vnvf61y9k9yly0_e, nid_fay1hu5sxcoygizopkkg0f0d7_e]
 created_iso: 2026-07-25T14:37:25Z
-status_updated_iso: 2026-07-25T14:37:25Z
+status_updated_iso: 2026-07-29T17:31:41Z
 type: task
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
@@ -140,3 +141,35 @@ Start by re-deriving the touch-point list from the actual source (do not trust t
 **2026-07-26T15:30:39Z**
 
 [decide] Research can be executed by an agent, but CLOSING it requires the owner to pick among options A-E, which differ hugely in blast radius (compile-time completeness guards vs. a field-descriptor rewrite vs. accepting the cost). No research artifact exists yet; the three linked symptom tickets are all still open.
+
+**2026-07-29T17:31:41Z**
+
+DECISION (owner, 2026-07-29): DO THE FULL REWRITE. Superseded by the settings-cleanup ticket chain (grouping tag: settings-cleanup, ordering via deps; see docs-internal/notes/settings.md); closing this as the decision record.
+
+Owner: "we want a clean up settings even if it requires a larger re-write, this is the time to do it."
+So Option E (accept the cost) and the minimal guards-only Option A were both rejected in favour of
+the declarative field-descriptor direction.
+
+SUCCESSOR EPICS (dependency-ordered):
+  E1 nid_wimjq4ewgbg21n4zx9d4qq3a0_e -- one declarative field descriptor drives spec/type/defaults/
+     parse/write-plan/reset-scope
+  E2 nid_m5hxe4eo9jgt7cfic7s2o3uvi_e -- one write/refresh pipeline (serial chain, reset drains it,
+     one fan-out rule)
+  E3 nid_armoson86j0ii8c33r1odo1rc_e -- tab + panel become two presenters of one descriptor model
+  E4 nid_x6hgehsu5il1d1shuraz3ufqy_e -- re-pin tests on the spec, not hand-enumerated literals
+  E5 nid_d57npvuvjk95n03c2xqgl3y6o_e -- prove the cost dropped by adding the embed-depth field
+
+CORRECTION carried into E1 (this ticket's own table overstated the risk): ViewSettingsResolver.resolve
+is NOT a silent hole -- its ViewSettings return type already makes an omitted field a COMPILE error.
+The real silent holes are only parseViewOverride, the reset-scope table, and tab-vs-panel UI parity.
+
+PRODUCT FORKS settled alongside, because they change the FIELD SET and are therefore inputs to the
+descriptor shape rather than follow-ups:
+- groupByFolder + edgeVisibility: DELETE both (verified unreachable dead config).
+- sizing minPx/maxPx: raise maxPx to minPx at clampSizingSettings; panel commits on blur.
+- nodeCap: ceiling 1000.
+- exclusion patterns row: always render, disabled.
+
+Option C (a single renderer for both surfaces) was rejected on a hard constraint: Obsidian's Setting
+API cannot mount inside React, so two renderer implementations are unavoidable. E3 therefore unifies
+the MODEL and guards parity with a test, rather than pretending one renderer is possible.

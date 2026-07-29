@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-29T17:28:48Z
 id: nid_9jiira82snkh7bgy8zv060c9r_e
-title: "[decide] Sizing maxPx >= minPx is enforced only in the settings tab, not in the engine"
-status: open
+title: "Sizing maxPx >= minPx is enforced only in the settings tab, not in the engine"
+status: closed
 deps: []
 links: [nid_hatwq2jlkhno5t6awcz0q6t9q_e]
 created_iso: 2026-07-27T17:44:26Z
-status_updated_iso: 2026-07-27T17:44:26Z
+status_updated_iso: 2026-07-29T17:28:48Z
 type: task
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
@@ -29,3 +30,16 @@ Whichever is chosen, `src/view/SizingSection.tsx` should surface the same reject
 
 HUMAN decides the resolution rule; `clampSizingSettings` enforces `maxPx >= minPx` with a BDD test pinning the chosen rule; the in-view sizing panel shows the same rejection feedback as the settings tab.
 
+
+## Notes
+
+**2026-07-29T17:28:48Z**
+
+DECISION (owner, 2026-07-29): CLOSED as MERGED into nid_hatwq2jlkhno5t6awcz0q6t9q_e.
+
+This ticket (engine does not enforce maxPx >= minPx) and that one (inverted ramp + per-keystroke
+clamp snapping) are the SAME invariant at two doors, and both were waiting on the same human call.
+Keeping them separate would have split one fix across two PRs.
+
+The decision -- raise maxPx to minPx inside clampSizingSettings, with the panel rejecting first and
+committing on blur -- is recorded in full on nid_hatwq2jlkhno5t6awcz0q6t9q_e. Implement there.

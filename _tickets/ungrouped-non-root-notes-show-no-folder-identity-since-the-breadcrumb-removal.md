@@ -1,6 +1,6 @@
 ---
 id: nid_rdx8ea6w1km9eywyvhpx1v7rt_e
-title: "[decide] ungrouped non-root notes show no folder identity since the breadcrumb removal"
+title: "ungrouped non-root notes show no folder identity since the breadcrumb removal"
 status: open
 deps: []
 links: [nid_yccejkvl0ccqc77olsgg5deka_e]
@@ -30,3 +30,25 @@ Options, cheapest first:
 
 A human records the decision in this ticket. If the answer is "close the gap", a follow-up implementation ticket carries the chosen option; `docs-internal/plan/high-level-plan.md` §Sizing is the doc that must change, and the e2e guard `e2e/vicinityGraph.e2e.ts` "no node renders a folder-prefix breadcrumb" is the test that must be revisited (it is deliberately placed in the note1 section, where `solo/gamma.md` is in the vicinity, so it goes red if a prefix returns).
 
+
+## Notes
+
+**2026-07-29T17:28:25Z**
+
+DECISION (owner, 2026-07-29): TOOLTIP ONLY. Do not re-add a breadcrumb line.
+
+Set the node title attribute to convey folder identity for ungrouped non-root notes.
+src/view/NoteNode.tsx:92 currently does title={data.title}; FlowNodeData already carries path
+(src/view/flowMapping.ts:41,309), so the data is already threaded and this is a ~1-line change.
+
+WHY: costs ZERO layout, so it preserves commit 998fdac's sizing model, and it keeps the
+.vicinity-graph-node__breadcrumb e2e guard green -- that guard asserts the ELEMENT count is 0, not
+tooltip text, so only the re-add-breadcrumb option would turn e2e/vicinityGraph.e2e.ts:182 red.
+
+ACCEPTED TRADEOFF (call this out, do not paper over it): identity becomes DISCOVERABLE but not
+SCANNABLE -- you must hover. If scannability turns out to matter on a real vault, the proper fix is
+the folder-color pass (docs-internal/tickets/ticket-folder-color-ux-design-pass.md), which conveys
+folder identity at zero pixel cost, NOT a second text line.
+
+Decide the exact tooltip text as part of the change; "<title> — <folder path>" is the obvious shape,
+and root notes should keep the bare title (no trailing separator).

@@ -1,8 +1,9 @@
 ---
 id: nid_zvoay26y4y9h1e2p2b1y9glfk_e
+tags: [settings, settings-cleanup]
 title: "Group interiors: split intra-group vs root spacing knob, revisit chain/edge-free packing"
 status: open
-deps: []
+deps: [nid_wimjq4ewgbg21n4zx9d4qq3a0_e]
 links: []
 created_iso: 2026-07-28T00:31:44Z
 status_updated_iso: 2026-07-28T00:31:44Z
@@ -11,6 +12,7 @@ priority: 3
 assignee: CC_WITH-nickolaykondratyev
 ---
 
+Overarching context and chain ordering for the settings cleanup: docs-internal/notes/settings.md (grouping tag: settings-cleanup).
 Follow-up from the compact-group-layout work (see .ai_out/compact-group-layout/compact-group-layout/IMPLEMENTATION_WITH_SELF_PLAN__PUBLIC.md).
 
 Group interiors now use elk `rectpacking` (src/view/constants.ts `elkGroupMemberOptions`) instead of `layered`. Measured across 120 fixtures (2-20 members x 4 intra-group link shapes), box area is ~6% smaller on average, but the win is very uneven:

@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-29T17:27:37Z
 id: nid_r8lm69vcsybjkgffqyrfex6j1_e
-title: "[decide] edge routing: EdgeRouter.route() has no typed error channel"
-status: open
+title: "edge routing: EdgeRouter.route() has no typed error channel"
+status: closed
 deps: []
 links: [nid_eim1ftv60ybxzcucgf7rf4gk8_e]
 created_iso: 2026-07-25T16:15:20Z
-status_updated_iso: 2026-07-25T16:15:20Z
+status_updated_iso: 2026-07-29T17:27:37Z
 type: task
 priority: 4
 assignee: CC_WITH-nickolaykondratyev
@@ -38,3 +39,22 @@ Either a typed failure channel exists and GraphViewController branches meaningfu
 **2026-07-26T15:30:39Z**
 
 [decide] The ticket itself lists three materially different outcomes — discriminated RoutingFailure result type, thrown error subclasses, or close as WONTFIX (explicitly acceptable). Human must pick. Verified still open: src/view/edgeRouting.ts:65 returns Promise<EdgeRouteMap>; GraphViewController.resolveRoutes (src/view/GraphViewController.ts:256-281) uses a plain try/catch + warn-once latch.
+
+**2026-07-29T17:27:00Z**
+
+DECISION (owner, 2026-07-29): CLOSE -- WONTFIX, accepted behaviour. No typed error channel.
+
+EdgeRouter.route() keeps its Promise<EdgeRouteMap> signature and the untyped throw channel.
+Rationale: the SINGLE consumer (GraphViewController.resolveRoutes, src/view/GraphViewController.ts)
+does the identical thing for every cause -- warn once, null the cache, return EMPTY_ROUTES so edges
+fall back to straight lines. Typing a failure union buys nothing until BEHAVIOUR diverges by cause,
+and it would force every caller plus both fakes/mocks to handle the union for zero benefit.
+The catch block is already hardened against hostile throwables, so this is a taste gap, not a
+robustness gap.
+
+REOPEN TRIGGER: if we ever want to RETRY wasm-init failures (src/view/libavoidLoader.ts already
+clears its cache on failure) while NOT retrying routing-contract violations. That is the one thing
+typing would unlock. Preferred shape then: named error subclasses (WasmInitError /
+RoutingContractError) with instanceof branching -- smallest diff, keeps the signature.
+
+Action taken: WHY-NOT comment added at the catch site in src/view/GraphViewController.ts.
