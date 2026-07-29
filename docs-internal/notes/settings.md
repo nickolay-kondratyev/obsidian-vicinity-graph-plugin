@@ -70,6 +70,13 @@ guarantee (forbidden by the owner's standing constraints) and costs the
 per-field doc comments. The failure mode this chain exists to kill is *silent*
 drift — compile-forced is not silent.
 
+**Ratified by the owner on 2026-07-29**: "compile-forced N declarations" replaces
+the descriptor ticket's literal "ONE declaration" as the standing acceptance bar
+for this chain. The original clause and the standing constraint "do not weaken
+`ViewSettingsResolver.resolve()`'s return-type completeness" were in direct
+tension; the owner resolved it in favour of the constraint. Tickets 4/5/6 inherit
+the amended bar, not the original wording.
+
 This drift has already produced real symptom tickets: stale baseline tests
 (twice), reset racing a queued write, sibling-field clobbering from stale
 snapshots, tab rows with no panel counterpart, and a11y naming divergence.

@@ -21,9 +21,26 @@ Primary invariant: **absent override = inherit** (ViewSettings vs ViewSettingsOv
 |-------|--------|-------------|
 | EXPLORATION | done | `EXPLORATION_PUBLIC.md` (index) + 3 area files |
 | CLARIFICATION | done (owner answered D1/D2/D3) | `CLARIFICATION__PUBLIC.md` |
-| DETAILED_PLANNING | running (ULTRATHINK) | `DETAILED_PLANNING__PUBLIC.md` |
-| DETAILED_PLAN_REVIEW | pending | `DETAILED_PLAN_REVIEW__PUBLIC.md` |
-| PLAN_ITERATION | pending | `PLAN_ITERATION__PUBLIC.md` |
-| IMPLEMENTATION | pending | `IMPLEMENTATION__PUBLIC.md` |
-| IMPLEMENTATION_REVIEW | pending | `IMPLEMENTATION_REVIEW__PUBLIC.md` |
-| IMPLEMENTATION_ITERATION | pending | `IMPLEMENTATION_ITERATION__PUBLIC.md` |
+| DETAILED_PLANNING | done | `DETAILED_PLANNING__PUBLIC.md` |
+| DETAILED_PLAN_REVIEW | done — r1 `PLAN_ITERATION_REQUIRED`, r2 `PLAN_APPROVED_FOR_IMPLEMENTATION` | `DETAILED_PLAN_REVIEW__PUBLIC.md` |
+| PLAN_ITERATION | done (1 round, converged) | `PLAN_ITERATION__PUBLIC.md` |
+| IMPLEMENTATION | done (8 commits `17a162c`..`83e2a1d`) | `IMPLEMENTATION__PUBLIC.md` |
+| IMPLEMENTATION_REVIEW | done — `IMPLEMENTATION_APPROVED` | `IMPLEMENTATION_REVIEW__PUBLIC.md` |
+| IMPLEMENTATION_ITERATION | **not needed** — approved first pass, no findings required rework | — |
+
+## Outcome
+
+Ticket `nid_wimjq4ewgbg21n4zx9d4qq3a0_e` **closed**. Change log entry
+`0aw45xmi7ktmtvcx52ctpcfrp`.
+
+Owner ratified the amended acceptance bar (**"compile-forced N declarations"**,
+not the ticket's literal "ONE declaration") — recorded in
+`docs-internal/notes/settings.md` so chain tickets 4/5/6 inherit the real bar.
+Per-field cost measurement deliberately left to ticket 6 so it stays honest.
+
+Follow-ups filed: `nid_llfhrqo1ecg8tuxigo7bcrrrf_e` (duplicate section-name
+constants, deps → ticket 4), `nid_zwhec6kznw0utd9sz0n5g60ex_e` (false WHY comment
++ dead throw in e2e). `nid_3k0a4zl6in0mj8lcjibkjq2dx_e` closed as moot.
+
+Next in the chain: ticket 3 `nid_m5hxe4eo9jgt7cfic7s2o3uvi_e` (write/refresh
+pipeline) and ticket 4 `nid_armoson86j0ii8c33r1odo1rc_e` (dual presenters).
