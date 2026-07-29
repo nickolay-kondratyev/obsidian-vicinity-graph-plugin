@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-29T18:34:41Z
 id: nid_869bt9d9rlrbr8of1403dnmf3_e
 title: "Canvas text-node links inside code spans/fences produce phantom edges in the fallback regime"
-status: open
+status: closed
 deps: []
 links: [nid_fay1hu5sxcoygizopkkg0f0d7_e]
 created_iso: 2026-07-27T23:10:42Z
-status_updated_iso: 2026-07-27T23:10:42Z
+status_updated_iso: 2026-07-29T18:34:41Z
 type: bug
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
@@ -97,6 +98,23 @@ alone and close this as won't-fix — so this cheap check gates the whole change
 Worth doing, at current priority 3, once the e2e measurement confirms the premise. It is the
 last known fallback-vs-core divergence, it removes a boot-race-dependent graph, and it costs
 one focused file. Do NOT expand it into escape/indent handling.
+
+## Outcome (2026-07-29)
+
+**Premise MEASURED and confirmed, fix shipped as researched.**
+
+The gating e2e now carries a second text node whose only links (both syntaxes) sit in an inline
+code span and a fenced block, with both targets present in the vault. Real Obsidian reported:
+
+```
+[observed] resolvedLinks[md-links/board.canvas]={"md-links/target.md":4,"md-links/spaced target.md":1}
+```
+
+— i.e. core indexes NEITHER bait. Implemented exactly the researched shape:
+`src/shared/MarkdownCodeRegions.withCodeMasked` (fence pass per line + hand-rolled backtick-run
+span scanner, masking to same-length spaces), wired at the single call site
+`CanvasFallbackParser.textNodeReferencesOf`. Out-of-scope residuals (indented code blocks,
+escapes, newline-crossing spans) are documented in the new file's header and in the plan.
 
 ## Acceptance Criteria
 

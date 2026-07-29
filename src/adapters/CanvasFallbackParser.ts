@@ -1,3 +1,4 @@
+import { MarkdownCodeRegions } from "../shared/MarkdownCodeRegions";
 import { MarkdownInlineLinks } from "../shared/MarkdownInlineLinks";
 import { Wikilinks } from "../shared/Wikilinks";
 
@@ -84,9 +85,16 @@ export class CanvasFallbackParser {
 	 * strictly written order. Deliberate: edge ORDER is not contractual on either
 	 * regime, while the edge SET and the per-target COUNT — which is all the
 	 * caller derives — are order-insensitive.
+	 *
+	 * Both scans read PROSE only: code spans and fenced blocks are masked first,
+	 * because core indexes no link written inside them (measured by
+	 * `e2e/canvasMarkdownLinkIndexing.e2e.ts`) and harvesting one here would be a
+	 * phantom edge that appears only when the boot race lands on this regime
+	 * (ticket `nid_869bt9d9rlrbr8of1403dnmf3_e`).
 	 */
 	private static textNodeReferencesOf(text: string): readonly CanvasReference[] {
-		return [...Wikilinks.linkTargetsOf(text), ...MarkdownInlineLinks.linkTargetsOf(text)].map(
+		const prose = MarkdownCodeRegions.withCodeMasked(text);
+		return [...Wikilinks.linkTargetsOf(prose), ...MarkdownInlineLinks.linkTargetsOf(prose)].map(
 			(linkText) => ({ kind: "text-node-link", linkText }) as const,
 		);
 	}

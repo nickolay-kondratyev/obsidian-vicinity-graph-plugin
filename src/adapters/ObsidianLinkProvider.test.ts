@@ -410,6 +410,48 @@ describe("ObsidianLinkProvider canvas TEXT-node markdown-style link reconciliati
 	});
 });
 
+/**
+ * A link written inside a code span or a fenced block is SAMPLE TEXT, and real Obsidian core
+ * indexes none of it — measured, not assumed, by `e2e/canvasMarkdownLinkIndexing.e2e.ts`
+ * (ticket `nid_869bt9d9rlrbr8of1403dnmf3_e`). Same parity guard as the blocks above: the
+ * fallback masks code regions so it reports the same empty edge set core does.
+ */
+describe("ObsidianLinkProvider canvas TEXT-node links inside CODE regions (both regimes must agree)", () => {
+	// GIVEN one canvas whose TEXT node's only links — one of each syntax — sit inside an
+	// inline code span and a fenced block, with both targets present in the vault.
+	const files = [
+		{ path: "note-a.md" },
+		{ path: "note-b.md" },
+		{
+			path: "board.canvas",
+			content: JSON.stringify({
+				nodes: [
+					{
+						type: "text",
+						text: ["sample `[[note-a]]` and `[l](note-b.md)`", "```", "[[note-a]]", "```"].join("\n"),
+					},
+				],
+			}),
+		},
+	];
+	const resolutions = { "note-a": "note-a.md", "note-b.md": "note-b.md" };
+
+	it("WHEN the canvas is NOT core-indexed THEN a code-region link produces no edge", async () => {
+		const provider = await providerOver({ files, resolutions, resolvedLinks: { "note-a.md": {} } });
+		expect(provider.getOutgoingLinks(asVaultPath("board.canvas"))).toEqual([]);
+	});
+
+	it("WHEN the canvas IS core-indexed THEN a code-region link produces no edge either (core reports none)", async () => {
+		const provider = await providerOver({ files, resolutions, resolvedLinks: { "board.canvas": {} } });
+		expect(provider.getOutgoingLinks(asVaultPath("board.canvas"))).toEqual([]);
+	});
+
+	it("WHEN the canvas is NOT core-indexed THEN a code-region target gains no backlink", async () => {
+		const provider = await providerOver({ files, resolutions, resolvedLinks: { "note-a.md": {} } });
+		expect(provider.getIncomingLinks(asVaultPath("note-b.md"))).toEqual([]);
+	});
+});
+
 describe("ObsidianLinkProvider file metadata", () => {
 	const spec: FakeObsidianSpec = {
 		files: [

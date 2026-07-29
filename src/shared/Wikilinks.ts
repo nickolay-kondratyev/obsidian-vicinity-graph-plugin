@@ -6,9 +6,10 @@
  *
  * A small honest matcher, NOT a markdown parser (same spirit as
  * `outlineEntryLabel`): one left-to-right pass, no code-span or escape
- * analysis. DELIBERATELY NOT HANDLED: `[[links]]` inside code spans/fences
- * (they are harvested as if they were real — ticket
- * `nid_869bt9d9rlrbr8of1403dnmf3_e`).
+ * analysis. A caller that must skip CODE — canvas harvesting, which has to match
+ * what core indexes — masks those regions first with
+ * {@link MarkdownCodeRegions}; that stays OUT of here because the display caller
+ * wants the opposite (a `` `[[x]]` `` in a heading still renders its label).
  *
  * Wikilinks ONLY, by design — markdown-style `[a](b.md)` links are the sibling
  * `MarkdownInlineLinks`'s job (different syntax, different rules), and canvas
