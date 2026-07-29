@@ -1,7 +1,6 @@
 import { SETTINGS_SPEC } from "./SettingsSpec";
 import type {
 	DepthSettings,
-	EdgeVisibilityMode,
 	ForceLayoutSettings,
 	NodeExclusionSettings,
 	SizingSettings,
@@ -27,9 +26,6 @@ export const DEFAULT_MAX_NODE_PX = SETTINGS_SPEC.globalView.sizing.maxPx.default
 
 /** @see SETTINGS_SPEC — `globalView.sizing.depthDecayK.default`. */
 export const DEFAULT_DEPTH_DECAY_K = SETTINGS_SPEC.globalView.sizing.depthDecayK.default;
-
-/** @see SETTINGS_SPEC — `globalView.edgeVisibility.default`. */
-export const DEFAULT_EDGE_VISIBILITY: EdgeVisibilityMode = SETTINGS_SPEC.globalView.edgeVisibility.default;
 
 /** Lower bound of the node-cap input. @see SETTINGS_SPEC — `globalView.nodeCap.min`. */
 export const MIN_NODE_CAP = SETTINGS_SPEC.globalView.nodeCap.min;
@@ -264,8 +260,6 @@ export class EngineDefaults {
 			nodeCap: view.nodeCap.default,
 			outlineMaxDepth: view.outlineMaxDepth.default,
 			nodePreviewPreference: view.nodePreviewPreference.default,
-			groupByFolder: view.groupByFolder.default,
-			edgeVisibility: view.edgeVisibility.default,
 			sizing: EngineDefaults.sizingSettings(),
 			forceLayout: EngineDefaults.forceLayoutSettings(),
 		};

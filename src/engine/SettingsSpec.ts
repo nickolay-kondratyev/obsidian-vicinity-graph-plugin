@@ -17,7 +17,6 @@
  */
 
 import type {
-	EdgeVisibilityMode,
 	ForceLayoutSettings,
 	NodePreviewPreference,
 	SizeMetricId,
@@ -71,8 +70,6 @@ export interface ViewSpec {
 	readonly nodeCap: MinBoundedNumberSpec;
 	readonly outlineMaxDepth: BoundedNumberSpec;
 	readonly nodePreviewPreference: DefaultSpec<NodePreviewPreference>;
-	readonly groupByFolder: DefaultSpec<boolean>;
-	readonly edgeVisibility: DefaultSpec<EdgeVisibilityMode>;
 	readonly sizing: SizingSpec;
 	readonly forceLayout: ForceLayoutSpec;
 }
@@ -145,14 +142,6 @@ export const SETTINGS_SPEC: SettingsSpec = {
 		 * changes nothing on screen; `outline`/`image` are opt-in overrides.
 		 */
 		nodePreviewPreference: { default: "auto" },
-		/** Folder grouping ships ON — the richer, folder-aware layout is the whole point of the plugin. */
-		groupByFolder: { default: true },
-		/**
-		 * Default edge mode shows only BFS-walked edges (human decision,
-		 * CLARIFICATION Q5: cleaner graph to see); `"all-edges"` stays available
-		 * via the toggle.
-		 */
-		edgeVisibility: { default: "walked-from-center" },
 		sizing: {
 			/** `own-file-size` is the only default-on metric (step doc); the other four ship OFF. */
 			metrics: {

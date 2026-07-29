@@ -155,9 +155,9 @@ describe("VicinityEngine settings integration", () => {
 
 	it("WHEN a pinned doc pins a view field MAIN leaves unset THEN the build uses the pinned value", () => {
 		const graph = build({
-			pinnedViewOverrides: [{ descriptor: PIN, override: { groupByFolder: false } }],
+			pinnedViewOverrides: [{ descriptor: PIN, override: { nodePreviewPreference: "image" } }],
 		});
-		expect(graph.viewSettings.groupByFolder).toBe(false);
+		expect(graph.viewSettings.nodePreviewPreference).toBe("image");
 	});
 
 	it("WHEN the same request is built twice THEN outputs are identical (determinism)", () => {
@@ -165,7 +165,7 @@ describe("VicinityEngine settings integration", () => {
 	});
 });
 
-describe("VicinityEngine edge visibility (CLARIFICATION Q5)", () => {
+describe("VicinityEngine walked-edge semantics (CLARIFICATION Q5)", () => {
 	/** GIVEN MAIN hub.md whose two depth-1 siblings link each other. */
 	function siblingBuild(overrides: Partial<GraphBuildRequest> = {}): VicinityGraph {
 		const provider = new FakeLinkProvider({
@@ -187,19 +187,14 @@ describe("VicinityEngine edge visibility (CLARIFICATION Q5)", () => {
 		return graph.edges.map((e) => `${e.source}->${e.target}`).sort();
 	}
 
-	it("WHEN building with defaults THEN the sibling link is hidden (default mode is walked-from-center)", () => {
+	it("WHEN the walk never reaches a sibling link THEN that link is not an edge", () => {
 		expect(edgeStrings(siblingBuild())).toEqual(["hub.md->a.md", "hub.md->b.md"]);
 	});
 
-	it("WHEN the global view asks for all-edges THEN the sibling link renders (induced subgraph)", () => {
-		const graph = siblingBuild({
-			globalView: { ...EngineDefaults.viewSettings(), edgeVisibility: "all-edges" },
-		});
-		expect(edgeStrings(graph)).toEqual(["a.md->b.md", "hub.md->a.md", "hub.md->b.md"]);
-	});
-
-	it("WHEN MAIN's override pins all-edges THEN it beats the walked-from-center global (cascade)", () => {
-		const graph = siblingBuild({ mainViewOverride: { edgeVisibility: "all-edges" } });
+	// The lever the edge-routing e2e fixtures use to render sibling chords: depth,
+	// not a visibility mode — a second hop WALKS the sibling link.
+	it("WHEN the walk reaches the sibling link at depth 2 THEN it becomes an edge", () => {
+		const graph = siblingBuild({ globalDepths: { outgoingDepth: 2, incomingDepth: 0 } });
 		expect(edgeStrings(graph)).toEqual(["a.md->b.md", "hub.md->a.md", "hub.md->b.md"]);
 	});
 });
@@ -215,21 +210,17 @@ describe("VicinityEngine edge link counts (step-05, CLARIFICATION Q1)", () => {
 		);
 	}
 
-	function edgeCounts(edgeVisibility: "walked-from-center" | "all-edges"): Record<string, number> {
+	function edgeCounts(): Record<string, number> {
 		const graph = duplicateLinkEngine().build({
 			main: { path: asVaultPath("hub.md") },
 			globalDepths: { outgoingDepth: 1, incomingDepth: 1 },
-			globalView: { ...EngineDefaults.viewSettings(), edgeVisibility },
+			globalView: EngineDefaults.viewSettings(),
 		});
 		return Object.fromEntries(graph.edges.map((edge) => [`${edge.source}->${edge.target}`, edge.count]));
 	}
 
-	it("WHEN walked-from-center builds over a double link THEN that edge carries count 2", () => {
-		expect(edgeCounts("walked-from-center")).toEqual({ "hub.md->twin.md": 2, "hub.md->solo.md": 1 });
-	});
-
-	it("WHEN all-edges builds over a double link THEN that edge carries count 2", () => {
-		expect(edgeCounts("all-edges")).toEqual({ "hub.md->twin.md": 2, "hub.md->solo.md": 1 });
+	it("WHEN a build walks a double link THEN that edge carries count 2", () => {
+		expect(edgeCounts()).toEqual({ "hub.md->twin.md": 2, "hub.md->solo.md": 1 });
 	});
 });
 

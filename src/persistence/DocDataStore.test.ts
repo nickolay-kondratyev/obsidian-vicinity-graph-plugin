@@ -59,7 +59,7 @@ describe("DocDataStore.listDocIds", () => {
 	it("WHEN docs have files THEN their docids are listed (json extension stripped)", async () => {
 		const { store } = storeOverFakeStorage();
 		await store.update("docid_a_e", (doc) => DocDataMutations.setDepthField(doc, "outgoingDepth", 1));
-		await store.update("docid_b_e", (doc) => DocDataMutations.setViewField(doc, "groupByFolder", false));
+		await store.update("docid_b_e", (doc) => DocDataMutations.setViewField(doc, "nodeCap", 10));
 		expect([...(await store.listDocIds())].sort()).toEqual(["docid_a_e", "docid_b_e"]);
 	});
 

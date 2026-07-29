@@ -17,10 +17,10 @@ import { ObsidianHarness } from "./obsidianHarness";
  * detour around. The layout is deterministic (seeded LCG in d3ForceRefinement),
  * so once a detour occurs it is reproducible, not flaky.
  *
- * Chords are sibling links between depth-1 neighbours, so they only render under
- * the `all-edges` visibility mode (default `walked-from-center` shows just the
- * radial star, which has no crossings). `all-edges` is set once in `beforeAll` so
- * the crossing chords are present and genuinely load the router.
+ * Chords are sibling links between depth-1 neighbours, and ONLY walked links become
+ * edges — so the fixture is driven at outgoing depth 2, where the BFS expands each
+ * ring node once more and genuinely walks the chords. The ring is closed (every ring
+ * link stays inside the fixture), so the second hop adds edges without adding nodes.
  *
  * Bend detector: a routed detour (>=3 waypoints) emits >=2 `L` commands in its
  * path `d`; a straight edge emits exactly one `L` and a paired bow emits none.
@@ -51,6 +51,11 @@ const ROUTING_FIXTURES: Record<string, string> = {
 };
 
 const EDGE_PATH_SELECTOR = ".vicinity-graph-flow .react-flow__edge-path";
+
+/** Ring fixture depths: the second outgoing hop is what walks the diameter chords. */
+const RING_DEPTHS = { outgoingDepth: 2, incomingDepth: 1 };
+/** The shipped defaults, restored for the `facing/` fixture so it renders its own vicinity. */
+const DEFAULT_DEPTHS = { outgoingDepth: 1, incomingDepth: 1 };
 
 /** `facing` fixture (scripts/setup-dev-vault.sh): a folder-group box crowded from one side. */
 const FACING_HUB_PATH = "facing/hub-facing.md";
@@ -84,8 +89,9 @@ test.beforeAll(async () => {
 	harness = await ObsidianHarness.launch({ extraFixtures: ROUTING_FIXTURES });
 	page = harness.page;
 	await harness.openGraphView();
-	// `all-edges` so sibling chords (which can cross the hub) render and load the router.
-	await harness.setEdgeVisibility("all-edges");
+	// Depth 2 outgoing so the sibling chords (which can cross the hub) are WALKED,
+	// and therefore render and load the router. See the file header.
+	await harness.saveGlobalDepths(RING_DEPTHS);
 	await harness.openFile(HUB_PATH);
 	await expect(page.locator(EDGE_PATH_SELECTOR).first()).toBeAttached();
 });
@@ -227,6 +233,9 @@ test("WHEN routing runs THEN at least one edge bends around a node, and a screen
  * the far or flanking sides.
  */
 test("WHEN a folder group is crowded from one side THEN no edge attaches on a border facing away from the neighbours", async () => {
+	// This fixture is a DEFAULT-depth graph (the ring test above widened the depths
+	// globally); the next open picks the restored value up.
+	await harness.saveGlobalDepths(DEFAULT_DEPTHS);
 	await harness.openFile(FACING_HUB_PATH);
 	await expect(page.locator(`.vicinity-graph-group[data-folder="${FACING_GROUP_FOLDER}"]`)).toBeAttached();
 	// Poll for READINESS only (terminals present), so the settle is condition-driven

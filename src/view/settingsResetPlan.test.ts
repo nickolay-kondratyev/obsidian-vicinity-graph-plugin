@@ -19,8 +19,6 @@ const TUNED_VIEW: ViewSettings = {
 	nodeCap: 17,
 	outlineMaxDepth: 5,
 	nodePreviewPreference: "image",
-	groupByFolder: false,
-	edgeVisibility: "all-edges",
 	sizing: {
 		...EngineDefaults.sizingSettings(),
 		metrics: {

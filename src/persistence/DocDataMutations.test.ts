@@ -32,8 +32,8 @@ describe("DocDataMutations pin-on-toggle semantics", () => {
 	});
 
 	it("WHEN the last pinned field is removed THEN the whole sub-object disappears", () => {
-		const pinned = DocDataMutations.setViewField(empty, "groupByFolder", false);
-		const reverted = DocDataMutations.setViewField(pinned, "groupByFolder", undefined);
+		const pinned = DocDataMutations.setViewField(empty, "nodeCap", 10);
+		const reverted = DocDataMutations.setViewField(pinned, "nodeCap", undefined);
 		expect(reverted).toEqual({ version: PERSISTED_SHAPE_VERSION });
 	});
 });

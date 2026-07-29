@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-	DEFAULT_EDGE_VISIBILITY,
 	DEFAULT_INCOMING_DEPTH,
 	DEFAULT_MAX_NODE_PX,
 	DEFAULT_MIN_NODE_PX,
@@ -66,8 +65,6 @@ describe("SETTINGS_SPEC (single source of truth for defaults + limits)", () => {
 			nodeCap: view.nodeCap.default,
 			outlineMaxDepth: view.outlineMaxDepth.default,
 			nodePreviewPreference: view.nodePreviewPreference.default,
-			groupByFolder: view.groupByFolder.default,
-			edgeVisibility: view.edgeVisibility.default,
 			sizing: {
 				metrics: Object.fromEntries(
 					Object.entries(view.sizing.metrics).map(([id, m]) => [id, m.default]),
@@ -96,8 +93,6 @@ describe("SETTINGS_SPEC (single source of truth for defaults + limits)", () => {
 			nodeCap: 100,
 			outlineMaxDepth: 2,
 			nodePreviewPreference: "auto",
-			groupByFolder: true,
-			edgeVisibility: "walked-from-center",
 			sizing: {
 				metrics: {
 					"own-file-size": { enabled: true, weight: 1 },
@@ -134,8 +129,6 @@ describe("SETTINGS_SPEC (single source of truth for defaults + limits)", () => {
 				step: view.outlineMaxDepth.step,
 			},
 			nodePreviewPreference: NO_SPEC_LIMITS,
-			groupByFolder: NO_SPEC_LIMITS,
-			edgeVisibility: NO_SPEC_LIMITS,
 			// `sizing` is a composite, so the ViewSpec-level guard cannot demand its
 			// leaves' bounds — they are pinned one level down instead.
 			sizing: {
@@ -175,8 +168,6 @@ describe("SETTINGS_SPEC (single source of truth for defaults + limits)", () => {
 			nodeCap: { min: 1 },
 			outlineMaxDepth: { min: 1, max: 6, step: 1 },
 			nodePreviewPreference: NO_SPEC_LIMITS,
-			groupByFolder: NO_SPEC_LIMITS,
-			edgeVisibility: NO_SPEC_LIMITS,
 			sizing: {
 				metrics: NO_SPEC_LIMITS,
 				metricWeight: { min: 0, max: 100, step: 0.5 },
@@ -203,8 +194,6 @@ describe("adapters derive from SETTINGS_SPEC", () => {
 			nodeCap: SETTINGS_SPEC.globalView.nodeCap.default,
 			outlineMaxDepth: SETTINGS_SPEC.globalView.outlineMaxDepth.default,
 			nodePreviewPreference: SETTINGS_SPEC.globalView.nodePreviewPreference.default,
-			groupByFolder: SETTINGS_SPEC.globalView.groupByFolder.default,
-			edgeVisibility: SETTINGS_SPEC.globalView.edgeVisibility.default,
 			sizing: EngineDefaults.sizingSettings(),
 			forceLayout: EngineDefaults.forceLayoutSettings(),
 		});
@@ -252,14 +241,12 @@ describe("adapters derive from SETTINGS_SPEC", () => {
 			DEFAULT_INCOMING_DEPTH,
 			DEFAULT_MIN_NODE_PX,
 			DEFAULT_MAX_NODE_PX,
-			DEFAULT_EDGE_VISIBILITY,
 		}).toEqual({
 			DEFAULT_NODE_CAP: 100,
 			DEFAULT_OUTGOING_DEPTH: 1,
 			DEFAULT_INCOMING_DEPTH: 1,
 			DEFAULT_MIN_NODE_PX: 40,
 			DEFAULT_MAX_NODE_PX: 160,
-			DEFAULT_EDGE_VISIBILITY: "walked-from-center",
 		});
 	});
 

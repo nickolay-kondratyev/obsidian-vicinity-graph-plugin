@@ -1,4 +1,4 @@
-import { EdgeVisibility } from "./EdgeVisibility";
+import { EdgeCounts } from "./EdgeCounts";
 import { GraphTruncator } from "./GraphTruncator";
 import type { LinkProvider } from "./LinkProvider";
 import { PathExclusionMatcher } from "./PathExclusionMatcher";
@@ -88,9 +88,7 @@ export class VicinityEngine {
 		}
 		return {
 			nodes,
-			edges: EdgeVisibility.edgesFor({
-				mode: viewSettings.edgeVisibility,
-				visiblePaths: truncation.visiblePaths,
+			edges: EdgeCounts.attach({
 				walkedVisibleEdges: truncation.visibleEdges,
 				provider: this.provider,
 			}),

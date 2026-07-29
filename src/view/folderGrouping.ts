@@ -29,14 +29,11 @@ const VAULT_ROOT_FOLDER = "";
 /**
  * CONTRACT: called independently by BOTH `elkMapping` (container structure)
  * and `flowMapping` (group nodes + parentIds) for the same graph, so it MUST
- * stay a pure, deterministic function of `(nodes, groupByFolder)` — any
- * call-site-dependent behavior (randomness, mutation, per-call sorting) would
- * silently desynchronize React Flow parentIds from the elk layout.
+ * stay a pure, deterministic function of `nodes` — any call-site-dependent
+ * behavior (randomness, mutation, per-call sorting) would silently
+ * desynchronize React Flow parentIds from the elk layout.
  */
-export function deriveFolderGroups(nodes: readonly GraphNode[], groupByFolder: boolean): FolderGroupingResult {
-	if (!groupByFolder) {
-		return { groups: [], groupFolderByMemberPath: new Map() };
-	}
+export function deriveFolderGroups(nodes: readonly GraphNode[]): FolderGroupingResult {
 	const memberPathsByFolder = new Map<FolderPath, string[]>();
 	for (const node of nodes) {
 		if (node.folder === VAULT_ROOT_FOLDER) {

@@ -1,7 +1,6 @@
 import type {
 	DepthOverride,
 	DepthSettings,
-	EdgeVisibilityMode,
 	ForceLayoutSettings,
 	NodeExclusionSettings,
 	SizeMetricId,
@@ -68,8 +67,6 @@ export interface DocData {
 	/** Depths of pinned centrals as adjusted while THIS doc was MAIN, keyed by central docid. */
 	readonly centralDepths?: Readonly<Record<string, DepthOverride>>;
 }
-
-const EDGE_VISIBILITY_MODES: readonly EdgeVisibilityMode[] = ["walked-from-center", "all-edges"];
 
 export class PersistedShapes {
 	static defaultPluginData(): PluginData {
@@ -139,7 +136,6 @@ function parseViewOverride(raw: unknown): ViewSettingsOverride {
 	if (!isRecord(raw)) {
 		return {};
 	}
-	const edgeVisibility = raw["edgeVisibility"];
 	const nodePreviewPreference = raw["nodePreviewPreference"];
 	const outlineMaxDepth = numberOrUndefined(raw["outlineMaxDepth"]);
 	return {
@@ -155,14 +151,6 @@ function parseViewOverride(raw: unknown): ViewSettingsOverride {
 		...definedOnly(
 			"nodePreviewPreference",
 			NODE_PREVIEW_PREFERENCES.find((preference) => preference === nodePreviewPreference),
-		),
-		...definedOnly(
-			"groupByFolder",
-			typeof raw["groupByFolder"] === "boolean" ? raw["groupByFolder"] : undefined,
-		),
-		...definedOnly(
-			"edgeVisibility",
-			EDGE_VISIBILITY_MODES.find((mode) => mode === edgeVisibility),
 		),
 		...definedOnly("sizing", parseSizing(raw["sizing"])),
 		...definedOnly("forceLayout", parseForceLayout(raw["forceLayout"])),

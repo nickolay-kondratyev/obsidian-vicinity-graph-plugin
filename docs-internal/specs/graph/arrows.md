@@ -8,8 +8,8 @@
 ## Group-collapsed arrows
 
 When many members of a folder group link to/from the same outside node, drawing
-one arrow per member is clutter. When `groupByFolder` is on we **collapse**
-cross-boundary edges onto the group box.
+one arrow per member is clutter, so we **collapse** cross-boundary edges onto the
+group box (folder grouping is always on).
 
 Projection (mirrors `projectedRootEdges` in `elkMapping.ts`; render side lives in
 `vicinityGraphToFlow`, `src/view/flowMapping.ts`):
@@ -107,7 +107,7 @@ the routed one instead of springing from a top/bottom handle.
 - Many members → one collapsed arrow; `count` = sum of member link counts.
 - `A→member` + `otherMember→A` → one bidirectional arrow.
 - Intra-group edges stay member-to-member (no group self-loop).
-- `groupByFolder` off → no projection, behavior unchanged.
+- A folder with fewer than 2 visible members → no group, so no projection.
 - Group with cross-boundary links in one direction only → single arrowhead.
 - Straight-edge facing-side anchors: target above/below/left/right/diagonal lands
   on the facing border, source anchor mirrors, paired bow drawn between the border

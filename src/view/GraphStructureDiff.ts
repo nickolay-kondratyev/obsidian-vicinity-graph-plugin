@@ -12,9 +12,7 @@ import { edgeIdOf } from "./graphIdentity";
  * exit criterion.
  *
  * `relayout`: first build, any structural change (a node or edge added/removed),
- * a `groupByFolder` flip (folder-group nodes appear/disappear, so preserved
- * positions would lack group entries and misplace nested children), a
- * force-layout tuning change (the sliders must re-run the layout live — reusing
+ * a force-layout tuning change (the sliders must re-run the layout live — reusing
  * positions would silently swallow the new values), or a surviving node whose
  * `sizePx` grew beyond the threshold. Structural changes accept layout jumps in
  * V1 (position seeding is V2).
@@ -27,9 +25,6 @@ export function decideLayout(
 	sizeGrowthThreshold: number,
 ): LayoutDecision {
 	if (previous === null) {
-		return "relayout";
-	}
-	if (previous.viewSettings.groupByFolder !== next.viewSettings.groupByFolder) {
 		return "relayout";
 	}
 	if (!sameForceLayout(previous.viewSettings.forceLayout, next.viewSettings.forceLayout)) {

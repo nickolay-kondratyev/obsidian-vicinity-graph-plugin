@@ -53,7 +53,7 @@ function customSizing(minPx: number): SizingSettings {
 	return { ...EngineDefaults.sizingSettings(), minPx };
 }
 
-// GIVEN the global view settings (cap 100, groupByFolder true, default sizing)
+// GIVEN the global view settings (cap 100, default sizing)
 describe("ViewSettingsResolver cascade layers", () => {
 	const global: ViewSettings = EngineDefaults.viewSettings();
 
@@ -74,16 +74,16 @@ describe("ViewSettingsResolver cascade layers", () => {
 		const resolved = ViewSettingsResolver.resolve({
 			global,
 			mainOverride: { nodeCap: 25 },
-			pinnedOverrides: [pinned("p.md", "docid_p_e", 100, { groupByFolder: false })],
+			pinnedOverrides: [pinned("p.md", "docid_p_e", 100, { nodePreviewPreference: "image" })],
 		});
-		expect(resolved.groupByFolder).toBe(false);
+		expect(resolved.nodePreviewPreference).toBe("image");
 	});
 
 	it("WHEN neither MAIN nor pinned docs pin a field THEN global supplies it", () => {
 		const resolved = ViewSettingsResolver.resolve({
 			global,
 			mainOverride: { nodeCap: 25 },
-			pinnedOverrides: [pinned("p.md", "docid_p_e", 100, { groupByFolder: false })],
+			pinnedOverrides: [pinned("p.md", "docid_p_e", 100, { nodePreviewPreference: "image" })],
 		});
 		expect(resolved.sizing).toEqual(global.sizing);
 	});
@@ -91,11 +91,6 @@ describe("ViewSettingsResolver cascade layers", () => {
 	it("WHEN MAIN pins the sizing object THEN the whole sizing field is taken from MAIN", () => {
 		const resolved = ViewSettingsResolver.resolve({ global, mainOverride: { sizing: customSizing(5) } });
 		expect(resolved.sizing.minPx).toBe(5);
-	});
-
-	it("WHEN a boolean field is pinned to false THEN false is honored (presence = pinned)", () => {
-		const resolved = ViewSettingsResolver.resolve({ global, mainOverride: { groupByFolder: false } });
-		expect(resolved.groupByFolder).toBe(false);
 	});
 
 	it("WHEN MAIN pins the forceLayout object THEN the whole forceLayout field is taken from MAIN", () => {
@@ -113,22 +108,6 @@ describe("ViewSettingsResolver cascade layers", () => {
 		expect(resolved.forceLayout.repelStrength).toBe(500);
 	});
 
-	it("WHEN MAIN pins edgeVisibility THEN it beats both pinned docs and global", () => {
-		const resolved = ViewSettingsResolver.resolve({
-			global,
-			mainOverride: { edgeVisibility: "walked-from-center" },
-			pinnedOverrides: [pinned("p.md", "docid_p_e", 100, { edgeVisibility: "all-edges" })],
-		});
-		expect(resolved.edgeVisibility).toBe("walked-from-center");
-	});
-
-	it("WHEN only a pinned doc pins edgeVisibility THEN it fills the gap", () => {
-		const resolved = ViewSettingsResolver.resolve({
-			global,
-			pinnedOverrides: [pinned("p.md", "docid_p_e", 100, { edgeVisibility: "walked-from-center" })],
-		});
-		expect(resolved.edgeVisibility).toBe("walked-from-center");
-	});
 });
 
 describe("ViewSettingsResolver multi-pin conflicts (via the shared priority chain)", () => {
@@ -161,23 +140,23 @@ describe("ViewSettingsResolver multi-pin conflicts (via the shared priority chai
 			global,
 			pinnedOverrides: [
 				pinned("winner.md", "docid_w_e", 200, { nodeCap: 22 }),
-				pinned("runnerup.md", "docid_r_e", 100, { groupByFolder: false }),
+				pinned("runnerup.md", "docid_r_e", 100, { nodePreviewPreference: "image" }),
 			],
 		});
-		expect(resolved.groupByFolder).toBe(false);
+		expect(resolved.nodePreviewPreference).toBe("image");
 	});
 
 	it("WHEN fields come from three layers at once THEN each field resolves independently", () => {
 		const resolved = ViewSettingsResolver.resolve({
 			global,
 			mainOverride: { nodeCap: 25 },
-			pinnedOverrides: [pinned("p.md", "docid_p_e", 100, { groupByFolder: false })],
+			pinnedOverrides: [pinned("p.md", "docid_p_e", 100, { nodePreviewPreference: "image" })],
 		});
 		expect({
 			nodeCap: resolved.nodeCap,
-			groupByFolder: resolved.groupByFolder,
+			nodePreviewPreference: resolved.nodePreviewPreference,
 			sizingFromGlobal: resolved.sizing === global.sizing,
-		}).toEqual({ nodeCap: 25, groupByFolder: false, sizingFromGlobal: true });
+		}).toEqual({ nodeCap: 25, nodePreviewPreference: "image", sizingFromGlobal: true });
 	});
 });
 

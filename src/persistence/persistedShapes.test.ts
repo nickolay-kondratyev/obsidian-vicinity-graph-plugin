@@ -37,11 +37,6 @@ describe("PersistedShapes.parsePluginData", () => {
 		expect(PersistedShapes.parsePluginData(raw).pins).toEqual([{ docid: "docid_ok_e", pinTimestamp: 5 }]);
 	});
 
-	it("WHEN globalView carries an unknown edgeVisibility THEN the default mode survives", () => {
-		const raw = { version: PERSISTED_SHAPE_VERSION, globalView: { edgeVisibility: "rainbow" } };
-		expect(PersistedShapes.parsePluginData(raw).globalView.edgeVisibility).toBe("walked-from-center");
-	});
-
 	it("WHEN globalView carries a valid nodePreviewPreference THEN it round-trips", () => {
 		const raw = { version: PERSISTED_SHAPE_VERSION, globalView: { nodePreviewPreference: "outline" } };
 		expect(PersistedShapes.parsePluginData(raw).globalView.nodePreviewPreference).toBe("outline");
@@ -75,6 +70,19 @@ describe("PersistedShapes.parsePluginData", () => {
 		const raw = { version: PERSISTED_SHAPE_VERSION, globalView: { layoutMode: "radial", nodeCap: 7 } };
 		const parsed = PersistedShapes.parsePluginData(raw).globalView;
 		expect(parsed).not.toHaveProperty("layoutMode");
+		expect(parsed.nodeCap).toBe(7);
+	});
+
+	it("WHEN globalView carries the removed groupByFolder/edgeVisibility fields THEN they are ignored without error", () => {
+		// Both were orphan settings with no UI: grouping is always on and only walked
+		// edges render, so old persisted values are dropped and the rest survives.
+		const raw = {
+			version: PERSISTED_SHAPE_VERSION,
+			globalView: { groupByFolder: false, edgeVisibility: "all-edges", nodeCap: 7 },
+		};
+		const parsed = PersistedShapes.parsePluginData(raw).globalView;
+		expect(parsed).not.toHaveProperty("groupByFolder");
+		expect(parsed).not.toHaveProperty("edgeVisibility");
 		expect(parsed.nodeCap).toBe(7);
 	});
 
@@ -234,7 +242,7 @@ describe("PersistedShapes.parseDocData", () => {
 		const doc = {
 			version: PERSISTED_SHAPE_VERSION,
 			depths: { outgoingDepth: 2 },
-			view: { nodeCap: 10, groupByFolder: false },
+			view: { nodeCap: 10, nodePreviewPreference: "outline" },
 			centralDepths: { docid_c_e: { incomingDepth: 0 } },
 		};
 		expect(PersistedShapes.parseDocData(JSON.parse(JSON.stringify(doc)))).toEqual(doc);

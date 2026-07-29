@@ -417,10 +417,6 @@ describe("GraphViewController step-05 snapshot extras", () => {
 		return h.snapshot();
 	}
 
-	it("WHEN a build renders THEN the snapshot forwards the resolved groupByFolder flag", async () => {
-		expect((await readySnapshot()).groupByFolder).toBe(true);
-	});
-
 	it("WHEN a grouped folder renders THEN the snapshot contains its folder-group node", async () => {
 		expect(nodeIds(await readySnapshot())).toContain("folder-group:notes");
 	});
