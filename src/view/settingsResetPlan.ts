@@ -1,5 +1,7 @@
 import { EngineDefaults, SETTINGS_SPEC } from "../engine";
 import { NODE_PREVIEW_OPTION_META } from "./nodePreviewPreferenceMeta";
+import type { SettingsSection } from "./settingsSectionFields";
+import { SECTION_SETTINGS_FIELDS, SETTINGS_SECTIONS } from "./settingsSectionFields";
 import type { SettingsCommand, SettingsWriteContext } from "./settingsWritePlan";
 
 /**
@@ -19,15 +21,16 @@ import type { SettingsCommand, SettingsWriteContext } from "./settingsWritePlan"
  * HERE next to the key-set it clears — the two cannot drift.
  */
 
-/** One reset affordance: the six per-section scopes plus the tab-wide one. */
-export type SettingsResetScope =
-	| "depth-defaults"
-	| "node-sizing"
-	| "node-contents"
-	| "force-layout"
-	| "node-exclusion"
-	| "performance"
-	| "all";
+/**
+ * One reset affordance: the six per-section scopes plus the tab-wide one.
+ *
+ * WHY-NOT `SettingsSection | typeof ALL_SETTINGS_RESET_SCOPE`:
+ * `ALL_SETTINGS_RESET_SCOPE` is declared as `"all" satisfies SettingsResetScope`,
+ * so referring to its `typeof` here closes a cycle (`TS2456` + `TS7022`). The
+ * literal keeps the two in lockstep just as well, because that `satisfies` still
+ * checks the constant against this union.
+ */
+export type SettingsResetScope = SettingsSection | "all";
 
 /**
  * Copy for the "are you sure?" step of a reset — the exact shape
@@ -71,25 +74,68 @@ const ALL_SCOPE_DESCRIPTION =
 
 const EXCLUSION_SCOPE_LABEL = "Restore node exclusion defaults";
 
+/** `current`, with every listed key restored from `defaults`. Siblings untouched. */
+type Mutable<T> = { -readonly [K in keyof T]: T[K] };
+function restoreFields<T extends object>(current: T, defaults: T, keys: readonly (keyof T)[]): T {
+	// The cast only strips `readonly` off a generic; every write below is to a key
+	// of T with a value of T's own type for that key.
+	const restored = { ...current } as Mutable<T>;
+	for (const key of keys) {
+		restored[key] = defaults[key];
+	}
+	return restored;
+}
+
 /**
- * WHY whole-object `global-view` writes with the untouched fields carried over:
+ * The commands one SECTION's reset emits, DERIVED from the section's declared
+ * key set ({@link SECTION_SETTINGS_FIELDS}) — so a field that gains a home in a
+ * card automatically gains a scoped restore, and the two cannot drift.
+ *
+ * WHY whole-object writes with the untouched fields carried over:
  * `saveGlobalView` persists the complete object, exactly as the per-field
  * settings writes do (`planSettingsWrite`) — merging here keeps sibling sections
  * byte-identical across a reset.
+ *
+ * Emission order is view → depth → exclusion. It IS observable: `applyReset`
+ * awaits each command in turn and each is a full `data.json` rewrite. Every
+ * section today owns fields of exactly ONE family, so this order reproduces the
+ * hand-written plans byte-for-byte; the order is pinned here for the day a
+ * section spans families.
  */
+function planSectionReset(section: SettingsSection, ctx: SettingsWriteContext): readonly SettingsCommand[] {
+	const fields = SECTION_SETTINGS_FIELDS[section];
+	const commands: SettingsCommand[] = [];
+	if (fields.view.length > 0) {
+		commands.push({
+			kind: "global-view",
+			view: restoreFields(ctx.globalView, EngineDefaults.viewSettings(), fields.view),
+		});
+	}
+	if (fields.depth.length > 0) {
+		commands.push({
+			kind: "global-depths",
+			depths: restoreFields(ctx.globalDepths, EngineDefaults.depthSettings(), fields.depth),
+		});
+	}
+	if (fields.exclusion.length > 0) {
+		commands.push({
+			kind: "node-exclusion",
+			nodeExclusion: restoreFields(ctx.nodeExclusion, EngineDefaults.nodeExclusionSettings(), fields.exclusion),
+		});
+	}
+	return commands;
+}
 export const SETTINGS_RESET_SCOPES: Readonly<Record<SettingsResetScope, SettingsResetScopeSpec>> = {
 	"depth-defaults": {
 		label: "Restore depth defaults",
 		description: "Resets the default outgoing and incoming depth. Per-note depth overrides are kept.",
-		plan: () => [{ kind: "global-depths", depths: EngineDefaults.depthSettings() }],
+		plan: (ctx) => planSectionReset("depth-defaults", ctx),
 	},
 	"node-sizing": {
 		label: "Restore node sizing defaults",
 		description:
 			"Resets every sizing metric and weight, the minimum and maximum node size, and the depth decay k.",
-		plan: (ctx) => [
-			{ kind: "global-view", view: { ...ctx.globalView, sizing: EngineDefaults.sizingSettings() } },
-		],
+		plan: (ctx) => planSectionReset("node-sizing", ctx),
 	},
 	"node-contents": {
 		label: "Restore node contents defaults",
@@ -98,16 +144,7 @@ export const SETTINGS_RESET_SCOPES: Readonly<Record<SettingsResetScope, Settings
 		description:
 			`Resets the outline depth to ${SETTINGS_SPEC.globalView.outlineMaxDepth.default} heading levels ` +
 			`and the node preview to ${NODE_PREVIEW_OPTION_META[SETTINGS_SPEC.globalView.nodePreviewPreference.default].label}.`,
-		plan: (ctx) => [
-			{
-				kind: "global-view",
-				view: {
-					...ctx.globalView,
-					outlineMaxDepth: SETTINGS_SPEC.globalView.outlineMaxDepth.default,
-					nodePreviewPreference: SETTINGS_SPEC.globalView.nodePreviewPreference.default,
-				},
-			},
-		],
+		plan: (ctx) => planSectionReset("node-contents", ctx),
 	},
 	"force-layout": {
 		label: "Restore force layout defaults",
@@ -115,14 +152,12 @@ export const SETTINGS_RESET_SCOPES: Readonly<Record<SettingsResetScope, Settings
 		// (edge-routing__06) because no test asserts it. Naming the GROUPS instead of
 		// counting them keeps it true as fields are added.
 		description: "Resets every force layout slider, including the ones under Advanced spacing.",
-		plan: (ctx) => [
-			{ kind: "global-view", view: { ...ctx.globalView, forceLayout: EngineDefaults.forceLayoutSettings() } },
-		],
+		plan: (ctx) => planSectionReset("force-layout", ctx),
 	},
 	"node-exclusion": {
 		label: EXCLUSION_SCOPE_LABEL,
 		description: "Turns exclusion off and deletes every exclusion pattern.",
-		plan: () => [{ kind: "node-exclusion", nodeExclusion: EngineDefaults.nodeExclusionSettings() }],
+		plan: (ctx) => planSectionReset("node-exclusion", ctx),
 		/**
 		 * The ONE section reset that destroys user-authored CONTENT (hand-written
 		 * regexes), not a numeric knob — and the tab hides the patterns textarea
@@ -147,15 +182,16 @@ export const SETTINGS_RESET_SCOPES: Readonly<Record<SettingsResetScope, Settings
 	performance: {
 		label: "Restore performance defaults",
 		description: `Resets the node cap to ${SETTINGS_SPEC.globalView.nodeCap.default}.`,
-		plan: (ctx) => [
-			{ kind: "global-view", view: { ...ctx.globalView, nodeCap: SETTINGS_SPEC.globalView.nodeCap.default } },
-		],
+		plan: (ctx) => planSectionReset("performance", ctx),
 	},
 	all: {
 		label: ALL_SCOPE_LABEL,
 		description: ALL_SCOPE_DESCRIPTION,
-		// Whole-slice writes (NOT a merge): this is the one scope that must also
-		// clear persisted view fields the tab exposes no control for.
+		// Whole-slice writes (NOT a merge, and deliberately NOT derived from the
+		// section map): this is the one scope that must also clear persisted view
+		// fields the tab exposes no control for. Deriving it would make it only as
+		// complete as the section map — precisely the thing it exists to be
+		// independent of.
 		plan: () => [
 			{ kind: "global-depths", depths: EngineDefaults.depthSettings() },
 			{ kind: "global-view", view: EngineDefaults.viewSettings() },
@@ -175,22 +211,37 @@ export const SETTINGS_RESET_SCOPES: Readonly<Record<SettingsResetScope, Settings
  * The per-section scopes, in settings-tab render order. Each settings-tab card
  * ends with exactly one of these (obsidian-settings: a section reset must live
  * INSIDE the boundary it resets).
+ *
+ * Now an alias of {@link SETTINGS_SECTIONS} — the sections and the per-section
+ * reset scopes are the same six cards seen from two sides, so one list defines
+ * both. A value binding rather than `export { … } from`, for `isolatedModules`.
+ *
+ * DEBT, deliberately taken: this leaves two exported names for one tuple, and
+ * `SettingsSection` / {@link SettingsResetScope} for one union. Collapsing them
+ * means editing the e2e harness and a behaviour-capturing test in the same
+ * change that refactors the code they check — the coupling this ticket's
+ * zero-test-edit proof exists to avoid. Follow-up ticket filed for ticket 4.
  */
-export const SECTION_RESET_SCOPES = [
-	"depth-defaults",
-	"node-sizing",
-	"node-contents",
-	"force-layout",
-	"node-exclusion",
-	"performance",
-] as const satisfies readonly SettingsResetScope[];
+export const SECTION_RESET_SCOPES = SETTINGS_SECTIONS;
 
 /** The tab-wide scope, rendered once at the bottom behind a confirmation modal. */
 export const ALL_SETTINGS_RESET_SCOPE = "all" satisfies SettingsResetScope;
 
 /**
- * Compile-time completeness: a new scope that is neither a section reset nor the
- * tab-wide one surfaces here as a type error naming the orphaned scope.
+ * TAUTOLOGICAL BY CONSTRUCTION as of the descriptor-model ticket, and kept
+ * deliberately: with {@link SettingsResetScope} derived from
+ * {@link SETTINGS_SECTIONS}, `UnplacedScope` cannot be anything but `never`, so
+ * this can no longer fail.
+ *
+ * What carries the guarantee now is the
+ * `Readonly<Record<SettingsResetScope, SettingsResetScopeSpec>>` annotation on
+ * {@link SETTINGS_RESET_SCOPES} — which is STRICTLY STRONGER, because it also
+ * forces a reset spec for a newly added SECTION (previously unguarded).
+ *
+ * Retained rather than deleted so it goes live again the moment the scope union
+ * and the section list are ever decoupled. Annotated rather than left silent
+ * because a guard that cannot fail while READING as protection is a POLS
+ * violation.
  */
 type PlacedScope = (typeof SECTION_RESET_SCOPES)[number] | typeof ALL_SETTINGS_RESET_SCOPE;
 type UnplacedScope = Exclude<SettingsResetScope, PlacedScope>;
