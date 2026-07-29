@@ -89,7 +89,8 @@ The owner approved the larger rewrite on 2026-07-29.
 |---|--------|------|-------------------|
 | 1 | `nid_niz5dz6uqeyv237ckm15ittqa_e` | Delete orphan fields `groupByFolder` + `edgeVisibility` (owner decided: DELETE) | Shrink the field surface *before* building descriptors — don't pay descriptor cost for dead fields. |
 | 2 | `nid_wimjq4ewgbg21n4zx9d4qq3a0_e` | **Descriptor model**: one declarative field descriptor drives spec, type, defaults, parse, write plan, reset scope | The foundation everything else derives from. Primary invariant: absent override = "inherit". |
-| 3 | `nid_m5hxe4eo9jgt7cfic7s2o3uvi_e` | **Write/refresh pipeline**: one serial chain, fresh-read writes, reset drains queue, one fan-out rule | Fixes 4 symptom bugs that share one cause. Before presenters, so presenters wire to the final write path once. |
+| 2.5 | `nid_ez38gf1mrdgh5kxedzrdicwzl_e` | **Per-doc removal**: delete all per-doc saved state (doc-data/ files, per-doc depth/view overrides, per-central `centralDepths`); settings become GLOBAL-only; pins stay GLOBAL | Owner decision 2026-07-29. Before the pipeline/presenters/tests so they are built against the global-only model instead of carrying per-doc arms that would then be deleted. Subsumes the sibling-views-stale legacy ticket and obsoletes the doc-data dir-name constant ticket. |
+| 3 | `nid_m5hxe4eo9jgt7cfic7s2o3uvi_e` | **Write/refresh pipeline**: one serial chain, fresh-read writes, reset drains queue, one fan-out rule (global-only after 2.5) | Fixes the remaining symptom bugs that share one cause. Before presenters, so presenters wire to the final write path once. |
 | 4 | `nid_armoson86j0ii8c33r1odo1rc_e` | **Dual presenters**: tab + in-graph panel render one descriptor model | Needs descriptors (rows as data) and the pipeline (writes). Unblocks 4 UX satellite tickets. |
 | 5 | `nid_x6hgehsu5il1d1shuraz3ufqy_e` | **Spec-driven tests**: iterate the descriptor list instead of hand-enumerated literals; parity test tab-vs-panel | Needs the final shape of 2–4 to pin against. |
 | 6 | `nid_fay1hu5sxcoygizopkkg0f0d7_e` | **Embedded-outgoing-link depth field** — first new field added under the new model, WITH cost measurement | The proof step (absorbed former E5): record files/lines cost vs the ~15-file baseline. Last, so the measurement is honest. |
@@ -97,7 +98,8 @@ The owner approved the larger rewrite on 2026-07-29.
 ```mermaid
 graph LR
   niz[1 delete orphan fields] --> desc[2 descriptor model]
-  desc --> pipe[3 write/refresh pipeline]
+  desc --> perdoc[2.5 per-doc removal: global-only]
+  perdoc --> pipe[3 write/refresh pipeline]
   desc --> pres[4 dual presenters]
   pipe --> pres
   pipe --> tests[5 spec-driven tests]
@@ -108,11 +110,17 @@ graph LR
 
 ## Satellite tickets (blocked on the chain)
 
+- Behind **per-doc removal (2.5)**: `nid_7fq9y51mbucmduzf9z31hmwmq_e` (doc-data
+  dir constant — obsolete once the dir is deleted; close with 2.5). Legacy-file
+  ticket subsumed by (2.5), close when it lands:
+  `docs-internal/tickets/ticket-per-doc-write-leaves-sibling-views-stale.md`
+  (per-doc writes cease to exist). Re-verify after 2.5:
+  `docs-internal/tickets/ticket-pinned-central-status-lags-after-restart.md`
+  (pins stay global, so it likely survives).
 - Behind **pipeline (3)**: `nid_8b97fdqznqsncc5kgya1p871w_e` (reset display()
   races queued write), `nid_4zffe7mj5p1eabi9m6wfh06k0_e` (three hand-rolled
-  serial chains → one helper). Legacy-file tickets subsumed by (3), close when
-  it lands: `docs-internal/tickets/ticket-per-doc-write-leaves-sibling-views-stale.md`,
-  `docs-internal/tickets/ticket-controls-optimistic-input-latency.md`.
+  serial chains → one helper). Legacy-file ticket subsumed by (3), close when
+  it lands: `docs-internal/tickets/ticket-controls-optimistic-input-latency.md`.
 - Behind **presenters (4)**: `nid_1rslube8at5xj60ji4jeve0b0_e` (Depth group),
   `nid_qp56jugz8en8wkgjirwcb269p_e` (exclusion row disabled-not-hidden),
   `nid_klkdpmx6axf90y4xj8khwrlf2_e` (panel outline-depth control),
@@ -125,15 +133,23 @@ graph LR
   (new intra-group spacing field — add it under the new model, not the old).
 
 Independent (no reason to block): `nid_aau4r0sj8oudhi711qr9j5x1l_e` (nodeCap
-upper bound), `nid_uwnew3dok0gn8ijar54hiozst_e` (pre-release slider tuning),
-`nid_7fq9y51mbucmduzf9z31hmwmq_e` (doc-data dir constant).
+upper bound), `nid_uwnew3dok0gn8ijar54hiozst_e` (pre-release slider tuning).
 
 ## Standing owner decisions (2026-07-29)
 
+- **Global-only settings for now (2.5)** — all per-doc saved state (per-doc
+  depth/view overrides, per-viewing-doc `centralDepths`, the whole `doc-data/`
+  dir) is removed. Pins stay, and stay **global**; one global depth setting
+  drives MAIN and every pinned central (no per-central dials). Relevant specs
+  (`docs-internal/plan/high-level-plan.md`, `README.md` Depth/Pinning,
+  `docs-internal/architecture-map.md`) must be updated by the tickets touching
+  this — see `nid_ez38gf1mrdgh5kxedzrdicwzl_e`.
 - **Clean breaks on stored data while unpublished** — no migrations, no
   dual-key shims; announce resets in the release note (see `CLAUDE.md`).
 - **Absent override means "inherit"** — the ViewSettings vs ViewSettingsOverride
   split is the primary design constraint a naive descriptor rewrite would break.
+  After 2.5 this is scoped to descriptor/parse semantics — the per-doc override
+  *layer* itself no longer exists.
 - **Orphan fields**: delete `groupByFolder` + `edgeVisibility`, hardcode
   surviving behavior (grouping ON, edges `walked-from-center`).
 - **Exclusion patterns row**: always render, disabled when inapplicable —

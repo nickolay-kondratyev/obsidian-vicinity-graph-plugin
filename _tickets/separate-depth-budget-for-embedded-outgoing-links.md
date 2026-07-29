@@ -453,3 +453,12 @@ should be revisited rather than declared done.
 
 Be honest in the write-up -- a disappointing number here is the single most
 valuable signal the cleanup can produce.
+
+**2026-07-29T22:11:13Z**
+
+SCOPE CHANGE (owner, 2026-07-29): per-doc saved state (per-doc depths, per-central centralDepths, doc-data/ files) is removed by nid_ez38gf1mrdgh5kxedzrdicwzl_e before this ticket. Consequences for the settled decisions:
+- D2 rename shrinks to the GLOBAL depth keys only (globalDepths in data.json + engine/UI): linkDepthOut / embedDepthOut (new) / linkDepthIn. The per-doc `depths:{outgoingDepth}` and `centralDepths` JSON keys named in D2 no longer exist — no per-doc/per-central reset consequence, and the release-note line covers only global depth defaults.
+- The embedDepthOut field is GLOBAL-only: no per-central stepper (CentralDepthControls per-central dials are gone), so the 2→4 controls cost line in the research is void; the new channel gets one global control in each presenter.
+- parseDepthOverride / DepthOverride may no longer exist; the parse change lands in the global parse path.
+- MEASUREMENT MANDATE unchanged, but the baseline comparison should note the per-doc layer was removed separately so the cost delta is attributed honestly.
+Adjust the relevant spec sections (docs-internal/plan/high-level-plan.md depth cascade, README Depth section) as part of this ticket.

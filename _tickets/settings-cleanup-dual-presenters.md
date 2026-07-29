@@ -34,3 +34,7 @@ Carries the owner UX decision that exclusion patterns render always-but-disabled
 **2026-07-29T19:31:12Z**
 
 From the descriptor-model ticket (nid_wimjq4ewgbg21n4zx9d4qq3a0_e), a pointer for this ticket's row-copy table: NODE_PREVIEW_ROW_LABEL and NODE_PREVIEW_ROW_DESCRIPTION in src/view/nodePreviewPreferenceMeta.ts are row copy for a keyof ViewSettings field (nodePreviewPreference), so they belong in this ticket's row table — unlike NODE_PREVIEW_OPTION_META, which stays keyed by NodePreviewPreference and should NOT move. Recorded so this ticket finds them instead of re-authoring the strings. Also: the section->field map now lives at src/view/settingsSectionFields.ts (SECTION_SETTINGS_FIELDS); extend that shape (per-family key COLUMNS) rather than inventing a {family, key} row union.
+
+**2026-07-29T22:11:13Z**
+
+SCOPE CHANGE (owner, 2026-07-29): settings are GLOBAL-only before this ticket lands (nid_ez38gf1mrdgh5kxedzrdicwzl_e removes per-doc state, incl. per-pinned-central depth steppers in CentralDepthControls.tsx). The descriptor row model and both presenters therefore render GLOBAL rows only — no persistable/per-doc arms, no NOT_PERSISTABLE_NOTICE, no owned-layer pinned indicator on depth rows. Pins remain global and the Pinned centrals disclosure stays, but without per-central depth dials. Adjust any relevant specs/docs (README pinning section, high-level-plan) if this ticket touches them.

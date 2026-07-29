@@ -3,6 +3,12 @@
 **Status:** OPEN — surfaced by the step-06 restart-round-trip e2e (`e2e/controlsRestart.e2e.ts`).
 **Severity:** minor UX; no data loss — the pin IS persisted and reappears.
 
+> **2026-07-29 scope check:** the settings simplification
+> (`nid_ez38gf1mrdgh5kxedzrdicwzl_e`, global-only settings) keeps pins GLOBAL and
+> keeps `PathDocIdMap` + the (slimmed) sweep, so this defect likely survives it.
+> Re-verify after that ticket lands and adjust the "per-doc depth settings are
+> unaffected" remark below — per-doc depth settings will no longer exist.
+
 ## Observation
 
 After an Obsidian restart, a persisted pinned central renders as a plain `regular`

@@ -3,8 +3,8 @@ id: nid_7fq9y51mbucmduzf9z31hmwmq_e
 tags: [settings]
 title: "Share the `doc-data` dir name as one constant instead of 4+ literals"
 status: open
-deps: []
-links: []
+deps: [nid_ez38gf1mrdgh5kxedzrdicwzl_e]
+links: [nid_m5hxe4eo9jgt7cfic7s2o3uvi_e, nid_ez38gf1mrdgh5kxedzrdicwzl_e]
 created_iso: 2026-07-27T16:20:57Z
 status_updated_iso: 2026-07-27T16:20:57Z
 type: chore
@@ -32,3 +32,7 @@ One exported constant (e.g. `DOC_DATA_DIR_NAME` in `src/persistence/`) is the si
 **2026-07-27T16:28:51Z**
 
 Interim guard added while this refactor is deferred: `e2e/vaultCopyReseed.test.ts` cross-checks the `doc-data` literal in `src/main.ts` `docDataDirPath()` against the wipe in `e2e/obsidianHarness.ts` by source scan, so a plugin-side rename that the harness does not follow fails `npm test`. DELETE that file as part of this ticket — the shared constant makes it redundant (its doc comment says so and names this ticket id).
+
+**2026-07-29T22:11:26Z**
+
+SUBSUMED PENDING (2026-07-29): nid_ez38gf1mrdgh5kxedzrdicwzl_e (settings simplification, now a dep) deletes the doc-data/ dir entirely — per-doc saved state is being removed in favor of global-only settings. When that lands, close this ticket as obsolete (also delete the interim guard e2e/vaultCopyReseed.test.ts as part of that removal). Do not do the shared-constant refactor beforehand.

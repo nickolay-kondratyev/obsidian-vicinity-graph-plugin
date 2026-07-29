@@ -1,6 +1,12 @@
 # Ticket: a per-doc settings write leaves sibling views showing the same MAIN stale
 
-**Status:** OPEN — defect, small fix, needs a human call on the desired UX.
+**Status:** OPEN — SUPERSEDED PENDING: per-doc settings writes are being removed
+entirely by `nid_ez38gf1mrdgh5kxedzrdicwzl_e` (settings simplification: global-only
+settings, global pins — owner decision 2026-07-29). When that lands, per-doc write
+scope no longer exists and every write fans out globally, which deletes this defect
+by construction. **Close this ticket when that ticket lands**; do not fix piecemeal.
+(Previously slated to be merged into the write-pipeline ticket
+`nid_m5hxe4eo9jgt7cfic7s2o3uvi_e` — no longer the case.)
 **Origin:** IMPLEMENTATION_REVIEW of the controls global-refresh fan-out
 (ticket `nid_u36pqr4zljs44jt42lk9ln8ry_e`). That ticket's acceptance criteria
 explicitly required per-doc writes to keep their narrower behaviour, so this was
