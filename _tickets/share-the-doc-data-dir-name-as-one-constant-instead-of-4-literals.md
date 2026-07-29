@@ -1,5 +1,6 @@
 ---
 id: nid_7fq9y51mbucmduzf9z31hmwmq_e
+tags: [settings]
 title: "Share the `doc-data` dir name as one constant instead of 4+ literals"
 status: open
 deps: []

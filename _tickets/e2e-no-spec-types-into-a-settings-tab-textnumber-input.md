@@ -1,9 +1,10 @@
 ---
 id: nid_ek3wrqoh1rsftk6ulg836mghf_e
+tags: [settings]
 title: "e2e: no spec types into a settings-tab text/number input"
 status: open
-deps: []
-links: []
+deps: [nid_x6hgehsu5il1d1shuraz3ufqy_e]
+links: [nid_x6hgehsu5il1d1shuraz3ufqy_e]
 created_iso: 2026-07-27T17:45:00Z
 status_updated_iso: 2026-07-27T17:45:00Z
 type: task

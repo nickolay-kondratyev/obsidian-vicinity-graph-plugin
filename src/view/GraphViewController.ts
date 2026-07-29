@@ -307,6 +307,12 @@ export class GraphViewController {
 			this.routeCache = { signature, routes: clippedRoutes };
 			return clippedRoutes;
 		} catch (error: unknown) {
+			// WHY-NOT a typed failure channel on EdgeRouter.route(): this is its only consumer, and it
+			// treats every cause identically — warn once, drop the cache, fall back to straight edges.
+			// A discriminated result type would force all callers and both fakes to handle a union for
+			// zero behavioural gain. (Owner decision 2026-07-29.) Revisit ONLY if we want to RETRY
+			// wasm-init failures while still not retrying routing-contract violations — that is the one
+			// thing typing would unlock; named error subclasses would be the smallest way to get it.
 			this.warnRoutingFailureOncePerSignature(error);
 			this.routeCache = null;
 			return EMPTY_ROUTES;

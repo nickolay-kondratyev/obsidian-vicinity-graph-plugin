@@ -2,8 +2,8 @@
 id: nid_4zffe7mj5p1eabi9m6wfh06k0_e
 title: "DRY: three hand-rolled pre-caught serial promise chains — extract one shared helper"
 status: open
-deps: []
-links: []
+deps: [nid_m5hxe4eo9jgt7cfic7s2o3uvi_e]
+links: [nid_m5hxe4eo9jgt7cfic7s2o3uvi_e, nid_8b97fdqznqsncc5kgya1p871w_e]
 created_iso: 2026-07-27T23:42:49Z
 status_updated_iso: 2026-07-27T23:42:49Z
 type: chore

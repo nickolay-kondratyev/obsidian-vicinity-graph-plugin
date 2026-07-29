@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-29T17:27:37Z
 id: nid_bq5k5gx5k3112otsbz1u0h7ba_e
-title: "[decide] Degenerate boundary-clip chord could use facing-side anchors — measured value is ~0.5% of degenerate cases"
-status: open
+title: "Degenerate boundary-clip chord could use facing-side anchors — measured value is ~0.5% of degenerate cases"
+status: closed
 deps: []
 links: [nid_var2o7krxq7ribq3iofni3aw1_e]
 created_iso: 2026-07-27T21:38:41Z
-status_updated_iso: 2026-07-27T21:38:41Z
+status_updated_iso: 2026-07-29T17:27:37Z
 type: task
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
@@ -30,3 +31,21 @@ So the change would touch the ROUTED branch (explicitly out of this ticket's sco
 
 Accept the current behaviour (degenerate chord stays a raw centre→centre chord) and close this, OR implement the ~5-line change in `clipRouteToEndpointRects`: when `facingSideAnchorsFor(sourceRect, targetRect)` is non-null, emit those two points instead of the chord; keep the chord as the second fallback. If implemented it MUST be unit-tested in `src/view/edgeGeometry.test.ts` and the corner-overlap case checked for anchors landing inside the other box.
 
+
+## Notes
+
+**2026-07-29T17:27:00Z**
+
+DECISION (owner, 2026-07-29): CLOSE -- accepted behaviour. No code change beyond a WHY comment.
+
+The degenerate 2-point chord fallback in clipRouteToEndpointRects will NOT try facingSideAnchorsFor
+first. Rationale:
+- Measured: 0 of ~37,700 cases hit the 2-point chord branch. The two conditions are provably
+  mutually exclusive, and that is already pinned by a test in src/view/edgeGeometry.test.ts.
+- facingSideAnchorsFor deliberately returns null on backwards-ordered crossings, precisely to avoid
+  drawing a wrong-direction arrow. Using it here would reintroduce exactly that failure mode.
+- The only real win (191/37,600) sits in the 3-point ROUTED branch, which is outside this ticket's
+  stated scope, and there is no guarantee those anchors land outside both boxes.
+
+Action taken: WHY comment added next to the chordFallback in src/view/edgeGeometry.ts recording the
+measurement, so a future maintainer does not re-litigate this.

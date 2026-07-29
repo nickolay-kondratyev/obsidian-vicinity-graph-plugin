@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-29T17:15:10Z
 id: nid_g1zb4b06gew54gnwcn5hx237j_e
-title: "[decide] edges into a folder group stack onto 3 terminal points per side (pin fan-in)"
-status: open
+title: "edges into a folder group stack onto 3 terminal points per side (pin fan-in)"
+status: closed
 deps: []
 links: []
 created_iso: 2026-07-25T03:33:09Z
-status_updated_iso: 2026-07-25T03:33:09Z
+status_updated_iso: 2026-07-29T17:15:10Z
 type: feature
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
@@ -51,3 +52,18 @@ Prefer 1 if perf allows; it keeps the fix inside the routing model instead of pa
 **2026-07-26T15:30:39Z**
 
 [decide] Gated on a subjective visual judgement only the maintainer can make: with the now-existing fixture (e2e/edgeRouting.e2e.ts:31,55 — 'facing' folder group approached by 12 edges), is the 3-pins-per-side stacking objectionable on screen? If yes, second decision: more boundary pins (src/view/edgeRouting.ts BOUNDARY_PIN_SPECS:250-262) vs. a render-time spread heuristic in src/view/edgeGeometry.ts. If no, close as measured non-issue.
+
+**2026-07-29T17:15:10Z**
+
+DECISION (owner, 2026-07-29): CLOSE -- 3 pin points per group side is judged sufficient.
+
+No change to BOUNDARY_PIN_SPECS (src/view/edgeRouting.ts:250-262, the 12-entry list at 1/4, 1/2,
+3/4). This is closed on judgement, not on measurement: we have not seen stacking hurt on a real
+vault, and speculative tuning here carries a real perf risk (a past per-note 4-pin change caused a
+~64x regression: 8838ms vs 1450ms on the dense fixture).
+
+REOPEN TRIGGER: real-world vault usage where arrowhead stacking into a group side is visibly bad.
+If reopened, the first move is 5 pins/side (1/6..5/6) -- it keeps ONE source of truth for endpoints
+-- and the dense-fixture perf gate in e2e/edgeRoutingEval.e2e.ts must be re-measured. Render-time
+spread in src/view/edgeGeometry.ts is the fallback only if that gate moves; it makes routed paths
+and drawn endpoints diverge.

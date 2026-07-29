@@ -2,14 +2,14 @@
 id: nid_que9qloigra7ku2boh83qizz0_e
 title: "In-graph panel a11y nits: SizingNumber and ForceLayout restore button"
 status: open
-deps: []
-links: []
+deps: [nid_armoson86j0ii8c33r1odo1rc_e]
+links: [nid_1rslube8at5xj60ji4jeve0b0_e, nid_qp56jugz8en8wkgjirwcb269p_e, nid_armoson86j0ii8c33r1odo1rc_e, nid_klkdpmx6axf90y4xj8khwrlf2_e]
 created_iso: 2026-07-25T17:14:21Z
 status_updated_iso: 2026-07-25T17:14:21Z
 type: chore
 priority: 4
 assignee: CC_WITH-nickolaykondratyev
-tags: [a11y, view]
+tags: [a11y, view, settings]
 ---
 
 Inventoried while fixing ticket nid_5wiribg2mn0mqcr7ni4ya0cfe_e (settings-tab labels); deliberately out of that ticket's scope.

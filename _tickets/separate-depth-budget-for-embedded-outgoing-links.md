@@ -1,9 +1,10 @@
 ---
 id: nid_fay1hu5sxcoygizopkkg0f0d7_e
+tags: [settings]
 title: "Separate depth budget for embedded outgoing links (decisions settled)"
 status: open
-deps: [nid_8p0nn2g34d97finokwlz3u1dt_e]
-links: [nid_869bt9d9rlrbr8of1403dnmf3_e, nid_8p0nn2g34d97finokwlz3u1dt_e, nid_1rslube8at5xj60ji4jeve0b0_e]
+deps: [nid_8p0nn2g34d97finokwlz3u1dt_e, nid_wimjq4ewgbg21n4zx9d4qq3a0_e]
+links: [nid_869bt9d9rlrbr8of1403dnmf3_e, nid_8p0nn2g34d97finokwlz3u1dt_e, nid_1rslube8at5xj60ji4jeve0b0_e, nid_d57npvuvjk95n03c2xqgl3y6o_e]
 created_iso: 2026-07-28T17:29:00Z
 status_updated_iso: 2026-07-28T17:29:00Z
 type: task

@@ -2,14 +2,14 @@
 id: nid_klkdpmx6axf90y4xj8khwrlf2_e
 title: "Controls panel: mirror the Outline depth slider next to the new Preview pill"
 status: open
-deps: []
-links: []
+deps: [nid_armoson86j0ii8c33r1odo1rc_e]
+links: [nid_1rslube8at5xj60ji4jeve0b0_e, nid_qp56jugz8en8wkgjirwcb269p_e, nid_armoson86j0ii8c33r1odo1rc_e, nid_que9qloigra7ku2boh83qizz0_e]
 created_iso: 2026-07-25T03:52:21Z
 status_updated_iso: 2026-07-25T03:52:21Z
 type: feature
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
-tags: [ui]
+tags: [ui, settings]
 ---
 
 `node-content-preference` added a "Node contents" disclosure to the in-graph controls panel (`src/view/NodeContentsSection.tsx`) carrying ONLY the Preview pill. The settings tab's Node contents card has TWO fields: Preview and **Outline depth** (1-6). The panel still has no Outline-depth control at all, so the panel and the tab disagree about what "Node contents" contains.

@@ -1,6 +1,16 @@
 # Ticket: one settings LIMITS baseline is stale since the node-spacing change (RED on `main`)
 
-**Status:** OPEN — pre-existing test failure, now narrowed to **1 assertion**.
+**Status:** RESOLVED (verified 2026-07-29) — the assertion no longer fails.
+
+`npm test` is GREEN on `main`: 84 files, 1153 passed, 1 expected-fail. The specific drift this
+ticket tracked is gone — `SettingsSpec.ts:235` ships `linkStrengthFactor: { max: 4 }` and
+`SettingsSpec.test.ts:190` expects `max: 4`. They agree.
+
+WHY this is recorded rather than deleted: this file plus its sibling
+(`ticket-settings-spec-baseline-tests-stale-after-node-spacing-bump.md`) are the two concrete
+instances that justify settings-cleanup **E4** (`nid_x6hgehsu5il1d1shuraz3ufqy_e`) — hand-enumerated
+`toEqual` literals go stale every time a default moves. E4 replaces them with spec-iterating
+structural tests so this class of staleness stops recurring.
 **Origin:** commit `22bd5cb` "Adjust node spacing defaults and increase one of the max in
 settings" changed `SETTINGS_SPEC` values without re-pinning the baselines. Commit `a6668b5`
 re-pinned the **defaults** block only — the **limits** block was left behind.

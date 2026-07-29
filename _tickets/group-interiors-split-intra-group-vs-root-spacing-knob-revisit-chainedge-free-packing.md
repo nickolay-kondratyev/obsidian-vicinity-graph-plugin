@@ -1,5 +1,6 @@
 ---
 id: nid_zvoay26y4y9h1e2p2b1y9glfk_e
+tags: [settings]
 title: "Group interiors: split intra-group vs root spacing knob, revisit chain/edge-free packing"
 status: open
 deps: []

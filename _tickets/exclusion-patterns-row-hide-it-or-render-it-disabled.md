@@ -1,9 +1,9 @@
 ---
 id: nid_qp56jugz8en8wkgjirwcb269p_e
-title: "[decide] Exclusion patterns row: hide it, or render it disabled?"
+title: "Exclusion patterns row: hide it, or render it disabled?"
 status: open
-deps: []
-links: []
+deps: [nid_armoson86j0ii8c33r1odo1rc_e]
+links: [nid_1rslube8at5xj60ji4jeve0b0_e, nid_armoson86j0ii8c33r1odo1rc_e, nid_klkdpmx6axf90y4xj8khwrlf2_e, nid_que9qloigra7ku2boh83qizz0_e]
 created_iso: 2026-07-27T18:39:36Z
 status_updated_iso: 2026-07-27T18:39:36Z
 type: task
@@ -36,3 +36,30 @@ DOM contract to re-check first — these currently assume the row is ABSENT whil
 
 A decision is recorded (comment in `renderExclusion` / this ticket), and if the answer is "disabled": the row renders always, disabled while the toggle is off, with the e2e specs above updated to match and `npm run test:e2e` green.
 
+
+## Notes
+
+**2026-07-29T17:28:25Z**
+
+DECISION (owner, 2026-07-29): ALWAYS RENDER, DISABLED when the toggle is off.
+
+Use setDisabled(!enabled) -- the identical pattern already lives one section away in the same file
+(VicinityGraphSettingTab.ts:530,552, the sizing weight inputs), so this buys consistency for free.
+Delete the slot indirection and the "stale repaint" hazard that showExclusionPatterns documents.
+
+JUSTIFICATION IS CODE DELETION, NOT DISCOVERABILITY -- correcting an earlier overstatement in this
+ticket: the "Enable exclusion patterns" TOGGLE is always rendered, so searching "exclusion" finds
+that row either way. Only the textarea's own name/description is lost to settings search while off.
+That is a minor loss; the decision rests on removing the slot + repaint dance.
+
+Also note: the ticket body's claim "from Obsidian 1.13 a hidden row is dropped from global settings
+search" is UNVERIFIED -- the pinned typings do not expose the search indexer, and minAppVersion is
+1.12.4, so 1.13 search is above our floor regardless. Do not cite it as a reason.
+
+COSTS: update e2e/settingsResetVerify.e2e.ts:64,100, settingsUxVisual.e2e.ts MIN_NAMED_CONTROLS, and
+settingsDependentRows.e2e.ts. Replace the WHY-NOT comment at VicinityGraphSettingTab.ts:~403 that
+points at this ticket.
+
+In the new descriptor model (see settings-cleanup epics) this becomes a declarative disabledWhen
+flag rather than hand-written branching -- prefer landing it that way if the descriptor epic lands
+first.
