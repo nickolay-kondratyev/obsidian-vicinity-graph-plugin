@@ -4,8 +4,8 @@
  * Identity boundary (binding decision, see step-02 CLARIFICATION Q1):
  * - The engine keys EVERYTHING on vault file path ({@link VaultPath}).
  * - Docids ({@link DocId}) are opaque strings echoed through untouched; the
- *   step-03 adapter translates docid-keyed persisted inputs (pins, per-root
- *   depth overrides) to paths BEFORE they enter the engine.
+ *   step-03 adapter translates the docid-keyed persisted pinned set to paths
+ *   BEFORE it enters the engine.
  */
 
 /** Vault-relative file path — the engine's traversal key. Covers notes AND attachments. */
@@ -79,8 +79,8 @@ export interface CentralNodeDescriptor {
 
 /**
  * A pinned central. Carries a docid by contract: the step-03 adapter MUST
- * `await ensureDocId(...)` (obsidian-id-lib) BEFORE persisting a pin or a
- * per-doc override — a doc that cannot get a docid cannot be pinned.
+ * `await ensureDocId(...)` (obsidian-id-lib) BEFORE persisting a pin — a doc
+ * that cannot get a docid cannot be pinned.
  */
 export interface PinnedNodeDescriptor extends CentralNodeDescriptor {
 	readonly docid: DocId;
@@ -177,8 +177,8 @@ export const _assertEveryNodePreviewPreferenceListed: UnlistedPreference extends
 	true;
 
 // ---------------------------------------------------------------------------
-// Settings shapes (persisted by step-03; resolved by the engine's resolvers).
-// Per-field semantics everywhere: absence = inherit, presence = pinned.
+// Settings shapes (persisted by step-03 in `data.json`). GLOBAL-only: there is
+// no per-doc override layer — one value drives every root and every view.
 // ---------------------------------------------------------------------------
 
 /** Fully-resolved traversal depths for one root. */
@@ -201,19 +201,12 @@ export interface NodeExclusionSettings {
 }
 
 /**
- * Partial per-doc depth override (absence = inherit the global default).
- * `Partial<DepthSettings>` rather than a parallel interface, for the same reason
- * {@link ViewSettingsOverride} is: the two shapes then cannot drift field-for-field.
- */
-export type DepthOverride = Partial<DepthSettings>;
-
-/**
  * Single source of truth mapping a {@link Direction} to the depth field it controls
- * (`outgoing → outgoingDepth`, `incoming → incomingDepth`) on {@link DepthSettings} /
- * {@link DepthOverride}. Shared by the engine resolvers and the step-06 controls so
- * the mapping exists exactly once. POLS — trivially invertible.
+ * (`outgoing → outgoingDepth`, `incoming → incomingDepth`) on {@link DepthSettings}.
+ * Shared by the engine and the step-06 controls so the mapping exists exactly once.
+ * POLS — trivially invertible.
  */
-export const DIRECTION_DEPTH_FIELD: Readonly<Record<Direction, keyof DepthOverride>> = {
+export const DIRECTION_DEPTH_FIELD: Readonly<Record<Direction, keyof DepthSettings>> = {
 	outgoing: "outgoingDepth",
 	incoming: "incomingDepth",
 };
@@ -297,13 +290,6 @@ export interface ViewSettings {
 	readonly sizing: SizingSettings;
 	readonly forceLayout: ForceLayoutSettings;
 }
-
-/**
- * Partial view override (MAIN's or a pinned doc's). One resolvable field per
- * property; `sizing` is a single field in V1 (per-metric pinning would be
- * over-engineering until per-view overrides land).
- */
-export type ViewSettingsOverride = Partial<ViewSettings>;
 
 /** Final engine output consumed by steps 03/04. */
 export interface VicinityGraph {

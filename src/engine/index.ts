@@ -8,8 +8,7 @@
  * ## Typical consumption (steps 03/04)
  * 1. Implement {@link LinkProvider} (step-03 `ObsidianLinkProvider` and the
  *    canvas-fallback provider both satisfy it unchanged — keep it that way).
- * 2. Translate persisted docid-keyed inputs (pins, depth overrides) to
- *    path-keyed descriptors/maps.
+ * 2. Translate the persisted docid-keyed pinned set to path-keyed descriptors.
  * 3. `new VicinityEngine(provider).build(request)` per rebuild; render the
  *    returned {@link VicinityGraph} (nodes carry depth tags, attachments,
  *    first image and a diff-stable `sizePx`).
@@ -19,19 +18,22 @@
  * frontier nodes shows up only when the walk itself reached it. See
  * {@link EdgeCounts}.
  *
- * ## Adapter contract for pins / per-doc overrides (step-03, MUST honor)
- * A note that receives a pin or a per-doc override MUST have a docid: the
- * adapter `await`s obsidian-id-lib's `ensureDocId` BEFORE persisting the
- * override to disk. {@link PinnedNodeDescriptor} therefore requires `docid`
- * (and `pinTimestamp`). A doc whose `ensureDocId` returns null cannot be
- * pinned or carry per-doc settings. The engine never interprets docids — it
- * echoes them onto output nodes so consumers never re-map identities.
+ * ## Adapter contract for pins (step-03, MUST honor)
+ * A note that receives a pin MUST have a docid: the adapter `await`s
+ * obsidian-id-lib's `ensureDocId` BEFORE persisting the pin.
+ * {@link PinnedNodeDescriptor} therefore requires `docid` (and
+ * `pinTimestamp`). A doc whose `ensureDocId` returns null cannot be pinned. The
+ * engine never interprets docids — it echoes them onto output nodes so
+ * consumers never re-map identities.
+ *
+ * ## Settings are GLOBAL-only (owner decision 2026-07-29)
+ * There is no per-doc settings layer: `globalDepths` drives MAIN and every
+ * pinned root, `globalView` is used verbatim. Pins themselves stay global.
  */
 
 export type {
 	AttachmentRef,
 	CentralNodeDescriptor,
-	DepthOverride,
 	DepthSettings,
 	DepthTag,
 	DirectedLink,
@@ -51,7 +53,6 @@ export type {
 	SizingSettings,
 	VaultPath,
 	ViewSettings,
-	ViewSettingsOverride,
 } from "./types";
 export { asDocId, asFolderPath, asVaultPath, DIRECTION_DEPTH_FIELD, NODE_PREVIEW_PREFERENCES } from "./types";
 
@@ -76,9 +77,6 @@ export { EdgeCounts } from "./EdgeCounts";
 export type { EdgeCountsInput } from "./EdgeCounts";
 export { NodePriorityChain } from "./NodePriorityChain";
 export type { PriorityRankable } from "./NodePriorityChain";
-export { TraversalSettingsResolver } from "./TraversalSettingsResolver";
-export { ViewSettingsResolver } from "./ViewSettingsResolver";
-export type { PinnedViewOverride, ViewSettingsResolutionInput } from "./ViewSettingsResolver";
 
 export {
 	CENTRAL_SIZE_SCORE,
