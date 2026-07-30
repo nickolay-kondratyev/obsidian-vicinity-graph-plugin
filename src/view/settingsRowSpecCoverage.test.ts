@@ -45,6 +45,8 @@ function specLeafIdFor(control: SettingsRowControl): string {
 			return `globalView.sizing.${control.field}`;
 		case "node-preview":
 			return "globalView.nodePreviewPreference";
+		case "show-cross-links":
+			return "globalView.showCrossLinks";
 		case "outline-depth":
 			return "globalView.outlineMaxDepth";
 		case "force-layout":

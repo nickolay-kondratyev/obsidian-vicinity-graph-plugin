@@ -74,6 +74,7 @@ export interface ViewSpec {
 	readonly nodeCap: MinBoundedNumberSpec;
 	readonly outlineMaxDepth: BoundedNumberSpec;
 	readonly nodePreviewPreference: DefaultSpec<NodePreviewPreference>;
+	readonly showCrossLinks: DefaultSpec<boolean>;
 	readonly sizing: SizingSpec;
 	readonly forceLayout: ForceLayoutSpec;
 }
@@ -198,6 +199,14 @@ export const SETTINGS_SPEC: SettingsSpec = {
 		 * changes nothing on screen; `outline`/`image` are opt-in overrides.
 		 */
 		nodePreviewPreference: { default: "auto" },
+		/**
+		 * OFF preserves the walked-only graph this plugin shipped with (step-02
+		 * CLARIFICATION Q5, "the cleaner graph"): a link is an edge only where the BFS
+		 * reached it. ON is the opt-in denser reading — every link between two visible
+		 * nodes — which cannot be the default, because a dense vault turns a vicinity
+		 * into a hairball the moment it is switched on.
+		 */
+		showCrossLinks: { default: false },
 		sizing: {
 			/** `own-file-size` is the only default-on metric (step doc); the other four ship OFF. */
 			metrics: {

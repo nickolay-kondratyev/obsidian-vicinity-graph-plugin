@@ -70,7 +70,7 @@ const ALL_SCOPE_LABEL = "Restore all Vicinity Graph settings";
  * reads the label as "my pins are gone too".
  */
 const ALL_SCOPE_DESCRIPTION =
-	"Resets every Vicinity Graph setting — depth defaults, node sizing, node contents, force layout, node exclusion and performance — to its shipped default. Pinned notes are kept.";
+	"Resets every Vicinity Graph setting — depth defaults, edges, node sizing, node contents, force layout, node exclusion and performance — to its shipped default. Pinned notes are kept.";
 
 const EXCLUSION_SCOPE_LABEL = "Restore node exclusion defaults";
 
@@ -130,6 +130,13 @@ export const SETTINGS_RESET_SCOPES: Readonly<Record<SettingsResetScope, Settings
 		label: "Restore depth defaults",
 		description: "Resets the link and embed depths used for every central note.",
 		plan: (ctx) => planSectionReset("depth-defaults", ctx),
+	},
+	edges: {
+		label: "Restore edges defaults",
+		// Deliberately does not state WHICH way the toggle lands: that literal lives in
+		// `SETTINGS_SPEC` alone, and a re-typed one here could outlive a retune.
+		description: "Resets whether cross links — links between visible notes the graph never walked — are drawn.",
+		plan: (ctx) => planSectionReset("edges", ctx),
 	},
 	"node-sizing": {
 		label: "Restore node sizing defaults",

@@ -12,7 +12,7 @@ import type { SettingsResetScope } from "./settingsResetPlan";
 import { ALL_SETTINGS_RESET_SCOPE, SETTINGS_RESET_SCOPES } from "./settingsResetPlan";
 import type { SettingsResetTarget } from "./settingsResetSequence";
 import { SettingsResetSequence } from "./settingsResetSequence";
-import type { SettingsRowBounds, SettingsTrackAccessor } from "./settingsRowAccessors";
+import type { SettingsRowBounds, SettingsTrackAccessor, SettingsValueAccessor } from "./settingsRowAccessors";
 import { SettingsRowAccessors } from "./settingsRowAccessors";
 import type { SettingsGroup, SettingsRow, SettingsRowBlock, SettingsRowState } from "./settingsRows";
 import { SETTINGS_GROUPS, SettingsRowNames, isSettingsRowDisabled, unhandledRowControl } from "./settingsRows";
@@ -242,6 +242,9 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 				return;
 			case "node-preview":
 				this.addNodePreview(container, row, state);
+				return;
+			case "show-cross-links":
+				this.addToggleRow(container, row, SettingsRowAccessors.showCrossLinks(), state);
 				return;
 			case "outline-depth":
 				this.addSlider(container, row, SettingsRowAccessors.outlineDepth(), state);
@@ -654,6 +657,28 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 					return;
 				}
 				this.debounced.schedule(name, (writer) => writer.apply(accessor.interaction(value)));
+			});
+		});
+	}
+
+	/**
+	 * A row whose whole control is ONE boolean and nothing else on the tab depends on
+	 * it. `addExclusionToggle` stays separate precisely because it is NOT that: it
+	 * governs a dependent row and must flush that row's debounced edits first.
+	 */
+	private addToggleRow(
+		container: HTMLElement,
+		row: SettingsRow,
+		accessor: SettingsValueAccessor<boolean>,
+		state: SettingsRowState,
+	): void {
+		VicinityGraphSettingTab.row(container, row).addToggle((toggle) => {
+			// The row's only control, so the row name alone identifies it.
+			VicinityGraphSettingTab.nameToggle(toggle, SettingsRowNames.sole(row));
+			toggle.setValue(accessor.read(state)).onChange((enabled) => {
+				// No queue of its own: the pipeline plans from a FRESH read inside its
+				// serialised slot, so two fast clicks cannot plan from the same state.
+				void this.writes.apply(accessor.interaction(enabled));
 			});
 		});
 	}

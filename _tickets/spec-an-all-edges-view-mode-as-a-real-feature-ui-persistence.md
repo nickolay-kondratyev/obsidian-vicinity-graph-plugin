@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-30T09:51:20Z
 id: nid_puf4a4q6fgn5lpehh5dowfm1r_e
 title: "\"Show cross links\" setting — render links between visible nodes the walk never traversed"
-status: open
+status: closed
 deps: [nid_wimjq4ewgbg21n4zx9d4qq3a0_e, nid_armoson86j0ii8c33r1odo1rc_e]
 links: []
 created_iso: 2026-07-29T18:05:04Z
-status_updated_iso: 2026-07-29T18:05:04Z
+status_updated_iso: 2026-07-30T09:51:20Z
 type: feature
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
@@ -93,3 +94,13 @@ about node pairs with ZERO edge drawn because the BFS never traversed any link b
 The orphan `edgeVisibility` setting was deleted in nid_niz5dz6uqeyv237ckm15ittqa_e (it had no write
 path anywhere), taking `src/engine/EdgeVisibility.ts` with it. `EdgeCounts.attach` today is literally
 the surviving `walked-from-center` branch of that file.
+
+## Notes
+
+**2026-07-30T09:51:20Z**
+
+Shipped as a GLOBAL boolean (no cascade): CLAUDE.md's global-only settings model superseded the ticket's 'full cascade' line. Declared once in SETTINGS_SPEC (globalView.showCrossLinks, default false) + the row model (new 'Edges' section, row 'Show cross links'), so both presenters pick it up by construction. Engine: src/engine/CrossLinkSweep.ts (post-truncation induced subgraph), chosen in VicinityEngine.build; EdgeCounts still the sole multiplicity authority and its doc comment now describes the toggle.
+
+**2026-07-30T10:04:13Z**
+
+Post-close review iteration: the induced sweep initially REPLACED the walked edge set and read only the outgoing channel, so ON could drop an incoming-channel edge that OFF drew. Fixed in 647fb8e — CrossLinkSweep now seeds the accumulator with the walked visible edges, so ON = walked union induced by construction. Shipped as a GLOBAL boolean (the ticket's 'global/MAIN/pinned cascade' wording was stale; settings are global-only per CLAUDE.md). Row lives in a new 'Edges' settings section, endorsed on review. Commits c388a7c + 647fb8e; 1308 tests + tsc green.

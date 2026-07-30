@@ -62,6 +62,7 @@ describe("section resets together cover every settings field", () => {
 			nodeCap: 17,
 			outlineMaxDepth: 5,
 			nodePreviewPreference: "image",
+			showCrossLinks: true,
 			sizing: { ...EngineDefaults.sizingSettings(), minPx: 11, maxPx: 999 },
 			forceLayout: { ...EngineDefaults.forceLayoutSettings(), repelStrength: 900 },
 		},

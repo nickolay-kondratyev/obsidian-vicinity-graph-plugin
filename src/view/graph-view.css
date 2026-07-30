@@ -752,7 +752,8 @@
 	box-shadow: var(--shadow-s);
 	cursor: help; /* title tooltip explains the count */
 }
-.vicinity-graph-exclusion__toggle-row {
+/* EVERY panel row that is one label beside one switch (exclusion, cross links). */
+.vicinity-graph-toggle-row {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;

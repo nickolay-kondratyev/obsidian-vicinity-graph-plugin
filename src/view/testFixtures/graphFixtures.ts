@@ -39,6 +39,7 @@ function makeViewSettings(): ViewSettings {
 		nodeCap: 100,
 		outlineMaxDepth: 2,
 		nodePreviewPreference: "auto",
+		showCrossLinks: false,
 		sizing: {
 			metrics: {
 				"own-file-size": { enabled: true, weight: 1 },

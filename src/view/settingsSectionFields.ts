@@ -16,9 +16,14 @@ import type { DepthSettings, NodeExclusionSettings, ViewSettings } from "../engi
  * no notion of one and must not acquire it (architecture-map layering).
  */
 
-/** The six settings sections, in settings-tab render order. */
+/**
+ * The settings sections, in settings-tab render order. `edges` sits directly after
+ * `depth-defaults`: both answer "how much of the vicinity do I see", depth by REACH
+ * and edges by which of the reached links are drawn.
+ */
 export const SETTINGS_SECTIONS = [
 	"depth-defaults",
+	"edges",
 	"node-sizing",
 	"node-contents",
 	"force-layout",
@@ -45,6 +50,7 @@ const NO_FIELDS = [] as const;
 
 export const SECTION_SETTINGS_FIELDS = {
 	"depth-defaults": { view: NO_FIELDS, depth: ["linkDepthOut", "embedDepthOut", "linkDepthIn"], exclusion: NO_FIELDS },
+	edges: { view: ["showCrossLinks"], depth: NO_FIELDS, exclusion: NO_FIELDS },
 	"node-sizing": { view: ["sizing"], depth: NO_FIELDS, exclusion: NO_FIELDS },
 	"node-contents": { view: ["outlineMaxDepth", "nodePreviewPreference"], depth: NO_FIELDS, exclusion: NO_FIELDS },
 	"force-layout": { view: ["forceLayout"], depth: NO_FIELDS, exclusion: NO_FIELDS },

@@ -1,5 +1,7 @@
+import { CrossLinkSweep } from "./CrossLinkSweep";
 import { EdgeCounts } from "./EdgeCounts";
 import { GraphTruncator } from "./GraphTruncator";
+import type { TruncationResult } from "./GraphTruncator";
 import type { LinkProvider } from "./LinkProvider";
 import { PathExclusionMatcher } from "./PathExclusionMatcher";
 import { VicinityTraversal } from "./VicinityTraversal";
@@ -8,6 +10,7 @@ import { NodeSizer } from "./NodeSizer";
 import type {
 	CentralNodeDescriptor,
 	DepthSettings,
+	DirectedLink,
 	GraphNode,
 	VicinityGraph,
 	NodeExclusionSettings,
@@ -80,13 +83,33 @@ export class VicinityEngine {
 		return {
 			nodes,
 			edges: EdgeCounts.attach({
-				walkedVisibleEdges: truncation.visibleEdges,
+				visibleEdges: this.visibleEdges(viewSettings, truncation),
 				provider: this.provider,
 			}),
 			hiddenNodeCountsByFolder: truncation.hiddenNodeCountsByFolder,
 			excludedNodeCount: traversal.excludedNodeCount,
 			viewSettings,
 		};
+	}
+
+	/**
+	 * THE "which links are edges" decision, made once: the walked set, or — with
+	 * {@link ViewSettings.showCrossLinks} on — the walked set WIDENED to every link
+	 * between two visible nodes.
+	 *
+	 * Reached only AFTER truncation, and deliberately: sizing and the truncator's
+	 * distance-to-MAIN ranking above have already run on the WALKED edges, so the toggle
+	 * cannot move a node in or out of the graph (see {@link CrossLinkSweep}).
+	 */
+	private visibleEdges(viewSettings: ViewSettings, truncation: TruncationResult): readonly DirectedLink[] {
+		if (!viewSettings.showCrossLinks) {
+			return truncation.visibleEdges;
+		}
+		return CrossLinkSweep.inducedPairs({
+			walkedVisibleEdges: truncation.visibleEdges,
+			visiblePaths: truncation.visiblePaths,
+			provider: this.provider,
+		});
 	}
 
 	/**
