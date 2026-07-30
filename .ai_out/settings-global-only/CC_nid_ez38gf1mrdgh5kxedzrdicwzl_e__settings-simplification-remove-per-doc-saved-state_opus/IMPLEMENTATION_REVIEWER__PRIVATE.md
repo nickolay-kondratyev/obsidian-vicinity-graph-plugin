@@ -1,55 +1,75 @@
-# IMPLEMENTATION_REVIEWER — PRIVATE state (PHASE 1 of nid_ez38gf1mrdgh5kxedzrdicwzl_e)
+# IMPLEMENTATION_REVIEWER — PRIVATE state (nid_ez38gf1mrdgh5kxedzrdicwzl_e)
 
-Review COMPLETE. Public output: `IMPLEMENTATION_REVIEW__PUBLIC.md` (same dir).
-Verdict: APPROVE with 1 BLOCKING (B1) + 4 SHOULD-FIX (S1–S4) + 2 suggestions.
+## Status: BOTH review rounds COMPLETE.
+- PHASE 1 → `IMPLEMENTATION_REVIEW__PUBLIC.md`. Verdict: APPROVE, 1 BLOCKING (B1) + 4 SHOULD-FIX.
+- PHASE 2 → `IMPLEMENTATION_REVIEW_PHASE2__PUBLIC.md`. Verdict: **APPROVE / ticket READY**,
+  0 BLOCKING + 2 SHOULD-FIX (S1 stale ticket pointer, S2 "Depth defaults" copy) + 2 NIT.
 
-## Gates I actually ran (not trusted from the implementer)
-- `npm test` → 82 files / 1085 tests pass, exit 0. Log: `.tmp/review-test.log`.
-- `npm run check` → exit 0. Log: `.tmp/review-check.log`.
-- `npm run test:e2e` NOT run (needs real Obsidian). Found by grep that it WILL fail — see B1.
-- Ran both gates concurrently in ONE background bash call; ~2 min.
+---
 
-## The findings, with exact evidence (for a re-check)
-- **B1** `e2e/settingsResetVerify.e2e.ts:128` asserts `"Per-note depth overrides and pinned notes are kept."`;
-  `src/view/settingsResetPlan.ts:73` now says `"… Pinned notes are kept."`. Found via
-  `grep -rn "Per-note\|Pinned notes are kept" e2e/ src/ docs-internal/ README.md`. Not in the
-  implementer's PHASE 2 list → undisclosed red gate. Only ONE such stale e2e copy assertion exists.
-- **S1** `GraphViewController.currentMainPath()` (`src/view/GraphViewController.ts:161`) — production
-  callers: none (`grep -rn "currentMainPath()" src/ e2e/` → only the method + tests :300/:306 in
-  `GraphViewController.test.ts`). `handleSettingsChanged` IS still used (`VicinityGraphView.tsx:96`).
-  `RebuildDecision.ts:16` only has a *parameter* named currentMainPath — not a caller.
-- **S2** `src/engine/VicinityEngine.test.ts` last test in "pinned-central depth exploration" compares
-  two `?.depthTags` — vacuous if both undefined.
-- **S3** missing PHASE 2 items: B1 file; `docs-internal/notes/settings.md:34-36,68,76` (+151-154)
-  naming the now-deleted `ViewSettingsResolver.resolve()` as the guard AND the ratified chain bar;
-  stale doc-data comments `e2e/vaultTarget.ts:90,120,129`, `e2e/obsidianHarness.ts:495,665`.
-- **S4** `PersistenceServices.unpinDoc` lost its whole doc comment (the "always lands, no verdict"
-  fact is what justifies `ControlsActions.unpinNode` skipping `persistOutcome`).
+# PHASE 2 round (this session)
 
-## Things I verified as OK (do not re-litigate)
-- Global depth drives every root at runtime: `VicinityEngine.ts:108-111` (`toRoots` → one
-  `request.globalDepths` for `[main, ...pinned]`). Write path: `GlobalDepthControls.tsx:27` →
-  `planSettingsWrite("global-depth")` (`settingsWritePlan.ts:57-61`) → `ControlsActions.executeSettings`
-  → `saveGlobalDepths` → `refreshAllViews()`.
-- **EMPTY_CONTROLS hazard is NOT real**: `VicinityGraphFlow.tsx:64` early-returns on
-  `status === "empty"`; `GraphToolbar` mounted only at `:120`. So `GraphToolbar` dropping its
-  `centrals[0] === undefined → null` guard cannot expose engine-default steppers that would overwrite
-  persisted globals. This was my main suspected bug; it does not exist.
-- Residue grep clean: no `docData|doc-data|centralDepth|OwningViewPort|settingsWriteScope|FileStoragePort|`
-  `depthOverridesByRoot|mainViewOverride|pinnedViewOverrides` left in `src/` except intentional
-  "there is no per-doc layer" WHY comments (`VicinityEngine.ts:25`, `engine/index.ts:30`, `types.ts:181`).
-- `NodePriorityChain` (freed by ViewSettingsResolver deletion) still used by `GraphTruncator.ts` → not dead.
-- Surviving-behavior tests all present; enumerated in the PUBLIC doc. `DocPersistEligibility` behavior
-  unchanged with an explicit WHY-NOT at `:7-12`.
-- CSS diff is a clean rename `.vicinity-graph-central*` → `.vicinity-graph-depth-controls` plus removal
-  of `data-pinned` / `__reset` / `data-disabled` rules; e2e locators retargeted accordingly.
-- `e2e/settingsUxVisual.e2e.ts:103,142` + `settingsBaseline.ts:140,154` still reference
-  PINNED_CENTRALS_SUMMARY — harmless (disclosure now unconditionally absent, so the absence test
-  passes); implementer already disclosed these for PHASE 2.
+## Gates I ran
+- `npm test` → 82 files / **1083** tests, exit 0 (`.tmp/rev2-test.log`).
+- `npm run check` → exit 0, both projects (`.tmp/rev2-check.log`).
+- Ran both sequentially in ONE background bash call. ~1 min.
+- `npm run test:e2e` NOT run (real Obsidian). Reviewed statically instead.
+
+## PHASE 1 B1 is FIXED (verified, do not re-raise)
+Commit `6c6c7f9`. `e2e/settingsBaseline.ts:87` now exports `ALL_SETTINGS_RESET_DESCRIPTION`
+derived from `settingsResetPlan.ts:73`; `settingsResetVerify.e2e.ts` consumes it. Better than the
+fix I asked for (derived, not re-typed).
+
+## What I verified in the tree (evidence, for a re-check)
+- **Residue grep clean.** `doc-data|DocData|centralDepth|per-doc|per-note|perDoc|settingsWriteScope|`
+  `OwningViewPort|resolvePinnedDescriptors|ViewSettingsResolver|TraversalSettingsResolver|NOT_PERSISTABLE`
+  over `src/ e2e/ docs-internal/ README.md CLAUDE.md`: every hit is a WHY-NOT, shipped-history note,
+  or superseded banner. `_tickets/` and `docs-internal/research/` are archive — deliberately excluded.
+- **Dangling-path scan** (useful trick, reuse it): extract `(src|e2e)/…\.(ts|tsx|css)` from each doc
+  and `[ -e ]` each. Only intentional miss = `settingsWriteScope.ts` in the ticket being closed.
+  **CAUGHT S1 only by eye**: `ticket-controls-optimistic-input-latency.md:10` writes
+  `CentralDepthControls.tsx` WITHOUT the `src/view/` prefix, so the regex missed it.
+- **settings.md restatement claim is TRUE**: `satisfies Record<keyof ViewSettings` → 0 hits in `src/`.
+  Real guards exist: `ParsedViewFields` `persistedShapes.ts:135` (used `:143`);
+  `Exclude<keyof …>` `SettingsSpec.ts:115-117` + orphan dir `:124-126`;
+  `settingsSectionFields.ts:69-71`. `settings.md:81` names `ViewSettingsResolver.resolve()` only in
+  "the bar USED TO name … that class is deleted" — honest history, not a live claim.
+- **Global fan-out**: `ControlsActions.ts:72` unconditional `refreshAllViews()`;
+  `VicinityGraphSettingTab.ts:850,867` → `refreshOpenViews()`; `main.ts:44` wires the port.
+  README's "either surface refreshes every open graph" holds.
+- **Sweep prunes pins only**: `SweepPlanner.ts:25`.
+- **e2e fixture non-vacuity (the thing I was asked to check hardest)**: chain
+  `sc_hub → sc_x → sc_x1 → sc_x2 → sc_x3`. `sc_x1` = 2 hops from hub; `sc_x2` = 3 from hub / 2 from
+  `sc_x`. Default outgoing depth = 1 (`SettingsSpec.ts:162`). So at depth 2 ONLY a root at `sc_x`
+  reaches `sc_x2`, and nothing links INTO `sc_x2` but `sc_x1`. Test 3 cannot pass vacuously.
+  Test 2 inherits `sc_x` pinned from test 1 → its `data-tier=regular` assert is a real unpin proof.
+- **Locators all exist**: `.vicinity-graph-depth-controls` `GlobalDepthControls.tsx:31`;
+  `.vicinity-graph-stepper`/`__value`/`aria-label="Increase outgoing depth"` `DepthStepper.tsx:25,37,43`
+  (label from `label.toLowerCase()`); Depth disclosure is `defaultOpen` `GraphToolbar.tsx:37`.
+- **Deleted e2e coverage cost nothing**: `GraphToolbar.tsx` has no pinned disclosure at all, so both
+  the `pinnedDisclosure()` tail and the absence test were vacuous-forever. Dropping the
+  `hasNotText` filter made the panel exhaustiveness pin STRONGER (unfiltered, fixture-independent).
+  `selectorGuard.test.ts` `ABSENCE_ASSERTION_PATTERN` still has many `toHaveCount(0)` users.
+- **Pinned-central-lag KEEP-OPEN verdict re-verified myself**: `OrphanSweeper.ts:8` (15_000) and `:54`;
+  `VicinityGraphBuilder.ts:42`; `PersistenceServices.ts:48`; `GraphRequestAssembler.ts:32,56`.
+  Still reproducible. Agree: keep open.
+- **CSS**: both halves of the justification are real (`--background-primary` repainted over an
+  ancestor already painting it; double padding vs `.vicinity-graph-sizing__metrics` which has no
+  wrapper). Deleted rules select attributes that no longer exist in the DOM. `__value` going
+  unconditionally `--text-normal` is deliberate and honest.
+
+## My two PHASE 2 findings, restated tersely
+- **S1** `docs-internal/tickets/ticket-controls-optimistic-input-latency.md:10` → names deleted
+  `CentralDepthControls.tsx`. Open ticket, so a future implementer reads it.
+- **S2** `src/view/VicinityGraphSettingTab.ts:461` heads the card **"Depth defaults"** — "defaults"
+  implies an override layer that no longer exists. SAME owner copy decision as the open
+  `#QUESTION_FOR_HUMAN` about the panel summary, on the other surface. Told the orchestrator to fold
+  them into ONE question, not decide twice. Note `settingsResetPlan.ts:131` already says the honest
+  thing ("…used for every central note").
 
 ## Method notes for a future clone
-- The repo's bash wrapper prints ~15 lines of env noise before every command — pipe through
-  `grep -v "^\[2m\|^\[1m\|^\[33m"` or you burn context.
-- Big diffs overflow: prefer `git diff main...HEAD -- <paths>` per layer, and read the RESULTING files
-  (they carry excellent doc comments) rather than the raw patch where possible.
-- `git show main:<path>` is how I recovered the three deleted modules to judge the deviations.
+- The bash wrapper prints ~19 lines of env noise per call. Budget for it; do not fight it.
+- `git diff main...HEAD -- <dir>` per layer; docs diffs > ~25KB get spilled to a tool-results file —
+  `Read` that file with `offset` past the noise header.
+- The dangling-path scan above is cheap and caught real drift. Run it on `docs-internal/tickets/*.md`
+  too, and remember bare filenames (no dir prefix) slip through — eyeball the grep output as well.

@@ -1,6 +1,23 @@
 # PHASE 1 — per-doc removal (global-only settings) — PRIVATE state
 
-STATUS: **PHASE 1 + ITERATION_PHASE_1 + PHASE 2 COMPLETE.**
+STATUS: **PHASE 1 + ITERATION_PHASE_1 + PHASE 2 + ITERATION_PHASE_2 COMPLETE.**
+
+## ITERATION_PHASE_2 state (for a future clone)
+Commits `4780cc4` (copy: both depth surfaces → "Depth (all notes)"), `1e970d8` (docs + S1/N1),
+`05b2912` (smoke-run item 5). Gates: `npm test` 1083/1083 exit 0, `npm run check` exit 0
+(`.tmp/iter2-test.log`, `.tmp/iter2-check.log`). `npm run test:e2e` still unrun (real Obsidian).
+Full account: `IMPLEMENTATION_ITERATION_PHASE2__PUBLIC.md` (same dir).
+- The owner answered the PHASE 2 `#QUESTION_FOR_HUMAN` with option A. Handoff item 6 is now DONE;
+  no hint line was requested, so do NOT add one on your own.
+- Reviewer S2 accepted: the settings-tab card heading matches the panel word-for-word.
+- Reset copy ("Restore depth defaults", and the tab-wide enumeration) was deliberately LEFT — in a
+  restore row "defaults" = shipped defaults, and all five siblings share `Restore <thing> defaults`.
+  Do not "fix" it without owner alignment.
+- `CONTROLS_PANEL_DISCLOSURES[0].summaryAlsoMatchesAnAncestor` left `true` on purpose: probably now
+  unnecessary, but flipping it can only turn an e2e I cannot run red. Revisit with a real `test:e2e`.
+- Ticket bookkeeping list is UNCHANGED (still in `IMPLEMENTATION_PHASE2__PUBLIC.md`); two tickets
+  were edited in place again this round and both stay OPEN
+  (`ticket-step-06-controls-human-smoke-run`, `ticket-controls-optimistic-input-latency`).
 
 ## PHASE 2 state (for a future clone)
 Commits `89ec065` (docs), `336c977` (e2e + depth-controls CSS), `4019f90` (CLAUDE.md + step-06 gate).
