@@ -9,7 +9,14 @@ import { asDocId, asVaultPath } from "./types";
 function root(path: string, depths: Partial<DepthSettings> = {}): TraversalRoot {
 	return {
 		descriptor: { path: asVaultPath(path) },
-		depths: { linkDepthOut: depths.linkDepthOut ?? 1, linkDepthIn: depths.linkDepthIn ?? 1 },
+		depths: {
+			linkDepthOut: depths.linkDepthOut ?? 1,
+			// An unstated embed budget MIRRORS the link budget — the shipped default
+			// relationship — so every fixture written before embeds had their own
+			// channel still means what it meant.
+			embedDepthOut: depths.embedDepthOut ?? depths.linkDepthOut ?? 1,
+			linkDepthIn: depths.linkDepthIn ?? 1,
+		},
 	};
 }
 
@@ -322,7 +329,7 @@ describe("VicinityTraversal node assembly", () => {
 		const roots: TraversalRoot[] = [
 			{
 				descriptor: { path: asVaultPath("a.md"), docid: asDocId("docid_abc_e") },
-				depths: { linkDepthOut: 1, linkDepthIn: 1 },
+				depths: { linkDepthOut: 1, embedDepthOut: 1, linkDepthIn: 1 },
 			},
 		];
 		const result = traverse(provider, roots);
@@ -352,7 +359,7 @@ describe("VicinityTraversal display title (step-05 human decision)", () => {
 			links: { "notes/root.md": ["notes/plain.md"] },
 		});
 		return new VicinityTraversal(provider).traverse([
-			{ descriptor: { path: asVaultPath("notes/root.md") }, depths: { linkDepthOut: 1, linkDepthIn: 1 } },
+			{ descriptor: { path: asVaultPath("notes/root.md") }, depths: { linkDepthOut: 1, embedDepthOut: 1, linkDepthIn: 1 } },
 		]);
 	}
 

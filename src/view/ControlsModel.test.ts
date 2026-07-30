@@ -11,7 +11,7 @@ function inputs(partial: Partial<GraphRequestInputs> = {}): GraphRequestInputs {
 		mainDocId: "docid_main_e",
 		pins: [],
 		resolvePinPath: (docid) => PIN_PATHS[docid],
-		globalDepths: { linkDepthOut: 2, linkDepthIn: 1 },
+		globalDepths: { linkDepthOut: 2, embedDepthOut: 2, linkDepthIn: 1 },
 		globalView: EngineDefaults.viewSettings(),
 		nodeExclusion: EngineDefaults.nodeExclusionSettings(),
 		...partial,
@@ -40,7 +40,7 @@ describe("ControlsModelBuilder mainPinned", () => {
 
 describe("ControlsModelBuilder global context", () => {
 	it("WHEN building THEN the model carries the current global depths (the panel's stepper seed + write ctx)", () => {
-		expect(ControlsModelBuilder.build(inputs()).globalDepths).toEqual({ linkDepthOut: 2, linkDepthIn: 1 });
+		expect(ControlsModelBuilder.build(inputs()).globalDepths).toEqual({ linkDepthOut: 2, embedDepthOut: 2, linkDepthIn: 1 });
 	});
 
 	it("WHEN building THEN the model carries the current global view (the panel's control seeds)", () => {

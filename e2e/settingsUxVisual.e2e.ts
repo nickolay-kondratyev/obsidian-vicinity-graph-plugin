@@ -356,7 +356,7 @@ test("settings tab: a section restore resets ONLY that section", async () => {
 	// the controls panel grows its own node-cap row.
 	const nodeCap = page.locator(".vicinity-graph-settings").getByLabel("Node cap");
 	await harness.setGlobalNodeCap(42);
-	await harness.saveGlobalDepths({ linkDepthOut: 4, linkDepthIn: 4 });
+	await harness.saveGlobalDepths({ linkDepthOut: 4, embedDepthOut: 4, linkDepthIn: 4 });
 	await settingsTab.redisplay();
 	await expect(nodeCap).toHaveValue("42");
 	await settingsTab.resetButton("Performance").click();

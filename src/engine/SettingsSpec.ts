@@ -55,6 +55,7 @@ export interface DefaultSpec<T> {
 
 export interface DepthSpec {
 	readonly linkDepthOut: BoundedNumberSpec;
+	readonly embedDepthOut: BoundedNumberSpec;
 	readonly linkDepthIn: BoundedNumberSpec;
 }
 
@@ -160,6 +161,15 @@ export const SETTINGS_SPEC: SettingsSpec = {
 	globalDepths: {
 		/** Depth defaults mirror Obsidian's local-graph default of 1 hop each way. */
 		linkDepthOut: { default: 1, ...DEPTH_STEPPER_BOUNDS },
+		/**
+		 * DELIBERATELY EQUAL to `linkDepthOut`: at equal budgets the two outgoing
+		 * channels union to exactly the single kind-blind outgoing BFS that shipped
+		 * before embeds got their own budget, so this feature is unobservable until
+		 * someone diverges the two on purpose. (Pinned by
+		 * `VicinityTraversal.test.ts` — "the channel split is invisible at equal
+		 * budgets".) Change this and you change the DEFAULT GRAPH.
+		 */
+		embedDepthOut: { default: 1, ...DEPTH_STEPPER_BOUNDS },
 		linkDepthIn: { default: 1, ...DEPTH_STEPPER_BOUNDS },
 	},
 	globalView: {

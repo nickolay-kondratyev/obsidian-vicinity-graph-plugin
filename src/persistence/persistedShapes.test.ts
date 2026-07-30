@@ -22,7 +22,7 @@ describe("PersistedShapes.parsePluginData", () => {
 	it("WHEN a valid shape round-trips through JSON THEN it parses back unchanged", () => {
 		const data = {
 			version: PERSISTED_SHAPE_VERSION,
-			globalDepths: { linkDepthOut: 3, linkDepthIn: 2 },
+			globalDepths: { linkDepthOut: 3, embedDepthOut: 2, linkDepthIn: 1 },
 			globalView: { ...EngineDefaults.viewSettings(), nodeCap: 42 },
 			pins: [{ docid: "docid_a_e", pinTimestamp: 1000 }],
 			nodeExclusion: { enabled: true, patterns: ["^rel/", "templates/"] },
@@ -231,8 +231,9 @@ describe("PersistedShapes global depth parsing", () => {
 	}
 
 	it("WHEN a depth field carries the wrong type THEN only that field falls back to the default", () => {
-		expect(parsedGlobalDepths({ linkDepthOut: "3", linkDepthIn: 2 })).toEqual({
+		expect(parsedGlobalDepths({ linkDepthOut: "3", embedDepthOut: 3, linkDepthIn: 2 })).toEqual({
 			linkDepthOut: EngineDefaults.depthSettings().linkDepthOut,
+			embedDepthOut: 3,
 			linkDepthIn: 2,
 		});
 	});

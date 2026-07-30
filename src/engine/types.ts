@@ -206,9 +206,25 @@ export const _assertEveryNodePreviewPreferenceListed: UnlistedPreference extends
 // no per-doc override layer — one value drives every root and every view.
 // ---------------------------------------------------------------------------
 
-/** The traversal depths every root walks with (MAIN and every pinned central). */
+/**
+ * The traversal depths every root walks with (MAIN and every pinned central) —
+ * one budget per {@link Channel}, wired by {@link CHANNEL_DEPTH_FIELD}.
+ */
 export interface DepthSettings {
+	/** Hops of PLAIN outgoing links (`[[x]]`, `[x](y)`) expanded from each root. */
 	readonly linkDepthOut: number;
+	/**
+	 * Hops of EMBEDDED outgoing notes (`![[x]]`, canvas file nodes) expanded from
+	 * each root. Embedded ATTACHMENTS are not affected: attachment-ness is decided
+	 * by node-bearing-ness, never by kind (owner decision D5), so a `![[chart.png]]`
+	 * is an attachment exactly like `[[chart.png]]` and never consumes this budget.
+	 */
+	readonly embedDepthOut: number;
+	/**
+	 * Hops of incoming links expanded from each root. KIND-BLIND by scope decision:
+	 * a note that embeds a central note arrives here like any other linker — there
+	 * is deliberately no "embedded in" budget.
+	 */
 	readonly linkDepthIn: number;
 }
 

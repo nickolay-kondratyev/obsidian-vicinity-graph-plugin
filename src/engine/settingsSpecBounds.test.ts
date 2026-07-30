@@ -71,6 +71,7 @@ const BOUNDS_ENFORCED_OUTSIDE_THE_ENGINE: Readonly<Record<string, string>> = {
 	"globalDepths.linkDepthOut":
 		"clampStepperDepth (src/view/constants.ts) — an AFFORDANCE bound on the steppers; " +
 		"the engine honors any depth (see SETTINGS_SPEC). Covered by src/view/clampStepperDepth.test.ts.",
+	"globalDepths.embedDepthOut": "clampStepperDepth — see linkDepthOut.",
 	"globalDepths.linkDepthIn": "clampStepperDepth — see linkDepthOut.",
 	"globalView.nodeCap":
 		"the node-cap number inputs reject anything below MIN_NODE_CAP (VicinityGraphSettingTab / " +

@@ -46,8 +46,11 @@ import { EVERY_SETTINGS_SPEC_LEAF } from "./testFixtures/settingsSpecLeaves";
  * the number alone could not guess about its PRODUCT meaning.
  */
 const SHIPPED_SETTINGS_DEFAULTS: Readonly<Record<string, unknown>> = {
-	// Both depths mirror Obsidian's own local graph: 1 hop each way.
+	// The depths mirror Obsidian's own local graph: 1 hop each way. `embedDepthOut`
+	// MUST equal `linkDepthOut` at ship — that equality is what makes the outgoing
+	// channel split unobservable by default (see SETTINGS_SPEC).
 	"globalDepths.linkDepthOut": 1,
+	"globalDepths.embedDepthOut": 1,
 	"globalDepths.linkDepthIn": 1,
 
 	"globalView.nodeCap": 100, // The shipped performance ceiling.

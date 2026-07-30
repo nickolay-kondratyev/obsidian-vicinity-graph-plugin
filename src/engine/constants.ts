@@ -238,6 +238,7 @@ export class EngineDefaults {
 		const depths = SETTINGS_SPEC.globalDepths;
 		return {
 			linkDepthOut: depths.linkDepthOut.default,
+			embedDepthOut: depths.embedDepthOut.default,
 			linkDepthIn: depths.linkDepthIn.default,
 		};
 	}

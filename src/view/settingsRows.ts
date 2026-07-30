@@ -289,9 +289,15 @@ export const SETTINGS_GROUPS: Readonly<Record<SettingsSection, SettingsGroup>> =
 						control: { kind: "depth", field: "linkDepthOut" },
 					},
 					{
+						label: "Embeds out",
+						description:
+							"How many hops of EMBEDDED notes (`![[note]]`, and canvas cards holding a note) to expand from every central note. Images and other attachments are unaffected — they are attachments however they are written, and never become nodes.",
+						control: { kind: "depth", field: "embedDepthOut" },
+					},
+					{
 						label: "Links in",
 						description:
-							"How many hops of incoming links (backlinks) to expand from every central note. A note that EMBEDS a central note arrives here too \u2014 incoming links are counted the same way whatever their kind.",
+							"How many hops of incoming links (backlinks) to expand from every central note. A note that EMBEDS a central note arrives here too — incoming links are counted the same way whatever their kind.",
 						control: { kind: "depth", field: "linkDepthIn" },
 					},
 				],

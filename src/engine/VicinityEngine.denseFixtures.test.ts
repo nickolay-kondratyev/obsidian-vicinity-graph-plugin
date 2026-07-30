@@ -19,7 +19,7 @@ import { asVaultPath } from "./types";
 function denseRequest(overrides: Partial<GraphBuildRequest> = {}): GraphBuildRequest {
 	return {
 		main: { path: asVaultPath(largeMixedVault().mainPath) },
-		globalDepths: { linkDepthOut: 2, linkDepthIn: 0 },
+		globalDepths: { linkDepthOut: 2, embedDepthOut: 2, linkDepthIn: 0 },
 		globalView: EngineDefaults.viewSettings(),
 		...overrides,
 	};
