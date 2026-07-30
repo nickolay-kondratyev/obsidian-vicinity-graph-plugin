@@ -138,3 +138,89 @@ synthetic `input` dispatch would have committed even on a *disabled* input; the 
 **CHANGES_REQUESTED** — finding 1 is a silent behavior/accessibility regression introduced by
 the refactor and undisclosed; findings 2 and 3 are cheap and directly weaken/duplicate the guard
 this commit adds. Everything else in the change is good work and the core design call is right.
+
+---
+
+# ROUND 2 — review of commit `7da47d3`
+
+**VERDICT: APPROVED.** All three round-1 SHOULD-FIX findings are genuinely fixed, the
+rejection is well-argued and accepted, and the diff introduces no regression. Two
+doc-only nits below are non-blocking — fix opportunistically, do NOT open another round
+for them.
+
+## Verification (run by me, verbatim)
+
+```
+npm run check  → CHECK_EXIT=0                 (log: .tmp/review2-check.txt)
+npm test       → TEST_EXIT=0
+                 Test Files  96 passed (96)
+                 Tests  1283 passed (1283)    (log: .tmp/review2-test.txt)
+```
+Matches the implementer's claim exactly (+3 vs round 1's 1280). `npm run test:e2e` NOT run
+(needs a real Obsidian). Working tree clean at `7da47d3`.
+
+## Finding 1 (stale refusal surviving a store move) — FIXED
+
+Verified in the source, not taken on the claim:
+- `NumberFieldRefusal` (`src/view/numberRowCommit.ts:105-124`) is a pure, private-ctor seam:
+  `fromCommit(commit, storedWhenJudged)` / `messageWhileStoredIs(stored)`.
+- `src/view/SettingsRowView.tsx:248` computes `shownRefusal` ONCE, and it is the sole input
+  to `aria-invalid` (`:256`), `aria-describedby` (`:257`) and the rendered `role="alert"`
+  element (`:277-282`). A grep of the module confirms the raw `refusal` state is used
+  nowhere else — message and invalid marking structurally cannot disagree.
+- The invariant I asked to preserve holds: a REFUSED commit writes nothing, so `stored`
+  does not move and a refusal is never cancelled by the commit that earned it. My round-1
+  repro (refuse `maxPx` → Restore defaults → stored 100→160) is closed and pinned by
+  `src/view/numberRowCommit.test.ts:180-186`, written failing first.
+
+**Documented residual — ACCEPTABLE, not blocking.** The binding is by VALUE, so a store
+that moves away and back to the same number while the field is untouched re-shows the
+message. Reaching it needs another surface writing twice with a live panel refusal; the
+result is a non-destructive stale message that the next commit clears, and it is stated on
+the class rather than hidden. The value-free alternative is render-time state adjustment —
+exactly the untestable-under-`npm test` shape this fix removes. Correct 80/20 call.
+
+## Findings 2 & 3 (scan breadth, DRY) — FIXED, nothing weakened
+
+- The scan is now `src/view/typedNumberFields.test.ts` over `EVERY_ROW_RENDERING_MODULE`,
+  naming the offending module in the failure. Still non-vacuous: `:86-89` asserts ≥2 fields
+  were found, and the detection regexes are unchanged from the version I mutation-tested in
+  round 1 (`SPREAD_COMMIT_PROPS`, `CONTROLLED_VALUE` with `defaultValue=` deliberately not
+  matching). The rename is right — the old name would have lied.
+- Parity suite checked MECHANICALLY, not by eye: comment/blank-stripped diff of
+  `settingsRowParity.test.ts` before vs after shows the ONLY delta is the three `node:`
+  imports removed, the `./rowRenderingSource` import added, and the moved tables + `source()`
+  deleted. All 8 `it(...)` and all 11 `expect(...)` survive verbatim — including the
+  `ACCESSOR_OWNED_SYMBOLS` list and the `EVERY_ROW_RENDERING_MODULE.length >
+  Object.keys(PRESENTERS).length` vacuity guard. The moved code in
+  `src/view/rowRenderingSource.ts` is byte-identical to what was removed. Nothing dropped.
+- `rowRenderingSource.ts` is imported only by the two suites (grep over `src/`, `e2e/`), so
+  its `node:fs` never reaches the bundle.
+
+## The REJECTED nice-to-have (disabled-scan) — REJECTION ACCEPTED
+
+Their reasoning is the correct one: a source scan can only assert the token `disabled={`
+exists, so it would pass unchanged on the inverted `disabled={enabled}` — a false sense of
+a property — and reaching only the weight would hard-code one field's identity into a guard
+whose value is being structural over all fields. Recording the gap on
+`nid_7qot0m6nuxxmd5z0yb9jylsd6_e`, where a render harness can actually close it, is the
+right place. Closed; not to be re-raised.
+
+## Regression check on the rest of the diff
+
+None found. `disabled={!enabled}` now sits after the spread with a WHY comment
+(`SettingsRowView.tsx:382-385`); the stale `key={shown}` doc at `numberRowCommit.ts:80` is
+corrected; the CLAUDE.md edit is one bullet naming the renamed+widened scan and changes no
+other rule; the two ticket files are additive (`nid_bbe962ojwwkhzn3uq27zw5w6l_e` new, with
+acceptance criteria; a note appended to `nid_7qot0m6nuxxmd5z0yb9jylsd6_e`). No
+behavior-capturing test, no `ap_XXX_E` anchor, and no use case was removed anywhere.
+
+## 💡 Suggestions (non-blocking — no further review round)
+
+1. `src/view/rowRenderingSource.ts:10` still names `panelTypedNumberFields.test.ts`, the
+   file this same commit renamed. Remedy: say `typedNumberFields.test.ts`.
+2. `src/view/numberRowCommit.test.ts:148` (comment) has the same stale name. Same remedy.
+   CLAUDE.md itself was updated correctly.
+3. `src/view/numberRowCommit.test.ts:185` hard-codes the whole refusal sentence — a 4th test
+   copy of a string `src/view/settingsValidation.ts:80` owns — while this test's subject is
+   presence-vs-absence. Matches the pre-existing pattern, so purely optional.
