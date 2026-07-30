@@ -1,12 +1,13 @@
 ---
+closed_iso: 2026-07-30T00:02:20Z
 id: nid_ez38gf1mrdgh5kxedzrdicwzl_e
 title: "Settings simplification \u2014 remove per-doc saved state: global-only settings,\
   \ global pins (delete doc-data subsystem)"
-status: in_progress
+status: closed
 deps: [nid_wimjq4ewgbg21n4zx9d4qq3a0_e]
 links: [nid_m5hxe4eo9jgt7cfic7s2o3uvi_e, nid_7fq9y51mbucmduzf9z31hmwmq_e]
 created_iso: '2026-07-29T22:10:23Z'
-status_updated_iso: '2026-07-29T22:30:23Z'
+status_updated_iso: 2026-07-30T00:02:20Z
 type: task
 priority: 1
 assignee: CC_WITH-nickolaykondratyev
@@ -70,3 +71,27 @@ Respect BDD conventions; behavior-capturing tests for the deleted subsystem are 
 GIVEN the plugin after this ticket
 WHEN any setting (depth, sizing, view, exclusion) is changed from either surface
 THEN it persists globally in data.json only, applies to MAIN and all pinned centrals, no doc-data/ file is ever written, npm test and npm run check are green, and the listed specs/docs and e2e specs describe the global-only model.
+
+## Notes
+
+**2026-07-30T00:02:20Z**
+
+RESOLVED 2026-07-29 — global-only settings landed (branch CC_nid_ez38gf1mrdgh5kxedzrdicwzl_e__settings-simplification-remove-per-doc-saved-state_opus).
+
+WHAT LANDED
+- All per-doc saved graph state deleted: doc-data store (DocDataStore/DocDataMutations/FakeFileStorage), DocData shape + parseDocData, PersistenceServices.setDoc*/setCentralDepthField, per-central depth merge and steppers, CentralDepthRoundTrip test.
+- The 'per-doc' write scope is gone entirely; ControlsActions.applySettings unconditionally fans out via refreshAllViews(). NOT_PERSISTABLE notice and mainFile() removed.
+- Engine plumbing that only served per-doc removed: depthOverridesByRoot, TraversalSettingsResolver override arg. Three deviations beyond the ticket's literal wording, each reviewed and accepted as justified: TraversalSettingsResolver, ViewSettingsResolver, resolvePinnedDescriptors.ts and settingsWriteScope.ts (+ OwningViewPort) were DELETED rather than reduced to identity/constant.
+- Panel depth now edits the ONE global depth (src/view/GlobalDepthControls.tsx replaces CentralDepthControls.tsx); 'Pinned centrals (n)' disclosure removed.
+- Pins unchanged and global (data.json pins, pinDoc/unpinDoc, hover-pin UI, PathDocIdMap, DocPersistEligibility). OrphanSweeper slimmed: still prunes stale pins; docDataFilesRemoved/centralEntriesRemoved/ownersRewritten and collectCentralDocidsByOwner dropped.
+- Stored-data break handled per standing convention: stale doc-data/ dirs are simply IGNORED (no delete-on-load code); RELEASE_CHECKLIST section 7 records the discard plus the GLOBAL-depth UX shift. Never silent.
+- Docs updated to the global-only model: high-level-plan, README (Settings model rewritten, per-note section deleted, Pinning + restart caveat corrected), architecture-map, CLAUDE.md persistence bullet, notes/settings.md, superseded banners on step-03/step-06.
+- e2e: pinnedCentralScenario rewritten around global depth + global pins (two non-vacuous BDD specs); controlsRestart verified already global-only; PINNED_CENTRALS_SUMMARY* and doc-data harness residue removed; the reset-copy expectation is now DERIVED from src/view/settingsResetPlan.ts instead of re-typed.
+
+OWNER DECISIONS TAKEN DURING THE WORK
+1. The chain's ratified completeness bar (formerly phrased around the now-deleted ViewSettingsResolver.resolve()) is RESTATED in docs-internal/notes/settings.md as compile-forced by the descriptor model (ParsedViewFields + Exclude<keyof ViewSettings, ...> in SettingsSpec/settingsSectionFields). Chain steps 4/5/6 inherit the reworded bar.
+2. Depth copy: both surfaces are headed 'Depth (all notes)' (panel disclosure + settings-tab card), so the global scope is visible where the dial is. Restore-row copy 'Restore depth defaults' deliberately unchanged.
+
+GATES: npm test 82 files / 1083 tests pass, npm run check exit 0 — both independently re-verified by the reviewer. npm run test:e2e NOT run (needs real Obsidian); the e2e string/locator edits are source-verified only and remain a release gate.
+
+BOOKKEEPING: closed docs-internal/tickets/ticket-per-doc-write-leaves-sibling-views-stale.md and nid_7fq9y51mbucmduzf9z31hmwmq_e. ticket-pinned-central-status-lags-after-restart.md stays OPEN — re-verified still reproducible (PathDocIdMap warms only via the 15s sweep). ticket-controls-optimistic-input-latency.md and ticket-step-06-controls-human-smoke-run.md were repointed/re-scoped in place and stay OPEN.

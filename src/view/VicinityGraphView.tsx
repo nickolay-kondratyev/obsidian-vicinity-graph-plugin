@@ -63,7 +63,6 @@ export class VicinityGraphView extends ItemView {
 		const ui = new ObsidianGraphUi(this.app, VIEW_TYPE_VICINITY_GRAPH);
 		this.controller = controller;
 		const controlsActions = new ControlsActions(
-			controller,
 			this.persistenceServices,
 			this.pluginDataStore,
 			this.app.vault,

@@ -1,12 +1,22 @@
 # Ticket: a per-doc settings write leaves sibling views showing the same MAIN stale
 
-**Status:** OPEN — SUPERSEDED PENDING: per-doc settings writes are being removed
+**Status:** CLOSED (2026-07-29) — resolved by construction when
+`nid_ez38gf1mrdgh5kxedzrdicwzl_e` landed; see the resolution note below.
+History for context: per-doc settings writes were removed
 entirely by `nid_ez38gf1mrdgh5kxedzrdicwzl_e` (settings simplification: global-only
 settings, global pins — owner decision 2026-07-29). When that lands, per-doc write
 scope no longer exists and every write fans out globally, which deletes this defect
 by construction. **Close this ticket when that ticket lands**; do not fix piecemeal.
 (Previously slated to be merged into the write-pipeline ticket
 `nid_m5hxe4eo9jgt7cfic7s2o3uvi_e` — no longer the case.)
+> **2026-07-29 — RESOLVED BY CONSTRUCTION, ready to close.** That ticket landed and
+> took option **(a)** below: `settingsWriteScope.ts`, the `SettingsWriteScope` type
+> and `OwningViewPort` are deleted, and `ControlsActions.applySettings`
+> unconditionally calls `ViewsRefreshPort.refreshAllViews()`. The "flip the two
+> per-doc tests" instruction below is moot — those tests covered per-doc scope and
+> were removed with it (owner-aligned); the surviving fan-out is pinned by the
+> global-scope tests in `src/view/ControlsActions.test.ts`.
+
 **Origin:** IMPLEMENTATION_REVIEW of the controls global-refresh fan-out
 (ticket `nid_u36pqr4zljs44jt42lk9ln8ry_e`). That ticket's acceptance criteria
 explicitly required per-doc writes to keep their narrower behaviour, so this was

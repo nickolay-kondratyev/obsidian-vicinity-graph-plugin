@@ -1,12 +1,10 @@
 import type {
-	DepthOverride,
 	DepthSettings,
 	ForceLayoutSettings,
 	NodeExclusionSettings,
 	SizeMetricId,
 	SizingSettings,
 	ViewSettings,
-	ViewSettingsOverride,
 } from "../engine";
 import {
 	EngineDefaults,
@@ -17,11 +15,15 @@ import {
 } from "../engine";
 
 /**
- * Versioned JSON shapes persisted by step-03 (every shape carries `version`
- * from day one — step doc requirement) plus their defensive parsers: disk
- * content is user-editable and sync-mangled in practice, so parsing NEVER
- * throws — unusable content degrades to defaults (data.json) or `null`
- * (per-doc files), matching obsidian-id-lib's malformed-content philosophy.
+ * The versioned JSON shape persisted by step-03 (it carries `version` from day
+ * one — step doc requirement) plus its defensive parser: disk content is
+ * user-editable and sync-mangled in practice, so parsing NEVER throws —
+ * unusable content degrades to defaults, matching obsidian-id-lib's
+ * malformed-content philosophy.
+ *
+ * There is exactly ONE persisted file: the plugin's `data.json`. Settings are
+ * GLOBAL-only and pins are global, so nothing is keyed per document (owner
+ * decision 2026-07-29).
  */
 
 /**
@@ -53,21 +55,6 @@ export interface PluginData {
 	readonly nodeExclusion: NodeExclusionSettings;
 }
 
-/**
- * Shape of one `doc-data/<docid>.json` file. Per-field pin-on-toggle
- * semantics: a present field is pinned (even when equal to the global
- * default), an absent field inherits.
- */
-export interface DocData {
-	readonly version: number;
-	/** This doc's own depth override (as MAIN or pinned root). */
-	readonly depths?: DepthOverride;
-	/** This doc's own view override (as MAIN or pinned root). */
-	readonly view?: ViewSettingsOverride;
-	/** Depths of pinned centrals as adjusted while THIS doc was MAIN, keyed by central docid. */
-	readonly centralDepths?: Readonly<Record<string, DepthOverride>>;
-}
-
 export class PersistedShapes {
 	static defaultPluginData(): PluginData {
 		return {
@@ -77,10 +64,6 @@ export class PersistedShapes {
 			pins: [],
 			nodeExclusion: EngineDefaults.nodeExclusionSettings(),
 		};
-	}
-
-	static emptyDocData(): DocData {
-		return { version: PERSISTED_SHAPE_VERSION };
 	}
 
 	/**
@@ -94,25 +77,11 @@ export class PersistedShapes {
 		}
 		return {
 			version: PERSISTED_SHAPE_VERSION,
-			globalDepths: { ...defaults.globalDepths, ...parseDepthOverride(raw["globalDepths"]) },
-			globalView: { ...defaults.globalView, ...parseViewOverride(raw["globalView"]) },
+			globalDepths: { ...defaults.globalDepths, ...parseDepthFields(raw["globalDepths"]) },
+			globalView: { ...defaults.globalView, ...parseViewFields(raw["globalView"]) },
 			pins: parsePins(raw["pins"]),
 			nodeExclusion: parseNodeExclusion(raw["nodeExclusion"], defaults.nodeExclusion),
 		};
-	}
-
-	/** Per-doc file parser: unusable content is `null` (treated as "no per-doc data"). */
-	static parseDocData(raw: unknown): DocData | null {
-		if (!isRecord(raw) || raw["version"] !== PERSISTED_SHAPE_VERSION) {
-			return null;
-		}
-		const docData: DocData = {
-			version: PERSISTED_SHAPE_VERSION,
-			...definedOnly("depths", nonEmpty(parseDepthOverride(raw["depths"]))),
-			...definedOnly("view", nonEmpty(parseViewOverride(raw["view"]))),
-			...definedOnly("centralDepths", parseCentralDepths(raw["centralDepths"])),
-		};
-		return docData;
 	}
 }
 
@@ -121,11 +90,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /**
- * THE inherit rule, implemented exactly once: a field reaches the override only
- * when its parsed value is `!== undefined`. Never truthiness, never `||` — a
- * pinned `0` / `false` / `""` is a PIN, not an absence. Every per-field
- * `definedOnly(...)` spread this replaced was an independent chance to get that
- * wrong.
+ * THE recognized-field rule, implemented exactly once: a field survives the
+ * parse only when its parsed value is `!== undefined`. Never truthiness, never
+ * `||` — a stored `0` / `false` / `""` is a REAL value, not an absence, and the
+ * caller merges what survives over the spec defaults.
  */
 function definedFieldsOnly<T extends object>(values: { readonly [K in keyof T]: T[K] | undefined }): Partial<T> {
 	const defined: Record<string, unknown> = {};
@@ -141,12 +109,13 @@ function definedFieldsOnly<T extends object>(values: { readonly [K in keyof T]: 
 }
 
 /**
- * Keeps only recognized, correctly-typed depth fields (absence = inherit).
+ * Keeps only recognized, correctly-typed depth fields (an unusable one falls
+ * back to the spec default at the merge site).
  *
  * The argument type is the completeness guard: a new {@link DepthSettings} field
  * that no expression below parses is a compile error (TS2345) naming it.
  */
-function parseDepthOverride(raw: unknown): DepthOverride {
+function parseDepthFields(raw: unknown): Partial<DepthSettings> {
 	if (!isRecord(raw)) {
 		return {};
 	}
@@ -166,7 +135,7 @@ function parseDepthOverride(raw: unknown): DepthOverride {
 type ParsedViewFields = { readonly [K in keyof ViewSettings]: ViewSettings[K] | undefined };
 
 /** Keeps only recognized, correctly-typed view fields. */
-function parseViewOverride(raw: unknown): ViewSettingsOverride {
+function parseViewFields(raw: unknown): Partial<ViewSettings> {
 	if (!isRecord(raw)) {
 		return {};
 	}
@@ -188,10 +157,10 @@ function parseViewOverride(raw: unknown): ViewSettingsOverride {
 }
 
 /**
- * `sizing` is ONE field in V1 (engine contract) and replaces the default
- * WHOLESALE in the view cascade — so a partially-mangled persisted sizing must
- * come out as a COMPLETE {@link SizingSettings}: recognized fields survive,
- * unusable ones are repaired from the engine default. Non-object → inherit.
+ * `sizing` is ONE field (engine contract) and replaces the default WHOLESALE —
+ * so a partially-mangled persisted sizing must come out as a COMPLETE
+ * {@link SizingSettings}: recognized fields survive, unusable ones are repaired
+ * from the engine default. Non-object → the whole default.
  * The result is CLAMPED into the input ranges, so a hand-edited `data.json`
  * cannot reach a size or a decay `k` the inputs make unreachable (a FINITE
  * `depthDecayK: -1` passes the non-finite gate below — the clamp is what stops
@@ -217,9 +186,9 @@ function parseSizing(raw: unknown): SizingSettings | undefined {
 
 /**
  * `forceLayout` is ONE field (like `sizing`) and replaces the default WHOLESALE
- * in the view cascade — so a partially-mangled persisted value must come out as
- * a COMPLETE {@link ForceLayoutSettings}: recognized fields survive, unusable
- * ones are repaired from the engine default. Non-object → inherit. The result
+ * — so a partially-mangled persisted value must come out as a COMPLETE
+ * {@link ForceLayoutSettings}: recognized fields survive, unusable ones are
+ * repaired from the engine default. Non-object → the whole default. The result
  * is CLAMPED into the slider ranges so hand-edited JSON cannot reach the
  * degenerate combinations the sliders make unreachable.
  */
@@ -282,29 +251,7 @@ function parsePins(raw: unknown): readonly PinnedDocEntry[] {
 	return pins;
 }
 
-function parseCentralDepths(raw: unknown): Readonly<Record<string, DepthOverride>> | undefined {
-	if (!isRecord(raw)) {
-		return undefined;
-	}
-	const centralDepths: Record<string, DepthOverride> = {};
-	for (const [docid, override] of Object.entries(raw)) {
-		const parsed = nonEmpty(parseDepthOverride(override));
-		if (parsed !== undefined) {
-			centralDepths[docid] = parsed;
-		}
-	}
-	return Object.keys(centralDepths).length > 0 ? centralDepths : undefined;
-}
-
 function numberOrUndefined(value: unknown): number | undefined {
 	return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
 
-function nonEmpty<T extends object>(value: T): T | undefined {
-	return Object.keys(value).length > 0 ? value : undefined;
-}
-
-/** Spread helper: `{...definedOnly("k", v)}` adds `k` only when `v` is defined (exactOptionalPropertyTypes-friendly). */
-function definedOnly<K extends string, V>(key: K, value: V | undefined): Partial<Record<K, V>> {
-	return value === undefined ? {} : ({ [key]: value } as Record<K, V>);
-}

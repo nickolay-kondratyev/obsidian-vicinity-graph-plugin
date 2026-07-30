@@ -38,7 +38,7 @@ Redirect verbose build/test output to `.tmp/` to conserve context.
 
 - **Tests are BDD** (`WHEN … THEN …`), one behavior per test, colocated `*.test.ts`. Pure engine/persistence logic is fixture-tested via `Fake*` providers — keep correctness in the tested core, adapters thin. Prefer starting from a failing test.
 - **Strict TS**: `noUncheckedIndexedAccess`, `noImplicitReturns` on. Prefer branded types (`asVaultPath`, `asDocId`, `asFolderPath`) over raw strings.
-- **Persistence**: every persisted shape carries a `version` field. docid-keyed, so renames are non-events. Per-doc files, never a single blob.
+- **Persistence**: `data.json` is the only store — global settings + the docid-keyed pinned set (so renames are non-events). **Nothing is per-document**; every setting is global. Every persisted shape carries a `version` field.
 - **Not published yet ⇒ clean breaks on stored data.** No migrations, no dual-key read shims, no back-compat branches: rename/remove persisted keys outright and let old data fall back to spec defaults. There are no users to protect, so the cost is a re-set setting, not lost work. Say so in the PR/release note; never break stored data *silently*. **Revisit this line the moment the plugin ships** — after that, migrations are back on the table.
 - **Styling** pulls from Obsidian theme CSS variables (light/dark just work); prefer CSS over JS. `styles.css` is generated from `src/view/*.css` at build.
 - `main.js` and `styles.css` are **build artifacts** — never hand-edit.

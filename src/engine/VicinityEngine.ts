@@ -5,37 +5,32 @@ import { PathExclusionMatcher } from "./PathExclusionMatcher";
 import { VicinityTraversal } from "./VicinityTraversal";
 import type { TraversalRoot } from "./VicinityTraversal";
 import { NodeSizer } from "./NodeSizer";
-import { TraversalSettingsResolver } from "./TraversalSettingsResolver";
-import { ViewSettingsResolver } from "./ViewSettingsResolver";
-import type { PinnedViewOverride } from "./ViewSettingsResolver";
 import type {
 	CentralNodeDescriptor,
-	DepthOverride,
 	DepthSettings,
 	GraphNode,
 	VicinityGraph,
 	NodeExclusionSettings,
 	PinnedNodeDescriptor,
-	VaultPath,
 	ViewSettings,
-	ViewSettingsOverride,
 } from "./types";
 
 /**
  * Everything a graph build needs. All inputs are PATH-keyed: persisted
- * docid-keyed data (pins, depth overrides) must be translated by the step-03
- * adapter before it reaches the engine (see CLARIFICATION Q1).
+ * docid-keyed data (the pinned set) must be translated by the step-03 adapter
+ * before it reaches the engine (see CLARIFICATION Q1).
+ *
+ * Settings are GLOBAL-only: {@link globalDepths} applies to MAIN and to EVERY
+ * pinned root alike, and {@link globalView} is the view configuration verbatim.
+ * There is no per-doc override layer to cascade (owner decision 2026-07-29).
  */
 export interface GraphBuildRequest {
 	/** The active document. */
 	readonly main: CentralNodeDescriptor;
 	readonly pinned?: readonly PinnedNodeDescriptor[];
+	/** The one depth configuration every root traverses with. */
 	readonly globalDepths: DepthSettings;
-	/** Per-root depth overrides (the root doc's own persisted depth settings). */
-	readonly depthOverridesByRoot?: ReadonlyMap<VaultPath, DepthOverride>;
 	readonly globalView: ViewSettings;
-	readonly mainViewOverride?: ViewSettingsOverride;
-	readonly pinnedViewOverrides?: readonly PinnedViewOverride[];
 	/**
 	 * Global node exclusion (vault-wide). Absent ⇒ no exclusion. Honored only for
 	 * discovered NEIGHBORS (never roots), at BFS neighbor discovery.
@@ -45,18 +40,14 @@ export interface GraphBuildRequest {
 
 /**
  * The engine facade — the one call steps 03/04 make per rebuild:
- * resolve settings → multi-root BFS → sizing → truncation → edge visibility.
- * Pure and synchronous; Obsidian reaches it only through {@link LinkProvider}.
+ * multi-root BFS → sizing → truncation → edge visibility. Pure and
+ * synchronous; Obsidian reaches it only through {@link LinkProvider}.
  */
 export class VicinityEngine {
 	constructor(private readonly provider: LinkProvider) {}
 
 	build(request: GraphBuildRequest): VicinityGraph {
-		const viewSettings = ViewSettingsResolver.resolve({
-			global: request.globalView,
-			mainOverride: request.mainViewOverride,
-			pinnedOverrides: request.pinnedViewOverrides,
-		});
+		const viewSettings = request.globalView;
 		const traversal = new VicinityTraversal(this.provider, this.exclusionMatcher(request)).traverse(
 			this.toRoots(request),
 		);
@@ -109,15 +100,13 @@ export class VicinityEngine {
 		return PathExclusionMatcher.fromPatterns(patterns);
 	}
 
-	/** MAIN first — when MAIN is also pinned, traversal dedupe keeps MAIN's descriptor. */
+	/**
+	 * MAIN first — when MAIN is also pinned, traversal dedupe keeps MAIN's
+	 * descriptor. Every root gets the SAME depths: one global dial, no per-root
+	 * layer to resolve.
+	 */
 	private toRoots(request: GraphBuildRequest): readonly TraversalRoot[] {
 		const descriptors: readonly CentralNodeDescriptor[] = [request.main, ...(request.pinned ?? [])];
-		return descriptors.map((descriptor) => ({
-			descriptor,
-			depths: TraversalSettingsResolver.resolveForRoot(
-				request.globalDepths,
-				request.depthOverridesByRoot?.get(descriptor.path),
-			),
-		}));
+		return descriptors.map((descriptor) => ({ descriptor, depths: request.globalDepths }));
 	}
 }

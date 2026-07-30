@@ -59,8 +59,8 @@ import { SIZING_METRICS } from "./sizingMetrics";
  * {@link SettingsCommand} is persisted through the store, then every open graph
  * view is refreshed so the change is visible immediately (CLARIFICATION Q-C).
  *
- * Node-cap lives here ONLY (CLARIFICATION Q4): it is a global-only knob with no
- * per-doc/per-view surface.
+ * EVERY setting on this tab is global (owner decision 2026-07-29): there is no
+ * per-note or per-view stored state for anything here to override.
  */
 
 /** Visible height of the exclusion-patterns textarea (one pattern per line). */
@@ -458,19 +458,23 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 
 	private renderDepthDefaults(): void {
 		const section = this.createSection();
-		new Setting(section).setName("Depth defaults").setHeading();
+		// Heading and row copy say "every"/"all notes" rather than "defaults" (owner
+		// decision 2026-07-29): "default" implies a per-note override layer, and there
+		// is none — this IS the one value every graph traverses with. Same words as the
+		// controls panel's Depth disclosure, so the two surfaces read as one setting.
+		new Setting(section).setName("Depth (all notes)").setHeading();
 		const depths = this.store.globalDepths();
 		this.addDepthSlider(
 			section,
 			"Outgoing depth",
-			"How many hops of outgoing links to expand from a central note by default.",
+			"How many hops of outgoing links to expand from every central note.",
 			"outgoing",
 			depths.outgoingDepth,
 		);
 		this.addDepthSlider(
 			section,
 			"Incoming depth",
-			"How many hops of incoming links (backlinks) to expand by default.",
+			"How many hops of incoming links (backlinks) to expand from every central note.",
 			"incoming",
 			depths.incomingDepth,
 		);
@@ -843,8 +847,7 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	/**
 	 * The single settings-tab write path: plan the command from the CURRENT
 	 * globals (read fresh so successive edits compose), persist it, then fan the
-	 * change out to every open view. Only the two global command kinds can result
-	 * from a global-* interaction; the per-doc kinds are unreachable here.
+	 * change out to every open view.
 	 */
 	private async applyInteraction(interaction: SettingsInteraction): Promise<void> {
 		await this.persist(planSettingsWrite(interaction, this.writeContext()));
@@ -879,11 +882,7 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 		};
 	}
 
-	/**
-	 * The single persistence executor. Only the three global command kinds can
-	 * result from a global-* interaction or a reset; the per-doc kinds are
-	 * unreachable from this surface.
-	 */
+	/** The single persistence executor — every settings command writes `data.json`. */
 	private async persist(command: SettingsCommand): Promise<void> {
 		switch (command.kind) {
 			case "global-depths":
@@ -894,9 +893,6 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 				return;
 			case "node-exclusion":
 				await this.store.saveNodeExclusion(command.nodeExclusion);
-				return;
-			case "doc-depth-field":
-			case "central-depth-field":
 				return;
 		}
 	}

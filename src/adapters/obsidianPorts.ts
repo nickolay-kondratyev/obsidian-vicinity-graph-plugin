@@ -75,7 +75,7 @@ export interface MetadataCachePort {
 
 /** Structural slice of obsidian-id-lib's `DocIdService` (see its README for the contract). */
 export interface DocIdPort {
-	/** Lock-guarded read-or-create — ONLY on explicit write intent (pin / per-doc setting). */
+	/** Lock-guarded read-or-create — ONLY on explicit write intent (pinning a doc). */
 	ensureDocId(file: VaultFilePort): Promise<string | null>;
 	/** READ-ONLY and lock-free — the bulk/read-path call (graph builds, sweeps). */
 	getDocId(file: VaultFilePort): Promise<string | null>;

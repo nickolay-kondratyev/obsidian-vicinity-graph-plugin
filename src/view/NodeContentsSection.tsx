@@ -11,7 +11,7 @@ import { planSettingsWrite } from "./settingsWritePlan";
 /**
  * The in-view mirror of the settings tab's "Node contents" card: the Preview
  * pill, writing the SAME global through the SAME `global-node-preview`
- * interaction the tab emits (no per-doc override — CLARIFICATION Q3). Copy comes
+ * interaction the tab emits (there is no per-note layer). Copy comes
  * from the shared {@link NODE_PREVIEW_OPTION_META} and the order from
  * {@link NODE_PREVIEW_PREFERENCES}, so the two pills cannot drift; only the
  * markup is duplicated, because Obsidian's `Setting` API cannot mount in React.

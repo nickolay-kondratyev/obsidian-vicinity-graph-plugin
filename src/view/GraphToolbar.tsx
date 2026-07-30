@@ -1,7 +1,7 @@
 import type { ReactElement } from "react";
-import { CentralDepthControls } from "./CentralDepthControls";
 import type { ControlsModel } from "./ControlsModel";
 import { Disclosure } from "./Disclosure";
+import { GlobalDepthControls } from "./GlobalDepthControls";
 import { ForceLayoutSection } from "./ForceLayoutSection";
 import { NodeContentsSection } from "./NodeContentsSection";
 import { NodeExclusionSection } from "./NodeExclusionSection";
@@ -22,34 +22,28 @@ import { SizingSection } from "./SizingSection";
  * `nowheel`/`nodrag`/`nopan` are React-Flow escape hatches so scrolling and
  * interacting with the panel never pans or zooms the canvas beneath it.
  */
-export function GraphToolbar({ controls }: { readonly controls: ControlsModel }): ReactElement | null {
-	const main = controls.centrals[0];
-	if (main === undefined) {
-		return null; // Empty view — no central to control.
-	}
+export function GraphToolbar({ controls }: { readonly controls: ControlsModel }): ReactElement {
 	const ctx: SettingsWriteContext = {
 		globalDepths: controls.globalDepths,
 		globalView: controls.globalView,
 		nodeExclusion: controls.nodeExclusion,
 	};
-	const pinned = controls.centrals.filter((central) => central.kind === "pinned");
-
 	return (
 		<details className="vicinity-graph-toolbar nowheel nodrag nopan">
 			<summary className="vicinity-graph-toolbar__header">
 				<span className="vicinity-graph-toolbar__title">Graph controls</span>
 			</summary>
 			<div className="vicinity-graph-toolbar__body">
-				<Disclosure summary="Depth" defaultOpen>
-					<CentralDepthControls central={main} ctx={ctx} />
+				{/*
+				 * "(all notes)" is load-bearing copy, not decoration (owner decision
+				 * 2026-07-29): these steppers write the ONE global depth setting, so a
+				 * bump here changes every note's graph and every open view. Plain
+				 * "Depth" on an in-view panel reads as "this graph's depth" (POLS).
+				 * The settings tab's depth card carries the same words.
+				 */}
+				<Disclosure summary="Depth (all notes)" defaultOpen>
+					<GlobalDepthControls depths={controls.globalDepths} ctx={ctx} />
 				</Disclosure>
-				{pinned.length > 0 && (
-					<Disclosure summary={`Pinned centrals (${pinned.length})`}>
-						{pinned.map((central) => (
-							<CentralDepthControls key={central.path} central={central} ctx={ctx} />
-						))}
-					</Disclosure>
-				)}
 				<NodeExclusionSection ctx={ctx} excludedNodeCount={controls.excludedNodeCount} />
 				<SizingSection view={controls.globalView} ctx={ctx} />
 				{/* Node CONTENTS follow node SIZE, mirroring the settings tab's card order. */}

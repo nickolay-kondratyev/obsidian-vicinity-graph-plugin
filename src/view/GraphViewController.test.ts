@@ -13,7 +13,6 @@ import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
 
 /** These tests exercise rebuild concurrency, not the toolbar model — an empty model suffices. */
 const EMPTY_CONTROLS: ControlsModel = {
-	centrals: [],
 	mainPinned: false,
 	globalDepths: EngineDefaults.depthSettings(),
 	globalView: EngineDefaults.viewSettings(),
@@ -294,17 +293,6 @@ describe("GraphViewController settings-changed rebuild", () => {
 		h.controller.handleSettingsChanged();
 
 		expect(h.source.calls).toEqual(["a.md", "a.md"]);
-	});
-
-	it("WHEN no MAIN is set THEN currentMainPath is null", () => {
-		const h = setup();
-		expect(h.controller.currentMainPath()).toBeNull();
-	});
-
-	it("WHEN a MAIN file is active THEN currentMainPath returns it", () => {
-		const h = setup();
-		h.controller.handleActiveFileChanged("a.md");
-		expect(h.controller.currentMainPath()).toBe("a.md");
 	});
 });
 

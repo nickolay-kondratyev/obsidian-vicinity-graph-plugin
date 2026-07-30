@@ -56,9 +56,11 @@ describe("VicinityEngine dense build determinism", () => {
 });
 
 describe("VicinityEngine runtime cap change end-to-end", () => {
-	it("WHEN MAIN's view override lowers then raises the cap THEN the smaller visible set is a subset of the larger", () => {
+	it("WHEN the global cap is lowered then raised THEN the smaller visible set is a subset of the larger", () => {
 		const paths = (nodeCap: number): Set<string> =>
-			new Set(buildDense({ mainViewOverride: { nodeCap } }).nodes.map((node) => node.path));
+			new Set(
+				buildDense({ globalView: { ...EngineDefaults.viewSettings(), nodeCap } }).nodes.map((node) => node.path),
+			);
 		const atThirty = paths(30);
 		const atNinety = paths(90);
 		expect([...atThirty].every((path) => atNinety.has(path))).toBe(true);

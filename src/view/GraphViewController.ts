@@ -36,7 +36,7 @@ export interface FlowSnapshot {
 	readonly edges: readonly FlowEdge[];
 	/** Graph-corner "+N hidden" overlay data (zero-total constant when nothing is hidden). */
 	readonly orphanTruncation: OrphanTruncation;
-	/** The toolbar's read-model for this build (MAIN + pinned centrals, empty when no graph). */
+	/** The controls panel's read-model for this build (spec defaults when no graph). */
 	readonly controls: ControlsModel;
 	/**
 	 * Monotonic counter bumped every time a publish carries FRESH elk positions
@@ -48,7 +48,6 @@ export interface FlowSnapshot {
 }
 
 const EMPTY_CONTROLS: ControlsModel = {
-	centrals: [],
 	mainPinned: false,
 	globalDepths: EngineDefaults.depthSettings(),
 	globalView: EngineDefaults.viewSettings(),
@@ -157,11 +156,6 @@ export class GraphViewController {
 	handleSettingsChanged(): void {
 		this.clearDebounce();
 		void this.runRebuild();
-	}
-
-	/** The current MAIN file path (pure string getter — the executor targets it). `null` before any build. */
-	currentMainPath(): string | null {
-		return this.mainPath;
 	}
 
 	/** Vault content changed while the view is open — debounce the resolve burst. */

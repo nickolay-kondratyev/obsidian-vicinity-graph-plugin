@@ -7,9 +7,6 @@ import { BacklinksAdapter } from "./adapters/BacklinksAdapter";
 import { CanvasParseCache } from "./adapters/CanvasParseCache";
 import { VicinityGraphBuilder } from "./adapters/VicinityGraphBuilder";
 import { ObsidianLinkProvider } from "./adapters/ObsidianLinkProvider";
-import { DocDataStore } from "./persistence/DocDataStore";
-import { DOC_DATA_DIR_NAME } from "./persistence/docDataDirName";
-import { DocPersistEligibility } from "./persistence/DocPersistEligibility";
 import { OrphanSweeper, SWEEP_DELAY_MS } from "./persistence/OrphanSweeper";
 import { PathDocIdMap } from "./persistence/PathDocIdMap";
 import { PersistenceServices } from "./persistence/PersistenceServices";
@@ -26,7 +23,7 @@ import type { ViewsRefreshPort } from "./view/viewPorts";
 // version; it rides canvas's documented arbitrary-key forward compatibility.
 
 export default class VicinityGraphPlugin extends Plugin {
-	/** Doc-scoped persistence entry points for steps 04/06 (pin, per-doc settings). */
+	/** Doc-scoped persistence entry points (pin / unpin). */
 	persistenceServices!: PersistenceServices;
 	/** The per-rebuild orchestration for steps 04 (view) and the debug command. */
 	graphBuilder!: VicinityGraphBuilder;
@@ -34,7 +31,6 @@ export default class VicinityGraphPlugin extends Plugin {
 	pluginDataStore!: PluginDataStore;
 
 	private docIdService!: DocIdService;
-	private docDataStore!: DocDataStore;
 	private readonly pathDocIdMap = new PathDocIdMap();
 	/** Plugin-lived on purpose: canvas parses survive across graph rebuilds (mtime-keyed). */
 	private readonly canvasParseCache = new CanvasParseCache();
@@ -51,20 +47,13 @@ export default class VicinityGraphPlugin extends Plugin {
 		this.docIdService = DocIdServices.createDefault(this.app.vault);
 		this.pluginDataStore = new PluginDataStore(this);
 		await this.pluginDataStore.init();
-		this.docDataStore = new DocDataStore(this.app.vault.adapter, this.docDataDirPath());
-		this.persistenceServices = new PersistenceServices(
-			this.docIdService,
-			this.pluginDataStore,
-			this.docDataStore,
-			this.pathDocIdMap,
-		);
+		this.persistenceServices = new PersistenceServices(this.docIdService, this.pluginDataStore, this.pathDocIdMap);
 		this.graphBuilder = new VicinityGraphBuilder(
 			this.app.vault,
 			this.app.metadataCache,
 			this.docIdService,
 			this.canvasParseCache,
 			this.pluginDataStore,
-			this.docDataStore,
 			this.pathDocIdMap,
 		);
 
@@ -131,12 +120,6 @@ export default class VicinityGraphPlugin extends Plugin {
 		}
 	}
 
-	/** `.obsidian/plugins/<id>/doc-data` — the per-doc `<docid>.json` folder. */
-	private docDataDirPath(): string {
-		const pluginDir = this.manifest.dir ?? `${this.app.vault.configDir}/plugins/${this.manifest.id}`;
-		return `${pluginDir}/${DOC_DATA_DIR_NAME}`;
-	}
-
 	private registerVaultLifecycleHandlers(): void {
 		// Renames are a persistence non-event (docid-keyed); only the map moves.
 		// Cache eviction is unconditional — non-canvas paths are no-ops.
@@ -153,33 +136,19 @@ export default class VicinityGraphPlugin extends Plugin {
 	private async handleVaultDelete(path: string): Promise<void> {
 		this.canvasParseCache.evict(path);
 		const docid = this.pathDocIdMap.handleDelete(path);
-		if (docid === undefined) {
-			return;
-		}
-		if (this.pluginDataStore.hasPin(docid)) {
+		if (docid !== undefined && this.pluginDataStore.hasPin(docid)) {
 			await this.pluginDataStore.removePins([docid]);
-		}
-		if (DocPersistEligibility.isFilenameSafeDocId(docid)) {
-			await this.docDataStore.remove(docid);
 		}
 	}
 
 	private scheduleOrphanSweep(): void {
-		const sweeper = new OrphanSweeper(
-			this.app.vault,
-			this.docIdService,
-			this.pathDocIdMap,
-			this.pluginDataStore,
-			this.docDataStore,
-		);
+		const sweeper = new OrphanSweeper(this.app.vault, this.docIdService, this.pathDocIdMap, this.pluginDataStore);
 		this.sweepTimer = window.setTimeout(
 			() =>
 				void sweeper
 					.run()
 					.then((summary) => {
-						console.log(
-							`vicinity-graph: orphan sweep complete docDataFilesRemoved=[${summary.docDataFilesRemoved}] pinsRemoved=[${summary.pinsRemoved}] centralEntriesRemoved=[${summary.centralEntriesRemoved}] ownersRewritten=[${summary.ownersRewritten}]`,
-						);
+						console.log(`vicinity-graph: orphan sweep complete pinsRemoved=[${summary.pinsRemoved}]`);
 					})
 					.catch((error: unknown) => {
 						console.error("vicinity-graph: orphan sweep failed", error);

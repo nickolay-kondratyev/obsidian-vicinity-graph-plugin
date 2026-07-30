@@ -65,12 +65,12 @@ const CANNOT_BE_UNDONE = "This cannot be undone.";
 
 const ALL_SCOPE_LABEL = "Restore all Vicinity Graph settings";
 /**
- * WHY it names what SURVIVES: the label claims "all", but per-note depth
- * overrides and pins live in per-doc files this reset never touches. Without the
- * second sentence a user reads the label as "my per-note work is gone too".
+ * WHY it names what SURVIVES: the label claims "all", but the pinned set is not
+ * a setting and this reset never touches it. Without the second sentence a user
+ * reads the label as "my pins are gone too".
  */
 const ALL_SCOPE_DESCRIPTION =
-	"Resets every Vicinity Graph setting — depth defaults, node sizing, node contents, force layout, node exclusion and performance — to its shipped default. Per-note depth overrides and pinned notes are kept.";
+	"Resets every Vicinity Graph setting — depth defaults, node sizing, node contents, force layout, node exclusion and performance — to its shipped default. Pinned notes are kept.";
 
 const EXCLUSION_SCOPE_LABEL = "Restore node exclusion defaults";
 
@@ -128,7 +128,7 @@ function planSectionReset(section: SettingsSection, ctx: SettingsWriteContext): 
 export const SETTINGS_RESET_SCOPES: Readonly<Record<SettingsResetScope, SettingsResetScopeSpec>> = {
 	"depth-defaults": {
 		label: "Restore depth defaults",
-		description: "Resets the default outgoing and incoming depth. Per-note depth overrides are kept.",
+		description: "Resets the outgoing and incoming depth used for every central note.",
 		plan: (ctx) => planSectionReset("depth-defaults", ctx),
 	},
 	"node-sizing": {

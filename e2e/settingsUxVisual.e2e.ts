@@ -6,7 +6,6 @@ import {
 	ALL_SETTINGS_RESET_CONFIRM_TITLE,
 	CONTROLS_PANEL_DISCLOSURE_SUMMARIES,
 	CONTROLS_PANEL_DISCLOSURES,
-	PINNED_CENTRALS_SUMMARY_PATTERN,
 	SECTION_RESET_NAMES,
 	SETTINGS_TAB_SECTION_HEADINGS,
 	SETTINGS_TAB_SECTIONS,
@@ -90,17 +89,13 @@ const TOP_LEVEL_PANEL_SUMMARY_SELECTOR =
 	".vicinity-graph-toolbar__body > .vicinity-graph-disclosure > .vicinity-graph-disclosure__summary";
 
 /**
- * The panel's top-level disclosure summaries MINUS the conditional "Pinned
- * centrals (n)", in DOM order.
- *
- * That one is filtered out BY NAME rather than left to the fixture: this spec
- * happens never to pin a central today, but that is an invisible invariant, and
- * the day a test above it pins one the count would silently become 6. The price
- * is that this locator cannot see the disclosure rendering UNCONDITIONALLY —
- * covered by the absence test below.
+ * The panel's top-level disclosure summaries, in DOM order — ALL of them, with no
+ * name-based exemption: since ticket `nid_ez38gf1mrdgh5kxedzrdicwzl_e` every panel
+ * section renders unconditionally (the pinned-centrals disclosure and its
+ * per-central depth dials are gone), so the count below is fixture-independent.
  */
 function topLevelPanelSummaries(): Locator {
-	return page.locator(TOP_LEVEL_PANEL_SUMMARY_SELECTOR).filter({ hasNotText: PINNED_CENTRALS_SUMMARY_PATTERN });
+	return page.locator(TOP_LEVEL_PANEL_SUMMARY_SELECTOR);
 }
 
 test("panel: WHEN the controls panel renders THEN its top-level disclosures are exactly the listed ones, in order", async () => {
@@ -119,7 +114,7 @@ test("panel: WHEN the controls panel renders THEN its top-level disclosures are 
 	// (NodeExclusionSection), so its textContent is "Node exclusion" or
 	// "Node exclusion12" depending on the fixture, and an exact string would be a
 	// latent flake for that entry. `\d*` tolerates that badge and NOTHING else —
-	// tail-anchoring keeps a rename like "Depth" → "Depth & scope" failing, which
+	// tail-anchoring keeps a rename like "Depth (all notes)" → "Depth & scope" failing, which
 	// an open-ended prefix would have let through. If the badge ever stops being a
 	// bare integer, the resulting failure is intended, not a flake.
 	await expect(summaries).toHaveText(
@@ -127,24 +122,6 @@ test("panel: WHEN the controls panel renders THEN its top-level disclosures are 
 			(text) => new RegExp(`^${text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\d*$`),
 		),
 	);
-});
-
-/*
- * The blind spot the filter above creates, closed. The exhaustiveness pin removes
- * "Pinned centrals (n)" from its own locator by name, so a `GraphToolbar` that
- * dropped the `pinned.length > 0` guard and rendered "Pinned centrals (0)" on
- * every view would leave it — and every other spec — green: the two specs that
- * touch this disclosure only assert PRESENCE, and only AFTER pinning.
- *
- * Ordering matters and is why this lives here: the file is serial and its fixture
- * never pins, so the GIVEN holds only as long as no test above it clicks a pin.
- */
-test("panel: WHEN no central is pinned THEN the panel has no Pinned centrals disclosure", async () => {
-	await setOpen(toolbar(), true);
-
-	// One chained statement on ONE line, so `selectorGuard.test.ts` can recognise it
-	// as an absence assertion — see its ABSENCE_ASSERTION_PATTERN note.
-	await expect(page.locator(TOP_LEVEL_PANEL_SUMMARY_SELECTOR).filter({ hasText: PINNED_CENTRALS_SUMMARY_PATTERN })).toHaveCount(0);
 });
 
 test("exclusion toggle switches on, shows patterns state, and persists", async () => {

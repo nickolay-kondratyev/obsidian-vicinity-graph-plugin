@@ -53,9 +53,9 @@ async function dirtyEverySection(): Promise<void> {
 test("REVIEW: isolation matrix — each section reset touches only its own keys", async () => {
 	await settingsTab.open();
 
-	// --- Depth defaults -----------------------------------------------------
+	// --- Depth (all notes) --------------------------------------------------
 	await dirtyEverySection();
-	await settingsTab.resetButton("Depth defaults").click();
+	await settingsTab.resetButton("Depth (all notes)").click();
 	let after = await harness.readGlobals();
 	expect(after.depths).toEqual({ outgoingDepth: 1, incomingDepth: 1 });
 	expect(after.view.nodeCap).toBe(42);

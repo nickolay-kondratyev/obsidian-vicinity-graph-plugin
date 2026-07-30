@@ -3,6 +3,17 @@
 **Covers:** Phase 6 of [[../high-level-plan]]
 **Depends on:** [[step-05-rich-rendering]]
 
+> **PARTLY SUPERSEDED — the central selector, per-central depth steppers,
+> pin-on-toggle and per-control reset-to-global below.** Ticket
+> `nid_ez38gf1mrdgh5kxedzrdicwzl_e` (owner decision 2026-07-29) made settings
+> global-only: the panel's Depth section is now ONE pair of steppers
+> (`GlobalDepthControls`) writing the global depth that drives MAIN and every pinned
+> central, there is no per-central list and no per-control reset, and resetting is
+> per settings-tab section plus one tab-wide scope. Pinning itself (hover button,
+> node menu, global pinned set) is unchanged. This document is kept AS SHIPPED — the
+> record of what was built and why, not current behavior; for that read
+> [[../high-level-plan]] §Pinning and settings.
+
 ## Objective
 
 Put the already-working machinery in the user's hands: per-central depth control, pinning, sizing configuration, and the global settings tab. This step is mostly UI over APIs that steps 02–03 built and tested.

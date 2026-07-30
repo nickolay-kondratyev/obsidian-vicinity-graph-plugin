@@ -21,10 +21,12 @@ view  ──▶  adapters  ──▶  engine  (pure core)
 - **`src/adapters/`** — bridges Obsidian ↔ engine. `ObsidianLinkProvider`
   (resolvedLinks + backlinks), canvas capability detection + fallback parser,
   `VicinityGraphBuilder` (per-rebuild orchestration), docid ↔ path translation.
-- **`src/persistence/`** — JSON storage. Globals + pinned set in `data.json`
-  (`PluginDataStore`); per-doc settings as one file per doc at
-  `.obsidian/plugins/<id>/doc-data/<docid>.json` (`DocDataStore`). Delayed,
-  chunked `OrphanSweeper`. Every persisted shape carries a `version` field.
+- **`src/persistence/`** — JSON storage, and `data.json` (`PluginDataStore`) is
+  the ONLY store: global settings + the pinned set. **Nothing is per-document** —
+  the `doc-data/<docid>.json` store was deleted with the per-doc settings layer
+  (ticket `nid_ez38gf1mrdgh5kxedzrdicwzl_e`); stale dirs from older builds are
+  ignored, never read. Delayed, chunked `OrphanSweeper` prunes stale pins. Every
+  persisted shape carries a `version` field.
 - **`src/view/`** — React 18 mounted in an Obsidian `ItemView`. Rendering,
   toolbar controls, layout. `GraphViewController.ts` owns the rebuild pipeline
   `events → engine → structural diff → layout → React Flow` and is the **only**
@@ -49,10 +51,10 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   node components reach through `NoteOpenContext` (React Flow instantiates them,
   so context is the only channel). `NodeOutline.tsx` owns in-node outline
   rendering — the tree/label/markup decisions and `node-outline.css`.
-  Refresh reach is two ports: `OwningViewPort` rebuilds just the view that owns
-  the controls panel, `ViewsRefreshPort` (implemented in `main.ts` over
-  `refreshOpenViews()`) rebuilds every open view — which one a settings write
-  uses is the pure `view/settingsWriteScope.ts` decision.
+  Refresh reach is ONE port: `ViewsRefreshPort` (implemented in `main.ts` over
+  `refreshOpenViews()`) rebuilds every open view. Every settings write is global,
+  so there is no narrower reach to choose — the write-scope classifier and the
+  owning-view port went with the per-doc layer.
 - `persistence/storagePorts.ts`, `adapters/obsidianPorts.ts` — testable seams,
   each with a `Fake*` implementation used by unit tests.
 

@@ -1,0 +1,88 @@
+# PHASE 1 — per-doc removal (global-only settings) — PRIVATE state
+
+STATUS: **PHASE 1 + ITERATION_PHASE_1 + PHASE 2 + ITERATION_PHASE_2 COMPLETE.**
+
+## ITERATION_PHASE_2 state (for a future clone)
+Commits `4780cc4` (copy: both depth surfaces → "Depth (all notes)"), `1e970d8` (docs + S1/N1),
+`05b2912` (smoke-run item 5). Gates: `npm test` 1083/1083 exit 0, `npm run check` exit 0
+(`.tmp/iter2-test.log`, `.tmp/iter2-check.log`). `npm run test:e2e` still unrun (real Obsidian).
+Full account: `IMPLEMENTATION_ITERATION_PHASE2__PUBLIC.md` (same dir).
+- The owner answered the PHASE 2 `#QUESTION_FOR_HUMAN` with option A. Handoff item 6 is now DONE;
+  no hint line was requested, so do NOT add one on your own.
+- Reviewer S2 accepted: the settings-tab card heading matches the panel word-for-word.
+- Reset copy ("Restore depth defaults", and the tab-wide enumeration) was deliberately LEFT — in a
+  restore row "defaults" = shipped defaults, and all five siblings share `Restore <thing> defaults`.
+  Do not "fix" it without owner alignment.
+- `CONTROLS_PANEL_DISCLOSURES[0].summaryAlsoMatchesAnAncestor` left `true` on purpose: probably now
+  unnecessary, but flipping it can only turn an e2e I cannot run red. Revisit with a real `test:e2e`.
+- Ticket bookkeeping list is UNCHANGED (still in `IMPLEMENTATION_PHASE2__PUBLIC.md`); two tickets
+  were edited in place again this round and both stay OPEN
+  (`ticket-step-06-controls-human-smoke-run`, `ticket-controls-optimistic-input-latency`).
+
+## PHASE 2 state (for a future clone)
+Commits `89ec065` (docs), `336c977` (e2e + depth-controls CSS), `4019f90` (CLAUDE.md + step-06 gate).
+Gates re-run after every commit: `npm test` 1083/1083, `npm run check` exit 0
+(`.tmp/phase2-final-test.log`, `.tmp/phase2-final-check.log`). Full account:
+`IMPLEMENTATION_PHASE2__PUBLIC.md` (same dir) — including the ticket-bookkeeping list
+TOP_LEVEL must execute (nothing was closed here, no change_log entry written).
+- Handoff item 6 (Depth summary copy) → NOT done, escalated as `#QUESTION_FOR_HUMAN` at the end of
+  `IMPLEMENTATION_PHASE2__PUBLIC.md`. Do not invent the wording.
+- Handoff item 7 (depth-controls card chrome) → DONE; it was a real cascade defect (background repainted
+  the ancestor's own variable; extra padding mis-indented the rows), not a taste call.
+- `npm run test:e2e` still unrun (needs real Obsidian). The two new `pinnedCentralScenario` specs are the
+  riskiest artifact of this phase.
+- Restatement of the ratified bar in `docs-internal/notes/settings.md` is LANDED (owner accepted). It
+  names the guards that actually exist (`ParsedViewFields` + `Exclude<keyof ViewSettings, …>`), NOT the
+  `satisfies Record<…>` phrasing from the brief — no such construct is in the tree.
+
+(PHASE 1, for history:) review findings addressed in `6c6c7f9`.
+`npm test` 1083/1083 (was 1085; two dead `currentMainPath` tests deleted with the method),
+`npm run check` clean. Logs: `.tmp/iter1-test.log`, `.tmp/iter1-check.log`.
+
+## ITERATION_PHASE_1 notes for a future clone
+- B1 root fix: reset copy now flows e2e-ward through `ALL_SETTINGS_RESET_DESCRIPTION` in
+  `e2e/settingsBaseline.ts` (derived from `SETTINGS_RESET_SCOPES.all.description`). The literal
+  copy assertion stays exactly once, in `src/view/settingsResetPlan.test.ts:283`. If you ever want a
+  second literal opinion on the e2e side, `e2e/settingsBaseline.test.ts` is that file — deliberately
+  NOT added, it would be a third copy.
+- Suggestions 1 (Depth summary wording) and 2 (depth-controls card chrome) were REJECTED for this
+  phase and are handoff items 6 and 7 in PUBLIC.md.
+- `docs-internal/notes/settings.md` standing-decision text was left untouched ON PURPOSE — the
+  reviewer's `#QUESTION_FOR_HUMAN` about restating the ratified `ViewSettingsResolver.resolve()`
+  guard is still with the human.
+
+(PHASE 1 baseline, for history:)
+`npm test` 1085/1085, `npm run check` clean, `npm run build` ok.
+Authoritative outcome + PHASE 2 pointers: `IMPLEMENTATION_WITH_SELF_PLAN__PUBLIC.md` (same dir).
+
+## Commits (branch CC_nid_ez38gf1mrdgh5kxedzrdicwzl_e__settings-simplification-remove-per-doc-saved-state_opus)
+- `2ee62a0` engine, `347dc77` persistence, `af8cc11` view/adapters (+ minimal e2e), `2a49713` comment scrub.
+Base was `4edddb6`.
+
+## Where things ended up (for a future clone)
+- Depth UI: `src/view/GlobalDepthControls.tsx` → `planSettingsWrite({kind:"global-depth"})`.
+  CSS hook is `.vicinity-graph-depth-controls` (was `.vicinity-graph-central[data-kind=…]`).
+- `ControlsModel` = global slices + `mainPinned` + `excludedNodeCount`. `mainPinned` is still the only
+  carrier of "MAIN is itself pinned" (assembler skips main-as-pin) and feeds `flowMapping`.
+- Every settings write is global ⇒ `ControlsActions.applySettings` always calls
+  `viewsRefresh.refreshAllViews()`. `OwningViewPort` is gone; `GraphViewController.handleSettingsChanged`
+  survives because `VicinityGraphView.refresh()` (the fan-out target) calls it.
+- Parse layer: `parseDepthFields` / `parseViewFields` in `persistedShapes.ts`, both returning
+  `Partial<…>` merged over `PersistedShapes.defaultPluginData()`. `ParsedViewFields` mapped type is
+  still THE completeness guard for view fields.
+- `PERSISTED_SHAPE_VERSION` was NOT bumped: doc-data files are simply orphaned on disk and `data.json`
+  keeps its shape (no removed keys inside it), so a bump would have needlessly discarded globals.
+
+## Things a reviewer may push on (with the reasoning already made)
+1. Deleting the two resolvers / `resolvePinnedDescriptors.ts` / `settingsWriteScope.ts` goes a step
+   past the ticket's "collapse to constant" wording — all three would have been identity/one-value
+   indirections. See PUBLIC.md §Decisions 1–3.
+2. `DocPersistEligibility`'s filename rule now has a softer justification (documented in the file).
+   If the owner wants pins for foreign unsafe docids, that is a NEW ticket.
+3. `settingsSectionFields.test.ts` lost its `default:` throw arm — the switch over `SettingsCommand`
+   is now exhaustive, so the arm's `command` was `never`.
+
+## Not done here (PHASE 2)
+Docs/README/plan/architecture-map/release-note/tickets, and the e2e rewrite adding a global-depth
+spec + deleting `PINNED_CENTRALS_SUMMARY*` from `e2e/settingsBaseline.ts` and its use in
+`e2e/settingsUxVisual.e2e.ts`. Exact line pointers are listed in PUBLIC.md.

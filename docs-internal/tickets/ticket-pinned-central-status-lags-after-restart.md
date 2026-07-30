@@ -3,17 +3,22 @@
 **Status:** OPEN — surfaced by the step-06 restart-round-trip e2e (`e2e/controlsRestart.e2e.ts`).
 **Severity:** minor UX; no data loss — the pin IS persisted and reappears.
 
-> **2026-07-29 scope check:** the settings simplification
-> (`nid_ez38gf1mrdgh5kxedzrdicwzl_e`, global-only settings) keeps pins GLOBAL and
-> keeps `PathDocIdMap` + the (slimmed) sweep, so this defect likely survives it.
-> Re-verify after that ticket lands and adjust the "per-doc depth settings are
-> unaffected" remark below — per-doc depth settings will no longer exist.
+> **2026-07-29 RE-VERIFIED after `nid_ez38gf1mrdgh5kxedzrdicwzl_e` (global-only
+> settings) landed: STILL REPRODUCIBLE — this ticket stays OPEN.** Nothing in the
+> root cause was touched: `PathDocIdMap` is still in-memory only and is still
+> warmed for neighbour docids by `OrphanSweeper.run()` alone (plus MAIN's own id in
+> `VicinityGraphBuilder` and the pinned doc on `pinDoc`), the sweep still starts at
+> `SWEEP_DELAY_MS = 15_000`, and the assembler still SKIPS a pin whose docid does
+> not resolve. Options A/B/C below are unaffected. Two details are now stale and
+> corrected in place: per-doc depth settings no longer exist at all, and the
+> toolbar's "Pinned centrals" disclosure was deleted — the lag is visible purely as
+> node styling.
 
 ## Observation
 
 After an Obsidian restart, a persisted pinned central renders as a plain `regular`
-node (no dashed-accent identity, absent from the toolbar's "Pinned centrals"
-disclosure) until the delayed orphan sweep runs and a rebuild picks it up.
+node (no dashed-accent identity) until the delayed orphan sweep runs and a rebuild
+picks it up.
 
 ## Root cause
 
@@ -23,9 +28,9 @@ map makes the assembler SKIP the pin (`GraphRequestAssembler` — "a pin whose d
 does not resolve to a path is SKIPPED"). The map is only warmed for neighbour
 docids by `OrphanSweeper.run()` (`pathDocIdMap.set(...)`), scheduled at
 `SWEEP_DELAY_MS = 15_000`. Between load and that sweep — and until a subsequent
-rebuild — the pinned central shows as regular. (MAIN's own docid resolves
-immediately, so per-doc *depth* settings are unaffected; only pinned-central
-identity lags.)
+rebuild — the pinned central shows as regular. Only pinned-central IDENTITY lags:
+depth and every other setting is global and loads with `data.json`, and MAIN's own
+docid resolves immediately.
 
 ## Options (Pareto)
 

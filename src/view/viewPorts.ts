@@ -33,15 +33,13 @@ export interface GraphSourcePort {
  * `PersistenceServices`/`PluginDataStore`, resolving the target file from a path
  * via `VaultPort` and surfacing a `Notice` on a non-persistable doc.
  *
- * A rebuild follows only what LANDED: a refused or absent-MAIN write changes no
- * rendered state, so nothing rebuilds. What did land rebuilds as far as its
- * blast radius reaches (`settingsWriteScope.ts`) — global writes and pin/unpin
- * fan out to EVERY open view, per-doc writes stay on the owning view.
- * Implemented by `ControlsActions`; consumed by the toolbar + node components
- * via context (Phase C).
+ * A rebuild follows only what LANDED: a refused write (a doc with no stable id)
+ * changes no rendered state, so nothing rebuilds. Everything that DOES land is
+ * global state in `data.json`, so it fans out to EVERY open view. Implemented by
+ * `ControlsActions`; consumed by the panel + node components via context.
  */
 export interface ControlsActionsPort {
-	/** Persist a planned settings write (depth / global); rebuilds only if it landed. */
+	/** Persist a planned settings write (all global); then rebuild every open view. */
 	applySettings(command: SettingsCommand): Promise<void>;
 	/** Pin a regular node by its vault path (resolves + ensures a docid); rebuilds every view if it landed. */
 	pinNode(path: string): Promise<void>;
@@ -58,20 +56,6 @@ export interface ControlsActionsPort {
  */
 export interface ViewsRefreshPort {
 	refreshAllViews(): void;
-}
-
-/**
- * The slice of the OWNING view's controller the controls executor needs: which
- * doc is currently MAIN (every depth write targets it) and "rebuild just this
- * view" — the reach of a per-doc write, kept narrow by scope rather than by any
- * insulation between views (see `settingsWriteScope.ts`). Structurally
- * satisfied by `GraphViewController`; deliberately narrow so the executor is
- * testable with a plain fake and cannot reach the rest of the controller.
- * Contrast {@link ViewsRefreshPort}, which reaches ALL views.
- */
-export interface OwningViewPort {
-	currentMainPath(): string | null;
-	handleSettingsChanged(): void;
 }
 
 /**

@@ -131,37 +131,38 @@ describe("VicinityEngine end-to-end build", () => {
 	});
 });
 
+/** Settings are GLOBAL-only: one depth dial, one view object, no override layer. */
 describe("VicinityEngine settings integration", () => {
-	it("WHEN a per-root depth override shrinks MAIN's outgoing depth THEN the second hop disappears", () => {
-		const graph = build({
-			depthOverridesByRoot: new Map([[asVaultPath("hub.md"), { outgoingDepth: 1 }]]),
-		});
+	function capped(nodeCap: number): Partial<GraphBuildRequest> {
+		return { globalView: { ...EngineDefaults.viewSettings(), nodeCap } };
+	}
+
+	it("WHEN the global outgoing depth allows one hop THEN the second hop disappears", () => {
+		const graph = build({ globalDepths: { outgoingDepth: 1, incomingDepth: 1 } });
 		expect(node(graph, "notes/gamma.md")).toBeUndefined();
 	});
 
-	it("WHEN MAIN's view override caps the graph THEN non-centrals are truncated to the cap", () => {
-		const graph = build({ mainViewOverride: { nodeCap: 1 } });
-		expect(graph.nodes.filter((n) => !n.isCentral)).toHaveLength(1);
+	it("WHEN the global view caps the graph THEN non-centrals are truncated to the cap", () => {
+		expect(build(capped(1)).nodes.filter((n) => !n.isCentral)).toHaveLength(1);
 	});
 
 	it("WHEN truncation hides nodes THEN hidden counts are reported per folder", () => {
-		const graph = build({ mainViewOverride: { nodeCap: 1 } });
 		// Kept non-central: notes/alpha.md (biggest). Hidden: beta+gamma (notes), island/neighbor.md.
-		expect([...graph.hiddenNodeCountsByFolder.entries()].sort()).toEqual([
+		expect([...build(capped(1)).hiddenNodeCountsByFolder.entries()].sort()).toEqual([
 			["island", 1],
 			["notes", 2],
 		]);
 	});
 
-	it("WHEN a pinned doc pins a view field MAIN leaves unset THEN the build uses the pinned value", () => {
+	it("WHEN the global view sets a node preview preference THEN the build reports it verbatim", () => {
 		const graph = build({
-			pinnedViewOverrides: [{ descriptor: PIN, override: { nodePreviewPreference: "image" } }],
+			globalView: { ...EngineDefaults.viewSettings(), nodePreviewPreference: "image" },
 		});
 		expect(graph.viewSettings.nodePreviewPreference).toBe("image");
 	});
 
 	it("WHEN the same request is built twice THEN outputs are identical (determinism)", () => {
-		expect(build({ mainViewOverride: { nodeCap: 2 } })).toEqual(build({ mainViewOverride: { nodeCap: 2 } }));
+		expect(build(capped(2))).toEqual(build(capped(2)));
 	});
 });
 
@@ -225,12 +226,12 @@ describe("VicinityEngine edge link counts (step-05, CLARIFICATION Q1)", () => {
 });
 
 /**
- * Scenario §11.5(b): a pinned central X whose outgoing depth is adjusted while
- * MAIN is Y must re-explore its chain to that depth END-TO-END (proves the BFS
- * actually re-walks X, not just that the resolver returns a number). X's chain
- * X → x1 → x2 → x3 has neighbors at hops 1/2/3; X's OWN depth is 1.
+ * The GLOBAL-only depth contract at the pinned central, END-TO-END (proves the
+ * BFS actually walks a pinned root to the global depth, not just that a number
+ * was passed): X's chain X → x1 → x2 → x3 has neighbors at hops 1/2/3, and X is
+ * NOT main — the depth it uses is the one global dial, whoever is MAIN.
  */
-describe("VicinityEngine pinned-central depth re-exploration", () => {
+describe("VicinityEngine pinned-central depth exploration", () => {
 	function chainProvider(): FakeLinkProvider {
 		return new FakeLinkProvider({
 			files: [
@@ -251,25 +252,24 @@ describe("VicinityEngine pinned-central depth re-exploration", () => {
 		pinTimestamp: 1,
 	};
 
-	/** Build with MAIN=`mainPath` and X's outgoing depth pinned to `xOutgoing`. */
-	function build(mainPath: string, xOutgoing: number): VicinityGraph {
+	/** Build with MAIN=`mainPath` and ONE global outgoing depth for every root. */
+	function build(mainPath: string, globalOutgoing: number): VicinityGraph {
 		return new VicinityEngine(chainProvider()).build({
 			main: { path: asVaultPath(mainPath) },
 			pinned: [X_PIN],
-			globalDepths: { outgoingDepth: 1, incomingDepth: 0 },
+			globalDepths: { outgoingDepth: globalOutgoing, incomingDepth: 0 },
 			globalView: { ...EngineDefaults.viewSettings(), nodeCap: 100 },
-			depthOverridesByRoot: new Map([[asVaultPath("x.md"), { outgoingDepth: xOutgoing }]]),
 		});
 	}
 
-	it("WHEN MAIN is Y and X's depth is adjusted to 3 THEN X reaches x3 at depth 3", () => {
+	it("WHEN the global outgoing depth is 3 THEN the pinned central reaches x3 at depth 3", () => {
 		expect(node(build("y.md", 3), "x3.md")?.depthTags).toEqual([
 			{ rootPath: "x.md", direction: "outgoing", depth: 3 },
 		]);
 	});
 
-	it("WHEN MAIN is Z and X uses its OWN depth 1 THEN x2 and x3 are out of reach", () => {
-		const graph = build("z.md", 1);
+	it("WHEN the global outgoing depth is 1 THEN x2 and x3 are out of the pinned central's reach", () => {
+		const graph = build("y.md", 1);
 		expect({ x1: node(graph, "x1.md") !== undefined, x2: node(graph, "x2.md"), x3: node(graph, "x3.md") }).toEqual({
 			x1: true,
 			x2: undefined,
@@ -277,8 +277,11 @@ describe("VicinityEngine pinned-central depth re-exploration", () => {
 		});
 	});
 
-	it("WHEN MAIN returns to Y with X adjusted to 3 THEN X reaches x3 at depth 3 again", () => {
-		expect(node(build("y.md", 3), "x3.md")?.depthTags).toEqual([
+	it("WHEN MAIN changes THEN the pinned central's reach is unchanged (no per-MAIN depth memory)", () => {
+		// The CONCRETE tag, not a comparison against the other build: with two
+		// `?.depthTags` sides a pinned root that stopped being walked at all would
+		// leave both `undefined` and keep this green — a silent fallback.
+		expect(node(build("z.md", 3), "x3.md")?.depthTags).toEqual([
 			{ rootPath: "x.md", direction: "outgoing", depth: 3 },
 		]);
 	});
@@ -322,7 +325,7 @@ describe("VicinityEngine outline pass-through", () => {
 });
 
 /**
- * The `ViewSettingsResolver -> NodeSizer` seam counterpart of the invariant
+ * The `globalView -> NodeSizer` seam counterpart of the invariant
  * pinned in `NodeSizer.test.ts`: only `viewSettings.sizing` may reach sizing.
  * Someone routing `viewSettings` wholesale into a new size metric surfaces HERE,
  * and every preview-pill flip would then force a relayout instead of the

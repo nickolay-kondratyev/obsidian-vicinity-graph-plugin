@@ -1,7 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { DocDataStore } from "../persistence/DocDataStore";
-import { DOC_DATA_DIR_NAME } from "../persistence/docDataDirName";
-import { FakeFileStorage } from "../persistence/FakeFileStorage";
 import { FakePluginDataPort } from "../persistence/FakePluginDataPort";
 import { PathDocIdMap } from "../persistence/PathDocIdMap";
 import { PluginDataStore } from "../persistence/PluginDataStore";
@@ -40,7 +37,6 @@ async function builderFixture() {
 		docIdPort,
 		new CanvasParseCache(),
 		pluginDataStore,
-		new DocDataStore(new FakeFileStorage(), DOC_DATA_DIR_NAME),
 		pathDocIdMap,
 	);
 	return { builder, docIdPort, pathDocIdMap, pluginDataStore };

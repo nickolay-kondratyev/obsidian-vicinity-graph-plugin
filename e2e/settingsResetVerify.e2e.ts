@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import * as fs from "node:fs";
 import { ObsidianHarness } from "./obsidianHarness";
-import { ALL_SETTINGS_RESET_NAME } from "./settingsBaseline";
+import { ALL_SETTINGS_RESET_DESCRIPTION, ALL_SETTINGS_RESET_NAME } from "./settingsBaseline";
 import { SettingsTabPage } from "./settingsTabPage";
 
 /**
@@ -125,7 +125,9 @@ test("VERIFY: tab-wide description names the survivors and never says 'this tab'
 	await settingsTab.open();
 	const footer = settingsTab.resetAllRow();
 	const text = (await footer.textContent()) ?? "";
-	expect(text).toContain("Per-note depth overrides and pinned notes are kept.");
+	// The WHOLE description, derived — stronger than the old hand-copied fragment
+	// (which named per-note overrides that no longer exist) and it cannot go stale.
+	expect(text).toContain(ALL_SETTINGS_RESET_DESCRIPTION);
 	expect(text).not.toContain("this tab");
 	expect(text).toContain(ALL_SETTINGS_RESET_NAME);
 

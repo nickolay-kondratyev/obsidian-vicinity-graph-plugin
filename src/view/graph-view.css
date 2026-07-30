@@ -496,27 +496,22 @@
 	border-top: 1px solid var(--background-modifier-border);
 }
 
-/* ===== central depth rows ============================================== */
+/* ===== depth rows (the ONE global depth setting) ======================== */
 
-.vicinity-graph-central {
+/*
+ * LAYOUT ONLY: the card background/padding/radius this inherited from the old
+ * per-central row are gone. Those made sense when several central rows had to be
+ * told apart INSIDE one disclosure; with a single block per disclosure the
+ * background repeated `--background-primary` over an ancestor already painting it
+ * (invisible), while the extra padding inset the two depth rows deeper than every
+ * other section's rows — an altitude mismatch, not a grouping cue. The tighter
+ * `--size-4-1` gap stays: two stepper rows read as one control, unlike the
+ * disclosure body's looser inter-block rhythm.
+ */
+.vicinity-graph-depth-controls {
 	display: flex;
 	flex-direction: column;
 	gap: var(--size-4-1);
-	padding: var(--size-4-2);
-	background: var(--background-primary);
-	border-radius: var(--radius-s);
-}
-/* Pinned centrals carry the same dashed-accent identity as their graph node. */
-.vicinity-graph-central[data-kind="pinned"] {
-	border-left: 2px solid var(--interactive-accent);
-}
-
-.vicinity-graph-central__title {
-	font-weight: var(--font-medium);
-	color: var(--text-normal);
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
 }
 
 /* ===== depth stepper =================================================== */
@@ -573,61 +568,13 @@
 	box-shadow: inset 0 0 0 2px var(--interactive-accent);
 }
 
-/* Inherited = muted (recedes); pinned = normal weight + accent dot marker. */
+/* The value IS the global setting — no inherited/pinned distinction to show. */
 .vicinity-graph-stepper__value {
-	position: relative;
 	min-width: 20px;
 	padding: 0 var(--size-4-1);
 	text-align: center;
 	font-variant-numeric: tabular-nums;
-	color: var(--text-muted);
-}
-.vicinity-graph-stepper[data-pinned="true"] .vicinity-graph-stepper__value {
 	color: var(--text-normal);
-	font-weight: var(--font-semibold);
-}
-.vicinity-graph-stepper[data-pinned="true"] .vicinity-graph-stepper__value::after {
-	content: "";
-	position: absolute;
-	top: 2px;
-	right: 1px;
-	width: 4px;
-	height: 4px;
-	border-radius: 50%;
-	background: var(--interactive-accent);
-}
-
-.vicinity-graph-stepper__reset {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	width: 20px;
-	height: 20px;
-	flex-shrink: 0;
-	padding: 0;
-	font-size: var(--font-ui-small);
-	line-height: 1;
-	color: var(--text-muted);
-	background: transparent;
-	border: none;
-	box-shadow: none;
-	cursor: pointer;
-}
-.vicinity-graph-stepper__reset:hover {
-	color: var(--interactive-accent);
-}
-.vicinity-graph-stepper__reset:focus-visible {
-	outline: none;
-	box-shadow: 0 0 0 2px var(--interactive-accent);
-	border-radius: var(--radius-s);
-}
-/* `hidden` reservation: keep layout stable when reset is absent. */
-.vicinity-graph-stepper__reset[hidden] {
-	display: none;
-}
-
-.vicinity-graph-stepper[data-disabled="true"] {
-	opacity: 0.55;
 }
 
 /* ===== disclosures (shared <Disclosure> component) ==================== */

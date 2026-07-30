@@ -1,8 +1,14 @@
 /**
- * Q3 policy (HUMAN-approved): docs whose docid cannot safely name a
- * `doc-data/<docid>.json` file are REFUSED per-doc persistence — they still
- * work fully in graphs, they just cannot be pinned or carry per-doc settings.
- * The typed reason feeds the step-04/06 node emblem (no popups).
+ * Q3 policy (HUMAN-approved): docs whose docid is not a conservatively safe
+ * opaque key are REFUSED persistence — they still work fully in graphs, they
+ * just cannot be pinned. The typed reason feeds the step-04/06 node emblem (no
+ * popups).
+ *
+ * WHY the rule is still a FILENAME rule now that the per-doc `doc-data/<docid>.json`
+ * files are gone (global-only settings, 2026-07-29): the pin refusal is
+ * deliberately UNCHANGED by that removal — a foreign id we would not have
+ * written to disk is also one we do not want to accept as a persisted pin key.
+ * Loosening it is a separate product decision, not a side effect.
  */
 export type PersistableIdentity =
 	| { readonly kind: "persistable"; readonly docid: string }

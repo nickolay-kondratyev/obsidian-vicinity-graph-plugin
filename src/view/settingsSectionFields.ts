@@ -6,7 +6,7 @@ import type { DepthSettings, NodeExclusionSettings, ViewSettings } from "../engi
  * buttons are built from.
  *
  * ONE table, with a key COLUMN PER FAMILY rather than a `{family, key}` row
- * union. The three families carry different override types and land in
+ * union. The three families carry different value types and land in
  * different persistence commands (`global-view` / `global-depths` /
  * `node-exclusion`), so each column is consumed by a different `restoreFields<T>`
  * call and must stay typed by its own `keyof`. Columns hand that over directly;

@@ -6,7 +6,7 @@ An Obsidian plugin that replaces the local graph view with a React Flow based vi
 
 1. **Nodes that carry information.** Title, first image thumbnail, attachment icons, folder identity, visual emphasis by relevance. A node should tell you what the note is before you open it.
 2. **Grouping by folder.** Folder membership is visible structure in the graph, not invisible metadata.
-3. **Directional, per-node depth control.** Outbound and incoming depth are independent, adjustable in the view, and remembered per document.
+3. **Directional depth control.** Outbound and incoming depth are independent and adjustable from the view, not buried in a settings tab. The pair is ONE global setting (owner decision 2026-07-29, ticket `nid_ez38gf1mrdgh5kxedzrdicwzl_e`) — there is no per-document memory.
 4. **Pinned central nodes.** Hold one or more vicinities on screen while browsing elsewhere.
 5. **Focused, bounded views.** Hard node cap with deterministic truncation. Above ~100 nodes a graph stops being interesting; we optimize for the readable range instead of chasing scale.
 6. **Feels native.** Obsidian theme variables, native hover previews, sidebar placement, canvas support.
@@ -38,17 +38,17 @@ An Obsidian plugin that replaces the local graph view with a React Flow based vi
 - Traverse on demand at graph build time via the Obsidian API. **No persistent link cache of our own**, so no cache invalidation. Obsidian maintains the indexes.
 - Outgoing links from `resolvedLinks`; incoming links via `getBacklinksForFile` per visited node. Per-node lookup scales with nodes visited (bounded by the cap), not vault size, and delegates index maintenance to Obsidian.
 - **Multi-root directional BFS**: independent BFS per central node, outbound and incoming traversed separately with independent depth limits, results unioned and deduped.
-- Each root traverses with **its own depth settings** (per-root, no cascade for depth). Node X pinned at depth 3 keeps exploring at depth 3 while MAIN Y explores at depth 1.
+- Every root traverses with the **one global depth pair**. Outbound and incoming limits are independent of each OTHER, but not of the root: raising outgoing depth extends MAIN's reach and every pinned central's reach alike. (Per-root depth was designed and shipped, then removed — see **Pinning and settings**.) The BFS is still per-root, so a pinned node keeps its own reach even when disconnected from MAIN.
 - Every node is tagged with depth per root per direction; **minDepth** = minimum across all roots and directions drives sizing decay and truncation priority.
 - **Non-markdown files are never graph nodes.** They are collected as node content (attachments) during traversal.
-- **Global node exclusion**: a global (not per-doc) list of regex-lite patterns matched against each candidate's vault-relative path prunes matching neighbors **at BFS discovery** (before metadata reads / edge recording / expansion). Central and pinned roots are exempt even when they match; a node reachable only through an excluded node is not discovered. The count of distinct excluded paths is surfaced in the view.
+- **Global node exclusion**: a list of regex-lite patterns (global, like every other setting) matched against each candidate's vault-relative path prunes matching neighbors **at BFS discovery** (before metadata reads / edge recording / expansion). Central and pinned roots are exempt even when they match; a node reachable only through an excluded node is not discovered. The count of distinct excluded paths is surfaced in the view.
 - Rebuild triggers: active file change, plus vault file changes while the view is open (debounced metadata resolve, ~500ms).
 
 ### Node cap and truncation
 
 - Hard cap on visible nodes, **a setting, default 100**.
 - **All central nodes are exempt** from the cap. Folder group containers do not count toward it.
-- Deterministic truncation priority chain: lower minDepth wins, then higher size score, then graph distance to MAIN when connected, then pin recency (most recent wins), then docid as final tiebreaker. The same chain resolves multi-pin conflicts in the settings cascade.
+- Deterministic truncation priority chain: lower minDepth wins, then higher size score, then graph distance to MAIN when connected, then pin recency (most recent wins), then docid as final tiebreaker.
 - Truncation is surfaced in the UI: hidden-node count, ideally per folder group.
 
 ### Sizing
@@ -63,23 +63,20 @@ An Obsidian plugin that replaces the local graph view with a React Flow based vi
 	- At exactly that floor the thumbnail slot is shown **whole**, not clipped: the reveal block caps the title at the 2 lines the 104px budget allots (the title is `flex-shrink: 0`, so an unclamped long title would otherwise push the 56px slot out through `overflow: hidden`). Budgeting the title in CSS — rather than inflating the floor to ~150px to survive a 4-line title — keeps image-heavy vicinities from ballooning.
 - Sizing is global-only in V1.
 
-### Pinning and settings resolution
+### Pinning and settings
 
 - Pinning a node makes it an **extra central node**: its vicinity is traversed and rendered alongside MAIN's. The pinned set is global state and survives restarts.
-- Settings split into two classes:
-    - **Traversal settings (depth)**: per-root. Each central resolves own doc override, falling back to global default.
-    - **View settings (sizing, grouping, cap)**: one per view. Cascade: MAIN's overrides on top, pinned nodes fill per-field gaps (conflicts resolved by the priority chain), global underneath. In V1 this cascade has little to arbitrate since sizing is global, but the resolver ships with tests because per-view overrides are planned.
-- **Adjusting a pinned central's depth while at MAIN Y persists inside Y's doc file** (a `centralDepths` map keyed by docid). Returning to Y as MAIN restores the exact view. X's own saved setting is untouched.
-- **Pin-on-toggle**: any explicit user change in the view writes a per-doc entry, even when the value matches the current global default, because globals can change later. Absence of a field means inherit; presence means pinned. Per-field, not per-document: touching one setting does not snapshot the rest.
-- The UI needs reset-to-global (unpin) affordances per control, plus unpin controls on pinned nodes themselves. Pinned centrals are styled distinctly from MAIN.
+- **Every setting is GLOBAL — one value, one layer** (owner decision 2026-07-29, ticket `nid_ez38gf1mrdgh5kxedzrdicwzl_e`). Depth applies to MAIN and every pinned central; view settings (sizing, cap, node contents, force layout) and node exclusion apply to every view. There is no per-document layer and no cascade to resolve, so both settings resolvers were deleted rather than kept as identity functions.
+    - **WHY-NOT the per-doc model this plan originally specified** (per-document depth/view overrides, per-viewing-doc `centralDepths`, pin-on-toggle, per-control reset-to-global): it cost ~900 production lines that existed only for it (plus ~1300 more carrying per-doc branches and ~1700 test lines) to remember state nobody had asked to be remembered yet, and it forced every downstream settings surface to carry a per-doc arm. Pre-release that is not paying for itself. It stays reachable: the pins are still docid-keyed, so a future per-doc layer would be additive.
+- The UI needs unpin controls on pinned nodes themselves, and pinned centrals are styled distinctly from MAIN. Resetting is **per settings-tab section plus one tab-wide scope** (`view/settingsResetPlan.ts`), not per control — with one global value per field there is nothing for a per-control reset to clear. Every reset keeps the pinned set.
 
 ### Persistence
 
 - All storage is **JSON**.
-- Global settings and the pinned set: `data.json` via `saveData`/`loadData`.
-- Per-document settings: **one file per doc at `.obsidian/plugins/<id>/doc-data/<docid>.json`**, written via `vault.adapter.write`. Chosen over a single data.json blob because hundreds of entries are feasible and per-doc files are sync-friendly (a change to doc A never rewrites doc B's entry, no merge conflicts across devices).
+- **`data.json` via `saveData`/`loadData` is the ONLY store**: global settings plus the pinned set. Nothing is written per document, so the plugin owns exactly one file.
+    - The per-doc file store this plan originally specified (`.obsidian/plugins/<id>/doc-data/<docid>.json`, one file per doc, chosen for sync-friendliness) was deleted with the per-doc settings layer. Existing `doc-data/` directories are simply **ignored** — dead files, never read, never written, never cleaned up. The release note says so; the clean-break-while-unpublished convention (`CLAUDE.md`) is what allows discarding them instead of migrating. The sync-friendliness argument stands and should be re-read before any future per-doc store is added.
 - **docid is a stable unique id** from the submodule library. Markdown docs: frontmatter. Canvas docs: Obsidian's native canvas `metadata.frontmatter`, which survives canvas edits. Stable ids make renames a non-event.
-- Deletes: `vault.on('delete')` plus an in-memory path-to-docid map for live cleanup, and an **orphan sweep** for everything else. The sweep validates doc-data files, pinned docids, and `centralDepths` entries, dropping anything whose doc no longer resolves.
+- Deletes: `vault.on('delete')` plus an in-memory path-to-docid map for live cleanup, and an **orphan sweep** for everything else. With only one docid-keyed collection left, the sweep validates **pinned docids** and drops any pin whose doc no longer resolves.
 - Sweep constraints: **delayed start (~15s after plugin load)** so it never competes with startup, and **chunked with yields** (process a batch, `await sleep(0)`, continue) since async alone does not protect the single-threaded main loop.
 - Every persisted shape carries a `version` field from day one.
 
@@ -121,17 +118,17 @@ An Obsidian plugin that replaces the local graph view with a React Flow based vi
 
 **Phase 0, scaffold.** Plugin template (TS, esbuild), React 18 in an ItemView, vitest, submodule wired, manifest with minAppVersion. Deliverable: empty plugin loads in a dev vault, tests run.
 
-**Phase 1, core engine.** Pure and fully tested: types, LinkProvider interface + fake, multi-root directional BFS with attachment collection and min-depth tagging, truncation with the priority chain, sizing engine, settings resolver (per-root depth + view cascade).
+**Phase 1, core engine.** Pure and fully tested: types, LinkProvider interface + fake, multi-root directional BFS with attachment collection and min-depth tagging, truncation with the priority chain, sizing engine, settings resolution. (The resolvers shipped here carried the per-root/per-view cascade; with settings global-only they became identity functions and were deleted.)
 
 **Phase 2, Obsidian adapters.** ObsidianLinkProvider over resolvedLinks/getBacklinksForFile, canvas capability detection, fallback canvas parser against fixtures. Includes the devtools verification of what the install actually indexes.
 
-**Phase 3, persistence.** data.json globals and pins; doc-data per-doc files with pin-on-toggle and centralDepths; id resolution via the submodule; delete handling; delayed chunked orphan sweep.
+**Phase 3, persistence.** data.json globals and pins; id resolution via the submodule; delete handling; delayed chunked orphan sweep. (Shipped with a per-doc `doc-data/` store too; that half was later removed — see **Persistence** and `docs-internal/plan/steps/step-03-adapters-and-persistence.md`.)
 
 **Phase 4, view shell.** ItemView + React, MAIN tracking and follow-active-file, per-leaf state, rebuild pipeline: events → engine → structural diff → elkjs → React Flow. Deliverable: first visible graph with plain nodes. The milestone where it feels real.
 
 **Phase 5, rendering.** Rich nodes (thumbnails, icon strips, dropdowns), MAIN/pinned/regular styling, folder groups, directed edges, truncation badges, theme integration.
 
-**Phase 6, controls.** In-view toolbar: central selector with per-central depth steppers, expandable sizing controls, cap setting, pin/unpin on nodes, reset-to-global affordances. Global settings tab for defaults.
+**Phase 6, controls.** In-view toolbar: one pair of global depth steppers, expandable sizing controls, cap setting, pin/unpin on nodes. Global settings tab for every setting, with per-section restore-defaults rows. (Shipped as a central selector with per-central steppers and per-control reset-to-global; replaced when settings became global-only — see `docs-internal/plan/steps/step-06-controls.md`.)
 
 **Phase 7, hardening.** Dense-vault fixtures, cap edge cases, image-loading and rebuild-frequency performance pass, README.
 
@@ -139,7 +136,7 @@ Rationale for the order: Phases 1 through 3 contain every design decision in thi
 
 ## Deferred to V2+
 
-- Per-view sizing overrides (data format is already shaped for it).
+- Per-view sizing overrides. The stored format no longer reserves a slot for them (the per-doc `view` field went with the per-doc layer), so this now starts with a storage decision.
 - Position-seeded incremental layout.
 - Unresolved link ghost nodes (toggle, off by default).
 - User-assignable folder colors.

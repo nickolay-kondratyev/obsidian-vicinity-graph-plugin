@@ -3,6 +3,16 @@
 **Covers:** Phases 2 and 3 of [[../high-level-plan]] (combined: both are the thin Obsidian boundary, and both consume `submodules/obsidian-id-lib`)
 **Depends on:** [[step-02-core-engine]]
 
+> **PARTLY SUPERSEDED — every "per-doc" / `doc-data/` / `centralDepths` clause below.**
+> Ticket `nid_ez38gf1mrdgh5kxedzrdicwzl_e` (owner decision 2026-07-29) removed all
+> per-document saved state: `data.json` is the only store, settings are global-only,
+> pins stay global, and the orphan sweep prunes stale pins only. This document is
+> kept AS SHIPPED — it is the record of what was built and why, not current
+> behavior. For current behavior read [[../high-level-plan]] §Persistence and
+> `docs-internal/architecture-map.md`. The docid, filename-safety and pin plumbing
+> below all survive: `DocPersistEligibility` still refuses to pin a doc whose id is
+> missing or filename-unsafe, now as a pin-key rule.
+
 ## Objective
 
 Everything between the pure engine and Obsidian: real link providers, canvas capability detection, and docid-keyed persistence. After this step the plugin has all its data plumbing; only UI remains.

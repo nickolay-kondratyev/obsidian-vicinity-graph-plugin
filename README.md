@@ -19,8 +19,9 @@ Vicinity Graph fixes both:
   inside a labelled group box (at 2+ members), so folder membership is part of
   the picture instead of invisible metadata.
 
-On top of that it gives you **per-direction, per-note depth control** (outbound
-and incoming traversed independently) and **pinned central notes** so you can
+On top of that it gives you **per-direction depth control** (outbound and
+incoming traversed independently) right in the view, and **pinned central
+notes** so you can
 hold one or more vicinities on screen while you browse elsewhere. The view
 lives in the right sidebar by default (matching native local-graph muscle
 memory) and can be dragged into the main area.
@@ -67,17 +68,23 @@ is just focuses it — no rebuild.
 
 ## Settings model
 
-There are two layers of settings: **global defaults** and **per-note overrides.**
-The distinction matters because people ask about it, so it is worth reading once.
+**Every setting is global — one value, used by every note and every open graph.**
+There are no per-note settings. Two surfaces edit the same values: the settings
+tab (**Settings → Vicinity Graph**) and the in-view **Graph controls** panel;
+changing either writes the one global value and refreshes every open graph.
 
-### Global defaults (Settings → Vicinity Graph)
+### The settings
 
-- **Depth** — how far outbound/incoming traversal reaches from each central note.
+- **Depth (all notes)** — how far outbound/incoming traversal reaches from each
+  central note. Also on the controls panel, as `−` / `+` steppers under the same
+  heading. **One pair of values:** it applies to the active note *and* to every
+  pinned central, so nudging it there changes every graph, not just the one in
+  front of you — which is what the heading says out loud on both surfaces.
 - **Sizing** — which metrics drive node size (own file size is the only one on by
-  default) and their weights. Sizing is **global-only in V1.** One exception to
-  pure score-driven size: a note that has an image is never sized below the height
-  at which its thumbnail is shown in full (122px) — capped by your **max size**, so
-  an explicit maximum still wins (set max below 122 and thumbnails stay hidden).
+  default) and their weights. One exception to pure score-driven size: a note that
+  has an image is never sized below the height at which its thumbnail is shown in
+  full (122px) — capped by your **max size**, so an explicit maximum still wins
+  (set max below 122 and thumbnails stay hidden).
 - **Preview** — a three-way pill choosing what a node shows in its preview slot:
   **Auto** (default), **Outline** or **Image**. See *Node contents* below. The
   same pill is in the in-view graph controls, under *Node contents* — both edit
@@ -109,18 +116,8 @@ The distinction matters because people ask about it, so it is worth reading once
   *Restore node exclusion defaults* asks first and lists the patterns it is about
   to delete, since those are hand-written and cannot be recovered. At the very
   bottom, **Restore all Vicinity Graph settings** resets every setting on the tab
-  and asks for confirmation first. Per-note depth overrides and pins are never
-  touched by any of them.
-
-### Per-note depth overrides
-
-Depth is the one thing you can tune per note, from the in-view toolbar:
-
-- **Touching a depth control pins that choice for that note** — even if the value
-  you set equals the current global default. This is deliberate: globals can
-  change later, and a value you explicitly chose should not silently move with
-  them. It is tracked **per field** (outbound vs incoming), not per note as a
-  whole, and "reset to global" removes the override so it inherits again.
+  and asks for confirmation first. **Your pinned notes are never touched by any
+  of them.**
 
 ### Pinning
 
@@ -130,16 +127,16 @@ Depth is the one thing you can tune per note, from the in-view toolbar:
 - **The active (central) note is pinnable too** — pin it before navigating away
   and it stays in the graph as a pinned central.
 - The **pinned set is global state and survives restarts** (stored in the
-  plugin's `data.json`).
-- **The subtle bit:** when you adjust a *pinned* central's depth while viewing
-  note Y, that adjustment is saved inside **Y's own per-note data**, keyed by the
-  pinned note's id — not in the pinned note's own settings. Returning to Y
-  restores exactly that view; the pinned note's own saved depth is left untouched.
+  plugin's `data.json`). Pins are keyed by a stable note id, so renaming or moving
+  a pinned note keeps it pinned.
+- **Pinned centrals share the one global depth** — there is no per-pin depth dial.
+  Raising outbound depth extends the active note's reach *and* every pinned
+  central's reach.
 
 > Known caveat: right after an Obsidian restart, a persisted pinned central can
-> briefly render as a regular node (no pinned accent, missing from the toolbar
-> list) until the background cleanup sweep runs (~15s). The pin is **not lost** —
-> only its visual identity lags. Tracked in
+> briefly render as a regular node (no pinned accent) until the background cleanup
+> sweep runs (~15s). The pin is **not lost** — only its visual identity lags.
+> Tracked in
 > `docs-internal/tickets/ticket-pinned-central-status-lags-after-restart.md`.
 
 ### Node exclusion
@@ -148,7 +145,7 @@ Keep whole classes of notes out of every graph — index/MOC hubs, templates, a
 `rel/` relationship folder — via a **global** exclusion pattern list.
 
 - **Pattern list** lives in Settings → Vicinity Graph (one pattern per line) and
-  is global (like sizing and the node cap — no per-note override).
+  is global, like every other setting.
 - **Toolbar pill** enables/disables exclusion in-view; when it is on and the
   current graph actually dropped notes, it shows an **excluded count** for that
   graph.
@@ -193,7 +190,8 @@ A node tall enough to have room shows **one** preview: either the note's
 
 - **LOCAL graph only.** No global graph.
 - **No unresolved (ghost) links.**
-- **Sizing configuration is global only;** per-view sizing overrides come later.
+- **Every setting is global**, including sizing; per-note and per-view overrides
+  come later, if at all.
 - **No manual node dragging persistence; layout is computed.**
 - Default **node cap is 100** (the readable ceiling).
 - **Canvas text-node links count** — `[[wikilinks]]` and markdown-style
@@ -210,7 +208,7 @@ A node tall enough to have room shows **one** preview: either the note's
 
 ## V2 roadmap (deferred)
 
-- Per-view sizing overrides (the data format is already shaped for it).
+- Per-view sizing overrides.
 - Position-seeded incremental layout.
 - Canvas text-node wikilink parsing.
 - Unresolved link ghost nodes (toggle, off by default).
@@ -307,11 +305,11 @@ VICINITY_E2E_VAULT="$VAULT" VICINITY_E2E_NOTE='some/note.md' \
 ```
 
 (Symlink the three artifacts, **not** the repo root as the plugin folder — with
-the repo as the plugin dir, Obsidian writes that vault's plugin state,
-`data.json` and `doc-data/*.json`, into your checkout.)
+the repo as the plugin dir, Obsidian writes that vault's plugin state
+(`data.json`) into your checkout.)
 
 `externalVault.e2e.ts` is the only spec that may run this way; every other spec
-drives plugin settings (restore-defaults, exclusion patterns, per-doc pins) and
+drives plugin settings (restore-defaults, exclusion patterns, pins) and
 refuses to start against a real vault, as does passing e2e fixture notes. The
 harness also refuses to install or enable the plugin for you — you enable it, and
 we then only load what your vault already lists. Unset the variable and

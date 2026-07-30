@@ -1,5 +1,5 @@
 ---
-closed_iso: 2026-07-29T22:07:01Z
+closed_iso: 2026-07-30T00:01:58Z
 id: nid_7fq9y51mbucmduzf9z31hmwmq_e
 tags: [settings]
 title: Share the `doc-data` dir name as one constant instead of 4+ literals
@@ -7,7 +7,7 @@ status: closed
 deps: []
 links: [nid_m5hxe4eo9jgt7cfic7s2o3uvi_e, nid_ez38gf1mrdgh5kxedzrdicwzl_e]
 created_iso: '2026-07-27T16:20:57Z'
-status_updated_iso: 2026-07-29T22:07:01Z
+status_updated_iso: 2026-07-30T00:01:58Z
 type: chore
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
@@ -60,3 +60,7 @@ FOLLOW-UP CONTEXT: nid_ez38gf1mrdgh5kxedzrdicwzl_e (settings simplification) del
 settings. That ticket therefore also deletes `DOC_DATA_DIR_NAME` and its consumers; this
 refactor landed first (see Resolution above), so the removal is a straight delete of one
 constant instead of 5+ scattered literals.
+
+**2026-07-30T00:01:58Z**
+
+Obsolete: nid_ez38gf1mrdgh5kxedzrdicwzl_e deleted the doc-data subsystem, including src/persistence/docDataDirName.ts and its e2e counterpart. There is no dir name left to share.

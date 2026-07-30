@@ -21,18 +21,20 @@ Adding ONE settings field costs **~180 lines across ~15 files** and touches
 (measured in research ticket `nid_8p0nn2g34d97finokwlz3u1dt_e`, closed). The
 genuinely silent holes are:
 
-1. ~~`src/persistence/persistedShapes.ts` — `parseViewOverride` branch table~~
+1. ~~`src/persistence/persistedShapes.ts` — the view-field parse branch table
+   (`parseViewOverride`, renamed `parseViewFields` by 2.5)~~
    **CLOSED by ticket 2** — the `ParsedViewFields` mapped type makes an unparsed
    field a compile error (TS2741) naming it.
-2. ~~the reset-scope table (`src/view/settingsResetPlan.ts` / `settingsWriteScope`)~~
+2. ~~the reset-scope table (`src/view/settingsResetPlan.ts`)~~
    **CLOSED by ticket 2** — `src/view/settingsSectionFields.ts` declares which
    fields each section owns, the reset plans derive from it, and a field in no
    section is a compile error naming it.
 3. settings-tab vs in-graph-panel UI parity (no guard at all) — **still open**,
    ticket 4 (dual presenters) + ticket 5 (parity test).
 
-(`ViewSettingsResolver.resolve` is NOT a hole — its `ViewSettings` return type
-makes an omitted field a compile error.)
+(There is no resolver hole either: since 2.5 **no site enumerates `ViewSettings`
+fields** — `globalView` is read straight through, and the one place that rebuilds
+the type field-by-field is the parse layer, guarded by `ParsedViewFields`.)
 
 ### Three more silent holes, found and closed while doing ticket 2
 
@@ -65,17 +67,27 @@ The compiler now NAMES every site you miss except the last:
 
 This is "compile-forced N declarations", NOT the ticket's literal "ONE
 declaration". Deriving the `ViewSettings` TYPE from a runtime descriptor array
-was declined: it weakens `ViewSettingsResolver.resolve()`'s return-type
-guarantee (forbidden by the owner's standing constraints) and costs the
-per-field doc comments. The failure mode this chain exists to kill is *silent*
-drift — compile-forced is not silent.
+was declined: it weakens the compile-time completeness of `ViewSettings` itself
+(forbidden by the owner's standing constraints) and costs the per-field doc
+comments. The failure mode this chain exists to kill is *silent* drift —
+compile-forced is not silent.
 
 **Ratified by the owner on 2026-07-29**: "compile-forced N declarations" replaces
 the descriptor ticket's literal "ONE declaration" as the standing acceptance bar
-for this chain. The original clause and the standing constraint "do not weaken
-`ViewSettingsResolver.resolve()`'s return-type completeness" were in direct
-tension; the owner resolved it in favour of the constraint. Tickets 4/5/6 inherit
-the amended bar, not the original wording.
+for this chain. The original clause and the standing completeness constraint were
+in direct tension; the owner resolved it in favour of the constraint.
+
+**Restated on 2026-07-29 with 2.5** (owner accepted the restatement): the bar used
+to name `ViewSettingsResolver.resolve()`'s return-type completeness. That class is
+deleted, and the guarantee is not weakened but relocated — nothing enumerates
+`ViewSettings` fields at runtime any more, and completeness is compile-forced by
+the descriptor model — the `ParsedViewFields` mapped type
+(`src/persistence/persistedShapes.ts`) plus the `Exclude<keyof ViewSettings, …>`
+completeness guards in `src/engine/SettingsSpec.ts` and
+`src/view/settingsSectionFields.ts` — backed by the all-fields-non-default
+round-trip pair in `persistedShapes.test.ts`. **Read the bar as: do not weaken
+THOSE.** Tickets 4/5/6 inherit this reworded bar, not either
+earlier wording.
 
 This drift has already produced real symptom tickets: stale baseline tests
 (twice), reset racing a queued write, sibling-field clobbering from stale
@@ -88,7 +100,7 @@ The owner approved the larger rewrite on 2026-07-29.
 | # | Ticket | What | Why this position |
 |---|--------|------|-------------------|
 | 1 | `nid_niz5dz6uqeyv237ckm15ittqa_e` | Delete orphan fields `groupByFolder` + `edgeVisibility` (owner decided: DELETE) | Shrink the field surface *before* building descriptors — don't pay descriptor cost for dead fields. |
-| 2 | `nid_wimjq4ewgbg21n4zx9d4qq3a0_e` | **Descriptor model**: one declarative field descriptor drives spec, type, defaults, parse, write plan, reset scope | The foundation everything else derives from. Primary invariant: absent override = "inherit". |
+| 2 | `nid_wimjq4ewgbg21n4zx9d4qq3a0_e` | **Descriptor model**: one declarative field descriptor drives spec, type, defaults, parse, write plan, reset scope | The foundation everything else derives from. Primary invariant: an absent field parses as "inherit the spec default". |
 | 2.5 | `nid_ez38gf1mrdgh5kxedzrdicwzl_e` | **Per-doc removal**: delete all per-doc saved state (doc-data/ files, per-doc depth/view overrides, per-central `centralDepths`); settings become GLOBAL-only; pins stay GLOBAL | Owner decision 2026-07-29. Before the pipeline/presenters/tests so they are built against the global-only model instead of carrying per-doc arms that would then be deleted. Subsumes the sibling-views-stale legacy ticket and obsoletes the doc-data dir-name constant ticket. |
 | 3 | `nid_m5hxe4eo9jgt7cfic7s2o3uvi_e` | **Write/refresh pipeline**: one serial chain, fresh-read writes, reset drains queue, one fan-out rule (global-only after 2.5) | Fixes the remaining symptom bugs that share one cause. Before presenters, so presenters wire to the final write path once. |
 | 4 | `nid_armoson86j0ii8c33r1odo1rc_e` | **Dual presenters**: tab + in-graph panel render one descriptor model | Needs descriptors (rows as data) and the pipeline (writes). Unblocks 4 UX satellite tickets. |
@@ -148,10 +160,14 @@ upper bound), `nid_uwnew3dok0gn8ijar54hiozst_e` (pre-release slider tuning).
   this — see `nid_ez38gf1mrdgh5kxedzrdicwzl_e`.
 - **Clean breaks on stored data while unpublished** — no migrations, no
   dual-key shims; announce resets in the release note (see `CLAUDE.md`).
-- **Absent override means "inherit"** — the ViewSettings vs ViewSettingsOverride
-  split is the primary design constraint a naive descriptor rewrite would break.
-  After 2.5 this is scoped to descriptor/parse semantics — the per-doc override
-  *layer* itself no longer exists.
+- **An absent field means "inherit the spec default"** — still the primary design
+  constraint a naive descriptor rewrite would break, now scoped to **descriptor /
+  parse semantics only**: since 2.5 there is no override *layer* (and no
+  `ViewSettingsOverride` type). What the rule governs today is the read path — a
+  field missing from `data.json` parses as `undefined` and is merged over
+  `PersistedShapes.defaultPluginData()`, so it inherits the spec default rather
+  than a zero value. A descriptor rewrite must keep "absent ≠ present-but-default"
+  distinguishable at parse time.
 - **Orphan fields**: delete `groupByFolder` + `edgeVisibility`, hardcode
   surviving behavior (grouping ON, edges `walked-from-center`).
 - **Exclusion patterns row**: always render, disabled when inapplicable —
