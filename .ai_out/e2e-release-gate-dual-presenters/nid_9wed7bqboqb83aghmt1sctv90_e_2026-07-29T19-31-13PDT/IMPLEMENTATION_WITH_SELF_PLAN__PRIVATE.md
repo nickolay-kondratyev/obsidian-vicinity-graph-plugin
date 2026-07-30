@@ -4,6 +4,31 @@ Ticket `nid_9wed7bqboqb83aghmt1sctv90_e`. Branch
 `nid_9wed7bqboqb83aghmt1sctv90_e_2026-07-29T19-31-13PDT`. Work is COMPLETE and
 committed as `f7588b9`. If you are rehydrating: everything below is already done.
 
+## ROUND 1 review iteration — DONE (commit `2f14e62`)
+
+Review verdict was APPROVE-WITH-FIXES, 0 blocking. I (round-1 instance) handled
+SHOULD-FIX 1 + 2 only; item 3 (change_log, ticket close, cap-UX follow-up ticket)
+is TOP_LEVEL_AGENT's and I deliberately did not touch tickets or the change log.
+
+1. Clip guard now filters on `SECTION_CLIP_TOLERANCE_PX = 1` (module const, passed
+   into `evaluate` as its 2nd arg) instead of `neededPx > shownPx`. Re-verified RED
+   AFTER the change: reverted CSS to `flex-shrink: 1`, `npm run setup:dev-vault`,
+   ran the spec → 5 sections named, 51-185px each (`.tmp/it1_red.log`). Restored
+   from `.tmp/it1_graph-view.css.bak`, re-seeded, spec green.
+2. Rewrote the WHY at `graph-view.css` (above `.vicinity-graph-toolbar__body > *`)
+   and the test docblock. Killed the "That is exactly what regressed once
+   (`flex-shrink: 0` …)" sentence — it read as if the fix were the bug. Both now
+   name the DEFAULT `flex-shrink: 1` as the defect and the rule as the fix; the CSS
+   block opens with DO NOT REMOVE. The rule itself is unchanged.
+
+Verification logs: `.tmp/it1_uxspec_final.log` (17 passed), `.tmp/it1_unit.log`
+(1139), `.tmp/it1_check.log` (exit 0), `.tmp/it1_red.log` (intended red).
+Did NOT re-run the full `npm run test:e2e` — instruction allowed the single spec.
+
+Output doc: `IMPLEMENTATION_ITERATION__PUBLIC.md` in OUT_DIR.
+
+## (Round 0 memory below)
+
 ## Environment — the e2e gate JUST WORKS here
 
 Linux container, node v26.5.0, no `$DISPLAY`, no `$WAYLAND_DISPLAY`.
