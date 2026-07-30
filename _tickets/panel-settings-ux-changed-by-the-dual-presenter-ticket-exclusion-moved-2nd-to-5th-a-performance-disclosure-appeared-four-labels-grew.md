@@ -3,7 +3,7 @@ id: nid_0u28xzhz05qewz35jfqkxkvz2_e
 title: "Panel settings UX changed by the dual-presenter ticket: exclusion moved 2nd to 5th, a Performance disclosure appeared, four labels grew"
 status: open
 deps: [nid_armoson86j0ii8c33r1odo1rc_e]
-links: [nid_9wed7bqboqb83aghmt1sctv90_e]
+links: [nid_9wed7bqboqb83aghmt1sctv90_e, nid_73ykoegwri2xdixm8k5mr6oop_e]
 created_iso: 2026-07-30T02:28:08Z
 status_updated_iso: 2026-07-30T02:28:08Z
 type: task

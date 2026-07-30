@@ -3,7 +3,7 @@ id: nid_9wed7bqboqb83aghmt1sctv90_e
 title: "Run the e2e release gate on the dual-presenter branch: 4 specs were rewritten and never executed"
 status: open
 deps: [nid_armoson86j0ii8c33r1odo1rc_e]
-links: [nid_0u28xzhz05qewz35jfqkxkvz2_e]
+links: [nid_0u28xzhz05qewz35jfqkxkvz2_e, nid_73ykoegwri2xdixm8k5mr6oop_e]
 created_iso: 2026-07-30T02:28:26Z
 status_updated_iso: 2026-07-30T02:28:26Z
 type: task
