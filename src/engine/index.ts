@@ -79,6 +79,8 @@ export { GraphTruncator } from "./GraphTruncator";
 export type { TruncationInput, TruncationResult } from "./GraphTruncator";
 export { EdgeCounts } from "./EdgeCounts";
 export type { EdgeCountsInput } from "./EdgeCounts";
+export { CrossLinkSweep } from "./CrossLinkSweep";
+export type { CrossLinkSweepInput } from "./CrossLinkSweep";
 export { NodePriorityChain } from "./NodePriorityChain";
 export type { PriorityRankable } from "./NodePriorityChain";
 

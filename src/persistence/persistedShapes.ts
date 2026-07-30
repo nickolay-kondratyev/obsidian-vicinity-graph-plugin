@@ -151,6 +151,9 @@ function parseViewFields(raw: unknown): Partial<ViewSettings> {
 		nodePreviewPreference: NODE_PREVIEW_PREFERENCES.find(
 			(preference) => preference === raw["nodePreviewPreference"],
 		),
+		// A non-boolean (hand-edited `"true"`, a null) falls through as absent, so the
+		// spec default applies — never a truthiness coercion.
+		showCrossLinks: typeof raw["showCrossLinks"] === "boolean" ? raw["showCrossLinks"] : undefined,
 		sizing: parseSizing(raw["sizing"]),
 		forceLayout: parseForceLayout(raw["forceLayout"]),
 	};

@@ -183,6 +183,8 @@ function probesFor(control: SettingsRowControl): readonly AccessorProbe[] {
 			return [typedNumberProbe(control.field, SettingsRowAccessors.sizingNumber(control.field))];
 		case "node-preview":
 			return [valueProbe("node preview", SettingsRowAccessors.nodePreview(), otherPreference)];
+		case "show-cross-links":
+			return [valueProbe("show cross links", SettingsRowAccessors.showCrossLinks(), (on) => !on)];
 		case "outline-depth":
 			return [numberProbe("outline depth", SettingsRowAccessors.outlineDepth())];
 		case "force-layout":

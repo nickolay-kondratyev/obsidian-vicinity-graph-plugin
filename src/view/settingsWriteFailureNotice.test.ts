@@ -91,6 +91,8 @@ describe("SettingsWriteFailureNotice over every declared row", () => {
 				return [interactionOf(SettingsRowAccessors.sizingNumber(control.field))];
 			case "node-preview":
 				return [interactionOf(SettingsRowAccessors.nodePreview())];
+			case "show-cross-links":
+				return [interactionOf(SettingsRowAccessors.showCrossLinks())];
 			case "outline-depth":
 				return [interactionOf(SettingsRowAccessors.outlineDepth())];
 			case "force-layout":

@@ -62,6 +62,7 @@ export const SETTINGS_ROW_CONTROL_KINDS = [
 	"sizing-metric",
 	"sizing-number",
 	"node-preview",
+	"show-cross-links",
 	"outline-depth",
 	"force-layout",
 	"exclusion-enabled",
@@ -81,6 +82,8 @@ export type SettingsRowControl =
 	| { readonly kind: "sizing-number"; readonly field: SizingNumberField }
 	/** The preview preference pill (options come from `NODE_PREVIEW_OPTION_META`). */
 	| { readonly kind: "node-preview" }
+	/** Whether links between two visible nodes are drawn even when the walk never took them. */
+	| { readonly kind: "show-cross-links" }
 	/** Deepest heading level a node's outline renders. */
 	| { readonly kind: "outline-depth" }
 	/** One force-layout tuning value. */
@@ -305,6 +308,26 @@ export const SETTINGS_GROUPS: Readonly<Record<SettingsSection, SettingsGroup>> =
 						description:
 							"How many hops of incoming links (backlinks) to expand from every central note. A note that EMBEDS a central note arrives here too — incoming links are counted the same way whatever their kind.",
 						control: { kind: "depth", field: "linkDepthIn" },
+					},
+				],
+			},
+		],
+	},
+	// Its own section rather than a row tucked under Depth or Node contents: this is
+	// the only setting about what is drawn BETWEEN nodes, and both of those headings
+	// would misname it.
+	edges: {
+		// No `panelClass`: the row is one shared toggle row, so the section needs no
+		// scoping of its own (like `performance`).
+		heading: "Edges",
+		blocks: [
+			{
+				rows: [
+					{
+						label: "Show cross links",
+						description:
+							"Also draw links between notes that are both on screen but were never reached from a central note — the denser, complete picture of what the visible notes link to. Which notes are shown does not change.",
+						control: { kind: "show-cross-links" },
 					},
 				],
 			},

@@ -223,6 +223,14 @@ export class SettingsRowAccessors {
 		};
 	}
 
+	/** Whether links between two visible nodes are drawn even when the walk never took them. */
+	static showCrossLinks(): SettingsValueAccessor<boolean> {
+		return {
+			read: (state) => state.globalView.showCrossLinks,
+			interaction: (showCrossLinks) => ({ kind: "global-show-cross-links", showCrossLinks }),
+		};
+	}
+
 	/** Whether node exclusion applies at all (the pattern list is untouched). */
 	static exclusionEnabled(): SettingsValueAccessor<boolean> {
 		return {

@@ -160,8 +160,9 @@ export interface DirectedLink {
 }
 
 /**
- * Final output edge. Only links the BFS walked from a central become edges
- * (step-02 CLARIFICATION Q5); see {@link import("./EdgeCounts").EdgeCounts}.
+ * Final output edge. WHICH links become edges is the {@link ViewSettings.showCrossLinks}
+ * toggle's answer: the links the BFS walked, or every link between two visible nodes.
+ * Both kinds are identical here — there is deliberately no provenance flag.
  */
 export interface GraphEdge extends DirectedLink {
 	/** Number of distinct links source→target (>= 1) — the UI's edge count badge. */
@@ -331,6 +332,12 @@ export interface ViewSettings {
 	readonly outlineMaxDepth: number;
 	/** Which region claims a node's preview slot when the note offers both. */
 	readonly nodePreviewPreference: NodePreviewPreference;
+	/**
+	 * Draw EVERY link between two visible nodes, not only the links the BFS walked
+	 * (see {@link import("./CrossLinkSweep").CrossLinkSweep}). Affects EDGES only —
+	 * which nodes are visible is decided before this is read.
+	 */
+	readonly showCrossLinks: boolean;
 	readonly sizing: SizingSettings;
 	readonly forceLayout: ForceLayoutSettings;
 }

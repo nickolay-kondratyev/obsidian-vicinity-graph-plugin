@@ -71,6 +71,8 @@ export function SettingsRowView({
 			return <SizingNumberRow row={row} field={row.control.field} state={state} />;
 		case "node-preview":
 			return <NodePreviewRow row={row} state={state} />;
+		case "show-cross-links":
+			return <ShowCrossLinksRow row={row} state={state} />;
 		case "outline-depth":
 			return <OutlineDepthRow row={row} state={state} />;
 		case "force-layout":
@@ -496,6 +498,29 @@ function NodePreviewRow({
 	);
 }
 
+/**
+ * ONE label beside ONE switch — the shape EVERY boolean row in the panel takes.
+ * Shared so a second toggle cannot arrive with its own spacing or its own idea of
+ * where the accessible name comes from.
+ */
+function ToggleRow({
+	row,
+	accessor,
+	state,
+}: {
+	readonly row: SettingsRow;
+	readonly accessor: SettingsValueAccessor<boolean>;
+	readonly state: SettingsRowState;
+}): ReactElement {
+	const [enabled, request] = useSettingsValue(accessor, state);
+	return (
+		<label className="vicinity-graph-toggle-row" title={row.description}>
+			<span>{row.label}</span>
+			<ToggleSwitch checked={enabled} onChange={request} ariaLabel={SettingsRowNames.sole(row)} />
+		</label>
+	);
+}
+
 function ExclusionEnabledRow({
 	row,
 	state,
@@ -503,13 +528,17 @@ function ExclusionEnabledRow({
 	readonly row: SettingsRow;
 	readonly state: SettingsRowState;
 }): ReactElement {
-	const [enabled, requestEnabled] = useSettingsValue(SettingsRowAccessors.exclusionEnabled(), state);
-	return (
-		<label className="vicinity-graph-exclusion__toggle-row" title={row.description}>
-			<span>{row.label}</span>
-			<ToggleSwitch checked={enabled} onChange={requestEnabled} ariaLabel={SettingsRowNames.sole(row)} />
-		</label>
-	);
+	return <ToggleRow row={row} accessor={SettingsRowAccessors.exclusionEnabled()} state={state} />;
+}
+
+function ShowCrossLinksRow({
+	row,
+	state,
+}: {
+	readonly row: SettingsRow;
+	readonly state: SettingsRowState;
+}): ReactElement {
+	return <ToggleRow row={row} accessor={SettingsRowAccessors.showCrossLinks()} state={state} />;
 }
 
 /**

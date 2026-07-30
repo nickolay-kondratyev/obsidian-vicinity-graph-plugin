@@ -56,6 +56,8 @@ const SHIPPED_SETTINGS_DEFAULTS: Readonly<Record<string, unknown>> = {
 	"globalView.nodeCap": 100, // The shipped performance ceiling.
 	"globalView.outlineMaxDepth": 2, // Sections + subsections — what fits a 160px node.
 	"globalView.nodePreviewPreference": "auto", // The documented document-position rule.
+	// OFF ships the walked-only graph; ON is the opt-in denser induced subgraph.
+	"globalView.showCrossLinks": false,
 
 	// `own-file-size` is the ONLY metric shipped ON; the other four are opt-in. Every
 	// metric ships at the equal weight `globalView.sizing.metricWeight` declares.

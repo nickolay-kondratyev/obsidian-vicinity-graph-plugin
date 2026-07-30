@@ -74,8 +74,8 @@ tab (**Settings → Vicinity Graph**) and the in-view **Graph controls** panel;
 changing either writes the one global value and refreshes every open graph.
 
 **Both surfaces show the same sections, in the same order, under the same names**
-— *Depth (all notes)*, *Node sizing*, *Node contents*, *Force layout*, *Node
-exclusion*, *Performance*. Every setting appears on both. The panel is narrow, so
+— *Depth (all notes)*, *Edges*, *Node sizing*, *Node contents*, *Force layout*,
+*Node exclusion*, *Performance*. Every setting appears on both. The panel is narrow, so
 it uses compact controls (steppers instead of sliders for depth) and moves the
 long descriptions into hover tooltips. One deliberate exception: exclusion
 **patterns** are *edited* in the settings tab and shown **read-only** in the
@@ -107,6 +107,13 @@ changed gets reverted by the next change.
   > so a chain that changes kind partway (a note you *embed*, which then *links*
   > something else) stops at the change. At the shipped defaults (1 hop each) you
   > will never see this; it only shows up once you raise a budget above 1.
+- **Edges → Show cross links** (default **off**) — off, a line is drawn only where
+  traversal actually followed a link, which keeps the picture close to the path
+  from your central notes. On, the graph *also* draws every link between two notes
+  that are both on screen — including the ones traversal never walked, such as two
+  notes sitting at the edge of the depth budget that link each other. **Which
+  notes are shown never changes**, only the lines between them; a cross link looks
+  exactly like any other line, `xN` count included.
 - **Sizing** — which metrics drive node size (own file size is the only one on by
   default) and their weights. One exception to pure score-driven size: a note that
   has an image is never sized below the height at which its thumbnail is shown in

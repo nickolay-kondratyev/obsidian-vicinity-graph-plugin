@@ -40,6 +40,8 @@ export type SettingsInteraction =
 	| { readonly kind: "global-outline-depth"; readonly value: number }
 	/** Global preview preference: which region a node's preview slot shows. */
 	| { readonly kind: "global-node-preview"; readonly value: NodePreviewPreference }
+	/** Whether links between two visible nodes are drawn even when the walk never took them. */
+	| { readonly kind: "global-show-cross-links"; readonly showCrossLinks: boolean }
 	/** One sizing number (min/max px, depth decay). */
 	| { readonly kind: "global-sizing-number"; readonly field: SizingNumberField; readonly value: number }
 	/** Whether one size metric contributes at all. */
@@ -86,6 +88,8 @@ export function planSettingsWrite(interaction: SettingsInteraction, ctx: Setting
 			return { kind: "global-view", view: { ...ctx.globalView, outlineMaxDepth: interaction.value } };
 		case "global-node-preview":
 			return { kind: "global-view", view: { ...ctx.globalView, nodePreviewPreference: interaction.value } };
+		case "global-show-cross-links":
+			return { kind: "global-view", view: { ...ctx.globalView, showCrossLinks: interaction.showCrossLinks } };
 		case "global-sizing-number":
 			return sizingCommand(ctx, { ...ctx.globalView.sizing, [interaction.field]: interaction.value });
 		case "global-sizing-metric-enabled":

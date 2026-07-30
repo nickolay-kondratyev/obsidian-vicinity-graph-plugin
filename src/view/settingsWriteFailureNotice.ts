@@ -114,6 +114,8 @@ export class SettingsWriteFailureNotice {
 				return { kind: "outline-depth" };
 			case "global-node-preview":
 				return { kind: "node-preview" };
+			case "global-show-cross-links":
+				return { kind: "show-cross-links" };
 			case "global-sizing-number":
 				return { kind: "sizing-number", field: interaction.field };
 			// One ROW carries both of a metric's controls (its enable flag and the weight
@@ -156,6 +158,7 @@ export class SettingsWriteFailureNotice {
 			case "force-layout":
 				return `force-layout:${control.field}`;
 			case "node-preview":
+			case "show-cross-links":
 			case "outline-depth":
 			case "exclusion-enabled":
 			case "exclusion-patterns":

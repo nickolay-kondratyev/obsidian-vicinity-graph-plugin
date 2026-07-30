@@ -198,6 +198,59 @@ describe("VicinityEngine walked-edge semantics (CLARIFICATION Q5)", () => {
 		const graph = siblingBuild({ globalDepths: { linkDepthOut: 2, embedDepthOut: 2, linkDepthIn: 0 } });
 		expect(edgeStrings(graph)).toEqual(["a.md->b.md", "hub.md->a.md", "hub.md->b.md"]);
 	});
+
+	/**
+	 * "Show cross links" ON, over the SAME one-hop fixture: the sibling link a.md → b.md
+	 * is never walked (b.md is discovered from hub.md, and a.md is not expanded further),
+	 * so it is exactly the link the toggle exists to reveal.
+	 */
+	describe("with cross links ON", () => {
+		function crossLinkBuild(overrides: Partial<GraphBuildRequest> = {}): VicinityGraph {
+			return siblingBuild({
+				globalView: { ...EngineDefaults.viewSettings(), showCrossLinks: true },
+				...overrides,
+			});
+		}
+
+		it("WHEN a link joins two visible nodes the walk never traversed THEN it becomes an edge", () => {
+			expect(edgeStrings(crossLinkBuild())).toContain("a.md->b.md");
+		});
+
+		it("WHEN cross links are ON THEN every walked edge still renders", () => {
+			expect(edgeStrings(crossLinkBuild())).toEqual(["a.md->b.md", "hub.md->a.md", "hub.md->b.md"]);
+		});
+
+		// The ticket's explicit requirement: cross links widen EDGES only. Truncation and
+		// the distance-to-MAIN ranking keep running on the walked edge set.
+		it("WHEN cross links are ON THEN the visible node set is identical to OFF", () => {
+			const paths = (graph: VicinityGraph): string[] => graph.nodes.map((n) => n.path).sort();
+			expect(paths(crossLinkBuild())).toEqual(paths(siblingBuild()));
+		});
+	});
+});
+
+/**
+ * A cross link is an edge like any other, so its `xN` badge comes from the SAME
+ * `provider.getLinkCount` path — there is no second multiplicity authority.
+ */
+describe("VicinityEngine cross-link edge counts", () => {
+	// GIVEN hub.md links a.md and b.md, and a.md links b.md TWICE (never walked at depth 1).
+	function crossLinkCounts(): Record<string, number> {
+		const provider = new FakeLinkProvider({
+			files: [{ path: "hub.md" }, { path: "a.md" }, { path: "b.md" }],
+			links: { "hub.md": ["a.md", "b.md"], "a.md": ["b.md", "b.md"] },
+		});
+		const graph = new VicinityEngine(provider).build({
+			main: { path: asVaultPath("hub.md") },
+			globalDepths: { linkDepthOut: 1, embedDepthOut: 1, linkDepthIn: 0 },
+			globalView: { ...EngineDefaults.viewSettings(), showCrossLinks: true },
+		});
+		return Object.fromEntries(graph.edges.map((edge) => [`${edge.source}->${edge.target}`, edge.count]));
+	}
+
+	it("WHEN a cross-linked pair carries N parallel links THEN its edge carries count N", () => {
+		expect(crossLinkCounts()["a.md->b.md"]).toBe(2);
+	});
 });
 
 describe("VicinityEngine edge link counts (step-05, CLARIFICATION Q1)", () => {
