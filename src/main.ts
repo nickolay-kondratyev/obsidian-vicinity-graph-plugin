@@ -53,8 +53,9 @@ export default class VicinityGraphPlugin extends Plugin {
 
 	/**
 	 * {@link UserNoticePort} over Obsidian's own transient toast — the ONE place this
-	 * plugin's `Notice` constructor is reached for on behalf of the view layer, so a
-	 * failed settings write is reportable without the pipeline importing `obsidian`.
+	 * plugin's `Notice` constructor is reached for on behalf of the view layer, so
+	 * everything that must tell the user something (a failed settings write, a refused
+	 * pin) says it without importing `obsidian` — and stays unit-testable over a fake.
 	 */
 	private readonly notices: UserNoticePort = {
 		show: (message) => {
@@ -90,6 +91,7 @@ export default class VicinityGraphPlugin extends Plugin {
 					this.persistenceServices,
 					this.viewsRefresh,
 					this.settingsWrites,
+					this.notices,
 				),
 		);
 		// Node hover fires `hover-link` (step-05); registering the source lists

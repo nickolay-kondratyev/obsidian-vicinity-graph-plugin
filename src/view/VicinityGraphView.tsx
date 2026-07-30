@@ -13,7 +13,7 @@ import { VicinityGraphFlow } from "./VicinityGraphFlow";
 import { ObsidianGraphUi } from "./ObsidianGraphUi";
 import { ObsidianNoteNavigator } from "./ObsidianNoteNavigator";
 import type { SettingsWritePipeline } from "./settingsWritePipeline";
-import type { ControlsActionsPort, NoteNavigatorPort, ViewsRefreshPort } from "./viewPorts";
+import type { ControlsActionsPort, NoteNavigatorPort, UserNoticePort, ViewsRefreshPort } from "./viewPorts";
 
 export const VIEW_TYPE_VICINITY_GRAPH = "vicinity-graph-view";
 
@@ -37,6 +37,8 @@ export class VicinityGraphView extends ItemView {
 		private readonly viewsRefresh: ViewsRefreshPort,
 		/** The ONE settings write pipeline, shared with the settings tab; owned by the plugin. */
 		private readonly settingsWrites: SettingsWritePipeline,
+		/** The ONE user-message surface; owned by the plugin, which is where `Notice` lives. */
+		private readonly notices: UserNoticePort,
 	) {
 		super(leaf);
 	}
@@ -68,6 +70,7 @@ export class VicinityGraphView extends ItemView {
 			this.app.vault,
 			this.viewsRefresh,
 			this.settingsWrites,
+			this.notices,
 		);
 		this.controlsActions = controlsActions;
 		this.registerGraphEvents(controller, navigator);
