@@ -22,4 +22,11 @@ Decision (from ticket, no human input needed): stale `doc-data/` dirs are IGNORE
 ## Log
 - PHASE_1 (code removal): done, 5 commits, gates green (verified independently by reviewer: 1085 tests, check exit 0).
 - REVIEW_PHASE_1: APPROVE w/ 1 BLOCKING (stale e2e reset-copy assertion) + 4 SHOULD-FIX.
-- ITERATION_PHASE_1 spawned.
+- ITERATION_PHASE_1: blocking finding fixed at root (reset copy now DERIVED from settingsResetPlan), 4 SHOULD-FIX fixed, 2 suggestions deferred with rationale. Gates green.
+- PHASE_2 (docs/README/architecture-map/settings.md/step banners/RELEASE_CHECKLIST/e2e): done, 4 commits.
+- REVIEW_PHASE_2: APPROVE, ticket READY. 0 BLOCKING, 2 SHOULD-FIX, 2 NIT. Gates re-verified by reviewer.
+- Owner answer #2 (real human input): depth summary → **"Depth (all notes)"**; applied to BOTH surfaces.
+- ITERATION_PHASE_2: owner copy + S1/S2/N1/N2 handled, 4 commits, gates green.
+- TOP_LEVEL close-out: ticket-per-doc-write-leaves-sibling-views-stale.md → CLOSED; nid_7fq9y51mbucmduzf9z31hmwmq_e → CLOSED (obsolete);
+  ticket-pinned-central-status-lags-after-restart.md → STAYS OPEN (re-verified reproducible); change_log entry 8u5pz4jefv1cc0db74csxhlpx;
+  main ticket nid_ez38gf1mrdgh5kxedzrdicwzl_e → CLOSED with resolution note.

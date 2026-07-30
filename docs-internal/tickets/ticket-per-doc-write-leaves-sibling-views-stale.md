@@ -1,6 +1,8 @@
 # Ticket: a per-doc settings write leaves sibling views showing the same MAIN stale
 
-**Status:** OPEN — SUPERSEDED PENDING: per-doc settings writes are being removed
+**Status:** CLOSED (2026-07-29) — resolved by construction when
+`nid_ez38gf1mrdgh5kxedzrdicwzl_e` landed; see the resolution note below.
+History for context: per-doc settings writes were removed
 entirely by `nid_ez38gf1mrdgh5kxedzrdicwzl_e` (settings simplification: global-only
 settings, global pins — owner decision 2026-07-29). When that lands, per-doc write
 scope no longer exists and every write fans out globally, which deletes this defect
