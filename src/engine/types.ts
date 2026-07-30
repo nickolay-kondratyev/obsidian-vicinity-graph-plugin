@@ -43,14 +43,14 @@ export function asFolderPath(folder: string): FolderPath {
  * `Record<Channel, …>` in the repo turns into the compile error that names the
  * places it has to be taught (OCP).
  */
-export type Channel = "outgoing-link" | "incoming";
+export type Channel = "outgoing-link" | "outgoing-embed" | "incoming";
 
 /**
  * THE value list of {@link Channel}, in traversal order. Single-sourced so the
  * traversal cannot walk fewer channels than the type declares — the guard below
  * is what makes that real.
  */
-export const CHANNELS = ["outgoing-link", "incoming"] as const satisfies readonly Channel[];
+export const CHANNELS = ["outgoing-link", "outgoing-embed", "incoming"] as const satisfies readonly Channel[];
 
 /**
  * Compile-time completeness: a channel missing from {@link CHANNELS} surfaces
@@ -242,13 +242,16 @@ export interface NodeExclusionSettings {
 }
 
 /**
- * Single source of truth mapping a {@link Channel} to the depth field it controls
- * (`outgoing → linkDepthOut`, `incoming → linkDepthIn`) on {@link DepthSettings}.
- * Shared by the engine and the step-06 controls so the mapping exists exactly once.
- * POLS — trivially invertible.
+ * Single source of truth mapping a {@link Channel} to the {@link DepthSettings}
+ * budget it spends. Read by the traversal only — a settings row names its FIELD
+ * directly, so this stays the BFS's own table.
+ *
+ * `Record<Channel, …>`, so a new channel cannot ship without deciding which budget
+ * limits it. POLS — trivially invertible.
  */
 export const CHANNEL_DEPTH_FIELD: Readonly<Record<Channel, keyof DepthSettings>> = {
 	"outgoing-link": "linkDepthOut",
+	"outgoing-embed": "embedDepthOut",
 	incoming: "linkDepthIn",
 };
 

@@ -280,6 +280,17 @@ export class ObsidianLinkProvider implements LinkProvider {
 		// links and embeds, so the kind is unknowable here and degrades to `link`.
 		// The degradation is confined to this one transient case: canvases, whose
 		// kinds matter most, are always parsed (see {@link create}).
+		//
+		// DECIDED (Stage 3 of ticket nid_fay1hu5sxcoygizopkkg0f0d7_e): ACCEPT the
+		// degradation rather than returning `[]` for an uncached markdown file.
+		// It is now user-VISIBLE — with `embedDepthOut` 0, a note embedded from a
+		// not-yet-cached source is walked as a plain link and still appears, i.e.
+		// the setting does not hold during the boot window. Returning `[]` would
+		// instead make that source's WHOLE neighbourhood vanish for the same window,
+		// and rendering a node too many for a moment is a gentler failure than
+		// rendering a graph too few: the omission looks like a broken plugin, the
+		// extra node looks like the setting has not applied yet. Either way the next
+		// `metadataCache` event rebuilds. Pinned by the "degrade to plain links" test.
 		return Object.keys(this.metadataCache.resolvedLinks[file.path] ?? {}).map((target) => ({
 			target: asVaultPath(target),
 			kind: "link" as const,

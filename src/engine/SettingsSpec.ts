@@ -162,12 +162,17 @@ export const SETTINGS_SPEC: SettingsSpec = {
 		/** Depth defaults mirror Obsidian's local-graph default of 1 hop each way. */
 		linkDepthOut: { default: 1, ...DEPTH_STEPPER_BOUNDS },
 		/**
-		 * DELIBERATELY EQUAL to `linkDepthOut`: at equal budgets the two outgoing
-		 * channels union to exactly the single kind-blind outgoing BFS that shipped
-		 * before embeds got their own budget, so this feature is unobservable until
-		 * someone diverges the two on purpose. (Pinned by
-		 * `VicinityTraversal.test.ts` — "the channel split is invisible at equal
-		 * budgets".) Change this and you change the DEFAULT GRAPH.
+		 * DELIBERATELY EQUAL to `linkDepthOut`: at these ONE-HOP defaults the two
+		 * outgoing channels union to exactly the single kind-blind outgoing BFS that
+		 * shipped before embeds got their own budget, so nothing moves on screen for
+		 * anyone who does not change a setting. Pinned by `VicinityTraversal.test.ts`
+		 * ("channel split at the shipped defaults").
+		 *
+		 * The equality is a ONE-HOP property, not an equal-budget property: kind-pure
+		 * channels cannot walk a chain that CHANGES kind, and a chain needs two hops
+		 * to change kind, so at BOTH budgets raised to 2 the graph is strictly
+		 * smaller than the old kind-blind depth-2 walk (also pinned). Raising this
+		 * default therefore changes the default graph in TWO ways.
 		 */
 		embedDepthOut: { default: 1, ...DEPTH_STEPPER_BOUNDS },
 		linkDepthIn: { default: 1, ...DEPTH_STEPPER_BOUNDS },

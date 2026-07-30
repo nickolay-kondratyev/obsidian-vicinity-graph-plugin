@@ -1,6 +1,8 @@
+import type { LinkKind } from "../shared/LinkKind";
 import { VaultPathFacts } from "../shared/VaultPathFacts";
 import { EdgeAccumulator } from "./EdgeAccumulator";
 import type { LinkProvider } from "./LinkProvider";
+import { OutgoingReferences } from "./LinkProvider";
 import { NodeEligibility } from "./NodeEligibility";
 import { PathExclusionMatcher } from "./PathExclusionMatcher";
 import type {
@@ -15,7 +17,7 @@ import type {
 	OutlineEntry,
 	VaultPath,
 } from "./types";
-import { CHANNELS } from "./types";
+import { CHANNEL_DEPTH_FIELD, CHANNELS } from "./types";
 
 /** One traversal root with its (already resolved) per-root depth limits. */
 export interface TraversalRoot {
@@ -51,7 +53,20 @@ export interface TraversalResult {
 }
 
 /**
- * Multi-root directional BFS (step-02 CLARIFICATION Q3): each root × channel
+ * Which endpoint of a walked hop is the LINKER, per channel — edges always point
+ * linker → linked, whichever channel discovered them.
+ *
+ * A table rather than a `channel !== "incoming"` test so a future incoming-side
+ * channel is a COMPILE ERROR here instead of a silently back-to-front edge.
+ */
+const CHANNEL_LINKER: Readonly<Record<Channel, "current" | "neighbor">> = {
+	"outgoing-link": "current",
+	"outgoing-embed": "current",
+	incoming: "neighbor",
+};
+
+/**
+ * Multi-root channel BFS (step-02 CLARIFICATION Q3): each root × channel
  * runs an independent BFS with its own depth limit; results are unioned and
  * deduped by path. Within one BFS a visited map guarantees a node is expanded
  * at most once (BFS visits in nondecreasing depth, so the first visit is the
@@ -97,7 +112,7 @@ export class VicinityTraversal {
 		collector: TraversalCollector,
 	): void {
 		const rootPath = root.descriptor.path;
-		const depthLimit = channel === "outgoing-link" ? root.depths.linkDepthOut : root.depths.linkDepthIn;
+		const depthLimit = root.depths[CHANNEL_DEPTH_FIELD[channel]];
 		const visited = new Map<VaultPath, number>([[rootPath, 0]]);
 		const queue: VaultPath[] = [rootPath];
 		collector.recordDepthTag(rootPath, { rootPath, channel, depth: 0 });
@@ -132,10 +147,25 @@ export class VicinityTraversal {
 		}
 	}
 
+	/**
+	 * KIND-PURE (owner decision D1 / research 6a): each outgoing channel sees only
+	 * its own kind of reference, so the two outgoing BFS runs are independent walks
+	 * that get unioned — exactly the architecture the outgoing/incoming split
+	 * already used. Incoming stays kind-blind by scope decision.
+	 */
 	private neighborsOf(path: VaultPath, channel: Channel): readonly VaultPath[] {
-		return channel === "outgoing-link"
-			? this.provider.getOutgoingLinks(path)
-			: this.provider.getIncomingLinks(path);
+		switch (channel) {
+			case "outgoing-link":
+				return this.outgoingTargetsOfKind(path, "link");
+			case "outgoing-embed":
+				return this.outgoingTargetsOfKind(path, "embed");
+			case "incoming":
+				return this.provider.getIncomingLinks(path);
+		}
+	}
+
+	private outgoingTargetsOfKind(path: VaultPath, kind: LinkKind): readonly VaultPath[] {
+		return OutgoingReferences.targetsOfKind(this.provider.getOutgoingReferences(path), kind);
 	}
 
 	private assemble(roots: readonly TraversalRoot[], collector: TraversalCollector): TraversalResult {
@@ -200,10 +230,11 @@ class TraversalCollector {
 		this.tags.set(path, tagsForPath);
 	}
 
-	/** Channel "incoming" means `neighbor` links to `current` — edges always point linker → linked. */
+	/** Normalises a walked hop into linker → linked (see {@link CHANNEL_LINKER}). */
 	recordEdge(current: VaultPath, neighbor: VaultPath, channel: Channel): void {
-		const source = channel === "outgoing-link" ? current : neighbor;
-		const target = channel === "outgoing-link" ? neighbor : current;
+		const currentIsLinker = CHANNEL_LINKER[channel] === "current";
+		const source = currentIsLinker ? current : neighbor;
+		const target = currentIsLinker ? neighbor : current;
 		this.edgeAccumulator.add(source, target);
 	}
 

@@ -990,6 +990,13 @@ describe("ObsidianLinkProvider outgoing reference kinds (markdown)", () => {
 	it("WHEN the file has no cache entry THEN resolvedLinks keys degrade to plain links (that record merges kinds)", async () => {
 		// The ONE remaining kind-unknown path, and a transient one: it is markdown that
 		// getFileCache has not seen yet. Canvases never land here — they are always parsed.
+		//
+		// CONSEQUENCE, deliberately accepted (see the DECIDED block on
+		// `outgoingReferencesOf`): during that boot window an authored `![[note]]` from
+		// this source is traversed on the outgoing-LINK channel, so `embedDepthOut: 0`
+		// does not suppress it. This test is the tripwire: if the fallback ever starts
+		// returning `[]` (the rejected alternative), it fails here rather than silently
+		// emptying a graph.
 		const references = await referencesOf(
 			{ files: [{ path: "uncached.md" }, { path: "t.md" }], resolvedLinks: { "uncached.md": { "t.md": 1 } } },
 			"uncached.md",

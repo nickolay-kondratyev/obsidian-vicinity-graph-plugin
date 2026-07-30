@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { EngineDefaults } from "./constants";
 import { FakeLinkProvider } from "./FakeLinkProvider";
 import { PathExclusionMatcher } from "./PathExclusionMatcher";
 import type { TraversalRoot, TraversalResult } from "./VicinityTraversal";
@@ -402,5 +403,171 @@ describe("VicinityTraversal outline echo", () => {
 	it("WHEN the provider does not report the fact THEN the traversed node carries false", () => {
 		const result = traverse(outlineVault(), [root("a.md")]);
 		expect(result.nodes.get(asVaultPath("a.md"))?.imagePrecedesOutline).toBe(false);
+	});
+});
+
+/* ========================================================================== *
+ * The outgoing-embed channel (ticket nid_fay1hu5sxcoygizopkkg0f0d7_e)
+ * ========================================================================== */
+
+// GIVEN a vault where every hop is written as an EMBED: a ![[b]] ![[c]], b ![[d]].
+function embeddedVault(): FakeLinkProvider {
+	return new FakeLinkProvider({
+		files: [{ path: "a.md" }, { path: "b.md" }, { path: "c.md" }, { path: "d.md" }],
+		embeds: { "a.md": ["b.md", "c.md"], "b.md": ["d.md"] },
+	});
+}
+
+describe("VicinityTraversal outgoing-embed channel", () => {
+	it("WHEN a note embeds another note THEN the embedded note is reached on the embed budget", () => {
+		const result = traverse(embeddedVault(), [root("a.md", { linkDepthOut: 0, embedDepthOut: 1, linkDepthIn: 0 })]);
+		expect(nodePaths(result)).toEqual(["a.md", "b.md", "c.md"]);
+	});
+
+	it("WHEN the embed budget is 0 THEN embedded notes are not expanded, however deep the LINK budget is", () => {
+		const result = traverse(embeddedVault(), [root("a.md", { linkDepthOut: 5, embedDepthOut: 0, linkDepthIn: 0 })]);
+		expect(nodePaths(result)).toEqual(["a.md"]);
+	});
+
+	it("WHEN an embed is walked THEN its edge points linker -> linked like any other", () => {
+		const result = traverse(embeddedVault(), [root("a.md", { linkDepthOut: 0, embedDepthOut: 1, linkDepthIn: 0 })]);
+		expect(edgePairs(result)).toEqual(["a.md->b.md", "a.md->c.md"]);
+	});
+
+	it("WHEN a node is reached over the embed channel THEN its depth tag names that channel", () => {
+		const result = traverse(embeddedVault(), [root("a.md", { linkDepthOut: 0, embedDepthOut: 1, linkDepthIn: 0 })]);
+		expect(result.nodes.get(asVaultPath("b.md"))?.depthTags).toEqual([
+			{ rootPath: "a.md", channel: "outgoing-embed", depth: 1 },
+		]);
+	});
+
+	it("WHEN a target is BOTH embedded and plainly linked THEN it is one node reached on either channel alone", () => {
+		const provider = new FakeLinkProvider({
+			files: [{ path: "a.md" }, { path: "b.md" }],
+			links: { "a.md": ["b.md"] },
+			embeds: { "a.md": ["b.md"] },
+		});
+		const result = traverse(provider, [root("a.md", { linkDepthOut: 0, embedDepthOut: 1, linkDepthIn: 0 })]);
+		expect(nodePaths(result)).toEqual(["a.md", "b.md"]);
+	});
+});
+
+/**
+ * THE ACCEPTANCE PROOF for this ticket, and its exact limit.
+ *
+ * The shipped defaults set `embedDepthOut === linkDepthOut === 1` (SETTINGS_SPEC),
+ * and AT ONE HOP the union of the two outgoing channels is EXACTLY the single
+ * kind-blind outgoing BFS that shipped before the split: nothing moves on screen
+ * for anyone who does not change a setting.
+ *
+ * That equality does NOT extend to equal budgets DEEPER than one hop, and the
+ * second describe below pins where it stops. Kind-pure channels (owner decision
+ * D1 / research 6a) cannot walk a chain that CHANGES KIND mid-way, and a chain
+ * needs two hops to change kind — so raising BOTH outgoing budgets to 2 reaches
+ * strictly FEWER nodes than the old kind-blind depth-2 walk. Deliberate,
+ * documented, and the accepted cost of not breaking the BFS's "expand once,
+ * shallowest first" invariant.
+ */
+describe("VicinityTraversal channel split at the shipped defaults", () => {
+	// GIVEN a root that both EMBEDS and plainly LINKS a neighbour: a ![[b]] [[c]].
+	const FILES = [{ path: "a.md" }, { path: "b.md" }, { path: "c.md" }];
+
+	function asAuthored(): FakeLinkProvider {
+		return new FakeLinkProvider({ files: FILES, links: { "a.md": ["c.md"] }, embeds: { "a.md": ["b.md"] } });
+	}
+
+	/** The same edges with the embed rewritten as a plain link — i.e. the pre-split vault. */
+	function kindBlind(): FakeLinkProvider {
+		return new FakeLinkProvider({ files: FILES, links: { "a.md": ["c.md", "b.md"] } });
+	}
+
+	/** The SHIPPED defaults, read from the spec — not a literal that could drift from it. */
+	function atShippedDefaults(provider: FakeLinkProvider): TraversalResult {
+		return traverse(provider, [{ descriptor: { path: asVaultPath("a.md") }, depths: EngineDefaults.depthSettings() }]);
+	}
+
+	it("WHEN the depths are the shipped defaults THEN a mixed-kind vault reaches the kind-blind walk's NODES", () => {
+		expect(nodePaths(atShippedDefaults(asAuthored()))).toEqual(nodePaths(atShippedDefaults(kindBlind())));
+	});
+
+	it("WHEN the depths are the shipped defaults THEN a mixed-kind vault walks the kind-blind walk's EDGES", () => {
+		expect(edgePairs(atShippedDefaults(asAuthored()))).toEqual(edgePairs(atShippedDefaults(kindBlind())));
+	});
+
+	it("WHEN the shipped defaults are read THEN the two outgoing budgets are equal (what makes the above hold)", () => {
+		const defaults = EngineDefaults.depthSettings();
+		expect(defaults.embedDepthOut).toBe(defaults.linkDepthOut);
+	});
+});
+
+/**
+ * THE ACCEPTED COST of kind-pure channels (owner decision D1 / research 6a):
+ * each channel runs its OWN independent BFS, so a chain that CHANGES KIND mid-way
+ * is not walkable by either one — `a ![[b]]` then `b [[d]]` needs the embed channel
+ * for the first hop and the link channel for the second, and neither has both.
+ *
+ * NOTE, and this is WIDER than the ticket's own framing (it says the gap "only
+ * appears once a user deliberately diverges the budgets"): the gap appears at any
+ * budget above one hop, EQUAL BUDGETS INCLUDED. It is hidden at ship only because
+ * the shipped default is a single hop.
+ */
+describe("VicinityTraversal kind-changing chains (the cost of kind-pure channels)", () => {
+	// GIVEN a ![[b]] then b [[d]] — an embed hop followed by a plain-link hop.
+	function kindChangingChain(): FakeLinkProvider {
+		return new FakeLinkProvider({
+			files: [{ path: "a.md" }, { path: "b.md" }, { path: "d.md" }],
+			links: { "b.md": ["d.md"] },
+			embeds: { "a.md": ["b.md"] },
+		});
+	}
+
+	it("WHEN both outgoing budgets are 2 THEN the hop AFTER the kind change is not walked", () => {
+		const result = traverse(kindChangingChain(), [root("a.md", { linkDepthOut: 2, embedDepthOut: 2, linkDepthIn: 0 })]);
+		expect(nodePaths(result)).toEqual(["a.md", "b.md"]);
+	});
+
+	it("WHEN the whole chain is ONE kind THEN two hops are walked as before (the gap is the kind CHANGE)", () => {
+		const provider = new FakeLinkProvider({
+			files: [{ path: "a.md" }, { path: "b.md" }, { path: "d.md" }],
+			embeds: { "a.md": ["b.md"], "b.md": ["d.md"] },
+		});
+		const result = traverse(provider, [root("a.md", { linkDepthOut: 0, embedDepthOut: 2, linkDepthIn: 0 })]);
+		expect(nodePaths(result)).toEqual(["a.md", "b.md", "d.md"]);
+	});
+});
+
+/**
+ * D5 (owner, settled): attachment-ness is decided by NODE-BEARING-NESS, never by
+ * kind. A diagram is an attachment whether it is written `[[chart.png]]` or
+ * `![[chart.png]]`, so `embedDepthOut` governs embedded NOTES only. Guaranteed by
+ * the `isNodeBearing` gate that already ran for every channel — pinned here, not
+ * built.
+ */
+describe("VicinityTraversal embedded attachments (D5: attachments stay orthogonal to kind)", () => {
+	// GIVEN a note that EMBEDS an image and PLAINLY LINKS another one.
+	function embeddedAttachmentVault(): FakeLinkProvider {
+		return new FakeLinkProvider({
+			files: [{ path: "n.md" }, { path: "img/shown.png" }, { path: "img/linked.png" }],
+			links: { "n.md": ["img/linked.png"] },
+			embeds: { "n.md": ["img/shown.png"] },
+		});
+	}
+
+	it("WHEN a note embeds an image THEN the image still never becomes a node", () => {
+		const result = traverse(embeddedAttachmentVault(), [root("n.md", { embedDepthOut: 5, linkDepthOut: 5 })]);
+		expect(nodePaths(result)).toEqual(["n.md"]);
+	});
+
+	it("WHEN an image is embedded and another is plainly linked THEN BOTH are attachments of the note", () => {
+		const result = traverse(embeddedAttachmentVault(), [root("n.md")]);
+		expect(result.nodes.get(asVaultPath("n.md"))?.attachments.map((a) => a.path)).toEqual([
+			"img/linked.png",
+			"img/shown.png",
+		]);
+	});
+
+	it("WHEN the embed budget is 0 THEN an EMBEDDED attachment is still offered as an attachment", () => {
+		const result = traverse(embeddedAttachmentVault(), [root("n.md", { embedDepthOut: 0, linkDepthOut: 0 })]);
+		expect(result.nodes.get(asVaultPath("n.md"))?.firstImagePath).toBe("img/linked.png");
 	});
 });

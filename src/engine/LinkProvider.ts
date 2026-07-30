@@ -25,6 +25,16 @@ export class OutgoingReferences {
 	}
 
 	/**
+	 * The distinct targets of `references` reached by `kind`, first occurrence first
+	 * — ONE traversal channel's neighbor list. A target that is both embedded and
+	 * plainly linked appears in BOTH kinds' views, which is exactly right: either
+	 * relationship alone justifies the edge.
+	 */
+	static targetsOfKind(references: readonly OutgoingReference[], kind: LinkKind): readonly VaultPath[] {
+		return OutgoingReferences.targetsOf(references.filter((reference) => reference.kind === kind));
+	}
+
+	/**
 	 * `references` with the first occurrence of each (target, kind) pair kept — the
 	 * deduplication every {@link LinkProvider} owes its callers, so a target that is
 	 * both embedded and plainly linked keeps ONE reference per kind.
