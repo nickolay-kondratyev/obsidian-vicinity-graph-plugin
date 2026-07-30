@@ -80,8 +80,28 @@ describe("NumberRowCommitPolicy: text that is not a value yet", () => {
 		expect(sizingPolicy("minPx").commit("").refusal).toBeUndefined();
 	});
 
+	it("WHEN the field is committed blank THEN the field is reseeded from the store", () => {
+		// Nothing was written, so no store echo will ever repaint this row: without the
+		// reseed the box stays EMPTY next to a setting that still holds a number.
+		expect(sizingPolicy("minPx").commit("").reseedsFromStore).toBe(true);
+	});
+
 	it("WHEN the field holds text that is not a number THEN nothing is written", () => {
 		expect(sizingPolicy("minPx").commit("abc").value).toBeNull();
+	});
+
+	it("WHEN the field holds text that is not a number THEN the field is reseeded from the store", () => {
+		expect(sizingPolicy("minPx").commit("abc").reseedsFromStore).toBe(true);
+	});
+});
+
+describe("NumberRowCommitPolicy: what the field is left showing", () => {
+	it("WHEN a value is written THEN the field is NOT reseeded (the store echo repaints it)", () => {
+		expect(sizingPolicy("minPx").commit("60").reseedsFromStore).toBe(false);
+	});
+
+	it("WHEN a value is REFUSED THEN the field is NOT reseeded (the typed text stands beside the reason)", () => {
+		expect(sizingPolicy("maxPx", { minPx: 200 }).commit("40").reseedsFromStore).toBe(false);
 	});
 });
 
@@ -90,8 +110,12 @@ describe("NumberRowCommitPolicy: a row whose accessor is its whole policy", () =
 		expect(nodeCapPolicy().commit("120").value).toBe(120);
 	});
 
-	it("WHEN the node cap is committed BLANK THEN nothing is written and the text stands", () => {
-		expect(nodeCapPolicy().commit("")).toEqual({ value: null, refusal: undefined });
+	it("WHEN the node cap is committed BLANK THEN nothing is written", () => {
+		expect(nodeCapPolicy().commit("").value).toBeNull();
+	});
+
+	it("WHEN the node cap is committed blank THEN the field is reseeded from the store", () => {
+		expect(nodeCapPolicy().commit("").reseedsFromStore).toBe(true);
 	});
 
 	it("WHEN the node cap is committed below its declared minimum THEN nothing is written", () => {

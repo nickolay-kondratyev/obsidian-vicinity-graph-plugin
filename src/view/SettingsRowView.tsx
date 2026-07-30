@@ -42,7 +42,10 @@ import { useOptimisticValue } from "./useOptimisticValue";
  * - A control the user TYPES into commits ON BLUR, not per keystroke, so a clamp can
  *   never land mid-word ({@link NumberRow}); a control the user AIMS (slider, stepper,
  *   toggle, pill) commits immediately, because each of its values is already a whole
- *   deliberate one.
+ *   deliberate one. Stated plainly, because it is the one place the split is not clean:
+ *   a number input's native SPINNER arrows are aimed, yet they move the text, so they
+ *   too apply only on blur. Accepted — the arrows step by 1 on fields whose useful
+ *   moves are tens of pixels, so they are the rare way to use these rows.
  * - Every control names ONE field via a `SettingsInteraction` and hands it to the
  *   shared pipeline through {@link useControlsActions}; nothing here merges a slice
  *   from the snapshot it rendered from.
@@ -218,15 +221,21 @@ function NumberField({
 	readonly onCommit: (value: number) => void;
 }): ReactElement {
 	const policy = new NumberRowCommitPolicy(accessor, write);
-	// Seeded from the STORED value: a hand-edited data.json can hold a refused pair, and
-	// the row should say so on open rather than only once the user types.
-	const [refusal, setRefusal] = useState(() => policy.commit(String(stored)).refusal);
+	// No refusal on mount: `stored` cannot BE a refused value. `clampSizingSettings`
+	// raises an inverted pair at every door into the store — including the load of a
+	// hand-edited `data.json` — so a row only ever earns a refusal by being typed into.
+	const [refusal, setRefusal] = useState<string | undefined>(undefined);
 	const refusalId = useId();
+	// Counts the commits that put the STORED value back in the box (see
+	// `NumberRowCommit.reseedsFromStore`). Reseeding an uncontrolled input is a remount,
+	// and `stored` did not move on such a commit, so the key needs something that did.
+	const [reseeds, setReseeds] = useState(0);
 	return (
 		<div className="vicinity-graph-number-row-block">
 			<label className="vicinity-graph-number-row" title={row.description}>
 				<span>{row.label}</span>
 				<input
+					key={reseeds}
 					type="number"
 					aria-label={SettingsRowNames.sole(row)}
 					min={accessor.bounds.min}
@@ -240,6 +249,9 @@ function NumberField({
 						setRefusal(committed.refusal);
 						if (committed.value !== null) {
 							onCommit(committed.value);
+						}
+						if (committed.reseedsFromStore) {
+							setReseeds((remounts) => remounts + 1);
 						}
 					}}
 					// Enter COMMITS, by blurring into the handler above rather than by repeating
@@ -339,7 +351,10 @@ function SizingMetricRow({
 /**
  * A sizing bound (or the decay k) — the ONE row kind with a cross-field rule, so the
  * one that hands {@link NumberRow} a `SizingRowWrite`. That is the same object the
- * settings tab judges its sizing rows with, reading the globals this render drew from.
+ * settings tab judges its sizing rows with, over the same FRESH read of the globals
+ * (`ControlsActionsPort.storedGlobalView`, taken at commit time): the snapshot this
+ * render drew from can be a whole rebuild behind the sibling bound the user just
+ * moved, and judging against it would refuse the second half of a legitimate widening.
  */
 function SizingNumberRow({
 	row,
@@ -350,11 +365,12 @@ function SizingNumberRow({
 	readonly field: SizingNumberField;
 	readonly state: SettingsRowState;
 }): ReactElement {
+	const actions = useControlsActions();
 	return (
 		<NumberRow
 			row={row}
 			accessor={SettingsRowAccessors.sizingNumber(field)}
-			write={new SizingRowWrite(field, () => state.globalView.sizing)}
+			write={new SizingRowWrite(field, () => actions.storedGlobalView().sizing)}
 			state={state}
 		/>
 	);

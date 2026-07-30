@@ -1,3 +1,4 @@
+import type { ViewSettings } from "../engine";
 import { SerialPromiseChain } from "../shared/SerialPromiseChain";
 import type { PluginDataStore } from "../persistence/PluginDataStore";
 import type { SettingsResetConfirmation, SettingsResetScope } from "./settingsResetPlan";
@@ -121,6 +122,20 @@ export class SettingsWritePipeline implements SerialSettingsWrites {
 	 */
 	planResetConfirmation(scope: SettingsResetScope): SettingsResetConfirmation | null {
 		return planSettingsResetConfirmation(scope, this.context());
+	}
+
+	/**
+	 * The view globals as they are stored NOW, for a CONTROL that must judge one field
+	 * against its siblings before it writes (`SizingRowWrite`). The same fresh read
+	 * {@link context} plans a write from, exposed for the same reason
+	 * {@link planResetConfirmation} is: a decision the user sees must be taken against
+	 * the state the write will be taken against, not against a rendered snapshot.
+	 *
+	 * READ ONLY, and not a substitute for the pipeline's own merge: a caller may look,
+	 * but the slice it writes is still merged inside the serialised slot.
+	 */
+	storedGlobalView(): ViewSettings {
+		return this.store.globalView();
 	}
 
 	/** Resolves once no write is queued or running — the safe point to re-read the globals. */

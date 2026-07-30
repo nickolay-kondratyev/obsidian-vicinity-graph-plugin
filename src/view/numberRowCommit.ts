@@ -24,20 +24,58 @@ import type { SizingRowVerdict } from "./sizingRowWrite";
  * that has one). This module only sequences them.
  */
 
-/** What a blur does: at most one write, plus at most one thing to say about it. */
-export interface NumberRowCommit {
-	/** The value to write, or `null` for "write nothing" — mid-edit, out of spec, or refused. */
-	readonly value: number | null;
+/**
+ * What a blur does: at most one write, plus at most one thing to say about it —
+ * and, when it does NEITHER, an instruction to put the stored value back in the box.
+ *
+ * A class with named factories rather than three object literals, so
+ * {@link reseedsFromStore} is DERIVED in one place and cannot drift from the case
+ * that produced it.
+ */
+export class NumberRowCommit {
+	private constructor(
+		/** The value to write, or `null` for "write nothing" — mid-edit, out of spec, or refused. */
+		readonly value: number | null,
+		/**
+		 * Why the value was REFUSED, or `undefined` when there is nothing to say.
+		 *
+		 * Refusals ONLY. The panel deliberately does not carry the settings tab's
+		 * "Stored as N — the allowed range is …" notice: the tab keeps the typed text in
+		 * its field, so without that sentence it would show a number the plugin replaced,
+		 * whereas the panel's field always ends up showing the STORED number — by the
+		 * store echo after a write, and by {@link reseedsFromStore} after a non-write —
+		 * and so states the same fact by simply being read.
+		 */
+		readonly refusal: string | undefined,
+	) {}
+
+	/** The typed value is storable. */
+	static writing(value: number): NumberRowCommit {
+		return new NumberRowCommit(value, undefined);
+	}
+
+	/** The typed value is not allowed, and `reason` says why. */
+	static refusing(reason: string): NumberRowCommit {
+		return new NumberRowCommit(null, reason);
+	}
+
+	/** The text is not a value at all (blank, mid-edit, out of spec): nothing to write, nothing to explain. */
+	static nothing(): NumberRowCommit {
+		return new NumberRowCommit(null, undefined);
+	}
+
 	/**
-	 * Why the value was REFUSED, or `undefined` when there is nothing to say.
+	 * `true` ⇒ the field must be RESEEDED with the stored value.
 	 *
-	 * Refusals ONLY. The panel deliberately does not carry the settings tab's
-	 * "Stored as N — the allowed range is …" notice: the tab keeps the typed text in
-	 * its field, so without that sentence it would show a number the plugin replaced,
-	 * whereas the panel reseeds its field FROM THE STORE on an accepted commit and so
-	 * states the same fact by simply showing the stored number.
+	 * Exactly the commit that writes nothing and says nothing: no write means no store
+	 * echo will ever repaint the row, and no refusal means there is no message giving
+	 * the leftover text a meaning — so a field left blank would sit there contradicting
+	 * a setting that still holds a number. A REFUSED commit keeps the typed text on
+	 * purpose: it is what the reason is about.
 	 */
-	readonly refusal: string | undefined;
+	get reseedsFromStore(): boolean {
+		return this.value === null && this.refusal === undefined;
+	}
 }
 
 /**
@@ -74,10 +112,11 @@ export class NumberRowCommitPolicy {
 		const parsed = this.accessor.accept(raw);
 		if (parsed === undefined) {
 			// Blank or not a number: nothing to write and nothing to explain — the same
-			// silence the settings tab keeps for a field left mid-edit.
-			return { value: null, refusal: undefined };
+			// silence the settings tab keeps for a field left mid-edit. The panel differs
+			// in one way, because its field is uncontrolled: it puts the stored value back.
+			return NumberRowCommit.nothing();
 		}
 		const verdict = this.judge.judge(parsed);
-		return verdict.rejected ? { value: null, refusal: verdict.message } : { value: parsed, refusal: undefined };
+		return verdict.rejected ? NumberRowCommit.refusing(verdict.message) : NumberRowCommit.writing(parsed);
 	}
 }

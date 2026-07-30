@@ -27,13 +27,18 @@ import type { SettingsInteraction, SizingNumberField } from "./settingsWritePlan
  */
 const CROSS_FIELD_ROWS: ReadonlySet<SizingNumberField> = new Set<SizingNumberField>(["minPx", "maxPx"]);
 
-/** What the row shows for a typed value, and whether that value will be persisted. */
-export interface SizingRowVerdict {
-	/** Inline feedback, `undefined` when the value needs no comment at all. */
-	readonly message: string | undefined;
-	/** `true` ⇒ refused: nothing is written and the message explains why. */
-	readonly rejected: boolean;
-}
+/**
+ * What the row shows for a typed value, and whether that value will be persisted.
+ *
+ * A UNION rather than one shape, so "a refusal always says why" is a compile-time
+ * fact: a surface that turns a rejection into a message (the panel's
+ * `NumberRowCommit.refusing`) then needs no fallback for a reasonless one.
+ */
+export type SizingRowVerdict =
+	/** Storable. `message` is the cap notice when the write path will store something else, else `undefined`. */
+	| { readonly rejected: false; readonly message: string | undefined }
+	/** Refused: nothing is written and `message` explains why. */
+	| { readonly rejected: true; readonly message: string };
 
 export class SizingRowWrite {
 	constructor(

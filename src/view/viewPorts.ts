@@ -1,5 +1,5 @@
 import type { ElkNode } from "elkjs";
-import type { ForceLayoutSettings, VicinityGraph } from "../engine";
+import type { ForceLayoutSettings, ViewSettings, VicinityGraph } from "../engine";
 import type { ControlsModel } from "./ControlsModel";
 import type { SettingsResetScope } from "./settingsResetPlan";
 import type { SettingsInteraction } from "./settingsWritePlan";
@@ -47,6 +47,18 @@ export interface GraphSourcePort {
 export interface ControlsActionsPort {
 	/** Persist what the user just did (all settings are global); then rebuild every open view. */
 	applySettings(interaction: SettingsInteraction): Promise<void>;
+	/**
+	 * The view globals as they are STORED NOW — the read a control needs when its
+	 * verdict judges one field against its SIBLINGS (today: max px vs min px).
+	 *
+	 * WHY not the rendered snapshot: that snapshot only moves once the write has
+	 * persisted AND the traversal and layout have rebuilt, which is the exact latency
+	 * the optimistic controls exist to hide. Judging inside that window against it
+	 * would refuse a legitimate edit while quoting a sibling value the user has
+	 * already replaced. The settings tab reads `PluginDataStore.globalView()` for the
+	 * same reason; this is that read, reached from React.
+	 */
+	storedGlobalView(): ViewSettings;
 	/** Restore one settings section's shipped defaults; then rebuild every open view. */
 	restoreDefaults(scope: SettingsResetScope): Promise<void>;
 	/** Pin a regular node by its vault path (resolves + ensures a docid); rebuilds every view if it landed. */
