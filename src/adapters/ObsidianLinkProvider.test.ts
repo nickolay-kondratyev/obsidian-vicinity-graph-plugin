@@ -542,7 +542,7 @@ describe("ObsidianLinkProvider link counts (step-05, CLARIFICATION Q1)", () => {
 		expect(provider.getLinkCount(asVaultPath("source.md"), asVaultPath("target.md"))).toBe(0);
 	});
 
-	it("WHEN a fallback-parsed canvas references the same note twice THEN getLinkCount reports 2", async () => {
+	it("WHEN a parsed canvas references the same note twice THEN getLinkCount reports 2", async () => {
 		const provider = await providerOver({
 			files: [
 				{ path: "note-a.md" },
@@ -553,6 +553,31 @@ describe("ObsidianLinkProvider link counts (step-05, CLARIFICATION Q1)", () => {
 			],
 		});
 		expect(provider.getLinkCount(asVaultPath("board.canvas"), asVaultPath("note-a.md"))).toBe(2);
+	});
+
+	it("WHEN a core-indexed canvas's own count DISAGREES with our parse THEN the parsed count is reported", async () => {
+		// The declared behavior change of option 3a, pinned where it is user-visible (the
+		// edge-count badge). Pre-3a this canvas was served by resolvedLinks and the badge
+		// read 1; now the badge reads what the canvas actually says. Sourcing the count
+		// from core while the edge SET comes from our parse would split one edge across
+		// two authorities and re-expose the badge to the canvas-indexing boot race.
+		const provider = await providerOver({
+			files: [
+				{ path: "note-a.md" },
+				{
+					path: "board.canvas",
+					content: JSON.stringify({
+						nodes: [
+							{ type: "file", file: "note-a.md" },
+							{ type: "text", text: "[[note-a]] and again [[note-a]]" },
+						],
+					}),
+				},
+			],
+			resolutions: { "note-a": "note-a.md" },
+			resolvedLinks: { "board.canvas": { "note-a.md": 1 } },
+		});
+		expect(provider.getLinkCount(asVaultPath("board.canvas"), asVaultPath("note-a.md"))).toBe(3);
 	});
 });
 

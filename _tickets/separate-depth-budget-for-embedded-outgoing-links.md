@@ -4,7 +4,7 @@ tags: [settings, settings-cleanup]
 title: "Separate depth budget for embedded outgoing links (decisions settled; measures the new settings model's plumbing cost)"
 status: open
 deps: [nid_8p0nn2g34d97finokwlz3u1dt_e, nid_wimjq4ewgbg21n4zx9d4qq3a0_e, nid_armoson86j0ii8c33r1odo1rc_e, nid_x6hgehsu5il1d1shuraz3ufqy_e]
-links: [nid_869bt9d9rlrbr8of1403dnmf3_e, nid_8p0nn2g34d97finokwlz3u1dt_e, nid_1rslube8at5xj60ji4jeve0b0_e, nid_d57npvuvjk95n03c2xqgl3y6o_e]
+links: [nid_869bt9d9rlrbr8of1403dnmf3_e, nid_8p0nn2g34d97finokwlz3u1dt_e, nid_1rslube8at5xj60ji4jeve0b0_e, nid_d57npvuvjk95n03c2xqgl3y6o_e, nid_t0x7ap99djfuzvz5p261ao7rn_e]
 created_iso: 2026-07-28T17:29:00Z
 status_updated_iso: 2026-07-28T17:29:00Z
 type: task
@@ -476,3 +476,39 @@ ONE deliberate test inversion, called out: 'WHEN an indexed canvas has no links 
 getLinkCount stays KIND-BLIND -- deviation from the stage brief's item 5, with reason: for markdown the number IS Obsidian's merged resolvedLinks count, so a per-kind split would have to re-derive the total from the file cache and could change a rendered badge (a behavior change Stage 1 forbids). Stage 3 does not need it either: VicinityTraversal never calls getLinkCount. Revisit only if the Stage 2 visual distinction wants per-kind counts.
 
 MEASUREMENT (Stage 1 only, vs branch point e387f5a): 23 files, +914/-305. Production: 12 files, +371/-170 (2 of them deletions). Tests: 9 files, +525/-128. This is the kind-plumbing stage, NOT the settings-field stage the measurement mandate targets -- the cost of the +1 settings field gets measured in Stage 3.
+
+**2026-07-30T04:13:49Z**
+
+STAGE 1 REVIEW ITERATION (2026-07-30) — three corrections to the STAGE 1 LANDED note above.
+
+1. DISCLOSED BEHAVIOR CHANGE (was undisclosed): canvas EDGE COUNTS switched source.
+   Pre-3a, a CORE-INDEXED canvas had no entry in canvasOutgoingByPath, so getLinkCount
+   fell through to resolvedLinks — core's number. Every canvas is parsed now, so the
+   rendered edge-count badge is OUR occurrence count for EVERY canvas. Canvases ARE
+   core-indexed on the real install (ticket-step-03-human-smoke-run.md), so this is the
+   live path, not a corner. KEPT, deliberately, not reverted: the edge SET already comes
+   from our parse, so taking the COUNT from core would split one edge across two
+   authorities and put the badge back on the canvas-indexing boot race 3a removed (an
+   edge we report but core has not indexed yet would read 0). PINNED by a new test —
+   "WHEN a core-indexed canvas's own count DISAGREES with our parse THEN the parsed count
+   is reported" (src/adapters/ObsidianLinkProvider.test.ts) — with seeded resolvedLinks
+   saying 1 against a canvas that references the note 3 times. Documented on getLinkCount
+   and in docs-internal/plan/high-level-plan.md (Canvas support).
+
+2. CORRECTION to the note above: "cross-checked against Reference.original in tests" is
+   no longer true. That suite was DELETED as circular — it routed each authored reference
+   into links/embeds using original.startsWith("!"), then asserted the kind equals
+   original.startsWith("!"), and `original` was never handed to production. It could not
+   fail. The provenance suite already covers what it really asserted. The assumption it
+   claimed to guard (Obsidian routes by the "!" prefix) is a REAL-OBSIDIAN measurement,
+   not a unit test — see the follow-up ticket linked below.
+
+3. STAGE 3 ACCEPTANCE ITEM (new, must not be decided under time pressure):
+   src/adapters/ObsidianLinkProvider.ts outgoingReferencesOf's final fallback (markdown
+   not yet in getFileCache) degrades EVERY reference to kind "link", because
+   resolvedLinks keys merge kinds. Harmless in Stage 1 (nothing consumes the kind). In
+   Stage 3 it is USER-VISIBLE: with embedDepthOut=0, an embedded note reached from a
+   not-yet-cached source is traversed as a plain link and still appears — the setting
+   silently does not hold during the boot window. Stage 3 MUST (a) pin the behavior with
+   a test, and (b) consciously choose: ACCEPT the transient degradation, or return [] for
+   an uncached markdown file and let the next metadataCache event rebuild.

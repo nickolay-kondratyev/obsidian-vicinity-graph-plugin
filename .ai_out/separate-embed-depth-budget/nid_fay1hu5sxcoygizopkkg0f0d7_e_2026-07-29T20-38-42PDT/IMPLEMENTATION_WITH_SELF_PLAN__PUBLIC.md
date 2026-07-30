@@ -11,7 +11,8 @@ Three commits on the current branch (`d48d914`, `5022a72`, `5c13f8f`).
 ## Plan I executed
 
 1. `LinkKind` + the two shared regex captures (syntax half).
-2. `ReferenceOrder` provenance + `Reference.original` cross-check (markdown half).
+2. `ReferenceOrder` provenance (markdown half). *(The `Reference.original`
+   cross-check that shipped with it was deleted in ITERATION 1 — see S2.)*
 3. `CanvasFallbackParser.linkKind` (canvas half).
 4. Port: `OutgoingReference` + `getOutgoingReferences`, `FakeLinkProvider.embeds`.
 5. `ObsidianLinkProvider`: kind-carrying references + **always-parse canvases (3a)**.
@@ -83,6 +84,13 @@ export interface LinkProvider {
 - **No `targetsOfKind` helper yet.** Stage 3 needs it (`neighborsOf(channel)`
   filtering outgoing by kind); adding it now would be unused code. Add it to
   `OutgoingReferences` — that is where the kind-blind collapse already lives.
+
+### `getLinkCount` — kind-blind, but its canvas SOURCE changed. Read this.
+
+> Amended in ITERATION 1. The original write-up called Stage 1 "zero behavior
+> change" without qualification. That was wrong on one point: canvas edge COUNTS.
+> Full disclosure in `## ITERATION 1 → S1` at the bottom. Everything below about
+> the *kind-blindness* of the number still stands.
 
 ### `getLinkCount` stays kind-blind — DEVIATION from brief item 5, with reason
 
@@ -169,10 +177,8 @@ ticket `nid_s676x55uojmtcwh9t4l9mc6zl_e`.
   pointing at a non-note), text-node `[[x]]` ⇒ link, `![[x]]` ⇒ embed, `[l](x)` ⇒
   link, `![a](x)` ⇒ embed.
 - `ReferenceOrder.test.ts` — provenance describe (links/embeds/frontmatter, and the
-  same target both ways), **plus the `Reference.original` cross-check**: one
-  authored-reference table drives BOTH the cache arrays (by Obsidian's routing
-  rule) and the expectations (by the `!` prefix), so provenance and the prefix
-  signal cannot silently disagree.
+  same target both ways). ~~plus the `Reference.original` cross-check~~ —
+  **DELETED in ITERATION 1 as circular; see S2.**
 - `FakeLinkProvider.test.ts` — fixture kinds, links-before-embeds order, the
   both-linked-and-embedded pair (two references, one target, count 2, one linker).
 - `ObsidianLinkProvider.test.ts` — markdown kinds (provenance, frontmatter, order
@@ -234,32 +240,34 @@ ticket `nid_s676x55uojmtcwh9t4l9mc6zl_e`.
 
 `git diff --stat e387f5a` (branch point), `src/` + `docs-internal/`:
 
+**Updated after ITERATION 1** (the iteration itself touched 5 files: +49 / −57):
+
 | Slice | Files | +/- |
 |---|---|---|
-| **Total** | 23 | **+914 / −305** |
-| Production code (`src/**` non-test) | 12 | +371 / −170 |
-| Tests (`src/**/*.test.ts`) | 9 | +525 / −128 |
-| Docs (`docs-internal/`) | 2 | +18 / −7 |
+| **Total** | 23 | **+913 / −315** |
+| Production code (`src/**` non-test) | 12 | +388 / −177 |
+| Tests (`src/**/*.test.ts`) | 9 | +505 / −129 |
+| Docs (`docs-internal/`) | 2 | +20 / −9 |
 
 Per-file (`src/` + `docs-internal/`):
 
 ```
  docs-internal/architecture-map.md         |   2 +-
- docs-internal/plan/high-level-plan.md     |  23 ++-
+ docs-internal/plan/high-level-plan.md     |  27 ++-
  src/adapters/CanvasCapability.test.ts     |  33 ----   (deleted)
  src/adapters/CanvasCapability.ts          |  26 ----   (deleted)
  src/adapters/CanvasFallbackParser.test.ts |  53 ++++++-
  src/adapters/CanvasFallbackParser.ts      |  41 +++--
  src/adapters/CanvasParseCache.test.ts     |   6 +-
- src/adapters/ObsidianLinkProvider.test.ts | 240 ++++++++++++++++++++++++------
- src/adapters/ObsidianLinkProvider.ts      | 149 +++++++++++--------
- src/adapters/ReferenceOrder.test.ts       |  95 +++++++++++-
+ src/adapters/ObsidianLinkProvider.test.ts | 267 +++++++++++++++++++++-------
+ src/adapters/ObsidianLinkProvider.ts      | 163 ++++++++++--------
+ src/adapters/ReferenceOrder.test.ts       |  49 +++++-
  src/adapters/ReferenceOrder.ts            |  38 ++++-
  src/engine/FakeLinkProvider.test.ts       |  75 ++++++++++
  src/engine/FakeLinkProvider.ts            |  77 +++++++---
  src/engine/LinkProvider.ts                |  64 +++++++-
  src/engine/index.ts                       |   6 +-
- src/main.ts                               |  14 +-
+ src/main.ts                               |  24 +-
  src/shared/LinkKind.test.ts               |  18 +++   (new)
  src/shared/LinkKind.ts                    |  38 +++   (new)
  src/shared/MarkdownInlineLinks.test.ts    |  71 ++++---
@@ -295,3 +303,126 @@ replacement, not complexity.
 3. **`getOutgoingLinks` kept alongside `getOutgoingReferences`** rather than
    replaced — it is a one-line derived view, and keeping it is what let ~30
    behavior-capturing assertions stay literally untouched as the zero-change proof.
+
+---
+
+# ITERATION 1 — reviewer feedback (0 BLOCKING, 4 SHOULD-FIX)
+
+`npm test` 1199 passed / 91 files, `npm run check` clean, both re-run after the
+last edit. All four items resolved; three INCORPORATED, one INCORPORATED BY
+DELETION. Nothing rejected.
+
+## S1 — canvas edge COUNTS switched source, undisclosed → **INCORPORATED (kept + pinned + disclosed)**
+
+**The reviewer is right and the original write-up was wrong.** "Zero behavior
+change" was stated without qualification; it does not hold for canvas edge
+**counts**. Before always-parse, a **core-indexed** canvas had no entry in
+`canvasOutgoingByPath`, so `getLinkCount` fell through to
+`resolvedLinks[source][target]` — *core's* number. Now every canvas has an entry,
+so the rendered edge badge is **our parsed occurrence count for every canvas**.
+Canvases *are* core-indexed on the real install, so this is the live path.
+
+**I did NOT restore the old semantics.** Keeping the parse-derived count is the
+more correct shape, and I'll defend that:
+
+- The edge **SET** already comes from our parse (that is what 3a *is*). Sourcing
+  the **COUNT** from core would split one edge across two authorities: an edge our
+  parser reports that core has not indexed yet would render a badge of **0**.
+- *Whether* core has indexed a given canvas is a boot race. Consulting it for the
+  count puts the badge back on exactly the race 3a was adopted to kill — the
+  historical e2e flake (`nid_s676x55uojmtcwh9t4l9mc6zl_e`).
+- One authority per edge is the invariant worth having; "matches whatever core
+  happened to have indexed at boot" is not.
+
+So the honest resolution is the one TOP_LEVEL_AGENT named: **keep it, pin it,
+disclose it loudly.** Done in four places:
+
+1. **Test (the pin)** — `ObsidianLinkProvider.test.ts`: *"WHEN a core-indexed
+   canvas's own count DISAGREES with our parse THEN the parsed count is
+   reported"*. A canvas with a file node **and** a text node saying
+   `[[note-a]] and again [[note-a]]`, seeded `resolvedLinks: {"board.canvas":
+   {"note-a.md": 1}}`, asserting **3**. The two numbers genuinely differ, so the
+   test fails if anyone routes the count back through core. The pre-existing
+   coverage only pinned the trivially-agreeing case; count parity now has a home.
+2. **Code** — a `DECLARED BEHAVIOR CHANGE` doc block on `getLinkCount`.
+3. **Spec** — `high-level-plan.md` "Canvas support" gained an *"our parse is the
+   SOLE authority per canvas edge — set AND count"* bullet (it replaced one of
+   the stale bullets from S3, so the section shrank rather than grew).
+4. **Records** — ticket note on `nid_fay1hu5sxcoygizopkkg0f0d7_e` and a note on
+   change_log entry `o1a5bjgjpro68l9nmxnr4yzp2`, both naming the user-visible
+   effect: on a canvas where core coalesces references we count separately, the
+   badge NUMBER can differ from before; the edge SET is unchanged.
+
+## S2 — the `Reference.original` cross-check cannot fail → **INCORPORATED (deleted, with a real replacement filed)**
+
+The reviewer is right: it was circular. The fixture routed each authored
+reference into `links`/`embeds` **using `original.startsWith("!")`** and then
+asserted the resulting kind equals `original.startsWith("!")`. `original` was
+never handed to production, so both sides were the same string put through the
+same rule. A test that cannot fail while *claiming in its doc comment to be a
+tripwire* is worse than no test — that is squarely the EARN_TRUST clause.
+
+**I chose delete over rewrite, deliberately.** A non-circular unit version cannot
+exist: the assumption it purported to guard is *"Obsidian core routes exactly the
+`!`-prefixed references into `cache.embeds`"*, and in a unit test the **fixture
+author** decides both arrays. There is no seam where Obsidian's real routing gets
+a vote. Whatever residue is left after removing the circularity is already
+covered by the `link kinds by provenance` describe directly above it (including
+the same-target-both-ways case). Deleting it is DRY, not a coverage loss.
+
+The assumption **does** deserve a tripwire — it just has to be a real-Obsidian
+measurement, like `e2e/canvasMarkdownLinkIndexing.e2e.ts` is for canvas indexing.
+Filed as ticket **`nid_t0x7ap99djfuzvz5p261ao7rn_e`** (linked to this one, p3):
+open a note with a wikilink, an embed, a markdown-style link, an image embed and
+a frontmatter property link in a real Obsidian, read `getFileCache`, and assert
+which array each landed in — plus find out whether `original` is even populated
+on desktop (it is documented "Not available on Publish").
+
+## S3 — stale docs and the `fallback` misnomer → **INCORPORATED**
+
+- `high-level-plan.md`: both stale bullets struck. *"the adaptive design is
+  correct on every install either way"* → a bullet saying older-install behavior
+  no longer matters because core's index is not consulted on **any** install.
+  *"fixtures with canvas entries deliberately absent to exercise detection"* →
+  replaced by the S1 sole-authority bullet (detection is gone; an absent
+  `resolvedLinks` entry is now a no-op).
+- `main.ts`: `logBacklinkProvenance`'s doc no longer says "canvas **fallback**
+  parser"; local `fallbackOnly` → **`parserOnly`**, and the log line reads
+  `[OUR parser only]`.
+- Two adjacent NITs taken while in the same lines (not gold-plating — same
+  misnomer, same edit): `ObsidianLinkProvider.ts` *"what makes the fallback
+  regime agree with the core-indexed one"* → *"what makes our parse agree with
+  what core reports elsewhere in Obsidian"*, and the stray double blank line at
+  the former line 407. The remaining NITs (the slightly-overclaimed "canvases
+  never land here" comment, unused `LINK_KINDS` export, unguarded `cachedRead`
+  loop) were left alone as out of scope for this iteration.
+
+## S4 — uncached-markdown kind degradation → **INCORPORATED as a Stage 3 acceptance item**
+
+Recorded on the ticket (`nid_fay1hu5sxcoygizopkkg0f0d7_e`) and repeated here so
+Stage 3 cannot miss it.
+
+### ⚠ STAGE 3 ACCEPTANCE ITEMS (both must be closed IN Stage 3, not deferred)
+
+1. **The uncached-markdown boot window.**
+   `ObsidianLinkProvider.outgoingReferencesOf`'s final fallback (markdown not yet
+   in `getFileCache`) degrades **every** reference to `kind: "link"`, because
+   `resolvedLinks` keys merge kinds. Harmless today (nothing consumes the kind).
+   In Stage 3 it is **user-visible**: with `embedDepthOut = 0`, an embedded note
+   reached from a not-yet-cached source is traversed as a plain link and still
+   appears — the setting silently does not hold during the boot window. Stage 3
+   must (a) **pin the behavior with a test** and (b) **consciously choose**:
+   ACCEPT the transient degradation, or return `[]` for an uncached markdown file
+   and let the next `metadataCache` event rebuild. Do not decide this under time
+   pressure at the end of Stage 3.
+2. **D5 is already honoured with no new code** (carried forward from the original
+   write-up because it is the other thing Stage 3 must *pin rather than build*):
+   `VicinityTraversal`'s `eligibility.isNodeBearing` gate drops embedded
+   attachments before enqueue, so `embedDepthOut` covers embedded **notes** only.
+
+## Files touched by this iteration
+
+`src/adapters/ObsidianLinkProvider.ts`, `src/adapters/ObsidianLinkProvider.test.ts`,
+`src/adapters/ReferenceOrder.test.ts`, `src/main.ts`,
+`docs-internal/plan/high-level-plan.md` — 5 files, **+49 / −57** (net −8; the new
+pin test and doc blocks cost less than the circular suite that came out).

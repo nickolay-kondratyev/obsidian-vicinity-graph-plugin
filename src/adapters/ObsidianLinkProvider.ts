@@ -137,11 +137,22 @@ export class ObsidianLinkProvider implements LinkProvider {
 		return dedupe([...sources, ...canvasSources]).map(asVaultPath);
 	}
 
+	/**
+	 * DECLARED BEHAVIOR CHANGE (option 3a, ticket `nid_fay1hu5sxcoygizopkkg0f0d7_e`):
+	 * for a CORE-INDEXED canvas this used to fall through to `resolvedLinks` —
+	 * core's number — because such a canvas had no entry here. Every canvas is
+	 * parsed now, so the rendered edge badge is OUR occurrence count for every
+	 * canvas. That is deliberate, not incidental: the edge SET already comes from
+	 * our parse, so sourcing the COUNT from core would (a) mix two authorities on
+	 * one edge and (b) put the badge back on the boot race 3a removed — an edge we
+	 * report but core has not indexed yet would read 0. One authority per edge.
+	 * `ObsidianLinkProvider.test.ts` pins the multiplicity case where the two
+	 * numbers genuinely differ.
+	 */
 	getLinkCount(source: VaultPath, target: VaultPath): number {
 		const canvasReferences = this.canvasOutgoingByPath.get(source);
 		if (canvasReferences !== undefined) {
-			// Parsed canvas links are not in resolvedLinks in a shape we trust — count
-			// occurrences. Kind-blind, exactly like the resolvedLinks number below.
+			// Count occurrences. Kind-blind, exactly like the resolvedLinks number below.
 			let count = 0;
 			for (const parsed of canvasReferences) {
 				if (parsed.target === target) {
@@ -327,8 +338,8 @@ export class ObsidianLinkProvider implements LinkProvider {
  * a file node's `file` is already a literal vault path (exact lookup — Obsidian
  * writes it that way), while a text-node link is link TEXT and goes through the
  * SAME `getFirstLinkpathDest` resolution as a markdown body link, relative to
- * the canvas itself. That is precisely what makes the fallback regime agree
- * with the core-indexed one (tickets `nid_s676x55uojmtcwh9t4l9mc6zl_e`,
+ * the canvas itself. That is precisely what makes our parse agree with what
+ * core reports elsewhere in Obsidian (tickets `nid_s676x55uojmtcwh9t4l9mc6zl_e`,
  * `nid_ygo7h95ssgmunaqsprc1zlmfh_e`) — markdown-style destinations included:
  * they arrive already normalised to link text, so they share this one resolver
  * rather than a second literal-path lookup that would diverge on relative
@@ -404,7 +415,6 @@ function engineFolderOf(file: VaultFilePort): string {
 function dedupe(paths: readonly string[]): readonly string[] {
 	return [...new Set(paths)];
 }
-
 
 function appendToMultimap(map: Map<string, string[]>, key: string, value: string): void {
 	const values = map.get(key);

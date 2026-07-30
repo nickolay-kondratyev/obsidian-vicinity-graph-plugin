@@ -55,3 +55,52 @@ this directory. This file is only the stuff a clone of ME would want.
 settings rows/presenters/persistence, CSS: **untouched**. No `targetsOfKind` helper
 (would be unused code); Stage 3 adds it to `OutgoingReferences`. `LINK_KINDS`
 re-export from the engine is Stage 3's first line.
+
+---
+
+# ITERATION 1 (review feedback) — DONE, tree clean
+
+`npm test` 1199/1199, `npm run check` clean. One extra commit on the branch.
+All 4 SHOULD-FIX incorporated, none rejected. Details in PUBLIC.md `## ITERATION 1`.
+
+## What I got WRONG in Stage 1 (own it)
+
+**I claimed "zero behavior change" flatly.** It was false for canvas edge COUNTS:
+pre-3a a core-indexed canvas had no `canvasOutgoingByPath` entry so `getLinkCount`
+returned core's `resolvedLinks` number; post-3a it returns our occurrence count for
+EVERY canvas. I had reasoned carefully about `getLinkCount` (see PRIVATE §"Judgement
+calls") and *still missed* that 3a moved its canvas branch — because I was thinking
+about the MARKDOWN split, not about which canvases now land in the map. **Lesson for a
+clone: when you widen a map's key set, audit EVERY reader of that map, not just the one
+you were editing.** `canvasOutgoingByPath` has three readers.
+
+I kept the new semantics (one authority per edge; sourcing the count from core while
+the set comes from us re-exposes the boot race) and pinned it with a test whose seeded
+`resolvedLinks` (1) genuinely differs from the parse (3). If someone ever routes canvas
+counts back through core, that test fails.
+
+## The circular test — how it happened
+
+I wrote a fixture that derived the cache arrays from `original.startsWith("!")` and then
+asserted the kinds equal `original.startsWith("!")`, and I wrote a doc comment calling it
+a tripwire. It felt rigorous while writing it because the AUTHORED table looked like real
+source text. **Heuristic that would have caught it: ask "what edit to PRODUCTION makes
+this fail?" — if the answer needs a paragraph, the test is decorative.** Here the answer
+was "nothing" because `original` never reaches production. Deleted; the real tripwire is
+an e2e measurement, filed as `nid_t0x7ap99djfuzvz5p261ao7rn_e`.
+
+## Traps in THIS iteration
+
+- The new count test failed first run (got 1, expected 3): a canvas text-node `[[note-a]]`
+  needs `resolutions: { "note-a": "note-a.md" }` in the `providerOver` spec. FILE nodes
+  resolve by literal path and need no `resolutions`; TEXT-node links go through the fake
+  `getFirstLinkpathDest` and silently resolve to nothing without it.
+- `CachedMetadataPort` is still imported by `ReferenceOrder.test.ts` after the deletion
+  (used by `linksOf`) — deleting the import would have broken the build.
+
+## Still true from Stage 1
+
+Everything in "Not done, on purpose (Stage 3's job)" above is unchanged. Stage 3's two
+ACCEPTANCE ITEMS are now written into PUBLIC.md and the ticket: (1) decide the uncached-
+markdown `kind: "link"` degradation (accept, or return `[]` and wait for the next
+`metadataCache` event) and pin it; (2) pin D5 rather than build it.

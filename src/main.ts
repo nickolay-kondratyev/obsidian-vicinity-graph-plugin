@@ -216,9 +216,9 @@ export default class VicinityGraphPlugin extends Plugin {
 	 * Makes the "who supplies which backlink" question unambiguous for manual
 	 * QA: it queries Obsidian core DIRECTLY (raw `getBacklinksForFile` +
 	 * `resolvedLinks`) and OUR provider side by side, then names the delta —
-	 * the incoming edges that exist ONLY because our canvas fallback parser
-	 * produced them. On an install where core indexes canvas, the delta is
-	 * empty and both sides agree; that is itself the informative result.
+	 * the incoming edges that exist ONLY because our canvas parser produced them.
+	 * On an install where core indexes canvas, the delta is empty and both sides
+	 * agree; that is itself the informative result.
 	 */
 	private async logBacklinkProvenance(mainFile: TFile): Promise<void> {
 		const provider = await ObsidianLinkProvider.create(this.app.vault, this.app.metadataCache, this.canvasParseCache);
@@ -228,7 +228,7 @@ export default class VicinityGraphPlugin extends Plugin {
 		const coreBacklinks = BacklinksAdapter.backlinkSourcePaths(this.app.metadataCache, mainFile);
 		const providerIncoming = provider.getIncomingLinks(asVaultPath(mainFile.path));
 		const coreSources = new Set<string>(coreBacklinks ?? []);
-		const fallbackOnly = providerIncoming.filter((source) => !coreSources.has(source));
+		const parserOnly = providerIncoming.filter((source) => !coreSources.has(source));
 
 		// Naming the canvases we parsed is what makes the delta below explainable: every
 		// canvas edge comes from OUR parser, whether or not core also indexed it.
@@ -247,7 +247,7 @@ export default class VicinityGraphPlugin extends Plugin {
 		);
 		console.log(`vicinity-graph debug: [OUR provider] getIncomingLinks(main)=[${providerIncoming.join(", ")}]`);
 		console.log(
-			`vicinity-graph debug: [OUR fallback only] incoming edges present in ours but NOT from core=[${fallbackOnly.join(", ")}]`,
+			`vicinity-graph debug: [OUR parser only] incoming edges present in ours but NOT from core=[${parserOnly.join(", ")}]`,
 		);
 	}
 
