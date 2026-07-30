@@ -54,7 +54,9 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   Refresh reach is ONE port: `ViewsRefreshPort` (implemented in `main.ts` over
   `refreshOpenViews()`) rebuilds every open view. `UserNoticePort` is the same
   shape for the one user-visible message surface (`Notice`, also implemented in
-  `main.ts`); `FakeViewsRefresh` / `FakeUserNotices` are their test doubles. Every settings write is global,
+  `main.ts`) — its producers are the pipeline's `write()` failure policy and
+  `ControlsActions`' pin refusal, and `main.ts` is the ONLY file constructing
+  `Notice`; `FakeViewsRefresh` / `FakeUserNotices` are their test doubles. Every settings write is global,
   so there is no narrower reach to choose — the write-scope classifier and the
   owning-view port went with the per-doc layer.
 - `view/settingsWritePipeline.ts` — **THE settings write path**, one instance per
