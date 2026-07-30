@@ -118,3 +118,61 @@ the chaos persists (portrait reads 181px at seed 400); mean root fill just drift
 ## Documentation updates needed
 
 None beyond the comment edits above. No CLAUDE.md change warranted.
+
+---
+
+# Round 2 — verification of `1fc2f76`
+
+## Overall: **READY.** All six items resolved. No new findings, no residual disagreement.
+
+## B1 — resolved, and **the implementer's rejection of my suggested clause is correct; I was wrong**
+
+I verified the chain myself rather than taking it on report:
+
+| Claim | Check | Result |
+|---|---|---|
+| `0fb796f` is an ancestor of `9454a1a` | `git merge-base --is-ancestor` | ✅ YES |
+| `9454a1a` does not touch `constants.ts` | `git show 9454a1a --stat` → ticket md, `d3ForceRefinement.ts`, `d3ForceStranding.test.ts`, `forceRectLink{,.test}.ts` | ✅ |
+| seed reads 40 both sides of the fix | `9454a1a^:constants.ts` and `9454a1a:constants.ts` | ✅ both `= 40` |
+| pre-fix test cited 113px under `it.fails` | `9454a1a^:d3ForceStranding.test.ts:207` — "Measured worst gap on this fixture: 113px against the 100px budget", asserted with `it.fails` | ✅ |
+| the fix moved it to 73px | `9454a1a:d3ForceStranding.test.ts` — "used to FAIL (113px) … 73px here" | ✅ |
+
+My proposed clause ("and was taken with the knob still feeding BOTH passes") **would have
+been false**: at `9454a1a^` the split had already landed, so that 113px reading was taken
+with the seed pinned at 40 and interiors at 20. I inferred it from the prior pass's
+narrative instead of from git — exactly the failure mode I flagged. Good catch; correctly
+rejected rather than accepted to please the reviewer.
+
+The new wording — "113px was never a property of a seed of 20; it is the LANDSCAPE
+fixture's reading under the direction-blind `forceLink`, taken with the seed at 40" — is
+**fully backed**, every element checkable in-tree or from git history, with no asserted
+mechanism beyond what those commits record.
+
+## I1 and N1..N4 — all real
+
+- **I1** ✅ The top-end bullet now says the chaos persists and names 181px at seed 400
+  (`results-high.tsv`: 181.3). No longer readable as "high seeds are safe".
+- **N1** ✅ Fixed by **measuring**, not by softening: `results-seed15-17.tsv` gives portrait
+  15 = 75.5, 17 = 65.2. All nine of 10..18 are now measured (65.2..89.1), so both
+  "65..89px" and "nine consecutive values each side" are literally true. Bonus: seed 15
+  reproduces the coarse run to the decimal — determinism re-confirmed.
+- **N2** ✅ Band restated as 10..200 / 0.77..1.13. I recomputed with fixture medians taken
+  over the ≥10 subset: **0.769..1.132** — matches exactly. (Using the old all-seed medians
+  it is 0.773..1.135; normalising over ≥10 is the internally consistent choice now that the
+  claim is scoped to ≥10.) "455..789 across the sweep" also holds over ≥10 (454.9 @45,
+  788.7 @70).
+- **N3** ✅ Pointer to `.ai_out/root-seed-spacing/…/seed-sweep` added to the comment.
+- **N4** ✅ Re-wrapped.
+
+## Changed-figure honesty re-check
+
+Only three figures changed (0.77..1.13, the 10..200 band, 181px at 400) plus the two new
+measurements (15, 17). All recomputed from the TSVs above. Unchanged figures were verified
+in round 1 and are untouched.
+
+## Comment syntax and green
+
+Read the full block: one `/** … */`, no stray `*/` — the artifact path is plain prose, no
+glob. `npm test` → 94 files / 1245 tests pass. `npm run check` → exit 0. Worktree clean.
+
+## Verdict: **READY** — ship it.

@@ -68,3 +68,43 @@ either file. Agree with "no new test" and with keeping the rig in `.ai_out/` (it
 `../../src` imports resolve correctly from the documented `.tmp/seed-sweep/` copy).
 
 Verdict: NOT-READY on the correction sentence only (one-sentence fix).
+
+---
+
+# Round 2 — verification of `1fc2f76`
+
+## B1 — I was wrong on the mechanism I proposed; the implementer is right. Chain verified myself:
+
+- `git merge-base --is-ancestor 0fb796f 9454a1a` → YES.
+- `9454a1a --stat` touches: ticket md, `d3ForceRefinement.ts`, `d3ForceStranding.test.ts`,
+  `forceRectLink.ts`, `forceRectLink.test.ts`. **Not `constants.ts`.**
+- `git show 9454a1a^:src/view/constants.ts` and `9454a1a:` both → `= 40`.
+- `9454a1a^:d3ForceStranding.test.ts:207` → "Measured worst gap on this fixture: 113px
+  against the 100px budget" on the LANDSCAPE describe, asserted via `it.fails`.
+- `9454a1a:d3ForceStranding.test.ts` → "used to FAIL (113px)" … "73px here".
+
+So at the moment 113px was recorded in-tree, the split had ALREADY landed (seed 40,
+interiors 20) — my proposed clause "taken with the knob still feeding BOTH passes" would
+have been false. Rejection correct; my clause was inferred from the prior narrative, not
+from git. New wording is anchored entirely to in-tree, git-verifiable facts. Backed. No
+residual disagreement.
+
+## Round-1 items
+
+- **I1** — bullet now names 181px at seed 400 (data: 181.3). ✅
+- **N1** — `results-seed15-17.tsv`: portrait 15 = 75.5 (identical to the coarse run →
+  determinism holds), 17 = 65.2. All nine of 10..18 now measured, range 65.2..89.1, so
+  "65..89px" and "nine consecutive values each side" are literally true. ✅
+- **N2** — band restated as 10..200 / 0.77..1.13. Recomputed with medians over the ≥10
+  subset: **0.769..1.132** — matches. (With the old all-seed medians it is 0.773..1.135;
+  the ≥10 median is the internally consistent choice for a ≥10 claim.) "455..789 across
+  the sweep" also holds over ≥10 (454.9 @45, 788.7 @70). ✅
+- **N3** — `.ai_out/root-seed-spacing/…/seed-sweep` pointer added. ✅
+- **N4** — line re-wrapped. ✅
+
+## Syntax / green
+
+Read the whole block comment: single `/** … */`, no stray `*/` (the artifact path is plain
+prose, no glob). `npm test` 94/1245 pass, `npm run check` exit 0, worktree clean.
+
+**READY.**
