@@ -18,7 +18,8 @@ import type { SerialSettingsWrites, SettingsWriter } from "./settingsWritePipeli
  *   `SettingsWritePipeline`'s chain ({@link SerialSettingsWrites}), so a settling
  *   window is ordered against every other settings write instead of only against
  *   other drains. That is also why a thunk is HANDED the {@link SettingsWriter} it
- *   must use: a thunk running inside a serialised slot cannot re-enter the chain.
+ *   must use: a thunk runs INSIDE a serialised slot, and re-entering the chain from
+ *   there deadlocks on the tail its own drain is holding.
  */
 
 /**

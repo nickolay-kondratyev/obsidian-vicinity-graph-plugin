@@ -411,6 +411,10 @@ export class ObsidianHarness {
 	 * Rebuilds every OPEN graph view against the current store. A store write alone
 	 * changes nothing on screen, so a caller that wants the graph (not the settings
 	 * tab — that is `SettingsTabPage.redisplay()`) to reflect a write says so here.
+	 *
+	 * Reaches a `private` method by NAME (the `any` cast is what makes that compile):
+	 * `VicinityGraphPlugin.refreshOpenViews` is private so production code has ONE
+	 * fan-out rule. Its doc comment records this coupling from the other side.
 	 */
 	async refreshOpenViews(): Promise<void> {
 		await this.page.evaluate((pluginId) => {

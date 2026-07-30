@@ -164,6 +164,11 @@ graph LR
   boolean, default OFF; decided wanted 2026-07-29, both presenters).
 - Behind **tests (5)**: `nid_ek3wrqoh1rsftk6ulg836mghf_e` (e2e types into a
   settings input).
+- **Ordering undecided** (`decide`): `nid_7qot0m6nuxxmd5z0yb9jylsd6_e` (React
+  component-test infra — jsdom + a light renderer). Raised by the review of (3):
+  the optimistic-controls layer shipped there was non-functional and no unit test
+  could see it, because nothing in `npm test` renders a component. Owner call is
+  whether this BLOCKS presenters (4), which moves more behaviour into React.
 - Behind **descriptor model (2)** only: `nid_zvoay26y4y9h1e2p2b1y9glfk_e`
   (new intra-group spacing field — add it under the new model, not the old).
 

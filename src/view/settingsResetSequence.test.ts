@@ -83,4 +83,17 @@ describe("SettingsResetSequence", () => {
 		await sequence.run("all");
 		expect(target.steps).toContain("redisplay");
 	});
+
+	it("WHEN the reset write fails THEN a write queued behind it is STILL drained before the redisplay", async () => {
+		// The failure path is where the bug this class exists to prevent hides: a failed
+		// `data.json` write must not turn the drain into a step that is skipped, or the
+		// redisplay reads the globals with the user's own click still queued.
+		const { target, sequence } = sequenceUnderTest();
+		target.writeDefaults = () => {
+			target.enqueueWriteBehindTheReset("click-write");
+			return Promise.reject(new Error("disk full"));
+		};
+		await sequence.run("all");
+		expect(target.steps).toEqual(["flush", "flush", "click-write", "redisplay"]);
+	});
 });

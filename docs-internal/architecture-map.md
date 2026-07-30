@@ -63,9 +63,11 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   field — never a ready-made command, never a whole slice — because a merge base
   captured before the write reverts whatever sibling field moved in between.
   Companion pieces: `settingsResetSequence.ts` (restore-defaults ORDER: flush
-  typed edits → write defaults → drain the chain → rebuild the controls) and
+  typed edits → write defaults → flush again → drain the chain → rebuild the
+  controls; the last three run even when the write failed) and
   `optimisticValue.ts` + `useOptimisticValue.ts` (panel controls answer input
-  immediately; the store wins as soon as it disagrees).
+  immediately; the store wins as soon as it shows a value that is neither the
+  burst's baseline nor one of the burst's own requests).
 - `persistence/storagePorts.ts`, `adapters/obsidianPorts.ts` — testable seams,
   each with a `Fake*` implementation used by unit tests.
 

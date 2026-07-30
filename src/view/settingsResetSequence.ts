@@ -39,20 +39,39 @@ export class SettingsResetSequence {
 	 * caller is a DOM click handler with nowhere to put a rejection.
 	 */
 	async run(scope: SettingsResetScope): Promise<void> {
-		try {
+		await this.tolerating(async () => {
 			// Keystrokes typed BEFORE the reset: one still inside the settle window
 			// would otherwise land after the defaults and silently un-reset its field.
 			await this.target.flushTypedEdits();
 			await this.target.writeDefaults(scope);
-			// Keystrokes typed WHILE the reset ran — same reasoning, plus the redisplay
-			// below reads the globals synchronously.
+		});
+		await this.settled();
+		this.target.redisplay();
+	}
+
+	/**
+	 * Everything that must have landed before the tab may read the globals — kept OUT
+	 * of the defaults write's own step on purpose: a FAILED defaults write must not
+	 * skip the drain, or the redisplay rebuilds controls ahead of a write the user
+	 * asked for mid-reset, which is exactly `nid_8b97fdqznqsncc5kgya1p871w_e` again.
+	 */
+	private settled(): Promise<void> {
+		return this.tolerating(async () => {
+			// Keystrokes typed WHILE the reset ran — same reasoning as the pre-reset
+			// flush, plus the redisplay reads the globals synchronously.
 			await this.target.flushTypedEdits();
 			// And any CONTROL used while the reset ran: its write is queued behind the
 			// reset, so the rebuild must wait for the whole chain, not just for the reset.
 			await this.target.drainWrites();
+		});
+	}
+
+	/** Runs one step, logging and swallowing its failure — the tab is redisplayed either way. */
+	private async tolerating(step: () => Promise<void>): Promise<void> {
+		try {
+			await step();
 		} catch (error) {
 			console.error("vicinity-graph: failed to restore settings defaults", error);
 		}
-		this.target.redisplay();
 	}
 }

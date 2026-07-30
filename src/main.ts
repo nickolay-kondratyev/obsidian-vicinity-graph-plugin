@@ -118,6 +118,11 @@ export default class VicinityGraphPlugin extends Plugin {
 	 * so "which views does a write refresh" is answered in one place. The settings
 	 * tab used to call this directly, which is how a second fan-out rule could have
 	 * grown next to the port's.
+	 *
+	 * `private` is a COMPILE-time lock only, and the e2e harness deliberately reaches
+	 * it by NAME at runtime (`e2e/obsidianHarness.ts` → `refreshOpenViews()`, through an
+	 * `any` cast, so `check:e2e` cannot catch a rename). Keep the name, and keep it a
+	 * method — a `#private` field would break that harness with no compiler warning.
 	 */
 	private refreshOpenViews(): void {
 		for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE_VICINITY_GRAPH)) {

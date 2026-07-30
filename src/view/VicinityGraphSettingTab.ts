@@ -373,8 +373,9 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 		toggleRow.addToggle((toggle) => {
 			// The row's only control, so the row name alone identifies it.
 			VicinityGraphSettingTab.nameToggle(toggle, name);
-			// Queued as ONE unit: the snapshot below is read after an await, so two fast
-			// clicks would otherwise both plan from the same pre-write state.
+			// No queue of its own any more: the handler emits ONE granular interaction and
+			// `SettingsWritePipeline` plans it from a fresh read inside its serialised
+			// slot, so two fast clicks cannot both plan from the same pre-write state.
 			toggle.setValue(exclusion.enabled).onChange(async (enabled) => {
 				// Pending typed edits first: the patterns textarea persists on a debounce,
 				// while `showExclusionPatterns` below re-seeds the rebuilt row by reading
@@ -523,10 +524,10 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 					// The paired weight input is the ONLY thing on screen that depends on
 					// this toggle, so flip it directly instead of rebuilding the tab with
 					// `display()` — that discarded the user's scroll position and focus
-					// (same reasoning as {@link addNodePreviewSegmented}). Done OUTSIDE the
-					// queue so the row answers the click immediately; unlike
+					// (same reasoning as {@link addNodePreviewSegmented}). Flipped BEFORE the
+					// write is awaited so the row answers the click immediately; unlike
 					// {@link showExclusionPatterns} this cannot paint a stale value,
-					// because it runs in click order — the newest click paints last.
+					// because the flip happens in click order — the newest click paints last.
 					weightInput.setDisabled(!enabled);
 					// Pending typed edits first so this row's own weight, still inside the
 					// debounce window, is not left behind the enable flag it belongs to.

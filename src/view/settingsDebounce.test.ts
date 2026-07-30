@@ -10,7 +10,8 @@ const DELAY_MS = 400;
  * Stands in for `SettingsWritePipeline`: a REAL {@link SerialPromiseChain} (the
  * ordering these tests care about is the chain's) plus a writer these thunks never
  * use — they record instead of persisting, so what reaches the store is the
- * pipeline's own test's business, not this one's.
+ * pipeline's own test's business, not this one's. That side is pinned end to end by
+ * "DebouncedSettingsWrites over the real pipeline" in `settingsWritePipeline.test.ts`.
  */
 const UNUSED_WRITER: SettingsWriter = {
 	apply: () => Promise.reject(new Error("these thunks record instead of writing")),

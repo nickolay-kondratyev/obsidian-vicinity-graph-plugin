@@ -28,10 +28,17 @@ import type { ViewsRefreshPort } from "./viewPorts";
  */
 
 /**
- * The write API available to code that is ALREADY inside a serialised slot (see
- * {@link SettingsWritePipeline.runSerialised}). Handed IN to such a task rather
- * than reachable from it, so re-entering the chain — which would deadlock on the
- * tail the task's own caller holds — is not expressible.
+ * The write API for code that is ALREADY inside a serialised slot (see
+ * {@link SettingsWritePipeline.runSerialised}). Handed IN to such a task so the
+ * right thing is the easy thing — the task never has to reach for the pipeline.
+ *
+ * HAZARD, stated plainly rather than pretended away: the pipeline's own
+ * {@link SettingsWritePipeline.apply} / {@link SettingsWritePipeline.restoreDefaults} /
+ * {@link SettingsWritePipeline.drain} stay reachable through any closure a slot
+ * captures, and calling one from INSIDE a slot waits on the tail that slot itself is
+ * holding — a deadlock, not an ordering bug. Code inside a slot MUST write through
+ * the writer it was handed. (`SizingRowWrite` hit exactly this and was reshaped to
+ * return an interaction instead of persisting.)
  */
 export interface SettingsWriter {
 	/** Plan `interaction` against the globals as they are NOW, persist it, fan out. */

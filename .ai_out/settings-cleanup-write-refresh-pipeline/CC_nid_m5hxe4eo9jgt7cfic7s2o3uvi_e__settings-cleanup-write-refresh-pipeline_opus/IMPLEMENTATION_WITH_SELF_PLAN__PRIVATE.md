@@ -1,93 +1,67 @@
 # PRIVATE — write/refresh pipeline (ticket nid_m5hxe4eo9jgt7cfic7s2o3uvi_e)
 
-## Plan (as designed, before implementing)
+## Where things stand
+Iteration 0 = commit `7588c2b` (goals 1–4 accepted by review, goal 5 dead).
+Iteration 1 = uncommitted working tree on top of it. `npm test` 1120/1120,
+`npm run check` clean. Verbose logs in `.tmp/it1_*.txt`
+(`red_optimistic`, `green_optimistic`, `red_reset`, `green_reset`, `final_test`,
+`final_check`). Nothing committed, no tickets closed, no change_log — by design.
 
-**Goal**: ONE settings write pipeline. One serial chain primitive in `src/shared/`,
-one pipeline object both surfaces write through, writes planned from FRESH store
-reads inside the serialised slot, reset drains before redisplay, panel controls
-optimistic.
+## Iteration-0 design (still current, unchanged)
+1. `src/shared/SerialPromiseChain.ts` — `run()` + `drain()`; drain returns the
+   pre-caught tail so it resolves either way and includes tasks enqueued while a
+   task ran. Replaced three hand-rolled tails.
+2. `src/view/settingsWritePipeline.ts` — ONE instance (`src/main.ts:58`) owning
+   chain + fresh-read merge base + persist switch + fan-out + `drain()`.
+   `runSerialised(task => task(writer))` hands an already-serialised writer IN.
+3. `SettingsInteraction` fully granular (one field per arm) — the whole-slice arms
+   were the sibling-clobbering vector; `planSettingsWrite` is the ONLY merger.
+4. `settingsResetSequence.ts` over `SettingsResetTarget` — owns the reset ORDER.
+5. `optimisticValue.ts` (pure) + `useOptimisticValue.ts` (thin hook).
 
-### Key design decisions
+## What iteration 1 changed (and WHY, so it is not undone)
+- **`PendingEdits` gained a `baseline`.** Without it, "a value nobody requested
+  wins immediately" fired against the PRE-EDIT stored value, which is present on
+  every first re-render → the override died before being painted. `reconciled` is
+  now three-way: caught-up → release; baseline OR earlier-request echo → hold;
+  anything else → release. `requesting(value, storedNow)`; the FIRST request of a
+  burst keeps the baseline, later ones inherit it (`this.baseline ?? {...}`).
+  Invariant: `baseline !== undefined` ⟺ `requested.length > 0`.
+- **`SettingsResetSequence.run()` split into `tolerating()` + `settled()`.** The
+  drain must NOT sit inside the defaults write's failure scope. Not a `finally`:
+  an awaited `finally` that throws would skip the redisplay.
+- Tests: +4 optimistic (incl. 3-test stepper-burst simulation), +1 reset failure
+  ordering, +2 debounce-over-real-pipeline, 1 fan-out test rewritten to observe
+  ordering at fan-out time.
+- Docs/comments: honesty pass, listed in PUBLIC.md.
 
-1. `src/shared/SerialPromiseChain.ts` — `run(task)` + `drain()`. `drain()` returns
-   the pre-caught tail, so it resolves either way and INCLUDES tasks enqueued while
-   an earlier task ran. Replaces the three hand-rolled tails.
-2. `src/view/settingsWritePipeline.ts` — `SettingsWritePipeline` owns the chain +
-   `SettingsWriteContext` read fresh from `PluginDataStore` + `planSettingsWrite` /
-   `planSettingsReset` + the persist switch + `ViewsRefreshPort` fan-out. This
-   deletes the DUPLICATED persist switch (tab `persist()` vs
-   `ControlsActions.executeSettings()`) and the duplicated refresh call.
-   - `apply(interaction)` / `restoreDefaults(scope)` enter the chain.
-   - `runSerialised(task => task(writer))` hands an already-serialised
-     `SettingsWriter` INTO the task, so the re-entrancy deadlock the old
-     `SettingsWriteQueue` doc warned about is structurally impossible (a task can
-     only write through the writer it was handed).
-   - `drain()`.
-3. `SettingsInteraction` becomes FULLY GRANULAR (one field per arm). The three
-   whole-object arms (`global-sizing`, `global-force-layout`,
-   `global-node-exclusion`) were the sibling-clobbering vector: the merge base was
-   computed by the CALLER (React props / a pre-await snapshot). Replaced by
-   `global-sizing-number`, `global-sizing-metric-enabled`,
-   `global-sizing-metric-weight`, `global-force-layout-field`,
-   `global-exclusion-enabled`, `global-exclusion-patterns`. Now `planSettingsWrite`
-   is the ONLY merger and it always merges over the pipeline's fresh read.
-   `SettingsCommand` (whole-slice → store call) is unchanged; resets keep emitting
-   whole-slice commands, which is correct for a reset.
-4. `SizingNumberField` moved to `settingsWritePlan.ts` as
-   `Exclude<keyof SizingSettings, "metrics">` (was a hand union in
-   `sizingRowWrite.ts`) — one more compile-forced declaration.
-5. `src/view/settingsResetSequence.ts` — `SettingsResetSequence` over a
-   `SettingsResetTarget` port. Owns the ORDER: flush typed edits → write defaults →
-   flush again → drain the chain → redisplay. Testable with a fake target; this is
-   where the reset-races-display bug is now pinned.
-6. Panel controls: `ctx` prop DELETED everywhere. Components emit interactions
-   only. `ControlsActionsPort.applySettings(interaction)` +
-   `restoreDefaults(scope)`.
-7. Optimistic: `src/view/optimisticValue.ts` (`PendingEdits<T>`, pure + immutable,
-   unit-tested) + `src/view/useOptimisticValue.ts` (thin React hook — no react
-   test infra in this repo, so correctness lives in the pure class).
-   Reconciliation rule: hold the override until the snapshot echoes the LATEST
-   requested value; a snapshot value we never requested (external write / clamp)
-   wins immediately; a rejected write clears the override. That rule is what stops
-   the mid-burst echo of an EARLIER request from flickering the control back.
-8. `SettingsWriteQueue` deleted (pipeline replaces it); its three
-   ordering/rejection tests move into `SerialPromiseChain.test.ts`.
-9. `DebouncedSettingsWrites` loses its own chain — drains through
-   `pipeline.runSerialised`, so the debounce window is serialised against every
-   other write instead of only against itself. Thunks take the `SettingsWriter`.
+## Rejected in iteration 1 (do not re-litigate without new information)
+- **N1** `SettingsGlobalsReader` for `planResetConfirmation` — the fresh read must
+  come from the same authority as the write; a second reader is a freshness bug
+  waiting to happen.
+- **N2** `SettingsWritesPort` interface for the pipeline — no fake would implement
+  it (tests use the REAL pipeline over persistence fakes, deliberately), and
+  consumers are the same layer. Unused abstraction.
+- **`engineDefaultsSingleSource.test.ts` header** — the `ForceLayoutSection`
+  sentence is PAST tense and is the guard's motivation. Accurate as written.
+- Adding jsdom + a React renderer devDep mid-iteration — real infra decision with
+  a `decide` tag; became ticket `nid_7qot0m6nuxxmd5z0yb9jylsd6_e`.
+- Writing a blind e2e test for the stepper burst — cannot run e2e here, and an
+  unverified test in a release gate is worse than a documented gap.
 
-### Rejected
-- Deriving optimistic reconciliation from a "revision token" threaded through
-  React context: same flicker as value-identity on mid-burst echoes, plus prop
-  plumbing.
-- Making the chain re-entrancy-aware (detect "already inside") — stateful trickery.
-- Keeping whole-object sizing/force-layout interactions and fixing freshness by
-  giving React components a store read: puts a store read in the component and
-  still merges outside the serialised slot.
-- Putting the reset sequence on the pipeline: the pipeline would need the
-  debouncer, which needs the pipeline (construction cycle).
+## Known residual gaps (disclosed in PUBLIC.md)
+- Component wiring (`DepthStepper` feeding `shown` back) is pinned by SIMULATION
+  of the loop, plus a comment, plus e2e — not by a rendered component. Ticket
+  `nid_7qot0m6nuxxmd5z0yb9jylsd6_e`.
+- Several write promises are `void`-ed with no user-visible failure signal
+  (pre-existing). Needs a `Notice`-on-write-failure policy ticket.
+- Tab wiring for the reset (that `redisplay` really is `display()` and
+  `drainWrites` really is `pipeline.drain()`) is e2e-only; the tab has no vitest
+  harness.
 
-## Wiring
-`main.ts` builds ONE `SettingsWritePipeline(pluginDataStore, viewsRefresh)` →
-`plugin.settingsWrites`; handed to `VicinityGraphSettingTab` (via plugin) and to
-each `VicinityGraphView` → `ControlsActions`. `VicinityGraphView` no longer needs
-`pluginDataStore`.
-
-## Deviations from the plan while implementing
-- `SizingRowWrite` no longer persists at all: its `persist` callback re-entered the
-  chain from inside a debounced slot (deadlock). It now returns
-  `interactionIfAccepted(value): SettingsInteraction | null` and the tab's thunk
-  writes through the handed-in writer. One test moved to the pipeline (see PUBLIC).
-- `SettingsWriter` ended up with only `apply()` (not `restoreDefaults`) — no
-  in-slot caller needs a reset.
-- Added `pipeline.planResetConfirmation(scope)` so the tab could drop
-  `writeContext()` entirely (the confirmation was its last consumer).
-- Made `VicinityGraphPlugin.refreshOpenViews()` private — a compile-time lock for
-  goal 4, chosen over a source-scan guard test.
-- `Array.prototype.at` is not in the TS lib config here; `PendingEdits` uses an
-  index read boxed as `{ value }` so an `undefined` T stays distinguishable.
-
-## Status
-Implementation complete. `npm test` 1113/1113, `npm run check` clean. Tree dirty
-and uncommitted by design; no tickets closed; no change_log entry.
-Verbose outputs are in `.tmp/` (`full*.txt`, `check*.txt`, `t1.txt`, `t2.txt`).
+## Environment notes
+- vitest runs in the NODE environment; no jsdom/happy-dom/react-test-renderer
+  installed. Source-scan guard tests read the filesystem, so any future jsdom
+  environment must be scoped to component test files only.
+- `Array.prototype.at` is not in this TS lib config — `PendingEdits` uses an index
+  read boxed as `{ value }` so an `undefined` T stays distinguishable.

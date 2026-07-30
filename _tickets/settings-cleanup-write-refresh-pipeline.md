@@ -4,7 +4,7 @@ title: "Settings cleanup \u2014 write pipeline: one settings write/refresh pipel
   \ (single serial chain, reset drains it, one fan-out rule)"
 status: in_progress
 deps: [nid_wimjq4ewgbg21n4zx9d4qq3a0_e, nid_ez38gf1mrdgh5kxedzrdicwzl_e]
-links: [nid_4zffe7mj5p1eabi9m6wfh06k0_e, nid_8b97fdqznqsncc5kgya1p871w_e, nid_7fq9y51mbucmduzf9z31hmwmq_e,
+links: [nid_4zffe7mj5p1eabi9m6wfh06k0_e, nid_8b97fdqznqsncc5kgya1p871w_e, nid_7fq9y51mbucmduzf9z31hmwmq_e, nid_7qot0m6nuxxmd5z0yb9jylsd6_e]
   nid_ez38gf1mrdgh5kxedzrdicwzl_e]
 created_iso: '2026-07-29T17:29:52Z'
 status_updated_iso: '2026-07-30T00:05:15Z'

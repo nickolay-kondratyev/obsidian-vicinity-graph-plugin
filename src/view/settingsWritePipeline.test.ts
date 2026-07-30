@@ -3,6 +3,8 @@ import { EngineDefaults } from "../engine";
 import { FakePluginDataPort } from "../persistence/FakePluginDataPort";
 import { PluginDataStore } from "../persistence/PluginDataStore";
 import { FakeViewsRefresh } from "./FakeViewsRefresh";
+import type { DebounceScheduler } from "./settingsDebounce";
+import { DebouncedSettingsWrites } from "./settingsDebounce";
 import { SettingsWritePipeline } from "./settingsWritePipeline";
 
 /**
@@ -85,14 +87,18 @@ describe("SettingsWritePipeline fan-out", () => {
 		expect(viewsRefresh.refreshedViewIds).toEqual([...OPEN_VIEW_IDS]);
 	});
 
-	it("WHEN a scope is restored THEN the defaults reached the store before the fan-out", async () => {
-		// Written as one assertion on the store AFTER the awaited call: the fan-out is
-		// synchronous inside the task, so a fan-out ahead of the write is only
-		// observable as a store that has not moved yet.
-		const { store, pipeline } = pipelineUnderTest();
+	it("WHEN a scope is restored THEN every command had already reached the store when the fan-out ran", async () => {
+		// A real ORDERING assertion: the fan-out port reads the store AT fan-out time, so
+		// a refresh that ran ahead of its own write would record the pre-write value and
+		// every open view would repaint what was already on screen.
+		const store = new PluginDataStore(new FakePluginDataPort());
+		const capAtEachFanOut: number[] = [];
+		const pipeline = new SettingsWritePipeline(store, {
+			refreshAllViews: () => capAtEachFanOut.push(store.globalView().nodeCap),
+		});
 		await pipeline.apply({ kind: "global-cap", value: 42 });
 		await pipeline.restoreDefaults("performance");
-		expect(store.globalView().nodeCap).toBe(EngineDefaults.viewSettings().nodeCap);
+		expect(capAtEachFanOut).toEqual([42, EngineDefaults.viewSettings().nodeCap]);
 	});
 });
 
@@ -109,6 +115,55 @@ describe("SettingsWritePipeline drain", () => {
 		await pipeline.drain();
 		expect(store.globalView().nodeCap).toBe(7);
 	});
+});
+
+/**
+ * The DEBOUNCED path, end to end, over the real pipeline and the real store — the
+ * settings tab's typed fields are the only writers that go through a thunk, and the
+ * thunk must write through the {@link SettingsWriter} it is handed. Two things are
+ * only observable here: that a thunk's write actually reaches `data.json`, and that
+ * draining from inside a serialised slot does not deadlock (a deadlock shows up as a
+ * test that never resolves, hence the short timeout).
+ *
+ * `settingsDebounce.test.ts` owns WHEN a drain happens; this owns WHERE it lands.
+ */
+const DEBOUNCE_DELAY_MS = 400;
+/** A drain that never resolves must fail in a second, not sit on vitest's default 5s. */
+const DEADLOCK_TEST_TIMEOUT_MS = 1_000;
+/** The window never fires on its own here: every test drives the drain with `flush()`. */
+const NEVER_FIRING_SCHEDULER: DebounceScheduler = { schedule: () => 1, cancel: () => undefined };
+
+describe("DebouncedSettingsWrites over the real pipeline", () => {
+	it(
+		"WHEN a debounced thunk is flushed THEN its write reaches the store through the pipeline",
+		async () => {
+			const { store, pipeline } = pipelineUnderTest();
+			const debounced = new DebouncedSettingsWrites(DEBOUNCE_DELAY_MS, pipeline, NEVER_FIRING_SCHEDULER);
+			debounced.schedule("Node cap", (writer) => writer.apply({ kind: "global-cap", value: 33 }));
+			await debounced.flush();
+			expect(store.globalView().nodeCap).toBe(33);
+		},
+		DEADLOCK_TEST_TIMEOUT_MS,
+	);
+
+	it(
+		"WHEN two fields are typed in one window THEN both survive the drain (each plans over the previous)",
+		async () => {
+			// The sibling-clobbering bug on the DEBOUNCED path: the second thunk must plan
+			// against the globals the first one just wrote, not against a captured snapshot.
+			const { store, pipeline } = pipelineUnderTest();
+			const debounced = new DebouncedSettingsWrites(DEBOUNCE_DELAY_MS, pipeline, NEVER_FIRING_SCHEDULER);
+			debounced.schedule("Minimum node size (px)", (writer) =>
+				writer.apply({ kind: "global-sizing-number", field: "minPx", value: 30 }),
+			);
+			debounced.schedule("Maximum node size (px)", (writer) =>
+				writer.apply({ kind: "global-sizing-number", field: "maxPx", value: 300 }),
+			);
+			await debounced.flush();
+			expect(store.globalView().sizing).toMatchObject({ minPx: 30, maxPx: 300 });
+		},
+		DEADLOCK_TEST_TIMEOUT_MS,
+	);
 });
 
 describe("SettingsWritePipeline serialised tasks", () => {

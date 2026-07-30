@@ -32,7 +32,9 @@ export function useOptimisticValue<T>(
 		setPending(reconciled);
 	}
 	const request = (value: T): void => {
-		setPending((current) => current.requesting(value));
+		// `stored` is this render's snapshot value — the baseline the burst starts from.
+		// A later request in the same burst keeps the baseline the first one recorded.
+		setPending((current) => current.requesting(value, stored));
 		void commit(value).catch((error: unknown) => {
 			console.error("vicinity-graph: failed to persist a settings change", error);
 			setPending((current) => current.abandoned());
