@@ -206,7 +206,15 @@ function NumberRow({
 	);
 }
 
-/** One mounted number field: the text the user owns, and whatever its last commit refused. */
+/**
+ * One mounted number field: the text the user owns, and whatever its last commit refused.
+ *
+ * A refusal belongs to a COMMIT, not to the current state of the pair, so it can go
+ * stale: repairing the sibling bound in the other row does not clear it, because
+ * nothing about THIS row moved. Left that way on purpose — the alternative is a row
+ * subscribing to its sibling's every keystroke — and the recovery is the obvious one,
+ * committing this field again.
+ */
 function NumberField({
 	row,
 	accessor,
