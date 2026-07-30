@@ -1,57 +1,54 @@
 # PRIVATE memory — nid_hatwq2jlkhno5t6awcz0q6t9q_e (sizing bounds invariant)
 
-STATUS: **DONE**. 3 commits on `nid_hatwq2jlkhno5t6awcz0q6t9q_e_2026-07-30T00-53-04PDT`,
-tree clean, `npm run check` / `npm test` (1265) / `npm run build` all green. Ticket NOT
-closed and NO change_log entry written — both are the top-level agent's job.
+STATUS: **DONE, iteration 2 (review response) complete**. 5 commits on
+`nid_hatwq2jlkhno5t6awcz0q6t9q_e_2026-07-30T00-53-04PDT`, tree clean,
+`npm run check` exit 0 / `npm test` 95 files 1271 tests green. Ticket NOT closed and NO
+change_log entry — both are the top-level agent's job.
 
-Commits: `f3b008e` engine, `5f20f9f` view, `8d0bd6c` docs.
+Commits: `f3b008e` engine, `5f20f9f` view, `8d0bd6c` docs (iter 1);
+`7192074` review fixes, `2141741` doc limits (iter 2).
 
-## Plan (all done)
-1. [x] RED test in `src/engine/sizingSettings.test.ts` → raise-max rule.
-2. [x] `clampSizingSettings` raises `maxPx` to the CLAMPED `minPx`.
-3. [x] `NodeSizer.test.ts` inverted-ramp test rewritten (+ moved into the
-       hostile-settings describe; the image-floor describe was the wrong home for it).
-4. [x] New pure `src/view/numberRowCommit.ts` + colocated test (14 BDD tests).
-5. [x] `SettingsRowView.tsx`: `NumberRow` → `NumberField`, uncontrolled + blur-commit,
-       refusal slot; KNOWN-LIMIT comment removed.
-6. [x] CSS `.vicinity-graph-number-row-block` / `__refusal` in `graph-view.css`.
-7. [x] Follow-up ticket `nid_9uzrvqv0k5qgckgdaqtgr41ky_e` (metric WEIGHT input), linked.
-8. [x] `CLAUDE.md` + `docs-internal/notes/settings.md` updated.
+## Iteration 2: all three SHOULD-FIX items accepted, none rejected
+1. Dead seeded refusal → `useState<string|undefined>(undefined)`; comment now says WHY
+   there can be no refusal at mount (`clampSizingSettings` raises at every door).
+2. Null commit left the field blank → `NumberRowCommit` is now a CLASS with factories
+   (`writing`/`refusing`/`nothing`) and a derived `reseedsFromStore` getter; `NumberField`
+   keeps a `reseeds` counter on the `<input>`'s `key`. Verified RED (stub the getter to
+   `false` → 3 tests fail).
+3. Snapshot judge → `ControlsActionsPort.storedGlobalView()` → `ControlsActions` →
+   `SettingsWritePipeline.storedGlobalView()` (it already owns the store). `SizingNumberRow`
+   uses it. CLAUDE.md's "read FRESH, never a rendered snapshot" decided this one.
+   NIT rejected: CSS block-naming rename (cosmetic; e2e selects through those classes).
 
 ## Design decisions a clone must not re-derive
-- Panel shows ONLY refusals, never the tab's "Stored as N" clamp notice: the panel
-  RESEEDS its uncontrolled field from the store on an accepted commit, so the field
-  itself tells the truth. The tab keeps the typed text, so it needs the sentence.
-  (Also: the reseed remounts the field, which would delete the notice anyway.)
-- Reseeding an uncontrolled input = remount ⇒ `key={shown}` on `NumberField`. A REFUSED
-  commit never changes `shown`, so a refusal is never remounted away. That is the whole
-  reason the component is split in two.
-- `interactionIfAccepted` is NOT used by the panel: the panel commits synchronously, so
-  `request(value)` (accessor interaction via `useOptimisticValue`) is the same write and
-  keeps the optimistic display coherent. That method exists for the tab's DEBOUNCED path.
-- `settlesAt` stays per-field. It cannot see a sibling field; cross-field belongs to
-  `SizingRowWrite` / `describeSizingRejection` (UI) and `clampSizingSettings` (backstop).
-- Enter blurs the input rather than duplicating the commit handler.
+- `SizingRowVerdict` is a UNION now: `rejected: true` ⇒ `message: string`. That is what
+  lets `NumberRowCommit.refusing(verdict.message)` exist with no runtime fallback.
+- Reseed is NOT done by mutating `event.target.value`; it is a remount via `key`, matching
+  the `key={shown}` idiom one level up. A REFUSED commit must NOT reseed.
+- The panel judges cross-field against the STORE (fresh), not the optimistic layer and not
+  the snapshot. Optimistic-sibling reading was considered and dropped: it would mean
+  lifting both bounds' optimistic state into a shared parent.
+- Panel shows ONLY refusals, never the tab's "Stored as N" clamp notice: the field always
+  ends up showing the STORED number (store echo after a write, reseed after a non-write).
+- `settlesAt` stays per-field; cross-field lives in `SizingRowWrite` (UI) +
+  `clampSizingSettings` (backstop).
+- `interactionIfAccepted` is for the tab's DEBOUNCED path only; the panel commits
+  synchronously through `request(value)`.
 
 ## Traps hit (would bite again)
-- **NEVER run prettier here.** No prettier config, no prettier dep, repo uses TABS. A
-  `prettier --write` reflowed `return unhandledRowControl(row.control)` across lines and
-  broke the `settingsRowParity` source scan. Recovery: `git checkout --` the tracked
-  files and re-apply edits by hand.
+- **NEVER run prettier here.** No config, no dep, repo uses TABS; it reflows code and
+  breaks the `settingsRowParity` source scan.
 - Two spec-walking tripwires fire on ANY cross-field rule:
-  - `src/persistence/settingsSpecPersistence.test.ts` "garbage in X keeps siblings":
-    the alternates fixture puts both `minPx`/`maxPx` at the shared range MIN, so
-    repairing a garbage `minPx` to its default (40) raises the stored `maxPx` (1).
-    Handled with a declared `CROSS_FIELD_REPAIRS` list + 2 new pinning tests in
-    `persistedShapes.test.ts`.
-  - `src/view/settingsRowAccessors.test.ts` `distinctInBounds` probed at the range FLOOR,
-    writing `maxPx = 1` against `minPx = 40`. Now prefers the range CEILING (raising only
-    ever moves `maxPx` UP, so a ceiling probe cannot trip the rule from either row).
-- `NODE_SIZE_PX_BOUNDS` (`SettingsSpec.ts`) is SHARED by `minPx` and `maxPx`, which is
-  why raising to the clamped `minPx` can never leave `maxPx`'s own range.
+  `settingsSpecPersistence.test.ts` ("garbage in X keeps siblings") — handled by the
+  declared `CROSS_FIELD_REPAIRS` list; `settingsRowAccessors.test.ts` `distinctInBounds`
+  now probes at the range CEILING (`minPx`/`maxPx` share `NODE_SIZE_PX_BOUNDS`).
+- `toEqual({value, refusal})` against a class instance passes (prototype getters are not
+  own props) — that stale test was rewritten into focused asserts rather than relied on.
 
 ## Repo landmarks
 - `ACCESSOR_OWNED_SYMBOLS` scan (`settingsRowParity.test.ts`) forbids row-rendering
-  modules naming `SIZING_RANGES` / `clampSizingNumber` / `parseSizingInput` etc.
-- Same file forbids any row LABEL literal in a row-rendering module.
+  modules naming `SIZING_RANGES` / `clampSizingNumber` / `parseSizingInput`, and any row
+  LABEL literal.
 - Nothing under `npm test` renders React — extract logic to a pure module instead.
+- `ControlsActionsPort` has exactly one implementer (`ControlsActions`); no fakes to
+  update when the port grows.
