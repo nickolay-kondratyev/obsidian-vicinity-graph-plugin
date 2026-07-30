@@ -120,9 +120,23 @@ function valueProbe<T>(name: string, accessor: SettingsValueAccessor<T>, distinc
 	};
 }
 
-/** A value inside the declared bounds that is NOT the one the accessor already holds. */
+/**
+ * A value inside the declared bounds that is NOT the one the accessor already holds.
+ *
+ * Prefers the range CEILING. `minPx` and `maxPx` share one range, so probing at the
+ * range FLOOR would write `maxPx = 1` against a stored `minPx = 40` — an INVERTED pair,
+ * which `clampSizingSettings` repairs by raising `maxPx` back to `minPx`. That is not a
+ * broken accessor: `settlesAt` is a per-field promise, and an inverted pair is refused
+ * by BOTH settings surfaces (`describeSizingRejection`) before any accessor is asked to
+ * predict where it settles. Raising only ever moves `maxPx` UP to `minPx`, so a ceiling
+ * probe cannot trip the rule from either row.
+ */
 function distinctInBounds(accessor: SettingsNumberAccessor, current: number): number {
-	const { min, step } = accessor.bounds;
+	const { min, max, step } = accessor.bounds;
+	if (max !== undefined && max !== current) {
+		return max;
+	}
+	// No ceiling (the node cap) or the ceiling IS the current value: fall back to the floor.
 	return current === min ? min + step : min;
 }
 
