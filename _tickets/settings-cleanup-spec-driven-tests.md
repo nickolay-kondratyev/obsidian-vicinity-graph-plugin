@@ -3,7 +3,7 @@ id: nid_x6hgehsu5il1d1shuraz3ufqy_e
 title: "Settings cleanup — spec-driven tests: re-pin settings tests on the spec instead of hand-enumerated literals"
 status: open
 deps: [nid_wimjq4ewgbg21n4zx9d4qq3a0_e, nid_m5hxe4eo9jgt7cfic7s2o3uvi_e, nid_armoson86j0ii8c33r1odo1rc_e]
-links: [nid_ek3wrqoh1rsftk6ulg836mghf_e]
+links: [nid_ek3wrqoh1rsftk6ulg836mghf_e, nid_5meu9s38sbrv1703na77of4m7_e]
 created_iso: 2026-07-29T17:30:12Z
 status_updated_iso: 2026-07-29T17:30:12Z
 type: task

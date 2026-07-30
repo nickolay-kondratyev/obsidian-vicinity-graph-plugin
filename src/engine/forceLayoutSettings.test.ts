@@ -1,35 +1,43 @@
 import { describe, expect, it } from "vitest";
 import { EngineDefaults, FORCE_LAYOUT_RANGES, clampForceLayoutSettings } from "./constants";
+import { SETTINGS_SPEC } from "./SettingsSpec";
 import type { ForceLayoutSettings } from "./types";
 
 /**
- * Guards the ticket-04 "sliders must not change default behavior" criterion:
- * the default force-layout settings MUST equal the exact constants currently
- * shipped. A failure here means the default rendered layout changed — align
- * with the human before touching these values.
+ * The ticket-04 criterion this file guards: the force-layout defaults must be exactly
+ * what `SETTINGS_SPEC` declares, and every one of them must be REACHABLE — a default
+ * outside its own slider range would be silently rewritten by the load-path clamp, so
+ * the shipped layout would differ from the declared one.
  *
- * Baseline is ticket-03's placement-quality constants except `collidePaddingPx`,
- * deliberately raised 20 → 50 in `22bd5cb` (see `SettingsSpec.ts`).
+ * WHY-NOT the 7-field literal `toEqual` this replaced (called out in the PR): it
+ * duplicated the spec's own numbers and went stale twice on intentional retunes
+ * (`collidePaddingPx` 20 → 50 in `22bd5cb`, `elkNodeSpacingPx` 40 → 20). The claim it
+ * really made — "the default rendered layout did not change" — is not a number-equality
+ * claim and was never enforceable here; it is enforced by the layout-quality suites that
+ * run AT these defaults and assert measured geometry (`groupPacking.test.ts`,
+ * `d3ForceStranding.test.ts`, `elkMapping.test.ts`). Each value's rationale, including
+ * what breaks if it moves, lives on `SETTINGS_SPEC.globalView.forceLayout`.
  */
-describe("EngineDefaults.forceLayoutSettings (shipped baseline)", () => {
-	it("WHEN defaults are built THEN they equal the shipped layout constants", () => {
-		expect(EngineDefaults.forceLayoutSettings()).toEqual({
-			centerPullStrength: 0.05,
-			repelStrength: 300,
-			linkStrengthFactor: 1,
-			linkGapPx: 40,
-			collidePaddingPx: 50,
-			elkNodeSpacingPx: 20,
-			edgeRoutingClearancePx: 11,
-		});
+describe("EngineDefaults.forceLayoutSettings", () => {
+	it("WHEN defaults are built THEN every field projects the spec default", () => {
+		const declared = Object.fromEntries(
+			Object.entries(SETTINGS_SPEC.globalView.forceLayout).map(([field, spec]) => [field, spec.default]),
+		);
+		expect(EngineDefaults.forceLayoutSettings()).toEqual(declared);
 	});
 
-	it("WHEN defaults are clamped THEN they pass through unchanged (every default sits inside its range)", () => {
+	it("WHEN defaults are clamped THEN they pass through unchanged (every default is reachable in its own range)", () => {
 		const defaults = EngineDefaults.forceLayoutSettings();
 		expect(clampForceLayoutSettings(defaults)).toEqual(defaults);
 	});
 });
 
+/**
+ * The whole-object clamp. Per-field bounds behavior (below-min, above-max, NaN) is
+ * asserted for every bounded spec leaf — force layout included — in
+ * `settingsSpecBounds.test.ts`; what is left here is the clamp's WHOLE-OBJECT contract:
+ * it must repair every field of a mangled object at once, never just the first.
+ */
 describe("clampForceLayoutSettings (degenerate values are unreachable)", () => {
 	it("WHEN every field exceeds its maximum THEN each is clamped to its range max", () => {
 		const excessive = Object.fromEntries(
@@ -49,22 +57,5 @@ describe("clampForceLayoutSettings (degenerate values are unreachable)", () => {
 			Object.entries(FORCE_LAYOUT_RANGES).map(([field, range]) => [field, range.min]),
 		);
 		expect(clampForceLayoutSettings(undershooting)).toEqual(expected);
-	});
-
-	// `Math.min`/`Math.max` PROPAGATE NaN, so the shared `clampIntoRange` helper
-	// carries an explicit NaN branch. Pinned here because this file is where a
-	// future "simplify the clamp back to min/max" would land.
-	it("WHEN a field is NaN THEN it falls back to its spec default", () => {
-		const defaults = EngineDefaults.forceLayoutSettings();
-		expect(clampForceLayoutSettings({ ...defaults, repelStrength: Number.NaN }).repelStrength).toBe(
-			defaults.repelStrength,
-		);
-	});
-
-	it("WHEN the center pull is maxed and the link factor is minimized THEN links still dominate the pull (anti-collapse invariant)", () => {
-		// A degree-1 leaf's weakest spring is linkStrengthFactor.min / 1; the
-		// strongest reachable center pull must stay below it or the hub-collapse
-		// degeneracy documented at the ranges table becomes reachable.
-		expect(FORCE_LAYOUT_RANGES.centerPullStrength.max).toBeLessThan(FORCE_LAYOUT_RANGES.linkStrengthFactor.min);
 	});
 });

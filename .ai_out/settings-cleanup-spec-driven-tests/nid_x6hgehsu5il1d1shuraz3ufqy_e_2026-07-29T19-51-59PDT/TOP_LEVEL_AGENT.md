@@ -22,3 +22,15 @@ Branch: nid_x6hgehsu5il1d1shuraz3ufqy_e_2026-07-29T19-51-59PDT
 
 ## Log
 - [t0] deps verified closed (wimj, m5hx, armo, ez38). Explore spawned.
+- [t1] EXPLORATION done → EXPLORATION_PUBLIC.md. Headlines:
+  - `src/engine/SettingsSpec.ts` = single source of truth (defaults/bounds, 2 compile-time guards).
+  - `src/view/settingsRows.ts` (`SETTINGS_GROUPS` / `EVERY_SETTINGS_ROW`) = flat pure row enumeration.
+  - GOAL 2 largely SHIPPED in step 4: `settingsRows.test.ts` + source-scan
+    `settingsRowParity.test.ts`. Implementation only VERIFIES/closes holes, no rebuild.
+  - Real remaining gap = `src/engine/SettingsSpec.test.ts` and
+    `src/engine/forceLayoutSettings.test.ts` — still `toEqual` every default/limit;
+    these are the two that went stale twice.
+  - No jsdom/@testing-library harness exists (own ticket) → stay source-scan/structural.
+  - `CentralDepthRoundTrip.test.ts` confirmed deleted (347dc77). Baseline: 87 files / 1139 green.
+  - Scaffolding committed as fdf4214.
+- [t2] IMPLEMENTATION_WITH_SELF_PLAN spawned (goals 1 + 2-verification; e2e excluded).
