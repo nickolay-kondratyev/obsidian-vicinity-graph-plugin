@@ -1,5 +1,8 @@
 # Implementation review — settings row accessors (`nid_uppprbbqursr6awuoevoqpah1_e`)
 
+> **Final verdict: READY** (see "Iteration 1 verification" at the end — all six findings
+> fixed and independently verified on commit `37daba9`).
+
 Reviewed: commit `ef5f163` + working tree (tree is clean, nothing uncommitted).
 
 ## Verified myself
@@ -155,3 +158,98 @@ and add the `change_log` entry (and file tickets for whichever of #1–#6 are no
 No critical issue, no behaviour regression, no weakened guard, and the ticket's actual goal
 (presenters as markup plus one call, duplication single-homed) is genuinely met. Findings #1 and
 #3 are latent rather than live bugs; #2 is a guard that is weaker than its own docblock claims.
+
+---
+
+# Iteration 1 verification (commit `37daba9`)
+
+Verdict: **READY**. All six technical findings are genuinely fixed. Nothing I checked was
+overstated in the implementer's response.
+
+## Gates re-run by me
+
+- `npm test` → **93 files, 1230 tests, exit 0** (was 1227). Matches their claim.
+- `npm run check` → **exit 0** (`src/` and `e2e/`). Tree clean.
+
+## 1. The test RENAME preserved coverage — CONFIRMED
+
+Diffed `src/view/clampStepperDepth.test.ts` (deleted) against
+`src/view/settingsRowDepthClamp.test.ts` (added). All six assertions survive with the SAME
+inputs and the SAME expected values — `-1 → MIN`, `0 → 0`, `3 → 3`, `5 → MAX`, `6 → MAX`,
+`2.4 → 2` — retargeted from `clampStepperDepth` to
+`SettingsRowAccessors.depth("linkDepthOut").settlesAt`. Nothing dropped, nothing relaxed, no
+assertion loosened to fit. The file adds a second `describe` (track-endpoint reachability over
+every declared depth row) plus a non-vacuity test.
+
+Ancillary edits are honest too: `optimisticValue.test.ts`'s stepper simulation now derives from
+the accessor (same arithmetic), and the `settingsSpecBounds.test.ts` change is allowlist PROSE
+only — the enforcer table and its rules are untouched, so no engine guard was weakened.
+
+## 2. The new guards bite — CONFIRMED BY MY OWN PROBE, not by their mutation claim
+
+I evaluated both predicates against deliberately wrong clamps in a throwaway script that
+imports the real accessor (no source edited, script deleted afterwards):
+
+| clamp aimed at | "settles inside bounds or verbatim" | "track endpoints survive" |
+|---|---|---|
+| the real bounds (max 5) | passes | passes |
+| a WIDER max (7, 15) | **fails** | passes |
+| a NARROWER max (4) | passes | **fails** |
+
+So the two guards are genuinely complementary and each is falsifiable: a clamp aimed at bounds
+wider than the control's is caught by the new "lawless" assertion in
+`settingsRowAccessors.test.ts`, and one aimed narrower — the case that silently takes back a
+value the control offered — is caught by the endpoint guard in `settingsRowDepthClamp.test.ts`.
+That is exactly the hole finding #1 named, now closed from both sides.
+
+Also checked: the non-vacuity test asserts BOTH lawful arms are exercised (`clamping: true,
+verbatim: true`), so the pair cannot degenerate into "every accessor is identity"; and the
+corrected docblock now states plainly that the first assertion holds by construction for the
+clamping accessors — the over-claim in finding #2 is gone.
+
+## 3. `clampStepperDepth` deletion left no caller and no behavior change — CONFIRMED
+
+Grep over `src/` and `e2e/`: no `clampStepperDepth` callers remain (only the parity scan's
+forbidden-symbol list, the pointer comment in `src/view/constants.ts`, and the engine's own
+`MIN/MAX_STEPPER_DEPTH` constants, which `SettingsSpec.test.ts` still pins to the spec leaf).
+`clampDepthInto(bounds, value)` is `Math.min(max, Math.max(min, Math.round(v)))` over the
+field's own bounds — byte-for-byte the old formula, and all three depth leaves declare the same
+`DEPTH_STEPPER_BOUNDS {0,5,1}`, so every depth field behaves identically today. NaN propagation
+is unchanged (`Math.min(max, Math.max(min, NaN)) === NaN` before and after). `DepthStepper` now
+takes the whole accessor, so its track and its clamp cannot diverge; its `−`/`+` disabled logic
+is the same comparison with the optional-max branch removed.
+
+## 4. Both rejections are sound, not dodges
+
+- **Constructor-injecting the accessor into `SizingRowWrite`** — rightly rejected.
+  `SettingsRowAccessors` is a static factory over declared data, not a collaborator with a
+  behavioural seam worth inverting; the class already imports `SIZING_RANGES` and
+  `clampSizingSettings` directly, so a direct call is the CONSISTENT choice. The point of my
+  finding — the interaction literal spelled twice — is fully addressed:
+  `interactionIfAccepted` now returns `SettingsRowAccessors.sizingNumber(field).interaction(value)`
+  and `capNotice` still judges the typed value it is handed.
+- **The persistence round-trip test** — rightly rejected. It would drag the persistence layer
+  into a view suite to assert a LOAD-path property that `settingsSpecBounds.test.ts` already
+  owns per bounded leaf. Their substitute (the "inside bounds or verbatim" law) targets the
+  actual hole I raised more precisely than my suggestion did.
+
+## 5. Docs are accurate, not aspirational — CONFIRMED
+
+Every claim in the new `CLAUDE.md` "Settings values" bullet is enforced today: the
+`ACCESSOR_OWNED_SYMBOLS` scan really does iterate every row-rendering module (a new
+`ROW_CONTROL_COMPONENTS` table adds `DepthStepper.tsx`); `interaction()` really does emit
+`settlesAt(value)`; `SettingsTrackAccessor` really does make a max-less slider a type error
+(`nodeCap()` is a `SettingsTypedNumberAccessor`, not assignable). The
+`docs-internal/architecture-map.md` entry names three guards that all exist. Both are one entry
+each, in the surrounding style.
+
+## Residuals — noted for honesty, NOT blocking
+
+- The endpoint-reachability guard exists only for the depth rows; a hypothetically
+  narrower-than-bounds clamp on `outlineDepth` would slip past both assertions. `clampOutlineMaxDepth`
+  is derived from the same spec leaf as its bounds, so there is nothing to fix today.
+- `MIN/MAX_STEPPER_DEPTH` are now referenced only from tests. They remain the spec projection
+  `SettingsSpec.test.ts` pins, so this is deliberate, not stale.
+
+Neither warrants an edit. Remaining open item is the coordinator's, as the implementer says:
+close the ticket and add the `change_log` entry.

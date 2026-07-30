@@ -56,5 +56,51 @@ Test-honesty:
 Docs: `CLAUDE.md` settings paragraph + `docs-internal/architecture-map.md` should name the new
 module and the "no engine range table / clamp in a presenter" rule.
 
-Verdict: **READY**, conditional on #1 and #2 being fixed or ticketed. No CRITICAL, no regression,
-no weakened guard, no removed test.
+Verdict (iteration 0): **READY**, conditional on #1 and #2 being fixed or ticketed. No CRITICAL,
+no regression, no weakened guard, no removed test.
+
+---
+
+# Iteration 1 verification — commit `37daba9` → **READY** (unconditional)
+
+Gates re-run by me: `npm test` 93 files / **1230** tests exit 0 (`.tmp/rev2_test.log`);
+`npm run check` exit 0 (`.tmp/rev2_check.log`). Tree clean. Their numbers were accurate.
+
+## What I actually verified (do not redo)
+
+- **Rename honesty.** `git show 37daba9 -- src/view/clampStepperDepth.test.ts
+  src/view/settingsRowDepthClamp.test.ts`: all six assertions verbatim (-1→MIN, 0→0, 3→3,
+  5→MAX, 6→MAX, 2.4→2), retargeted at `SettingsRowAccessors.depth("linkDepthOut").settlesAt`.
+  Nothing dropped or loosened. `settingsSpecBounds.test.ts` change is allowlist PROSE only
+  (the enforcer table untouched). `optimisticValue.test.ts` simulation same arithmetic.
+- **Guard falsifiability — my own probe**, `.tmp/probe*.ts` (deleted after; imported the real
+  accessor, edited no source):
+  - clamp aimed at WIDER max (7 or 15): "settles inside bounds OR verbatim" **fails**,
+    endpoint guard passes.
+  - clamp aimed at NARROWER max (4): endpoint guard **fails**, lawless guard passes.
+  - real clamp: both pass. ⇒ the two guards are complementary and each bites.
+  - GOTCHA for a future probe: mutating max to `max + step*1000` coincides with the probe
+    value `beyondBounds` and looks "lawful". Use a small offset.
+- **`clampStepperDepth` deletion**: grep over `src/` + `e2e/` shows no callers left (only the
+  parity forbidden-symbol list, a pointer comment in `src/view/constants.ts`, and the engine's
+  `MIN/MAX_STEPPER_DEPTH`, still pinned by `SettingsSpec.test.ts`). `clampDepthInto` is the
+  identical formula over per-field bounds; all three depth leaves share `{0,5,1}` ⇒ no behavior
+  change; NaN propagation unchanged.
+- **Rejections judged sound.** DI into `SizingRowWrite` unnecessary (static data factory; class
+  already imports `SIZING_RANGES` directly) and the literal is single-homed regardless.
+  Persistence round-trip correctly declined — that load-path property is
+  `settingsSpecBounds.test.ts`'s; their "inside bounds or verbatim" law targets my actual hole
+  better than my own suggestion did.
+- **Docs accurate**: `ACCESSOR_OWNED_SYMBOLS` scan now iterates `EVERY_ROW_RENDERING_MODULE`
+  incl. `DepthStepper.tsx` via the new `ROW_CONTROL_COMPONENTS` table; `SettingsTrackAccessor`
+  really does make `nodeCap()` a type error at a slider; architecture-map names three guards
+  that all exist.
+
+## Residuals (recorded, explicitly NOT blocking, no ticket asked for)
+
+- Endpoint-reachability guard covers depth rows only; a narrower-than-bounds `outlineDepth`
+  clamp would slip past both assertions. Same-leaf derivation makes it moot today.
+- `MIN/MAX_STEPPER_DEPTH` are now test-only references — deliberate (spec projection pinned by
+  `SettingsSpec.test.ts`), not stale.
+
+Only open item is the coordinator's: ticket close-out + `change_log` entry.
