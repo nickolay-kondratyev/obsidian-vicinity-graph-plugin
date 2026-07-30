@@ -9,7 +9,7 @@ status_updated_iso: 2026-07-30T06:08:58Z
 type: bug
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
-tags: [settings, view, persistence]
+tags: [settings, settings-cleanup, view, persistence]
 ---
 
 Found by the review of ticket nid_itpt4tf0kkhsbbz0np304a558_e (which put ONE user-visible failure policy on SETTINGS writes, in `src/view/settingsWritePipeline.ts`'s private `write()`).

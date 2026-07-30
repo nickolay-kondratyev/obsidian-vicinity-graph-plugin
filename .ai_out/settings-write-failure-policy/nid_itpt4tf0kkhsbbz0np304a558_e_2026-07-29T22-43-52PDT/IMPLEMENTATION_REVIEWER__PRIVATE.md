@@ -72,3 +72,52 @@ duplicate guard the new `ROW_LABELS` Map lacks).
 ## Verdict filed
 
 READY WITH FOLLOW-UPS (4 SHOULD_FIX, 3 NIT, 0 BLOCKING). Acceptance criterion met.
+
+## Round 2 (fresh instance, iteration commit `0e4a39f`)
+
+Tight scope per instructions — confirm 5 things only, no new critique. Read `.tmp/iter.diff`
+(`git show 0e4a39f`) in full rather than the whole change (round 1 already said READY).
+
+1. **F1 (snap-back lie) — CONFIRMED fixed everywhere.** Repo-wide grep for "snap back / snap-back /
+   old value comes back / value the user actually still has" turns up zero surviving false claims.
+   `settingsWritePipeline.ts:150` states outright "this is NOT a snap-back" and names the
+   in-memory-before-disk ordering; same correction in the module doc, the pipeline test suite doc, and
+   `docs-internal/architecture-map.md:70-77`. All point at `nid_biwdtykvazsk3ejcqqli8o9j7_e` instead of
+   asserting an answer to the open rollback question. `CLAUDE.md` bullet untouched (was already accurate).
+
+2. **F2 rejection — ACCEPTED, not a hold.** Verified the cited tests actually exist and pin the claimed
+   behavior, not taken on trust:
+   - `settingsResetSequence.test.ts:80,87,100` — three tests force `writeDefaults`/`flushTypedEdits` to
+     `Promise.reject` and assert the drain/redisplay still happens. These pin `tolerating`'s seam-level
+     tolerance independent of whether the concrete pipeline can still reject.
+   - `optimisticValue.test.ts:94` — pins `PendingEdits.abandoned()` (stored value shown again after
+     abandon), the transition `useOptimisticValue`'s catch drives.
+   The "injected seam, not concrete pipeline" argument is structurally sound (interface implementations
+   aren't guaranteed to route through the pipeline). Removing the catches would delete behavior-capturing
+   tests without alignment — CLAUDE.md forbids that. Comments now correctly say "raises no notice, pipeline
+   owns that." No deadlock: the implementer took the reviewer's own offered alternative (fix the comment).
+
+3. **F3 (declared-label tripwire) — CONFIRMED it discriminates.** The new walk in
+   `settingsWriteFailureNotice.test.ts` drives all 9 row-control kinds (checked against every `kind:`
+   literal in `settingsRows.ts` — exact match: depth, sizing-metric ×2, sizing-number, node-preview,
+   outline-depth, force-layout, exclusion-enabled, exclusion-patterns, node-cap) through the accessors and
+   asserts the notice contains `"<row.label>"` quoted. A fallback-to-`control.kind` leak would produce the
+   raw kind string instead of the quoted label and fail the assertion — this is the exact scenario round 1
+   worried about (`couldn't save "force-layout"` was the implementer's own reproduction when they broke
+   `controlFor` to verify). Non-vacuous via a second `length >` assertion. Exhaustive switch closed by
+   `unhandledRowControl` so a 10th kind can't silently skip the walk.
+
+4. **F4 rejection — ACCEPTED.** `controlKey` (lookup key, e.g. `depth:linkDepthIn`) and `specLeafIdFor`
+   (dotted `SETTINGS_SPEC` path, e.g. `globalDepths.linkDepthIn`) answer different questions; unifying them
+   means threading spec paths into the copy module to save a switch — worse coupling than the duplication.
+   The real risk (silent `ROW_LABELS` collision) is covered more strongly than the suggested size-assertion:
+   F3's walk fails by name on a collision (Map keeps last writer, earlier row's interaction resolves to the
+   wrong label, exact-quote match catches it).
+
+5. **Tests — ran myself.** `npm test` → 94 files / 1243 tests, all passed, exit 0 (`.tmp/r2_test.log`).
+   `npm run check` → `tsc -noEmit` + `check:e2e`, exit 0 (`.tmp/r2_check.log`). No `sanity_check.sh`.
+
+No new lines of critique opened — the iteration's diff is comment/doc-only against `de425b6` except for
+one new test `describe` block, matching the implementer's own "no production behavior changed" claim.
+
+**Round 2 verdict: READY.** Wrote `IMPLEMENTATION_REVIEW_ROUND2__PUBLIC.md`.

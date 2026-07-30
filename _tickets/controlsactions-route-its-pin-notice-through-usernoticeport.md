@@ -9,7 +9,7 @@ status_updated_iso: 2026-07-30T05:54:07Z
 type: chore
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
-tags: [settings, view, consistency]
+tags: [settings, settings-cleanup, view, consistency]
 ---
 
 Follow-up from ticket nid_itpt4tf0kkhsbbz0np304a558_e, which introduced `UserNoticePort` (declared in `src/view/viewPorts.ts`, implemented in `src/main.ts`, faked by `src/view/FakeUserNotices.ts`) as THE user-visible message surface for the view layer.
