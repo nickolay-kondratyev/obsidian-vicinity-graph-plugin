@@ -51,3 +51,23 @@ Steps:
 - `nameToggle` must target the inner `<input>`; `toggleEl` is the wrapping label.
 - `setDynamicTooltip()` must stay while `minAppVersion` < 1.13.
 - Radio group `name` stays per-surface (tab constant vs `useId()`).
+
+## Final state (2026-07-30)
+
+DONE. Commits on the branch: `65e36fe` (code), `58e84fa` (docs), `28f34fc` (nit +
+follow-up ticket). `npm test` 87/1137 green, `npm run check` 0, `npm run build` 0.
+Full account in `IMPLEMENTATION_WITH_SELF_PLAN__PUBLIC.md`.
+
+Deviations from the plan above: the shared model kept a SEPARATE module from
+`settingsSectionFields.ts` (rationale in PUBLIC §1) and grew a `SettingsRowBlock`
+level so the two below-card groupings (advanced spacing, sizing metrics vs bounds)
+stayed declarative and the existing CSS wrappers survived.
+
+Where to look first if something is red:
+- `npm run test:e2e` was NOT run. Highest-risk specs are the four listed in PUBLIC
+  under "e2e specs updated", plus `settingsUxVisual.e2e.ts`'s panel-disclosure
+  count/order test (now 6 entries in `SETTINGS_SECTIONS` order).
+- Visual risk not verifiable here: the panel's number rows now show the tab's longer
+  labels at ~260px (`Minimum node size (px)`, `Exclude notes from the graph`) and may
+  wrap. `.vicinity-graph-number-row` / `.vicinity-graph-exclusion__toggle-row` are
+  where to tune it.
