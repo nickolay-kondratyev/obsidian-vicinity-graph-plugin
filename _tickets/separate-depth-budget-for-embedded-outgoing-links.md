@@ -512,3 +512,20 @@ STAGE 1 REVIEW ITERATION (2026-07-30) — three corrections to the STAGE 1 LANDE
    silently does not hold during the boot window. Stage 3 MUST (a) pin the behavior with
    a test, and (b) consciously choose: ACCEPT the transient degradation, or return [] for
    an uncached markdown file and let the next metadataCache event rebuild.
+
+**2026-07-30T04:33:46Z**
+
+STAGE 3 LANDED (the outgoing-embed channel + its depth budget).
+
+Delivered in five deliberately separate commits, so the MEASUREMENT could attribute honestly:
+(1) global depth key rename outgoingDepth->linkDepthOut / incomingDepth->linkDepthIn, labels "Links out"/"Links in", no migration, no PERSISTED_SHAPE_VERSION bump; (2) Direction -> a flat Channel enum, with CHANNELS + _assertEveryChannelListed and DIRECTION_DEPTH_FIELD -> CHANNEL_DEPTH_FIELD; (3) a settings-row control now names its DepthSettings FIELD instead of a Channel, so the view stops importing traversal vocabulary and CHANNEL_DEPTH_FIELD is read only by the BFS; (4) the embedDepthOut field ALONE (the measured commit); (5) the outgoing-embed channel, kind-pure per D1.
+
+CORRECTION TO D1's RATIONALE - the owner should know, no decision required. The ticket says the mixed-chain gap "only appears once a user deliberately diverges the budgets". That is WRONG, and it is now pinned by a test. A chain needs TWO hops to change kind, so the gap appears at ANY budget above one hop, EQUAL BUDGETS INCLUDED: with both outgoing budgets at 2 the graph is strictly SMALLER than the old kind-blind depth-2 walk. What actually holds is a ONE-HOP property - at the shipped defaults (1 hop each) the two outgoing channels union to exactly the old outgoing BFS, so nothing moves on screen at ship. Inherent to 6a, which is settled; the docs, the spec comment and the release note now state the true property instead of the ticket's version.
+
+D5 pinned with tests, no code written: an embedded image is still an attachment and still never a node.
+
+Stage-1 acceptance item DECIDED: the uncached-markdown boot window keeps degrading unknown kinds to "link" rather than returning []. Rendering one node too many for a moment beats emptying a whole neighbourhood, and the next metadataCache event rebuilds. Reasoned on outgoingReferencesOf, pinned by its existing test.
+
+MEASUREMENT (the NEW FIELD ALONE, commit 21b3152): 25 files, +91/-43 lines, ~14 lines of actual code. 6 production files, 4 of them COMPILE-FORCED by existing guards (spec completeness, EngineDefaults return type, definedFieldsOnly<DepthSettings>, section completeness); 1 hand-maintained silent step (the row declaration in settingsRows.ts); 2 deliberate literal test tables (defaults tripwire, bounds classification); 13 files of pure fixture churn (full DepthSettings literals - all compile errors, none silent). ZERO structural settings suites needed an edit: persistence round-trip/absent/garbage/sibling, reset plans, bounds enforcement and tab-panel parity all picked the new leaf up by walking the spec (verified by deleting the parse line and watching them redden). Against the pre-cleanup baseline of ~180 lines / ~15 files / ~8 hand-maintained SILENT lists: silent steps 8 -> 1. Honesty caveat: part of the drop is the per-doc layer's removal by nid_ez38gf1mrdgh5kxedzrdicwzl_e (no per-doc parse branch, no per-central stepper, no cascade), not the descriptor model.
+
+npm test 1212 passed / 91 files (was 1199); npm run check clean. Docs updated: high-level-plan traversal section (channel table, kind-purity, D5), README Depth section, RELEASE_CHECKLIST section 7 release note announcing the global depth reset and the new row.

@@ -41,3 +41,35 @@ rendering LESS, and a `metadataCache` event rebuilds. Pinned by a test + a doc b
 - `settingsProductDefaults.test.ts` is the ONE literal defaults table — editing it is
   deliberate. `settingsSpecBounds.test.ts` needs the new leaf in
   `BOUNDS_ENFORCED_OUTSIDE_THE_ENGINE` (depths clamp in the view, not the engine).
+
+---
+
+# STATE AT EXIT (2026-07-30) — COMPLETE
+
+All five planned commits landed plus a sixth (docs). `npm test` 1212/91 green,
+`npm run check` clean, tree clean, nothing in flight.
+
+Commits: `8a25a98` rename · `4f29883` Channel enum · `f4257e5` row-names-field ·
+`21b3152` **the measured commit (embedDepthOut alone)** · `54eacf5` the
+outgoing-embed channel · `4860a6b` docs.
+
+## The one surprise, and it is in PUBLIC.md at the top
+The ticket's D1 claim ("the mixed-chain gap only appears once budgets diverge") is
+FALSE. The gap appears at ANY budget above one hop, equal budgets included. The
+true property is a ONE-HOP one. My first equivalence test (written at budget 2)
+failed and that is how I found it. Do not "fix" the split suites in
+`VicinityTraversal.test.ts` back into one.
+
+## Records written
+- ticket note on `nid_fay1hu5sxcoygizopkkg0f0d7_e` (ticket left OPEN for review).
+- change_log entry `lqvsc4k9togw942k5qm3mudp4` (breaking_change, impact 4).
+- follow-ups: `nid_2qygmn0z59t8fdlb5e9pap49m_e` (Stage 2 visuals),
+  `nid_6kjmn2y8jc8a9gxynudusbmlk_e` (unused DEFAULT_LINK_DEPTH_* exports).
+
+## If a reviewer pushes back
+- "Why does the row carry a FIELD not a CHANNEL?" → commit `f4257e5` message.
+- "Why no e2e for the new stepper?" → known gap, listed in PUBLIC.md; `npm test`
+  renders no React by design and `test:e2e` needs a real Obsidian.
+- "Is the structural-coverage claim real?" → yes, measured: delete the
+  `embedDepthOut` line in `parseDepthFields` and `settingsSpecPersistence.test.ts`
+  reddens with 2 failures.
