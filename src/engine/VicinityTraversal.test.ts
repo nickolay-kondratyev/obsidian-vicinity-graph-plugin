@@ -57,7 +57,7 @@ describe("VicinityTraversal depth limits on a chain a->b->c->d", () => {
 		expect(nodePaths(result)).toEqual(["b.md"]);
 	});
 
-	it("WHEN outgoing and incoming depths differ THEN each direction honors its own limit", () => {
+	it("WHEN outgoing and incoming depths differ THEN each channel honors its own limit", () => {
 		const result = traverse(chainVault(), [root("c.md", { linkDepthOut: 1, linkDepthIn: 2 })]);
 		expect(nodePaths(result)).toEqual(["a.md", "b.md", "c.md", "d.md"]);
 	});
@@ -98,10 +98,10 @@ describe("VicinityTraversal on a diamond graph", () => {
 		expect(provider.outgoingQueryCount(asVaultPath("d.md"))).toBe(1);
 	});
 
-	it("WHEN d gets one depth tag per reaching root-direction THEN its depth is the shallowest (BFS order)", () => {
+	it("WHEN d gets one depth tag per reaching root-channel THEN its depth is the shallowest (BFS order)", () => {
 		const result = traverse(diamondVault(), [root("a.md", { linkDepthOut: 3, linkDepthIn: 0 })]);
 		expect(result.nodes.get(asVaultPath("d.md"))?.depthTags).toEqual([
-			{ rootPath: "a.md", direction: "outgoing", depth: 2 },
+			{ rootPath: "a.md", channel: "outgoing-link", depth: 2 },
 		]);
 	});
 });
@@ -158,8 +158,8 @@ describe("VicinityTraversal multi-root union", () => {
 		});
 		const result = traverse(provider, [root("a.md"), root("z.md")]);
 		expect(result.nodes.get(asVaultPath("m.md"))?.depthTags).toEqual([
-			{ rootPath: "a.md", direction: "outgoing", depth: 1 },
-			{ rootPath: "z.md", direction: "outgoing", depth: 1 },
+			{ rootPath: "a.md", channel: "outgoing-link", depth: 1 },
+			{ rootPath: "z.md", channel: "outgoing-link", depth: 1 },
 		]);
 	});
 

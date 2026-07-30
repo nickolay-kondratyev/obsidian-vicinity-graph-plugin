@@ -117,7 +117,7 @@ describe("VicinityEngine end-to-end build", () => {
 
 	it("WHEN building THEN depth tags record the second hop from MAIN", () => {
 		expect(node(build(), "notes/gamma.md")?.depthTags).toEqual([
-			{ rootPath: "hub.md", direction: "outgoing", depth: 2 },
+			{ rootPath: "hub.md", channel: "outgoing-link", depth: 2 },
 		]);
 	});
 
@@ -264,7 +264,7 @@ describe("VicinityEngine pinned-central depth exploration", () => {
 
 	it("WHEN the global outgoing depth is 3 THEN the pinned central reaches x3 at depth 3", () => {
 		expect(node(build("y.md", 3), "x3.md")?.depthTags).toEqual([
-			{ rootPath: "x.md", direction: "outgoing", depth: 3 },
+			{ rootPath: "x.md", channel: "outgoing-link", depth: 3 },
 		]);
 	});
 
@@ -282,7 +282,7 @@ describe("VicinityEngine pinned-central depth exploration", () => {
 		// `?.depthTags` sides a pinned root that stopped being walked at all would
 		// leave both `undefined` and keep this green — a silent fallback.
 		expect(node(build("z.md", 3), "x3.md")?.depthTags).toEqual([
-			{ rootPath: "x.md", direction: "outgoing", depth: 3 },
+			{ rootPath: "x.md", channel: "outgoing-link", depth: 3 },
 		]);
 	});
 });

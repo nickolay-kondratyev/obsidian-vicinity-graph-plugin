@@ -1,4 +1,4 @@
-import type { Direction, ForceLayoutSettings, SizeMetricId } from "../engine";
+import type { Channel, ForceLayoutSettings, SizeMetricId } from "../engine";
 import {
 	FORCE_LAYOUT_ADVANCED_FIELDS,
 	FORCE_LAYOUT_FIELD_META,
@@ -31,7 +31,7 @@ import { SIZING_METRICS } from "./sizingMetrics";
  *
  * NO `{family, key}` row union is invented here either: every
  * {@link SettingsRowControl} arm carries its OWN typed field reference
- * (`Direction`, `SizeMetricId`, `SizingNumberField`, `keyof ForceLayoutSettings`),
+ * (`Channel`, `SizeMetricId`, `SizingNumberField`, `keyof ForceLayoutSettings`),
  * which is what lets each presenter build the row's `SettingsInteraction` without
  * re-widening anything.
  *
@@ -67,8 +67,8 @@ export type SettingsRowControlKind = (typeof SETTINGS_ROW_CONTROL_KINDS)[number]
 
 /** What a row's control edits — the typed field reference each presenter writes with. */
 export type SettingsRowControl =
-	/** One direction's global link depth (tab: slider, panel: stepper). */
-	| { readonly kind: "depth"; readonly direction: Direction }
+	/** One channel's global link depth (tab: slider, panel: stepper). */
+	| { readonly kind: "depth"; readonly channel: Channel }
 	/** One sizing metric: its enable flag AND the weight that flag governs. */
 	| { readonly kind: "sizing-metric"; readonly metric: SizeMetricId }
 	/** One sizing number (min/max px, depth decay k). */
@@ -286,13 +286,13 @@ export const SETTINGS_GROUPS: Readonly<Record<SettingsSection, SettingsGroup>> =
 					{
 						label: "Links out",
 						description: "How many hops of plain outgoing links to expand from every central note.",
-						control: { kind: "depth", direction: "outgoing" },
+						control: { kind: "depth", channel: "outgoing-link" },
 					},
 					{
 						label: "Links in",
 						description:
 							"How many hops of incoming links (backlinks) to expand from every central note. A note that EMBEDS a central note arrives here too \u2014 incoming links are counted the same way whatever their kind.",
-						control: { kind: "depth", direction: "incoming" },
+						control: { kind: "depth", channel: "incoming" },
 					},
 				],
 			},

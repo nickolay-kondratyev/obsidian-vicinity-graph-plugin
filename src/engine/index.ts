@@ -34,10 +34,10 @@
 export type {
 	AttachmentRef,
 	CentralNodeDescriptor,
+	Channel,
 	DepthSettings,
 	DepthTag,
 	DirectedLink,
-	Direction,
 	DocId,
 	FolderPath,
 	ForceLayoutSettings,
@@ -54,7 +54,7 @@ export type {
 	VaultPath,
 	ViewSettings,
 } from "./types";
-export { asDocId, asFolderPath, asVaultPath, DIRECTION_DEPTH_FIELD, NODE_PREVIEW_PREFERENCES } from "./types";
+export { asDocId, asFolderPath, asVaultPath, CHANNEL_DEPTH_FIELD, NODE_PREVIEW_PREFERENCES } from "./types";
 
 export type { FileMetadata, LinkProvider, OutgoingReference } from "./LinkProvider";
 export { OutgoingReferences } from "./LinkProvider";

@@ -6,15 +6,16 @@ import { PathExclusionMatcher } from "./PathExclusionMatcher";
 import type {
 	AttachmentRef,
 	CentralNodeDescriptor,
+	Channel,
 	DepthSettings,
 	DepthTag,
 	DirectedLink,
-	Direction,
 	DocId,
 	FolderPath,
 	OutlineEntry,
 	VaultPath,
 } from "./types";
+import { CHANNELS } from "./types";
 
 /** One traversal root with its (already resolved) per-root depth limits. */
 export interface TraversalRoot {
@@ -49,10 +50,8 @@ export interface TraversalResult {
 	readonly excludedNodeCount: number;
 }
 
-const DIRECTIONS: readonly Direction[] = ["outgoing", "incoming"];
-
 /**
- * Multi-root directional BFS (step-02 CLARIFICATION Q3): each root × direction
+ * Multi-root directional BFS (step-02 CLARIFICATION Q3): each root × channel
  * runs an independent BFS with its own depth limit; results are unioned and
  * deduped by path. Within one BFS a visited map guarantees a node is expanded
  * at most once (BFS visits in nondecreasing depth, so the first visit is the
@@ -84,8 +83,8 @@ export class VicinityTraversal {
 			if (!this.eligibility.isNodeBearing(root.descriptor.path)) {
 				continue;
 			}
-			for (const direction of DIRECTIONS) {
-				this.bfs(root, direction, rootPaths, collector);
+			for (const channel of CHANNELS) {
+				this.bfs(root, channel, rootPaths, collector);
 			}
 		}
 		return this.assemble(roots, collector);
@@ -93,15 +92,15 @@ export class VicinityTraversal {
 
 	private bfs(
 		root: TraversalRoot,
-		direction: Direction,
+		channel: Channel,
 		rootPaths: ReadonlySet<VaultPath>,
 		collector: TraversalCollector,
 	): void {
 		const rootPath = root.descriptor.path;
-		const depthLimit = direction === "outgoing" ? root.depths.linkDepthOut : root.depths.linkDepthIn;
+		const depthLimit = channel === "outgoing-link" ? root.depths.linkDepthOut : root.depths.linkDepthIn;
 		const visited = new Map<VaultPath, number>([[rootPath, 0]]);
 		const queue: VaultPath[] = [rootPath];
-		collector.recordDepthTag(rootPath, { rootPath, direction, depth: 0 });
+		collector.recordDepthTag(rootPath, { rootPath, channel, depth: 0 });
 		for (let head = 0; head < queue.length; head++) {
 			const current = queue[head];
 			if (current === undefined) {
@@ -111,7 +110,7 @@ export class VicinityTraversal {
 			if (currentDepth >= depthLimit) {
 				continue; // Depth budget exhausted — do not expand further.
 			}
-			for (const neighbor of this.neighborsOf(current, direction)) {
+			for (const neighbor of this.neighborsOf(current, channel)) {
 				// Exclusion FIRST (before the isNodeBearing metadata read): an excluded
 				// neighbor is never enqueued, never expanded through, and never fetches
 				// metadata — the performance win. Roots are exempt (checked above).
@@ -122,19 +121,19 @@ export class VicinityTraversal {
 				if (!this.eligibility.isNodeBearing(neighbor)) {
 					continue; // Attachment, not a node; surfaced via FileMetadata.attachments.
 				}
-				collector.recordEdge(current, neighbor, direction);
+				collector.recordEdge(current, neighbor, channel);
 				if (visited.has(neighbor)) {
 					continue; // Already seen at ≤ this depth — never re-expand (Q3).
 				}
 				visited.set(neighbor, currentDepth + 1);
-				collector.recordDepthTag(neighbor, { rootPath, direction, depth: currentDepth + 1 });
+				collector.recordDepthTag(neighbor, { rootPath, channel, depth: currentDepth + 1 });
 				queue.push(neighbor);
 			}
 		}
 	}
 
-	private neighborsOf(path: VaultPath, direction: Direction): readonly VaultPath[] {
-		return direction === "outgoing"
+	private neighborsOf(path: VaultPath, channel: Channel): readonly VaultPath[] {
+		return channel === "outgoing-link"
 			? this.provider.getOutgoingLinks(path)
 			: this.provider.getIncomingLinks(path);
 	}
@@ -201,10 +200,10 @@ class TraversalCollector {
 		this.tags.set(path, tagsForPath);
 	}
 
-	/** Direction "incoming" means `neighbor` links to `current` — edges always point linker → linked. */
-	recordEdge(current: VaultPath, neighbor: VaultPath, direction: Direction): void {
-		const source = direction === "outgoing" ? current : neighbor;
-		const target = direction === "outgoing" ? neighbor : current;
+	/** Channel "incoming" means `neighbor` links to `current` — edges always point linker → linked. */
+	recordEdge(current: VaultPath, neighbor: VaultPath, channel: Channel): void {
+		const source = channel === "outgoing-link" ? current : neighbor;
+		const target = channel === "outgoing-link" ? neighbor : current;
 		this.edgeAccumulator.add(source, target);
 	}
 

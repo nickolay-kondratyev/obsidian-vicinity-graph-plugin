@@ -94,7 +94,7 @@ describe("settings row disabledWhen", () => {
  * hears and what every `getByLabel` in the e2e suite matches.
  */
 describe("settings row accessible names", () => {
-	const row: SettingsRow = { label: "Links out", control: { kind: "depth", direction: "outgoing" } };
+	const row: SettingsRow = { label: "Links out", control: { kind: "depth", channel: "outgoing-link" } };
 
 	it("WHEN a row has one control THEN its accessible name is the row label verbatim", () => {
 		expect(SettingsRowNames.sole(row)).toBe("Links out");

@@ -32,13 +32,38 @@ export function asFolderPath(folder: string): FolderPath {
 	return folder as FolderPath;
 }
 
-/** Traversal direction relative to a root: links it points at vs. links pointing at it. */
-export type Direction = "outgoing" | "incoming";
+/**
+ * ONE traversal channel out of a root: a relationship the BFS follows, with its
+ * OWN depth budget ({@link CHANNEL_DEPTH_FIELD}).
+ *
+ * A FLAT enum, not a `direction × kind` matrix, deliberately (ticket
+ * `nid_fay1hu5sxcoygizopkkg0f0d7_e`, decision D1): the incoming side is
+ * kind-blind by scope, so a matrix would spend a whole axis on a cell that does
+ * not exist. Adding one (e.g. `incoming-embed`) later is purely additive — every
+ * `Record<Channel, …>` in the repo turns into the compile error that names the
+ * places it has to be taught (OCP).
+ */
+export type Channel = "outgoing-link" | "incoming";
 
-/** Depth of a node as seen from ONE root in ONE direction (full map kept per node). */
+/**
+ * THE value list of {@link Channel}, in traversal order. Single-sourced so the
+ * traversal cannot walk fewer channels than the type declares — the guard below
+ * is what makes that real.
+ */
+export const CHANNELS = ["outgoing-link", "incoming"] as const satisfies readonly Channel[];
+
+/**
+ * Compile-time completeness: a channel missing from {@link CHANNELS} surfaces
+ * here as a type error naming it, rather than silently shipping a depth budget
+ * no BFS run ever honours.
+ */
+type UnlistedChannel = Exclude<Channel, (typeof CHANNELS)[number]>;
+export const _assertEveryChannelListed: UnlistedChannel extends never ? true : UnlistedChannel = true;
+
+/** Depth of a node as seen from ONE root in ONE channel (full map kept per node). */
 export interface DepthTag {
 	readonly rootPath: VaultPath;
-	readonly direction: Direction;
+	readonly channel: Channel;
 	readonly depth: number;
 }
 
@@ -100,7 +125,7 @@ export interface GraphNode {
 	readonly isCentral: boolean;
 	/** True only for the MAIN (active-file) root. */
 	readonly isMain: boolean;
-	/** Full per-root × per-direction depth map (UI steppers need per-root values). */
+	/** Full per-root × per-channel depth map (UI steppers need per-root values). */
 	readonly depthTags: readonly DepthTag[];
 	/** Minimum depth across all roots and directions; 0 for centrals. */
 	readonly minDepth: number;
@@ -201,13 +226,13 @@ export interface NodeExclusionSettings {
 }
 
 /**
- * Single source of truth mapping a {@link Direction} to the depth field it controls
+ * Single source of truth mapping a {@link Channel} to the depth field it controls
  * (`outgoing → linkDepthOut`, `incoming → linkDepthIn`) on {@link DepthSettings}.
  * Shared by the engine and the step-06 controls so the mapping exists exactly once.
  * POLS — trivially invertible.
  */
-export const DIRECTION_DEPTH_FIELD: Readonly<Record<Direction, keyof DepthSettings>> = {
-	outgoing: "linkDepthOut",
+export const CHANNEL_DEPTH_FIELD: Readonly<Record<Channel, keyof DepthSettings>> = {
+	"outgoing-link": "linkDepthOut",
 	incoming: "linkDepthIn",
 };
 
