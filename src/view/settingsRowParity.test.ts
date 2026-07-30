@@ -18,8 +18,10 @@ import { SETTINGS_SECTIONS } from "./settingsSectionFields";
  *    kind is a COMPILE error in both — that, not this file, is the primary guard.
  *
  * What a compile error cannot catch is a presenter that stops reading the model at
- * all (hard-coding its rows again) or handles a kind with a partial `if` chain that
- * silently renders nothing. Hence a SOURCE SCAN, for the same reason
+ * all (hard-coding its rows again), handles a kind with a partial `if` chain that
+ * silently renders nothing, or — the way this shipped broken once — writes a `void`
+ * switch with no `default`, which TypeScript is perfectly happy to let fall through.
+ * Hence a SOURCE SCAN, for the same reason
  * `engineDefaultsSingleSource`, `importGuard` and `selectorGuard` are source scans:
  * the repo has no ESLint and no React component-test infrastructure (tracked in
  * `nid_7qot0m6nuxxmd5z0yb9jylsd6_e`), so nothing under `npm test` can render either
@@ -62,14 +64,26 @@ function walkersNotReading(symbol: string): string[] {
 }
 
 describe("settings row parity: tab and panel present the same declared rows", () => {
-	it("WHEN the model declares a control kind THEN every presenter names it", () => {
+	it("WHEN the model declares a control kind THEN every presenter has a `case` for it", () => {
 		const missing = Object.entries(PRESENTERS).flatMap(([surface, module]) => {
 			const text = source(module);
-			return SETTINGS_ROW_CONTROL_KINDS.filter((kind) => !text.includes(`"${kind}"`)).map(
+			// `case "kind":` and not a bare mention of the kind: the kind name appears in
+			// prose comments on both surfaces, which a substring scan would accept.
+			return SETTINGS_ROW_CONTROL_KINDS.filter((kind) => !text.includes(`case "${kind}":`)).map(
 				(kind) => `${surface} does not handle control kind=[${kind}]`,
 			);
 		});
 		expect(missing).toEqual([]);
+	});
+
+	it("WHEN a presenter's switch is scanned THEN it is closed by the shared exhaustiveness guard", () => {
+		// The property this pins is the one a `void` switch loses silently: without a
+		// `default` calling `unhandledRowControl`, the settings tab compiled clean while
+		// rendering NOTHING for an unhandled kind.
+		const unguarded = Object.entries(PRESENTERS)
+			.filter(([, module]) => !source(module).includes("return unhandledRowControl(row.control)"))
+			.map(([surface]) => `${surface} does not close its switch with unhandledRowControl`);
+		expect(unguarded).toEqual([]);
 	});
 
 	it("WHEN a surface is scanned THEN it reads the declared groups rather than its own row list", () => {

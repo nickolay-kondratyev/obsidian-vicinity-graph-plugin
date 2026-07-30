@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { EngineDefaults } from "../engine";
 import {
+	DEPENDENCY_AWARE_CONTROL_KINDS,
 	EVERY_SETTINGS_ROW,
 	SETTINGS_GROUPS,
 	SETTINGS_ROW_CONTROL_KINDS,
@@ -43,7 +44,9 @@ describe("settings row model", () => {
 /**
  * `disabledWhen` is DATA (a named dependency), not a closure, so it can be
  * enumerated and evaluated here. The rule it encodes: a dependent row is always
- * rendered and merely disabled (owner decision 2026-07-29).
+ * rendered and merely disabled (owner decision 2026-07-29). Its SCOPE is deliberately
+ * narrow — only `DEPENDENCY_AWARE_CONTROL_KINDS` — so the facility never promises more
+ * than the presenters implement.
  */
 describe("settings row disabledWhen", () => {
 	const state = (exclusionEnabled: boolean): SettingsRowState => ({
@@ -71,6 +74,17 @@ describe("settings row disabledWhen", () => {
 
 	it("WHEN exclusion is ON THEN the exclusion-patterns row is enabled", () => {
 		expect(isSettingsRowDisabled(patternsRow(), state(true))).toBe(false);
+	});
+
+	it("WHEN a row declares a dependency THEN its control kind is one both presenters honour", () => {
+		// The TYPE already refuses `disabledWhen` elsewhere; this states the same limit
+		// at runtime, because rows are also built by `.map()` from other tables where a
+		// widened literal could slip the constraint.
+		const declared = EVERY_SETTINGS_ROW.filter((row) => row.disabledWhen !== undefined);
+		const unhonoured = declared.filter(
+			(row) => !DEPENDENCY_AWARE_CONTROL_KINDS.some((kind) => kind === row.control.kind),
+		);
+		expect(unhonoured).toEqual([]);
 	});
 });
 

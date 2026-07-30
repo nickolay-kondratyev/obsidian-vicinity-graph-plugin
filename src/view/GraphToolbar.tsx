@@ -137,7 +137,7 @@ function SectionRestoreButton({ section }: { readonly section: SettingsSection }
 	return (
 		<button
 			type="button"
-			className="vicinity-graph-forcelayout__restore"
+			className="vicinity-graph-section-restore"
 			aria-label={label}
 			title={description}
 			onClick={() => void actions.restoreDefaults(section)}

@@ -16,9 +16,9 @@ import { SIZING_METRICS } from "./sizingMetrics";
  *
  * Obsidian's `Setting` API cannot mount inside React, so there are and will remain
  * TWO renderer implementations. This module is what stops them drifting: grouping,
- * order, label, description, control kind, accessible naming and
- * {@link SettingsRow.disabledWhen} are DATA here, and each presenter is a switch
- * over {@link SettingsRowControl} — so a new row is a compile error in BOTH
+ * order, label, description, control kind, accessible naming and `disabledWhen` are
+ * DATA here, and each presenter is a switch over {@link SettingsRowControl} closed by
+ * {@link unhandledRowControl} — so a new control kind is a compile error in BOTH
  * presenters instead of a row somebody forgot to mirror.
  *
  * WHY a separate module from {@link SECTION_SETTINGS_FIELDS} (which stays exactly
@@ -94,6 +94,24 @@ export type SettingsRowControl =
 type UnlistedControlKind = Exclude<SettingsRowControl["kind"], SettingsRowControlKind>;
 export const _assertEveryRowControlKindListed: UnlistedControlKind extends never ? true : UnlistedControlKind = true;
 
+/**
+ * Closes a presenter's `switch` over {@link SettingsRowControl}. Both presenters call
+ * it from their `default` arm, which is what makes the exhaustiveness REAL rather than
+ * incidental: a new control arm cannot satisfy the `never` parameter, so it is a
+ * compile error in every presenter that has not grown a `case` for it.
+ *
+ * WHY it must be spelled out even though the panel's switch also returns a value: the
+ * settings tab's arm returns `void`, and a `void` switch with a missing arm just falls
+ * through silently — TypeScript has nothing to complain about. The tab then renders
+ * NOTHING for the new row, which is exactly the drift this module exists to stop.
+ *
+ * The throw is unreachable by construction; it exists so a stale hand-built bundle
+ * fails loudly instead of dropping a row.
+ */
+export function unhandledRowControl(control: never): never {
+	throw new Error(`unhandled settings row control=[${JSON.stringify(control)}]`);
+}
+
 /* ========================================================================== *
  * disabledWhen
  * ========================================================================== */
@@ -108,9 +126,26 @@ export const _assertEveryRowControlKindListed: UnlistedControlKind extends never
 export type SettingsRowDependency = "exclusion-enabled";
 
 /**
- * The globals a row seeds its control from AND evaluates {@link
- * SettingsRow.disabledWhen} against — structurally the same three slices the write
- * plan merges over, so a presenter needs exactly one read to render a whole card.
+ * The control kinds whose presenters ACTUALLY honour a declared dependency — today
+ * exactly one, the exclusion pattern list.
+ *
+ * This allowlist exists so the facility cannot over-promise: {@link SettingsRow} only
+ * ACCEPTS `disabledWhen` on these kinds, so declaring it on, say, a slider row is a
+ * compile error instead of a declaration both surfaces would silently ignore (which is
+ * the "declared but unrendered" bug class this whole module removes).
+ *
+ * To extend: teach BOTH presenters' components for the kind to read
+ * {@link isSettingsRowDisabled} — the tab additionally registering a `DependentControl`
+ * so the verdict is re-applied after a write — and then add the kind here.
+ */
+export const DEPENDENCY_AWARE_CONTROL_KINDS = ["exclusion-patterns"] as const satisfies readonly SettingsRowControlKind[];
+
+type DependencyAwareControlKind = (typeof DEPENDENCY_AWARE_CONTROL_KINDS)[number];
+
+/**
+ * The globals a row seeds its control from AND evaluates its `disabledWhen` against —
+ * structurally the same three slices the write plan merges over, so a presenter needs
+ * exactly one read to render a whole card.
  */
 export type SettingsRowState = SettingsWriteContext;
 
@@ -135,7 +170,8 @@ export function isSettingsRowDisabled(row: SettingsRow, state: SettingsRowState)
  * Rows, blocks and groups
  * ========================================================================== */
 
-export interface SettingsRow {
+/** The copy every row carries, whatever its control. */
+interface SettingsRowCopy {
 	/**
 	 * The ONE user-facing name of this setting, on BOTH surfaces: rendered visibly
 	 * and reused as the control's accessible name (see {@link SettingsRowNames}).
@@ -150,9 +186,25 @@ export interface SettingsRow {
 	 * string, zero drift). Absent for rows whose label already says everything.
 	 */
 	readonly description?: string;
-	readonly control: SettingsRowControl;
-	readonly disabledWhen?: SettingsRowDependency;
 }
+
+/**
+ * One declared setting: its copy, the control that edits it, and — only where both
+ * presenters implement it — the dependency that makes the control inert.
+ *
+ * A UNION rather than one interface with an optional flag, so
+ * {@link DEPENDENCY_AWARE_CONTROL_KINDS} is enforced by the compiler: a row on any
+ * other kind cannot even spell `disabledWhen`.
+ */
+export type SettingsRow =
+	| (SettingsRowCopy & {
+			readonly control: Extract<SettingsRowControl, { readonly kind: DependencyAwareControlKind }>;
+			readonly disabledWhen?: SettingsRowDependency;
+	  })
+	| (SettingsRowCopy & {
+			readonly control: Exclude<SettingsRowControl, { readonly kind: DependencyAwareControlKind }>;
+			readonly disabledWhen?: never;
+	  });
 
 /**
  * A run of rows inside one section. Exists because two sections group their rows
@@ -265,6 +317,10 @@ export const SETTINGS_GROUPS: Readonly<Record<SettingsSection, SettingsGroup>> =
 	},
 	// Row order is general → specific: the Preview pill decides WHICH preview a node
 	// shows, the depth row only refines the outline once the outline won.
+	//
+	// WHY-NOT an on/off switch for previews: the pill's `Auto` IS the "just show me
+	// whatever the note has" answer, so a separate enable flag would only add a state
+	// where both other options are dead.
 	"node-contents": {
 		heading: "Node contents",
 		panelClass: "vicinity-graph-nodecontents",

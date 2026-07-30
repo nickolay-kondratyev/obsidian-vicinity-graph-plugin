@@ -791,7 +791,9 @@
 .vicinity-graph-forcelayout__advanced {
 	border: 1px solid var(--background-modifier-border);
 }
-.vicinity-graph-forcelayout__restore {
+/* Named after the SHAPE, not the section that first used it: any panel section
+ * whose group declares `panelReset` renders this button. */
+.vicinity-graph-section-restore {
 	align-self: flex-start;
 	font-size: var(--font-ui-smaller);
 }

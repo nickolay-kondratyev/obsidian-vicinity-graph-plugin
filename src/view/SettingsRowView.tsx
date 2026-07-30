@@ -24,7 +24,7 @@ import { useControlsActions } from "./ControlsActionsContext";
 import { DepthStepper } from "./DepthStepper";
 import { NODE_PREVIEW_OPTION_META } from "./nodePreviewPreferenceMeta";
 import type { SettingsRow, SettingsRowState } from "./settingsRows";
-import { SettingsRowNames, isSettingsRowDisabled } from "./settingsRows";
+import { SettingsRowNames, isSettingsRowDisabled, unhandledRowControl } from "./settingsRows";
 import type { SizingNumberField } from "./settingsWritePlan";
 import { parseSizingInput } from "./sizingInput";
 import { ToggleSwitch } from "./ToggleSwitch";
@@ -33,9 +33,9 @@ import { useOptimisticValue } from "./useOptimisticValue";
 /**
  * The in-graph controls panel's HALF of the settings row contract — the React twin
  * of `VicinityGraphSettingTab.addRow()`. Both switch EXHAUSTIVELY over
- * `SettingsRowControl`, so a control kind added to `settingsRows.ts` fails to
- * compile in BOTH presenters: that is what makes tab/panel parity structural
- * instead of remembered.
+ * `SettingsRowControl`, closed by `unhandledRowControl`, so a control kind added to
+ * `settingsRows.ts` fails to compile in BOTH presenters: that is what makes tab/panel
+ * parity structural instead of remembered.
  *
  * Obsidian's `Setting` API cannot mount inside React, which is why the MARKUP is
  * duplicated at all. Everything a user reads or hears — label, description,
@@ -85,6 +85,8 @@ export function SettingsRowView({
 			return <ExclusionPatternsRow row={row} state={state} />;
 		case "node-cap":
 			return <NodeCapRow row={row} state={state} />;
+		default:
+			return unhandledRowControl(row.control);
 	}
 }
 

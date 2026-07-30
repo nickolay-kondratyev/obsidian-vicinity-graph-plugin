@@ -29,7 +29,7 @@ import { ALL_SETTINGS_RESET_SCOPE, SETTINGS_RESET_SCOPES } from "./settingsReset
 import type { SettingsResetTarget } from "./settingsResetSequence";
 import { SettingsResetSequence } from "./settingsResetSequence";
 import type { SettingsGroup, SettingsRow, SettingsRowBlock, SettingsRowState } from "./settingsRows";
-import { SETTINGS_GROUPS, SettingsRowNames, isSettingsRowDisabled } from "./settingsRows";
+import { SETTINGS_GROUPS, SettingsRowNames, isSettingsRowDisabled, unhandledRowControl } from "./settingsRows";
 import type { SettingsSection } from "./settingsSectionFields";
 import { SETTINGS_SECTIONS } from "./settingsSectionFields";
 import type { SettingsFeedback } from "./settingsValidation";
@@ -78,17 +78,10 @@ const NODE_CAP_STEP = 1;
  */
 const NODE_PREVIEW_RADIO_GROUP = "vicinity-graph-node-preview-settings";
 
-/** Inclusive bounds + granularity of one slider row. */
-interface SliderBounds {
-	readonly min: number;
-	readonly max: number;
-	readonly step: number;
-}
-
 /**
- * One rendered control whose enabled-ness is declared by
- * {@link SettingsRow.disabledWhen} rather than by its own value. Collected while
- * rendering so a later write can re-apply every verdict from ONE fresh read.
+ * One rendered control whose enabled-ness is declared by the row's `disabledWhen`
+ * rather than by its own value. Collected while rendering so a later write can
+ * re-apply every verdict from ONE fresh read.
  */
 interface DependentControl {
 	readonly row: SettingsRow;
@@ -250,6 +243,11 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	 * declared kind. EXHAUSTIVE by `switch` on purpose — a new control kind in
 	 * `settingsRows.ts` fails to compile HERE and in the panel's twin
 	 * (`SettingsRowView.tsx`), which is what makes parity structural.
+	 *
+	 * The `default` arm is what earns that claim on THIS surface: the method returns
+	 * `void`, so without {@link unhandledRowControl}'s `never` parameter a missing case
+	 * would just fall through and render nothing (the panel's twin gets it from its
+	 * `ReactElement` return type instead).
 	 */
 	private addRow(container: HTMLElement, row: SettingsRow, state: SettingsRowState): void {
 		switch (row.control.kind) {
@@ -280,11 +278,13 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 			case "node-cap":
 				this.addNodeCap(container, row, state);
 				return;
+			default:
+				return unhandledRowControl(row.control);
 		}
 	}
 
 	/**
-	 * Re-applies every declared {@link SettingsRow.disabledWhen} verdict.
+	 * Re-applies every declared `disabledWhen` verdict.
 	 *
 	 * Called TWICE around a write that a dependent row reads: once synchronously with
 	 * the state the click implies (so the row answers immediately, in click order —
@@ -687,7 +687,7 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	private addSlider(
 		container: HTMLElement,
 		row: SettingsRow,
-		bounds: SliderBounds,
+		bounds: SettingsRange,
 		value: number,
 		onChange: (value: number) => void,
 	): void {

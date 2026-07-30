@@ -32,9 +32,10 @@ genuinely silent holes are:
 3. ~~settings-tab vs in-graph-panel UI parity (no guard at all)~~
    **CLOSED by ticket 4** — `src/view/settingsRows.ts` declares every section and
    row once (`SETTINGS_GROUPS`); both surfaces render it, each dispatching on
-   `row.control.kind` in an exhaustive `switch`, so a new row is a compile error in
-   BOTH presenters. `settingsRowParity.test.ts` additionally source-scans that
-   neither surface has gone back to a hand-written row list. Ticket 5 iterates that
+   `row.control.kind` in a `switch` closed by `unhandledRowControl`, so a new control
+   kind is a compile error in BOTH presenters. `settingsRowParity.test.ts`
+   additionally source-scans that neither surface has gone back to a hand-written row
+   list and that both switches still carry that closing `default`. Ticket 5 iterates that
    model instead of literal lists.
 
 (There is no resolver hole either: since 2.5 **no site enumerates `ViewSettings`
@@ -90,10 +91,10 @@ The compiler now NAMES every site you miss except the last:
 4. `src/view/settingsSectionFields.ts` — one key in one section *(guarded)*
 5. `src/view/settingsWritePlan.ts` — one interaction arm + one `switch` case *(guarded: the `switch` is exhaustive)*
 6. `src/view/settingsRows.ts` — one row descriptor (label, description, control
-   kind, optional `disabledWhen`) in one section's block *(guarded: both
-   presenters' `switch` on `row.control.kind` is exhaustive, so a NEW CONTROL KIND
-   is a compile error in each; a new row of an EXISTING kind needs no presenter
-   edit at all)*
+   kind, and `disabledWhen` only on a `DEPENDENCY_AWARE_CONTROL_KINDS` kind) in one
+   section's block *(guarded: both presenters' `switch` on `row.control.kind` is
+   closed by `unhandledRowControl`, so a NEW CONTROL KIND is a compile error in
+   each; a new row of an EXISTING kind needs no presenter edit at all)*
 
 This is "compile-forced N declarations", NOT the ticket's literal "ONE
 declaration". Deriving the `ViewSettings` TYPE from a runtime descriptor array
