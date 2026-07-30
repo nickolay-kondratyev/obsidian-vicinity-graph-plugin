@@ -29,6 +29,15 @@ test.describe.configure({ mode: "serial" });
 const ALPHA_PATH = "projects/alpha.md";
 const OUT_DIR = ".out/settings-ux";
 
+/**
+ * `clientHeight` and `scrollHeight` are independently-rounded integers, so a
+ * fractional layout height (a non-1 devicePixelRatio, a different UI font — the
+ * gate is documented as runnable on macOS/Windows via `OBSIDIAN_PATH`) can make
+ * them differ by 1px with nothing actually cut off. 1px cannot hide a real cut:
+ * the defect this guards against clipped 40-200px per section.
+ */
+const SECTION_CLIP_TOLERANCE_PX = 1;
+
 let harness: ObsidianHarness;
 let page: Page;
 let settingsTab: SettingsTabPage;
@@ -139,13 +148,16 @@ test("panel: WHEN the controls panel renders THEN its top-level disclosures are 
  * reach, because each of them opens only the disclosure it is about.
  *
  * WHY this is a gate and not a screenshot: the panel body caps itself at 60vh
- * and scrolls, and its sections are `overflow: hidden` flex children. A flex
- * child shrinks by default, so a mis-specified body makes the sections absorb
- * the overflow — every open section silently CLIPS its own rows and the body
- * never grows a scrollbar, i.e. controls become unreachable with NO visual
- * error state. That is exactly what regressed once (`flex-shrink: 0` on
- * `.vicinity-graph-toolbar__body > *`), and it is invisible to a locator-based
- * assertion because the clipped rows are still in the DOM and still "visible".
+ * and scrolls, and its sections are `overflow: hidden` flex children. Flex
+ * children shrink by default (`flex-shrink: 1`), and that default is wrong here
+ * — the sections absorb the overflow instead of letting the body scroll, so
+ * every open section silently CLIPS its own rows and no scrollbar ever appears:
+ * controls below the cut are unreachable with NO visual error state. That was a
+ * latent defect for as long as the cap existed (reachable with Node sizing +
+ * Force layout both open); `.vicinity-graph-toolbar__body > * { flex-shrink: 0 }`
+ * in `src/view/graph-view.css` is the FIX, and this test is what keeps it there.
+ * A locator-based assertion cannot see any of it: the clipped rows are still in
+ * the DOM and still report as "visible".
  */
 test("panel: WHEN every disclosure is open THEN the body scrolls and no section clips its own rows", async () => {
 	await setOpen(toolbar(), true);
@@ -155,7 +167,7 @@ test("panel: WHEN every disclosure is open THEN the body scrolls and no section 
 		await setOpen(sections.nth(index), true);
 	}
 
-	const geometry = await toolbar().evaluate((panel) => {
+	const geometry = await toolbar().evaluate((panel, tolerancePx) => {
 		const body = panel.querySelector(".vicinity-graph-toolbar__body") as HTMLElement;
 		return {
 			bodyClientHeight: body.clientHeight,
@@ -166,14 +178,15 @@ test("panel: WHEN every disclosure is open THEN the body scrolls and no section 
 					shownPx: (section as HTMLElement).clientHeight,
 					neededPx: section.scrollHeight,
 				}))
-				.filter((section) => section.neededPx > section.shownPx),
+				.filter((section) => section.neededPx - section.shownPx > tolerancePx),
 		};
-	});
+	}, SECTION_CLIP_TOLERANCE_PX);
 
 	// The damage first, so the red NAMES the cut-off sections and by how much.
 	expect(
 		geometry.clipped,
-		`panel sections whose rows are cut off (shownPx < neededPx) — the controls below the cut are ` +
+		`panel sections whose rows are cut off (neededPx exceeds shownPx by more than ` +
+			`[${SECTION_CLIP_TOLERANCE_PX}]px) — the controls below the cut are ` +
 			`unreachable, since the section absorbed the overflow instead of the scrolling body`,
 	).toEqual([]);
 	// Then non-vacuity: a body that does not overflow its cap means either the panel
