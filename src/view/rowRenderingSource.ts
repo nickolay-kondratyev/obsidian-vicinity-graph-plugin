@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
  *
  * A test-support module (nothing in the plugin bundle imports it), shared by every guard
  * that inspects the row renderers' source — `settingsRowParity.test.ts` and
- * `panelTypedNumberFields.test.ts` today. WHY shared: the module LIST is the thing that
+ * `typedNumberFields.test.ts` today. WHY shared: the module LIST is the thing that
  * decides how much each of those guards covers, and a second copy of it silently narrows
  * whichever guard was not updated when a renderer was added.
  *

@@ -131,3 +131,68 @@ Logs: `.tmp/check.txt`, `.tmp/test.txt` (red-first run: `.tmp/fail1.txt`).
 **READY FOR RE-REVIEW** — all three SHOULD-FIX findings incorporated, one nice-to-have
 explicitly rejected with rationale, nothing committed, no change_log written, ticket left
 open for TOP_LEVEL_AGENT.
+
+---
+
+# ROUND 3 (cleanup)
+
+Scope: ONLY the two NON-BLOCKING suggestions from the round-2 review of the APPROVED commit
+`7da47d3`. Nothing else opened. Not committed; no change_log; ticket left open.
+
+## 1. Stale test-file name — FIXED
+
+`7da47d3` renamed `panelTypedNumberFields.test.ts` → `typedNumberFields.test.ts` but left two
+prose references behind:
+
+- `src/view/rowRenderingSource.ts:10` — the doc naming the guards that share the module list.
+- `src/view/numberRowCommit.test.ts` — the weight suite's comment saying which scan asserts
+  that row's wiring.
+
+Both now say `typedNumberFields.test.ts`. A repo-wide grep for the old name finds nothing else
+live: the remaining hits are this run's own `.ai_out/` records of rounds 1–2 (historical
+documents — left verbatim on purpose) and `.tmp/` scratch. `CLAUDE.md` was already correct.
+
+## 2. Hard-coded refusal sentence — ACCEPTED, sourced from its owner
+
+The suggestion is taken: the sentence `src/view/settingsValidation.ts:80` owns is no longer
+copied into the test whose subject is presence-vs-absence.
+
+- New file-level helper in `src/view/numberRowCommit.test.ts`: `refusedMaxPxCommit()` — THE
+  refused commit (`maxPx` = 40 against a stored `minPx` = 200), the one cross-field rule a
+  panel row can break. Three call sites now share it.
+- `WHEN the committed maximum is below the stored minimum THEN the row says why` keeps the
+  literal sentence. That test's SUBJECT *is* the wording, so it stays the one place this file
+  spells it out — a comment now says so.
+- `WHEN the store still holds the value the refusal was judged against THEN the reason is
+  shown` (the flagged line) asserts `toBe(refusedMaxPxCommit().refusal)` — the reason carried
+  through UNCHANGED, which is what that test is actually about.
+
+Net: one copy of the sentence in the file instead of two, and the wording test and the
+carrying test are provably about the same commit rather than two hand-matched literals.
+
+### Why this is not a weakening (verified, not asserted)
+
+`toBe(x)` where `x` may be `undefined` can pass vacuously. Tamper-tested: with
+`NumberFieldRefusal.messageWhileStoredIs` forced to `return undefined`, the reworked test
+FAILS (`npx vitest run src/view/numberRowCommit.test.ts` → exit 1, 1 failed | 27 passed);
+the tamper was then reverted with `git checkout`. The other failure direction — the rule
+ceasing to refuse at all — is caught loudly by the wording test, against the same helper.
+
+## Verification (verbatim)
+
+```
+$ npm run check   → CHECK_EXIT=0
+$ npm test        → TEST_EXIT=0
+ Test Files  96 passed (96)
+      Tests  1283 passed (1283)
+```
+
+Baseline was exit 0 / 96 files / 1283 tests — held exactly, no drop. `npm run test:e2e`
+requires a real Obsidian and was not run (unchanged from prior rounds; no e2e file touched).
+
+## Files touched this round
+
+- `/home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin/src/view/rowRenderingSource.ts` — doc reference only.
+- `/home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin/src/view/numberRowCommit.test.ts` — doc reference + shared `refusedMaxPxCommit()` helper.
+
+No production behavior changed this round.

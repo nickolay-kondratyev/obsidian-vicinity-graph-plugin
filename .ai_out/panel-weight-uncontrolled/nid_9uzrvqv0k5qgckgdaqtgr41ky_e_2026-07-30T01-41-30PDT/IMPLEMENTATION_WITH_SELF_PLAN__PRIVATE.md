@@ -108,3 +108,38 @@ remount boundary, enumerate everything the old remount was incidentally clearing
   REAL module (scans read by filename from `VIEW_DIR`, so copies do not work), run the one
   suite, then `git checkout` the file. Verified on `DepthStepper.tsx`.
 - Repo has NO prettier/biome — match style by hand (tabs, ~120 cols).
+
+---
+
+# ROUND 3 (cleanup — the two NON-BLOCKING suggestions on APPROVED commit 7da47d3)
+
+STATUS: **DONE**. `npm run check` exit 0, `npm test` exit 0 (96 files / 1283 tests — baseline
+held exactly). Tree dirty on purpose. Not committed, no change_log, ticket not closed.
+
+## Changes
+
+1. Stale `panelTypedNumberFields.test.ts` → `typedNumberFields.test.ts` in the two LIVE
+   references: `src/view/rowRenderingSource.ts:10`, `src/view/numberRowCommit.test.ts` (the
+   weight suite's comment). Repo-wide grep found no others — remaining hits are `.ai_out/`
+   round-1/2 records (historical, deliberately left) and `.tmp/` scratch. CLAUDE.md was
+   already correct.
+2. Refusal-sentence duplication: ACCEPTED the suggestion, done by SOURCING from the owner.
+   New file-level helper `refusedMaxPxCommit()` (the one refused commit: `maxPx`=40 against
+   stored `minPx`=200) used by 3 call sites. The "the row says why" test still spells the
+   sentence out — that test's SUBJECT is the wording — and the `NumberFieldRefusal` test at
+   ex-line 185, whose subject is presence-vs-absence, now asserts
+   `toBe(refusedMaxPxCommit().refusal)`. Net: one copy of the sentence in this file, down
+   from two, and the two tests are provably about the SAME commit.
+
+## Vacuity check (the thing that could have made this a weakening)
+
+`toBe(<something possibly undefined>)` passes trivially if both sides go `undefined`.
+Verified by tampering: `messageWhileStoredIs` → `return undefined` ⇒ the reworked test FAILS
+(exit 1, 1 failed / 27 passed), then `git checkout`. The other direction (the rule stops
+refusing at all) is caught by the wording test, which is against the same helper. Comment in
+the test says both.
+
+## Gotcha
+
+`NumberRowCommit` is imported `import type` on its own line — the value import beside it is
+the class-free set; a plain value import of a type-only use trips the repo's TS config style.

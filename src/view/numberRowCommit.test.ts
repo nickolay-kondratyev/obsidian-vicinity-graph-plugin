@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { SizingSettings } from "../engine";
 import { EngineDefaults, SIZING_RANGES } from "../engine";
+import type { NumberRowCommit } from "./numberRowCommit";
 import { NO_CROSS_FIELD_RULE, NumberFieldRefusal, NumberRowCommitPolicy } from "./numberRowCommit";
 import { SettingsRowAccessors } from "./settingsRowAccessors";
 import type { SizingNumberField } from "./settingsWritePlan";
@@ -27,6 +28,16 @@ function nodeCapPolicy(): NumberRowCommitPolicy {
 /** One metric's weight row. Every metric shares the same bounds, so any one of them stands for all. */
 function weightPolicy(): NumberRowCommitPolicy {
 	return new NumberRowCommitPolicy(SettingsRowAccessors.metricWeight("backlink-count"), NO_CROSS_FIELD_RULE);
+}
+
+/**
+ * THE refused commit, shared by the suites below: a maximum committed under the stored
+ * minimum — the one cross-field rule a panel row can actually break. Shared so that the
+ * test pinning its WORDING and the tests about CARRYING that wording are provably about
+ * the same commit.
+ */
+function refusedMaxPxCommit(): NumberRowCommit {
+	return sizingPolicy("maxPx", { minPx: 200 }).commit("40");
 }
 
 /** A number the sizing range cannot hold — what the write path will cap on the way in. */
@@ -57,11 +68,14 @@ describe("NumberRowCommitPolicy: a value the row accepts", () => {
 
 describe("NumberRowCommitPolicy: a value the row refuses", () => {
 	it("WHEN the committed maximum is below the stored minimum THEN nothing is written", () => {
-		expect(sizingPolicy("maxPx", { minPx: 200 }).commit("40").value).toBeNull();
+		expect(refusedMaxPxCommit().value).toBeNull();
 	});
 
+	// The ONE place this suite spells the refusal out. `describeSizingRejection` owns the
+	// wording; this pins that the user is told which number was refused and what it must
+	// clear, rather than a bare "invalid".
 	it("WHEN the committed maximum is below the stored minimum THEN the row says why", () => {
-		expect(sizingPolicy("maxPx", { minPx: 200 }).commit("40").refusal).toBe(
+		expect(refusedMaxPxCommit().refusal).toBe(
 			"Not applied: maximum node size (40px) must be at least the minimum (200px).",
 		);
 	});
@@ -145,7 +159,7 @@ describe("NumberRowCommitPolicy: a row whose accessor is its whole policy", () =
 
 describe("NumberRowCommitPolicy: a size metric's weight", () => {
 	// The weight sits beside its metric's toggle rather than in a `NumberRow`, so its
-	// wiring to this policy is what `panelTypedNumberFields.test.ts` scans for. These
+	// wiring to this policy is what `typedNumberFields.test.ts` scans for. These
 	// assertions are the behaviour that wiring buys.
 
 	it("WHEN a weight in range is committed THEN it is the value to write", () => {
@@ -177,13 +191,14 @@ describe("NumberFieldRefusal: how long a refusal stays under the field", () => {
 
 	/** A refusal a panel row really earns: a maximum committed below the stored minimum. */
 	function refusedMaxPx(): NumberFieldRefusal | undefined {
-		return NumberFieldRefusal.fromCommit(sizingPolicy("maxPx", { minPx: 200 }).commit("40"), STORED_MAX_PX);
+		return NumberFieldRefusal.fromCommit(refusedMaxPxCommit(), STORED_MAX_PX);
 	}
 
 	it("WHEN the store still holds the value the refusal was judged against THEN the reason is shown", () => {
-		expect(refusedMaxPx()?.messageWhileStoredIs(STORED_MAX_PX)).toBe(
-			"Not applied: maximum node size (40px) must be at least the minimum (200px).",
-		);
+		// Compared against the COMMIT's own reason, not a copy of the sentence: this test is
+		// about the reason surviving, and the wording is pinned once, above, against this
+		// same commit — so a rule that stopped refusing fails there, loudly, not here.
+		expect(refusedMaxPx()?.messageWhileStoredIs(STORED_MAX_PX)).toBe(refusedMaxPxCommit().refusal);
 	});
 
 	it("WHEN the store MOVES under the refused field THEN the reason is gone", () => {
