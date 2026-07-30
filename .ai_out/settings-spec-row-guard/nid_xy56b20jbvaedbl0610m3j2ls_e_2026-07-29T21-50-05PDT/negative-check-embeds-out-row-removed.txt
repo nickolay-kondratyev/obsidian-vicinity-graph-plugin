@@ -1,0 +1,35 @@
+
+ RUN  v4.1.10 /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin
+
+ ❯ src/view/settingsRowSpecCoverage.test.ts (6 tests | 1 failed) 5ms
+     × WHEN the spec declares a settings field THEN some declared row edits it 4ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/view/settingsRowSpecCoverage.test.ts > settings rows cover every declared settings field > WHEN the spec declares a settings field THEN some declared row edits it
+AssertionError: expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "globalDepths.embedDepthOut: no row in SETTINGS_GROUPS edits it (no user can reach this setting)",
++ ]
+
+ ❯ src/view/settingsRowSpecCoverage.test.ts:85:23
+     83|    (leaf) => !FIELDS_WITH_A_ROW.has(leaf.id) && ROW_LESS_SETTINGS_FIEL…
+     84|   ).map((leaf) => `${leaf.id}: no row in SETTINGS_GROUPS edits it (no …
+     85|   expect(unreachable).toEqual([]);
+       |                       ^
+     86|  });
+     87|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 5 passed (6)
+   Start at  04:53:45
+   Duration  115ms (transform 33ms, setup 0ms, import 46ms, tests 5ms, environment 0ms)
+
