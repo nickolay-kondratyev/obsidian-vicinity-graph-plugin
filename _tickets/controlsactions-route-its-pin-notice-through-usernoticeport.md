@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-30T06:30:26Z
 id: nid_t25rc8sd9nmlbmrn69k4zsaes_e
 title: "ControlsActions: route its pin Notice through UserNoticePort"
-status: open
+status: closed
 deps: []
 links: [nid_itpt4tf0kkhsbbz0np304a558_e]
 created_iso: 2026-07-30T05:54:07Z
-status_updated_iso: 2026-07-30T05:54:07Z
+status_updated_iso: 2026-07-30T06:30:26Z
 type: chore
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
@@ -24,3 +25,9 @@ Behavior-neutral; kept out of the failure-policy ticket to keep that change focu
 
 No view file except main.ts constructs Notice; ControlsActions.test.ts no longer mocks obsidian and asserts the refusal message via FakeUserNotices; npm test and npm run check pass.
 
+
+## Notes
+
+**2026-07-30T06:30:26Z**
+
+Done. ControlsActions takes a UserNoticePort (threaded main.ts -> VicinityGraphView.tsx like ViewsRefreshPort) and no longer imports obsidian; main.ts is the only Notice construction site. ControlsActions.test.ts drops vi.mock("obsidian") and asserts the refusal copy via FakeUserNotices, plus a negative case so the notice can't become unconditional. architecture-map.md updated. npm test (1245 tests) and npm run check pass. Change log: mfmfmzo9fhp06veqkh5yk0xof.

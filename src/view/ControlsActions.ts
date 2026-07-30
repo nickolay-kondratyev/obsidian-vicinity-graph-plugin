@@ -1,18 +1,16 @@
-import { Notice } from "obsidian";
 import type { VaultPort } from "../adapters/obsidianPorts";
 import type { PersistableIdentity } from "../persistence/DocPersistEligibility";
 import type { PersistenceServices } from "../persistence/PersistenceServices";
 import type { SettingsResetScope } from "./settingsResetPlan";
 import type { SettingsWritePipeline } from "./settingsWritePipeline";
 import type { SettingsInteraction } from "./settingsWritePlan";
-import type { ControlsActionsPort, ViewsRefreshPort } from "./viewPorts";
+import type { ControlsActionsPort, UserNoticePort, ViewsRefreshPort } from "./viewPorts";
 
 /**
  * Obsidian executor for the controls surface (step-06 #6/#8). Thin glue with ONE
  * job of its own: PINS. Every settings edit is handed straight to the shared
  * {@link SettingsWritePipeline} — the same object the settings tab writes through —
  * so the panel and the tab cannot drift on serialisation, merge base or fan-out.
- * This is one of the few view files allowed to import `obsidian`.
  *
  * Pins run on the pipeline's chain too: they are `data.json` writes like any other,
  * so two fast pin/unpin clicks must land in CLICK order, and the panel's settings
@@ -28,7 +26,7 @@ const NOT_PINNABLE_NOTICE = "This note can't be pinned (no stable id).";
  * Whether a requested write actually reached storage. A refused doc (no stable
  * id) leaves every byte and every view unchanged, so this is what gates the
  * rebuild — otherwise a rejected pin would cost one graph build plus layout in
- * EVERY open view, next to a "can't be pinned" Notice.
+ * EVERY open view, next to a "can't be pinned" notice.
  */
 type WriteOutcome = "persisted" | "not-persisted";
 
@@ -38,6 +36,8 @@ export class ControlsActions implements ControlsActionsPort {
 		private readonly vault: VaultPort,
 		private readonly viewsRefresh: ViewsRefreshPort,
 		private readonly settingsWrites: SettingsWritePipeline,
+		/** The view layer's ONE user-message surface, shared with the write pipeline. */
+		private readonly notices: UserNoticePort,
 	) {}
 
 	applySettings(interaction: SettingsInteraction): Promise<void> {
@@ -89,7 +89,7 @@ export class ControlsActions implements ControlsActionsPort {
 	/** Turns a persistence verdict into a rebuild decision, telling the user when the write was refused. */
 	private persistOutcome(identity: PersistableIdentity, message: string): WriteOutcome {
 		if (identity.kind === "not-persistable") {
-			new Notice(message);
+			this.notices.show(message);
 			return "not-persisted";
 		}
 		return "persisted";

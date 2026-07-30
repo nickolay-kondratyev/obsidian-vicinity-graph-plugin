@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { FakeDocIdPort } from "../adapters/FakeDocIdPort";
 import type { VaultFilePort, VaultPort } from "../adapters/obsidianPorts";
 import { EngineDefaults } from "../engine";
@@ -10,11 +10,6 @@ import { ControlsActions } from "./ControlsActions";
 import { FakeUserNotices } from "./FakeUserNotices";
 import { FakeViewsRefresh } from "./FakeViewsRefresh";
 import { SettingsWritePipeline } from "./settingsWritePipeline";
-
-// `ControlsActions` imports `Notice` from the type-only `obsidian` package (no
-// runtime entry point), so the module needs a stand-in to be importable at all.
-// The non-persistable tests below exercise the notice path; none assert on it.
-vi.mock("obsidian", () => ({ Notice: class {} }));
 
 /**
  * Refresh fan-out tests for the controls executor: EVERY write it makes lands in
@@ -28,6 +23,9 @@ vi.mock("obsidian", () => ({ Notice: class {} }));
  * `settingsWritePipeline.test.ts`; this file only proves the executor delegates
  * there and owns the PIN path.
  */
+
+/** The copy a user sees when a pin is refused; pinned here because it is user-visible. */
+const NOT_PINNABLE_MESSAGE = "This note can't be pinned (no stable id).";
 
 const ORIGINATING_VIEW_ID = "view-originating";
 const OTHER_VIEW_ID = "view-other";
@@ -55,9 +53,10 @@ async function actionsUnderTest() {
 	docIdPort.markUnidentifiable(ID_LESS_PATH);
 	const persistenceServices = new PersistenceServices(docIdPort, pluginDataStore, new PathDocIdMap());
 	const viewsRefresh = new FakeViewsRefresh([ORIGINATING_VIEW_ID, OTHER_VIEW_ID]);
-	const settingsWrites = new SettingsWritePipeline(pluginDataStore, viewsRefresh, new FakeUserNotices());
-	const actions = new ControlsActions(persistenceServices, VAULT, viewsRefresh, settingsWrites);
-	return { actions, viewsRefresh, pluginDataStore };
+	const notices = new FakeUserNotices();
+	const settingsWrites = new SettingsWritePipeline(pluginDataStore, viewsRefresh, notices);
+	const actions = new ControlsActions(persistenceServices, VAULT, viewsRefresh, settingsWrites, notices);
+	return { actions, viewsRefresh, pluginDataStore, notices };
 }
 
 describe("ControlsActions.applySettings", () => {
@@ -110,9 +109,22 @@ describe("ControlsActions pinning", () => {
 	});
 
 	it("WHEN a pin is refused as not-persistable THEN nothing is refreshed", async () => {
-		// The user gets a Notice instead; no pin landed, so N rebuilds would be pure waste.
+		// The user gets a notice instead; no pin landed, so N rebuilds would be pure waste.
 		const { actions, viewsRefresh } = await actionsUnderTest();
 		await actions.pinNode(ID_LESS_PATH);
 		expect(viewsRefresh.refreshedViewIds).toEqual([]);
+	});
+
+	it("WHEN a pin is refused as not-persistable THEN the user is told why", async () => {
+		// The ONLY signal the click did nothing: the node simply stays unpinned.
+		const { actions, notices } = await actionsUnderTest();
+		await actions.pinNode(ID_LESS_PATH);
+		expect(notices.messages).toEqual([NOT_PINNABLE_MESSAGE]);
+	});
+
+	it("WHEN a pin lands THEN the user is told nothing", async () => {
+		const { actions, notices } = await actionsUnderTest();
+		await actions.pinNode(MAIN_PATH);
+		expect(notices.messages).toEqual([]);
 	});
 });
