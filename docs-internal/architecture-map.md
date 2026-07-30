@@ -88,6 +88,13 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   actually store — a clamped row passes that clamp in, so "the clamp left the
   value where it already was" releases too — or a value that is neither the
   burst's baseline nor one of the burst's own requests).
+  Typed tab rows reach it through `DebouncedSettingsWrites`
+  (`SETTINGS_WRITE_DEBOUNCE_MS`, ONE settle window shared by every typed row), so an
+  e2e spec that TYPES must settle that window: `e2e/settingsWriteWindow.ts`
+  (`SettingsWriteWindow`) is THE pattern — poll for a write that should land, a
+  sentinel-edit ordering barrier for one that should not, and
+  `expectFlushedAheadOfWindow` for the leave-the-field flushes. Copy it; never sleep
+  for the debounce.
 - `view/settingsRows.ts` — **THE settings row contract**: `SETTINGS_GROUPS` declares
   every section (heading, order, which one opens in the panel) and every ROW
   (label, description, control kind, and `disabledWhen` — accepted only on the

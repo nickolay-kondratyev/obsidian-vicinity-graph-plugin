@@ -173,3 +173,146 @@ re-run it.
 - `docs-internal/architecture-map.md`: a one-liner that `e2e/settingsWriteWindow.ts` is THE
   typed-input debounce-window pattern for e2e specs (the implementer flagged this for the
   orchestrator; I agree it is worth the line, since the whole point is that other specs copy it).
+
+---
+
+# Round 2 — convergence check
+
+Reviewed commit `79ca22a` ("test(e2e): make the settings flush-on-leaving claims falsifiable") on
+the same branch. e2e only; `git show 79ca22a --stat` touches `e2e/settingsTabPage.ts`,
+`e2e/settingsTypedInput.e2e.ts`, `e2e/settingsWriteWindow.ts` and two `.ai_out/` notes. No `src/`
+file, no `*.test.ts`, no guard, no allowlist.
+
+## Verdict: APPROVED
+
+All six round-1 findings RESOLVED. The MAJOR fix is real, not cosmetic — I falsified it myself by
+mutation rather than trusting the implementer's table, and I stress-tested the flakiness question
+under a deliberately loaded machine. I signal readiness to converge.
+
+## Per round-1 finding
+
+### 1. [MAJOR] `hide()`-flush test could not fail — **RESOLVED**
+
+`SettingsWriteWindow.expectFlushedAheadOfWindow()` (`e2e/settingsWriteWindow.ts:80-97`) takes the
+ACTION, starts the clock itself, polls at 10 ms, and then asserts `elapsedMs <
+SETTINGS_WRITE_DEBOUNCE_MS * 0.75`.
+
+**The soundness argument holds.** I checked it rather than accepted it: the fallback path is
+`window.setTimeout(…, SETTINGS_WRITE_DEBOUNCE_MS)` armed inside `DebouncedSettingsWrites.schedule()`
+at the keystroke; `startedAt` is captured strictly BEFORE `editAndLeave()` runs, so the timer's
+earliest possible firing is `startedAt + 400 ms` or later (`setTimeout` may fire late, never early).
+Any observation at `< 400 ms` from `startedAt` therefore cannot be the timer, and the 300 ms budget
+is strictly inside that. There is no path where the debounce deadline satisfies the assertion. The
+budget also derives from the product constant (`SETTINGS_WRITE_DEBOUNCE_MS` imported from
+`src/view/constants.ts`), so it tracks the window rather than duplicating a magic 300.
+
+**Falsifiability — verified MYSELF by mutation, not taken on trust.** I temporarily emptied
+`VicinityGraphSettingTab.flushOnBlur` (kept the method, dropped the listener), re-ran the blur test,
+then `git checkout`-ed the file and confirmed a clean tree plus a green re-run. Result:
+
+```
+✘ … WHEN a field is left right after a typed edit THEN the edit is flushed …
+Error: leaving a field did not persist the edit … — it only landed after 468ms, i.e. it was the
+400ms debounce timer that persisted it, not the flush
+```
+
+That is the round-1 complaint answered exactly: the test that previously could not fail now fails,
+loudly, with a diagnostic that names the real cause. `flushOnBlur` has genuine coverage where it had
+none.
+
+**Flakiness — I do NOT think 12–16 ms vs 300 ms will bite in CI.** I probed the concern directly
+rather than reasoning about it: 64 CPU-burning processes on a 32-core box (2× oversubscription),
+`--repeat-each=6` over just the two flush tests ⇒ **12/12 passed**. Under that load the whole test
+wall-clock rose from ~930 ms to ~1.2 s (≈30 % slower end to end) while the flush assertion never
+came close to the budget. To fail spuriously the flush would have to slow by ~20×, at which point
+the run's other web-first assertions (15 s timeouts) would be failing first. This is headroom, not a
+coin flip. Clean `--repeat-each=5` on the whole spec: **75/75**.
+
+**The close test's honesty caveat matches the name and header.** Name: "WHEN the settings window is
+closed right after a typed edit THEN the edit is flushed without waiting out the window" — that is
+the OUTCOME claim, and it is exactly what the test proves. The header now says "the flush on leaving
+a field or closing the window"; it no longer claims `hide()` in isolation. The in-test comment
+states the measured reason (closing also blurs the focused field, so `flushOnBlur` wins the race)
+and says the test deliberately does not isolate `hide()`. Naming, header and behaviour agree — which
+is the CLAUDE.md requirement the round-1 finding was really about. I agree with the trade: forbidding
+the second belt would be testing the implementation.
+
+### 2. [MINOR] `expectPersisted` said `data.json`, read memory — **RESOLVED (both halves)**
+
+Reworded to "the plugin's SETTINGS STORE" with an explicit SCOPE paragraph naming `reloadPlugin()`
+as the way to make the file claim, and the stale `data.json` mention at the absence test is gone. A
+new LAST test does the real round trip: type → close → `expectPersisted` → `harness.reloadPlugin()`
+(`disablePlugin`/`enablePlugin`, which drops the in-memory stores) → read. Ordering is right: it is
+last in a `mode: "serial"` file, so replacing the plugin instance cannot disturb anything.
+
+### 3. [MINOR] `drain()` contract — **RESOLVED**
+
+Three bullets, all three of the terms I named: the tab-open precondition (including that violating
+it hangs to the `expect` timeout with a misleading message), that it bars the TAB's debouncer only
+and not the in-graph panel's, and that it mutates `sizing.depthDecayK` — plus the instruction that a
+spec asserting on that field must seed after the last `drain()`.
+
+### 4. [MINOR] cross-test bleed — **RESOLVED**
+
+`givenNoWriteStillPending()` at the top of BOTH GIVENs, after `settingsTab.open()` (correct order —
+the drain needs the tab open, and it runs before the seed write). The ordering assumption is now a
+fact. Cost is real but acceptable: the spec went 11 tests / 4.3 s to 15 tests / ~18 s, i.e. ~900 ms
+per test is now drain. Noted, not objected to — a release gate that is 14 s slower and cannot bleed
+is the right trade.
+
+### 5. [NIT] `pre-line` on a row that cannot go multi-line — **RESOLVED**
+
+Moved to the exclusion slot with a genuinely two-bad-line input, and a `toContainText("\n")` first,
+so the CSS assertion is now about a message that actually has a break to lose.
+
+### 6. [NIT] `role="alert"` vs `role="status"` unasserted — **RESOLVED**
+
+Two tests, one per side, each naming why the urgency differs. The role names are declared as named
+constants with a comment explaining why they are inlined here rather than imported.
+
+## Regressions / weakened guards
+
+None. No `src/` change (`git show 79ca22a --stat` confirms), no `*.test.ts` touched, no guard
+allowlist entry, no anchor point removed, no test deleted — test 11 was RESHAPED into a stronger
+claim and its old weaker WHY-NOT comment removed along with the weakness it described, which is the
+correct direction. The only new page-object method (`SettingsTabPage.blur`) is additive and
+documents why it is not "click somewhere else" (clicking another typed row would schedule a
+competing write).
+
+## Verified myself vs. taken on trust
+
+**Verified myself** (all logs under `.tmp/`):
+
+| Command | Real result |
+|---|---|
+| `npm run check` | **exit 0** (`.tmp/r2-check.log`) |
+| `npm test` | **exit 0 — 94 files, 1245 tests passed** (`.tmp/r2-test.log`) |
+| `npm run test:e2e -- settingsTypedInput.e2e.ts` | **exit 0 — 15 passed (17.9 s)** (`.tmp/r2-e2e.log`) |
+| same, `--repeat-each=5` | **exit 0 — 75/75 passed (1.5 m)**, per-test durations 918–939 ms, spread of ~20 ms (`.tmp/r2-e2e-repeat.log`) |
+| the 2 flush tests, `--repeat-each=6`, under 64 busy processes on 32 cores | **12/12 passed**, durations 730 ms–1.4 s (`.tmp/r2-e2e-load.log`) |
+| MUTATION: `flushOnBlur` listener removed, blur test | **FAILS at 468 ms** (`.tmp/r2-mutation-blur.log`) — my own number, implementer reported 415 ms; same direction, same conclusion |
+| after `git checkout src/view/VicinityGraphSettingTab.ts` | tree clean (`git status --porcelain` empty), spec re-run **15 passed** (`.tmp/r2-e2e-postrevert.log`) |
+
+I could not read the flush's `elapsedMs` directly without editing test code (I am read-only), so the
+"12–16 ms" figure itself is inferred rather than observed: the two flush tests run 918–939 ms against
+a ~912 ms no-flush baseline test in the same run, i.e. a delta in the low tens of ms — consistent
+with the implementer's claim. The claim that matters (it is well under 300 ms, and over 400 ms
+without the flush) I verified directly.
+
+**Taken on trust**: the FULL e2e suite (`110 passed, 1 skipped`) and the two mutations I did not
+reproduce (`hide()`-only removal still passing at 16 ms; BOTH removed failing at 414 ms). The first
+is corroborated by my own blur mutation reaching 468 ms via the timer; the second is a claim about
+which belt wins, not about whether the test can fail, and I proved the latter myself.
+
+## Readiness signal
+
+**Yes — as REVIEWER I signal readiness to converge.** No BLOCKING, no MAJOR, no new findings. The
+one round-1 MAJOR is closed with evidence I generated independently.
+
+## Documentation updates still open (unchanged from round 1, for TOP_LEVEL_AGENT)
+
+- `docs-internal/architecture-map.md`: one line that `e2e/settingsWriteWindow.ts` is THE typed-input
+  debounce-window pattern for e2e specs (now doubly worth it — it also owns
+  `expectFlushedAheadOfWindow`, the pattern for asserting a flush beat its own timer).
+- Ticket/change-log bookkeeping: the ticket's three named gaps (debounce settle, flush on leaving,
+  inline feedback) are now all covered; no residual gap to record.
