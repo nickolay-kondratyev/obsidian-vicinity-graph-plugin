@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-30T09:14:24Z
 id: nid_9uzrvqv0k5qgckgdaqtgr41ky_e
 title: "controls panel: the size-metric WEIGHT input still writes per keystroke (controlled)"
-status: open
+status: closed
 deps: []
 links: [nid_hatwq2jlkhno5t6awcz0q6t9q_e]
 created_iso: 2026-07-30T08:09:17Z
-status_updated_iso: 2026-07-30T08:09:17Z
+status_updated_iso: 2026-07-30T09:14:24Z
 type: task
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
@@ -29,3 +30,19 @@ SUGGESTED FIX: render the weight through the same `NumberField` the parent ticke
 - The weight input stays disabled while its metric is off.
 - `npm run check` and `npm test` green.
 
+
+## Notes
+
+**2026-07-30T09:14:24Z**
+
+RESOLVED. The panel's per-metric Weight input is now uncontrolled + blur/Enter-committed, so an out-of-range multi-digit weight no longer snaps mid-keystroke.
+
+Design decision (the one the ticket left open): NEITHER a two-layout NumberField NOR policy-only reuse. The commit PROTOCOL was extracted into a useNumberFieldCommit hook in src/view/SettingsRowView.tsx — bounds->min/max/step, defaultValue, reseed key, Enter-blurs-to-commit, aria-invalid/aria-describedby refusal wiring — shared 100%, layout shared 0%. NumberField folded into NumberRow. The decision still comes from NumberRowCommitPolicy; the value half still from SettingsRowAccessors.metricWeight; the input is still disabled while its metric is off.
+
+Also fixed en route: a refusal message could outlive a store move (it now binds to the stored value it judged, via the pure NumberFieldRefusal seam in src/view/numberRowCommit.ts); e2e/controlsRestart.e2e.ts set a panel number input without blurring, which would have stored nothing.
+
+New guard: src/view/typedNumberFields.test.ts scans every row-rendering module for a controlled number input; shared scan reader in src/view/rowRenderingSource.ts.
+
+npm run check exit 0; npm test exit 0 (96 files / 1283 tests). npm run test:e2e NOT run (needs real Obsidian) — worth running before release.
+Reviewed to APPROVED in round 2. change_log: lgie1vruudg6aaieb1c4cesfv. Commits: 1875811, 7da47d3, e75c33f.
+Follow-ups filed: nid_bbe962ojwwkhzn3uq27zw5w6l_e (focus-out commits an untyped value); the disabled-criterion test was recorded on nid_7qot0m6nuxxmd5z0yb9jylsd6_e.

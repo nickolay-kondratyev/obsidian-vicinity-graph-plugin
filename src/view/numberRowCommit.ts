@@ -77,13 +77,51 @@ export class NumberRowCommit {
 	 * with the box holding something the plugin did not store and no message about it.
 	 *
 	 * Reseeding the ordinary accepted write on top of the store echo costs nothing: the
-	 * echo replaces the whole field anyway (`NumberRow`'s `key={shown}`), so the extra
-	 * remount request lands on an already-replaced component.
+	 * echo already remounts the field on its own (the stored value is half of the input's
+	 * `key` in `useNumberFieldCommit`), so the extra remount request lands on a field the
+	 * echo was replacing anyway.
 	 *
 	 * A REFUSED commit keeps the typed text on purpose: it is what the reason is about.
 	 */
 	get reseedsFromStore(): boolean {
 		return this.refusal === undefined;
+	}
+}
+
+/**
+ * A refusal a field is CARRYING — the reason a commit gave, bound to the stored value it
+ * was judged against.
+ *
+ * WHY the binding: the panel's fields are uncontrolled, so a store move (Restore defaults,
+ * the settings tab, a second graph view) reseeds the box with a number the refusal was
+ * never about. Left unbound, that message would sit under a valid stored value and keep it
+ * marked `aria-invalid` — a field announced as wrong for a value the user cannot see.
+ *
+ * A REFUSED commit writes nothing, so the stored value it was judged against does not move:
+ * a refusal is never retired by the commit that earned it, only by the store moving on.
+ *
+ * KNOWN EDGE, stated rather than papered over: the binding is by VALUE, so a store that
+ * moves away and back to the same number (two writes on another surface, the field
+ * untouched between them) shows the refusal again. Committing the field clears it.
+ */
+export class NumberFieldRefusal {
+	private constructor(
+		private readonly reason: string,
+		private readonly judgedAgainst: number,
+	) {}
+
+	/**
+	 * What `commit` refused, if anything.
+	 *
+	 * @param storedWhenJudged the value the store held for this field as the commit was made
+	 */
+	static fromCommit(commit: NumberRowCommit, storedWhenJudged: number): NumberFieldRefusal | undefined {
+		return commit.refusal === undefined ? undefined : new NumberFieldRefusal(commit.refusal, storedWhenJudged);
+	}
+
+	/** The reason, for as long as it is still about the number the field is showing. */
+	messageWhileStoredIs(stored: number): string | undefined {
+		return stored === this.judgedAgainst ? this.reason : undefined;
 	}
 }
 

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { SizingSettings } from "../engine";
 import { EngineDefaults, SIZING_RANGES } from "../engine";
-import { NO_CROSS_FIELD_RULE, NumberRowCommitPolicy } from "./numberRowCommit";
+import type { NumberRowCommit } from "./numberRowCommit";
+import { NO_CROSS_FIELD_RULE, NumberFieldRefusal, NumberRowCommitPolicy } from "./numberRowCommit";
 import { SettingsRowAccessors } from "./settingsRowAccessors";
 import type { SizingNumberField } from "./settingsWritePlan";
 import { SizingRowWrite } from "./sizingRowWrite";
@@ -24,8 +25,26 @@ function nodeCapPolicy(): NumberRowCommitPolicy {
 	return new NumberRowCommitPolicy(SettingsRowAccessors.nodeCap(), NO_CROSS_FIELD_RULE);
 }
 
+/** One metric's weight row. Every metric shares the same bounds, so any one of them stands for all. */
+function weightPolicy(): NumberRowCommitPolicy {
+	return new NumberRowCommitPolicy(SettingsRowAccessors.metricWeight("backlink-count"), NO_CROSS_FIELD_RULE);
+}
+
+/**
+ * THE refused commit, shared by the suites below: a maximum committed under the stored
+ * minimum — the one cross-field rule a panel row can actually break. Shared so that the
+ * test pinning its WORDING and the tests about CARRYING that wording are provably about
+ * the same commit.
+ */
+function refusedMaxPxCommit(): NumberRowCommit {
+	return sizingPolicy("maxPx", { minPx: 200 }).commit("40");
+}
+
 /** A number the sizing range cannot hold — what the write path will cap on the way in. */
 const ABOVE_MAX_PX = SIZING_RANGES.maxPx.max + 100;
+
+/** The same, for a metric weight. */
+const ABOVE_MAX_WEIGHT = SIZING_RANGES.metricWeight.max + 50;
 
 describe("NumberRowCommitPolicy: a value the row accepts", () => {
 	it("WHEN an in-range number is committed THEN it is the value to write", () => {
@@ -49,11 +68,14 @@ describe("NumberRowCommitPolicy: a value the row accepts", () => {
 
 describe("NumberRowCommitPolicy: a value the row refuses", () => {
 	it("WHEN the committed maximum is below the stored minimum THEN nothing is written", () => {
-		expect(sizingPolicy("maxPx", { minPx: 200 }).commit("40").value).toBeNull();
+		expect(refusedMaxPxCommit().value).toBeNull();
 	});
 
+	// The ONE place this suite spells the refusal out. `describeSizingRejection` owns the
+	// wording; this pins that the user is told which number was refused and what it must
+	// clear, rather than a bare "invalid".
 	it("WHEN the committed maximum is below the stored minimum THEN the row says why", () => {
-		expect(sizingPolicy("maxPx", { minPx: 200 }).commit("40").refusal).toBe(
+		expect(refusedMaxPxCommit().refusal).toBe(
 			"Not applied: maximum node size (40px) must be at least the minimum (200px).",
 		);
 	});
@@ -132,5 +154,62 @@ describe("NumberRowCommitPolicy: a row whose accessor is its whole policy", () =
 
 	it("WHEN the node cap is committed below its declared minimum THEN nothing is written", () => {
 		expect(nodeCapPolicy().commit("0").value).toBeNull();
+	});
+});
+
+describe("NumberRowCommitPolicy: a size metric's weight", () => {
+	// The weight sits beside its metric's toggle rather than in a `NumberRow`, so its
+	// wiring to this policy is what `typedNumberFields.test.ts` scans for. These
+	// assertions are the behaviour that wiring buys.
+
+	it("WHEN a weight in range is committed THEN it is the value to write", () => {
+		expect(weightPolicy().commit("2.5").value).toBe(2.5);
+	});
+
+	it("WHEN a weight ABOVE the range is committed THEN it is still written (the write path caps it)", () => {
+		// The snap this row used to do mid-word: typing `150` into a 0..100 weight clamped
+		// the box after the third key. Nothing is refused — the field is reseeded instead.
+		expect(weightPolicy().commit(String(ABOVE_MAX_WEIGHT)).value).toBe(ABOVE_MAX_WEIGHT);
+	});
+
+	it("WHEN a weight above the range is committed THEN the row says nothing (the reseeded field states it)", () => {
+		expect(weightPolicy().commit(String(ABOVE_MAX_WEIGHT)).refusal).toBeUndefined();
+	});
+
+	it("WHEN the weight is committed BLANK THEN nothing is written", () => {
+		expect(weightPolicy().commit("").value).toBeNull();
+	});
+
+	it("WHEN the weight is committed blank THEN the field is reseeded from the store", () => {
+		expect(weightPolicy().commit("").reseedsFromStore).toBe(true);
+	});
+});
+
+describe("NumberFieldRefusal: how long a refusal stays under the field", () => {
+	/** What the store held for the refused row at the moment it was judged. */
+	const STORED_MAX_PX = 100;
+
+	/** A refusal a panel row really earns: a maximum committed below the stored minimum. */
+	function refusedMaxPx(): NumberFieldRefusal | undefined {
+		return NumberFieldRefusal.fromCommit(refusedMaxPxCommit(), STORED_MAX_PX);
+	}
+
+	it("WHEN the store still holds the value the refusal was judged against THEN the reason is shown", () => {
+		// Compared against the COMMIT's own reason, not a copy of the sentence: this test is
+		// about the reason surviving, and the wording is pinned once, above, against this
+		// same commit — so a rule that stopped refusing fails there, loudly, not here.
+		expect(refusedMaxPx()?.messageWhileStoredIs(STORED_MAX_PX)).toBe(refusedMaxPxCommit().refusal);
+	});
+
+	it("WHEN the store MOVES under the refused field THEN the reason is gone", () => {
+		// The field is uncontrolled and reseeds from the store on any move (Restore
+		// defaults, the settings tab, a second graph view), so the number under the
+		// message is no longer the number the message is about — and leaving it would
+		// also mark a perfectly valid field `aria-invalid`.
+		expect(refusedMaxPx()?.messageWhileStoredIs(160)).toBeUndefined();
+	});
+
+	it("WHEN a commit refused nothing THEN there is no refusal to carry", () => {
+		expect(NumberFieldRefusal.fromCommit(sizingPolicy("minPx").commit("60"), STORED_MAX_PX)).toBeUndefined();
 	});
 });
