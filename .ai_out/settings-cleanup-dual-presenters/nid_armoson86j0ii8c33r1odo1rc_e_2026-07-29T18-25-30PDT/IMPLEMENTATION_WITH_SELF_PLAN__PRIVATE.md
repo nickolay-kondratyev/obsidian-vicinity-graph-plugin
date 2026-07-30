@@ -63,6 +63,27 @@ Deviations from the plan above: the shared model kept a SEPARATE module from
 level so the two below-card groupings (advanced spacing, sizing metrics vs bounds)
 stayed declarative and the existing CSS wrappers survived.
 
+## Iteration 1 (2026-07-30) — review response
+
+Commit `ae7569e`. READY for re-review. `npm test` 87/**1139**, `check` 0, `build` 0
+(logs `.tmp/it1_*.log`). Full per-finding record in PUBLIC § "Iteration 1".
+
+Two things a successor must not undo:
+1. `unhandledRowControl(control: never)` in `settingsRows.ts`, called from BOTH
+   presenters' `default` arm. The tab's `addRow` returns `void`, so WITHOUT that
+   `default` its switch is not exhaustiveness-checked at all — that was the round-1
+   BLOCKING. Probe: add a 10th `SettingsRowControl` arm ⇒ TS2345 in both files.
+2. `SettingsRow` is a UNION, not an interface: `disabledWhen` is accepted only on
+   `DEPENDENCY_AWARE_CONTROL_KINDS` (today `exclusion-patterns`) because that is all
+   the presenters honour. Do NOT flatten it back into one interface with an optional
+   flag unless you also make every kind honour the verdict on both surfaces.
+
+Tickets I could NOT file (agent may not create/close tickets) are written verbatim in
+PUBLIC under "TICKETS FOR TOP_LEVEL_AGENT TO FILE": one new `decide` UX ticket, close
+`nid_uer0a6uxv9ff3sxo9a4je40gp_e` + `nid_klkdpmx6axf90y4xj8khwrlf2_e` +
+`nid_que9qloigra7ku2boh83qizz0_e`, re-point `nid_hatwq2jlkhno5t6awcz0q6t9q_e`, and one
+new follow-up for the last per-kind duplication.
+
 Where to look first if something is red:
 - `npm run test:e2e` was NOT run. Highest-risk specs are the four listed in PUBLIC
   under "e2e specs updated", plus `settingsUxVisual.e2e.ts`'s panel-disclosure
