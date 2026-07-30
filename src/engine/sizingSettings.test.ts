@@ -94,6 +94,29 @@ describe("clampSizingSettings (degenerate values are unreachable)", () => {
 		);
 	});
 
+	it("WHEN the pair is inverted THEN maxPx is RAISED to minPx", () => {
+		const inverted = sizingWithNumbers({ depthDecayK: 1, minPx: 200, maxPx: 40, weight: 1 });
+		expect(clampSizingSettings(inverted).maxPx).toBe(inverted.minPx);
+	});
+
+	it("WHEN the pair is inverted THEN minPx is left exactly as typed (the rule RAISES, it never swaps)", () => {
+		const inverted = sizingWithNumbers({ depthDecayK: 1, minPx: 200, maxPx: 40, weight: 1 });
+		expect(clampSizingSettings(inverted).minPx).toBe(inverted.minPx);
+	});
+
+	it("WHEN minPx equals maxPx THEN neither moves (every node the same size is a real choice)", () => {
+		const flat = sizingWithNumbers({ depthDecayK: 1, minPx: 80, maxPx: 80, weight: 1 });
+		expect(clampSizingSettings(flat)).toEqual(flat);
+	});
+
+	it("WHEN an out-of-range minPx inverts the pair only AFTER clamping THEN maxPx follows the CLAMPED minPx", () => {
+		// The raise must read the clamped minPx, not the typed one: a hand-edited 1e6
+		// minPx would otherwise drag maxPx far outside its own range and back into
+		// pixel geometry — the one thing this clamp exists to prevent.
+		const huge = sizingWithNumbers({ depthDecayK: 1, minPx: SIZING_RANGES.minPx.max + 1000, maxPx: 40, weight: 1 });
+		expect(clampSizingSettings(huge).maxPx).toBe(SIZING_RANGES.minPx.max);
+	});
+
 	it("WHEN a metric's enabled flag is set THEN clamping preserves it (only weights are bounded)", () => {
 		const settings = sizingWithNumbers({ depthDecayK: 1, minPx: 40, maxPx: 160, weight: -5 });
 		expect(clampSizingSettings(settings).metrics["depth-decay"].enabled).toBe(

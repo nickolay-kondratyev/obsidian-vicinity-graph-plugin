@@ -50,6 +50,26 @@ function describeMismatch(leaf: SettingsSpecLeaf, expected: unknown, got: unknow
 	return `${leaf.id}: expected=[${JSON.stringify(expected)}] got=[${JSON.stringify(got)}]`;
 }
 
+/**
+ * The ONE declared CROSS-FIELD settings rule, and therefore the one pair the
+ * sibling-independence claim below cannot make: `clampSizingSettings` enforces
+ * `maxPx >= minPx` by RAISING `maxPx`, so repairing a garbage `minPx` back to its
+ * default legitimately moves a stored `maxPx` that sat below it.
+ *
+ * Listed rather than silently tolerated: a SECOND coupling would have to be written
+ * here, in the open. The rule itself is pinned at this door by `persistedShapes.test.ts`
+ * ("an inverted stored pair loads with maxPx raised"), so this exemption hides no
+ * behaviour — it only stops one rule being read as the wholesale-defaults bug this
+ * test exists to catch.
+ */
+const CROSS_FIELD_REPAIRS: readonly { readonly repaired: string; readonly moves: string }[] = [
+	{ repaired: "globalView.sizing.minPx", moves: "globalView.sizing.maxPx" },
+];
+
+function isCrossFieldRepair(repaired: SettingsSpecLeaf, sibling: SettingsSpecLeaf): boolean {
+	return CROSS_FIELD_REPAIRS.some((rule) => rule.repaired === repaired.id && rule.moves === sibling.id);
+}
+
 describe("every declared settings field survives data.json", () => {
 	const alternates = alternateSettingsRoot();
 	const defaults = defaultSettingsRoot();
@@ -102,6 +122,7 @@ describe("every declared settings field survives data.json", () => {
 			return SETTINGS_FIELD_LEAVES.filter(
 				(sibling) =>
 					sibling.id !== leaf.id &&
+					!isCrossFieldRepair(leaf, sibling) &&
 					JSON.stringify(readLeaf(loaded, sibling)) !== JSON.stringify(readLeaf(alternates, sibling)),
 			).map((sibling) => `garbage in ${leaf.id} also reset ${sibling.id}`);
 		});

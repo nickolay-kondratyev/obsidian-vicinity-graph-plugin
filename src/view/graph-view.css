@@ -683,6 +683,22 @@
 	width: 4.5em;
 	flex-shrink: 0;
 }
+/*
+ * A number row plus the refusal it may be carrying. The row itself is a single flex
+ * LINE, so the message has to sit outside it — inside, it would compete with the field
+ * for the same line at 260px.
+ */
+.vicinity-graph-number-row-block {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-2-1);
+}
+/* The panel's twin of the settings tab's `.vicinity-graph-settings-error`. Rendered
+ * only when there IS something to refuse, so it needs no `:empty` rule. */
+.vicinity-graph-number-row__refusal {
+	color: var(--text-error);
+	font-size: var(--font-ui-smaller);
+}
 .vicinity-graph-slider-row {
 	display: flex;
 	flex-direction: column;

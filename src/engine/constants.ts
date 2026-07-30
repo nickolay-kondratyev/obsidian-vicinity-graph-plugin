@@ -212,6 +212,20 @@ export function clampSizingNumber(field: SizingRangeField, value: number): numbe
  * obstacle, and a non-finite rectangle ABORTS the router's wasm module for the
  * rest of the session), and a typed `-1` / `1e999` in a number input reaches the
  * live session without ever round-tripping through disk.
+ *
+ * Also enforces the ONE cross-field sizing rule — `maxPx >= minPx` — by RAISING
+ * `maxPx`, because `minPx` and `maxPx` are clamped into the SAME range and so can
+ * be inverted without either leaving its bounds. `NodeSizer` reads the pair as
+ * `minPx + score * (maxPx - minPx)`, so an inverted pair is a finite but BACKWARDS
+ * ramp: the most relevant note draws smallest.
+ *
+ * WHY raise rather than swap or reset: raising never shrinks a node the user asked
+ * to be big, and it keeps the Min/Max labels agreeing with the number typed under
+ * them (a swap silently moves a value to the other row; a reset discards a
+ * deliberately typed one). It is only ever reached from a hand-edited `data.json`
+ * — both settings surfaces REFUSE an inverted pair with a message
+ * (`describeSizingRejection`) before it gets here — so a slightly lossy rule is
+ * fine: it never has to be explained to anyone.
  */
 export function clampSizingSettings(settings: SizingSettings): SizingSettings {
 	const metrics = Object.fromEntries(
@@ -220,11 +234,14 @@ export function clampSizingSettings(settings: SizingSettings): SizingSettings {
 			{ ...metric, weight: clampSizingNumber("metricWeight", metric.weight) },
 		]),
 	) as SizingSettings["metrics"];
+	const minPx = clampSizingNumber("minPx", settings.minPx);
 	return {
 		metrics,
 		depthDecayK: clampSizingNumber("depthDecayK", settings.depthDecayK),
-		minPx: clampSizingNumber("minPx", settings.minPx),
-		maxPx: clampSizingNumber("maxPx", settings.maxPx),
+		minPx,
+		// The CLAMPED minPx is the floor: raising to the typed one would drag maxPx
+		// outside its own range, which is exactly what this function exists to prevent.
+		maxPx: Math.max(minPx, clampSizingNumber("maxPx", settings.maxPx)),
 	};
 }
 

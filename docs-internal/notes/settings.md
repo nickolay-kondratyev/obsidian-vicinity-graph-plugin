@@ -194,8 +194,15 @@ graph LR
   `SETTINGS_GROUPS` rather than as four hand edits, together with
   `nid_llfhrqo1ecg8tuxigo7bcrrrf_e` (the `SECTION_RESET_SCOPES` alias collapse).
   Still behind presenters (4):
-  `nid_hatwq2jlkhno5t6awcz0q6t9q_e` (minPx/maxPx validation UX — the panel's
-  numeric rows are now ONE component, so the fix lands once),
+  ~~`nid_hatwq2jlkhno5t6awcz0q6t9q_e` (minPx/maxPx validation UX — the panel's
+  numeric rows are now ONE component, so the fix lands once)~~
+  **DELIVERED 2026-07-30**, exactly as predicted — one `NumberRow` change fixed the
+  sizing bounds AND the node cap. `clampSizingSettings` now RAISES `maxPx` to `minPx`
+  (the engine backstop; `nid_9jiira82snkh7bgy8zv060c9r_e` was merged into it), and the
+  panel's typed rows became uncontrolled/blur-committed, refusing an inverted pair
+  through the tab's own `SizingRowWrite` + `describeSizingRejection`. Left behind:
+  `nid_9uzrvqv0k5qgckgdaqtgr41ky_e` (the per-metric WEIGHT input has its own markup and
+  is still controlled).
   `nid_puf4a4q6fgn5lpehh5dowfm1r_e` ("Show cross links" — new full-cascade
   boolean, default OFF; decided wanted 2026-07-29, both presenters).
 - Behind **tests (5)**: `nid_ek3wrqoh1rsftk6ulg836mghf_e` (e2e types into a

@@ -1,4 +1,5 @@
 import type { VaultPort } from "../adapters/obsidianPorts";
+import type { ViewSettings } from "../engine";
 import type { PersistableIdentity } from "../persistence/DocPersistEligibility";
 import type { PersistenceServices } from "../persistence/PersistenceServices";
 import type { SettingsResetScope } from "./settingsResetPlan";
@@ -42,6 +43,15 @@ export class ControlsActions implements ControlsActionsPort {
 
 	applySettings(interaction: SettingsInteraction): Promise<void> {
 		return this.settingsWrites.apply(interaction);
+	}
+
+	/**
+	 * Through the pipeline, which already owns the store and already reads it fresh for
+	 * every write — so the value a control is JUDGED against and the value it is MERGED
+	 * over come from the one place, and this class gains no store of its own to drift.
+	 */
+	storedGlobalView(): ViewSettings {
+		return this.settingsWrites.storedGlobalView();
 	}
 
 	/**

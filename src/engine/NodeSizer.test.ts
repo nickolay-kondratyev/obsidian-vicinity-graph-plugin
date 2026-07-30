@@ -154,6 +154,10 @@ describe("NodeSizer depth-decay metric", () => {
  * lists it as an acceptance criterion.
  */
 describe("NodeSizer hostile sizing settings (sizePx stays finite)", () => {
+	/** An inverted pair, both halves well inside the shared 1..400 node-size bounds. */
+	const INVERTED_MIN_PX = 200;
+	const INVERTED_MAX_PX = 40;
+
 	// GIVEN a chain m -> a -> b traversed from m at depth 2 (depths 0, 1, 2)
 	const spec: FakeVaultSpec = {
 		files: [{ path: "m.md" }, { path: "a.md" }, { path: "b.md" }],
@@ -203,6 +207,21 @@ describe("NodeSizer hostile sizing settings (sizePx stays finite)", () => {
 	])("WHEN %s is non-finite THEN every sizePx is finite", (field, value) => {
 		const settings = { ...sizingWith({ "own-file-size": 1 }), [field]: value };
 		expect(everySizePx(settings).every(Number.isFinite)).toBe(true);
+	});
+
+	/**
+	 * REPLACES the test that pinned the inverted ramp as accepted behaviour (the
+	 * sizer used to be handed `minPx > maxPx` verbatim, drawing the MOST relevant
+	 * note smallest). `clampSizingSettings` now enforces `maxPx >= minPx` by raising
+	 * maxPx, and the sizer runs that clamp — so the ramp flattens instead of
+	 * reversing. Both settings surfaces refuse an inverted pair before it is stored,
+	 * so this is the hand-edited-`data.json` backstop.
+	 */
+	it("WHEN minPx exceeds maxPx THEN every node lands on minPx (the ramp flattens, never reverses)", () => {
+		const inverted = { ...sizingWith({ "own-file-size": 1 }), minPx: INVERTED_MIN_PX, maxPx: INVERTED_MAX_PX };
+		// One assertion over the whole vicinity: the top scorer is the node an
+		// inverted ramp would have shrunk, and a per-node lookup would hide that.
+		expect(everySizePx(inverted)).toEqual(spec.files.map(() => INVERTED_MIN_PX));
 	});
 
 	it("WHEN a metric weight is Infinity THEN every sizePx is finite (the weighted average keeps a usable divisor)", () => {
@@ -353,13 +372,6 @@ describe("NodeSizer image-bearing height floor", () => {
 	it("WHEN an image note already scores above the floor THEN its height is untouched", () => {
 		const tall = { ...bottomScoring, minPx: THUMBNAIL_VISIBLE_MIN_NODE_PX + 20 };
 		expect(pxOf(tall, "withImage.md")).toBe(tall.minPx);
-	});
-
-	it("WHEN sizing settings are inverted (minPx > maxPx) THEN the floor never shrinks an image node", () => {
-		// `clampSizingSettings` bounds each field independently, so minPx > maxPx is
-		// reachable at the engine boundary — the floor must stay a floor there.
-		const inverted = { ...bottomScoring, minPx: THUMBNAIL_VISIBLE_MIN_NODE_PX + 40, maxPx: 50 };
-		expect(pxOf(inverted, "withImage.md")).toBe(inverted.minPx);
 	});
 
 	it("WHEN an image note is central THEN it keeps the full central height", () => {

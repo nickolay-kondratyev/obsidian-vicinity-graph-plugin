@@ -161,6 +161,18 @@ describe("PersistedShapes sizing parsing", () => {
 		});
 	});
 
+	it("WHEN a hand-edited data.json inverts the size pair THEN maxPx loads RAISED to minPx", () => {
+		// The engine backstop behind both settings surfaces' refusal: nothing typed can
+		// invert the pair, but a hand-edited file can, and an inverted pair runs the size
+		// ramp backwards (most relevant note drawn smallest).
+		const parsed = parsedGlobalView({ sizing: { minPx: 200, maxPx: 40 } }).sizing;
+		expect(parsed.maxPx).toBe(200);
+	});
+
+	it("WHEN a hand-edited data.json inverts the size pair THEN minPx loads exactly as stored (the rule RAISES)", () => {
+		expect(parsedGlobalView({ sizing: { minPx: 200, maxPx: 40 } }).sizing.minPx).toBe(200);
+	});
+
 	it("WHEN a persisted metric weight is out of range THEN it is clamped into the weight range", () => {
 		const raw = { sizing: { metrics: { "backlink-count": { enabled: true, weight: -3 } } } };
 		expect(parsedGlobalView(raw).sizing.metrics["backlink-count"].weight).toBe(SIZING_RANGES.metricWeight.min);

@@ -88,6 +88,18 @@ describe("ControlsActions.applySettings", () => {
 	});
 });
 
+describe("ControlsActions.storedGlobalView", () => {
+	it("WHEN a write has landed since the panel rendered THEN the stored globals report the NEW value", async () => {
+		// The panel's cross-field judge (max px vs min px) reads through here rather than
+		// from the snapshot it rendered from: that snapshot only refreshes after the whole
+		// rebuild, so raising Max and then Min would otherwise be refused against the
+		// maximum the user has already replaced.
+		const { actions } = await actionsUnderTest();
+		await actions.applySettings({ kind: "global-sizing-number", field: "maxPx", value: 300 });
+		expect(actions.storedGlobalView().sizing.maxPx).toBe(300);
+	});
+});
+
 describe("ControlsActions pinning", () => {
 	it("WHEN a node is pinned THEN EVERY open view is refreshed (the pinned set is global state)", async () => {
 		const { actions, viewsRefresh } = await actionsUnderTest();
