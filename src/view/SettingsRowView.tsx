@@ -6,7 +6,7 @@ import { useControlsActions } from "./ControlsActionsContext";
 import { DepthStepper } from "./DepthStepper";
 import { NODE_PREVIEW_OPTION_META } from "./nodePreviewPreferenceMeta";
 import type { NumberRowJudge } from "./numberRowCommit";
-import { NO_CROSS_FIELD_RULE, NumberRowCommitPolicy } from "./numberRowCommit";
+import { NO_CROSS_FIELD_RULE, NumberFieldRefusal, NumberRowCommitPolicy } from "./numberRowCommit";
 import type {
 	SettingsNumberAccessor,
 	SettingsTrackAccessor,
@@ -176,7 +176,9 @@ interface CommittedNumberField {
 	 * exactly where it was, so the key carries a counter as well as the value.
 	 *
 	 * A REFUSED commit changes neither, so a refusal is never remounted away: the typed
-	 * text stands beside the reason it earned.
+	 * text stands beside the reason it earned. A store move remounts BOTH — the field
+	 * back to the stored number and, through {@link NumberFieldRefusal}, the message out
+	 * of existence.
 	 */
 	readonly key: string;
 	/** Spread onto the `<input type="number">`; its markup supplies the rest. */
@@ -215,10 +217,13 @@ interface CommittedNumberFieldProps {
  * need a layout switch, and layout is exactly what this module owns per row kind.
  *
  * A refusal belongs to a COMMIT, not to the current state of the fields, so it can go
- * stale: repairing the sibling bound in the other row does not clear it, because
- * nothing about THIS row moved. Left that way on purpose — the alternative is a row
- * subscribing to its sibling's every keystroke — and the recovery is the obvious one,
- * committing this field again.
+ * stale in ONE direction: repairing the sibling bound in the other row does not clear
+ * it, because nothing about THIS row moved. Left that way on purpose — the alternative
+ * is a row subscribing to its sibling's every keystroke — and the recovery is the
+ * obvious one, committing this field again. In the other direction it is not left
+ * stale: THIS row's stored value moving reseeds the box, and
+ * {@link NumberFieldRefusal} retires the message with it, so a stored number is never
+ * shown under a complaint about a number it replaced.
  *
  * @param stored what the store holds for this field right now (optimistically)
  */
@@ -233,10 +238,14 @@ function useNumberFieldCommit(
 	// No refusal on mount: `stored` cannot BE a refused value. `clampSizingSettings`
 	// raises an inverted pair at every door into the store — including the load of a
 	// hand-edited `data.json` — so a row only ever earns a refusal by being typed into.
-	const [refusal, setRefusal] = useState<string | undefined>(undefined);
+	const [refusal, setRefusal] = useState<NumberFieldRefusal | undefined>(undefined);
 	// Counts the commits that put the STORED value back in the box.
 	const [reseeds, setReseeds] = useState(0);
 	const refusalId = useId();
+	// A refusal is about the value the field held when it was judged, and the field is
+	// reseeded whenever the store moves — so {@link NumberFieldRefusal} decides whether
+	// the message still has anything to say, rather than this component remembering to.
+	const shownRefusal = refusal?.messageWhileStoredIs(stored);
 	return {
 		key: `${stored}:${reseeds}`,
 		inputProps: {
@@ -244,11 +253,11 @@ function useNumberFieldCommit(
 			max: accessor.bounds.max,
 			step: accessor.bounds.step,
 			defaultValue: stored,
-			"aria-invalid": refusal !== undefined,
-			"aria-describedby": refusal === undefined ? undefined : refusalId,
+			"aria-invalid": shownRefusal !== undefined,
+			"aria-describedby": shownRefusal === undefined ? undefined : refusalId,
 			onBlur: (event) => {
 				const committed = policy.commit(event.target.value);
-				setRefusal(committed.refusal);
+				setRefusal(NumberFieldRefusal.fromCommit(committed, stored));
 				if (committed.value !== null) {
 					onCommit(committed.value);
 				}
@@ -266,9 +275,9 @@ function useNumberFieldCommit(
 			},
 		},
 		refusal:
-			refusal === undefined ? null : (
+			shownRefusal === undefined ? null : (
 				<div id={refusalId} className="vicinity-graph-number-row__refusal" role="alert">
-					{refusal}
+					{shownRefusal}
 				</div>
 			),
 	};
@@ -370,8 +379,10 @@ function SizingMetricRow({
 					className="vicinity-graph-sizing__weight"
 					aria-label={SettingsRowNames.role(row, "weight")}
 					title="Weight"
-					disabled={!enabled}
 					{...weightField.inputProps}
+					// AFTER the spread: this row's disabled state is its own, and must win
+					// over anything the shared protocol grows later.
+					disabled={!enabled}
 				/>
 			</div>
 			{weightField.refusal}

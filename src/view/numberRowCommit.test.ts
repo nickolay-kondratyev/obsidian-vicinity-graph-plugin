@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { SizingSettings } from "../engine";
 import { EngineDefaults, SIZING_RANGES } from "../engine";
-import { NO_CROSS_FIELD_RULE, NumberRowCommitPolicy } from "./numberRowCommit";
+import { NO_CROSS_FIELD_RULE, NumberFieldRefusal, NumberRowCommitPolicy } from "./numberRowCommit";
 import { SettingsRowAccessors } from "./settingsRowAccessors";
 import type { SizingNumberField } from "./settingsWritePlan";
 import { SizingRowWrite } from "./sizingRowWrite";
@@ -168,5 +168,33 @@ describe("NumberRowCommitPolicy: a size metric's weight", () => {
 
 	it("WHEN the weight is committed blank THEN the field is reseeded from the store", () => {
 		expect(weightPolicy().commit("").reseedsFromStore).toBe(true);
+	});
+});
+
+describe("NumberFieldRefusal: how long a refusal stays under the field", () => {
+	/** What the store held for the refused row at the moment it was judged. */
+	const STORED_MAX_PX = 100;
+
+	/** A refusal a panel row really earns: a maximum committed below the stored minimum. */
+	function refusedMaxPx(): NumberFieldRefusal | undefined {
+		return NumberFieldRefusal.fromCommit(sizingPolicy("maxPx", { minPx: 200 }).commit("40"), STORED_MAX_PX);
+	}
+
+	it("WHEN the store still holds the value the refusal was judged against THEN the reason is shown", () => {
+		expect(refusedMaxPx()?.messageWhileStoredIs(STORED_MAX_PX)).toBe(
+			"Not applied: maximum node size (40px) must be at least the minimum (200px).",
+		);
+	});
+
+	it("WHEN the store MOVES under the refused field THEN the reason is gone", () => {
+		// The field is uncontrolled and reseeds from the store on any move (Restore
+		// defaults, the settings tab, a second graph view), so the number under the
+		// message is no longer the number the message is about — and leaving it would
+		// also mark a perfectly valid field `aria-invalid`.
+		expect(refusedMaxPx()?.messageWhileStoredIs(160)).toBeUndefined();
+	});
+
+	it("WHEN a commit refused nothing THEN there is no refusal to carry", () => {
+		expect(NumberFieldRefusal.fromCommit(sizingPolicy("minPx").commit("60"), STORED_MAX_PX)).toBeUndefined();
 	});
 });

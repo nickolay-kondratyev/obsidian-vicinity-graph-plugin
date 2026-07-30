@@ -51,3 +51,20 @@ Acceptance addition for this ticket: render both surfaces over SETTINGS_GROUPS a
 per row in EVERY_SETTINGS_ROW, that each surface produced a control whose accessible name
 is the declared one, in declared order — then the source scan can shrink to the checks a
 render cannot make.
+
+**2026-07-30T09:04:29Z**
+
+TWO MORE PANEL PROPERTIES ONLY A RENDER CAN PIN (recorded from the nid_9uzrvqv0k5qgckgdaqtgr41ky_e
+review, 2026-07-30 — panel per-metric Weight became uncontrolled + blur-committed).
+
+1. A metric's Weight input stays DISABLED while its metric toggle is off
+   (`src/view/SettingsRowView.tsx`, SizingMetricRow: `disabled={!enabled}`). A source scan
+   could only assert the attribute TEXT exists, which says nothing about the rendered state
+   and would pass on an inverted predicate — deliberately not added. Covered by point 3
+   above (`disabledWhen` verdicts on both surfaces); listed here so the specific field is
+   not forgotten.
+2. That a row whose commit was REFUSED renders the refusal element the props describe
+   (`aria-describedby` pointing at a rendered `role="alert"`), and that it DISAPPEARS when
+   the stored value moves under the field (Restore defaults). The rule itself is now a pure
+   seam, `NumberFieldRefusal` in `src/view/numberRowCommit.ts`, unit-tested in
+   `numberRowCommit.test.ts`; the wiring of that rule into the markup is not.

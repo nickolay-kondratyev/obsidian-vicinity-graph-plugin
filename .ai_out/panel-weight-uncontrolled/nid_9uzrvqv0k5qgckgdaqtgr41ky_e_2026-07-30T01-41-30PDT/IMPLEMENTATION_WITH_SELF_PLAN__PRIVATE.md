@@ -63,3 +63,48 @@ npx vitest run src/view/panelTypedNumberFields.test.ts src/view/numberRowCommit.
 - `src/view/numberRowCommit.test.ts`
 - `e2e/controlsRestart.e2e.ts`
 - `CLAUDE.md`
+
+---
+
+# ROUND 2 (iteration 1 — responding to IMPLEMENTATION_REVIEW of 1875811)
+
+STATUS: **DONE**. `npm run check` exit 0, `npm test` exit 0 (96 files / **1283** tests).
+Tree dirty on purpose. Ticket not closed, no change_log. Public artifact:
+`IMPLEMENTATION_ITERATION__PUBLIC.md`.
+
+## What the reviewer caught that I got WRONG
+
+My round-1 PRIVATE said the refusal-lives-in-the-row change was "practically identical".
+It was NOT: a refusal + `aria-invalid` survived a STORE move (Restore defaults), leaving a
+valid stored number presented as invalid. Lesson: when a refactor moves STATE up past a
+remount boundary, enumerate everything the old remount was incidentally clearing.
+
+## Round-2 changes
+
+1. `NumberFieldRefusal` (new, `numberRowCommit.ts`): `fromCommit(commit, storedWhenJudged)`
+   + `messageWhileStoredIs(stored)`. Hook stores it, derives `shownRefusal`, which drives
+   the element AND `aria-invalid`/`aria-describedby` together. Red-first: 3 new cases in
+   `numberRowCommit.test.ts` failed with `Cannot read properties of undefined
+   (reading 'fromCommit')`, then green.
+   - Deliberate residual: value-binding, so a store bounce 100→160→100 re-shows it.
+     Documented on the class. The robust alternative (render-time state adjustment against
+     the previous render's `stored`) was rejected: unreachable by `npm test`.
+2. `src/view/rowRenderingSource.ts` (new, TEST-SUPPORT only — nothing in the bundle imports
+   it): module tables + `readRowSourceWithoutComments`. `settingsRowParity.test.ts` now
+   imports it (`ROW_PRESENTERS as PRESENTERS` etc. to keep its assertions untouched).
+3. `panelTypedNumberFields.test.ts` → **`typedNumberFields.test.ts`**, scans
+   `EVERY_ROW_RENDERING_MODULE`, failures name the module. CLAUDE.md bullet updated.
+4. Spread now BEFORE `disabled={!enabled}` on the weight input; stale `key={shown}` doc in
+   `numberRowCommit.ts` fixed.
+5. REJECTED one nice-to-have (scan-assert the weight's `disabled`): a scan cannot tell
+   `disabled={!enabled}` from `disabled={enabled}`. Recorded on `nid_7qot0m6nuxxmd5z0yb9jylsd6_e`.
+6. New ticket `nid_bbe962ojwwkhzn3uq27zw5w6l_e` — focus-out commits an unchanged value.
+
+## Gotchas learned this round
+
+- Tickets live in `_tickets/` (the `ticket` CLI store), NOT `docs-internal/tickets/`
+  (that is the older `ticket-*.md` set). `ticket add-note <id>` accepts a heredoc.
+- To prove a source scan is not vacuous: temporarily inject the offending markup into a
+  REAL module (scans read by filename from `VIEW_DIR`, so copies do not work), run the one
+  suite, then `git checkout` the file. Verified on `DepthStepper.tsx`.
+- Repo has NO prettier/biome — match style by hand (tabs, ~120 cols).

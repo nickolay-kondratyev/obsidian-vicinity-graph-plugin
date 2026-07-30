@@ -1,7 +1,10 @@
-import { readFileSync } from "node:fs";
-import { dirname } from "node:path";
-import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import {
+	EVERY_ROW_RENDERING_MODULE,
+	readRowSourceWithoutComments as source,
+	ROW_PRESENTERS as PRESENTERS,
+	ROW_SECTION_WALKERS as SECTION_WALKERS,
+} from "./rowRenderingSource";
 import { EVERY_SETTINGS_ROW, SETTINGS_ROW_CONTROL_KINDS } from "./settingsRows";
 import { SETTINGS_SECTIONS } from "./settingsSectionFields";
 
@@ -41,64 +44,6 @@ import { SETTINGS_SECTIONS } from "./settingsSectionFields";
  * Both residuals need a surface that can be RENDERED and inspected, i.e. the component
  * -test harness in `nid_7qot0m6nuxxmd5z0yb9jylsd6_e` — recorded on that ticket.
  */
-
-const VIEW_DIR = dirname(fileURLToPath(import.meta.url));
-
-/**
- * The two presenter modules. Named per SURFACE, so a failure says which surface is
- * missing something rather than which file.
- */
-const PRESENTERS: Readonly<Record<string, string>> = {
-	"settings tab": "VicinityGraphSettingTab.ts",
-	"controls panel": "SettingsRowView.tsx",
-};
-
-/**
- * The modules that walk the declared SECTIONS into cards / disclosures. The panel
- * splits that job in two (`GraphToolbar` walks sections, `SettingsRowView` renders a
- * row it is handed), so only the outer half appears here.
- */
-const SECTION_WALKERS: Readonly<Record<string, string>> = {
-	"settings tab": "VicinityGraphSettingTab.ts",
-	"controls panel": "GraphToolbar.tsx",
-};
-
-/**
- * Components a presenter delegates ONE control kind to. They render a declared row just
- * as much as the presenter that mounts them, so the scans below must reach them too —
- * otherwise "hard-code it in a child component" is an open escape hatch.
- */
-const ROW_CONTROL_COMPONENTS: Readonly<Record<string, string>> = {
-	"depth stepper": "DepthStepper.tsx",
-};
-
-/**
- * Every module that renders any part of a declared row, deduplicated — the settings tab
- * is its own section walker AND its own row presenter, so it appears in both tables above.
- * Keyed by MODULE rather than by surface on purpose: a surface-keyed record would collapse
- * the panel's two halves onto one key and silently drop one of them from the scan.
- */
-const EVERY_ROW_RENDERING_MODULE: readonly string[] = [
-	...new Set([
-		...Object.values(PRESENTERS),
-		...Object.values(SECTION_WALKERS),
-		...Object.values(ROW_CONTROL_COMPONENTS),
-	]),
-];
-
-/**
- * A module's source with its COMMENTS removed, so nothing this file asserts can be
- * satisfied by prose or by commented-out code. Only LINE-LEADING `//` (and JSDoc `*`
- * continuations) are dropped: a `//` inside a string literal — a URL — must survive, and
- * commented-out code is line-leading by construction, so that is enough.
- */
-function source(module: string): string {
-	return readFileSync(`${VIEW_DIR}/${module}`, "utf8")
-		.replace(/\/\*[\s\S]*?\*\//g, "")
-		.split("\n")
-		.filter((line) => !/^\s*(\/\/|\*)/.test(line))
-		.join("\n");
-}
 
 /**
  * The engine tables and clamps a presenter must NOT reach for: each one is exactly the
