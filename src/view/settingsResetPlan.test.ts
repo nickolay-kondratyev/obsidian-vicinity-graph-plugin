@@ -2,11 +2,11 @@ import { describe, expect, it } from "vitest";
 import type { ViewSettings } from "../engine";
 import { EngineDefaults } from "../engine";
 import {
-	SECTION_RESET_SCOPES,
 	SETTINGS_RESET_SCOPES,
 	planSettingsReset,
 	planSettingsResetConfirmation,
 } from "./settingsResetPlan";
+import { SETTINGS_SECTIONS } from "./settingsSectionFields";
 import type { SettingsCommand } from "./settingsWritePlan";
 import type { SettingsWriteContext } from "./settingsWritePlan";
 
@@ -239,7 +239,7 @@ describe("planSettingsResetConfirmation node-exclusion scope", () => {
 
 describe("planSettingsResetConfirmation other scopes", () => {
 	it("WHEN a section that only holds numeric knobs is reset THEN it applies without a confirmation", () => {
-		const confirmed = SECTION_RESET_SCOPES.filter(
+		const confirmed = SETTINGS_SECTIONS.filter(
 			(scope) => scope !== "node-exclusion" && planSettingsResetConfirmation(scope, TUNED_CTX) !== null,
 		);
 		expect(confirmed).toEqual([]);
@@ -261,7 +261,7 @@ describe("planSettingsResetConfirmation other scopes", () => {
 
 describe("settings reset scope catalogue", () => {
 	it("WHEN the section scopes are listed THEN they cover every scope except the tab-wide one", () => {
-		expect([...SECTION_RESET_SCOPES, "all"].sort()).toEqual(Object.keys(SETTINGS_RESET_SCOPES).sort());
+		expect([...SETTINGS_SECTIONS, "all"].sort()).toEqual(Object.keys(SETTINGS_RESET_SCOPES).sort());
 	});
 
 	it("WHEN each scope's copy is read THEN its label names the scope it resets (never a bare 'Restore defaults')", () => {
@@ -296,7 +296,7 @@ describe("settings reset scope catalogue", () => {
  * label ("Restore <noun> defaults"), so there is no second list to keep in sync.
  */
 describe("tab-wide description enumerates every section", () => {
-	const sectionNouns = SECTION_RESET_SCOPES.map((scope) =>
+	const sectionNouns = SETTINGS_SECTIONS.map((scope) =>
 		SETTINGS_RESET_SCOPES[scope].label.replace(/^Restore /, "").replace(/ defaults$/, ""),
 	);
 

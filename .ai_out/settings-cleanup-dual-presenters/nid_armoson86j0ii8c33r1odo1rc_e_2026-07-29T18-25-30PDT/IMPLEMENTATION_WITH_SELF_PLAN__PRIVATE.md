@@ -1,0 +1,53 @@
+# IMPLEMENTATION_WITH_SELF_PLAN — PRIVATE (rehydration notes)
+
+Ticket `nid_armoson86j0ii8c33r1odo1rc_e` (dual presenters). Branch
+`nid_armoson86j0ii8c33r1odo1rc_e_2026-07-29T18-25-30PDT`.
+
+## Plan (as decided, 2026-07-29)
+
+**Goal**: ONE declared row model in `src/view/settingsRows.ts`; the Obsidian tab and
+the React panel become presenters over it.
+
+Steps:
+1. `src/view/settingsRows.ts` (pure — no obsidian/react): `SETTINGS_GROUPS`
+   (heading/description/panel hints per section), `SETTINGS_ROWS` (section →
+   ordered BLOCKS → ordered ROWS), `SettingsRowControl` union (1:1 with the
+   `SettingsInteraction` arms), `SettingsRowNames` (the ONE a11y convention),
+   `SettingsRowDependency` + `isSettingsRowDisabled`.
+2. Move `NODE_PREVIEW_ROW_LABEL`/`_ROW_DESCRIPTION` out of
+   `nodePreviewPreferenceMeta.ts` into the Preview row. `NODE_PREVIEW_OPTION_META`
+   stays.
+3. Rewrite `VicinityGraphSettingTab.display()` to iterate
+   `SETTINGS_SECTIONS` → blocks → rows with an EXHAUSTIVE switch on
+   `row.control.kind`. Delete `showExclusionPatterns` + its slot.
+4. Rewrite the panel: `GraphToolbar` iterates the same sections;
+   `SettingsRowView.tsx` holds the panel's exhaustive switch. Delete
+   `GlobalDepthControls`/`SizingSection`/`ForceLayoutSection`/`NodeContentsSection`/
+   `NodeExclusionSection` (absorbed).
+5. Parity + BDD unit tests; e2e updates; docs; `SECTION_RESET_SCOPES` collapse.
+
+## Decisions worth remembering
+
+- The row model is a SEPARATE module from `settingsSectionFields.ts` (which keeps
+  its per-family reset COLUMNS untouched). No `{family,key}` row union was
+  invented: each `SettingsRowControl` arm carries its own TYPED field
+  (`Direction`, `SizeMetricId`, `SizingNumberField`, `keyof ForceLayoutSettings`).
+- Panel section ORDER unified to `SETTINGS_SECTIONS` (exclusion moves from 2nd to
+  5th) and the panel gains a Performance disclosure. Both are e2e-visible.
+- `disabledWhen` is a NAMED dependency (`"exclusion-enabled"`) + pure evaluator,
+  not a closure — so it is data a test can enumerate.
+- The sizing-metric WEIGHT input stays imperatively disabled by its own toggle:
+  it is a second control on ONE row, and `disabledWhen` is row-level.
+- CSS: panel slider/number row classes generalised
+  (`vicinity-graph-forcelayout__field|head|label|value` → `vicinity-graph-slider-row*`,
+  `vicinity-graph-sizing__field` → `vicinity-graph-number-row`) so outline-depth
+  and node-cap can reuse them. `e2e/settingsUxVisual.e2e.ts` selector updated in
+  the SAME commit (`selectorGuard.test.ts` requires it).
+
+## Gotchas hit
+- `engineDefaultsSingleSource.test.ts` scans raw source INCLUDING comments for
+  `EngineDefaults.*Settings(` outside its allowlist — never write that call form
+  in a new `src/view` doc comment.
+- `nameToggle` must target the inner `<input>`; `toggleEl` is the wrapping label.
+- `setDynamicTooltip()` must stay while `minAppVersion` < 1.13.
+- Radio group `name` stays per-surface (tab constant vs `useId()`).

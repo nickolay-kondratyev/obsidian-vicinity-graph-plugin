@@ -6,6 +6,7 @@ import {
 	ALL_SETTINGS_RESET_CONFIRM_TITLE,
 	CONTROLS_PANEL_DISCLOSURE_SUMMARIES,
 	CONTROLS_PANEL_DISCLOSURES,
+	FORCE_LAYOUT_RESET_NAME,
 	SECTION_RESET_NAMES,
 	SETTINGS_TAB_SECTION_HEADINGS,
 	SETTINGS_TAB_SECTIONS,
@@ -167,11 +168,15 @@ test("force layout: 7 sliders, live write, restore defaults", async () => {
 		setter?.call(input, "800");
 		input.dispatchEvent(new Event("input", { bubbles: true }));
 	});
-	await expect(forceLayout.locator(".vicinity-graph-forcelayout__value").nth(1)).toHaveText("800");
+	await expect(forceLayout.locator(".vicinity-graph-slider-row__value").nth(1)).toHaveText("800");
 	const persisted = (await harness.readGlobalView()).forceLayout;
 	expect(persisted.repelStrength).toBe(800);
 	await page.screenshot({ path: `${OUT_DIR}/panel-forcelayout.png` });
-	await forceLayout.getByRole("button", { name: "Restore defaults" }).click();
+	// By its SCOPED accessible name, not its visible "Restore defaults" text: the
+	// panel's reset button now carries the same scope-naming `aria-label` as the
+	// settings tab's (read from `settingsResetPlan`), so a bare-text locator would
+	// stop matching the moment a second section grows one.
+	await forceLayout.getByRole("button", { name: FORCE_LAYOUT_RESET_NAME }).click();
 	await expect(repel).toHaveValue(defaultRepel);
 });
 
@@ -228,16 +233,16 @@ const ANY_UNNAMED_CONTROL = NAMED_CONTROL_SELECTORS.map((selector) => `${selecto
  * enable). A floor, not an exact count, so ADDING a row does not break this test —
  * but a section that stopped rendering can no longer let "nothing is unlabeled"
  * pass by matching nothing.
+ *
+ * The textarea counts UNCONDITIONALLY since the exclusion-patterns row became
+ * always-rendered-but-disabled (`nid_qp56jugz8en8wkgjirwcb269p_e`): the count no
+ * longer depends on the stored exclusion flag, which is why this test needs no
+ * "turn exclusion on first" GIVEN any more.
  */
 const MIN_NAMED_CONTROLS = 26;
 
 test("settings tab: WHEN the tab renders THEN every input carries its row name as accessible name", async () => {
 	await settingsTab.open();
-	// GIVEN node exclusion is ON: its textarea is the tab's only non-<input>
-	// control and renders only while enabled, and the exclusion test above ends by
-	// switching it OFF. Without this the textarea clause would assert 0-out-of-0.
-	await harness.saveNodeExclusion({ ...(await harness.readGlobals()).exclusion, enabled: true });
-	await settingsTab.redisplay();
 	const settings = page.locator(".vicinity-graph-settings");
 
 	// Obsidian puts the row name in a SIBLING of the control, so this only passes

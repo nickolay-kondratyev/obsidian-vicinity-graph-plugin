@@ -1,7 +1,14 @@
 import { PluginSettingTab, Setting } from "obsidian";
-import type { App, TextComponent, ToggleComponent } from "obsidian";
-import type { Direction, ForceLayoutSettings, SettingsRange, SizeMetricId, SizingMetricSetting } from "../engine";
+import type { App, TextAreaComponent, TextComponent, ToggleComponent } from "obsidian";
+import type {
+	Direction,
+	ForceLayoutSettings,
+	SettingsRange,
+	SizeMetricId,
+	SizingMetricSetting,
+} from "../engine";
 import {
+	DIRECTION_DEPTH_FIELD,
 	FORCE_LAYOUT_RANGES,
 	MAX_OUTLINE_DEPTH,
 	MIN_NODE_CAP,
@@ -15,21 +22,15 @@ import type VicinityGraphPlugin from "../main";
 import type { PluginDataStore } from "../persistence/PluginDataStore";
 import { ConfirmModal } from "./ConfirmModal";
 import { MAX_STEPPER_DEPTH, MIN_STEPPER_DEPTH, SETTINGS_WRITE_DEBOUNCE_MS, clampStepperDepth } from "./constants";
-import {
-	FORCE_LAYOUT_ADVANCED_FIELDS,
-	FORCE_LAYOUT_FIELD_META,
-	FORCE_LAYOUT_MAIN_FIELDS,
-} from "./forceLayoutFieldMeta";
-import {
-	NODE_PREVIEW_OPTION_META,
-	NODE_PREVIEW_ROW_DESCRIPTION,
-	NODE_PREVIEW_ROW_LABEL,
-} from "./nodePreviewPreferenceMeta";
+import { NODE_PREVIEW_OPTION_META } from "./nodePreviewPreferenceMeta";
 import { DebouncedSettingsWrites } from "./settingsDebounce";
 import type { SettingsResetScope } from "./settingsResetPlan";
 import { ALL_SETTINGS_RESET_SCOPE, SETTINGS_RESET_SCOPES } from "./settingsResetPlan";
 import type { SettingsResetTarget } from "./settingsResetSequence";
 import { SettingsResetSequence } from "./settingsResetSequence";
+import type { SettingsGroup, SettingsRow, SettingsRowBlock, SettingsRowState } from "./settingsRows";
+import { SETTINGS_GROUPS, SettingsRowNames, isSettingsRowDisabled } from "./settingsRows";
+import { SETTINGS_SECTIONS } from "./settingsSectionFields";
 import type { SettingsFeedback } from "./settingsValidation";
 import { describeInvalidExclusionPatterns, parseExclusionPatterns } from "./settingsValidation";
 import type { SettingsWritePipeline } from "./settingsWritePipeline";
@@ -37,16 +38,19 @@ import type { SettingsInteraction, SizingNumberField } from "./settingsWritePlan
 import { parseSizingInput } from "./sizingInput";
 import type { SizingRowVerdict } from "./sizingRowWrite";
 import { SizingRowWrite } from "./sizingRowWrite";
-import { SIZING_METRICS } from "./sizingMetrics";
 
 /**
- * The plugin's global settings tab (step-06 #7). It is pure obsidian glue: every
- * control seeds from {@link PluginDataStore.globalDepths}/{@link
- * PluginDataStore.globalView} and, on edit, names a {@link SettingsInteraction}
- * and hands it to the shared {@link SettingsWritePipeline} — the SAME object the
- * in-view controls panel writes through. Serialisation, the merge base, the
- * persist call and the refresh fan-out all live there, so this class holds no
- * write logic at all and the two surfaces cannot drift.
+ * The plugin's global settings tab — one of the TWO presenters of the declared row
+ * model in `settingsRows.ts` (the other is the in-graph React panel). It renders
+ * `SETTINGS_GROUPS` verbatim: card order, headings, row order, labels,
+ * descriptions, accessible names and `disabledWhen` are all read from there, so
+ * nothing about WHAT the settings are is decided in this file. What IS decided here
+ * is HOW Obsidian's `Setting` API expresses each control kind.
+ *
+ * On edit, a control names a {@link SettingsInteraction} and hands it to the shared
+ * {@link SettingsWritePipeline} — the SAME object the controls panel writes
+ * through. Serialisation, the merge base, the persist call and the refresh fan-out
+ * all live there, so this class holds no write logic at all.
  *
  * EVERY setting on this tab is global (owner decision 2026-07-29): there is no
  * per-note or per-view stored state for anything here to override.
@@ -69,7 +73,7 @@ const NODE_CAP_STEP = 1;
  * for inputs outside a `<form>`, so this must NOT be shared with the controls
  * panel's pill: with both mounted, one name would fuse the two groups and they
  * would un-check each other. Hence a tab-local constant here and a `useId()`
- * there — the shared copy module deliberately does not own the name.
+ * there — the shared row model deliberately does not own the name.
  */
 const NODE_PREVIEW_RADIO_GROUP = "vicinity-graph-node-preview-settings";
 
@@ -78,6 +82,16 @@ interface SliderBounds {
 	readonly min: number;
 	readonly max: number;
 	readonly step: number;
+}
+
+/**
+ * One rendered control whose enabled-ness is declared by
+ * {@link SettingsRow.disabledWhen} rather than by its own value. Collected while
+ * rendering so a later write can re-apply every verdict from ONE fresh read.
+ */
+interface DependentControl {
+	readonly row: SettingsRow;
+	readonly setDisabled: (disabled: boolean) => void;
 }
 
 export class VicinityGraphSettingTab extends PluginSettingTab {
@@ -95,6 +109,9 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	 * of a control the user used while it ran.
 	 */
 	private readonly resets: SettingsResetSequence;
+
+	/** Rebuilt by every {@link display}; see {@link DependentControl}. */
+	private dependents: DependentControl[] = [];
 
 	constructor(
 		app: App,
@@ -120,14 +137,21 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 		return this.plugin.settingsWrites;
 	}
 
+	/** The globals every row seeds from, read as ONE snapshot (see {@link SettingsRowState}). */
+	private rowState(): SettingsRowState {
+		return {
+			globalDepths: this.store.globalDepths(),
+			globalView: this.store.globalView(),
+			nodeExclusion: this.store.nodeExclusion(),
+		};
+	}
+
 	/**
-	 * The tab's ONE accessibility rule: a control carries an `aria-label` equal to
-	 * the row name a sighted user reads (plus the control's role where one row
-	 * holds two controls). Obsidian renders that name in a SIBLING element of
-	 * `.setting-item-control` with no `for`/`id` pairing, so the bare
-	 * `input`/`button` has no accessible name of its own — without this, the seven
-	 * force-layout sliders all announce identically. Stated here once and applied
-	 * from the shared row helpers so new rows inherit it;
+	 * The tab's ONE accessibility rule lives in {@link SettingsRowNames} (shared with
+	 * the panel); this is only the Obsidian mechanics of applying it. Obsidian renders
+	 * a row's name in a SIBLING element of `.setting-item-control` with no `for`/`id`
+	 * pairing, so the bare `input`/`button` has no accessible name of its own —
+	 * without this, the seven force-layout sliders all announce identically.
 	 * `e2e/settingsUxVisual.e2e.ts` fails if any input in the tab lacks one.
 	 *
 	 * Note (verified on 1.12.7): Obsidian pops its own hover tooltip for ANY element
@@ -161,25 +185,114 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	}
 
 	/**
-	 * Re-seeds every control from the store. Callers that re-render after a write
-	 * must `await this.settlePendingWrites()` FIRST — this method reads the globals
-	 * synchronously, so a debounced write draining afterwards would leave the tab
-	 * displaying a value the store no longer holds.
+	 * Re-seeds every control from the store, walking the declared row model in
+	 * order — so adding a row anywhere is a data edit, never an edit here.
+	 *
+	 * Callers that re-render after a write must `await this.settlePendingWrites()`
+	 * FIRST: this method reads the globals synchronously, so a debounced write
+	 * draining afterwards would leave the tab displaying a value the store no longer
+	 * holds.
 	 */
 	display(): void {
 		const { containerEl } = this;
 		containerEl.empty();
 		// Scope class for the settings-tab card styling (src/view/settings-tab.css).
 		containerEl.addClass("vicinity-graph-settings");
+		this.dependents = [];
 
-		this.renderDepthDefaults();
-		this.renderSizing();
-		// Node CONTENTS follow node SIZE: how big a node is decides how much of this fits.
-		this.renderNodeContents();
-		this.renderForceLayout();
-		this.renderExclusion();
-		this.renderPerformance();
+		// ONE store snapshot per render: every row below shows values from the same
+		// instant, so two rows of one card can never disagree about the same write.
+		const state = this.rowState();
+		for (const section of SETTINGS_SECTIONS) {
+			this.renderSection(SETTINGS_GROUPS[section], section, state);
+		}
 		this.renderRestoreAll();
+	}
+
+	/**
+	 * One framed card per section (settings-ux CLARIFICATION #2: CSS-only visual
+	 * grouping, no collapsibles at the CARD level — a block may still declare one).
+	 * The scoped restore row is always LAST, inside the frame: a reset rendered after
+	 * the frame closes reads as a tab-wide reset.
+	 */
+	private renderSection(group: SettingsGroup, scope: SettingsResetScope, state: SettingsRowState): void {
+		const card = this.containerEl.createDiv({ cls: "vicinity-graph-settings-section" });
+		new Setting(card).setName(group.heading).setHeading();
+		if (group.description !== undefined) {
+			new Setting(card).setDesc(group.description);
+		}
+		for (const block of group.blocks) {
+			this.renderBlock(card, block, state);
+		}
+		this.addSectionReset(card, scope);
+	}
+
+	/**
+	 * A declared row block. `collapsedUnder` becomes a native `<details>` because
+	 * Obsidian's `Setting` API has no collapsible group of its own, and a native
+	 * element keeps it dependency-free.
+	 */
+	private renderBlock(card: HTMLElement, block: SettingsRowBlock, state: SettingsRowState): void {
+		let container = card;
+		if (block.collapsedUnder !== undefined) {
+			container = card.createEl("details", { cls: "vicinity-graph-settings-advanced" });
+			container.createEl("summary", { text: block.collapsedUnder });
+		}
+		for (const row of block.rows) {
+			this.addRow(container, row, state);
+		}
+	}
+
+	/**
+	 * The tab's HALF of the row contract: which Obsidian control expresses each
+	 * declared kind. EXHAUSTIVE by `switch` on purpose — a new control kind in
+	 * `settingsRows.ts` fails to compile HERE and in the panel's twin
+	 * (`SettingsRowView.tsx`), which is what makes parity structural.
+	 */
+	private addRow(container: HTMLElement, row: SettingsRow, state: SettingsRowState): void {
+		switch (row.control.kind) {
+			case "depth":
+				this.addDepthSlider(container, row, row.control.direction, state);
+				return;
+			case "sizing-metric":
+				this.addSizingMetricRow(container, row, row.control.metric, state);
+				return;
+			case "sizing-number":
+				this.addSizingNumber(container, row, row.control.field);
+				return;
+			case "node-preview":
+				this.addNodePreview(container, row, state);
+				return;
+			case "outline-depth":
+				this.addOutlineDepthSlider(container, row, state);
+				return;
+			case "force-layout":
+				this.addForceLayoutSlider(container, row, row.control.field, state);
+				return;
+			case "exclusion-enabled":
+				this.addExclusionToggle(container, row, state);
+				return;
+			case "exclusion-patterns":
+				this.addExclusionPatterns(container, row, state);
+				return;
+			case "node-cap":
+				this.addNodeCap(container, row, state);
+				return;
+		}
+	}
+
+	/**
+	 * Re-applies every declared {@link SettingsRow.disabledWhen} verdict.
+	 *
+	 * Called TWICE around a write that a dependent row reads: once synchronously with
+	 * the state the click implies (so the row answers immediately, in click order —
+	 * the newest click paints last), then again with a FRESH read once the write has
+	 * landed, which is the authoritative pass. Both are idempotent.
+	 */
+	private applyRowDependencies(state: SettingsRowState): void {
+		for (const dependent of this.dependents) {
+			dependent.setDisabled(isSettingsRowDisabled(dependent.row, state));
+		}
 	}
 
 	/**
@@ -228,8 +341,8 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	 * interrupt (`alert`), while a per-keystroke advisory must not — `alert` there
 	 * would talk over a screen-reader user on every character they type.
 	 */
-	private static addFeedbackSlot(row: Setting, role: "alert" | "status"): HTMLElement {
-		return row.descEl.createDiv({ cls: "vicinity-graph-settings-error", attr: { role } });
+	private static addFeedbackSlot(setting: Setting, role: "alert" | "status"): HTMLElement {
+		return setting.descEl.createDiv({ cls: "vicinity-graph-settings-error", attr: { role } });
 	}
 
 	/** Renders one row's verdict: the message, and `aria-invalid` only when it REFUSED the value. */
@@ -247,20 +360,20 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 		slot.title = feedback?.detail ?? "";
 	}
 
-	/**
-	 * One framed card per section (settings-ux CLARIFICATION #2: CSS-only visual
-	 * grouping, no collapsibles here). Each renderX() builds into its own card.
-	 */
-	private createSection(): HTMLElement {
-		return this.containerEl.createDiv({ cls: "vicinity-graph-settings-section" });
+	/** A row's frame: the declared label and description, before any control is added. */
+	private static row(container: HTMLElement, row: SettingsRow): Setting {
+		const setting = new Setting(container).setName(row.label);
+		if (row.description !== undefined) {
+			setting.setDesc(row.description);
+		}
+		return setting;
 	}
 
 	/**
 	 * The LAST row of a section card: its restore-defaults affordance. Placement
 	 * and copy are uniform across all six cards, and the copy is read from
 	 * {@link SETTINGS_RESET_SCOPES} so the stated blast radius always matches the
-	 * key-set actually written. Inside the card's frame on purpose — a reset
-	 * rendered after the frame closes reads as a tab-wide reset.
+	 * key-set actually written.
 	 */
 	private addSectionReset(section: HTMLElement, scope: SettingsResetScope): void {
 		const { label, description } = SETTINGS_RESET_SCOPES[scope];
@@ -321,122 +434,56 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	}
 
 	/**
-	 * Force-layout tuning (ticket-04). The primary sliders carry the SAME
-	 * names as Obsidian's native graph view (POLS — users already know them);
-	 * the px fine-tuning knobs live in a collapsible `<details>` block (Obsidian's
-	 * Setting API has no built-in collapsible group, and a native details
-	 * element keeps it dependency-free). Slider limits come from the engine's
-	 * {@link FORCE_LAYOUT_RANGES} — the SAME table the persistence parser clamps
-	 * with — labels/descriptions from the shared {@link FORCE_LAYOUT_FIELD_META}
-	 * (also driving the in-graph panel), and every control routes through one
-	 * `global-force-layout` interaction carrying the complete object.
-	 */
-	private renderForceLayout(): void {
-		const section = this.createSection();
-		new Setting(section).setName("Force layout").setHeading();
-		for (const field of FORCE_LAYOUT_MAIN_FIELDS) {
-			this.addForceLayoutSlider(section, field);
-		}
-		const advanced = section.createEl("details", { cls: "vicinity-graph-settings-advanced" });
-		advanced.createEl("summary", { text: "Advanced spacing" });
-		for (const field of FORCE_LAYOUT_ADVANCED_FIELDS) {
-			this.addForceLayoutSlider(advanced, field);
-		}
-		this.addSectionReset(section, "force-layout");
-	}
-
-	/**
-	 * Global node exclusion (CLARIFICATION: vault-wide). The textarea is the SOURCE
-	 * OF TRUTH for the pattern list (one raw regex per line); the toggle mirrors the
-	 * toolbar switch's enable flag. The two write SEPARATE interactions
-	 * (`global-exclusion-patterns` / `global-exclusion-enabled`) that the pipeline
-	 * merges over each other's stored value, so neither can clobber the other and
-	 * there is no bespoke merge logic here.
+	 * Global node exclusion (CLARIFICATION: vault-wide). The toggle mirrors the
+	 * controls panel's switch; the patterns row beside it is the SOURCE OF TRUTH for
+	 * the list. The two write SEPARATE interactions that the pipeline merges over
+	 * each other's stored value, so neither can clobber the other.
 	 *
-	 * WHEN disabled the pattern textarea is hidden (the patterns are inactive), but the
-	 * stored patterns are untouched so re-enabling restores them. The toggle swaps that
-	 * ONE row in and out of its own slot — see {@link showExclusionPatterns}.
+	 * WHEN off the patterns row stays on screen, DISABLED — its `disabledWhen` is
+	 * declared in the row model and applied by {@link applyRowDependencies}, the same
+	 * mechanism any future dependent row gets for free. (Owner decision 2026-07-29,
+	 * replacing the hide/reveal slot this used to swap the row in and out of.)
 	 */
-	private renderExclusion(): void {
-		const section = this.createSection();
-		new Setting(section).setName("Node exclusion").setHeading();
-		const exclusion = this.store.nodeExclusion();
-		// One string, read visibly AND announced — they cannot drift apart.
-		const name = "Exclude notes from the graph";
-		const toggleRow = new Setting(section)
-			.setName(name)
-			.setDesc("Hide matching neighbor notes before the graph is built. Central and pinned notes are never excluded.");
-		// The patterns row's own slot. Created HERE for two reasons: the toggle wired
-		// below has to name it, and a `Setting` appended to `section` later would land
-		// under the card's restore footer instead of above it.
-		const patternsSlot = section.createDiv();
-		toggleRow.addToggle((toggle) => {
+	private addExclusionToggle(container: HTMLElement, row: SettingsRow, state: SettingsRowState): void {
+		const enabledNow = state.nodeExclusion.enabled;
+		VicinityGraphSettingTab.row(container, row).addToggle((toggle) => {
 			// The row's only control, so the row name alone identifies it.
-			VicinityGraphSettingTab.nameToggle(toggle, name);
-			// No queue of its own any more: the handler emits ONE granular interaction and
+			VicinityGraphSettingTab.nameToggle(toggle, SettingsRowNames.sole(row));
+			// No queue of its own: the handler emits ONE granular interaction and
 			// `SettingsWritePipeline` plans it from a fresh read inside its serialised
 			// slot, so two fast clicks cannot both plan from the same pre-write state.
-			toggle.setValue(exclusion.enabled).onChange(async (enabled) => {
+			toggle.setValue(enabledNow).onChange(async (enabled) => {
+				// Answer the click immediately, from the state the click implies.
+				this.applyRowDependencies({ ...state, nodeExclusion: { ...state.nodeExclusion, enabled } });
 				// Pending typed edits first: the patterns textarea persists on a debounce,
-				// while `showExclusionPatterns` below re-seeds the rebuilt row by reading
-				// the store SYNCHRONOUSLY — a write draining afterwards would leave that
-				// row showing patterns the store no longer has.
+				// and its own write must not land behind the flag it belongs to.
 				await this.settlePendingWrites();
 				await this.writes.apply({ kind: "global-exclusion-enabled", enabled });
-				this.showExclusionPatterns(patternsSlot);
+				// Authoritative pass: whatever actually landed, however the clicks raced.
+				this.applyRowDependencies(this.rowState());
 			});
 		});
-		this.showExclusionPatterns(patternsSlot);
-		this.addSectionReset(section, "node-exclusion");
 	}
 
 	/**
-	 * Builds or tears down the patterns row inside its own slot — and touches
-	 * NOTHING else in the tab.
-	 *
-	 * WHY-NOT `this.display()`, which this replaces: rebuilding all six cards to
-	 * reveal one row discards the user's scroll position and keyboard focus. Same
-	 * reasoning as the Preview pill (see {@link addNodePreviewSegmented}), one step
-	 * further: there the fix was to re-render nothing, here it is to re-render only
-	 * the row that actually depends on the control that changed.
-	 *
-	 * WHY-NOT rendering the row always and merely disabling it (Obsidian's own
-	 * preference, since a hidden row also drops out of 1.13's settings search): that
-	 * is a deliberate UX change, not a refresh-mechanics one — tracked separately in
-	 * `nid_qp56jugz8en8wkgjirwcb269p_e`. This method keeps today's hide/show behaviour
-	 * exactly.
-	 *
-	 * Takes NO `enabled` parameter on purpose. The toggle handler paints AFTER its own
-	 * await, so a handler passing the value it captured at click time could repaint a
-	 * stale reveal once two fast clicks finish out of order. Reading the store here —
-	 * both flags from ONE snapshot — makes the contract literally true: the slot shows
-	 * what the store says.
+	 * The exclusion pattern list: one raw regex per line, with live per-keystroke
+	 * validation feedback. Rendered ALWAYS and disabled while exclusion is off (see
+	 * {@link addExclusionToggle}); the stored patterns are untouched either way, so
+	 * re-enabling restores them without this row ever being rebuilt.
 	 */
-	private showExclusionPatterns(slot: HTMLElement): void {
-		// Read fresh: the caller has just drained the debounce window, so this is the
-		// first read that can see everything the user typed.
-		const exclusion = this.store.nodeExclusion();
-		slot.empty();
-		if (exclusion.enabled) {
-			this.addExclusionPatterns(slot, exclusion.patterns);
-		}
-	}
-
-	private addExclusionPatterns(section: HTMLElement, patterns: readonly string[]): void {
-		const name = "Exclusion patterns";
-		const row = new Setting(section)
-			.setName(name)
-			.setDesc(
-				"One regular expression per line, tested (case-sensitively, unanchored) against each note's vault path including extension. E.g. `^archive/` matches the archive folder at the vault root; `templates/` matches anywhere. Invalid patterns are ignored.",
-			);
+	private addExclusionPatterns(container: HTMLElement, row: SettingsRow, state: SettingsRowState): void {
+		const name = SettingsRowNames.sole(row);
+		const setting = VicinityGraphSettingTab.row(container, row);
 		// "status", not "alert": this slot updates on EVERY keystroke while a regex is
 		// half-typed, and an assertive region would interrupt on every character.
-		const feedback = VicinityGraphSettingTab.addFeedbackSlot(row, "status");
-		row.addTextArea((text) => {
+		const feedback = VicinityGraphSettingTab.addFeedbackSlot(setting, "status");
+		setting.addTextArea((text: TextAreaComponent) => {
 			text.inputEl.rows = EXCLUSION_TEXTAREA_ROWS;
 			VicinityGraphSettingTab.nameControl(text.inputEl, name);
-			const initial = patterns.join("\n");
+			const initial = state.nodeExclusion.patterns.join("\n");
 			text.setValue(initial);
+			text.setDisabled(isSettingsRowDisabled(row, state));
+			this.dependents.push({ row, setDisabled: (disabled) => text.setDisabled(disabled) });
 			// Patterns already stored (or hand-edited into data.json) get the same
 			// verdict on open as a freshly typed one.
 			VicinityGraphSettingTab.showWarning(feedback, describeInvalidExclusionPatterns(initial));
@@ -453,92 +500,47 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 		});
 	}
 
-	private renderDepthDefaults(): void {
-		const section = this.createSection();
-		// Heading and row copy say "every"/"all notes" rather than "defaults" (owner
-		// decision 2026-07-29): "default" implies a per-note override layer, and there
-		// is none — this IS the one value every graph traverses with. Same words as the
-		// controls panel's Depth disclosure, so the two surfaces read as one setting.
-		new Setting(section).setName("Depth (all notes)").setHeading();
-		const depths = this.store.globalDepths();
-		this.addDepthSlider(
-			section,
-			"Outgoing depth",
-			"How many hops of outgoing links to expand from every central note.",
-			"outgoing",
-			depths.outgoingDepth,
-		);
-		this.addDepthSlider(
-			section,
-			"Incoming depth",
-			"How many hops of incoming links (backlinks) to expand from every central note.",
-			"incoming",
-			depths.incomingDepth,
-		);
-		this.addSectionReset(section, "depth-defaults");
-	}
-
-	private renderSizing(): void {
-		const section = this.createSection();
-		new Setting(section).setName("Node sizing").setHeading();
-		new Setting(section).setDesc(
-			"Enable metrics and weight their contribution to each node's size. Sizes are normalised across the graph.",
-		);
-
-		const sizing = this.store.globalView().sizing;
-		for (const { id, label } of SIZING_METRICS) {
-			this.addSizingMetricRow(section, id, label, sizing.metrics[id]);
-		}
-
-		this.addSizingNumber(section, "Minimum node size (px)", "minPx");
-		this.addSizingNumber(section, "Maximum node size (px)", "maxPx");
-		this.addSizingNumber(section, "Depth decay k", "depthDecayK");
-		this.addSectionReset(section, "node-sizing");
-	}
-
 	/**
 	 * One metric row: an enable toggle plus the weight input that toggle governs, in
 	 * a single `Setting` (they are one decision, not two).
 	 *
-	 * `seed` is the row's INITIAL displayed state, taken from the card's one store
-	 * snapshot; every later write re-reads the store so successive edits compose.
+	 * WHY the weight is disabled imperatively rather than by `disabledWhen`: it is
+	 * the SECOND control on this row, and `disabledWhen` is a ROW-level declaration.
+	 * A row whose whole control is inert (exclusion patterns) is the declarative
+	 * case; a control governed by its own row-mate is this one.
 	 */
 	private addSizingMetricRow(
-		section: HTMLElement,
-		id: SizeMetricId,
-		label: string,
-		seed: SizingMetricSetting,
+		container: HTMLElement,
+		row: SettingsRow,
+		metric: SizeMetricId,
+		state: SettingsRowState,
 	): void {
+		const seed: SizingMetricSetting = state.globalView.sizing.metrics[metric];
 		// The weight input this row's toggle enables and disables. Definite
 		// assignment, not an optional: `Setting.addText` below invokes its builder
 		// SYNCHRONOUSLY, so the input exists before the row is ever on screen — and
 		// the toggle handler can only run once it is.
 		let weightInput!: TextComponent;
-		new Setting(section)
-			.setName(label)
+		VicinityGraphSettingTab.row(container, row)
 			.addToggle((toggle) => {
-				// Two controls share this row (toggle + weight), so the row name alone
-				// would not distinguish them — same reason as `${label} weight` below.
-				VicinityGraphSettingTab.nameToggle(toggle, `${label} enabled`);
+				// Two controls share this row, so the row name alone would not
+				// distinguish them — hence the declared role suffix.
+				VicinityGraphSettingTab.nameToggle(toggle, SettingsRowNames.role(row, "enabled"));
 				toggle.setValue(seed.enabled).onChange((enabled) => {
-					// The paired weight input is the ONLY thing on screen that depends on
-					// this toggle, so flip it directly instead of rebuilding the tab with
-					// `display()` — that discarded the user's scroll position and focus
-					// (same reasoning as {@link addNodePreviewSegmented}). Flipped BEFORE the
-					// write is awaited so the row answers the click immediately; unlike
-					// {@link showExclusionPatterns} this cannot paint a stale value,
-					// because the flip happens in click order — the newest click paints last.
+					// Flipped BEFORE the write is awaited so the row answers the click
+					// immediately; this cannot paint a stale value, because the flip happens
+					// in click order — the newest click paints last.
 					weightInput.setDisabled(!enabled);
 					// Pending typed edits first so this row's own weight, still inside the
 					// debounce window, is not left behind the enable flag it belongs to.
 					return this.settlePendingWrites().then(() =>
-						this.writes.apply({ kind: "global-sizing-metric-enabled", metric: id, enabled }),
+						this.writes.apply({ kind: "global-sizing-metric-enabled", metric, enabled }),
 					);
 				});
 			})
 			.addText((text) => {
 				weightInput = text;
-				const weightName = `${label} weight`;
+				const weightName = SettingsRowNames.role(row, "weight");
 				text.inputEl.type = "number";
 				VicinityGraphSettingTab.applyRange(text.inputEl, SIZING_RANGES.metricWeight);
 				text.setValue(String(seed.weight));
@@ -552,166 +554,10 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 						return;
 					}
 					this.debounced.schedule(weightName, (writer) =>
-						writer.apply({ kind: "global-sizing-metric-weight", metric: id, weight }),
+						writer.apply({ kind: "global-sizing-metric-weight", metric, weight }),
 					);
 				});
 			});
-	}
-
-	/**
-	 * What a node shows INSIDE itself. One card like every other section (the tab
-	 * groups by framed card throughout — mixing mechanisms would invent hierarchy).
-	 * Slider bounds come from the engine's spec, the SAME source the persistence
-	 * parser clamps with, so the slider and a hand-edited `data.json` agree.
-	 *
-	 * Row order is general → specific: the Preview pill decides WHICH preview a
-	 * node shows, the depth slider only refines the outline once the outline won.
-	 *
-	 * There is still no enable/disable toggle: document position remains the
-	 * escape hatch, now as the pill's `Auto` option (it is the shipped default, so
-	 * the behavior the old "by design" note described is unchanged) — a user who
-	 * wants one preview regardless of where the image sits picks it explicitly.
-	 */
-	private renderNodeContents(): void {
-		const section = this.createSection();
-		new Setting(section).setName("Node contents").setHeading();
-		new Setting(section)
-			.setName(NODE_PREVIEW_ROW_LABEL)
-			.setDesc(NODE_PREVIEW_ROW_DESCRIPTION)
-			.then((row) => this.addNodePreviewSegmented(row.controlEl));
-		this.addLabeledSlider(
-			section,
-			"Outline depth",
-			"How many heading levels a note's outline shows inside its node.",
-			{ min: MIN_OUTLINE_DEPTH, max: MAX_OUTLINE_DEPTH, step: OUTLINE_DEPTH_SLIDER_STEP },
-			this.store.globalView().outlineMaxDepth,
-			(value) => {
-				void this.writes.apply({ kind: "global-outline-depth", value: clampOutlineMaxDepth(value) });
-			},
-		);
-		this.addSectionReset(section, "node-contents");
-	}
-
-	/**
-	 * The Preview pill: one NATIVE radio per option inside a `role="radiogroup"`,
-	 * styled as a segmented control by `segmented-control.css`. Native inputs are
-	 * the whole point — one tab stop, arrow-key cycling and correct screen-reader
-	 * announcements come free, with no hand-written key handling to get wrong.
-	 *
-	 * Order comes from {@link NODE_PREVIEW_PREFERENCES} and copy from the shared
-	 * {@link NODE_PREVIEW_OPTION_META} (the panel's pill reads the same table), so
-	 * the two surfaces cannot drift. Deliberately NO `this.display()` on change:
-	 * the browser already moves the selection, and re-rendering the tab would
-	 * throw away the user's keyboard focus mid-arrow-key.
-	 */
-	private addNodePreviewSegmented(controlEl: HTMLElement): void {
-		const selected = this.store.globalView().nodePreviewPreference;
-		const group = controlEl.createDiv({
-			cls: "vicinity-graph-segmented",
-			attr: { role: "radiogroup", "aria-label": NODE_PREVIEW_ROW_LABEL },
-		});
-		for (const preference of NODE_PREVIEW_PREFERENCES) {
-			const { label, description } = NODE_PREVIEW_OPTION_META[preference];
-			// The <label> WRAPS its radio, so the visible text is the radio's
-			// accessible name without any id/for pairing.
-			const option = group.createEl("label", {
-				cls: "vicinity-graph-segmented__option",
-				title: description,
-			});
-			const radio = option.createEl("input", {
-				type: "radio",
-				value: preference,
-				attr: { name: NODE_PREVIEW_RADIO_GROUP },
-			});
-			radio.checked = preference === selected;
-			option.createSpan({ cls: "vicinity-graph-segmented__text", text: label });
-			radio.addEventListener("change", () => {
-				void this.writes.apply({ kind: "global-node-preview", value: preference });
-			});
-		}
-	}
-
-	private renderPerformance(): void {
-		const section = this.createSection();
-		new Setting(section).setName("Performance").setHeading();
-		const nodeCapName = "Node cap";
-		new Setting(section)
-			.setName(nodeCapName)
-			.setDesc("Maximum number of non-central nodes rendered. Central and pinned notes are never capped.")
-			.addText((text) => {
-				text.inputEl.type = "number";
-				text.inputEl.min = String(MIN_NODE_CAP);
-				text.inputEl.step = String(NODE_CAP_STEP);
-				text.setValue(String(this.store.globalView().nodeCap));
-				VicinityGraphSettingTab.nameControl(text.inputEl, nodeCapName);
-				this.flushOnBlur(text.inputEl);
-				text.onChange((raw) => {
-					const value = Number(raw);
-					if (Number.isInteger(value) && value >= MIN_NODE_CAP) {
-						this.debounced.schedule(nodeCapName, (writer) => writer.apply({ kind: "global-cap", value }));
-						return;
-					}
-					// Half-typed / cleared: forget the burst's earlier keystrokes.
-					this.debounced.drop(nodeCapName);
-				});
-			});
-		this.addSectionReset(section, "performance");
-	}
-
-	/**
-	 * EVERY slider row in this tab. Bounds/value/onChange are the only things a
-	 * caller varies, so keeping one row builder means the accessible name (see
-	 * {@link VicinityGraphSettingTab.nameControl}) and the tooltip behaviour are
-	 * decided once — a slider added later cannot forget either.
-	 *
-	 * WHY `setDynamicTooltip()` despite the `@deprecated` tag: the tag comes from the
-	 * 1.13 typings ("the value is now always shown inline"), and the inline readout it
-	 * describes only landed in 1.13.0. Our floor is `minAppVersion` 1.12.4 (e2e pins
-	 * 1.12.7), where the method still installs the hover listeners that are a slider's
-	 * ONLY value readout — verified on 1.12.7. Removing it silently blanks the value on
-	 * every supported build below 1.13. Drop it only when `minAppVersion` reaches 1.13.0.
-	 *
-	 * @see e2e/settingsUxVisual.e2e.ts — "settings tab: WHEN a slider is hovered THEN its
-	 *      current value is readable" is the test that catches this removal.
-	 */
-	private addLabeledSlider(
-		container: HTMLElement,
-		name: string,
-		desc: string,
-		bounds: SliderBounds,
-		value: number,
-		onChange: (value: number) => void,
-	): void {
-		new Setting(container)
-			.setName(name)
-			.setDesc(desc)
-			.addSlider((slider) =>
-				slider
-					.setLimits(bounds.min, bounds.max, bounds.step)
-					.setValue(value)
-					.setDynamicTooltip()
-					.then(() => VicinityGraphSettingTab.nameControl(slider.sliderEl, name))
-					.onChange(onChange),
-			);
-	}
-
-	private addDepthSlider(
-		container: HTMLElement,
-		name: string,
-		desc: string,
-		direction: Direction,
-		current: number,
-	): void {
-		this.addLabeledSlider(
-			container,
-			name,
-			desc,
-			{ min: MIN_STEPPER_DEPTH, max: MAX_STEPPER_DEPTH, step: DEPTH_SLIDER_STEP },
-			current,
-			(value) => {
-				void this.writes.apply({ kind: "global-depth", direction, value: clampStepperDepth(value) });
-			},
-		);
 	}
 
 	/**
@@ -722,11 +568,12 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	 * FLUSH time. A REJECTED value stays in the field with its reason beside it —
 	 * never silently persisted, never silently reverted.
 	 */
-	private addSizingNumber(container: HTMLElement, name: string, field: SizingNumberField): void {
+	private addSizingNumber(container: HTMLElement, row: SettingsRow, field: SizingNumberField): void {
+		const name = SettingsRowNames.sole(row);
 		const write = new SizingRowWrite(field, () => this.store.globalView().sizing);
-		const row = new Setting(container).setName(name);
-		const feedback = VicinityGraphSettingTab.addFeedbackSlot(row, "alert");
-		row.addText((text) => {
+		const setting = VicinityGraphSettingTab.row(container, row);
+		const feedback = VicinityGraphSettingTab.addFeedbackSlot(setting, "alert");
+		setting.addText((text) => {
 			text.inputEl.type = "number";
 			VicinityGraphSettingTab.applyRange(text.inputEl, SIZING_RANGES[field]);
 			const stored = write.storedValue();
@@ -760,33 +607,149 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 		});
 	}
 
+	/**
+	 * The Preview pill: one NATIVE radio per option inside a `role="radiogroup"`,
+	 * styled as a segmented control by `segmented-control.css`. Native inputs are
+	 * the whole point — one tab stop, arrow-key cycling and correct screen-reader
+	 * announcements come free, with no hand-written key handling to get wrong.
+	 *
+	 * Order comes from {@link NODE_PREVIEW_PREFERENCES} and per-option copy from the
+	 * shared {@link NODE_PREVIEW_OPTION_META} (the panel's pill reads the same table),
+	 * so the two surfaces cannot drift. Deliberately NO `this.display()` on change:
+	 * the browser already moves the selection, and re-rendering the tab would throw
+	 * away the user's keyboard focus mid-arrow-key.
+	 */
+	private addNodePreview(container: HTMLElement, row: SettingsRow, state: SettingsRowState): void {
+		const selected = state.globalView.nodePreviewPreference;
+		const groupName = SettingsRowNames.sole(row);
+		VicinityGraphSettingTab.row(container, row).then((setting) => {
+			const group = setting.controlEl.createDiv({
+				cls: "vicinity-graph-segmented",
+				attr: { role: "radiogroup", "aria-label": groupName },
+			});
+			for (const preference of NODE_PREVIEW_PREFERENCES) {
+				const { label, description } = NODE_PREVIEW_OPTION_META[preference];
+				// The <label> WRAPS its radio, so the visible text is the radio's
+				// accessible name without any id/for pairing.
+				const option = group.createEl("label", { cls: "vicinity-graph-segmented__option", title: description });
+				const radio = option.createEl("input", {
+					type: "radio",
+					value: preference,
+					attr: { name: NODE_PREVIEW_RADIO_GROUP },
+				});
+				radio.checked = preference === selected;
+				option.createSpan({ cls: "vicinity-graph-segmented__text", text: label });
+				radio.addEventListener("change", () => {
+					void this.writes.apply({ kind: "global-node-preview", value: preference });
+				});
+			}
+		});
+	}
+
+	private addNodeCap(container: HTMLElement, row: SettingsRow, state: SettingsRowState): void {
+		const name = SettingsRowNames.sole(row);
+		VicinityGraphSettingTab.row(container, row).addText((text) => {
+			text.inputEl.type = "number";
+			text.inputEl.min = String(MIN_NODE_CAP);
+			text.inputEl.step = String(NODE_CAP_STEP);
+			text.setValue(String(state.globalView.nodeCap));
+			VicinityGraphSettingTab.nameControl(text.inputEl, name);
+			this.flushOnBlur(text.inputEl);
+			text.onChange((raw) => {
+				const value = Number(raw);
+				if (Number.isInteger(value) && value >= MIN_NODE_CAP) {
+					this.debounced.schedule(name, (writer) => writer.apply({ kind: "global-cap", value }));
+					return;
+				}
+				// Half-typed / cleared: forget the burst's earlier keystrokes.
+				this.debounced.drop(name);
+			});
+		});
+	}
+
+	/**
+	 * EVERY slider row in this tab. Bounds/value/onChange are the only things a
+	 * caller varies, so keeping one row builder means the accessible name and the
+	 * tooltip behaviour are decided once — a slider added later cannot forget either.
+	 *
+	 * WHY `setDynamicTooltip()` despite the `@deprecated` tag: the tag comes from the
+	 * 1.13 typings ("the value is now always shown inline"), and the inline readout it
+	 * describes only landed in 1.13.0. Our floor is `minAppVersion` 1.12.4 (e2e pins
+	 * 1.12.7), where the method still installs the hover listeners that are a slider's
+	 * ONLY value readout — verified on 1.12.7. Removing it silently blanks the value on
+	 * every supported build below 1.13. Drop it only when `minAppVersion` reaches 1.13.0.
+	 *
+	 * @see e2e/settingsUxVisual.e2e.ts — "settings tab: WHEN a slider is hovered THEN its
+	 *      current value is readable" is the test that catches this removal.
+	 */
+	private addSlider(
+		container: HTMLElement,
+		row: SettingsRow,
+		bounds: SliderBounds,
+		value: number,
+		onChange: (value: number) => void,
+	): void {
+		const name = SettingsRowNames.sole(row);
+		VicinityGraphSettingTab.row(container, row).addSlider((slider) =>
+			slider
+				.setLimits(bounds.min, bounds.max, bounds.step)
+				.setValue(value)
+				.setDynamicTooltip()
+				.then(() => VicinityGraphSettingTab.nameControl(slider.sliderEl, name))
+				.onChange(onChange),
+		);
+	}
+
+	private addDepthSlider(
+		container: HTMLElement,
+		row: SettingsRow,
+		direction: Direction,
+		state: SettingsRowState,
+	): void {
+		this.addSlider(
+			container,
+			row,
+			{ min: MIN_STEPPER_DEPTH, max: MAX_STEPPER_DEPTH, step: DEPTH_SLIDER_STEP },
+			state.globalDepths[DIRECTION_DEPTH_FIELD[direction]],
+			(value) => {
+				void this.writes.apply({ kind: "global-depth", direction, value: clampStepperDepth(value) });
+			},
+		);
+	}
+
+	private addOutlineDepthSlider(container: HTMLElement, row: SettingsRow, state: SettingsRowState): void {
+		this.addSlider(
+			container,
+			row,
+			{ min: MIN_OUTLINE_DEPTH, max: MAX_OUTLINE_DEPTH, step: OUTLINE_DEPTH_SLIDER_STEP },
+			state.globalView.outlineMaxDepth,
+			(value) => {
+				void this.writes.apply({ kind: "global-outline-depth", value: clampOutlineMaxDepth(value) });
+			},
+		);
+	}
+
+	/**
+	 * One force-layout slider. Bounds come from {@link FORCE_LAYOUT_RANGES} — the SAME
+	 * table the persistence parser clamps with — and the copy from the row model. The
+	 * sibling knobs are merged by the pipeline from a read taken inside its own
+	 * serialised slot, so this slider names ONLY its own field.
+	 */
+	private addForceLayoutSlider(
+		container: HTMLElement,
+		row: SettingsRow,
+		field: keyof ForceLayoutSettings,
+		state: SettingsRowState,
+	): void {
+		this.addSlider(container, row, FORCE_LAYOUT_RANGES[field], state.globalView.forceLayout[field], (value) => {
+			void this.writes.apply({ kind: "global-force-layout-field", field, value });
+		});
+	}
+
 	/** Mirrors a {@link SettingsRange} onto a number input's stepper attributes. */
 	private static applyRange(input: HTMLInputElement, range: SettingsRange): void {
 		input.min = String(range.min);
 		input.max = String(range.max);
 		input.step = String(range.step);
 	}
-
-	/**
-	 * One force-layout slider. Bounds come from {@link FORCE_LAYOUT_RANGES},
-	 * copy from the shared {@link FORCE_LAYOUT_FIELD_META}. The current value is
-	 * read fresh from the store on every change so successive edits compose
-	 * (same pattern as sizing).
-	 */
-	private addForceLayoutSlider(container: HTMLElement, field: keyof ForceLayoutSettings): void {
-		const meta = FORCE_LAYOUT_FIELD_META[field];
-		this.addLabeledSlider(
-			container,
-			meta.label,
-			meta.description,
-			FORCE_LAYOUT_RANGES[field],
-			this.store.globalView().forceLayout[field],
-			// The sibling knobs are merged by the pipeline, from a read taken inside its
-			// own serialised slot — this slider names ONLY its own field.
-			(value) => {
-				void this.writes.apply({ kind: "global-force-layout-field", field, value });
-			},
-		);
-	}
-
 }

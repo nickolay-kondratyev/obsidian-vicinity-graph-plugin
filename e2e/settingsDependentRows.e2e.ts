@@ -6,12 +6,17 @@ import { SettingsTabPage } from "./settingsTabPage";
 import { SIZING_METRICS } from "../src/view/sizingMetrics";
 
 /**
- * Ticket `nid_9k11zke41l6ze3p7n7suuo4v2_e`: the settings tab's two DEPENDENT rows
- * — the exclusion-patterns textarea and each sizing metric's weight input — used
- * to be refreshed by calling `display()`, which empties `containerEl` and rebuilds
- * all six cards. That is invisible in a screenshot and invisible to every other
- * spec, but it costs the user their scroll position and their keyboard focus on
- * every flip.
+ * Ticket `nid_9k11zke41l6ze3p7n7suuo4v2_e`: the settings tab's two DEPENDENT
+ * controls — the exclusion-patterns textarea and each sizing metric's weight input
+ * — used to be refreshed by calling `display()`, which empties `containerEl` and
+ * rebuilds all six cards. That is invisible in a screenshot and invisible to every
+ * other spec, but it costs the user their scroll position and their keyboard focus
+ * on every flip.
+ *
+ * Since `nid_qp56jugz8en8wkgjirwcb269p_e` BOTH are the same shape: the dependent
+ * control is always rendered and merely toggles `disabled` (declared as
+ * `disabledWhen` in `src/view/settingsRows.ts`), so both tests below assert node
+ * IDENTITY across the flip.
  *
  * So each test here asserts the same three things across ONE toggle, and they are
  * the only assertions that can tell a targeted update from a rebuild:
@@ -51,9 +56,10 @@ if (METRIC_UNDER_TEST === undefined) {
 
 /**
  * How far to scroll the tab before flipping a toggle. Deep enough that a rebuild's
- * reset to 0 is unmistakable, shallow enough that removing the patterns row cannot
- * shorten the content below it and make the browser CLAMP the offset — a clamp
- * would fail this test for a reason that is not a rebuild.
+ * reset to 0 is unmistakable, and shallow enough to stay clear of the browser
+ * CLAMPING the offset against a shorter document — a clamp would fail this test for
+ * a reason that is not a rebuild. (No row changes height any more; kept modest
+ * anyway, since the tab's total height is not this test's business.)
  */
 const SCROLL_OFFSET_PX = 200;
 
@@ -193,35 +199,52 @@ const expectMetricEnabledPersisted = async (enabled: boolean): Promise<void> => 
 		.toBe(enabled);
 };
 
-test("settings tab: WHEN the exclusion toggle is switched off THEN only its patterns row goes, keeping scroll and focus", async () => {
+test("settings tab: WHEN the exclusion toggle is switched off THEN its patterns row is disabled in place, keeping scroll and focus", async () => {
 	await settingsTab.open();
 	await harness.saveNodeExclusion({ enabled: true, patterns: SEEDED_PATTERNS });
 	await settingsTab.redisplay();
 	const card = settingsTab.card("Node exclusion");
 	// The card holds exactly one toggle, so `flipToggleIn` needs no finer scope.
-	await expect(card.locator("textarea")).toHaveCount(1);
+	const textarea = card.locator("textarea");
+	await expect(textarea).toBeEnabled();
+	// Probed too: the textarea must be DISABLED, not torn down and rebuilt — the same
+	// claim the sizing-metric test below makes about its weight input. Since
+	// `nid_qp56jugz8en8wkgjirwcb269p_e` this row is never removed, so its identity
+	// across the flip is the whole assertion.
+	await markIdentity(textarea);
 	const offset = await givenTabScrolledAndFocusedElsewhere();
 
 	await flipToggleIn(card);
 
-	await expect(card.locator("textarea")).toHaveCount(0);
+	await expect(textarea).toBeDisabled();
+	expect(await isSameNodeAsMarked(textarea), "the patterns textarea was rebuilt instead of disabled in place").toBe(
+		true,
+	);
 	await expectExclusionPersisted(false);
 	await expectTabUndisturbed(offset);
 	await page.screenshot({ path: `${OUT_DIR}/01-exclusion-off-scroll-kept.png` });
 });
 
-test("settings tab: WHEN the exclusion toggle is switched back on THEN the patterns row returns re-seeded from the store", async () => {
+test("settings tab: WHEN the exclusion toggle is switched back on THEN the patterns row is re-enabled with its stored value", async () => {
 	await settingsTab.open();
 	await harness.saveNodeExclusion({ enabled: false, patterns: SEEDED_PATTERNS });
 	await settingsTab.redisplay();
 	const card = settingsTab.card("Node exclusion");
-	await expect(card.locator("textarea")).toHaveCount(0);
+	const textarea = card.locator("textarea");
+	await expect(textarea).toBeDisabled();
+	// Seeded from the store even while inert, so switching exclusion on reveals the
+	// real patterns rather than an empty field the user would have to retype.
+	await expect(textarea).toHaveValue(SEEDED_PATTERNS.join("\n"));
+	await markIdentity(textarea);
 	const offset = await givenTabScrolledAndFocusedElsewhere();
 
 	await flipToggleIn(card);
 
-	// Re-seeded from the store, not from a stale closure captured at first render.
-	await expect(card.locator("textarea")).toHaveValue(SEEDED_PATTERNS.join("\n"));
+	await expect(textarea).toBeEnabled();
+	await expect(textarea).toHaveValue(SEEDED_PATTERNS.join("\n"));
+	expect(await isSameNodeAsMarked(textarea), "the patterns textarea was rebuilt instead of re-enabled in place").toBe(
+		true,
+	);
 	await expectExclusionPersisted(true);
 	await expectTabUndisturbed(offset);
 	await page.screenshot({ path: `${OUT_DIR}/02-exclusion-on-scroll-kept.png` });
