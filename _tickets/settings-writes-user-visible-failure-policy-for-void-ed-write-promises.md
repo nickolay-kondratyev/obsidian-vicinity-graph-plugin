@@ -3,7 +3,7 @@ id: nid_itpt4tf0kkhsbbz0np304a558_e
 title: "Settings writes: user-visible failure policy for void-ed write promises"
 status: open
 deps: []
-links: [nid_m5hxe4eo9jgt7cfic7s2o3uvi_e]
+links: [nid_m5hxe4eo9jgt7cfic7s2o3uvi_e, nid_biwdtykvazsk3ejcqqli8o9j7_e, nid_t25rc8sd9nmlbmrn69k4zsaes_e]
 created_iso: 2026-07-30T01:17:40Z
 status_updated_iso: 2026-07-30T01:17:40Z
 type: task

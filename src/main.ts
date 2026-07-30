@@ -1,4 +1,4 @@
-import { Plugin } from "obsidian";
+import { Notice, Plugin } from "obsidian";
 import type { TFile } from "obsidian";
 import { DocIdServices } from "obsidian-id-lib";
 import type { DocIdService } from "obsidian-id-lib";
@@ -15,7 +15,7 @@ import { GraphViewOpener } from "./view/GraphViewOpener";
 import { SettingsWritePipeline } from "./view/settingsWritePipeline";
 import { VicinityGraphSettingTab } from "./view/VicinityGraphSettingTab";
 import { VicinityGraphView, VIEW_TYPE_VICINITY_GRAPH } from "./view/VicinityGraphView";
-import type { ViewsRefreshPort } from "./view/viewPorts";
+import type { UserNoticePort, ViewsRefreshPort } from "./view/viewPorts";
 
 // manifest.json minAppVersion WHY: 1.12.4 is the first PUBLIC Obsidian release where
 // canvas backlinks are core-indexed (resolvedLinks/graph; EA 1.12.0, 2026-02). It is a
@@ -51,11 +51,22 @@ export default class VicinityGraphPlugin extends Plugin {
 	 */
 	private readonly viewsRefresh: ViewsRefreshPort = { refreshAllViews: () => this.refreshOpenViews() };
 
+	/**
+	 * {@link UserNoticePort} over Obsidian's own transient toast — the ONE place this
+	 * plugin's `Notice` constructor is reached for on behalf of the view layer, so a
+	 * failed settings write is reportable without the pipeline importing `obsidian`.
+	 */
+	private readonly notices: UserNoticePort = {
+		show: (message) => {
+			new Notice(message);
+		},
+	};
+
 	async onload(): Promise<void> {
 		this.docIdService = DocIdServices.createDefault(this.app.vault);
 		this.pluginDataStore = new PluginDataStore(this);
 		await this.pluginDataStore.init();
-		this.settingsWrites = new SettingsWritePipeline(this.pluginDataStore, this.viewsRefresh);
+		this.settingsWrites = new SettingsWritePipeline(this.pluginDataStore, this.viewsRefresh, this.notices);
 		this.persistenceServices = new PersistenceServices(this.docIdService, this.pluginDataStore, this.pathDocIdMap);
 		this.graphBuilder = new VicinityGraphBuilder(
 			this.app.vault,

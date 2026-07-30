@@ -2,9 +2,10 @@ import { SerialPromiseChain } from "../shared/SerialPromiseChain";
 import type { PluginDataStore } from "../persistence/PluginDataStore";
 import type { SettingsResetConfirmation, SettingsResetScope } from "./settingsResetPlan";
 import { planSettingsReset, planSettingsResetConfirmation } from "./settingsResetPlan";
+import { SettingsWriteFailureNotice } from "./settingsWriteFailureNotice";
 import type { SettingsCommand, SettingsInteraction, SettingsWriteContext } from "./settingsWritePlan";
 import { planSettingsWrite } from "./settingsWritePlan";
-import type { ViewsRefreshPort } from "./viewPorts";
+import type { UserNoticePort, ViewsRefreshPort } from "./viewPorts";
 
 /**
  * THE settings write pipeline — the one path every settings edit takes, from both
@@ -25,6 +26,15 @@ import type { ViewsRefreshPort } from "./viewPorts";
  *    view through {@link ViewsRefreshPort} — there is no narrower reach to pick.
  * 4. **Idle is observable.** {@link drain} is what lets a caller re-read the
  *    globals (to rebuild controls) only once nothing is still queued.
+ * 5. **A failed persist is the USER's news, exactly once, HERE.** Every call site
+ *    `void`s its write promise (a control handler has nowhere to await it), so a
+ *    rejection that escaped would be an unhandled rejection AND a silent lie: the
+ *    optimistic control releases its override and the old value comes back with no
+ *    reason given. So a failed write is caught at the INNERMOST write, turned into one
+ *    {@link UserNoticePort} message naming what failed, and never re-thrown — which is
+ *    also what keeps a burst intact, because the debounce drain awaits its thunks in
+ *    turn and a throw would abandon the rest of the window. Consequence, stated
+ *    plainly: a resolved write promise means "attempted and reported", not "stored".
  */
 
 /**
@@ -60,8 +70,14 @@ export class SettingsWritePipeline implements SerialSettingsWrites {
 	constructor(
 		private readonly store: PluginDataStore,
 		private readonly viewsRefresh: ViewsRefreshPort,
+		private readonly notices: UserNoticePort,
 	) {
-		this.writer = { apply: (interaction) => this.write([planSettingsWrite(interaction, this.context())]) };
+		this.writer = {
+			apply: (interaction) =>
+				this.write(SettingsWriteFailureNotice.forInteraction(interaction), [
+					planSettingsWrite(interaction, this.context()),
+				]),
+		};
 	}
 
 	/** One control's edit: serialised, planned fresh, persisted, fanned out. */
@@ -75,7 +91,9 @@ export class SettingsWritePipeline implements SerialSettingsWrites {
 	 * instead of a control's value, and that the whole scope fans out ONCE.
 	 */
 	restoreDefaults(scope: SettingsResetScope): Promise<void> {
-		return this.chain.run(() => this.write(planSettingsReset(scope, this.context())));
+		return this.chain.run(() =>
+			this.write(SettingsWriteFailureNotice.forReset(scope), planSettingsReset(scope, this.context())),
+		);
 	}
 
 	/**
@@ -110,10 +128,29 @@ export class SettingsWritePipeline implements SerialSettingsWrites {
 		};
 	}
 
-	/** Persists every command in order, then fans out ONCE — N rebuilds per scope would only flash. */
-	private async write(commands: readonly SettingsCommand[]): Promise<void> {
-		for (const command of commands) {
-			await this.persist(command);
+	/**
+	 * THE write body, and THE failure policy (rule 5) — every settings write reaches
+	 * disk through here, so this `try` is the only one the pipeline needs and the only
+	 * one any call site should have.
+	 *
+	 * Persists every command in order, then fans out ONCE — N rebuilds per scope would
+	 * only flash. The fan-out runs whether or not the commands landed: on failure the
+	 * views must repaint from what IS stored, which is what makes an optimistic control
+	 * snap back to the value the user actually still has.
+	 *
+	 * `failureNotice` is built by the caller because only the caller knows WHAT was
+	 * being written — one interaction's row, or one reset scope.
+	 */
+	private async write(failureNotice: string, commands: readonly SettingsCommand[]): Promise<void> {
+		try {
+			for (const command of commands) {
+				await this.persist(command);
+			}
+		} catch (error) {
+			// The message names the setting; the console keeps the cause (which is
+			// Obsidian's, and not something the notice could honestly paraphrase).
+			console.error(`vicinity-graph: settings write failed notice=[${failureNotice}]`, error);
+			this.notices.show(failureNotice);
 		}
 		this.viewsRefresh.refreshAllViews();
 	}
