@@ -45,14 +45,9 @@ const UNRELATED_CONTROL_LABEL = "Node cap";
 /**
  * The sizing metric whose weight input is driven by its toggle — the first one the
  * card renders. Read from the shared table rather than re-typed, so a renamed metric
- * fails HERE instead of drifting. Unwrapped with an explicit throw because
- * `noUncheckedIndexedAccess` makes `[0]` optional and an empty table is a bug, not a
- * reason to silently skip.
+ * fails HERE instead of drifting.
  */
 const METRIC_UNDER_TEST = SIZING_METRICS[0];
-if (METRIC_UNDER_TEST === undefined) {
-	throw new Error("SIZING_METRICS is empty — the Node sizing card has no metric row to exercise");
-}
 
 /**
  * How far to scroll the tab before flipping a toggle. Deep enough that a rebuild's
@@ -191,8 +186,6 @@ async function expectExclusionPersisted(enabled: boolean): Promise<void> {
 		.toBe(enabled);
 }
 
-// An arrow const, not a `function` declaration: a hoisted declaration is callable
-// before the throw above, so TS would not see `METRIC_UNDER_TEST` as narrowed.
 const expectMetricEnabledPersisted = async (enabled: boolean): Promise<void> => {
 	await expect
 		.poll(async () => (await harness.readGlobalView()).sizing.metrics[METRIC_UNDER_TEST.id]?.enabled, {
