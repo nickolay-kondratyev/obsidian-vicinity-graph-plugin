@@ -106,13 +106,22 @@ async function bumpLinksInDepth(): Promise<void> {
 		.evaluate((el) => (el as HTMLButtonElement).click());
 }
 
-/** Sets a React-controlled number input via the native setter + input event (fires onChange). */
+/**
+ * Fills a panel number input and COMMITS it, the same way a user leaving the field
+ * does.
+ *
+ * The panel's typed fields are uncontrolled and commit ON BLUR (`NumberRowCommitPolicy`),
+ * so a value plus an `input` event stores nothing on its own — the `focus` … `blur`
+ * pair is what React turns into the `onBlur` that writes. The `input` event is kept
+ * because real typing fires it.
+ */
 async function setNumberInput(input: Locator, value: number): Promise<void> {
 	await input.evaluate((el, next) => {
 		const field = el as HTMLInputElement;
-		const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
-		setter?.call(field, String(next));
+		field.focus();
+		field.value = String(next);
 		field.dispatchEvent(new Event("input", { bubbles: true }));
+		field.blur();
 	}, value);
 }
 

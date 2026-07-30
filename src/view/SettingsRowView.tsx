@@ -1,4 +1,4 @@
-import type { ReactElement } from "react";
+import type { FocusEventHandler, KeyboardEventHandler, ReactElement } from "react";
 import { useId, useState } from "react";
 import type { DepthSettings, ForceLayoutSettings, NodePreviewPreference, SizeMetricId } from "../engine";
 import { NODE_PREVIEW_PREFERENCES } from "../engine";
@@ -167,17 +167,114 @@ function SliderRow({
 	);
 }
 
+/** Everything a typed number field needs beyond its own markup. */
+interface CommittedNumberField {
+	/**
+	 * The input's React `key`. RESEEDING an uncontrolled field is a remount, and two
+	 * things reseed it: the store moving under the row, and a commit asking for it
+	 * (`NumberRowCommit.reseedsFromStore`) — the latter may leave the stored value
+	 * exactly where it was, so the key carries a counter as well as the value.
+	 *
+	 * A REFUSED commit changes neither, so a refusal is never remounted away: the typed
+	 * text stands beside the reason it earned.
+	 */
+	readonly key: string;
+	/** Spread onto the `<input type="number">`; its markup supplies the rest. */
+	readonly inputProps: CommittedNumberFieldProps;
+	/** What the last commit refused, ready to render beneath the row — `null` if it refused nothing. */
+	readonly refusal: ReactElement | null;
+}
+
+/** The half of a typed field's attributes that its commit protocol owns. */
+interface CommittedNumberFieldProps {
+	readonly min: number;
+	readonly max: number | undefined;
+	readonly step: number;
+	readonly defaultValue: number;
+	readonly "aria-invalid": boolean;
+	readonly "aria-describedby": string | undefined;
+	readonly onBlur: FocusEventHandler<HTMLInputElement>;
+	readonly onKeyDown: KeyboardEventHandler<HTMLInputElement>;
+}
+
 /**
- * A label beside a narrow number field, committed ON BLUR — the panel's counterpart of
- * the settings tab's debounced typed rows, refusing the same values for the same
- * stated reasons ({@link NumberRowCommitPolicy}, ultimately `describeSizingRejection`).
+ * ONE typed number field, committed ON BLUR — the panel's counterpart of the settings
+ * tab's debounced typed rows, refusing the same values for the same stated reasons
+ * ({@link NumberRowCommitPolicy}, ultimately `describeSizingRejection`).
  *
  * The field is UNCONTROLLED, which is what writing per keystroke used to cost: the
  * clamp landed mid-word (typing `500` into Max px snapped the field to `400` after the
  * third key), and a row that refuses an out-of-spec keystroke could not be backspaced
  * to blank on the way to a new number. Typing is now the user's alone; the store
  * answers only once they leave the field.
+ *
+ * A HOOK and not a component because the panel's typed fields do not share markup: one
+ * is a label beside a narrow field ({@link NumberRow}), the other sits beside its
+ * metric's enable toggle and is disabled with it ({@link SizingMetricRow}). Only the
+ * PROTOCOL is common, so only the protocol is shared — a component serving both would
+ * need a layout switch, and layout is exactly what this module owns per row kind.
+ *
+ * A refusal belongs to a COMMIT, not to the current state of the fields, so it can go
+ * stale: repairing the sibling bound in the other row does not clear it, because
+ * nothing about THIS row moved. Left that way on purpose — the alternative is a row
+ * subscribing to its sibling's every keystroke — and the recovery is the obvious one,
+ * committing this field again.
+ *
+ * @param stored what the store holds for this field right now (optimistically)
  */
+function useNumberFieldCommit(
+	accessor: SettingsTypedNumberAccessor,
+	/** The row's cross-field rule, or {@link NO_CROSS_FIELD_RULE} when it has none. */
+	write: NumberRowJudge,
+	stored: number,
+	onCommit: (value: number) => void,
+): CommittedNumberField {
+	const policy = new NumberRowCommitPolicy(accessor, write);
+	// No refusal on mount: `stored` cannot BE a refused value. `clampSizingSettings`
+	// raises an inverted pair at every door into the store — including the load of a
+	// hand-edited `data.json` — so a row only ever earns a refusal by being typed into.
+	const [refusal, setRefusal] = useState<string | undefined>(undefined);
+	// Counts the commits that put the STORED value back in the box.
+	const [reseeds, setReseeds] = useState(0);
+	const refusalId = useId();
+	return {
+		key: `${stored}:${reseeds}`,
+		inputProps: {
+			min: accessor.bounds.min,
+			max: accessor.bounds.max,
+			step: accessor.bounds.step,
+			defaultValue: stored,
+			"aria-invalid": refusal !== undefined,
+			"aria-describedby": refusal === undefined ? undefined : refusalId,
+			onBlur: (event) => {
+				const committed = policy.commit(event.target.value);
+				setRefusal(committed.refusal);
+				if (committed.value !== null) {
+					onCommit(committed.value);
+				}
+				if (committed.reseedsFromStore) {
+					setReseeds((remounts) => remounts + 1);
+				}
+			},
+			// Enter COMMITS, by blurring into the handler above rather than by repeating it:
+			// a number the user has confirmed must not sit unapplied until they happen to
+			// click somewhere else.
+			onKeyDown: (event) => {
+				if (event.key === "Enter") {
+					event.currentTarget.blur();
+				}
+			},
+		},
+		refusal:
+			refusal === undefined ? null : (
+				<div id={refusalId} className="vicinity-graph-number-row__refusal" role="alert">
+					{refusal}
+				</div>
+			),
+	};
+}
+
+/** A label beside a narrow blur-committed number field. */
 function NumberRow({
 	row,
 	accessor,
@@ -186,98 +283,18 @@ function NumberRow({
 }: {
 	readonly row: SettingsRow;
 	readonly accessor: SettingsTypedNumberAccessor;
-	/** The row's cross-field rule, or {@link NO_CROSS_FIELD_RULE} when it has none. */
 	readonly write: NumberRowJudge;
 	readonly state: SettingsRowState;
 }): ReactElement {
 	const [shown, request] = useSettingsNumber(accessor, state);
-	return (
-		<NumberField
-			// RESEEDING an uncontrolled field is a remount, so the stored value is its key.
-			// The typed text and the refusal it earned are one state and reset together —
-			// and a REFUSED commit never moves `shown`, so a refusal is never remounted away.
-			key={shown}
-			row={row}
-			accessor={accessor}
-			write={write}
-			stored={shown}
-			onCommit={request}
-		/>
-	);
-}
-
-/**
- * One mounted number field: the text the user owns, and whatever its last commit refused.
- *
- * A refusal belongs to a COMMIT, not to the current state of the pair, so it can go
- * stale: repairing the sibling bound in the other row does not clear it, because
- * nothing about THIS row moved. Left that way on purpose — the alternative is a row
- * subscribing to its sibling's every keystroke — and the recovery is the obvious one,
- * committing this field again.
- */
-function NumberField({
-	row,
-	accessor,
-	write,
-	stored,
-	onCommit,
-}: {
-	readonly row: SettingsRow;
-	readonly accessor: SettingsTypedNumberAccessor;
-	readonly write: NumberRowJudge;
-	readonly stored: number;
-	readonly onCommit: (value: number) => void;
-}): ReactElement {
-	const policy = new NumberRowCommitPolicy(accessor, write);
-	// No refusal on mount: `stored` cannot BE a refused value. `clampSizingSettings`
-	// raises an inverted pair at every door into the store — including the load of a
-	// hand-edited `data.json` — so a row only ever earns a refusal by being typed into.
-	const [refusal, setRefusal] = useState<string | undefined>(undefined);
-	const refusalId = useId();
-	// Counts the commits that put the STORED value back in the box (see
-	// `NumberRowCommit.reseedsFromStore`). Reseeding an uncontrolled input is a remount,
-	// and such a commit may leave `stored` exactly where it was, so the key needs
-	// something that always moves.
-	const [reseeds, setReseeds] = useState(0);
+	const field = useNumberFieldCommit(accessor, write, shown, request);
 	return (
 		<div className="vicinity-graph-number-row-block">
 			<label className="vicinity-graph-number-row" title={row.description}>
 				<span>{row.label}</span>
-				<input
-					key={reseeds}
-					type="number"
-					aria-label={SettingsRowNames.sole(row)}
-					min={accessor.bounds.min}
-					max={accessor.bounds.max}
-					step={accessor.bounds.step}
-					defaultValue={stored}
-					aria-invalid={refusal !== undefined}
-					aria-describedby={refusal === undefined ? undefined : refusalId}
-					onBlur={(event) => {
-						const committed = policy.commit(event.target.value);
-						setRefusal(committed.refusal);
-						if (committed.value !== null) {
-							onCommit(committed.value);
-						}
-						if (committed.reseedsFromStore) {
-							setReseeds((remounts) => remounts + 1);
-						}
-					}}
-					// Enter COMMITS, by blurring into the handler above rather than by repeating
-					// it: a number the user has confirmed must not sit unapplied until they
-					// happen to click somewhere else.
-					onKeyDown={(event) => {
-						if (event.key === "Enter") {
-							event.currentTarget.blur();
-						}
-					}}
-				/>
+				<input key={field.key} type="number" aria-label={SettingsRowNames.sole(row)} {...field.inputProps} />
 			</label>
-			{refusal === undefined ? null : (
-				<div id={refusalId} className="vicinity-graph-number-row__refusal" role="alert">
-					{refusal}
-				</div>
-			)}
+			{field.refusal}
 		</div>
 	);
 }
@@ -312,7 +329,13 @@ function DepthRow({
 	);
 }
 
-/** One metric: the enable toggle and the weight it governs — one decision, two controls. */
+/**
+ * One metric: the enable toggle and the weight it governs — one decision, two controls.
+ *
+ * The weight is a typed field like any other, so it commits ON BLUR through the shared
+ * protocol; it keeps its own markup because it shares a line with the toggle and is
+ * disabled with it, which the label-beside-field shape cannot express.
+ */
 function SizingMetricRow({
 	row,
 	metric,
@@ -325,34 +348,33 @@ function SizingMetricRow({
 	const weightAccessor = SettingsRowAccessors.metricWeight(metric);
 	const [enabled, requestEnabled] = useSettingsValue(SettingsRowAccessors.metricEnabled(metric), state);
 	const [weight, requestWeight] = useSettingsNumber(weightAccessor, state);
+	// No cross-field rule: a weight is judged entirely by what its accessor accepts.
+	const weightField = useNumberFieldCommit(weightAccessor, NO_CROSS_FIELD_RULE, weight, requestWeight);
 	return (
-		<div className="vicinity-graph-sizing__metric">
-			<label className="vicinity-graph-sizing__toggle">
+		// The same block as a number row: the metric is a single flex LINE, so a refusal
+		// has to sit under it rather than compete with the field for that line.
+		<div className="vicinity-graph-number-row-block">
+			<div className="vicinity-graph-sizing__metric">
+				<label className="vicinity-graph-sizing__toggle">
+					<input
+						type="checkbox"
+						aria-label={SettingsRowNames.role(row, "enabled")}
+						checked={enabled}
+						onChange={(event) => requestEnabled(event.target.checked)}
+					/>
+					<span>{row.label}</span>
+				</label>
 				<input
-					type="checkbox"
-					aria-label={SettingsRowNames.role(row, "enabled")}
-					checked={enabled}
-					onChange={(event) => requestEnabled(event.target.checked)}
+					key={weightField.key}
+					type="number"
+					className="vicinity-graph-sizing__weight"
+					aria-label={SettingsRowNames.role(row, "weight")}
+					title="Weight"
+					disabled={!enabled}
+					{...weightField.inputProps}
 				/>
-				<span>{row.label}</span>
-			</label>
-			<input
-				type="number"
-				className="vicinity-graph-sizing__weight"
-				aria-label={SettingsRowNames.role(row, "weight")}
-				title="Weight"
-				min={weightAccessor.bounds.min}
-				max={weightAccessor.bounds.max}
-				step={weightAccessor.bounds.step}
-				value={weight}
-				disabled={!enabled}
-				onChange={(event) => {
-					const parsed = weightAccessor.accept(event.target.value);
-					if (parsed !== undefined) {
-						requestWeight(parsed);
-					}
-				}}
-			/>
+			</div>
+			{weightField.refusal}
 		</div>
 	);
 }
