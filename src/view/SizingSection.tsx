@@ -1,119 +1,118 @@
-import type { SettingsRange, SizeMetricId, SizingSettings, ViewSettings } from "../engine";
-import { SIZING_RANGES } from "../engine";
+import type { SettingsRange, SizeMetricId, SizingMetricSetting, ViewSettings } from "../engine";
+import { SIZING_RANGES, clampSizingNumber } from "../engine";
 import type { ReactElement } from "react";
 import { useControlsActions } from "./ControlsActionsContext";
 import { Disclosure } from "./Disclosure";
-import type { SettingsWriteContext } from "./settingsWritePlan";
-import { planSettingsWrite } from "./settingsWritePlan";
+import type { SizingNumberField } from "./settingsWritePlan";
 import { parseSizingInput } from "./sizingInput";
 import { SIZING_METRICS } from "./sizingMetrics";
+import { useOptimisticValue } from "./useOptimisticValue";
 
 /**
  * The in-view sizing mirror (step-06 Phase C, CLARIFICATION Q5): a collapsed
  * disclosure of the SAME global sizing controls the settings tab exposes —
- * per-metric enable + weight, min/max px, depth-decay `k`. It writes GLOBAL via
- * the pure {@link planSettingsWrite} `global-sizing` command, so this in-view
- * surface and the settings tab share ONE write path (zero duplicated logic).
+ * per-metric enable + weight, min/max px, depth-decay `k`.
  *
- * Fully controlled off the snapshot: every field reads the current
- * {@link ViewSettings.sizing} and each edit emits a whole-object write that
- * rebuilds and flows a fresh value back — no local form state to drift.
+ * Every row names ONE field (`global-sizing-number` /
+ * `global-sizing-metric-*`) and the pipeline merges it over a fresh read. That is
+ * deliberate and load-bearing: this section used to send the WHOLE sizing object,
+ * spread over the snapshot it had rendered from, so editing max px right after min
+ * px reverted the min px edit.
+ *
+ * Each row is optimistic (see {@link useOptimisticValue}) so typing a weight or a
+ * size does not wait for the rebuild. Every numeric row hands the hook the SAME clamp
+ * the write path applies (`clampSizingNumber`), so the store takes the row back as
+ * soon as it holds the clamped value — including when clamping leaves it exactly where
+ * it already was, which is otherwise a value the row would show forever unstored.
  */
 
-export function SizingSection({
-	view,
-	ctx,
-}: {
-	readonly view: ViewSettings;
-	readonly ctx: SettingsWriteContext;
-}): ReactElement {
-	const actions = useControlsActions();
+export function SizingSection({ view }: { readonly view: ViewSettings }): ReactElement {
 	const sizing = view.sizing;
-
-	const applySizing = (next: SizingSettings): void => {
-		void actions.applySettings(planSettingsWrite({ kind: "global-sizing", sizing: next }, ctx));
-	};
-	const setMetric = (id: SizeMetricId, patch: { enabled?: boolean; weight?: number }): void => {
-		applySizing({ ...sizing, metrics: { ...sizing.metrics, [id]: { ...sizing.metrics[id], ...patch } } });
-	};
 
 	return (
 		<Disclosure summary="Node sizing" className="vicinity-graph-sizing" bodyClassName="nowheel">
 			<div className="vicinity-graph-sizing__metrics">
-					{SIZING_METRICS.map(({ id, label }) => {
-						const metric = sizing.metrics[id];
-						return (
-							<div className="vicinity-graph-sizing__metric" key={id}>
-								<label className="vicinity-graph-sizing__toggle">
-									<input
-										type="checkbox"
-										checked={metric.enabled}
-										onChange={(event) => setMetric(id, { enabled: event.target.checked })}
-									/>
-									<span>{label}</span>
-								</label>
-								<input
-									type="number"
-									className="vicinity-graph-sizing__weight"
-									aria-label={`${label} weight`}
-									title="Weight"
-									min={SIZING_RANGES.metricWeight.min}
-									max={SIZING_RANGES.metricWeight.max}
-									step={SIZING_RANGES.metricWeight.step}
-									value={metric.weight}
-									disabled={!metric.enabled}
-									onChange={(event) => {
-										const weight = parseSizingInput(event.target.value);
-										if (weight !== undefined) {
-											setMetric(id, { weight });
-										}
-									}}
-								/>
-							</div>
-						);
-					})}
-				</div>
-				<div className="vicinity-graph-sizing__ranges">
-					<SizingNumber
-						label="Min px"
-						value={sizing.minPx}
-						range={SIZING_RANGES.minPx}
-						onChange={(minPx) => applySizing({ ...sizing, minPx })}
-					/>
-					<SizingNumber
-						label="Max px"
-						value={sizing.maxPx}
-						range={SIZING_RANGES.maxPx}
-						onChange={(maxPx) => applySizing({ ...sizing, maxPx })}
-					/>
-					<SizingNumber
-						label="Depth decay k"
-						value={sizing.depthDecayK}
-						range={SIZING_RANGES.depthDecayK}
-						onChange={(depthDecayK) => applySizing({ ...sizing, depthDecayK })}
-					/>
-				</div>
+				{SIZING_METRICS.map(({ id, label }) => (
+					<SizingMetricRow key={id} metric={id} label={label} setting={sizing.metrics[id]} />
+				))}
+			</div>
+			<div className="vicinity-graph-sizing__ranges">
+				<SizingNumber label="Min px" field="minPx" value={sizing.minPx} />
+				<SizingNumber label="Max px" field="maxPx" value={sizing.maxPx} />
+				<SizingNumber label="Depth decay k" field="depthDecayK" value={sizing.depthDecayK} />
+			</div>
 		</Disclosure>
+	);
+}
+
+/** One metric: the enable toggle and the weight it governs — one decision, two controls. */
+function SizingMetricRow({
+	metric,
+	label,
+	setting,
+}: {
+	readonly metric: SizeMetricId;
+	readonly label: string;
+	readonly setting: SizingMetricSetting;
+}): ReactElement {
+	const actions = useControlsActions();
+	const [enabled, requestEnabled] = useOptimisticValue(setting.enabled, (value) =>
+		actions.applySettings({ kind: "global-sizing-metric-enabled", metric, enabled: value }),
+	);
+	const [weight, requestWeight] = useOptimisticValue(
+		setting.weight,
+		(value) => actions.applySettings({ kind: "global-sizing-metric-weight", metric, weight: value }),
+		(value) => clampSizingNumber("metricWeight", value),
+	);
+	return (
+		<div className="vicinity-graph-sizing__metric">
+			<label className="vicinity-graph-sizing__toggle">
+				<input type="checkbox" checked={enabled} onChange={(event) => requestEnabled(event.target.checked)} />
+				<span>{label}</span>
+			</label>
+			<input
+				type="number"
+				className="vicinity-graph-sizing__weight"
+				aria-label={`${label} weight`}
+				title="Weight"
+				min={SIZING_RANGES.metricWeight.min}
+				max={SIZING_RANGES.metricWeight.max}
+				step={SIZING_RANGES.metricWeight.step}
+				value={weight}
+				disabled={!enabled}
+				onChange={(event) => {
+					const parsed = parseSizingInput(event.target.value);
+					if (parsed !== undefined) {
+						requestWeight(parsed);
+					}
+				}}
+			/>
+		</div>
 	);
 }
 
 /**
  * A labelled numeric field. What counts as typed input is {@link parseSizingInput}'s
  * single rule (shared with the settings tab); the bounds are the engine's, the
- * same ones {@link planSettingsWrite} clamps with (the `min` attribute alone
- * only drives the steppers, never a typed value).
+ * same ones the write path clamps with (the `min` attribute alone only drives the
+ * steppers, never a typed value).
  */
 function SizingNumber({
 	label,
+	field,
 	value,
-	range,
-	onChange,
 }: {
 	readonly label: string;
+	readonly field: SizingNumberField;
 	readonly value: number;
-	readonly range: SettingsRange;
-	readonly onChange: (value: number) => void;
 }): ReactElement {
+	const actions = useControlsActions();
+	const range: SettingsRange = SIZING_RANGES[field];
+	const [shown, request] = useOptimisticValue(
+		value,
+		(next) => actions.applySettings({ kind: "global-sizing-number", field, value: next }),
+		(next) => clampSizingNumber(field, next),
+	);
 	return (
 		<label className="vicinity-graph-sizing__field">
 			<span>{label}</span>
@@ -122,11 +121,11 @@ function SizingNumber({
 				min={range.min}
 				max={range.max}
 				step={range.step}
-				value={value}
+				value={shown}
 				onChange={(event) => {
 					const parsed = parseSizingInput(event.target.value);
 					if (parsed !== undefined) {
-						onChange(parsed);
+						request(parsed);
 					}
 				}}
 			/>

@@ -177,7 +177,7 @@ export function clampForceLayoutSettings(settings: ForceLayoutSettings): ForceLa
  * range, instead of silently getting no range and no clamp.
  * (`metrics` carries defaults only — its weights are bounded by `metricWeight`.)
  */
-type SizingRangeField = Exclude<keyof SizingSpec, "metrics">;
+export type SizingRangeField = Exclude<keyof SizingSpec, "metrics">;
 
 export const SIZING_RANGES: Readonly<Record<SizingRangeField, SettingsRange>> = rangesOf({
 	metricWeight: SETTINGS_SPEC.globalView.sizing.metricWeight,
@@ -185,6 +185,15 @@ export const SIZING_RANGES: Readonly<Record<SizingRangeField, SettingsRange>> = 
 	minPx: SETTINGS_SPEC.globalView.sizing.minPx,
 	maxPx: SETTINGS_SPEC.globalView.sizing.maxPx,
 });
+
+/**
+ * Clamps ONE sizing number exactly as {@link clampSizingSettings} clamps it. Exists
+ * so a surface holding a single field (a panel row) can say what the write path will
+ * STORE for a typed value without inventing a second clamp that could drift from it.
+ */
+export function clampSizingNumber(field: SizingRangeField, value: number): number {
+	return clampIntoRange(value, SIZING_RANGES[field], SETTINGS_SPEC.globalView.sizing[field].default);
+}
 
 /**
  * Clamps every sizing number into its {@link SIZING_RANGES} bounds — applied on
@@ -198,20 +207,17 @@ export const SIZING_RANGES: Readonly<Record<SizingRangeField, SettingsRange>> = 
  * live session without ever round-tripping through disk.
  */
 export function clampSizingSettings(settings: SizingSettings): SizingSettings {
-	const spec = SETTINGS_SPEC.globalView.sizing;
-	const clamp = (field: SizingRangeField, value: number): number =>
-		clampIntoRange(value, SIZING_RANGES[field], spec[field].default);
 	const metrics = Object.fromEntries(
 		Object.entries(settings.metrics).map(([metricId, metric]) => [
 			metricId,
-			{ ...metric, weight: clamp("metricWeight", metric.weight) },
+			{ ...metric, weight: clampSizingNumber("metricWeight", metric.weight) },
 		]),
 	) as SizingSettings["metrics"];
 	return {
 		metrics,
-		depthDecayK: clamp("depthDecayK", settings.depthDecayK),
-		minPx: clamp("minPx", settings.minPx),
-		maxPx: clamp("maxPx", settings.maxPx),
+		depthDecayK: clampSizingNumber("depthDecayK", settings.depthDecayK),
+		minPx: clampSizingNumber("minPx", settings.minPx),
+		maxPx: clampSizingNumber("maxPx", settings.maxPx),
 	};
 }
 

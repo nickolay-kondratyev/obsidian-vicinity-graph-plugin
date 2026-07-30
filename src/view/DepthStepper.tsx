@@ -1,10 +1,22 @@
 import type { ReactElement } from "react";
 import { clampStepperDepth, MAX_STEPPER_DEPTH, MIN_STEPPER_DEPTH } from "./constants";
+import { useOptimisticValue } from "./useOptimisticValue";
 
 /**
- * One direction's depth stepper: `−  value  +`. Purely presentational — it
- * clamps via {@link clampStepperDepth} and emits the new value; the parent maps
- * that to a `SettingsInteraction`.
+ * One direction's depth stepper: `−  value  +`. It clamps via
+ * {@link clampStepperDepth} and emits the new value; the parent maps that to a
+ * `SettingsInteraction`.
+ *
+ * OPTIMISTIC (see {@link useOptimisticValue}): the readout and the button
+ * disabled-states move on the click, not when the graph has finished rebuilding —
+ * a stepper that lags a whole traversal + layout pass reads as a broken button,
+ * and rapid clicks looked dropped. The store still wins as soon as it disagrees.
+ *
+ * Each click therefore steps from `shown`, NOT from the `value` prop: `value` is the
+ * last snapshot, which mid-burst is several clicks behind. That loop is pinned in
+ * `optimisticValue.test.ts` ("PendingEdits driving a depth stepper") as a simulation
+ * of this component, not of this component — a real component test needs the React
+ * harness tracked in `nid_7qot0m6nuxxmd5z0yb9jylsd6_e`.
  *
  * There is no reset-to-inherit affordance and no pinned/inherited distinction:
  * the value it edits IS the global default (the settings tab's "Restore depth
@@ -18,9 +30,10 @@ export function DepthStepper({
 }: {
 	readonly label: string;
 	readonly value: number;
-	/** The new, already clamped value. */
-	readonly onChange: (value: number) => void;
+	/** Persists the new, already clamped value. */
+	readonly onChange: (value: number) => Promise<void>;
 }): ReactElement {
+	const [shown, request] = useOptimisticValue(value, onChange);
 	return (
 		<div className="vicinity-graph-stepper">
 			<span className="vicinity-graph-stepper__label">{label}</span>
@@ -29,20 +42,20 @@ export function DepthStepper({
 					type="button"
 					className="vicinity-graph-stepper__button"
 					aria-label={`Decrease ${label.toLowerCase()} depth`}
-					disabled={value <= MIN_STEPPER_DEPTH}
-					onClick={() => onChange(clampStepperDepth(value - 1))}
+					disabled={shown <= MIN_STEPPER_DEPTH}
+					onClick={() => request(clampStepperDepth(shown - 1))}
 				>
 					&minus;
 				</button>
 				<span className="vicinity-graph-stepper__value" aria-live="polite">
-					{value}
+					{shown}
 				</span>
 				<button
 					type="button"
 					className="vicinity-graph-stepper__button"
 					aria-label={`Increase ${label.toLowerCase()} depth`}
-					disabled={value >= MAX_STEPPER_DEPTH}
-					onClick={() => onChange(clampStepperDepth(value + 1))}
+					disabled={shown >= MAX_STEPPER_DEPTH}
+					onClick={() => request(clampStepperDepth(shown + 1))}
 				>
 					+
 				</button>

@@ -43,7 +43,7 @@ describe("ControlsModelBuilder global context", () => {
 		expect(ControlsModelBuilder.build(inputs()).globalDepths).toEqual({ outgoingDepth: 2, incomingDepth: 1 });
 	});
 
-	it("WHEN building THEN the model carries the current global view (planSettingsWrite ctx / control seeds)", () => {
+	it("WHEN building THEN the model carries the current global view (the panel's control seeds)", () => {
 		const view = { ...EngineDefaults.viewSettings(), nodeCap: 42 };
 		expect(ControlsModelBuilder.build(inputs({ globalView: view })).globalView).toEqual(view);
 	});

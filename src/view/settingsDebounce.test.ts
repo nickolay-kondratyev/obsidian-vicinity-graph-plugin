@@ -1,8 +1,26 @@
 import { describe, expect, it } from "vitest";
+import { SerialPromiseChain } from "../shared/SerialPromiseChain";
 import type { DebounceScheduler } from "./settingsDebounce";
 import { DebouncedSettingsWrites } from "./settingsDebounce";
+import type { SerialSettingsWrites, SettingsWriter } from "./settingsWritePipeline";
 
 const DELAY_MS = 400;
+
+/**
+ * Stands in for `SettingsWritePipeline`: a REAL {@link SerialPromiseChain} (the
+ * ordering these tests care about is the chain's) plus a writer these thunks never
+ * use — they record instead of persisting, so what reaches the store is the
+ * pipeline's own test's business, not this one's. That side is pinned end to end by
+ * "DebouncedSettingsWrites over the real pipeline" in `settingsWritePipeline.test.ts`.
+ */
+const UNUSED_WRITER: SettingsWriter = {
+	apply: () => Promise.reject(new Error("these thunks record instead of writing")),
+};
+
+function serialWritesOverOneChain(): SerialSettingsWrites {
+	const chain = new SerialPromiseChain();
+	return { runSerialised: (task) => chain.run(() => task(UNUSED_WRITER)) };
+}
 
 /** Deterministic stand-in for the renderer's timer: the test decides when the window elapses. */
 class FakeDebounceScheduler implements DebounceScheduler {
@@ -57,7 +75,7 @@ function setup(): Harness {
 	};
 	return {
 		scheduler,
-		debounced: new DebouncedSettingsWrites(DELAY_MS, scheduler),
+		debounced: new DebouncedSettingsWrites(DELAY_MS, serialWritesOverOneChain(), scheduler),
 		writes,
 		write:
 			(value) =>

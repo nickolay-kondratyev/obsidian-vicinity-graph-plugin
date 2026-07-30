@@ -12,6 +12,7 @@ import { PathDocIdMap } from "./persistence/PathDocIdMap";
 import { PersistenceServices } from "./persistence/PersistenceServices";
 import { PluginDataStore } from "./persistence/PluginDataStore";
 import { GraphViewOpener } from "./view/GraphViewOpener";
+import { SettingsWritePipeline } from "./view/settingsWritePipeline";
 import { VicinityGraphSettingTab } from "./view/VicinityGraphSettingTab";
 import { VicinityGraphView, VIEW_TYPE_VICINITY_GRAPH } from "./view/VicinityGraphView";
 import type { ViewsRefreshPort } from "./view/viewPorts";
@@ -29,6 +30,13 @@ export default class VicinityGraphPlugin extends Plugin {
 	graphBuilder!: VicinityGraphBuilder;
 	/** Global settings + pinned set (data.json) — step 06 reads/writes globals here. */
 	pluginDataStore!: PluginDataStore;
+	/**
+	 * THE settings write pipeline: ONE per plugin, shared by the settings tab and by
+	 * every open view's controls panel. Sharing it is what makes "one serialised
+	 * chain, one merge base, one fan-out" true across surfaces — two pipelines would
+	 * be two chains, and two chains can interleave.
+	 */
+	settingsWrites!: SettingsWritePipeline;
 
 	private docIdService!: DocIdService;
 	private readonly pathDocIdMap = new PathDocIdMap();
@@ -47,6 +55,7 @@ export default class VicinityGraphPlugin extends Plugin {
 		this.docIdService = DocIdServices.createDefault(this.app.vault);
 		this.pluginDataStore = new PluginDataStore(this);
 		await this.pluginDataStore.init();
+		this.settingsWrites = new SettingsWritePipeline(this.pluginDataStore, this.viewsRefresh);
 		this.persistenceServices = new PersistenceServices(this.docIdService, this.pluginDataStore, this.pathDocIdMap);
 		this.graphBuilder = new VicinityGraphBuilder(
 			this.app.vault,
@@ -67,9 +76,9 @@ export default class VicinityGraphPlugin extends Plugin {
 				new VicinityGraphView(
 					leaf,
 					this.graphBuilder,
-					this.pluginDataStore,
 					this.persistenceServices,
 					this.viewsRefresh,
+					this.settingsWrites,
 				),
 		);
 		// Node hover fires `hover-link` (step-05); registering the source lists
@@ -104,8 +113,18 @@ export default class VicinityGraphPlugin extends Plugin {
 	 * Re-render every open graph view after a global-settings write (step-06
 	 * Q-C). Obsidian-idiomatic fan-out: iterate the plugin's leaves and ask each
 	 * view to rebuild from the fresh globals. No bespoke event emitter.
+	 *
+	 * PRIVATE on purpose: {@link viewsRefresh} is the ONE way to reach the fan-out,
+	 * so "which views does a write refresh" is answered in one place. The settings
+	 * tab used to call this directly, which is how a second fan-out rule could have
+	 * grown next to the port's.
+	 *
+	 * `private` is a COMPILE-time lock only, and the e2e harness deliberately reaches
+	 * it by NAME at runtime (`e2e/obsidianHarness.ts` → `refreshOpenViews()`, through an
+	 * `any` cast, so `check:e2e` cannot catch a rename). Keep the name, and keep it a
+	 * method — a `#private` field would break that harness with no compiler warning.
 	 */
-	refreshOpenViews(): void {
+	private refreshOpenViews(): void {
 		for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE_VICINITY_GRAPH)) {
 			const { view } = leaf;
 			if (view instanceof VicinityGraphView) {

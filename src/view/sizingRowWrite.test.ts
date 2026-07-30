@@ -1,29 +1,21 @@
 import { describe, expect, it } from "vitest";
 import type { SizingSettings } from "../engine";
 import { EngineDefaults, SIZING_RANGES } from "../engine";
+import type { SizingNumberField } from "./settingsWritePlan";
 import { SizingRowWrite } from "./sizingRowWrite";
-import type { SizingNumberField } from "./sizingRowWrite";
 
 const DEFAULTS = EngineDefaults.sizingSettings();
 
 /** A settings tab whose store the test can move underneath a pending write. */
 class FakeSizingStore {
 	private sizing: SizingSettings = DEFAULTS;
-	readonly persisted: SizingSettings[] = [];
 
 	constructor(overrides: Partial<SizingSettings> = {}) {
 		this.sizing = { ...DEFAULTS, ...overrides };
 	}
 
 	row(field: SizingNumberField): SizingRowWrite {
-		return new SizingRowWrite(
-			field,
-			() => this.sizing,
-			async (sizing) => {
-				this.persisted.push(sizing);
-				this.sizing = sizing;
-			},
-		);
+		return new SizingRowWrite(field, () => this.sizing);
 	}
 
 	/** Another surface (in-view sizing panel, a second view, a section reset) writing the same globals. */
@@ -57,44 +49,41 @@ describe("SizingRowWrite cross-field verdict", () => {
 		expect(store.row("depthDecayK").judge(0.5).message).toBeUndefined();
 	});
 
-	it("WHEN the STORED pair is inverted THEN the depth-decay row still persists", async () => {
+	it("WHEN the STORED pair is inverted THEN the depth-decay row still authorises its write", () => {
 		const store = new FakeSizingStore({ minPx: 300, maxPx: 50 });
-		await store.row("depthDecayK").persistIfAccepted(0.5);
-		expect(store.persisted).toHaveLength(1);
+		expect(store.row("depthDecayK").interactionIfAccepted(0.5)).toEqual({
+			kind: "global-sizing-number",
+			field: "depthDecayK",
+			value: 0.5,
+		});
 	});
 });
 
-describe("SizingRowWrite persistence", () => {
-	it("WHEN an accepted value is written THEN only its own field moves", async () => {
+describe("SizingRowWrite authorised write", () => {
+	it("WHEN an accepted value drains THEN the authorised write names ONLY this row's field", () => {
+		// The merge itself is `SettingsWritePipeline`'s job, against a read taken inside
+		// its serialised slot — so what a row emits is a single field and a value.
 		const store = new FakeSizingStore();
-		await store.row("minPx").persistIfAccepted(60);
-		expect(store.persisted).toEqual([{ ...DEFAULTS, minPx: 60 }]);
+		expect(store.row("minPx").interactionIfAccepted(60)).toEqual({
+			kind: "global-sizing-number",
+			field: "minPx",
+			value: 60,
+		});
 	});
 
-	it("WHEN the globals moved after the keystroke THEN the flushed write composes with them", async () => {
-		const store = new FakeSizingStore();
-		const row = store.row("minPx");
-		row.judge(60);
-		store.moveTo({ depthDecayK: 0.9 });
-		await row.persistIfAccepted(60);
-		expect(store.persisted).toEqual([{ ...DEFAULTS, depthDecayK: 0.9, minPx: 60 }]);
-	});
-
-	it("WHEN the globals turn the pending pair inverted THEN the flushed write persists NOTHING", async () => {
+	it("WHEN the globals turn the pending pair inverted THEN the flushed write is refused", () => {
 		// Accepted at keystroke time (max was 400), rejected by the time it drains:
 		// the verdict must be re-taken where the write actually happens.
 		const store = new FakeSizingStore({ maxPx: 400 });
 		const row = store.row("minPx");
 		expect(row.judge(300).rejected).toBe(false);
 		store.moveTo({ maxPx: 50 });
-		await row.persistIfAccepted(300);
-		expect(store.persisted).toEqual([]);
+		expect(row.interactionIfAccepted(300)).toBeNull();
 	});
 
-	it("WHEN a rejected value is written THEN nothing is persisted", async () => {
+	it("WHEN a rejected value drains THEN no write is authorised", () => {
 		const store = new FakeSizingStore({ minPx: 200 });
-		await store.row("maxPx").persistIfAccepted(40);
-		expect(store.persisted).toEqual([]);
+		expect(store.row("maxPx").interactionIfAccepted(40)).toBeNull();
 	});
 });
 

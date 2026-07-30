@@ -99,9 +99,10 @@ export {
 	THUMBNAIL_VISIBLE_MIN_NODE_PX,
 	clampForceLayoutSettings,
 	clampOutlineMaxDepth,
+	clampSizingNumber,
 	clampSizingSettings,
 } from "./constants";
-export type { SettingsRange } from "./constants";
+export type { SettingsRange, SizingRangeField } from "./constants";
 
 // Settings defaults + limits, single source of truth (see SettingsSpec.ts).
 // `SettingsDefaults` is a discoverability shim that points back at SETTINGS_SPEC.

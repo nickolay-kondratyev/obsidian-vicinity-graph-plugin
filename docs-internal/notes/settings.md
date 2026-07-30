@@ -55,6 +55,26 @@ defaults" built its own defaults object instead of using the shared reset plan �
 a fourth opinion on what a default is. Now routed through `planSettingsReset`,
 and `src/view/engineDefaultsSingleSource.test.ts` keeps it that way.
 
+### What ticket 3 (write/refresh pipeline) added to the family
+
+The write path is now ONE object, `src/view/settingsWritePipeline.ts` (one instance
+per plugin, in `main.ts`), shared by the settings tab and every controls panel. It
+owns serialisation, the merge base, the persist switch and the fan-out. Two
+consequences for anyone adding a field:
+
+- **A control emits a `SettingsInteraction` naming ONE field.** The whole-slice arms
+  (`global-sizing`, `global-force-layout`, `global-node-exclusion`) are GONE —
+  they were the sibling-clobbering vector, because the caller supplied the merge
+  base. `planSettingsWrite` is the only merger and it merges over a read the
+  pipeline takes inside its own serialised slot. So a new field costs one more
+  interaction arm plus one more `switch` case (both compile-forced), NOT a new
+  merge site.
+- **Nothing else may serialise or refresh.** `shared/SerialPromiseChain.ts` is the
+  one ordering primitive (used by the pipeline and by `PluginDataStore`'s disk
+  writes); the three hand-rolled chains and `SettingsWriteQueue` are gone.
+  `settingsResetSequence.ts` owns the restore-defaults ORDER and is the vitest
+  harness for it, since the tab itself has none.
+
 ### Cost of adding one field AFTER ticket 2
 
 The compiler now NAMES every site you miss except the last:
@@ -63,7 +83,8 @@ The compiler now NAMES every site you miss except the last:
 2. `src/engine/SettingsSpec.ts` — spec entry + `SETTINGS_SPEC` value *(guarded)*
 3. `src/persistence/persistedShapes.ts` — one parse expression *(guarded)*
 4. `src/view/settingsSectionFields.ts` — one key in one section *(guarded)*
-5. UI copy + row rendering in the tab and the panel *(ticket 4's job to guard)*
+5. `src/view/settingsWritePlan.ts` — one interaction arm + one `switch` case *(guarded: the `switch` is exhaustive)*
+6. UI copy + row rendering in the tab and the panel *(ticket 4's job to guard)*
 
 This is "compile-forced N declarations", NOT the ticket's literal "ONE
 declaration". Deriving the `ViewSettings` TYPE from a runtime descriptor array
@@ -129,10 +150,15 @@ graph LR
   (per-doc writes cease to exist). Re-verify after 2.5:
   `docs-internal/tickets/ticket-pinned-central-status-lags-after-restart.md`
   (pins stay global, so it likely survives).
-- Behind **pipeline (3)**: `nid_8b97fdqznqsncc5kgya1p871w_e` (reset display()
-  races queued write), `nid_4zffe7mj5p1eabi9m6wfh06k0_e` (three hand-rolled
-  serial chains → one helper). Legacy-file ticket subsumed by (3), close when
-  it lands: `docs-internal/tickets/ticket-controls-optimistic-input-latency.md`.
+- ~~Behind **pipeline (3)**: `nid_8b97fdqznqsncc5kgya1p871w_e`,
+  `nid_4zffe7mj5p1eabi9m6wfh06k0_e`,
+  `docs-internal/tickets/ticket-controls-optimistic-input-latency.md`~~
+  **ALL CLOSED by ticket 3** (2026-07-30) — one `SerialPromiseChain`, one
+  `SettingsWritePipeline` (fresh-read merge base), reset drains before
+  `display()`, optimistic controls. New follow-ups it left behind:
+  `nid_itpt4tf0kkhsbbz0np304a558_e` (user-visible write-failure policy) and
+  `nid_7qot0m6nuxxmd5z0yb9jylsd6_e` (`decide`: React component-test infra —
+  asks whether it should block step 4).
 - Behind **presenters (4)**: `nid_1rslube8at5xj60ji4jeve0b0_e` (Depth group),
   `nid_qp56jugz8en8wkgjirwcb269p_e` (exclusion row disabled-not-hidden),
   `nid_klkdpmx6axf90y4xj8khwrlf2_e` (panel outline-depth control),
@@ -143,6 +169,11 @@ graph LR
   boolean, default OFF; decided wanted 2026-07-29, both presenters).
 - Behind **tests (5)**: `nid_ek3wrqoh1rsftk6ulg836mghf_e` (e2e types into a
   settings input).
+- **Ordering undecided** (`decide`): `nid_7qot0m6nuxxmd5z0yb9jylsd6_e` (React
+  component-test infra — jsdom + a light renderer). Raised by the review of (3):
+  the optimistic-controls layer shipped there was non-functional and no unit test
+  could see it, because nothing in `npm test` renders a component. Owner call is
+  whether this BLOCKS presenters (4), which moves more behaviour into React.
 - Behind **descriptor model (2)** only: `nid_zvoay26y4y9h1e2p2b1y9glfk_e`
   (new intra-group spacing field — add it under the new model, not the old).
 

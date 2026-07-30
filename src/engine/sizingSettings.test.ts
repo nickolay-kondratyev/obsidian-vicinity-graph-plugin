@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EngineDefaults, SIZING_RANGES, clampSizingSettings } from "./constants";
+import { EngineDefaults, SIZING_RANGES, clampSizingNumber, clampSizingSettings } from "./constants";
 import type { SizingSettings } from "./types";
 
 /**
@@ -99,6 +99,17 @@ describe("clampSizingSettings (degenerate values are unreachable)", () => {
 		expect(clampSizingSettings(settings).metrics["depth-decay"].enabled).toBe(
 			settings.metrics["depth-decay"].enabled,
 		);
+	});
+});
+
+describe("clampSizingNumber (one field, same clamp)", () => {
+	it("WHEN one field is clamped alone THEN it lands where the whole-object clamp lands it", () => {
+		// The panel's optimistic rows ask this function what the write path will STORE for
+		// a typed value. If the two clamps could disagree, a row would either lie about a
+		// stored value or hold its override forever waiting for one that never arrives.
+		const typed = SIZING_RANGES.maxPx.max + 1000;
+		const settings = sizingWithNumbers({ depthDecayK: 1, minPx: 40, maxPx: typed, weight: 1 });
+		expect(clampSizingNumber("maxPx", typed)).toBe(clampSizingSettings(settings).maxPx);
 	});
 });
 

@@ -1,20 +1,23 @@
 import type { SizingSettings } from "../engine";
 import { SIZING_RANGES, clampSizingSettings } from "../engine";
 import { describeSizingRejection } from "./settingsValidation";
+import type { SettingsInteraction, SizingNumberField } from "./settingsWritePlan";
 
 /**
  * One typed sizing row's whole write policy: what a typed value means, whether it
- * is allowed, and what actually reaches the store when the debounce window drains.
+ * is allowed, and therefore whether a write should happen at all when the debounce
+ * window drains.
  *
  * WHY a class rather than logic in the settings tab: the verdict is taken TWICE —
  * once per keystroke (for the inline message) and once inside the debounced thunk
- * (where the write happens, possibly hundreds of ms later, against globals another
- * surface may have moved). Keeping both in one object is what makes them agree,
- * and keeps them unit-testable — the obsidian tab itself has no test harness.
+ * (possibly hundreds of ms later, against globals another surface may have moved).
+ * Keeping both in one object is what makes them agree, and keeps them
+ * unit-testable — the obsidian tab itself has no test harness.
+ *
+ * It DECIDES and never persists: the write it authorises is a
+ * {@link SettingsInteraction} the caller hands to `SettingsWritePipeline`, so the
+ * merge and the serialisation stay in the one place that owns them.
  */
-
-/** The three sizing rows that take a typed number. Metric weights write their own path. */
-export type SizingNumberField = "minPx" | "maxPx" | "depthDecayK";
 
 /**
  * The rows the `maxPx >= minPx` rule is ABOUT. `depthDecayK` is deliberately absent:
@@ -34,9 +37,8 @@ export interface SizingRowVerdict {
 export class SizingRowWrite {
 	constructor(
 		private readonly field: SizingNumberField,
-		/** Globals read FRESH on every call so successive edits compose. */
+		/** Globals read FRESH on every call so the verdict judges what is stored NOW. */
 		private readonly readSizing: () => SizingSettings,
-		private readonly persist: (sizing: SizingSettings) => Promise<void>,
 	) {}
 
 	/** The value currently stored for this row (what the input seeds from). */
@@ -55,16 +57,16 @@ export class SizingRowWrite {
 	}
 
 	/**
-	 * The debounced write. Re-derives from the CURRENT globals and re-takes the
-	 * verdict: a pair that became inverted after the keystroke was judged must not
-	 * reach the store just because it was acceptable when it was typed.
+	 * The write this row authorises when its debounce window drains, or `null` for
+	 * "write nothing". The verdict is re-taken against the CURRENT globals: a pair
+	 * that became inverted after the keystroke was judged must not reach the store
+	 * just because it was acceptable when it was typed.
 	 */
-	persistIfAccepted(value: number): Promise<void> {
-		const prospective = this.prospective(value);
-		if (this.rejectionOf(prospective) !== undefined) {
-			return Promise.resolve();
+	interactionIfAccepted(value: number): SettingsInteraction | null {
+		if (this.rejectionOf(this.prospective(value)) !== undefined) {
+			return null;
 		}
-		return this.persist(prospective);
+		return { kind: "global-sizing-number", field: this.field, value };
 	}
 
 	private prospective(value: number): SizingSettings {

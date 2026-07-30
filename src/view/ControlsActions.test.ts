@@ -8,6 +8,7 @@ import { PersistenceServices } from "../persistence/PersistenceServices";
 import { PluginDataStore } from "../persistence/PluginDataStore";
 import { ControlsActions } from "./ControlsActions";
 import { FakeViewsRefresh } from "./FakeViewsRefresh";
+import { SettingsWritePipeline } from "./settingsWritePipeline";
 
 // `ControlsActions` imports `Notice` from the type-only `obsidian` package (no
 // runtime entry point), so the module needs a stand-in to be importable at all.
@@ -19,7 +20,12 @@ vi.mock("obsidian", () => ({ Notice: class {} }));
  * data.json (settings are global, so is the pinned set), which every open graph
  * view renders from — so it must rebuild ALL of them, and a write that never
  * landed must rebuild nothing at all. Collaborators are the real persistence
- * classes over their in-memory fakes — no obsidian runtime.
+ * classes and the real `SettingsWritePipeline` over their in-memory fakes — no
+ * obsidian runtime.
+ *
+ * Settings-write BEHAVIOUR (serialisation, merge base, fan-out) is pinned in
+ * `settingsWritePipeline.test.ts`; this file only proves the executor delegates
+ * there and owns the PIN path.
  */
 
 const ORIGINATING_VIEW_ID = "view-originating";
@@ -48,33 +54,38 @@ async function actionsUnderTest() {
 	docIdPort.markUnidentifiable(ID_LESS_PATH);
 	const persistenceServices = new PersistenceServices(docIdPort, pluginDataStore, new PathDocIdMap());
 	const viewsRefresh = new FakeViewsRefresh([ORIGINATING_VIEW_ID, OTHER_VIEW_ID]);
-	const actions = new ControlsActions(persistenceServices, pluginDataStore, VAULT, viewsRefresh);
+	const settingsWrites = new SettingsWritePipeline(pluginDataStore, viewsRefresh);
+	const actions = new ControlsActions(persistenceServices, VAULT, viewsRefresh, settingsWrites);
 	return { actions, viewsRefresh, pluginDataStore };
 }
 
 describe("ControlsActions.applySettings", () => {
 	it("WHEN a settings write is applied THEN EVERY open view is refreshed", async () => {
 		const { actions, viewsRefresh } = await actionsUnderTest();
-		await actions.applySettings({ kind: "global-view", view: EngineDefaults.viewSettings() });
+		await actions.applySettings({ kind: "global-cap", value: 42 });
 		expect(viewsRefresh.refreshedViewIds).toEqual([ORIGINATING_VIEW_ID, OTHER_VIEW_ID]);
 	});
 
 	it("WHEN a settings write is applied THEN each view is refreshed exactly once (the fan-out covers the originating view)", async () => {
 		const { actions, viewsRefresh } = await actionsUnderTest();
-		await actions.applySettings({ kind: "global-view", view: EngineDefaults.viewSettings() });
+		await actions.applySettings({ kind: "global-cap", value: 42 });
 		expect(viewsRefresh.refreshedViewIds).toHaveLength(2);
 	});
 
 	it("WHEN a settings write is applied THEN the new globals are persisted before the fan-out", async () => {
 		const { actions, pluginDataStore } = await actionsUnderTest();
-		const view = { ...EngineDefaults.viewSettings(), nodeCap: 42 };
-		await actions.applySettings({ kind: "global-view", view });
+		await actions.applySettings({ kind: "global-cap", value: 42 });
 		expect(pluginDataStore.globalView().nodeCap).toBe(42);
 	});
 
-
-
-
+	it("WHEN a panel restore-defaults is requested THEN the scope's defaults reach the store", async () => {
+		// The panel's force-layout "Restore defaults" button: the scope name goes to
+		// the pipeline, so the panel is not a second opinion on what a default is.
+		const { actions, pluginDataStore } = await actionsUnderTest();
+		await actions.applySettings({ kind: "global-force-layout-field", field: "linkGapPx", value: 60 });
+		await actions.restoreDefaults("force-layout");
+		expect(pluginDataStore.globalView().forceLayout).toEqual(EngineDefaults.forceLayoutSettings());
+	});
 });
 
 describe("ControlsActions pinning", () => {

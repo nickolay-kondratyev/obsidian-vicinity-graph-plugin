@@ -55,6 +55,21 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   `refreshOpenViews()`) rebuilds every open view. Every settings write is global,
   so there is no narrower reach to choose — the write-scope classifier and the
   owning-view port went with the per-doc layer.
+- `view/settingsWritePipeline.ts` — **THE settings write path**, one instance per
+  plugin (`main.ts`), shared by the settings tab and every controls panel. It owns
+  serialisation (`shared/SerialPromiseChain.ts`), the merge base (globals read
+  FRESH inside the serialised slot), the persist switch, and the
+  `ViewsRefreshPort` fan-out. Surfaces send a `SettingsInteraction` naming ONE
+  field — never a ready-made command, never a whole slice — because a merge base
+  captured before the write reverts whatever sibling field moved in between.
+  Companion pieces: `settingsResetSequence.ts` (restore-defaults ORDER: flush
+  typed edits → write defaults → flush again → drain the chain → rebuild the
+  controls; the last three run even when the write failed) and
+  `optimisticValue.ts` + `useOptimisticValue.ts` (panel controls answer input
+  immediately; the store wins as soon as it holds what the LATEST request will
+  actually store — a clamped row passes that clamp in, so "the clamp left the
+  value where it already was" releases too — or a value that is neither the
+  burst's baseline nor one of the burst's own requests).
 - `persistence/storagePorts.ts`, `adapters/obsidianPorts.ts` — testable seams,
   each with a `Fake*` implementation used by unit tests.
 
