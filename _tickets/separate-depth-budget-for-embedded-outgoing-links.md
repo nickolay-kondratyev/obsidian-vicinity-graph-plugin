@@ -462,3 +462,17 @@ SCOPE CHANGE (owner, 2026-07-29): per-doc saved state (per-doc depths, per-centr
 - parseDepthOverride / DepthOverride may no longer exist; the parse change lands in the global parse path.
 - MEASUREMENT MANDATE unchanged, but the baseline comparison should note the per-doc layer was removed separately so the cost delta is attributed honestly.
 Adjust the relevant spec sections (docs-internal/plan/high-level-plan.md depth cascade, README Depth section) as part of this ticket.
+
+**2026-07-30T04:02:50Z**
+
+STAGE 1 LANDED (carry the kind, zero behavior change).
+
+Delivered: LinkKind ("link"|"embed") in src/shared/LinkKind.ts, re-exported from the engine (it must live BELOW the engine because the shared regex matchers name it). LinkProvider gains OutgoingReference {target,kind} + getOutgoingReferences(), deduped per (target,kind); getOutgoingLinks is now the derived kind-blind view, so every pre-existing outgoing assertion passes unchanged -- that is the zero-behavior-change proof. Markdown kinds by array provenance (cache.embeds vs cache.links), frontmatter always link, cross-checked against Reference.original in tests. Canvas file node => embed; the '!' now sits in a capture group in both shared matchers, so a canvas text-node ![[x]] => embed.
+
+3a ADOPTED: every canvas is parsed; resolvedLinks is never consulted for canvas links. CanvasCapability.ts + its test DELETED (dead). fallbackServedCanvasPaths -> parsedCanvasPaths. This is also the permanent fix shape for the closed race ticket nid_s676x55uojmtcwh9t4l9mc6zl_e.
+
+ONE deliberate test inversion, called out: 'WHEN an indexed canvas has no links at all THEN its empty index entry is respected' encoded the DELETED regime (core's empty {} entry suppressed our parser). REPLACED by 'WHEN core's index entry for a canvas is EMPTY but the canvas has a file node THEN the parsed link wins'. No other test changed meaning; the parity suites kept their assertions and only got honest titles (they now prove our parse MATCHES core, not that two regimes agree).
+
+getLinkCount stays KIND-BLIND -- deviation from the stage brief's item 5, with reason: for markdown the number IS Obsidian's merged resolvedLinks count, so a per-kind split would have to re-derive the total from the file cache and could change a rendered badge (a behavior change Stage 1 forbids). Stage 3 does not need it either: VicinityTraversal never calls getLinkCount. Revisit only if the Stage 2 visual distinction wants per-kind counts.
+
+MEASUREMENT (Stage 1 only, vs branch point e387f5a): 23 files, +914/-305. Production: 12 files, +371/-170 (2 of them deletions). Tests: 9 files, +525/-128. This is the kind-plumbing stage, NOT the settings-field stage the measurement mandate targets -- the cost of the +1 settings field gets measured in Stage 3.

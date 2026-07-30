@@ -1,43 +1,57 @@
-# Stage 1 — carry `LinkKind` (rehydration memory)
+# Stage 1 — carry `LinkKind` (rehydration memory) — COMPLETE
 
-## Goal
-Tag OUTGOING references with `LinkKind = "link" | "embed"`, always-parse canvases,
-ZERO behavior change. Nothing consumes the kind yet.
+`npm test` 1199/1199, `npm run check` clean. Three commits on the current branch:
+`d48d914` (syntax + provenance), `5022a72` (port + always-parse), `5c13f8f` (docs).
+Ticket note + change_log entry (`o1a5bjgjpro68l9nmxnr4yzp2`) written.
 
-## Plan (checklist)
-1. [ ] `src/shared/LinkKind.ts` — `LINK_KINDS`, `LinkKind`, `LinkKinds.ofEmbedMarker`,
-       `HarvestedLink`. In `shared/`, NOT `engine/`, because the two shared regex
-       matchers must name the kind and `shared` must never import `engine`
-       (engine → shared already exists). Re-exported from `src/engine/index.ts`
-       so the engine remains the public owner of the domain type.
-2. [ ] `Wikilinks` / `MarkdownInlineLinks`: `(!?)` becomes capture group 1, the old
-       group 1 shifts to group 2. `linkTargetsOf` → `harvestedLinksOf` returning
-       `HarvestedLink[]`. `src/view/outlineEntryLabel.ts` replace-callback must gain
-       the extra positional arg (silent-shift hazard — it has tests).
-3. [ ] `ReferenceOrder`: `OrderedReference.kind`; `cache.embeds` ⇒ embed,
-       `cache.links` ⇒ link, `frontmatterLinks` ⇒ link. + `original` cross-check test.
-4. [ ] `CanvasFallbackParser.CanvasReference`: add `linkKind` (the existing `kind`
-       stays the RESOLUTION mechanism). file-node ⇒ embed; text-node ⇒ harvested kind.
-5. [ ] Engine port: `OutgoingReference {target, kind}`, `getOutgoingReferences(path)`,
-       `OutgoingReferences.targetsOf(refs)`. `getOutgoingLinks` KEPT as the kind-blind
-       view, derived via `targetsOf` (so ~28 existing behavior assertions stay untouched
-       and prove zero behavior change). `getLinkCount` unchanged — see PUBLIC.md.
-6. [ ] `FakeLinkProvider`: new `embeds?` fixture map (links first, then embeds per source).
-7. [ ] `ObsidianLinkProvider`: `getOutgoingReferences`; DELETE the core-indexed skip in
-       `create` (3a); delete now-dead `CanvasCapability.ts` + test; rename
-       `fallbackServedCanvasPaths` → `parsedCanvasPaths`; update `main.ts` debug log.
-8. [ ] Tests + `npm test` + `npm run check` green. Commit as you go.
+Full write-up for the next stage: `IMPLEMENTATION_WITH_SELF_PLAN__PUBLIC.md` in
+this directory. This file is only the stuff a clone of ME would want.
 
-## Landmines found during exploration
-- `src/view/outlineEntryLabel.ts:44` uses `Wikilinks.globalPattern()` in a
-  `String.replace` callback reading group 1 — adding a leading capture SILENTLY
-  shifts it. Must update, tests cover display output.
-- `ObsidianLinkProvider.test.ts` "WHEN an indexed canvas has no links at all THEN its
-  empty index entry is respected" (was ~:175) is the ONE test that genuinely encodes the
-  deleted core-indexed regime (content has a file node, `resolvedLinks: {"a.canvas": {}}`).
-  It must be REPLACED by an always-parse contract test, not weakened.
-- Every other core-indexed/fallback parity pair stays green under always-parse
-  (verified by reading each fixture: contents and `resolvedLinks` agree).
-- `getLinkCount` for markdown reads `resolvedLinks`, which MERGES link+embed counts.
-  A per-kind split would have to re-derive totals from the file cache ⇒ totals could
-  change ⇒ behavior change. Left kind-blind deliberately.
+## Plan status — all done
+
+1. [x] `src/shared/LinkKind.ts` (`LINK_KINDS`, `LinkKind`, `HarvestedLink`,
+       `LinkKinds.ofEmbedMarker`). In `shared/`, re-exported as a TYPE from
+       `src/engine/index.ts`. `LINK_KINDS` deliberately NOT re-exported (unused).
+2. [x] `Wikilinks` / `MarkdownInlineLinks`: `(!?)` is group 1, old group 1 → group 2;
+       `linkTargetsOf` → `harvestedLinksOf`. `outlineEntryLabel` callback updated.
+3. [x] `ReferenceOrder.OrderedReference.kind` by provenance + `original` cross-check.
+4. [x] `CanvasReference.linkKind` (independent of the existing `kind`).
+5. [x] Port: `OutgoingReference`, `getOutgoingReferences`,
+       `OutgoingReferences.targetsOf/.deduped`. `getOutgoingLinks` kept as derived.
+6. [x] `FakeLinkProvider.embeds` fixture map.
+7. [x] `ObsidianLinkProvider`: kinds + always-parse; `CanvasCapability.*` deleted;
+       `parsedCanvasPaths`; `main.ts` log.
+8. [x] Docs: `high-level-plan.md` (new "Link kinds" section + Canvas support
+       rewrite + testing section), `architecture-map.md`.
+
+## Judgement calls I made (defend these if challenged)
+
+- **`getLinkCount` NOT made kind-aware.** Brief item 5 says "only as far as Stage 3
+  will need"; Stage 3 needs zero (`VicinityTraversal` never calls it — grep it).
+  And `resolvedLinks` is a MERGED count, so splitting means re-deriving the total
+  from `getFileCache`, which can change a displayed badge = behavior change.
+- **`getOutgoingLinks` kept.** Deleting it would have forced ~30 assertions and two
+  consumers to be rewritten, and `NodeSizer` MUST stay kind-blind (a both-linked-
+  and-embedded pair would otherwise count twice and resize nodes).
+- **`LinkKind` in `shared/` not `engine/`.** `engine → shared` already exists;
+  the reverse would invert layering. `shared/` is under the same importGuard.
+- **One test genuinely inverted** (empty core index entry no longer suppresses our
+  parser). Documented in the replacement suite's doc comment, the ticket note, the
+  commit message and PUBLIC.md.
+
+## Traps I hit (a clone WILL hit these)
+
+- `src/view/outlineEntryLabel.ts:44` reads capture group 1 of
+  `Wikilinks.globalPattern()` in a `String.replace` callback. Adding a leading
+  capture SILENTLY shifts it — TS does not catch it. Its tests do.
+- `CanvasParseCache.test.ts` also asserts `CanvasReference` literals (easy to miss;
+  it failed after the parser change while the parser's own suite passed).
+- `vitest` transpiles without typechecking, so a green `npm test` proves nothing
+  about types — run `npm run check` separately (it also covers `e2e/`).
+
+## Not done, on purpose (Stage 3's job)
+
+`VicinityTraversal`, `NodeSizer`, `EdgeCounts`, `DepthSettings`, `SETTINGS_SPEC`,
+settings rows/presenters/persistence, CSS: **untouched**. No `targetsOfKind` helper
+(would be unused code); Stage 3 adds it to `OutgoingReferences`. `LINK_KINDS`
+re-export from the engine is Stage 3's first line.
