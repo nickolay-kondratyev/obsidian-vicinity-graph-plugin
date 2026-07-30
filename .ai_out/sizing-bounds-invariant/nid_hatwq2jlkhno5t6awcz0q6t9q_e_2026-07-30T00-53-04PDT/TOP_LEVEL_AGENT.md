@@ -12,8 +12,13 @@ Flow: IMPLEMENTATION_WITH_SELF_PLAN → IMPLEMENTATION_REVIEW → IMPLEMENTATION
 ## Progress
 
 - [x] Read ticket, confirmed decision is settled (no [decide] blocker remaining).
-- [ ] IMPLEMENTATION_WITH_SELF_PLAN — running.
-- [ ] IMPLEMENTATION_REVIEW
-- [ ] IMPLEMENTATION_ITERATION (if needed)
-- [ ] change_log entry (TOP_LEVEL_AGENT only)
-- [ ] Close ticket
+- [x] IMPLEMENTATION_WITH_SELF_PLAN (iteration 1) — engine raise-max + panel blur-commit + `numberRowCommit.ts` seam.
+- [x] IMPLEMENTATION_REVIEW (round 1) — CHANGES_REQUESTED, 3 view-layer SHOULD-FIX, engine half approved as-is.
+- [x] IMPLEMENTATION_ITERATION (iteration 2) — all 3 fixed, none rejected.
+- [x] IMPLEMENTATION_REVIEW (round 2) — APPROVED, one non-blocking reseed corner case.
+- [x] IMPLEMENTATION_ITERATION (iteration 3) — corner case fixed at the root, not papered over.
+- [x] Gates re-run by TOP_LEVEL_AGENT: `npm run check` exit 0, `npm test` 95 files / 1272 passed.
+- [x] change_log entry `_change_log/2026-07-30_08-40-33Z.md`.
+- [x] Ticket closed; follow-up `nid_9uzrvqv0k5qgckgdaqtgr41ky_e` open and tagged `settings-cleanup`.
+
+Converged in 2 review rounds. No blocking issues; no rollback needed.

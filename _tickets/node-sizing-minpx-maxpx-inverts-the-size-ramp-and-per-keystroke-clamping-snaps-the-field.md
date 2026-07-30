@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-30T08:40:48Z
 id: nid_hatwq2jlkhno5t6awcz0q6t9q_e
 title: "node sizing: minPx > maxPx inverts the size ramp, and per-keystroke clamping snaps the field"
-status: open
+status: closed
 deps: [nid_armoson86j0ii8c33r1odo1rc_e]
 links: [nid_9jiira82snkh7bgy8zv060c9r_e, nid_9uzrvqv0k5qgckgdaqtgr41ky_e]
 created_iso: 2026-07-26T01:21:48Z
-status_updated_iso: 2026-07-26T01:21:48Z
+status_updated_iso: 2026-07-30T08:40:48Z
 type: task
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
@@ -119,3 +120,33 @@ CORRECTION to the iteration-1 note (round-2 review, non-blocking item).
 That note claimed the panel's number field "always ends up showing the STORED number — by the store echo after a write, and by the reseed after a non-write". The second half was over-claimed: a WRITE is no guarantee that the row moves. A field already sitting at a NODE_SIZE_PX_BOUNDS bound (1 / 400) and typed past it is accepted (`rejected: false` + a cap notice the panel discards), the optimistic `settlesAt` lands back on the stored number so nothing echoes, and the old rule (reseed only when the commit wrote nothing AND said nothing) left the box holding an unstored number with no message. Same for text that merely respells the stored value (`007`).
 
 Fixed rather than softened: `NumberRowCommit.reseedsFromStore` is now `this.refusal === undefined` — reseed after EVERY commit the panel did not refuse. No regression on the ordinary accepted write: `NumberRow`'s `key={shown}` already replaces the whole field on a store echo, so the extra remount request lands on an already-replaced component; a refused commit still keeps the typed text, which is what its reason is about. Started RED in src/view/numberRowCommit.test.ts (2 failing), and the doc comment in src/view/numberRowCommit.ts now states the rule as implemented.
+
+**2026-07-30T08:40:48Z**
+
+DONE. Both halves of the invariant shipped on branch nid_hatwq2jlkhno5t6awcz0q6t9q_e_2026-07-30T00-53-04PDT.
+
+- ENGINE: src/engine/constants.ts clampSizingSettings raises maxPx to the CLAMPED minPx when inverted
+  (raising to the typed one would drag maxPx outside its own range). Single choke point, so NodeSizer.compute,
+  parseSizing (load) and planSettingsWrite are all covered. Raise, never swap - as decided.
+- PANEL: src/view/SettingsRowView.tsx NumberRow/NumberField are uncontrolled and commit on blur/Enter;
+  SizingNumberRow reuses the tab's SizingRowWrite + describeSizingRejection, so an inverted pair is refused
+  with identical copy, aria-invalid and aria-describedby. NodeCapRow is fixed by the same change and its
+  KNOWN-LIMIT comment is gone. Cross-field judging reads the store FRESH via the new
+  ControlsActionsPort.storedGlobalView(), not the rendered snapshot.
+- NEW PURE SEAM: src/view/numberRowCommit.ts (+ colocated BDD tests) holds the blur decision, so nothing in
+  npm test renders React.
+
+BEHAVIOUR-CAPTURING TESTS CHANGED (authorised above, called out in the change log):
+- src/engine/NodeSizer.test.ts - the inverted-ramp test was rewritten to the raise-max rule and relocated.
+- src/view/numberRowCommit.test.ts - the reseed rule changed: any NON-REFUSED commit now reseeds from the
+  store, because a capped write (field already at a NODE_SIZE_PX_BOUNDS bound) or a respelling (007 over 7)
+  otherwise leaves an unstored number in the box with no message. This CORRECTS the earlier claim on this
+  ticket that the panel "always ends up showing the stored number" - it did not, until this fix.
+- Two spec-walking tripwires amended in the open for the new cross-field repair; the repair is pinned
+  independently by new persistedShapes tests and the amendment is directional (a swap would still fail).
+
+Gates: npm run check exit 0; npm test 95 files / 1272 tests passed. e2e not run (release gate; no e2e spec
+drives these rows). Change log: _change_log/2026-07-30_08-40-33Z.md.
+
+FOLLOW-UP (open, tagged settings-cleanup): nid_9uzrvqv0k5qgckgdaqtgr41ky_e - the per-metric WEIGHT input in
+SizingMetricRow has its own inline markup, never went through NumberRow, and is still controlled/per-keystroke.
