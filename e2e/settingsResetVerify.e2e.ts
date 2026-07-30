@@ -57,12 +57,17 @@ async function setExclusion(enabled: boolean, patterns: readonly string[]): Prom
 // MAJOR-1
 // ---------------------------------------------------------------------------
 
-test("VERIFY: exclusion reset with the textarea COLLAPSED confirms and lists the patterns verbatim", async () => {
+test("VERIFY: exclusion reset with the textarea DISABLED confirms and lists the patterns verbatim", async () => {
 	await settingsTab.open();
 	await setExclusion(false, TRICKY_PATTERNS);
-	// Precondition: the patterns exist but there is NO on-screen surface showing them.
-	await expect(settingsTab.card("Node exclusion").locator("textarea")).toHaveCount(0);
-	await page.screenshot({ path: `${OUT_DIR}/01-exclusion-collapsed.png` });
+	// Precondition: the patterns exist and the row IS on screen, but its textarea is
+	// disabled because exclusion is off (`nid_qp56jugz8en8wkgjirwcb269p_e`: always
+	// render, disabled). It used to be absent entirely — the confirmation still has to
+	// list what it is about to destroy, because a dimmed row is easy to read past.
+	const textarea = settingsTab.card("Node exclusion").locator("textarea");
+	await expect(textarea).toHaveCount(1);
+	await expect(textarea).toBeDisabled();
+	await page.screenshot({ path: `${OUT_DIR}/01-exclusion-disabled.png` });
 
 	await settingsTab.resetButton("Node exclusion").click();
 	await expect(settingsTab.confirmDialog()).toContainText("Restore node exclusion defaults?");
@@ -73,7 +78,7 @@ test("VERIFY: exclusion reset with the textarea COLLAPSED confirms and lists the
 		.evaluateAll((els) => els.map((el) => el.textContent));
 	// Verbatim AND in stored order; markup-ish text must survive as text.
 	expect(listed).toEqual(TRICKY_PATTERNS);
-	await page.screenshot({ path: `${OUT_DIR}/02-exclusion-confirm-collapsed.png` });
+	await page.screenshot({ path: `${OUT_DIR}/02-exclusion-confirm-disabled.png` });
 	await page.keyboard.press("Escape");
 });
 

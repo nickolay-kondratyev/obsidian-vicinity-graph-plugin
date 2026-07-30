@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ViewSettings } from "../engine";
 import { EngineDefaults } from "../engine";
-import { SECTION_RESET_SCOPES, planSettingsReset } from "./settingsResetPlan";
+import { planSettingsReset } from "./settingsResetPlan";
 import { SECTION_SETTINGS_FIELDS, SETTINGS_SECTIONS, type SectionSettingsFields } from "./settingsSectionFields";
 import type { SettingsWriteContext } from "./settingsWritePlan";
 
@@ -32,14 +32,15 @@ describe("settings section field map", () => {
 		expect(listedFields("exclusion").sort()).toEqual(Object.keys(EngineDefaults.nodeExclusionSettings()).sort());
 	});
 
-	/**
-	 * The sections and the per-section reset scopes are the same six cards seen
-	 * from two sides; a section with no reset scope would be a card whose
-	 * "Restore defaults" row silently does not exist.
+	/*
+	 * REMOVED, not weakened: this used to compare `SETTINGS_SECTIONS` against a
+	 * second exported tuple (`SECTION_RESET_SCOPES`) to prove no card lacks a
+	 * "Restore defaults" row. That alias is gone (`nid_llfhrqo1ecg8tuxigo7bcrrrf_e`)
+	 * — `settingsResetPlan` reads `SETTINGS_SECTIONS` itself, so the comparison
+	 * became a literal tautology. The same property is still asserted against
+	 * `SETTINGS_RESET_SCOPES`'s own key set, which IS an independent declaration:
+	 * `settingsResetPlan.test.ts`, "every reset scope has a spec".
 	 */
-	it("WHEN the section list is read THEN it matches the settings-tab section reset scopes", () => {
-		expect([...SETTINGS_SECTIONS]).toEqual([...SECTION_RESET_SCOPES]);
-	});
 });
 
 /**

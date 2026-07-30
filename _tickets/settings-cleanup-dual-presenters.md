@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-30T02:29:41Z
 id: nid_armoson86j0ii8c33r1odo1rc_e
 title: "Settings cleanup — dual presenters: settings tab and in-graph panel become two presenters of one descriptor model"
-status: open
+status: closed
 deps: [nid_wimjq4ewgbg21n4zx9d4qq3a0_e, nid_m5hxe4eo9jgt7cfic7s2o3uvi_e]
 links: [nid_1rslube8at5xj60ji4jeve0b0_e, nid_qp56jugz8en8wkgjirwcb269p_e, nid_klkdpmx6axf90y4xj8khwrlf2_e, nid_que9qloigra7ku2boh83qizz0_e]
 created_iso: 2026-07-29T17:29:52Z
-status_updated_iso: 2026-07-29T17:29:52Z
+status_updated_iso: 2026-07-30T02:29:40Z
 type: task
 priority: 1
 assignee: CC_WITH-nickolaykondratyev
@@ -38,3 +39,33 @@ From the descriptor-model ticket (nid_wimjq4ewgbg21n4zx9d4qq3a0_e), a pointer fo
 **2026-07-29T22:11:13Z**
 
 SCOPE CHANGE (owner, 2026-07-29): settings are GLOBAL-only before this ticket lands (nid_ez38gf1mrdgh5kxedzrdicwzl_e removes per-doc state, incl. per-pinned-central depth steppers in CentralDepthControls.tsx). The descriptor row model and both presenters therefore render GLOBAL rows only — no persistable/per-doc arms, no NOT_PERSISTABLE_NOTICE, no owned-layer pinned indicator on depth rows. Pins remain global and the Pinned centrals disclosure stays, but without per-central depth dials. Adjust any relevant specs/docs (README pinning section, high-level-plan) if this ticket touches them.
+
+**2026-07-30T02:29:40Z**
+
+DONE. src/view/settingsRows.ts now declares every settings section and row once
+(SETTINGS_GROUPS); the Obsidian tab (VicinityGraphSettingTab.addRow) and the React
+panel (src/view/SettingsRowView.tsx) are two presenters over it, each an exhaustive
+switch on row.control.kind closed by unhandledRowControl(control: never) - so adding a
+10th control kind is a TS2345 in BOTH files (probe-verified independently by the
+reviewer). Five panel section components were absorbed and deleted; SECTION_RESET_SCOPES
+is gone. Grouping, labels, descriptions, a11y names (SettingsRowNames) and disabledWhen
+are DATA; disabledWhen is compile-restricted to DEPENDENCY_AWARE_CONTROL_KINDS.
+
+All four subsumed tickets landed and are closed: klkdpmx (panel outline depth),
+1rslube (one Depth group, global rows only), que9qloi (panel a11y), qp56jugz
+(exclusion always-rendered-disabled). Also closed llfhrqo (duplicate name lists) and
+uer0a6ux (dead CSS). Parity delta closed beyond scope: nodeCap gained a panel row.
+
+Gates: npm test 87 files / 1139 tests pass, npm run check and npm run build exit 0.
+npm run test:e2e NOT run (needs real Obsidian) although 4 specs were rewritten.
+
+FOLLOW-UPS (open):
+- nid_9wed7bqboqb83aghmt1sctv90_e - run the e2e release gate on this branch.
+- nid_0u28xzhz05qewz35jfqkxkvz2_e [decide] - owner sign-off on three panel UX changes
+  that fell out of one declared order (exclusion 2nd->5th, new Performance disclosure,
+  four longer labels).
+- nid_uppprbbqursr6awuoevoqpah1_e - move per-kind {value read, range, interaction} into
+  the row model so the presenters become pure markup (last duplication between them).
+
+Artifacts: .ai_out/settings-cleanup-dual-presenters/nid_armoson86j0ii8c33r1odo1rc_e_2026-07-29T18-25-30PDT/
+(review converged round 2: 0 blocking).

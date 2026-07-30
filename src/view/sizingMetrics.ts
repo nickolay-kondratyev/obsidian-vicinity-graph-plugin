@@ -2,10 +2,9 @@ import type { SizeMetricId } from "../engine";
 
 /**
  * Display label + render order for one sizing metric. Shared knowledge (step-06
- * Phase C/D): the in-view {@link SizingSection} disclosure and the global
- * {@link VicinityGraphSettingTab} render the SAME five metric controls, so
- * the human-facing labels and their order live here once and neither surface
- * drifts.
+ * Phase C/D): `settingsRows.ts` turns this table into the five metric ROWS that
+ * BOTH presenters render, so the human-facing labels and their order live here
+ * once and neither surface drifts.
  */
 export interface SizingMetricLabel {
 	readonly id: SizeMetricId;

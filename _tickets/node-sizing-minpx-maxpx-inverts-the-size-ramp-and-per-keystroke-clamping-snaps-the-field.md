@@ -64,3 +64,16 @@ settingsDebounce.ts + an uncontrolled field; this is bringing the panel to parit
 BEHAVIOUR-CAPTURING TEST TO UPDATE (explicit alignment given here, do not skip it silently):
 src/engine/NodeSizer.test.ts:359 currently PINS the inverted ramp as accepted behaviour. It must be
 rewritten to assert the raise-max rule. Call this out in the PR.
+
+**2026-07-30T02:28:50Z**
+
+FILE RENAMES (nid_armoson86j0ii8c33r1odo1rc_e): every reference to
+src/view/SizingSection.tsx in this ticket is now src/view/SettingsRowView.tsx -
+specifically SizingNumberRow (min/max/k) and the shared NumberRow it renders. The
+settings-tab half is unchanged (VicinityGraphSettingTab.addSizingNumber).
+
+SCOPE GREW BY ONE ROW: the panel now also has a Node cap row (NodeCapRow, same
+NumberRow shape) and it has the SAME open problem, in a sharper form - it refuses an
+out-of-spec keystroke on a CONTROLLED input, so the field cannot be backspaced to
+blank on the way to a new number (select-and-retype works). Documented at the call
+site. The [decide] question is unchanged and now covers this row too.

@@ -10,7 +10,7 @@ import { describe, expect, it } from "vitest";
  * is the ONE module allowed to turn that answer into a user-visible restore.
  * A view module that calls a defaults factory itself becomes a second opinion on
  * what a default is — identical today, silently divergent the day a default
- * moves. That is exactly what `ForceLayoutSection`'s "Restore defaults" button
+ * moves. That is exactly what the panel's force-layout "Restore defaults" button
  * was before this guard existed.
  *
  * Guarded as a source scan for the same reason `importGuard`, `selectorGuard`

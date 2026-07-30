@@ -29,8 +29,14 @@ genuinely silent holes are:
    **CLOSED by ticket 2** — `src/view/settingsSectionFields.ts` declares which
    fields each section owns, the reset plans derive from it, and a field in no
    section is a compile error naming it.
-3. settings-tab vs in-graph-panel UI parity (no guard at all) — **still open**,
-   ticket 4 (dual presenters) + ticket 5 (parity test).
+3. ~~settings-tab vs in-graph-panel UI parity (no guard at all)~~
+   **CLOSED by ticket 4** — `src/view/settingsRows.ts` declares every section and
+   row once (`SETTINGS_GROUPS`); both surfaces render it, each dispatching on
+   `row.control.kind` in a `switch` closed by `unhandledRowControl`, so a new control
+   kind is a compile error in BOTH presenters. `settingsRowParity.test.ts`
+   additionally source-scans that neither surface has gone back to a hand-written row
+   list and that both switches still carry that closing `default`. Ticket 5 iterates that
+   model instead of literal lists.
 
 (There is no resolver hole either: since 2.5 **no site enumerates `ViewSettings`
 fields** — `globalView` is read straight through, and the one place that rebuilds
@@ -84,7 +90,11 @@ The compiler now NAMES every site you miss except the last:
 3. `src/persistence/persistedShapes.ts` — one parse expression *(guarded)*
 4. `src/view/settingsSectionFields.ts` — one key in one section *(guarded)*
 5. `src/view/settingsWritePlan.ts` — one interaction arm + one `switch` case *(guarded: the `switch` is exhaustive)*
-6. UI copy + row rendering in the tab and the panel *(ticket 4's job to guard)*
+6. `src/view/settingsRows.ts` — one row descriptor (label, description, control
+   kind, and `disabledWhen` only on a `DEPENDENCY_AWARE_CONTROL_KINDS` kind) in one
+   section's block *(guarded: both presenters' `switch` on `row.control.kind` is
+   closed by `unhandledRowControl`, so a NEW CONTROL KIND is a compile error in
+   each; a new row of an EXISTING kind needs no presenter edit at all)*
 
 This is "compile-forced N declarations", NOT the ticket's literal "ONE
 declaration". Deriving the `ViewSettings` TYPE from a runtime descriptor array
@@ -159,12 +169,16 @@ graph LR
   `nid_itpt4tf0kkhsbbz0np304a558_e` (user-visible write-failure policy) and
   `nid_7qot0m6nuxxmd5z0yb9jylsd6_e` (`decide`: React component-test infra —
   asks whether it should block step 4).
-- Behind **presenters (4)**: `nid_1rslube8at5xj60ji4jeve0b0_e` (Depth group),
+- ~~Behind **presenters (4)**: `nid_1rslube8at5xj60ji4jeve0b0_e` (Depth group),
   `nid_qp56jugz8en8wkgjirwcb269p_e` (exclusion row disabled-not-hidden),
   `nid_klkdpmx6axf90y4xj8khwrlf2_e` (panel outline-depth control),
-  `nid_que9qloigra7ku2boh83qizz0_e` (panel a11y nits),
-  `nid_hatwq2jlkhno5t6awcz0q6t9q_e` (minPx/maxPx validation UX — fix once in
-  the unified renderer, not twice),
+  `nid_que9qloigra7ku2boh83qizz0_e` (panel a11y nits)~~
+  **SUBSUMED and DELIVERED by ticket 4** — all four land as data in
+  `SETTINGS_GROUPS` rather than as four hand edits, together with
+  `nid_llfhrqo1ecg8tuxigo7bcrrrf_e` (the `SECTION_RESET_SCOPES` alias collapse).
+  Still behind presenters (4):
+  `nid_hatwq2jlkhno5t6awcz0q6t9q_e` (minPx/maxPx validation UX — the panel's
+  numeric rows are now ONE component, so the fix lands once),
   `nid_puf4a4q6fgn5lpehh5dowfm1r_e` ("Show cross links" — new full-cascade
   boolean, default OFF; decided wanted 2026-07-29, both presenters).
 - Behind **tests (5)**: `nid_ek3wrqoh1rsftk6ulg836mghf_e` (e2e types into a

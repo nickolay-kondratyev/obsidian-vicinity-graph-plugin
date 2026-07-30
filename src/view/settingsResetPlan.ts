@@ -160,10 +160,10 @@ export const SETTINGS_RESET_SCOPES: Readonly<Record<SettingsResetScope, Settings
 		plan: (ctx) => planSectionReset("node-exclusion", ctx),
 		/**
 		 * The ONE section reset that destroys user-authored CONTENT (hand-written
-		 * regexes), not a numeric knob — and the tab hides the patterns textarea
-		 * while exclusion is toggled off, so the patterns may not even be on screen.
-		 * Confirming (and listing them verbatim) is the only chance the user gets to
-		 * see what is about to go. Nothing to destroy → no pointless dialog.
+		 * regexes), not a numeric knob. Confirming — and listing them VERBATIM — is
+		 * what makes the loss reviewable: the textarea can be scrolled off screen, or
+		 * DISABLED because exclusion is off (the row is always rendered, so it is
+		 * visible but easy to read past). Nothing to destroy → no pointless dialog.
 		 */
 		confirmation: (ctx) => {
 			const { patterns } = ctx.nodeExclusion;
@@ -207,31 +207,16 @@ export const SETTINGS_RESET_SCOPES: Readonly<Record<SettingsResetScope, Settings
 	},
 };
 
-/**
- * The per-section scopes, in settings-tab render order. Each settings-tab card
- * ends with exactly one of these (obsidian-settings: a section reset must live
- * INSIDE the boundary it resets).
- *
- * Now an alias of {@link SETTINGS_SECTIONS} — the sections and the per-section
- * reset scopes are the same six cards seen from two sides, so one list defines
- * both. A value binding rather than `export { … } from`, for `isolatedModules`.
- *
- * DEBT, deliberately taken: this leaves two exported names for one tuple, and
- * `SettingsSection` / {@link SettingsResetScope} for one union. Collapsing them
- * means editing the e2e harness and a behaviour-capturing test in the same
- * change that refactors the code they check — the coupling this ticket's
- * zero-test-edit proof exists to avoid. Follow-up ticket filed for ticket 4.
- */
-export const SECTION_RESET_SCOPES = SETTINGS_SECTIONS;
-
 /** The tab-wide scope, rendered once at the bottom behind a confirmation modal. */
 export const ALL_SETTINGS_RESET_SCOPE = "all" satisfies SettingsResetScope;
 
 /**
  * TAUTOLOGICAL BY CONSTRUCTION as of the descriptor-model ticket, and kept
  * deliberately: with {@link SettingsResetScope} derived from
- * {@link SETTINGS_SECTIONS}, `UnplacedScope` cannot be anything but `never`, so
- * this can no longer fail.
+ * {@link SETTINGS_SECTIONS} — which is also the one tuple the per-section scopes
+ * are read from, each settings-tab card ending with exactly one of them
+ * (obsidian-settings: a section reset must live INSIDE the boundary it resets) —
+ * `UnplacedScope` cannot be anything but `never`, so this can no longer fail.
  *
  * What carries the guarantee now is the
  * `Readonly<Record<SettingsResetScope, SettingsResetScopeSpec>>` annotation on
@@ -243,7 +228,7 @@ export const ALL_SETTINGS_RESET_SCOPE = "all" satisfies SettingsResetScope;
  * because a guard that cannot fail while READING as protection is a POLS
  * violation.
  */
-type PlacedScope = (typeof SECTION_RESET_SCOPES)[number] | typeof ALL_SETTINGS_RESET_SCOPE;
+type PlacedScope = (typeof SETTINGS_SECTIONS)[number] | typeof ALL_SETTINGS_RESET_SCOPE;
 type UnplacedScope = Exclude<SettingsResetScope, PlacedScope>;
 export const _assertEveryResetScopePlaced: UnplacedScope extends never ? true : UnplacedScope = true;
 

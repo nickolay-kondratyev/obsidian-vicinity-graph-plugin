@@ -1,4 +1,6 @@
-import { ALL_SETTINGS_RESET_SCOPE, SECTION_RESET_SCOPES, SETTINGS_RESET_SCOPES } from "../src/view/settingsResetPlan";
+import { ALL_SETTINGS_RESET_SCOPE, SETTINGS_RESET_SCOPES } from "../src/view/settingsResetPlan";
+import { SETTINGS_GROUPS } from "../src/view/settingsRows";
+import { SETTINGS_SECTIONS } from "../src/view/settingsSectionFields";
 
 /**
  * The ONE e2e-side description of what the settings surfaces are made of: the
@@ -18,10 +20,10 @@ import { ALL_SETTINGS_RESET_SCOPE, SECTION_RESET_SCOPES, SETTINGS_RESET_SCOPES }
  * lives in `settingsBaseline.test.ts` (one place) and in
  * `src/view/settingsResetPlan.test.ts` (label shape) — deliberately NOT removed.
  *
- * WHY the card HEADINGS are hand-written: nothing in `src` exposes them as data
- * (`VicinityGraphSettingTab.display()` calls six hand-written `renderX()`
- * methods, each with a literal `setName(...).setHeading()`). They are keyed by
- * reset scope so a NEW scope is a COMPILE error here, not a runtime surprise.
+ * WHY nothing here re-types a heading or a panel summary any more: since the dual
+ * presenters ticket both surfaces render `SETTINGS_GROUPS` (`src/view/settingsRows`),
+ * so the headings, the panel order and which section opens by default ARE data. This
+ * module reads them; `settingsUxVisual.e2e.ts` is what proves they reach the DOM.
  *
  * This module is pure: no `obsidian`, no `react`, no `fs`. It must stay that way
  * — `settingsResetPlan` is safe to import because it only reaches into the pure
@@ -30,24 +32,7 @@ import { ALL_SETTINGS_RESET_SCOPE, SECTION_RESET_SCOPES, SETTINGS_RESET_SCOPES }
  */
 
 /** The per-section reset scopes, i.e. every scope except the tab-wide one. */
-export type SectionResetScope = (typeof SECTION_RESET_SCOPES)[number];
-
-/**
- * Card heading → reset scope. `Record` over the scope union on purpose: adding a
- * seventh section scope in `settingsResetPlan` fails `tsc` HERE (under
- * `npm run check`, which covers `e2e/` via `check:e2e`), naming the missing
- * heading, instead of leaving a spec under-asserting at runtime.
- */
-const SECTION_CARD_HEADINGS: Readonly<Record<SectionResetScope, string>> = {
-	// The scope KEY stays `depth-defaults` (internal, and the reset row still restores
-	// shipped defaults); the card HEADING is user-facing copy and now names its scope.
-	"depth-defaults": "Depth (all notes)",
-	"node-sizing": "Node sizing",
-	"node-contents": "Node contents",
-	"force-layout": "Force layout",
-	"node-exclusion": "Node exclusion",
-	performance: "Performance",
-};
+export type SectionResetScope = (typeof SETTINGS_SECTIONS)[number];
 
 /** One settings-tab card: what it is called, and what its restore row is called. */
 export interface SettingsTabSection {
@@ -59,9 +44,9 @@ export interface SettingsTabSection {
 }
 
 /** Every settings-tab card, in the order `VicinityGraphSettingTab.display()` renders them. */
-export const SETTINGS_TAB_SECTIONS: readonly SettingsTabSection[] = SECTION_RESET_SCOPES.map((scope) => ({
+export const SETTINGS_TAB_SECTIONS: readonly SettingsTabSection[] = SETTINGS_SECTIONS.map((scope) => ({
 	scope,
-	heading: SECTION_CARD_HEADINGS[scope],
+	heading: SETTINGS_GROUPS[scope].heading,
 	resetName: SETTINGS_RESET_SCOPES[scope].label,
 }));
 
@@ -109,33 +94,53 @@ export interface PanelDisclosure {
 }
 
 /**
- * The controls-panel disclosures, in `GraphToolbar` order. A SEPARATE list from
- * the tab cards on purpose — the two surfaces genuinely differ: the panel has no
- * "Performance" card, and the tab has no nested "Advanced spacing". (The depth
- * section is deliberately named identically on both surfaces — one setting, one
- * wording.)
+ * WHETHER a section's own summary text also matches an ANCESTOR disclosure. The one
+ * thing here that is NOT derivable from `SETTINGS_GROUPS`, because it is a fact about
+ * Playwright's substring `hasText` against the rendered nesting, not about the model.
+ * `Record` over the section union so a new section is a COMPILE error here.
+ */
+const SUMMARY_ALSO_MATCHES_AN_ANCESTOR: Readonly<Record<SectionResetScope, boolean>> = {
+	"depth-defaults": true,
+	"node-sizing": false,
+	"node-contents": false,
+	"force-layout": true,
+	"node-exclusion": false,
+	performance: false,
+};
+
+/**
+ * The controls-panel disclosures, in panel order — now DERIVED from the same
+ * `SETTINGS_GROUPS` the tab cards come from, because since the dual-presenters ticket
+ * the two surfaces render the same declared sections in the same order. (They still
+ * differ BELOW the section level: the tab has no nested "Advanced spacing" collapsible
+ * and the panel edits no exclusion patterns.)
  *
  * This list is EXHAUSTIVE for the panel's TOP LEVEL, with NO exceptions, and that
  * is enforced against the real DOM: `settingsUxVisual.e2e.ts` asserts the
  * direct-child `.vicinity-graph-disclosure` elements of
  * `.vicinity-graph-toolbar__body` against {@link CONTROLS_PANEL_DISCLOSURE_SUMMARIES}
- * — count, identity and order. So a sixth top-level disclosure fails that spec
- * until it is listed here.
+ * — count, identity and order.
  *
  * "Advanced spacing" is the one summary that pin does not see, and structurally so:
  * it is NESTED inside Force layout, out of reach of a direct-child selector —
  * nothing to maintain. (The panel's one CONDITIONAL disclosure, "Pinned centrals
  * (n)", went with the per-central depth dials in ticket
- * `nid_ez38gf1mrdgh5kxedzrdicwzl_e`; every entry below now renders
- * unconditionally, so the pin needs no name-based exemption.)
+ * `nid_ez38gf1mrdgh5kxedzrdicwzl_e`; every entry below renders unconditionally, so
+ * the pin needs no name-based exemption.)
  */
-export const CONTROLS_PANEL_DISCLOSURES: readonly PanelDisclosure[] = [
-	{ summaryText: "Depth (all notes)", startsOpen: true, summaryAlsoMatchesAnAncestor: true },
-	{ summaryText: "Node exclusion", startsOpen: false, summaryAlsoMatchesAnAncestor: false },
-	{ summaryText: "Node sizing", startsOpen: false, summaryAlsoMatchesAnAncestor: false },
-	{ summaryText: "Node contents", startsOpen: false, summaryAlsoMatchesAnAncestor: false },
-	{ summaryText: "Force layout", startsOpen: false, summaryAlsoMatchesAnAncestor: true },
-];
+export const CONTROLS_PANEL_DISCLOSURES: readonly PanelDisclosure[] = SETTINGS_SECTIONS.map((section) => ({
+	summaryText: SETTINGS_GROUPS[section].heading,
+	startsOpen: SETTINGS_GROUPS[section].openInPanel === true,
+	summaryAlsoMatchesAnAncestor: SUMMARY_ALSO_MATCHES_AN_ANCESTOR[section],
+}));
+
+/**
+ * The force-layout reset's name. It is the settings-tab row name AND the accessible
+ * name of the CONTROLS PANEL's own restore button — the one section that offers one
+ * (`SETTINGS_GROUPS["force-layout"].panelReset`), named by scope exactly like the
+ * tab's buttons.
+ */
+export const FORCE_LAYOUT_RESET_NAME = SETTINGS_RESET_SCOPES["force-layout"].label;
 
 /** Panel disclosure summaries, in panel order. */
 export const CONTROLS_PANEL_DISCLOSURE_SUMMARIES: readonly string[] = CONTROLS_PANEL_DISCLOSURES.map(

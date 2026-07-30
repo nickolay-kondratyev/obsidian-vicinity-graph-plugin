@@ -637,29 +637,58 @@
 	padding-top: var(--size-4-2);
 	border-top: 1px solid var(--background-modifier-border);
 }
-.vicinity-graph-sizing__field {
+/* --- Shared panel row shapes (toolbar) ---------------------------------- */
+
+/*
+ * ONE shape per control kind, shared by every declared row that uses it
+ * (`settingsRows.ts` + `SettingsRowView.tsx`) — a sizing bound, the node cap, an
+ * outline-depth slider and a force-layout slider are the same two shapes, so the
+ * classes are named after the SHAPE and not after the section they first appeared
+ * in.
+ *
+ * A number row keeps its label beside a narrow field; a slider row stacks a muted
+ * label with a tabular-nums value readout above a full-width native range input
+ * (Obsidian's `slider` class themes the track). Long descriptions ride as native
+ * title tooltips — there is no room for paragraph text at 260px.
+ */
+.vicinity-graph-number-row {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
 	gap: var(--size-4-2);
 	color: var(--text-muted);
 }
-.vicinity-graph-sizing__field input {
+.vicinity-graph-number-row input {
 	width: 4.5em;
 	flex-shrink: 0;
 }
-
-/* --- Layout-mode selector (toolbar) ------------------------------------- */
-
-.vicinity-graph-layout {
+.vicinity-graph-slider-row {
 	display: flex;
-	align-items: center;
+	flex-direction: column;
+	gap: var(--size-2-1);
+}
+.vicinity-graph-slider-row .slider {
+	width: 100%;
+	margin: 0;
+}
+.vicinity-graph-slider-row__head {
+	display: flex;
+	align-items: baseline;
 	justify-content: space-between;
 	gap: var(--size-4-2);
-	color: var(--text-muted);
 }
-.vicinity-graph-layout select {
+.vicinity-graph-slider-row__label {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.vicinity-graph-slider-row__value {
 	flex-shrink: 0;
+	font-size: var(--font-ui-smaller);
+	font-variant-numeric: tabular-nums;
+	color: var(--text-normal);
 }
 
 /* --- Node-exclusion disclosure (toolbar) -------------------------------- */
@@ -694,6 +723,16 @@
 	color: var(--text-normal);
 	cursor: pointer;
 }
+.vicinity-graph-exclusion__patterns-row {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-2-1);
+}
+/* Inert, not gone: the patterns row is ALWAYS rendered and merely disabled while
+ * exclusion is off (owner decision 2026-07-29), on both surfaces. */
+.vicinity-graph-exclusion__patterns-row[aria-disabled="true"] {
+	opacity: 0.55;
+}
 .vicinity-graph-exclusion__patterns {
 	display: flex;
 	flex-direction: column;
@@ -724,7 +763,7 @@
  * segmented-control.css (shared with the settings tab); these rules are purely
  * the panel's layout: the row label stacks above a full-width pill instead of
  * sitting beside it, because side-by-side leaves no room for three segments.
- * Same stacked shape as a force-layout slider row.
+ * Same stacked shape as a slider row.
  */
 .vicinity-graph-nodecontents__field {
 	display: flex;
@@ -747,46 +786,14 @@
 
 /* --- Force-layout section (toolbar) ------------------------------------- */
 
-/*
- * Six compact sliders: a muted label with a tabular-nums value readout above a
- * full-width native range input (Obsidian's `slider` class themes the track).
- * The long field descriptions from the shared meta table ride as native title
- * tooltips — no room for paragraph text at 260px.
- */
-.vicinity-graph-forcelayout__field {
-	display: flex;
-	flex-direction: column;
-	gap: var(--size-2-1);
-}
-.vicinity-graph-forcelayout__field .slider {
-	width: 100%;
-	margin: 0;
-}
-.vicinity-graph-forcelayout__head {
-	display: flex;
-	align-items: baseline;
-	justify-content: space-between;
-	gap: var(--size-4-2);
-}
-.vicinity-graph-forcelayout__label {
-	font-size: var(--font-ui-smaller);
-	color: var(--text-muted);
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
-.vicinity-graph-forcelayout__value {
-	flex-shrink: 0;
-	font-size: var(--font-ui-smaller);
-	font-variant-numeric: tabular-nums;
-	color: var(--text-normal);
-}
 /* Nested advanced-spacing disclosure: bordered so it reads as a sub-group on
  * the parent disclosure's identical background. */
 .vicinity-graph-forcelayout__advanced {
 	border: 1px solid var(--background-modifier-border);
 }
-.vicinity-graph-forcelayout__restore {
+/* Named after the SHAPE, not the section that first used it: any panel section
+ * whose group declares `panelReset` renders this button. */
+.vicinity-graph-section-restore {
 	align-self: flex-start;
 	font-size: var(--font-ui-smaller);
 }

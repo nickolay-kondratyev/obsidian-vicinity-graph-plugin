@@ -13,12 +13,19 @@ import type { ReactElement, ReactNode } from "react";
  */
 export function Disclosure({
 	summary,
+	summaryTitle,
 	defaultOpen = false,
 	className,
 	bodyClassName,
 	children,
 }: {
 	readonly summary: ReactNode;
+	/**
+	 * Native hover tooltip on the `<summary>`. The 260px panel has no room for a
+	 * section's description text, so the shared copy rides here instead of being
+	 * dropped (same string as the settings tab's description row — zero drift).
+	 */
+	readonly summaryTitle?: string;
 	readonly defaultOpen?: boolean;
 	/** Extra class(es) on the `<details>` root (e.g. a section-specific block class). */
 	readonly className?: string;
@@ -31,7 +38,9 @@ export function Disclosure({
 		bodyClassName === undefined ? "vicinity-graph-disclosure__body" : `vicinity-graph-disclosure__body ${bodyClassName}`;
 	return (
 		<details className={rootClass} open={defaultOpen || undefined}>
-			<summary className="vicinity-graph-disclosure__summary">{summary}</summary>
+			<summary className="vicinity-graph-disclosure__summary" title={summaryTitle}>
+				{summary}
+			</summary>
 			<div className={bodyClass}>{children}</div>
 		</details>
 	);

@@ -1,28 +1,16 @@
 import type { NodePreviewPreference } from "../engine";
 
 /**
- * UI COPY for the node-preview preference, shared by every surface that names it
- * (the settings tab's row, the graph controls panel, the restore-defaults
- * description). Same contract as `forceLayoutFieldMeta`: surfaces share the DATA
- * and duplicate their own markup, because Obsidian's `Setting` API cannot mount
- * inside React.
+ * PER-OPTION UI COPY for the node-preview preference, shared by every surface that
+ * renders the pill (the settings tab's row, the graph controls panel) and by the
+ * restore-defaults description. Same contract as `forceLayoutFieldMeta`: surfaces
+ * share the DATA and duplicate their own markup, because Obsidian's `Setting` API
+ * cannot mount inside React.
+ *
+ * The ROW's own label and description are NOT here: they are row copy for a
+ * `keyof ViewSettings` field, so they live with every other row's copy in
+ * `settingsRows.ts`. This table is keyed by the VALUE union instead.
  */
-
-/**
- * Names the SETTING, on the settings-tab row and as the `aria-label` of both
- * radiogroups. The panel repeats it as a visible row label: a bare
- * Auto/Outline/Image trio never says what it switches.
- */
-export const NODE_PREVIEW_ROW_LABEL = "Preview";
-
-/**
- * Row description. It states the case where the preference actually bites (a
- * note with BOTH), because that is the only situation the three options differ
- * in — the graceful fallback is the second sentence so nobody fears a blank node.
- */
-export const NODE_PREVIEW_ROW_DESCRIPTION =
-	"Which preview a node shows when it has both a heading outline and an image. " +
-	"A note that only has one of the two always shows that one.";
 
 export interface NodePreviewOptionMeta {
 	/** Segment label — also the accessible name of the option's radio. */

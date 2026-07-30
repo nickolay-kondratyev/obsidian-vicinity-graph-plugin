@@ -1,9 +1,9 @@
 /**
  * The ONE acceptance rule shared by every typed sizing number field (the
- * settings tab's min/max/k/weight inputs and the in-view `SizingSection`
- * mirror). It answers "is this keystroke a value at all?"; deciding whether the
- * value is sane is `clampSizingSettings`' job downstream, so an out-of-range but
- * real number IS forwarded and clamped rather than silently dropped mid-typing.
+ * settings tab's min/max/k/weight inputs and the in-view panel's sizing rows). It
+ * answers "is this keystroke a value at all?"; deciding whether the value is sane is
+ * `clampSizingSettings`' job downstream, so an out-of-range but real number IS
+ * forwarded and clamped rather than silently dropped mid-typing.
  *
  * Rejected:
  * - blank — `Number("")` is `0`, so forwarding a cleared field would persist a

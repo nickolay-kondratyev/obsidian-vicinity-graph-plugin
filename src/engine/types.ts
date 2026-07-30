@@ -299,7 +299,8 @@ export interface VicinityGraph {
 	readonly hiddenNodeCountsByFolder: ReadonlyMap<FolderPath, number>;
 	/**
 	 * Distinct vault paths rejected by global node exclusion during traversal
-	 * (0 when exclusion is disabled/empty). Surfaced next to the toolbar pill.
+	 * (0 when exclusion is disabled/empty). Surfaced in the controls panel's
+	 * node-exclusion section header, so it stays visible while that section is closed.
 	 */
 	readonly excludedNodeCount: number;
 	/** The view settings the build actually used (post cascade resolution). */

@@ -154,21 +154,22 @@ test("REVIEW: section reset re-renders the tab so displayed values actually move
 	await expect(nodeCap).toHaveValue("100");
 });
 
-/** Puts the tab in the state where patterns exist but the textarea is hidden. */
-async function storeHiddenPatterns(): Promise<void> {
-	// Disabled + patterns kept: the tab hides the textarea in this state.
+/** Puts the tab in the state where patterns exist but their textarea is inert. */
+async function storeInactivePatterns(): Promise<void> {
+	// Exclusion off + patterns kept: the tab renders the textarea DISABLED in this
+	// state (`nid_qp56jugz8en8wkgjirwcb269p_e` — always render, never hide).
 	await harness.saveNodeExclusion({ enabled: false, patterns: ["^archive/", "templates/"] });
 	await settingsTab.redisplay();
-	await expect(settingsTab.card("Node exclusion").locator("textarea")).toHaveCount(0);
+	await expect(settingsTab.card("Node exclusion").locator("textarea")).toBeDisabled();
 }
 
-test("REVIEW: exclusion reset shows the hidden patterns it is about to delete", async () => {
+test("REVIEW: exclusion reset shows the inactive patterns it is about to delete", async () => {
 	await settingsTab.open();
-	await storeHiddenPatterns();
-	await page.screenshot({ path: `${OUT_DIR}/exclusion-disabled-with-hidden-patterns.png` });
+	await storeInactivePatterns();
+	await page.screenshot({ path: `${OUT_DIR}/exclusion-disabled-with-inactive-patterns.png` });
 	await settingsTab.resetButton("Node exclusion").click();
-	// MAJOR-1 fix: the patterns are off screen, so the confirmation is the only
-	// place the user can see WHAT is being destroyed.
+	// MAJOR-1 fix: the patterns sit in a dimmed, disabled row that is easy to read
+	// past, so the confirmation is what makes WHAT is being destroyed reviewable.
 	await expect(settingsTab.confirmDialog()).toContainText("Restore node exclusion defaults?");
 	const listed = await settingsTab.confirmDialog()
 		.locator(".vicinity-graph-confirm-items code")
@@ -180,7 +181,7 @@ test("REVIEW: exclusion reset shows the hidden patterns it is about to delete", 
 
 test("REVIEW: cancelling the exclusion confirmation keeps every pattern", async () => {
 	await settingsTab.open();
-	await storeHiddenPatterns();
+	await storeInactivePatterns();
 	await settingsTab.resetButton("Node exclusion").click();
 	await settingsTab.dialogButton("Cancel").click();
 	expect((await harness.readGlobals()).exclusion).toEqual({ enabled: false, patterns: ["^archive/", "templates/"] });
