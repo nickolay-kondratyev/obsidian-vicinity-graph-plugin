@@ -68,7 +68,6 @@ export class VicinityGraphView extends ItemView {
 		const controlsActions = new ControlsActions(
 			this.persistenceServices,
 			this.app.vault,
-			this.viewsRefresh,
 			this.settingsWrites,
 			this.notices,
 		);

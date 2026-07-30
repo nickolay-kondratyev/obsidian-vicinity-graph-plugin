@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { EngineDefaults } from "../engine";
 import { FakePluginDataPort } from "../persistence/FakePluginDataPort";
 import { PluginDataStore } from "../persistence/PluginDataStore";
-import type { PluginDataPort } from "../persistence/storagePorts";
+import { RejectingPluginDataPort } from "../persistence/RejectingPluginDataPort";
 import { FakeUserNotices } from "./FakeUserNotices";
 import { FakeViewsRefresh } from "./FakeViewsRefresh";
 import type { DebounceScheduler } from "./settingsDebounce";
@@ -191,25 +191,8 @@ describe("SettingsWritePipeline serialised tasks", () => {
  * Failure policy
  * ========================================================================== */
 
-/** What a locked vault / full disk looks like from here: `saveData` rejects. */
-const SAVE_FAILURE = new Error("data.json could not be written");
-
-/**
- * A `data.json` port whose saves REJECT, counting the attempts — the count is what
- * shows that a failed write did not take the writes queued behind it down with it.
- */
-class RejectingPluginDataPort implements PluginDataPort {
-	saveAttempts = 0;
-
-	async loadData(): Promise<unknown> {
-		return null;
-	}
-
-	saveData(): Promise<void> {
-		this.saveAttempts += 1;
-		return Promise.reject(SAVE_FAILURE);
-	}
-}
+/** What a locked vault / full disk looks like from here: the write rejects — the SAME failure the port rejects with. */
+const SAVE_FAILURE = RejectingPluginDataPort.SAVE_FAILURE;
 
 const A_DEPTH_INTERACTION = { kind: "global-depth", field: "linkDepthIn", value: 2 } as const;
 
@@ -217,8 +200,9 @@ function failingPipelineUnderTest() {
 	const port = new RejectingPluginDataPort();
 	const store = new PluginDataStore(port);
 	const notices = new FakeUserNotices();
-	const pipeline = new SettingsWritePipeline(store, new FakeViewsRefresh(OPEN_VIEW_IDS), notices);
-	return { port, notices, pipeline };
+	const viewsRefresh = new FakeViewsRefresh(OPEN_VIEW_IDS);
+	const pipeline = new SettingsWritePipeline(store, viewsRefresh, notices);
+	return { port, notices, viewsRefresh, pipeline };
 }
 
 /**
@@ -267,14 +251,63 @@ describe("SettingsWritePipeline failed writes", () => {
 		expect(port.saveAttempts).toBe(2);
 	});
 
+	it("WHEN a GUARDED task's persist rejects THEN the user is told exactly once", async () => {
+		// The pinned set writes the same `data.json` on the same chain, so a failed pin
+		// must be as visible as a failed settings edit — through this ONE catch.
+		const { notices, pipeline } = failingPipelineUnderTest();
+		await pipeline.runGuarded("pinned-set", () => Promise.reject(SAVE_FAILURE));
+		expect(notices.messages).toEqual([SettingsWriteFailureNotice.forNonSettingsWrite("pinned-set")]);
+	});
+
+	it("WHEN a GUARDED task rejects THEN the write does not reject its (fire-and-forget) caller", async () => {
+		const { pipeline } = failingPipelineUnderTest();
+		await expect(pipeline.runGuarded("pinned-set", () => Promise.reject(SAVE_FAILURE))).resolves.toBeUndefined();
+	});
+
+	it("WHEN a GUARDED task rejects THEN a write queued behind it is still attempted", async () => {
+		const { port, pipeline } = failingPipelineUnderTest();
+		void pipeline.runGuarded("pinned-set", () => Promise.reject(SAVE_FAILURE));
+		await pipeline.apply({ kind: "global-cap", value: 42 });
+		expect(port.saveAttempts).toBe(1);
+	});
+
+	it("WHEN a GUARDED task succeeds THEN the user is told nothing", async () => {
+		const { notices, pipeline } = failingPipelineUnderTest();
+		await pipeline.runGuarded("pinned-set", () => Promise.resolve("store-changed"));
+		expect(notices.messages).toEqual([]);
+	});
+
 	it("WHEN a persist rejects THEN every open view is refreshed anyway (it must show what IS stored)", async () => {
-		const viewsRefresh = new FakeViewsRefresh(OPEN_VIEW_IDS);
-		const pipeline = new SettingsWritePipeline(
-			new PluginDataStore(new RejectingPluginDataPort()),
-			viewsRefresh,
-			new FakeUserNotices(),
-		);
+		const { viewsRefresh, pipeline } = failingPipelineUnderTest();
 		await pipeline.apply(A_DEPTH_INTERACTION);
 		expect(viewsRefresh.refreshedViewIds).toEqual([...OPEN_VIEW_IDS]);
+	});
+
+	it("WHEN a GUARDED task rejects THEN every open view is refreshed anyway (it must show what IS stored)", async () => {
+		// The rejected half of the SAME rule the settings write above obeys: the store moved
+		// in memory before the disk write rejected, so the screen is now the stale one.
+		const { viewsRefresh, pipeline } = failingPipelineUnderTest();
+		await pipeline.runGuarded("pinned-set", () => Promise.reject(SAVE_FAILURE));
+		expect(viewsRefresh.refreshedViewIds).toEqual([...OPEN_VIEW_IDS]);
+	});
+});
+
+/**
+ * The other half of rule 3, and the reason {@link SettingsWritePipeline.runGuarded}
+ * takes an OUTCOME rather than fanning out unconditionally: a body that decided not to
+ * write (a pin refused for want of a stable id) left the store exactly as every view
+ * already renders it, so a rebuild could only cost N graph builds to redraw the screen.
+ */
+describe("SettingsWritePipeline guarded fan-out", () => {
+	it("WHEN a GUARDED task reports it changed the store THEN every open view is refreshed", async () => {
+		const { viewsRefresh, pipeline } = pipelineUnderTest();
+		await pipeline.runGuarded("pinned-set", () => Promise.resolve("store-changed"));
+		expect(viewsRefresh.refreshedViewIds).toEqual([...OPEN_VIEW_IDS]);
+	});
+
+	it("WHEN a GUARDED task reports it changed nothing THEN no view is refreshed", async () => {
+		const { viewsRefresh, pipeline } = pipelineUnderTest();
+		await pipeline.runGuarded("pinned-set", () => Promise.resolve("store-unchanged"));
+		expect(viewsRefresh.refreshedViewIds).toEqual([]);
 	});
 });
