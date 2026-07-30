@@ -103,6 +103,18 @@ export class SettingsTabPage {
 		await this.control(accessibleName).fill(text);
 	}
 
+	/**
+	 * Takes focus off a named control — the user leaving a field they finished typing
+	 * in, which the tab treats as "persist it now" (`VicinityGraphSettingTab.flushOnBlur`).
+	 *
+	 * Its own method rather than "click somewhere else": clicking another typed row
+	 * would blur this one AND schedule a write of its own, so the blur under test
+	 * would no longer be the only thing that could have flushed.
+	 */
+	async blur(accessibleName: string): Promise<void> {
+		await this.control(accessibleName).blur();
+	}
+
 	/** One framed section card, addressed by its heading text. */
 	card(headingText: string): Locator {
 		return this.page.locator(".vicinity-graph-settings-section", { hasText: headingText });

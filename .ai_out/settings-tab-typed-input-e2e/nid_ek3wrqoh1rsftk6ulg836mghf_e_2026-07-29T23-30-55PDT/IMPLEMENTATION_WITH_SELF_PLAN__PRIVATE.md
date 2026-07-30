@@ -113,6 +113,36 @@ the real window settle in ~900ms. That is empirical evidence `hide()`'s flush is
 the work (the 400ms timer would have shown as ~400ms+). It is deliberately NOT asserted — see the
 WHY-NOT in the spec — but it is why I am comfortable the test is not vacuous in practice.
 
+## Iteration 1 (review response) — what changed and what I MEASURED
+
+The MAJOR was right: the close test could not fail. I did NOT take the "reword and file a
+follow-up" route — I made both flush claims falsifiable and then PROVED it by mutation.
+
+`SettingsWriteWindow.expectFlushedAheadOfWindow(editAndLeave, read, expected, message)`:
+- takes the ACTION, not a start time, so "clock starts before the keystroke" is structural.
+- SOUNDNESS does not depend on the margin: the fallback is `setTimeout(…, 400)` armed at the
+  keystroke, and `setTimeout` may fire late, never early ⇒ anything under one whole window
+  cannot be the timer, at any load. Budget = 0.75 × window = 300ms is pure anti-flake headroom.
+- polls at 10ms (default first interval is 100ms = a third of the budget spent on detection).
+
+MEASURED, real Obsidian in this container:
+- `--repeat-each=5` → **75/75 passed (1.5m)**, flush latency **12,13,13,14,14,14,14,15,16,16 ms**
+  (both flush tests, 5 repeats each). ~20x margin. Not flaky.
+- MUTATION 1 (blur flush removed): blur test **FAILS at 415ms**. ✔ falsifiable.
+- MUTATION 2 (only `hide()` flush removed): close test still **passes at 16ms** — closing the
+  window BLURS the focused field first, so `flushOnBlur` gets there. Worth knowing.
+- MUTATION 3 (BOTH removed): close test **FAILS at 414ms**. ✔ falsifiable, at the outcome level.
+- `git checkout src/view/VicinityGraphSettingTab.ts` after each; tree verified clean.
+
+So the close test's honest claim is "leaving the window does not cost the keystroke", which is
+the product's promise; it deliberately does NOT isolate `hide()` from `flushOnBlur` (that would
+be testing the implementation, and the second belt is a feature). Said so in the test comment.
+
+Other findings: #2 reworded `data.json` → "settings store" + added ONE `reloadPlugin()` round
+trip (last test, since it replaces the plugin instance). #3 three contract bullets on `drain()`.
+#4 `givenNoWriteStillPending()` at the top of both GIVENs. #5 white-space moved to the exclusion
+slot with a genuinely 2-line message + `toContainText("\n")`. #6 two role tests. Nothing rejected.
+
 ## Commands
 ```bash
 mkdir -p .tmp

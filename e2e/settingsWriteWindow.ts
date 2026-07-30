@@ -37,15 +37,61 @@ export class SettingsWriteWindow {
 	) {}
 
 	/**
-	 * Waits until the debounced write for one persisted value has actually reached
-	 * `data.json` — the only honest evidence that a typed edit was STORED, as opposed
-	 * to merely displayed in the input it was typed into.
+	 * Waits until the debounced write for one persisted value has reached the plugin's
+	 * SETTINGS STORE — much stronger evidence than the input still showing what was
+	 * typed into it, and the level at which every assertion in a typed-input spec is
+	 * made.
+	 *
+	 * SCOPE, stated so no caller over-reads it: `readGlobals()` asks the live
+	 * `pluginDataStore` for its in-memory view, so this proves the write reached the
+	 * store — NOT that `data.json` on disk holds it. The file round trip is a
+	 * different claim, and the way to make it is `harness.reloadPlugin()` (which drops
+	 * every in-memory store) and then read.
 	 *
 	 * `expect.poll` and not a wait-then-read: the settle window is only a LOWER bound
 	 * on when the write starts, and the persist itself is another await behind it.
 	 */
-	async expectPersisted<T>(read: (globals: PluginGlobalsSnapshot) => T, expected: T, message: string): Promise<void> {
-		await expect.poll(async () => read(await this.harness.readGlobals()), { message }).toEqual(expected);
+	async expectPersisted<T>(
+		read: (globals: PluginGlobalsSnapshot) => T,
+		expected: T,
+		message: string,
+		// Mutable `number[]` because that is what Playwright's own option type is.
+		intervals?: number[],
+	): Promise<void> {
+		await expect.poll(async () => read(await this.harness.readGlobals()), { message, intervals }).toEqual(expected);
+	}
+
+	/**
+	 * Asserts that `editAndLeave` — a typed edit followed by whatever is supposed to
+	 * FLUSH it (leaving the field, closing the window) — reached the store WITHOUT
+	 * waiting out the settle window.
+	 *
+	 * WHY it takes the action instead of a start time: the soundness of the claim rests
+	 * entirely on the clock starting before the keystroke, so the clock is started here
+	 * and a caller cannot get that wrong.
+	 *
+	 * WHY it cannot pass for the wrong reason: the fallback path is a
+	 * `window.setTimeout(…, {@link SETTINGS_WRITE_DEBOUNCE_MS})` armed AT the keystroke,
+	 * and `setTimeout` is allowed to fire late but never early. The keystroke happens
+	 * after the clock starts, so a timer-driven write cannot be observed before
+	 * `startedAt + SETTINGS_WRITE_DEBOUNCE_MS` on any machine at any load. Everything
+	 * inside {@link FLUSH_LATENCY_BUDGET_MS} therefore came from the flush — delete the
+	 * flush and this test goes red instead of quietly passing 400ms later.
+	 */
+	async expectFlushedAheadOfWindow<T>(
+		editAndLeave: () => Promise<void>,
+		read: (globals: PluginGlobalsSnapshot) => T,
+		expected: T,
+		message: string,
+	): Promise<void> {
+		const startedAt = Date.now();
+		await editAndLeave();
+		await this.expectPersisted(read, expected, message, FLUSH_POLL_INTERVALS_MS);
+		const elapsedMs = Date.now() - startedAt;
+		expect(
+			elapsedMs,
+			`${message} — it only landed after ${elapsedMs}ms, i.e. it was the ${SETTINGS_WRITE_DEBOUNCE_MS}ms debounce timer that persisted it, not the flush`,
+		).toBeLessThan(FLUSH_LATENCY_BUDGET_MS);
 	}
 
 	/**
@@ -63,6 +109,16 @@ export class SettingsWriteWindow {
 	 * It is also a positive control: if `fill()` did not drive the real handler at all,
 	 * the sentinel would never land and this fails LOUD instead of turning the caller's
 	 * absence assertion into a vacuous pass.
+	 *
+	 * CONTRACT, for the specs told to copy this pattern:
+	 * - PRECONDITION: the settings tab is OPEN with the sentinel row rendered and
+	 *   enabled. Called with the window closed, this cannot type and instead hangs
+	 *   until the `expect` timeout, reporting a missing sentinel rather than the truth.
+	 * - It bars the TAB's `DebouncedSettingsWrites` only. An edit made in the in-graph
+	 *   controls panel rides a different instance and is NOT covered by this barrier.
+	 * - It MUTATES a real setting: `sizing.{@link SENTINEL_FIELD}` flips between the two
+	 *   {@link SENTINEL_VALUES}. Harmless while nothing asserts on that field — a spec
+	 *   that does assert on it must seed it after the last `drain()`.
 	 */
 	async drain(): Promise<void> {
 		const sentinel = await this.nextSentinelValue();
@@ -85,6 +141,33 @@ export class SettingsWriteWindow {
 		return stored === SENTINEL_VALUES.low ? SENTINEL_VALUES.high : SENTINEL_VALUES.low;
 	}
 }
+
+/**
+ * How much of the settle window a genuine flush is allowed to spend before
+ * {@link SettingsWriteWindow.expectFlushedAheadOfWindow} calls it a timer.
+ *
+ * It is NOT what makes the assertion true — anything under 1 whole window is
+ * unreachable by the timer (see that method's WHY). It is purely anti-flake headroom,
+ * so it is set as HIGH as it can be while still being unmistakably inside the window:
+ * a flush that costs ~15ms on an idle box may cost several times that on a loaded CI
+ * machine without meaning anything is broken.
+ *
+ * MEASURED (75 runs of `settingsTypedInput.e2e.ts`, `--repeat-each=5`, real Obsidian):
+ * a flushed edit lands in 12-16ms — a ~20x margin under this budget — while the same
+ * edit with the flush REMOVED lands at 414-415ms, well outside it. Both directions
+ * were checked by mutation, so this is a measured gap, not a hoped-for one.
+ */
+const FLUSH_BUDGET_SHARE_OF_WINDOW = 0.75;
+
+/** @see FLUSH_BUDGET_SHARE_OF_WINDOW */
+const FLUSH_LATENCY_BUDGET_MS = SETTINGS_WRITE_DEBOUNCE_MS * FLUSH_BUDGET_SHARE_OF_WINDOW;
+
+/**
+ * Poll cadence while a flush is being TIMED. Fine-grained on purpose: here the
+ * elapsed time IS the assertion, and `expect.poll`'s default first interval (100ms)
+ * would charge a quarter of the budget to detection alone.
+ */
+const FLUSH_POLL_INTERVALS_MS = [10];
 
 /**
  * The row {@link SettingsWriteWindow.drain} writes its sentinel into: `Depth decay k`.

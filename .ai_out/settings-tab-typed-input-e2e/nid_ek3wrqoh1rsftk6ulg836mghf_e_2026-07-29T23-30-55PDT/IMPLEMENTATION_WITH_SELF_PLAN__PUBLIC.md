@@ -91,6 +91,83 @@ debounce under test with a barrier of our own making.
    `vaultTarget`'s scan is satisfied because neither new file imports `fs` (Playwright creates the
    screenshot directory itself).
 
+## Iteration 1 — response to review (`IMPLEMENTATION_REVIEW__PUBLIC.md`)
+
+Every finding INCORPORATED; none rejected. The MAJOR was correct and I took the stronger of the
+two routes it offered, because I could show by measurement that it is not flaky.
+
+### 1. [MAJOR] the `hide()`-flush test could not fail — **INCORPORATED**
+
+New `SettingsWriteWindow.expectFlushedAheadOfWindow(editAndLeave, read, expected, message)`. It
+takes the ACTION rather than a start time, so the thing the claim rests on — the clock starting
+BEFORE the keystroke — is structural, not a caller convention.
+
+**Why it cannot pass for the wrong reason, at any load:** the fallback path is a
+`window.setTimeout(…, SETTINGS_WRITE_DEBOUNCE_MS)` armed at the keystroke, and `setTimeout` may
+fire late but never early. So a timer-driven write is unobservable before `start + 400ms`, and
+the budget being *under one whole window* is what makes the assertion sound. The margin
+(0.75 × window = 300ms) is therefore pure anti-flake headroom, not the load-bearing part.
+
+**Measured, real Obsidian, not asserted from theory:**
+
+| Experiment | Result |
+|---|---|
+| `--repeat-each=5` on the spec | **75/75 passed (1.5 m)** |
+| flush latency, 10 samples | **12–16 ms** (~20× under the 300 ms budget) |
+| MUTATION: `flushOnBlur` removed | blur test **FAILS at 415 ms** |
+| MUTATION: only `hide()`'s flush removed | close test still **passes at 16 ms** |
+| MUTATION: BOTH removed | close test **FAILS at 414 ms** |
+
+The third row is a finding of its own and it is now written into the spec: closing the settings
+window BLURS the focused field, so `flushOnBlur` gets there before `hide()`. The close test
+therefore honestly claims the OUTCOME — "leaving does not cost you the keystroke" — and
+deliberately not "`hide()` specifically flushed". Isolating one of two deliberate belts would be
+testing the implementation; both belts failing is what the user would feel, and that fails.
+
+`flushOnBlur` now has genuine, mutation-verified coverage (it had none). The file header and both
+test names say exactly this and nothing more. No residual gap, so no follow-up ticket.
+
+### 2. [MINOR] `expectPersisted` said `data.json`, read memory — **INCORPORATED (both halves)**
+
+Reworded to "the plugin's settings store", with an explicit SCOPE paragraph naming
+`reloadPlugin()` as the way to make the file claim. And the file now makes it once: a last test
+types, closes, `harness.reloadPlugin()` (which drops every in-memory store), then reads — so the
+`data.json` round trip is gated for real, exactly once. Kept last because it replaces the plugin
+instance the rest of the file drives.
+
+### 3. [MINOR] `drain()`'s contract — **INCORPORATED**. Three bullets: the tab-open precondition
+(and that violating it hangs to the `expect` timeout rather than telling the truth), that it bars
+the TAB's debouncer only and not the in-graph panel's, and that it MUTATES `sizing.depthDecayK`.
+
+### 4. [MINOR] cross-test bleed — **INCORPORATED**. `givenNoWriteStillPending()` (a `drain()` with
+a name that says why) at the top of BOTH GIVENs. The reviewer's "harmless by luck, one reordering
+from an intermittent failure" was exactly right; it is now a fact rather than an ordering
+assumption. Cost: ~400 ms per test, ~5 s on the suite.
+
+### 5. [NIT] white-space asserted on a row that cannot go multi-line — **INCORPORATED**. Moved to
+the exclusion slot with a two-bad-line input, plus a `toContainText("\n")` so the assertion is
+about a message that genuinely has a line break to lose.
+
+### 6. [NIT] `role="alert"` vs `role="status"` unasserted — **INCORPORATED**. Two tests, one per
+side, each naming the reason the urgency differs (a refusal interrupts; an accepted-with-warning
+edit must not).
+
+### Iteration 1 verification (all re-run, all observed)
+
+| Gate | Result |
+|---|---|
+| `npm run check` | **exit 0** (`.tmp/check.log`) |
+| `npm test` | **exit 0 — 94 files, 1245 tests passed** (`.tmp/test.log`) |
+| `npm run test:e2e -- settingsTypedInput.e2e.ts` | **15 passed (17.6 s)** (`.tmp/e2e.log`) |
+| same, `--repeat-each=5` | **75 passed (1.5 m)** (`.tmp/e2e-repeat.log`) |
+| `npm run test:e2e` (FULL) | **exit 0 — 110 passed, 1 skipped (1.2 m)** (`.tmp/e2e-full.log`) |
+
+The 1 skip is pre-existing and unrelated: `externalVault.e2e.ts` opts out unless
+`VICINITY_E2E_VAULT` is set. The count checks out — 106 before, minus this spec's 11, plus its 15.
+
+The spec is now 15 tests (was 11). No product code changed: the mutations above were temporary,
+reverted with `git checkout`, and the tree was verified clean afterwards.
+
 ## Open items for the orchestrator
 
 - The ticket is met and can be closed; I did not touch `_tickets/`, `docs-internal/change_log` or
