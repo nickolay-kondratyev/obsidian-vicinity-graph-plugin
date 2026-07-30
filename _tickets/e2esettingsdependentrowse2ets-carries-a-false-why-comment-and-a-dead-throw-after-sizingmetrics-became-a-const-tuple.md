@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-30T07:28:00Z
 id: nid_zwhec6kznw0utd9sz0n5g60ex_e
 title: "e2e/settingsDependentRows.e2e.ts carries a false WHY comment and a dead throw after SIZING_METRICS became a const tuple"
-status: open
+status: closed
 deps: []
 links: []
 created_iso: 2026-07-29T19:43:10Z
-status_updated_iso: 2026-07-29T19:43:10Z
+status_updated_iso: 2026-07-30T07:28:00Z
 type: chore
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
@@ -27,3 +28,9 @@ FIX: delete the dead throw and the false comment. Verify with `npm run check` (w
 
 WHY-NOT-part-of-the-original-ticket: owner decision D1 scoped the descriptor-model ticket to zero e2e churn, so that the e2e baselines staying untouched remained a meaningful signal that no user-facing behaviour changed.
 
+
+## Notes
+
+**2026-07-30T07:28:00Z**
+
+Done in commit ec70c00. Deleted the false 'noUncheckedIndexedAccess makes [0] optional' sentence and the unreachable 'if (METRIC_UNDER_TEST === undefined) throw' from e2e/settingsDependentRows.e2e.ts; kept the still-true 'read from the shared table so a renamed metric fails HERE' rationale. Also removed a SECOND comment made false by the same deletion: the justification for expectMetricEnabledPersisted's arrow-const form read 'a hoisted declaration is callable before the throw above' — leaving it would have recreated this ticket's exact defect. No production code, no e2e baselines touched. Verified: npm run check (incl. check:e2e) exit 0, npm test exit 0 (1245 tests). check:e2e passing with the narrowing gone IS the proof the throw was dead. npm run test:e2e not run (release gate, needs a real Obsidian binary). Reviewer verdict: CONVERGED. Noted-not-fixed (out of scope): expectExclusionPersisted is an async function while its sibling is an arrow const — cosmetic asymmetry that used to have a written reason; src/view/sizingMetrics.ts exports _assertEverySizingMetricListed with no runtime consumer.
