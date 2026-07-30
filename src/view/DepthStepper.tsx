@@ -1,5 +1,6 @@
 import type { ReactElement } from "react";
-import { clampStepperDepth, MAX_STEPPER_DEPTH, MIN_STEPPER_DEPTH } from "./constants";
+import { clampStepperDepth } from "./constants";
+import type { SettingsRowBounds } from "./settingsRowAccessors";
 import type { SettingsRow } from "./settingsRows";
 import { SettingsRowNames } from "./settingsRows";
 import { useOptimisticValue } from "./useOptimisticValue";
@@ -30,10 +31,13 @@ import { useOptimisticValue } from "./useOptimisticValue";
  */
 export function DepthStepper({
 	row,
+	bounds,
 	value,
 	onChange,
 }: {
 	readonly row: SettingsRow;
+	/** The depth field's declared bounds — where the buttons stop, and how far one tap moves. */
+	readonly bounds: SettingsRowBounds;
 	readonly value: number;
 	/** Persists the new, already clamped value. */
 	readonly onChange: (value: number) => Promise<void>;
@@ -47,8 +51,8 @@ export function DepthStepper({
 					type="button"
 					className="vicinity-graph-stepper__button"
 					aria-label={SettingsRowNames.action("Decrease", row)}
-					disabled={shown <= MIN_STEPPER_DEPTH}
-					onClick={() => request(clampStepperDepth(shown - 1))}
+					disabled={shown <= bounds.min}
+					onClick={() => request(clampStepperDepth(shown - bounds.step))}
 				>
 					&minus;
 				</button>
@@ -59,8 +63,10 @@ export function DepthStepper({
 					type="button"
 					className="vicinity-graph-stepper__button"
 					aria-label={SettingsRowNames.action("Increase", row)}
-					disabled={shown >= MAX_STEPPER_DEPTH}
-					onClick={() => request(clampStepperDepth(shown + 1))}
+					// `bounds.max` is optional in the shared shape (the node cap has none); a
+					// depth always declares one, so an absent max can only mean "do not stop".
+					disabled={bounds.max !== undefined && shown >= bounds.max}
+					onClick={() => request(clampStepperDepth(shown + bounds.step))}
 				>
 					+
 				</button>

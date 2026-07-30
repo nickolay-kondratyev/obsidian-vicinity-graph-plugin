@@ -1,31 +1,20 @@
 import type { ReactElement } from "react";
 import { useId } from "react";
-import type {
-	DepthSettings,
-	ForceLayoutSettings,
-	NodePreviewPreference,
-	SettingsRange,
-	SizeMetricId,
-	SizingMetricSetting,
-} from "../engine";
-import {
-	FORCE_LAYOUT_RANGES,
-	MAX_OUTLINE_DEPTH,
-	MIN_NODE_CAP,
-	MIN_OUTLINE_DEPTH,
-	NODE_PREVIEW_PREFERENCES,
-	SETTINGS_SPEC,
-	SIZING_RANGES,
-	clampOutlineMaxDepth,
-	clampSizingNumber,
-} from "../engine";
+import type { DepthSettings, ForceLayoutSettings, NodePreviewPreference, SizeMetricId } from "../engine";
+import { NODE_PREVIEW_PREFERENCES } from "../engine";
 import { useControlsActions } from "./ControlsActionsContext";
 import { DepthStepper } from "./DepthStepper";
 import { NODE_PREVIEW_OPTION_META } from "./nodePreviewPreferenceMeta";
+import type {
+	SettingsNumberAccessor,
+	SettingsRowBounds,
+	SettingsTypedNumberAccessor,
+	SettingsValueAccessor,
+} from "./settingsRowAccessors";
+import { SettingsRowAccessors } from "./settingsRowAccessors";
 import type { SettingsRow, SettingsRowState } from "./settingsRows";
 import { SettingsRowNames, isSettingsRowDisabled, unhandledRowControl } from "./settingsRows";
 import type { SizingNumberField } from "./settingsWritePlan";
-import { parseSizingInput } from "./sizingInput";
 import { ToggleSwitch } from "./ToggleSwitch";
 import { useOptimisticValue } from "./useOptimisticValue";
 
@@ -50,13 +39,11 @@ import { useOptimisticValue } from "./useOptimisticValue";
  * - Every control names ONE field via a `SettingsInteraction` and hands it to the
  *   shared pipeline through {@link useControlsActions}; nothing here merges a slice
  *   from the snapshot it rendered from.
+ *
+ * The value read, the bounds and the interaction are NOT decided here either: every
+ * arm below takes them from {@link SettingsRowAccessors}, the same accessors the
+ * settings tab renders from. This file is markup plus one accessor call per kind.
  */
-
-/** Outline-depth slider granularity — from the spec, like its bounds. */
-const OUTLINE_DEPTH_SLIDER_STEP = SETTINGS_SPEC.globalView.outlineMaxDepth.step;
-
-/** The node cap is a whole number of nodes. */
-const NODE_CAP_STEP = 1;
 
 export function SettingsRowView({
 	row,
@@ -94,24 +81,40 @@ export function SettingsRowView({
  * ========================================================================== */
 
 /**
+ * Wires one accessor to the shared pipeline: what to SHOW, and the setter a control
+ * calls on user input. The whole of a row component's non-markup behaviour.
+ */
+function useSettingsValue<T>(
+	accessor: SettingsValueAccessor<T>,
+	state: SettingsRowState,
+	settlesAt?: (value: T) => T,
+): readonly [T, (value: T) => void] {
+	const actions = useControlsActions();
+	return useOptimisticValue(
+		accessor.read(state),
+		(value) => actions.applySettings(accessor.interaction(value)),
+		settlesAt,
+	);
+}
+
+/**
  * A stacked label + value readout above a full-width native range input. The
  * inline readout replaces the settings tab's hover tooltip: a drag needs feedback
  * without a hover.
+ *
+ * Only declared on fields that HAVE an upper bound — see {@link SettingsRowBounds}.
  */
 function SliderRow({
 	row,
-	range,
-	value,
-	commit,
-	settlesAt,
+	accessor,
+	state,
 }: {
 	readonly row: SettingsRow;
-	readonly range: SettingsRange;
-	readonly value: number;
-	readonly commit: (value: number) => Promise<void>;
-	readonly settlesAt?: (value: number) => number;
+	readonly accessor: SettingsNumberAccessor;
+	readonly state: SettingsRowState;
 }): ReactElement {
-	const [shown, request] = useOptimisticValue(value, commit, settlesAt);
+	const range: SettingsRowBounds = accessor.bounds;
+	const [shown, request] = useSettingsValue(accessor, state, accessor.settlesAt);
 	return (
 		<label className="vicinity-graph-slider-row" title={row.description}>
 			<span className="vicinity-graph-slider-row__head">
@@ -138,42 +141,39 @@ function SliderRow({
 }
 
 /**
- * A label beside a narrow number field. `accept` decides what counts as a typed
- * value — the `min` attribute alone only drives the steppers, never a typed one.
+ * A label beside a narrow number field. The accessor's `accept` decides what counts
+ * as a typed value — the `min` attribute alone only drives the steppers, never a
+ * typed one.
+ *
+ * KNOWN LIMIT of refusing a write on a CONTROLLED input: a rejected keystroke leaves
+ * the field showing the stored value, so the box cannot be emptied on the way to a new
+ * number (select-and-retype works; backspacing to blank does not). The settings tab's
+ * uncontrolled input keeps the text and only drops the write. Refusing an out-of-spec
+ * write is the property worth keeping; the panel's numeric-entry feedback is the open
+ * ticket `nid_hatwq2jlkhno5t6awcz0q6t9q_e`.
  */
 function NumberRow({
 	row,
-	value,
-	min,
-	max,
-	step,
-	commit,
-	settlesAt,
-	accept,
+	accessor,
+	state,
 }: {
 	readonly row: SettingsRow;
-	readonly value: number;
-	readonly min: number;
-	readonly max?: number;
-	readonly step: number;
-	readonly commit: (value: number) => Promise<void>;
-	readonly settlesAt?: (value: number) => number;
-	/** `undefined` ⇒ the field is mid-edit and nothing may be written yet. */
-	readonly accept: (raw: string) => number | undefined;
+	readonly accessor: SettingsTypedNumberAccessor;
+	readonly state: SettingsRowState;
 }): ReactElement {
-	const [shown, request] = useOptimisticValue(value, commit, settlesAt);
+	const [shown, request] = useSettingsValue(accessor, state, accessor.settlesAt);
 	return (
 		<label className="vicinity-graph-number-row" title={row.description}>
 			<span>{row.label}</span>
 			<input
 				type="number"
 				aria-label={SettingsRowNames.sole(row)}
-				min={min}
-				max={max}
-				step={step}
+				min={accessor.bounds.min}
+				max={accessor.bounds.max}
+				step={accessor.bounds.step}
 				value={shown}
 				onChange={(event) => {
-					const parsed = accept(event.target.value);
+					const parsed = accessor.accept(event.target.value);
 					if (parsed !== undefined) {
 						request(parsed);
 					}
@@ -201,12 +201,14 @@ function DepthRow({
 	readonly field: keyof DepthSettings;
 	readonly state: SettingsRowState;
 }): ReactElement {
+	const accessor = SettingsRowAccessors.depth(field);
 	const actions = useControlsActions();
 	return (
 		<DepthStepper
 			row={row}
-			value={state.globalDepths[field]}
-			onChange={(value) => actions.applySettings({ kind: "global-depth", field, value })}
+			bounds={accessor.bounds}
+			value={accessor.read(state)}
+			onChange={(value) => actions.applySettings(accessor.interaction(value))}
 		/>
 	);
 }
@@ -221,16 +223,9 @@ function SizingMetricRow({
 	readonly metric: SizeMetricId;
 	readonly state: SettingsRowState;
 }): ReactElement {
-	const actions = useControlsActions();
-	const setting: SizingMetricSetting = state.globalView.sizing.metrics[metric];
-	const [enabled, requestEnabled] = useOptimisticValue(setting.enabled, (value) =>
-		actions.applySettings({ kind: "global-sizing-metric-enabled", metric, enabled: value }),
-	);
-	const [weight, requestWeight] = useOptimisticValue(
-		setting.weight,
-		(value) => actions.applySettings({ kind: "global-sizing-metric-weight", metric, weight: value }),
-		(value) => clampSizingNumber("metricWeight", value),
-	);
+	const weightAccessor = SettingsRowAccessors.metricWeight(metric);
+	const [enabled, requestEnabled] = useSettingsValue(SettingsRowAccessors.metricEnabled(metric), state);
+	const [weight, requestWeight] = useSettingsValue(weightAccessor, state, weightAccessor.settlesAt);
 	return (
 		<div className="vicinity-graph-sizing__metric">
 			<label className="vicinity-graph-sizing__toggle">
@@ -247,13 +242,13 @@ function SizingMetricRow({
 				className="vicinity-graph-sizing__weight"
 				aria-label={SettingsRowNames.role(row, "weight")}
 				title="Weight"
-				min={SIZING_RANGES.metricWeight.min}
-				max={SIZING_RANGES.metricWeight.max}
-				step={SIZING_RANGES.metricWeight.step}
+				min={weightAccessor.bounds.min}
+				max={weightAccessor.bounds.max}
+				step={weightAccessor.bounds.step}
 				value={weight}
 				disabled={!enabled}
 				onChange={(event) => {
-					const parsed = parseSizingInput(event.target.value);
+					const parsed = weightAccessor.accept(event.target.value);
 					if (parsed !== undefined) {
 						requestWeight(parsed);
 					}
@@ -272,48 +267,11 @@ function SizingNumberRow({
 	readonly field: SizingNumberField;
 	readonly state: SettingsRowState;
 }): ReactElement {
-	const actions = useControlsActions();
-	const range = SIZING_RANGES[field];
-	return (
-		<NumberRow
-			row={row}
-			value={state.globalView.sizing[field]}
-			min={range.min}
-			max={range.max}
-			step={range.step}
-			commit={(value) => actions.applySettings({ kind: "global-sizing-number", field, value })}
-			settlesAt={(value) => clampSizingNumber(field, value)}
-			accept={parseSizingInput}
-		/>
-	);
+	return <NumberRow row={row} accessor={SettingsRowAccessors.sizingNumber(field)} state={state} />;
 }
 
 function NodeCapRow({ row, state }: { readonly row: SettingsRow; readonly state: SettingsRowState }): ReactElement {
-	const actions = useControlsActions();
-	return (
-		<NumberRow
-			row={row}
-			value={state.globalView.nodeCap}
-			min={MIN_NODE_CAP}
-			step={NODE_CAP_STEP}
-			commit={(value) => actions.applySettings({ kind: "global-cap", value })}
-			// Deliberately NOT `parseSizingInput`: a cap is a whole number of nodes, and
-			// the write path does not clamp it — so a half-typed or out-of-range entry
-			// must not be written at all (same rule the settings tab's row applies).
-			//
-			// KNOWN LIMIT of applying that rule to a CONTROLLED input: a rejected
-			// keystroke leaves the field showing the stored value, so the box cannot be
-			// emptied on the way to a new number (select-and-retype works; backspacing to
-			// blank does not). The settings tab's uncontrolled input keeps the text and
-			// only drops the write. Refusing an out-of-spec write is the property worth
-			// keeping; the panel's numeric-entry feedback is the open ticket
-			// `nid_hatwq2jlkhno5t6awcz0q6t9q_e`, which this row now shares.
-			accept={(raw) => {
-				const value = Number(raw);
-				return Number.isInteger(value) && value >= MIN_NODE_CAP ? value : undefined;
-			}}
-		/>
-	);
+	return <NumberRow row={row} accessor={SettingsRowAccessors.nodeCap()} state={state} />;
 }
 
 function OutlineDepthRow({
@@ -323,16 +281,7 @@ function OutlineDepthRow({
 	readonly row: SettingsRow;
 	readonly state: SettingsRowState;
 }): ReactElement {
-	const actions = useControlsActions();
-	return (
-		<SliderRow
-			row={row}
-			range={{ min: MIN_OUTLINE_DEPTH, max: MAX_OUTLINE_DEPTH, step: OUTLINE_DEPTH_SLIDER_STEP }}
-			value={state.globalView.outlineMaxDepth}
-			commit={(value) => actions.applySettings({ kind: "global-outline-depth", value })}
-			settlesAt={clampOutlineMaxDepth}
-		/>
-	);
+	return <SliderRow row={row} accessor={SettingsRowAccessors.outlineDepth()} state={state} />;
 }
 
 function ForceLayoutRow({
@@ -344,15 +293,7 @@ function ForceLayoutRow({
 	readonly field: keyof ForceLayoutSettings;
 	readonly state: SettingsRowState;
 }): ReactElement {
-	const actions = useControlsActions();
-	return (
-		<SliderRow
-			row={row}
-			range={FORCE_LAYOUT_RANGES[field]}
-			value={state.globalView.forceLayout[field]}
-			commit={(value) => actions.applySettings({ kind: "global-force-layout-field", field, value })}
-		/>
-	);
+	return <SliderRow row={row} accessor={SettingsRowAccessors.forceLayout(field)} state={state} />;
 }
 
 /**
@@ -367,7 +308,6 @@ function NodePreviewRow({
 	readonly row: SettingsRow;
 	readonly state: SettingsRowState;
 }): ReactElement {
-	const actions = useControlsActions();
 	/*
 	 * Radio grouping is DOCUMENT-scoped for inputs outside a `<form>`. The settings
 	 * tab's pill uses its own constant name; this one must be unique per mount, or
@@ -376,10 +316,7 @@ function NodePreviewRow({
 	 * model does NOT own the name.
 	 */
 	const groupName = useId();
-	const [selected, request] = useOptimisticValue<NodePreviewPreference>(
-		state.globalView.nodePreviewPreference,
-		(value) => actions.applySettings({ kind: "global-node-preview", value }),
-	);
+	const [selected, request] = useSettingsValue<NodePreviewPreference>(SettingsRowAccessors.nodePreview(), state);
 	const accessibleName = SettingsRowNames.sole(row);
 	return (
 		<div className="vicinity-graph-nodecontents__field">
@@ -418,10 +355,7 @@ function ExclusionEnabledRow({
 	readonly row: SettingsRow;
 	readonly state: SettingsRowState;
 }): ReactElement {
-	const actions = useControlsActions();
-	const [enabled, requestEnabled] = useOptimisticValue(state.nodeExclusion.enabled, (value) =>
-		actions.applySettings({ kind: "global-exclusion-enabled", enabled: value }),
-	);
+	const [enabled, requestEnabled] = useSettingsValue(SettingsRowAccessors.exclusionEnabled(), state);
 	return (
 		<label className="vicinity-graph-exclusion__toggle-row" title={row.description}>
 			<span>{row.label}</span>
@@ -446,7 +380,7 @@ function ExclusionPatternsRow({
 	readonly row: SettingsRow;
 	readonly state: SettingsRowState;
 }): ReactElement {
-	const { patterns } = state.nodeExclusion;
+	const patterns = SettingsRowAccessors.exclusionPatterns().read(state);
 	const disabled = isSettingsRowDisabled(row, state);
 	return (
 		<div className="vicinity-graph-exclusion__patterns-row" aria-disabled={disabled}>

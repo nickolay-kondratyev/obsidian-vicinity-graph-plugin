@@ -87,6 +87,27 @@ function source(module: string): string {
 		.join("\n");
 }
 
+/**
+ * The engine tables and clamps a presenter must NOT reach for: each one is exactly the
+ * "value half" of a row that `settingsRowAccessors.ts` now owns. Named symbols rather
+ * than a shape, because a presenter re-deriving a value can only do it by naming one of
+ * these — the accessors are the sole other route to them.
+ */
+const ACCESSOR_OWNED_SYMBOLS: readonly string[] = [
+	"SETTINGS_SPEC",
+	"SIZING_RANGES",
+	"FORCE_LAYOUT_RANGES",
+	"MIN_NODE_CAP",
+	"MIN_OUTLINE_DEPTH",
+	"MAX_OUTLINE_DEPTH",
+	"MIN_STEPPER_DEPTH",
+	"MAX_STEPPER_DEPTH",
+	"clampOutlineMaxDepth",
+	"clampSizingNumber",
+	"clampStepperDepth",
+	"parseSizingInput",
+];
+
 /** Surfaces whose walker no longer reads `symbol` — the drift this ticket removed. */
 function walkersNotReading(symbol: string): string[] {
 	return Object.entries(SECTION_WALKERS)
@@ -130,6 +151,22 @@ describe("settings row parity: tab and panel present the same declared rows", ()
 			).map((row) => `${module} hard-codes the label of row=[${row.label}]`);
 		});
 		expect(named).toEqual([]);
+	});
+
+	it("WHEN a presenter is scanned THEN it derives no value, range or clamp of its own", () => {
+		// The drift this closes: both presenters used to re-derive, per control kind, the
+		// value read, the range-table lookup and the clamp — and two step constants were
+		// literally declared in both files. All three now come from `settingsRowAccessors.ts`,
+		// so a presenter naming any of these symbols has started deriving again.
+		// (Its VALUE-level correctness is `settingsRowAccessors.test.ts`; this is only the
+		// "still reads from the shared accessor" half, which a type cannot express.)
+		const derived = Object.entries(PRESENTERS).flatMap(([surface, module]) => {
+			const text = source(module);
+			return ACCESSOR_OWNED_SYMBOLS.filter((symbol) => text.includes(symbol)).map(
+				(symbol) => `${surface} derives symbol=[${symbol}] instead of reading it from SettingsRowAccessors`,
+			);
+		});
+		expect(derived).toEqual([]);
 	});
 
 	it("WHEN a surface is scanned THEN it reads the declared groups rather than its own row list", () => {
