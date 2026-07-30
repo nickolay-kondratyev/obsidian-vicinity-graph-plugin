@@ -19,7 +19,7 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   `src/shared/` is guarded by the same rule. Public API is re-exported from
   `src/engine/index.ts` — import from there, not deep paths.
 - **`src/adapters/`** — bridges Obsidian ↔ engine. `ObsidianLinkProvider`
-  (resolvedLinks + backlinks), canvas capability detection + fallback parser,
+  (resolvedLinks + backlinks), the canvas parser (run for EVERY canvas),
   `VicinityGraphBuilder` (per-rebuild orchestration), docid ↔ path translation.
 - **`src/persistence/`** — JSON storage, and `data.json` (`PluginDataStore`) is
   the ONLY store: global settings + the pinned set. **Nothing is per-document** —
