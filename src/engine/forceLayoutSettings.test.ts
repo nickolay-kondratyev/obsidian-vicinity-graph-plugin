@@ -9,14 +9,20 @@ import type { ForceLayoutSettings } from "./types";
  * outside its own slider range would be silently rewritten by the load-path clamp, so
  * the shipped layout would differ from the declared one.
  *
- * WHY-NOT the 7-field literal `toEqual` this replaced (called out in the PR): it
- * duplicated the spec's own numbers and went stale twice on intentional retunes
- * (`collidePaddingPx` 20 → 50 in `22bd5cb`, `elkNodeSpacingPx` 40 → 20). The claim it
- * really made — "the default rendered layout did not change" — is not a number-equality
- * claim and was never enforceable here; it is enforced by the layout-quality suites that
- * run AT these defaults and assert measured geometry (`groupPacking.test.ts`,
- * `d3ForceStranding.test.ts`, `elkMapping.test.ts`). Each value's rationale, including
- * what breaks if it moves, lives on `SETTINGS_SPEC.globalView.forceLayout`.
+ * WHY-NOT the 7-field literal `toEqual` this replaced: it duplicated the spec's own
+ * numbers and went stale twice on intentional retunes (`collidePaddingPx` 20 → 50 in
+ * `22bd5cb`, `elkNodeSpacingPx` 40 → 20). Those seven literals are NOT gone — they moved
+ * to `settingsProductDefaults.test.ts`, the single baseline that pins every spec leaf's
+ * default. They are deliberately not restated here as well; that duplication is what went
+ * stale. Each value's rationale, including what breaks if it moves, lives on
+ * `SETTINGS_SPEC.globalView.forceLayout`.
+ *
+ * WHAT THE GEOMETRY SUITES DO AND DO NOT ADD: `groupPacking.test.ts`,
+ * `d3ForceStranding.test.ts` and `elkMapping.test.ts` run AT these defaults and assert
+ * measured placement, so they catch a retune of `repelStrength`, `collidePaddingPx`,
+ * `elkNodeSpacingPx` or `linkGapPx` as a real quality regression. Measured: they do NOT
+ * react to `centerPullStrength`, `linkStrengthFactor` or `edgeRoutingClearancePx` at all.
+ * The literal baseline is the only tripwire those three have.
  */
 describe("EngineDefaults.forceLayoutSettings", () => {
 	it("WHEN defaults are built THEN every field projects the spec default", () => {
@@ -57,5 +63,20 @@ describe("clampForceLayoutSettings (degenerate values are unreachable)", () => {
 			Object.entries(FORCE_LAYOUT_RANGES).map(([field, range]) => [field, range.min]),
 		);
 		expect(clampForceLayoutSettings(undershooting)).toEqual(expected);
+	});
+});
+
+/**
+ * A cross-FIELD invariant on the ranges — a force-layout DOMAIN claim, so it lives with
+ * the force layout rather than in the generic bounds walk (`settingsSpecBounds.test.ts`),
+ * which is also where a future "simplify these ranges" edit lands.
+ */
+describe("force-layout range invariants", () => {
+	it("WHEN the center pull is maxed and the link factor is minimized THEN links still dominate the pull (anti-collapse invariant)", () => {
+		// A degree-1 leaf's weakest spring is linkStrengthFactor.min / 1; the strongest
+		// reachable center pull must stay below it, or the hub-collapse degeneracy
+		// documented at the ranges table becomes reachable from the sliders.
+		const forceLayout = SETTINGS_SPEC.globalView.forceLayout;
+		expect(forceLayout.centerPullStrength.max).toBeLessThan(forceLayout.linkStrengthFactor.min);
 	});
 });

@@ -178,6 +178,9 @@ export function withoutLeaf<T>(root: T, leaf: SettingsSpecLeaf): T {
 /** The alternate exclusion pattern list — arbitrary, only has to differ from the default `[]`. */
 const ALTERNATE_EXCLUSION_PATTERNS: readonly string[] = ["^Attachments/"];
 
+/** The ONE string-valued settings leaf {@link alternateLeafValue} knows a domain for. */
+const NODE_PREVIEW_LEAF_ID = "globalView.nodePreviewPreference";
+
 function isMetricSetting(value: unknown): value is { readonly enabled: boolean; readonly weight: number } {
 	return isRecord(value) && typeof value["enabled"] === "boolean" && typeof value["weight"] === "number";
 }
@@ -210,7 +213,15 @@ export function alternateLeafValue(leaf: SettingsSpecLeaf): unknown {
 	}
 	if (typeof declared === "string") {
 		// The only string-valued settings field is the node-preview preference; its
-		// domain is the one place that lists the accepted values.
+		// domain is the one place that lists the accepted values. A SECOND string field
+		// would otherwise silently get a node-preview value and fail somewhere downstream
+		// (loud, but blaming the round-trip instead of this fixture), so name the cause here.
+		if (leaf.id !== NODE_PREVIEW_LEAF_ID) {
+			throw new Error(
+				`spec leaf id=[${leaf.id}] is string-valued but its domain is unknown here; ` +
+					`teach alternateLeafValue about it (only id=[${NODE_PREVIEW_LEAF_ID}] is modelled)`,
+			);
+		}
 		return NODE_PREVIEW_PREFERENCES.find((preference) => preference !== declared);
 	}
 	if (Array.isArray(declared)) {

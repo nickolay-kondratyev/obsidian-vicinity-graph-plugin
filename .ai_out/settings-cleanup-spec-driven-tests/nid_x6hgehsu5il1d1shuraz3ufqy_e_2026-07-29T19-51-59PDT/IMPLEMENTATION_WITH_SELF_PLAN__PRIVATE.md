@@ -57,6 +57,34 @@ curated literal set for product-meaningful defaults; verify (not rebuild) the pa
   `truncationHarness.ts`), so persistence and view tests may import it (both already depend
   on the engine); the engine never imports them.
 
+## Round 1 (IMPLEMENTATION_ITERATION) state — done, green, committed
+
+Reviewer's two SHOULD-FIX items addressed; see `IMPLEMENTATION_ITERATION__PUBLIC.md` for the
+disposition table and the full mutation matrix. Key state changes to remember:
+
+- **The "small curated set" is gone.** `settingsProductDefaults.test.ts` now pins EVERY spec
+  leaf default (21) in one id-keyed record `SHIPPED_SETTINGS_DEFAULTS`, one `toEqual`. The
+  old admission rule ("tuning constants are covered by the geometry suites") was MEASURED
+  false for `centerPullStrength`, `linkStrengthFactor`, `edgeRoutingClearancePx` — do not
+  reintroduce it. Adding a spec leaf now also requires a line in that table (the toEqual
+  fails on an extra/missing key, naming it).
+- Ranges remain structural EXCEPT two pinned literals: `outlineMaxDepth` 1..6 and
+  `linkStrengthFactor` 0.25..4. Stated in the file that no other range has a tripwire.
+- Anti-collapse invariant now lives in `forceLayoutSettings.test.ts` (was in
+  `settingsSpecBounds.test.ts`).
+- `settingsRowParity.test.ts`: `source()` strips comments; new per-row scan forbids any
+  row-rendering module from containing a row LABEL as a quoted literal. Scan set is
+  `EVERY_ROW_RENDERING_MODULE` (module-keyed, deduped) — **do NOT** re-key it by surface: both
+  `PRESENTERS` and `SECTION_WALKERS` use the key `"controls panel"`, so a spread silently
+  drops `SettingsRowView.tsx`. That bug happened here and was caught only by mutation.
+- Residual parity gap (render-level parity, index/predicate row subsets) recorded as a note
+  on `nid_7qot0m6nuxxmd5z0yb9jylsd6_e`.
+- Reject standing: NIT 5 (`CLAUDE.md` → `docs-internal/tickets/` vs `_tickets/`) not fixed;
+  both dirs are live, so it needs an owner convention call, not a comment edit.
+- Counts: `npm run check` clean, `npm test` **91 files / 1160 tests** green.
+- Reusable: `.tmp/mutation_audit.py` patches `SettingsSpec.ts`, runs vitest with a JSON
+  reporter, prints failing test names, restores the file. Use it before claiming coverage.
+
 ## Rehydration pointers
 
 - `EVERY_SETTINGS_SPEC_LEAF` / `SETTINGS_FIELD_LEAVES` / `alternateSettingsRoot()` are the

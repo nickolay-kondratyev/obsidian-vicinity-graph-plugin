@@ -8,7 +8,6 @@ import {
 	clampSizingNumber,
 } from "./constants";
 import type { SizingRangeField } from "./constants";
-import { SETTINGS_SPEC } from "./SettingsSpec";
 import type { ForceLayoutSettings } from "./types";
 import { EVERY_SETTINGS_SPEC_LEAF } from "./testFixtures/settingsSpecLeaves";
 import type { SettingsSpecLeaf } from "./testFixtures/settingsSpecLeaves";
@@ -165,15 +164,5 @@ describe("outline depth clamp specifics", () => {
 
 	it("WHEN a deeper level than markdown defines is clamped THEN the max comes back", () => {
 		expect(clampOutlineMaxDepth(MAX_OUTLINE_DEPTH + 1)).toBe(MAX_OUTLINE_DEPTH);
-	});
-});
-
-describe("force-layout range invariants", () => {
-	it("WHEN the center pull is maxed and the link factor is minimized THEN links still dominate the pull (anti-collapse invariant)", () => {
-		// A degree-1 leaf's weakest spring is linkStrengthFactor.min / 1; the strongest
-		// reachable center pull must stay below it, or the hub-collapse degeneracy
-		// documented at the ranges table becomes reachable from the sliders.
-		const forceLayout = SETTINGS_SPEC.globalView.forceLayout;
-		expect(forceLayout.centerPullStrength.max).toBeLessThan(forceLayout.linkStrengthFactor.min);
 	});
 });
