@@ -61,16 +61,14 @@ function specLeafIdFor(control: SettingsRowControl): string {
 }
 
 /**
- * Settings fields deliberately given NO row, each with the reason — the same
- * allowlist-with-a-reason pattern as `BOUNDS_ENFORCED_OUTSIDE_THE_ENGINE`
- * (`src/engine/settingsSpecBounds.test.ts`), never a silent skip.
- *
- * EMPTY TODAY: every declared field is reachable from both surfaces. An entry here is a
- * deliberate statement that a field is editable only by hand-editing `data.json`; write
- * WHY, and expect a reviewer to ask. The tests below keep it from rotting: an entry whose
- * field has since GAINED a row, or whose field no longer exists, FAILS.
+ * What to do when the coverage test below names your field — spelled out in the FAILURE,
+ * because the sanctioned escape hatch must be more obvious than deleting the assertion.
  */
-const ROW_LESS_SETTINGS_FIELDS: Readonly<Record<string, string>> = {};
+const HOW_TO_SATISFY_THIS_GUARD =
+	"give it a row in SETTINGS_GROUPS, or — if it is deliberately editable only by hand-editing " +
+	"data.json — add an allowlist here keyed by leaf id with the reason as its value, plus the two " +
+	"anti-rot tests that pattern carries (see BOUNDS_ENFORCED_OUTSIDE_THE_ENGINE in " +
+	"src/engine/settingsSpecBounds.test.ts). Never weaken this assertion.";
 
 /** Every spec leaf id some declared row edits. */
 const FIELDS_WITH_A_ROW: ReadonlySet<string> = new Set(EVERY_SETTINGS_ROW.map((row) => specLeafIdFor(row.control)));
@@ -79,9 +77,10 @@ const DECLARED_FIELD_IDS: ReadonlySet<string> = new Set(SETTINGS_FIELD_LEAVES.ma
 
 describe("settings rows cover every declared settings field", () => {
 	it("WHEN the spec declares a settings field THEN some declared row edits it", () => {
-		const unreachable = SETTINGS_FIELD_LEAVES.filter(
-			(leaf) => !FIELDS_WITH_A_ROW.has(leaf.id) && ROW_LESS_SETTINGS_FIELDS[leaf.id] === undefined,
-		).map((leaf) => `${leaf.id}: no row in SETTINGS_GROUPS edits it (no user can reach this setting)`);
+		const unreachable = SETTINGS_FIELD_LEAVES.filter((leaf) => !FIELDS_WITH_A_ROW.has(leaf.id)).map(
+			(leaf) =>
+				`${leaf.id}: no row in SETTINGS_GROUPS edits it (no user can reach this setting) — ${HOW_TO_SATISFY_THIS_GUARD}`,
+		);
 		expect(unreachable).toEqual([]);
 	});
 
@@ -94,18 +93,8 @@ describe("settings rows cover every declared settings field", () => {
 		expect(stale).toEqual([]);
 	});
 
-	it("WHEN a field is allowlisted as row-less THEN the spec still declares it (no stale allowlist)", () => {
-		const stale = Object.keys(ROW_LESS_SETTINGS_FIELDS).filter((id) => !DECLARED_FIELD_IDS.has(id));
-		expect(stale).toEqual([]);
-	});
-
-	it("WHEN a field is allowlisted as row-less THEN it really has no row (the reason is still true)", () => {
-		const contradicted = Object.keys(ROW_LESS_SETTINGS_FIELDS).filter((id) => FIELDS_WITH_A_ROW.has(id));
-		expect(contradicted).toEqual([]);
-	});
-
-	it("WHEN the walk runs THEN it found fields to check (the guard is not vacuous)", () => {
-		expect(FIELDS_WITH_A_ROW.size).toBeGreaterThan(Object.keys(ROW_LESS_SETTINGS_FIELDS).length);
+	it("WHEN the field walk runs THEN it found fields to check (the guard is not vacuous)", () => {
+		expect(SETTINGS_FIELD_LEAVES.length).toBeGreaterThan(0);
 	});
 
 	it("WHEN the rows are mapped THEN no two rows edit the same field (one setting, one control)", () => {

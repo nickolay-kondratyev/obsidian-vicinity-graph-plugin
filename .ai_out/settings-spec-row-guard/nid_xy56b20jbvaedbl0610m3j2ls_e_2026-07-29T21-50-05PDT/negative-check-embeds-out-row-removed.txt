@@ -1,7 +1,7 @@
 
  RUN  v4.1.10 /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin
 
- ❯ src/view/settingsRowSpecCoverage.test.ts (6 tests | 1 failed) 5ms
+ ❯ src/view/settingsRowSpecCoverage.test.ts (4 tests | 1 failed) 5ms
      × WHEN the spec declares a settings field THEN some declared row edits it 4ms
 
 ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
@@ -14,22 +14,22 @@ AssertionError: expected [ Array(1) ] to deeply equal []
 
 - []
 + [
-+   "globalDepths.embedDepthOut: no row in SETTINGS_GROUPS edits it (no user can reach this setting)",
++   "globalDepths.embedDepthOut: no row in SETTINGS_GROUPS edits it (no user can reach this setting) — give it a row in SETTINGS_GROUPS, or — if it is deliberately editable only by hand-editing data.json — add an allowlist here keyed by leaf id with the reason as its value, plus the two anti-rot tests that pattern carries (see BOUNDS_ENFORCED_OUTSIDE_THE_ENGINE in src/engine/settingsSpecBounds.test.ts). Never weaken this assertion.",
 + ]
 
- ❯ src/view/settingsRowSpecCoverage.test.ts:85:23
-     83|    (leaf) => !FIELDS_WITH_A_ROW.has(leaf.id) && ROW_LESS_SETTINGS_FIEL…
-     84|   ).map((leaf) => `${leaf.id}: no row in SETTINGS_GROUPS edits it (no …
-     85|   expect(unreachable).toEqual([]);
+ ❯ src/view/settingsRowSpecCoverage.test.ts:84:23
+     82|     `${leaf.id}: no row in SETTINGS_GROUPS edits it (no user can reach…
+     83|   );
+     84|   expect(unreachable).toEqual([]);
        |                       ^
-     86|  });
-     87|
+     85|  });
+     86|
 
 ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
 
 
  Test Files  1 failed (1)
-      Tests  1 failed | 5 passed (6)
-   Start at  04:53:45
-   Duration  115ms (transform 33ms, setup 0ms, import 46ms, tests 5ms, environment 0ms)
+      Tests  1 failed | 3 passed (4)
+   Start at  05:01:29
+   Duration  119ms (transform 37ms, setup 0ms, import 48ms, tests 5ms, environment 0ms)
 

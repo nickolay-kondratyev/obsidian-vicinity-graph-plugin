@@ -1,50 +1,58 @@
 # PRIVATE memory — nid_xy56b20jbvaedbl0610m3j2ls_e (settings row coverage guard)
 
-## Status: COMPLETE. Tree left dirty (not committed), branch untouched.
+## Status: COMPLETE through IMPLEMENTATION_ITERATION. Tree dirty (not committed), branch untouched.
 
-## Plan (executed as written)
-1. Read ticket `_tickets/settings-guard-that-every-settingsspec-leaf-has-a-declared-row-*.md`, the spec-leaf fixture, `settingsRows.ts`, `settingsRowParity.test.ts`, `settingsSpecBounds.test.ts`, `settingsResetSpecCoverage.test.ts` (closest sibling pattern).
-2. Write `src/view/settingsRowSpecCoverage.test.ts`.
-3. Negative check by deleting the "Embeds out" row, then restore via `git checkout --`.
-4. `npm test` + `npm run check`.
+## Files (final)
+- NEW: `src/view/settingsRowSpecCoverage.test.ts` — **4 tests** (was 6 before the iteration).
+- EDIT (1 line): `CLAUDE.md` — settings-tests bullet names the guard; wording now says the FAILURE
+  states the escape hatch (no allowlist exists to point at).
+- No production change. Evidence: `negative-check-embeds-out-row-removed.txt` in this dir (refreshed).
 
-## Files
-- NEW: `/home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin/src/view/settingsRowSpecCoverage.test.ts`
-- EDIT (1 line): `CLAUDE.md` — settings-rows bullet now names the new guard + its allowlist.
-- No production change.
-- Evidence: `negative-check-embeds-out-row-removed.txt` in this dir.
+## Key decisions (original, still standing)
+- Walk `SETTINGS_FIELD_LEAVES`, not `EVERY_SETTINGS_SPEC_LEAF` — bounds-only leaves
+  (`globalView.sizing.metricWeight`) are already excluded by the fixture; re-listing them here
+  would duplicate that knowledge and pretend it is a UI decision.
+- `specLeafIdFor(control)` is a `switch` closed by `unhandledRowControl` → a new control kind is a
+  COMPILE error here too, so it cannot make its own leaf look row-less and misattribute the failure.
+- Test 2 ("no stale mapping") pins the only hand-written part (three dotted path prefixes) and is
+  also what makes test 1 non-vacuous if the spec were re-nested.
+- Duplicate-mapping test kept: the `Set` in test 1 would swallow two rows on one field.
 
-## Key decisions
-- **Walk `SETTINGS_FIELD_LEAVES`, not `EVERY_SETTINGS_SPEC_LEAF`.** The fixture already
-  excludes `globalView.sizing.metricWeight` as `BOUNDS_ONLY_SPEC_LEAF_IDS` (bounds for a
-  sibling shape, no settings field at all). Re-listing it in a row-less allowlist would
-  duplicate that knowledge (DRY) and pretend it is a UI decision. Documented in the file header.
-- **`specLeafIdFor(control)` is a `switch` closed by `unhandledRowControl(control)`**, not a
-  table: a new control kind is then a COMPILE error here too, so it cannot make its own leaf
-  look row-less and misattribute the failure. This is the join between the row model's typed
-  per-family field refs and the spec's dotted paths.
-- The dotted paths are the only hand-written part → test 2 ("no stale mapping") asserts every
-  mapped id still exists as a declared leaf, which also stops test 1 from passing vacuously if
-  the spec were re-nested.
-- **Allowlist `ROW_LESS_SETTINGS_FIELDS` is EMPTY today** — every declared field has a row
-  (verified: 3 depths, 5 metrics, 3 sizing numbers, node-preview, outline-depth, 7 force-layout,
-  2 exclusion, node-cap). Anti-rot: two tests fail if an entry names a non-existent leaf or a
-  leaf that has since gained a row.
-- Added a duplicate-mapping test (two rows editing one field) because the coverage test matches
-  against a `Set`, which would swallow that.
+## IMPLEMENTATION_ITERATION decisions (review round)
+1. **Reviewer item 1 (SHOULD-FIX) — INCORPORATED.** The vacuity test counted the ROW side, so it
+   would have passed in the exact case it named, and it collided by NAME with a differently-meaning
+   test in `settingsResetSpecCoverage.test.ts:65`. Rewrote the body to
+   `expect(SETTINGS_FIELD_LEAVES.length).toBeGreaterThan(0)` and renamed to "WHEN the field walk
+   runs …" — now identical in name AND meaning to both sibling suites' idiom
+   (`settingsResetSpecCoverage.test.ts`, `settingsSpecBounds.test.ts:108`). Chose "fix" over the
+   reviewer's alternative "delete" for CONSISTENCY: both siblings carry an explicit leaf-side
+   vacuity test, and relying on test 2 as an implicit vacuity guard is exactly the indirection the
+   reviewer objected to elsewhere.
+2. **Reviewer item 2 (NIT, my call) — INCORPORATED (allowlist dropped).** Deleted the empty
+   `ROW_LESS_SETTINGS_FIELDS` and its two rot-guards (~30 lines that could not fail).
+   PARETO/KISS/no-unused-code wins when the const has zero entries. Ticket criterion 3 ("any
+   intentionally row-less leaf is allowlisted with a written reason, not skipped") is honoured in
+   SUBSTANCE by moving the instruction into the failure text (`HOW_TO_SATISFY_THIS_GUARD`): the
+   failing maintainer is told to add the row, or add the allowlist WITH a reason AND its two
+   anti-rot tests (pointing at `BOUNDS_ENFORCED_OUTSIDE_THE_ENGINE`), and "never weaken this
+   assertion". Escape hatch is sanctioned and discoverable at the moment of failure, which is
+   strictly more useful than an empty const nobody reads.
+3. **Reviewer item 3 (NIT, family→path-root duplication) — REJECTED.** Three string literals in two
+   test files, both of which fail loudly and namingly on drift; extracting a shared helper into
+   `src/engine/testFixtures/` to save three literals is negative ROI and would put view-shaped
+   knowledge in an engine fixture. Left as-is deliberately.
 
-## Commands
+## Verification (this round)
 ```bash
-npx vitest run src/view/settingsRowSpecCoverage.test.ts   # 6 passed
-npm test    > .tmp/npm-test.txt   # 92 files / 1219 tests passed, exit 0
-npm run check > .tmp/npm-check.txt # exit 0
+# negative check — python line surgery (settingsRows.ts is TAB-indented; Edit's tab-expanded
+# Read view means copy-pasted old_string does NOT match)
+python3  # delete lines 291-296 ("Embeds out" row object) with a content assertion first
+npx vitest run src/view/settingsRowSpecCoverage.test.ts   # exit 1; 1 failed | 3 passed
+  # names: globalDepths.embedDepthOut: no row in SETTINGS_GROUPS edits it … + the how-to-fix text
+git checkout -- src/view/settingsRows.ts                  # git diff for that file: EMPTY
+npm test      > .tmp/npm-test.txt    # exit 0 — 92 files / 1217 tests (1219 - 2 removed rot-guards)
+npm run check > .tmp/npm-check.txt   # exit 0 (src + e2e tsc)
 ```
 
-## Negative-check mechanics (repeat if needed)
-`settingsRows.ts` is TAB-indented; the `Edit` tool's Read view expands tabs, so copy-pasted
-`old_string` did NOT match. Used python line surgery instead (deleted lines 291-296, the
-"Embeds out" row object) with an assertion on the block content, then `git checkout --` to restore.
-Result: `globalDepths.embedDepthOut: no row in SETTINGS_GROUPS edits it (no user can reach this setting)`.
-
 ## Not done (per instructions)
-No commit, no change_log entry, no ticket edit.
+No commit, no change_log entry, no ticket edit — top-level agent owns those.
