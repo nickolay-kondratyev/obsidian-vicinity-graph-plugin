@@ -1,7 +1,7 @@
 import type { ReactElement } from "react";
 import { useId } from "react";
 import type {
-	Channel,
+	DepthSettings,
 	ForceLayoutSettings,
 	NodePreviewPreference,
 	SettingsRange,
@@ -9,7 +9,6 @@ import type {
 	SizingMetricSetting,
 } from "../engine";
 import {
-	CHANNEL_DEPTH_FIELD,
 	FORCE_LAYOUT_RANGES,
 	MAX_OUTLINE_DEPTH,
 	MIN_NODE_CAP,
@@ -68,7 +67,7 @@ export function SettingsRowView({
 }): ReactElement {
 	switch (row.control.kind) {
 		case "depth":
-			return <DepthRow row={row} channel={row.control.channel} state={state} />;
+			return <DepthRow row={row} field={row.control.field} state={state} />;
 		case "sizing-metric":
 			return <SizingMetricRow row={row} metric={row.control.metric} state={state} />;
 		case "sizing-number":
@@ -195,19 +194,19 @@ function NumberRow({
  */
 function DepthRow({
 	row,
-	channel,
+	field,
 	state,
 }: {
 	readonly row: SettingsRow;
-	readonly channel: Channel;
+	readonly field: keyof DepthSettings;
 	readonly state: SettingsRowState;
 }): ReactElement {
 	const actions = useControlsActions();
 	return (
 		<DepthStepper
 			row={row}
-			value={state.globalDepths[CHANNEL_DEPTH_FIELD[channel]]}
-			onChange={(value) => actions.applySettings({ kind: "global-depth", channel, value })}
+			value={state.globalDepths[field]}
+			onChange={(value) => actions.applySettings({ kind: "global-depth", field, value })}
 		/>
 	);
 }

@@ -1,6 +1,5 @@
 import type {
 	DepthSettings,
-	Channel,
 	ForceLayoutSettings,
 	NodeExclusionSettings,
 	NodePreviewPreference,
@@ -8,7 +7,7 @@ import type {
 	SizingSettings,
 	ViewSettings,
 } from "../engine";
-import { CHANNEL_DEPTH_FIELD, clampSizingSettings } from "../engine";
+import { clampSizingSettings } from "../engine";
 
 /**
  * The "which write lands where" contract layer (step-06 #2): it decides WHICH
@@ -33,8 +32,8 @@ export type SizingNumberField = Exclude<keyof SizingSettings, "metrics">;
 
 /** A user interaction on a control surface (panel stepper / sizing / settings tab). */
 export type SettingsInteraction =
-	/** The depth for one channel — applies to MAIN and every pinned central alike. */
-	| { readonly kind: "global-depth"; readonly channel: Channel; readonly value: number }
+	/** One global depth budget — applies to MAIN and every pinned central alike. */
+	| { readonly kind: "global-depth"; readonly field: keyof DepthSettings; readonly value: number }
 	/** Global node cap. */
 	| { readonly kind: "global-cap"; readonly value: number }
 	/** Global deepest heading level rendered in a node's outline. */
@@ -79,7 +78,7 @@ export function planSettingsWrite(interaction: SettingsInteraction, ctx: Setting
 		case "global-depth":
 			return {
 				kind: "global-depths",
-				depths: { ...ctx.globalDepths, [CHANNEL_DEPTH_FIELD[interaction.channel]]: interaction.value },
+				depths: { ...ctx.globalDepths, [interaction.field]: interaction.value },
 			};
 		case "global-cap":
 			return { kind: "global-view", view: { ...ctx.globalView, nodeCap: interaction.value } };

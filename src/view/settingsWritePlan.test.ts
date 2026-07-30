@@ -11,7 +11,7 @@ const CTX: SettingsWriteContext = {
 
 describe("planSettingsWrite global writes", () => {
 	it("WHEN global-depth outgoing value 2 THEN it merges over ctx.globalDepths preserving the other field", () => {
-		expect(planSettingsWrite({ kind: "global-depth", channel: "outgoing-link", value: 2 }, CTX)).toEqual({
+		expect(planSettingsWrite({ kind: "global-depth", field: "linkDepthOut", value: 2 }, CTX)).toEqual({
 			kind: "global-depths",
 			depths: { linkDepthOut: 2, linkDepthIn: 1 },
 		});
@@ -113,12 +113,12 @@ describe("planSettingsWrite global writes", () => {
 
 describe("planSettingsWrite channel to field mapping (guards inversion)", () => {
 	it("WHEN channel is outgoing THEN only linkDepthOut moves", () => {
-		const command = planSettingsWrite({ kind: "global-depth", channel: "outgoing-link", value: 4 }, CTX);
+		const command = planSettingsWrite({ kind: "global-depth", field: "linkDepthOut", value: 4 }, CTX);
 		expect(command).toEqual({ kind: "global-depths", depths: { ...CTX.globalDepths, linkDepthOut: 4 } });
 	});
 
-	it("WHEN channel is incoming THEN only linkDepthIn moves", () => {
-		const command = planSettingsWrite({ kind: "global-depth", channel: "incoming", value: 4 }, CTX);
+	it("WHEN the interaction names linkDepthIn THEN only linkDepthIn moves", () => {
+		const command = planSettingsWrite({ kind: "global-depth", field: "linkDepthIn", value: 4 }, CTX);
 		expect(command).toEqual({ kind: "global-depths", depths: { ...CTX.globalDepths, linkDepthIn: 4 } });
 	});
 });
