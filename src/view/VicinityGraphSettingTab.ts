@@ -12,7 +12,7 @@ import type { SettingsResetScope } from "./settingsResetPlan";
 import { ALL_SETTINGS_RESET_SCOPE, SETTINGS_RESET_SCOPES } from "./settingsResetPlan";
 import type { SettingsResetTarget } from "./settingsResetSequence";
 import { SettingsResetSequence } from "./settingsResetSequence";
-import type { SettingsNumberAccessor, SettingsRowBounds } from "./settingsRowAccessors";
+import type { SettingsRowBounds, SettingsTrackAccessor } from "./settingsRowAccessors";
 import { SettingsRowAccessors } from "./settingsRowAccessors";
 import type { SettingsGroup, SettingsRow, SettingsRowBlock, SettingsRowState } from "./settingsRows";
 import { SETTINGS_GROUPS, SettingsRowNames, isSettingsRowDisabled, unhandledRowControl } from "./settingsRows";
@@ -672,16 +672,14 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	private addSlider(
 		container: HTMLElement,
 		row: SettingsRow,
-		accessor: SettingsNumberAccessor,
+		accessor: SettingsTrackAccessor,
 		state: SettingsRowState,
 	): void {
 		const name = SettingsRowNames.sole(row);
 		const { min, max, step } = accessor.bounds;
 		VicinityGraphSettingTab.row(container, row).addSlider((slider) =>
 			slider
-				// A slider is only declared on a field that HAS a max (see `SettingsRowBounds`);
-				// `setLimits` needs a number either way, so an absent one falls back to the min.
-				.setLimits(min, max ?? min, step)
+				.setLimits(min, max, step)
 				.setValue(accessor.read(state))
 				.setDynamicTooltip()
 				.then(() => VicinityGraphSettingTab.nameControl(slider.sliderEl, name))

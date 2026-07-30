@@ -85,6 +85,14 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   Complements `settingsSectionFields.ts`, which answers the different question
   "which FIELDS does this section's restore-defaults clear".
   Guard: `settingsRowParity.test.ts`.
+- `view/settingsRowAccessors.ts` — **the VALUE half of that contract**, one accessor
+  per control kind: `{read(state), bounds, settlesAt, interaction(value)}` (+ `accept`
+  on typed rows). Presenters are markup plus one accessor call — they never name an
+  engine range table or clamp. `SettingsTrackAccessor` demands a `max`, so a slider on
+  a max-less field is a compile error. A SIBLING of `settingsRows.ts` (different reason
+  to change, and it keeps the engine ranges out of the module e2e imports). Guards:
+  `settingsRowAccessors.test.ts`, `settingsRowDepthClamp.test.ts`, and the
+  `ACCESSOR_OWNED_SYMBOLS` scan in `settingsRowParity.test.ts`.
 - `engine/SettingsSpec.ts` — **THE settings VALUE contract**: `SETTINGS_SPEC` declares
   every field's default and bounds, and the settings suites ITERATE it (parse,
   round-trip, reset, bounds) rather than restating values. Guard:

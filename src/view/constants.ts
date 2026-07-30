@@ -4,13 +4,6 @@
  * so the pure view modules and the ItemView glue share one source.
  */
 
-import { MAX_STEPPER_DEPTH, MIN_STEPPER_DEPTH } from "../engine";
-
-// Depth-stepper bounds live in the engine's SETTINGS_SPEC (co-located with the
-// depth defaults). Re-exported here so view modules keep importing them from the
-// view constants barrel unchanged.
-export { MAX_STEPPER_DEPTH, MIN_STEPPER_DEPTH };
-
 /**
  * Relayout trigger for a node that SURVIVED a rebuild (same id, same structure):
  * relayout only if its `sizePx` grew by more than this fraction. `1.0` = +100%
@@ -244,11 +237,6 @@ export const ELK_GROUP_PADDING =
  */
 export const GRAPH_MIN_ZOOM = 0.1;
 
-/**
- * Clamp a (possibly fractional / out-of-range) stepper input into
- * `[MIN_STEPPER_DEPTH, MAX_STEPPER_DEPTH]`, rounding to the nearest integer.
- * Used by every depth stepper and the settings-tab depth inputs.
- */
-export function clampStepperDepth(value: number): number {
-	return Math.min(MAX_STEPPER_DEPTH, Math.max(MIN_STEPPER_DEPTH, Math.round(value)));
-}
+// The depth clamp used to live here, as one field-agnostic `clampStepperDepth`. It is
+// now `SettingsRowAccessors.depth(field).settlesAt` (src/view/settingsRowAccessors.ts),
+// derived from the SAME per-field bounds the control renders — see the WHY there.

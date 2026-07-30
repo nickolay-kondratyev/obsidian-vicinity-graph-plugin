@@ -7,7 +7,6 @@ import {
 	clampOutlineMaxDepth,
 	clampSizingNumber,
 } from "../engine";
-import { clampStepperDepth } from "./constants";
 import type { SettingsRowState } from "./settingsRows";
 import type { SettingsInteraction, SizingNumberField } from "./settingsWritePlan";
 import { parseSizingInput } from "./sizingInput";
@@ -39,14 +38,17 @@ import { parseSizingInput } from "./sizingInput";
  *
  * `max` is OPTIONAL because one shipped field genuinely has no upper bound: the node
  * cap is declared `min`-only in `SETTINGS_SPEC` (a `MinBoundedNumberSpec`), and
- * inventing a ceiling for it here would be a behavior change. A SLIDER row is
- * therefore only sound on a field that HAS a max — true of every slider-backed kind
- * declared today (outline depth, force layout), and not expressible in this type.
+ * inventing a ceiling for it here would be a behavior change.
  */
 export interface SettingsRowBounds {
 	readonly min: number;
 	readonly max?: number;
 	readonly step: number;
+}
+
+/** Bounds with a CEILING — what a control that must place a value on a track needs. */
+export interface SettingsRowClosedBounds extends SettingsRowBounds {
+	readonly max: number;
 }
 
 /**
@@ -74,6 +76,18 @@ export interface SettingsNumberAccessor extends SettingsValueAccessor<number> {
 	settlesAt(value: number): number;
 }
 
+/**
+ * A numeric control that places its value on a TRACK — a slider, or the stepper the
+ * panel renders a depth as. Such a control cannot render without a ceiling, so this
+ * type demands one: a row on a max-less field (the node cap) is then a COMPILE error
+ * at the slider presenter rather than two different silent fallbacks (the tab
+ * degenerating to an immovable `setLimits(min, min)`, the React range input quietly
+ * defaulting its `max` to 100).
+ */
+export interface SettingsTrackAccessor extends SettingsNumberAccessor {
+	readonly bounds: SettingsRowClosedBounds;
+}
+
 /** A numeric control the user TYPES into — it must also say what counts as a typed value. */
 export interface SettingsTypedNumberAccessor extends SettingsNumberAccessor {
 	/** `undefined` ⇒ mid-edit or out of spec: nothing may be written yet. */
@@ -93,18 +107,40 @@ function unclamped(value: number): number {
 }
 
 /** Projects a bounded spec leaf onto the bounds a control renders. */
-function boundsOf(spec: { readonly min: number; readonly max: number; readonly step: number }): SettingsRowBounds {
+function boundsOf(spec: SettingsRowClosedBounds): SettingsRowClosedBounds {
 	return { min: spec.min, max: spec.max, step: spec.step };
 }
 
+/**
+ * THE depth clamp — an AFFORDANCE bound on the depth controls, not an engine limit
+ * (the traversal honours any depth).
+ *
+ * Derived from the SAME `bounds` the control renders, per field, because it is the
+ * ONLY clamp a depth write gets: `planSettingsWrite` stores a `global-depth` verbatim.
+ * A clamp written against one field's bounds while the control offers another's would
+ * therefore hand the user a range the write silently takes back.
+ *
+ * Rounds because a depth is a whole number of hops. `NaN` propagates, as it always
+ * has: the depth leaves are the ones `settingsSpecBounds.test.ts` deliberately
+ * excludes from the engine's NaN-resolving clamp rule.
+ */
+function clampDepthInto(bounds: SettingsRowClosedBounds, value: number): number {
+	return Math.min(bounds.max, Math.max(bounds.min, Math.round(value)));
+}
+
 export class SettingsRowAccessors {
-	/** One global depth budget. Clamped by the SAME clamp every depth stepper applies. */
-	static depth(field: keyof DepthSettings): SettingsNumberAccessor {
+	/**
+	 * One global depth budget. Bounds and clamp both come from this field's OWN spec
+	 * leaf, so they cannot drift apart.
+	 */
+	static depth(field: keyof DepthSettings): SettingsTrackAccessor {
+		const bounds = boundsOf(SETTINGS_SPEC.globalDepths[field]);
+		const settlesAt = (value: number): number => clampDepthInto(bounds, value);
 		return {
-			bounds: boundsOf(SETTINGS_SPEC.globalDepths[field]),
+			bounds,
 			read: (state) => state.globalDepths[field],
-			settlesAt: clampStepperDepth,
-			interaction: (value) => ({ kind: "global-depth", field, value: clampStepperDepth(value) }),
+			settlesAt,
+			interaction: (value) => ({ kind: "global-depth", field, value: settlesAt(value) }),
 		};
 	}
 
@@ -141,7 +177,7 @@ export class SettingsRowAccessors {
 	}
 
 	/** Deepest heading level a node's outline renders. */
-	static outlineDepth(): SettingsNumberAccessor {
+	static outlineDepth(): SettingsTrackAccessor {
 		return {
 			bounds: boundsOf(SETTINGS_SPEC.globalView.outlineMaxDepth),
 			read: (state) => state.globalView.outlineMaxDepth,
@@ -151,7 +187,7 @@ export class SettingsRowAccessors {
 	}
 
 	/** One force-layout tuning value. Bounds come from the table the persistence parser clamps with. */
-	static forceLayout(field: keyof ForceLayoutSettings): SettingsNumberAccessor {
+	static forceLayout(field: keyof ForceLayoutSettings): SettingsTrackAccessor {
 		return {
 			bounds: FORCE_LAYOUT_RANGES[field],
 			read: (state) => state.globalView.forceLayout[field],

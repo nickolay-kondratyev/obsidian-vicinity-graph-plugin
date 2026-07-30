@@ -7,7 +7,7 @@ import { DepthStepper } from "./DepthStepper";
 import { NODE_PREVIEW_OPTION_META } from "./nodePreviewPreferenceMeta";
 import type {
 	SettingsNumberAccessor,
-	SettingsRowBounds,
+	SettingsTrackAccessor,
 	SettingsTypedNumberAccessor,
 	SettingsValueAccessor,
 } from "./settingsRowAccessors";
@@ -87,13 +87,29 @@ export function SettingsRowView({
 function useSettingsValue<T>(
 	accessor: SettingsValueAccessor<T>,
 	state: SettingsRowState,
-	settlesAt?: (value: T) => T,
 ): readonly [T, (value: T) => void] {
+	const actions = useControlsActions();
+	return useOptimisticValue(accessor.read(state), (value) => actions.applySettings(accessor.interaction(value)));
+}
+
+/**
+ * The same, for a NUMBER — always handing {@link useOptimisticValue} the accessor's own
+ * `settlesAt`.
+ *
+ * A separate hook rather than an optional argument on {@link useSettingsValue}: that hook
+ * is documented as REQUIRING `settlesAt` from any clamping control, a numeric accessor
+ * always has one, and a call site that forgot it would leave the control stuck showing a
+ * value the store will never echo back. Nothing to forget if there is nothing to pass.
+ */
+function useSettingsNumber(
+	accessor: SettingsNumberAccessor,
+	state: SettingsRowState,
+): readonly [number, (value: number) => void] {
 	const actions = useControlsActions();
 	return useOptimisticValue(
 		accessor.read(state),
 		(value) => actions.applySettings(accessor.interaction(value)),
-		settlesAt,
+		accessor.settlesAt,
 	);
 }
 
@@ -102,7 +118,8 @@ function useSettingsValue<T>(
  * inline readout replaces the settings tab's hover tooltip: a drag needs feedback
  * without a hover.
  *
- * Only declared on fields that HAVE an upper bound — see {@link SettingsRowBounds}.
+ * Takes a {@link SettingsTrackAccessor}, so the field it renders is guaranteed to have
+ * a ceiling: a native range input whose `max` is absent silently defaults to 100.
  */
 function SliderRow({
 	row,
@@ -110,11 +127,11 @@ function SliderRow({
 	state,
 }: {
 	readonly row: SettingsRow;
-	readonly accessor: SettingsNumberAccessor;
+	readonly accessor: SettingsTrackAccessor;
 	readonly state: SettingsRowState;
 }): ReactElement {
-	const range: SettingsRowBounds = accessor.bounds;
-	const [shown, request] = useSettingsValue(accessor, state, accessor.settlesAt);
+	const range = accessor.bounds;
+	const [shown, request] = useSettingsNumber(accessor, state);
 	return (
 		<label className="vicinity-graph-slider-row" title={row.description}>
 			<span className="vicinity-graph-slider-row__head">
@@ -161,7 +178,7 @@ function NumberRow({
 	readonly accessor: SettingsTypedNumberAccessor;
 	readonly state: SettingsRowState;
 }): ReactElement {
-	const [shown, request] = useSettingsValue(accessor, state, accessor.settlesAt);
+	const [shown, request] = useSettingsNumber(accessor, state);
 	return (
 		<label className="vicinity-graph-number-row" title={row.description}>
 			<span>{row.label}</span>
@@ -206,7 +223,7 @@ function DepthRow({
 	return (
 		<DepthStepper
 			row={row}
-			bounds={accessor.bounds}
+			accessor={accessor}
 			value={accessor.read(state)}
 			onChange={(value) => actions.applySettings(accessor.interaction(value))}
 		/>
@@ -225,7 +242,7 @@ function SizingMetricRow({
 }): ReactElement {
 	const weightAccessor = SettingsRowAccessors.metricWeight(metric);
 	const [enabled, requestEnabled] = useSettingsValue(SettingsRowAccessors.metricEnabled(metric), state);
-	const [weight, requestWeight] = useSettingsValue(weightAccessor, state, weightAccessor.settlesAt);
+	const [weight, requestWeight] = useSettingsNumber(weightAccessor, state);
 	return (
 		<div className="vicinity-graph-sizing__metric">
 			<label className="vicinity-graph-sizing__toggle">

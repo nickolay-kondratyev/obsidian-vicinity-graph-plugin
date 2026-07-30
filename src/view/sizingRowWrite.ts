@@ -1,5 +1,6 @@
 import type { SizingSettings } from "../engine";
 import { SIZING_RANGES, clampSizingSettings } from "../engine";
+import { SettingsRowAccessors } from "./settingsRowAccessors";
 import { describeSizingRejection } from "./settingsValidation";
 import type { SettingsInteraction, SizingNumberField } from "./settingsWritePlan";
 
@@ -66,7 +67,11 @@ export class SizingRowWrite {
 		if (this.rejectionOf(this.prospective(value)) !== undefined) {
 			return null;
 		}
-		return { kind: "global-sizing-number", field: this.field, value };
+		// Through the row's accessor, so this class decides only WHETHER to write — the
+		// interaction a sizing row emits stays spelled in exactly one place. It is the
+		// same clamp `planSettingsWrite` applies, and {@link capNotice} judges the TYPED
+		// value it is handed, so nothing here sees a clamped number it did not expect.
+		return SettingsRowAccessors.sizingNumber(this.field).interaction(value);
 	}
 
 	private prospective(value: number): SizingSettings {

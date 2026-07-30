@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { EngineDefaults, NODE_PREVIEW_PREFERENCES } from "../engine";
 import type {
 	SettingsNumberAccessor,
+	SettingsRowBounds,
 	SettingsTypedNumberAccessor,
 	SettingsValueAccessor,
 } from "./settingsRowAccessors";
@@ -69,8 +70,25 @@ interface AccessorProbe {
 	writesANewValue(): RoundTrip;
 	/** Numeric accessors only: writes a value beyond the declared bounds. */
 	readonly writesBeyondItsBounds?: () => RoundTrip;
+	/** Numeric accessors only: the bounds/clamp pair, checked against each other. */
+	readonly numeric?: NumberProbeFacts;
 	/** Typed numeric accessors only: what the row counts as a typed value. */
 	readonly accept?: (raw: string) => number | undefined;
+}
+
+/** What a numeric accessor claims about its own track. */
+interface NumberProbeFacts {
+	readonly bounds: SettingsRowBounds;
+	readonly settlesAt: (value: number) => number;
+}
+
+/**
+ * Far enough past the ceiling that any clamp must bite. Scaled by the field's own
+ * `step`, so a 0–0.15 knob is probed as convincingly as a 1–1000 one.
+ */
+function beyondBounds(bounds: SettingsRowBounds): number {
+	const BEYOND_BOUNDS_STEPS = 1000;
+	return (bounds.max ?? bounds.min) + bounds.step * BEYOND_BOUNDS_STEPS;
 }
 
 function identity<T>(value: T): T {
@@ -109,12 +127,10 @@ function distinctInBounds(accessor: SettingsNumberAccessor, current: number): nu
 }
 
 function numberProbe(name: string, accessor: SettingsNumberAccessor): AccessorProbe {
-	// Far enough past the ceiling that any clamp must bite; `step` scales it to the
-	// field's own units, so a 0–0.15 knob is probed as convincingly as a 1–1000 one.
-	const BEYOND_BOUNDS_STEPS = 1000;
-	const beyond = (accessor.bounds.max ?? accessor.bounds.min) + accessor.bounds.step * BEYOND_BOUNDS_STEPS;
+	const beyond = beyondBounds(accessor.bounds);
 	return {
 		name,
+		numeric: { bounds: accessor.bounds, settlesAt: accessor.settlesAt },
 		rewritesItsOwnValue: () => roundTripOf(accessor, accessor.read(defaults()), accessor.settlesAt, defaults()),
 		writesANewValue: () =>
 			roundTripOf(accessor, distinctInBounds(accessor, accessor.read(defaults())), accessor.settlesAt, defaults()),
@@ -170,6 +186,11 @@ function probesFor(control: SettingsRowControl): readonly AccessorProbe[] {
 
 const EVERY_PROBE: readonly AccessorProbe[] = EVERY_SETTINGS_ROW.flatMap((row: SettingsRow) => probesFor(row.control));
 
+/** Every numeric accessor's own claim about its track, named for a failure message. */
+const EVERY_NUMBER_PROBE: readonly (NumberProbeFacts & { readonly name: string })[] = EVERY_PROBE.flatMap((probe) =>
+	probe.numeric === undefined ? [] : [{ name: probe.name, ...probe.numeric }],
+);
+
 /** A round trip's verdict as a failure line, or `undefined` when it held. */
 function mismatch(name: string, trip: RoundTrip): string | undefined {
 	if (JSON.stringify(trip.stored) === JSON.stringify(trip.promised)) {
@@ -197,18 +218,54 @@ describe("settings row accessors: read and interaction name the same field", () 
 	});
 });
 
+/**
+ * WHAT THE TWO ASSERTIONS BELOW ACTUALLY COVER — stated plainly, because a reader who
+ * over-trusts a guard is worse off than one who knows its edge.
+ *
+ * `interaction(v)` emits `settlesAt(v)`, so for the accessors that DO clamp (depth,
+ * outline depth, sizing numbers, metric weight) the first assertion holds by
+ * construction and proves only that the pipeline adds no FURTHER clamp behind the
+ * accessor's back. Where it genuinely bites is the accessors that clamp NOTHING
+ * (`nodeCap`, `forceLayout`): there it pins that the write path really does store the
+ * value verbatim, which is what their identity `settlesAt` promises.
+ *
+ * The second assertion is the one that bites on a CLAMPING accessor: whatever it
+ * settles at must be a value its own declared bounds actually offer. That is what
+ * catches a clamp written against different bounds from the ones its control renders —
+ * the arrangement `settingsRowDepthClamp.test.ts` documents, and the reason a depth
+ * write (stored verbatim by `planSettingsWrite`) cannot afford one.
+ */
 describe("settings row accessors: settlesAt promises what the write path stores", () => {
 	it("WHEN a numeric accessor is handed a value beyond its bounds THEN the stored value is the one it promised", () => {
-		// This is the property the panel's optimistic controls depend on: a control that
-		// waits to be echoed a value the write path never stores stays stuck showing it.
 		const trips = EVERY_PROBE.flatMap((probe) =>
 			probe.writesBeyondItsBounds === undefined ? [] : [mismatch(probe.name, probe.writesBeyondItsBounds()) ?? []],
 		);
 		expect(trips.flat()).toEqual([]);
 	});
 
-	it("WHEN the bounds probe runs THEN it found numeric accessors to probe (not vacuous)", () => {
-		expect(EVERY_PROBE.filter((probe) => probe.writesBeyondItsBounds !== undefined).length).toBeGreaterThan(0);
+	it("WHEN a numeric accessor settles a value beyond its bounds THEN it lands inside them, or not at all", () => {
+		// Two lawful answers, and no third: an accessor that CLAMPS must land inside the
+		// bounds it renders, one that does not clamp must hand the value back untouched.
+		// A clamp aimed at some OTHER field's bounds satisfies neither.
+		const lawless = EVERY_NUMBER_PROBE.flatMap(({ name, bounds, settlesAt }) => {
+			const requested = beyondBounds(bounds);
+			const settled = settlesAt(requested);
+			const insideBounds = settled >= bounds.min && (bounds.max === undefined || settled <= bounds.max);
+			return insideBounds || settled === requested
+				? []
+				: [`${name}: settles ${requested} at ${settled} — outside bounds=[${JSON.stringify(bounds)}] and not verbatim`];
+		});
+		expect(lawless).toEqual([]);
+	});
+
+	it("WHEN the bounds probe runs THEN both lawful answers are actually exercised (not vacuous)", () => {
+		// Without this, the assertion above would pass a suite in which every accessor
+		// happened to be an identity — i.e. no clamp under test at all.
+		const clamping = EVERY_NUMBER_PROBE.filter(({ bounds, settlesAt }) => settlesAt(beyondBounds(bounds)) !== beyondBounds(bounds));
+		expect({
+			clamping: clamping.length > 0,
+			verbatim: clamping.length < EVERY_NUMBER_PROBE.length,
+		}).toEqual({ clamping: true, verbatim: true });
 	});
 });
 

@@ -64,13 +64,26 @@ const SECTION_WALKERS: Readonly<Record<string, string>> = {
 };
 
 /**
+ * Components a presenter delegates ONE control kind to. They render a declared row just
+ * as much as the presenter that mounts them, so the scans below must reach them too —
+ * otherwise "hard-code it in a child component" is an open escape hatch.
+ */
+const ROW_CONTROL_COMPONENTS: Readonly<Record<string, string>> = {
+	"depth stepper": "DepthStepper.tsx",
+};
+
+/**
  * Every module that renders any part of a declared row, deduplicated — the settings tab
  * is its own section walker AND its own row presenter, so it appears in both tables above.
  * Keyed by MODULE rather than by surface on purpose: a surface-keyed record would collapse
  * the panel's two halves onto one key and silently drop one of them from the scan.
  */
 const EVERY_ROW_RENDERING_MODULE: readonly string[] = [
-	...new Set([...Object.values(PRESENTERS), ...Object.values(SECTION_WALKERS)]),
+	...new Set([
+		...Object.values(PRESENTERS),
+		...Object.values(SECTION_WALKERS),
+		...Object.values(ROW_CONTROL_COMPONENTS),
+	]),
 ];
 
 /**
@@ -153,17 +166,20 @@ describe("settings row parity: tab and panel present the same declared rows", ()
 		expect(named).toEqual([]);
 	});
 
-	it("WHEN a presenter is scanned THEN it derives no value, range or clamp of its own", () => {
+	it("WHEN a row-rendering module is scanned THEN it derives no value, range or clamp of its own", () => {
 		// The drift this closes: both presenters used to re-derive, per control kind, the
 		// value read, the range-table lookup and the clamp — and two step constants were
 		// literally declared in both files. All three now come from `settingsRowAccessors.ts`,
-		// so a presenter naming any of these symbols has started deriving again.
+		// so a module naming any of these symbols has started deriving again.
+		// EVERY row-rendering module, not just the two presenters: pushing the derivation
+		// down into a control component (`DepthStepper` did exactly that with the depth
+		// clamp) is the same drift one level lower.
 		// (Its VALUE-level correctness is `settingsRowAccessors.test.ts`; this is only the
 		// "still reads from the shared accessor" half, which a type cannot express.)
-		const derived = Object.entries(PRESENTERS).flatMap(([surface, module]) => {
+		const derived = EVERY_ROW_RENDERING_MODULE.flatMap((module) => {
 			const text = source(module);
 			return ACCESSOR_OWNED_SYMBOLS.filter((symbol) => text.includes(symbol)).map(
-				(symbol) => `${surface} derives symbol=[${symbol}] instead of reading it from SettingsRowAccessors`,
+				(symbol) => `${module} derives symbol=[${symbol}] instead of reading it from SettingsRowAccessors`,
 			);
 		});
 		expect(derived).toEqual([]);
