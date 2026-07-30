@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-30T05:03:39Z
 id: nid_xy56b20jbvaedbl0610m3j2ls_e
 title: "Settings: guard that every SETTINGS_SPEC leaf has a declared row (the last SILENT hand-maintained step)"
-status: open
+status: closed
 deps: []
 links: [nid_fay1hu5sxcoygizopkkg0f0d7_e]
 created_iso: 2026-07-30T04:45:38Z
-status_updated_iso: 2026-07-30T04:45:38Z
+status_updated_iso: 2026-07-30T05:03:38Z
 type: task
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
@@ -28,3 +29,16 @@ WHY IT MATTERS: this closes the settings model at "8 hand-maintained lists that 
 - `npm test` and `npm run check` stay green with the row present.
 - Any intentionally row-less leaf is allowlisted with a written reason, not skipped.
 
+
+## Notes
+
+**2026-07-30T05:03:38Z**
+
+DONE. src/view/settingsRowSpecCoverage.test.ts (tests only, no production change) walks the declared settings field leaves and fails naming any leaf that no row in SETTINGS_GROUPS edits. Row -> leaf join is specLeafIdFor(control), a switch closed by unhandledRowControl, so a new control kind is a compile error and a new field in an existing family needs no edit there. Companion tests: no stale mapping (every produced id still exists as a leaf), non-vacuous walk, no two rows per field.
+
+Acceptance criteria:
+1. VERIFIED BY ACTUALLY FAILING (twice, independently by implementer and reviewer): removing the 'Embeds out' row makes this suite -- and only this suite in the whole repo (1 failed | 1218 passed) -- fail with 'globalDepths.embedDepthOut: no row in SETTINGS_GROUPS edits it (no user can reach this setting)'.
+2. npm test (92 files / 1217 tests) and npm run check green with the row present.
+3. No leaf is intentionally row-less today, so the empty allowlist const was deliberately NOT shipped (PARETO/no-unused-code); the sanctioned escape hatch lives in the failure text, which instructs the maintainer to add the row or add an id-keyed allowlist with a reason plus its anti-rot tests, modelled on BOUNDS_ENFORCED_OUTSIDE_THE_ENGINE. CLAUDE.md updated to match.
+
+Commits d06961c, 9edf6a1. change_log nd3h3c3bo3n3zywa8erzdianb. No follow-ups needed.
