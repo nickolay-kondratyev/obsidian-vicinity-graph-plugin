@@ -21,3 +21,19 @@ The logic itself IS unit-tested (`src/view/settingsDebounce.test.ts`, `src/view/
 
 One `e2e/*.e2e.ts` spec types an inverted maximum node size and asserts the inline rejection is visible and the value did NOT persist; one types an invalid regex line and asserts the line is named. Both must account for the `SETTINGS_WRITE_DEBOUNCE_MS` window (no existing e2e spec controls timers — establish the pattern).
 
+
+## Notes
+
+**2026-07-30T03:35:54Z**
+
+RE-SCOPED (from step 5, nid_x6hgehsu5il1d1shuraz3ufqy_e, now closed): this ticket is now UNBLOCKED — its dep is closed.
+
+Assert the UNIFIED renderer, not the old hand-written tab. Both surfaces now render from ONE row model (src/view/settingsRows.ts, SETTINGS_GROUPS / EVERY_SETTINGS_ROW) via two presenters (src/view/VicinityGraphSettingTab.ts and src/view/SettingsRowView.tsx).
+
+What step 5 did and did NOT cover, so this ticket knows its gap:
+- COVERED (pure/structural, no Obsidian): parse, global round-trip, reset-to-declared-default and bounds for every SETTINGS_SPEC leaf; plus a SOURCE-SCAN tab-vs-panel parity guard (src/view/settingsRowParity.test.ts) that reddens on a per-row label skip in either presenter or a deleted control-kind `case`.
+- NOT COVERED, and still zero: nobody ever TYPES. No spec calls .fill()/.type() on a settings input in a real Obsidian. So the debounce settle, the flush on blur/close, and the inline rejection + invalid-regex feedback remain unverified as WIRING.
+
+Still wanted here: type an inverted max (min > max) and a bad regex into the unified rows; establish the debounce-window pattern other specs can copy; assert the feedback element appears under the row and .vicinity-graph-settings-error is styled as intended.
+
+NOTE: render-level parity (a jsdom/@testing-library harness) is deliberately NOT this ticket — it is nid_7qot0m6nuxxmd5z0yb9jylsd6_e.

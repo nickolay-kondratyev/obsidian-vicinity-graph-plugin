@@ -7,204 +7,103 @@ import {
 	DEFAULT_OUTGOING_DEPTH,
 	EngineDefaults,
 	FORCE_LAYOUT_RANGES,
-	MAX_OUTLINE_DEPTH,
 	MAX_STEPPER_DEPTH,
 	MIN_NODE_CAP,
-	MIN_OUTLINE_DEPTH,
 	MIN_STEPPER_DEPTH,
 	SIZING_RANGES,
-	clampOutlineMaxDepth,
 } from "./constants";
 import { SETTINGS_SPEC } from "./SettingsSpec";
-import type { BoundedNumberSpec, DepthSpec, NodeExclusionSpec, SizingSpec, ViewSpec } from "./SettingsSpec";
 import { SettingsDefaults } from "./SettingsDefaults";
+import {
+	BOUNDS_ONLY_SPEC_LEAF_IDS,
+	EVERY_SETTINGS_SPEC_LEAF,
+	SETTINGS_FIELD_LEAVES,
+	defaultSettingsRoot,
+	readLeaf,
+} from "./testFixtures/settingsSpecLeaves";
 
 /**
- * Refactor guard: SETTINGS_SPEC is the SINGLE source of truth for every settings
- * default and limit. These tests pin the exact shipped baseline (so a future
- * edit that drifts a value fails loudly) AND prove the adapters (`EngineDefaults`,
- * `FORCE_LAYOUT_RANGES`, the view bounds) are mechanical projections of the spec.
- */
-
-/**
- * Exhaustiveness guard for the "exact shipped baseline" tests below: a baseline
- * literal annotated `satisfies EverySpecField<SomeSpec>` MUST carry one entry per
- * field of that spec section. WHY: these baselines used to be hand-listed, so a
- * newly added spec field (this happened with `outlineMaxDepth`) was simply never
- * baselined and nothing went red. Now it is a `npm run check` error instead.
- */
-type EverySpecField<TSpec> = Record<keyof TSpec, unknown>;
-
-/**
- * Exhaustiveness guard for the LIMITS baseline. Like {@link EverySpecField} it
- * demands one entry per spec field, and additionally demands that a field which
- * HAS bounds pins every bound it declares — a default-only field maps to `{}`,
- * so (and only so) may it carry {@link NO_SPEC_LIMITS}.
+ * SETTINGS_SPEC is the SINGLE source of truth for every settings default and limit.
+ * This file asserts the spec's STRUCTURAL invariants and proves the adapters
+ * (`EngineDefaults`, `FORCE_LAYOUT_RANGES`, `SIZING_RANGES`, the `DEFAULT_*`/`MIN_*`
+ * aliases) are mechanical projections of it.
  *
- * WHY not plain `EverySpecField` here: the marker sits on BOTH sides of the
- * `toEqual`, so on its own it is a constant compared with itself and asserts
- * nothing — a default-only field that GAINED a min/max in the spec stayed green.
- * This type moves that claim to compile time.
+ * It ITERATES `EVERY_SETTINGS_SPEC_LEAF` rather than restating the shipped values.
+ * WHY-NOT the two hand-built `toEqual` baselines this replaced: they duplicated every
+ * default and every bound, so an intentional retune had to be re-typed in two places
+ * and went stale twice for real (`collidePaddingPx`, `elkNodeSpacingPx`) — while STILL
+ * saying nothing about whether a field was wired into anything.
+ *
+ * The few defaults that carry product meaning (and so SHOULD fail loudly when they
+ * move) are pinned as literals in exactly one place: `settingsProductDefaults.test.ts`.
  */
-type SpecLimitsBaseline<TSpec> = {
-	[K in keyof TSpec]: { [B in Extract<keyof TSpec[K], "min" | "max" | "step">]: unknown };
-};
-
-/** Baseline entry for a spec field that is default-only (no min/max/step to pin). */
-const NO_SPEC_LIMITS = "no limits in the spec";
-
-/** The three bounds of one bounded spec field, as the baselines pin them. */
-function limitsOf(spec: BoundedNumberSpec): { min: number; max: number; step: number } {
-	return { min: spec.min, max: spec.max, step: spec.step };
-}
-
-describe("SETTINGS_SPEC (single source of truth for defaults + limits)", () => {
-	it("WHEN the spec is read THEN its default values equal the exact shipped baseline", () => {
-		const view = SETTINGS_SPEC.globalView;
-		const viewDefaults = {
-			nodeCap: view.nodeCap.default,
-			outlineMaxDepth: view.outlineMaxDepth.default,
-			nodePreviewPreference: view.nodePreviewPreference.default,
-			sizing: {
-				metrics: Object.fromEntries(
-					Object.entries(view.sizing.metrics).map(([id, m]) => [id, m.default]),
-				),
-				metricWeight: view.sizing.metricWeight.default,
-				depthDecayK: view.sizing.depthDecayK.default,
-				minPx: view.sizing.minPx.default,
-				maxPx: view.sizing.maxPx.default,
-			} satisfies EverySpecField<SizingSpec>,
-			forceLayout: Object.fromEntries(
-				Object.entries(view.forceLayout).map(([field, s]) => [field, s.default]),
-			),
-		} satisfies EverySpecField<ViewSpec>;
-		expect({
-			globalDepths: {
-				outgoingDepth: SETTINGS_SPEC.globalDepths.outgoingDepth.default,
-				incomingDepth: SETTINGS_SPEC.globalDepths.incomingDepth.default,
-			} satisfies EverySpecField<DepthSpec>,
-			...viewDefaults,
-			nodeExclusion: {
-				enabled: SETTINGS_SPEC.nodeExclusion.enabled.default,
-				patterns: SETTINGS_SPEC.nodeExclusion.patterns.default,
-			} satisfies EverySpecField<NodeExclusionSpec>,
-		}).toEqual({
-			globalDepths: { outgoingDepth: 1, incomingDepth: 1 },
-			nodeCap: 100,
-			outlineMaxDepth: 2,
-			nodePreviewPreference: "auto",
-			sizing: {
-				metrics: {
-					"own-file-size": { enabled: true, weight: 1 },
-					"total-linker-size": { enabled: false, weight: 1 },
-					"backlink-count": { enabled: false, weight: 1 },
-					"outlink-count": { enabled: false, weight: 1 },
-					"depth-decay": { enabled: false, weight: 1 },
-				},
-				metricWeight: 1,
-				depthDecayK: 1,
-				minPx: 40,
-				maxPx: 160,
-			},
-			forceLayout: {
-				centerPullStrength: 0.05,
-				repelStrength: 300,
-				linkStrengthFactor: 1,
-				linkGapPx: 40,
-				collidePaddingPx: 50,
-				elkNodeSpacingPx: 20,
-				edgeRoutingClearancePx: 11,
-			},
-			nodeExclusion: { enabled: false, patterns: [] },
-		});
+describe("SETTINGS_SPEC structure (every leaf, no hand-enumerated values)", () => {
+	it("WHEN the spec is walked THEN every declared section contributes leaves (the walk is not vacuous)", () => {
+		const sectionsWithoutLeaves = Object.keys(SETTINGS_SPEC).filter(
+			(section) => !EVERY_SETTINGS_SPEC_LEAF.some((leaf) => leaf.path[0] === section),
+		);
+		expect(sectionsWithoutLeaves).toEqual([]);
 	});
 
-	it("WHEN the spec is read THEN its limits equal the exact shipped baseline", () => {
-		const view = SETTINGS_SPEC.globalView;
-		const viewLimits = {
-			nodeCap: { min: view.nodeCap.min },
-			outlineMaxDepth: {
-				min: view.outlineMaxDepth.min,
-				max: view.outlineMaxDepth.max,
-				step: view.outlineMaxDepth.step,
-			},
-			nodePreviewPreference: NO_SPEC_LIMITS,
-			// `sizing` is a composite, so the ViewSpec-level guard cannot demand its
-			// leaves' bounds — they are pinned one level down instead.
-			sizing: {
-				metrics: NO_SPEC_LIMITS,
-				metricWeight: limitsOf(view.sizing.metricWeight),
-				depthDecayK: limitsOf(view.sizing.depthDecayK),
-				minPx: limitsOf(view.sizing.minPx),
-				maxPx: limitsOf(view.sizing.maxPx),
-			} satisfies SpecLimitsBaseline<SizingSpec>,
-			forceLayout: Object.fromEntries(
-				Object.entries(view.forceLayout).map(([field, s]) => [
-					field,
-					{ min: s.min, max: s.max, step: s.step },
-				]),
-			),
-		} satisfies SpecLimitsBaseline<ViewSpec>;
-		const depths = SETTINGS_SPEC.globalDepths;
-		expect({
-			globalDepths: {
-				outgoingDepth: {
-					min: depths.outgoingDepth.min,
-					max: depths.outgoingDepth.max,
-					step: depths.outgoingDepth.step,
-				},
-				incomingDepth: {
-					min: depths.incomingDepth.min,
-					max: depths.incomingDepth.max,
-					step: depths.incomingDepth.step,
-				},
-			} satisfies SpecLimitsBaseline<DepthSpec>,
-			...viewLimits,
-		}).toEqual({
-			globalDepths: {
-				outgoingDepth: { min: 0, max: 5, step: 1 },
-				incomingDepth: { min: 0, max: 5, step: 1 },
-			},
-			nodeCap: { min: 1 },
-			outlineMaxDepth: { min: 1, max: 6, step: 1 },
-			nodePreviewPreference: NO_SPEC_LIMITS,
-			sizing: {
-				metrics: NO_SPEC_LIMITS,
-				metricWeight: { min: 0, max: 100, step: 0.5 },
-				depthDecayK: { min: 0, max: 10, step: 0.5 },
-				minPx: { min: 1, max: 400, step: 4 },
-				maxPx: { min: 1, max: 400, step: 4 },
-			},
-			forceLayout: {
-				centerPullStrength: { min: 0, max: 0.15, step: 0.01 },
-				repelStrength: { min: 50, max: 1000, step: 10 },
-				linkStrengthFactor: { min: 0.25, max: 4, step: 0.05 },
-				linkGapPx: { min: 10, max: 250, step: 5 },
-				collidePaddingPx: { min: 0, max: 100, step: 5 },
-				elkNodeSpacingPx: { min: 10, max: 120, step: 5 },
-				edgeRoutingClearancePx: { min: 6, max: 14, step: 1 },
-			},
-		});
+	it("WHEN the spec is walked THEN every leaf carries a defined default", () => {
+		expect(EVERY_SETTINGS_SPEC_LEAF.filter((leaf) => leaf.default === undefined)).toEqual([]);
+	});
+
+	it("WHEN a leaf declares bounds THEN its own default sits inside them", () => {
+		const outside = EVERY_SETTINGS_SPEC_LEAF.filter((leaf) => {
+			const { bounds } = leaf;
+			if (bounds === undefined || typeof leaf.default !== "number") {
+				return false;
+			}
+			return leaf.default < bounds.min || (bounds.max !== undefined && leaf.default > bounds.max);
+		}).map((leaf) => leaf.id);
+		expect(outside).toEqual([]);
+	});
+
+	it("WHEN a leaf declares both bounds THEN the range is non-degenerate (a collapsed range makes every clamp trivially pass)", () => {
+		const collapsed = EVERY_SETTINGS_SPEC_LEAF.filter(
+			(leaf) => leaf.bounds?.max !== undefined && leaf.bounds.max <= leaf.bounds.min,
+		).map((leaf) => leaf.id);
+		expect(collapsed).toEqual([]);
+	});
+
+	it("WHEN a leaf declares a step THEN it is positive and no wider than the range itself", () => {
+		const unusable = EVERY_SETTINGS_SPEC_LEAF.filter((leaf) => {
+			const { bounds } = leaf;
+			if (bounds?.step === undefined || bounds.max === undefined) {
+				return false;
+			}
+			return bounds.step <= 0 || bounds.step > bounds.max - bounds.min;
+		}).map((leaf) => leaf.id);
+		expect(unusable).toEqual([]);
+	});
+
+	it("WHEN a leaf is declared bounds-only THEN it really is a leaf of the spec (the exception list cannot rot)", () => {
+		const stale = BOUNDS_ONLY_SPEC_LEAF_IDS.filter(
+			(id) => !EVERY_SETTINGS_SPEC_LEAF.some((leaf) => leaf.id === id),
+		);
+		expect(stale).toEqual([]);
+	});
+
+	it("WHEN a leaf is declared bounds-only THEN no settings field carries it (else it belongs in the field list)", () => {
+		const root = defaultSettingsRoot();
+		const reachable = EVERY_SETTINGS_SPEC_LEAF.filter(
+			(leaf) => BOUNDS_ONLY_SPEC_LEAF_IDS.includes(leaf.id) && readLeaf(root, leaf) !== undefined,
+		).map((leaf) => leaf.id);
+		expect(reachable).toEqual([]);
 	});
 });
 
 describe("adapters derive from SETTINGS_SPEC", () => {
-	it("WHEN EngineDefaults.viewSettings is built THEN it projects the spec defaults", () => {
-		expect(EngineDefaults.viewSettings()).toEqual({
-			nodeCap: SETTINGS_SPEC.globalView.nodeCap.default,
-			outlineMaxDepth: SETTINGS_SPEC.globalView.outlineMaxDepth.default,
-			nodePreviewPreference: SETTINGS_SPEC.globalView.nodePreviewPreference.default,
-			sizing: EngineDefaults.sizingSettings(),
-			forceLayout: EngineDefaults.forceLayoutSettings(),
-		});
-	});
-
-	it("WHEN EngineDefaults.depthSettings is built THEN it projects the spec depth defaults", () => {
-		expect(EngineDefaults.depthSettings()).toEqual({ outgoingDepth: 1, incomingDepth: 1 });
-	});
-
-	it("WHEN EngineDefaults.nodeExclusionSettings is built THEN it projects the spec exclusion defaults", () => {
-		expect(EngineDefaults.nodeExclusionSettings()).toEqual({ enabled: false, patterns: [] });
+	it("WHEN EngineDefaults builds the settings root THEN every spec leaf's default is what the root carries", () => {
+		// This replaces the old hand-typed defaults baseline: it covers EVERY leaf,
+		// including one added tomorrow, and fails naming a field `EngineDefaults`
+		// forgot to project (the value comes back `undefined`).
+		const root = defaultSettingsRoot();
+		const drifted = SETTINGS_FIELD_LEAVES.filter(
+			(leaf) => JSON.stringify(readLeaf(root, leaf)) !== JSON.stringify(leaf.default),
+		).map((leaf) => ({ id: leaf.id, declared: leaf.default, built: readLeaf(root, leaf) }));
+		expect(drifted).toEqual([]);
 	});
 
 	it("WHEN sizingSettings is built twice THEN each call returns deep-equal but fresh metric objects", () => {
@@ -225,16 +124,15 @@ describe("adapters derive from SETTINGS_SPEC", () => {
 	});
 
 	it("WHEN SIZING_RANGES is read THEN each field mirrors the spec's min/max/step", () => {
-		const sizing = SETTINGS_SPEC.globalView.sizing;
-		expect(SIZING_RANGES).toEqual({
-			metricWeight: limitsOf(sizing.metricWeight),
-			depthDecayK: limitsOf(sizing.depthDecayK),
-			minPx: limitsOf(sizing.minPx),
-			maxPx: limitsOf(sizing.maxPx),
+		const drifted = Object.entries(SIZING_RANGES).filter(([field, range]) => {
+			const spec = SETTINGS_SPEC.globalView.sizing[field as keyof typeof SIZING_RANGES];
+			return JSON.stringify(range) !== JSON.stringify({ min: spec.min, max: spec.max, step: spec.step });
 		});
+		expect(drifted).toEqual([]);
 	});
 
 	it("WHEN the DEFAULT_* named constants are read THEN they alias the spec defaults", () => {
+		const spec = SETTINGS_SPEC;
 		expect({
 			DEFAULT_NODE_CAP,
 			DEFAULT_OUTGOING_DEPTH,
@@ -242,19 +140,19 @@ describe("adapters derive from SETTINGS_SPEC", () => {
 			DEFAULT_MIN_NODE_PX,
 			DEFAULT_MAX_NODE_PX,
 		}).toEqual({
-			DEFAULT_NODE_CAP: 100,
-			DEFAULT_OUTGOING_DEPTH: 1,
-			DEFAULT_INCOMING_DEPTH: 1,
-			DEFAULT_MIN_NODE_PX: 40,
-			DEFAULT_MAX_NODE_PX: 160,
+			DEFAULT_NODE_CAP: spec.globalView.nodeCap.default,
+			DEFAULT_OUTGOING_DEPTH: spec.globalDepths.outgoingDepth.default,
+			DEFAULT_INCOMING_DEPTH: spec.globalDepths.incomingDepth.default,
+			DEFAULT_MIN_NODE_PX: spec.globalView.sizing.minPx.default,
+			DEFAULT_MAX_NODE_PX: spec.globalView.sizing.maxPx.default,
 		});
 	});
 
 	it("WHEN the view bound constants are read THEN they alias the spec limits", () => {
 		expect({ MIN_NODE_CAP, MIN_STEPPER_DEPTH, MAX_STEPPER_DEPTH }).toEqual({
-			MIN_NODE_CAP: 1,
-			MIN_STEPPER_DEPTH: 0,
-			MAX_STEPPER_DEPTH: 5,
+			MIN_NODE_CAP: SETTINGS_SPEC.globalView.nodeCap.min,
+			MIN_STEPPER_DEPTH: SETTINGS_SPEC.globalDepths.outgoingDepth.min,
+			MAX_STEPPER_DEPTH: SETTINGS_SPEC.globalDepths.outgoingDepth.max,
 		});
 	});
 });
@@ -262,28 +160,5 @@ describe("adapters derive from SETTINGS_SPEC", () => {
 describe("SettingsDefaults discoverability shim", () => {
 	it("WHEN SettingsDefaults.SPEC is read THEN it points at the real SETTINGS_SPEC", () => {
 		expect(SettingsDefaults.SPEC).toBe(SETTINGS_SPEC);
-	});
-});
-
-describe("outline depth spec (CLARIFICATION Q1 + Q5)", () => {
-	it("WHEN the spec is read THEN the outline depth default is the shipped baseline of 2", () => {
-		expect(SETTINGS_SPEC.globalView.outlineMaxDepth.default).toBe(2);
-	});
-
-	it("WHEN the spec is read THEN the outline depth limits are the shipped baseline 1..6", () => {
-		const spec = SETTINGS_SPEC.globalView.outlineMaxDepth;
-		expect({ min: spec.min, max: spec.max, step: spec.step }).toEqual({ min: 1, max: 6, step: 1 });
-	});
-
-	it("WHEN a value below the spec min is clamped THEN the min comes back (never a silent off-switch)", () => {
-		expect(clampOutlineMaxDepth(0)).toBe(MIN_OUTLINE_DEPTH);
-	});
-
-	it("WHEN a value above the spec max is clamped THEN the max comes back", () => {
-		expect(clampOutlineMaxDepth(99)).toBe(MAX_OUTLINE_DEPTH);
-	});
-
-	it("WHEN a fractional value is clamped THEN it rounds to a whole heading level", () => {
-		expect(clampOutlineMaxDepth(2.4)).toBe(2);
 	});
 });

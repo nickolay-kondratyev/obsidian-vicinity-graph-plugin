@@ -42,9 +42,16 @@ export const MAX_OUTLINE_DEPTH = SETTINGS_SPEC.globalView.outlineMaxDepth.max;
  * parser, so a hand-edited `data.json` cannot reach `0` (a silent off-switch the
  * feature deliberately does not have) or a level markdown does not define.
  * Rounds: heading levels are whole numbers.
+ *
+ * Goes through {@link clampIntoRange} rather than a bare `Math.min`/`Math.max` pair so
+ * `NaN` resolves to the spec default exactly as it does for every other settings clamp —
+ * those two PROPAGATE it, and this clamp used to hand a `NaN` depth straight to its
+ * caller. Not reachable from today's slider-only callers; consistency, not a live bug fix
+ * (`settingsSpecBounds.test.ts` asserts the rule for every bounded field at once).
  */
 export function clampOutlineMaxDepth(value: number): number {
-	return Math.min(MAX_OUTLINE_DEPTH, Math.max(MIN_OUTLINE_DEPTH, Math.round(value)));
+	const spec = SETTINGS_SPEC.globalView.outlineMaxDepth;
+	return Math.round(clampIntoRange(value, spec, spec.default));
 }
 
 /**

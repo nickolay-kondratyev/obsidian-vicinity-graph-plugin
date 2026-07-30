@@ -81,6 +81,23 @@ consequences for anyone adding a field:
   `settingsResetSequence.ts` owns the restore-defaults ORDER and is the vitest
   harness for it, since the tab itself has none.
 
+### What ticket 5 (spec-driven tests) added to the family — **LANDED 2026-07-29**
+
+The test contract is now **ONE tripwire**: every settings suite walks `SETTINGS_SPEC`
+and asserts STRUCTURE (parses, round-trips, resets to its declared default, honours
+its bounds), so a spec field nobody wired FAILS; and literal defaults/ranges exist in
+exactly ONE file, `src/engine/settingsProductDefaults.test.ts`, replacing the three
+mirrored baselines that went stale twice. Tab-vs-panel parity stays a source scan
+(`src/view/settingsRowParity.test.ts`) — render-level parity belongs to
+`nid_7qot0m6nuxxmd5z0yb9jylsd6_e`.
+
+**Open owner decision (`decide`)**: the standing instruction was a **SMALL** literal
+set; what shipped pins **all 21** spec leaves. Review measured that a default change
+then fails exactly one file / one test, and that only a TOTAL table notices a newly
+added leaf — it judged the widening acceptable, but it is a deviation from an explicit
+owner instruction and awaits ratification (`nid_5rdya0nr660n9sru1zhfs51ic_e` carries
+the argument). Until it is ratified, treat the total table as provisional.
+
 ### Cost of adding one field AFTER ticket 2
 
 The compiler now NAMES every site you miss except the last:
@@ -224,7 +241,8 @@ upper bound), `nid_uwnew3dok0gn8ijar54hiozst_e` (pre-release slider tuning).
   pays off once `embedDepthOut` disambiguates the names; doing it earlier churns
   user-facing copy plus ~6 e2e literals for no structural benefit.
 - **Tests**: structural spec-iterating tests, but KEEP a small number of literal
-  assertions for product-meaningful defaults (e.g. nodeCap 100).
+  assertions for product-meaningful defaults (e.g. nodeCap 100). **Ticket 5 shipped
+  all 21 leaves in one table instead — ratification pending, see above.**
 - **Obsidian constraint**: the Setting API cannot mount inside React, so there
   will always be two renderer *implementations* — parity is guarded by a test
   over the descriptor list, not by a single renderer.
