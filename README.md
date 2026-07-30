@@ -73,6 +73,14 @@ There are no per-note settings. Two surfaces edit the same values: the settings
 tab (**Settings → Vicinity Graph**) and the in-view **Graph controls** panel;
 changing either writes the one global value and refreshes every open graph.
 
+**Both surfaces show the same sections, in the same order, under the same names**
+— *Depth (all notes)*, *Node sizing*, *Node contents*, *Force layout*, *Node
+exclusion*, *Performance*. Every setting appears on both. The panel is narrow, so
+it uses compact controls (steppers instead of sliders for depth) and moves the
+long descriptions into hover tooltips. One deliberate exception: exclusion
+**patterns** are *edited* in the settings tab and shown **read-only** in the
+panel, because a multi-line regex list needs the room.
+
 Controls answer immediately: a stepper, slider, toggle or typed field moves as you
 use it, while the graph redraws behind it. Edits made in quick succession — even
 across the two surfaces at once — each keep their own field; nothing you just
@@ -96,11 +104,13 @@ changed gets reverted by the next change.
   the one global value.
 - **Outline depth** — how many markdown heading levels a node's outline shows
   (**1–6**, default **2**: sections plus subsections, which is what fits a node).
-  See *Node contents* below. The depth itself has no on/off switch — use the
-  *Preview* pill to choose outline vs image.
+  Also in the controls panel, under *Node contents* beside the *Preview* pill. See
+  *Node contents* below. The depth itself has no on/off switch — use the *Preview*
+  pill to choose outline vs image.
 - **Grouping** and the **node cap** (default **100** — above roughly a hundred
   nodes a graph stops being readable, so the view truncates deterministically and
-  shows a hidden-node count).
+  shows a hidden-node count). The cap is also in the controls panel, under
+  *Performance*.
 - **Force layout** — four sliders named like Obsidian's native graph (**Center
   force**, **Repel force**, **Link force**, **Link distance**) plus an *Advanced
   spacing* group (**Node spacing**, **Group member spacing** — the gap between
@@ -150,10 +160,13 @@ Keep whole classes of notes out of every graph — index/MOC hubs, templates, a
 `rel/` relationship folder — via a **global** exclusion pattern list.
 
 - **Pattern list** lives in Settings → Vicinity Graph (one pattern per line) and
-  is global, like every other setting.
-- **Toolbar pill** enables/disables exclusion in-view; when it is on and the
-  current graph actually dropped notes, it shows an **excluded count** for that
-  graph.
+  is global, like every other setting. Its row is always on screen: while
+  *Exclude notes from the graph* is off the box is **disabled**, not hidden, so you
+  can still see what is stored — and switching exclusion back on brings those exact
+  patterns straight back.
+- **Controls panel** has the same *Exclude notes from the graph* switch, plus the
+  patterns read-only; when exclusion is on and the current graph actually dropped
+  notes, its section header shows an **excluded count** for that graph.
 - **Matching is regex-lite.** Each line is a JavaScript regex tested
   **unanchored** and **case-sensitively** against the full vault-relative path
   **including extension**. So `rel/` matches `rel/some-relationship.md` (and

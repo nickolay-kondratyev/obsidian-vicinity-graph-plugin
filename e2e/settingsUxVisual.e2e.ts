@@ -112,7 +112,7 @@ test("panel: WHEN the controls panel renders THEN its top-level disclosures are 
 	//
 	// Fully anchored regexes rather than plain strings, for ONE reason: "Node
 	// exclusion" renders an OPTIONAL excluded-count badge inside its own <summary>
-	// (NodeExclusionSection), so its textContent is "Node exclusion" or
+	// (GraphToolbar's section summary), so its textContent is "Node exclusion" or
 	// "Node exclusion12" depending on the fixture, and an exact string would be a
 	// latent flake for that entry. `\d*` tolerates that badge and NOTHING else —
 	// tail-anchoring keeps a rename like "Depth (all notes)" → "Depth & scope" failing, which

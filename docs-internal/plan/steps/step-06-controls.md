@@ -7,7 +7,7 @@
 > pin-on-toggle and per-control reset-to-global below.** Ticket
 > `nid_ez38gf1mrdgh5kxedzrdicwzl_e` (owner decision 2026-07-29) made settings
 > global-only: the panel's Depth section is now ONE pair of steppers
-> (`GlobalDepthControls`) writing the global depth that drives MAIN and every pinned
+> (a `DepthStepper` pair) writing the global depth that drives MAIN and every pinned
 > central, there is no per-central list and no per-control reset, and resetting is
 > per settings-tab section plus one tab-wide scope. Pinning itself (hover button,
 > node menu, global pinned set) is unchanged. This document is kept AS SHIPPED — the

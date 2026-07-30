@@ -70,6 +70,18 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   actually store — a clamped row passes that clamp in, so "the clamp left the
   value where it already was" releases too — or a value that is neither the
   burst's baseline nor one of the burst's own requests).
+- `view/settingsRows.ts` — **THE settings row contract**: `SETTINGS_GROUPS` declares
+  every section (heading, order, which one opens in the panel) and every ROW
+  (label, description, control kind, `disabledWhen`), plus `SettingsRowNames`, the
+  one accessible-naming convention. The settings tab and the controls panel are two
+  PRESENTERS over it — `VicinityGraphSettingTab.addRow()` and
+  `SettingsRowView.tsx` each dispatch on `row.control.kind` in an exhaustive
+  `switch`, so a new row is a compile error in both. Obsidian's `Setting` API
+  cannot mount in React, so the two renderers stay; only markup is duplicated.
+  Pure (no `obsidian`/`react`), because `e2e/settingsBaseline.ts` reads it too.
+  Complements `settingsSectionFields.ts`, which answers the different question
+  "which FIELDS does this section's restore-defaults clear".
+  Guard: `settingsRowParity.test.ts`.
 - `persistence/storagePorts.ts`, `adapters/obsidianPorts.ts` — testable seams,
   each with a `Fake*` implementation used by unit tests.
 
