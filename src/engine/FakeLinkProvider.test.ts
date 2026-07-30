@@ -138,3 +138,78 @@ describe("FakeLinkProvider note outline", () => {
 		expect(vault().getFileMetadata(A)?.outline).toEqual([]);
 	});
 });
+
+/**
+ * The Stage-1 kind seam as fixtures see it: `links` declares plain links,
+ * `embeds` declares embeds, and a pair can be BOTH.
+ */
+describe("FakeLinkProvider outgoing reference kinds", () => {
+	// GIVEN a.md that EMBEDS b.md and pic.png, and plainly links doc.pdf.
+	function mixedVault(): FakeLinkProvider {
+		return new FakeLinkProvider({
+			files: [{ path: "a.md" }, { path: "notes/b.md" }, { path: "assets/pic.png" }, { path: "assets/doc.pdf" }],
+			links: { "a.md": ["assets/doc.pdf"] },
+			embeds: { "a.md": ["notes/b.md", "assets/pic.png"] },
+		});
+	}
+
+	it("WHEN a target is declared under links THEN its reference kind is a plain link", () => {
+		expect(mixedVault().getOutgoingReferences(A)).toContainEqual({ target: PDF, kind: "link" });
+	});
+
+	it("WHEN a target is declared under embeds THEN its reference kind is an embed", () => {
+		expect(mixedVault().getOutgoingReferences(A)).toContainEqual({ target: B, kind: "embed" });
+	});
+
+	it("WHEN a source declares both kinds THEN its links come before its embeds", () => {
+		expect(mixedVault().getOutgoingReferences(A)).toEqual([
+			{ target: PDF, kind: "link" },
+			{ target: B, kind: "embed" },
+			{ target: IMG, kind: "embed" },
+		]);
+	});
+
+	it("WHEN nothing is declared for a path THEN it has no outgoing references", () => {
+		expect(mixedVault().getOutgoingReferences(B)).toEqual([]);
+	});
+
+	it("WHEN only embeds are declared THEN the kind-blind link list still reports the targets", () => {
+		expect(mixedVault().getOutgoingLinks(A)).toEqual([PDF, B, IMG]);
+	});
+
+	it("WHEN a target is queried through the kind-blind view THEN the query counter still moves (one truth underneath)", () => {
+		const provider = mixedVault();
+		provider.getOutgoingLinks(A);
+		expect(provider.outgoingQueryCount(A)).toBe(1);
+	});
+});
+
+/** A pair that is BOTH embedded and plainly linked — the multiplicity case from the ticket's §5. */
+describe("FakeLinkProvider a pair that is both linked and embedded", () => {
+	function bothVault(): FakeLinkProvider {
+		return new FakeLinkProvider({
+			files: [{ path: "a.md" }, { path: "notes/b.md" }],
+			links: { "a.md": ["notes/b.md"] },
+			embeds: { "a.md": ["notes/b.md"] },
+		});
+	}
+
+	it("WHEN a pair is both linked and embedded THEN both references survive deduplication", () => {
+		expect(bothVault().getOutgoingReferences(A)).toEqual([
+			{ target: B, kind: "link" },
+			{ target: B, kind: "embed" },
+		]);
+	});
+
+	it("WHEN a pair is both linked and embedded THEN the kind-blind view reports the target once", () => {
+		expect(bothVault().getOutgoingLinks(A)).toEqual([B]);
+	});
+
+	it("WHEN a pair is both linked and embedded THEN getLinkCount counts both (kind-blind multiplicity)", () => {
+		expect(bothVault().getLinkCount(A, B)).toBe(2);
+	});
+
+	it("WHEN a pair is both linked and embedded THEN the target has ONE incoming linker", () => {
+		expect(bothVault().getIncomingLinks(B)).toEqual([A]);
+	});
+});

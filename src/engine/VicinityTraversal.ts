@@ -1,20 +1,23 @@
+import type { LinkKind } from "../shared/LinkKind";
 import { VaultPathFacts } from "../shared/VaultPathFacts";
 import { EdgeAccumulator } from "./EdgeAccumulator";
 import type { LinkProvider } from "./LinkProvider";
+import { OutgoingReferences } from "./LinkProvider";
 import { NodeEligibility } from "./NodeEligibility";
 import { PathExclusionMatcher } from "./PathExclusionMatcher";
 import type {
 	AttachmentRef,
 	CentralNodeDescriptor,
+	Channel,
 	DepthSettings,
 	DepthTag,
 	DirectedLink,
-	Direction,
 	DocId,
 	FolderPath,
 	OutlineEntry,
 	VaultPath,
 } from "./types";
+import { CHANNEL_DEPTH_FIELD, CHANNELS } from "./types";
 
 /** One traversal root with its (already resolved) per-root depth limits. */
 export interface TraversalRoot {
@@ -49,10 +52,21 @@ export interface TraversalResult {
 	readonly excludedNodeCount: number;
 }
 
-const DIRECTIONS: readonly Direction[] = ["outgoing", "incoming"];
+/**
+ * Which endpoint of a walked hop is the LINKER, per channel — edges always point
+ * linker → linked, whichever channel discovered them.
+ *
+ * A table rather than a `channel !== "incoming"` test so a future incoming-side
+ * channel is a COMPILE ERROR here instead of a silently back-to-front edge.
+ */
+const CHANNEL_LINKER: Readonly<Record<Channel, "current" | "neighbor">> = {
+	"outgoing-link": "current",
+	"outgoing-embed": "current",
+	incoming: "neighbor",
+};
 
 /**
- * Multi-root directional BFS (step-02 CLARIFICATION Q3): each root × direction
+ * Multi-root channel BFS (step-02 CLARIFICATION Q3): each root × channel
  * runs an independent BFS with its own depth limit; results are unioned and
  * deduped by path. Within one BFS a visited map guarantees a node is expanded
  * at most once (BFS visits in nondecreasing depth, so the first visit is the
@@ -84,8 +98,8 @@ export class VicinityTraversal {
 			if (!this.eligibility.isNodeBearing(root.descriptor.path)) {
 				continue;
 			}
-			for (const direction of DIRECTIONS) {
-				this.bfs(root, direction, rootPaths, collector);
+			for (const channel of CHANNELS) {
+				this.bfs(root, channel, rootPaths, collector);
 			}
 		}
 		return this.assemble(roots, collector);
@@ -93,15 +107,15 @@ export class VicinityTraversal {
 
 	private bfs(
 		root: TraversalRoot,
-		direction: Direction,
+		channel: Channel,
 		rootPaths: ReadonlySet<VaultPath>,
 		collector: TraversalCollector,
 	): void {
 		const rootPath = root.descriptor.path;
-		const depthLimit = direction === "outgoing" ? root.depths.outgoingDepth : root.depths.incomingDepth;
+		const depthLimit = root.depths[CHANNEL_DEPTH_FIELD[channel]];
 		const visited = new Map<VaultPath, number>([[rootPath, 0]]);
 		const queue: VaultPath[] = [rootPath];
-		collector.recordDepthTag(rootPath, { rootPath, direction, depth: 0 });
+		collector.recordDepthTag(rootPath, { rootPath, channel, depth: 0 });
 		for (let head = 0; head < queue.length; head++) {
 			const current = queue[head];
 			if (current === undefined) {
@@ -111,7 +125,7 @@ export class VicinityTraversal {
 			if (currentDepth >= depthLimit) {
 				continue; // Depth budget exhausted — do not expand further.
 			}
-			for (const neighbor of this.neighborsOf(current, direction)) {
+			for (const neighbor of this.neighborsOf(current, channel)) {
 				// Exclusion FIRST (before the isNodeBearing metadata read): an excluded
 				// neighbor is never enqueued, never expanded through, and never fetches
 				// metadata — the performance win. Roots are exempt (checked above).
@@ -122,21 +136,36 @@ export class VicinityTraversal {
 				if (!this.eligibility.isNodeBearing(neighbor)) {
 					continue; // Attachment, not a node; surfaced via FileMetadata.attachments.
 				}
-				collector.recordEdge(current, neighbor, direction);
+				collector.recordEdge(current, neighbor, channel);
 				if (visited.has(neighbor)) {
 					continue; // Already seen at ≤ this depth — never re-expand (Q3).
 				}
 				visited.set(neighbor, currentDepth + 1);
-				collector.recordDepthTag(neighbor, { rootPath, direction, depth: currentDepth + 1 });
+				collector.recordDepthTag(neighbor, { rootPath, channel, depth: currentDepth + 1 });
 				queue.push(neighbor);
 			}
 		}
 	}
 
-	private neighborsOf(path: VaultPath, direction: Direction): readonly VaultPath[] {
-		return direction === "outgoing"
-			? this.provider.getOutgoingLinks(path)
-			: this.provider.getIncomingLinks(path);
+	/**
+	 * KIND-PURE (owner decision D1 / research 6a): each outgoing channel sees only
+	 * its own kind of reference, so the two outgoing BFS runs are independent walks
+	 * that get unioned — exactly the architecture the outgoing/incoming split
+	 * already used. Incoming stays kind-blind by scope decision.
+	 */
+	private neighborsOf(path: VaultPath, channel: Channel): readonly VaultPath[] {
+		switch (channel) {
+			case "outgoing-link":
+				return this.outgoingTargetsOfKind(path, "link");
+			case "outgoing-embed":
+				return this.outgoingTargetsOfKind(path, "embed");
+			case "incoming":
+				return this.provider.getIncomingLinks(path);
+		}
+	}
+
+	private outgoingTargetsOfKind(path: VaultPath, kind: LinkKind): readonly VaultPath[] {
+		return OutgoingReferences.targetsOfKind(this.provider.getOutgoingReferences(path), kind);
 	}
 
 	private assemble(roots: readonly TraversalRoot[], collector: TraversalCollector): TraversalResult {
@@ -201,10 +230,11 @@ class TraversalCollector {
 		this.tags.set(path, tagsForPath);
 	}
 
-	/** Direction "incoming" means `neighbor` links to `current` — edges always point linker → linked. */
-	recordEdge(current: VaultPath, neighbor: VaultPath, direction: Direction): void {
-		const source = direction === "outgoing" ? current : neighbor;
-		const target = direction === "outgoing" ? neighbor : current;
+	/** Normalises a walked hop into linker → linked (see {@link CHANNEL_LINKER}). */
+	recordEdge(current: VaultPath, neighbor: VaultPath, channel: Channel): void {
+		const currentIsLinker = CHANNEL_LINKER[channel] === "current";
+		const source = currentIsLinker ? current : neighbor;
+		const target = currentIsLinker ? neighbor : current;
 		this.edgeAccumulator.add(source, target);
 	}
 

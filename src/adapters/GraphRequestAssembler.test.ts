@@ -52,7 +52,7 @@ describe("GraphRequestAssembler pins", () => {
 /** Settings are GLOBAL: the assembler passes them through, it resolves nothing. */
 describe("GraphRequestAssembler global settings pass-through", () => {
 	it("WHEN inputs carry global depths THEN the request carries them unchanged", () => {
-		const globalDepths = { outgoingDepth: 3, incomingDepth: 2 };
+		const globalDepths = { linkDepthOut: 3, embedDepthOut: 2, linkDepthIn: 1 };
 		expect(GraphRequestAssembler.assemble(inputs({ globalDepths })).globalDepths).toEqual(globalDepths);
 	});
 

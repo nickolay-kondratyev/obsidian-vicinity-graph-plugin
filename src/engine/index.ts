@@ -34,10 +34,10 @@
 export type {
 	AttachmentRef,
 	CentralNodeDescriptor,
+	Channel,
 	DepthSettings,
 	DepthTag,
 	DirectedLink,
-	Direction,
 	DocId,
 	FolderPath,
 	ForceLayoutSettings,
@@ -54,9 +54,13 @@ export type {
 	VaultPath,
 	ViewSettings,
 } from "./types";
-export { asDocId, asFolderPath, asVaultPath, DIRECTION_DEPTH_FIELD, NODE_PREVIEW_PREFERENCES } from "./types";
+export { asDocId, asFolderPath, asVaultPath, CHANNEL_DEPTH_FIELD, NODE_PREVIEW_PREFERENCES } from "./types";
 
-export type { FileMetadata, LinkProvider } from "./LinkProvider";
+export type { FileMetadata, LinkProvider, OutgoingReference } from "./LinkProvider";
+export { OutgoingReferences } from "./LinkProvider";
+// LinkKind lives in `shared/` (the layer BELOW the engine) because the shared
+// syntax matchers must name it; the engine is still its public owner.
+export type { LinkKind } from "../shared/LinkKind";
 export { NodeEligibility } from "./NodeEligibility";
 export { PathExclusionMatcher } from "./PathExclusionMatcher";
 export { FakeLinkProvider } from "./FakeLinkProvider";
@@ -81,11 +85,11 @@ export type { PriorityRankable } from "./NodePriorityChain";
 export {
 	CENTRAL_SIZE_SCORE,
 	DEFAULT_DEPTH_DECAY_K,
-	DEFAULT_INCOMING_DEPTH,
+	DEFAULT_LINK_DEPTH_IN,
 	DEFAULT_MAX_NODE_PX,
 	DEFAULT_MIN_NODE_PX,
 	DEFAULT_NODE_CAP,
-	DEFAULT_OUTGOING_DEPTH,
+	DEFAULT_LINK_DEPTH_OUT,
 	EngineDefaults,
 	FORCE_LAYOUT_RANGES,
 	MAX_OUTLINE_DEPTH,

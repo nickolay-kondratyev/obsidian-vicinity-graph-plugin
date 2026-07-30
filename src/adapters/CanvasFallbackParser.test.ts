@@ -19,11 +19,11 @@ afterEach(() => {
 describe("CanvasFallbackParser on a valid canvas", () => {
 	it("WHEN parsing THEN file nodes and text-node links are returned together, in node order", () => {
 		expect(CanvasFallbackParser.parseReferences("board.canvas", fixture("board.canvas"))).toEqual([
-			{ kind: "file-node", filePath: "notes/alpha.md" },
-			{ kind: "text-node-link", linkText: "beta" },
-			{ kind: "text-node-link", linkText: "images/pic.png" },
-			{ kind: "file-node", filePath: "images/pic.png" },
-			{ kind: "file-node", filePath: "notes/alpha.md" },
+			{ kind: "file-node", linkKind: "embed", filePath: "notes/alpha.md" },
+			{ kind: "text-node-link", linkKind: "link", linkText: "beta" },
+			{ kind: "text-node-link", linkKind: "embed", linkText: "images/pic.png" },
+			{ kind: "file-node", linkKind: "embed", filePath: "images/pic.png" },
+			{ kind: "file-node", linkKind: "embed", filePath: "notes/alpha.md" },
 		]);
 	});
 
@@ -32,6 +32,7 @@ describe("CanvasFallbackParser on a valid canvas", () => {
 		// resolution, while a file node's `file` is already a vault path.
 		expect(CanvasFallbackParser.parseReferences("board.canvas", fixture("board.canvas"))).toContainEqual({
 			kind: "text-node-link",
+			linkKind: "link",
 			linkText: "beta",
 		});
 	});
@@ -41,7 +42,7 @@ describe("CanvasFallbackParser on a valid canvas", () => {
 		// wikilink; the destination arrives normalised (decoded, no title) as link text.
 		const raw = '{"nodes": [{"type": "text", "text": "see [label](my%20note.md)"}]}';
 		expect(CanvasFallbackParser.parseReferences("board.canvas", raw)).toEqual([
-			{ kind: "text-node-link", linkText: "my note.md" },
+			{ kind: "text-node-link", linkKind: "link", linkText: "my note.md" },
 		]);
 	});
 
@@ -67,7 +68,7 @@ describe("CanvasFallbackParser on a valid canvas", () => {
 			nodes: [{ type: "text", text: "real [[beta]], sample `[[gamma]]`" }],
 		});
 		expect(CanvasFallbackParser.parseReferences("board.canvas", raw)).toEqual([
-			{ kind: "text-node-link", linkText: "beta" },
+			{ kind: "text-node-link", linkKind: "link", linkText: "beta" },
 		]);
 	});
 
@@ -103,7 +104,7 @@ describe("CanvasFallbackParser on degenerate shapes", () => {
 	it("WHEN a file node lacks a string file field THEN that node is skipped", () => {
 		const raw = '{"nodes": [{"type": "file", "file": 42}, {"type": "file", "file": "ok.md"}, null]}';
 		expect(CanvasFallbackParser.parseReferences("odd.canvas", raw)).toEqual([
-			{ kind: "file-node", filePath: "ok.md" },
+			{ kind: "file-node", linkKind: "embed", filePath: "ok.md" },
 		]);
 	});
 
@@ -120,5 +121,41 @@ describe("CanvasFallbackParser on degenerate shapes", () => {
 
 	it("WHEN the JSON root is not an object THEN no links are returned", () => {
 		expect(CanvasFallbackParser.parseReferences("odd.canvas", '"just a string"')).toEqual([]);
+	});
+});
+
+/**
+ * The link-vs-embed FACT each canvas reference carries (`linkKind`), which is
+ * INDEPENDENT of the resolution-mechanism tag (`kind`). A canvas embeds in two
+ * unrelated ways — a file node, and `![[x]]` written in a text node — and both
+ * must report `embed`.
+ */
+describe("CanvasFallbackParser link kinds", () => {
+	function linkKindsOf(rawJson: string): readonly string[] {
+		return CanvasFallbackParser.parseReferences("board.canvas", rawJson).map((reference) => reference.linkKind);
+	}
+
+	it("WHEN a node is a FILE node THEN its reference is an embed (a file node renders the file inline)", () => {
+		expect(linkKindsOf('{"nodes": [{"type": "file", "file": "notes/alpha.md"}]}')).toEqual(["embed"]);
+	});
+
+	it("WHEN a file node points at a NON-note THEN it is still an embed (kind does not depend on the target)", () => {
+		expect(linkKindsOf('{"nodes": [{"type": "file", "file": "images/pic.png"}]}')).toEqual(["embed"]);
+	});
+
+	it("WHEN a text node writes a plain wikilink THEN its reference is a plain link", () => {
+		expect(linkKindsOf('{"nodes": [{"type": "text", "text": "see [[beta]]"}]}')).toEqual(["link"]);
+	});
+
+	it("WHEN a text node writes an embedded wikilink THEN its reference is an embed", () => {
+		expect(linkKindsOf('{"nodes": [{"type": "text", "text": "see ![[beta]]"}]}')).toEqual(["embed"]);
+	});
+
+	it("WHEN a text node writes a plain markdown-style link THEN its reference is a plain link", () => {
+		expect(linkKindsOf('{"nodes": [{"type": "text", "text": "see [l](beta.md)"}]}')).toEqual(["link"]);
+	});
+
+	it("WHEN a text node writes an embedded markdown-style link THEN its reference is an embed", () => {
+		expect(linkKindsOf('{"nodes": [{"type": "text", "text": "see ![a](pic.png)"}]}')).toEqual(["embed"]);
 	});
 });

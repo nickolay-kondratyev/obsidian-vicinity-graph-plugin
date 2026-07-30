@@ -240,6 +240,9 @@ upper bound), `nid_uwnew3dok0gn8ijar54hiozst_e` (pre-release slider tuning).
   `outgoingDepth` / `incomingDepth` and their current UI copy. The rename only
   pays off once `embedDepthOut` disambiguates the names; doing it earlier churns
   user-facing copy plus ~6 e2e literals for no structural benefit.
+  **LANDED in ticket 6** (`nid_fay1hu5sxcoygizopkkg0f0d7_e`): all three keys and
+  labels are as specified above, with no migration; release note in
+  `RELEASE_CHECKLIST.md` §7.
 - **Tests**: structural spec-iterating tests, but KEEP a small number of literal
   assertions for product-meaningful defaults (e.g. nodeCap 100). **Ticket 5 shipped
   all 21 leaves in one table instead — ratification pending, see above.**

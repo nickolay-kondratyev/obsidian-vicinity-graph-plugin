@@ -106,21 +106,21 @@ describe("ObsidianLinkProvider canvas handling", () => {
 		resolvedLinks: { "note-a.md": {} },
 	};
 
-	it("WHEN a canvas is absent from resolvedLinks THEN this provider serves it from the parser", async () => {
-		expect((await providerOver(fallbackSpec)).fallbackServedCanvasPaths).toEqual(["board.canvas"]);
+	it("WHEN the vault holds a canvas THEN this provider parses it", async () => {
+		expect((await providerOver(fallbackSpec)).parsedCanvasPaths).toEqual(["board.canvas"]);
 	});
 
-	it("WHEN in fallback mode THEN canvas outgoing links come from the parsed file nodes (resolved only)", async () => {
+	it("WHEN a canvas is parsed THEN its outgoing links come from the parsed file nodes (resolved only)", async () => {
 		const provider = await providerOver(fallbackSpec);
 		expect(provider.getOutgoingLinks(asVaultPath("board.canvas"))).toEqual(["note-a.md", "pic.png"]);
 	});
 
-	it("WHEN in fallback mode THEN a note's incoming links include the canvases referencing it", async () => {
+	it("WHEN a canvas is parsed THEN a note's incoming links include the canvases referencing it", async () => {
 		const provider = await providerOver(fallbackSpec);
 		expect(provider.getIncomingLinks(asVaultPath("note-a.md"))).toEqual(["board.canvas"]);
 	});
 
-	it("WHEN canvas is core-indexed THEN canvas outgoing links flow from resolvedLinks (parser dormant)", async () => {
+	it("WHEN a canvas is ALSO core-indexed THEN our parser still answers its outgoing links", async () => {
 		const provider = await providerOver({
 			files: [{ path: "note-a.md" }, { path: "board.canvas", content: CANVAS_JSON }],
 			resolvedLinks: { "board.canvas": { "note-a.md": 1 } },
@@ -128,7 +128,7 @@ describe("ObsidianLinkProvider canvas handling", () => {
 		expect(provider.getOutgoingLinks(asVaultPath("board.canvas"))).toEqual(["note-a.md"]);
 	});
 
-	it("WHEN canvas is core-indexed THEN the fallback does not double-report incoming links", async () => {
+	it("WHEN a canvas is ALSO core-indexed THEN its incoming links are not double-reported", async () => {
 		const provider = await providerOver({
 			files: [{ path: "note-a.md" }, { path: "board.canvas", content: CANVAS_JSON }],
 			resolvedLinks: { "board.canvas": { "note-a.md": 1 } },
@@ -138,13 +138,21 @@ describe("ObsidianLinkProvider canvas handling", () => {
 });
 
 /**
- * Obsidian indexes canvases ONE FILE AT A TIME, and a canvas the boot sweep missed can
- * stay unindexed indefinitely (measured while building the e2e harness: indexed in 4 of 8
- * launches, never later in the misses). So "does core index canvases?" has no vault-wide
- * answer — only a per-canvas one, and a provider that picks one answer for the whole vault
- * silently blanks every canvas on the wrong side of that split.
+ * ALWAYS-PARSE (option 3a of ticket `nid_fay1hu5sxcoygizopkkg0f0d7_e`). Obsidian indexes
+ * canvases ONE FILE AT A TIME, and a canvas the boot sweep missed can stay unindexed
+ * indefinitely (measured while building the e2e harness: indexed in 4 of 8 launches, never
+ * later in the misses). So "does core index canvases?" has no vault-wide answer — and it has
+ * no answer we ACT on either: we parse every canvas and never ask. That makes canvas edges
+ * (and, decisively, their link KINDS — `resolvedLinks` merges links and embeds) independent
+ * of boot timing, which is the permanent fix shape for the race in ticket
+ * `nid_s676x55uojmtcwh9t4l9mc6zl_e`.
+ *
+ * REPLACES the former "canvas regime is decided PER CANVAS" suite, which pinned the deleted
+ * behavior that a canvas present in `resolvedLinks` was served from it and NOT parsed —
+ * including a case where core's empty index entry deliberately suppressed the parser's
+ * answer. That behavior is gone by design; these cases pin what replaced it.
  */
-describe("ObsidianLinkProvider canvas regime is decided PER CANVAS", () => {
+describe("ObsidianLinkProvider parses EVERY canvas (resolvedLinks is never consulted for canvas links)", () => {
 	// GIVEN a vault where core has indexed a.canvas but not b.canvas.
 	const spec: FakeObsidianSpec = {
 		files: [
@@ -156,28 +164,42 @@ describe("ObsidianLinkProvider canvas regime is decided PER CANVAS", () => {
 		resolvedLinks: { "a.canvas": { "note-a.md": 1 } },
 	};
 
-	it("WHEN a canvas is core-indexed THEN its links come from resolvedLinks", async () => {
+	it("WHEN a canvas is core-indexed THEN it is parsed all the same", async () => {
+		expect((await providerOver(spec)).parsedCanvasPaths).toEqual(["a.canvas", "b.canvas"]);
+	});
+
+	it("WHEN a canvas is core-indexed THEN its links come from the parse", async () => {
 		const provider = await providerOver(spec);
 		expect(provider.getOutgoingLinks(asVaultPath("a.canvas"))).toEqual(["note-a.md"]);
 	});
 
-	it("WHEN a SIBLING canvas is not indexed yet THEN it is still fallback-parsed (no blank canvas)", async () => {
+	it("WHEN a SIBLING canvas is not indexed yet THEN it is parsed too (no blank canvas)", async () => {
 		const provider = await providerOver(spec);
 		expect(provider.getOutgoingLinks(asVaultPath("b.canvas"))).toEqual(["note-b.md"]);
 	});
 
-	it("WHEN a canvas is core-indexed THEN the fallback does not ALSO report its links", async () => {
-		// Either/or per canvas: double-reporting would inflate `getLinkCount`.
+	it("WHEN a canvas is core-indexed THEN the parse is the ONLY count reported (no double-reporting)", async () => {
 		const provider = await providerOver(spec);
 		expect(provider.getLinkCount(asVaultPath("a.canvas"), asVaultPath("note-a.md"))).toBe(1);
 	});
 
-	it("WHEN an indexed canvas has no links at all THEN its empty index entry is respected", async () => {
-		// `{}` is how a genuinely link-free but INDEXED canvas appears; presence of the
-		// key — not its emptiness — is what says "core owns this canvas".
+	it("WHEN core's index entry for a canvas is EMPTY but the canvas has a file node THEN the parsed link wins", async () => {
+		// The case that used to go the other way: an indexed-but-empty entry (`{}`) suppressed
+		// the parser. Respecting it made the edge set depend on WHEN core got to the file, and
+		// it left the reference with no reportable kind. Our parse is now the answer.
 		const provider = await providerOver({
 			files: [{ path: "note-a.md" }, { path: "a.canvas", content: '{"nodes": [{"type": "file", "file": "note-a.md"}]}' }],
 			resolvedLinks: { "a.canvas": {} },
+		});
+		expect(provider.getOutgoingLinks(asVaultPath("a.canvas"))).toEqual(["note-a.md"]);
+	});
+
+	it("WHEN a canvas is not markdown-cached at all THEN it never falls back to resolvedLinks keys", async () => {
+		// A canvas whose JSON names nothing must report nothing, even when resolvedLinks
+		// claims an edge — otherwise the deleted regime leaks back in through the fallback.
+		const provider = await providerOver({
+			files: [{ path: "note-a.md" }, { path: "a.canvas", content: "{}" }],
+			resolvedLinks: { "a.canvas": { "note-a.md": 1 } },
 		});
 		expect(provider.getOutgoingLinks(asVaultPath("a.canvas"))).toEqual([]);
 	});
@@ -185,13 +207,13 @@ describe("ObsidianLinkProvider canvas regime is decided PER CANVAS", () => {
 
 /**
  * SETTLED SEMANTICS (human decision on ticket `nid_s676x55uojmtcwh9t4l9mc6zl_e`): a wikilink
- * written inside a canvas TEXT node DOES produce a graph edge. These tests are the guard that
- * the two canvas regimes AGREE on it — which one a rebuild lands in is still decided per build
- * from a racing `metadataCache.resolvedLinks` (`ObsidianLinkProvider.create` →
- * `CanvasCapabilityDetector`), and that race is only benign for as long as both regimes report
- * the same edge set. They used to disagree here, which surfaced as an e2e edge-count flake.
+ * written inside a canvas TEXT node DOES produce a graph edge. Since we now parse every canvas,
+ * our answer no longer DEPENDS on `resolvedLinks` — but it must still MATCH what core reports,
+ * because that is the edge set users see elsewhere in Obsidian. Each pair below therefore asserts
+ * the same answer with and without core's index entry present: the presence of the entry must
+ * make no difference (it used to decide everything), and the answer must be core's answer.
  */
-describe("ObsidianLinkProvider canvas TEXT-node wikilinks (both regimes must agree)", () => {
+describe("ObsidianLinkProvider canvas TEXT-node wikilinks (must match what core reports)", () => {
 	// GIVEN one canvas with a FILE node pointing at note-a and a TEXT node whose body
 	// carries a `[[note-b]]` wikilink.
 	const files = [
@@ -205,12 +227,12 @@ describe("ObsidianLinkProvider canvas TEXT-node wikilinks (both regimes must agr
 	];
 	const resolutions = { "note-b.md": "note-b.md", "note-b": "note-b.md" };
 
-	it("WHEN the canvas is NOT core-indexed THEN the text-node wikilink produces an edge", async () => {
+	it("WHEN core has NOT indexed the canvas THEN the text-node wikilink produces an edge", async () => {
 		const provider = await providerOver({ files, resolutions, resolvedLinks: { "note-a.md": {} } });
 		expect(provider.getOutgoingLinks(asVaultPath("board.canvas"))).toEqual(["note-a.md", "note-b.md"]);
 	});
 
-	it("WHEN the canvas IS core-indexed THEN the text-node wikilink produces an edge (core reports it)", async () => {
+	it("WHEN core HAS indexed the canvas THEN the text-node wikilink still produces the same edge", async () => {
 		const provider = await providerOver({
 			files,
 			resolutions,
@@ -219,17 +241,17 @@ describe("ObsidianLinkProvider canvas TEXT-node wikilinks (both regimes must agr
 		expect(provider.getOutgoingLinks(asVaultPath("board.canvas"))).toEqual(["note-a.md", "note-b.md"]);
 	});
 
-	it("WHEN the canvas is NOT core-indexed THEN the text-node target counts the canvas as a backlink", async () => {
+	it("WHEN core has NOT indexed the canvas THEN the text-node target counts the canvas as a backlink", async () => {
 		const provider = await providerOver({ files, resolutions, resolvedLinks: { "note-a.md": {} } });
 		expect(provider.getIncomingLinks(asVaultPath("note-b.md"))).toEqual(["board.canvas"]);
 	});
 });
 
 /**
- * The reconciliation cases behind the settled semantics above: each pins one way the fallback
- * regime could silently differ from what Obsidian's own indexer reports for the same canvas.
+ * The reconciliation cases behind the settled semantics above: each pins one way our parse could
+ * silently differ from what Obsidian's own indexer reports for the same canvas.
  */
-describe("ObsidianLinkProvider canvas TEXT-node link reconciliation (fallback regime)", () => {
+describe("ObsidianLinkProvider canvas TEXT-node link reconciliation", () => {
 	function canvasWith(text: string) {
 		return {
 			path: "board.canvas",
@@ -319,10 +341,10 @@ describe("ObsidianLinkProvider canvas TEXT-node link reconciliation (fallback re
 /**
  * Canvas text nodes are markdown, so core indexes the markdown-style inline links written
  * there just as it indexes wikilinks (ticket `nid_ygo7h95ssgmunaqsprc1zlmfh_e`). Same guard as
- * the wikilink parity block above: the regime a rebuild lands in is a boot race, benign only
- * while both regimes report the same edge set.
+ * the wikilink parity block above: our parse must report core's edge set, and core's index entry
+ * must make no difference to it.
  */
-describe("ObsidianLinkProvider canvas TEXT-node markdown-style links (both regimes must agree)", () => {
+describe("ObsidianLinkProvider canvas TEXT-node markdown-style links (must match what core reports)", () => {
 	// GIVEN one canvas whose TEXT node carries a `[label](note-b.md)` inline link.
 	const files = [
 		{ path: "note-a.md" },
@@ -334,12 +356,12 @@ describe("ObsidianLinkProvider canvas TEXT-node markdown-style links (both regim
 	];
 	const resolutions = { "note-b.md": "note-b.md" };
 
-	it("WHEN the canvas is NOT core-indexed THEN the markdown-style link produces an edge", async () => {
+	it("WHEN core has NOT indexed the canvas THEN the markdown-style link produces an edge", async () => {
 		const provider = await providerOver({ files, resolutions, resolvedLinks: { "note-a.md": {} } });
 		expect(provider.getOutgoingLinks(asVaultPath("board.canvas"))).toEqual(["note-b.md"]);
 	});
 
-	it("WHEN the canvas IS core-indexed THEN the markdown-style link produces an edge (core reports it)", async () => {
+	it("WHEN core HAS indexed the canvas THEN the markdown-style link still produces the same edge", async () => {
 		const provider = await providerOver({
 			files,
 			resolutions,
@@ -348,14 +370,14 @@ describe("ObsidianLinkProvider canvas TEXT-node markdown-style links (both regim
 		expect(provider.getOutgoingLinks(asVaultPath("board.canvas"))).toEqual(["note-b.md"]);
 	});
 
-	it("WHEN the canvas is NOT core-indexed THEN the markdown-style target counts the canvas as a backlink", async () => {
+	it("WHEN core has NOT indexed the canvas THEN the markdown-style target counts the canvas as a backlink", async () => {
 		const provider = await providerOver({ files, resolutions, resolvedLinks: { "note-a.md": {} } });
 		expect(provider.getIncomingLinks(asVaultPath("note-b.md"))).toEqual(["board.canvas"]);
 	});
 });
 
 /** The reconciliation cases specific to the markdown-style syntax's own rules. */
-describe("ObsidianLinkProvider canvas TEXT-node markdown-style link reconciliation (fallback regime)", () => {
+describe("ObsidianLinkProvider canvas TEXT-node markdown-style link reconciliation", () => {
 	function canvasWith(text: string) {
 		return {
 			path: "board.canvas",
@@ -413,10 +435,10 @@ describe("ObsidianLinkProvider canvas TEXT-node markdown-style link reconciliati
 /**
  * A link written inside a code span or a fenced block is SAMPLE TEXT, and real Obsidian core
  * indexes none of it — measured, not assumed, by `e2e/canvasMarkdownLinkIndexing.e2e.ts`
- * (ticket `nid_869bt9d9rlrbr8of1403dnmf3_e`). Same parity guard as the blocks above: the
- * fallback masks code regions so it reports the same empty edge set core does.
+ * (ticket `nid_869bt9d9rlrbr8of1403dnmf3_e`). Same parity guard as the blocks above: our parse
+ * masks code regions so it reports the same empty edge set core does.
  */
-describe("ObsidianLinkProvider canvas TEXT-node links inside CODE regions (both regimes must agree)", () => {
+describe("ObsidianLinkProvider canvas TEXT-node links inside CODE regions (must match what core reports)", () => {
 	// GIVEN one canvas whose TEXT node's only links — one of each syntax — sit inside an
 	// inline code span and a fenced block, with both targets present in the vault.
 	const files = [
@@ -436,17 +458,17 @@ describe("ObsidianLinkProvider canvas TEXT-node links inside CODE regions (both 
 	];
 	const resolutions = { "note-a": "note-a.md", "note-b.md": "note-b.md" };
 
-	it("WHEN the canvas is NOT core-indexed THEN a code-region link produces no edge", async () => {
+	it("WHEN core has NOT indexed the canvas THEN a code-region link produces no edge", async () => {
 		const provider = await providerOver({ files, resolutions, resolvedLinks: { "note-a.md": {} } });
 		expect(provider.getOutgoingLinks(asVaultPath("board.canvas"))).toEqual([]);
 	});
 
-	it("WHEN the canvas IS core-indexed THEN a code-region link produces no edge either (core reports none)", async () => {
+	it("WHEN core HAS indexed the canvas THEN a code-region link still produces no edge (core reports none either)", async () => {
 		const provider = await providerOver({ files, resolutions, resolvedLinks: { "board.canvas": {} } });
 		expect(provider.getOutgoingLinks(asVaultPath("board.canvas"))).toEqual([]);
 	});
 
-	it("WHEN the canvas is NOT core-indexed THEN a code-region target gains no backlink", async () => {
+	it("WHEN core has NOT indexed the canvas THEN a code-region target gains no backlink", async () => {
 		const provider = await providerOver({ files, resolutions, resolvedLinks: { "note-a.md": {} } });
 		expect(provider.getIncomingLinks(asVaultPath("note-b.md"))).toEqual([]);
 	});
@@ -520,7 +542,7 @@ describe("ObsidianLinkProvider link counts (step-05, CLARIFICATION Q1)", () => {
 		expect(provider.getLinkCount(asVaultPath("source.md"), asVaultPath("target.md"))).toBe(0);
 	});
 
-	it("WHEN a fallback-parsed canvas references the same note twice THEN getLinkCount reports 2", async () => {
+	it("WHEN a parsed canvas references the same note twice THEN getLinkCount reports 2", async () => {
 		const provider = await providerOver({
 			files: [
 				{ path: "note-a.md" },
@@ -531,6 +553,31 @@ describe("ObsidianLinkProvider link counts (step-05, CLARIFICATION Q1)", () => {
 			],
 		});
 		expect(provider.getLinkCount(asVaultPath("board.canvas"), asVaultPath("note-a.md"))).toBe(2);
+	});
+
+	it("WHEN a core-indexed canvas's own count DISAGREES with our parse THEN the parsed count is reported", async () => {
+		// The declared behavior change of option 3a, pinned where it is user-visible (the
+		// edge-count badge). Pre-3a this canvas was served by resolvedLinks and the badge
+		// read 1; now the badge reads what the canvas actually says. Sourcing the count
+		// from core while the edge SET comes from our parse would split one edge across
+		// two authorities and re-expose the badge to the canvas-indexing boot race.
+		const provider = await providerOver({
+			files: [
+				{ path: "note-a.md" },
+				{
+					path: "board.canvas",
+					content: JSON.stringify({
+						nodes: [
+							{ type: "file", file: "note-a.md" },
+							{ type: "text", text: "[[note-a]] and again [[note-a]]" },
+						],
+					}),
+				},
+			],
+			resolutions: { "note-a": "note-a.md" },
+			resolvedLinks: { "board.canvas": { "note-a.md": 1 } },
+		});
+		expect(provider.getLinkCount(asVaultPath("board.canvas"), asVaultPath("note-a.md"))).toBe(3);
 	});
 });
 
@@ -879,5 +926,142 @@ describe("ObsidianLinkProvider imagePrecedesOutline", () => {
 
 	it("WHEN the file has no cache entry THEN imagePrecedesOutline is false (nothing is KNOWN to sit above a heading)", async () => {
 		expect(await imagePrecedesOutlineOf({ files: [{ path: "note.md" }] }, "note.md")).toBe(false);
+	});
+});
+
+/**
+ * The kind each OUTGOING reference carries (Stage 1 of ticket
+ * `nid_fay1hu5sxcoygizopkkg0f0d7_e`). Nothing consumes it yet — these cases are the
+ * contract Stage 3's per-channel traversal will read.
+ */
+describe("ObsidianLinkProvider outgoing reference kinds (markdown)", () => {
+	async function referencesOf(spec: FakeObsidianSpec, path: string) {
+		return (await providerOver(spec)).getOutgoingReferences(asVaultPath(path));
+	}
+
+	// GIVEN a note that plainly links target.md, embeds pic.png, and carries a property link.
+	const spec: FakeObsidianSpec = {
+		files: [{ path: "source.md" }, { path: "target.md" }, { path: "pic.png" }, { path: "prop.md" }],
+		fileCaches: {
+			"source.md": {
+				links: [ref("target", 40)],
+				embeds: [ref("pic.png", 20)],
+				frontmatterLinks: [{ link: "prop" }],
+			},
+		},
+		resolutions: { target: "target.md", "pic.png": "pic.png", prop: "prop.md" },
+	};
+
+	it("WHEN a body reference comes from cache.links THEN it is reported as a plain link", async () => {
+		expect(await referencesOf(spec, "source.md")).toContainEqual({ target: "target.md", kind: "link" });
+	});
+
+	it("WHEN a body reference comes from cache.embeds THEN it is reported as an embed", async () => {
+		expect(await referencesOf(spec, "source.md")).toContainEqual({ target: "pic.png", kind: "embed" });
+	});
+
+	it("WHEN a reference is a frontmatter property link THEN it is reported as a plain link", async () => {
+		expect(await referencesOf(spec, "source.md")).toContainEqual({ target: "prop.md", kind: "link" });
+	});
+
+	it("WHEN kinds are attached THEN reference ORDER is unchanged (frontmatter, then body by offset)", async () => {
+		expect(await referencesOf(spec, "source.md")).toEqual([
+			{ target: "prop.md", kind: "link" },
+			{ target: "pic.png", kind: "embed" },
+			{ target: "target.md", kind: "link" },
+		]);
+	});
+
+	it("WHEN a note both links and embeds the SAME target THEN both references survive", async () => {
+		const references = await referencesOf(
+			{
+				files: [{ path: "source.md" }, { path: "note-b.md" }],
+				fileCaches: { "source.md": { links: [ref("note-b", 40)], embeds: [ref("note-b", 10)] } },
+				resolutions: { "note-b": "note-b.md" },
+			},
+			"source.md",
+		);
+		expect(references).toEqual([
+			{ target: "note-b.md", kind: "embed" },
+			{ target: "note-b.md", kind: "link" },
+		]);
+	});
+
+	it("WHEN the file has no cache entry THEN resolvedLinks keys degrade to plain links (that record merges kinds)", async () => {
+		// The ONE remaining kind-unknown path, and a transient one: it is markdown that
+		// getFileCache has not seen yet. Canvases never land here — they are always parsed.
+		//
+		// CONSEQUENCE, deliberately accepted (see the DECIDED block on
+		// `outgoingReferencesOf`): during that boot window an authored `![[note]]` from
+		// this source is traversed on the outgoing-LINK channel, so `embedDepthOut: 0`
+		// does not suppress it. This test is the tripwire: if the fallback ever starts
+		// returning `[]` (the rejected alternative), it fails here rather than silently
+		// emptying a graph.
+		const references = await referencesOf(
+			{ files: [{ path: "uncached.md" }, { path: "t.md" }], resolvedLinks: { "uncached.md": { "t.md": 1 } } },
+			"uncached.md",
+		);
+		expect(references).toEqual([{ target: "t.md", kind: "link" }]);
+	});
+});
+
+describe("ObsidianLinkProvider outgoing reference kinds (canvas)", () => {
+	async function kindsByTargetOf(canvasJson: string, extra: Partial<FakeObsidianSpec> = {}) {
+		const provider = await providerOver({
+			files: [{ path: "note-b.md" }, { path: "pic.png" }, { path: "board.canvas", content: canvasJson }],
+			resolutions: { "note-b": "note-b.md", "note-b.md": "note-b.md", "pic.png": "pic.png" },
+			...extra,
+		});
+		return provider.getOutgoingReferences(asVaultPath("board.canvas"));
+	}
+
+	it("WHEN a canvas FILE node points at a note THEN the reference is an embed (it renders inline)", async () => {
+		expect(await kindsByTargetOf('{"nodes": [{"type": "file", "file": "note-b.md"}]}')).toEqual([
+			{ target: "note-b.md", kind: "embed" },
+		]);
+	});
+
+	it("WHEN a canvas TEXT node writes ![[x]] THEN the reference is an embed", async () => {
+		expect(await kindsByTargetOf('{"nodes": [{"type": "text", "text": "![[note-b]]"}]}')).toEqual([
+			{ target: "note-b.md", kind: "embed" },
+		]);
+	});
+
+	it("WHEN a canvas TEXT node writes [[x]] THEN the reference is a plain link", async () => {
+		expect(await kindsByTargetOf('{"nodes": [{"type": "text", "text": "[[note-b]]"}]}')).toEqual([
+			{ target: "note-b.md", kind: "link" },
+		]);
+	});
+
+	it("WHEN a canvas TEXT node writes ![](x) THEN the reference is an embed", async () => {
+		expect(await kindsByTargetOf('{"nodes": [{"type": "text", "text": "![alt](pic.png)"}]}')).toEqual([
+			{ target: "pic.png", kind: "embed" },
+		]);
+	});
+
+	it("WHEN a canvas both embeds and links the same note THEN both references survive", async () => {
+		expect(
+			await kindsByTargetOf(
+				JSON.stringify({
+					nodes: [
+						{ type: "file", file: "note-b.md" },
+						{ type: "text", text: "[[note-b]]" },
+					],
+				}),
+			),
+		).toEqual([
+			{ target: "note-b.md", kind: "embed" },
+			{ target: "note-b.md", kind: "link" },
+		]);
+	});
+
+	it("WHEN core has ALSO indexed the canvas THEN the kinds are unchanged (never boot-timing-dependent)", async () => {
+		// The whole point of always-parse: `resolvedLinks` could only ever have said
+		// "some link", so a core-served canvas would have reported every embed as a link.
+		expect(
+			await kindsByTargetOf('{"nodes": [{"type": "file", "file": "note-b.md"}]}', {
+				resolvedLinks: { "board.canvas": { "note-b.md": 1 } },
+			}),
+		).toEqual([{ target: "note-b.md", kind: "embed" }]);
 	});
 });

@@ -24,12 +24,23 @@
  * spurious edge), the other two UNDER-match (a missed edge).
  */
 
+import type { HarvestedLink } from "./LinkKind";
+import { LinkKinds } from "./LinkKind";
+
 /**
- * `[label](destination)` and its embed form; capture group 1 is the raw
- * parenthetical (destination plus optional title). The label excludes brackets,
- * which is also what keeps this matcher off `[[wikilinks]]` and `![[embeds]]`.
+ * `[label](destination)` and its embed form. Capture group
+ * {@link EMBED_MARKER_GROUP} is the embed marker (`"!"` or empty) and group
+ * {@link PARENTHETICAL_GROUP} the raw parenthetical (destination plus optional
+ * title). The label excludes brackets, which is also what keeps this matcher off
+ * `[[wikilinks]]` and `![[embeds]]`. The marker is CAPTURED rather than merely
+ * tolerated because `![a](x)` and `[a](x)` are different kinds of reference (see
+ * {@link LinkKind}).
  */
-const INLINE_LINK_SOURCE = "!?\\[[^\\[\\]]*\\]\\(([^()]*)\\)";
+const INLINE_LINK_SOURCE = "(!?)\\[[^\\[\\]]*\\]\\(([^()]*)\\)";
+
+/** 1-based capture-group positions in {@link INLINE_LINK_SOURCE}. */
+const EMBED_MARKER_GROUP = 1;
+const PARENTHETICAL_GROUP = 2;
 
 /** An angle-bracket-wrapped destination — the markdown escape hatch for spaces. */
 const ANGLE_WRAPPED_DESTINATION = /^<([^>]*)>/;
@@ -64,21 +75,21 @@ export class MarkdownInlineLinks {
 	}
 
 	/**
-	 * The vault link TEXTS written in `text` as markdown-style inline links, in
-	 * written order, duplicates kept (callers dedupe). Titles, subpaths and
-	 * queries are stripped and percent-escapes decoded, because that is the shape
-	 * Obsidian's link RESOLUTION accepts. Destinations that name no vault
+	 * The markdown-style inline links written in `text` — vault link TEXT plus
+	 * KIND — in written order, duplicates kept (callers dedupe). Titles, subpaths
+	 * and queries are stripped and percent-escapes decoded, because that is the
+	 * shape Obsidian's link RESOLUTION accepts. Destinations that name no vault
 	 * document — external URLs and empty ones — yield nothing.
 	 */
-	static linkTargetsOf(text: string): readonly string[] {
-		const targets: string[] = [];
+	static harvestedLinksOf(text: string): readonly HarvestedLink[] {
+		const links: HarvestedLink[] = [];
 		for (const match of text.matchAll(MarkdownInlineLinks.globalPattern())) {
-			const target = MarkdownInlineLinks.targetOf(match[1] ?? "");
-			if (target !== "") {
-				targets.push(target);
+			const linkText = MarkdownInlineLinks.targetOf(match[PARENTHETICAL_GROUP] ?? "");
+			if (linkText !== "") {
+				links.push({ linkText, kind: LinkKinds.ofEmbedMarker(match[EMBED_MARKER_GROUP] ?? "") });
 			}
 		}
-		return targets;
+		return links;
 	}
 
 	private static targetOf(parenthetical: string): string {

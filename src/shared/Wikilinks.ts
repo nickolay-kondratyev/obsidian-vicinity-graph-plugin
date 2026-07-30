@@ -16,8 +16,21 @@
  * text-node harvesting runs both.
  */
 
-/** Wikilinks and embeds; capture group 1 is the raw inner text (`target`, `target#heading|alias`, …). */
-const WIKILINK_SOURCE = "!?\\[\\[([^\\]]+)\\]\\]";
+import type { HarvestedLink } from "./LinkKind";
+import { LinkKinds } from "./LinkKind";
+
+/**
+ * Wikilinks and embeds. Capture group {@link EMBED_MARKER_GROUP} is the embed
+ * marker (`"!"` or empty) and group {@link INNER_TEXT_GROUP} the raw inner text
+ * (`target`, `target#heading|alias`, …). The marker is CAPTURED rather than
+ * merely tolerated because `![[x]]` and `[[x]]` are different kinds of reference
+ * (see {@link LinkKind}), and a matcher that swallows the `!` cannot say which.
+ */
+const WIKILINK_SOURCE = "(!?)\\[\\[([^\\]]+)\\]\\]";
+
+/** 1-based capture-group positions in {@link WIKILINK_SOURCE} (also the `String.replace` callback's argument order). */
+const EMBED_MARKER_GROUP = 1;
+const INNER_TEXT_GROUP = 2;
 
 /** Ends the link TARGET: an alias pipe or a `#heading`/`#^block` subpath. */
 const TARGET_TERMINATOR = /[#|]/;
@@ -33,21 +46,21 @@ export class Wikilinks {
 	}
 
 	/**
-	 * The link TARGETS written in `text`, in written order, duplicates kept
-	 * (callers dedupe). Aliases and subpaths are stripped — `[[note#h|Alias]]`
-	 * yields `note` — because that is the shape Obsidian's link RESOLUTION
-	 * accepts (`getFirstLinkpathDest`). Pure-subpath links (`[[#heading]]`,
-	 * same-file) yield nothing: they name no other document.
+	 * The wikilinks written in `text` — target plus KIND — in written order,
+	 * duplicates kept (callers dedupe). Aliases and subpaths are stripped —
+	 * `[[note#h|Alias]]` yields `note` — because that is the shape Obsidian's link
+	 * RESOLUTION accepts (`getFirstLinkpathDest`). Pure-subpath links
+	 * (`[[#heading]]`, same-file) yield nothing: they name no other document.
 	 */
-	static linkTargetsOf(text: string): readonly string[] {
-		const targets: string[] = [];
+	static harvestedLinksOf(text: string): readonly HarvestedLink[] {
+		const links: HarvestedLink[] = [];
 		for (const match of text.matchAll(Wikilinks.globalPattern())) {
-			const target = Wikilinks.targetOf(match[1] ?? "");
-			if (target !== "") {
-				targets.push(target);
+			const linkText = Wikilinks.targetOf(match[INNER_TEXT_GROUP] ?? "");
+			if (linkText !== "") {
+				links.push({ linkText, kind: LinkKinds.ofEmbedMarker(match[EMBED_MARKER_GROUP] ?? "") });
 			}
 		}
-		return targets;
+		return links;
 	}
 
 	private static targetOf(innerText: string): string {

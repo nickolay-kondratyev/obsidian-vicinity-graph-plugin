@@ -40,8 +40,14 @@ export function outlineEntryLabel(rawText: string): string {
 		// whole target — which is what Obsidian displays for an unaliased link.
 		// Shared syntax knowledge (`Wikilinks`), local display rule: this strips the
 		// markup down to the ALIAS-or-target Obsidian shows, which is a different
-		// question from `Wikilinks.linkTargetsOf`'s "what does this link point at".
-		.replace(Wikilinks.globalPattern(), (_match, link: string) => link.slice(link.lastIndexOf("|") + 1))
+		// question from `Wikilinks.harvestedLinksOf`'s "what does this link point at".
+		// The pattern captures the embed marker FIRST (that is how the kind travels),
+		// so the inner text is the callback's SECOND group — display treats an embed
+		// like any other link, hence the marker is discarded here.
+		.replace(
+			Wikilinks.globalPattern(),
+			(_match, _embedMarker: string, link: string) => link.slice(link.lastIndexOf("|") + 1),
+		)
 		.replace(MARKDOWN_LINK, "$1")
 		.replace(CODE_SPAN, "$1")
 		.replace(STRONG, "$1")

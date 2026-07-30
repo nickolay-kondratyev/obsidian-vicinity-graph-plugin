@@ -1,14 +1,13 @@
 import { PluginSettingTab, Setting } from "obsidian";
 import type { App, TextAreaComponent, TextComponent, ToggleComponent } from "obsidian";
 import type {
-	Direction,
+	DepthSettings,
 	ForceLayoutSettings,
 	SettingsRange,
 	SizeMetricId,
 	SizingMetricSetting,
 } from "../engine";
 import {
-	DIRECTION_DEPTH_FIELD,
 	FORCE_LAYOUT_RANGES,
 	MAX_OUTLINE_DEPTH,
 	MIN_NODE_CAP,
@@ -252,7 +251,7 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	private addRow(container: HTMLElement, row: SettingsRow, state: SettingsRowState): void {
 		switch (row.control.kind) {
 			case "depth":
-				this.addDepthSlider(container, row, row.control.direction, state);
+				this.addDepthSlider(container, row, row.control.field, state);
 				return;
 			case "sizing-metric":
 				this.addSizingMetricRow(container, row, row.control.metric, state);
@@ -705,16 +704,16 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	private addDepthSlider(
 		container: HTMLElement,
 		row: SettingsRow,
-		direction: Direction,
+		field: keyof DepthSettings,
 		state: SettingsRowState,
 	): void {
 		this.addSlider(
 			container,
 			row,
 			{ min: MIN_STEPPER_DEPTH, max: MAX_STEPPER_DEPTH, step: DEPTH_SLIDER_STEP },
-			state.globalDepths[DIRECTION_DEPTH_FIELD[direction]],
+			state.globalDepths[field],
 			(value) => {
-				void this.writes.apply({ kind: "global-depth", direction, value: clampStepperDepth(value) });
+				void this.writes.apply({ kind: "global-depth", field, value: clampStepperDepth(value) });
 			},
 		);
 	}

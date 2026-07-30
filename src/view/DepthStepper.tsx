@@ -10,7 +10,7 @@ import { useOptimisticValue } from "./useOptimisticValue";
  *
  * The label and both button names come from the declared row (see
  * {@link SettingsRowNames}): two buttons share one row, so they are named by VERB +
- * row label ("Decrease outgoing depth") rather than by the row label alone.
+ * row label ("Decrease links out") rather than by the row label alone.
  *
  * OPTIMISTIC (see {@link useOptimisticValue}): the readout and the button
  * disabled-states move on the click, not when the graph has finished rebuilding —

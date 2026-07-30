@@ -128,7 +128,7 @@ function planSectionReset(section: SettingsSection, ctx: SettingsWriteContext): 
 export const SETTINGS_RESET_SCOPES: Readonly<Record<SettingsResetScope, SettingsResetScopeSpec>> = {
 	"depth-defaults": {
 		label: "Restore depth defaults",
-		description: "Resets the outgoing and incoming depth used for every central note.",
+		description: "Resets the link and embed depths used for every central note.",
 		plan: (ctx) => planSectionReset("depth-defaults", ctx),
 	},
 	"node-sizing": {

@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
-	DEFAULT_INCOMING_DEPTH,
+	DEFAULT_LINK_DEPTH_IN,
 	DEFAULT_MAX_NODE_PX,
 	DEFAULT_MIN_NODE_PX,
 	DEFAULT_NODE_CAP,
-	DEFAULT_OUTGOING_DEPTH,
+	DEFAULT_LINK_DEPTH_OUT,
 	EngineDefaults,
 	FORCE_LAYOUT_RANGES,
 	MAX_STEPPER_DEPTH,
@@ -135,14 +135,14 @@ describe("adapters derive from SETTINGS_SPEC", () => {
 		const spec = SETTINGS_SPEC;
 		expect({
 			DEFAULT_NODE_CAP,
-			DEFAULT_OUTGOING_DEPTH,
-			DEFAULT_INCOMING_DEPTH,
+			DEFAULT_LINK_DEPTH_OUT,
+			DEFAULT_LINK_DEPTH_IN,
 			DEFAULT_MIN_NODE_PX,
 			DEFAULT_MAX_NODE_PX,
 		}).toEqual({
 			DEFAULT_NODE_CAP: spec.globalView.nodeCap.default,
-			DEFAULT_OUTGOING_DEPTH: spec.globalDepths.outgoingDepth.default,
-			DEFAULT_INCOMING_DEPTH: spec.globalDepths.incomingDepth.default,
+			DEFAULT_LINK_DEPTH_OUT: spec.globalDepths.linkDepthOut.default,
+			DEFAULT_LINK_DEPTH_IN: spec.globalDepths.linkDepthIn.default,
 			DEFAULT_MIN_NODE_PX: spec.globalView.sizing.minPx.default,
 			DEFAULT_MAX_NODE_PX: spec.globalView.sizing.maxPx.default,
 		});
@@ -151,8 +151,8 @@ describe("adapters derive from SETTINGS_SPEC", () => {
 	it("WHEN the view bound constants are read THEN they alias the spec limits", () => {
 		expect({ MIN_NODE_CAP, MIN_STEPPER_DEPTH, MAX_STEPPER_DEPTH }).toEqual({
 			MIN_NODE_CAP: SETTINGS_SPEC.globalView.nodeCap.min,
-			MIN_STEPPER_DEPTH: SETTINGS_SPEC.globalDepths.outgoingDepth.min,
-			MAX_STEPPER_DEPTH: SETTINGS_SPEC.globalDepths.outgoingDepth.max,
+			MIN_STEPPER_DEPTH: SETTINGS_SPEC.globalDepths.linkDepthOut.min,
+			MAX_STEPPER_DEPTH: SETTINGS_SPEC.globalDepths.linkDepthOut.max,
 		});
 	});
 });

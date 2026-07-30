@@ -216,9 +216,9 @@ export default class VicinityGraphPlugin extends Plugin {
 	 * Makes the "who supplies which backlink" question unambiguous for manual
 	 * QA: it queries Obsidian core DIRECTLY (raw `getBacklinksForFile` +
 	 * `resolvedLinks`) and OUR provider side by side, then names the delta —
-	 * the incoming edges that exist ONLY because our canvas fallback parser
-	 * produced them. On an install where core indexes canvas, the delta is
-	 * empty and both sides agree; that is itself the informative result.
+	 * the incoming edges that exist ONLY because our canvas parser produced them.
+	 * On an install where core indexes canvas, the delta is empty and both sides
+	 * agree; that is itself the informative result.
 	 */
 	private async logBacklinkProvenance(mainFile: TFile): Promise<void> {
 		const provider = await ObsidianLinkProvider.create(this.app.vault, this.app.metadataCache, this.canvasParseCache);
@@ -228,17 +228,15 @@ export default class VicinityGraphPlugin extends Plugin {
 		const coreBacklinks = BacklinksAdapter.backlinkSourcePaths(this.app.metadataCache, mainFile);
 		const providerIncoming = provider.getIncomingLinks(asVaultPath(mainFile.path));
 		const coreSources = new Set<string>(coreBacklinks ?? []);
-		const fallbackOnly = providerIncoming.filter((source) => !coreSources.has(source));
+		const parserOnly = providerIncoming.filter((source) => !coreSources.has(source));
 
-		// Per canvas, not per install: a partially-indexed vault has canvases on BOTH
-		// sides, and naming the ones we serve is what makes the delta below explainable.
-		const fallbackServed = provider.fallbackServedCanvasPaths;
-		const capabilityNote =
-			fallbackServed.length === 0
-				? "Obsidian core indexes every canvas in this vault ⇒ core supplies all canvas edges; our fallback parser stays DORMANT"
-				: `core has NOT indexed these ⇒ OUR fallback parser supplies their edges: [${fallbackServed.join(", ")}]`;
+		// Naming the canvases we parsed is what makes the delta below explainable: every
+		// canvas edge comes from OUR parser, whether or not core also indexed it.
+		const parsedCanvases = provider.parsedCanvasPaths;
 		console.log(`vicinity-graph debug: === backlink provenance for main=[${mainFile.path}] ===`);
-		console.log(`vicinity-graph debug: fallback-served canvases=[${fallbackServed.length}] (${capabilityNote})`);
+		console.log(
+			`vicinity-graph debug: parsed canvases=[${parsedCanvases.length}] (OUR parser supplies every canvas edge, core's index is not consulted): [${parsedCanvases.join(", ")}]`,
+		);
 		console.log(
 			`vicinity-graph debug: [OBSIDIAN core] resolvedLinks .canvas-key count=[${canvasKeyCount}] ⇒ core canvas backlinks on this install=[${canvasKeyCount > 0 ? "YES" : "NO"}]`,
 		);
@@ -249,7 +247,7 @@ export default class VicinityGraphPlugin extends Plugin {
 		);
 		console.log(`vicinity-graph debug: [OUR provider] getIncomingLinks(main)=[${providerIncoming.join(", ")}]`);
 		console.log(
-			`vicinity-graph debug: [OUR fallback only] incoming edges present in ours but NOT from core=[${fallbackOnly.join(", ")}]`,
+			`vicinity-graph debug: [OUR parser only] incoming edges present in ours but NOT from core=[${parserOnly.join(", ")}]`,
 		);
 	}
 

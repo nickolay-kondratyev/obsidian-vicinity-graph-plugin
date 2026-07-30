@@ -95,6 +95,22 @@ they ship, then drop them.
       gone. Both surfaces now say so on the label: the panel disclosure and the
       settings-tab card are both headed **"Depth (all notes)"** (the card used to
       read "Depth defaults", which implied a per-note override).
+- [ ] **Saved GLOBAL depth settings reset to the defaults on this upgrade.** The
+      three depth budgets were renamed in `data.json` (`outgoingDepth` →
+      `linkDepthOut`, `incomingDepth` → `linkDepthIn`, plus a new
+      `embedDepthOut`), and old keys are not read — there is no migration. If you
+      had changed a depth, set it again: **Depth (all notes)** → Links out /
+      Embeds out / Links in, each back at **1**. Nothing else in `data.json` is
+      touched (pins, view settings and exclusions are kept).
+      Ticket `nid_fay1hu5sxcoygizopkkg0f0d7_e`.
+- [ ] **New setting in the same change: "Embeds out".** Embedded notes
+      (`![[note]]`, canvas cards holding a note) now traverse on their OWN budget
+      instead of counting as plain links. It ships at **1**, equal to "Links out",
+      so a default install renders exactly as before. Two consequences worth
+      stating: (a) attachments are unaffected — an image is an attachment however
+      it is written, and never becomes a node; (b) the two outgoing budgets are
+      walked INDEPENDENTLY, so above 1 hop a chain that changes kind partway (a
+      note you embed, which then links something else) stops at the change.
 
 ## 8. License note
 

@@ -68,10 +68,11 @@ const BOUNDS_ENFORCERS: Readonly<Record<string, BoundsEnforcer>> = {
  * a new bounded field must land in one table or the other, on purpose.
  */
 const BOUNDS_ENFORCED_OUTSIDE_THE_ENGINE: Readonly<Record<string, string>> = {
-	"globalDepths.outgoingDepth":
+	"globalDepths.linkDepthOut":
 		"clampStepperDepth (src/view/constants.ts) — an AFFORDANCE bound on the steppers; " +
 		"the engine honors any depth (see SETTINGS_SPEC). Covered by src/view/clampStepperDepth.test.ts.",
-	"globalDepths.incomingDepth": "clampStepperDepth — see outgoingDepth.",
+	"globalDepths.embedDepthOut": "clampStepperDepth — see linkDepthOut.",
+	"globalDepths.linkDepthIn": "clampStepperDepth — see linkDepthOut.",
 	"globalView.nodeCap":
 		"the node-cap number inputs reject anything below MIN_NODE_CAP (VicinityGraphSettingTab / " +
 		"SettingsRowView). Deliberately NOT clamped on load: a stored 0 survives parsing by design " +

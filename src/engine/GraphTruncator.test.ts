@@ -92,8 +92,8 @@ describe("GraphTruncator priority ordering", () => {
 		};
 		const provider = new FakeLinkProvider(spec);
 		const roots: TraversalRoot[] = [
-			{ descriptor: { path: asVaultPath("m.md") }, depths: { outgoingDepth: 2, incomingDepth: 0 } },
-			{ descriptor: { path: asVaultPath("p.md") }, depths: { outgoingDepth: 1, incomingDepth: 0 } },
+			{ descriptor: { path: asVaultPath("m.md") }, depths: { linkDepthOut: 2, embedDepthOut: 2, linkDepthIn: 0 } },
+			{ descriptor: { path: asVaultPath("p.md") }, depths: { linkDepthOut: 1, embedDepthOut: 1, linkDepthIn: 0 } },
 		];
 		const traversal = new VicinityTraversal(provider).traverse(roots);
 		const sizes = new NodeSizer(provider).computeSizes(traversal.nodes, EngineDefaults.sizingSettings());
@@ -114,7 +114,7 @@ describe("GraphTruncator priority ordering", () => {
 			files: [{ path: "m.md" }, { path: "near.md" }, { path: "p.md" }, { path: "island.md" }],
 			links: { "m.md": ["near.md"], "p.md": ["island.md"] },
 		};
-		const result = build(spec, ["m.md", "p.md"], 1, { outgoingDepth: 1, incomingDepth: 0 });
+		const result = build(spec, ["m.md", "p.md"], 1, { linkDepthOut: 1, linkDepthIn: 0 });
 		expect(visible(result)).toEqual(["m.md", "near.md", "p.md"]);
 	});
 });

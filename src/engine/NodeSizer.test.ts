@@ -29,7 +29,7 @@ function sizeAll(
 	const provider = new FakeLinkProvider(spec);
 	const roots = (rootPaths ?? spec.files.map((f) => f.path)).map((path) => ({
 		descriptor: { path: asVaultPath(path) },
-		depths: { outgoingDepth: 1, incomingDepth: 1 },
+		depths: { linkDepthOut: 1, embedDepthOut: 1, linkDepthIn: 1 },
 	}));
 	const traversal = new VicinityTraversal(provider).traverse(roots);
 	return new NodeSizer(provider).computeSizes(traversal.nodes, settings);
@@ -124,7 +124,7 @@ describe("NodeSizer depth-decay metric", () => {
 	it("WHEN k=1 THEN a depth-2 node scores 1/(1+2)", () => {
 		const provider = new FakeLinkProvider(spec);
 		const traversal = new VicinityTraversal(provider).traverse([
-			{ descriptor: { path: asVaultPath("m.md") }, depths: { outgoingDepth: 2, incomingDepth: 0 } },
+			{ descriptor: { path: asVaultPath("m.md") }, depths: { linkDepthOut: 2, embedDepthOut: 2, linkDepthIn: 0 } },
 		]);
 		const sizes = new NodeSizer(provider).computeSizes(traversal.nodes, sizingWith({ "depth-decay": 1 }));
 		expect(score(sizes, "b.md")).toBeCloseTo(1 / 3);
@@ -133,7 +133,7 @@ describe("NodeSizer depth-decay metric", () => {
 	it("WHEN k=4 THEN the decay steepens accordingly", () => {
 		const provider = new FakeLinkProvider(spec);
 		const traversal = new VicinityTraversal(provider).traverse([
-			{ descriptor: { path: asVaultPath("m.md") }, depths: { outgoingDepth: 2, incomingDepth: 0 } },
+			{ descriptor: { path: asVaultPath("m.md") }, depths: { linkDepthOut: 2, embedDepthOut: 2, linkDepthIn: 0 } },
 		]);
 		const sizes = new NodeSizer(provider).computeSizes(traversal.nodes, sizingWith({ "depth-decay": 1 }, 4));
 		expect(score(sizes, "b.md")).toBeCloseTo(1 / 9);
@@ -163,7 +163,7 @@ describe("NodeSizer hostile sizing settings (sizePx stays finite)", () => {
 	function everySizePx(settings: SizingSettings): readonly number[] {
 		const provider = new FakeLinkProvider(spec);
 		const traversal = new VicinityTraversal(provider).traverse([
-			{ descriptor: { path: asVaultPath("m.md") }, depths: { outgoingDepth: 2, incomingDepth: 0 } },
+			{ descriptor: { path: asVaultPath("m.md") }, depths: { linkDepthOut: 2, embedDepthOut: 2, linkDepthIn: 0 } },
 		]);
 		const sizes = new NodeSizer(provider).computeSizes(traversal.nodes, settings);
 		return [...sizes.values()].map((size) => size.sizePx);
@@ -188,7 +188,7 @@ describe("NodeSizer hostile sizing settings (sizePx stays finite)", () => {
 	it("WHEN a node is not central THEN its minDepth is at least 1 (no non-central multiplies k by 0)", () => {
 		const provider = new FakeLinkProvider(spec);
 		const traversal = new VicinityTraversal(provider).traverse([
-			{ descriptor: { path: asVaultPath("m.md") }, depths: { outgoingDepth: 2, incomingDepth: 0 } },
+			{ descriptor: { path: asVaultPath("m.md") }, depths: { linkDepthOut: 2, embedDepthOut: 2, linkDepthIn: 0 } },
 		]);
 		const nonCentralDepths = [...traversal.nodes.values()]
 			.filter((node) => !node.isCentral)
@@ -226,7 +226,7 @@ describe("DepthDecayMetric is total for an unvetted k", () => {
 	function decayedValue(k: number, path: string): number | undefined {
 		const provider = new FakeLinkProvider(spec);
 		const traversal = new VicinityTraversal(provider).traverse([
-			{ descriptor: { path: asVaultPath("m.md") }, depths: { outgoingDepth: 2, incomingDepth: 0 } },
+			{ descriptor: { path: asVaultPath("m.md") }, depths: { linkDepthOut: 2, embedDepthOut: 2, linkDepthIn: 0 } },
 		]);
 		return new DepthDecayMetric(k).normalizedValues(traversal.nodes).get(asVaultPath(path));
 	}

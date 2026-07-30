@@ -32,13 +32,38 @@ export function asFolderPath(folder: string): FolderPath {
 	return folder as FolderPath;
 }
 
-/** Traversal direction relative to a root: links it points at vs. links pointing at it. */
-export type Direction = "outgoing" | "incoming";
+/**
+ * ONE traversal channel out of a root: a relationship the BFS follows, with its
+ * OWN depth budget ({@link CHANNEL_DEPTH_FIELD}).
+ *
+ * A FLAT enum, not a `direction × kind` matrix, deliberately (ticket
+ * `nid_fay1hu5sxcoygizopkkg0f0d7_e`, decision D1): the incoming side is
+ * kind-blind by scope, so a matrix would spend a whole axis on a cell that does
+ * not exist. Adding one (e.g. `incoming-embed`) later is purely additive — every
+ * `Record<Channel, …>` in the repo turns into the compile error that names the
+ * places it has to be taught (OCP).
+ */
+export type Channel = "outgoing-link" | "outgoing-embed" | "incoming";
 
-/** Depth of a node as seen from ONE root in ONE direction (full map kept per node). */
+/**
+ * THE value list of {@link Channel}, in traversal order. Single-sourced so the
+ * traversal cannot walk fewer channels than the type declares — the guard below
+ * is what makes that real.
+ */
+export const CHANNELS = ["outgoing-link", "outgoing-embed", "incoming"] as const satisfies readonly Channel[];
+
+/**
+ * Compile-time completeness: a channel missing from {@link CHANNELS} surfaces
+ * here as a type error naming it, rather than silently shipping a depth budget
+ * no BFS run ever honours.
+ */
+type UnlistedChannel = Exclude<Channel, (typeof CHANNELS)[number]>;
+export const _assertEveryChannelListed: UnlistedChannel extends never ? true : UnlistedChannel = true;
+
+/** Depth of a node as seen from ONE root in ONE channel (full map kept per node). */
 export interface DepthTag {
 	readonly rootPath: VaultPath;
-	readonly direction: Direction;
+	readonly channel: Channel;
 	readonly depth: number;
 }
 
@@ -100,7 +125,7 @@ export interface GraphNode {
 	readonly isCentral: boolean;
 	/** True only for the MAIN (active-file) root. */
 	readonly isMain: boolean;
-	/** Full per-root × per-direction depth map (UI steppers need per-root values). */
+	/** Full per-root × per-channel depth map (UI steppers need per-root values). */
 	readonly depthTags: readonly DepthTag[];
 	/** Minimum depth across all roots and directions; 0 for centrals. */
 	readonly minDepth: number;
@@ -181,10 +206,26 @@ export const _assertEveryNodePreviewPreferenceListed: UnlistedPreference extends
 // no per-doc override layer — one value drives every root and every view.
 // ---------------------------------------------------------------------------
 
-/** The traversal depths every root walks with (MAIN and every pinned central). */
+/**
+ * The traversal depths every root walks with (MAIN and every pinned central) —
+ * one budget per {@link Channel}, wired by {@link CHANNEL_DEPTH_FIELD}.
+ */
 export interface DepthSettings {
-	readonly outgoingDepth: number;
-	readonly incomingDepth: number;
+	/** Hops of PLAIN outgoing links (`[[x]]`, `[x](y)`) expanded from each root. */
+	readonly linkDepthOut: number;
+	/**
+	 * Hops of EMBEDDED outgoing notes (`![[x]]`, canvas file nodes) expanded from
+	 * each root. Embedded ATTACHMENTS are not affected: attachment-ness is decided
+	 * by node-bearing-ness, never by kind (owner decision D5), so a `![[chart.png]]`
+	 * is an attachment exactly like `[[chart.png]]` and never consumes this budget.
+	 */
+	readonly embedDepthOut: number;
+	/**
+	 * Hops of incoming links expanded from each root. KIND-BLIND by scope decision:
+	 * a note that embeds a central note arrives here like any other linker — there
+	 * is deliberately no "embedded in" budget.
+	 */
+	readonly linkDepthIn: number;
 }
 
 /**
@@ -201,14 +242,17 @@ export interface NodeExclusionSettings {
 }
 
 /**
- * Single source of truth mapping a {@link Direction} to the depth field it controls
- * (`outgoing → outgoingDepth`, `incoming → incomingDepth`) on {@link DepthSettings}.
- * Shared by the engine and the step-06 controls so the mapping exists exactly once.
- * POLS — trivially invertible.
+ * Single source of truth mapping a {@link Channel} to the {@link DepthSettings}
+ * budget it spends. Read by the traversal only — a settings row names its FIELD
+ * directly, so this stays the BFS's own table.
+ *
+ * `Record<Channel, …>`, so a new channel cannot ship without deciding which budget
+ * limits it. POLS — trivially invertible.
  */
-export const DIRECTION_DEPTH_FIELD: Readonly<Record<Direction, keyof DepthSettings>> = {
-	outgoing: "outgoingDepth",
-	incoming: "incomingDepth",
+export const CHANNEL_DEPTH_FIELD: Readonly<Record<Channel, keyof DepthSettings>> = {
+	"outgoing-link": "linkDepthOut",
+	"outgoing-embed": "embedDepthOut",
+	incoming: "linkDepthIn",
 };
 
 /** Toggle + weight of one sizing metric. */

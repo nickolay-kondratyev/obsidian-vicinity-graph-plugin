@@ -34,7 +34,7 @@ const TUNED_VIEW: ViewSettings = {
 };
 
 const TUNED_CTX: SettingsWriteContext = {
-	globalDepths: { outgoingDepth: 4, incomingDepth: 5 },
+	globalDepths: { linkDepthOut: 4, embedDepthOut: 4, linkDepthIn: 5 },
 	globalView: TUNED_VIEW,
 	nodeExclusion: { enabled: true, patterns: ["^archive/", "templates/"] },
 };

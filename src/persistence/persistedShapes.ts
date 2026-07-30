@@ -120,8 +120,9 @@ function parseDepthFields(raw: unknown): Partial<DepthSettings> {
 		return {};
 	}
 	return definedFieldsOnly<DepthSettings>({
-		outgoingDepth: numberOrUndefined(raw["outgoingDepth"]),
-		incomingDepth: numberOrUndefined(raw["incomingDepth"]),
+		linkDepthOut: numberOrUndefined(raw["linkDepthOut"]),
+		embedDepthOut: numberOrUndefined(raw["embedDepthOut"]),
+		linkDepthIn: numberOrUndefined(raw["linkDepthIn"]),
 	});
 }
 

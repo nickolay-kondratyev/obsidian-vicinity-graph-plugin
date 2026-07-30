@@ -40,8 +40,8 @@ describe("ReferenceOrder.orderedReferences (document offsets)", () => {
 			frontmatterLinks: [{ link: "property-link" }],
 		});
 		expect(ordered).toEqual([
-			{ link: "property-link", offset: FRONTMATTER_REFERENCE_OFFSET },
-			{ link: "body-link", offset: 0 },
+			{ link: "property-link", offset: FRONTMATTER_REFERENCE_OFFSET, kind: "link" },
+			{ link: "body-link", offset: 0, kind: "link" },
 		]);
 	});
 
@@ -51,9 +51,48 @@ describe("ReferenceOrder.orderedReferences (document offsets)", () => {
 			embeds: [ref("middle-embed", 10)],
 		});
 		expect(ordered).toEqual([
-			{ link: "early-link", offset: 5 },
-			{ link: "middle-embed", offset: 10 },
-			{ link: "late-link", offset: 30 },
+			{ link: "early-link", offset: 5, kind: "link" },
+			{ link: "middle-embed", offset: 10, kind: "embed" },
+			{ link: "late-link", offset: 30, kind: "link" },
 		]);
 	});
 });
+
+/**
+ * Kind by ARRAY PROVENANCE: `cache.embeds` MEANS embed, `cache.links` MEANS plain
+ * link, and `frontmatterLinks` can never be an embed. This is the markdown half of
+ * the Stage-1 kind seam.
+ */
+describe("ReferenceOrder.orderedReferences (link kinds by provenance)", () => {
+	function kindsByLinkOf(cache: CachedMetadataPort): Record<string, string> {
+		return Object.fromEntries(
+			ReferenceOrder.orderedReferences(cache).map((reference) => [reference.link, reference.kind]),
+		);
+	}
+
+	it("WHEN a reference comes from cache.links THEN its kind is a plain link", () => {
+		expect(kindsByLinkOf({ links: [ref("plain", 5)] })).toEqual({ plain: "link" });
+	});
+
+	it("WHEN a reference comes from cache.embeds THEN its kind is an embed", () => {
+		expect(kindsByLinkOf({ embeds: [ref("pic.png", 5)] })).toEqual({ "pic.png": "embed" });
+	});
+
+	it("WHEN a frontmatter property link exists THEN its kind is a plain link (property links are never embeds)", () => {
+		expect(kindsByLinkOf({ frontmatterLinks: [{ link: "property-link" }] })).toEqual({
+			"property-link": "link",
+		});
+	});
+
+	it("WHEN the SAME target is both linked and embedded THEN each reference keeps its own kind", () => {
+		const ordered = ReferenceOrder.orderedReferences({
+			links: [ref("note-b", 30)],
+			embeds: [ref("note-b", 5)],
+		});
+		expect(ordered).toEqual([
+			{ link: "note-b", offset: 5, kind: "embed" },
+			{ link: "note-b", offset: 30, kind: "link" },
+		]);
+	});
+});
+

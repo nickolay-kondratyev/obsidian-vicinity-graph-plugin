@@ -94,10 +94,10 @@ describe("settings row disabledWhen", () => {
  * hears and what every `getByLabel` in the e2e suite matches.
  */
 describe("settings row accessible names", () => {
-	const row: SettingsRow = { label: "Outgoing depth", control: { kind: "depth", direction: "outgoing" } };
+	const row: SettingsRow = { label: "Links out", control: { kind: "depth", field: "linkDepthOut" } };
 
 	it("WHEN a row has one control THEN its accessible name is the row label verbatim", () => {
-		expect(SettingsRowNames.sole(row)).toBe("Outgoing depth");
+		expect(SettingsRowNames.sole(row)).toBe("Links out");
 	});
 
 	it("WHEN a row has several controls THEN each is named by the label plus its role", () => {
@@ -105,6 +105,6 @@ describe("settings row accessible names", () => {
 	});
 
 	it("WHEN a control acts on the row's value THEN it is named verb-first, over the lower-cased label", () => {
-		expect(SettingsRowNames.action("Decrease", row)).toBe("Decrease outgoing depth");
+		expect(SettingsRowNames.action("Decrease", row)).toBe("Decrease links out");
 	});
 });

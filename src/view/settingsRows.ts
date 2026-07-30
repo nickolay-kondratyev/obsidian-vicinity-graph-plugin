@@ -1,4 +1,4 @@
-import type { Direction, ForceLayoutSettings, SizeMetricId } from "../engine";
+import type { DepthSettings, ForceLayoutSettings, SizeMetricId } from "../engine";
 import {
 	FORCE_LAYOUT_ADVANCED_FIELDS,
 	FORCE_LAYOUT_FIELD_META,
@@ -31,7 +31,7 @@ import { SIZING_METRICS } from "./sizingMetrics";
  *
  * NO `{family, key}` row union is invented here either: every
  * {@link SettingsRowControl} arm carries its OWN typed field reference
- * (`Direction`, `SizeMetricId`, `SizingNumberField`, `keyof ForceLayoutSettings`),
+ * (`keyof DepthSettings`, `SizeMetricId`, `SizingNumberField`, `keyof ForceLayoutSettings`),
  * which is what lets each presenter build the row's `SettingsInteraction` without
  * re-widening anything.
  *
@@ -67,8 +67,8 @@ export type SettingsRowControlKind = (typeof SETTINGS_ROW_CONTROL_KINDS)[number]
 
 /** What a row's control edits — the typed field reference each presenter writes with. */
 export type SettingsRowControl =
-	/** One direction's global link depth (tab: slider, panel: stepper). */
-	| { readonly kind: "depth"; readonly direction: Direction }
+	/** One global depth budget, named by the field it moves (tab: slider, panel: stepper). */
+	| { readonly kind: "depth"; readonly field: keyof DepthSettings }
 	/** One sizing metric: its enable flag AND the weight that flag governs. */
 	| { readonly kind: "sizing-metric"; readonly metric: SizeMetricId }
 	/** One sizing number (min/max px, depth decay k). */
@@ -284,14 +284,21 @@ export const SETTINGS_GROUPS: Readonly<Record<SettingsSection, SettingsGroup>> =
 				panelClass: "vicinity-graph-depth-controls",
 				rows: [
 					{
-						label: "Outgoing depth",
-						description: "How many hops of outgoing links to expand from every central note.",
-						control: { kind: "depth", direction: "outgoing" },
+						label: "Links out",
+						description: "How many hops of plain outgoing links to expand from every central note.",
+						control: { kind: "depth", field: "linkDepthOut" },
 					},
 					{
-						label: "Incoming depth",
-						description: "How many hops of incoming links (backlinks) to expand from every central note.",
-						control: { kind: "depth", direction: "incoming" },
+						label: "Embeds out",
+						description:
+							"How many hops of EMBEDDED notes (`![[note]]`, and canvas cards holding a note) to expand from every central note. Images and other attachments are unaffected — they are attachments however they are written, and never become nodes.",
+						control: { kind: "depth", field: "embedDepthOut" },
+					},
+					{
+						label: "Links in",
+						description:
+							"How many hops of incoming links (backlinks) to expand from every central note. A note that EMBEDS a central note arrives here too — incoming links are counted the same way whatever their kind.",
+						control: { kind: "depth", field: "linkDepthIn" },
 					},
 				],
 			},
@@ -434,7 +441,7 @@ export class SettingsRowNames {
 	/**
 	 * A VERB button acting on the row's value (a stepper's − / +). Verb first, so a
 	 * screen reader announces the action before the thing — and the label is
-	 * lower-cased into the sentence, e.g. `Decrease outgoing depth`.
+	 * lower-cased into the sentence, e.g. `Decrease links out`.
 	 */
 	static action(verb: SettingsRowActionVerb, row: SettingsRow): string {
 		return `${verb} ${row.label.toLowerCase()}`;

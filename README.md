@@ -19,8 +19,8 @@ Vicinity Graph fixes both:
   inside a labelled group box (at 2+ members), so folder membership is part of
   the picture instead of invisible metadata.
 
-On top of that it gives you **per-direction depth control** (outbound and
-incoming traversed independently) right in the view, and **pinned central
+On top of that it gives you **per-channel depth control** (plain outgoing links,
+embedded notes and incoming links each get their own reach) right in the view, and **pinned central
 notes** so you can
 hold one or more vicinities on screen while you browse elsewhere. The view
 lives in the right sidebar by default (matching native local-graph muscle
@@ -88,11 +88,25 @@ changed gets reverted by the next change.
 
 ### The settings
 
-- **Depth (all notes)** — how far outbound/incoming traversal reaches from each
-  central note. Also on the controls panel, as `−` / `+` steppers under the same
-  heading. **One pair of values:** it applies to the active note *and* to every
-  pinned central, so nudging it there changes every graph, not just the one in
-  front of you — which is what the heading says out loud on both surfaces.
+- **Depth (all notes)** — how far traversal reaches from each central note, with
+  a separate budget per kind of relationship. Also on the controls panel, as
+  `−` / `+` steppers under the same heading.
+    - **Links out** — hops of plain outgoing links (`[[note]]`, `[note](note.md)`).
+    - **Embeds out** — hops of *embedded* notes (`![[note]]`, and canvas cards that
+      hold a note). Images and other attachments are unaffected: they are
+      attachments however you write them, and never become nodes.
+    - **Links in** — hops of incoming links. Kind-blind: a note that *embeds* the
+      central note arrives here like any other linker; there is no "embedded in"
+      budget.
+
+  **One set of values:** it applies to the active note *and* to every pinned
+  central, so nudging it there changes every graph, not just the one in front of
+  you — which is what the heading says out loud on both surfaces.
+
+  > Note on how the two outgoing budgets combine: each is walked independently,
+  > so a chain that changes kind partway (a note you *embed*, which then *links*
+  > something else) stops at the change. At the shipped defaults (1 hop each) you
+  > will never see this; it only shows up once you raise a budget above 1.
 - **Sizing** — which metrics drive node size (own file size is the only one on by
   default) and their weights. One exception to pure score-driven size: a note that
   has an image is never sized below the height at which its thumbnail is shown in
@@ -145,7 +159,7 @@ changed gets reverted by the next change.
   plugin's `data.json`). Pins are keyed by a stable note id, so renaming or moving
   a pinned note keeps it pinned.
 - **Pinned centrals share the one global depth** — there is no per-pin depth dial.
-  Raising outbound depth extends the active note's reach *and* every pinned
+  Raising any depth budget extends the active note's reach *and* every pinned
   central's reach.
 
 > Known caveat: right after an Obsidian restart, a persisted pinned central can

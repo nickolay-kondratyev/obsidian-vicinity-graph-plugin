@@ -1,12 +1,13 @@
 ---
+closed_iso: 2026-07-30T04:49:03Z
 id: nid_fay1hu5sxcoygizopkkg0f0d7_e
 tags: [settings, settings-cleanup]
 title: "Separate depth budget for embedded outgoing links (decisions settled; measures the new settings model's plumbing cost)"
-status: open
+status: closed
 deps: [nid_8p0nn2g34d97finokwlz3u1dt_e, nid_wimjq4ewgbg21n4zx9d4qq3a0_e, nid_armoson86j0ii8c33r1odo1rc_e, nid_x6hgehsu5il1d1shuraz3ufqy_e]
-links: [nid_869bt9d9rlrbr8of1403dnmf3_e, nid_8p0nn2g34d97finokwlz3u1dt_e, nid_1rslube8at5xj60ji4jeve0b0_e, nid_d57npvuvjk95n03c2xqgl3y6o_e]
+links: [nid_869bt9d9rlrbr8of1403dnmf3_e, nid_8p0nn2g34d97finokwlz3u1dt_e, nid_1rslube8at5xj60ji4jeve0b0_e, nid_d57npvuvjk95n03c2xqgl3y6o_e, nid_t0x7ap99djfuzvz5p261ao7rn_e, nid_xy56b20jbvaedbl0610m3j2ls_e]
 created_iso: 2026-07-28T17:29:00Z
-status_updated_iso: 2026-07-28T17:29:00Z
+status_updated_iso: 2026-07-30T04:49:03Z
 type: task
 priority: 2
 assignee: nickolaykondratyev
@@ -462,3 +463,94 @@ SCOPE CHANGE (owner, 2026-07-29): per-doc saved state (per-doc depths, per-centr
 - parseDepthOverride / DepthOverride may no longer exist; the parse change lands in the global parse path.
 - MEASUREMENT MANDATE unchanged, but the baseline comparison should note the per-doc layer was removed separately so the cost delta is attributed honestly.
 Adjust the relevant spec sections (docs-internal/plan/high-level-plan.md depth cascade, README Depth section) as part of this ticket.
+
+**2026-07-30T04:02:50Z**
+
+STAGE 1 LANDED (carry the kind, zero behavior change).
+
+Delivered: LinkKind ("link"|"embed") in src/shared/LinkKind.ts, re-exported from the engine (it must live BELOW the engine because the shared regex matchers name it). LinkProvider gains OutgoingReference {target,kind} + getOutgoingReferences(), deduped per (target,kind); getOutgoingLinks is now the derived kind-blind view, so every pre-existing outgoing assertion passes unchanged -- that is the zero-behavior-change proof. Markdown kinds by array provenance (cache.embeds vs cache.links), frontmatter always link, cross-checked against Reference.original in tests. Canvas file node => embed; the '!' now sits in a capture group in both shared matchers, so a canvas text-node ![[x]] => embed.
+
+3a ADOPTED: every canvas is parsed; resolvedLinks is never consulted for canvas links. CanvasCapability.ts + its test DELETED (dead). fallbackServedCanvasPaths -> parsedCanvasPaths. This is also the permanent fix shape for the closed race ticket nid_s676x55uojmtcwh9t4l9mc6zl_e.
+
+ONE deliberate test inversion, called out: 'WHEN an indexed canvas has no links at all THEN its empty index entry is respected' encoded the DELETED regime (core's empty {} entry suppressed our parser). REPLACED by 'WHEN core's index entry for a canvas is EMPTY but the canvas has a file node THEN the parsed link wins'. No other test changed meaning; the parity suites kept their assertions and only got honest titles (they now prove our parse MATCHES core, not that two regimes agree).
+
+getLinkCount stays KIND-BLIND -- deviation from the stage brief's item 5, with reason: for markdown the number IS Obsidian's merged resolvedLinks count, so a per-kind split would have to re-derive the total from the file cache and could change a rendered badge (a behavior change Stage 1 forbids). Stage 3 does not need it either: VicinityTraversal never calls getLinkCount. Revisit only if the Stage 2 visual distinction wants per-kind counts.
+
+MEASUREMENT (Stage 1 only, vs branch point e387f5a): 23 files, +914/-305. Production: 12 files, +371/-170 (2 of them deletions). Tests: 9 files, +525/-128. This is the kind-plumbing stage, NOT the settings-field stage the measurement mandate targets -- the cost of the +1 settings field gets measured in Stage 3.
+
+**2026-07-30T04:13:49Z**
+
+STAGE 1 REVIEW ITERATION (2026-07-30) — three corrections to the STAGE 1 LANDED note above.
+
+1. DISCLOSED BEHAVIOR CHANGE (was undisclosed): canvas EDGE COUNTS switched source.
+   Pre-3a, a CORE-INDEXED canvas had no entry in canvasOutgoingByPath, so getLinkCount
+   fell through to resolvedLinks — core's number. Every canvas is parsed now, so the
+   rendered edge-count badge is OUR occurrence count for EVERY canvas. Canvases ARE
+   core-indexed on the real install (ticket-step-03-human-smoke-run.md), so this is the
+   live path, not a corner. KEPT, deliberately, not reverted: the edge SET already comes
+   from our parse, so taking the COUNT from core would split one edge across two
+   authorities and put the badge back on the canvas-indexing boot race 3a removed (an
+   edge we report but core has not indexed yet would read 0). PINNED by a new test —
+   "WHEN a core-indexed canvas's own count DISAGREES with our parse THEN the parsed count
+   is reported" (src/adapters/ObsidianLinkProvider.test.ts) — with seeded resolvedLinks
+   saying 1 against a canvas that references the note 3 times. Documented on getLinkCount
+   and in docs-internal/plan/high-level-plan.md (Canvas support).
+
+2. CORRECTION to the note above: "cross-checked against Reference.original in tests" is
+   no longer true. That suite was DELETED as circular — it routed each authored reference
+   into links/embeds using original.startsWith("!"), then asserted the kind equals
+   original.startsWith("!"), and `original` was never handed to production. It could not
+   fail. The provenance suite already covers what it really asserted. The assumption it
+   claimed to guard (Obsidian routes by the "!" prefix) is a REAL-OBSIDIAN measurement,
+   not a unit test — see the follow-up ticket linked below.
+
+3. STAGE 3 ACCEPTANCE ITEM (new, must not be decided under time pressure):
+   src/adapters/ObsidianLinkProvider.ts outgoingReferencesOf's final fallback (markdown
+   not yet in getFileCache) degrades EVERY reference to kind "link", because
+   resolvedLinks keys merge kinds. Harmless in Stage 1 (nothing consumes the kind). In
+   Stage 3 it is USER-VISIBLE: with embedDepthOut=0, an embedded note reached from a
+   not-yet-cached source is traversed as a plain link and still appears — the setting
+   silently does not hold during the boot window. Stage 3 MUST (a) pin the behavior with
+   a test, and (b) consciously choose: ACCEPT the transient degradation, or return [] for
+   an uncached markdown file and let the next metadataCache event rebuild.
+
+**2026-07-30T04:33:46Z**
+
+STAGE 3 LANDED (the outgoing-embed channel + its depth budget).
+
+Delivered in five deliberately separate commits, so the MEASUREMENT could attribute honestly:
+(1) global depth key rename outgoingDepth->linkDepthOut / incomingDepth->linkDepthIn, labels "Links out"/"Links in", no migration, no PERSISTED_SHAPE_VERSION bump; (2) Direction -> a flat Channel enum, with CHANNELS + _assertEveryChannelListed and DIRECTION_DEPTH_FIELD -> CHANNEL_DEPTH_FIELD; (3) a settings-row control now names its DepthSettings FIELD instead of a Channel, so the view stops importing traversal vocabulary and CHANNEL_DEPTH_FIELD is read only by the BFS; (4) the embedDepthOut field ALONE (the measured commit); (5) the outgoing-embed channel, kind-pure per D1.
+
+CORRECTION TO D1's RATIONALE - the owner should know, no decision required. The ticket says the mixed-chain gap "only appears once a user deliberately diverges the budgets". That is WRONG, and it is now pinned by a test. A chain needs TWO hops to change kind, so the gap appears at ANY budget above one hop, EQUAL BUDGETS INCLUDED: with both outgoing budgets at 2 the graph is strictly SMALLER than the old kind-blind depth-2 walk. What actually holds is a ONE-HOP property - at the shipped defaults (1 hop each) the two outgoing channels union to exactly the old outgoing BFS, so nothing moves on screen at ship. Inherent to 6a, which is settled; the docs, the spec comment and the release note now state the true property instead of the ticket's version.
+
+D5 pinned with tests, no code written: an embedded image is still an attachment and still never a node.
+
+Stage-1 acceptance item DECIDED: the uncached-markdown boot window keeps degrading unknown kinds to "link" rather than returning []. Rendering one node too many for a moment beats emptying a whole neighbourhood, and the next metadataCache event rebuilds. Reasoned on outgoingReferencesOf, pinned by its existing test.
+
+MEASUREMENT (the NEW FIELD ALONE, commit 21b3152): 25 files, +91/-43 lines, ~14 lines of actual code. 6 production files, 4 of them COMPILE-FORCED by existing guards (spec completeness, EngineDefaults return type, definedFieldsOnly<DepthSettings>, section completeness); 1 hand-maintained silent step (the row declaration in settingsRows.ts); 2 deliberate literal test tables (defaults tripwire, bounds classification); 13 files of pure fixture churn (full DepthSettings literals - all compile errors, none silent). ZERO structural settings suites needed an edit: persistence round-trip/absent/garbage/sibling, reset plans, bounds enforcement and tab-panel parity all picked the new leaf up by walking the spec (verified by deleting the parse line and watching them redden). Against the pre-cleanup baseline of ~180 lines / ~15 files / ~8 hand-maintained SILENT lists: silent steps 8 -> 1. Honesty caveat: part of the drop is the per-doc layer's removal by nid_ez38gf1mrdgh5kxedzrdicwzl_e (no per-doc parse branch, no per-central stepper, no cascade), not the descriptor model.
+
+npm test 1212 passed / 91 files (was 1199); npm run check clean. Docs updated: high-level-plan traversal section (channel table, kind-purity, D5), README Depth section, RELEASE_CHECKLIST section 7 release note announcing the global depth reset and the new row.
+
+**2026-07-30T04:45:59Z**
+
+MEASUREMENT ARITHMETIC CORRECTION (Stage 3 review iteration 1). The note above and the 21b3152 commit message both mis-stated the FIXTURE-CHURN file count: the note said 13, the commit message said 18. Both are wrong. RECOUNTED from `git show 21b3152 --stat`: 25 files total = 6 production + 2 deliberate literal test tables + 17 fixture churn (13 unit test/fixture files + 4 e2e). Counting method, stated explicitly: a FILE is one path in the commit's --stat; PRODUCTION is any non-`*.test.*`, non-`e2e/`, non-`testFixtures/` file; FIXTURE CHURN is a file whose only change is widening a DepthSettings object literal (every one a compile error, none silent). The headline is UNCHANGED and stands: 25 files, +91/-43, ~14 non-comment lines of real code, silent hand-maintained steps 8 -> 1. Only the internal breakdown was wrong, and it now sums to 25.
+
+**2026-07-30T04:49:03Z**
+
+DONE — implemented and closed. Shipped in two stages on branch nid_fay1hu5sxcoygizopkkg0f0d7_e_2026-07-29T20-38-42PDT.
+
+Stage 1 (carry the kind, no behavior change): LinkKind = "link" | "embed" carried on OUTGOING references — markdown by cache.embeds/cache.links array provenance, frontmatter always link, canvas type:"file" node => embed, the `!` captured in src/shared/Wikilinks.ts + src/shared/MarkdownInlineLinks.ts. Option 3a adopted: canvases are ALWAYS parsed, the core-indexed outgoing shortcut and CanvasCapability.ts are deleted (also the permanent fix shape for nid_s676x55uojmtcwh9t4l9mc6zl_e). Incoming stays kind-blind per the scope cut — BacklinksAdapter untouched, no getBacklinksForFile probe needed.
+
+DISCLOSED BEHAVIOR CHANGE (Stage 1, found in review): for core-indexed canvases the rendered edge count now comes from our parse rather than core's resolvedLinks count. Kept deliberately — one authority per edge, and re-reading resolvedLinks would re-expose the boot race — pinned by a test where seeded resolvedLinks=1 disagrees with parse=3.
+
+Stage 3 (the budget): Direction became a flat 3-value channel enum outgoing-link | outgoing-embed | incoming (D1 = 6a kind-pure BFS, 3 runs per root); Record<Channel,...> is the compile-time completeness guard. Global keys renamed per D2 with NO migration and NO PERSISTED_SHAPE_VERSION bump: linkDepthOut / embedDepthOut (new) / linkDepthIn, labelled "Links out" / "Embeds out" / "Links in". Release-note line added to docs-internal/RELEASE_CHECKLIST.md so the global depth reset is announced, not silent. D5 pinned by test, no new code: attachment-ness stays decided by isNodeBearing, not kind.
+
+D1 RATIONALE CORRECTED (verified independently by review, propagated to spec/docs/tests; the ticket's original wording survives nowhere): "at equal defaults the two outgoing channels union to exactly today's outgoing BFS" is WRONG. Kind-pure results are the end-to-end-homogeneous paths, which coincide with the kind-blind walk iff depth <= 1 — a kind change needs two hops. Shipped defaults are 1/1/1, so zero observable change AT SHIP holds, but the mixed-chain gap (A ![[B]] -> B [[C]] leaves C invisible) bites the first user who raises an outgoing budget to 2, equal budgets included. 6a is still the shipped answer; if that gap proves user-visible, 6b per-kind hop accounting remains the (expensive) escape hatch.
+
+MEASUREMENT MANDATE — the new field's honest cost: 25 files touched = 6 production + 2 deliberate test tables + 17 fixture churn (13 unit + 4 e2e); +91/-43 lines, ~14 lines of real code. 4 of the 6 production edits were compile-FORCED; exactly 1 hand-maintained step is still silent if missed (spec leaf => declared row), now ticketed as nid_xy56b20jbvaedbl0610m3j2ls_e. Versus the pre-cleanup baseline of ~180 lines / ~15 files / ~8 silent parallel lists: silent lists 8 -> 1, real code ~180 -> ~14. HONEST CAVEAT: roughly half that drop is attributable to the SEPARATE removal of the per-doc/per-central layer (nid_ez38gf1mrdgh5kxedzrdicwzl_e), not to the descriptor model; the descriptor model's own contribution is the 8->1 collapse of silent lists and the compile-forcing of 4 of 6 production edits. The write-up's first breakdown was arithmetically wrong (rows summed to 21 vs a headline of 25, fixture churn stated as 13 and as 18 in commit 21b3152); recounted and reconciled in ITERATION 1 — commit 21b3152 was not rewritten, this note supersedes it.
+
+Verdict on the cleanup: the descriptor model DELIVERED. A new global settings field is now ~14 lines of real code with one silent step left.
+
+Follow-ups filed: nid_xy56b20jbvaedbl0610m3j2ls_e (spec-leaf => declared-row completeness guard, the last silent step), nid_2qygmn0z59t8fdlb5e9pap49m_e (Stage 2 visual embed distinction — owner D3 said yes but AFTER Stage 3), nid_t0x7ap99djfuzvz5p261ao7rn_e (e2e tripwire replacing a circular Reference.original unit test deleted in eab9bd2).
+
+npm test 1213/1213 green, npm run check clean. Full records under .ai_out/separate-embed-depth-budget/nid_fay1hu5sxcoygizopkkg0f0d7_e_2026-07-29T20-38-42PDT/.

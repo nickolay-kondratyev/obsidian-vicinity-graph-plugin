@@ -35,7 +35,7 @@ test.afterAll(async () => {
 
 /** Puts EVERY section into a non-default state, then re-renders the tab. */
 async function dirtyEverySection(): Promise<void> {
-	await harness.saveGlobalDepths({ outgoingDepth: 4, incomingDepth: 3 });
+	await harness.saveGlobalDepths({ linkDepthOut: 4, embedDepthOut: 2, linkDepthIn: 3 });
 	const view = await harness.readGlobalView();
 	await harness.saveGlobalView({
 		nodeCap: 42,
@@ -57,7 +57,7 @@ test("REVIEW: isolation matrix — each section reset touches only its own keys"
 	await dirtyEverySection();
 	await settingsTab.resetButton("Depth (all notes)").click();
 	let after = await harness.readGlobals();
-	expect(after.depths).toEqual({ outgoingDepth: 1, incomingDepth: 1 });
+	expect(after.depths).toEqual({ linkDepthOut: 1, embedDepthOut: 1, linkDepthIn: 1 });
 	expect(after.view.nodeCap).toBe(42);
 	expect(after.view.sizing.minPx).toBe(11);
 	expect(after.view.forceLayout.repelStrength).toBe(800);
@@ -72,7 +72,7 @@ test("REVIEW: isolation matrix — each section reset touches only its own keys"
 	expect(after.view.sizing.minPx).not.toBe(11);
 	expect(after.view.sizing.maxPx).not.toBe(99);
 	expect(after.view.sizing.depthDecayK).not.toBe(0.75);
-	expect(after.depths.outgoingDepth).toBe(4);
+	expect(after.depths.linkDepthOut).toBe(4);
 	expect(after.view.nodeCap).toBe(42);
 	expect(after.view.forceLayout.repelStrength).toBe(800);
 	// Node CONTENTS is the adjacent card and shares the `global-view` slice with
@@ -88,7 +88,7 @@ test("REVIEW: isolation matrix — each section reset touches only its own keys"
 	expect(after.view.outlineMaxDepth).toBe(2);
 	// The card resets BOTH its fields in one write — depth alone would be a half fix.
 	expect(after.view.nodePreviewPreference).toBe("auto");
-	expect(after.depths.outgoingDepth).toBe(4);
+	expect(after.depths.linkDepthOut).toBe(4);
 	expect(after.view.nodeCap).toBe(42);
 	expect(after.view.sizing.minPx).toBe(11);
 	expect(after.view.forceLayout.repelStrength).toBe(800);
@@ -100,7 +100,7 @@ test("REVIEW: isolation matrix — each section reset touches only its own keys"
 	after = await harness.readGlobals();
 	expect(after.view.forceLayout.repelStrength).not.toBe(800);
 	expect(after.view.forceLayout.collidePaddingPx).not.toBe(77);
-	expect(after.depths.outgoingDepth).toBe(4);
+	expect(after.depths.linkDepthOut).toBe(4);
 	expect(after.view.nodeCap).toBe(42);
 	expect(after.view.sizing.minPx).toBe(11);
 	expect(after.view.outlineMaxDepth).toBe(5);
@@ -115,7 +115,7 @@ test("REVIEW: isolation matrix — each section reset touches only its own keys"
 	await expect.poll(async () => (await harness.readGlobals()).exclusion.patterns).toEqual([]);
 	after = await harness.readGlobals();
 	expect(after.exclusion).toEqual({ enabled: false, patterns: [] });
-	expect(after.depths.outgoingDepth).toBe(4);
+	expect(after.depths.linkDepthOut).toBe(4);
 	expect(after.view.nodeCap).toBe(42);
 	expect(after.view.sizing.minPx).toBe(11);
 	expect(after.view.forceLayout.repelStrength).toBe(800);
@@ -127,7 +127,7 @@ test("REVIEW: isolation matrix — each section reset touches only its own keys"
 	await settingsTab.resetButton("Performance").click();
 	after = await harness.readGlobals();
 	expect(after.view.nodeCap).toBe(100);
-	expect(after.depths.outgoingDepth).toBe(4);
+	expect(after.depths.linkDepthOut).toBe(4);
 	expect(after.view.sizing.minPx).toBe(11);
 	expect(after.view.forceLayout.repelStrength).toBe(800);
 	expect(after.view.outlineMaxDepth).toBe(5);
@@ -208,7 +208,7 @@ test("REVIEW: confirm modal — Escape is non-destructive and Cancel holds initi
 	await page.screenshot({ path: `${OUT_DIR}/confirm-modal-focus.png` });
 	await page.keyboard.press("Escape");
 	await expect(page.locator(".modal-container.mod-dim")).toHaveCount(1);
-	expect((await harness.readGlobals()).depths.outgoingDepth).toBe(4);
+	expect((await harness.readGlobals()).depths.linkDepthOut).toBe(4);
 });
 
 test("REVIEW: confirm modal — keyboard-only confirm restores everything", async () => {
@@ -224,7 +224,7 @@ test("REVIEW: confirm modal — keyboard-only confirm restores everything", asyn
 	// The three slice writes are awaited in sequence, so poll for the LAST one.
 	await expect.poll(async () => (await harness.readGlobals()).exclusion).toEqual({ enabled: false, patterns: [] });
 	const after = await harness.readGlobals();
-	expect(after.depths).toEqual({ outgoingDepth: 1, incomingDepth: 1 });
+	expect(after.depths).toEqual({ linkDepthOut: 1, embedDepthOut: 1, linkDepthIn: 1 });
 	expect(after.view.nodeCap).toBe(100);
 	expect(after.view.sizing.minPx).not.toBe(11);
 	expect(after.view.forceLayout.repelStrength).not.toBe(800);

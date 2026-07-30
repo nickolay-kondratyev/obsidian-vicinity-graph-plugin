@@ -77,10 +77,10 @@ function depthSection(): Locator {
 	return page.locator(".vicinity-graph-depth-controls");
 }
 
-function outgoingDepthValue(): Locator {
+function linksOutDepthValue(): Locator {
 	return depthSection()
 		.locator(".vicinity-graph-stepper")
-		.filter({ hasText: "Outgoing" })
+		.filter({ hasText: "Links out" })
 		.locator(".vicinity-graph-stepper__value");
 }
 
@@ -97,9 +97,9 @@ async function openToolbar(): Promise<void> {
 }
 
 /** Fires the stepper's real handler: in a headless window the panel can sit off-viewport. */
-async function bumpOutgoingDepth(): Promise<void> {
+async function bumpLinksOutDepth(): Promise<void> {
 	await depthSection()
-		.getByRole("button", { name: "Increase outgoing depth" })
+		.getByRole("button", { name: "Increase links out" })
 		.evaluate((el) => (el as HTMLButtonElement).click());
 }
 
@@ -138,7 +138,7 @@ test("the MAIN central itself can be pinned, survives switching MAIN, and can be
 	await expect(noteNode(HUB)).toHaveAttribute("data-tier", "regular");
 });
 
-test("WHEN the global outgoing depth is raised THEN MAIN's own reach grows by a hop", async () => {
+test("WHEN the global Links-out depth is raised THEN MAIN's own reach grows by a hop", async () => {
 	// GIVEN sc_hub is MAIN with NOTHING pinned (the lifecycle test above leaves sc_x
 	// pinned, so unpinning it is part of the GIVEN) at the shipped depth of 1: the
 	// graph stops at sc_x, one hop out.
@@ -150,17 +150,17 @@ test("WHEN the global outgoing depth is raised THEN MAIN's own reach grows by a 
 
 	// WHEN the panel's outgoing stepper goes 1 → 2.
 	await openToolbar();
-	await bumpOutgoingDepth();
-	await expect(outgoingDepthValue()).toHaveText("2");
+	await bumpLinksOutDepth();
+	await expect(linksOutDepthValue()).toHaveText("2");
 
 	// THEN the second hop out from MAIN joins the graph.
 	await expect(noteNode(X1)).toHaveCount(1);
 });
 
 test("WHEN a note is pinned THEN it traverses from ITSELF at that same global depth", async () => {
-	// GIVEN the global outgoing depth is 2 (previous test) and nothing is pinned, so
+	// GIVEN the global "Links out" depth is 2 (previous test) and nothing is pinned, so
 	// sc_x2 — THREE hops from MAIN — is out of reach.
-	await expect(outgoingDepthValue()).toHaveText("2");
+	await expect(linksOutDepthValue()).toHaveText("2");
 	await expect(noteNode(X2)).toHaveCount(0);
 
 	// WHEN sc_x becomes a pinned central.
