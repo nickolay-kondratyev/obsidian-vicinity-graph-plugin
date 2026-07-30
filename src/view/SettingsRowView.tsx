@@ -299,6 +299,14 @@ function NodeCapRow({ row, state }: { readonly row: SettingsRow; readonly state:
 			// Deliberately NOT `parseSizingInput`: a cap is a whole number of nodes, and
 			// the write path does not clamp it — so a half-typed or out-of-range entry
 			// must not be written at all (same rule the settings tab's row applies).
+			//
+			// KNOWN LIMIT of applying that rule to a CONTROLLED input: a rejected
+			// keystroke leaves the field showing the stored value, so the box cannot be
+			// emptied on the way to a new number (select-and-retype works; backspacing to
+			// blank does not). The settings tab's uncontrolled input keeps the text and
+			// only drops the write. Refusing an out-of-spec write is the property worth
+			// keeping; the panel's numeric-entry feedback is the open ticket
+			// `nid_hatwq2jlkhno5t6awcz0q6t9q_e`, which this row now shares.
 			accept={(raw) => {
 				const value = Number(raw);
 				return Number.isInteger(value) && value >= MIN_NODE_CAP ? value : undefined;

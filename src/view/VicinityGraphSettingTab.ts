@@ -30,6 +30,7 @@ import type { SettingsResetTarget } from "./settingsResetSequence";
 import { SettingsResetSequence } from "./settingsResetSequence";
 import type { SettingsGroup, SettingsRow, SettingsRowBlock, SettingsRowState } from "./settingsRows";
 import { SETTINGS_GROUPS, SettingsRowNames, isSettingsRowDisabled } from "./settingsRows";
+import type { SettingsSection } from "./settingsSectionFields";
 import { SETTINGS_SECTIONS } from "./settingsSectionFields";
 import type { SettingsFeedback } from "./settingsValidation";
 import { describeInvalidExclusionPatterns, parseExclusionPatterns } from "./settingsValidation";
@@ -215,7 +216,7 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	 * The scoped restore row is always LAST, inside the frame: a reset rendered after
 	 * the frame closes reads as a tab-wide reset.
 	 */
-	private renderSection(group: SettingsGroup, scope: SettingsResetScope, state: SettingsRowState): void {
+	private renderSection(group: SettingsGroup, section: SettingsSection, state: SettingsRowState): void {
 		const card = this.containerEl.createDiv({ cls: "vicinity-graph-settings-section" });
 		new Setting(card).setName(group.heading).setHeading();
 		if (group.description !== undefined) {
@@ -224,7 +225,8 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 		for (const block of group.blocks) {
 			this.renderBlock(card, block, state);
 		}
-		this.addSectionReset(card, scope);
+		// Every section IS a reset scope (`SettingsResetScope = SettingsSection | "all"`).
+		this.addSectionReset(card, section);
 	}
 
 	/**
