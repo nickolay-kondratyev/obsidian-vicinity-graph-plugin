@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clampStepperDepth } from "./constants";
+import { SettingsRowAccessors } from "./settingsRowAccessors";
 import { PendingEdits } from "./optimisticValue";
 
 /**
@@ -106,8 +106,8 @@ describe("PendingEdits reconciliation", () => {
  * still several hundred ms behind.
  *
  * {@link stepperRender} is `DepthStepper`'s own per-render derivation, expressed
- * against the same pure pieces the component uses (`PendingEdits` +
- * `clampStepperDepth`). It reproduces the component's LOOP, not the component: that
+ * against the same pure pieces the component uses (`PendingEdits` + the depth
+ * accessor's clamp). It reproduces the component's LOOP, not the component: that
  * the real `DepthStepper` feeds `shown` (not the raw `value` prop) back into the
  * next click is verified only by reading it and by e2e — there is no React
  * component-test harness in this repo.
@@ -118,7 +118,8 @@ function stepperRender(
 ): { readonly shown: number; clickPlus(): PendingEdits<number> } {
 	const reconciled = pending.reconciled(stored);
 	const shown = reconciled.valueOver(stored);
-	return { shown, clickPlus: () => reconciled.requesting(clampStepperDepth(shown + 1), stored) };
+	const { settlesAt, bounds } = SettingsRowAccessors.depth("linkDepthOut");
+	return { shown, clickPlus: () => reconciled.requesting(settlesAt(shown + bounds.step), stored) };
 }
 
 describe("PendingEdits driving a depth stepper", () => {

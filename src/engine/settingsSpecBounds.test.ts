@@ -69,10 +69,11 @@ const BOUNDS_ENFORCERS: Readonly<Record<string, BoundsEnforcer>> = {
  */
 const BOUNDS_ENFORCED_OUTSIDE_THE_ENGINE: Readonly<Record<string, string>> = {
 	"globalDepths.linkDepthOut":
-		"clampStepperDepth (src/view/constants.ts) — an AFFORDANCE bound on the steppers; " +
-		"the engine honors any depth (see SETTINGS_SPEC). Covered by src/view/clampStepperDepth.test.ts.",
-	"globalDepths.embedDepthOut": "clampStepperDepth — see linkDepthOut.",
-	"globalDepths.linkDepthIn": "clampStepperDepth — see linkDepthOut.",
+		"SettingsRowAccessors.depth(field).settlesAt (src/view/settingsRowAccessors.ts) — an " +
+		"AFFORDANCE bound on the depth controls, derived from THIS leaf; the engine honors any " +
+		"depth (see SETTINGS_SPEC). Covered by src/view/settingsRowDepthClamp.test.ts.",
+	"globalDepths.embedDepthOut": "the depth accessor's own clamp — see linkDepthOut.",
+	"globalDepths.linkDepthIn": "the depth accessor's own clamp — see linkDepthOut.",
 	"globalView.nodeCap":
 		"the node-cap number inputs reject anything below MIN_NODE_CAP (VicinityGraphSettingTab / " +
 		"SettingsRowView). Deliberately NOT clamped on load: a stored 0 survives parsing by design " +

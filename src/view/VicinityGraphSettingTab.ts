@@ -1,32 +1,19 @@
 import { PluginSettingTab, Setting } from "obsidian";
 import type { App, TextAreaComponent, TextComponent, ToggleComponent } from "obsidian";
-import type {
-	DepthSettings,
-	ForceLayoutSettings,
-	SettingsRange,
-	SizeMetricId,
-	SizingMetricSetting,
-} from "../engine";
-import {
-	FORCE_LAYOUT_RANGES,
-	MAX_OUTLINE_DEPTH,
-	MIN_NODE_CAP,
-	MIN_OUTLINE_DEPTH,
-	NODE_PREVIEW_PREFERENCES,
-	SETTINGS_SPEC,
-	SIZING_RANGES,
-	clampOutlineMaxDepth,
-} from "../engine";
+import type { DepthSettings, ForceLayoutSettings, SizeMetricId } from "../engine";
+import { NODE_PREVIEW_PREFERENCES } from "../engine";
 import type VicinityGraphPlugin from "../main";
 import type { PluginDataStore } from "../persistence/PluginDataStore";
 import { ConfirmModal } from "./ConfirmModal";
-import { MAX_STEPPER_DEPTH, MIN_STEPPER_DEPTH, SETTINGS_WRITE_DEBOUNCE_MS, clampStepperDepth } from "./constants";
+import { SETTINGS_WRITE_DEBOUNCE_MS } from "./constants";
 import { NODE_PREVIEW_OPTION_META } from "./nodePreviewPreferenceMeta";
 import { DebouncedSettingsWrites } from "./settingsDebounce";
 import type { SettingsResetScope } from "./settingsResetPlan";
 import { ALL_SETTINGS_RESET_SCOPE, SETTINGS_RESET_SCOPES } from "./settingsResetPlan";
 import type { SettingsResetTarget } from "./settingsResetSequence";
 import { SettingsResetSequence } from "./settingsResetSequence";
+import type { SettingsRowBounds, SettingsTrackAccessor } from "./settingsRowAccessors";
+import { SettingsRowAccessors } from "./settingsRowAccessors";
 import type { SettingsGroup, SettingsRow, SettingsRowBlock, SettingsRowState } from "./settingsRows";
 import { SETTINGS_GROUPS, SettingsRowNames, isSettingsRowDisabled, unhandledRowControl } from "./settingsRows";
 import type { SettingsSection } from "./settingsSectionFields";
@@ -35,7 +22,6 @@ import type { SettingsFeedback } from "./settingsValidation";
 import { describeInvalidExclusionPatterns, parseExclusionPatterns } from "./settingsValidation";
 import type { SettingsWritePipeline } from "./settingsWritePipeline";
 import type { SettingsInteraction, SizingNumberField } from "./settingsWritePlan";
-import { parseSizingInput } from "./sizingInput";
 import type { SizingRowVerdict } from "./sizingRowWrite";
 import { SizingRowWrite } from "./sizingRowWrite";
 
@@ -52,21 +38,16 @@ import { SizingRowWrite } from "./sizingRowWrite";
  * through. Serialisation, the merge base, the persist call and the refresh fan-out
  * all live there, so this class holds no write logic at all.
  *
+ * WHICH value a row shows, WHICH bounds it moves between and WHICH interaction it
+ * emits are not decided here either: every arm reads them from
+ * {@link SettingsRowAccessors}, the same accessors the panel renders from.
+ *
  * EVERY setting on this tab is global (owner decision 2026-07-29): there is no
  * per-note or per-view stored state for anything here to override.
  */
 
 /** Visible height of the exclusion-patterns textarea (one pattern per line). */
 const EXCLUSION_TEXTAREA_ROWS = 4;
-
-/** Outline-depth slider granularity — from the spec, like its bounds (one source of truth). */
-const OUTLINE_DEPTH_SLIDER_STEP = SETTINGS_SPEC.globalView.outlineMaxDepth.step;
-
-/** Depth sliders move one hop at a time — depths are whole hops. */
-const DEPTH_SLIDER_STEP = 1;
-
-/** The node cap is a whole number of nodes. */
-const NODE_CAP_STEP = 1;
 
 /**
  * Shared `name` of the Preview pill's radios. Radio grouping is DOCUMENT-scoped
@@ -251,22 +232,22 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	private addRow(container: HTMLElement, row: SettingsRow, state: SettingsRowState): void {
 		switch (row.control.kind) {
 			case "depth":
-				this.addDepthSlider(container, row, row.control.field, state);
+				this.addSlider(container, row, SettingsRowAccessors.depth(row.control.field), state);
 				return;
 			case "sizing-metric":
 				this.addSizingMetricRow(container, row, row.control.metric, state);
 				return;
 			case "sizing-number":
-				this.addSizingNumber(container, row, row.control.field);
+				this.addSizingNumber(container, row, row.control.field, state);
 				return;
 			case "node-preview":
 				this.addNodePreview(container, row, state);
 				return;
 			case "outline-depth":
-				this.addOutlineDepthSlider(container, row, state);
+				this.addSlider(container, row, SettingsRowAccessors.outlineDepth(), state);
 				return;
 			case "force-layout":
-				this.addForceLayoutSlider(container, row, row.control.field, state);
+				this.addSlider(container, row, SettingsRowAccessors.forceLayout(row.control.field), state);
 				return;
 			case "exclusion-enabled":
 				this.addExclusionToggle(container, row, state);
@@ -446,7 +427,8 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	 * replacing the hide/reveal slot this used to swap the row in and out of.)
 	 */
 	private addExclusionToggle(container: HTMLElement, row: SettingsRow, state: SettingsRowState): void {
-		const enabledNow = state.nodeExclusion.enabled;
+		const accessor = SettingsRowAccessors.exclusionEnabled();
+		const enabledNow = accessor.read(state);
 		VicinityGraphSettingTab.row(container, row).addToggle((toggle) => {
 			// The row's only control, so the row name alone identifies it.
 			VicinityGraphSettingTab.nameToggle(toggle, SettingsRowNames.sole(row));
@@ -459,7 +441,7 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 				// Pending typed edits first: the patterns textarea persists on a debounce,
 				// and its own write must not land behind the flag it belongs to.
 				await this.settlePendingWrites();
-				await this.writes.apply({ kind: "global-exclusion-enabled", enabled });
+				await this.writes.apply(accessor.interaction(enabled));
 				// Authoritative pass: whatever actually landed, however the clicks raced.
 				this.applyRowDependencies(this.rowState());
 			});
@@ -473,6 +455,7 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	 * re-enabling restores them without this row ever being rebuilt.
 	 */
 	private addExclusionPatterns(container: HTMLElement, row: SettingsRow, state: SettingsRowState): void {
+		const accessor = SettingsRowAccessors.exclusionPatterns();
 		const name = SettingsRowNames.sole(row);
 		const setting = VicinityGraphSettingTab.row(container, row);
 		// "status", not "alert": this slot updates on EVERY keystroke while a regex is
@@ -481,7 +464,7 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 		setting.addTextArea((text: TextAreaComponent) => {
 			text.inputEl.rows = EXCLUSION_TEXTAREA_ROWS;
 			VicinityGraphSettingTab.nameControl(text.inputEl, name);
-			const initial = state.nodeExclusion.patterns.join("\n");
+			const initial = accessor.read(state).join("\n");
 			text.setValue(initial);
 			text.setDisabled(isSettingsRowDisabled(row, state));
 			this.dependents.push({ row, setDisabled: (disabled) => text.setDisabled(disabled) });
@@ -494,9 +477,7 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 				// them, and refusing the write would discard the VALID lines typed in
 				// the same edit.
 				VicinityGraphSettingTab.showWarning(feedback, describeInvalidExclusionPatterns(raw));
-				this.debounced.schedule(name, (writer) =>
-					writer.apply({ kind: "global-exclusion-patterns", patterns: parseExclusionPatterns(raw) }),
-				);
+				this.debounced.schedule(name, (writer) => writer.apply(accessor.interaction(parseExclusionPatterns(raw))));
 			});
 		});
 	}
@@ -516,7 +497,9 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 		metric: SizeMetricId,
 		state: SettingsRowState,
 	): void {
-		const seed: SizingMetricSetting = state.globalView.sizing.metrics[metric];
+		const enabledAccessor = SettingsRowAccessors.metricEnabled(metric);
+		const weightAccessor = SettingsRowAccessors.metricWeight(metric);
+		const enabledNow = enabledAccessor.read(state);
 		// The weight input this row's toggle enables and disables. Definite
 		// assignment, not an optional: `Setting.addText` below invokes its builder
 		// SYNCHRONOUSLY, so the input exists before the row is ever on screen — and
@@ -527,36 +510,32 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 				// Two controls share this row, so the row name alone would not
 				// distinguish them — hence the declared role suffix.
 				VicinityGraphSettingTab.nameToggle(toggle, SettingsRowNames.role(row, "enabled"));
-				toggle.setValue(seed.enabled).onChange((enabled) => {
+				toggle.setValue(enabledNow).onChange((enabled) => {
 					// Flipped BEFORE the write is awaited so the row answers the click
 					// immediately; this cannot paint a stale value, because the flip happens
 					// in click order — the newest click paints last.
 					weightInput.setDisabled(!enabled);
 					// Pending typed edits first so this row's own weight, still inside the
 					// debounce window, is not left behind the enable flag it belongs to.
-					return this.settlePendingWrites().then(() =>
-						this.writes.apply({ kind: "global-sizing-metric-enabled", metric, enabled }),
-					);
+					return this.settlePendingWrites().then(() => this.writes.apply(enabledAccessor.interaction(enabled)));
 				});
 			})
 			.addText((text) => {
 				weightInput = text;
 				const weightName = SettingsRowNames.role(row, "weight");
 				text.inputEl.type = "number";
-				VicinityGraphSettingTab.applyRange(text.inputEl, SIZING_RANGES.metricWeight);
-				text.setValue(String(seed.weight));
-				text.setDisabled(!seed.enabled);
+				VicinityGraphSettingTab.applyBounds(text.inputEl, weightAccessor.bounds);
+				text.setValue(String(weightAccessor.read(state)));
+				text.setDisabled(!enabledNow);
 				VicinityGraphSettingTab.nameControl(text.inputEl, weightName);
 				this.flushOnBlur(text.inputEl);
 				text.onChange((raw) => {
-					const weight = parseSizingInput(raw);
+					const weight = weightAccessor.accept(raw);
 					if (weight === undefined) {
 						this.debounced.drop(weightName);
 						return;
 					}
-					this.debounced.schedule(weightName, (writer) =>
-						writer.apply({ kind: "global-sizing-metric-weight", metric, weight }),
-					);
+					this.debounced.schedule(weightName, (writer) => writer.apply(weightAccessor.interaction(weight)));
 				});
 			});
 	}
@@ -569,15 +548,21 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	 * FLUSH time. A REJECTED value stays in the field with its reason beside it —
 	 * never silently persisted, never silently reverted.
 	 */
-	private addSizingNumber(container: HTMLElement, row: SettingsRow, field: SizingNumberField): void {
-		const name = SettingsRowNames.sole(row);
+	private addSizingNumber(
+		container: HTMLElement,
+		row: SettingsRow,
+		field: SizingNumberField,
+		state: SettingsRowState,
+	): void {
+		const accessor = SettingsRowAccessors.sizingNumber(field);
 		const write = new SizingRowWrite(field, () => this.store.globalView().sizing);
+		const name = SettingsRowNames.sole(row);
 		const setting = VicinityGraphSettingTab.row(container, row);
 		const feedback = VicinityGraphSettingTab.addFeedbackSlot(setting, "alert");
 		setting.addText((text) => {
 			text.inputEl.type = "number";
-			VicinityGraphSettingTab.applyRange(text.inputEl, SIZING_RANGES[field]);
-			const stored = write.storedValue();
+			VicinityGraphSettingTab.applyBounds(text.inputEl, accessor.bounds);
+			const stored = accessor.read(state);
 			text.setValue(String(stored));
 			VicinityGraphSettingTab.nameControl(text.inputEl, name);
 			this.flushOnBlur(text.inputEl);
@@ -585,7 +570,7 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 			// rather than only once the user types.
 			VicinityGraphSettingTab.showVerdict(feedback, text.inputEl, write.judge(stored));
 			text.onChange((raw) => {
-				const parsed = parseSizingInput(raw);
+				const parsed = accessor.accept(raw);
 				if (parsed === undefined) {
 					// Cleared / not a number yet: the EARLIER keystrokes of this burst
 					// must not persist behind the user's back.
@@ -621,7 +606,8 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	 * away the user's keyboard focus mid-arrow-key.
 	 */
 	private addNodePreview(container: HTMLElement, row: SettingsRow, state: SettingsRowState): void {
-		const selected = state.globalView.nodePreviewPreference;
+		const accessor = SettingsRowAccessors.nodePreview();
+		const selected = accessor.read(state);
 		const groupName = SettingsRowNames.sole(row);
 		VicinityGraphSettingTab.row(container, row).then((setting) => {
 			const group = setting.controlEl.createDiv({
@@ -641,37 +627,37 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 				radio.checked = preference === selected;
 				option.createSpan({ cls: "vicinity-graph-segmented__text", text: label });
 				radio.addEventListener("change", () => {
-					void this.writes.apply({ kind: "global-node-preview", value: preference });
+					void this.writes.apply(accessor.interaction(preference));
 				});
 			}
 		});
 	}
 
 	private addNodeCap(container: HTMLElement, row: SettingsRow, state: SettingsRowState): void {
+		const accessor = SettingsRowAccessors.nodeCap();
 		const name = SettingsRowNames.sole(row);
 		VicinityGraphSettingTab.row(container, row).addText((text) => {
 			text.inputEl.type = "number";
-			text.inputEl.min = String(MIN_NODE_CAP);
-			text.inputEl.step = String(NODE_CAP_STEP);
-			text.setValue(String(state.globalView.nodeCap));
+			VicinityGraphSettingTab.applyBounds(text.inputEl, accessor.bounds);
+			text.setValue(String(accessor.read(state)));
 			VicinityGraphSettingTab.nameControl(text.inputEl, name);
 			this.flushOnBlur(text.inputEl);
 			text.onChange((raw) => {
-				const value = Number(raw);
-				if (Number.isInteger(value) && value >= MIN_NODE_CAP) {
-					this.debounced.schedule(name, (writer) => writer.apply({ kind: "global-cap", value }));
+				const value = accessor.accept(raw);
+				if (value === undefined) {
+					// Half-typed / out of spec: forget the burst's earlier keystrokes.
+					this.debounced.drop(name);
 					return;
 				}
-				// Half-typed / cleared: forget the burst's earlier keystrokes.
-				this.debounced.drop(name);
+				this.debounced.schedule(name, (writer) => writer.apply(accessor.interaction(value)));
 			});
 		});
 	}
 
 	/**
-	 * EVERY slider row in this tab. Bounds/value/onChange are the only things a
-	 * caller varies, so keeping one row builder means the accessible name and the
-	 * tooltip behaviour are decided once — a slider added later cannot forget either.
+	 * EVERY slider row in this tab. The accessor is the only thing a caller varies, so
+	 * keeping one row builder means the accessible name and the tooltip behaviour are
+	 * decided once — a slider added later cannot forget either.
 	 *
 	 * WHY `setDynamicTooltip()` despite the `@deprecated` tag: the tag comes from the
 	 * 1.13 typings ("the value is now always shown inline"), and the inline readout it
@@ -686,71 +672,29 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	private addSlider(
 		container: HTMLElement,
 		row: SettingsRow,
-		bounds: SettingsRange,
-		value: number,
-		onChange: (value: number) => void,
+		accessor: SettingsTrackAccessor,
+		state: SettingsRowState,
 	): void {
 		const name = SettingsRowNames.sole(row);
+		const { min, max, step } = accessor.bounds;
 		VicinityGraphSettingTab.row(container, row).addSlider((slider) =>
 			slider
-				.setLimits(bounds.min, bounds.max, bounds.step)
-				.setValue(value)
+				.setLimits(min, max, step)
+				.setValue(accessor.read(state))
 				.setDynamicTooltip()
 				.then(() => VicinityGraphSettingTab.nameControl(slider.sliderEl, name))
-				.onChange(onChange),
+				.onChange((value) => {
+					void this.writes.apply(accessor.interaction(value));
+				}),
 		);
 	}
 
-	private addDepthSlider(
-		container: HTMLElement,
-		row: SettingsRow,
-		field: keyof DepthSettings,
-		state: SettingsRowState,
-	): void {
-		this.addSlider(
-			container,
-			row,
-			{ min: MIN_STEPPER_DEPTH, max: MAX_STEPPER_DEPTH, step: DEPTH_SLIDER_STEP },
-			state.globalDepths[field],
-			(value) => {
-				void this.writes.apply({ kind: "global-depth", field, value: clampStepperDepth(value) });
-			},
-		);
-	}
-
-	private addOutlineDepthSlider(container: HTMLElement, row: SettingsRow, state: SettingsRowState): void {
-		this.addSlider(
-			container,
-			row,
-			{ min: MIN_OUTLINE_DEPTH, max: MAX_OUTLINE_DEPTH, step: OUTLINE_DEPTH_SLIDER_STEP },
-			state.globalView.outlineMaxDepth,
-			(value) => {
-				void this.writes.apply({ kind: "global-outline-depth", value: clampOutlineMaxDepth(value) });
-			},
-		);
-	}
-
-	/**
-	 * One force-layout slider. Bounds come from {@link FORCE_LAYOUT_RANGES} — the SAME
-	 * table the persistence parser clamps with — and the copy from the row model. The
-	 * sibling knobs are merged by the pipeline from a read taken inside its own
-	 * serialised slot, so this slider names ONLY its own field.
-	 */
-	private addForceLayoutSlider(
-		container: HTMLElement,
-		row: SettingsRow,
-		field: keyof ForceLayoutSettings,
-		state: SettingsRowState,
-	): void {
-		this.addSlider(container, row, FORCE_LAYOUT_RANGES[field], state.globalView.forceLayout[field], (value) => {
-			void this.writes.apply({ kind: "global-force-layout-field", field, value });
-		});
-	}
-
-	/** Mirrors a {@link SettingsRange} onto a number input's stepper attributes. */
-	private static applyRange(input: HTMLInputElement, range: SettingsRange): void {
-		input.min = String(range.min);
-		input.max = String(range.max);
-		input.step = String(range.step);
+	/** Mirrors declared {@link SettingsRowBounds} onto a number input's stepper attributes. */
+	private static applyBounds(input: HTMLInputElement, bounds: SettingsRowBounds): void {
+		input.min = String(bounds.min);
+		if (bounds.max !== undefined) {
+			input.max = String(bounds.max);
+		}
+		input.step = String(bounds.step);
 	}
 }

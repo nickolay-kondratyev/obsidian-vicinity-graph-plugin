@@ -1,12 +1,13 @@
 import type { ReactElement } from "react";
-import { clampStepperDepth, MAX_STEPPER_DEPTH, MIN_STEPPER_DEPTH } from "./constants";
+import type { SettingsTrackAccessor } from "./settingsRowAccessors";
 import type { SettingsRow } from "./settingsRows";
 import { SettingsRowNames } from "./settingsRows";
 import { useOptimisticValue } from "./useOptimisticValue";
 
 /**
- * One depth row's stepper: `−  value  +`. It clamps via {@link clampStepperDepth}
- * and emits the new value; the caller maps that to a `SettingsInteraction`.
+ * One depth row's stepper: `−  value  +`. Where it stops, how far one tap moves and
+ * what a tap CLAMPS to all come from the one {@link SettingsTrackAccessor} it is
+ * handed, so the track it offers and the value the write stores cannot disagree.
  *
  * The label and both button names come from the declared row (see
  * {@link SettingsRowNames}): two buttons share one row, so they are named by VERB +
@@ -30,14 +31,18 @@ import { useOptimisticValue } from "./useOptimisticValue";
  */
 export function DepthStepper({
 	row,
+	accessor,
 	value,
 	onChange,
 }: {
 	readonly row: SettingsRow;
+	/** The depth field's declared track: its bounds, its step and its clamp. */
+	readonly accessor: SettingsTrackAccessor;
 	readonly value: number;
 	/** Persists the new, already clamped value. */
 	readonly onChange: (value: number) => Promise<void>;
 }): ReactElement {
+	const { bounds, settlesAt } = accessor;
 	const [shown, request] = useOptimisticValue(value, onChange);
 	return (
 		<div className="vicinity-graph-stepper" title={row.description}>
@@ -47,8 +52,8 @@ export function DepthStepper({
 					type="button"
 					className="vicinity-graph-stepper__button"
 					aria-label={SettingsRowNames.action("Decrease", row)}
-					disabled={shown <= MIN_STEPPER_DEPTH}
-					onClick={() => request(clampStepperDepth(shown - 1))}
+					disabled={shown <= bounds.min}
+					onClick={() => request(settlesAt(shown - bounds.step))}
 				>
 					&minus;
 				</button>
@@ -59,8 +64,8 @@ export function DepthStepper({
 					type="button"
 					className="vicinity-graph-stepper__button"
 					aria-label={SettingsRowNames.action("Increase", row)}
-					disabled={shown >= MAX_STEPPER_DEPTH}
-					onClick={() => request(clampStepperDepth(shown + 1))}
+					disabled={shown >= bounds.max}
+					onClick={() => request(settlesAt(shown + bounds.step))}
 				>
 					+
 				</button>

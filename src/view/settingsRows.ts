@@ -29,6 +29,12 @@ import { SIZING_METRICS } from "./sizingMetrics";
  * is eight rows). Both are keyed by the same {@link SettingsSection}, so a section
  * cannot exist in one and not the other.
  *
+ * WHAT THIS MODULE DOES NOT OWN: where a row's VALUE lives, which bounds it moves
+ * between and which `SettingsInteraction` changes it. That is the sibling
+ * `settingsRowAccessors.ts` — a different reason to change, and one that would drag the
+ * engine's range tables and clamps into this module's import graph. This one is kept
+ * PURE DATA because `e2e/settingsBaseline.ts` imports it in the node-side test process.
+ *
  * NO `{family, key}` row union is invented here either: every
  * {@link SettingsRowControl} arm carries its OWN typed field reference
  * (`keyof DepthSettings`, `SizeMetricId`, `SizingNumberField`, `keyof ForceLayoutSettings`),
