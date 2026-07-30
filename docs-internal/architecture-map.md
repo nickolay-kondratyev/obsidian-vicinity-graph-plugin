@@ -85,6 +85,12 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   Complements `settingsSectionFields.ts`, which answers the different question
   "which FIELDS does this section's restore-defaults clear".
   Guard: `settingsRowParity.test.ts`.
+- `engine/SettingsSpec.ts` — **THE settings VALUE contract**: `SETTINGS_SPEC` declares
+  every field's default and bounds, and the settings suites ITERATE it (parse,
+  round-trip, reset, bounds) rather than restating values. Guard:
+  `engine/settingsProductDefaults.test.ts` is the ONE place literal defaults/ranges
+  may be written — an id-keyed table over every spec leaf, so a moved default, a new
+  leaf and a deleted leaf all fail there and nowhere else.
 - `persistence/storagePorts.ts`, `adapters/obsidianPorts.ts` — testable seams,
   each with a `Fake*` implementation used by unit tests.
 
