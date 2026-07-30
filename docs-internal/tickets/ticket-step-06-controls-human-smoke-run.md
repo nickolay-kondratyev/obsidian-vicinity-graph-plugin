@@ -34,7 +34,7 @@ Full checklist: `.ai_out/step-06-controls/main/QA_CHECKLIST.md`. Focus:
 2. Every control **round-trips through an Obsidian restart** (change → restart → identical view) — the step's hard exit criterion.
 3. Pin/unpin feels native on BOTH surfaces (hover pin button + right-click menu), including on MAIN itself — the active note is pinnable so it survives navigating away (asserted by `pinnedCentralScenario.e2e.ts`; this line used to say MAIN offers neither).
 4. The Depth steppers read as a GLOBAL control: bumping one visibly changes every note's graph and every open view (no per-note surprise). This is the UX risk the simplification introduced — judge it here. Both surfaces are now headed **"Depth (all notes)"** (owner-chosen copy, 2026-07-29); the question left for this gate is whether that heading alone is enough, or whether the panel also needs a hint line under the steppers.
-5. Toolbar at ~300px sidebar: no horizontal overflow, scrolls vertically, every section's disclosure behaves, and the Depth rows sit at the same indent as the other sections' rows (their extra card padding was removed).
+5. Toolbar at ~300px sidebar: no horizontal overflow, scrolls vertically, every section's disclosure behaves, and the Depth rows sit at the same indent as the other sections' rows (their extra card padding was removed). The longest summary is now "Depth (all notes)" — check it does not wrap awkwardly beside its chevron.
 6. The scenario (QA §10): pin X while MAIN is Y → X keeps its own vicinity; raise the depth → BOTH X's and Y's reach grow; switch to Z and back to Y → nothing was per-note, so the view is the same.
 7. Settings-tab writes refresh already-open views (node cap / the global depth pair) without reopening.
 
