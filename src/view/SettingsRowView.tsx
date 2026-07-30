@@ -1,10 +1,12 @@
 import type { ReactElement } from "react";
-import { useId } from "react";
+import { useId, useState } from "react";
 import type { DepthSettings, ForceLayoutSettings, NodePreviewPreference, SizeMetricId } from "../engine";
 import { NODE_PREVIEW_PREFERENCES } from "../engine";
 import { useControlsActions } from "./ControlsActionsContext";
 import { DepthStepper } from "./DepthStepper";
 import { NODE_PREVIEW_OPTION_META } from "./nodePreviewPreferenceMeta";
+import type { NumberRowJudge } from "./numberRowCommit";
+import { NO_CROSS_FIELD_RULE, NumberRowCommitPolicy } from "./numberRowCommit";
 import type {
 	SettingsNumberAccessor,
 	SettingsTrackAccessor,
@@ -15,6 +17,7 @@ import { SettingsRowAccessors } from "./settingsRowAccessors";
 import type { SettingsRow, SettingsRowState } from "./settingsRows";
 import { SettingsRowNames, isSettingsRowDisabled, unhandledRowControl } from "./settingsRows";
 import type { SizingNumberField } from "./settingsWritePlan";
+import { SizingRowWrite } from "./sizingRowWrite";
 import { ToggleSwitch } from "./ToggleSwitch";
 import { useOptimisticValue } from "./useOptimisticValue";
 
@@ -36,6 +39,10 @@ import { useOptimisticValue } from "./useOptimisticValue";
  * - Every control is OPTIMISTIC ({@link useOptimisticValue}) so it answers the
  *   interaction instead of waiting out a traversal + layout rebuild, and is handed
  *   the SAME clamp the write path applies where one exists.
+ * - A control the user TYPES into commits ON BLUR, not per keystroke, so a clamp can
+ *   never land mid-word ({@link NumberRow}); a control the user AIMS (slider, stepper,
+ *   toggle, pill) commits immediately, because each of its values is already a whole
+ *   deliberate one.
  * - Every control names ONE field via a `SettingsInteraction` and hands it to the
  *   shared pipeline through {@link useControlsActions}; nothing here merges a slice
  *   from the snapshot it rendered from.
@@ -158,45 +165,99 @@ function SliderRow({
 }
 
 /**
- * A label beside a narrow number field. The accessor's `accept` decides what counts
- * as a typed value — the `min` attribute alone only drives the steppers, never a
- * typed one.
+ * A label beside a narrow number field, committed ON BLUR — the panel's counterpart of
+ * the settings tab's debounced typed rows, refusing the same values for the same
+ * stated reasons ({@link NumberRowCommitPolicy}, ultimately `describeSizingRejection`).
  *
- * KNOWN LIMIT of refusing a write on a CONTROLLED input: a rejected keystroke leaves
- * the field showing the stored value, so the box cannot be emptied on the way to a new
- * number (select-and-retype works; backspacing to blank does not). The settings tab's
- * uncontrolled input keeps the text and only drops the write. Refusing an out-of-spec
- * write is the property worth keeping; the panel's numeric-entry feedback is the open
- * ticket `nid_hatwq2jlkhno5t6awcz0q6t9q_e`.
+ * The field is UNCONTROLLED, which is what writing per keystroke used to cost: the
+ * clamp landed mid-word (typing `500` into Max px snapped the field to `400` after the
+ * third key), and a row that refuses an out-of-spec keystroke could not be backspaced
+ * to blank on the way to a new number. Typing is now the user's alone; the store
+ * answers only once they leave the field.
  */
 function NumberRow({
 	row,
 	accessor,
+	write,
 	state,
 }: {
 	readonly row: SettingsRow;
 	readonly accessor: SettingsTypedNumberAccessor;
+	/** The row's cross-field rule, or {@link NO_CROSS_FIELD_RULE} when it has none. */
+	readonly write: NumberRowJudge;
 	readonly state: SettingsRowState;
 }): ReactElement {
 	const [shown, request] = useSettingsNumber(accessor, state);
 	return (
-		<label className="vicinity-graph-number-row" title={row.description}>
-			<span>{row.label}</span>
-			<input
-				type="number"
-				aria-label={SettingsRowNames.sole(row)}
-				min={accessor.bounds.min}
-				max={accessor.bounds.max}
-				step={accessor.bounds.step}
-				value={shown}
-				onChange={(event) => {
-					const parsed = accessor.accept(event.target.value);
-					if (parsed !== undefined) {
-						request(parsed);
-					}
-				}}
-			/>
-		</label>
+		<NumberField
+			// RESEEDING an uncontrolled field is a remount, so the stored value is its key.
+			// The typed text and the refusal it earned are one state and reset together —
+			// and a REFUSED commit never moves `shown`, so a refusal is never remounted away.
+			key={shown}
+			row={row}
+			accessor={accessor}
+			write={write}
+			stored={shown}
+			onCommit={request}
+		/>
+	);
+}
+
+/** One mounted number field: the text the user owns, and whatever its last commit refused. */
+function NumberField({
+	row,
+	accessor,
+	write,
+	stored,
+	onCommit,
+}: {
+	readonly row: SettingsRow;
+	readonly accessor: SettingsTypedNumberAccessor;
+	readonly write: NumberRowJudge;
+	readonly stored: number;
+	readonly onCommit: (value: number) => void;
+}): ReactElement {
+	const policy = new NumberRowCommitPolicy(accessor, write);
+	// Seeded from the STORED value: a hand-edited data.json can hold a refused pair, and
+	// the row should say so on open rather than only once the user types.
+	const [refusal, setRefusal] = useState(() => policy.commit(String(stored)).refusal);
+	const refusalId = useId();
+	return (
+		<div className="vicinity-graph-number-row-block">
+			<label className="vicinity-graph-number-row" title={row.description}>
+				<span>{row.label}</span>
+				<input
+					type="number"
+					aria-label={SettingsRowNames.sole(row)}
+					min={accessor.bounds.min}
+					max={accessor.bounds.max}
+					step={accessor.bounds.step}
+					defaultValue={stored}
+					aria-invalid={refusal !== undefined}
+					aria-describedby={refusal === undefined ? undefined : refusalId}
+					onBlur={(event) => {
+						const committed = policy.commit(event.target.value);
+						setRefusal(committed.refusal);
+						if (committed.value !== null) {
+							onCommit(committed.value);
+						}
+					}}
+					// Enter COMMITS, by blurring into the handler above rather than by repeating
+					// it: a number the user has confirmed must not sit unapplied until they
+					// happen to click somewhere else.
+					onKeyDown={(event) => {
+						if (event.key === "Enter") {
+							event.currentTarget.blur();
+						}
+					}}
+				/>
+			</label>
+			{refusal === undefined ? null : (
+				<div id={refusalId} className="vicinity-graph-number-row__refusal" role="alert">
+					{refusal}
+				</div>
+			)}
+		</div>
 	);
 }
 
@@ -275,6 +336,11 @@ function SizingMetricRow({
 	);
 }
 
+/**
+ * A sizing bound (or the decay k) — the ONE row kind with a cross-field rule, so the
+ * one that hands {@link NumberRow} a `SizingRowWrite`. That is the same object the
+ * settings tab judges its sizing rows with, reading the globals this render drew from.
+ */
 function SizingNumberRow({
 	row,
 	field,
@@ -284,11 +350,18 @@ function SizingNumberRow({
 	readonly field: SizingNumberField;
 	readonly state: SettingsRowState;
 }): ReactElement {
-	return <NumberRow row={row} accessor={SettingsRowAccessors.sizingNumber(field)} state={state} />;
+	return (
+		<NumberRow
+			row={row}
+			accessor={SettingsRowAccessors.sizingNumber(field)}
+			write={new SizingRowWrite(field, () => state.globalView.sizing)}
+			state={state}
+		/>
+	);
 }
 
 function NodeCapRow({ row, state }: { readonly row: SettingsRow; readonly state: SettingsRowState }): ReactElement {
-	return <NumberRow row={row} accessor={SettingsRowAccessors.nodeCap()} state={state} />;
+	return <NumberRow row={row} accessor={SettingsRowAccessors.nodeCap()} write={NO_CROSS_FIELD_RULE} state={state} />;
 }
 
 function OutlineDepthRow({
