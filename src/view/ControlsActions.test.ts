@@ -17,10 +17,10 @@ import { SettingsWritePipeline } from "./settingsWritePipeline";
 /**
  * Refresh fan-out tests for the controls executor: EVERY write it makes lands in
  * data.json (settings are global, so is the pinned set), which every open graph
- * view renders from — so it must rebuild ALL of them, and a write that never
- * landed must rebuild nothing at all. Collaborators are the real persistence
- * classes and the real `SettingsWritePipeline` over their in-memory fakes — no
- * obsidian runtime.
+ * view renders from — so it must rebuild ALL of them, while a write it REFUSED to
+ * make (nothing moved, in memory or on disk) must rebuild nothing at all.
+ * Collaborators are the real persistence classes and the real
+ * `SettingsWritePipeline` over their in-memory fakes — no obsidian runtime.
  *
  * Settings-write BEHAVIOUR (serialisation, merge base, fan-out) is pinned in
  * `settingsWritePipeline.test.ts`; this file only proves the executor delegates
@@ -58,7 +58,7 @@ async function actionsUnderTest(dataPort: PluginDataPort = new FakePluginDataPor
 	const viewsRefresh = new FakeViewsRefresh([ORIGINATING_VIEW_ID, OTHER_VIEW_ID]);
 	const notices = new FakeUserNotices();
 	const settingsWrites = new SettingsWritePipeline(pluginDataStore, viewsRefresh, notices);
-	const actions = new ControlsActions(persistenceServices, VAULT, viewsRefresh, settingsWrites, notices);
+	const actions = new ControlsActions(persistenceServices, VAULT, settingsWrites, notices);
 	return { actions, viewsRefresh, pluginDataStore, notices };
 }
 
@@ -168,5 +168,15 @@ describe("ControlsActions pinning when data.json cannot be written", () => {
 		const { actions, notices } = await actionsUnderTest(new RejectingPluginDataPort());
 		await actions.unpinNode(MAIN_DOCID);
 		expect(notices.messages).toEqual([SettingsWriteFailureNotice.forNonSettingsWrite("pinned-set")]);
+	});
+
+	it("WHEN a pin's persist rejects THEN EVERY open view is refreshed anyway (the pin IS in memory)", async () => {
+		// NOT the refused-pin case above: `PluginDataStore.persist()` moves the pin in memory
+		// BEFORE the disk write, so a rejection leaves the SCREEN stale, not the store. Same
+		// rule as a failed settings write — repaint from what the store holds, and let the
+		// notice be the news.
+		const { actions, viewsRefresh } = await actionsUnderTest(new RejectingPluginDataPort());
+		await actions.pinNode(MAIN_PATH);
+		expect(viewsRefresh.refreshedViewIds).toEqual([ORIGINATING_VIEW_ID, OTHER_VIEW_ID]);
 	});
 });

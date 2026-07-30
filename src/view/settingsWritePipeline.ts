@@ -23,9 +23,11 @@ import type { UserNoticePort, ViewsRefreshPort } from "./viewPorts";
  *    run yet, and every command rewrites a whole slice — so a stale base silently
  *    reverts a sibling field. This is why the pipeline takes an INTERACTION and
  *    plans it itself instead of accepting a ready-made {@link SettingsCommand}.
- * 3. **One fan-out rule.** Everything here is global state in `data.json`, which
- *    every open view renders from, so every landed write refreshes EVERY open
- *    view through {@link ViewsRefreshPort} — there is no narrower reach to pick.
+ * 3. **One fan-out rule, applied in one place ({@link guarded}).** Everything here is
+ *    global state in `data.json`, which every open view renders from, so a write that
+ *    CHANGED the store refreshes EVERY open view through {@link ViewsRefreshPort} —
+ *    there is no narrower reach to pick — and a body that changed nothing refreshes
+ *    none. "Changed the store" is not "reached disk": see {@link GuardedWriteOutcome}.
  * 4. **Idle is observable.** {@link drain} is what lets a caller re-read the
  *    globals (to rebuild controls) only once nothing is still queued.
  * 5. **A failed persist is the USER's news, exactly once, HERE.** Every call site
@@ -77,6 +79,19 @@ export interface SettingsWriter {
 export interface SerialSettingsWrites {
 	runSerialised(task: (writer: SettingsWriter) => Promise<void>): Promise<void>;
 }
+
+/**
+ * What a guarded body reports back: whether it CHANGED what the store holds. This is
+ * the fan-out gate (rule 3), and it asks about the STORE, not about the disk, because
+ * that is what every open view renders from — `PluginDataStore.persist()` moves its
+ * in-memory state before the disk write, so a body whose save REJECTED still changed
+ * the store and still owes every view a repaint.
+ *
+ * `store-unchanged` is for a body that decided not to write at all (a pin refused for
+ * want of a stable id): nothing moved, so a rebuild could only redraw the screen it is
+ * already showing, at the cost of one graph build plus layout in EVERY open view.
+ */
+export type GuardedWriteOutcome = "store-changed" | "store-unchanged";
 
 export class SettingsWritePipeline implements SerialSettingsWrites {
 	private readonly chain = new SerialPromiseChain();
@@ -134,10 +149,17 @@ export class SettingsWritePipeline implements SerialSettingsWrites {
 	 * pin is already in memory when the save fails, so the node goes on rendering as
 	 * pinned until a restart silently drops it.
 	 *
-	 * WHY-NOT fan out here like {@link write} does: the task owns its own fan-out,
-	 * because a write that never happened (a refused pin) must rebuild nothing.
+	 * The fan-out is the pipeline's here too, on the SAME rule {@link write} follows,
+	 * and the task's {@link GuardedWriteOutcome} is the only thing it asks: a body that
+	 * changed the store gets every view repainted — INCLUDING one whose save rejected,
+	 * which is precisely when the screen is the stale copy — and a body that wrote
+	 * nothing gets no rebuild.
+	 *
+	 * Keep the guarded body to the write and its outcome: the catch cannot tell a
+	 * rejected `saveData` from a bug thrown anywhere else under it, so anything else a
+	 * caller grows in here would be reported to the user as a `data.json` save failure.
 	 */
-	runGuarded(subject: NonSettingsWriteSubject, task: () => Promise<void>): Promise<void> {
+	runGuarded(subject: NonSettingsWriteSubject, task: () => Promise<GuardedWriteOutcome>): Promise<void> {
 		return this.chain.run(() => this.guarded(SettingsWriteFailureNotice.forNonSettingsWrite(subject), task));
 	}
 
@@ -183,10 +205,11 @@ export class SettingsWritePipeline implements SerialSettingsWrites {
 	 * disk through here, so this `try` is the only one the pipeline needs and the only
 	 * one any call site should have.
 	 *
-	 * Persists every command in order, then fans out ONCE — N rebuilds per scope would
-	 * only flash. The fan-out runs whether or not the commands landed: views must repaint
-	 * from what the STORE holds, and a partly-landed reset makes that different from what
-	 * they were showing.
+	 * Persists every command in order, then fans out ONCE (in {@link guarded}) — N rebuilds
+	 * per scope would only flash. A settings write ALWAYS reports `store-changed`, so the
+	 * fan-out runs whether or not the commands landed: views must repaint from what the
+	 * STORE holds, and a partly-landed reset makes that different from what they were
+	 * showing.
 	 *
 	 * Stated exactly, because it is easy to assume the opposite: this is NOT a snap-back.
 	 * `PluginDataStore.persist()` moves in-memory state BEFORE the disk write, so after a
@@ -204,23 +227,32 @@ export class SettingsWritePipeline implements SerialSettingsWrites {
 			for (const command of commands) {
 				await this.persist(command);
 			}
+			return "store-changed";
 		});
-		this.viewsRefresh.refreshAllViews();
 	}
 
 	/**
-	 * THE catch — the single place a `data.json` write turns into user-visible news.
-	 * Both the settings {@link write} body and {@link runGuarded}'s foreign body pass
-	 * through it, so "one failure policy" is one `try`, not two that agree today.
+	 * THE catch AND THE fan-out — the single place a `data.json` write turns into
+	 * user-visible news, and the single place rule 3 is applied. Both the settings
+	 * {@link write} body and {@link runGuarded}'s foreign body pass through it, so "one
+	 * failure policy" is one `try`, not two that agree today, and neither half can drift
+	 * on when views repaint.
 	 */
-	private async guarded(failureNotice: string, body: () => Promise<void>): Promise<void> {
+	private async guarded(failureNotice: string, body: () => Promise<GuardedWriteOutcome>): Promise<void> {
+		// A THROWN body counts as `store-changed`, which is why the initial value is not
+		// `store-unchanged`: `PluginDataStore.persist()` moved its in-memory state before the
+		// save rejected, so the store is exactly what the views must be repainted from.
+		let outcome: GuardedWriteOutcome = "store-changed";
 		try {
-			await body();
+			outcome = await body();
 		} catch (error) {
 			// The message names what was being saved; the console keeps the cause (which is
 			// Obsidian's, and not something the notice could honestly paraphrase).
 			console.error(`vicinity-graph: data.json write failed notice=[${failureNotice}]`, error);
 			this.notices.show(failureNotice);
+		}
+		if (outcome === "store-changed") {
+			this.viewsRefresh.refreshAllViews();
 		}
 	}
 
