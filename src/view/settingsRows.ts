@@ -284,13 +284,14 @@ export const SETTINGS_GROUPS: Readonly<Record<SettingsSection, SettingsGroup>> =
 				panelClass: "vicinity-graph-depth-controls",
 				rows: [
 					{
-						label: "Outgoing depth",
-						description: "How many hops of outgoing links to expand from every central note.",
+						label: "Links out",
+						description: "How many hops of plain outgoing links to expand from every central note.",
 						control: { kind: "depth", direction: "outgoing" },
 					},
 					{
-						label: "Incoming depth",
-						description: "How many hops of incoming links (backlinks) to expand from every central note.",
+						label: "Links in",
+						description:
+							"How many hops of incoming links (backlinks) to expand from every central note. A note that EMBEDS a central note arrives here too \u2014 incoming links are counted the same way whatever their kind.",
 						control: { kind: "depth", direction: "incoming" },
 					},
 				],
@@ -434,7 +435,7 @@ export class SettingsRowNames {
 	/**
 	 * A VERB button acting on the row's value (a stepper's − / +). Verb first, so a
 	 * screen reader announces the action before the thing — and the label is
-	 * lower-cased into the sentence, e.g. `Decrease outgoing depth`.
+	 * lower-cased into the sentence, e.g. `Decrease links out`.
 	 */
 	static action(verb: SettingsRowActionVerb, row: SettingsRow): string {
 		return `${verb} ${row.label.toLowerCase()}`;

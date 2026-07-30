@@ -4,7 +4,7 @@ import type { SettingsWriteContext } from "./settingsWritePlan";
 import { planSettingsWrite } from "./settingsWritePlan";
 
 const CTX: SettingsWriteContext = {
-	globalDepths: { outgoingDepth: 1, incomingDepth: 1 },
+	globalDepths: { linkDepthOut: 1, linkDepthIn: 1 },
 	globalView: EngineDefaults.viewSettings(),
 	nodeExclusion: EngineDefaults.nodeExclusionSettings(),
 };
@@ -13,7 +13,7 @@ describe("planSettingsWrite global writes", () => {
 	it("WHEN global-depth outgoing value 2 THEN it merges over ctx.globalDepths preserving the other field", () => {
 		expect(planSettingsWrite({ kind: "global-depth", direction: "outgoing", value: 2 }, CTX)).toEqual({
 			kind: "global-depths",
-			depths: { outgoingDepth: 2, incomingDepth: 1 },
+			depths: { linkDepthOut: 2, linkDepthIn: 1 },
 		});
 	});
 
@@ -112,14 +112,14 @@ describe("planSettingsWrite global writes", () => {
 });
 
 describe("planSettingsWrite direction to field mapping (guards inversion)", () => {
-	it("WHEN direction is outgoing THEN only outgoingDepth moves", () => {
+	it("WHEN direction is outgoing THEN only linkDepthOut moves", () => {
 		const command = planSettingsWrite({ kind: "global-depth", direction: "outgoing", value: 4 }, CTX);
-		expect(command).toEqual({ kind: "global-depths", depths: { ...CTX.globalDepths, outgoingDepth: 4 } });
+		expect(command).toEqual({ kind: "global-depths", depths: { ...CTX.globalDepths, linkDepthOut: 4 } });
 	});
 
-	it("WHEN direction is incoming THEN only incomingDepth moves", () => {
+	it("WHEN direction is incoming THEN only linkDepthIn moves", () => {
 		const command = planSettingsWrite({ kind: "global-depth", direction: "incoming", value: 4 }, CTX);
-		expect(command).toEqual({ kind: "global-depths", depths: { ...CTX.globalDepths, incomingDepth: 4 } });
+		expect(command).toEqual({ kind: "global-depths", depths: { ...CTX.globalDepths, linkDepthIn: 4 } });
 	});
 });
 

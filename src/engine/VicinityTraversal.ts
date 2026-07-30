@@ -98,7 +98,7 @@ export class VicinityTraversal {
 		collector: TraversalCollector,
 	): void {
 		const rootPath = root.descriptor.path;
-		const depthLimit = direction === "outgoing" ? root.depths.outgoingDepth : root.depths.incomingDepth;
+		const depthLimit = direction === "outgoing" ? root.depths.linkDepthOut : root.depths.linkDepthIn;
 		const visited = new Map<VaultPath, number>([[rootPath, 0]]);
 		const queue: VaultPath[] = [rootPath];
 		collector.recordDepthTag(rootPath, { rootPath, direction, depth: 0 });

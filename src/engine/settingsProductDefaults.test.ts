@@ -47,8 +47,8 @@ import { EVERY_SETTINGS_SPEC_LEAF } from "./testFixtures/settingsSpecLeaves";
  */
 const SHIPPED_SETTINGS_DEFAULTS: Readonly<Record<string, unknown>> = {
 	// Both depths mirror Obsidian's own local graph: 1 hop each way.
-	"globalDepths.outgoingDepth": 1,
-	"globalDepths.incomingDepth": 1,
+	"globalDepths.linkDepthOut": 1,
+	"globalDepths.linkDepthIn": 1,
 
 	"globalView.nodeCap": 100, // The shipped performance ceiling.
 	"globalView.outlineMaxDepth": 2, // Sections + subsections — what fits a 160px node.

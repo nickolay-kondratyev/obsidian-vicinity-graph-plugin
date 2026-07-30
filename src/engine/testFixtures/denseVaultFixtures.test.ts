@@ -10,8 +10,8 @@ const FIXTURES = allDefaultDenseFixtures();
 function reachedNodeCount(fixture: DenseFixture): number {
 	const roots = [fixture.mainPath, ...(fixture.pinnedPaths ?? [])];
 	const stages = traverseAndSize(fixture.spec, roots, {
-		outgoingDepth: fixture.depthToCoverAll,
-		incomingDepth: 0,
+		linkDepthOut: fixture.depthToCoverAll,
+		linkDepthIn: 0,
 	});
 	return stages.traversal.nodes.size;
 }

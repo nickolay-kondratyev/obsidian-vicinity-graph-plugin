@@ -40,8 +40,8 @@ export function traverseAndSize(
 	const roots: TraversalRoot[] = rootPaths.map((path) => ({
 		descriptor: { path: asVaultPath(path) },
 		depths: {
-			outgoingDepth: depths.outgoingDepth ?? DEFAULT_TEST_DEPTH,
-			incomingDepth: depths.incomingDepth ?? DEFAULT_TEST_DEPTH,
+			linkDepthOut: depths.linkDepthOut ?? DEFAULT_TEST_DEPTH,
+			linkDepthIn: depths.linkDepthIn ?? DEFAULT_TEST_DEPTH,
 		},
 	}));
 	const traversal = new VicinityTraversal(provider).traverse(roots);

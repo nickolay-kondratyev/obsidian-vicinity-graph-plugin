@@ -183,8 +183,8 @@ export const _assertEveryNodePreviewPreferenceListed: UnlistedPreference extends
 
 /** The traversal depths every root walks with (MAIN and every pinned central). */
 export interface DepthSettings {
-	readonly outgoingDepth: number;
-	readonly incomingDepth: number;
+	readonly linkDepthOut: number;
+	readonly linkDepthIn: number;
 }
 
 /**
@@ -202,13 +202,13 @@ export interface NodeExclusionSettings {
 
 /**
  * Single source of truth mapping a {@link Direction} to the depth field it controls
- * (`outgoing → outgoingDepth`, `incoming → incomingDepth`) on {@link DepthSettings}.
+ * (`outgoing → linkDepthOut`, `incoming → linkDepthIn`) on {@link DepthSettings}.
  * Shared by the engine and the step-06 controls so the mapping exists exactly once.
  * POLS — trivially invertible.
  */
 export const DIRECTION_DEPTH_FIELD: Readonly<Record<Direction, keyof DepthSettings>> = {
-	outgoing: "outgoingDepth",
-	incoming: "incomingDepth",
+	outgoing: "linkDepthOut",
+	incoming: "linkDepthIn",
 };
 
 /** Toggle + weight of one sizing metric. */

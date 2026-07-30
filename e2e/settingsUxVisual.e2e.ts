@@ -333,7 +333,7 @@ test("settings tab: WHEN the tab renders THEN every input carries its row name a
 	// only meaningful once each family is proven present AND named.
 	await expect(settings.getByLabel("Repel force")).toHaveAttribute("type", "range");
 	await expect(settings.getByLabel("Outline depth")).toHaveAttribute("type", "range");
-	await expect(settings.getByLabel("Outgoing depth")).toHaveAttribute("type", "range");
+	await expect(settings.getByLabel("Links out")).toHaveAttribute("type", "range");
 	await expect(settings.getByLabel("Node cap")).toHaveAttribute("type", "number");
 	await expect(settings.getByLabel("Exclusion patterns")).toHaveCount(1);
 	await expect(settings.getByLabel("Exclude notes from the graph")).toHaveAttribute("type", "checkbox");
@@ -356,14 +356,14 @@ test("settings tab: a section restore resets ONLY that section", async () => {
 	// the controls panel grows its own node-cap row.
 	const nodeCap = page.locator(".vicinity-graph-settings").getByLabel("Node cap");
 	await harness.setGlobalNodeCap(42);
-	await harness.saveGlobalDepths({ outgoingDepth: 4, incomingDepth: 4 });
+	await harness.saveGlobalDepths({ linkDepthOut: 4, linkDepthIn: 4 });
 	await settingsTab.redisplay();
 	await expect(nodeCap).toHaveValue("42");
 	await settingsTab.resetButton("Performance").click();
 	const after = await harness.readGlobals();
 	expect(after.view.nodeCap).toBe(100);
 	// The other section stays exactly as the user left it.
-	expect(after.depths.outgoingDepth).toBe(4);
+	expect(after.depths.linkDepthOut).toBe(4);
 });
 
 test("settings tab: restore-all asks first, then resets every section", async () => {
@@ -375,11 +375,11 @@ test("settings tab: restore-all asks first, then resets every section", async ()
 	await page.screenshot({ path: `${OUT_DIR}/settings-tab-restore-all-confirm.png` });
 	await modal.getByRole("button", { name: "Cancel" }).click();
 	// Cancel must be a true no-op.
-	expect((await harness.readGlobals()).depths.outgoingDepth).toBe(4);
+	expect((await harness.readGlobals()).depths.linkDepthOut).toBe(4);
 	await restoreAll.click();
 	await modal.getByRole("button", { name: "Restore all defaults" }).click();
 	const after = await harness.readGlobals();
-	expect(after.depths.outgoingDepth).toBe(1);
+	expect(after.depths.linkDepthOut).toBe(1);
 });
 
 // --- The Preview pill, on BOTH surfaces ---------------------------------------

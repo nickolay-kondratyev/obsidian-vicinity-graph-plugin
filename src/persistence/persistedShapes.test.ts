@@ -22,7 +22,7 @@ describe("PersistedShapes.parsePluginData", () => {
 	it("WHEN a valid shape round-trips through JSON THEN it parses back unchanged", () => {
 		const data = {
 			version: PERSISTED_SHAPE_VERSION,
-			globalDepths: { outgoingDepth: 3, incomingDepth: 2 },
+			globalDepths: { linkDepthOut: 3, linkDepthIn: 2 },
 			globalView: { ...EngineDefaults.viewSettings(), nodeCap: 42 },
 			pins: [{ docid: "docid_a_e", pinTimestamp: 1000 }],
 			nodeExclusion: { enabled: true, patterns: ["^rel/", "templates/"] },
@@ -31,7 +31,7 @@ describe("PersistedShapes.parsePluginData", () => {
 	});
 
 	it("WHEN the version is foreign THEN defaults win (no partial trust in unknown shapes)", () => {
-		const foreign = { version: 999, globalDepths: { outgoingDepth: 9, incomingDepth: 9 } };
+		const foreign = { version: 999, globalDepths: { linkDepthOut: 9, linkDepthIn: 9 } };
 		expect(PersistedShapes.parsePluginData(foreign)).toEqual(PersistedShapes.defaultPluginData());
 	});
 
@@ -231,14 +231,14 @@ describe("PersistedShapes global depth parsing", () => {
 	}
 
 	it("WHEN a depth field carries the wrong type THEN only that field falls back to the default", () => {
-		expect(parsedGlobalDepths({ outgoingDepth: "3", incomingDepth: 2 })).toEqual({
-			outgoingDepth: EngineDefaults.depthSettings().outgoingDepth,
-			incomingDepth: 2,
+		expect(parsedGlobalDepths({ linkDepthOut: "3", linkDepthIn: 2 })).toEqual({
+			linkDepthOut: EngineDefaults.depthSettings().linkDepthOut,
+			linkDepthIn: 2,
 		});
 	});
 
 	it("WHEN a stored depth is zero THEN zero survives parsing (a real value, never an absence)", () => {
-		expect(parsedGlobalDepths({ outgoingDepth: 0 }).outgoingDepth).toBe(0);
+		expect(parsedGlobalDepths({ linkDepthOut: 0 }).linkDepthOut).toBe(0);
 	});
 });
 

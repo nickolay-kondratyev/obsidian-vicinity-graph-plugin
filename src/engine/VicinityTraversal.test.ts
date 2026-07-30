@@ -9,7 +9,7 @@ import { asDocId, asVaultPath } from "./types";
 function root(path: string, depths: Partial<DepthSettings> = {}): TraversalRoot {
 	return {
 		descriptor: { path: asVaultPath(path) },
-		depths: { outgoingDepth: depths.outgoingDepth ?? 1, incomingDepth: depths.incomingDepth ?? 1 },
+		depths: { linkDepthOut: depths.linkDepthOut ?? 1, linkDepthIn: depths.linkDepthIn ?? 1 },
 	};
 }
 
@@ -43,32 +43,32 @@ function chainVault(): FakeLinkProvider {
 
 describe("VicinityTraversal depth limits on a chain a->b->c->d", () => {
 	it("WHEN outgoing depth is 2 THEN traversal stops at c", () => {
-		const result = traverse(chainVault(), [root("a.md", { outgoingDepth: 2, incomingDepth: 0 })]);
+		const result = traverse(chainVault(), [root("a.md", { linkDepthOut: 2, linkDepthIn: 0 })]);
 		expect(nodePaths(result)).toEqual(["a.md", "b.md", "c.md"]);
 	});
 
 	it("WHEN incoming depth is 2 from d THEN traversal walks linkers back to b", () => {
-		const result = traverse(chainVault(), [root("d.md", { outgoingDepth: 0, incomingDepth: 2 })]);
+		const result = traverse(chainVault(), [root("d.md", { linkDepthOut: 0, linkDepthIn: 2 })]);
 		expect(nodePaths(result)).toEqual(["b.md", "c.md", "d.md"]);
 	});
 
 	it("WHEN both depths are 0 THEN only the root itself is returned", () => {
-		const result = traverse(chainVault(), [root("b.md", { outgoingDepth: 0, incomingDepth: 0 })]);
+		const result = traverse(chainVault(), [root("b.md", { linkDepthOut: 0, linkDepthIn: 0 })]);
 		expect(nodePaths(result)).toEqual(["b.md"]);
 	});
 
 	it("WHEN outgoing and incoming depths differ THEN each direction honors its own limit", () => {
-		const result = traverse(chainVault(), [root("c.md", { outgoingDepth: 1, incomingDepth: 2 })]);
+		const result = traverse(chainVault(), [root("c.md", { linkDepthOut: 1, linkDepthIn: 2 })]);
 		expect(nodePaths(result)).toEqual(["a.md", "b.md", "c.md", "d.md"]);
 	});
 
 	it("WHEN traversing outgoing THEN edges point linker -> linked", () => {
-		const result = traverse(chainVault(), [root("a.md", { outgoingDepth: 1, incomingDepth: 0 })]);
+		const result = traverse(chainVault(), [root("a.md", { linkDepthOut: 1, linkDepthIn: 0 })]);
 		expect(edgePairs(result)).toEqual(["a.md->b.md"]);
 	});
 
 	it("WHEN traversing incoming THEN edges still point linker -> linked", () => {
-		const result = traverse(chainVault(), [root("d.md", { outgoingDepth: 0, incomingDepth: 1 })]);
+		const result = traverse(chainVault(), [root("d.md", { linkDepthOut: 0, linkDepthIn: 1 })]);
 		expect(edgePairs(result)).toEqual(["c.md->d.md"]);
 	});
 });
@@ -83,23 +83,23 @@ function diamondVault(): FakeLinkProvider {
 
 describe("VicinityTraversal on a diamond graph", () => {
 	it("WHEN d is reachable via two branches THEN it appears as a single node", () => {
-		const result = traverse(diamondVault(), [root("a.md", { outgoingDepth: 2, incomingDepth: 0 })]);
+		const result = traverse(diamondVault(), [root("a.md", { linkDepthOut: 2, linkDepthIn: 0 })]);
 		expect(nodePaths(result)).toEqual(["a.md", "b.md", "c.md", "d.md"]);
 	});
 
 	it("WHEN d is reached via both branches THEN both edges into d are kept", () => {
-		const result = traverse(diamondVault(), [root("a.md", { outgoingDepth: 2, incomingDepth: 0 })]);
+		const result = traverse(diamondVault(), [root("a.md", { linkDepthOut: 2, linkDepthIn: 0 })]);
 		expect(edgePairs(result)).toEqual(["a.md->b.md", "a.md->c.md", "b.md->d.md", "c.md->d.md"]);
 	});
 
 	it("WHEN d was already visited at equal depth THEN it is never re-expanded (single outgoing query)", () => {
 		const provider = diamondVault();
-		traverse(provider, [root("a.md", { outgoingDepth: 3, incomingDepth: 0 })]);
+		traverse(provider, [root("a.md", { linkDepthOut: 3, linkDepthIn: 0 })]);
 		expect(provider.outgoingQueryCount(asVaultPath("d.md"))).toBe(1);
 	});
 
 	it("WHEN d gets one depth tag per reaching root-direction THEN its depth is the shallowest (BFS order)", () => {
-		const result = traverse(diamondVault(), [root("a.md", { outgoingDepth: 3, incomingDepth: 0 })]);
+		const result = traverse(diamondVault(), [root("a.md", { linkDepthOut: 3, linkDepthIn: 0 })]);
 		expect(result.nodes.get(asVaultPath("d.md"))?.depthTags).toEqual([
 			{ rootPath: "a.md", direction: "outgoing", depth: 2 },
 		]);
@@ -113,7 +113,7 @@ describe("VicinityTraversal on cycles and bidirectional links", () => {
 			files: [{ path: "a.md" }, { path: "b.md" }, { path: "c.md" }],
 			links: { "a.md": ["b.md"], "b.md": ["c.md"], "c.md": ["a.md"] },
 		});
-		const result = traverse(provider, [root("a.md", { outgoingDepth: 10, incomingDepth: 0 })]);
+		const result = traverse(provider, [root("a.md", { linkDepthOut: 10, linkDepthIn: 0 })]);
 		expect(nodePaths(result)).toEqual(["a.md", "b.md", "c.md"]);
 	});
 
@@ -174,7 +174,7 @@ describe("VicinityTraversal multi-root union", () => {
 
 	it("WHEN the same path appears as MAIN and as pinned root THEN it is traversed once (first descriptor wins)", () => {
 		const provider = chainVault();
-		const result = traverse(provider, [root("a.md"), root("a.md", { outgoingDepth: 3 })]);
+		const result = traverse(provider, [root("a.md"), root("a.md", { linkDepthOut: 3 })]);
 		expect(nodePaths(result)).toEqual(["a.md", "b.md"]);
 	});
 
@@ -203,7 +203,7 @@ describe("VicinityTraversal attachments and non-node-bearing files", () => {
 	}
 
 	it("WHEN a note links non-node-bearing files THEN those files never become nodes", () => {
-		const result = traverse(attachmentVault(), [root("n.md", { outgoingDepth: 5 })]);
+		const result = traverse(attachmentVault(), [root("n.md", { linkDepthOut: 5 })]);
 		expect(nodePaths(result)).toEqual(["m.md", "n.md"]);
 	});
 
@@ -241,23 +241,23 @@ describe("VicinityTraversal global neighbor exclusion", () => {
 	}
 
 	it("WHEN a neighbor matches an exclusion pattern THEN it is absent from the graph", () => {
-		const result = traverseExcluding(excludableVault(), [root("a.md", { outgoingDepth: 3 })], ["^rel/"]);
+		const result = traverseExcluding(excludableVault(), [root("a.md", { linkDepthOut: 3 })], ["^rel/"]);
 		expect(nodePaths(result)).toEqual(["a.md", "d.md"]);
 	});
 
 	it("WHEN an excluded neighbor would bridge to a deeper node THEN that node is not discovered", () => {
-		const result = traverseExcluding(excludableVault(), [root("a.md", { outgoingDepth: 3 })], ["^rel/"]);
+		const result = traverseExcluding(excludableVault(), [root("a.md", { linkDepthOut: 3 })], ["^rel/"]);
 		expect(nodePaths(result)).not.toContain("c.md");
 	});
 
 	it("WHEN a neighbor is excluded THEN it is never expanded through (its links are never queried)", () => {
 		const provider = excludableVault();
-		traverseExcluding(provider, [root("a.md", { outgoingDepth: 3 })], ["^rel/"]);
+		traverseExcluding(provider, [root("a.md", { linkDepthOut: 3 })], ["^rel/"]);
 		expect(provider.outgoingQueryCount(asVaultPath("rel/b.md"))).toBe(0);
 	});
 
 	it("WHEN no edge is recorded to an excluded neighbor THEN the graph has no edge into it", () => {
-		const result = traverseExcluding(excludableVault(), [root("a.md", { outgoingDepth: 3 })], ["^rel/"]);
+		const result = traverseExcluding(excludableVault(), [root("a.md", { linkDepthOut: 3 })], ["^rel/"]);
 		expect(edgePairs(result)).toEqual(["a.md->d.md"]);
 	});
 
@@ -266,7 +266,7 @@ describe("VicinityTraversal global neighbor exclusion", () => {
 	});
 
 	it("WHEN one distinct neighbor is excluded THEN the count is one", () => {
-		const result = traverseExcluding(excludableVault(), [root("a.md", { outgoingDepth: 3 })], ["^rel/"]);
+		const result = traverseExcluding(excludableVault(), [root("a.md", { linkDepthOut: 3 })], ["^rel/"]);
 		expect(result.excludedNodeCount).toBe(1);
 	});
 
@@ -322,7 +322,7 @@ describe("VicinityTraversal node assembly", () => {
 		const roots: TraversalRoot[] = [
 			{
 				descriptor: { path: asVaultPath("a.md"), docid: asDocId("docid_abc_e") },
-				depths: { outgoingDepth: 1, incomingDepth: 1 },
+				depths: { linkDepthOut: 1, linkDepthIn: 1 },
 			},
 		];
 		const result = traverse(provider, roots);
@@ -352,7 +352,7 @@ describe("VicinityTraversal display title (step-05 human decision)", () => {
 			links: { "notes/root.md": ["notes/plain.md"] },
 		});
 		return new VicinityTraversal(provider).traverse([
-			{ descriptor: { path: asVaultPath("notes/root.md") }, depths: { outgoingDepth: 1, incomingDepth: 1 } },
+			{ descriptor: { path: asVaultPath("notes/root.md") }, depths: { linkDepthOut: 1, linkDepthIn: 1 } },
 		]);
 	}
 

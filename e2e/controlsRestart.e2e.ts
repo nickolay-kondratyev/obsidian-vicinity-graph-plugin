@@ -102,7 +102,7 @@ async function clickPin(path: string): Promise<void> {
  */
 async function bumpIncomingDepth(): Promise<void> {
 	await depthSection()
-		.getByRole("button", { name: "Increase incoming depth" })
+		.getByRole("button", { name: "Increase links in" })
 		.evaluate((el) => (el as HTMLButtonElement).click());
 }
 

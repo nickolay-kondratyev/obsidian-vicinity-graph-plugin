@@ -19,9 +19,9 @@ import type {
 /** @see SETTINGS_SPEC — `globalView.nodeCap.default`. */
 export const DEFAULT_NODE_CAP = SETTINGS_SPEC.globalView.nodeCap.default;
 
-/** @see SETTINGS_SPEC — `globalDepths.{outgoing,incoming}Depth.default`. */
-export const DEFAULT_OUTGOING_DEPTH = SETTINGS_SPEC.globalDepths.outgoingDepth.default;
-export const DEFAULT_INCOMING_DEPTH = SETTINGS_SPEC.globalDepths.incomingDepth.default;
+/** @see SETTINGS_SPEC — `globalDepths.linkDepth{Out,In}.default`. */
+export const DEFAULT_LINK_DEPTH_OUT = SETTINGS_SPEC.globalDepths.linkDepthOut.default;
+export const DEFAULT_LINK_DEPTH_IN = SETTINGS_SPEC.globalDepths.linkDepthIn.default;
 
 /** @see SETTINGS_SPEC — `globalView.sizing.{minPx,maxPx}.default`. */
 export const DEFAULT_MIN_NODE_PX = SETTINGS_SPEC.globalView.sizing.minPx.default;
@@ -57,10 +57,10 @@ export function clampOutlineMaxDepth(value: number): number {
 /**
  * Depth-stepper input bounds (CLARIFICATION Q2) — an AFFORDANCE limit on the
  * toolbar/settings steppers, not an engine limit. @see SETTINGS_SPEC —
- * `globalDepths.outgoingDepth.{min,max}` (both depth fields share these bounds).
+ * `globalDepths.linkDepthOut.{min,max}` (both depth fields share these bounds).
  */
-export const MIN_STEPPER_DEPTH = SETTINGS_SPEC.globalDepths.outgoingDepth.min;
-export const MAX_STEPPER_DEPTH = SETTINGS_SPEC.globalDepths.outgoingDepth.max;
+export const MIN_STEPPER_DEPTH = SETTINGS_SPEC.globalDepths.linkDepthOut.min;
+export const MAX_STEPPER_DEPTH = SETTINGS_SPEC.globalDepths.linkDepthOut.max;
 
 // ---------------------------------------------------------------------------
 // Non-settings tuning constants (NOT user-facing defaults → not in the spec).
@@ -237,8 +237,8 @@ export class EngineDefaults {
 	static depthSettings(): DepthSettings {
 		const depths = SETTINGS_SPEC.globalDepths;
 		return {
-			outgoingDepth: depths.outgoingDepth.default,
-			incomingDepth: depths.incomingDepth.default,
+			linkDepthOut: depths.linkDepthOut.default,
+			linkDepthIn: depths.linkDepthIn.default,
 		};
 	}
 

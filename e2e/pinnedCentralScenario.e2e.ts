@@ -99,7 +99,7 @@ async function openToolbar(): Promise<void> {
 /** Fires the stepper's real handler: in a headless window the panel can sit off-viewport. */
 async function bumpOutgoingDepth(): Promise<void> {
 	await depthSection()
-		.getByRole("button", { name: "Increase outgoing depth" })
+		.getByRole("button", { name: "Increase links out" })
 		.evaluate((el) => (el as HTMLButtonElement).click());
 }
 

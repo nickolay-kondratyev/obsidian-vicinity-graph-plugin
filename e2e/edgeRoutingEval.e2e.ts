@@ -99,7 +99,7 @@ test.beforeAll(async () => {
 	page.on("console", onConsole);
 	await harness.openGraphView();
 	// Depth 2 outgoing so sibling chords are walked, render, and load the router.
-	await harness.saveGlobalDepths({ outgoingDepth: 2, incomingDepth: 1 });
+	await harness.saveGlobalDepths({ linkDepthOut: 2, linkDepthIn: 1 });
 	fs.mkdirSync(OUT_DIR, { recursive: true });
 });
 

@@ -54,8 +54,8 @@ export interface DefaultSpec<T> {
 // ---------------------------------------------------------------------------
 
 export interface DepthSpec {
-	readonly outgoingDepth: BoundedNumberSpec;
-	readonly incomingDepth: BoundedNumberSpec;
+	readonly linkDepthOut: BoundedNumberSpec;
+	readonly linkDepthIn: BoundedNumberSpec;
 }
 
 export interface SizingSpec {
@@ -159,8 +159,8 @@ const NODE_SIZE_PX_BOUNDS = { min: 1, max: 400, step: 4 } as const;
 export const SETTINGS_SPEC: SettingsSpec = {
 	globalDepths: {
 		/** Depth defaults mirror Obsidian's local-graph default of 1 hop each way. */
-		outgoingDepth: { default: 1, ...DEPTH_STEPPER_BOUNDS },
-		incomingDepth: { default: 1, ...DEPTH_STEPPER_BOUNDS },
+		linkDepthOut: { default: 1, ...DEPTH_STEPPER_BOUNDS },
+		linkDepthIn: { default: 1, ...DEPTH_STEPPER_BOUNDS },
 	},
 	globalView: {
 		/**
