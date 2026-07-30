@@ -3,6 +3,7 @@ import { SerialPromiseChain } from "../shared/SerialPromiseChain";
 import type { PluginDataStore } from "../persistence/PluginDataStore";
 import type { SettingsResetConfirmation, SettingsResetScope } from "./settingsResetPlan";
 import { planSettingsReset, planSettingsResetConfirmation } from "./settingsResetPlan";
+import type { NonSettingsWriteSubject } from "./settingsWriteFailureNotice";
 import { SettingsWriteFailureNotice } from "./settingsWriteFailureNotice";
 import type { SettingsCommand, SettingsInteraction, SettingsWriteContext } from "./settingsWritePlan";
 import { planSettingsWrite } from "./settingsWritePlan";
@@ -38,6 +39,10 @@ import type { UserNoticePort, ViewsRefreshPort } from "./viewPorts";
  *    also what keeps a burst intact, because the debounce drain awaits its thunks in
  *    turn and a throw would abandon the rest of the window. Consequence, stated
  *    plainly: a resolved write promise means "attempted and reported", not "stored".
+ *
+ *    The policy covers `data.json` writes this pipeline does not itself plan, too —
+ *    {@link runGuarded} lends the same catch to the pinned set, so there is ONE `try`
+ *    for the file rather than one per subsystem.
  *
  *    "Exactly once" is PER FAILED WRITE, and deliberately not deduped across writes:
  *    an unwritable `data.json` notices every edit, and a reset with a pending typed
@@ -116,6 +121,27 @@ export class SettingsWritePipeline implements SerialSettingsWrites {
 	}
 
 	/**
+	 * A serialised `data.json` write that is NOT a settings command — today the pinned
+	 * set, which `ControlsActions` writes through `PersistenceServices`. Same chain
+	 * (two fast pin clicks must land in click order, and a pin must not interleave with
+	 * a settings write mid-save) and, crucially, the SAME failure policy (rule 5): the
+	 * task's rejection is caught HERE, named through the same copy seam, and never
+	 * re-thrown at the handler that `void`s this promise.
+	 *
+	 * WHY this exists at all, rather than callers catching around their own body: a
+	 * second `try` would be a second policy, free to drift on wording, on logging and on
+	 * whether it re-throws. The pinned set needs the policy MORE than settings do — the
+	 * pin is already in memory when the save fails, so the node goes on rendering as
+	 * pinned until a restart silently drops it.
+	 *
+	 * WHY-NOT fan out here like {@link write} does: the task owns its own fan-out,
+	 * because a write that never happened (a refused pin) must rebuild nothing.
+	 */
+	runGuarded(subject: NonSettingsWriteSubject, task: () => Promise<void>): Promise<void> {
+		return this.chain.run(() => this.guarded(SettingsWriteFailureNotice.forNonSettingsWrite(subject), task));
+	}
+
+	/**
 	 * What a reset scope must confirm before it runs, judged against the globals as
 	 * they are NOW — same fresh read as the write itself, so the modal cannot list
 	 * patterns a concurrent write has already changed.
@@ -174,17 +200,28 @@ export class SettingsWritePipeline implements SerialSettingsWrites {
 	 * being written — one interaction's row, or one reset scope.
 	 */
 	private async write(failureNotice: string, commands: readonly SettingsCommand[]): Promise<void> {
-		try {
+		await this.guarded(failureNotice, async () => {
 			for (const command of commands) {
 				await this.persist(command);
 			}
+		});
+		this.viewsRefresh.refreshAllViews();
+	}
+
+	/**
+	 * THE catch — the single place a `data.json` write turns into user-visible news.
+	 * Both the settings {@link write} body and {@link runGuarded}'s foreign body pass
+	 * through it, so "one failure policy" is one `try`, not two that agree today.
+	 */
+	private async guarded(failureNotice: string, body: () => Promise<void>): Promise<void> {
+		try {
+			await body();
 		} catch (error) {
-			// The message names the setting; the console keeps the cause (which is
+			// The message names what was being saved; the console keeps the cause (which is
 			// Obsidian's, and not something the notice could honestly paraphrase).
-			console.error(`vicinity-graph: settings write failed notice=[${failureNotice}]`, error);
+			console.error(`vicinity-graph: data.json write failed notice=[${failureNotice}]`, error);
 			this.notices.show(failureNotice);
 		}
-		this.viewsRefresh.refreshAllViews();
 	}
 
 	/** The single persistence executor — every settings command writes `data.json`. */

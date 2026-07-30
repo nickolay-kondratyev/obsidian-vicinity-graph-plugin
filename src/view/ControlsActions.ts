@@ -3,6 +3,7 @@ import type { ViewSettings } from "../engine";
 import type { PersistableIdentity } from "../persistence/DocPersistEligibility";
 import type { PersistenceServices } from "../persistence/PersistenceServices";
 import type { SettingsResetScope } from "./settingsResetPlan";
+import type { NonSettingsWriteSubject } from "./settingsWriteFailureNotice";
 import type { SettingsWritePipeline } from "./settingsWritePipeline";
 import type { SettingsInteraction } from "./settingsWritePlan";
 import type { ControlsActionsPort, UserNoticePort, ViewsRefreshPort } from "./viewPorts";
@@ -13,15 +14,24 @@ import type { ControlsActionsPort, UserNoticePort, ViewsRefreshPort } from "./vi
  * {@link SettingsWritePipeline} — the same object the settings tab writes through —
  * so the panel and the tab cannot drift on serialisation, merge base or fan-out.
  *
- * Pins run on the pipeline's chain too: they are `data.json` writes like any other,
- * so two fast pin/unpin clicks must land in CLICK order, and the panel's settings
- * edits must not interleave with them mid-write.
+ * Pins run on the pipeline's chain too, through its GUARDED seam: they are `data.json`
+ * writes like any other, so two fast pin/unpin clicks must land in CLICK order, the
+ * panel's settings edits must not interleave with them mid-write, and a pin that never
+ * reaches disk is reported by the same one policy a failed settings edit is. There is
+ * deliberately no `try` here — see `SettingsWritePipeline.runGuarded`.
  *
  * NOTHING rebuilds when the write did not land ({@link WriteOutcome}): no rendered
  * state changed, so a rebuild could only redisplay what is on screen.
  */
 
 const NOT_PINNABLE_NOTICE = "This note can't be pinned (no stable id).";
+
+/**
+ * What a failed pinned-set save is ANNOUNCED as. Only the subject lives here — the
+ * sentence is `settingsWriteFailureNotice.ts`'s, and the WHEN is the pipeline's, so
+ * this class states no failure policy of its own.
+ */
+const PIN_WRITE_SUBJECT: NonSettingsWriteSubject = "pinned-set";
 
 /**
  * Whether a requested write actually reached storage. A refused doc (no stable
@@ -65,7 +75,7 @@ export class ControlsActions implements ControlsActionsPort {
 	}
 
 	pinNode(path: string): Promise<void> {
-		return this.settingsWrites.runSerialised(async () => {
+		return this.settingsWrites.runGuarded(PIN_WRITE_SUBJECT, async () => {
 			const file = this.vault.getFileByPath(path);
 			if (file === null) {
 				return;
@@ -80,7 +90,7 @@ export class ControlsActions implements ControlsActionsPort {
 
 	/** Unpinning always lands: `unpinDoc` removes the pin unconditionally and reports no verdict. */
 	unpinNode(docid: string): Promise<void> {
-		return this.settingsWrites.runSerialised(async () => {
+		return this.settingsWrites.runGuarded(PIN_WRITE_SUBJECT, async () => {
 			await this.persistenceServices.unpinDoc(docid);
 			this.refreshEveryView();
 		});

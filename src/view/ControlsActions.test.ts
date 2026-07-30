@@ -6,9 +6,12 @@ import { FakePluginDataPort } from "../persistence/FakePluginDataPort";
 import { PathDocIdMap } from "../persistence/PathDocIdMap";
 import { PersistenceServices } from "../persistence/PersistenceServices";
 import { PluginDataStore } from "../persistence/PluginDataStore";
+import { RejectingPluginDataPort } from "../persistence/RejectingPluginDataPort";
+import type { PluginDataPort } from "../persistence/storagePorts";
 import { ControlsActions } from "./ControlsActions";
 import { FakeUserNotices } from "./FakeUserNotices";
 import { FakeViewsRefresh } from "./FakeViewsRefresh";
+import { SettingsWriteFailureNotice } from "./settingsWriteFailureNotice";
 import { SettingsWritePipeline } from "./settingsWritePipeline";
 
 /**
@@ -46,8 +49,8 @@ const VAULT: VaultPort = {
 	cachedRead: () => Promise.resolve(""),
 };
 
-async function actionsUnderTest() {
-	const pluginDataStore = new PluginDataStore(new FakePluginDataPort());
+async function actionsUnderTest(dataPort: PluginDataPort = new FakePluginDataPort()) {
+	const pluginDataStore = new PluginDataStore(dataPort);
 	await pluginDataStore.init();
 	const docIdPort = new FakeDocIdPort({ [MAIN_PATH]: MAIN_DOCID });
 	docIdPort.markUnidentifiable(ID_LESS_PATH);
@@ -138,5 +141,32 @@ describe("ControlsActions pinning", () => {
 		const { actions, notices } = await actionsUnderTest();
 		await actions.pinNode(MAIN_PATH);
 		expect(notices.messages).toEqual([]);
+	});
+});
+
+/**
+ * The pinned set is a `data.json` write like any setting, so it owes the user the
+ * SAME failure policy — and needs it more: `PluginDataStore.persist()` moves the pin
+ * in memory before the disk write, so the node keeps rendering as pinned until a
+ * restart quietly drops it. The policy itself lives in the pipeline
+ * (`settingsWritePipeline.test.ts`); these pin the pin path onto it.
+ */
+describe("ControlsActions pinning when data.json cannot be written", () => {
+	it("WHEN a pin's persist rejects THEN the user is told exactly once", async () => {
+		const { actions, notices } = await actionsUnderTest(new RejectingPluginDataPort());
+		await actions.pinNode(MAIN_PATH);
+		expect(notices.messages).toEqual([SettingsWriteFailureNotice.forNonSettingsWrite("pinned-set")]);
+	});
+
+	it("WHEN a pin's persist rejects THEN the (fire-and-forget) caller's promise resolves", async () => {
+		// `NoteNode` `void`s this promise, so a rejection here is an unhandled rejection.
+		const { actions } = await actionsUnderTest(new RejectingPluginDataPort());
+		await expect(actions.pinNode(MAIN_PATH)).resolves.toBeUndefined();
+	});
+
+	it("WHEN an unpin's persist rejects THEN the user is told exactly once", async () => {
+		const { actions, notices } = await actionsUnderTest(new RejectingPluginDataPort());
+		await actions.unpinNode(MAIN_DOCID);
+		expect(notices.messages).toEqual([SettingsWriteFailureNotice.forNonSettingsWrite("pinned-set")]);
 	});
 });

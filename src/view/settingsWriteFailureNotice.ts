@@ -5,6 +5,25 @@ import { EVERY_SETTINGS_ROW, unhandledRowControl } from "./settingsRows";
 import type { SettingsInteraction } from "./settingsWritePlan";
 
 /**
+ * A serialised `data.json` write that is NOT a settings command, and so has no row to
+ * be named after. Today only the pinned set (`ControlsActions.pinNode`/`unpinNode`,
+ * which run on the pipeline's chain through `SettingsWritePipeline.runGuarded`).
+ *
+ * A closed union rather than a caller-supplied string: the subject is USER-VISIBLE
+ * copy, and the whole point of this module is that no call site types any.
+ */
+export type NonSettingsWriteSubject = "pinned-set";
+
+/**
+ * The label each {@link NonSettingsWriteSubject} is announced by. Hand-written (there
+ * is no declared row to read it from), which is exactly why it is HERE — the one file
+ * that owns write-failure copy — and not at the call site.
+ */
+const NON_SETTINGS_WRITE_LABELS: Readonly<Record<NonSettingsWriteSubject, string>> = {
+	"pinned-set": "Pinned notes",
+};
+
+/**
  * WHAT THE USER IS TOLD when a settings write does not reach `data.json` — the copy
  * half of the ONE failure policy `SettingsWritePipeline` applies (the pipeline owns
  * WHEN a notice is shown; this owns WHAT it says).
@@ -39,6 +58,15 @@ export class SettingsWriteFailureNotice {
 		return SettingsWriteFailureNotice.notice(
 			SettingsWriteFailureNotice.rowLabel(SettingsWriteFailureNotice.controlFor(interaction)),
 		);
+	}
+
+	/**
+	 * One NON-settings `data.json` write that never reached disk (the pinned set). Same
+	 * sentence as a settings failure on purpose: it is the same file, the same loss and
+	 * the same remedy, so a second phrasing would only make the two look unrelated.
+	 */
+	static forNonSettingsWrite(subject: NonSettingsWriteSubject): string {
+		return SettingsWriteFailureNotice.notice(NON_SETTINGS_WRITE_LABELS[subject]);
 	}
 
 	/** One restore-defaults scope that never reached disk. */
