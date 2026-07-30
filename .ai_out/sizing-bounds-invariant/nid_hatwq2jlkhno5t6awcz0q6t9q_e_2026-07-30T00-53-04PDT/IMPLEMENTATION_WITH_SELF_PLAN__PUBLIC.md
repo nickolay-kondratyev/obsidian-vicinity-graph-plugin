@@ -1,4 +1,53 @@
-# IMPLEMENTATION_WITH_SELF_PLAN — PUBLIC (iteration 2: review response)
+# IMPLEMENTATION_WITH_SELF_PLAN — PUBLIC
+
+## Iteration 3 (round-2 APPROVED; this is the single non-blocking suggestion)
+
+**Disposition: FIXED the behaviour, not the prose.** The reviewer's option A taken.
+
+`src/view/numberRowCommit.ts` — `reseedsFromStore` is now `this.refusal === undefined`
+(was `value === null && refusal === undefined`). The comment that claimed the field
+"always ends up showing the STORED number" is now TRUE by construction rather than by
+assertion.
+
+**Why fixing beat softening.** The claim was false because a WRITE is no guarantee that the
+row moves. Two ways that happens, both leaving the box holding a number the plugin never
+stored, with no message beside it:
+1. the reviewer's corner — a field sitting at a `NODE_SIZE_PX_BOUNDS` bound (1/400), typed
+   past it: `judge()` accepts, `settlesAt` caps back onto the stored value, `PendingEdits`
+   settles instantly, `shown` never moves, no outer `key={shown}` remount;
+2. a respelling — `007` over a stored `7`.
+Softening the prose would have documented both as intended. They are not.
+
+**Regression check (the prompt asked for one) — none.** On an ordinary accepted write the
+store echo remounts the whole field via `NumberRow`'s `key={shown}`, so the extra
+`setReseeds` request lands on an already-replaced component; `setRefusal`/`onCommit`/
+`setReseeds` batch into one render either way. The reseed only ever fires on BLUR, i.e.
+after the user has finished with the field, so it cannot clobber a number being typed. A
+REFUSED commit still keeps its text — that is what the reason is about — and that exception
+is exactly what the new one-line rule expresses.
+
+**Started RED**: 2 tests in `src/view/numberRowCommit.test.ts` failed against the old rule.
+
+**Behaviour-capturing test rewritten (called out):** "WHEN a value is written THEN the field
+is NOT reseeded" asserted the old rule and is now its opposite — that IS the behaviour this
+iteration changes, and the new test says why the redundant reseed is free.
+
+| File | What |
+|---|---|
+| `src/view/numberRowCommit.ts` | `reseedsFromStore` rule + 3 corrected doc blocks |
+| `src/view/numberRowCommit.test.ts` | +1 BDD test (capped-onto-stored), 1 rewritten |
+| `src/view/SettingsRowView.tsx` | the `reseeds`-key comment now states the true reason |
+| `CLAUDE.md` | line 44 restates the reseed rule |
+
+Ticket `nid_hatwq2jlkhno5t6awcz0q6t9q_e`: correcting `add-note` appended (the iteration-1
+note over-claimed the same way). Ticket left OPEN, no change_log entry.
+
+Gates: `npm run check` **exit 0**; `npm test` **95 files / 1272 tests passed**, exit 0
+(was 1271). `npm run test:e2e` not run (release gate; `grep -rn "number-row" e2e/` empty).
+
+---
+
+## Iteration 2 record (review response)
 
 Ticket `nid_hatwq2jlkhno5t6awcz0q6t9q_e`. Iteration 1 delivered the engine + panel halves
 (see the git history and the sections at the bottom of this file). Iteration 2 answers the

@@ -26,7 +26,7 @@ import type { SizingRowVerdict } from "./sizingRowWrite";
 
 /**
  * What a blur does: at most one write, plus at most one thing to say about it —
- * and, when it does NEITHER, an instruction to put the stored value back in the box.
+ * and, unless it refused, an instruction to put the stored value back in the box.
  *
  * A class with named factories rather than three object literals, so
  * {@link reseedsFromStore} is DERIVED in one place and cannot drift from the case
@@ -42,9 +42,9 @@ export class NumberRowCommit {
 		 * Refusals ONLY. The panel deliberately does not carry the settings tab's
 		 * "Stored as N — the allowed range is …" notice: the tab keeps the typed text in
 		 * its field, so without that sentence it would show a number the plugin replaced,
-		 * whereas the panel's field always ends up showing the STORED number — by the
-		 * store echo after a write, and by {@link reseedsFromStore} after a non-write —
-		 * and so states the same fact by simply being read.
+		 * whereas every commit the panel does NOT refuse ends by putting the stored
+		 * number back in the box ({@link reseedsFromStore}) — so the field states the
+		 * same fact by simply being read.
 		 */
 		readonly refusal: string | undefined,
 	) {}
@@ -67,14 +67,23 @@ export class NumberRowCommit {
 	/**
 	 * `true` ⇒ the field must be RESEEDED with the stored value.
 	 *
-	 * Exactly the commit that writes nothing and says nothing: no write means no store
-	 * echo will ever repaint the row, and no refusal means there is no message giving
-	 * the leftover text a meaning — so a field left blank would sit there contradicting
-	 * a setting that still holds a number. A REFUSED commit keeps the typed text on
-	 * purpose: it is what the reason is about.
+	 * Every commit except a refused one — because a commit that says nothing leaves the
+	 * typed text with no meaning of its own, and the store is then the only thing that
+	 * can give the box one. WHY NOT the narrower "wrote nothing AND said nothing": a
+	 * write is no guarantee that the row will move. Nothing is stored when the text was
+	 * blank or mid-edit, and nothing MOVES when the write path caps the typed number
+	 * back onto the value already stored (a field sitting at a range bound, typed past
+	 * it) or when the text merely spelled that value differently (`007`). All three end
+	 * with the box holding something the plugin did not store and no message about it.
+	 *
+	 * Reseeding the ordinary accepted write on top of the store echo costs nothing: the
+	 * echo replaces the whole field anyway (`NumberRow`'s `key={shown}`), so the extra
+	 * remount request lands on an already-replaced component.
+	 *
+	 * A REFUSED commit keeps the typed text on purpose: it is what the reason is about.
 	 */
 	get reseedsFromStore(): boolean {
-		return this.value === null && this.refusal === undefined;
+		return this.refusal === undefined;
 	}
 }
 

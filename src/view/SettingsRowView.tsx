@@ -236,7 +236,8 @@ function NumberField({
 	const refusalId = useId();
 	// Counts the commits that put the STORED value back in the box (see
 	// `NumberRowCommit.reseedsFromStore`). Reseeding an uncontrolled input is a remount,
-	// and `stored` did not move on such a commit, so the key needs something that did.
+	// and such a commit may leave `stored` exactly where it was, so the key needs
+	// something that always moves.
 	const [reseeds, setReseeds] = useState(0);
 	return (
 		<div className="vicinity-graph-number-row-block">

@@ -111,3 +111,11 @@ FOLLOW-UP FILED: nid_9uzrvqv0k5qgckgdaqtgr41ky_e -- the per-metric WEIGHT input 
 SizingMetricRow has its own markup and is still controlled/per-keystroke.
 
 npm run check green; npm test 1265 passed.
+
+**2026-07-30T08:38:29Z**
+
+CORRECTION to the iteration-1 note (round-2 review, non-blocking item).
+
+That note claimed the panel's number field "always ends up showing the STORED number — by the store echo after a write, and by the reseed after a non-write". The second half was over-claimed: a WRITE is no guarantee that the row moves. A field already sitting at a NODE_SIZE_PX_BOUNDS bound (1 / 400) and typed past it is accepted (`rejected: false` + a cap notice the panel discards), the optimistic `settlesAt` lands back on the stored number so nothing echoes, and the old rule (reseed only when the commit wrote nothing AND said nothing) left the box holding an unstored number with no message. Same for text that merely respells the stored value (`007`).
+
+Fixed rather than softened: `NumberRowCommit.reseedsFromStore` is now `this.refusal === undefined` — reseed after EVERY commit the panel did not refuse. No regression on the ordinary accepted write: `NumberRow`'s `key={shown}` already replaces the whole field on a store echo, so the extra remount request lands on an already-replaced component; a refused commit still keeps the typed text, which is what its reason is about. Started RED in src/view/numberRowCommit.test.ts (2 failing), and the doc comment in src/view/numberRowCommit.ts now states the rule as implemented.

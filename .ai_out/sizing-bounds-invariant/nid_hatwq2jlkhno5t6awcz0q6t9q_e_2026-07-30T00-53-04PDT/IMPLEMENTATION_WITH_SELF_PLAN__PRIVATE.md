@@ -1,12 +1,25 @@
 # PRIVATE memory — nid_hatwq2jlkhno5t6awcz0q6t9q_e (sizing bounds invariant)
 
-STATUS: **DONE, iteration 2 (review response) complete**. 5 commits on
-`nid_hatwq2jlkhno5t6awcz0q6t9q_e_2026-07-30T00-53-04PDT`, tree clean,
-`npm run check` exit 0 / `npm test` 95 files 1271 tests green. Ticket NOT closed and NO
-change_log entry — both are the top-level agent's job.
+STATUS: **DONE, iteration 3 complete** (round-2 APPROVED; iter 3 = the one non-blocking
+suggestion). Tree clean, `npm run check` exit 0 / `npm test` 95 files **1272** tests green.
+Ticket NOT closed and NO change_log entry — both are the top-level agent's job.
 
 Commits: `f3b008e` engine, `5f20f9f` view, `8d0bd6c` docs (iter 1);
-`7192074` review fixes, `2141741` doc limits (iter 2).
+`7192074` review fixes, `2141741` doc limits (iter 2); iter 3 = the reseed-rule commit.
+
+## Iteration 3: the capped-commit corner — FIXED, not softened
+`NumberRowCommit.reseedsFromStore` is now `this.refusal === undefined` (was
+`value === null && refusal === undefined`). A WRITE is no guarantee the row moves:
+`settlesAt` caps back onto the stored number when the field already sits at a
+`NODE_SIZE_PX_BOUNDS` bound, so `PendingEdits` settles instantly, `shown` never moves,
+no outer `key={shown}` remount happens — the box kept an unstored number with no message.
+Same for a respelling (`007`).
+Evaluated for regression and there is none: on an ordinary accepted write the store echo
+already replaces the whole field, so the extra `setReseeds` lands on an already-replaced
+component (both updates batch in one render). A REFUSED commit still keeps its text.
+Started RED (2 failing in `numberRowCommit.test.ts`). One behavior-capturing test
+("a value is written THEN NOT reseeded") was rewritten — that IS the changed behavior.
+Ticket got a correcting `add-note`; CLAUDE.md line 44 restated.
 
 ## Iteration 2: all three SHOULD-FIX items accepted, none rejected
 1. Dead seeded refusal → `useState<string|undefined>(undefined)`; comment now says WHY

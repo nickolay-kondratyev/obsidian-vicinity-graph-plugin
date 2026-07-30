@@ -96,8 +96,20 @@ describe("NumberRowCommitPolicy: text that is not a value yet", () => {
 });
 
 describe("NumberRowCommitPolicy: what the field is left showing", () => {
-	it("WHEN a value is written THEN the field is NOT reseeded (the store echo repaints it)", () => {
-		expect(sizingPolicy("minPx").commit("60").reseedsFromStore).toBe(false);
+	it("WHEN a value is written THEN the field is reseeded from the store", () => {
+		// Redundant in the ordinary case — the store echo remounts the row anyway — but it
+		// is the ONE rule that also covers the case below, where nothing echoes.
+		expect(sizingPolicy("minPx").commit("60").reseedsFromStore).toBe(true);
+	});
+
+	it("WHEN a written value is CAPPED back onto the stored one THEN the field is still reseeded", () => {
+		// The corner the "store echo repaints it" reasoning misses: a field already sitting
+		// at the range ceiling, typed past it. The write path caps back to the stored number,
+		// so nothing about the row moves — without the reseed the box keeps an unstored
+		// number with no message beside it.
+		expect(sizingPolicy("maxPx", { maxPx: SIZING_RANGES.maxPx.max }).commit(String(ABOVE_MAX_PX)).reseedsFromStore).toBe(
+			true,
+		);
 	});
 
 	it("WHEN a value is REFUSED THEN the field is NOT reseeded (the typed text stands beside the reason)", () => {
