@@ -54,6 +54,37 @@ mention `SETTINGS_GROUPS` and `SETTINGS_SECTIONS`; (d) vacuity length check usin
 recorded on `nid_7qot0m6nuxxmd5z0yb9jylsd6_e` instead. Not blocking — a render harness is the
 only real fix and it is an explicitly out-of-scope ticket.
 
+## ROUND 2 (fresh instance, commit `9dee711`) — CONVERGED
+
+Findings file: `IMPLEMENTATION_REVIEW_ROUND2__PUBLIC.md`. 0 BLOCKING, 1 SHOULD-FIX (get the
+owner's yes on widening "SMALL" → all 21, on the TICKET not just in `.ai_out/`), 2 NITs
+(the 4-vs-7 geometry-observability prose is now duplicated 3×; one `it` covers 21 behaviors).
+
+What I ran (all reverted; `git status` clean):
+1. `npm run check` exit 0 (`.tmp/r2-check.log`); `npm test` exit 0, **91 files / 1160 tests**
+   (`.tmp/r2-test.log`). Claim confirmed.
+2. `it(`-count audit: productDefaults 8→3, forceLayout 4→5, specBounds 10→9, parity 5→6 =
+   net −4. 1164−4=1160. Accounting honest, no behavior lost (the derived "own-file-size only"
+   assertion is now stronger — every metric's `enabled` is in the table).
+3. Q1 file-count experiment (`.tmp/r2_default_mut.py`, `.tmp/r2_mut2.py`): nodeCap 100→250,
+   centerPullStrength 0.05→0.15, linkStrengthFactor.max 4→8 each fail **exactly one file, one
+   test** (`settingsProductDefaults.test.ts`). minPx 40→30 fails 2 (the extra is the
+   pre-existing `persistedShapes.test.ts` fixture-must-differ guard, not a value mirror).
+   Grep confirms NO other default/range literal survives in any `src/**/*.test.ts*`.
+   => VERDICT: all-21 table is ACCEPTABLE, not a staleness regression. Extra properties a
+   small set cannot have: added/removed-leaf detection; no per-field judgement to re-measure.
+   Caveat is purely the CLAUDE.md "deviation needs human yes" rule.
+4. Q2 parity teeth (`.tmp/r2_parity_mut.py`), 3 mutations, all REDDEN by name:
+   panel `if (row.label === "Node cap") return <></>` → label-scan test; same skip in the tab →
+   label-scan test; `case "node-cap":` commented out in the panel → kind-`case` test.
+   Mutation 1 is the exact one that passed in their first cut — module-keying fix is real.
+5. Vacuity sweep of the new scan code: `new Set(Object.values(...))` kills the collision class;
+   `source()` only removes text so false FAILURES only (safe direction); `readFileSync` throws
+   on rename; label-scan zero-length is guarded by the `EVERY_SETTINGS_ROW.length >
+   SETTINGS_SECTIONS.length` check; defaults `toEqual` is non-vacuous by construction.
+6. e2e untouched, `package.json` untouched (no harness), no production source changed.
+7. NIT 5 rejection judged reasonable (repo-wide convention call, owner's).
+
 ## Housekeeping
 
 - `.ai_out/.../TOP_LEVEL_AGENT.md` showed as modified in `git status` throughout my session; I
