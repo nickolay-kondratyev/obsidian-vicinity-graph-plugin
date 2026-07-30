@@ -14,9 +14,14 @@ import { PendingEdits } from "./optimisticValue";
  *   React's own documented answer for "derive from a changed prop"; an effect would
  *   paint one frame of the stale value first, which is the flicker this exists to
  *   avoid.
- * - Releasing the override when the write is ABANDONED, so a failed `data.json`
- *   write cannot leave the control showing a value that was never stored. The
- *   rejection is logged here because a control's `onChange` has nowhere to put it.
+ * - Releasing the override if `commit` REJECTS, so a control can never be left
+ *   holding an override no write will ever confirm. Note what this is NOT: a
+ *   rejected `data.json` write is handled once, in `SettingsWritePipeline` (which
+ *   notices the user and resolves), so today's `commit` — every one of them routes
+ *   there — does not reject. This guards the `commit` PROP, which is an injected
+ *   `(value) => Promise<void>` this hook knows nothing else about; it raises no
+ *   user-visible message, because that is the pipeline's job and duplicating it
+ *   would mean two notices for one failure.
  *
  * @param stored the value as the latest snapshot has it — the authority
  * @param commit persists the requested value (returns once the write has landed)
@@ -41,7 +46,9 @@ export function useOptimisticValue<T>(
 		// A later request in the same burst keeps the baseline the first one recorded.
 		setPending((current) => current.requesting(value, stored, settlesAt(value)));
 		void commit(value).catch((error: unknown) => {
-			console.error("vicinity-graph: failed to persist a settings change", error);
+			// Not the settings-write failure log: that one is the pipeline's, and it
+			// carries the notice. Reaching here means an injected `commit` rejected.
+			console.error("vicinity-graph: an optimistic commit rejected", error);
 			setPending((current) => current.abandoned());
 		});
 	};

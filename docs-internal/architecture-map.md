@@ -52,7 +52,9 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   so context is the only channel). `NodeOutline.tsx` owns in-node outline
   rendering — the tree/label/markup decisions and `node-outline.css`.
   Refresh reach is ONE port: `ViewsRefreshPort` (implemented in `main.ts` over
-  `refreshOpenViews()`) rebuilds every open view. Every settings write is global,
+  `refreshOpenViews()`) rebuilds every open view. `UserNoticePort` is the same
+  shape for the one user-visible message surface (`Notice`, also implemented in
+  `main.ts`); `FakeViewsRefresh` / `FakeUserNotices` are their test doubles. Every settings write is global,
   so there is no narrower reach to choose — the write-scope classifier and the
   owning-view port went with the per-doc layer.
 - `view/settingsWritePipeline.ts` — **THE settings write path**, one instance per
@@ -62,6 +64,20 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   `ViewsRefreshPort` fan-out. Surfaces send a `SettingsInteraction` naming ONE
   field — never a ready-made command, never a whole slice — because a merge base
   captured before the write reverts whatever sibling field moved in between.
+  It also owns the ONE failure policy: a rejected persist is caught in
+  `write()`, reported ONCE through `UserNoticePort` (copy from
+  `view/settingsWriteFailureNotice.ts`, which reads the failed row's declared label
+  or the reset scope's) and never re-thrown — call sites `void` their write
+  promises, and a throw would strand the rest of a debounce window. So a resolved
+  write promise means "attempted and reported", not "stored"; the fan-out runs
+  either way, so views repaint what the STORE holds — which after a rejected persist
+  is still the value that never reached disk (`PluginDataStore` moves in-memory
+  state before the write; whether it should roll back is ticket
+  `nid_biwdtykvazsk3ejcqqli8o9j7_e`). There is no snap-back, which is exactly why
+  the notice is the only signal. No try/catch belongs at a call site — the three
+  pre-existing ones (`useOptimisticValue`, the tab's `settlePendingWrites`,
+  `SettingsResetSequence.tolerating`) guard their own INJECTED seams, not this
+  policy, and each says so.
   Companion pieces: `settingsResetSequence.ts` (restore-defaults ORDER: flush
   typed edits → write defaults → flush again → drain the chain → rebuild the
   controls; the last three run even when the write failed) and

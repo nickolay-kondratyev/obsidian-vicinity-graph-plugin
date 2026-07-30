@@ -301,9 +301,13 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	 * that re-reads the globals (a reset, a re-render), because a write still inside
 	 * the window would otherwise drain afterwards and quietly undo part of it.
 	 *
-	 * Swallowing-with-a-log is deliberate: a failed `data.json` write must not abort
-	 * the reset the user just asked for, and `flush()`'s rejection has nowhere else
-	 * to go — the alternative is the unhandled rejection this replaces.
+	 * Swallowing-with-a-log is deliberate, and it is NOT the settings failure policy:
+	 * a rejected `data.json` write is caught, reported and resolved inside
+	 * `SettingsWritePipeline`, so it never reaches here. What can still reach here is
+	 * the seam — `flush()` runs caller-supplied thunks through a `SerialSettingsWrites`
+	 * interface — and a rejection from there must not abort the reset or the re-render
+	 * this is awaited before, nor become an unhandled rejection in a blur handler. No
+	 * notice is raised: the pipeline owns the ONE user-visible message.
 	 */
 	private async settlePendingWrites(): Promise<void> {
 		try {

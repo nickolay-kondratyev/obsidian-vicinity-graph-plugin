@@ -67,6 +67,22 @@ export interface ViewsRefreshPort {
 }
 
 /**
+ * Tells the USER something they must know — one transient message, Obsidian's
+ * `Notice`. Behind a port for the same reason {@link ViewsRefreshPort} is: the code
+ * that DECIDES a message is warranted (today `SettingsWritePipeline`, whose failure
+ * policy lives in one place) is unit-tested with no obsidian runtime, over
+ * `FakeUserNotices`. Implemented in `main.ts`, the class that already owns the
+ * plugin's obsidian surface.
+ *
+ * Deliberately message-only: no title, no duration, no severity. A caller that wants
+ * to say more says it in the message, so there is no notice VOCABULARY to keep
+ * consistent across surfaces.
+ */
+export interface UserNoticePort {
+	show(message: string): void;
+}
+
+/**
  * Runs the elk layout on an elk graph, returning it annotated with coordinates.
  * `forceLayout` carries the build's resolved tuning values into the d3-force
  * root refinement; when omitted the implementation uses the engine defaults.

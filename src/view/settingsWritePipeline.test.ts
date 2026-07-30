@@ -2,9 +2,12 @@ import { describe, expect, it } from "vitest";
 import { EngineDefaults } from "../engine";
 import { FakePluginDataPort } from "../persistence/FakePluginDataPort";
 import { PluginDataStore } from "../persistence/PluginDataStore";
+import type { PluginDataPort } from "../persistence/storagePorts";
+import { FakeUserNotices } from "./FakeUserNotices";
 import { FakeViewsRefresh } from "./FakeViewsRefresh";
 import type { DebounceScheduler } from "./settingsDebounce";
 import { DebouncedSettingsWrites } from "./settingsDebounce";
+import { SettingsWriteFailureNotice } from "./settingsWriteFailureNotice";
 import { SettingsWritePipeline } from "./settingsWritePipeline";
 
 /**
@@ -27,8 +30,9 @@ function pipelineUnderTest() {
 	const port = new FakePluginDataPort();
 	const store = new PluginDataStore(port);
 	const viewsRefresh = new FakeViewsRefresh(OPEN_VIEW_IDS);
-	const pipeline = new SettingsWritePipeline(store, viewsRefresh);
-	return { store, viewsRefresh, pipeline };
+	const notices = new FakeUserNotices();
+	const pipeline = new SettingsWritePipeline(store, viewsRefresh, notices);
+	return { store, viewsRefresh, notices, pipeline };
 }
 
 describe("SettingsWritePipeline fresh-read merge base", () => {
@@ -93,9 +97,11 @@ describe("SettingsWritePipeline fan-out", () => {
 		// every open view would repaint what was already on screen.
 		const store = new PluginDataStore(new FakePluginDataPort());
 		const capAtEachFanOut: number[] = [];
-		const pipeline = new SettingsWritePipeline(store, {
-			refreshAllViews: () => capAtEachFanOut.push(store.globalView().nodeCap),
-		});
+		const pipeline = new SettingsWritePipeline(
+			store,
+			{ refreshAllViews: () => capAtEachFanOut.push(store.globalView().nodeCap) },
+			new FakeUserNotices(),
+		);
 		await pipeline.apply({ kind: "global-cap", value: 42 });
 		await pipeline.restoreDefaults("performance");
 		expect(capAtEachFanOut).toEqual([42, EngineDefaults.viewSettings().nodeCap]);
@@ -178,5 +184,97 @@ describe("SettingsWritePipeline serialised tasks", () => {
 		void pipeline.apply({ kind: "global-cap", value: 11 });
 		await pipeline.runSerialised((writer) => writer.apply({ kind: "global-cap", value: 22 }));
 		expect(store.globalView().nodeCap).toBe(22);
+	});
+});
+
+/* ========================================================================== *
+ * Failure policy
+ * ========================================================================== */
+
+/** What a locked vault / full disk looks like from here: `saveData` rejects. */
+const SAVE_FAILURE = new Error("data.json could not be written");
+
+/**
+ * A `data.json` port whose saves REJECT, counting the attempts — the count is what
+ * shows that a failed write did not take the writes queued behind it down with it.
+ */
+class RejectingPluginDataPort implements PluginDataPort {
+	saveAttempts = 0;
+
+	async loadData(): Promise<unknown> {
+		return null;
+	}
+
+	saveData(): Promise<void> {
+		this.saveAttempts += 1;
+		return Promise.reject(SAVE_FAILURE);
+	}
+}
+
+const A_DEPTH_INTERACTION = { kind: "global-depth", field: "linkDepthIn", value: 2 } as const;
+
+function failingPipelineUnderTest() {
+	const port = new RejectingPluginDataPort();
+	const store = new PluginDataStore(port);
+	const notices = new FakeUserNotices();
+	const pipeline = new SettingsWritePipeline(store, new FakeViewsRefresh(OPEN_VIEW_IDS), notices);
+	return { port, notices, pipeline };
+}
+
+/**
+ * The ONE failure policy: a persist that never lands must be VISIBLE (nothing else shows
+ * it — the store moved in memory before the disk write, so the control and every view go
+ * on displaying the value `data.json` does not have) and must be CONTAINED (one bad write
+ * may not reject its caller into an unhandled rejection, nor strand the writes queued
+ * behind it).
+ */
+describe("SettingsWritePipeline failed writes", () => {
+	it("WHEN a persist rejects THEN the user is told exactly once", async () => {
+		const { notices, pipeline } = failingPipelineUnderTest();
+		await pipeline.apply(A_DEPTH_INTERACTION);
+		expect(notices.messages).toEqual([SettingsWriteFailureNotice.forInteraction(A_DEPTH_INTERACTION)]);
+	});
+
+	it("WHEN a multi-command restore's first persist rejects THEN the user is told ONCE for the scope", async () => {
+		const { notices, pipeline } = failingPipelineUnderTest();
+		await pipeline.restoreDefaults("all");
+		expect(notices.messages).toEqual([SettingsWriteFailureNotice.forReset("all")]);
+	});
+
+	it("WHEN a persist rejects THEN the write does not reject its (fire-and-forget) caller", async () => {
+		const { pipeline } = failingPipelineUnderTest();
+		// Every call site `void`s this promise; a rejection here is an unhandled one.
+		await expect(pipeline.apply(A_DEPTH_INTERACTION)).resolves.toBeUndefined();
+	});
+
+	it("WHEN a persist rejects THEN a write queued behind it is still attempted", async () => {
+		const { port, pipeline } = failingPipelineUnderTest();
+		void pipeline.apply(A_DEPTH_INTERACTION);
+		await pipeline.apply({ kind: "global-cap", value: 42 });
+		expect(port.saveAttempts).toBe(2);
+	});
+
+	it("WHEN a debounced drain's first write fails THEN the next field in the same window is still written", async () => {
+		// The drain awaits each thunk in turn, so a THROWN write would abandon the rest
+		// of the burst — the user's last keystroke would be dropped without a word.
+		const { port, pipeline } = failingPipelineUnderTest();
+		const debounced = new DebouncedSettingsWrites(DEBOUNCE_DELAY_MS, pipeline, NEVER_FIRING_SCHEDULER);
+		debounced.schedule("Minimum node size (px)", (writer) =>
+			writer.apply({ kind: "global-sizing-number", field: "minPx", value: 30 }),
+		);
+		debounced.schedule("Node cap", (writer) => writer.apply({ kind: "global-cap", value: 42 }));
+		await debounced.flush();
+		expect(port.saveAttempts).toBe(2);
+	});
+
+	it("WHEN a persist rejects THEN every open view is refreshed anyway (it must show what IS stored)", async () => {
+		const viewsRefresh = new FakeViewsRefresh(OPEN_VIEW_IDS);
+		const pipeline = new SettingsWritePipeline(
+			new PluginDataStore(new RejectingPluginDataPort()),
+			viewsRefresh,
+			new FakeUserNotices(),
+		);
+		await pipeline.apply(A_DEPTH_INTERACTION);
+		expect(viewsRefresh.refreshedViewIds).toEqual([...OPEN_VIEW_IDS]);
 	});
 });

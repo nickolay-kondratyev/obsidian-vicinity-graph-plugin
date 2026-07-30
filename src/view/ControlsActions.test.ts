@@ -7,6 +7,7 @@ import { PathDocIdMap } from "../persistence/PathDocIdMap";
 import { PersistenceServices } from "../persistence/PersistenceServices";
 import { PluginDataStore } from "../persistence/PluginDataStore";
 import { ControlsActions } from "./ControlsActions";
+import { FakeUserNotices } from "./FakeUserNotices";
 import { FakeViewsRefresh } from "./FakeViewsRefresh";
 import { SettingsWritePipeline } from "./settingsWritePipeline";
 
@@ -54,7 +55,7 @@ async function actionsUnderTest() {
 	docIdPort.markUnidentifiable(ID_LESS_PATH);
 	const persistenceServices = new PersistenceServices(docIdPort, pluginDataStore, new PathDocIdMap());
 	const viewsRefresh = new FakeViewsRefresh([ORIGINATING_VIEW_ID, OTHER_VIEW_ID]);
-	const settingsWrites = new SettingsWritePipeline(pluginDataStore, viewsRefresh);
+	const settingsWrites = new SettingsWritePipeline(pluginDataStore, viewsRefresh, new FakeUserNotices());
 	const actions = new ControlsActions(persistenceServices, VAULT, viewsRefresh, settingsWrites);
 	return { actions, viewsRefresh, pluginDataStore };
 }

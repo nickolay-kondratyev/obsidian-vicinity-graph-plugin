@@ -2,9 +2,10 @@ import { SerialPromiseChain } from "../shared/SerialPromiseChain";
 import type { PluginDataStore } from "../persistence/PluginDataStore";
 import type { SettingsResetConfirmation, SettingsResetScope } from "./settingsResetPlan";
 import { planSettingsReset, planSettingsResetConfirmation } from "./settingsResetPlan";
+import { SettingsWriteFailureNotice } from "./settingsWriteFailureNotice";
 import type { SettingsCommand, SettingsInteraction, SettingsWriteContext } from "./settingsWritePlan";
 import { planSettingsWrite } from "./settingsWritePlan";
-import type { ViewsRefreshPort } from "./viewPorts";
+import type { UserNoticePort, ViewsRefreshPort } from "./viewPorts";
 
 /**
  * THE settings write pipeline — the one path every settings edit takes, from both
@@ -25,6 +26,24 @@ import type { ViewsRefreshPort } from "./viewPorts";
  *    view through {@link ViewsRefreshPort} — there is no narrower reach to pick.
  * 4. **Idle is observable.** {@link drain} is what lets a caller re-read the
  *    globals (to rebuild controls) only once nothing is still queued.
+ * 5. **A failed persist is the USER's news, exactly once, HERE.** Every call site
+ *    `void`s its write promise (a control handler has nowhere to await it), so a
+ *    rejection that escaped would be an unhandled rejection AND an invisible loss:
+ *    the control still shows the value, the session still USES it (in-memory state
+ *    moved before the disk write — see {@link write}), and only `data.json` is
+ *    missing it, so nothing on screen betrays that the setting will be gone at the
+ *    next restart. So a failed write is caught at the INNERMOST write, turned into one
+ *    {@link UserNoticePort} message naming what failed, and never re-thrown — which is
+ *    also what keeps a burst intact, because the debounce drain awaits its thunks in
+ *    turn and a throw would abandon the rest of the window. Consequence, stated
+ *    plainly: a resolved write promise means "attempted and reported", not "stored".
+ *
+ *    "Exactly once" is PER FAILED WRITE, and deliberately not deduped across writes:
+ *    an unwritable `data.json` notices every edit, and a reset with a pending typed
+ *    edit notices the field and then the scope. Both are the honest count — two
+ *    settings really did fail to save. WHY-NOT dedupe: a suppressed second notice is
+ *    a setting the user is never told about, which is the exact failure mode this
+ *    rule exists to remove. Do not "fix" the repetition by swallowing it.
  */
 
 /**
@@ -60,8 +79,14 @@ export class SettingsWritePipeline implements SerialSettingsWrites {
 	constructor(
 		private readonly store: PluginDataStore,
 		private readonly viewsRefresh: ViewsRefreshPort,
+		private readonly notices: UserNoticePort,
 	) {
-		this.writer = { apply: (interaction) => this.write([planSettingsWrite(interaction, this.context())]) };
+		this.writer = {
+			apply: (interaction) =>
+				this.write(SettingsWriteFailureNotice.forInteraction(interaction), [
+					planSettingsWrite(interaction, this.context()),
+				]),
+		};
 	}
 
 	/** One control's edit: serialised, planned fresh, persisted, fanned out. */
@@ -75,7 +100,9 @@ export class SettingsWritePipeline implements SerialSettingsWrites {
 	 * instead of a control's value, and that the whole scope fans out ONCE.
 	 */
 	restoreDefaults(scope: SettingsResetScope): Promise<void> {
-		return this.chain.run(() => this.write(planSettingsReset(scope, this.context())));
+		return this.chain.run(() =>
+			this.write(SettingsWriteFailureNotice.forReset(scope), planSettingsReset(scope, this.context())),
+		);
 	}
 
 	/**
@@ -110,10 +137,37 @@ export class SettingsWritePipeline implements SerialSettingsWrites {
 		};
 	}
 
-	/** Persists every command in order, then fans out ONCE — N rebuilds per scope would only flash. */
-	private async write(commands: readonly SettingsCommand[]): Promise<void> {
-		for (const command of commands) {
-			await this.persist(command);
+	/**
+	 * THE write body, and THE failure policy (rule 5) — every settings write reaches
+	 * disk through here, so this `try` is the only one the pipeline needs and the only
+	 * one any call site should have.
+	 *
+	 * Persists every command in order, then fans out ONCE — N rebuilds per scope would
+	 * only flash. The fan-out runs whether or not the commands landed: views must repaint
+	 * from what the STORE holds, and a partly-landed reset makes that different from what
+	 * they were showing.
+	 *
+	 * Stated exactly, because it is easy to assume the opposite: this is NOT a snap-back.
+	 * `PluginDataStore.persist()` moves in-memory state BEFORE the disk write, so after a
+	 * rejected persist the store still holds the value that never reached disk — the
+	 * repaint shows that value, and an optimistic control releases its override ONTO it.
+	 * The notice is therefore the only signal the user gets. Whether the in-memory value
+	 * should roll back instead is an open owner decision, ticket
+	 * `nid_biwdtykvazsk3ejcqqli8o9j7_e`.
+	 *
+	 * `failureNotice` is built by the caller because only the caller knows WHAT was
+	 * being written — one interaction's row, or one reset scope.
+	 */
+	private async write(failureNotice: string, commands: readonly SettingsCommand[]): Promise<void> {
+		try {
+			for (const command of commands) {
+				await this.persist(command);
+			}
+		} catch (error) {
+			// The message names the setting; the console keeps the cause (which is
+			// Obsidian's, and not something the notice could honestly paraphrase).
+			console.error(`vicinity-graph: settings write failed notice=[${failureNotice}]`, error);
+			this.notices.show(failureNotice);
 		}
 		this.viewsRefresh.refreshAllViews();
 	}
