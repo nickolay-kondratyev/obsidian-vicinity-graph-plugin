@@ -5,7 +5,6 @@ import { GlobalDepthControls } from "./GlobalDepthControls";
 import { ForceLayoutSection } from "./ForceLayoutSection";
 import { NodeContentsSection } from "./NodeContentsSection";
 import { NodeExclusionSection } from "./NodeExclusionSection";
-import type { SettingsWriteContext } from "./settingsWritePlan";
 import { SizingSection } from "./SizingSection";
 
 /**
@@ -15,19 +14,17 @@ import { SizingSection } from "./SizingSection";
  * visible. Expanded, EVERY section sits behind its own {@link Disclosure} so
  * the panel stays quiet at a ~300px sidebar width — Depth (the most-used
  * control) is the ONLY one open by default (settings-ux CLARIFICATION #3).
- * Reads the snapshot's {@link ControlsModel} only — every write is delegated
- * by its children through `planSettingsWrite` + the `ControlsActionsPort`
- * (this component holds no business rule).
+ * Reads the snapshot's {@link ControlsModel} only, and ONLY to seed what each
+ * control displays. It deliberately hands its children NO write context: a merge
+ * base taken from a rendered snapshot is what used to let one edit revert a
+ * sibling field. Children emit an INTERACTION through the `ControlsActionsPort`
+ * and `SettingsWritePipeline` plans it against a fresh read (this component and
+ * its children hold no business rule).
  *
  * `nowheel`/`nodrag`/`nopan` are React-Flow escape hatches so scrolling and
  * interacting with the panel never pans or zooms the canvas beneath it.
  */
 export function GraphToolbar({ controls }: { readonly controls: ControlsModel }): ReactElement {
-	const ctx: SettingsWriteContext = {
-		globalDepths: controls.globalDepths,
-		globalView: controls.globalView,
-		nodeExclusion: controls.nodeExclusion,
-	};
 	return (
 		<details className="vicinity-graph-toolbar nowheel nodrag nopan">
 			<summary className="vicinity-graph-toolbar__header">
@@ -42,13 +39,16 @@ export function GraphToolbar({ controls }: { readonly controls: ControlsModel })
 				 * The settings tab's depth card carries the same words.
 				 */}
 				<Disclosure summary="Depth (all notes)" defaultOpen>
-					<GlobalDepthControls depths={controls.globalDepths} ctx={ctx} />
+					<GlobalDepthControls depths={controls.globalDepths} />
 				</Disclosure>
-				<NodeExclusionSection ctx={ctx} excludedNodeCount={controls.excludedNodeCount} />
-				<SizingSection view={controls.globalView} ctx={ctx} />
+				<NodeExclusionSection
+					nodeExclusion={controls.nodeExclusion}
+					excludedNodeCount={controls.excludedNodeCount}
+				/>
+				<SizingSection view={controls.globalView} />
 				{/* Node CONTENTS follow node SIZE, mirroring the settings tab's card order. */}
-				<NodeContentsSection view={controls.globalView} ctx={ctx} />
-				<ForceLayoutSection view={controls.globalView} ctx={ctx} />
+				<NodeContentsSection view={controls.globalView} />
+				<ForceLayoutSection view={controls.globalView} />
 			</div>
 		</details>
 	);

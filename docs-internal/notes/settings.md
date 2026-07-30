@@ -55,6 +55,26 @@ defaults" built its own defaults object instead of using the shared reset plan �
 a fourth opinion on what a default is. Now routed through `planSettingsReset`,
 and `src/view/engineDefaultsSingleSource.test.ts` keeps it that way.
 
+### What ticket 3 (write/refresh pipeline) added to the family
+
+The write path is now ONE object, `src/view/settingsWritePipeline.ts` (one instance
+per plugin, in `main.ts`), shared by the settings tab and every controls panel. It
+owns serialisation, the merge base, the persist switch and the fan-out. Two
+consequences for anyone adding a field:
+
+- **A control emits a `SettingsInteraction` naming ONE field.** The whole-slice arms
+  (`global-sizing`, `global-force-layout`, `global-node-exclusion`) are GONE —
+  they were the sibling-clobbering vector, because the caller supplied the merge
+  base. `planSettingsWrite` is the only merger and it merges over a read the
+  pipeline takes inside its own serialised slot. So a new field costs one more
+  interaction arm plus one more `switch` case (both compile-forced), NOT a new
+  merge site.
+- **Nothing else may serialise or refresh.** `shared/SerialPromiseChain.ts` is the
+  one ordering primitive (used by the pipeline and by `PluginDataStore`'s disk
+  writes); the three hand-rolled chains and `SettingsWriteQueue` are gone.
+  `settingsResetSequence.ts` owns the restore-defaults ORDER and is the vitest
+  harness for it, since the tab itself has none.
+
 ### Cost of adding one field AFTER ticket 2
 
 The compiler now NAMES every site you miss except the last:
@@ -63,7 +83,8 @@ The compiler now NAMES every site you miss except the last:
 2. `src/engine/SettingsSpec.ts` — spec entry + `SETTINGS_SPEC` value *(guarded)*
 3. `src/persistence/persistedShapes.ts` — one parse expression *(guarded)*
 4. `src/view/settingsSectionFields.ts` — one key in one section *(guarded)*
-5. UI copy + row rendering in the tab and the panel *(ticket 4's job to guard)*
+5. `src/view/settingsWritePlan.ts` — one interaction arm + one `switch` case *(guarded: the `switch` is exhaustive)*
+6. UI copy + row rendering in the tab and the panel *(ticket 4's job to guard)*
 
 This is "compile-forced N declarations", NOT the ticket's literal "ONE
 declaration". Deriving the `ViewSettings` TYPE from a runtime descriptor array

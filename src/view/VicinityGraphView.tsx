@@ -5,7 +5,6 @@ import { createRoot } from "react-dom/client";
 import type { Root } from "react-dom/client";
 import type { VicinityGraphBuilder } from "../adapters/VicinityGraphBuilder";
 import type { PersistenceServices } from "../persistence/PersistenceServices";
-import type { PluginDataStore } from "../persistence/PluginDataStore";
 import { ControlsActions } from "./ControlsActions";
 import { LibavoidEdgeRouter } from "./edgeRouting";
 import { GraphLayoutRunner } from "./GraphLayoutRunner";
@@ -13,6 +12,7 @@ import { GraphViewController } from "./GraphViewController";
 import { VicinityGraphFlow } from "./VicinityGraphFlow";
 import { ObsidianGraphUi } from "./ObsidianGraphUi";
 import { ObsidianNoteNavigator } from "./ObsidianNoteNavigator";
+import type { SettingsWritePipeline } from "./settingsWritePipeline";
 import type { ControlsActionsPort, NoteNavigatorPort, ViewsRefreshPort } from "./viewPorts";
 
 export const VIEW_TYPE_VICINITY_GRAPH = "vicinity-graph-view";
@@ -32,10 +32,11 @@ export class VicinityGraphView extends ItemView {
 	constructor(
 		leaf: WorkspaceLeaf,
 		private readonly graphBuilder: VicinityGraphBuilder,
-		private readonly pluginDataStore: PluginDataStore,
 		private readonly persistenceServices: PersistenceServices,
-		/** Fan-out for global writes made from THIS view's controls panel; owned by the plugin. */
+		/** Fan-out for pin writes made from THIS view's controls panel; owned by the plugin. */
 		private readonly viewsRefresh: ViewsRefreshPort,
+		/** The ONE settings write pipeline, shared with the settings tab; owned by the plugin. */
+		private readonly settingsWrites: SettingsWritePipeline,
 	) {
 		super(leaf);
 	}
@@ -64,9 +65,9 @@ export class VicinityGraphView extends ItemView {
 		this.controller = controller;
 		const controlsActions = new ControlsActions(
 			this.persistenceServices,
-			this.pluginDataStore,
 			this.app.vault,
 			this.viewsRefresh,
+			this.settingsWrites,
 		);
 		this.controlsActions = controlsActions;
 		this.registerGraphEvents(controller, navigator);

@@ -1,4 +1,5 @@
 import type { DepthSettings, NodeExclusionSettings, ViewSettings } from "../engine";
+import { SerialPromiseChain } from "../shared/SerialPromiseChain";
 import type { PinnedDocEntry, PluginData } from "./persistedShapes";
 import { PersistedShapes } from "./persistedShapes";
 import type { PluginDataPort } from "./storagePorts";
@@ -11,7 +12,7 @@ import type { PluginDataPort } from "./storagePorts";
  */
 export class PluginDataStore {
 	private data: PluginData = PersistedShapes.defaultPluginData();
-	private writeChain: Promise<void> = Promise.resolve();
+	private readonly writes = new SerialPromiseChain();
 
 	constructor(private readonly port: PluginDataPort) {}
 
@@ -63,11 +64,12 @@ export class PluginDataStore {
 		await this.persist({ ...this.data, pins: this.data.pins.filter((pin) => !removed.has(pin.docid)) });
 	}
 
+	/**
+	 * In-memory state moves NOW, the disk write is serialised. The chain owns
+	 * rejection isolation and caller-visible failure (see {@link SerialPromiseChain}).
+	 */
 	private persist(updated: PluginData): Promise<void> {
 		this.data = updated;
-		// `.catch` keeps one failed write from wedging every later one; the
-		// failure still reaches ITS caller through the returned promise.
-		this.writeChain = this.writeChain.catch(() => undefined).then(() => this.port.saveData(this.data));
-		return this.writeChain;
+		return this.writes.run(() => this.port.saveData(this.data));
 	}
 }

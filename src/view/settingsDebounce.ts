@@ -1,3 +1,5 @@
+import type { SerialSettingsWrites, SettingsWriter } from "./settingsWritePipeline";
+
 /**
  * Debounce seam for the settings tab's TYPED fields (numbers, text, textarea).
  *
@@ -6,14 +8,17 @@
  * so typing `160` cost three rebuilds. Sliders are deliberately NOT routed here
  * (they commit discrete values and their drag feel was reviewed as-is).
  *
- * Two properties this must never lose:
+ * Three properties this must never lose:
  * - **No dropped edits.** The last keystroke of a burst is what the user meant, so
  *   the tab flushes on blur and on `hide()`; a debounce that swallows it would be
  *   worse than no debounce.
  * - **Edits compose.** Callers pass a THUNK, never a precomputed command, so the
- *   globals are read fresh at flush time — the same invariant
- *   `VicinityGraphSettingTab.writeContext()` protects. Two fields edited inside one
- *   window must merge, not clobber each other.
+ *   write is planned against the globals as they are at DRAIN time.
+ * - **One chain.** This class decides only WHEN to drain; the drain itself runs on
+ *   `SettingsWritePipeline`'s chain ({@link SerialSettingsWrites}), so a settling
+ *   window is ordered against every other settings write instead of only against
+ *   other drains. That is also why a thunk is HANDED the {@link SettingsWriter} it
+ *   must use: a thunk running inside a serialised slot cannot re-enter the chain.
  */
 
 /**
@@ -32,7 +37,7 @@ export const WINDOW_DEBOUNCE_SCHEDULER: DebounceScheduler = {
 };
 
 /** A pending settings write. Deferred on purpose — see the module doc. */
-export type SettingsWriteThunk = () => Promise<void>;
+export type SettingsWriteThunk = (writer: SettingsWriter) => Promise<void>;
 
 /**
  * Coalesces typed settings edits into one write per field per settle window.
@@ -45,10 +50,11 @@ export class DebouncedSettingsWrites {
 	/** Field key → its latest pending write. Insertion-ordered = edit-ordered drain. */
 	private readonly pending = new Map<string, SettingsWriteThunk>();
 	private handle: number | null = null;
-	private draining: Promise<void> = Promise.resolve();
 
 	constructor(
 		private readonly delayMs: number,
+		/** The ONE settings write chain every drain runs on. */
+		private readonly writes: SerialSettingsWrites,
 		private readonly scheduler: DebounceScheduler = WINDOW_DEBOUNCE_SCHEDULER,
 	) {}
 
@@ -88,20 +94,18 @@ export class DebouncedSettingsWrites {
 		}
 	}
 
+	/**
+	 * Takes the window's pending writes and runs them, in edit order, in ONE
+	 * serialised slot: each awaited before the next, so no write plans against
+	 * globals the previous one has not applied yet.
+	 */
 	private drain(): Promise<void> {
-		const writes = [...this.pending.values()];
+		const thunks = [...this.pending.values()];
 		this.pending.clear();
-		const runAll = async (): Promise<void> => {
-			for (const write of writes) {
-				await write();
+		return this.writes.runSerialised(async (writer) => {
+			for (const thunk of thunks) {
+				await thunk(writer);
 			}
-		};
-		// Chained so a flush that overlaps an in-flight drain still runs AFTER it.
-		// The rejection handler mirrors `PluginDataStore.persist`: one failed write
-		// must not wedge every later one, and the failure still reaches ITS caller
-		// through the returned promise.
-		const drained = this.draining.then(runAll, runAll);
-		this.draining = drained.catch(() => undefined);
-		return drained;
+		});
 	}
 }

@@ -1,15 +1,17 @@
 import type { ReactElement } from "react";
+import type { NodeExclusionSettings } from "../engine";
 import { useControlsActions } from "./ControlsActionsContext";
 import { Disclosure } from "./Disclosure";
-import type { SettingsWriteContext } from "./settingsWritePlan";
-import { planSettingsWrite } from "./settingsWritePlan";
+import { useOptimisticValue } from "./useOptimisticValue";
 import { ToggleSwitch } from "./ToggleSwitch";
 
 /**
  * The toolbar's node-exclusion disclosure. The {@link ToggleSwitch} flips the
- * GLOBAL exclusion `enabled` flag (preserving the pattern list) through the
- * same pure {@link planSettingsWrite} path as every other control — the rebuild
- * flows the fresh value back, so there is no local state.
+ * GLOBAL exclusion `enabled` flag through the same one write path as every other
+ * control: it emits `global-exclusion-enabled` and the pipeline merges it over the
+ * CURRENT stored exclusion, so the pattern list is preserved even when the
+ * settings tab is editing it at the same time. The switch itself is optimistic
+ * (see {@link useOptimisticValue}) so it flips on the click, not a rebuild later.
  *
  * WHEN ON the body also shows the configured patterns READ-ONLY (per
  * CLARIFICATION: the patterns, not the excluded note list). Editing stays in
@@ -20,23 +22,18 @@ import { ToggleSwitch } from "./ToggleSwitch";
  * shown only when exclusion is enabled AND at least one node was excluded.
  */
 export function NodeExclusionSection({
-	ctx,
+	nodeExclusion,
 	excludedNodeCount,
 }: {
-	readonly ctx: SettingsWriteContext;
+	readonly nodeExclusion: NodeExclusionSettings;
 	readonly excludedNodeCount: number;
 }): ReactElement {
 	const actions = useControlsActions();
-	const { enabled, patterns } = ctx.nodeExclusion;
+	const { patterns } = nodeExclusion;
+	const [enabled, requestEnabled] = useOptimisticValue(nodeExclusion.enabled, (value) =>
+		actions.applySettings({ kind: "global-exclusion-enabled", enabled: value }),
+	);
 	const showCount = enabled && excludedNodeCount > 0;
-	const setEnabled = (nextEnabled: boolean): void => {
-		void actions.applySettings(
-			planSettingsWrite(
-				{ kind: "global-node-exclusion", nodeExclusion: { ...ctx.nodeExclusion, enabled: nextEnabled } },
-				ctx,
-			),
-		);
-	};
 
 	return (
 		<Disclosure
@@ -57,7 +54,7 @@ export function NodeExclusionSection({
 		>
 			<label className="vicinity-graph-exclusion__toggle-row">
 				<span>Exclude notes</span>
-				<ToggleSwitch checked={enabled} onChange={setEnabled} ariaLabel="Exclude notes" />
+				<ToggleSwitch checked={enabled} onChange={requestEnabled} ariaLabel="Exclude notes" />
 			</label>
 			{enabled &&
 				(patterns.length > 0 ? (

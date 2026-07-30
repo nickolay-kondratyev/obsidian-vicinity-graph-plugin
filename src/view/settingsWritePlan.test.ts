@@ -24,68 +24,89 @@ describe("planSettingsWrite global writes", () => {
 		});
 	});
 
-	it("WHEN global-sizing THEN it merges the sizing object over ctx.globalView", () => {
-		const sizing = { ...EngineDefaults.viewSettings().sizing, minPx: 20, maxPx: 200 };
-		expect(planSettingsWrite({ kind: "global-sizing", sizing }, CTX)).toEqual({
+	it("WHEN one sizing number is edited THEN only that field moves in ctx.globalView.sizing", () => {
+		expect(planSettingsWrite({ kind: "global-sizing-number", field: "minPx", value: 20 }, CTX)).toEqual({
 			kind: "global-view",
-			view: { ...CTX.globalView, sizing },
+			view: { ...CTX.globalView, sizing: { ...CTX.globalView.sizing, minPx: 20 } },
 		});
 	});
 
-	it("WHEN global-sizing carries an out-of-range value THEN the planned write is clamped", () => {
-		// The React sizing panel and the settings tab both write through here, and
-		// an `<input type=number min=…>` does NOT block a TYPED value — so the LIVE
-		// session (not just a reloaded data.json) needs the clamp.
-		const sizing = { ...EngineDefaults.viewSettings().sizing, depthDecayK: -1, maxPx: Number.POSITIVE_INFINITY };
-		expect(planSettingsWrite({ kind: "global-sizing", sizing }, CTX)).toEqual({
-			kind: "global-view",
-			view: {
-				...CTX.globalView,
-				sizing: {
-					...sizing,
-					depthDecayK: SIZING_RANGES.depthDecayK.min,
-					maxPx: SIZING_RANGES.maxPx.max,
-				},
-			},
+	it("WHEN one metric is disabled THEN its sibling metrics are untouched", () => {
+		const command = planSettingsWrite(
+			{ kind: "global-sizing-metric-enabled", metric: "backlink-count", enabled: false },
+			CTX,
+		);
+		const metrics = command.kind === "global-view" ? command.view.sizing.metrics : undefined;
+		expect(metrics).toEqual({
+			...CTX.globalView.sizing.metrics,
+			"backlink-count": { ...CTX.globalView.sizing.metrics["backlink-count"], enabled: false },
 		});
 	});
 
-	// The sizing UPPER bounds are what keeps a typed `1e9` out of node geometry (a
+	it("WHEN one metric's weight is edited THEN its own enabled flag is untouched", () => {
+		const command = planSettingsWrite(
+			{ kind: "global-sizing-metric-weight", metric: "outlink-count", weight: 3 },
+			CTX,
+		);
+		const metric = command.kind === "global-view" ? command.view.sizing.metrics["outlink-count"] : undefined;
+		expect(metric).toEqual({ enabled: CTX.globalView.sizing.metrics["outlink-count"].enabled, weight: 3 });
+	});
+
+	// The sizing bounds are what keeps a typed `1e9` out of node geometry (a
 	// non-finite/absurd rectangle aborts the edge router's wasm module for the rest
-	// of the session). They live in SETTINGS_SPEC; these pin that they still BITE.
-	it("WHEN global-sizing minPx exceeds its upper bound THEN the planned write is capped at that bound", () => {
-		const sizing = { ...EngineDefaults.viewSettings().sizing, minPx: SIZING_RANGES.minPx.max + 1 };
-		const command = planSettingsWrite({ kind: "global-sizing", sizing }, CTX);
+	// of the session), and an `<input type=number min=…>` does NOT block a TYPED
+	// value — so the LIVE session (not just a reloaded data.json) needs the clamp.
+	// The bounds live in SETTINGS_SPEC; these pin that they still BITE.
+	it("WHEN a typed depth-decay is below its lower bound THEN the planned write is clamped up to it", () => {
+		const command = planSettingsWrite({ kind: "global-sizing-number", field: "depthDecayK", value: -1 }, CTX);
+		expect(command.kind === "global-view" ? command.view.sizing.depthDecayK : undefined).toBe(
+			SIZING_RANGES.depthDecayK.min,
+		);
+	});
+
+	it("WHEN a typed minPx exceeds its upper bound THEN the planned write is capped at that bound", () => {
+		const value = SIZING_RANGES.minPx.max + 1;
+		const command = planSettingsWrite({ kind: "global-sizing-number", field: "minPx", value }, CTX);
 		expect(command.kind === "global-view" ? command.view.sizing.minPx : undefined).toBe(SIZING_RANGES.minPx.max);
 	});
 
-	it("WHEN global-sizing maxPx exceeds its upper bound THEN the planned write is capped at that bound", () => {
-		const sizing = { ...EngineDefaults.viewSettings().sizing, maxPx: SIZING_RANGES.maxPx.max + 1 };
-		const command = planSettingsWrite({ kind: "global-sizing", sizing }, CTX);
+	it("WHEN a typed maxPx is non-finite THEN the planned write is capped at its upper bound", () => {
+		const command = planSettingsWrite(
+			{ kind: "global-sizing-number", field: "maxPx", value: Number.POSITIVE_INFINITY },
+			CTX,
+		);
 		expect(command.kind === "global-view" ? command.view.sizing.maxPx : undefined).toBe(SIZING_RANGES.maxPx.max);
 	});
 
-	it("WHEN global-sizing depthDecayK exceeds its upper bound THEN the planned write is capped at that bound", () => {
-		const sizing = { ...EngineDefaults.viewSettings().sizing, depthDecayK: SIZING_RANGES.depthDecayK.max + 1 };
-		const command = planSettingsWrite({ kind: "global-sizing", sizing }, CTX);
+	it("WHEN a typed depthDecayK exceeds its upper bound THEN the planned write is capped at that bound", () => {
+		const value = SIZING_RANGES.depthDecayK.max + 1;
+		const command = planSettingsWrite({ kind: "global-sizing-number", field: "depthDecayK", value }, CTX);
 		expect(command.kind === "global-view" ? command.view.sizing.depthDecayK : undefined).toBe(
 			SIZING_RANGES.depthDecayK.max,
 		);
 	});
 
-	it("WHEN global-force-layout THEN it merges the forceLayout object over ctx.globalView", () => {
-		const forceLayout = { ...EngineDefaults.forceLayoutSettings(), repelStrength: 500, linkGapPx: 60 };
-		expect(planSettingsWrite({ kind: "global-force-layout", forceLayout }, CTX)).toEqual({
+	it("WHEN one force-layout knob is dragged THEN the six sibling knobs are untouched", () => {
+		const command = planSettingsWrite({ kind: "global-force-layout-field", field: "linkGapPx", value: 60 }, CTX);
+		expect(command).toEqual({
 			kind: "global-view",
-			view: { ...CTX.globalView, forceLayout },
+			view: { ...CTX.globalView, forceLayout: { ...CTX.globalView.forceLayout, linkGapPx: 60 } },
 		});
 	});
 
-	it("WHEN global-node-exclusion THEN it emits a node-exclusion command carrying the whole object", () => {
-		const nodeExclusion = { enabled: true, patterns: ["^rel/"] };
-		expect(planSettingsWrite({ kind: "global-node-exclusion", nodeExclusion }, CTX)).toEqual({
+	it("WHEN exclusion is enabled THEN the stored pattern list is carried over", () => {
+		const withPatterns = { ...CTX, nodeExclusion: { enabled: false, patterns: ["^rel/"] } };
+		expect(planSettingsWrite({ kind: "global-exclusion-enabled", enabled: true }, withPatterns)).toEqual({
 			kind: "node-exclusion",
-			nodeExclusion,
+			nodeExclusion: { enabled: true, patterns: ["^rel/"] },
+		});
+	});
+
+	it("WHEN the pattern list is edited THEN the stored enable flag is carried over", () => {
+		const enabled = { ...CTX, nodeExclusion: { enabled: true, patterns: [] } };
+		expect(planSettingsWrite({ kind: "global-exclusion-patterns", patterns: ["^rel/"] }, enabled)).toEqual({
+			kind: "node-exclusion",
+			nodeExclusion: { enabled: true, patterns: ["^rel/"] },
 		});
 	});
 });

@@ -1,13 +1,6 @@
 import { PluginSettingTab, Setting } from "obsidian";
 import type { App, TextComponent, ToggleComponent } from "obsidian";
-import type {
-	Direction,
-	ForceLayoutSettings,
-	SettingsRange,
-	SizeMetricId,
-	SizingMetricSetting,
-	SizingSettings,
-} from "../engine";
+import type { Direction, ForceLayoutSettings, SettingsRange, SizeMetricId, SizingMetricSetting } from "../engine";
 import {
 	FORCE_LAYOUT_RANGES,
 	MAX_OUTLINE_DEPTH,
@@ -34,30 +27,26 @@ import {
 } from "./nodePreviewPreferenceMeta";
 import { DebouncedSettingsWrites } from "./settingsDebounce";
 import type { SettingsResetScope } from "./settingsResetPlan";
-import {
-	ALL_SETTINGS_RESET_SCOPE,
-	SETTINGS_RESET_SCOPES,
-	planSettingsReset,
-	planSettingsResetConfirmation,
-} from "./settingsResetPlan";
+import { ALL_SETTINGS_RESET_SCOPE, SETTINGS_RESET_SCOPES } from "./settingsResetPlan";
+import type { SettingsResetTarget } from "./settingsResetSequence";
+import { SettingsResetSequence } from "./settingsResetSequence";
 import type { SettingsFeedback } from "./settingsValidation";
 import { describeInvalidExclusionPatterns, parseExclusionPatterns } from "./settingsValidation";
-import type { SizingNumberField, SizingRowVerdict } from "./sizingRowWrite";
-import { SizingRowWrite } from "./sizingRowWrite";
-import type { SettingsCommand, SettingsInteraction, SettingsWriteContext } from "./settingsWritePlan";
-import { planSettingsWrite } from "./settingsWritePlan";
-import { SettingsWriteQueue } from "./settingsWriteQueue";
+import type { SettingsWritePipeline } from "./settingsWritePipeline";
+import type { SettingsInteraction, SizingNumberField } from "./settingsWritePlan";
 import { parseSizingInput } from "./sizingInput";
+import type { SizingRowVerdict } from "./sizingRowWrite";
+import { SizingRowWrite } from "./sizingRowWrite";
 import { SIZING_METRICS } from "./sizingMetrics";
 
 /**
  * The plugin's global settings tab (step-06 #7). It is pure obsidian glue: every
  * control seeds from {@link PluginDataStore.globalDepths}/{@link
- * PluginDataStore.globalView} and, on edit, routes through the SAME pure
- * {@link planSettingsWrite} contract the in-view toolbar uses — no
- * "merge one field into the whole object" logic lives here. The resulting
- * {@link SettingsCommand} is persisted through the store, then every open graph
- * view is refreshed so the change is visible immediately (CLARIFICATION Q-C).
+ * PluginDataStore.globalView} and, on edit, names a {@link SettingsInteraction}
+ * and hands it to the shared {@link SettingsWritePipeline} — the SAME object the
+ * in-view controls panel writes through. Serialisation, the merge base, the
+ * persist call and the refresh fan-out all live there, so this class holds no
+ * write logic at all and the two surfaces cannot drift.
  *
  * EVERY setting on this tab is global (owner decision 2026-07-29): there is no
  * per-note or per-view stored state for anything here to override.
@@ -98,23 +87,37 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	 * name — already unique per row, and already the control's accessible name, so
 	 * there is no parallel id table to keep in sync.
 	 */
-	private readonly debounced = new DebouncedSettingsWrites(SETTINGS_WRITE_DEBOUNCE_MS);
+	private readonly debounced: DebouncedSettingsWrites;
 
 	/**
-	 * Every INTERACTION handler runs through here, so two clicks on one control
-	 * land in click order instead of finish order — see {@link enqueueWrite}.
+	 * Restore-defaults ordering — including "rebuild the controls only once the
+	 * write pipeline is idle", which is what keeps a reset from redisplaying ahead
+	 * of a control the user used while it ran.
 	 */
-	private readonly writeQueue = new SettingsWriteQueue();
+	private readonly resets: SettingsResetSequence;
 
 	constructor(
 		app: App,
 		private readonly plugin: VicinityGraphPlugin,
 	) {
 		super(app, plugin);
+		this.debounced = new DebouncedSettingsWrites(SETTINGS_WRITE_DEBOUNCE_MS, this.writes);
+		const resetTarget: SettingsResetTarget = {
+			flushTypedEdits: () => this.settlePendingWrites(),
+			writeDefaults: (scope) => this.writes.restoreDefaults(scope),
+			drainWrites: () => this.writes.drain(),
+			redisplay: () => this.display(),
+		};
+		this.resets = new SettingsResetSequence(resetTarget);
 	}
 
 	private get store(): PluginDataStore {
 		return this.plugin.pluginDataStore;
+	}
+
+	/** THE settings write pipeline — one per plugin, shared with every controls panel. */
+	private get writes(): SettingsWritePipeline {
+		return this.plugin.settingsWrites;
 	}
 
 	/**
@@ -278,21 +281,22 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 
 	/**
 	 * The ONE entry point for every reset button. Whether a scope confirms first is
-	 * decided by {@link planSettingsResetConfirmation}, next to the key-set it
+	 * decided by the reset plan (`planSettingsResetConfirmation`), next to the key-set it
 	 * clears — never by the call site, or "which resets are destructive" would be
 	 * answered in seven places.
 	 */
 	private requestReset(scope: SettingsResetScope): void {
-		const confirmation = planSettingsResetConfirmation(scope, this.writeContext());
+		const confirmation = this.writes.planResetConfirmation(scope);
 		if (confirmation === null) {
-			void this.enqueueWrite(() => this.applyReset(scope));
+			void this.resets.run(scope);
 			return;
 		}
-		// Queued like every other interaction: a reset that overtook a click still in
-		// flight would be undone by it, defaults and all.
+		// The defaults themselves are written through the pipeline like every other
+		// interaction: a reset that overtook a click still in flight would be undone
+		// by it, defaults and all.
 		new ConfirmModal(this.app, {
 			...confirmation,
-			onConfirm: () => this.enqueueWrite(() => this.applyReset(scope)),
+			onConfirm: () => this.resets.run(scope),
 		}).open();
 	}
 
@@ -344,8 +348,10 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	/**
 	 * Global node exclusion (CLARIFICATION: vault-wide). The textarea is the SOURCE
 	 * OF TRUTH for the pattern list (one raw regex per line); the toggle mirrors the
-	 * toolbar pill's enable flag. Both route through the SAME `global-node-exclusion`
-	 * interaction, so there is no bespoke merge logic here.
+	 * toolbar switch's enable flag. The two write SEPARATE interactions
+	 * (`global-exclusion-patterns` / `global-exclusion-enabled`) that the pipeline
+	 * merges over each other's stored value, so neither can clobber the other and
+	 * there is no bespoke merge logic here.
 	 *
 	 * WHEN disabled the pattern textarea is hidden (the patterns are inactive), but the
 	 * stored patterns are untouched so re-enabling restores them. The toggle swaps that
@@ -369,22 +375,15 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 			VicinityGraphSettingTab.nameToggle(toggle, name);
 			// Queued as ONE unit: the snapshot below is read after an await, so two fast
 			// clicks would otherwise both plan from the same pre-write state.
-			toggle.setValue(exclusion.enabled).onChange((enabled) =>
-				this.enqueueWrite(async () => {
-					// Pending typed edits first, and this is the subtle one: the patterns
-					// textarea persists on a debounce, while `showExclusionPatterns` below
-					// re-seeds the rebuilt row by reading the store SYNCHRONOUSLY. A write
-					// draining afterwards would leave that row showing patterns the store no
-					// longer has. It also keeps this toggle's write — built from a snapshot
-					// taken before the await — from clobbering a still-pending one.
-					await this.settlePendingWrites();
-					await this.applyInteraction({
-						kind: "global-node-exclusion",
-						nodeExclusion: { ...this.store.nodeExclusion(), enabled },
-					});
-					this.showExclusionPatterns(patternsSlot);
-				}),
-			);
+			toggle.setValue(exclusion.enabled).onChange(async (enabled) => {
+				// Pending typed edits first: the patterns textarea persists on a debounce,
+				// while `showExclusionPatterns` below re-seeds the rebuilt row by reading
+				// the store SYNCHRONOUSLY — a write draining afterwards would leave that
+				// row showing patterns the store no longer has.
+				await this.settlePendingWrites();
+				await this.writes.apply({ kind: "global-exclusion-enabled", enabled });
+				this.showExclusionPatterns(patternsSlot);
+			});
 		});
 		this.showExclusionPatterns(patternsSlot);
 		this.addSectionReset(section, "node-exclusion");
@@ -446,11 +445,8 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 				// them, and refusing the write would discard the VALID lines typed in
 				// the same edit.
 				VicinityGraphSettingTab.showWarning(feedback, describeInvalidExclusionPatterns(raw));
-				this.debounced.schedule(name, () =>
-					this.applyInteraction({
-						kind: "global-node-exclusion",
-						nodeExclusion: { ...this.store.nodeExclusion(), patterns: parseExclusionPatterns(raw) },
-					}),
+				this.debounced.schedule(name, (writer) =>
+					writer.apply({ kind: "global-exclusion-patterns", patterns: parseExclusionPatterns(raw) }),
 				);
 			});
 		});
@@ -532,19 +528,11 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 					// {@link showExclusionPatterns} this cannot paint a stale value,
 					// because it runs in click order — the newest click paints last.
 					weightInput.setDisabled(!enabled);
-					// Queued as ONE unit: the sizing snapshot below is read after an await,
-					// so two fast clicks would otherwise both plan from the same state.
-					return this.enqueueWrite(async () => {
-						// Pending typed edits first: the write below is built from a snapshot
-						// of the sizing object taken before its own await, so a weight still
-						// inside the debounce window would otherwise be clobbered by it.
-						await this.settlePendingWrites();
-						const current = this.store.globalView().sizing;
-						await this.applySizing({
-							...current,
-							metrics: { ...current.metrics, [id]: { ...current.metrics[id], enabled } },
-						});
-					});
+					// Pending typed edits first so this row's own weight, still inside the
+					// debounce window, is not left behind the enable flag it belongs to.
+					return this.settlePendingWrites().then(() =>
+						this.writes.apply({ kind: "global-sizing-metric-enabled", metric: id, enabled }),
+					);
 				});
 			})
 			.addText((text) => {
@@ -562,13 +550,9 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 						this.debounced.drop(weightName);
 						return;
 					}
-					this.debounced.schedule(weightName, () => {
-						const current = this.store.globalView().sizing;
-						return this.applySizing({
-							...current,
-							metrics: { ...current.metrics, [id]: { ...current.metrics[id], weight } },
-						});
-					});
+					this.debounced.schedule(weightName, (writer) =>
+						writer.apply({ kind: "global-sizing-metric-weight", metric: id, weight }),
+					);
 				});
 			});
 	}
@@ -601,12 +585,7 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 			{ min: MIN_OUTLINE_DEPTH, max: MAX_OUTLINE_DEPTH, step: OUTLINE_DEPTH_SLIDER_STEP },
 			this.store.globalView().outlineMaxDepth,
 			(value) => {
-				void this.enqueueWrite(() =>
-					this.applyInteraction({
-						kind: "global-outline-depth",
-						value: clampOutlineMaxDepth(value),
-					}),
-				);
+				void this.writes.apply({ kind: "global-outline-depth", value: clampOutlineMaxDepth(value) });
 			},
 		);
 		this.addSectionReset(section, "node-contents");
@@ -646,7 +625,7 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 			radio.checked = preference === selected;
 			option.createSpan({ cls: "vicinity-graph-segmented__text", text: label });
 			radio.addEventListener("change", () => {
-				void this.enqueueWrite(() => this.applyInteraction({ kind: "global-node-preview", value: preference }));
+				void this.writes.apply({ kind: "global-node-preview", value: preference });
 			});
 		}
 	}
@@ -668,7 +647,7 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 				text.onChange((raw) => {
 					const value = Number(raw);
 					if (Number.isInteger(value) && value >= MIN_NODE_CAP) {
-						this.debounced.schedule(nodeCapName, () => this.applyInteraction({ kind: "global-cap", value }));
+						this.debounced.schedule(nodeCapName, (writer) => writer.apply({ kind: "global-cap", value }));
 						return;
 					}
 					// Half-typed / cleared: forget the burst's earlier keystrokes.
@@ -729,13 +708,7 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 			{ min: MIN_STEPPER_DEPTH, max: MAX_STEPPER_DEPTH, step: DEPTH_SLIDER_STEP },
 			current,
 			(value) => {
-				void this.enqueueWrite(() =>
-					this.applyInteraction({
-						kind: "global-depth",
-						direction,
-						value: clampStepperDepth(value),
-					}),
-				);
+				void this.writes.apply({ kind: "global-depth", direction, value: clampStepperDepth(value) });
 			},
 		);
 	}
@@ -749,11 +722,7 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	 * never silently persisted, never silently reverted.
 	 */
 	private addSizingNumber(container: HTMLElement, name: string, field: SizingNumberField): void {
-		const write = new SizingRowWrite(
-			field,
-			() => this.store.globalView().sizing,
-			(sizing) => this.applySizing(sizing),
-		);
+		const write = new SizingRowWrite(field, () => this.store.globalView().sizing);
 		const row = new Setting(container).setName(name);
 		const feedback = VicinityGraphSettingTab.addFeedbackSlot(row, "alert");
 		row.addText((text) => {
@@ -780,7 +749,12 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 					this.debounced.drop(name);
 					return;
 				}
-				this.debounced.schedule(name, () => write.persistIfAccepted(parsed));
+				// The thunk writes through the writer it is HANDED: it runs inside the
+				// pipeline's serialised slot, so entering the chain again would deadlock.
+				this.debounced.schedule(name, (writer) => {
+					const interaction = write.interactionIfAccepted(parsed);
+					return interaction === null ? Promise.resolve() : writer.apply(interaction);
+				});
 			});
 		});
 	}
@@ -806,94 +780,12 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 			meta.description,
 			FORCE_LAYOUT_RANGES[field],
 			this.store.globalView().forceLayout[field],
+			// The sibling knobs are merged by the pipeline, from a read taken inside its
+			// own serialised slot — this slider names ONLY its own field.
 			(value) => {
-				// The other six fields are read INSIDE the queued write: a read taken at
-				// enqueue time could predate a queued write that has not run yet, and this
-				// slider persists the whole object — it would carry that staleness back.
-				void this.enqueueWrite(() =>
-					this.applyForceLayout({ ...this.store.globalView().forceLayout, [field]: value }),
-				);
+				void this.writes.apply({ kind: "global-force-layout-field", field, value });
 			},
 		);
 	}
 
-	private applyForceLayout(forceLayout: ForceLayoutSettings): Promise<void> {
-		return this.applyInteraction({ kind: "global-force-layout", forceLayout });
-	}
-
-	private applySizing(sizing: SizingSettings): Promise<void> {
-		return this.applyInteraction({ kind: "global-sizing", sizing });
-	}
-
-	/**
-	 * The entry point for a USER INTERACTION: runs `write` after every interaction
-	 * enqueued before it, so the store ends on the value clicked last rather than
-	 * the one that happened to finish last.
-	 *
-	 * The whole handler goes inside `write`, not just its persist: the handlers that
-	 * race read the globals AFTER `settlePendingWrites()`, so serializing only the
-	 * persist would still let two of them resume off the same pre-write snapshot.
-	 *
-	 * NOT re-entrant (see {@link SettingsWriteQueue}). A write reached from INSIDE a
-	 * queued task — the debounced thunks that task's `settlePendingWrites()` drains —
-	 * must call {@link applyInteraction} directly; those are already ordered by the
-	 * drain running them, and enqueuing there would deadlock on the tail its own
-	 * caller holds.
-	 */
-	private enqueueWrite(write: () => Promise<void>): Promise<void> {
-		return this.writeQueue.enqueue(write);
-	}
-
-	/**
-	 * The single settings-tab write path: plan the command from the CURRENT
-	 * globals (read fresh so successive edits compose), persist it, then fan the
-	 * change out to every open view.
-	 */
-	private async applyInteraction(interaction: SettingsInteraction): Promise<void> {
-		await this.persist(planSettingsWrite(interaction, this.writeContext()));
-		this.plugin.refreshOpenViews();
-	}
-
-	/**
-	 * Restore-defaults path. It shares the store/refresh seam with every other
-	 * settings write — the ONLY difference is that the commands come from
-	 * {@link planSettingsReset} (spec defaults) instead of a control's value.
-	 * Commands are persisted in order, each planned against the same snapshot, so
-	 * a multi-slice reset cannot half-apply a stale view object.
-	 */
-	private async applyReset(scope: SettingsResetScope): Promise<void> {
-		// A keystroke still inside the settle window would otherwise land AFTER the
-		// defaults and silently un-reset its field.
-		await this.settlePendingWrites();
-		for (const command of planSettingsReset(scope, this.writeContext())) {
-			await this.persist(command);
-		}
-		this.plugin.refreshOpenViews();
-		// Re-render so every control's displayed value actually moves back.
-		this.display();
-	}
-
-	/** Globals read FRESH on every write so successive edits compose. */
-	private writeContext(): SettingsWriteContext {
-		return {
-			globalDepths: this.store.globalDepths(),
-			globalView: this.store.globalView(),
-			nodeExclusion: this.store.nodeExclusion(),
-		};
-	}
-
-	/** The single persistence executor — every settings command writes `data.json`. */
-	private async persist(command: SettingsCommand): Promise<void> {
-		switch (command.kind) {
-			case "global-depths":
-				await this.store.saveGlobalDepths(command.depths);
-				return;
-			case "global-view":
-				await this.store.saveGlobalView(command.view);
-				return;
-			case "node-exclusion":
-				await this.store.saveNodeExclusion(command.nodeExclusion);
-				return;
-		}
-	}
 }

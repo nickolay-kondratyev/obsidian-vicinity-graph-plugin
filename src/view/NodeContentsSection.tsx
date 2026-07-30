@@ -5,8 +5,7 @@ import { NODE_PREVIEW_PREFERENCES } from "../engine";
 import { useControlsActions } from "./ControlsActionsContext";
 import { Disclosure } from "./Disclosure";
 import { NODE_PREVIEW_OPTION_META, NODE_PREVIEW_ROW_LABEL } from "./nodePreviewPreferenceMeta";
-import type { SettingsWriteContext } from "./settingsWritePlan";
-import { planSettingsWrite } from "./settingsWritePlan";
+import { useOptimisticValue } from "./useOptimisticValue";
 
 /**
  * The in-view mirror of the settings tab's "Node contents" card: the Preview
@@ -16,20 +15,15 @@ import { planSettingsWrite } from "./settingsWritePlan";
  * {@link NODE_PREVIEW_PREFERENCES}, so the two pills cannot drift; only the
  * markup is duplicated, because Obsidian's `Setting` API cannot mount in React.
  *
- * Fully controlled off `view.nodePreviewPreference` — no local state to go stale
- * when the tab (or a reset) writes the same field, exactly like
- * `SizingSection`/`ForceLayoutSection`.
+ * Seeded from `view.nodePreviewPreference` and OPTIMISTIC on top of it (see
+ * {@link useOptimisticValue}) so the pill moves on the click instead of a whole
+ * rebuild later; the store still wins the moment it disagrees, so a write from the
+ * tab (or a reset) is not shadowed.
  *
  * The outline-depth slider is deliberately NOT mirrored here; that pre-existing
  * parity gap is tracked separately.
  */
-export function NodeContentsSection({
-	view,
-	ctx,
-}: {
-	readonly view: ViewSettings;
-	readonly ctx: SettingsWriteContext;
-}): ReactElement {
+export function NodeContentsSection({ view }: { readonly view: ViewSettings }): ReactElement {
 	const actions = useControlsActions();
 	/*
 	 * Radio grouping is DOCUMENT-scoped for inputs outside a `<form>`. The
@@ -38,9 +32,9 @@ export function NodeContentsSection({
 	 * group and un-check each other. `useId()` is exactly that guarantee.
 	 */
 	const groupName = useId();
-	const apply = (value: NodePreviewPreference): void => {
-		void actions.applySettings(planSettingsWrite({ kind: "global-node-preview", value }, ctx));
-	};
+	const [selected, request] = useOptimisticValue<NodePreviewPreference>(view.nodePreviewPreference, (value) =>
+		actions.applySettings({ kind: "global-node-preview", value }),
+	);
 
 	return (
 		<Disclosure summary="Node contents" className="vicinity-graph-nodecontents">
@@ -66,8 +60,8 @@ export function NodeContentsSection({
 									type="radio"
 									name={groupName}
 									value={preference}
-									checked={view.nodePreviewPreference === preference}
-									onChange={() => apply(preference)}
+									checked={selected === preference}
+									onChange={() => request(preference)}
 								/>
 								<span className="vicinity-graph-segmented__text">{meta.label}</span>
 							</label>

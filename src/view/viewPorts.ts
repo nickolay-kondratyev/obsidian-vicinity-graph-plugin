@@ -1,7 +1,8 @@
 import type { ElkNode } from "elkjs";
 import type { ForceLayoutSettings, VicinityGraph } from "../engine";
 import type { ControlsModel } from "./ControlsModel";
-import type { SettingsCommand } from "./settingsWritePlan";
+import type { SettingsResetScope } from "./settingsResetPlan";
+import type { SettingsInteraction } from "./settingsWritePlan";
 
 /**
  * Narrow structural ports the {@link GraphViewController} depends on (DIP).
@@ -28,10 +29,15 @@ export interface GraphSourcePort {
 }
 
 /**
- * The obsidian executor side of the controls surface (step-06 #2/#6). The pure
- * `planSettingsWrite` decides WHICH write; this port carries it out against
- * `PersistenceServices`/`PluginDataStore`, resolving the target file from a path
- * via `VaultPort` and surfacing a `Notice` on a non-persistable doc.
+ * The obsidian executor side of the controls surface (step-06 #2/#6). Controls
+ * describe WHAT the user did (a {@link SettingsInteraction}); everything after
+ * that — serialisation, planning the write against the globals as they are at
+ * WRITE time, persisting, and the refresh fan-out — belongs to
+ * `SettingsWritePipeline` behind this port.
+ *
+ * WHY an interaction and not a ready-made command: a control can only build a
+ * command from the snapshot it RENDERED from, and a stale merge base silently
+ * reverts whatever sibling field moved in between.
  *
  * A rebuild follows only what LANDED: a refused write (a doc with no stable id)
  * changes no rendered state, so nothing rebuilds. Everything that DOES land is
@@ -39,8 +45,10 @@ export interface GraphSourcePort {
  * `ControlsActions`; consumed by the panel + node components via context.
  */
 export interface ControlsActionsPort {
-	/** Persist a planned settings write (all global); then rebuild every open view. */
-	applySettings(command: SettingsCommand): Promise<void>;
+	/** Persist what the user just did (all settings are global); then rebuild every open view. */
+	applySettings(interaction: SettingsInteraction): Promise<void>;
+	/** Restore one settings section's shipped defaults; then rebuild every open view. */
+	restoreDefaults(scope: SettingsResetScope): Promise<void>;
 	/** Pin a regular node by its vault path (resolves + ensures a docid); rebuilds every view if it landed. */
 	pinNode(path: string): Promise<void>;
 	/** Unpin a pinned central by its docid — always lands — then rebuild every view. */

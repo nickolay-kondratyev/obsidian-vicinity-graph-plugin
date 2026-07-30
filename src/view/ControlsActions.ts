@@ -2,24 +2,24 @@ import { Notice } from "obsidian";
 import type { VaultPort } from "../adapters/obsidianPorts";
 import type { PersistableIdentity } from "../persistence/DocPersistEligibility";
 import type { PersistenceServices } from "../persistence/PersistenceServices";
-import type { PluginDataStore } from "../persistence/PluginDataStore";
-import type { SettingsCommand } from "./settingsWritePlan";
+import type { SettingsResetScope } from "./settingsResetPlan";
+import type { SettingsWritePipeline } from "./settingsWritePipeline";
+import type { SettingsInteraction } from "./settingsWritePlan";
 import type { ControlsActionsPort, ViewsRefreshPort } from "./viewPorts";
 
 /**
- * Obsidian executor for the controls surface (step-06 #6/#8). Thin glue: it
- * switches a pure {@link SettingsCommand} (or a pin/unpin) onto the matching
- * {@link PersistenceServices}/{@link PluginDataStore} call, resolves the target
- * file from a path via {@link VaultPort}, surfaces a `Notice` when the doc can't
- * be pinned, then triggers a rebuild. This is one of the few view files allowed
- * to import `obsidian`; the decision of WHICH write to make lives in the pure
- * `planSettingsWrite`, keeping this a switch with no business logic.
+ * Obsidian executor for the controls surface (step-06 #6/#8). Thin glue with ONE
+ * job of its own: PINS. Every settings edit is handed straight to the shared
+ * {@link SettingsWritePipeline} — the same object the settings tab writes through —
+ * so the panel and the tab cannot drift on serialisation, merge base or fan-out.
+ * This is one of the few view files allowed to import `obsidian`.
  *
- * EVERY write here lands in `data.json` — settings are global and so is the
- * pinned set — so every write that lands fans out to EVERY open view through
- * {@link ViewsRefreshPort}. NOTHING rebuilds when the write did not land
- * ({@link WriteOutcome}): no rendered state changed, so a rebuild could only
- * redisplay what is on screen.
+ * Pins run on the pipeline's chain too: they are `data.json` writes like any other,
+ * so two fast pin/unpin clicks must land in CLICK order, and the panel's settings
+ * edits must not interleave with them mid-write.
+ *
+ * NOTHING rebuilds when the write did not land ({@link WriteOutcome}): no rendered
+ * state changed, so a rebuild could only redisplay what is on screen.
  */
 
 const NOT_PINNABLE_NOTICE = "This note can't be pinned (no stable id).";
@@ -35,56 +35,55 @@ type WriteOutcome = "persisted" | "not-persisted";
 export class ControlsActions implements ControlsActionsPort {
 	constructor(
 		private readonly persistenceServices: PersistenceServices,
-		private readonly pluginDataStore: PluginDataStore,
 		private readonly vault: VaultPort,
 		private readonly viewsRefresh: ViewsRefreshPort,
+		private readonly settingsWrites: SettingsWritePipeline,
 	) {}
 
-	async applySettings(command: SettingsCommand): Promise<void> {
-		await this.executeSettings(command);
-		this.refreshEveryView();
-	}
-
-	async pinNode(path: string): Promise<void> {
-		const file = this.vault.getFileByPath(path);
-		if (file === null) {
-			return;
-		}
-		if (this.persistOutcome(await this.persistenceServices.pinDoc(file), NOT_PINNABLE_NOTICE) === "not-persisted") {
-			return;
-		}
-		this.refreshEveryView();
-	}
-
-	/** Unpinning always lands: `unpinDoc` removes the pin unconditionally and reports no verdict. */
-	async unpinNode(docid: string): Promise<void> {
-		await this.persistenceServices.unpinDoc(docid);
-		this.refreshEveryView();
+	applySettings(interaction: SettingsInteraction): Promise<void> {
+		return this.settingsWrites.apply(interaction);
 	}
 
 	/**
-	 * The fan-out for writes to state EVERY open view renders from (globals and
-	 * the pinned set, both in data.json). The originating view needs no separate
-	 * rebuild call: it is itself an open view, so the fan-out already rebuilds it —
-	 * doing both would duplicate the build and flash its canvas.
+	 * The panel's own "Restore defaults" buttons. Routed through the pipeline (which
+	 * calls `planSettingsReset`) rather than building a defaults object here — a
+	 * second opinion on what a default is, which is exactly what
+	 * `engineDefaultsSingleSource.test.ts` guards against.
+	 */
+	restoreDefaults(scope: SettingsResetScope): Promise<void> {
+		return this.settingsWrites.restoreDefaults(scope);
+	}
+
+	pinNode(path: string): Promise<void> {
+		return this.settingsWrites.runSerialised(async () => {
+			const file = this.vault.getFileByPath(path);
+			if (file === null) {
+				return;
+			}
+			const pinned = await this.persistenceServices.pinDoc(file);
+			if (this.persistOutcome(pinned, NOT_PINNABLE_NOTICE) === "not-persisted") {
+				return;
+			}
+			this.refreshEveryView();
+		});
+	}
+
+	/** Unpinning always lands: `unpinDoc` removes the pin unconditionally and reports no verdict. */
+	unpinNode(docid: string): Promise<void> {
+		return this.settingsWrites.runSerialised(async () => {
+			await this.persistenceServices.unpinDoc(docid);
+			this.refreshEveryView();
+		});
+	}
+
+	/**
+	 * The fan-out for writes to state EVERY open view renders from (here: the pinned
+	 * set — settings writes fan out inside the pipeline). The originating view needs
+	 * no separate rebuild call: it is itself an open view, so the fan-out already
+	 * rebuilds it — doing both would duplicate the build and flash its canvas.
 	 */
 	private refreshEveryView(): void {
 		this.viewsRefresh.refreshAllViews();
-	}
-
-	/** Globals carry no doc identity, so nothing can refuse them. */
-	private async executeSettings(command: SettingsCommand): Promise<void> {
-		switch (command.kind) {
-			case "global-depths":
-				await this.pluginDataStore.saveGlobalDepths(command.depths);
-				return;
-			case "global-view":
-				await this.pluginDataStore.saveGlobalView(command.view);
-				return;
-			case "node-exclusion":
-				await this.pluginDataStore.saveNodeExclusion(command.nodeExclusion);
-				return;
-		}
 	}
 
 	/** Turns a persistence verdict into a rebuild decision, telling the user when the write was refused. */

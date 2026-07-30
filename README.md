@@ -73,6 +73,11 @@ There are no per-note settings. Two surfaces edit the same values: the settings
 tab (**Settings → Vicinity Graph**) and the in-view **Graph controls** panel;
 changing either writes the one global value and refreshes every open graph.
 
+Controls answer immediately: a stepper, slider, toggle or typed field moves as you
+use it, while the graph redraws behind it. Edits made in quick succession — even
+across the two surfaces at once — each keep their own field; nothing you just
+changed gets reverted by the next change.
+
 ### The settings
 
 - **Depth (all notes)** — how far outbound/incoming traversal reaches from each
