@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-30T02:29:24Z
 id: nid_qp56jugz8en8wkgjirwcb269p_e
 title: "Exclusion patterns row: hide it, or render it disabled?"
-status: open
+status: closed
 deps: [nid_armoson86j0ii8c33r1odo1rc_e]
 links: [nid_1rslube8at5xj60ji4jeve0b0_e, nid_armoson86j0ii8c33r1odo1rc_e, nid_klkdpmx6axf90y4xj8khwrlf2_e, nid_que9qloigra7ku2boh83qizz0_e]
 created_iso: 2026-07-27T18:39:36Z
-status_updated_iso: 2026-07-27T18:39:36Z
+status_updated_iso: 2026-07-30T02:29:24Z
 type: task
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
@@ -64,3 +65,14 @@ points at this ticket.
 In the new descriptor model (see docs-internal/notes/settings.md) this becomes a declarative disabledWhen
 flag rather than hand-written branching -- prefer landing it that way if the descriptor-model ticket (nid_wimjq4ewgbg21n4zx9d4qq3a0_e) lands
 first.
+
+**2026-07-30T02:29:24Z**
+
+DONE by nid_armoson86j0ii8c33r1odo1rc_e, per the owner decision recorded here (always
+render, DISABLED). Implemented declaratively as disabledWhen: "exclusion-enabled" on
+the row in src/view/settingsRows.ts - the hand-written showExclusionPatterns branch,
+its slot div and its WHY-NOT comment are deleted from
+src/view/VicinityGraphSettingTab.ts. disabledWhen is compile-restricted to
+DEPENDENCY_AWARE_CONTROL_KINDS so it cannot be declared on a kind no presenter honours.
+The three e2e specs named here were updated but NOT executed (needs real Obsidian) -
+tracked by nid_9wed7bqboqb83aghmt1sctv90_e.

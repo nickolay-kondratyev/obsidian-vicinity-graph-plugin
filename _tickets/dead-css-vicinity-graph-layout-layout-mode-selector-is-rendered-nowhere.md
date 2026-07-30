@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-30T02:28:50Z
 id: nid_uer0a6uxv9ff3sxo9a4je40gp_e
 title: "Dead CSS: .vicinity-graph-layout (layout-mode selector) is rendered nowhere"
-status: open
+status: closed
 deps: []
 links: []
 created_iso: 2026-07-30T02:01:32Z
-status_updated_iso: 2026-07-30T02:01:32Z
+status_updated_iso: 2026-07-30T02:28:50Z
 type: chore
 priority: 4
 assignee: CC_WITH-nickolaykondratyev
@@ -22,3 +23,14 @@ Note `e2e/selectorGuard.test.ts` cannot catch this: it guards the OTHER directio
 
 The two dead rules are gone from `src/view/graph-view.css`; `npm run build` regenerates `styles.css`; `npm test` and `npm run check` stay green.
 
+
+## Notes
+
+**2026-07-30T02:28:50Z**
+
+ALREADY DONE - filed one commit too early. nid_armoson86j0ii8c33r1odo1rc_e deleted the
+.vicinity-graph-layout / .vicinity-graph-layout select rules from
+src/view/graph-view.css in the same diff that filed this (the hunk that replaced the
+layout-mode block with .vicinity-graph-slider-row*). `grep -rn "vicinity-graph-layout"
+src/` now finds nothing. Nothing left to do; the claim that the rules "still ship" was
+wrong the moment it was written.

@@ -197,3 +197,145 @@ hatch if they want exclusion back at #2).
 
 None beyond B1 (make the tab's guard real so the five existing claims are true) and S3
 (close the stale dead-CSS ticket; re-point the tickets naming deleted components).
+
+---
+
+# Round 2 — re-review of iteration 1 (`ae7569e`, `bc0af6c`)
+
+**VERDICT: READY / CONVERGED — 0 BLOCKING, 1 SHOULD-FIX (handoff-list item, not code),
+2 NICE-TO-HAVE.** Every round-1 finding is genuinely resolved or rejected on sound
+grounds. Scope was limited to the round-1 findings plus regressions in
+`git diff ffb8c45..HEAD`; no fresh sweep.
+
+## Green claim — re-verified independently
+
+| Command | Result |
+|---|---|
+| `npm test` | 87 files / **1139 tests passed**, exit 0 (`.tmp/r2_test.log`) |
+| `npm run check` | exit **0** (`.tmp/r2_check.log`) |
+| `npm run test:e2e` | not run (per instructions) |
+
+Working tree clean after all probes (`git status --porcelain` empty); no probe
+artifacts left in the tree.
+
+## B1 — VERIFIED FIXED, by my own probe (not by reading the claim)
+
+Added a 10th arm `{ kind: "probe-tenth" }` to `SettingsRowControl` (+ the kinds tuple)
+and ran `npx tsc -noEmit` under the repo's real config. Exit 2, and the errors are in
+**both** presenters:
+
+```
+src/view/SettingsRowView.tsx(89,31): error TS2345: Argument of type
+  '{ readonly kind: "probe-tenth"; }' is not assignable to parameter of type 'never'.
+src/view/VicinityGraphSettingTab.ts(282,32): error TS2345: … 'never'.
+```
+
+The headline guarantee ("a new control kind is a compile error in BOTH presenters") is
+now TRUE as written. `unhandledRowControl(control: never): never`
+(`src/view/settingsRows.ts:110-113`) is the right shape, and its docblock states the
+WHY (the tab's `void` arm) accurately. Probe reverted.
+
+**The new BDD test really bites.** Deleting the tab's `default` arm →
+`settingsRowParity.test.ts` fails with
+`"settings tab does not close its switch with unhandledRowControl"`. Deleting the
+panel's → `"controls panel does not close its switch with unhandledRowControl"`.
+Verified separately for each side; both restored. The tightened
+`case "${kind}":` scan is the right fix for the comment-satisfiable substring.
+
+## S1 — `DEPENDENCY_AWARE_CONTROL_KINDS` — VERIFIED, honest, and it constrains
+
+Probe: added `disabledWhen: "exclusion-enabled"` to the Node cap row
+(`src/view/settingsRows.ts:389`). `tsc` exit 2:
+
+```
+src/view/settingsRows.ts(385,6): error TS2322: Type '{ … control: { kind: "node-cap"; };
+  disabledWhen: "exclusion-enabled"; }' is not assignable to type 'SettingsRow'.
+```
+
+The allowlist is also FACTUALLY correct: `exclusion-patterns` is honoured on both
+surfaces — panel at `SettingsRowView.tsx:451`, tab at `VicinityGraphSettingTab.ts:487`
+plus the `DependentControl` re-apply registration at `:488`. No other kind claims it.
+The implementer's third option is strictly better than either option I offered: the
+limit is now compile-enforced rather than documented, and the OCP door
+(`settingsRows.ts:137-139`, "teach both presenters, then add the kind") is explicit.
+The runtime companion test (`settingsRows.test.ts:79-87`) is not a tautology — rows
+built by `.map()` from other tables can widen past the literal type.
+
+## Doc claims touched this round — all TRUE
+
+- `CLAUDE.md:42` — now says "a `switch` … closed by `unhandledRowControl` (the tab's
+  arm returns `void`, so the `default` is what makes its exhaustiveness real)" and
+  scopes `disabledWhen` to `DEPENDENCY_AWARE_CONTROL_KINDS`. Both verified above.
+- `docs-internal/architecture-map.md:73-83` — same two claims, same verdict.
+- `docs-internal/notes/settings.md:33-38, 93-96` — accurate; the parity-test sentence
+  correctly now says it also scans for the closing `default`.
+- `docs-internal/plan/high-level-plan.md:72` and `README.md` — correctly left alone;
+  the plan's `disabledWhen` sentence names the exclusion-patterns row specifically, so
+  it was never over-general. Confirmed by grep, not by the implementer's say-so.
+- `settingsRows.ts:119-125` still says "both surfaces render such a row ALWAYS and
+  merely disable it" — true, and the very next docblock narrows the scope, so it does
+  not over-claim in context.
+
+## The 2 rejections — both sound, stated plainly
+
+- **NTH-1 (per-kind `{read, range, interaction}` accessor) → follow-up ticket.**
+  Sound. It is a real design question (the row model is deliberately pure DATA and is
+  imported by the node-side e2e process), it was raised as a follow-up in round 1, and
+  the queued ticket text captures the design question rather than just the symptom.
+- **NTH-4 (`sectionSummary`'s `"node-exclusion"` identity check).** Sound. The badge is
+  a per-graph excluded-node COUNT, not a settings row; expressing it "as data" means a
+  `(state, count) => ReactNode` field in a `react`-free pure-data module. Trading one
+  honest one-line special case for a function-valued field in the shared model is a
+  net loss. I withdraw the suggestion.
+
+## Regression check on `ffb8c45..HEAD` — none found
+
+- `SliderBounds` → `SettingsRange` (`engine/constants.ts:122-126`) is field-identical
+  (`min`/`max`/`step`); `tsc` green.
+- The `SettingsRow` interface → union rewrite does not break `isSettingsRowDisabled`,
+  `DependentControl.row`, or any presenter narrowing (`tsc` + 1139 tests green).
+- CSS rename `vicinity-graph-forcelayout__restore` → `vicinity-graph-section-restore`:
+  `grep -rn` finds the old name nowhere in `src/` or `e2e/`; the only two live
+  references are `graph-view.css:796` and `GraphToolbar.tsx:140`; `styles.css` is
+  gitignored (regenerated at build) and the local build carries the new name.
+- Iteration 1 touched no e2e spec, and it changed no user-visible label or e2e
+  selector, so the round-1 e2e self-consistency conclusion still holds.
+- Ticket statuses in the handoff list spot-checked against the `ticket` CLI and all
+  six match what the implementer claims (`uer0`/`hatw`/`klkd`/`que9` open;
+  `9jii`/`5wir` closed). The "don't rewrite CLOSED tickets — they are historical
+  record" rationale is correct; only actionable tickets need re-pointing.
+
+## ⚠️ SHOULD-FIX (one, and it is about the handoff list, not the code)
+
+### R2-S1. The queued ticket list omits the one thing that is genuinely unverified: the e2e release gate
+
+This change **rewrote four e2e specs** (`settingsDependentRows`, `settingsUxVisual`,
+`settingsResetVerify`, `settingsResetReview`) and `npm run test:e2e` has never been run
+against any of it — correctly so, it needs a real Obsidian. `docs-internal/RELEASE_CHECKLIST.md:15`
+covers it *at release*, which means a broken rewritten spec surfaces weeks later, far
+from its author. The `decide` ticket mentions e2e only as a footnote about label
+wrapping.
+
+**Fix:** add a 6th item to "TICKETS FOR TOP_LEVEL_AGENT TO FILE" —
+*"Run `npm run test:e2e` on this branch before merge: `nid_armoson86j0ii8c33r1odo1rc_e`
+rewrote the two exclusion dependent-row tests and three settings selectors, and none of
+it has executed against a real Obsidian."* One line, and it stops the only genuinely
+unverified surface from being lost.
+
+## 💡 NICE-TO-HAVE
+
+1. `DEPENDENCY_AWARE_CONTROL_KINDS` (`src/view/settingsRows.ts:141`) is itself an
+   unguarded allowlist: appending a kind there *without* teaching the presenters
+   restores exactly the silent-ignore bug, and both the type and the runtime test go
+   green. The two-step is documented (`:137-139`) but nothing trips. Cheap tripwire:
+   pin the tuple's exact contents in `settingsRows.test.ts` with a comment saying that
+   editing this test is the deliberate act of confirming both presenters were taught.
+2. The parity scan's second test matches `return unhandledRowControl(row.control)`
+   anywhere in the file, not specifically in a `default` arm. The compile guard is the
+   primary protection so this is belt-and-braces, but a comment saying so would stop a
+   future reader over-trusting the scan.
+
+## Round-2 verdict
+
+**READY / CONVERGED.** No blocking issues. The one SHOULD-FIX is a line of text in the
+handoff list; the two nice-to-haves are optional. Nothing here should hold the merge.

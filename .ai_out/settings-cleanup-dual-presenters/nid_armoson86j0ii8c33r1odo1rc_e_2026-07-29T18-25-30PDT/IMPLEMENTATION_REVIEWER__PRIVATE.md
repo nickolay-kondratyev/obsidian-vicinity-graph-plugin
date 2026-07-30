@@ -43,3 +43,41 @@ the parity scan to `case "${kind}":`).
   aria-labels, `.vicinity-graph-settings`-scoped `Node cap`/`Outline depth`,
   MIN_NAMED_CONTROLS=26 recount verified (10 sliders + 9 numbers + 1 textarea + 6
   toggles).
+
+---
+
+# Round 2 (fresh instance) — CONVERGED
+
+Verdict: **READY / CONVERGED**, 0 BLOCKING, 1 SHOULD-FIX (handoff list), 2 NICE-TO-HAVE.
+Written to `IMPLEMENTATION_REVIEW__PUBLIC.md` under "# Round 2".
+
+## Proved myself this round (do not redo)
+- `npm test` 87 files / **1139** pass, `npm run check` exit 0 (`.tmp/r2_test.log`,
+  `.tmp/r2_check.log`).
+- **B1 probe**: 10th arm `{kind:"probe-tenth"}` → TS2345 'never' at
+  `SettingsRowView.tsx(89,31)` AND `VicinityGraphSettingTab.ts(282,32)`. Reverted.
+- **Test probe**: deleting EITHER `default` arm fails
+  `settingsRowParity.test.ts` ("… does not close its switch with unhandledRowControl").
+  Verified each side separately. Reverted; `git status --porcelain` empty.
+- **S1 probe**: `disabledWhen` on the node-cap row → TS2322 at `settingsRows.ts(385,6)`.
+  Allowlist is factually correct (panel `SettingsRowView.tsx:451`, tab
+  `VicinityGraphSettingTab.ts:487-488`).
+- Docs re-read: CLAUDE.md:42, architecture-map:73-83, notes/settings.md:33/93,
+  high-level-plan:72, README — all accurate; plan/README correctly untouched.
+- Regressions: `SettingsRange` field-identical to deleted `SliderBounds`; union rewrite
+  of `SettingsRow` breaks nothing; CSS rename has zero stale refs (`styles.css` is
+  gitignored); iteration 1 touched no e2e spec.
+- Ticket statuses spot-checked via `ticket show`: uer0/hatw/klkd/que9 OPEN,
+  9jii/5wir CLOSED — matches the implementer's list exactly.
+
+## Both rejections are sound — do NOT reopen
+NTH-1 (accessor table) is a genuine design question → ticketed. NTH-4
+(`sectionSummary` node-exclusion identity check) — I withdraw it; a
+`(state,count)=>ReactNode` field in a react-free pure-data module is worse.
+
+## Only things still open
+- R2-S1: handoff list has no item for running `npm run test:e2e` on this branch
+  (4 specs rewritten, never executed). One line to add.
+- NTH: `DEPENDENCY_AWARE_CONTROL_KINDS` is itself an unguarded allowlist (append a kind
+  without teaching presenters → both type and test stay green); pin the tuple in a test.
+- NTH: parity scan matches the guard call anywhere in the file, not in a `default` arm.

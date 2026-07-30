@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-30T02:29:25Z
 id: nid_llfhrqo1ecg8tuxigo7bcrrrf_e
 title: "Collapse duplicate SETTINGS_SECTIONS / SECTION_RESET_SCOPES names"
-status: open
+status: closed
 deps: [nid_armoson86j0ii8c33r1odo1rc_e]
 links: []
 created_iso: 2026-07-29T19:31:01Z
-status_updated_iso: 2026-07-29T19:31:01Z
+status_updated_iso: 2026-07-30T02:29:25Z
 type: chore
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
@@ -27,3 +28,11 @@ Collapse once ticket 4 (dual presenters, `nid_armoson86j0ii8c33r1odo1rc_e`) move
 - `SettingsResetScope` still distinct (it adds "all").
 - `npm test` and `npm run check` green; e2e imports updated in the same change.
 
+
+## Notes
+
+**2026-07-30T02:29:25Z**
+
+DONE by nid_armoson86j0ii8c33r1odo1rc_e. SECTION_RESET_SCOPES is deleted; every
+consumer now reads SETTINGS_SECTIONS from src/view/settingsRows.ts, so the two
+parallel name lists collapse to one.

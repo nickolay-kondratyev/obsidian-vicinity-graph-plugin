@@ -1,12 +1,13 @@
 ---
+closed_iso: 2026-07-30T02:29:24Z
 id: nid_1rslube8at5xj60ji4jeve0b0_e
 tags: [settings, settings-cleanup]
 title: "Group the depth of the current note and the pinned centrals under the Depth"
-status: open
+status: closed
 deps: [nid_armoson86j0ii8c33r1odo1rc_e]
 links: [nid_fay1hu5sxcoygizopkkg0f0d7_e, nid_qp56jugz8en8wkgjirwcb269p_e, nid_armoson86j0ii8c33r1odo1rc_e, nid_klkdpmx6axf90y4xj8khwrlf2_e, nid_que9qloigra7ku2boh83qizz0_e]
 created_iso: 2026-07-28T17:27:47Z
-status_updated_iso: 2026-07-28T17:27:47Z
+status_updated_iso: 2026-07-30T02:29:24Z
 type: task
 priority: 3
 assignee: nickolaykondratyev
@@ -23,3 +24,16 @@ Possibly give it a more clear name maybe something of depth of links?
 **2026-07-29T22:11:13Z**
 
 SCOPE CHANGE (owner, 2026-07-29): per-pinned-central depth dials are removed by nid_ez38gf1mrdgh5kxedzrdicwzl_e (settings global-only; pins global). The Depth group therefore contains only the GLOBAL depth controls (currently outgoing/incoming; +embed later via nid_fay1hu5sxcoygizopkkg0f0d7_e). The pinned-centrals list stays as a disclosure but carries no depth steppers to regroup. Update any relevant specs/docs describing the Depth grouping.
+
+**2026-07-30T02:29:24Z**
+
+DONE by nid_armoson86j0ii8c33r1odo1rc_e. ONE declared "Depth (all notes)" group in
+src/view/settingsRows.ts - the heading is declared once instead of once per surface,
+and both the settings tab and the in-graph panel render the depth rows from it, with
+row labels saying "depth" on both. Per the 2026-07-29 owner GLOBAL-ONLY scope change
+on the parent ticket: GLOBAL rows only - no per-doc / per-pinned-central depth dials,
+no NOT_PERSISTABLE_NOTICE, no owned-layer pinned indicator.
+
+DEFERRED (not lost): this ticket's "maybe rename to depth-of-links" is deferred to the
+naming step of the settings-cleanup chain, per the standing owner decision recorded in
+docs-internal/notes/settings.md.

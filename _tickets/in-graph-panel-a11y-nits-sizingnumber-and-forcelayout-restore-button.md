@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-30T02:28:50Z
 id: nid_que9qloigra7ku2boh83qizz0_e
 title: "In-graph panel a11y nits: SizingNumber and ForceLayout restore button"
-status: open
+status: closed
 deps: [nid_armoson86j0ii8c33r1odo1rc_e]
 links: [nid_1rslube8at5xj60ji4jeve0b0_e, nid_qp56jugz8en8wkgjirwcb269p_e, nid_armoson86j0ii8c33r1odo1rc_e, nid_klkdpmx6axf90y4xj8khwrlf2_e]
 created_iso: 2026-07-25T17:14:21Z
-status_updated_iso: 2026-07-25T17:14:21Z
+status_updated_iso: 2026-07-30T02:28:50Z
 type: chore
 priority: 4
 assignee: CC_WITH-nickolaykondratyev
@@ -25,3 +26,14 @@ Both are consistency nits, not user-visible defects. Do NOT introduce any new `R
 - Both controls follow one stated convention, or the ticket is closed with an explicit "implicit label is sufficient here" rationale recorded.
 - No visual change; `npm test` and the e2e settings specs stay green.
 
+
+## Notes
+
+**2026-07-30T02:28:50Z**
+
+DONE by nid_armoson86j0ii8c33r1odo1rc_e. Both nits are fixed and the convention is
+now stated once in SettingsRowNames (src/view/settingsRows.ts): the panel sizing
+number inputs carry aria-label = the row label, and the panel restore button carries
+aria-label = the reset scope label from settingsResetPlan. src/view/SizingSection.tsx
+and src/view/ForceLayoutSection.tsx are deleted; the code is in
+src/view/SettingsRowView.tsx and src/view/GraphToolbar.tsx (SectionRestoreButton).
