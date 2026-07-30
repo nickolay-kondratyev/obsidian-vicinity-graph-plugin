@@ -1,54 +1,61 @@
-# Reviewer notes (private) — `b3a7220`
+# Reviewer notes (private)
 
-## What I actually ran
+## Round 1 — `b3a7220` (kept for the trail)
 
-- `npm test > .tmp/review-test.log` → 96 files / 1290 tests passed, exit 0.
-- `npm run check > .tmp/review-check.log` → exit 0 (src + e2e tsc).
-- No `sanity_check.sh` in repo root.
+- `npm test` → 96 files / 1290 passed, exit 0. `npm run check` → exit 0. No `sanity_check.sh`.
+- Verdict CHANGES_REQUESTED on ONE major item: the failure-path fan-out asymmetry. `write()`
+  fanned out even after `guarded()` caught (because `PluginDataStore.persist()` moves memory
+  before the disk write), while the pin path skipped the fan-out on rejection, justified by a
+  WHY-NOT comment written for the DIFFERENT `not-persistable` case, and untested either way.
+- Deliberately not raised then: `runGuarded`'s string-union subject vs `runSerialised`'s
+  callback shape; `RejectingPluginDataPort` shipping under `src/persistence/`; tests
+  asserting through `SettingsWriteFailureNotice.forNonSettingsWrite(...)` rather than a
+  literal (that is the repo's copy-lives-once convention, not assertion-tuning).
 
-## Verification trail
+## Round 2 — `a2eae3d` → APPROVED
 
-- Diff read in full (`git show b3a7220 -- CLAUDE.md src/`), plus the full current
-  `ControlsActions.ts`, `settingsWritePipeline.ts`, `PluginDataStore.ts`,
-  `settingsWriteFailureNotice.ts`, and `ControlsActions.test.ts` lines 60-171.
-- Deletions audit: only the local `RejectingPluginDataPort` class in
-  `settingsWritePipeline.test.ts` (moved to `src/persistence/`, not weakened). No
-  behaviour test removed, no anchor point touched.
-- Success-path fan-out regression check: `refreshEveryView()` is still inside the pin task;
-  `ControlsActions.test.ts:107` and `:113` (refresh EVERY view on pin / unpin) untouched and
-  green. Conclusion: NOT a regression — the "runGuarded does not fan out" choice is right for
-  the success path because the task already fans out itself.
-- One-catch check: `grep 'try {' src/view/*.ts` (non-test) → `edgeRouting.ts`,
-  `GraphViewController.ts` x2, `settingsResetSequence.ts`, `VicinityGraphSettingTab.ts`,
-  `settingsWritePipeline.ts:217`. All the pre-existing, CLAUDE.md-sanctioned ones; no new
-  call-site catch. `runSerialised` still used (only by `settingsDebounce.ts`), so no dead seam.
-- Copy check: no call site types user-visible text; `NON_SETTINGS_WRITE_LABELS` is the only
-  new hand-written label and it lives in the copy-owning module.
-- Double-notice check on `pinNode`: `not-persistable` returns WITHOUT throwing, so the
-  refusal notice and the failure notice cannot both fire.
+### What I ran
+- `npm test > .tmp/review2-test.log` → 96 files / **1294 passed**, exit 0.
+- `npm run check > .tmp/review2-check.log` → exit 0.
 
-## The one substantive finding
+### Verification trail (round 2)
+- Read the full current `settingsWritePipeline.ts` and `ControlsActions.test.ts`, plus the
+  complete `a2eae3d` diff for `CLAUDE.md`, `ControlsActions.ts`, `VicinityGraphView.tsx`,
+  `RejectingPluginDataPort.ts` and both suites.
+- **Settings fan-out unchanged**: `write()` body returns `"store-changed"` unconditionally;
+  `guarded()`'s tail block calls the same `refreshAllViews()`, still inside the same
+  `chain.run` slot, still after the notice. Pure code motion for the settings half.
+- **Refused-pin path**: `ControlsActions.test.ts:120` and `:126` untouched and green.
+- **Rejected-pin path**: new tests at BOTH levels, and they are real — the pipeline-level one
+  rejects the body directly, the `ControlsActions` one drives the real `PersistenceServices`
+  over `RejectingPluginDataPort`.
+- **Deletion audit across BOTH commits**:
+  `git diff HEAD~2 -- src/ e2e/ | grep -E '^-\s*(it|test|describe)\('` → zero matches. No test
+  declaration removed or renamed anywhere in the feature.
+- **Second-fan-out check**: `grep -rn refreshAllViews src/ e2e/` minus tests → exactly one
+  production call site (`settingsWritePipeline.ts:255`) plus the port decl and `main.ts`'s
+  adapter. Strictly better than pre-feature (two call sites). CLAUDE.md's "never add a second
+  fan-out" is now grep-enforceable.
 
-Failure-path fan-out asymmetry. Settings `write()` fans out even after `guarded()` catches
-(tested at `settingsWritePipeline.test.ts:278`), because `PluginDataStore.persist()` moves
-memory before the disk write. The pin path skips the fan-out on rejection for exactly the
-same in-memory situation, and the WHY-NOT comment justifies it with the `not-persistable`
-case, which is a DIFFERENT case. Not a regression (pre-commit behaviour was identical), but
-the commit's whole claim is "one policy", and this is where the two halves visibly differ,
-undocumented and untested.
+### The `let outcome = "store-changed"` initialiser — my judgement
+Honest, not a trap. Two tests fail if it is flipped to `"store-unchanged"`; moving the
+declaration inside the `try` does not compile. The comment on it names the
+`PluginDataStore.persist()` ordering. Residual smell is locality only (decision written above
+the `try`, realised by the `catch`, acted on in a tail block that assumes no early `return`
+appears inside the `try`). Offered the assign-in-`catch` variant as an optional suggestion;
+explicitly did NOT gate on it.
 
-Judged MAJOR not BLOCKING: no data loss beyond what the open ticket
-`nid_biwdtykvazsk3ejcqqli8o9j7_e` already tracks, user still gets the notice. Verdict
-CHANGES_REQUESTED anyway because the fix is cheap (a corrected comment + one test) and
-because leaving the failure-path fan-out untested lets it flip silently later.
+### The REJECTED item — I stood down
+`SerialSettingsWrites` not carrying `runGuarded`. Verified the premise rather than taking it
+on trust: `git show HEAD~2:src/view/ControlsActions.ts` shows the concrete
+`SettingsWritePipeline` dependency PRE-DATES this feature, and the interface's single consumer
+is `DebouncedSettingsWrites` via `runSerialised`. Widening it would only force the debounce
+fake to stub a method nobody calls. Rejection is correct; ISP beats the cosmetic DIP symmetry.
 
-## Deliberately NOT raised
+### CLAUDE.md
+Re-read the rewritten bullet clause by clause against the code — all four load-bearing claims
+check out. No doc follow-ups outstanding.
 
-- `runGuarded` taking a string-union subject rather than the writer callback shape of
-  `runSerialised` — asymmetric API surface, but the union is what keeps copy out of call
-  sites; net positive.
-- `RejectingPluginDataPort` shipping in `src/persistence/` (non-test) — same pattern as
-  `FakePluginDataPort`; tree-shaken out of the bundle.
-- Test assertions referencing `SettingsWriteFailureNotice.forNonSettingsWrite(...)` rather
-  than a literal — not assertion-tuning; it is the repo's copy-lives-once convention, and
-  the exactly-once + array-equality shape is what carries the behaviour.
+### Nothing new raised
+Held to the instruction: no re-litigating settled minors, no invented nits. The only non-blocking
+item is the initialiser locality suggestion, which the focus brief explicitly asked me to judge.
