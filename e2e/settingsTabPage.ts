@@ -52,6 +52,57 @@ export class SettingsTabPage {
 		await this.page.evaluate(() => (window as unknown as { app: any }).app.setting.activeTab?.display());
 	}
 
+	/** The plugin's root element in the settings modal — also the tab's scroll container. */
+	root(): Locator {
+		return this.page.locator(".vicinity-graph-settings");
+	}
+
+	/**
+	 * A control anywhere in the tab, by the accessible name the tab gives it.
+	 *
+	 * Accessible name, never a CSS path: `SettingsRowNames` IS the naming convention
+	 * both surfaces apply (`src/view/settingsRows.ts`), so a spec that asks for a
+	 * control by its declared name fails when the name drifts — which is the point.
+	 */
+	control(accessibleName: string): Locator {
+		return this.root().getByLabel(accessibleName);
+	}
+
+	/** The `.setting-item` row that holds a control — a row is addressed by what it contains. */
+	rowHolding(accessibleName: string): Locator {
+		return this.root().locator(".setting-item", {
+			has: this.page.locator(`[aria-label="${accessibleName}"]`),
+		});
+	}
+
+	/**
+	 * One row's inline feedback slot — the rejection / warning line a typed input shows.
+	 *
+	 * Scoped THROUGH `.setting-item-description` on purpose: the slot is created inside
+	 * the row's `descEl` (`VicinityGraphSettingTab.addFeedbackSlot`), and "the message
+	 * appears under the row it is about" is half of what makes it usable. A locator that
+	 * only said `.vicinity-graph-settings-error` would pass with the slot rendered
+	 * anywhere on the page.
+	 *
+	 * Empty text hides it via CSS `:empty`, so `toBeVisible()` / `toBeHidden()` here
+	 * reads as "this row has something to say" / "it has nothing to say".
+	 */
+	feedbackUnder(accessibleName: string): Locator {
+		return this.rowHolding(accessibleName).locator(".setting-item-description .vicinity-graph-settings-error");
+	}
+
+	/**
+	 * Types `text` into a named control, replacing whatever it held.
+	 *
+	 * `fill` rather than `type`: it delivers ONE `input` event with the final text, so a
+	 * multi-character value cannot be judged (and rejected) on a half-typed prefix — the
+	 * per-keystroke path is `settingsDebounce.test.ts`'s business, while a spec here is
+	 * about what a FINISHED entry does.
+	 */
+	async typeInto(accessibleName: string, text: string): Promise<void> {
+		await this.control(accessibleName).fill(text);
+	}
+
 	/** One framed section card, addressed by its heading text. */
 	card(headingText: string): Locator {
 		return this.page.locator(".vicinity-graph-settings-section", { hasText: headingText });
