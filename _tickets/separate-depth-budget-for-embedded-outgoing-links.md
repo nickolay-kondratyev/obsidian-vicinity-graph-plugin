@@ -1,12 +1,13 @@
 ---
+closed_iso: 2026-07-30T04:49:03Z
 id: nid_fay1hu5sxcoygizopkkg0f0d7_e
 tags: [settings, settings-cleanup]
 title: "Separate depth budget for embedded outgoing links (decisions settled; measures the new settings model's plumbing cost)"
-status: open
+status: closed
 deps: [nid_8p0nn2g34d97finokwlz3u1dt_e, nid_wimjq4ewgbg21n4zx9d4qq3a0_e, nid_armoson86j0ii8c33r1odo1rc_e, nid_x6hgehsu5il1d1shuraz3ufqy_e]
 links: [nid_869bt9d9rlrbr8of1403dnmf3_e, nid_8p0nn2g34d97finokwlz3u1dt_e, nid_1rslube8at5xj60ji4jeve0b0_e, nid_d57npvuvjk95n03c2xqgl3y6o_e, nid_t0x7ap99djfuzvz5p261ao7rn_e, nid_xy56b20jbvaedbl0610m3j2ls_e]
 created_iso: 2026-07-28T17:29:00Z
-status_updated_iso: 2026-07-28T17:29:00Z
+status_updated_iso: 2026-07-30T04:49:03Z
 type: task
 priority: 2
 assignee: nickolaykondratyev
@@ -533,3 +534,23 @@ npm test 1212 passed / 91 files (was 1199); npm run check clean. Docs updated: h
 **2026-07-30T04:45:59Z**
 
 MEASUREMENT ARITHMETIC CORRECTION (Stage 3 review iteration 1). The note above and the 21b3152 commit message both mis-stated the FIXTURE-CHURN file count: the note said 13, the commit message said 18. Both are wrong. RECOUNTED from `git show 21b3152 --stat`: 25 files total = 6 production + 2 deliberate literal test tables + 17 fixture churn (13 unit test/fixture files + 4 e2e). Counting method, stated explicitly: a FILE is one path in the commit's --stat; PRODUCTION is any non-`*.test.*`, non-`e2e/`, non-`testFixtures/` file; FIXTURE CHURN is a file whose only change is widening a DepthSettings object literal (every one a compile error, none silent). The headline is UNCHANGED and stands: 25 files, +91/-43, ~14 non-comment lines of real code, silent hand-maintained steps 8 -> 1. Only the internal breakdown was wrong, and it now sums to 25.
+
+**2026-07-30T04:49:03Z**
+
+DONE — implemented and closed. Shipped in two stages on branch nid_fay1hu5sxcoygizopkkg0f0d7_e_2026-07-29T20-38-42PDT.
+
+Stage 1 (carry the kind, no behavior change): LinkKind = "link" | "embed" carried on OUTGOING references — markdown by cache.embeds/cache.links array provenance, frontmatter always link, canvas type:"file" node => embed, the `!` captured in src/shared/Wikilinks.ts + src/shared/MarkdownInlineLinks.ts. Option 3a adopted: canvases are ALWAYS parsed, the core-indexed outgoing shortcut and CanvasCapability.ts are deleted (also the permanent fix shape for nid_s676x55uojmtcwh9t4l9mc6zl_e). Incoming stays kind-blind per the scope cut — BacklinksAdapter untouched, no getBacklinksForFile probe needed.
+
+DISCLOSED BEHAVIOR CHANGE (Stage 1, found in review): for core-indexed canvases the rendered edge count now comes from our parse rather than core's resolvedLinks count. Kept deliberately — one authority per edge, and re-reading resolvedLinks would re-expose the boot race — pinned by a test where seeded resolvedLinks=1 disagrees with parse=3.
+
+Stage 3 (the budget): Direction became a flat 3-value channel enum outgoing-link | outgoing-embed | incoming (D1 = 6a kind-pure BFS, 3 runs per root); Record<Channel,...> is the compile-time completeness guard. Global keys renamed per D2 with NO migration and NO PERSISTED_SHAPE_VERSION bump: linkDepthOut / embedDepthOut (new) / linkDepthIn, labelled "Links out" / "Embeds out" / "Links in". Release-note line added to docs-internal/RELEASE_CHECKLIST.md so the global depth reset is announced, not silent. D5 pinned by test, no new code: attachment-ness stays decided by isNodeBearing, not kind.
+
+D1 RATIONALE CORRECTED (verified independently by review, propagated to spec/docs/tests; the ticket's original wording survives nowhere): "at equal defaults the two outgoing channels union to exactly today's outgoing BFS" is WRONG. Kind-pure results are the end-to-end-homogeneous paths, which coincide with the kind-blind walk iff depth <= 1 — a kind change needs two hops. Shipped defaults are 1/1/1, so zero observable change AT SHIP holds, but the mixed-chain gap (A ![[B]] -> B [[C]] leaves C invisible) bites the first user who raises an outgoing budget to 2, equal budgets included. 6a is still the shipped answer; if that gap proves user-visible, 6b per-kind hop accounting remains the (expensive) escape hatch.
+
+MEASUREMENT MANDATE — the new field's honest cost: 25 files touched = 6 production + 2 deliberate test tables + 17 fixture churn (13 unit + 4 e2e); +91/-43 lines, ~14 lines of real code. 4 of the 6 production edits were compile-FORCED; exactly 1 hand-maintained step is still silent if missed (spec leaf => declared row), now ticketed as nid_xy56b20jbvaedbl0610m3j2ls_e. Versus the pre-cleanup baseline of ~180 lines / ~15 files / ~8 silent parallel lists: silent lists 8 -> 1, real code ~180 -> ~14. HONEST CAVEAT: roughly half that drop is attributable to the SEPARATE removal of the per-doc/per-central layer (nid_ez38gf1mrdgh5kxedzrdicwzl_e), not to the descriptor model; the descriptor model's own contribution is the 8->1 collapse of silent lists and the compile-forcing of 4 of 6 production edits. The write-up's first breakdown was arithmetically wrong (rows summed to 21 vs a headline of 25, fixture churn stated as 13 and as 18 in commit 21b3152); recounted and reconciled in ITERATION 1 — commit 21b3152 was not rewritten, this note supersedes it.
+
+Verdict on the cleanup: the descriptor model DELIVERED. A new global settings field is now ~14 lines of real code with one silent step left.
+
+Follow-ups filed: nid_xy56b20jbvaedbl0610m3j2ls_e (spec-leaf => declared-row completeness guard, the last silent step), nid_2qygmn0z59t8fdlb5e9pap49m_e (Stage 2 visual embed distinction — owner D3 said yes but AFTER Stage 3), nid_t0x7ap99djfuzvz5p261ao7rn_e (e2e tripwire replacing a circular Reference.original unit test deleted in eab9bd2).
+
+npm test 1213/1213 green, npm run check clean. Full records under .ai_out/separate-embed-depth-budget/nid_fay1hu5sxcoygizopkkg0f0d7_e_2026-07-29T20-38-42PDT/.
