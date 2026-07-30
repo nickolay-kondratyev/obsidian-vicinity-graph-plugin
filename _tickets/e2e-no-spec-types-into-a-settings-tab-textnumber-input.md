@@ -1,12 +1,13 @@
 ---
+closed_iso: 2026-07-30T07:21:47Z
 id: nid_ek3wrqoh1rsftk6ulg836mghf_e
 tags: [settings, settings-cleanup]
 title: "e2e: no spec types into a settings-tab text/number input"
-status: open
+status: closed
 deps: [nid_x6hgehsu5il1d1shuraz3ufqy_e]
 links: [nid_x6hgehsu5il1d1shuraz3ufqy_e]
 created_iso: 2026-07-27T17:45:00Z
-status_updated_iso: 2026-07-27T17:45:00Z
+status_updated_iso: 2026-07-30T07:21:46Z
 type: task
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
@@ -37,3 +38,23 @@ What step 5 did and did NOT cover, so this ticket knows its gap:
 Still wanted here: type an inverted max (min > max) and a bad regex into the unified rows; establish the debounce-window pattern other specs can copy; assert the feedback element appears under the row and .vicinity-graph-settings-error is styled as intended.
 
 NOTE: render-level parity (a jsdom/@testing-library harness) is deliberately NOT this ticket — it is nid_7qot0m6nuxxmd5z0yb9jylsd6_e.
+
+**2026-07-30T07:21:46Z**
+
+DONE — acceptance criteria met in full.
+
+`e2e/settingsTypedInput.e2e.ts` types into the unified settings rows:
+- inverted maximum node size -> inline rejection visible under the row, `aria-invalid` set, and the value never persisted (verified against a real `reloadPlugin()` file round trip, not the input text)
+- invalid regex line -> the offending line is named; the text is still stored
+- `.vicinity-graph-settings-error` styling plus the alert/status roles
+- both flush-on-leaving paths (blur and close)
+
+`e2e/settingsWriteWindow.ts` is the new reusable debounce pattern the ticket asked for — NO sleeps. A sentinel-edit ordering barrier proves the negative ("no write landed") off the debounce queue insertion order; `expectFlushedAheadOfWindow` starts its clock before the keystroke so a real flush is distinguishable from the `SETTINGS_WRITE_DEBOUNCE_MS` deadline. Budget derives from that constant.
+
+Falsifiability proven by MUTATION, not asserted: emptying `flushOnBlur`'s listener fails the blur test at ~468 ms ("it was the 400ms debounce timer ... not the flush"); removing both flush paths fails the close test. Non-flaky: 75/75 at `--repeat-each=5`, and 12/12 for the flush tests under 64 busy processes on 32 cores (flush latency 12-16 ms vs a 300 ms budget).
+
+Documented caveat, in the spec: closing the settings window also blurs the field, so the close test gates the OUTCOME rather than `hide()` in isolation.
+
+No product code changed; no guard or existing test weakened. `npm run check` exit 0, `npm test` 1245 passed, full `npm run test:e2e` 110 passed against a real Obsidian. Architecture map + CLAUDE.md point at the helper. change_log: 4pnofaknjaafirssuoh4hokyo.
+
+No follow-up needed. (Render-level jsdom parity remains nid_7qot0m6nuxxmd5z0yb9jylsd6_e, deliberately out of scope here.)

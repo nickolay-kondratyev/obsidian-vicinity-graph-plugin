@@ -87,21 +87,23 @@ test.afterAll(async () => {
 	await harness?.close();
 });
 
+// The tab root, a named control and the row holding it all live on `SettingsTabPage`
+// now — this spec was where those three locators were written first, and a second
+// typed-input spec needing the same three is what made them the page object's.
+
 /** The plugin's root element in the settings modal — also the tab's scroll container. */
 function settingsRoot(): Locator {
-	return page.locator(".vicinity-graph-settings");
+	return settingsTab.root();
 }
 
 /** A control anywhere in the tab, by the accessible name the tab gives it. */
 function control(accessibleName: string): Locator {
-	return settingsRoot().getByLabel(accessibleName);
+	return settingsTab.control(accessibleName);
 }
 
 /** The `.setting-item` row that holds `control` — a row is addressed by what it contains. */
 function rowHolding(accessibleName: string): Locator {
-	return page.locator(".vicinity-graph-settings .setting-item", {
-		has: page.locator(`[aria-label="${accessibleName}"]`),
-	});
+	return settingsTab.rowHolding(accessibleName);
 }
 
 /**

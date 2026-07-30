@@ -1,6 +1,8 @@
 import { ALL_SETTINGS_RESET_SCOPE, SETTINGS_RESET_SCOPES } from "../src/view/settingsResetPlan";
-import { SETTINGS_GROUPS } from "../src/view/settingsRows";
+import { SETTINGS_GROUPS, SettingsRowNames, settingsRowsFor } from "../src/view/settingsRows";
+import type { SettingsRowControlKind } from "../src/view/settingsRows";
 import { SETTINGS_SECTIONS } from "../src/view/settingsSectionFields";
+import type { SizingNumberField } from "../src/view/settingsWritePlan";
 
 /**
  * The ONE e2e-side description of what the settings surfaces are made of: the
@@ -77,6 +79,40 @@ export const EVERY_SETTINGS_RESET_NAME: readonly string[] = [...SECTION_RESET_NA
 
 /** Title of the tab-wide confirmation dialog, as `settingsResetPlan` builds it. */
 export const ALL_SETTINGS_RESET_CONFIRM_TITLE = `${ALL_SETTINGS_RESET_NAME}?`;
+
+/* ========================================================================== *
+ * Control names — the accessible names a spec points controls at
+ * ========================================================================== */
+
+/**
+ * The accessible name of the ONE row carrying `kind`, as `SettingsRowNames` builds it
+ * for both surfaces.
+ *
+ * DERIVED, never re-typed: the row label IS the control's `aria-label`
+ * (`src/view/settingsRows.ts`), so a spec that asks by declared name goes red on a
+ * label rename instead of quietly matching nothing. Throws — loudly — when the kind is
+ * not a single-row kind, because a spec silently pointing at the FIRST of several rows
+ * is the failure mode this exists to prevent.
+ */
+export function soleRowControlName(kind: SettingsRowControlKind): string {
+	const rows = settingsRowsFor(kind);
+	const [row] = rows;
+	if (row === undefined || rows.length > 1) {
+		throw new Error(`expected exactly one declared "${kind}" row, found ${rows.length}`);
+	}
+	return SettingsRowNames.sole(row);
+}
+
+/** The accessible name of the sizing-number row that edits `field` (min/max px, decay k). */
+export function sizingNumberControlName(field: SizingNumberField): string {
+	const row = settingsRowsFor("sizing-number").find(
+		(candidate) => candidate.control.kind === "sizing-number" && candidate.control.field === field,
+	);
+	if (row === undefined) {
+		throw new Error(`no declared settings row edits sizing.${field}`);
+	}
+	return SettingsRowNames.sole(row);
+}
 
 /** One controls-panel disclosure and the state it must be in on a fresh view. */
 export interface PanelDisclosure {
