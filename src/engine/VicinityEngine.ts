@@ -94,7 +94,8 @@ export class VicinityEngine {
 
 	/**
 	 * THE "which links are edges" decision, made once: the walked set, or — with
-	 * {@link ViewSettings.showCrossLinks} on — every link between two visible nodes.
+	 * {@link ViewSettings.showCrossLinks} on — the walked set WIDENED to every link
+	 * between two visible nodes.
 	 *
 	 * Reached only AFTER truncation, and deliberately: sizing and the truncator's
 	 * distance-to-MAIN ranking above have already run on the WALKED edges, so the toggle
@@ -104,7 +105,11 @@ export class VicinityEngine {
 		if (!viewSettings.showCrossLinks) {
 			return truncation.visibleEdges;
 		}
-		return CrossLinkSweep.inducedPairs({ visiblePaths: truncation.visiblePaths, provider: this.provider });
+		return CrossLinkSweep.inducedPairs({
+			walkedVisibleEdges: truncation.visibleEdges,
+			visiblePaths: truncation.visiblePaths,
+			provider: this.provider,
+		});
 	}
 
 	/**

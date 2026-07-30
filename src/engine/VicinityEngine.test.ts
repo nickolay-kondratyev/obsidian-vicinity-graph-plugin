@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { EngineDefaults } from "./constants";
 import { FakeLinkProvider } from "./FakeLinkProvider";
+import type { LinkProvider, OutgoingReference } from "./LinkProvider";
+import { OutgoingReferences } from "./LinkProvider";
 import type { GraphBuildRequest } from "./VicinityEngine";
 import { VicinityEngine } from "./VicinityEngine";
-import type { NodePreviewPreference, VicinityGraph, PinnedNodeDescriptor } from "./types";
+import type { NodePreviewPreference, VaultPath, VicinityGraph, PinnedNodeDescriptor } from "./types";
 import { asDocId, asVaultPath, NODE_PREVIEW_PREFERENCES } from "./types";
 
 /**
@@ -205,11 +207,16 @@ describe("VicinityEngine walked-edge semantics (CLARIFICATION Q5)", () => {
 	 * so it is exactly the link the toggle exists to reveal.
 	 */
 	describe("with cross links ON", () => {
+		/** `showCrossLinks` is forced LAST, so a caller may override any OTHER view field. */
 		function crossLinkBuild(overrides: Partial<GraphBuildRequest> = {}): VicinityGraph {
 			return siblingBuild({
-				globalView: { ...EngineDefaults.viewSettings(), showCrossLinks: true },
 				...overrides,
+				globalView: { ...EngineDefaults.viewSettings(), ...overrides.globalView, showCrossLinks: true },
 			});
+		}
+
+		function paths(graph: VicinityGraph): string[] {
+			return graph.nodes.map((n) => n.path).sort();
 		}
 
 		it("WHEN a link joins two visible nodes the walk never traversed THEN it becomes an edge", () => {
@@ -221,11 +228,88 @@ describe("VicinityEngine walked-edge semantics (CLARIFICATION Q5)", () => {
 		});
 
 		// The ticket's explicit requirement: cross links widen EDGES only. Truncation and
-		// the distance-to-MAIN ranking keep running on the walked edge set.
-		it("WHEN cross links are ON THEN the visible node set is identical to OFF", () => {
-			const paths = (graph: VicinityGraph): string[] => graph.nodes.map((n) => n.path).sort();
-			expect(paths(crossLinkBuild())).toEqual(paths(siblingBuild()));
+		// the distance-to-MAIN ranking keep running on the walked edge set — so the cap
+		// here is one that REALLY truncates (2 non-centrals, cap 1); under an unreached
+		// cap both sides are trivially the whole vault and the test could not fail.
+		it("WHEN cross links are ON under a truncating cap THEN the visible node set is exactly OFF's", () => {
+			const capped = { globalView: { ...EngineDefaults.viewSettings(), nodeCap: 1 } };
+			expect({ on: paths(crossLinkBuild(capped)), off: paths(siblingBuild(capped)) }).toEqual({
+				on: ["a.md", "hub.md"],
+				off: ["a.md", "hub.md"],
+			});
 		});
+
+		it("WHEN cross links are ON THEN an excluded neighbor is still absent from the edges", () => {
+			// Exclusion keeps b.md out of `visiblePaths`, which is the ONLY reason the sweep
+			// cannot re-admit it — a user-visible guarantee worth a tripwire on the new path.
+			const graph = crossLinkBuild({ nodeExclusion: { enabled: true, patterns: ["^b\\.md"] } });
+			expect(edgeStrings(graph)).toEqual(["hub.md->a.md"]);
+		});
+	});
+});
+
+/**
+ * The superset contract at its weakest point: walked edges from the INCOMING channel
+ * come from `getIncomingLinks`, while the sweep reads `getOutgoingLinks`. In
+ * `ObsidianLinkProvider` those are two independent authorities (backlinks vs. the file
+ * cache), and the file cache degrades during Obsidian's boot window — so the two CAN
+ * disagree, and the toggle must not turn that disagreement into a LOST edge.
+ */
+describe("VicinityEngine cross links never drop a walked edge", () => {
+	/** A provider whose outgoing channel has gone blind for `blindSource` (boot window). */
+	class OutgoingBlindProvider implements LinkProvider {
+		constructor(
+			private readonly delegate: LinkProvider,
+			private readonly blindSource: VaultPath,
+		) {}
+
+		getOutgoingReferences(path: VaultPath): readonly OutgoingReference[] {
+			return path === this.blindSource ? [] : this.delegate.getOutgoingReferences(path);
+		}
+
+		getOutgoingLinks(path: VaultPath): readonly VaultPath[] {
+			return OutgoingReferences.targetsOf(this.getOutgoingReferences(path));
+		}
+
+		getIncomingLinks(path: VaultPath): readonly VaultPath[] {
+			return this.delegate.getIncomingLinks(path);
+		}
+
+		getFileMetadata(path: VaultPath) {
+			return this.delegate.getFileMetadata(path);
+		}
+
+		getLinkCount(source: VaultPath, target: VaultPath): number {
+			return this.delegate.getLinkCount(source, target);
+		}
+	}
+
+	/** GIVEN backlinks still report linker.md → hub.md, but linker.md's cache is empty. */
+	function divergentBuild(showCrossLinks: boolean): VicinityGraph {
+		const provider = new OutgoingBlindProvider(
+			new FakeLinkProvider({
+				files: [{ path: "hub.md" }, { path: "out.md" }, { path: "linker.md" }],
+				links: { "hub.md": ["out.md"], "linker.md": ["hub.md"] },
+			}),
+			asVaultPath("linker.md"),
+		);
+		return new VicinityEngine(provider).build({
+			main: { path: asVaultPath("hub.md") },
+			globalDepths: { linkDepthOut: 1, embedDepthOut: 1, linkDepthIn: 1 },
+			globalView: { ...EngineDefaults.viewSettings(), showCrossLinks },
+		});
+	}
+
+	function edgeStrings(graph: VicinityGraph): string[] {
+		return graph.edges.map((e) => `${e.source}->${e.target}`).sort();
+	}
+
+	it("WHEN a backlink-walked edge is invisible to the outgoing channel THEN turning cross links ON keeps it", () => {
+		expect(edgeStrings(divergentBuild(true))).toEqual(["hub.md->out.md", "linker.md->hub.md"]);
+	});
+
+	it("WHEN cross links are OFF THEN that same backlink-walked edge is present (the baseline ON must match)", () => {
+		expect(edgeStrings(divergentBuild(false))).toEqual(["hub.md->out.md", "linker.md->hub.md"]);
 	});
 });
 

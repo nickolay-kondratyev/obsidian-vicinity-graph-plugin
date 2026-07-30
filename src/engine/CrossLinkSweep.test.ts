@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { CrossLinkSweep } from "./CrossLinkSweep";
 import { FakeLinkProvider } from "./FakeLinkProvider";
-import type { VaultPath } from "./types";
+import type { DirectedLink, VaultPath } from "./types";
 import { asVaultPath } from "./types";
 
 /**
@@ -24,8 +24,8 @@ function visiblePaths(): ReadonlySet<VaultPath> {
 	return new Set([asVaultPath("m.md"), asVaultPath("a.md"), asVaultPath("b.md")]);
 }
 
-function sweptPairs(): string[] {
-	return CrossLinkSweep.inducedPairs({ visiblePaths: visiblePaths(), provider: siblingProvider() })
+function sweptPairs(walkedVisibleEdges: readonly DirectedLink[] = []): string[] {
+	return CrossLinkSweep.inducedPairs({ walkedVisibleEdges, visiblePaths: visiblePaths(), provider: siblingProvider() })
 		.map((pair) => `${pair.source}->${pair.target}`)
 		.sort();
 }
@@ -49,6 +49,7 @@ describe("CrossLinkSweep induced subgraph", () => {
 
 	it("WHEN a source declares the same link twice THEN the pair is emitted once (count comes from EdgeCounts)", () => {
 		const pairs = CrossLinkSweep.inducedPairs({
+			walkedVisibleEdges: [],
 			visiblePaths: new Set([asVaultPath("m.md"), asVaultPath("a.md")]),
 			provider: new FakeLinkProvider({
 				files: [{ path: "m.md" }, { path: "a.md" }],
@@ -58,7 +59,15 @@ describe("CrossLinkSweep induced subgraph", () => {
 		expect(pairs).toEqual([{ source: "m.md", target: "a.md" }]);
 	});
 
-	it("WHEN the sweep runs twice over the same input THEN the pair lists are identical (determinism)", () => {
-		expect(sweptPairs()).toEqual(sweptPairs());
+	// THE superset contract: a walked edge the outgoing channel cannot see (the
+	// incoming channel is a different provider authority) must survive the toggle.
+	it("WHEN a walked edge is invisible to the outgoing channel THEN the sweep still emits it", () => {
+		const walked: DirectedLink = { source: asVaultPath("b.md"), target: asVaultPath("m.md") };
+		expect(sweptPairs([walked])).toContain("b.md->m.md");
+	});
+
+	it("WHEN a walked edge is ALSO induced THEN it is emitted once (the seed dedupes)", () => {
+		const walked: DirectedLink = { source: asVaultPath("m.md"), target: asVaultPath("a.md") };
+		expect(sweptPairs([walked])).toEqual(["a.md->b.md", "m.md->a.md", "m.md->b.md"]);
 	});
 });

@@ -53,6 +53,31 @@ Ticket noted + closed via `ticket close`. NOT committed (top-level agent commits
   `e2e/settingsBaseline.ts`'s `SUMMARY_ALSO_MATCHES_AN_ANCESTOR`, and the literal list in
   `e2e/settingsBaseline.test.ts`.
 
+## ITERATION 2 (review incorporation, after commit `c388a7c`)
+
+Acted on `IMPLEMENTATION_REVIEW__PUBLIC.md`. Report:
+`IMPLEMENTATION_ITERATION__PUBLIC.md`. Still NOT committed.
+
+- **The real defect the reviewer found**: `CrossLinkSweep` REPLACED the walked set and rebuilt
+  it from `getOutgoingLinks`, but incoming-channel walked edges come from `getIncomingLinks`.
+  Two independent authorities in `ObsidianLinkProvider` ⇒ ON could DROP an edge. FIXED by
+  seeding the accumulator with `truncation.visibleEdges` (`CrossLinkSweepInput.walkedVisibleEdges`),
+  so ON = walked ∪ induced by construction. Verified safe: `visibleEdges` is already filtered to
+  both-endpoints-visible (`GraphTruncator.ts:51`), and `EdgeAccumulator` dedupes.
+- **Reproducing that class of bug in tests**: `FakeLinkProvider` derives incoming BY INVERSION,
+  so it can never diverge. Needed a local `OutgoingBlindProvider` decorator in
+  `VicinityEngine.test.ts` (delegates everything, returns `[]` from
+  `getOutgoingReferences` for one path). Reuse this shape for any future
+  outgoing-vs-incoming disagreement test.
+- **Trap in the ON test helper**: `crossLinkBuild()` spread `overrides` AFTER `globalView`, so
+  any test passing `globalView` silently turned the toggle OFF. Now merges overrides and forces
+  `showCrossLinks: true` last. Check this before adding ON cases.
+- Rejected the reviewer's "assert unsorted edge order" idea (deleted the vacuous determinism
+  test instead): `GraphStructureDiff` compares edge ids as a `Set`, so order is not load-bearing.
+- Docs touched: `CrossLinkSweep` class doc (superset WHY + kind-blindness WHY + cost bound),
+  `VicinityEngine.visibleEdges` doc, `high-level-plan.md:128`. README needed no change.
+- Green: `npm test` 97 files / 1308 tests, `npm run check` exit 0.
+
 ## What is NOT done
 - `npm run test:e2e` (real Obsidian release gate) not run — no e2e spec exercises the new
   toggle. A follow-up could add one (settings-tab toggle → edge appears), but the ticket
