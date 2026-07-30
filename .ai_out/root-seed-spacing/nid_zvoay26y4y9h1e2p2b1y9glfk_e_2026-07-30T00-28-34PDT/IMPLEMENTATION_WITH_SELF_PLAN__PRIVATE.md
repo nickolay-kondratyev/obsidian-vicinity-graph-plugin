@@ -141,6 +141,84 @@ comment, not in a sweep test.
 `npm run check` → exit 0 (`.tmp/npm-check.log`).
 `npm run test:e2e` deliberately NOT run (release gate, out of scope).
 
+## ROUND 1 REVIEW RESPONSE
+
+### B1 (BLOCKING) — ACCEPTED, but verified independently, and I did NOT adopt the reviewer's wording
+
+My claim "that run moved the seed AND the group INTERIORS together" was NOT backed.
+I verified the alternative myself rather than taking the reviewer's word:
+
+```
+git log -1 9454a1a          # 2026-07-29, "direction-aware link spring (forceRectLink)"
+                            # body: "113px boundary gap vs the 100px budget" ...
+                            #       "Landscape fixture 113px -> 73px; portrait unchanged at 61px"
+git merge-base --is-ancestor 0fb796f 9454a1a   # YES (compact-group-layout squash precedes it)
+git show 9454a1a^:src/view/constants.ts | grep ELK_ROOT_SEED_NODE_SPACING_PX  # = 40
+git show 9454a1a:src/view/constants.ts  | grep ELK_ROOT_SEED_NODE_SPACING_PX  # = 40
+git show --stat 9454a1a     # does NOT touch constants.ts at all
+git show 9454a1a^:src/view/d3ForceStranding.test.ts | grep -n "it.fails\|113"
+                            # line 207: "113px against the 100px budget — and 130px with the previous"
+                            # line 230: it.fails(... LANDSCAPE ... boundary-gap budget ...)
+```
+
+So the fully PROVABLE facts are: 113px was the LANDSCAPE fixture's reading under the
+direction-blind `forceLink` spring, measured with the seed at 40 (the constant is
+literally 40 on both sides of `9454a1a`, which never touches the file), and the
+pre-fix test carried that assertion as `it.fails`. Therefore 113px was never a
+property of a seed of 20 — which is the only thing the correction needs.
+
+I deliberately did NOT write the reviewer's suggested clause "and was taken with the
+knob still feeding BOTH passes": at `9454a1a^` the split had ALREADY landed (seed
+pinned 40, interiors 20), so that clause is wrong for the reading actually preserved
+in the test file. Substituting a second unbacked mechanism is the very failure B1 is
+about. The comment now states only the git-verifiable chain.
+
+### I1 (IMPORTANT) — ACCEPTED
+
+The high-end bullet argued safety from `fill` alone while `results-high.tsv` shows
+portrait at 181.3px (seed 400) and 96.3px (seed 800). Bullet now reads "no cliff at
+the TOP either ... but no safety up there either: the chaos persists, and the portrait
+fixture reads 181px at seed 400." This strengthens §3 rather than weakening the case.
+
+### N1 — ACCEPTED, fixed by MEASURING rather than by softening the claim
+
+Seed 17 had never been run (nine values below the cliff, only eight above). Ran
+seeds 15 and 17: portrait 75.5 / 65.2, landscape 69.7 / 73.4. Seed 15 reproduces the
+coarse file byte-for-byte (determinism cross-check). 10..18 is now fully sampled —
+nine consecutive values each side, all 65.2..89.1 — so "nine each side" is exact as
+written. New data: `seed-sweep/results-seed15-17.tsv`.
+
+### N2 — ACCEPTED
+
+"Across 5..200" included seed 5, which the preceding bullet classes as BELOW the
+cliff. Recomputed the aggregate over coarse seeds >= 10 only (medians recomputed over
+that subset): band 0.769..1.132, total stranded 43..55. Comment now says
+"Across 10..200 (a 20x range) ... 0.77..1.13". The 26-box min..max (455..789) is
+unchanged by dropping seed 5 (its value there is 538.1, interior to the range), so
+that figure stands; its label changed from "across 5..200" to "across the sweep".
+
+### N3 — ACCEPTED
+
+Comment now points at `.ai_out/root-seed-spacing/` → the ticket artifact's
+`seed-sweep` folder. NOTE — self-inflicted breakage worth remembering: my first
+attempt wrote the path as a glob, `nid_..._*/seed-sweep/`, and the `*/` CLOSED the
+block comment. `npm test` went to 11 failed files / `npm run check` exit 2 with
+`TS1005`. Never put `*/` inside a block comment; the path is now spelled without a
+glob.
+
+### N4 — ACCEPTED
+
+Re-wrapped the 135-char tail line in `elkMapping.test.ts` to the block's ~80 cols.
+
+### Not revisited (reviewer explicitly agreed)
+
+`d3ForceStranding.test.ts`'s own 113px untouched; no new test; harness in `.ai_out/`;
+keep 40.
+
+### Re-verified after the round
+
+`npm test` → 94 files / 1245 passed, exit 0. `npm run check` → exit 0.
+
 ## Not done / open
 
 - Ticket NOT closed, no commit, no change_log entry (orchestrator owns those).

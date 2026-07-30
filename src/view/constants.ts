@@ -91,7 +91,9 @@ export const ELK_FORCE_ALGORITHM = "force";
  * WHY 40 — MEASURED, over 9 root-topology fixtures (the two `d3ForceStranding`
  * fixtures, three multi-folder vault mirrors up to 26 root boxes, two ungrouped
  * stars, two cluster chains), scoring the FINAL layout (elk seed + d3) on that
- * suite's own boundary-gap metric:
+ * suite's own boundary-gap metric. Harness + raw sweeps live under
+ * `.ai_out/root-seed-spacing/`, in the `seed-sweep` folder of the ticket's artifact
+ * dir (`nid_zvoay26y4y9h1e2p2b1y9glfk_e_...`), with reproduction commands.
  *
  * - There is ONE real cliff, at the bottom. Every seed in 1..9 blows the 100px
  *   budget on the portrait stranding fixture (100..203px); every seed in 10..18
@@ -99,13 +101,14 @@ export const ELK_FORCE_ALGORITHM = "force";
  *   noise: a seed tighter than the boxes' own separation hands d3 an interleaved
  *   start it cannot untangle.
  * - Above the cliff the metric is FLAT AND CHAOTIC — there is no optimum to find.
- *   Across 5..200 (a 40x range) the fixture-median-normalised worst gap only wobbles
- *   0.77..1.14 with no trend, while a +-4px nudge (36..44) moves it as much or MORE
+ *   Across 10..200 (a 20x range) the fixture-median-normalised worst gap only wobbles
+ *   0.77..1.13 with no trend, while a +-4px nudge (36..44) moves it as much or MORE
  *   than that whole range does (26-box vault mirror: 466..1032px within 36..44,
- *   against 455..789px across 5..200). The seed is a chaotic INPUT to the d3 pass,
- *   not a tunable of it.
- * - No cliff at the top either, out to 1200px; mean root fill just drifts down
- *   (0.469 at 200 -> 0.452 at 1200), so height buys nothing.
+ *   against 455..789px across the sweep). The seed is a chaotic INPUT to the d3
+ *   pass, not a tunable of it.
+ * - No cliff at the TOP either, out to 1200px — but no safety up there either: the
+ *   chaos persists, and the portrait fixture reads 181px at seed 400. Nothing to
+ *   gain regardless; mean root fill only drifts down (0.469 at 200 -> 0.452 at 1200).
  *
  * So the only requirement is "comfortably above 10", and 40 satisfies it with ~4x
  * margin. It is KEPT rather than re-tuned because inside a flat band the cheapest
@@ -122,9 +125,12 @@ export const ELK_FORCE_ALGORITHM = "force";
  * because the seed is refined away by d3 and the label never promised root-level reach.
  *
  * CORRECTION this comment used to carry: "taking it to 20 blew the boundary-gap
- * budget (113px)". That run moved the seed and the group INTERIORS together, so it
- * was measuring re-shaped containers. Isolated — interiors held at the shipped 20px,
- * only the seed swept — a seed of 20 measures 89px/73px, inside budget. The cliff is
+ * budget — 113px against 100px". 113px was never a property of a seed of 20. It is
+ * the LANDSCAPE fixture's reading under the direction-blind `forceLink` spring, taken
+ * with the seed at 40: `9454a1a` (the `forceRectLink` fix) moved it 113 -> 73 without
+ * touching this constant, and the pre-fix `d3ForceStranding.test.ts` carried that
+ * budget assertion as `it.fails` for exactly that reason. Re-measured on today's
+ * pipeline with ONLY the seed swept, 20 gives 89px/73px — inside budget. The cliff is
  * at 10, not at 20. Value-locked by `elkMapping.test.ts`.
  */
 const ELK_ROOT_SEED_NODE_SPACING_PX = 40;

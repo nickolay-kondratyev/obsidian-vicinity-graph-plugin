@@ -27,8 +27,9 @@ describe("vicinityGraphToElk", () => {
 	 * mappings to each other — would pass vacuously if the option stopped being
 	 * emitted at all. 40 sits ~4x above the measured stranding cliff at 10,
 	 * in a band where the final layout is insensitive to the seed (`constants.ts`
-	 * `ELK_ROOT_SEED_NODE_SPACING_PX` carries the sweep); if this test fails, the root arrangement changed and `d3ForceStranding.test.ts`
-	 * boundary gaps must be re-measured before the new value is accepted.
+	 * `ELK_ROOT_SEED_NODE_SPACING_PX` carries the sweep); if this test fails, the
+	 * root arrangement changed and `d3ForceStranding.test.ts` boundary gaps must be
+	 * re-measured before the new value is accepted.
 	 */
 	it("WHEN mapping THEN the root seed asks elk for 40px between root-level boxes", () => {
 		expect(vicinityGraphToElk(graph).layoutOptions?.["elk.spacing.nodeNode"]).toBe("40");
