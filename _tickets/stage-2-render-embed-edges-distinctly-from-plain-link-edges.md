@@ -30,3 +30,9 @@ OUT OF SCOPE: incoming stays kind-blind (settled scope cut).
 - The distinction is asserted by a test at whatever layer holds the decision (edge assembly), not only by eye.
 - Any change to the edge COUNT badge is stated out loud, with the getLinkCount doc block updated.
 
+
+## Notes
+
+**2026-07-30T04:45:47Z**
+
+Stage 3 review NIT, folded in here because it is the same kind-blind-downstream question: node SIZING is kind-blind too. src/engine/NodeSizer.ts:140 counts outgoing links via getOutgoingLinks (kind-blind), so with embedDepthOut: 0 a node is still SIZED by targets the graph will never walk. Defensible ("how connected is this note" != "what do I traverse") and consistent with getLinkCount, but undocumented. Decide it explicitly when this ticket decides the count question.

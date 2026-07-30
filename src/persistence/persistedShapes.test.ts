@@ -22,7 +22,9 @@ describe("PersistedShapes.parsePluginData", () => {
 	it("WHEN a valid shape round-trips through JSON THEN it parses back unchanged", () => {
 		const data = {
 			version: PERSISTED_SHAPE_VERSION,
-			globalDepths: { linkDepthOut: 3, embedDepthOut: 2, linkDepthIn: 1 },
+			// Every value is NON-default on purpose, so "parsed" cannot be mistaken for
+			// "fell back to the spec default".
+			globalDepths: { linkDepthOut: 3, embedDepthOut: 4, linkDepthIn: 2 },
 			globalView: { ...EngineDefaults.viewSettings(), nodeCap: 42 },
 			pins: [{ docid: "docid_a_e", pinTimestamp: 1000 }],
 			nodeExclusion: { enabled: true, patterns: ["^rel/", "templates/"] },

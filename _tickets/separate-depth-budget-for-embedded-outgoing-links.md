@@ -4,7 +4,7 @@ tags: [settings, settings-cleanup]
 title: "Separate depth budget for embedded outgoing links (decisions settled; measures the new settings model's plumbing cost)"
 status: open
 deps: [nid_8p0nn2g34d97finokwlz3u1dt_e, nid_wimjq4ewgbg21n4zx9d4qq3a0_e, nid_armoson86j0ii8c33r1odo1rc_e, nid_x6hgehsu5il1d1shuraz3ufqy_e]
-links: [nid_869bt9d9rlrbr8of1403dnmf3_e, nid_8p0nn2g34d97finokwlz3u1dt_e, nid_1rslube8at5xj60ji4jeve0b0_e, nid_d57npvuvjk95n03c2xqgl3y6o_e, nid_t0x7ap99djfuzvz5p261ao7rn_e]
+links: [nid_869bt9d9rlrbr8of1403dnmf3_e, nid_8p0nn2g34d97finokwlz3u1dt_e, nid_1rslube8at5xj60ji4jeve0b0_e, nid_d57npvuvjk95n03c2xqgl3y6o_e, nid_t0x7ap99djfuzvz5p261ao7rn_e, nid_xy56b20jbvaedbl0610m3j2ls_e]
 created_iso: 2026-07-28T17:29:00Z
 status_updated_iso: 2026-07-28T17:29:00Z
 type: task
@@ -529,3 +529,7 @@ Stage-1 acceptance item DECIDED: the uncached-markdown boot window keeps degradi
 MEASUREMENT (the NEW FIELD ALONE, commit 21b3152): 25 files, +91/-43 lines, ~14 lines of actual code. 6 production files, 4 of them COMPILE-FORCED by existing guards (spec completeness, EngineDefaults return type, definedFieldsOnly<DepthSettings>, section completeness); 1 hand-maintained silent step (the row declaration in settingsRows.ts); 2 deliberate literal test tables (defaults tripwire, bounds classification); 13 files of pure fixture churn (full DepthSettings literals - all compile errors, none silent). ZERO structural settings suites needed an edit: persistence round-trip/absent/garbage/sibling, reset plans, bounds enforcement and tab-panel parity all picked the new leaf up by walking the spec (verified by deleting the parse line and watching them redden). Against the pre-cleanup baseline of ~180 lines / ~15 files / ~8 hand-maintained SILENT lists: silent steps 8 -> 1. Honesty caveat: part of the drop is the per-doc layer's removal by nid_ez38gf1mrdgh5kxedzrdicwzl_e (no per-doc parse branch, no per-central stepper, no cascade), not the descriptor model.
 
 npm test 1212 passed / 91 files (was 1199); npm run check clean. Docs updated: high-level-plan traversal section (channel table, kind-purity, D5), README Depth section, RELEASE_CHECKLIST section 7 release note announcing the global depth reset and the new row.
+
+**2026-07-30T04:45:59Z**
+
+MEASUREMENT ARITHMETIC CORRECTION (Stage 3 review iteration 1). The note above and the 21b3152 commit message both mis-stated the FIXTURE-CHURN file count: the note said 13, the commit message said 18. Both are wrong. RECOUNTED from `git show 21b3152 --stat`: 25 files total = 6 production + 2 deliberate literal test tables + 17 fixture churn (13 unit test/fixture files + 4 e2e). Counting method, stated explicitly: a FILE is one path in the commit's --stat; PRODUCTION is any non-`*.test.*`, non-`e2e/`, non-`testFixtures/` file; FIXTURE CHURN is a file whose only change is widening a DepthSettings object literal (every one a compile error, none silent). The headline is UNCHANGED and stands: 25 files, +91/-43, ~14 non-comment lines of real code, silent hand-maintained steps 8 -> 1. Only the internal breakdown was wrong, and it now sums to 25.

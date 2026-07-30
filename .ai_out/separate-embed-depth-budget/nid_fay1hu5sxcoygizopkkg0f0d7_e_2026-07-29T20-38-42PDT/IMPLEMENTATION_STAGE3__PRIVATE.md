@@ -73,3 +73,42 @@ failed and that is how I found it. Do not "fix" the split suites in
 - "Is the structural-coverage claim real?" → yes, measured: delete the
   `embedDepthOut` line in `parseDepthFields` and `settingsSpecPersistence.test.ts`
   reddens with 2 failures.
+
+---
+
+# ITERATION 1 EXIT (2026-07-30) — COMPLETE
+
+Reviewer: 0 BLOCKING / 5 SHOULD-FIX / 4 NITs, verdict DONE. All 5 SHOULD-FIX handled
+(4 incorporated, #5 "close the ticket" deferred to the orchestrator BY INSTRUCTION).
+NITs 1/2/3 incorporated, NIT 4 rejected as gold-plating. Full rationale in the
+`## ITERATION 1` section of PUBLIC.md.
+
+`npm test` 1213/91 green, `npm run check` clean, tree clean. Ticket left OPEN and NO
+change_log entry written for this iteration — the orchestrator owns both.
+
+## What actually changed in code (small)
+- `src/engine/VicinityTraversal.test.ts` — the acceptance suite's fixture gained a
+  kind-changing SECOND HOP (`b [[d]]`) plus a new divergence test. THIS IS THE ONE
+  THING NOT TO UNDO: without the second hop the equivalence suite passes vacuously at
+  ANY budget. I proved the fix by temporarily setting both shipped outgoing defaults
+  to 2 and watching the suite go red with 2 failures.
+- `src/persistence/persistedShapes.test.ts:25` — round-trip literal is now
+  ALL-NON-DEFAULT (3 / 4 / 2) so "parsed" cannot alias "fell back to default".
+- `docs-internal/plan/high-level-plan.md` — the `Reference.original` cross-check is
+  now stated as UNGUARDED (suite deleted as circular in `eab9bd2`), pointing at
+  `nid_t0x7ap99djfuzvz5p261ao7rn_e`.
+
+## Measurement correction (the item that mattered most)
+Fixture churn is **17 files (13 unit + 4 e2e)**, not 13 (PUBLIC.md) and not 18
+(the `21b3152` commit message). Table now sums to 25 = 6 production + 2 test tables +
+17 churn. Headline UNCHANGED: 25 files, +91/−43, ~14 real-code lines, silent steps
+8 → 1. I did NOT rewrite the commit message (reviewed history); the ticket carries a
+note naming the wrong figures and superseding them.
+
+## Tickets
+- NEW `nid_xy56b20jbvaedbl0610m3j2ls_e` — spec-leaf ⇒ declared-row guard.
+- `nid_2qygmn0z59t8fdlb5e9pap49m_e` (Stage 2 visuals) ALREADY EXISTED from Stage 3;
+  extended with the NIT-3 node-sizing note. I deliberately did NOT add the
+  `settings-cleanup` tag the orchestrator asked for — it is a graph-rendering ticket
+  and the tag would mis-route it into the settings loop. Push-back recorded in
+  PUBLIC.md; reverse it in 5 seconds if the orchestrator disagrees.

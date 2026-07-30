@@ -467,18 +467,29 @@ describe("VicinityTraversal outgoing-embed channel", () => {
  * strictly FEWER nodes than the old kind-blind depth-2 walk. Deliberate,
  * documented, and the accepted cost of not breaking the BFS's "expand once,
  * shallowest first" invariant.
+ *
+ * SENSITIVITY, deliberately built in: the fixture carries a KIND-CHANGING SECOND
+ * HOP (`a ![[b]]` then `b [[d]]`), so the two providers below agree at one hop and
+ * DISAGREE at two. That is what makes this suite a real tripwire — raise the
+ * shipped `linkDepthOut`/`embedDepthOut` default above 1 and these tests go RED,
+ * instead of staying green while asserting a property that has become false.
  */
 describe("VicinityTraversal channel split at the shipped defaults", () => {
-	// GIVEN a root that both EMBEDS and plainly LINKS a neighbour: a ![[b]] [[c]].
-	const FILES = [{ path: "a.md" }, { path: "b.md" }, { path: "c.md" }];
+	// GIVEN a root that both EMBEDS and plainly LINKS a neighbour (a ![[b]] [[c]]),
+	// and a SECOND hop that changes kind (b [[d]]) so the equality is one-hop-only.
+	const FILES = [{ path: "a.md" }, { path: "b.md" }, { path: "c.md" }, { path: "d.md" }];
 
 	function asAuthored(): FakeLinkProvider {
-		return new FakeLinkProvider({ files: FILES, links: { "a.md": ["c.md"] }, embeds: { "a.md": ["b.md"] } });
+		return new FakeLinkProvider({
+			files: FILES,
+			links: { "a.md": ["c.md"], "b.md": ["d.md"] },
+			embeds: { "a.md": ["b.md"] },
+		});
 	}
 
 	/** The same edges with the embed rewritten as a plain link — i.e. the pre-split vault. */
 	function kindBlind(): FakeLinkProvider {
-		return new FakeLinkProvider({ files: FILES, links: { "a.md": ["c.md", "b.md"] } });
+		return new FakeLinkProvider({ files: FILES, links: { "a.md": ["c.md", "b.md"], "b.md": ["d.md"] } });
 	}
 
 	/** The SHIPPED defaults, read from the spec — not a literal that could drift from it. */
@@ -497,6 +508,16 @@ describe("VicinityTraversal channel split at the shipped defaults", () => {
 	it("WHEN the shipped defaults are read THEN the two outgoing budgets are equal (what makes the above hold)", () => {
 		const defaults = EngineDefaults.depthSettings();
 		expect(defaults.embedDepthOut).toBe(defaults.linkDepthOut);
+	});
+
+	// This is the tripwire's OWN tripwire: it proves the fixture above can tell the two
+	// providers apart, so the equality tests are not passing vacuously. Without it, a
+	// fixture that lost its kind-changing hop would silently defang the whole suite.
+	it("WHEN the SAME vault is walked two hops THEN the two providers DIVERGE (the equality is one-hop-only)", () => {
+		const twoHops = { linkDepthOut: 2, embedDepthOut: 2, linkDepthIn: 0 };
+		expect(nodePaths(traverse(asAuthored(), [root("a.md", twoHops)]))).not.toEqual(
+			nodePaths(traverse(kindBlind(), [root("a.md", twoHops)])),
+		);
 	});
 });
 
