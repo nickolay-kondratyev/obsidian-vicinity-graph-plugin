@@ -9,10 +9,13 @@ import type { SettingsInteraction } from "./settingsWritePlan";
  * half of the ONE failure policy `SettingsWritePipeline` applies (the pipeline owns
  * WHEN a notice is shown; this owns WHAT it says).
  *
- * WHY it names the setting: a failed persist otherwise looks like nothing happened —
- * the optimistic control releases its override and the old value comes back, with no
- * reason given. "Couldn't save" plus the name of the row the user just touched is the
- * whole difference between a silent revert and an explained one.
+ * WHY it names the setting: a failed persist is otherwise INVISIBLE. The control keeps
+ * showing the value the user chose and the session keeps using it — `PluginDataStore`
+ * moves in-memory state before the disk write (ticket
+ * `nid_biwdtykvazsk3ejcqqli8o9j7_e`) — so the only thing wrong is that `data.json`
+ * does not have it, and the setting is gone at the next restart. Nothing on screen says
+ * so; this notice is what says so, and naming the row the user just touched is what
+ * makes it actionable rather than alarming.
  *
  * The name is READ from the declared row model, never re-typed: the notice must say
  * exactly what the row that failed is labelled, on either surface. Same for a reset —
@@ -54,10 +57,15 @@ export class SettingsWriteFailureNotice {
 	}
 
 	/**
-	 * The declared label of the row this control belongs to; the control's own key when
+	 * The declared label of the row this control belongs to; the control's own kind when
 	 * no row declares it. The fallback is deliberately un-pretty and deliberately not a
-	 * throw: this runs INSIDE a failure handler, so it must always produce something —
-	 * `settingsRowSpecCoverage.test.ts` is what keeps every shipped setting declared.
+	 * throw: this runs INSIDE a failure handler, so it must always produce something.
+	 *
+	 * It is also USER-VISIBLE copy (`couldn't save “force-layout”`), so it is not allowed
+	 * to be reached quietly: `settingsWriteFailureNotice.test.ts` walks every declared row
+	 * and fails on any interaction that does not resolve to that row's label, and
+	 * `settingsRowSpecCoverage.test.ts` keeps every shipped setting declared in the first
+	 * place.
 	 */
 	private static rowLabel(control: SettingsRowControl): string {
 		return SettingsWriteFailureNotice.ROW_LABELS.get(SettingsWriteFailureNotice.controlKey(control)) ?? control.kind;
@@ -100,6 +108,14 @@ export class SettingsWriteFailureNotice {
 	 * sliders, five metrics). Exhaustive and closed by {@link unhandledRowControl}, so a
 	 * new field-bearing control kind cannot silently key on its bare kind and label
 	 * every one of its rows with the first one's copy.
+	 *
+	 * WHY-NOT shared with `settingsRowSpecCoverage.test.ts`'s `specLeafIdFor`, which
+	 * switches on the same kinds: that one answers a DIFFERENT question — where the field
+	 * sits in `SETTINGS_SPEC` (`globalDepths.linkDepthIn`) — and neither key is derivable
+	 * from the other. Merging them would mean putting spec PATHS in the copy path, i.e.
+	 * duplicating the spec tree's shape here to save a switch. The property that mattered
+	 * (no two rows sharing a key, so no row wearing another's label) is a test, not a type:
+	 * the row walk in `settingsWriteFailureNotice.test.ts` fails on a collision.
 	 */
 	private static controlKey(control: SettingsRowControl): string {
 		switch (control.kind) {

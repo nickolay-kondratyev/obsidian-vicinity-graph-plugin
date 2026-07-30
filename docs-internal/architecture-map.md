@@ -70,7 +70,14 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   or the reset scope's) and never re-thrown — call sites `void` their write
   promises, and a throw would strand the rest of a debounce window. So a resolved
   write promise means "attempted and reported", not "stored"; the fan-out runs
-  either way, so views repaint what IS stored. No try/catch belongs at a call site.
+  either way, so views repaint what the STORE holds — which after a rejected persist
+  is still the value that never reached disk (`PluginDataStore` moves in-memory
+  state before the write; whether it should roll back is ticket
+  `nid_biwdtykvazsk3ejcqqli8o9j7_e`). There is no snap-back, which is exactly why
+  the notice is the only signal. No try/catch belongs at a call site — the three
+  pre-existing ones (`useOptimisticValue`, the tab's `settlePendingWrites`,
+  `SettingsResetSequence.tolerating`) guard their own INJECTED seams, not this
+  policy, and each says so.
   Companion pieces: `settingsResetSequence.ts` (restore-defaults ORDER: flush
   typed edits → write defaults → flush again → drain the chain → rebuild the
   controls; the last three run even when the write failed) and

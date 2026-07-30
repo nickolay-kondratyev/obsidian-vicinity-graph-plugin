@@ -1,43 +1,86 @@
 # IMPLEMENTATION_WITH_SELF_PLAN — PRIVATE memory
 
 Ticket: `nid_itpt4tf0kkhsbbz0np304a558_e` — "Settings writes: user-visible failure policy for void-ed write promises".
-Branch: `nid_itpt4tf0kkhsbbz0np304a558_e_2026-07-29T22-43-52PDT`. **Status: COMPLETE, not committed, ticket not closed** (top-level agent commits / closes / writes the change_log).
+Branch: `nid_itpt4tf0kkhsbbz0np304a558_e_2026-07-29T22-43-52PDT`.
 
-## Plan (as executed)
+**Status after the review iteration: COMPLETE. Implementation committed at `de425b6`; the review-response
+changes are UNCOMMITTED working-tree changes (top-level agent commits / closes the ticket / writes the
+change_log).** `npm test` 94 files / 1243 tests green, `npm run check` exit 0 (re-verified after the last edit).
 
-1. Recon: pipeline, debounce, tab, ControlsActions, `ViewsRefreshPort` + `FakeViewsRefresh` (shape to copy), `settingsRows.ts` (labels), `settingsResetPlan.ts` (scope labels), `SerialPromiseChain`, `PluginDataStore`.
-2. New pure copy module `src/view/settingsWriteFailureNotice.ts` (interaction/scope → notice text, label READ from the declared row model).
-3. New port `UserNoticePort` in `src/view/viewPorts.ts` + `src/view/FakeUserNotices.ts`.
-4. Failing tests first (verified they fail — see evidence), then the pipeline catch.
-5. Wire real `Notice` in `src/main.ts`; update the 2 test construction sites.
-6. Docs: `CLAUDE.md` settings-writes bullet + `docs-internal/architecture-map.md`. Two follow-up tickets filed.
+## Plan (as originally executed) — unchanged, see `IMPLEMENTATION_WITH_SELF_PLAN__PUBLIC.md`
 
-## Design decisions (the WHY, for a reviewer or a future me)
+1. New pure copy module `src/view/settingsWriteFailureNotice.ts` (interaction/scope → notice text, label READ
+   from the declared row model).
+2. New port `UserNoticePort` in `src/view/viewPorts.ts` + `src/view/FakeUserNotices.ts`; real `Notice` only in
+   `src/main.ts`.
+3. ONE catch, in `SettingsWritePipeline.write()`, never re-thrown; fan-out outside the `try`.
+4. Failing tests first, then the catch. Docs in `CLAUDE.md` + `docs-internal/architecture-map.md`.
 
-- **Catch at the innermost write, never re-throw.** `SettingsWritePipeline.write()` is the single body every settings write (apply / restoreDefaults / debounced thunk via `SettingsWriter.apply`) flows through, so one `try` there is the whole policy. Re-throwing was rejected: every call site `void`s the promise (unhandled rejection), and `DebouncedSettingsWrites.drain()` awaits its thunks in a loop — a throw would strand the rest of the settle window (the user's LAST keystroke). Documented as rule 5 in the class doc, including the consequence: a resolved write promise now means "attempted and reported", not "stored".
-- **Fan-out still runs on failure** (outside the `try`). Views must repaint from what IS stored; that is also what releases an optimistic control's override. One fan-out per write either way, so no test on fan-out counts changed.
-- **`failureNotice` is a parameter of `write()`**, computed eagerly by the two callers, because only the caller knows WHAT was being written (one interaction's row vs. one reset scope). Cheap (a Map lookup + a concat); no thunk indirection.
-- **Subject naming reads the DECLARED label**, per ticket constraint: `EVERY_SETTINGS_ROW` keyed by a control-identity string (`controlKey`, exhaustive `switch` closed by `unhandledRowControl`, so a new field-bearing kind cannot silently key on its bare kind and inherit the first row's copy). Interaction → `SettingsRowControl` is a second switch on purpose so the key FORMAT is spelled once (no drift between the two sides). Reset subject = `SETTINGS_RESET_SCOPES[scope].label`.
-- Fallback when no row declares a control: `control.kind`. Not a throw — this runs inside a failure handler. `settingsRowSpecCoverage.test.ts` keeps every shipped setting declared.
-- Copy: `Vicinity graph couldn't save “<subject>”. See the developer console for details.` Deliberately does NOT claim "nothing was stored" — a multi-command reset can partially land, and `PluginDataStore` moves in-memory state regardless (see ticket `nid_biwdtykvazsk3ejcqqli8o9j7_e`). Console keeps the real cause (`console.error` with the error).
-- Layering: `settingsWriteFailureNotice.ts` is pure (no `obsidian`, no `react`); only `main.ts` touches `Notice`. Port shape mirrors `ViewsRefreshPort` exactly, fake mirrors `FakeViewsRefresh` (accumulating list so a DOUBLE notice is visible).
-- Not in `EVERY_ROW_RENDERING_MODULE`, so `settingsRowParity.test.ts`'s `ACCESSOR_OWNED_SYMBOLS` scan does not apply to the new module (it names no range/clamp anyway).
+## Design decisions (the original WHY, still standing)
 
-## Files touched
+- **Catch at the innermost write, never re-throw.** Every call site `void`s the promise; `DebouncedSettingsWrites.drain()`
+  awaits its thunks in a loop, so a throw would strand the rest of the settle window (the user's LAST keystroke).
+- **Fan-out still runs on failure** — views must repaint from the store. (Its *justification* was reworded, see below.)
+- **`failureNotice` is a `write()` parameter**, computed by the two callers, because only the caller knows WHAT
+  was written (one row vs one reset scope). A partly-landed multi-command reset therefore still yields ONE notice.
+- **Subject is the DECLARED label**: `ROW_LABELS` keyed by `controlKey` (exhaustive switch closed by
+  `unhandledRowControl`); interaction → control is a SECOND switch so the key FORMAT is spelled once.
+- Fallback when no row declares a control: `control.kind`. Not a throw — it runs inside a failure handler.
 
-New: `src/view/settingsWriteFailureNotice.ts`, `src/view/settingsWriteFailureNotice.test.ts`, `src/view/FakeUserNotices.ts`.
-Modified: `src/view/settingsWritePipeline.ts` (rule 5 doc, 3rd ctor param `notices: UserNoticePort`, `write(failureNotice, commands)` + catch), `src/view/viewPorts.ts` (`UserNoticePort`), `src/main.ts` (`Notice` import, `notices` port field, ctor arg), `src/view/settingsWritePipeline.test.ts` (helper + 6 new tests + `RejectingPluginDataPort`), `src/view/ControlsActions.test.ts` (ctor arg), `CLAUDE.md`, `docs-internal/architecture-map.md`.
-Tickets filed (linked to this one): `nid_biwdtykvazsk3ejcqqli8o9j7_e` (in-memory state keeps a rejected value — `decide`), `nid_t25rc8sd9nmlbmrn69k4zsaes_e` (ControlsActions' pin Notice should use the port).
+## Review-response iteration (this instance) — what changed
 
-## Test evidence (actual, verified)
+Reviewer verdict was READY (0 BLOCKING / 4 SHOULD_FIX / 3 NIT). Per-finding disposition is in
+`IMPLEMENTATION_ITERATION__PUBLIC.md`. Substance:
 
-- Failing-first check: with the `catch` body replaced by a no-op `finally`, `npx vitest run src/view/settingsWritePipeline.test.ts` → **6 failed | 13 passed** (exactly the 6 new tests). File restored from `.tmp/pipeline.bak` afterwards; log `.tmp/test_nofix.log`.
-- `npm test` → **94 files, 1241 tests, all passed** (`.tmp/test_final.log`).
-- `npm run check` → **exit 0** (tsc strict + e2e tsconfig) (`.tmp/check_final.log`).
-- `npm run test:e2e` NOT run (needs a real Obsidian; release gate).
+- **F1 INCORPORATED (the important one).** Four places claimed a "snap back" the code cannot do
+  (`PluginDataStore.persist()` sets `this.data = updated` BEFORE `saveData`, so the store keeps the rejected
+  value and the fan-out repaints IT; `PendingEdits.reconciled` then releases the override onto that same value).
+  Reworded in `settingsWritePipeline.ts` (rule 5 + the `write()` docstring, which now states the in-memory
+  ordering explicitly and points at ticket `nid_biwdtykvazsk3ejcqqli8o9j7_e`), `settingsWriteFailureNotice.ts`
+  (module doc), `settingsWritePipeline.test.ts` (suite doc — it carried the same false claim; the reviewer
+  missed it), and `docs-internal/architecture-map.md`. **No behavior changed** — the rollback question stays
+  the owner's, on that `decide` ticket.
+- **F2 PART-INCORPORATED, removal REJECTED.** All three "unreachable" catches guard an INJECTED seam, not a
+  concrete class: `useOptimisticValue`'s `commit` is a `(value) => Promise<void>` prop; the tab's
+  `flush()` runs caller-supplied thunks through the `SerialSettingsWrites` INTERFACE; `SettingsResetSequence`
+  drives the `SettingsResetTarget` INTERFACE — and `settingsResetSequence.test.ts` has THREE behavior-capturing
+  tests with rejecting targets, so removing `tolerating` would delete tested behavior. Removing
+  `PendingEdits.abandoned()` would likewise drop a tested transition and leave a stuck override if any future
+  `commit` ever rejects. So: kept the code, fixed the DISHONESTY — each comment now says it is seam-level, that
+  the data.json policy lives in the pipeline, and that it raises NO notice (one failure, one message). The
+  `useOptimisticValue` log message was changed so it can no longer be mistaken for the pipeline's.
+- **F3 INCORPORATED.** New tripwire in `settingsWriteFailureNotice.test.ts`: walks EVERY declared row, builds
+  every interaction its controls can emit VIA THE ACCESSORS (verified: `settingsRowAccessors.ts` is the only
+  producer of a `SettingsInteraction` in the codebase, so the walk covers every emittable interaction), and
+  asserts the notice contains `“<row.label>”` — quoted, so a label that is a substring of another cannot pass
+  on it. **Verified it discriminates**: forcing `controlFor`'s force-layout arm to a fixed field made it fail
+  with 7 lines showing exactly the feared user copy `couldn't save “force-layout”` (log `.tmp/notice_broken.log`,
+  source restored from `.tmp/notice.bak`).
+- **F4 REJECTED (with the DRY concern covered another way).** `controlKey` and the coverage test's
+  `specLeafIdFor` answer different questions (lookup key vs. dotted `SETTINGS_SPEC` path) and neither is
+  derivable from the other; merging them would put spec PATHS in the copy path. The real risk — two rows
+  keying alike, one wearing the other's label — is now caught by the F3 walk (the Map keeps the LAST row, so
+  the earlier row's interaction resolves to the wrong label and fails). WHY-NOT recorded at `controlKey`.
+- **NIT5 → new ticket `nid_o5a1055jyynn9nohpb5rj2vqp_e`** (pin persist bypasses the policy: unhandled
+  rejection, no notice, no log; deps on `nid_t25rc8sd9nmlbmrn69k4zsaes_e`, linked to this ticket).
+- **NIT6 REJECTED** (eager `failureNotice`: one Map get + one template per settings write; a thunk buys nothing).
+- **NIT7 INCORPORATED as an owner note** in rule 5: "exactly once" is PER FAILED WRITE, deliberately not
+  deduped, with the WHY-NOT so a later ticket cannot "fix" it into swallowing a second notice.
+- `CLAUDE.md`'s bullet now says what "no call-site try/catch" means given those three seam catches.
+
+## Files touched in this iteration
+
+`src/view/settingsWritePipeline.ts`, `src/view/settingsWritePipeline.test.ts`,
+`src/view/settingsWriteFailureNotice.ts`, `src/view/settingsWriteFailureNotice.test.ts`,
+`src/view/useOptimisticValue.ts`, `src/view/VicinityGraphSettingTab.ts`, `src/view/settingsResetSequence.ts`,
+`CLAUDE.md`, `docs-internal/architecture-map.md`, `_tickets/` (new ticket + link).
+Everything except the two test files is comment/doc-only. No production behavior changed in this iteration.
 
 ## Open questions / not done
 
-- No e2e coverage of the notice (would need a way to make `saveData` reject inside real Obsidian). Judged not worth it — the seam is unit-covered.
-- `ControlsActions` still constructs `Notice` directly (ticket filed rather than expanding this change into `VicinityGraphView` wiring).
-- Whether the in-memory value should roll back on a rejected persist is an owner decision (ticket filed, `decide`).
+- In-memory value on a rejected persist: owner decision, ticket `nid_biwdtykvazsk3ejcqqli8o9j7_e` (`decide`).
+  Every doc now points at it instead of pretending a snap-back.
+- `ControlsActions` still constructs `Notice` directly (`nid_t25rc8sd9nmlbmrn69k4zsaes_e`); pin persist failure
+  policy `nid_o5a1055jyynn9nohpb5rj2vqp_e`.
+- No e2e coverage of the notice (no clean seam to make real `saveData` reject); the pipeline seam is unit-covered.
+- `npm run test:e2e` NOT run (real-Obsidian release gate).

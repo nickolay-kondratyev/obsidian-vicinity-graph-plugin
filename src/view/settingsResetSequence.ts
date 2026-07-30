@@ -65,7 +65,17 @@ export class SettingsResetSequence {
 		await this.tolerating(() => this.target.drainWrites());
 	}
 
-	/** Runs one step, logging and swallowing its failure — the tab is redisplayed either way. */
+	/**
+	 * Runs one step, logging and swallowing its failure — the tab is redisplayed either way.
+	 *
+	 * SEAM-LEVEL defense, not the settings failure policy: a rejected `data.json` write is
+	 * caught, reported to the user and resolved inside `SettingsWritePipeline`, so the
+	 * production {@link SettingsResetTarget} does not reject. But the target is an
+	 * INTERFACE, its implementations are only asked to resolve either way, and this class
+	 * exists to guarantee an ORDER — so a step that breaks that promise must still not
+	 * skip the drain or the redisplay. No notice is raised here: one failure, one message,
+	 * and the pipeline owns it.
+	 */
 	private async tolerating(step: () => Promise<void>): Promise<void> {
 		try {
 			await step();

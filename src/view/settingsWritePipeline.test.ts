@@ -222,10 +222,11 @@ function failingPipelineUnderTest() {
 }
 
 /**
- * The ONE failure policy: a persist that never lands must be VISIBLE (the optimistic
- * control releases its override, so without a notice the value simply snaps back with
- * no reason given) and must be CONTAINED (one bad write may not reject its caller into
- * an unhandled rejection, nor strand the writes queued behind it).
+ * The ONE failure policy: a persist that never lands must be VISIBLE (nothing else shows
+ * it — the store moved in memory before the disk write, so the control and every view go
+ * on displaying the value `data.json` does not have) and must be CONTAINED (one bad write
+ * may not reject its caller into an unhandled rejection, nor strand the writes queued
+ * behind it).
  */
 describe("SettingsWritePipeline failed writes", () => {
 	it("WHEN a persist rejects THEN the user is told exactly once", async () => {
