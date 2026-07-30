@@ -34,3 +34,13 @@ Branch: nid_x6hgehsu5il1d1shuraz3ufqy_e_2026-07-29T19-51-59PDT
   - `CentralDepthRoundTrip.test.ts` confirmed deleted (347dc77). Baseline: 87 files / 1139 green.
   - Scaffolding committed as fdf4214.
 - [t2] IMPLEMENTATION_WITH_SELF_PLAN spawned (goals 1 + 2-verification; e2e excluded).
+- [t3] IMPLEMENTATION done → commit 3468387. Claims: 4 spec-iterating suites off one
+  SETTINGS_SPEC walk; literal defaults/bounds baselines gone; curated literals isolated in
+  `src/engine/settingsProductDefaults.test.ts`; unwired-field experiment reddened 9 tests /
+  4 files; GOAL 2 judged sufficient (parity guard reddens when a switch arm is deleted);
+  ONE production line changed (`clampOutlineMaxDepth` NaN → spec default via `clampIntoRange`);
+  force-layout tuning literals deliberately dropped; filed decide-ticket
+  nid_5meu9s38sbrv1703na77of4m7_e. 87/1139 → 91/1164 green, check clean.
+- [t4] IMPLEMENTATION_REVIEWER spawned. Told to INDEPENDENTLY re-verify the teeth claim, the
+  dropped force-layout literals (lost coverage?), the production-line change, and the
+  goal-2 "sufficient" judgement — those are the three places this could be hollow.
