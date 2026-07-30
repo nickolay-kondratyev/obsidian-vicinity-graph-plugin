@@ -1,50 +1,59 @@
 # IMPLEMENTATION_REVIEWER — PRIVATE (rehydration memory)
 
-Ticket `nid_hatwq2jlkhno5t6awcz0q6t9q_e`. Diff reviewed: `344d037..HEAD` (f3b008e, 5f20f9f,
-8d0bd6c; 963aaa4 is `.ai_out` only). READ-ONLY review — no code touched, nothing committed.
+Ticket `nid_hatwq2jlkhno5t6awcz0q6t9q_e`. READ-ONLY reviews — no code touched, nothing committed.
 
-## Verification I actually ran
+## Round 1 (diff `344d037..HEAD@f6d24f6`)
 
-- `npm run check` → exit 0 (`.tmp/rev-check.log`).
-- `npm test` → 95 files / 1265 tests passed, exit 0 (`.tmp/rev-test.log`). Matches the
-  implementer's claim.
-- e2e NOT run (release gate). Checked by hand for stale assumptions: `nodeOutline.e2e.ts:354`
-  sets `maxPx=96` (> default `minPx=40`, so the raise never fires), `settingsResetReview`
-  seeds `11/99`, `settingsTypedInput` targets the TAB. No e2e at risk.
+- Gates I ran: `npm run check` exit 0; `npm test` 95 files / **1265** tests, exit 0.
+- Verified genuine: NodeSizer.test.ts rewrite is a real pin; both tripwire amendments narrow
+  (directional `CROSS_FIELD_REPAIRS`, ceiling probe still in-bounds); `key={shown}` safe
+  because `PendingEdits.requesting` stores `shown: typedValue`; `numberRowCommit.ts` split is
+  real; `NO_CROSS_FIELD_RULE` is an honest null-object.
+- Filed 3 SHOULD-FIX: (1) dead seeded refusal + falsified WHY comment, (2) null commit leaves
+  the field blank, (3) panel judged cross-field against the RENDERED snapshot.
+- Verdict: CHANGES_REQUESTED.
 
-## Scrutiny points — conclusions
+## Round 2 (diff `f6d24f6..HEAD`: 7192074, 2141741, b905561)
 
-1. **NodeSizer.test.ts rewrite: GENUINE pin.** New test asserts `everySizePx == minPx` for
-   all three files with `minPx=200/maxPx=40`; remove the raise and sizes fall below 200 →
-   fails. Deleted image-floor test covered a now-unreachable state; the other image-floor
-   tests (~line 365) survive. Owner aligned it in the ticket.
-2. **Tripwire amendments: honest.** `CROSS_FIELD_REPAIRS` is DIRECTIONAL (minPx→maxPx only);
-   a swap implementation would still fail the reverse direction. The rule is pinned
-   independently by 2 new `persistedShapes.test.ts` tests. Ceiling probe still writes a
-   distinct in-bounds value → round-trip property intact.
-3. **`key={shown}` is safe.** Critical detail: `PendingEdits.requesting` stores
-   `shown: typedValue` (not settlesAt), so the post-blur remount reseeds with the TYPED
-   value, and the later store echo (settlesAt match, or third-party release) reseeds to the
-   real stored number. No keystroke loss (key only moves on a store/optimistic change), no
-   focus theft (remount is triggered by the blur that already moved focus). Enter cannot
-   double-write: `onKeyDown` only calls `blur()`; `onBlur` is the sole writer.
-4. **numberRowCommit.ts split is real** — no React import, component is markup + one call;
-   tests build policies from the REAL accessors + `SizingRowWrite`, not fakes.
-5. **Missing cap notice: acceptable** for the accepted-but-capped path (optimistic reseed
-   states it). The hole is the NULL-commit path — see finding #2 below.
-6. **`NO_CROSS_FIELD_RULE` is an honest null-object** — `CROSS_FIELD_ROWS` in
-   `sizingRowWrite.ts` is literally `{minPx, maxPx}`; node cap's integer/`MIN_NODE_CAP` rule
-   lives in its accessor's `accept` and is pinned.
+- Gates I ran MYSELF: `npm run check` exit 0 (`.tmp/rev2-check.log`); `npm test`
+  **95 files / 1271 tests passed**, exit 0 (`.tmp/rev2-test.log`). Matches the implementer.
+- **#1 fixed at the root**: `SettingsRowView.tsx:235` is `useState<string | undefined>(undefined)`;
+  the comment now states the true reason (`clampSizingSettings` raises at every door).
+- **#2 fixed at the root**: `NumberRowCommit` is a class with `writing`/`refusing`/`nothing` and a
+  DERIVED `reseedsFromStore = value === null && refusal === undefined`. Behavioral, not
+  implementation-shaped: it names the one case where no store echo and no message exist.
+  Refused ⇒ no reseed is CORRECT (the typed text is what the reason is about; the reason is
+  rendered beside it). Inner `key={reseeds}` vs outer `key={shown}`: no interaction problem —
+  `reseeds` resets to 0 on an outer remount (which replaces the whole subtree anyway), the
+  increment only happens in the blur handler (focus already gone), and both state updates batch
+  into one render, so no double remount and no dropped keystroke.
+- **#3 fixed at the root**: `SettingsWritePipeline.storedGlobalView()` → `store.globalView()` →
+  `this.data.globalView`, mutated in place by `persist()`. Genuinely fresh per call, same read
+  the pipeline plans a write from and the same one the tab uses. Port method is the right seam
+  (precedent: `planResetConfirmation`); `ControlsActionsPort` has NO `Fake*` anywhere in the repo
+  and needs none — nothing in `npm test` renders React, and `ControlsActions.test.ts` exercises
+  the REAL pipeline + real `PluginDataStore` over `FakePluginDataPort`, so the new test is
+  behavioral (write lands → next read sees 300).
+- `SizingRowVerdict` union: both consumers (`VicinityGraphSettingTab.showVerdict/:586`,
+  `numberRowCommit.ts:120`) type-check unchanged; no case lost, `rejected: true ⇒ message: string`
+  is now compile-time.
+- CLAUDE.md line 44 edit: accurate, stable, in-house style. Fine.
+- Acceptance criteria all met (inversion unstorable + visibly rejected; no mid-keystroke snap;
+  gates green).
 
-## Findings I filed (all SHOULD-FIX, none blocking correctness)
+## Residual I found in round 2 (non-blocking, recorded)
 
-1. `SettingsRowView.tsx:223` seeded refusal is DEAD (state is always clamped) and its WHY
-   comment claims behaviour this same commit made impossible.
-2. `SettingsRowView.tsx:238` + `numberRowCommit.ts` null-commit path: blank/unparsed text
-   stands with no reseed and no message → field lies about the stored value.
-3. `SettingsRowView.tsx:357` judges cross-field against a RENDERED SNAPSHOT
-   (`state.globalView.sizing`); the tab uses a LIVE store read
-   (`VicinityGraphSettingTab.ts:562`). Stale by a full rebuild round-trip → false refusals
-   quoting a stale number, or a missed refusal silently repaired by the engine.
+`NumberRowCommit` drops `SizingRowWrite`'s non-rejecting CAP notice, and `reseedsFromStore` is
+false for an accepted commit. When the clamp lands back ON the currently stored value — field
+already at a `NODE_SIZE_PX_BOUNDS` bound (min 1 / max 400), user types past it — `PendingEdits`
+releases immediately (`reconciled` matches `settlesAt`), `shown` never moves, no remount, so the
+box keeps the unstored typed number with NO message. Narrow, but the new doc block at
+`numberRowCommit.ts:41-46` asserts unconditionally that the panel's field "always ends up showing
+the STORED number", which is false there. One-line honest fix: `reseedsFromStore` ⇒
+`this.refusal === undefined`. Called out as a Suggestion; ticket-able.
 
-Verdict written: CHANGES_REQUESTED (all three cheap; engine half is sound and should stand).
+Also: the implementer's stated reason for rejecting the CSS-naming NIT ("classes the e2e suite
+selects on") is not literally true — `grep -rn "number-row" e2e/` is empty; e2e goes through
+aria-labels. The CONCLUSION (cosmetic churn, don't do it) still stands, so I agreed.
+
+Verdict written round 2: APPROVED.
