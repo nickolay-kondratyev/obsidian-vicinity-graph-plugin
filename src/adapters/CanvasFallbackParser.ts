@@ -4,19 +4,19 @@ import { MarkdownInlineLinks } from "../shared/MarkdownInlineLinks";
 import { Wikilinks } from "../shared/Wikilinks";
 
 /**
- * Fallback `.canvas` JSON parser — the ACTIVE link source for each canvas that
- * `metadataCache.resolvedLinks` does not index (verified on the target install,
- * see step-03 CLARIFICATION Q2). `CanvasCapability` decides that PER CANVAS, so
- * this parser can be dormant for one canvas and serving another in the same
- * vault; core-indexed canvases never reach it.
+ * `.canvas` JSON parser — THE link source for every canvas, whether or not
+ * `metadataCache.resolvedLinks` also indexed it. It is unconditional because
+ * `resolvedLinks` merges links and embeds into a single count and so cannot name
+ * a reference's {@link LinkKind}, while WHETHER core indexed a given canvas is a
+ * boot race (ticket `nid_s676x55uojmtcwh9t4l9mc6zl_e`) — consulting it would make
+ * kinds boot-timing-dependent.
  *
  * Scope: FILE-type nodes AND the links written inside TEXT-type node bodies
  * (wikilinks and markdown-style inline links alike — a text node is markdown),
- * because those two together are what Obsidian's own indexer reports
- * for a canvas — the two regimes must yield the same edge set or the boot race
- * over which one runs becomes user-visible (ticket
- * `nid_s676x55uojmtcwh9t4l9mc6zl_e`). `link`-type (external URL) and `group`
- * nodes reference no vault document and yield nothing.
+ * because those two together are what Obsidian's own indexer reports for a canvas
+ * — this parser must still agree with core's edge SET, since that set is what
+ * users see elsewhere in Obsidian. `link`-type (external URL) and `group` nodes
+ * reference no vault document and yield nothing.
  *
  * PARSING ONLY: the two node kinds speak different languages — a file node
  * carries a literal vault PATH, a text node carries LINK TEXT needing

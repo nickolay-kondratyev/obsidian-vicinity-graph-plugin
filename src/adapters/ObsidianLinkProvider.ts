@@ -1,16 +1,14 @@
-import type { AttachmentRef, FileMetadata, LinkProvider, OutlineEntry, VaultPath } from "../engine";
-import { asFolderPath, asVaultPath } from "../engine";
+import type { AttachmentRef, FileMetadata, LinkProvider, OutgoingReference, OutlineEntry, VaultPath } from "../engine";
+import { asFolderPath, asVaultPath, OutgoingReferences } from "../engine";
 import { FileKinds } from "../shared/FileKinds";
 import { BacklinksAdapter } from "./BacklinksAdapter";
 import type { OrderedReference } from "./ReferenceOrder";
 import { ReferenceOrder } from "./ReferenceOrder";
-import type { CanvasCapability } from "./CanvasCapability";
-import { CanvasCapabilityDetector } from "./CanvasCapability";
 import type { CanvasReference } from "./CanvasFallbackParser";
 import type { CanvasParseCache } from "./CanvasParseCache";
 import type { CachedMetadataPort, MetadataCachePort, VaultFilePort, VaultPort } from "./obsidianPorts";
 
-/** Kept local: canvas capability detection is adapter-specific knowledge, not a shared file kind. */
+/** Kept local: "which files must be parsed as canvas" is adapter knowledge, not a shared file kind. */
 const CANVAS_EXTENSION = "canvas";
 /** Obsidian reports "/" as the parent path of vault-root files; the engine's root folder is "". */
 const OBSIDIAN_ROOT_FOLDER = "/";
@@ -36,14 +34,16 @@ const NO_OUTLINE_FACTS: NoteOutlineFacts = { outline: [], imagePrecedesOutline: 
  *
  * Async construction, sync queries (binding decision, step-02 CLARIFICATION
  * Q2): {@link create} performs everything that cannot be answered
- * synchronously — reading `.canvas` files for the fallback parser — and settles
- * PER CANVAS which link source serves it. A provider is built per rebuild, so
- * that settling is a fresh read of `resolvedLinks` every time rather than a
- * once-per-install decision; it is safe because the two sources now report the
- * same edge set (ticket `nid_s676x55uojmtcwh9t4l9mc6zl_e`). Queries answer synchronously
- * against the live metadata cache (`getFileCache`, `resolvedLinks` and
- * `getBacklinksForFile` are all sync at runtime), so a provider never holds a
- * stale copy of markdown links.
+ * synchronously — reading and parsing EVERY `.canvas` file — after which queries
+ * answer synchronously against the live metadata cache (`getFileCache`,
+ * `resolvedLinks` and `getBacklinksForFile` are all sync at runtime), so a
+ * provider never holds a stale copy of markdown links.
+ *
+ * Canvas links come from OUR parser, always — never from `resolvedLinks`. That
+ * retires the per-canvas "which source serves it" split, whose input was a boot
+ * race (ticket `nid_s676x55uojmtcwh9t4l9mc6zl_e`), and it is what lets a canvas
+ * reference report its {@link LinkKind}: `resolvedLinks` merges links and embeds
+ * into one count and can name neither.
  *
  * Incoming links use `getBacklinksForFile` per visited node — bounded by the
  * node cap, not vault size — with a resolvedLinks-inversion fallback when the
@@ -58,13 +58,13 @@ export class ObsidianLinkProvider implements LinkProvider {
 		private readonly vault: VaultPort,
 		private readonly metadataCache: MetadataCachePort,
 		/**
-		 * The canvases THIS provider serves from the fallback parser (one entry per
-		 * canvas core has not indexed) → their resolved targets in canvas reference
-		 * order, duplicates kept because they are the link COUNT. Membership is also
-		 * the per-canvas regime answer: in the map ⇒ we serve it, absent ⇒ core does.
+		 * EVERY canvas in the vault → its resolved references in canvas reference
+		 * order, duplicates kept because they are the link COUNT. Membership means
+		 * "this is a canvas we parsed", nothing more: canvas links never come from
+		 * `resolvedLinks` (see {@link create}).
 		 */
-		private readonly canvasOutgoingByPath: ReadonlyMap<string, readonly string[]>,
-		/** Target path → the fallback-served canvases referencing it. */
+		private readonly canvasOutgoingByPath: ReadonlyMap<string, readonly OutgoingReference[]>,
+		/** Target path → the canvases referencing it. */
 		private readonly canvasIncomingByPath: ReadonlyMap<string, readonly string[]>,
 		backlinksAvailable: boolean,
 	) {
@@ -79,21 +79,23 @@ export class ObsidianLinkProvider implements LinkProvider {
 		metadataCache: MetadataCachePort,
 		canvasParseCache: CanvasParseCache,
 	): Promise<ObsidianLinkProvider> {
-		const canvasOutgoing = new Map<string, readonly string[]>();
+		const canvasOutgoing = new Map<string, readonly OutgoingReference[]>();
 		const canvasIncoming = new Map<string, string[]>();
 		for (const file of vault.getFiles()) {
 			if (file.extension !== CANVAS_EXTENSION) {
 				continue;
 			}
-			// Asked per canvas, so a partially-indexed vault cannot strand the canvases
-			// core has not reached yet (see {@link CanvasCapabilityDetector}).
-			if (CanvasCapabilityDetector.detectFor(metadataCache.resolvedLinks, file.path) === "core-indexed") {
-				continue; // Core serves this one; parsing it too would double-report.
-			}
+			// EVERY canvas, indexed by core or not. `resolvedLinks` merges links and
+			// embeds into one count, so a core-served canvas could not say WHICH of its
+			// references are embeds — and whether a given canvas is indexed is a boot
+			// race (ticket `nid_s676x55uojmtcwh9t4l9mc6zl_e`), so consulting it would make
+			// link KINDS boot-timing-dependent. Parsing everything costs one mtime-cached
+			// read + JSON.parse per canvas and resolves through the SAME
+			// `getFirstLinkpathDest` core uses, so it is not a downgrade.
 			const references = await canvasParseCache.referencesOf(vault, file);
-			const targets = resolvedCanvasTargetsOf(vault, metadataCache, file.path, references);
-			canvasOutgoing.set(file.path, targets);
-			for (const target of new Set(targets)) {
+			const resolved = resolvedCanvasReferencesOf(vault, metadataCache, file.path, references);
+			canvasOutgoing.set(file.path, resolved);
+			for (const target of OutgoingReferences.targetsOf(resolved)) {
 				appendToMultimap(canvasIncoming, target, file.path);
 			}
 		}
@@ -107,38 +109,42 @@ export class ObsidianLinkProvider implements LinkProvider {
 	}
 
 	/**
-	 * The canvases THIS build serves from the fallback parser, i.e. the ones core has
-	 * not indexed. A provenance surface for manual QA (`main.ts`), and deliberately a
-	 * LIST rather than a single install-wide verdict: a partially-indexed vault
-	 * legitimately has canvases on both sides.
+	 * The canvases THIS build parsed — every canvas in the vault. A provenance
+	 * surface for manual QA (`main.ts`): its links are the edges core's
+	 * `resolvedLinks` has no say over.
 	 */
-	get fallbackServedCanvasPaths(): readonly string[] {
+	get parsedCanvasPaths(): readonly string[] {
 		return [...this.canvasOutgoingByPath.keys()];
 	}
 
-	getOutgoingLinks(path: VaultPath): readonly VaultPath[] {
+	getOutgoingReferences(path: VaultPath): readonly OutgoingReference[] {
 		const file = this.vault.getFileByPath(path);
 		if (file === null) {
 			return [];
 		}
 		const references = orderedReferencesOf(file, this.metadataCache.getFileCache(file));
-		return this.outgoingPathsOf(file, references).map(asVaultPath);
+		return this.outgoingReferencesOf(file, references);
+	}
+
+	getOutgoingLinks(path: VaultPath): readonly VaultPath[] {
+		return OutgoingReferences.targetsOf(this.getOutgoingReferences(path));
 	}
 
 	getIncomingLinks(path: VaultPath): readonly VaultPath[] {
 		const sources = this.backlinkSources(path);
-		// Fallback-parsed canvas links exist nowhere in the metadata cache — merge them in.
+		// Parsed canvas links are the authority for canvas sources — merge them in.
 		const canvasSources = this.canvasIncomingByPath.get(path) ?? [];
 		return dedupe([...sources, ...canvasSources]).map(asVaultPath);
 	}
 
 	getLinkCount(source: VaultPath, target: VaultPath): number {
-		const fallbackTargets = this.canvasOutgoingByPath.get(source);
-		if (fallbackTargets !== undefined) {
-			// Fallback-parsed canvas links exist nowhere in resolvedLinks — count occurrences.
+		const canvasReferences = this.canvasOutgoingByPath.get(source);
+		if (canvasReferences !== undefined) {
+			// Parsed canvas links are not in resolvedLinks in a shape we trust — count
+			// occurrences. Kind-blind, exactly like the resolvedLinks number below.
 			let count = 0;
-			for (const parsed of fallbackTargets) {
-				if (parsed === target) {
+			for (const parsed of canvasReferences) {
+				if (parsed.target === target) {
 					count += 1;
 				}
 			}
@@ -234,29 +240,39 @@ export class ObsidianLinkProvider implements LinkProvider {
 	}
 
 	/**
-	 * Resolved outgoing targets in reference order, deduped (first occurrence wins).
-	 * `references` is `null` exactly when the metadata cache cannot order this
-	 * file's links — the two cases the fallbacks below exist for.
+	 * Resolved outgoing references in reference order, deduped per (target, kind) so
+	 * a target that is both embedded and linked keeps both. `references` is `null`
+	 * exactly when the metadata cache cannot order this file's links — the case the
+	 * final fallback below exists for.
 	 */
-	private outgoingPathsOf(file: VaultFilePort, references: readonly OrderedReference[] | null): readonly string[] {
-		const fallbackTargets = this.canvasOutgoingByPath.get(file.path);
-		if (fallbackTargets !== undefined) {
-			// A canvas we serve: already resolved (and unresolvable references dropped) at build time.
-			return dedupe(fallbackTargets);
+	private outgoingReferencesOf(
+		file: VaultFilePort,
+		references: readonly OrderedReference[] | null,
+	): readonly OutgoingReference[] {
+		const canvasReferences = this.canvasOutgoingByPath.get(file.path);
+		if (canvasReferences !== undefined) {
+			// A canvas: already resolved (and unresolvable references dropped) at build time.
+			return OutgoingReferences.deduped(canvasReferences);
 		}
 		if (references !== null) {
-			const resolved: string[] = [];
+			const resolved: OutgoingReference[] = [];
 			for (const reference of references) {
 				const target = this.resolveReference(reference.link, file.path);
 				if (target !== undefined) {
-					resolved.push(target);
+					resolved.push({ target: asVaultPath(target), kind: reference.kind });
 				}
 			}
-			return dedupe(resolved);
+			return OutgoingReferences.deduped(resolved);
 		}
-		// Core-indexed canvas, and markdown not yet in getFileCache: resolvedLinks
-		// keys are already-resolved targets (order not contractual, best available).
-		return Object.keys(this.metadataCache.resolvedLinks[file.path] ?? {});
+		// Markdown not yet in getFileCache: resolvedLinks keys are already-resolved
+		// targets (order not contractual, best available) — but that record MERGES
+		// links and embeds, so the kind is unknowable here and degrades to `link`.
+		// The degradation is confined to this one transient case: canvases, whose
+		// kinds matter most, are always parsed (see {@link create}).
+		return Object.keys(this.metadataCache.resolvedLinks[file.path] ?? {}).map((target) => ({
+			target: asVaultPath(target),
+			kind: "link" as const,
+		}));
 	}
 
 	private backlinkSources(path: string): readonly string[] {
@@ -289,11 +305,15 @@ export class ObsidianLinkProvider implements LinkProvider {
 		return inverted;
 	}
 
-	/** Attachments = outgoing references to non-node-bearing files, in reference order. */
+	/**
+	 * Attachments = outgoing references to non-node-bearing files, in reference
+	 * order. KIND-BLIND by owner decision (D5 on the embed-depth ticket): a diagram
+	 * is an attachment whether written `[[diagram.png]]` or `![[diagram.png]]`.
+	 */
 	private attachmentsOf(file: VaultFilePort, references: readonly OrderedReference[] | null): readonly AttachmentRef[] {
-		return this.outgoingPathsOf(file, references)
+		return OutgoingReferences.targetsOf(this.outgoingReferencesOf(file, references))
 			.filter((target) => !FileKinds.isNodeBearingPath(target))
-			.map((target) => ({ path: asVaultPath(target), isImage: FileKinds.isImagePath(target) }));
+			.map((target) => ({ path: target, isImage: FileKinds.isImagePath(target) }));
 	}
 }
 
@@ -314,23 +334,25 @@ export class ObsidianLinkProvider implements LinkProvider {
  * rather than a second literal-path lookup that would diverge on relative
  * paths, folder notes and shortest-path targets.
  */
-function resolvedCanvasTargetsOf(
+function resolvedCanvasReferencesOf(
 	vault: VaultPort,
 	metadataCache: MetadataCachePort,
 	canvasPath: string,
 	references: readonly CanvasReference[],
-): readonly string[] {
-	const targets: string[] = [];
+): readonly OutgoingReference[] {
+	const resolved: OutgoingReference[] = [];
 	for (const reference of references) {
 		const target =
 			reference.kind === "file-node"
 				? vault.getFileByPath(reference.filePath)?.path
 				: metadataCache.getFirstLinkpathDest(reference.linkText, canvasPath)?.path;
 		if (target !== undefined) {
-			targets.push(target);
+			// `linkKind` travels from the parser untouched: HOW a reference is resolved
+			// and WHETHER it embeds are independent facts.
+			resolved.push({ target: asVaultPath(target), kind: reference.linkKind });
 		}
 	}
-	return targets;
+	return resolved;
 }
 
 /**
@@ -382,6 +404,7 @@ function engineFolderOf(file: VaultFilePort): string {
 function dedupe(paths: readonly string[]): readonly string[] {
 	return [...new Set(paths)];
 }
+
 
 function appendToMultimap(map: Map<string, string[]>, key: string, value: string): void {
 	const values = map.get(key);

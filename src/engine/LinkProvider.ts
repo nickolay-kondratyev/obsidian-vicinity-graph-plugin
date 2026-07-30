@@ -1,4 +1,46 @@
+import type { LinkKind } from "../shared/LinkKind";
 import type { AttachmentRef, FolderPath, OutlineEntry, VaultPath } from "./types";
+
+/**
+ * One resolved outgoing reference: WHERE it points and HOW it points there.
+ *
+ * The kind is carried per REFERENCE, not per pair, because a note can both embed
+ * and plainly link the same target — so `A → B` may legitimately appear twice,
+ * once per kind.
+ */
+export interface OutgoingReference {
+	readonly target: VaultPath;
+	readonly kind: LinkKind;
+}
+
+/** Views over a reference list. The kind-blind collapse lives HERE, once. */
+export class OutgoingReferences {
+	/**
+	 * The distinct TARGETS of `references`, first occurrence first — the kind-blind
+	 * view, for the consumers that ask "what does this file point at" without
+	 * caring how (node sizing, attachments, today's traversal).
+	 */
+	static targetsOf(references: readonly OutgoingReference[]): readonly VaultPath[] {
+		return [...new Set(references.map((reference) => reference.target))];
+	}
+
+	/**
+	 * `references` with the first occurrence of each (target, kind) pair kept — the
+	 * deduplication every {@link LinkProvider} owes its callers, so a target that is
+	 * both embedded and plainly linked keeps ONE reference per kind.
+	 */
+	static deduped(references: readonly OutgoingReference[]): readonly OutgoingReference[] {
+		const seen = new Set<string>();
+		return references.filter((reference) => {
+			const identity = `${reference.kind}:${reference.target}`;
+			if (seen.has(identity)) {
+				return false;
+			}
+			seen.add(identity);
+			return true;
+		});
+	}
+}
 
 /**
  * Per-file facts the engine needs. Everything here is ADAPTER truth: the
@@ -58,7 +100,20 @@ export interface FileMetadata {
  * path-keyed link lists + per-file metadata, never canvas-specific (OCP).
  */
 export interface LinkProvider {
-	/** Resolved link targets of `path`, in reference order, deduplicated. May include non-node-bearing files. */
+	/**
+	 * Resolved outgoing references of `path`, in reference order, deduplicated per
+	 * (target, kind) — so a target that is BOTH embedded and linked appears twice,
+	 * once per kind. May include non-node-bearing files.
+	 *
+	 * THE outgoing truth: {@link getOutgoingLinks} is the kind-blind view of this
+	 * same answer, never a second computation.
+	 */
+	getOutgoingReferences(path: VaultPath): readonly OutgoingReference[];
+	/**
+	 * Resolved link targets of `path`, in reference order, deduplicated. May include
+	 * non-node-bearing files. Implementations MUST answer
+	 * `OutgoingReferences.targetsOf(getOutgoingReferences(path))`.
+	 */
 	getOutgoingLinks(path: VaultPath): readonly VaultPath[];
 	/** Paths of files linking TO `path`, deduplicated. */
 	getIncomingLinks(path: VaultPath): readonly VaultPath[];
@@ -69,6 +124,13 @@ export interface LinkProvider {
 	 * ONLY multiplicity source: link lists above are deduplicated, and the
 	 * traversal cannot tally links itself (multi-root walks revisit pairs), so
 	 * edge count badges must come from here.
+	 *
+	 * KIND-BLIND on purpose: it counts links and embeds together. Obsidian's own
+	 * `resolvedLinks` — the number this reports for markdown — is itself a merged
+	 * count, so a per-kind split would have to re-derive the TOTAL from the file
+	 * cache and could therefore change a rendered badge. Nothing needs the split
+	 * yet (the traversal never asks for counts at all), so the honest answer stays
+	 * the merged one until a stage genuinely needs otherwise.
 	 */
 	getLinkCount(source: VaultPath, target: VaultPath): number;
 }

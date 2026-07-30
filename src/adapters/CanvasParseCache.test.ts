@@ -21,7 +21,7 @@ describe("CanvasParseCache", () => {
 	it("WHEN parsing a canvas THEN its references are returned", async () => {
 		const { vault, file } = fakeVaultWithCanvas(1, CANVAS_JSON);
 		expect(await new CanvasParseCache().referencesOf(vault, file)).toEqual([
-			{ kind: "file-node", filePath: "a.md" },
+			{ kind: "file-node", linkKind: "embed", filePath: "a.md" },
 		]);
 	});
 
@@ -39,7 +39,7 @@ describe("CanvasParseCache", () => {
 		await cache.referencesOf(before.vault, before.file);
 		const after = fakeVaultWithCanvas(2, CHANGED_CANVAS_JSON);
 		expect(await cache.referencesOf(after.vault, after.file)).toEqual([
-			{ kind: "file-node", filePath: "b.md" },
+			{ kind: "file-node", linkKind: "embed", filePath: "b.md" },
 		]);
 	});
 
@@ -48,7 +48,7 @@ describe("CanvasParseCache", () => {
 		// mtime key as the JSON parse (ticket `nid_s676x55uojmtcwh9t4l9mc6zl_e`).
 		const { vault, file, readSpy } = fakeVaultWithCanvas(1, TEXT_NODE_CANVAS_JSON);
 		const cache = new CanvasParseCache();
-		expect(await cache.referencesOf(vault, file)).toEqual([{ kind: "text-node-link", linkText: "b" }]);
+		expect(await cache.referencesOf(vault, file)).toEqual([{ kind: "text-node-link", linkKind: "link", linkText: "b" }]);
 		await cache.referencesOf(vault, file);
 		expect(readSpy).toHaveBeenCalledOnce();
 	});

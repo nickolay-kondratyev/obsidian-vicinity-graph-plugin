@@ -1,6 +1,8 @@
 import { FileKinds } from "../shared/FileKinds";
+import type { LinkKind } from "../shared/LinkKind";
 import { VaultPathFacts } from "../shared/VaultPathFacts";
-import type { FileMetadata, LinkProvider } from "./LinkProvider";
+import type { FileMetadata, LinkProvider, OutgoingReference } from "./LinkProvider";
+import { OutgoingReferences } from "./LinkProvider";
 import type { AttachmentRef, OutlineEntry, VaultPath } from "./types";
 import { asFolderPath, asVaultPath } from "./types";
 
@@ -30,10 +32,18 @@ export interface FakeFileSpec {
 	readonly imagePrecedesOutline?: boolean;
 }
 
-/** Fixture vault: files + ordered outgoing links (incoming derived by inversion). */
+/** Fixture vault: files + ordered outgoing references (incoming derived by inversion). */
 export interface FakeVaultSpec {
 	readonly files: readonly FakeFileSpec[];
+	/** Per source path: plainly LINKED targets, in reference order, duplicates allowed. */
 	readonly links?: Readonly<Record<string, readonly string[]>>;
+	/**
+	 * Per source path: EMBEDDED targets (`![[x]]`), same shape as {@link links}. A
+	 * separate map rather than a tagged list so the overwhelmingly common
+	 * kind-blind fixture stays a bare array of paths; the cost is that a source's
+	 * references order as "its links, then its embeds", which no fixture depends on.
+	 */
+	readonly embeds?: Readonly<Record<string, readonly string[]>>;
 }
 
 interface FakeFile {
@@ -53,26 +63,33 @@ interface FakeFile {
  */
 export class FakeLinkProvider implements LinkProvider {
 	private readonly files = new Map<VaultPath, FakeFile>();
-	/** Deduplicated (mirrors the real adapter's link-list contract). */
-	private readonly outgoing = new Map<VaultPath, readonly VaultPath[]>();
+	/** Deduplicated per (target, kind) — mirrors the real adapter's reference-list contract. */
+	private readonly outgoing = new Map<VaultPath, readonly OutgoingReference[]>();
 	private readonly incoming = new Map<VaultPath, VaultPath[]>();
-	/** Raw fixture links WITH duplicates — the multiplicity truth behind getLinkCount. */
-	private readonly rawOutgoing = new Map<VaultPath, readonly VaultPath[]>();
+	/** Raw fixture references WITH duplicates — the multiplicity truth behind getLinkCount. */
+	private readonly rawOutgoing = new Map<VaultPath, readonly OutgoingReference[]>();
 	private readonly outgoingQueryCountsMutable = new Map<VaultPath, number>();
 
 	constructor(spec: FakeVaultSpec) {
 		for (const file of spec.files) {
 			this.declareFile(file);
 		}
-		for (const [from, targets] of Object.entries(spec.links ?? {})) {
-			this.declareLinks(from, targets);
+		for (const from of FakeLinkProvider.referenceSourcesOf(spec)) {
+			this.declareReferences(from, [
+				...FakeLinkProvider.referencesOfKind(spec.links?.[from], "link"),
+				...FakeLinkProvider.referencesOfKind(spec.embeds?.[from], "embed"),
+			]);
 		}
 		this.attachAttachmentsToMetadata();
 	}
 
-	getOutgoingLinks(path: VaultPath): readonly VaultPath[] {
+	getOutgoingReferences(path: VaultPath): readonly OutgoingReference[] {
 		this.outgoingQueryCountsMutable.set(path, (this.outgoingQueryCountsMutable.get(path) ?? 0) + 1);
 		return this.outgoing.get(path) ?? [];
+	}
+
+	getOutgoingLinks(path: VaultPath): readonly VaultPath[] {
+		return OutgoingReferences.targetsOf(this.getOutgoingReferences(path));
 	}
 
 	getIncomingLinks(path: VaultPath): readonly VaultPath[] {
@@ -85,17 +102,27 @@ export class FakeLinkProvider implements LinkProvider {
 
 	getLinkCount(source: VaultPath, target: VaultPath): number {
 		let count = 0;
+		// Kind-blind like the real provider: links and embeds of the same pair add up.
 		for (const raw of this.rawOutgoing.get(source) ?? []) {
-			if (raw === target) {
+			if (raw.target === target) {
 				count += 1;
 			}
 		}
 		return count;
 	}
 
-	/** Times {@link getOutgoingLinks} was queried for `path` (test instrumentation). */
+	/** Times {@link getOutgoingReferences} was queried for `path` (test instrumentation). */
 	outgoingQueryCount(path: VaultPath): number {
 		return this.outgoingQueryCountsMutable.get(path) ?? 0;
+	}
+
+	/** Every source declaring references of EITHER kind, each once. */
+	private static referenceSourcesOf(spec: FakeVaultSpec): readonly string[] {
+		return [...new Set([...Object.keys(spec.links ?? {}), ...Object.keys(spec.embeds ?? {})])];
+	}
+
+	private static referencesOfKind(targets: readonly string[] | undefined, kind: LinkKind) {
+		return (targets ?? []).map((target) => ({ target, kind }));
 	}
 
 	private declareFile(file: FakeFileSpec): void {
@@ -116,14 +143,20 @@ export class FakeLinkProvider implements LinkProvider {
 		});
 	}
 
-	private declareLinks(from: string, targets: readonly string[]): void {
+	private declareReferences(from: string, declared: readonly { target: string; kind: LinkKind }[]): void {
 		const fromPath = this.requireDeclared(from, "link source");
-		const targetPaths = targets.map((target) => this.requireDeclared(target, `link target of [${from}]`));
-		this.rawOutgoing.set(fromPath, targetPaths);
-		// Deduplicate like the real adapter: duplicate fixture links only surface
-		// through getLinkCount, never through the link lists.
-		this.outgoing.set(fromPath, [...new Set(targetPaths)]);
-		for (const target of new Set(targetPaths)) {
+		const references = declared.map(
+			(reference): OutgoingReference => ({
+				target: this.requireDeclared(reference.target, `link target of [${from}]`),
+				kind: reference.kind,
+			}),
+		);
+		this.rawOutgoing.set(fromPath, references);
+		// Deduplicate like the real adapter: duplicate fixture references only surface
+		// through getLinkCount, never through the reference list.
+		this.outgoing.set(fromPath, OutgoingReferences.deduped(references));
+		// Incoming is kind-blind (scope decision): a linker is a linker.
+		for (const target of OutgoingReferences.targetsOf(references)) {
 			const linkers = this.incoming.get(target) ?? [];
 			if (!linkers.includes(fromPath)) {
 				linkers.push(fromPath);
@@ -140,11 +173,15 @@ export class FakeLinkProvider implements LinkProvider {
 		return vaultPath;
 	}
 
-	/** Attachments = outgoing references to non-node-bearing files, in link order. */
+	/**
+	 * Attachments = outgoing references to non-node-bearing files, in reference
+	 * order. KIND-BLIND by owner decision: a diagram is an attachment whether it is
+	 * `[[diagram.png]]` or `![[diagram.png]]`.
+	 */
 	private attachAttachmentsToMetadata(): void {
 		for (const [path, file] of this.files) {
 			const attachments: AttachmentRef[] = [];
-			for (const target of this.outgoing.get(path) ?? []) {
+			for (const target of OutgoingReferences.targetsOf(this.outgoing.get(path) ?? [])) {
 				const targetFile = this.files.get(target);
 				if (targetFile !== undefined && !targetFile.nodeBearing) {
 					attachments.push({ path: target, isImage: targetFile.image });
