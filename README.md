@@ -75,14 +75,16 @@ changing either writes the one global value and refreshes every open graph.
 
 ### The settings
 
-- **Depth** — how far outbound/incoming traversal reaches from each central note.
-  Also on the controls panel, as `−` / `+` steppers. **One pair of values:** it
-  applies to the active note *and* to every pinned central, so nudging it there
-  changes every graph, not just the one in front of you.
+- **Depth (all notes)** — how far outbound/incoming traversal reaches from each
+  central note. Also on the controls panel, as `−` / `+` steppers under the same
+  heading. **One pair of values:** it applies to the active note *and* to every
+  pinned central, so nudging it there changes every graph, not just the one in
+  front of you — which is what the heading says out loud on both surfaces.
 - **Sizing** — which metrics drive node size (own file size is the only one on by
-  default) and their weights. One exception to pure score-driven size: a note that has an image is never sized below the height
-  at which its thumbnail is shown in full (122px) — capped by your **max size**, so
-  an explicit maximum still wins (set max below 122 and thumbnails stay hidden).
+  default) and their weights. One exception to pure score-driven size: a note that
+  has an image is never sized below the height at which its thumbnail is shown in
+  full (122px) — capped by your **max size**, so an explicit maximum still wins
+  (set max below 122 and thumbnails stay hidden).
 - **Preview** — a three-way pill choosing what a node shows in its preview slot:
   **Auto** (default), **Outline** or **Image**. See *Node contents* below. The
   same pill is in the in-view graph controls, under *Node contents* — both edit

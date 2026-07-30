@@ -92,7 +92,9 @@ they ship, then drop them.
       change a **GLOBAL** setting — a bump there affects every note's graph and
       every open view, where it used to affect only the active note. One depth pair
       also drives MAIN and every pinned central; the per-pinned-central dials are
-      gone.
+      gone. Both surfaces now say so on the label: the panel disclosure and the
+      settings-tab card are both headed **"Depth (all notes)"** (the card used to
+      read "Depth defaults", which implied a per-note override).
 
 ## 8. License note
 
