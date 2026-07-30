@@ -196,3 +196,97 @@ still nothing to announce as a clean break.
    write promises (the `debounced` window drain, `void this.writes.apply(...)`,
    `void actions.restoreDefaults(...)`). Pre-existing, unchanged by this work, worth a
    ticket — the reviewer agreed.
+
+---
+
+# Iteration 2 — closing round-2's two NEW findings
+
+Round 2's verdict was CONVERGED; both items below were filed as non-blocking. The owner
+asked for them NOW. Both were cheap, both are fixed, both started from a failing test.
+Nothing else was touched — no opportunistic refactors.
+
+## A. NEW-1 — the override could stick FOREVER when a clamp landed back on the baseline
+
+**The defect.** `PendingEdits` released the override only when the STORE moved. A sizing
+row sitting exactly on a range bound, typed past that bound, clamps back to the bound —
+so the store never moves, `storeHasNotMovedYet` held, and the field displayed an unstored
+number until the next in-range edit or a remount.
+
+**The fix — reconcile against what the write will STORE, not against what was typed.**
+A request now records two values instead of one:
+
+- `src/view/optimisticValue.ts:32-46` — new `RequestedEdit<T> { shown, settlesAt }`; the
+  request list is `readonly RequestedEdit<T>[]` (this record also absorbs the old boxing
+  trick, so an `undefined` `T` is still distinguishable from "no request").
+- `src/view/optimisticValue.ts:82` — `requesting(value, storedNow, settlesAt = value)`.
+  Default = identity, so every non-clamping control is unchanged.
+- `src/view/optimisticValue.ts:99-108` — `reconciled` matches on `settlesAt`, latest
+  request FIRST, so clamped-to-baseline releases instead of waiting forever.
+- `src/view/useOptimisticValue.ts:32` — optional third param `settlesAt: (requested) => T`.
+- `src/view/SizingSection.tsx:65,114` — both numeric row kinds (metric weight, and
+  min/max/`k`) pass the real clamp in. The toggles and `NodePreviewPreference` /
+  force-layout sliders pass nothing, i.e. identity, as before.
+- `src/engine/constants.ts:189-196` (used at `:213-220`) — new `clampSizingNumber(field, value)`;
+  `clampSizingSettings` now *delegates* to it for all four fields, so there is ONE clamp,
+  not a view-side copy that could drift. `SizingRangeField` is now exported, and both are
+  re-exported from `src/engine/index.ts`.
+
+**Red → green.**
+
+| Test | Red (before) | Green (after) |
+|---|---|---|
+| `optimisticValue.test.ts:76-85` "WHEN the write path will store what the store ALREADY holds THEN the override is released" | `expected 9999 to be 400` | pass |
+| `optimisticValue.test.ts:87-92` "…THEN the typed value is still shown until it lands" | already passed — it is the guard that the fix does not cost the optimism | pass |
+| `sizingSettings.test.ts` "WHEN one field is clamped alone THEN it lands where the whole-object clamp lands it" | n/a (new API) | pass — pins the single-clamp claim the rows rely on |
+
+Red log: `.tmp/it2_red.txt`. Green: `.tmp/it2_green.txt`.
+
+**What the user now sees**, and why this is not a UX regression: typing an out-of-range
+value ALREADY snapped back whenever the clamp differed from the baseline (type `5` into a
+min-px field showing `50` → store lands on `10` → override released). The bound case was
+the one inconsistent hole. It now behaves like the others.
+
+**WHY-NOT pre-clamping the request** (the `DepthStepper` shape the reviewer floated):
+it rewrites the field mid-keystroke — typing `5` toward `50` would snap the input to the
+bound and make `50` unreachable. Separating "what is shown" from "what will be stored"
+fixes the model without touching what the user is allowed to type.
+
+## B. NEW-2 — `settled()` coupled flush + drain in one `tolerating()`
+
+`src/view/settingsResetSequence.ts` — every step is now tolerated on its own:
+
+- `:41-49` `run()`: the pre-reset flush and `writeDefaults` are separate `tolerating(...)`
+  calls, so a rejecting flush (the user's own earlier debounced edit failing) no longer
+  cancels the reset they just asked for.
+- `:58-67` `settled()`: `flushTypedEdits()` and `drainWrites()` split the same way, so a
+  rejecting flush no longer skips the drain — the S1 bug one level down. Doc updated.
+
+**Red → green.** New test `settingsResetSequence.test.ts:100-109` "WHEN flushing a typed
+edit fails THEN the defaults are still written and a queued write still drained":
+red `expected [ 'redisplay' ] to deeply equal [ 'write-defaults:all', 'click-write',
+'redisplay' ]` → green. The four existing ordering tests are untouched and still pass.
+
+## Documentation corrected
+
+- `docs-internal/plan/high-level-plan.md:73` — the clause "the write path clamped what was
+  typed" was listed as a case where the store wins; it now states the actual rule (the
+  store wins when it holds what the latest request will STORE) and names the
+  already-at-the-bound case explicitly.
+- `docs-internal/architecture-map.md:68-72` — same correction, one line.
+- `src/view/SizingSection.tsx:22-26` — the section doc now says the rows hand the hook the
+  same clamp the write path applies, and why.
+
+## Gates (re-run at the end of this iteration)
+
+- `npm test` → **1124 passed / 85 files, exit 0** (`.tmp/it2_final_test.txt`); was 1120,
+  **+4** (2 optimistic, 1 reset, 1 clamp-agreement). No test weakened or removed.
+- `npm run check` → **exit 0**, `src/` + `e2e/` (`.tmp/it2_final_check.txt`).
+- e2e is the release gate and was not run here (unchanged from previous iterations).
+
+Nothing committed, no ticket closed, no `change_log` entry — as instructed.
+
+## Deferred: nothing
+
+Both items are closed. The follow-ups listed for iteration 1 (the `decide` ticket
+`nid_7qot0m6nuxxmd5z0yb9jylsd6_e`, and the `Notice`-on-write-failure policy) stand
+unchanged.

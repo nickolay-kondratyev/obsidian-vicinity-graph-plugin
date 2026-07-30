@@ -2,10 +2,39 @@
 
 ## Where things stand
 Iteration 0 = commit `7588c2b` (goals 1–4 accepted by review, goal 5 dead).
-Iteration 1 = uncommitted working tree on top of it. `npm test` 1120/1120,
-`npm run check` clean. Verbose logs in `.tmp/it1_*.txt`
-(`red_optimistic`, `green_optimistic`, `red_reset`, `green_reset`, `final_test`,
-`final_check`). Nothing committed, no tickets closed, no change_log — by design.
+Iteration 1 = uncommitted working tree on top of it. Round-2 review: CONVERGED.
+Iteration 2 = closed round-2's two NEW (non-blocking) findings on owner request.
+`npm test` 1124/1124, `npm run check` clean. Logs: `.tmp/it1_*.txt` and
+`.tmp/it2_{red,green,final_test,final_check}.txt`. Nothing committed, no tickets
+closed, no change_log — by design.
+
+## What iteration 2 changed (and WHY)
+- **`PendingEdits` requests are now `{ shown, settlesAt }`** (`RequestedEdit<T>`).
+  `reconciled` matches on `settlesAt`, latest FIRST. WHY: the release rule only
+  watched for the store to MOVE, so a sizing clamp that landed back on the
+  baseline (field already at a bound, typed past it) stuck the override forever.
+  `requesting(value, storedNow, settlesAt = value)` — identity default keeps every
+  non-clamping control byte-identical.
+- **`useOptimisticValue` third param `settlesAt: (requested) => T`** (identity
+  default). `SizingSection`'s two numeric row kinds pass `clampSizingNumber`.
+- **`clampSizingNumber(field, value)` in `src/engine/constants.ts`**, and
+  `clampSizingSettings` DELEGATES to it. WHY: the view needed the write path's
+  clamp for ONE field; a view-side copy would drift. `SizingRangeField` exported.
+- **`SettingsResetSequence`: every step gets its own `tolerating()`** — in `run()`
+  (pre-reset flush vs. `writeDefaults`) and in `settled()` (flush vs. drain).
+  WHY: a rejecting flush was cancelling the defaults write and skipping the drain.
+- Tests +4: 2 optimistic (clamped-to-baseline releases; clamp does not cost the
+  optimism), 1 reset (rejecting flush), 1 `clampSizingNumber` == `clampSizingSettings`.
+- Docs: `high-level-plan.md:73`, `architecture-map.md:68-72`, `SizingSection.tsx`
+  header — the "the write path clamped what was typed" clause was untrue at a bound.
+
+### Iteration-2 WHY-NOT (do not re-litigate)
+- **Pre-clamping the REQUEST** (`DepthStepper`'s shape): rewrites the input
+  mid-keystroke — typing `5` toward `50` in a min-px field would snap to the bound
+  and make `50` unreachable. `shown` vs `settlesAt` fixes the model without
+  constraining what may be typed.
+- **Releasing when `commit()` resolves**: the write resolves long BEFORE the
+  snapshot round-trip, so this would kill the optimism entirely.
 
 ## Iteration-0 design (still current, unchanged)
 1. `src/shared/SerialPromiseChain.ts` — `run()` + `drain()`; drain returns the
@@ -64,4 +93,5 @@ Iteration 1 = uncommitted working tree on top of it. `npm test` 1120/1120,
   installed. Source-scan guard tests read the filesystem, so any future jsdom
   environment must be scoped to component test files only.
 - `Array.prototype.at` is not in this TS lib config — `PendingEdits` uses an index
-  read boxed as `{ value }` so an `undefined` T stays distinguishable.
+  read cast to `RequestedEdit<T>` (the record itself now does the boxing that kept
+  an `undefined` T distinguishable from "no request").

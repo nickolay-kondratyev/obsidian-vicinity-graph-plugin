@@ -66,7 +66,9 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   typed edits → write defaults → flush again → drain the chain → rebuild the
   controls; the last three run even when the write failed) and
   `optimisticValue.ts` + `useOptimisticValue.ts` (panel controls answer input
-  immediately; the store wins as soon as it shows a value that is neither the
+  immediately; the store wins as soon as it holds what the LATEST request will
+  actually store — a clamped row passes that clamp in, so "the clamp left the
+  value where it already was" releases too — or a value that is neither the
   burst's baseline nor one of the burst's own requests).
 - `persistence/storagePorts.ts`, `adapters/obsidianPorts.ts` — testable seams,
   each with a `Fake*` implementation used by unit tests.

@@ -1,5 +1,5 @@
 import type { SettingsRange, SizeMetricId, SizingMetricSetting, ViewSettings } from "../engine";
-import { SIZING_RANGES } from "../engine";
+import { SIZING_RANGES, clampSizingNumber } from "../engine";
 import type { ReactElement } from "react";
 import { useControlsActions } from "./ControlsActionsContext";
 import { Disclosure } from "./Disclosure";
@@ -20,8 +20,10 @@ import { useOptimisticValue } from "./useOptimisticValue";
  * px reverted the min px edit.
  *
  * Each row is optimistic (see {@link useOptimisticValue}) so typing a weight or a
- * size does not wait for the rebuild; the store still wins the moment it disagrees
- * (including when the write path CLAMPS what was typed).
+ * size does not wait for the rebuild. Every numeric row hands the hook the SAME clamp
+ * the write path applies (`clampSizingNumber`), so the store takes the row back as
+ * soon as it holds the clamped value — including when clamping leaves it exactly where
+ * it already was, which is otherwise a value the row would show forever unstored.
  */
 
 export function SizingSection({ view }: { readonly view: ViewSettings }): ReactElement {
@@ -57,8 +59,10 @@ function SizingMetricRow({
 	const [enabled, requestEnabled] = useOptimisticValue(setting.enabled, (value) =>
 		actions.applySettings({ kind: "global-sizing-metric-enabled", metric, enabled: value }),
 	);
-	const [weight, requestWeight] = useOptimisticValue(setting.weight, (value) =>
-		actions.applySettings({ kind: "global-sizing-metric-weight", metric, weight: value }),
+	const [weight, requestWeight] = useOptimisticValue(
+		setting.weight,
+		(value) => actions.applySettings({ kind: "global-sizing-metric-weight", metric, weight: value }),
+		(value) => clampSizingNumber("metricWeight", value),
 	);
 	return (
 		<div className="vicinity-graph-sizing__metric">
@@ -104,8 +108,10 @@ function SizingNumber({
 }): ReactElement {
 	const actions = useControlsActions();
 	const range: SettingsRange = SIZING_RANGES[field];
-	const [shown, request] = useOptimisticValue(value, (next) =>
-		actions.applySettings({ kind: "global-sizing-number", field, value: next }),
+	const [shown, request] = useOptimisticValue(
+		value,
+		(next) => actions.applySettings({ kind: "global-sizing-number", field, value: next }),
+		(next) => clampSizingNumber(field, next),
 	);
 	return (
 		<label className="vicinity-graph-sizing__field">

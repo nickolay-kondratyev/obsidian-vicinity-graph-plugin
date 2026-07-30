@@ -96,4 +96,15 @@ describe("SettingsResetSequence", () => {
 		await sequence.run("all");
 		expect(target.steps).toEqual(["flush", "flush", "click-write", "redisplay"]);
 	});
+
+	it("WHEN flushing a typed edit fails THEN the defaults are still written and a queued write still drained", async () => {
+		// Every step is independently tolerated: a debounced write that rejects is the
+		// user's OWN earlier keystroke failing, and it may not cancel the reset they just
+		// asked for, nor turn the drain into a step that is skipped.
+		const { target, sequence } = sequenceUnderTest();
+		target.flushTypedEdits = () => Promise.reject(new Error("disk full"));
+		target.duringWrite = () => target.enqueueWriteBehindTheReset("click-write");
+		await sequence.run("all");
+		expect(target.steps).toEqual(["write-defaults:all", "click-write", "redisplay"]);
+	});
 });

@@ -39,31 +39,30 @@ export class SettingsResetSequence {
 	 * caller is a DOM click handler with nowhere to put a rejection.
 	 */
 	async run(scope: SettingsResetScope): Promise<void> {
-		await this.tolerating(async () => {
-			// Keystrokes typed BEFORE the reset: one still inside the settle window
-			// would otherwise land after the defaults and silently un-reset its field.
-			await this.target.flushTypedEdits();
-			await this.target.writeDefaults(scope);
-		});
+		// Keystrokes typed BEFORE the reset: one still inside the settle window would
+		// otherwise land after the defaults and silently un-reset its field. Tolerated
+		// SEPARATELY from the write: that flush drains the user's own earlier edits, and
+		// one of them failing must not cancel the reset they just asked for.
+		await this.tolerating(() => this.target.flushTypedEdits());
+		await this.tolerating(() => this.target.writeDefaults(scope));
 		await this.settled();
 		this.target.redisplay();
 	}
 
 	/**
-	 * Everything that must have landed before the tab may read the globals — kept OUT
-	 * of the defaults write's own step on purpose: a FAILED defaults write must not
+	 * Everything that must have landed before the tab may read the globals. Every step
+	 * is tolerated on its OWN so that no failure can skip a later one: a failed write —
+	 * the defaults write above, or a debounced edit inside the flush below — must not
 	 * skip the drain, or the redisplay rebuilds controls ahead of a write the user
 	 * asked for mid-reset, which is exactly `nid_8b97fdqznqsncc5kgya1p871w_e` again.
 	 */
-	private settled(): Promise<void> {
-		return this.tolerating(async () => {
-			// Keystrokes typed WHILE the reset ran — same reasoning as the pre-reset
-			// flush, plus the redisplay reads the globals synchronously.
-			await this.target.flushTypedEdits();
-			// And any CONTROL used while the reset ran: its write is queued behind the
-			// reset, so the rebuild must wait for the whole chain, not just for the reset.
-			await this.target.drainWrites();
-		});
+	private async settled(): Promise<void> {
+		// Keystrokes typed WHILE the reset ran — same reasoning as the pre-reset
+		// flush, plus the redisplay reads the globals synchronously.
+		await this.tolerating(() => this.target.flushTypedEdits());
+		// And any CONTROL used while the reset ran: its write is queued behind the
+		// reset, so the rebuild must wait for the whole chain, not just for the reset.
+		await this.tolerating(() => this.target.drainWrites());
 	}
 
 	/** Runs one step, logging and swallowing its failure — the tab is redisplayed either way. */

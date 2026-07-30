@@ -19,12 +19,33 @@
  * The baseline is what keeps those two apart: "the store simply has not moved yet"
  * is the state EVERY edit passes through, and it must not be read as a third party.
  *
+ * WHY a request carries what it will SETTLE AT as well as what it shows: a write path
+ * may store something other than what was typed (`clampSizingSettings` bounds every
+ * sizing number). Waiting for the typed value to be echoed would then wait forever
+ * whenever the clamp lands back on the baseline — a field already sitting at its range
+ * bound, typed past that bound — and the control would display an unstored number
+ * indefinitely. Reconciling against the value the write will actually store closes
+ * that, without costing the optimism while the write is in flight.
+ *
  * Immutable: instances are React state, so every transition returns a new one.
  */
+/**
+ * One value the user asked for. A record rather than a bare value for two reasons:
+ * the displayed and the to-be-stored value can differ (a clamp), and an `undefined`
+ * VALUE stays distinguishable from "no request at all" — `T` is the caller's type and
+ * may legitimately include `undefined`.
+ */
+interface RequestedEdit<T> {
+	/** What the control shows for this request. */
+	readonly shown: T;
+	/** What the store is expected to hold once this request's write lands. */
+	readonly settlesAt: T;
+}
+
 export class PendingEdits<T> {
 	private constructor(
-		/** Values requested since the store was last in agreement, in request order. */
-		private readonly requested: readonly T[],
+		/** Requests made since the store was last in agreement, in request order. */
+		private readonly requested: readonly RequestedEdit<T>[],
 		/**
 		 * The stored value the burst started from — boxed, so a legitimately
 		 * `undefined` baseline stays distinguishable from "nothing requested".
@@ -41,7 +62,7 @@ export class PendingEdits<T> {
 	/** What the control shows: the latest request while one is outstanding, else the store. */
 	valueOver(stored: T): T {
 		const latest = this.latestRequest();
-		return latest === undefined ? stored : latest.value;
+		return latest === undefined ? stored : latest.shown;
 	}
 
 	/**
@@ -54,9 +75,13 @@ export class PendingEdits<T> {
 	 * the very first re-render — which still carries the pre-edit value, because the
 	 * write is serialised behind a traversal + layout round-trip — looked like a
 	 * third-party change and dropped the user's edit before it was painted.
+	 * @param settlesAt the value the write path will actually STORE for `value` —
+	 * `value` itself unless the caller's field is clamped on the way in. It is what
+	 * {@link reconciled} watches for; `value` is only ever displayed.
 	 */
-	requesting(value: T, storedNow: T): PendingEdits<T> {
-		return new PendingEdits<T>([...this.requested, value], this.baseline ?? { value: storedNow });
+	requesting(value: T, storedNow: T, settlesAt: T = value): PendingEdits<T> {
+		const edit: RequestedEdit<T> = { shown: value, settlesAt };
+		return new PendingEdits<T>([...this.requested, edit], this.baseline ?? { value: storedNow });
 	}
 
 	/**
@@ -64,29 +89,28 @@ export class PendingEdits<T> {
 	 * changes, so a caller can compare by identity (React re-render guard).
 	 *
 	 * Held while the store is still on the burst's baseline or on one of the burst's
-	 * OWN earlier values; released once it reaches the latest request, or shows
-	 * anything else — that "anything else" is another surface's write or a clamp, and
-	 * the store is then right where the control was wrong.
+	 * OWN earlier values; released once it holds what the latest request settles at, or
+	 * shows anything else — that "anything else" is another surface's write, and the
+	 * store is then right where the control was wrong.
+	 *
+	 * The latest request is checked FIRST, so a clamp that settles back ON the baseline
+	 * releases rather than waiting for a store change that will never come.
 	 */
 	reconciled(stored: T): PendingEdits<T> {
 		if (this.baseline === undefined) {
 			return this;
 		}
-		if (Object.is(this.latestRequest()?.value, stored)) {
+		if (Object.is(this.latestRequest()?.settlesAt, stored)) {
 			return PendingEdits.none<T>();
 		}
 		const storeHasNotMovedYet = Object.is(this.baseline.value, stored);
-		const echoOfAnEarlierRequest = this.requested.some((value) => Object.is(value, stored));
+		const echoOfAnEarlierRequest = this.requested.some((edit) => Object.is(edit.settlesAt, stored));
 		return storeHasNotMovedYet || echoOfAnEarlierRequest ? this : PendingEdits.none<T>();
 	}
 
-	/**
-	 * Boxed so an `undefined` VALUE is distinguishable from "no request" — `T` is the
-	 * caller's type and may legitimately include `undefined`.
-	 */
-	private latestRequest(): { readonly value: T } | undefined {
+	private latestRequest(): RequestedEdit<T> | undefined {
 		const last = this.requested[this.requested.length - 1];
-		return this.requested.length === 0 ? undefined : { value: last as T };
+		return this.requested.length === 0 ? undefined : (last as RequestedEdit<T>);
 	}
 
 	/** Gives authority back to the store — the requested write will never be confirmed. */

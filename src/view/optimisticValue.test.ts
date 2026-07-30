@@ -73,6 +73,24 @@ describe("PendingEdits reconciliation", () => {
 		expect(pending.reconciled(400).valueOver(400)).toBe(400);
 	});
 
+	it("WHEN the write path will store what the store ALREADY holds THEN the override is released", () => {
+		// The stuck-forever case: a sizing field sitting exactly AT its range bound.
+		// Typing past the bound clamps back to the bound, so the store never moves at
+		// all — and a rule that only watched for a store CHANGE would leave the field
+		// showing an unstored number indefinitely. Knowing what the write will store
+		// (`settlesAt`) is what closes it.
+		const atTheBound = 400;
+		const pending = PendingEdits.none<number>().requesting(9999, atTheBound, atTheBound);
+		expect(pending.reconciled(atTheBound).valueOver(atTheBound)).toBe(atTheBound);
+	});
+
+	it("WHEN the write path will clamp the typed value THEN the typed value is still shown until it lands", () => {
+		// The clamp must not cost the optimism: while the store is still on the baseline
+		// the user keeps seeing what they typed, exactly as for an in-range value.
+		const pending = PendingEdits.none<number>().requesting(9999, 300, 400);
+		expect(pending.reconciled(300).valueOver(300)).toBe(9999);
+	});
+
 	it("WHEN a requested write is abandoned THEN the stored value is shown again", () => {
 		// A failed `data.json` write never echoes, so without this the control would
 		// keep displaying a value that was never persisted.

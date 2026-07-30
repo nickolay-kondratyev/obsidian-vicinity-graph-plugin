@@ -20,11 +20,16 @@ import { PendingEdits } from "./optimisticValue";
  *
  * @param stored the value as the latest snapshot has it — the authority
  * @param commit persists the requested value (returns once the write has landed)
+ * @param settlesAt what the write path will actually STORE for a requested value —
+ * identity unless the caller's field is clamped on the way in. A clamping control MUST
+ * pass it: without it the override waits for the typed value to be echoed, which never
+ * happens when the clamp lands back on the value the store already holds.
  * @returns the value to RENDER, and the setter a control calls on user input
  */
 export function useOptimisticValue<T>(
 	stored: T,
 	commit: (value: T) => Promise<void>,
+	settlesAt: (requested: T) => T = (requested) => requested,
 ): readonly [T, (value: T) => void] {
 	const [pending, setPending] = useState(() => PendingEdits.none<T>());
 	const reconciled = pending.reconciled(stored);
@@ -34,7 +39,7 @@ export function useOptimisticValue<T>(
 	const request = (value: T): void => {
 		// `stored` is this render's snapshot value — the baseline the burst starts from.
 		// A later request in the same burst keeps the baseline the first one recorded.
-		setPending((current) => current.requesting(value, stored));
+		setPending((current) => current.requesting(value, stored, settlesAt(value)));
 		void commit(value).catch((error: unknown) => {
 			console.error("vicinity-graph: failed to persist a settings change", error);
 			setPending((current) => current.abandoned());
