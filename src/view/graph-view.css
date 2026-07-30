@@ -495,6 +495,27 @@
 	overflow-y: auto;
 	border-top: 1px solid var(--background-modifier-border);
 }
+/*
+ * DO NOT REMOVE — without this rule the panel above silently eats its own
+ * controls.
+ *
+ * WHAT BREAKS: the default `flex-shrink: 1` is wrong for these children. Once
+ * the open disclosures are taller than the 60vh cap, shrinkable children absorb
+ * the overflow — they SHRINK to fit the cap instead of pushing past it, so the
+ * body's scrollHeight never exceeds its clientHeight and NO scrollbar appears.
+ * Each `.vicinity-graph-disclosure` is `overflow: hidden`, so it then clips its
+ * own rows with no visual error state: measured with every section open, a
+ * 336px-tall Node sizing rendered as 138px and the rest of its controls were
+ * simply unreachable.
+ *
+ * WHY 0: these sections must keep their natural height so the overflow lands on
+ * the scrolling body, which is what makes the cap a scroll rather than a crop.
+ * Nothing sets `flex-grow`, so this is a no-op whenever the content fits.
+ * Guarded by the "every disclosure is open" test in `e2e/settingsUxVisual.e2e.ts`.
+ */
+.vicinity-graph-toolbar__body > * {
+	flex-shrink: 0;
+}
 
 /* ===== depth rows (the ONE global depth setting) ======================== */
 

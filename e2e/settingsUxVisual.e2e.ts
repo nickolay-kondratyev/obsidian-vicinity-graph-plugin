@@ -29,6 +29,15 @@ test.describe.configure({ mode: "serial" });
 const ALPHA_PATH = "projects/alpha.md";
 const OUT_DIR = ".out/settings-ux";
 
+/**
+ * `clientHeight` and `scrollHeight` are independently-rounded integers, so a
+ * fractional layout height (a non-1 devicePixelRatio, a different UI font — the
+ * gate is documented as runnable on macOS/Windows via `OBSIDIAN_PATH`) can make
+ * them differ by 1px with nothing actually cut off. 1px cannot hide a real cut:
+ * the defect this guards against clipped 40-200px per section.
+ */
+const SECTION_CLIP_TOLERANCE_PX = 1;
+
 let harness: ObsidianHarness;
 let page: Page;
 let settingsTab: SettingsTabPage;
@@ -99,6 +108,15 @@ function topLevelPanelSummaries(): Locator {
 	return page.locator(TOP_LEVEL_PANEL_SUMMARY_SELECTOR);
 }
 
+/**
+ * The same top-level sections as `topLevelPanelSummaries`, as the `<details>`
+ * themselves — indexable in the baseline's order (the test above proves DOM order
+ * matches `CONTROLS_PANEL_DISCLOSURES`), which a summary-text lookup is not.
+ */
+function topLevelPanelDisclosures(): Locator {
+	return page.locator(".vicinity-graph-toolbar__body > .vicinity-graph-disclosure");
+}
+
 test("panel: WHEN the controls panel renders THEN its top-level disclosures are exactly the listed ones, in order", async () => {
 	await setOpen(toolbar(), true);
 	const summaries = topLevelPanelSummaries();
@@ -123,6 +141,70 @@ test("panel: WHEN the controls panel renders THEN its top-level disclosures are 
 			(text) => new RegExp(`^${text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\d*$`),
 		),
 	);
+});
+
+/**
+ * Panel geometry with EVERYTHING open — the case the per-section specs never
+ * reach, because each of them opens only the disclosure it is about.
+ *
+ * WHY this is a gate and not a screenshot: the panel body caps itself at 60vh
+ * and scrolls, and its sections are `overflow: hidden` flex children. Flex
+ * children shrink by default (`flex-shrink: 1`), and that default is wrong here
+ * — the sections absorb the overflow instead of letting the body scroll, so
+ * every open section silently CLIPS its own rows and no scrollbar ever appears:
+ * controls below the cut are unreachable with NO visual error state. That was a
+ * latent defect for as long as the cap existed (reachable with Node sizing +
+ * Force layout both open); `.vicinity-graph-toolbar__body > * { flex-shrink: 0 }`
+ * in `src/view/graph-view.css` is the FIX, and this test is what keeps it there.
+ * A locator-based assertion cannot see any of it: the clipped rows are still in
+ * the DOM and still report as "visible".
+ */
+test("panel: WHEN every disclosure is open THEN the body scrolls and no section clips its own rows", async () => {
+	await setOpen(toolbar(), true);
+	const sections = topLevelPanelDisclosures();
+	const sectionCount = await sections.count();
+	for (let index = 0; index < sectionCount; index += 1) {
+		await setOpen(sections.nth(index), true);
+	}
+
+	const geometry = await toolbar().evaluate((panel, tolerancePx) => {
+		const body = panel.querySelector(".vicinity-graph-toolbar__body") as HTMLElement;
+		return {
+			bodyClientHeight: body.clientHeight,
+			bodyScrollHeight: body.scrollHeight,
+			clipped: Array.from(body.querySelectorAll(":scope > .vicinity-graph-disclosure"))
+				.map((section) => ({
+					summary: (section.querySelector("summary")?.textContent ?? "").trim(),
+					shownPx: (section as HTMLElement).clientHeight,
+					neededPx: section.scrollHeight,
+				}))
+				.filter((section) => section.neededPx - section.shownPx > tolerancePx),
+		};
+	}, SECTION_CLIP_TOLERANCE_PX);
+
+	// The damage first, so the red NAMES the cut-off sections and by how much.
+	expect(
+		geometry.clipped,
+		`panel sections whose rows are cut off (neededPx exceeds shownPx by more than ` +
+			`[${SECTION_CLIP_TOLERANCE_PX}]px) — the controls below the cut are ` +
+			`unreachable, since the section absorbed the overflow instead of the scrolling body`,
+	).toEqual([]);
+	// Then non-vacuity: a body that does not overflow its cap means either the panel
+	// shrank its sections to fit (the same bug, seen from the other side) or the
+	// fixture no longer has enough open content for this test to guard anything.
+	expect(
+		geometry.bodyScrollHeight,
+		`panel body must overflow its 60vh cap for this test to mean anything (client=[${geometry.bodyClientHeight}])`,
+	).toBeGreaterThan(geometry.bodyClientHeight);
+
+	await toolbar().screenshot({ path: `${OUT_DIR}/panel-all-sections-open.png` });
+
+	// Hand the panel back in its declared default state; the specs below open the
+	// one section they exercise, but the screenshots they take should not inherit
+	// this test's fully-expanded panel.
+	for (const [index, { startsOpen }] of CONTROLS_PANEL_DISCLOSURES.entries()) {
+		await setOpen(topLevelPanelDisclosures().nth(index), startsOpen);
+	}
 });
 
 test("exclusion toggle switches on, shows patterns state, and persists", async () => {
