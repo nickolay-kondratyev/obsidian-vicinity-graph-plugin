@@ -17,3 +17,9 @@ the deviation.
 
 ## Log
 - [start] spawned IMPLEMENTATION_WITH_SELF_PLAN
+- [phase 1] IMPLEMENTATION_WITH_SELF_PLAN done → commit c388a7c
+- [phase 2] IMPLEMENTATION_REVIEW → APPROVE WITH CHANGES (0 blocking, 2 should-fix, 3 nice-to-have)
+- [phase 3] IMPLEMENTATION_ITERATION → 4 accepted, 1 partial/rejected → commit 647fb8e
+- [verify] top-level re-ran gates itself: npm test 1308 pass, npm run check exit 0
+- [close] ticket closed + resolution note; change_log tvm2de2f8dub8skoq8wfs37n4
+- No follow-up ticket: nothing left outstanding.
