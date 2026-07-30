@@ -1,6 +1,23 @@
 # Ticket: Controls inputs — optimistic local value + last-write-wins for rapid edits
 
-**Status:** OPEN — deferred from step-06 (not a V1 blocker).
+**Status:** CLOSED (2026-07-30) — resolved by `nid_m5hxe4eo9jgt7cfic7s2o3uvi_e`
+(settings write/refresh pipeline), commits `7588c2b..5520cfa`. Both halves fixed:
+
+- **Latency** — controls are optimistic locally. `src/view/optimisticValue.ts`
+  (pure `PendingEdits`) + `src/view/useOptimisticValue.ts` show the requested
+  value immediately while the persisted write is serialised. A request records
+  both the burst's baseline and the value the write will *store*, so the
+  override releases on the real echo, releases when someone else changes the
+  field, releases when a clamp lands the write back on the baseline, and
+  releases when a write fails (snapping back — it never displays an unstored
+  number indefinitely). Rapid stepper clicks are no longer dropped.
+- **Sibling clobbering** — the whole-object write from a one-rebuild-behind
+  snapshot is gone. A control now emits a `SettingsInteraction` naming ONE
+  field; `src/view/settingsWritePipeline.ts` merges it over globals read
+  **fresh** from `PluginDataStore` inside its own serialised slot. The `ctx`
+  snapshot prop was removed from all panel components, so writing from a stale
+  base is no longer expressible.
+
 **Origin:** step-06-controls IMPLEMENTATION_REVIEW (Minor/follow-up) + PARETO_COMPLEXITY_ANALYSIS note. Not data loss; bounded and low-frequency. Filing so it isn't lost.
 
 ## Problem

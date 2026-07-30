@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-30T01:17:51Z
 id: nid_8b97fdqznqsncc5kgya1p871w_e
 title: "Settings reset: display() rebuilds controls ahead of a write queued behind it"
-status: open
+status: closed
 deps: [nid_m5hxe4eo9jgt7cfic7s2o3uvi_e]
 links: [nid_4zffe7mj5p1eabi9m6wfh06k0_e, nid_m5hxe4eo9jgt7cfic7s2o3uvi_e]
 created_iso: 2026-07-27T23:43:06Z
-status_updated_iso: 2026-07-27T23:43:06Z
+status_updated_iso: 2026-07-30T01:17:51Z
 type: bug
 priority: 4
 assignee: CC_WITH-nickolaykondratyev
@@ -40,3 +41,11 @@ GIVEN a settings reset in flight
 WHEN the user clicks a control before the reset finishes
 THEN the store and the on-screen control agree once both settle.
 
+
+## Notes
+
+**2026-07-30T01:17:50Z**
+
+RESOLVED by nid_m5hxe4eo9jgt7cfic7s2o3uvi_e (write/refresh pipeline), commits 7588c2b..5520cfa.
+
+Reset no longer races a queued write. The ordering is extracted into src/view/settingsResetSequence.ts: it flushes the pending debounce window, writes the section defaults, DRAINS the shared SerialPromiseChain, and only then calls display(). display() is no longer called from inside a queued task. Each step gets its own tolerating() slot, so a FAILED (or rejecting) defaults write or flush still drains before the rebuild -- the failure mode that made the original bug survive a naive fix. Covered by src/view/settingsResetSequence.test.ts (red-then-green on the failure ordering).

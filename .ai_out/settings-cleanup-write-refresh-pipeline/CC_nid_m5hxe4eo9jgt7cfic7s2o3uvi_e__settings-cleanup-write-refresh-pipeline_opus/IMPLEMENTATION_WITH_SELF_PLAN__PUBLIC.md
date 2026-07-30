@@ -201,8 +201,8 @@ still nothing to announce as a clean break.
 
 # Iteration 2 — closing round-2's two NEW findings
 
-Round 2's verdict was CONVERGED; both items below were filed as non-blocking. The owner
-asked for them NOW. Both were cheap, both are fixed, both started from a failing test.
+Round 2's verdict was CONVERGED; both items below were filed as non-blocking. TOP_LEVEL_AGENT (not the
+human owner) asked for them NOW. Both were cheap, both are fixed, both started from a failing test.
 Nothing else was touched — no opportunistic refactors.
 
 ## A. NEW-1 — the override could stick FOREVER when a clamp landed back on the baseline

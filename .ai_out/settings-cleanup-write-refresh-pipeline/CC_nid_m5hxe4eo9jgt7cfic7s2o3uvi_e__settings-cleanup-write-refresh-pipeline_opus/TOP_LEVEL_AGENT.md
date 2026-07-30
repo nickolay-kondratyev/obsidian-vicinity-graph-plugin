@@ -28,6 +28,14 @@ nid_4zffe7mj5p1eabi9m6wfh06k0_e, docs-internal/tickets/ticket-controls-optimisti
 |---|---|
 | EXPLORATION | done → `EXPLORATION_PUBLIC.md` |
 | CLARIFICATION | skipped — ticket + notes are unambiguous, owner decisions recorded |
-| IMPLEMENTATION_WITH_SELF_PLAN | running |
-| IMPLEMENTATION_REVIEW | pending |
-| IMPLEMENTATION_ITERATION | pending |
+| IMPLEMENTATION_WITH_SELF_PLAN | done → `7588c2b` |
+| IMPLEMENTATION_REVIEW (r1) | NEEDS ITERATION — 1 BLOCKING (goal 5 was a no-op) |
+| IMPLEMENTATION_ITERATION 1 | done → `be9ac20` |
+| IMPLEMENTATION_REVIEW (r2) | **CONVERGED**; 2 new non-blocking findings |
+| IMPLEMENTATION_ITERATION 2 | done → `5520cfa` (both findings closed) |
+| CLOSEOUT | tickets closed, change_log `jqx2h80p7ql9p4z6z4fpm10sr` |
+
+Gates verified independently by TOP_LEVEL_AGENT: `npm test` 1124/1124, `npm run check` exit 0.
+Tickets closed: nid_m5hxe4eo9jgt7cfic7s2o3uvi_e, nid_8b97fdqznqsncc5kgya1p871w_e,
+nid_4zffe7mj5p1eabi9m6wfh06k0_e, ticket-controls-optimistic-input-latency.md (in-file).
+Follow-ups: nid_itpt4tf0kkhsbbz0np304a558_e (new), nid_7qot0m6nuxxmd5z0yb9jylsd6_e (`decide`).

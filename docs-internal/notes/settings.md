@@ -150,10 +150,15 @@ graph LR
   (per-doc writes cease to exist). Re-verify after 2.5:
   `docs-internal/tickets/ticket-pinned-central-status-lags-after-restart.md`
   (pins stay global, so it likely survives).
-- Behind **pipeline (3)**: `nid_8b97fdqznqsncc5kgya1p871w_e` (reset display()
-  races queued write), `nid_4zffe7mj5p1eabi9m6wfh06k0_e` (three hand-rolled
-  serial chains → one helper). Legacy-file ticket subsumed by (3), close when
-  it lands: `docs-internal/tickets/ticket-controls-optimistic-input-latency.md`.
+- ~~Behind **pipeline (3)**: `nid_8b97fdqznqsncc5kgya1p871w_e`,
+  `nid_4zffe7mj5p1eabi9m6wfh06k0_e`,
+  `docs-internal/tickets/ticket-controls-optimistic-input-latency.md`~~
+  **ALL CLOSED by ticket 3** (2026-07-30) — one `SerialPromiseChain`, one
+  `SettingsWritePipeline` (fresh-read merge base), reset drains before
+  `display()`, optimistic controls. New follow-ups it left behind:
+  `nid_itpt4tf0kkhsbbz0np304a558_e` (user-visible write-failure policy) and
+  `nid_7qot0m6nuxxmd5z0yb9jylsd6_e` (`decide`: React component-test infra —
+  asks whether it should block step 4).
 - Behind **presenters (4)**: `nid_1rslube8at5xj60ji4jeve0b0_e` (Depth group),
   `nid_qp56jugz8en8wkgjirwcb269p_e` (exclusion row disabled-not-hidden),
   `nid_klkdpmx6axf90y4xj8khwrlf2_e` (panel outline-depth control),
