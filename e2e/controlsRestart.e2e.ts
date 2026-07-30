@@ -64,10 +64,10 @@ function depthSection(): Locator {
 	return page.locator(".vicinity-graph-depth-controls");
 }
 
-function incomingDepthValue(): Locator {
+function linksInDepthValue(): Locator {
 	return depthSection()
 		.locator(".vicinity-graph-stepper")
-		.filter({ hasText: "Incoming" })
+		.filter({ hasText: "Links in" })
 		.locator(".vicinity-graph-stepper__value");
 }
 
@@ -100,7 +100,7 @@ async function clickPin(path: string): Promise<void> {
  * off-viewport in a headless window, so we invoke the same onClick/onChange the
  * UI wires up — the control→persist→rebuild chain is what's under test.
  */
-async function bumpIncomingDepth(): Promise<void> {
+async function bumpLinksInDepth(): Promise<void> {
 	await depthSection()
 		.getByRole("button", { name: "Increase links in" })
 		.evaluate((el) => (el as HTMLButtonElement).click());
@@ -127,10 +127,10 @@ test("depth, pin, node cap and sizing all survive an Obsidian restart", async ()
 	await clickPin(PIN_TARGET);
 	await expect(noteNode(PIN_TARGET)).toHaveAttribute("data-tier", "pinned-central");
 
-	// §1 Global depth: raise the incoming depth 1 → 2, pulling the rt_in2 hop.
+	// §1 Global depth: raise "Links in" 1 → 2, pulling the rt_in2 hop.
 	await ensureOpen(toolbar());
-	await bumpIncomingDepth();
-	await expect(incomingDepthValue()).toHaveText("2");
+	await bumpLinksInDepth();
+	await expect(linksInDepthValue()).toHaveText("2");
 	await expect(noteNode(IN2)).toHaveCount(1);
 
 	// §11 Sizing (in-view mirror): set a distinctive Own-file-size weight.
@@ -153,7 +153,7 @@ test("depth, pin, node cap and sizing all survive an Obsidian restart", async ()
 	await ensureOpen(toolbar());
 
 	// §1 depth + §11/§13 globals reload immediately (they are all plain data.json fields):
-	await expect(incomingDepthValue()).toHaveText("2"); // §1
+	await expect(linksInDepthValue()).toHaveText("2"); // §1
 	await expect(noteNode(IN2)).toHaveCount(1); // §1 — the value actually drives exploration
 	const view = await harness.readGlobalView();
 	expect(view.sizing.metrics[OWN_FILE_SIZE_METRIC]?.weight).toBe(DISTINCTIVE_WEIGHT); // §11

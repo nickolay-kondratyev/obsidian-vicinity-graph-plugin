@@ -1,12 +1,12 @@
 # Local Graph Plugin: High-Level Plan
 
-An Obsidian plugin that replaces the local graph view with a React Flow based view. It exists to fix the two core weaknesses of the native graph: every node looks the same, and there is no grouping. Nodes become rich, informative components grouped by folder, sized by configurable metrics, traversed with per-direction depth control.
+An Obsidian plugin that replaces the local graph view with a React Flow based view. It exists to fix the two core weaknesses of the native graph: every node looks the same, and there is no grouping. Nodes become rich, informative components grouped by folder, sized by configurable metrics, traversed with per-channel depth control.
 
 ## Goals
 
 1. **Nodes that carry information.** Title, first image thumbnail, attachment icons, folder identity, visual emphasis by relevance. A node should tell you what the note is before you open it.
 2. **Grouping by folder.** Folder membership is visible structure in the graph, not invisible metadata.
-3. **Directional depth control.** Outbound and incoming depth are independent and adjustable from the view, not buried in a settings tab. The pair is ONE global setting (owner decision 2026-07-29, ticket `nid_ez38gf1mrdgh5kxedzrdicwzl_e`) — there is no per-document memory.
+3. **Per-channel depth control.** Plain outgoing links, embedded outgoing notes and incoming links each have their OWN depth budget ("Links out" / "Embeds out" / "Links in"), adjustable from the view rather than buried in a settings tab. The three are ONE global setting (owner decision 2026-07-29, ticket `nid_ez38gf1mrdgh5kxedzrdicwzl_e`) — there is no per-document memory.
 4. **Pinned central nodes.** Hold one or more vicinities on screen while browsing elsewhere.
 5. **Focused, bounded views.** Hard node cap with deterministic truncation. Above ~100 nodes a graph stops being interesting; we optimize for the readable range instead of chasing scale.
 6. **Feels native.** Obsidian theme variables, native hover previews, sidebar placement, canvas support.
@@ -37,16 +37,26 @@ An Obsidian plugin that replaces the local graph view with a React Flow based vi
 
 - Traverse on demand at graph build time via the Obsidian API. **No persistent link cache of our own**, so no cache invalidation. Obsidian maintains the indexes.
 - Outgoing links from `resolvedLinks`; incoming links via `getBacklinksForFile` per visited node. Per-node lookup scales with nodes visited (bounded by the cap), not vault size, and delegates index maintenance to Obsidian.
-- **Multi-root directional BFS**: independent BFS per central node, outbound and incoming traversed separately with independent depth limits, results unioned and deduped.
-- Every root traverses with the **one global depth pair**. Outbound and incoming limits are independent of each OTHER, but not of the root: raising outgoing depth extends MAIN's reach and every pinned central's reach alike. (Per-root depth was designed and shipped, then removed — see **Pinning and settings**.) The BFS is still per-root, so a pinned node keeps its own reach even when disconnected from MAIN.
-- Every node is tagged with depth per root per direction; **minDepth** = minimum across all roots and directions drives sizing decay and truncation priority.
+- **Multi-root per-channel BFS**: independent BFS per central node × per CHANNEL, results unioned and deduped. A channel is one relationship the walk follows, with its own budget — a flat enum, not a direction × kind matrix, because the incoming side is kind-blind by scope:
+
+    | Channel | Follows | Budget (`DepthSettings`) | UI label |
+    |---|---|---|---|
+    | `outgoing-link` | plain `[[x]]` / `[x](y)` references | `linkDepthOut` | Links out |
+    | `outgoing-embed` | embedded NOTES (`![[x]]`, canvas file nodes) | `embedDepthOut` | Embeds out |
+    | `incoming` | every linker, kind-blind | `linkDepthIn` | Links in |
+
+    `CHANNEL_DEPTH_FIELD` (`engine/types.ts`) is the single mapping; `Record<Channel, …>` makes a new channel a compile error until it is given a budget.
+- **The channels are KIND-PURE** (owner decision D1, ticket `nid_fay1hu5sxcoygizopkkg0f0d7_e`): each runs its own BFS and the results are unioned, exactly as outgoing/incoming already did. The accepted cost is that a chain which CHANGES KIND mid-way (`a ![[b]]`, then `b [[c]]`) is walkable by neither channel, so `c` does not appear. This is invisible at the shipped ONE-HOP defaults (`embedDepthOut === linkDepthOut === 1`, where the two outgoing channels union to exactly the old kind-blind outgoing walk) and appears as soon as either budget goes above 1 — equal budgets included. WHY-NOT per-kind hop accounting: it breaks the "expand once, shallowest first" invariant the BFS rests on.
+- **`embedDepthOut` governs embedded NOTES only.** Attachment-ness is decided by node-bearing-ness, never by kind (owner decision D5), so `![[chart.png]]` is an attachment exactly like `[[chart.png]]` — the `isNodeBearing` gate drops it before any budget is spent.
+- Every root traverses with the **one global depth triple**. The three limits are independent of each OTHER, but not of the root: raising a budget extends MAIN's reach and every pinned central's reach alike. (Per-root depth was designed and shipped, then removed — see **Pinning and settings**.) The BFS is still per-root, so a pinned node keeps its own reach even when disconnected from MAIN.
+- Every node is tagged with depth per root per channel; **minDepth** = minimum across all roots and channels drives sizing decay and truncation priority.
 - **Non-markdown files are never graph nodes.** They are collected as node content (attachments) during traversal.
 - **Global node exclusion**: a list of regex-lite patterns (global, like every other setting) matched against each candidate's vault-relative path prunes matching neighbors **at BFS discovery** (before metadata reads / edge recording / expansion). Central and pinned roots are exempt even when they match; a node reachable only through an excluded node is not discovered. The count of distinct excluded paths is surfaced in the view.
 - Rebuild triggers: active file change, plus vault file changes while the view is open (debounced metadata resolve, ~500ms).
 
 ### Link kinds
 
-Every **outgoing** reference carries a `LinkKind` — `link` or `embed` — so an embedded note can eventually get its own depth budget (ticket `nid_fay1hu5sxcoygizopkkg0f0d7_e`). Vault-generic by design: it says nothing about markdown, canvas or Obsidian.
+Every **outgoing** reference carries a `LinkKind` — `link` or `embed` — which is what splits the outgoing side into two traversal channels with their own depth budgets (ticket `nid_fay1hu5sxcoygizopkkg0f0d7_e`). Vault-generic by design: it says nothing about markdown, canvas or Obsidian.
 
 - **`LinkProvider.getOutgoingReferences`** is the outgoing truth: references in reference order, deduplicated per **(target, kind)** — a note that both embeds and plainly links the same target reports BOTH. `getOutgoingLinks` is the kind-blind view of that same answer (distinct targets), never a second computation.
 - **Where the kind comes from.** Markdown body: ARRAY PROVENANCE — `cache.embeds` means embed, `cache.links` means plain link (`EmbedCache` and `LinkCache` are structurally identical, so provenance is the only free signal; `Reference.original[0] === "!"` is the independent cross-check, asserted in tests, not read in production). Markdown frontmatter: always a plain link (property links are never embeds). Canvas file node: always an **embed** — it renders the file inline. Canvas text node: whichever the author wrote, since the shared matchers capture the `!`.
