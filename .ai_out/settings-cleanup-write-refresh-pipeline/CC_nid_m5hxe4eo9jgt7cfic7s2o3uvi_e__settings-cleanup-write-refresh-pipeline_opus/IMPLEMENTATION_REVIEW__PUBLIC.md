@@ -1,278 +1,172 @@
-# Implementation review — settings write/refresh pipeline (`nid_m5hxe4eo9jgt7cfic7s2o3uvi_e`)
+# Implementation review — settings write/refresh pipeline (`nid_m5hxe4eo9jgt7cfic7s2o3uvi_e`) — ROUND 2
 
-Reviewed commit: `7588c2b` (diff `25e9fd4..HEAD`). Reviewer ran the gates itself.
+Reviewed: `git diff 7588c2b..HEAD` (iteration commit `be9ac20`), against round 1's
+1 BLOCKING + 5 SHOULD-FIX + 3 NICE-TO-HAVE. Gates re-run by me, not taken on trust.
 
-## Verdict: **NEEDS ITERATION** — 1 BLOCKING, 5 SHOULD-FIX, 3 NICE-TO-HAVE
+## Verdict: **CONVERGED — good to land**
 
-Gates (run by me, not taken on trust):
+- `npm test` → **1120 passed / 85 files, exit 0** (`.tmp/r2-test.log`), was 1113 (+7).
+- `npm run check` → **exit 0** (`src/` + `e2e/` tsc) (`.tmp/r2-check.log`).
+- `./sanity_check.sh` → not present in this repo. e2e not run (release gate).
 
-- `npm test` → **1113 passed / 85 files, exit 0** (`.tmp/review_test.log`)
-- `npm run check` → **exit 0** (`src/` + `e2e/` tsc) (`.tmp/review_check.log`)
-- `./sanity_check.sh` → not present in this repo.
-- e2e not run (release gate).
-
-Goals 1–4 are met and are genuinely good work: the DRY collapse is real, the
-granular-interaction change is the right fix for the clobbering bug (and it makes
-the old defect *type-inexpressible*, which is stronger than a test), and the reset
-ordering is now a testable object. **Goal 5 does not work at all** — see BLOCKING-1,
-which I reproduced with a failing test against the shipped class.
+Both ratified must-fixes are genuinely fixed — I re-derived the failure cases myself
+rather than reading the tests. Nothing in the iteration diff regresses behaviour. Two
+residual issues I found are narrow, self-healing and non-blocking; they are written up
+below as **follow-up tickets**, not as gates on this ticket.
 
 ---
 
-## Summary of what changed
+## Round-1 findings — disposition
 
-1. `src/shared/SerialPromiseChain.ts` — one `run()`/`drain()` ordering primitive.
-   The three hand-rolled "pre-caught tail" idioms are gone: `PluginDataStore` uses
-   it, `DebouncedSettingsWrites` no longer has a chain at all (it drains through the
-   pipeline's), `settingsWriteQueue.ts` is deleted. I verified no residual ad-hoc
-   serialisation: `grep -rn "\.catch(() => undefined)" src/` → only
-   `SerialPromiseChain`; no other `tail`/`writeChain`/`draining` field survives.
-2. `src/view/settingsWritePipeline.ts` — ONE instance (`src/main.ts:58`), shared by
-   the settings tab and every controls panel. Owns chain + fresh-read merge base +
-   persist switch + fan-out + `drain()`.
-3. `SettingsInteraction` is now one-field-per-arm; the whole-slice arms
-   (`global-sizing`, `global-force-layout`, `global-node-exclusion`) are gone, and
-   `SettingsWriteContext` no longer reaches React at all (verified by grep — only
-   `settingsWritePlan`, `settingsResetPlan`, the pipeline and their tests use it).
-4. `src/view/settingsResetSequence.ts` — flush → write defaults → flush → drain →
-   redisplay, port-backed so it is unit-testable.
-5. `optimisticValue.ts` + `useOptimisticValue.ts` — panel controls' optimistic layer.
+| # | Finding | Status |
+|---|---|---|
+| **B1** | Optimistic override released on first re-render (Goal 5 dead) | **RESOLVED** |
+| **S1** | Failed defaults write skipped the drain | **RESOLVED** |
+| **S2** | Stale comments describing a queue/snapshot | **RESOLVED** |
+| **S3** | `SettingsWriter` doc overstated re-entrancy safety | **RESOLVED** |
+| **S4** | `refreshOpenViews()` private while e2e calls it by name | **RESOLVED** (documented both ends — the right 80/20) |
+| **S5** | No end-to-end debounce-thunk → pipeline → store coverage | **RESOLVED** (2 real tests, deadlock-fail-fast timeouts) |
+| **N1** | `SettingsGlobalsReader` split | **ACCEPTED-REJECTION** |
+| **N2** | `SettingsWritesPort` for DIP | **ACCEPTED-REJECTION** |
+| **N3** | Fan-out ordering test did not observe ordering | **RESOLVED** (reads `store.globalView().nodeCap` at fan-out time; a fan-out ahead of its write now fails it) |
+| — | `engineDefaultsSingleSource.test.ts` header prose | **ACCEPTED-REJECTION** — I re-read `:13-14`; it *is* past tense ("was before this guard existed"). My round-1 note was a misread. |
+
+### B1 — verified functional, by reasoning through the real loop
+
+`src/view/optimisticValue.ts` now carries a boxed `baseline` recorded by
+`requesting(value, storedNow)`, and `src/view/useOptimisticValue.ts:37` passes this
+render's `stored`. `reconciled` is three-way: release on latest-request; hold on
+baseline **or** on an echo of an earlier request; release on anything else.
+
+My own case now yields 3 — pinned at `optimisticValue.test.ts:41-48`
+(`requesting(3, 2).reconciled(2).valueOver(2) === 3`), and the anti-lie test
+(`:68-74`) survives, which is the property that mattered.
+
+Loop cases I worked through by hand (not just via the tests):
+
+- **Rapid stepper clicks.** `DepthStepper` steps from `shown`; baseline stays the first
+  render's `stored` for the whole burst, so 2 → click → 3 → click → 4 with the store
+  still on 2. Echo of click #1 (store → 3) holds, store → 4 releases. Correct.
+- **Failed write.** `commit` rejection → `abandoned()` → `none()`; the control falls back
+  to `stored`. (Minor: with two requests in flight, a failure of the *first* releases the
+  whole burst, so the control flashes back to the baseline before the second write lands.
+  Cosmetic, on an error path, with a `console.error` — not worth code.)
+- **External change mid-burst.** A third-party value that is neither baseline nor an echo
+  releases immediately. Correct.
+- **Burst spanning a refresh / remount.** State is per-component; a remount resets to
+  `none()` and the store wins. No stuck state.
+- **Re-render idempotence.** `reconciled` returns `this` when nothing changes, and
+  `none().reconciled(x) === this`, so the during-render `setPending` cannot loop.
+
+Only one stuck-forever path exists — see NEW-1. It is not the one B1 was about.
+
+### S1 — verified: a failed defaults write still flushes and drains
+
+`settingsResetSequence.ts:41-50`: `run()` = `tolerating(flush → writeDefaults)` →
+`settled()` → `redisplay()`. The drain is outside the write's failure scope, and the new
+test (`settingsResetSequence.test.ts:87-98`) asserts the full order
+`["flush","flush","click-write","redisplay"]`, not just `toContain("redisplay")`. I
+prefer this to the `finally` I suggested — reads top-to-bottom and cannot swallow the
+redisplay. No deadlock: `run()` is only reached from a click handler (never inside a
+slot), and `SerialPromiseChain.drain()` never rejects.
+
+### Rejections — both reasonable, neither escalated
+
+- **N1 (`SettingsGlobalsReader`).** Rationale is stronger than my suggestion: the
+  confirmation must be judged against *the same freshness* as the write, and that
+  authority belongs to the pipeline. A second reader is exactly how the two would drift.
+  I withdraw it.
+- **N2 (`SettingsWritesPort`).** The bar stated ("an interface earns its keep when a fake
+  implements it") is the right bar; `ControlsActions.test.ts` and
+  `settingsWritePipeline.test.ts` use the **real** pipeline over in-memory persistence
+  fakes, which is strictly stronger evidence than a stub. Same layer, so no layering rule
+  is at stake. I withdraw it.
+
+Nothing here rises to a reviewer/maker disagreement worth stopping the owner for.
+
+### The disclosed gap (stepper burst = simulation, not a rendered component)
+
+**Acceptable for this ticket.** The reasons: the disclosure is explicit and in three
+places (the test file's own doc, `DepthStepper.tsx:14-21`, the PUBLIC report); the
+component's residual untested surface is one line of prop plumbing that `npm run check`
+types; adding jsdom + a renderer devDep mid-iteration is a repo-wide test-infra decision
+the implementer correctly refused to take unilaterally; and it is now a `decide` ticket
+(`nid_7qot0m6nuxxmd5z0yb9jylsd6_e`) that names precisely what stays unpinned. That is the
+CLAUDE.md-correct handling of a gap, not a coverage hole that blocks landing.
 
 ---
 
-## 🚨 BLOCKING
+## NEW (found this round) — both NON-BLOCKING, file as tickets
 
-### B1. Goal 5 is non-functional: the optimistic override is released on the very first re-render
+### NEW-1. The override CAN stick forever when a clamp lands back on the baseline
 
-`src/view/optimisticValue.ts:47-54`, consumed by `src/view/useOptimisticValue.ts:30-33`.
+`src/view/SizingSection.tsx:107` (`SizingNumber`) is the one optimistic control that can
+request a value the write path will not store: `planSettingsWrite` runs
+`clampSizingSettings`. Normally the clamped value differs from the baseline, so
+`reconciled` releases (that is the anti-lie half, and it works). But when the field is
+**already sitting at a range bound** and the user types past it, the clamp result equals
+the baseline, the store never moves, `storeHasNotMovedYet` holds — and the field displays
+an unstored number indefinitely (until the next in-range edit or a remount).
 
-`PendingEdits` has no memory of the stored value the burst started from, so the rule
-"a value that was never requested wins immediately" fires against the *pre-edit*
-stored value — which is, by definition, never requested. Sequence in production:
+This also makes two doc sentences slightly untrue as written:
+`docs-internal/plan/high-level-plan.md` and `docs-internal/architecture-map.md` both say
+the store wins when "the write path clamped what was typed" — it does, *except* in this
+case.
 
-1. `stored = 2`. User clicks `+` → `request(3)` → `setPending(requesting(3))`.
-2. React re-renders. `stored` is **still 2** (the snapshot only moves after a whole
-   traversal + elk round-trip).
-3. `pending.reconciled(2)`: `caughtUp = Object.is(3, 2) = false`;
-   `echoOfAnEarlierRequest = [3].some(v => v === 2) = false`; therefore
-   `caughtUp || !echoOfAnEarlierRequest` is **true** → `PendingEdits.none()`.
-4. The control renders `2`. The optimistic value is never shown.
+Why not blocking: narrow trigger, self-healing, no persisted-data or geometry impact (the
+clamp still protects the engine), and the honest fix is a UX choice, not a bug fix —
+pre-clamping on request (à la `DepthStepper`'s `clampStepperDepth`) fixes the model but
+fights the user mid-typing, while the settings tab solves the same problem with a debounce
+plus a cap notice that the panel field does not have. That decision belongs in its own
+ticket, with the doc sentences corrected alongside whichever way it goes.
 
-Proven, not reasoned: I ran this against the shipped class (throwaway test, since
-deleted):
+### NEW-2. `settled()` still couples two steps into one tolerated block
 
+`settingsResetSequence.ts:58-67`: `flushTypedEdits()` and `drainWrites()` share one
+`tolerating(...)`. `flushTypedEdits` → `debounced.flush()` → `runSerialised(...)`, which
+**can** reject (a failing thunk), and then `drainWrites()` is skipped — the same shape as
+S1, one level down. The same coupling in step 1 means a rejected pre-reset flush cancels
+the defaults write entirely, which is not what the user asked for.
+
+Cheap, strictly-better shape (3 lines, plus one test where `flushTypedEdits` rejects and
+the queued write must still be drained):
+
+```ts
+private async settled(): Promise<void> {
+    await this.tolerating(() => this.target.flushTypedEdits());
+    await this.tolerating(() => this.target.drainWrites());
+}
+// and likewise split step 1 in run()
 ```
-AssertionError: expected 2 to be 3
-  const pending = PendingEdits.none<number>().requesting(3);
-  expect(pending.reconciled(2).valueOver(2)).toBe(3);   // ← fails
-```
 
-Consequences:
-
-- The whole feature is dead code paying full complexity cost (pure class + hook +
-  9 tests + rewired props on six components).
-- `src/view/DepthStepper.tsx:40,52` computes the next value from `shown`, which has
-  already snapped back — so **rapid stepper clicks are still dropped**, i.e. the
-  original bug in `ticket-controls-optimistic-input-latency.md` is *not fixed*.
-- `README.md:76-80` ("Controls answer immediately: a stepper, slider, toggle or
-  typed field moves as you use it") and
-  `docs-internal/plan/high-level-plan.md` ("Nothing a control shows lags the input")
-  are currently **false claims about shipped behaviour**.
-
-Why the tests missed it — this is the direct answer to the "red-by-absence" question
-for Goal 5: `src/view/optimisticValue.test.ts:57-62` is the only unrequested-value
-case, and it uses `reconciled(400)` where `400 ≠` the seeded stored value. The one
-case that always happens in production — *stored has not moved yet* — is untested.
-
-Recommended fix: give `PendingEdits` the baseline it is missing, e.g.
-`requesting(value, storedAtRequestTime)` records a `baseline`, and `reconciled(stored)`
-becomes: released if `stored` is the latest request; held if `Object.is(stored, baseline)`
-(the store simply has not moved) or if `stored` echoes an earlier request; released
-otherwise (a genuinely third-party or clamped value). Add the failing test above as
-`"WHEN the store has NOT moved yet THEN the requested value is still shown"`, plus
-`"WHEN the store moves to a value nobody requested THEN it wins immediately"` to keep
-the anti-lie property. Do not ship the README/plan sentences until this is green.
+Doubly-unlikely trigger (a typed edit's write fails *and* a control was used mid-reset),
+so a ticket is proportionate. Note `drainWrites` itself never rejects, so the exposure is
+the flush only.
 
 ---
 
-## ⚠️ SHOULD-FIX
+## Regressions introduced by the iteration diff: none found
 
-### S1. Reset failure path skips the drain — the bug reappears exactly where it is least tested
-`src/view/settingsResetSequence.ts:41-57`. `drainWrites()` and the second
-`flushTypedEdits()` are *inside* the `try`. If `writeDefaults()` rejects (a failed
-`data.json` write — the realistic case), control jumps to the `catch` and
-`redisplay()` runs **without draining the chain** — i.e. `display()` reads the
-globals synchronously while a control the user clicked mid-reset is still queued.
-That is precisely `nid_8b97fdqznqsncc5kgya1p871w_e`.
-The existing failure test (`settingsResetSequence.test.ts:80-85`) only asserts
-`steps).toContain("redisplay")`, so it passes either way.
-**Fix:** put `await this.target.drainWrites()` in a `finally` (and assert the ordering
-in the failure test: `steps` must contain the drained click write before `redisplay`).
+- `requesting()`'s new second parameter has exactly two call sites (the hook and the
+  tests); `npm run check` is green, so no caller was missed.
+- `settingsResetSequence` behaviour on the success path is byte-identical in observable
+  order (`["flush","write-defaults","flush","redisplay"]`, pinned at `:72-78`).
+- The S2/S3/S4 changes are comment-only; I read each against the code it describes and
+  all four now match.
+- No test was removed. `optimisticValue.test.ts`'s nine original tests were retargeted to
+  the two-arg `requesting`, not weakened; +4 added. No completeness/source-scan guard was
+  touched.
 
-### S2. Stale comments now describe machinery that no longer exists
-- `src/view/VicinityGraphSettingTab.ts:378-380`: *"Queued as ONE unit: the snapshot
-  below is read after an await, so two fast clicks would otherwise both plan from the
-  same pre-write state."* Nothing is queued here any more and there is no snapshot —
-  the handler is a bare `async` and the merge happens in the pipeline.
-- `src/view/VicinityGraphSettingTab.ts:~534-538`: *"Done OUTSIDE the queue …"* — there
-  is no queue.
-CLAUDE.md's rule is that comments carry the WHY and must match behaviour; these now
-mislead the next reader about serialisation guarantees. Delete/reword both.
+## Documentation
 
-### S3. `settingsWritePipeline.ts:31-34` overstates the re-entrancy safety
-The doc says re-entering the chain "is not expressible". It is: `apply()`,
-`restoreDefaults()` and `drain()` are all public and all reachable from inside a slot
-(closures in the tab hold `this.writes`), and `drain()` called from inside a slot
-never resolves. Handing the `SettingsWriter` in makes the *right* thing easy, not the
-wrong thing impossible. Given the implementer hit this exact deadlock once mid-work,
-an absolute claim here is a trap. **Fix:** state the hazard honestly ("code inside a
-slot MUST use the handed-in writer; calling `apply`/`drain` from inside a slot
-deadlocks"), or split the public surface from the in-slot surface for real.
-
-### S4. `refreshOpenViews()` made `private` while the e2e harness still calls it
-`src/main.ts:122` is now `private`, but `e2e/obsidianHarness.ts:415-417` invokes
-`app.plugins.plugins[pluginId].refreshOpenViews()` through an `any` cast (used by
-`e2e/settingsUxVisual.e2e.ts:139`). It still works at runtime and `check:e2e` passes
-*because* of the cast — so the "compile-time lock" claim in the self-report holds only
-for `src/`. That is a silent coupling on a private member. **Fix:** either document at
-`main.ts:122` that the e2e harness reaches this by name (so nobody renames it or makes
-it a `#private` field), or give the harness an explicit test hook.
-
-### S5. Nothing covers the debounce-thunk → pipeline-writer wiring end to end
-`settingsDebounce.test.ts` now uses `UNUSED_WRITER` that *rejects* on `apply`, so the
-one property that matters for the deadlock the implementer hit — a thunk writes
-through the writer it was handed, and the write actually reaches the store — is
-untested. `settingsWritePipeline.test.ts:114-126` tests `runSerialised` with a
-hand-written task, not a debounced thunk. **Fix:** one test where
-`DebouncedSettingsWrites` over the real `SettingsWritePipeline` drains a thunk and the
-value lands in `PluginDataStore`. This is also the strongest replacement for the one
-deleted `sizingRowWrite` test (see below).
-
----
-
-## 💡 NICE-TO-HAVE
-
-- **N1.** `SettingsWritePipeline.planResetConfirmation()` (`:88`) is a pure *read* on
-  a write pipeline. It is there for the fresh-read benefit, which is fine, but it is
-  the one method that does not fit the class name; consider a small
-  `SettingsGlobalsReader` the pipeline and the modal both use.
-- **N2.** DIP: `ControlsActions` (`:40`) and `VicinityGraphView` (`:39`) depend on the
-  concrete `SettingsWritePipeline` class while everything else in `viewPorts.ts` is an
-  interface. `SerialSettingsWrites` already exists; a matching
-  `SettingsWritesPort { apply; restoreDefaults; runSerialised }` would keep the pattern.
-- **N3.** `settingsWritePipeline.test.ts:88-96` ("defaults reached the store before the
-  fan-out") does not observe ordering — its own comment concedes this. A
-  `FakeViewsRefresh` that records `store.globalView()` at fan-out time would make it
-  a real ordering assertion.
-
----
-
-## Explicit answer: the removed tests
-
-**No use-case coverage is lost. Not blocking.**
-
-- `src/view/settingsWriteQueue.test.ts` (deleted, 3 tests). All three behaviours are
-  re-covered, in substance verbatim, in `src/shared/SerialPromiseChain.test.ts`:
-  ordering-not-overtaken (`:56` and additionally `:68`), rejection reaches ITS caller
-  (`:80`), rejection does not wedge the chain (`:85`). The gated-task harness that
-  makes those tests non-vacuous was carried over too. The class it tested no longer
-  exists, so keeping the file was not an option.
-- `src/view/sizingRowWrite.test.ts` lost *"WHEN the globals moved after the keystroke
-  THEN the flushed write composes with them"*. `SizingRowWrite` no longer merges, so
-  there was nothing left for it to assert. The behaviour is re-covered *structurally*
-  (a row can only emit one field; the merge is the pipeline's, tested at
-  `settingsWritePipeline.test.ts:33-72`) — but the specific *debounced* path is now
-  only covered by construction, which is S5.
-- I diffed the remaining test files: `ControlsActions.test.ts`,
-  `settingsDebounce.test.ts`, `ControlsModel.test.ts`, `settingsWritePlan.test.ts`
-  were **rewired, not weakened** (assertions retargeted to the granular arms, one new
-  panel-restore test added). No completeness guard was touched: `SETTINGS_SPEC`'s two
-  assertions, `ParsedViewFields`, `SECTION_SETTINGS_FIELDS`'s guard and
-  `engineDefaultsSingleSource.test.ts` are all untouched, and `settingsWritePlan.ts`
-  adds one more compile-forced declaration (`SizingNumberField =
-  Exclude<keyof SizingSettings, "metrics">`). The ratified acceptance bar holds.
-
-The deletion was disclosed up front in the implementer's PUBLIC report, which is the
-right handling under CLAUDE.md.
-
-## Explicit answer: the "red-by-absence" claims
-
-- **Goal 2 (stale merge base) — genuinely pinned.** `settingsWritePipeline.test.ts:33-72`
-  would fail if the context read moved back outside the slot (the implementer
-  demonstrated this, and the tests read the real `PluginDataStore`, not a spy). On top
-  of that the old defect is no longer *type-expressible*: with the whole-slice arms
-  removed, a caller cannot supply a merge base. Strongest part of the change.
-- **Goal 3 (reset races display) — partially pinned, acceptable.**
-  `settingsResetSequence.test.ts` pins the ORDER at a new seam and
-  `SerialPromiseChain.test.ts:98` independently pins the `drain()` mechanism it rests
-  on. What is *not* pinned is the tab wiring (that `redisplay` really is `display()`
-  and `drainWrites` really is `pipeline.drain()`) — e2e-only, and I accept that given
-  the tab has no vitest harness. S1 is a concrete failure the current tests miss.
-- **Goal 5 (optimistic controls) — NOT pinned, and the gap is live.** The tests
-  exercise the helper in isolation and omit the only reconciliation case that always
-  occurs in production. They would not catch a regression of the original bug because
-  the original bug is still present (B1). This is the case where "red-by-absence" cost
-  real correctness.
-
-## `SerialPromiseChain` correctness (audited on its own)
-
-- **Ordering:** `run()` appends to the pre-caught tail; enqueue order = run order. ✔
-- **Rejection:** the `catch` lands on the *stored* tail and never on the returned
-  promise, so a failure reaches its own caller and does not wedge later tasks. ✔
-- **`drain()`:** loops until the tail stops moving, so tasks enqueued *by* a running
-  task are included; never rejects (tail is pre-caught). ✔
-- **Unhandled rejections:** `run()`'s returned promise is `void`ed in several places
-  (`this.debounced` window drain, `void this.writes.apply(...)` in the tab,
-  `void actions.restoreDefaults(...)` in `ForceLayoutSection`). Each of those was
-  equally unguarded before this change, so no regression — but it is the same gap the
-  implementer already flagged as follow-up #2 (a `Notice`-on-write-failure policy).
-  Worth the ticket.
-- **Deadlock audit:** I traced every in-slot code path. `pinNode`/`unpinNode` and
-  `writer.apply` reach only `PluginDataStore`'s *separate* chain; every debounced
-  thunk in the tab uses the handed-in `writer` (verified at each `debounced.schedule`
-  call site), and `SettingsResetSequence.run` is invoked from click handlers, never
-  from inside a slot. **No deadlock reachable today.** The residual hazard is S3.
-
-## Behaviour regressions checked and cleared
-
-- Debounce semantics (per-field latest-wins, one shared window, edit-order drain,
-  `drop()` on half-typed input, flush on blur/`hide()`): unchanged.
-- Sizing validation (`maxPx >= minPx` re-taken at drain time, clamp at the single
-  `planSettingsWrite` choke point): unchanged; `SizingRowWrite` now *decides* instead
-  of persisting, which is the cleaner split.
-- Reset scope, confirmation modal, pins, `data.json` shape: unchanged. No persisted-shape
-  change, so nothing to announce as a clean break.
-- Exclusion toggle / metric-enable toggle lost their whole-handler `enqueueWrite`
-  wrapper. I worked through the interleavings: because each now emits a single-field
-  interaction merged from a fresh read, and `settlePendingWrites()` resolves in slot
-  order, two fast clicks cannot clobber a sibling field or paint out of order. **Not a
-  regression** — but this is what S2's stale comments used to explain, which is why
-  they need rewriting rather than deleting silently.
-- Panel force-layout "Restore defaults": N fan-outs → 1. Genuine improvement, pinned.
-
-## Documentation accuracy
-
-Accurate: `CLAUDE.md:41` write-path rule, `docs-internal/architecture-map.md` seam
-entry, `docs-internal/notes/settings.md` (correctly renumbers the add-a-field cost
-list to 6 and names `settingsWritePlan.ts` as guarded).
-
-**Inaccurate until B1 is fixed** — do not merge these sentences as-is:
-- `README.md:76-80` "Controls answer immediately … moves as you use it".
-- `docs-internal/plan/high-level-plan.md` "Nothing a control shows lags the input."
-
-Also noted by the implementer and worth a ticket, not a fix here:
-`src/view/engineDefaultsSingleSource.test.ts`'s header prose still narrates
-`ForceLayoutSection` as the offender; the guard itself is correct and green.
+Accurate after this iteration, with the one exception in NEW-1 (the "clamped" clause in
+`high-level-plan.md` and `architecture-map.md`). `README.md:76-80` is now a true claim —
+it was the code, not the wording, that needed fixing. `docs-internal/notes/settings.md`'s
+new `decide` bullet correctly points at the test-infra ticket.
 
 ## `#QUESTION_FOR_HUMAN:`
 
-1. `#QUESTION_FOR_HUMAN:` B1 means the panel's optimistic layer never worked. Two
-   options: (a) fix `PendingEdits` as described (small, ~10 lines + 2 tests) and keep
-   the feature; (b) revert the optimistic layer entirely (5 files, restores pre-change
-   behaviour) and let goal 5 ride on a follow-up ticket with React component-test
-   infra. Goals 1–4 stand either way. Which do you want? My recommendation is (a) —
-   the rule is right, only the baseline is missing.
-2. `#QUESTION_FOR_HUMAN:` The implementer's follow-up #1 (jsdom + a light React
-   renderer) is what would have caught B1. Given that this is the second settings
-   ticket to route real behaviour around "no React test infra", is it worth promoting
-   to a blocking dependency for chain ticket 4 (dual presenters)?
+1. `#QUESTION_FOR_HUMAN:` Both round-1 questions are now carried by
+   `nid_7qot0m6nuxxmd5z0yb9jylsd6_e` (`decide`): does React component-test infra BLOCK
+   chain step 4 (dual presenters), or land alongside it? No other owner decision is
+   outstanding — NEW-1 and NEW-2 are ordinary follow-up tickets.
