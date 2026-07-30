@@ -1,3 +1,4 @@
+import type { LinkKind } from "../shared/LinkKind";
 import type { CachedMetadataPort, ReferencePort } from "./obsidianPorts";
 
 /**
@@ -9,6 +10,7 @@ import type { CachedMetadataPort, ReferencePort } from "./obsidianPorts";
 export interface OrderedReference {
 	readonly link: string;
 	readonly offset: number;
+	readonly kind: LinkKind;
 }
 
 /**
@@ -35,14 +37,36 @@ export class ReferenceOrder {
 	 * The result is therefore ASCENDING by offset end to end (the sentinel is
 	 * negative, body offsets are >= 0), which lets callers stop scanning once they
 	 * pass an offset of interest instead of resolving every reference.
+	 *
+	 * Each reference also carries its {@link LinkKind}, taken from ARRAY
+	 * PROVENANCE: `cache.embeds` holds embeds, `cache.links` plain links, and
+	 * `EmbedCache`/`LinkCache` are otherwise structurally identical in Obsidian's
+	 * typings. Provenance beats sniffing `Reference.original[0] === "!"` — it is
+	 * free, and it cannot be fooled by odd markdown (the two are cross-checked in
+	 * this class's tests). Frontmatter (property) links are NEVER embeds, so they
+	 * are unconditionally plain links.
 	 */
 	static orderedReferences(cache: CachedMetadataPort): readonly OrderedReference[] {
-		const frontmatter = (cache.frontmatterLinks ?? []).map((ref) => ({
-			link: ref.link,
-			offset: FRONTMATTER_REFERENCE_OFFSET,
-		}));
-		const bodyRefs: ReferencePort[] = [...(cache.links ?? []), ...(cache.embeds ?? [])];
-		bodyRefs.sort((a, b) => a.position.start.offset - b.position.start.offset);
-		return [...frontmatter, ...bodyRefs.map((ref) => ({ link: ref.link, offset: ref.position.start.offset }))];
+		const frontmatter = (cache.frontmatterLinks ?? []).map(
+			(ref): OrderedReference => ({
+				link: ref.link,
+				offset: FRONTMATTER_REFERENCE_OFFSET,
+				kind: "link",
+			}),
+		);
+		const bodyRefs = [
+			...ReferenceOrder.bodyReferencesOfKind(cache.links, "link"),
+			...ReferenceOrder.bodyReferencesOfKind(cache.embeds, "embed"),
+		];
+		bodyRefs.sort((a, b) => a.offset - b.offset);
+		return [...frontmatter, ...bodyRefs];
+	}
+
+	/** Tags one provenance array with the kind that array MEANS, dropping the position wrapper. */
+	private static bodyReferencesOfKind(
+		references: readonly ReferencePort[] | undefined,
+		kind: LinkKind,
+	): readonly OrderedReference[] {
+		return (references ?? []).map((ref) => ({ link: ref.link, offset: ref.position.start.offset, kind }));
 	}
 }

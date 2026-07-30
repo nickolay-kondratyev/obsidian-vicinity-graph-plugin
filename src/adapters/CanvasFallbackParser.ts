@@ -1,3 +1,4 @@
+import type { LinkKind } from "../shared/LinkKind";
 import { MarkdownCodeRegions } from "../shared/MarkdownCodeRegions";
 import { MarkdownInlineLinks } from "../shared/MarkdownInlineLinks";
 import { Wikilinks } from "../shared/Wikilinks";
@@ -67,7 +68,11 @@ export class CanvasFallbackParser {
 		}
 		const { type, file, text } = node as { type?: unknown; file?: unknown; text?: unknown };
 		if (type === "file") {
-			return typeof file === "string" && file.length > 0 ? [{ kind: "file-node", filePath: file }] : [];
+			// A file node RENDERS the file inline on the canvas — that is what an embed
+			// is, so every file node is an embed regardless of what it points at.
+			return typeof file === "string" && file.length > 0
+				? [{ kind: "file-node", linkKind: "embed", filePath: file }]
+				: [];
 		}
 		if (type === "text" && typeof text === "string") {
 			return CanvasFallbackParser.textNodeReferencesOf(text);
@@ -94,8 +99,8 @@ export class CanvasFallbackParser {
 	 */
 	private static textNodeReferencesOf(text: string): readonly CanvasReference[] {
 		const prose = MarkdownCodeRegions.withCodeMasked(text);
-		return [...Wikilinks.linkTargetsOf(prose), ...MarkdownInlineLinks.linkTargetsOf(prose)].map(
-			(linkText) => ({ kind: "text-node-link", linkText }) as const,
+		return [...Wikilinks.harvestedLinksOf(prose), ...MarkdownInlineLinks.harvestedLinksOf(prose)].map(
+			(harvested) => ({ kind: "text-node-link", linkKind: harvested.kind, linkText: harvested.linkText }) as const,
 		);
 	}
 }
@@ -106,7 +111,13 @@ export class CanvasFallbackParser {
  * markdown-style inline link, both normalised to link text). The tag is
  * the whole point: resolving link text as a path, or vice versa, silently loses
  * edges.
+ *
+ * TWO independent tags, deliberately: `kind` is the RESOLUTION mechanism (a
+ * parser concern), `linkKind` is the vault-generic link-vs-embed FACT the rest of
+ * the plugin consumes. They are not derivable from each other — a file node is
+ * always an embed, while a text node is whichever the author wrote.
  */
-export type CanvasReference =
+export type CanvasReference = { readonly linkKind: LinkKind } & (
 	| { readonly kind: "file-node"; readonly filePath: string }
-	| { readonly kind: "text-node-link"; readonly linkText: string };
+	| { readonly kind: "text-node-link"; readonly linkText: string }
+);
