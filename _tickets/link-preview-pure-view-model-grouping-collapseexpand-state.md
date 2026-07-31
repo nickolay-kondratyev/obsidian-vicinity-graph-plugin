@@ -1,18 +1,18 @@
 ---
 id: nid_5q8dri0jtwnzwt34vfkcnw49x_e
-title: "Link preview: pure view-model (grouping + collapse/expand state)"
-status: open
+title: 'Link preview: pure view-model (grouping + collapse/expand state)'
+status: in_progress
 deps: [nid_1drobt9qaq3e89gt76fzghlik_e]
 links: []
-created_iso: 2026-07-31T18:49:31Z
-status_updated_iso: 2026-07-31T18:49:31Z
+created_iso: '2026-07-31T18:49:31Z'
+status_updated_iso: '2026-07-31T19:56:12Z'
 type: task
 priority: 3
 assignee: nickolaykondratyev
 parent: nid_tohotgq2s92dvd1iov1rd0umv_e
 tags: [link-preview]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin
 ---
-
 Part 2/4 of parent ticket nid_tohotgq2s92dvd1iov1rd0umv_e (_tickets/show-the-preview-of-the-links.md). Depends on the occurrence data layer ticket (see deps).
 
 Pure, node-env-testable modules in src/view (pattern precedent: src/view/nodePreviewChoice.ts + colocated *.test.ts):
@@ -27,4 +27,3 @@ Pure, node-env-testable modules in src/view (pattern precedent: src/view/nodePre
 - Model builders + collapse state are pure (no obsidian/react imports) and fully BDD-tested
 - Button enablement matrix covered: all-collapsed / all-expanded / mixed / empty
 - npm test and npm run check pass
-
