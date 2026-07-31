@@ -51,12 +51,15 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   node components reach through `NoteOpenContext` (React Flow instantiates them,
   so context is the only channel). `NodeOutline.tsx` owns in-node outline
   rendering — the tree/label/markup decisions and `node-outline.css`.
-  `LinkPreviewPort` is the link-preview modal seam (parent ticket
+  `LinkPreviewPort` is the link-preview seam (parent ticket
   `nid_tohotgq2s92dvd1iov1rd0umv_e`): node click / edge click reach
   `GraphViewController.openNodePreview/openEdgePreview` (the async
   `LinkOccurrenceProvider` queries stay in the controller), which builds a pure
-  `linkPreviewModel.ts` model and hands it to the port; `ObsidianLinkPreview`
-  implements it by hosting `LinkPreviewModal`. The occurrence data comes from
+  `linkPreviewModel.ts` model and hands it to the port; `LinkPreviewOverlayStore`
+  implements it as an external store `VicinityGraphFlow` renders as the in-graph
+  slide-out `LinkPreviewDrawer` (ticket `nid_5j9mygfywppaiakuim3utf6r2_e` —
+  which pane edge it slides from is a CSS container query on the pane's aspect
+  ratio; pane click / Esc / close / GO dismiss it). The occurrence data comes from
   `engine/LinkOccurrenceProvider.ts` (engine-defined port), implemented per
   query by `adapters/LiveLinkOccurrenceProvider.ts` over a fresh
   `ObsidianLinkProvider` snapshot; `FakeLinkOccurrenceProvider` is its test

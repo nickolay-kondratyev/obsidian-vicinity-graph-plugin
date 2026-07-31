@@ -7,7 +7,7 @@ import type {
 } from "../engine";
 
 /**
- * Pure view-models for the link-preview modal (parent ticket
+ * Pure view-models for the link preview (parent ticket
  * `nid_tohotgq2s92dvd1iov1rd0umv_e`): what a NODE click and an EDGE click show.
  * Builders take occurrence DATA (from `LinkOccurrenceProvider`) and outline
  * DATA (from `FileMetadata.outline` — never re-derived here) and produce rows
@@ -15,7 +15,7 @@ import type {
  * (`src/view/contextRowCollapse.ts`) is keyed by those ids.
  */
 
-/** One expandable context row of the modal: one link occurrence. */
+/** One expandable context row of the preview: one link occurrence. */
 export interface ContextRow<TOccurrence extends LinkOccurrence = LinkOccurrence> {
 	/**
 	 * Stable identity WITHIN one built model — group-qualified, so the collapse
@@ -33,7 +33,7 @@ export interface BacklinkGroupModel {
 	readonly rows: readonly ContextRow[];
 }
 
-/** What the node-click modal renders for a note, sections in display order. */
+/** What the node-click preview renders for a note, sections in display order. */
 export interface NodePreviewModel {
 	readonly kind: "node";
 	readonly path: VaultPath;
@@ -47,7 +47,7 @@ export interface NodePreviewModel {
 	readonly rowIds: readonly string[];
 }
 
-/** What the edge-click modal renders: ONLY the occurrences under source → target. */
+/** What the edge-click preview renders: ONLY the occurrences under source → target. */
 export interface EdgePreviewModel {
 	readonly kind: "edge";
 	readonly sourcePath: VaultPath;
@@ -67,7 +67,7 @@ export interface NodePreviewInputs {
 	readonly backlinks: readonly BacklinkSourceOccurrences[];
 }
 
-/** Either modal payload — what `LinkPreviewModal` hosts and the content renders. */
+/** Either preview payload — what `LinkPreviewDrawer` hosts and the content renders. */
 export type LinkPreviewModel = NodePreviewModel | EdgePreviewModel;
 
 export interface EdgePreviewInputs {
@@ -77,7 +77,7 @@ export interface EdgePreviewInputs {
 	readonly occurrences: readonly LinkOccurrence[];
 }
 
-/** THE one place the modal's grouping + ordering rules live. */
+/** THE one place the preview's grouping + ordering rules live. */
 export class LinkPreviewModels {
 	static node({ path, outline, outgoing, backlinks }: NodePreviewInputs): NodePreviewModel {
 		const linkRows = outgoing.map((occurrence, index) => ({

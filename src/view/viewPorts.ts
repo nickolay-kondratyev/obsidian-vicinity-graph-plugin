@@ -117,7 +117,7 @@ export interface OpenNoteOptions {
 	readonly heading?: string;
 	/**
 	 * 0-based line to position the note at (`LinkContextSnippet.line`, the
-	 * editor's `eState.line` coordinate) — the link-preview modal's GO
+	 * editor's `eState.line` coordinate) — the link-preview drawer's GO
 	 * navigation. Mutually exclusive with {@link heading}; when both are given,
 	 * `line` wins (it is the more precise coordinate).
 	 */
@@ -143,12 +143,13 @@ export interface NoteOpenPort {
 }
 
 /**
- * Shows the link-preview modal for an already-built model (parent ticket
+ * Shows the link preview for an already-built model (parent ticket
  * `nid_tohotgq2s92dvd1iov1rd0umv_e`). Its own port — not a {@link GraphUiPort}
  * method — because the CALLER is the controller (the one class allowed to run
- * the async occurrence queries a model needs), not a node component; the modal
- * chrome (`LinkPreviewModal`) stays behind this seam so the controller keeps
- * zero obsidian coupling. Implemented by `ObsidianLinkPreview`.
+ * the async occurrence queries a model needs), not a node component; how the
+ * preview is presented (today the in-graph slide-out drawer, ticket
+ * `nid_5j9mygfywppaiakuim3utf6r2_e`) stays behind this seam. Implemented by
+ * `LinkPreviewOverlayStore`, rendered by `VicinityGraphFlow`.
  */
 export interface LinkPreviewPort {
 	showLinkPreview(model: LinkPreviewModel): void;

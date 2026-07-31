@@ -11,6 +11,8 @@ import { edgeKindClassName } from "./flowMapping";
 import { GraphToolbar } from "./GraphToolbar";
 import type { GraphViewController } from "./GraphViewController";
 import { GraphUiContext } from "./GraphUiContext";
+import { LinkPreviewDrawer } from "./LinkPreviewDrawer";
+import type { LinkPreviewOverlayStore } from "./LinkPreviewOverlayStore";
 import { VicinityEdge } from "./VicinityEdge";
 import { NoteNode } from "./NoteNode";
 import { NoteOpenContext } from "./NoteOpenContext";
@@ -33,12 +35,24 @@ export function VicinityGraphFlow({
 	controller,
 	ui,
 	actions,
+	linkPreview,
 }: {
 	readonly controller: GraphViewController;
 	readonly ui: GraphUiPort;
 	readonly actions: ControlsActionsPort;
+	/** The drawer's model store — the controller writes it, this component renders it. */
+	readonly linkPreview: LinkPreviewOverlayStore;
 }): ReactElement {
 	const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
+	const previewModel = useSyncExternalStore(linkPreview.subscribe, linkPreview.getSnapshot);
+
+	// An emptied graph unmounts the flow below; drop the drawer's model too, or
+	// the NEXT graph would re-show a preview from the previous one.
+	useEffect(() => {
+		if (snapshot.status === "empty") {
+			linkPreview.close();
+		}
+	}, [snapshot.status, linkPreview]);
 
 	const nodes = useMemo<Node[]>(() => snapshot.nodes.map(toReactFlowNode), [snapshot.nodes]);
 	const edges = useMemo<Edge[]>(() => snapshot.edges.map(toReactFlowEdge), [snapshot.edges]);
@@ -63,6 +77,10 @@ export function VicinityGraphFlow({
 		(_event, edge) => void controller.openEdgePreview(edge.source, edge.target),
 		[controller],
 	);
+
+	// Clicking the empty pane dismisses the preview drawer (ticket
+	// nid_5j9mygfywppaiakuim3utf6r2_e); a no-op while nothing is shown.
+	const onPaneClick = useCallback(() => linkPreview.close(), [linkPreview]);
 
 	// Node components cannot receive the controller as a prop (React Flow
 	// instantiates them), so navigation reaches them through this one-method port.
@@ -91,6 +109,7 @@ export function VicinityGraphFlow({
 							edgeTypes={EDGE_TYPES}
 							onNodeClick={onNodeClick}
 							onEdgeClick={onEdgeClick}
+							onPaneClick={onPaneClick}
 							nodesConnectable={false}
 							// The graph is read-only in V1: layout is elk-driven and would
 							// overwrite any manual placement on the next rebuild, so a drag
@@ -145,6 +164,16 @@ export function VicinityGraphFlow({
 								</Panel>
 							)}
 						</ReactFlow>
+						{previewModel !== null && (
+							<LinkPreviewDrawer
+								model={previewModel}
+								renderIcon={(el, iconId) => ui.renderIcon(el, iconId)}
+								onClose={() => linkPreview.close()}
+								// GO reuses the node-open path (folder-group guard included);
+								// the drawer already closed itself before reporting.
+								onGo={(target) => controller.openNode(target.path, { newTab: false, line: target.line })}
+							/>
+						)}
 					</div>
 				</NoteOpenContext.Provider>
 			</ControlsActionsContext.Provider>

@@ -11,8 +11,8 @@ import { LibavoidEdgeRouter } from "./edgeRouting";
 import { GraphLayoutRunner } from "./GraphLayoutRunner";
 import { GraphViewController } from "./GraphViewController";
 import { VicinityGraphFlow } from "./VicinityGraphFlow";
+import { LinkPreviewOverlayStore } from "./LinkPreviewOverlayStore";
 import { ObsidianGraphUi } from "./ObsidianGraphUi";
-import { ObsidianLinkPreview } from "./ObsidianLinkPreview";
 import { ObsidianNoteNavigator } from "./ObsidianNoteNavigator";
 import type { SettingsWritePipeline } from "./settingsWritePipeline";
 import type { ControlsActionsPort, NoteNavigatorPort, UserNoticePort, ViewsRefreshPort } from "./viewPorts";
@@ -41,7 +41,7 @@ export class VicinityGraphView extends ItemView {
 		private readonly settingsWrites: SettingsWritePipeline,
 		/** The ONE user-message surface; owned by the plugin, which is where `Notice` lives. */
 		private readonly notices: UserNoticePort,
-		/** Per-query occurrence snapshots for the link-preview modal; owned by the plugin. */
+		/** Per-query occurrence snapshots for the link-preview drawer; owned by the plugin. */
 		private readonly occurrenceProvider: LinkOccurrenceProvider,
 	) {
 		super(leaf);
@@ -62,13 +62,16 @@ export class VicinityGraphView extends ItemView {
 	async onOpen(): Promise<void> {
 		const navigator = new ObsidianNoteNavigator(this.app);
 		const ui = new ObsidianGraphUi(this.app, VIEW_TYPE_VICINITY_GRAPH);
+		// The in-graph preview drawer's model store (replaces the old modal seam):
+		// the controller writes it, the flow renders it — one store per view.
+		const linkPreview = new LinkPreviewOverlayStore();
 		const controller = new GraphViewController(
 			navigator,
 			this.graphBuilder,
 			new GraphLayoutRunner(),
 			new LibavoidEdgeRouter(),
 			this.occurrenceProvider,
-			new ObsidianLinkPreview(this.app, ui, navigator),
+			linkPreview,
 		);
 		this.controller = controller;
 		const controlsActions = new ControlsActions(
@@ -84,7 +87,7 @@ export class VicinityGraphView extends ItemView {
 		this.root = createRoot(this.contentEl);
 		this.root.render(
 			<StrictMode>
-				<VicinityGraphFlow controller={controller} ui={ui} actions={controlsActions} />
+				<VicinityGraphFlow controller={controller} ui={ui} actions={controlsActions} linkPreview={linkPreview} />
 			</StrictMode>,
 		);
 	}

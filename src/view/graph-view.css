@@ -14,6 +14,11 @@
 .vicinity-graph-flow {
 	width: 100%;
 	height: 100%;
+	/* Anchor + size container for the link-preview drawer overlay: which edge
+	 * the drawer slides from is a pure-CSS aspect-ratio query on this pane
+	 * (link-preview.css), so no JS ever measures the pane. */
+	position: relative;
+	container: vicinity-graph-pane / size;
 
 	/* Retheme React Flow's own chrome via its published custom properties. */
 	--xy-background-color: transparent;

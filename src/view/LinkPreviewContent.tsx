@@ -7,14 +7,15 @@ import type { BacklinkGroupModel, ContextRow, LinkPreviewModel } from "./linkPre
 import { outlineEntryLabel } from "./outlineEntryLabel";
 
 /**
- * The link-preview modal's React content (parent ticket
- * `nid_tohotgq2s92dvd1iov1rd0umv_e`): sections + expandable context rows over a
- * built {@link LinkPreviewModel}. Collapse/expand state lives HERE (one
- * `ContextRowCollapseState` in a `useState`) — the model is immutable data.
+ * The link preview's React content (parent ticket
+ * `nid_tohotgq2s92dvd1iov1rd0umv_e`), hosted by `LinkPreviewDrawer`: sections +
+ * expandable context rows over a built {@link LinkPreviewModel}. Collapse/expand
+ * state lives HERE (one `ContextRowCollapseState` in a `useState`) — the model
+ * is immutable data.
  *
- * Ports come in as two plain function props, not context: the modal is its own
- * React root (never inside `VicinityGraphFlow`), so a provider would be
- * ceremony around a pass-through. Styles live in `link-preview.css`.
+ * Ports come in as two plain function props, not context — the drawer forwards
+ * them, and a provider would be ceremony around a pass-through. Styles live in
+ * `link-preview.css`.
  */
 
 /** Where one GO click navigates: the note CONTAINING the occurrence, at its line. */
@@ -28,7 +29,7 @@ export interface LinkPreviewContentProps {
 	readonly model: LinkPreviewModel;
 	/** The `GraphUiPort.renderIcon` seam — built-in (lucide) icon into `el`. */
 	readonly renderIcon: (el: HTMLElement, iconId: string) => void;
-	/** GO click. The MODAL closes itself and navigates — this component only reports. */
+	/** GO click. The DRAWER closes itself and navigates — this component only reports. */
 	readonly onGo: (target: LinkPreviewGoTarget) => void;
 }
 
@@ -123,7 +124,7 @@ function OutlineList({ entries }: { readonly entries: readonly OutlineEntry[] })
 	return (
 		<ul className="vicinity-graph-link-preview__outline">
 			{entries.map((entry, index) => (
-				// Index keys are safe: the list is immutable for the modal's lifetime.
+				// Index keys are safe: the list is immutable for the preview's lifetime.
 				<li key={index} className={`vicinity-graph-link-preview__outline-entry--level-${entry.level}`}>
 					{outlineEntryLabel(entry.rawText)}
 				</li>
