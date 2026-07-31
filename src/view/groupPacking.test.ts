@@ -23,20 +23,20 @@ import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
  *
  * HONEST SCOPE. rectpacking ignores intra-group edges, so its box is the same for
  * every link shape while `layered` (the previous interior layout) swings wildly.
- * This 13-member fixture, measured at both the old 40px member spacing and the
- * shipped 20px:
+ * This 13-member fixture, measured at the shipped 40px member spacing and at the
+ * 20px the default briefly sat at:
  *
- * | intra-group links | layered @40 | rectpacking @40 | layered @20 | rectpacking @20 (shipped) |
+ * | intra-group links | layered @40 | rectpacking @40 (shipped) | layered @20 | rectpacking @20 |
  * |---|---|---|---|---|
  * | hub-linked | 1734x488 / 0.218 | 702x523 / 0.515 | 1514x488 / 0.251 | 602x483 / 0.660 |
  * | none       |  602x483 / 0.660 | 702x523 / 0.515 |  602x483 / 0.660 | 602x483 / 0.660 |
  * | chain      |  368x1534 / 0.336 | 702x523 / 0.515 | 368x1534 / 0.336 | 602x483 / 0.660 |
  *
- * The edge-free regression this comment used to record (0.660 -> 0.515, the price
- * paid for killing the hub strip) is GONE at the shipped spacing: rectpacking@20
- * reproduces `layered`'s own best-case box to the pixel, and does it whatever the
- * links do. Nothing here can PROVE that — a floor test cannot see that an old
- * value was higher — so the numbers above are the record.
+ * Read the shipped column against the `layered` one: rectpacking's win is that it
+ * is INDIFFERENT to link shape, not that it is the densest cell in the table. The
+ * one case `layered` packs better (edge-free, 0.660 vs 0.515) is the price paid
+ * for killing the hub strip. Nothing here can PROVE that trade — a floor test
+ * cannot see that an old value was higher — so the numbers above are the record.
  */
 
 const GROUP_FOLDER = asFolderPath("notes");
@@ -159,11 +159,12 @@ async function layOutGroup(graph: VicinityGraph): Promise<GroupGeometry> {
 }
 
 /**
- * Fill floor for a heterogeneous group at the shipped 20px member spacing.
- * Measured fill is 0.660, so the floor keeps ~17% headroom against elkjs drift.
- * Raised 0.4 -> 0.55 when the spacing default came down: 0.4 no longer caught
- * anything (the pre-change 0.515 cleared it), whereas 0.55 fails if the packing
- * algorithm — or the spacing the fixture feeds it — regresses to what it was.
+ * Fill floor for a heterogeneous group at the shipped 40px member spacing.
+ * Measured fill is 0.515, so the floor keeps ~13% headroom against elkjs drift.
+ * Moved 0.4 -> 0.55 -> 0.45 as the shipped spacing went 40 -> 20 -> 40: spacing IS
+ * density, so a floor calibrated at one spacing says nothing at another. What it
+ * still catches at 0.45 is a LAYOUT regression — `layered` gives these same
+ * members 0.218 (hub-linked) / 0.336 (chain) at this spacing.
  * It does NOT by itself see a regression of the SHIPPED default: the fixture
  * carries its own copy of that value. The mirror is locked by the fixture test
  * below, and the shipped value itself by `SettingsSpec.test.ts`.
@@ -171,21 +172,26 @@ async function layOutGroup(graph: VicinityGraph): Promise<GroupGeometry> {
  * Deliberately ONE floor for every link shape — see the edge-independence test:
  * rectpacking gives all of them the same box.
  */
-const MIN_INTERIOR_FILL_RATIO = 0.55;
+const MIN_INTERIOR_FILL_RATIO = 0.45;
 
 /**
- * Fill floor for {@link SCREENSHOT_MEMBERS} — the regression lock on the human's
- * actual complaint. Measured 0.505 when the screenshot was taken and 0.587 after
- * the member spacing came down to 20px; 0.54 sits between the two with ~7%
- * headroom on each side, so it fails on the rejected layout and cannot be passed
- * by drift alone.
+ * Fill floor for {@link SCREENSHOT_MEMBERS} — the packing lock on the human's
+ * actual complaint. Measured 0.505 when the screenshot was taken, 0.587 while the
+ * member spacing was 20px, and 0.509 now that it is back to 40px.
  *
- * WHY a floor this low is still the right lock: at 20px spacing a PERFECT packer
- * of these five rectangles reaches only ~0.63 (measured with a skyline packer
- * sweep) — the gaps themselves are area. The floor tracks that ceiling, it does
- * not describe an achievable ideal.
+ * HONEST SCOPE, stated plainly: at the shipped 40px this floor can no longer say
+ * "denser than the rejected screenshot" — the rejected screenshot's own density
+ * was 0.505, and 40px spacing puts a well-packed interior right back at it. The
+ * density win came from the spacing, and the spacing was deliberately given back
+ * for breathing room. What survives is the layout lock: 0.45 fails a flow-layout
+ * regression (0.218 / 0.336 above) and keeps ~12% headroom for elkjs drift.
+ *
+ * WHY a floor this low is right at all: even at 20px a PERFECT packer of these
+ * five rectangles reaches only ~0.63 (measured with a skyline packer sweep) — the
+ * gaps themselves are area. The floor tracks that ceiling, it does not describe
+ * an achievable ideal.
  */
-const MIN_SCREENSHOT_FILL_RATIO = 0.54;
+const MIN_SCREENSHOT_FILL_RATIO = 0.45;
 
 describe("folder-group interior packing", () => {
 	/**
