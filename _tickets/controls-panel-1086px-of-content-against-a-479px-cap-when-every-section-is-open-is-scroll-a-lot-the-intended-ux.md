@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-31T17:20:06Z
 id: nid_73ykoegwri2xdixm8k5mr6oop_e
 title: "Controls panel: 1086px of content against a 479px cap when every section is open - is scroll-a-lot the intended UX?"
-status: open
+status: closed
 deps: []
 links: [nid_0u28xzhz05qewz35jfqkxkvz2_e, nid_9wed7bqboqb83aghmt1sctv90_e]
 created_iso: 2026-07-30T02:49:41Z
-status_updated_iso: 2026-07-30T02:49:41Z
+status_updated_iso: 2026-07-31T17:20:06Z
 type: task
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
