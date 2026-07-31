@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-31T17:08:28Z
 id: nid_0u28xzhz05qewz35jfqkxkvz2_e
 title: "Panel settings UX changed by the dual-presenter ticket: exclusion moved 2nd to 5th, a Performance disclosure appeared, four labels grew"
-status: open
+status: closed
 deps: [nid_armoson86j0ii8c33r1odo1rc_e]
 links: [nid_9wed7bqboqb83aghmt1sctv90_e, nid_73ykoegwri2xdixm8k5mr6oop_e]
 created_iso: 2026-07-30T02:28:08Z
-status_updated_iso: 2026-07-30T02:28:08Z
+status_updated_iso: 2026-07-31T17:08:28Z
 type: task
 priority: 1
 assignee: CC_WITH-nickolaykondratyev
@@ -38,3 +39,12 @@ badly at 260px, tune .vicinity-graph-number-row / .vicinity-graph-exclusion__tog
 in src/view/graph-view.css rather than re-abbreviating - one label per row is the
 property this ticket bought.
 
+
+## Notes
+
+**2026-07-31T17:08:27Z**
+
+DECIDED by owner (2026-07-31): KEEP all three consequences as shipped.
+1. Node exclusion stays 5th - panel mirrors the tab; no panelOrder override.
+2. Performance disclosure (Node cap row) stays in the panel.
+3. Fuller tab labels stay - CSS review confirmed .vicinity-graph-number-row is a flex row without nowrap and a fixed 4.5em input, so long labels wrap to a second line gracefully at ~260px (taller row, no clipping).
