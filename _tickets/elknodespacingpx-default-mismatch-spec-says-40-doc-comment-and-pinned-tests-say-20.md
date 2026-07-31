@@ -9,7 +9,7 @@ status_updated_iso: 2026-07-31T19:09:34Z
 type: bug
 priority: 1
 assignee: CC_WITH-nickolaykondratyev
-tags: [decide]
+tags: []
 ---
 
 Pre-existing test failures on main (verified on a clean tree via git stash + rerun):
@@ -23,3 +23,7 @@ HUMAN DECISION NEEDED: which is the shipped default — 20 or 40? Whichever wins
 
 Not fixed in ticket nid_ts4rx2pfo6o18verzk07z16g8_e (depth for pinned nodes) because it is an unrelated shipped-default product call.
 
+--------------------------------------------------------------------------------
+HUMAN DECISION:
+THE default is now 40.  
+Lets lower the commenting so that we don't duplicate the values stated in the comments to avoid such mismatches, we should be able to adjust the code for default without having to hunt for comments.   
