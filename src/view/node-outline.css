@@ -29,6 +29,12 @@
 	 * the THUMB rather than the track width means nothing reflows on hover, so
 	 * entries never re-ellipsise as the pointer arrives. */
 	scrollbar-color: transparent transparent;
+	/* Section edge: without it the muted rows read as overflow of the title
+	 * text. Sitting on the SCROLL CONTAINER (not the list), the hairline stays
+	 * put while entries scroll beneath it. Costs 5px of outline height — the
+	 * container shrinks (min-height: 0), it never pushes the strip out. */
+	padding-top: var(--size-4-1);
+	border-top: 1px solid var(--background-modifier-border);
 }
 .vicinity-graph-node:hover .vicinity-graph-outline {
 	scrollbar-color: var(--background-modifier-border-hover) transparent;
@@ -43,10 +49,19 @@
 }
 
 /* THE nesting knob (CLARIFICATION Q8: minimal spacing — nodes are small).
- * --size-4-2 = 8px ≈ one glyph at --font-smallest: readable as hierarchy, cheap
- * enough that six levels cost 40px of a ~250px node. Re-tune HERE. */
+ * 4px margin + 1px guide + 4px padding ≈ the old 8px step: readable as
+ * hierarchy, cheap enough that six levels cost ~54px of a ~250px node.
+ * Re-tune HERE.
+ *
+ * The guide is what makes the step read as STRUCTURE instead of ragged text —
+ * same affordance as Obsidian's own Outline pane, so it needs no learning. The
+ * 4px margin lands the line exactly under the parent entry's text (the entry's
+ * own 4px inline padding), which is what makes it read as "children of THAT
+ * row". */
 .vicinity-graph-outline__list .vicinity-graph-outline__list {
-	padding-inline-start: var(--size-4-2);
+	margin-inline-start: var(--size-4-1);
+	padding-inline-start: var(--size-4-1);
+	border-inline-start: 1px solid var(--background-modifier-border);
 }
 
 /* Row resets Obsidian's global button styling on purpose (compact, in-node).
@@ -55,7 +70,9 @@
 	display: block;
 	width: 100%;
 	height: auto;
-	padding: 0 var(--size-4-1);
+	/* 1px vertical: rows breathe without giving up density (≈18px per row at
+	 * --font-smallest — still 3 rows in the 104px node's slot). */
+	padding: 1px var(--size-4-1);
 	text-align: left;
 	font-size: var(--font-smallest);
 	line-height: 1.5;
@@ -70,6 +87,16 @@
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
+	/* Same 0.12s ease as the node's pin button — one hover tempo per node. */
+	transition:
+		color 0.12s ease,
+		background-color 0.12s ease;
+}
+/* Hierarchy via WEIGHT, the only lever left: size is already at the floor and
+ * darkening would collide with the title's color tier. Top-of-tree = the note's
+ * section headings; nested rows stay 400 so the tiers scan at a glance. */
+.vicinity-graph-outline > .vicinity-graph-outline__list > .vicinity-graph-outline__item > .vicinity-graph-outline__entry {
+	font-weight: var(--font-medium);
 }
 .vicinity-graph-outline__entry:hover {
 	color: var(--text-normal);
