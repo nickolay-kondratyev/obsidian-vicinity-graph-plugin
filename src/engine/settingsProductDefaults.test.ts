@@ -85,7 +85,7 @@ const SHIPPED_SETTINGS_DEFAULTS: Readonly<Record<string, unknown>> = {
 	"globalView.forceLayout.linkStrengthFactor": 1, // Reproduces d3's built-in 1/min(degree).
 	"globalView.forceLayout.linkGapPx": 40,
 	"globalView.forceLayout.collidePaddingPx": 50,
-	"globalView.forceLayout.elkNodeSpacingPx": 20,
+	"globalView.forceLayout.elkNodeSpacingPx": 40,
 	"globalView.forceLayout.edgeRoutingClearancePx": 11, // Measured (edge-routing__06 sweep).
 
 	// Exclusion is additive and opt-in: OFF, with nothing to match.

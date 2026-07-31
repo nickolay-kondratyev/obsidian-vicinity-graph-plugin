@@ -65,7 +65,7 @@ function makeViewSettings(): ViewSettings {
 			collidePaddingPx: 20,
 			// Mirrors the shipped default so packing tests measure what users see.
 			// The mirror is locked (see `groupPacking.test.ts`) — do not drift it.
-			elkNodeSpacingPx: 20,
+			elkNodeSpacingPx: 40,
 			edgeRoutingClearancePx: 11,
 		},
 	};
