@@ -1,7 +1,7 @@
 ---
 id: nid_uwnew3dok0gn8ijar54hiozst_e
 title: "pre-release force-layout tuning: tune sliders on real vaults, bake chosen values into constants defaults"
-status: open
+status: punted
 deps: []
 links: []
 created_iso: 2026-07-24T04:48:50Z
