@@ -14,21 +14,9 @@ import type {
 // Thin adapters over SETTINGS_SPEC (the single source of truth for every
 // settings default AND limit — see `SettingsSpec.ts`). The WHY rationale for
 // each value lives on the spec; these are mechanical projections of it.
+// Defaults have NO aliases here — read `SETTINGS_SPEC.<section>.<field>.default`
+// or build a whole shape via `EngineDefaults`.
 // ---------------------------------------------------------------------------
-
-/** @see SETTINGS_SPEC — `globalView.nodeCap.default`. */
-export const DEFAULT_NODE_CAP = SETTINGS_SPEC.globalView.nodeCap.default;
-
-/** @see SETTINGS_SPEC — `globalDepths.linkDepth{Out,In}.default`. */
-export const DEFAULT_LINK_DEPTH_OUT = SETTINGS_SPEC.globalDepths.linkDepthOut.default;
-export const DEFAULT_LINK_DEPTH_IN = SETTINGS_SPEC.globalDepths.linkDepthIn.default;
-
-/** @see SETTINGS_SPEC — `globalView.sizing.{minPx,maxPx}.default`. */
-export const DEFAULT_MIN_NODE_PX = SETTINGS_SPEC.globalView.sizing.minPx.default;
-export const DEFAULT_MAX_NODE_PX = SETTINGS_SPEC.globalView.sizing.maxPx.default;
-
-/** @see SETTINGS_SPEC — `globalView.sizing.depthDecayK.default`. */
-export const DEFAULT_DEPTH_DECAY_K = SETTINGS_SPEC.globalView.sizing.depthDecayK.default;
 
 /** Lower bound of the node-cap input. @see SETTINGS_SPEC — `globalView.nodeCap.min`. */
 export const MIN_NODE_CAP = SETTINGS_SPEC.globalView.nodeCap.min;
