@@ -154,13 +154,23 @@ export class NumberRowCommitPolicy {
 
 	/**
 	 * @param raw the field's text as the user left it
+	 * @param seededWith the number the field was seeded with — the stored value its
+	 *   `defaultValue` was set from, which is therefore what an untouched field commits
 	 */
-	commit(raw: string): NumberRowCommit {
+	commit(raw: string, seededWith: number): NumberRowCommit {
 		const parsed = this.accessor.accept(raw);
 		if (parsed === undefined) {
 			// Blank or not a number: nothing to write and nothing to explain — the same
 			// silence the settings tab keeps for a field left mid-edit. The panel differs
 			// in one way, because its field is uncontrolled: it puts the stored value back.
+			return NumberRowCommit.nothing();
+		}
+		if (parsed === seededWith) {
+			// The text still MEANS the number the field was seeded with — focused and left,
+			// or edited back by hand, or merely respelled (`077`). Writing it would persist
+			// and rebuild for no change, so it is a no-op BEFORE the judge: an untouched
+			// field must not earn a refusal for a rule it did not invoke. The reseed that
+			// `nothing()` implies is still wanted — it normalises a respelling away.
 			return NumberRowCommit.nothing();
 		}
 		const verdict = this.judge.judge(parsed);
