@@ -1,7 +1,7 @@
 ---
 id: nid_37vxpzbgh1yq6kxa0mw6n4iye_e
 title: "Fix pre-existing failing default-pin tests: elkNodeSpacingPx 40 vs 20 drift"
-status: open
+status: closed
 deps: []
 links: []
 created_iso: 2026-07-31T18:59:32Z
