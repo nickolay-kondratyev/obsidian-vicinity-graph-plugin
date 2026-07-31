@@ -71,6 +71,16 @@ export { OutgoingReferences } from "./LinkProvider";
 // LinkKind lives in `shared/` (the layer BELOW the engine) because the shared
 // syntax matchers must name it; the engine is still its public owner.
 export type { LinkKind } from "../shared/LinkKind";
+export type {
+	BacklinkSourceOccurrences,
+	LinkOccurrence,
+	LinkOccurrenceProvider,
+	OutgoingLinkOccurrence,
+} from "./LinkOccurrenceProvider";
+export type { LinkContextSnippet } from "./LinkContextSnippets";
+export { EXPANDED_CONTEXT_LINES_EACH_SIDE, LinkContextSnippets } from "./LinkContextSnippets";
+export { FakeLinkOccurrenceProvider } from "./FakeLinkOccurrenceProvider";
+export type { FakeOccurrenceSpec } from "./FakeLinkOccurrenceProvider";
 export { NodeEligibility } from "./NodeEligibility";
 export { PathExclusionMatcher } from "./PathExclusionMatcher";
 export { FakeLinkProvider } from "./FakeLinkProvider";
