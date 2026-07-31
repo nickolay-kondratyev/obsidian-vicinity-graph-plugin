@@ -1,15 +1,16 @@
 ---
+closed_iso: 2026-07-31T17:37:06Z
 id: nid_biwdtykvazsk3ejcqqli8o9j7_e
 title: "Settings writes: in-memory state keeps a value the disk write rejected"
-status: open
+status: closed
 deps: []
 links: [nid_itpt4tf0kkhsbbz0np304a558_e]
 created_iso: 2026-07-30T05:53:42Z
-status_updated_iso: 2026-07-30T05:53:42Z
+status_updated_iso: 2026-07-31T17:37:06Z
 type: task
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
-tags: [settings, robustness, ux, decide]
+tags: [settings, robustness, ux]
 ---
 
 Surfaced while implementing the settings-write failure policy (ticket nid_itpt4tf0kkhsbbz0np304a558_e), deliberately out of its scope.
@@ -26,7 +27,30 @@ OPTIONS (needs an owner decision):
 
 No behavior change is shipped for this until decided.
 
+## Decision (2026-07-31, owner)
+
+**Option 1 — keep the optimistic in-memory apply, soften the notice copy.** New copy
+(implemented in `src/view/settingsWriteFailureNotice.ts`, pinned by
+`src/view/settingsWriteFailureNotice.test.ts`):
+
+> Vicinity graph couldn't save "SUBJECT" — the change applies for this session but will
+> be lost when Obsidian restarts. See the developer console for details.
+
+Rationale:
+- Copy-only change in the ONE file that owns write-failure copy; the template applies
+  identically to settings rows, reset scopes and the pinned set.
+- Option 2 (rollback) has a correctness landmine on top of its stated cost: writes are
+  serialised and each `persist()` snapshots the WHOLE `PluginData`, so a later successful
+  write already carries the failed write's value to disk — rolling memory back would then
+  disagree with disk in the OPPOSITE direction. Doing it right means versioned snapshots
+  interleaved with the chain: real complexity for a rare failure path (locked vault, full
+  disk) whose cause would likely make a redone write fail again anyway.
+- "will be lost when Obsidian restarts" is a deliberate simplification: a later successful
+  write rescues the value (strictly better than promised), so the sentence never
+  under-delivers; hedging on the rescue would bury the actionable fact. Recorded in the
+  WHY doc on `SettingsWriteFailureNotice.notice()`.
+
 ## Acceptance Criteria
 
-The notice copy and the in-memory state agree about what happened after a rejected persist, with the chosen option recorded.
+The notice copy and the in-memory state agree about what happened after a rejected persist, with the chosen option recorded. ✅ Done — copy shipped, decision recorded above.
 

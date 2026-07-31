@@ -79,9 +79,16 @@ export class SettingsWriteFailureNotice {
 	 * `saveData` rejected with (a locked vault, a full disk, a sync conflict), and
 	 * guessing which would be a lie. Naming the plugin is required — Obsidian's notices
 	 * are chrome-less, so an unattributed one reads as coming from the app.
+	 *
+	 * "applies for this session" because that is literally true — the store moved before
+	 * the write, every surface shows the new value — and without it the notice contradicts
+	 * the screen. "will be lost when Obsidian restarts" is the decided simplification
+	 * (ticket `nid_biwdtykvazsk3ejcqqli8o9j7_e`): a LATER successful write does carry the
+	 * value to disk (each persist writes the whole state), but hedging on that rescue
+	 * would bury the one actionable fact.
 	 */
 	private static notice(subject: string): string {
-		return `Vicinity graph couldn't save “${subject}”. See the developer console for details.`;
+		return `Vicinity graph couldn't save “${subject}” — the change applies for this session but will be lost when Obsidian restarts. See the developer console for details.`;
 	}
 
 	/**

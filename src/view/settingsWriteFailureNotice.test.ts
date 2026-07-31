@@ -42,6 +42,15 @@ describe("SettingsWriteFailureNotice for an interaction", () => {
 		const notice = SettingsWriteFailureNotice.forInteraction({ kind: "global-cap", value: 42 });
 		expect(notice).toContain("Vicinity graph");
 	});
+
+	it("WHEN any write fails THEN the notice says the change is live this session but lost at restart", () => {
+		// The store applies optimistically BEFORE the disk write, so every surface keeps
+		// showing the new value after a rejected persist (decided in ticket
+		// nid_biwdtykvazsk3ejcqqli8o9j7_e). The notice must agree with the screen: the
+		// change is in effect, only its survival past restart is what failed.
+		const notice = SettingsWriteFailureNotice.forInteraction({ kind: "global-cap", value: 42 });
+		expect(notice).toContain("applies for this session but will be lost when Obsidian restarts");
+	});
 });
 
 /**
