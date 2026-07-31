@@ -1,12 +1,13 @@
 ---
+closed_iso: 2026-07-31T17:48:48Z
 id: nid_7qot0m6nuxxmd5z0yb9jylsd6_e
 title: 'Test infra: React component tests for the panel controls (jsdom + a light
   renderer)'
-status: in_progress
+status: closed
 deps: []
 links: [nid_m5hxe4eo9jgt7cfic7s2o3uvi_e]
 created_iso: '2026-07-30T00:57:03Z'
-status_updated_iso: '2026-07-31T17:38:24Z'
+status_updated_iso: 2026-07-31T17:48:48Z
 type: task
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
@@ -99,3 +100,51 @@ or a `environmentMatchGlobs` entry for `src/view/**/*.component.test.tsx`) so th
 source-scan suites stay in node env, as the SCOPE section already requires.
 
 Removing the [decide] tag: all decisions reached.
+
+**2026-07-31T17:48:48Z**
+
+RESOLVED 2026-07-31 (commit eaca4cf) — harness landed, plus the panel-side acceptance additions.
+
+WHAT LANDED
+- devDeps: jsdom + @testing-library/react (+ @testing-library/dom peer). Environment
+  override is a per-file `// @vitest-environment jsdom` pragma on `src/view/*.component.test.tsx`
+  (the recorded recommendation) — everything else stays node-env, so the source-scan
+  guards that read the filesystem are untouched. No vitest.config change was needed
+  (the existing include glob already matches the new files).
+- Harness seam: src/view/testFixtures/settingsPanelHarness.tsx — a recording
+  ControlsActionsPort fake (the ONE seam the panel writes through), default-state
+  fixtures over EngineDefaults, and context-wired render/rerender helpers.
+- src/view/DepthStepper.component.test.tsx — the exemplar: a rendered 3-click burst is
+  NOT dropped (each write steps from the SHOWN value; the exact interactions are
+  asserted, so the right SettingsInteraction/field pair is pinned too), the readout and
+  disabled states move optimistically, and a disagreeing store snapshot wins over a
+  stale override. All values derived from the accessor's declared bounds — no mirrored
+  literals.
+- src/view/GraphToolbar.component.test.tsx — rendered per-row parity for the PANEL
+  over SETTINGS_GROUPS: every row in EVERY_SETTINGS_ROW produces its controls under
+  their declared accessible names, in declared order (closes the index/predicate-subset
+  escape the label scan cannot see). Also the disabledWhen verdicts: exclusion-patterns
+  row aria-disabled tracks the exclusion toggle, and a metric's Weight input is
+  disabled with its metric toggle (the 2026-07-30 note's point 1).
+- src/view/SettingsRowView.component.test.tsx — the refusal wiring (the 2026-07-30
+  note's point 2): a refused commit renders role="alert" copy from
+  describeSizingRejection, aria-invalid + aria-describedby point at it, writes NOTHING,
+  and the message retires when the stored value moves under the field; a capped commit
+  writes the settled number and its store echo reseeds the box.
+
+DELIBERATE SCOPE CUT (recorded, not silent): the acceptance addition asked to render
+BOTH surfaces. The settings TAB cannot mount under npm test — it renders through
+Obsidian's `Setting` API and the `obsidian` npm package is types-only (no runtime) —
+so rendering it would mean writing a runtime fake of the Setting API, a large lift for
+a surface the e2e release gate already drives for real. The parity source scan
+(settingsRowParity.test.ts) therefore KEEPS covering both surfaces rather than
+shrinking; its doc comment now states which residuals the panel render closed and why
+the tab's remain. If a tab-side jsdom render is ever wanted, that is a new ticket
+(fake Setting implementation), not an extension of this one.
+
+Follow-through: stale "nothing under npm test renders React" comments updated
+(settingsRowParity, typedNumberFields, rowRenderingSource, numberRowCommit,
+useOptimisticValue, DepthStepper, engineDefaultsSingleSource) and CLAUDE.md's settings-
+tests bullet now names the component-test convention. engineDefaultsSingleSource's scan
+now excludes testFixtures/ (test-support modules, same rationale as its existing
+test-file exclusion). Verified: npm test 1326/1326 green, npm run check clean.
