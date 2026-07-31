@@ -9,7 +9,7 @@ import { NODE_PREVIEW_PREFERENCES } from "../types";
  *
  * WHY THIS EXISTS: the settings tests used to restate every default and every bound
  * as a literal, so they went stale the moment a default moved — twice for real
- * (`collidePaddingPx` 20 → 50, `elkNodeSpacingPx` 40 → 20), and they still could not
+ * (`collidePaddingPx` and `elkNodeSpacingPx` retunes), and they still could not
  * catch a field that was declared in the spec but never wired into parsing or into
  * restore-defaults. The tests now ITERATE this list instead: declaring a field in the
  * spec is the ONLY edit its coverage needs, and a field the wiring forgot FAILS

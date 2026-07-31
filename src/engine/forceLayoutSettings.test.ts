@@ -10,8 +10,8 @@ import type { ForceLayoutSettings } from "./types";
  * the shipped layout would differ from the declared one.
  *
  * WHY-NOT the 7-field literal `toEqual` this replaced: it duplicated the spec's own
- * numbers and went stale twice on intentional retunes (`collidePaddingPx` 20 → 50 in
- * `22bd5cb`, `elkNodeSpacingPx` 40 → 20). Those seven literals are NOT gone — they moved
+ * numbers and went stale twice on intentional retunes (`collidePaddingPx` in `22bd5cb`,
+ * then `elkNodeSpacingPx`). Those seven literals are NOT gone — they moved
  * to `settingsProductDefaults.test.ts`, the single baseline that pins every spec leaf's
  * default. They are deliberately not restated here as well; that duplication is what went
  * stale. Each value's rationale, including what breaks if it moves, lives on

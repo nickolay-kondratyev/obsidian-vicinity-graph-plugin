@@ -145,9 +145,9 @@ const DEFAULT_METRIC_WEIGHT = 1;
  * BECOME geometry: `sizePx` is a React-Flow node width/height and then a
  * libavoid obstacle rectangle, so the reachable range must stay inside what the
  * layout and the router can render. `min 1`: a 0/negative box is not a box (and
- * it is the floor both size inputs already shipped with). `max 400`: 2.5x the
- * shipped 160 default — one node past that fills a typical vicinity pane and
- * the graph stops being an overview.
+ * it is the floor both size inputs already shipped with). `max 400`: several
+ * times the shipped `maxPx` default — one node past that fills a typical
+ * vicinity pane and the graph stops being an overview.
  */
 const NODE_SIZE_PX_BOUNDS = { min: 1, max: 400, step: 4 } as const;
 
@@ -186,7 +186,7 @@ export const SETTINGS_SPEC: SettingsSpec = {
 	},
 	globalView: {
 		/**
-		 * Hard cap on non-central node count (step doc: default 100).
+		 * Hard cap on non-central node count.
 		 * `min 1`: at least the central must be renderable. `max 1000` (owner
 		 * decision 2026-07-29, nid_aau4r0sj8oudhi711qr9j5x1l_e): comfortably above
 		 * any legible graph — a legitimate request is effectively never blocked —
@@ -290,7 +290,7 @@ export const SETTINGS_SPEC: SettingsSpec = {
 			repelStrength: { default: 300, min: 50, max: 1000, step: 10 },
 			/**
 			 * UI "Link force" — multiplier on d3's default per-link spring strength.
-			 * `1` reproduces d3's built-in `1 / min(degree)` default bit-for-bit —
+			 * A factor of `1` reproduces d3's built-in `1 / min(degree)` bit-for-bit —
 			 * the behavior shipped before the "Link force" slider introduced an
 			 * explicit override.
 			 *
@@ -318,8 +318,8 @@ export const SETTINGS_SPEC: SettingsSpec = {
 			/**
 			 * UI "Node spacing" (advanced) — minimum gap enforced between each PAIR
 			 * of boxes by the rectangular collide force (`forceRectCollide.ts`),
-			 * applied once per pair, not per box. Shipped default raised 20 → 50 in
-			 * `22bd5cb`: the ticket-03 prototype's 20 packed boxes tighter than the
+			 * applied once per pair, not per box. The shipped default was raised above
+			 * the ticket-03 prototype's (`22bd5cb`), which packed boxes tighter than the
 			 * shipped node sizes read comfortably at.
 			 *
 			 * `[0, 100]`: even at 0 the AABB collide prevents overlap (labels live
@@ -332,27 +332,22 @@ export const SETTINGS_SPEC: SettingsSpec = {
 			 * sibling members INSIDE a folder group. (The root force seed keeps its
 			 * own internal separation; this knob no longer reaches it.)
 			 *
-			 * `[10, 120]`: elk spacing separates node BOUNDARIES, so members can
-			 * never overlap; min 10 keeps them readable, above 120 the folder
-			 * containers balloon. (The folder-name label is protected by the
-			 * container's fixed top padding, not by this spacing.)
+			 * The range: elk spacing separates node BOUNDARIES, so members can never
+			 * overlap; the min keeps them readable, past the max the folder containers
+			 * balloon. (The folder-name label is protected by the container's fixed top
+			 * padding, not by this spacing.) The step holds the slider to a 5px grid.
 			 *
-			 * Shipped default lowered 40 -> 20: at 40 a member sat FARTHER from its
-			 * folder-mates than from the group's own wall (the container's 16px side
-			 * padding), which reads as scattered items rather than one cluster, and —
-			 * measured on the real-vault group in `groupPacking.test.ts` — left half
-			 * the group interior empty (fill 0.51). 20 is the first value on this
-			 * slider's 5px grid at or above that 16px interior gutter, so the interior
-			 * rhythm is uniform without members ever crowding tighter than the wall
-			 * inset. Fill 0.51 -> 0.59; the packing ALGORITHM had no headroom left
-			 * (elk rectpacking already lands within ~5% of an optimal skyline packer
-			 * on these shapes — spacing, not placement, was the wasted area).
+			 * The default trades interior DENSITY against separation. Tighter fills more
+			 * of the group interior — `groupPacking.test.ts` measures that fill ratio at
+			 * whatever ships, and the packing ALGORITHM has no headroom left to give
+			 * (elk rectpacking already lands within ~5% of an optimal skyline packer on
+			 * these shapes, so spacing, not placement, is the wasted area). Looser reads
+			 * as scattered items rather than one cluster once a member sits farther from
+			 * its folder-mates than from the container's own side padding.
 			 *
-			 * WHY-NOT migrate installs that already persisted 40: deliberately not done
-			 * — the plugin is pre-release and a saved value is a user choice we do not
-			 * overwrite. Existing installs (including the maintainer's own, which
-			 * matters when re-testing layout) keep 40 until "Restore force layout
-			 * defaults".
+			 * WHY-NOT rewrite installs that persisted an older value when this moves:
+			 * a saved value is a user choice we do not overwrite — it stands until
+			 * "Restore force layout defaults".
 			 */
 			elkNodeSpacingPx: { default: 40, min: 10, max: 120, step: 5 },
 			/**
@@ -361,7 +356,7 @@ export const SETTINGS_SPEC: SettingsSpec = {
 			 * applied at `edgeRouting.ts`). Perpendicular to the route: it is how
 			 * far a routed edge stays off a box it passes.
 			 *
-			 * Default 11 is MEASURED, not derived (edge-routing__06 sweep). It
+			 * The default is MEASURED, not derived (edge-routing__06 sweep). It
 			 * replaces the old view constant `EDGE_ROUTING_SHAPE_BUFFER_PX = 17`
 			 * (half the paired-edge bow curvature) — a tie that nothing in the
 			 * routing geometry justified and that landed 1-2px INSIDE the
@@ -369,7 +364,7 @@ export const SETTINGS_SPEC: SettingsSpec = {
 			 * realistic group degree produced 40 non-facing attachments, against
 			 * 22-26 at every value from 14 down, and dense-fixture detour improved
 			 * monotonically as the clearance shrank (max 1.342 → 1.188).
-			 * 11 sits mid-band, clear of both bounds.
+			 * The shipped value sits mid-band, clear of both bounds.
 			 *
 			 * `[6, 14]`: below 6 the clearance drops under the arrowhead's own
 			 * half-width (`ARROWHEAD_HALF_WIDTH_PX`), so a head drawn on a route
