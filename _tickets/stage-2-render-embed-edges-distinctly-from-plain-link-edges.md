@@ -1,17 +1,17 @@
 ---
 id: nid_2qygmn0z59t8fdlb5e9pap49m_e
-title: "Stage 2: render embed edges distinctly from plain-link edges"
-status: open
+title: 'Stage 2: render embed edges distinctly from plain-link edges'
+status: in_progress
 deps: [nid_fay1hu5sxcoygizopkkg0f0d7_e]
 links: []
-created_iso: 2026-07-30T04:34:24Z
-status_updated_iso: 2026-07-30T04:34:24Z
+created_iso: '2026-07-30T04:34:24Z'
+status_updated_iso: '2026-07-31T17:48:01Z'
 type: feature
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
 tags: [graph, ui]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-3
 ---
-
 Owner decision D3 on ticket nid_fay1hu5sxcoygizopkkg0f0d7_e: the visual distinction is wanted, explicitly AFTER the depth budget (which shipped in Stage 3). Now unblocked.
 
 WHAT: an edge walked as an EMBED should read differently from a plain link edge (the research proposed CSS-only: dashed / weighted stroke on `vicinity-graph-edge`, see src/view/graph-view.css).
