@@ -10,6 +10,7 @@ import {
 	EngineDefaults,
 	NODE_PREVIEW_PREFERENCES,
 	clampForceLayoutSettings,
+	clampNodeCap,
 	clampOutlineMaxDepth,
 	clampSizingSettings,
 } from "../engine";
@@ -141,8 +142,13 @@ function parseViewFields(raw: unknown): Partial<ViewSettings> {
 		return {};
 	}
 	const outlineMaxDepth = numberOrUndefined(raw["outlineMaxDepth"]);
+	const nodeCap = numberOrUndefined(raw["nodeCap"]);
 	const parsed: ParsedViewFields = {
-		nodeCap: numberOrUndefined(raw["nodeCap"]),
+		// Clamped with the SAME function the accessor settles with (owner decision
+		// 2026-07-29, superseding the loaded-verbatim rule): a stored out-of-range
+		// cap — a hand edit, or a value persisted before the ceiling existed — must
+		// not silently disable truncation and hand the whole vault to the layout.
+		nodeCap: nodeCap === undefined ? undefined : clampNodeCap(nodeCap),
 		// Clamped with the SAME function the slider uses, so hand-edited JSON cannot
 		// reach 0 (a silent off-switch the feature does not have) or an undefined level.
 		outlineMaxDepth: outlineMaxDepth === undefined ? undefined : clampOutlineMaxDepth(outlineMaxDepth),

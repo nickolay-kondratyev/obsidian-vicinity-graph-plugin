@@ -11,7 +11,7 @@
  * - `EngineDefaults.*` factories read `.default`.
  * - `DEFAULT_*` named constants alias `.default`.
  * - `FORCE_LAYOUT_RANGES` reads `.min/.max/.step`.
- * - The view's `MIN_NODE_CAP` / stepper bounds read `.min/.max`.
+ * - The view's stepper/input bounds read `.min/.max`.
  *
  * Pure engine module: imports only `./types` (import-guarded).
  */
@@ -38,13 +38,7 @@ export interface BoundedNumberSpec {
 	readonly step: number;
 }
 
-/** A numeric field carrying its default and a lower bound only (no max/step). */
-export interface MinBoundedNumberSpec {
-	readonly default: number;
-	readonly min: number;
-}
-
-/** A field carrying only a default value (booleans, enums, unbounded numbers, lists, composites). */
+/** A field carrying only a default value (booleans, enums, lists, composites). */
 export interface DefaultSpec<T> {
 	readonly default: T;
 }
@@ -71,7 +65,7 @@ export interface SizingSpec {
 export type ForceLayoutSpec = Readonly<Record<keyof ForceLayoutSettings, BoundedNumberSpec>>;
 
 export interface ViewSpec {
-	readonly nodeCap: MinBoundedNumberSpec;
+	readonly nodeCap: BoundedNumberSpec;
 	readonly outlineMaxDepth: BoundedNumberSpec;
 	readonly nodePreviewPreference: DefaultSpec<NodePreviewPreference>;
 	readonly showCrossLinks: DefaultSpec<boolean>;
@@ -180,15 +174,20 @@ export const SETTINGS_SPEC: SettingsSpec = {
 	},
 	globalView: {
 		/**
-		 * Hard cap default on non-central node count (step doc: default 100).
-		 * `min 1`: at least the central must be renderable. The min is an INPUT
-		 * affordance only, exactly like the depth stepper bounds: the number
-		 * inputs refuse values below it, but a persisted value is stored and
-		 * loaded verbatim (owner decision, nid_5meu9s38sbrv1703na77of4m7_e) —
-		 * a hand-edited nodeCap of 0 is harmless (the central renders alone),
-		 * unlike outlineMaxDepth's 0, which would be a hidden off-switch.
+		 * Hard cap on non-central node count (step doc: default 100).
+		 * `min 1`: at least the central must be renderable. `max 1000` (owner
+		 * decision 2026-07-29, nid_aau4r0sj8oudhi711qr9j5x1l_e): comfortably above
+		 * any legible graph — a legitimate request is effectively never blocked —
+		 * and a deliberate hard "no" to whole-vault rendering, which is not what
+		 * this plugin is for. The failure mode the ceiling closes is a typo/paste
+		 * (`100000000`), which used to degrade silently to "no truncation"
+		 * (`GraphTruncator` just slices) and push unbounded cost onto elk +
+		 * React Flow layout. The number inputs REFUSE out-of-spec entries and
+		 * `clampNodeCap` backstops the load path — superseding the earlier
+		 * loaded-verbatim call (nid_5meu9s38sbrv1703na77of4m7_e): unpublished
+		 * repo, so stored out-of-range values clamp on load, no migration.
 		 */
-		nodeCap: { default: 100, min: 1 },
+		nodeCap: { default: 100, min: 1, max: 1000, step: 1 },
 		/**
 		 * How many markdown heading levels a node's in-node outline renders.
 		 * Markdown has 6 levels; `2` shows sections + subsections, which is what
