@@ -5,10 +5,12 @@ import { EVERY_ROW_RENDERING_MODULE, readRowSourceWithoutComments } from "./rowR
  * EVERY typed number field on a settings surface is UNCONTROLLED and commits through the
  * ONE shared blur protocol — not just the ones that happen to go through `NumberRow`.
  *
- * WHY a source scan: nothing under `npm test` renders React (see
- * `settingsRowParity.test.ts`), so the decision a blur makes is tested at its seam
- * (`numberRowCommit.test.ts`) and the fact that a field is WIRED to that seam can only
- * be observed in the source.
+ * WHY a source scan: the decision a blur makes is tested at its seam
+ * (`numberRowCommit.test.ts`), and "EVERY typed field, on every surface, is wired to
+ * that seam" is a claim about the SOURCE — a rendered suite can only exercise the
+ * fields it mounts, so a field wired the old way in a module it never renders would
+ * pass it. The component tests (`*.component.test.tsx`, jsdom) cover the rendered
+ * half; this scan is what makes the rule total.
  *
  * WHY every row-rendering module and not just the panel's presenter: a typed field added
  * to a row's own component (`DepthStepper`) or to the section walker (`GraphToolbar`) is
@@ -24,8 +26,10 @@ import { EVERY_ROW_RENDERING_MODULE, readRowSourceWithoutComments } from "./rowR
  *
  * WHAT IT DOES NOT GUARANTEE: it proves the props are SPREAD onto the field, never
  * that the surrounding component renders the refusal those props describe, nor that
- * the field is placed correctly. Both need a surface that can be rendered
- * (`nid_7qot0m6nuxxmd5z0yb9jylsd6_e`).
+ * the field is placed correctly. For the PANEL both are now rendered and asserted in
+ * `SettingsRowView.component.test.tsx` (jsdom); the settings tab has no rendered
+ * counterpart (Obsidian's `Setting` API cannot mount in jsdom — the `obsidian`
+ * package is types-only), so there the e2e gate remains the check.
  */
 
 /** One `<input type="number">` found in a scanned module: its attribute text, and where it lives. */

@@ -6,9 +6,10 @@ import { PendingEdits } from "./optimisticValue";
  * persisted write is serialised by `SettingsWritePipeline` and the graph rebuild
  * that carries the value back takes a traversal + layout round-trip.
  *
- * Every rule lives in the pure {@link PendingEdits} (this repo has no React
- * component-test infrastructure, so nothing testable may live here). This wrapper
- * only owns the React mechanics:
+ * Every rule lives in the pure {@link PendingEdits}, enumerated exhaustively in
+ * `optimisticValue.test.ts`; the rendered loop — a real control clicked in a burst —
+ * is pinned in `DepthStepper.component.test.tsx`. This wrapper only owns the React
+ * mechanics:
  *
  * - Reconciling DURING RENDER, not in an effect. Adjusting state while rendering is
  *   React's own documented answer for "derive from a changed prop"; an effect would

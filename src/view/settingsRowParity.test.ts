@@ -27,9 +27,9 @@ import { SETTINGS_SECTIONS } from "./settingsSectionFields";
  * switch with no `default`, which TypeScript is perfectly happy to let fall through.
  * Hence a SOURCE SCAN, for the same reason
  * `engineDefaultsSingleSource`, `importGuard` and `selectorGuard` are source scans:
- * the repo has no ESLint and no React component-test infrastructure (tracked in
- * `nid_7qot0m6nuxxmd5z0yb9jylsd6_e`), so nothing under `npm test` can render either
- * surface and observe its rows.
+ * the repo has no ESLint, and the SETTINGS TAB cannot be rendered under `npm test`
+ * at all — it builds its rows through Obsidian's `Setting` API and the `obsidian`
+ * package is types-only, so only a real Obsidian (the e2e gate) can mount it.
  *
  * Structural, never a hand-enumerated list: everything asserted is derived from
  * `settingsRows.ts`, so declaring a row is the only edit a new setting needs.
@@ -41,8 +41,11 @@ import { SETTINGS_SECTIONS } from "./settingsSectionFields";
  * - Assertion 3 blocks the realistic per-row escape (naming a row) but not an
  *   INDEX- or PREDICATE-based subset of a block's rows (`rows.slice(1)`,
  *   `rows.filter(somePredicate)`), which names nothing.
- * Both residuals need a surface that can be RENDERED and inspected, i.e. the component
- * -test harness in `nid_7qot0m6nuxxmd5z0yb9jylsd6_e` — recorded on that ticket.
+ * For the PANEL both residuals are closed by a rendered suite:
+ * `GraphToolbar.component.test.tsx` (jsdom) mounts the whole panel and asserts every
+ * declared row's controls under their declared accessible names, in declared order.
+ * For the TAB they remain open (it cannot mount outside a real Obsidian, see above),
+ * which is why this scan keeps covering both surfaces rather than shrinking to one.
  */
 
 /**
