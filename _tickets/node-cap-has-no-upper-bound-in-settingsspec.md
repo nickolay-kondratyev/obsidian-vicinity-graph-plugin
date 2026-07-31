@@ -1,12 +1,13 @@
 ---
+closed_iso: 2026-07-31T18:08:06Z
 id: nid_aau4r0sj8oudhi711qr9j5x1l_e
 tags: [settings]
 title: Node cap has no upper bound in SETTINGS_SPEC
-status: in_progress
+status: closed
 deps: []
 links: []
 created_iso: '2026-07-27T17:44:42Z'
-status_updated_iso: '2026-07-31T17:58:56Z'
+status_updated_iso: 2026-07-31T18:08:06Z
 type: task
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
@@ -42,3 +43,15 @@ is a typo/paste (e.g. 100000000), which today silently degrades to "no truncatio
 GraphTruncator.ts:42 just slices, pushing unbounded cost onto elk + React Flow layout.
 
 Unpublished repo => clamp stored values on load, no migration.
+
+**2026-07-31T18:08:06Z**
+
+RESOLVED (commit 7e2e395, branch CC_nid_aau4r0sj8oudhi711qr9j5x1l_e__...): ceiling 1000 implemented per owner decision.
+
+- `SETTINGS_SPEC.globalView.nodeCap` is now a plain `BoundedNumberSpec` `{ default: 100, min: 1, max: 1000, step: 1 }` with a WHY comment for the ceiling (typo/paste hole; deliberate "no" to whole-vault rendering).
+- New engine clamp `clampNodeCap` (src/engine/constants.ts): rounds + clamps into 1..1000, NaN -> default, matching every other settings clamp. Registered in the `settingsSpecBounds.test.ts` enforcer table (removed from the outside-the-engine allowlist).
+- Load path clamps: `persistedShapes.ts` parses `nodeCap` through `clampNodeCap` (pre-release clean break, superseding the loaded-verbatim rule from nid_5meu9s38sbrv1703na77of4m7_e; the "stored 0 survives" test replaced by below-min/above-max clamp tests).
+- Write path: the nodeCap accessor's bounds come from the spec leaf (tab input min/max/step attributes follow automatically), `accept` refuses out-of-range typed entries on BOTH surfaces, `settlesAt`/`interaction` clamp via `clampNodeCap` as backstop.
+- Range 1..1000 pinned as a product literal in `settingsProductDefaults.test.ts` (third pinned-range exception).
+- Dead max-less machinery removed wholesale: `MinBoundedNumberSpec`, `MIN_NODE_CAP`, `NODE_CAP_STEP`, `SettingsRowClosedBounds`, `SettingsTrackAccessor` (`SettingsRowBounds.max` is now required). CLAUDE.md + architecture-map updated accordingly.
+- Verified: `npm run check` clean; `npm test` 1345/1345 pass.
