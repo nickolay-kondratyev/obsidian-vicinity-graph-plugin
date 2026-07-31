@@ -164,6 +164,26 @@ function boundaryGapPx(layout: StrandedLayout, sourceId: string, targetId: strin
 	return dist - extentAlongEdge(sourceId) - extentAlongEdge(targetId);
 }
 
+/**
+ * READ BEFORE REUSING THIS METRIC (ticket nid_nvk25n73l5hahwdx9o8rmoyl4_e).
+ * The worst boundary gap is a REGRESSION SIGNAL on the two fixtures this suite
+ * pins — it is NOT a general layout-quality score, for two measured reasons:
+ *
+ * 1. DEGREE-BLIND. On high-degree star fixtures it reports 22-24 "stranded"
+ *    edges at EVERY root seed spacing: a hub physically cannot seat all its
+ *    neighbours within the budget, so the number says nothing about quality
+ *    there. It only means something where the fixture's degrees allow seating.
+ * 2. CHAOTIC IN THE SEED. The d3 refinement is chaotically sensitive to its
+ *    input arrangement: a +-4px nudge to `ELK_ROOT_SEED_NODE_SPACING_PX`
+ *    (36..44) moves this metric as much as or MORE than the whole 5..200 sweep
+ *    does (466..1032px vs 455..789px on the 26-box vault mirror). Any future
+ *    root-pass tuning MUST be judged on a DISTRIBUTION over many fixtures —
+ *    a single reading is noise.
+ *
+ * Evidence + reusable sweep harness: `.ai_out/root-seed-spacing/
+ * nid_zvoay26y4y9h1e2p2b1y9glfk_e_2026-07-30T00-28-34PDT/` (`seed-sweep/`).
+ * The seed constant's own doc (`constants.ts`) carries the same conclusion.
+ */
 function worstBoundaryGapPx(layout: StrandedLayout): number {
 	return Math.max(...layout.rootEdges.map((edge) => boundaryGapPx(layout, edge.source, edge.target)));
 }
