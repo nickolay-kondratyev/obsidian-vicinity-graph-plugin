@@ -1,18 +1,18 @@
 ---
 id: nid_tpghu4nsbt08slhm2vannrnqw_e
-title: "Link preview: modal UI (outline, grouped links, expand/collapse, GO navigation)"
-status: open
+title: 'Link preview: modal UI (outline, grouped links, expand/collapse, GO navigation)'
+status: in_progress
 deps: [nid_5q8dri0jtwnzwt34vfkcnw49x_e]
 links: []
-created_iso: 2026-07-31T18:49:32Z
-status_updated_iso: 2026-07-31T18:49:32Z
+created_iso: '2026-07-31T18:49:32Z'
+status_updated_iso: '2026-07-31T20:05:22Z'
 type: task
 priority: 3
 assignee: nickolaykondratyev
 parent: nid_tohotgq2s92dvd1iov1rd0umv_e
 tags: [link-preview, ui]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin
 ---
-
 Part 3/4 of parent ticket nid_tohotgq2s92dvd1iov1rd0umv_e (_tickets/show-the-preview-of-the-links.md). Depends on the view-model ticket (see deps). LOAD ${MY_DEEP_MEM}/my-frontend-design.md before designing.
 
 Build the preview modal: an Obsidian Modal subclass (precedent: src/view/ConfirmModal.ts) hosting a React 18 root rendering the view-model.
@@ -29,4 +29,3 @@ Build the preview modal: an Obsidian Modal subclass (precedent: src/view/Confirm
 - Rows toggle collapsed/expanded context; Collapse all / Expand all enablement matches the view-model in all states
 - GO icon navigates to the occurrence line (backlink GO recenters graph); rows without positions show no GO icon
 - Component tests pass under npm test; npm run check passes
-
