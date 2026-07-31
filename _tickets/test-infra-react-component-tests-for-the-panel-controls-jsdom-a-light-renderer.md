@@ -1,17 +1,18 @@
 ---
 id: nid_7qot0m6nuxxmd5z0yb9jylsd6_e
-title: "Test infra: React component tests for the panel controls (jsdom + a light renderer)"
-status: open
+title: 'Test infra: React component tests for the panel controls (jsdom + a light
+  renderer)'
+status: in_progress
 deps: []
 links: [nid_m5hxe4eo9jgt7cfic7s2o3uvi_e]
-created_iso: 2026-07-30T00:57:03Z
-status_updated_iso: 2026-07-30T00:57:03Z
+created_iso: '2026-07-30T00:57:03Z'
+status_updated_iso: '2026-07-31T17:38:24Z'
 type: task
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
 tags: [settings, testing]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin
 ---
-
 The panel controls (`src/view/*.tsx`) have NO component-test harness: vitest runs in the node environment, there is no jsdom/happy-dom and no react renderer dev-dep. Correctness therefore lives in pure helpers next to the components (`optimisticValue.ts`, `ControlsModel.ts`, `settingsWritePlan.ts`) and the components themselves are covered only by Playwright e2e (a release gate, not `npm test`).
 
 WHY NOW: this cost real correctness once. The optimistic-controls layer shipped in nid_m5hxe4eo9jgt7cfic7s2o3uvi_e was NON-FUNCTIONAL on every code path (the reconciliation rule had no memory of the baseline stored value, so it released the override on the first re-render). Nine passing unit tests on the pure class did not catch it, because the case that always happens in production -- "the store has not moved yet" -- was the one case not enumerated. It was found by review, not by the suite.
