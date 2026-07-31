@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { GraphNode, NodePreviewPreference, OutlineEntry, ViewSettings } from "../engine";
 import { asDocId, asFolderPath, asVaultPath, NODE_PREVIEW_PREFERENCES } from "../engine";
 import { OUTLINE_RENDER_LIMIT } from "./constants";
-import { vicinityGraphToFlow, withGroupDimensions, withPositions } from "./flowMapping";
+import { edgeKindClassName, vicinityGraphToFlow, withGroupDimensions, withPositions } from "./flowMapping";
 import type { FlowNode, NoteFlowNode } from "./flowMapping";
 import { NO_ORPHAN_TRUNCATION } from "./truncationBadges";
 import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
@@ -289,7 +289,7 @@ describe("vicinityGraphToFlow group-collapsed edges", () => {
 		});
 		const edges = toFlow(graph).edges;
 		expect(edges).toEqual([
-			{ id: "notes/a.md->notes/b.md", source: "notes/a.md", target: "notes/b.md", count: 1, hasOpposite: false, bidirectional: false },
+			{ id: "notes/a.md->notes/b.md", source: "notes/a.md", target: "notes/b.md", count: 1, kind: "link", hasOpposite: false, bidirectional: false },
 		]);
 	});
 
@@ -300,6 +300,41 @@ describe("vicinityGraphToFlow group-collapsed edges", () => {
 		});
 		// First-seen edge is notes/a.md -> hub.md, so the group is the source.
 		expect(toFlow(graph).edges[0]?.source).toBe("folder-group:notes");
+	});
+});
+
+describe("vicinityGraphToFlow edge kinds (stage-2 embed rendering)", () => {
+	it("WHEN a passthrough edge carries an engine kind THEN it is forwarded to the flow edge", () => {
+		const graph = makeGraph({
+			nodes: [makeNode({ path: asVaultPath("a.md") }), makeNode({ path: asVaultPath("b.md") })],
+			edges: [makeEdge("a.md", "b.md", 1, "embed")],
+		});
+		expect(toFlow(graph).edges[0]?.kind).toBe("embed");
+	});
+
+	it("WHEN collapsed contributors AGREE on a kind THEN the collapsed edge keeps it", () => {
+		const graph = makeGraph({
+			nodes: collapsedGraph().nodes,
+			edges: [makeEdge("hub.md", "notes/a.md", 1, "embed"), makeEdge("hub.md", "notes/b.md", 1, "embed")],
+		});
+		expect(toFlow(graph).edges[0]?.kind).toBe("embed");
+	});
+
+	it("WHEN collapsed contributors MIX kinds THEN the collapsed edge unions them to 'both'", () => {
+		const graph = makeGraph({
+			nodes: collapsedGraph().nodes,
+			edges: [makeEdge("hub.md", "notes/a.md", 1, "link"), makeEdge("hub.md", "notes/b.md", 1, "embed")],
+		});
+		expect(toFlow(graph).edges[0]?.kind).toBe("both");
+	});
+
+	it("WHEN mapping each kind to its CSS hook THEN the three kinds get three distinct classes", () => {
+		const classes = [edgeKindClassName("link"), edgeKindClassName("embed"), edgeKindClassName("both")];
+		expect(classes).toEqual([
+			"vicinity-graph-edge--kind-link",
+			"vicinity-graph-edge--kind-embed",
+			"vicinity-graph-edge--kind-both",
+		]);
 	});
 });
 

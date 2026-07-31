@@ -1,4 +1,4 @@
-import type { FolderPath, GraphNode, OutlineEntry, ViewSettings, VicinityGraph } from "../engine";
+import type { EdgeKind, FolderPath, GraphNode, OutlineEntry, ViewSettings, VicinityGraph } from "../engine";
 import { VaultPathFacts } from "../shared/VaultPathFacts";
 import { OUTLINE_RENDER_LIMIT } from "./constants";
 import type { NodePreviewKind } from "./nodePreviewChoice";
@@ -119,6 +119,12 @@ export interface FlowEdge {
 	/** Distinct links source→target — the edge's count badge (1 = no badge). */
 	readonly count: number;
 	/**
+	 * The pair's relationship summary (engine truth) — drives the stroke styling
+	 * via {@link edgeKindClassName}. A collapsed group edge UNIONS its
+	 * contributors' kinds: any link+embed mix reads `"both"`.
+	 */
+	readonly kind: EdgeKind;
+	/**
 	 * True when the reverse edge (target→source) is also rendered as a SEPARATE
 	 * FlowEdge. Both edges of such a pair curve away from the straight line on
 	 * the right of their OWN travel direction, which mirrors them automatically
@@ -213,6 +219,7 @@ interface CollapsedEdgeAccumulator {
 	forwardSeen: boolean;
 	backwardSeen: boolean;
 	count: number;
+	kind: EdgeKind;
 }
 
 /** Separator that cannot occur in a vault path or folder-group id — a collision-proof delimiter. */
@@ -253,12 +260,13 @@ function buildFlowEdges(
 				source: edge.source,
 				target: edge.target,
 				count: edge.count,
+				kind: edge.kind,
 				hasOpposite: renderedEdgeIds.has(edgeIdOf({ source: edge.target, target: edge.source })),
 				bidirectional: false,
 			});
 			continue;
 		}
-		accumulateCollapsedEdge(collapsedByPair, projSource, projTarget, edge.count);
+		accumulateCollapsedEdge(collapsedByPair, projSource, projTarget, edge.count, edge.kind);
 	}
 	const collapsed = [...collapsedByPair.values()].map(
 		(pair): FlowEdge => ({
@@ -266,6 +274,7 @@ function buildFlowEdges(
 			source: pair.from,
 			target: pair.to,
 			count: pair.count,
+			kind: pair.kind,
 			hasOpposite: false,
 			bidirectional: pair.forwardSeen && pair.backwardSeen,
 		}),
@@ -273,24 +282,57 @@ function buildFlowEdges(
 	return [...passthrough, ...collapsed];
 }
 
+/**
+ * Kind union for a collapsed edge: two agreeing contributors keep their kind,
+ * any disagreement (which necessarily mixes link with embed) reads `"both"` —
+ * the same "summary, not a race" rule the engine applies per pair.
+ */
+function mergeEdgeKinds(a: EdgeKind, b: EdgeKind): EdgeKind {
+	return a === b ? a : "both";
+}
+
 function accumulateCollapsedEdge(
 	collapsedByPair: Map<string, CollapsedEdgeAccumulator>,
 	projSource: string,
 	projTarget: string,
 	count: number,
+	kind: EdgeKind,
 ): void {
 	const key = [projSource, projTarget].sort().join(UNORDERED_PAIR_KEY_SEPARATOR);
 	const existing = collapsedByPair.get(key);
 	if (existing === undefined) {
-		collapsedByPair.set(key, { from: projSource, to: projTarget, forwardSeen: true, backwardSeen: false, count });
+		collapsedByPair.set(key, {
+			from: projSource,
+			to: projTarget,
+			forwardSeen: true,
+			backwardSeen: false,
+			count,
+			kind,
+		});
 		return;
 	}
 	existing.count += count;
+	existing.kind = mergeEdgeKinds(existing.kind, kind);
 	if (projSource === existing.from && projTarget === existing.to) {
 		existing.forwardSeen = true;
 	} else {
 		existing.backwardSeen = true;
 	}
+}
+
+/**
+ * Class the React Flow edge WRAPPER carries per {@link EdgeKind} — the CSS-only
+ * hook behind the stroke vocabulary (solid link / dashed embed / dash-dot both,
+ * see graph-view.css). A `Record`, so a new kind cannot ship unstyled.
+ */
+const EDGE_KIND_CLASS: Readonly<Record<EdgeKind, string>> = {
+	link: "vicinity-graph-edge--kind-link",
+	embed: "vicinity-graph-edge--kind-embed",
+	both: "vicinity-graph-edge--kind-both",
+};
+
+export function edgeKindClassName(kind: EdgeKind): string {
+	return EDGE_KIND_CLASS[kind];
 }
 
 /**

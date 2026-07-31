@@ -46,7 +46,7 @@ export interface TraversedNode {
 
 export interface TraversalResult {
 	readonly nodes: ReadonlyMap<VaultPath, TraversedNode>;
-	/** Walked (source, target) pairs — count-free; multiplicity is attached by EdgeCounts. */
+	/** Walked (source, target) pairs — count-free; multiplicity and kind are attached by EdgeAssembly. */
 	readonly edges: readonly DirectedLink[];
 	/** Distinct non-root neighbor paths rejected by global exclusion during traversal. */
 	readonly excludedNodeCount: number;

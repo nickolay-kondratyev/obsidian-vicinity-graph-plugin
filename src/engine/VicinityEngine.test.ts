@@ -131,6 +131,16 @@ describe("VicinityEngine end-to-end build", () => {
 			"notes/alpha.md->notes/gamma.md",
 		]);
 	});
+
+	it("WHEN a note EMBEDS MAIN and arrives via the kind-blind incoming channel THEN its edge still reads 'embed' (assembly reads provider truth)", () => {
+		const graph = new VicinityEngine(
+			new FakeLinkProvider({
+				files: [{ path: "hub.md" }, { path: "embedder.md" }],
+				embeds: { "embedder.md": ["hub.md"] },
+			}),
+		).build(buildRequest({ pinned: [] }));
+		expect(graph.edges).toEqual([{ source: "embedder.md", target: "hub.md", count: 1, kind: "embed" }]);
+	});
 });
 
 /** Settings are GLOBAL-only: one depth dial, one view object, no override layer. */

@@ -138,9 +138,11 @@ export interface LinkProvider {
 	 * KIND-BLIND on purpose: it counts links and embeds together. Obsidian's own
 	 * `resolvedLinks` — the number this reports for markdown — is itself a merged
 	 * count, so a per-kind split would have to re-derive the TOTAL from the file
-	 * cache and could therefore change a rendered badge. Nothing needs the split
-	 * yet (the traversal never asks for counts at all), so the honest answer stays
-	 * the merged one until a stage genuinely needs otherwise.
+	 * cache and could therefore change a rendered badge. REVISITED for the stage-2
+	 * embed-edge rendering (ticket `nid_2qygmn0z59t8fdlb5e9pap49m_e`) and
+	 * deliberately KEPT merged: the edge's KIND summary comes from
+	 * {@link getOutgoingReferences} at edge assembly, so styling never needed a
+	 * per-kind count and the badge number is unchanged.
 	 */
 	getLinkCount(source: VaultPath, target: VaultPath): number;
 }

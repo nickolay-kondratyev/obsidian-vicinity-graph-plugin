@@ -135,7 +135,15 @@ export class NodeSizer {
 		return total;
 	}
 
-	/** Attachments are not nodes, so links to them do not count as outlinks. */
+	/**
+	 * Attachments are not nodes, so links to them do not count as outlinks.
+	 *
+	 * KIND-BLIND deliberately (stage-2 decision, ticket
+	 * `nid_2qygmn0z59t8fdlb5e9pap49m_e`): sizing answers "how connected is this
+	 * note", not "what will the graph traverse", so with `embedDepthOut: 0` a node
+	 * is still sized by embed targets the walk never reaches — consistent with the
+	 * equally kind-blind {@link LinkProvider.getLinkCount} behind the edge badge.
+	 */
 	private nodeBearingOutlinkCount(path: VaultPath): number {
 		return this.provider.getOutgoingLinks(path).filter((target) => this.eligibility.isNodeBearing(target)).length;
 	}

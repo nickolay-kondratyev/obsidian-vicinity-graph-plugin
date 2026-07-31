@@ -47,7 +47,7 @@ describe("CrossLinkSweep induced subgraph", () => {
 		expect(sweptPairs()).toEqual(["a.md->b.md", "m.md->a.md", "m.md->b.md"]);
 	});
 
-	it("WHEN a source declares the same link twice THEN the pair is emitted once (count comes from EdgeCounts)", () => {
+	it("WHEN a source declares the same link twice THEN the pair is emitted once (count comes from EdgeAssembly)", () => {
 		const pairs = CrossLinkSweep.inducedPairs({
 			walkedVisibleEdges: [],
 			visiblePaths: new Set([asVaultPath("m.md"), asVaultPath("a.md")]),

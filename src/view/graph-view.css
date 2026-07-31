@@ -38,6 +38,20 @@
 	fill: var(--text-faint);
 }
 
+/*
+ * Edge KIND vocabulary (stage-2): the class rides the React Flow edge wrapper
+ * (toReactFlowEdge -> edgeKindClassName), styling the BaseEdge path CSS-only.
+ * Solid = plain link (default, no rule needed); dashed = EMBED; dash-dot = the
+ * pair is BOTH embedded and plainly linked (reads as the two patterns merged).
+ */
+.vicinity-graph-flow .vicinity-graph-edge--kind-embed .react-flow__edge-path {
+	stroke-dasharray: 6 4;
+}
+
+.vicinity-graph-flow .vicinity-graph-edge--kind-both .react-flow__edge-path {
+	stroke-dasharray: 12 3 3 3;
+}
+
 .vicinity-graph-flow .react-flow__controls {
 	border-radius: var(--radius-s);
 	overflow: hidden;
