@@ -1,15 +1,16 @@
 ---
+closed_iso: 2026-07-31T17:24:42Z
 id: nid_5rdya0nr660n9sru1zhfs51ic_e
 title: "Settings cleanup — ratify the literal-defaults tripwire size: SMALL was asked for, all 21 spec leaves shipped"
-status: open
+status: closed
 deps: []
 links: [nid_x6hgehsu5il1d1shuraz3ufqy_e]
 created_iso: 2026-07-30T03:35:36Z
-status_updated_iso: 2026-07-30T03:35:36Z
+status_updated_iso: 2026-07-31T17:24:42Z
 type: task
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
-tags: [settings, settings-cleanup, testing, decide]
+tags: [settings, settings-cleanup, testing]
 ---
 
 Overarching context: docs-internal/notes/settings.md (grouping tag: settings-cleanup). Follow-up from step 5, nid_x6hgehsu5il1d1shuraz3ufqy_e (closed).
@@ -46,4 +47,23 @@ Evidence and the full mutation matrix live in .ai_out/settings-cleanup-spec-driv
 - IF (b): src/engine/settingsProductDefaults.test.ts trimmed to the named subset, its header comment made honest about what is NO LONGER guarded, and each remaining pin re-proved to redden by mutation.
 - IF (a): no code change; ratification recorded in docs-internal/notes/settings.md.
 - npm test green either way.
+
+## Resolution (2026-07-31)
+
+**Owner picked (a): RATIFY the total table as-is.** The one total golden-defaults
+table in `src/engine/settingsProductDefaults.test.ts` (all 21 spec-leaf defaults,
+id-keyed, plus the two pinned ranges) is the intended contract. Rationale accepted:
+the curated subset was tried first and measurably left three defaults with zero
+tripwire (including the twice-stale `linkStrengthFactor` max 4), every admission
+rule for "product-meaningful" rotted, and only a total table catches an added or
+removed spec leaf — while the old staleness (three mirrored baselines) stays fixed
+because every mutation reddens exactly one test in one file.
+
+**Owner also confirmed the CLAUDE.md convention bullet**: settings default/range
+literals live in exactly ONE file (`settingsProductDefaults.test.ts`), never
+mirrored into another suite — this is the standing rule going forward.
+
+No code change. Ratification recorded in `docs-internal/notes/settings.md`
+("Owner decision — RATIFIED 2026-07-31" + the standing-decisions bullet).
+`decide` tag removed; ticket closed.
 

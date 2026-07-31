@@ -91,12 +91,14 @@ mirrored baselines that went stale twice. Tab-vs-panel parity stays a source sca
 (`src/view/settingsRowParity.test.ts`) — render-level parity belongs to
 `nid_7qot0m6nuxxmd5z0yb9jylsd6_e`.
 
-**Open owner decision (`decide`)**: the standing instruction was a **SMALL** literal
-set; what shipped pins **all 21** spec leaves. Review measured that a default change
-then fails exactly one file / one test, and that only a TOTAL table notices a newly
-added leaf — it judged the widening acceptable, but it is a deviation from an explicit
-owner instruction and awaits ratification (`nid_5rdya0nr660n9sru1zhfs51ic_e` carries
-the argument). Until it is ratified, treat the total table as provisional.
+**Owner decision — RATIFIED 2026-07-31** (`nid_5rdya0nr660n9sru1zhfs51ic_e`): the
+standing instruction was a **SMALL** literal set; what shipped pins **all 21** spec
+leaves. The owner ratified the TOTAL table as the intended contract: a curated subset
+was tried first and measurably left three defaults with zero tripwire (including the
+twice-stale `linkStrengthFactor` max), and only a total table notices a leaf being
+added or removed. Also confirmed as the standing rule: settings default/range
+literals live in exactly ONE file, `src/engine/settingsProductDefaults.test.ts`,
+never mirrored into another suite (the CLAUDE.md convention bullet stands).
 
 ### Cost of adding one field AFTER ticket 2
 
@@ -252,7 +254,7 @@ upper bound), `nid_uwnew3dok0gn8ijar54hiozst_e` (pre-release slider tuning).
   `RELEASE_CHECKLIST.md` §7.
 - **Tests**: structural spec-iterating tests, but KEEP a small number of literal
   assertions for product-meaningful defaults (e.g. nodeCap 100). **Ticket 5 shipped
-  all 21 leaves in one table instead — ratification pending, see above.**
+  all 21 leaves in one table instead — RATIFIED by owner 2026-07-31, see above.**
 - **Obsidian constraint**: the Setting API cannot mount inside React, so there
   will always be two renderer *implementations* — parity is guarded by a test
   over the descriptor list, not by a single renderer.
