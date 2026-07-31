@@ -1,5 +1,5 @@
 import { Background, Controls, Panel, ReactFlow, useReactFlow, useStore } from "@xyflow/react";
-import type { Edge, EdgeTypes, Node, NodeMouseHandler, NodeTypes } from "@xyflow/react";
+import type { Edge, EdgeMouseHandler, EdgeTypes, Node, NodeMouseHandler, NodeTypes } from "@xyflow/react";
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 import type { ReactElement } from "react";
 import { hiddenOverlayText, orphanBreakdownTitle } from "./badgeText";
@@ -44,10 +44,23 @@ export function VicinityGraphFlow({
 	const edges = useMemo<Edge[]>(() => snapshot.edges.map(toReactFlowEdge), [snapshot.edges]);
 
 	const onNodeClick = useCallback<NodeMouseHandler>(
-		// Ctrl/cmd-click opens a NEW tab (CLARIFICATION Q2) — `opensInNewTab` is the
-		// ONE definition of that gesture, shared with the outline entries. The
-		// controller ignores folder-group ids.
-		(event, node) => controller.openNode(node.id, { newTab: opensInNewTab(event) }),
+		// Plain click previews, ctrl/cmd-click opens the note in a NEW tab (human
+		// alignment 2026-07-31, ticket nid_z2k1eebic1nilpz9z3r65cnrx_e) —
+		// `opensInNewTab` is the ONE definition of that gesture, shared with the
+		// outline entries. The controller ignores folder-group ids on both paths.
+		(event, node) => {
+			if (opensInNewTab(event)) {
+				controller.openNode(node.id, { newTab: true });
+				return;
+			}
+			void controller.openNodePreview(node.id);
+		},
+		[controller],
+	);
+
+	const onEdgeClick = useCallback<EdgeMouseHandler>(
+		// Edge source/target are note vault paths (folder groups never carry edges).
+		(_event, edge) => void controller.openEdgePreview(edge.source, edge.target),
 		[controller],
 	);
 
@@ -77,6 +90,7 @@ export function VicinityGraphFlow({
 							nodeTypes={NODE_TYPES}
 							edgeTypes={EDGE_TYPES}
 							onNodeClick={onNodeClick}
+							onEdgeClick={onEdgeClick}
 							nodesConnectable={false}
 							// The graph is read-only in V1: layout is elk-driven and would
 							// overwrite any manual placement on the next rebuild, so a drag

@@ -1,6 +1,7 @@
 import type { ElkNode } from "elkjs";
 import type { ForceLayoutSettings, ViewSettings, VicinityGraph } from "../engine";
 import type { ControlsModel } from "./ControlsModel";
+import type { LinkPreviewModel } from "./linkPreviewModel";
 import type { SettingsResetScope } from "./settingsResetPlan";
 import type { SettingsInteraction } from "./settingsWritePlan";
 
@@ -139,6 +140,18 @@ export interface NoteNavigatorPort {
  */
 export interface NoteOpenPort {
 	openNote(path: string, options: OpenNoteOptions): void;
+}
+
+/**
+ * Shows the link-preview modal for an already-built model (parent ticket
+ * `nid_tohotgq2s92dvd1iov1rd0umv_e`). Its own port — not a {@link GraphUiPort}
+ * method — because the CALLER is the controller (the one class allowed to run
+ * the async occurrence queries a model needs), not a node component; the modal
+ * chrome (`LinkPreviewModal`) stays behind this seam so the controller keeps
+ * zero obsidian coupling. Implemented by `ObsidianLinkPreview`.
+ */
+export interface LinkPreviewPort {
+	showLinkPreview(model: LinkPreviewModel): void;
 }
 
 /** Fires Obsidian's native `hover-link` page preview for a hovered node. */

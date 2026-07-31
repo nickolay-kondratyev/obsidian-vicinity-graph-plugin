@@ -1,13 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ElkNode } from "elkjs";
-import type { ForceLayoutSettings, OutlineEntry, VicinityGraph } from "../engine";
-import { asFolderPath, asVaultPath, EngineDefaults } from "../engine";
+import type { ForceLayoutSettings, LinkOccurrenceProvider, OutlineEntry, VicinityGraph } from "../engine";
+import { asFolderPath, asVaultPath, EngineDefaults, FakeLinkOccurrenceProvider } from "../engine";
 import { REBUILD_DEBOUNCE_MS } from "./constants";
 import { GraphViewController } from "./GraphViewController";
 import type { FlowSnapshot } from "./GraphViewController";
 import type { FlowNode, NoteFlowNode } from "./flowMapping";
 import type { ControlsModel } from "./ControlsModel";
-import type { GraphBuildResult, GraphLayoutPort, GraphSourcePort, NoteNavigatorPort, OpenNoteOptions } from "./viewPorts";
+import type { LinkPreviewModel } from "./linkPreviewModel";
+import type {
+	GraphBuildResult,
+	GraphLayoutPort,
+	GraphSourcePort,
+	LinkPreviewPort,
+	NoteNavigatorPort,
+	OpenNoteOptions,
+} from "./viewPorts";
 import type { EdgeRouteMap, EdgeRouter, EdgeRoutingInput } from "./edgeRouting";
 import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
 
@@ -158,21 +166,35 @@ class FakeNavigator implements NoteNavigatorPort {
 	}
 }
 
+/** Records every model the controller asked the modal seam to show. */
+class FakeLinkPreview implements LinkPreviewPort {
+	readonly shown: LinkPreviewModel[] = [];
+
+	showLinkPreview(model: LinkPreviewModel): void {
+		this.shown.push(model);
+	}
+}
+
 interface Harness {
 	readonly controller: GraphViewController;
 	readonly source: FakeGraphSource;
 	readonly layout: FakeLayout;
 	readonly navigator: FakeNavigator;
 	readonly router: FakeEdgeRouter;
+	readonly linkPreview: FakeLinkPreview;
 	snapshot(): FlowSnapshot;
 }
 
-function setup(router: FakeEdgeRouter = new FakeEdgeRouter()): Harness {
+function setup(
+	router: FakeEdgeRouter = new FakeEdgeRouter(),
+	occurrences: LinkOccurrenceProvider = new FakeLinkOccurrenceProvider({}),
+): Harness {
 	const source = new FakeGraphSource();
 	const layout = new FakeLayout();
 	const navigator = new FakeNavigator();
-	const controller = new GraphViewController(navigator, source, layout, router);
-	return { controller, source, layout, navigator, router, snapshot: () => controller.getSnapshot() };
+	const linkPreview = new FakeLinkPreview();
+	const controller = new GraphViewController(navigator, source, layout, router, occurrences, linkPreview);
+	return { controller, source, layout, navigator, router, linkPreview, snapshot: () => controller.getSnapshot() };
 }
 
 function nodeIds(snapshot: FlowSnapshot): string[] {
@@ -851,5 +873,90 @@ describe("GraphViewController metadata-resolve debounce", () => {
 		vi.advanceTimersByTime(REBUILD_DEBOUNCE_MS * 2);
 
 		expect(h.source.calls).toEqual(["a.md", "a.md"]); // the settings rebuild only
+	});
+});
+
+describe("GraphViewController link previews", () => {
+	const NOTE_OUTLINE: OutlineEntry[] = [{ rawText: "Intro", level: 1 }];
+	const OCCURRENCES = new FakeLinkOccurrenceProvider({
+		outgoing: {
+			"a.md": [
+				{ targetPath: asVaultPath("b.md"), offset: 3, context: null },
+				{ targetPath: asVaultPath("c.md"), offset: 9, context: null },
+			],
+		},
+		backlinks: {
+			"a.md": [{ sourcePath: asVaultPath("z.md"), occurrences: [{ offset: 1, context: null }] }],
+		},
+	});
+
+	/** GIVEN a rendered graph where a.md (with an outline) links b.md and c.md. */
+	async function renderedHarness(): Promise<Harness> {
+		const h = setup(new FakeEdgeRouter(), OCCURRENCES);
+		h.controller.handleActiveFileChanged("a.md");
+		const nodes = [
+			makeNode({ path: asVaultPath("a.md"), outline: NOTE_OUTLINE }),
+			makeNode({ path: asVaultPath("b.md") }),
+			makeNode({ path: asVaultPath("c.md") }),
+		];
+		const edges = [makeEdge("a.md", "b.md"), makeEdge("a.md", "c.md")];
+		h.source.resolveBuild(0, makeGraph({ nodes, edges }));
+		await flush();
+		return h;
+	}
+
+	it("WHEN a node preview opens THEN the seam shows a node model carrying the rendered node's outline", async () => {
+		const h = await renderedHarness();
+
+		await h.controller.openNodePreview("a.md");
+
+		expect(h.linkPreview.shown).toMatchObject([{ kind: "node", path: "a.md", outline: NOTE_OUTLINE }]);
+	});
+
+	it("WHEN a node preview opens THEN its link rows are the provider's outgoing occurrences in order", async () => {
+		const h = await renderedHarness();
+
+		await h.controller.openNodePreview("a.md");
+
+		const model = h.linkPreview.shown[0];
+		expect(model?.kind === "node" ? model.linkRows.map((row) => row.occurrence.targetPath) : []).toEqual([
+			"b.md",
+			"c.md",
+		]);
+	});
+
+	it("WHEN a node preview opens THEN its backlink groups are the provider's answer", async () => {
+		const h = await renderedHarness();
+
+		await h.controller.openNodePreview("a.md");
+
+		const model = h.linkPreview.shown[0];
+		expect(model?.kind === "node" ? model.backlinkGroups.map((group) => group.sourcePath) : []).toEqual(["z.md"]);
+	});
+
+	it("WHEN a node preview is requested for a folder-group id THEN nothing is shown", async () => {
+		const h = await renderedHarness();
+
+		await h.controller.openNodePreview("folder-group:sub");
+
+		expect(h.linkPreview.shown).toEqual([]);
+	});
+
+	it("WHEN an edge preview opens THEN the seam shows the edge-scoped occurrences only", async () => {
+		const h = await renderedHarness();
+
+		await h.controller.openEdgePreview("a.md", "b.md");
+
+		expect(h.linkPreview.shown).toMatchObject([
+			{ kind: "edge", sourcePath: "a.md", targetPath: "b.md", rows: [{ occurrence: { offset: 3 } }] },
+		]);
+	});
+
+	it("WHEN an edge preview names a folder-group endpoint THEN nothing is shown", async () => {
+		const h = await renderedHarness();
+
+		await h.controller.openEdgePreview("folder-group:sub", "b.md");
+
+		expect(h.linkPreview.shown).toEqual([]);
 	});
 });
