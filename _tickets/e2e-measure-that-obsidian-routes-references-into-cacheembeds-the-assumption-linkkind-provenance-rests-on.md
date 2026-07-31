@@ -1,17 +1,18 @@
 ---
 id: nid_t0x7ap99djfuzvz5p261ao7rn_e
-title: "e2e-measure that Obsidian routes '!' references into cache.embeds (the assumption LinkKind provenance rests on)"
-status: open
+title: e2e-measure that Obsidian routes '!' references into cache.embeds (the assumption
+  LinkKind provenance rests on)
+status: in_progress
 deps: []
 links: [nid_fay1hu5sxcoygizopkkg0f0d7_e]
-created_iso: 2026-07-30T04:14:02Z
-status_updated_iso: 2026-07-30T04:14:02Z
+created_iso: '2026-07-30T04:14:02Z'
+status_updated_iso: '2026-07-31T17:48:32Z'
 type: task
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
 tags: [canvas, e2e, link-kinds]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-4
 ---
-
 Our link/embed kind for markdown comes ENTIRELY from array provenance: a reference in `cache.embeds` is an embed, one in `cache.links` is a link (src/adapters/ReferenceOrder.ts). That rests on an UNMEASURED assumption about Obsidian: that core routes exactly the `!`-prefixed references into `embeds`.
 
 A unit test cannot falsify this — the fixture author decides both arrays, so any such test is circular. One WAS written during ticket nid_fay1hu5sxcoygizopkkg0f0d7_e Stage 1 and deleted in review for exactly that reason (it derived the cache arrays from `original.startsWith("!")` and then asserted the kinds equal `original.startsWith("!")`).
@@ -23,4 +24,3 @@ Low priority: if the assumption were wrong, embed-ness would be visibly wrong ev
 ## Acceptance Criteria
 
 One e2e spec in e2e/ that reads a real Obsidian file cache and asserts the provenance-vs-"!"-prefix agreement for wikilink, embed, markdown-style link, image embed and frontmatter property link.
-
