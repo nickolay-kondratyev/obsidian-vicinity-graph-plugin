@@ -1,5 +1,5 @@
-import type { VicinityGraph } from "../engine";
-import { EngineDefaults } from "../engine";
+import type { LinkOccurrenceProvider, OutlineEntry, VicinityGraph } from "../engine";
+import { asVaultPath, EngineDefaults } from "../engine";
 import type { ControlsModel } from "./ControlsModel";
 import { REBUILD_DEBOUNCE_MS, SIZE_RELAYOUT_THRESHOLD } from "./constants";
 import { decideLayout } from "./GraphStructureDiff";
@@ -13,7 +13,14 @@ import type { EdgeRouteMap, EdgeRouter, EdgeRoutingInput, RoutedPoint } from "./
 import { isFolderGroupId } from "./graphIdentity";
 import { NO_ORPHAN_TRUNCATION } from "./truncationBadges";
 import type { OrphanTruncation } from "./truncationBadges";
-import type { GraphLayoutPort, GraphSourcePort, NoteNavigatorPort, OpenNoteOptions } from "./viewPorts";
+import { LinkPreviewModels } from "./linkPreviewModel";
+import type {
+	GraphLayoutPort,
+	GraphSourcePort,
+	LinkPreviewPort,
+	NoteNavigatorPort,
+	OpenNoteOptions,
+} from "./viewPorts";
 
 /**
  * Owns the rebuild pipeline `events → engine → structural diff → elkjs →
@@ -109,6 +116,8 @@ export class GraphViewController {
 		private readonly graphBuilder: GraphSourcePort,
 		private readonly layoutRunner: GraphLayoutPort,
 		private readonly edgeRouter: EdgeRouter,
+		private readonly occurrences: LinkOccurrenceProvider,
+		private readonly linkPreview: LinkPreviewPort,
 	) {}
 
 	// --- external store (React `useSyncExternalStore`) ---------------------
@@ -174,6 +183,48 @@ export class GraphViewController {
 			return; // Folder-group containers have no note behind them.
 		}
 		this.navigator.openNote(path, options);
+	}
+
+	/**
+	 * Plain node click (ticket `nid_z2k1eebic1nilpz9z3r65cnrx_e`): build the
+	 * NODE-scoped preview model — the async occurrence queries live here, keeping
+	 * the flow component sync — and hand it to the modal seam. Folder-group ids
+	 * are inert, same guard as {@link openNode}.
+	 */
+	async openNodePreview(path: string): Promise<void> {
+		if (isFolderGroupId(path)) {
+			return;
+		}
+		const vaultPath = asVaultPath(path);
+		const [outgoing, backlinks] = await Promise.all([
+			this.occurrences.outgoingOccurrences(vaultPath),
+			this.occurrences.backlinkOccurrences(vaultPath),
+		]);
+		this.linkPreview.showLinkPreview(
+			LinkPreviewModels.node({ path: vaultPath, outline: this.renderedOutlineOf(path), outgoing, backlinks }),
+		);
+	}
+
+	/** Edge click: the EDGE-scoped preview — only the source → target occurrences. */
+	async openEdgePreview(sourcePath: string, targetPath: string): Promise<void> {
+		if (isFolderGroupId(sourcePath) || isFolderGroupId(targetPath)) {
+			return; // Engine edges never touch group containers; guard against future edge kinds.
+		}
+		const source = asVaultPath(sourcePath);
+		const target = asVaultPath(targetPath);
+		const occurrences = await this.occurrences.occurrencesBetween(source, target);
+		this.linkPreview.showLinkPreview(
+			LinkPreviewModels.edge({ sourcePath: source, targetPath: target, occurrences }),
+		);
+	}
+
+	/**
+	 * The clicked node's outline as RENDERED (verbatim `FileMetadata.outline`,
+	 * carried on the engine node) — never re-derived, so the modal agrees with
+	 * the graph it was opened from. Empty when the node left the graph mid-click.
+	 */
+	private renderedOutlineOf(path: string): readonly OutlineEntry[] {
+		return this.previousGraph?.nodes.find((node) => node.path === path)?.outline ?? [];
 	}
 
 	// --- pipeline ----------------------------------------------------------

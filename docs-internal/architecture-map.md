@@ -51,6 +51,16 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   node components reach through `NoteOpenContext` (React Flow instantiates them,
   so context is the only channel). `NodeOutline.tsx` owns in-node outline
   rendering — the tree/label/markup decisions and `node-outline.css`.
+  `LinkPreviewPort` is the link-preview modal seam (parent ticket
+  `nid_tohotgq2s92dvd1iov1rd0umv_e`): node click / edge click reach
+  `GraphViewController.openNodePreview/openEdgePreview` (the async
+  `LinkOccurrenceProvider` queries stay in the controller), which builds a pure
+  `linkPreviewModel.ts` model and hands it to the port; `ObsidianLinkPreview`
+  implements it by hosting `LinkPreviewModal`. The occurrence data comes from
+  `engine/LinkOccurrenceProvider.ts` (engine-defined port), implemented per
+  query by `adapters/LiveLinkOccurrenceProvider.ts` over a fresh
+  `ObsidianLinkProvider` snapshot; `FakeLinkOccurrenceProvider` is its test
+  double.
   Refresh reach is ONE port: `ViewsRefreshPort` (implemented in `main.ts` over
   `refreshOpenViews()`) rebuilds every open view. `UserNoticePort` is the same
   shape for the one user-visible message surface (`Notice`, also implemented in

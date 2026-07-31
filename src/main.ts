@@ -5,6 +5,7 @@ import type { DocIdService } from "obsidian-id-lib";
 import { asVaultPath } from "./engine";
 import { BacklinksAdapter } from "./adapters/BacklinksAdapter";
 import { CanvasParseCache } from "./adapters/CanvasParseCache";
+import { LiveLinkOccurrenceProvider } from "./adapters/LiveLinkOccurrenceProvider";
 import { VicinityGraphBuilder } from "./adapters/VicinityGraphBuilder";
 import { ObsidianLinkProvider } from "./adapters/ObsidianLinkProvider";
 import { OrphanSweeper, SWEEP_DELAY_MS } from "./persistence/OrphanSweeper";
@@ -82,6 +83,13 @@ export default class VicinityGraphPlugin extends Plugin {
 		this.scheduleOrphanSweep();
 		this.addSettingTab(new VicinityGraphSettingTab(this.app, this));
 
+		// Shares the plugin-lived canvas parse cache with the builder, so a modal
+		// opened right after a rebuild re-parses nothing.
+		const occurrenceProvider = new LiveLinkOccurrenceProvider(
+			this.app.vault,
+			this.app.metadataCache,
+			this.canvasParseCache,
+		);
 		this.registerView(
 			VIEW_TYPE_VICINITY_GRAPH,
 			(leaf) =>
@@ -92,6 +100,7 @@ export default class VicinityGraphPlugin extends Plugin {
 					this.viewsRefresh,
 					this.settingsWrites,
 					this.notices,
+					occurrenceProvider,
 				),
 		);
 		// Node hover fires `hover-link` (step-05); registering the source lists

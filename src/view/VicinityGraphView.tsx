@@ -4,6 +4,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import type { Root } from "react-dom/client";
 import type { VicinityGraphBuilder } from "../adapters/VicinityGraphBuilder";
+import type { LinkOccurrenceProvider } from "../engine";
 import type { PersistenceServices } from "../persistence/PersistenceServices";
 import { ControlsActions } from "./ControlsActions";
 import { LibavoidEdgeRouter } from "./edgeRouting";
@@ -11,6 +12,7 @@ import { GraphLayoutRunner } from "./GraphLayoutRunner";
 import { GraphViewController } from "./GraphViewController";
 import { VicinityGraphFlow } from "./VicinityGraphFlow";
 import { ObsidianGraphUi } from "./ObsidianGraphUi";
+import { ObsidianLinkPreview } from "./ObsidianLinkPreview";
 import { ObsidianNoteNavigator } from "./ObsidianNoteNavigator";
 import type { SettingsWritePipeline } from "./settingsWritePipeline";
 import type { ControlsActionsPort, NoteNavigatorPort, UserNoticePort, ViewsRefreshPort } from "./viewPorts";
@@ -39,6 +41,8 @@ export class VicinityGraphView extends ItemView {
 		private readonly settingsWrites: SettingsWritePipeline,
 		/** The ONE user-message surface; owned by the plugin, which is where `Notice` lives. */
 		private readonly notices: UserNoticePort,
+		/** Per-query occurrence snapshots for the link-preview modal; owned by the plugin. */
+		private readonly occurrenceProvider: LinkOccurrenceProvider,
 	) {
 		super(leaf);
 	}
@@ -57,13 +61,15 @@ export class VicinityGraphView extends ItemView {
 
 	async onOpen(): Promise<void> {
 		const navigator = new ObsidianNoteNavigator(this.app);
+		const ui = new ObsidianGraphUi(this.app, VIEW_TYPE_VICINITY_GRAPH);
 		const controller = new GraphViewController(
 			navigator,
 			this.graphBuilder,
 			new GraphLayoutRunner(),
 			new LibavoidEdgeRouter(),
+			this.occurrenceProvider,
+			new ObsidianLinkPreview(this.app, ui, navigator),
 		);
-		const ui = new ObsidianGraphUi(this.app, VIEW_TYPE_VICINITY_GRAPH);
 		this.controller = controller;
 		const controlsActions = new ControlsActions(
 			this.persistenceServices,
