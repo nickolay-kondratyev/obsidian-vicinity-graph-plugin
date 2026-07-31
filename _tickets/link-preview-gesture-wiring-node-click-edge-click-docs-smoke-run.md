@@ -1,18 +1,18 @@
 ---
 id: nid_z2k1eebic1nilpz9z3r65cnrx_e
-title: "Link preview: gesture wiring (node click, edge click) + docs + smoke run"
-status: open
+title: 'Link preview: gesture wiring (node click, edge click) + docs + smoke run'
+status: in_progress
 deps: [nid_tpghu4nsbt08slhm2vannrnqw_e]
 links: []
-created_iso: 2026-07-31T18:49:32Z
-status_updated_iso: 2026-07-31T18:49:32Z
+created_iso: '2026-07-31T18:49:32Z'
+status_updated_iso: '2026-07-31T20:15:35Z'
 type: task
 priority: 3
 assignee: nickolaykondratyev
 parent: nid_tohotgq2s92dvd1iov1rd0umv_e
 tags: [link-preview]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin
 ---
-
 Part 4/4 of parent ticket nid_tohotgq2s92dvd1iov1rd0umv_e (_tickets/show-the-preview-of-the-links.md). Depends on the modal UI ticket (see deps).
 
 HUMAN-ALIGNED behavior change (clarified 2026-07-31): plain node click no longer opens the note.
@@ -28,4 +28,3 @@ HUMAN-ALIGNED behavior change (clarified 2026-07-31): plain node click no longer
 - Hover preview / right-click pin menu / attachment chip behavior unchanged
 - README + architecture map updated; smoke-run ticket filed
 - npm test and npm run check pass
-
