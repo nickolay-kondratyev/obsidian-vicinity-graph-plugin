@@ -342,7 +342,7 @@ export const SETTINGS_SPEC: SettingsSpec = {
 			 * matters when re-testing layout) keep 40 until "Restore force layout
 			 * defaults".
 			 */
-			elkNodeSpacingPx: { default: 20, min: 10, max: 120, step: 5 },
+			elkNodeSpacingPx: { default: 40, min: 10, max: 120, step: 5 },
 			/**
 			 * UI "Edge clearance" (advanced) — px clearance the obstacle-avoiding
 			 * edge router keeps around EVERY box (libavoid `shapeBufferDistance`,
