@@ -7,6 +7,7 @@ import { GRAPH_MIN_ZOOM } from "./constants";
 import { ControlsActionsContext } from "./ControlsActionsContext";
 import { FolderGroupNode } from "./FolderGroupNode";
 import type { FlowEdge, FlowNode } from "./flowMapping";
+import { edgeKindClassName } from "./flowMapping";
 import { GraphToolbar } from "./GraphToolbar";
 import type { GraphViewController } from "./GraphViewController";
 import { GraphUiContext } from "./GraphUiContext";
@@ -185,6 +186,8 @@ function toReactFlowEdge(edge: FlowEdge): Edge {
 		source: edge.source,
 		target: edge.target,
 		type: "vicinity",
+		// Rides the RF edge wrapper <g>, so the kind styling stays CSS-only.
+		className: edgeKindClassName(edge.kind),
 		// Arrowhead is drawn by VicinityEdge (inset from the target), not RF's marker-end.
 		// routedPoints are ABSOLUTE flow-space coordinates: RF re-derives each node's
 		// absolute rect (even subflow children) for edge endpoints, so the routed

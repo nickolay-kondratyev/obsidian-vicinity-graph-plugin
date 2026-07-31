@@ -16,7 +16,7 @@
  * ## Edge semantics (CLARIFICATION Q5)
  * Only the edges the BFS walked from a central render — a link between two
  * frontier nodes shows up only when the walk itself reached it. See
- * {@link EdgeCounts}.
+ * {@link EdgeAssembly}.
  *
  * ## Adapter contract for pins (step-03, MUST honor)
  * A note that receives a pin MUST have a docid: the adapter `await`s
@@ -39,6 +39,7 @@ export type {
 	DepthTag,
 	DirectedLink,
 	DocId,
+	EdgeKind,
 	FolderPath,
 	ForceLayoutSettings,
 	GraphEdge,
@@ -77,8 +78,8 @@ export { NodeSizer } from "./NodeSizer";
 export type { NodeSize } from "./NodeSizer";
 export { GraphTruncator } from "./GraphTruncator";
 export type { TruncationInput, TruncationResult } from "./GraphTruncator";
-export { EdgeCounts } from "./EdgeCounts";
-export type { EdgeCountsInput } from "./EdgeCounts";
+export { EdgeAssembly } from "./EdgeAssembly";
+export type { EdgeAssemblyInput } from "./EdgeAssembly";
 export { CrossLinkSweep } from "./CrossLinkSweep";
 export type { CrossLinkSweepInput } from "./CrossLinkSweep";
 export { NodePriorityChain } from "./NodePriorityChain";

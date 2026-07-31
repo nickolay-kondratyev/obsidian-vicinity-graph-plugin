@@ -1,4 +1,4 @@
-import type { GraphEdge, GraphNode, VicinityGraph, ViewSettings } from "../../engine";
+import type { EdgeKind, GraphEdge, GraphNode, VicinityGraph, ViewSettings } from "../../engine";
 import { asFolderPath, asVaultPath } from "../../engine";
 
 /**
@@ -29,8 +29,13 @@ export function makeNode(overrides: Partial<GraphNode> = {}): GraphNode {
 
 const DEFAULT_EDGE_LINK_COUNT = 1;
 
-export function makeEdge(source: string, target: string, count = DEFAULT_EDGE_LINK_COUNT): GraphEdge {
-	return { source: asVaultPath(source), target: asVaultPath(target), count };
+export function makeEdge(
+	source: string,
+	target: string,
+	count = DEFAULT_EDGE_LINK_COUNT,
+	kind: EdgeKind = "link",
+): GraphEdge {
+	return { source: asVaultPath(source), target: asVaultPath(target), count, kind };
 }
 
 /** Minimal effective view settings for view-layer tests (neutral, engine-decoupled). */

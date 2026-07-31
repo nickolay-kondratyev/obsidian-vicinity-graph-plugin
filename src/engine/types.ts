@@ -160,13 +160,25 @@ export interface DirectedLink {
 }
 
 /**
+ * HOW a rendered pair is related — the SUMMARY of the pair's outgoing reference
+ * kinds ({@link import("../shared/LinkKind").LinkKind}), not a scalar copy of one
+ * walked hop: a source can both embed AND plainly link the same target, and that
+ * pair is deliberately `"both"` rather than whichever kind a walk saw first.
+ * Derived once, from provider truth, in {@link import("./EdgeAssembly").EdgeAssembly}.
+ */
+export type EdgeKind = "link" | "embed" | "both";
+
+/**
  * Final output edge. WHICH links become edges is the {@link ViewSettings.showCrossLinks}
  * toggle's answer: the links the BFS walked, or every link between two visible nodes.
- * Both kinds are identical here — there is deliberately no provenance flag.
+ * Both origins are identical here — there is deliberately no walked-vs-swept
+ * provenance flag ({@link kind} is the pair's relationship, not its discovery path).
  */
 export interface GraphEdge extends DirectedLink {
 	/** Number of distinct links source→target (>= 1) — the UI's edge count badge. */
 	readonly count: number;
+	/** The pair's relationship summary — drives the view's edge styling. */
+	readonly kind: EdgeKind;
 }
 
 /**

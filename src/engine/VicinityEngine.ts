@@ -1,5 +1,5 @@
 import { CrossLinkSweep } from "./CrossLinkSweep";
-import { EdgeCounts } from "./EdgeCounts";
+import { EdgeAssembly } from "./EdgeAssembly";
 import { GraphTruncator } from "./GraphTruncator";
 import type { TruncationResult } from "./GraphTruncator";
 import type { LinkProvider } from "./LinkProvider";
@@ -82,7 +82,7 @@ export class VicinityEngine {
 		}
 		return {
 			nodes,
-			edges: EdgeCounts.attach({
+			edges: EdgeAssembly.attach({
 				visibleEdges: this.visibleEdges(viewSettings, truncation),
 				provider: this.provider,
 			}),

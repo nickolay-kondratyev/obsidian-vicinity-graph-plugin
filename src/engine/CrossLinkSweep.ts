@@ -31,7 +31,7 @@ export interface CrossLinkSweepInput {
  *
  * Count-free, exactly like {@link import("./VicinityTraversal").VicinityTraversal}'s
  * own output: multiplicity is attached once, from provider truth, in
- * {@link import("./EdgeCounts").EdgeCounts} — so a cross link's `xN` badge comes from
+ * {@link import("./EdgeAssembly").EdgeAssembly} — so a cross link's `xN` badge comes from
  * the same authority as a walked link's, with no second counting path.
  *
  * NODE SELECTION IS DELIBERATELY UNAFFECTED, and this is a REQUIREMENT rather than an
@@ -51,6 +51,9 @@ export interface CrossLinkSweepInput {
  * the setting's promise ("every link between two visible nodes") and the equally
  * kind-blind {@link LinkProvider.getLinkCount} behind the `xN` badge — the depth dials
  * govern REACH, this toggle governs what is drawn between what reach already found.
+ * A swept pair still RENDERS with its true kind (dashed embed stroke etc.): the kind
+ * summary is attached downstream by EdgeAssembly, from the same reference-list truth,
+ * for walked and swept pairs alike.
  *
  * COST is bounded by the node cap, not by vault size: at most one
  * `getOutgoingReferences` call per visible node per rebuild (the frontier nodes are the
