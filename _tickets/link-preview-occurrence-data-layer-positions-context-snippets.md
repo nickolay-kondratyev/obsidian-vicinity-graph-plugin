@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-07-31T19:00:09Z
 id: nid_1drobt9qaq3e89gt76fzghlik_e
 title: 'Link preview: occurrence data layer (positions + context snippets)'
-status: in_progress
+status: closed
 deps: []
 links: []
 created_iso: '2026-07-31T18:49:31Z'
-status_updated_iso: '2026-07-31T18:52:43Z'
+status_updated_iso: 2026-07-31T19:00:09Z
 type: task
 priority: 3
 assignee: nickolaykondratyev
@@ -31,3 +32,16 @@ Deliver (no UI in this ticket):
 - Port returns per-occurrence positions for outgoing links, backlinks grouped by source, and edge-scoped (source->target) queries
 - Snippet extractor covered by BDD tests incl. link at file start/end, multi-occurrence lines, canvas/null-context
 - npm test and npm run check pass
+
+## Resolution (2026-07-31)
+
+Delivered as specified; no UI. New/changed files:
+
+- **Port (engine, pure)**: `src/engine/LinkOccurrenceProvider.ts` — `LinkOccurrenceProvider` with `outgoingOccurrences(path)`, `backlinkOccurrences(path)` (grouped `BacklinkSourceOccurrences`), `occurrencesBetween(source, target)`. Async (context requires `cachedRead`). Occurrence shape: `{offset: number|null, context: LinkContextSnippet|null}` (+ `targetPath` on outgoing). `offset: null` EXPLICITLY models position-less occurrences (canvas refs, frontmatter links, resolvedLinks-inversion backlink fallback); `offset === null ⇒ context === null`. Unknown paths answer `[]`, never throw.
+- **Pure snippets**: `src/engine/LinkContextSnippets.ts` — `snippetAt(fileText, offset) → {shortContext, expandedContext}`; `EXPANDED_CONTEXT_LINES_EACH_SIDE = 2`; out-of-range offsets clamp. BDD tests in `LinkContextSnippets.test.ts` (file start/end, multi-link line, empty file, blank-line trimming).
+- **Adapter**: `src/adapters/ObsidianLinkOccurrenceProvider.ts` — markdown positions via `ReferenceOrder` + `getFirstLinkpathDest`; text via `vault.cachedRead`; leans on the existing `LinkProvider` for canvas targets, the merged incoming-source list (canvas sources included) and `getLinkCount` (so position-less occurrence COUNTS agree with edge badges). Edge-scoped = filter over outgoing.
+- **BacklinksAdapter** extended (same shape-tolerance + null⇒fallback semantics): `backlinkOccurrenceOffsets` / `extractOccurrenceOffsets` return per-source `(number|null)[]`; unreadable reference → null offset, unreadable list → empty (both degrade to position-less occurrences downstream).
+- **Fake**: `src/engine/FakeLinkOccurrenceProvider.ts` (+ test) for downstream view-model/modal tests. `FakeObsidianPorts` gained optional `backlinkOffsets` fixture field.
+- Exports added to `src/engine/index.ts`.
+
+Verification: `npm run check` passes; `npm test` — all new/affected suites green. Two PRE-EXISTING failures on a clean tree (elkNodeSpacingPx 40-vs-20 default drift, unrelated) filed as ticket `nid_37vxpzbgh1yq6kxa0mw6n4iye_e`.
