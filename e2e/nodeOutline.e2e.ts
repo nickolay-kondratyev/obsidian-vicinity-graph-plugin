@@ -103,6 +103,20 @@ test("the outline lists its headings as stripped labels in document order", asyn
 	await expect(entriesOf(OUTLINE_NOTE_PATH)).toHaveText(EXPECTED_ENTRY_LABELS);
 });
 
+test("outline entries render as flat tree rows, not Obsidian buttons", async () => {
+	// Obsidian's app-wide `button:not(.clickable-icon)` rule (specificity 0,1,1)
+	// paints every plain button as a raised pill. A single-class reset (0,1,0)
+	// silently LOSES that cascade fight — only a real Obsidian can observe it,
+	// which is exactly how the outline shipped as "nested buttons" once.
+	const entry = entriesOf(OUTLINE_NOTE_PATH).first();
+	const chrome = await entry.evaluate((el) => {
+		const style = getComputedStyle(el);
+		return { backgroundColor: style.backgroundColor, boxShadow: style.boxShadow };
+	});
+
+	expect(chrome).toEqual({ backgroundColor: "rgba(0, 0, 0, 0)", boxShadow: "none" });
+});
+
 test("heading hierarchy is real list nesting, not an indentation ladder", async () => {
 	const nested = outlineOf(OUTLINE_NOTE_PATH).locator(
 		".vicinity-graph-outline__list .vicinity-graph-outline__list",
