@@ -1,17 +1,18 @@
 ---
 id: nid_faeb5geo50afipdbwf1y2dz12_e
-title: "elkNodeSpacingPx default mismatch: spec says 40, doc comment and pinned tests say 20"
-status: open
+title: 'elkNodeSpacingPx default mismatch: spec says 40, doc comment and pinned tests
+  say 20'
+status: in_progress
 deps: []
 links: []
-created_iso: 2026-07-31T19:09:34Z
-status_updated_iso: 2026-07-31T19:09:34Z
+created_iso: '2026-07-31T19:09:34Z'
+status_updated_iso: '2026-07-31T19:55:35Z'
 type: bug
 priority: 1
 assignee: CC_WITH-nickolaykondratyev
 tags: []
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-2
 ---
-
 Pre-existing test failures on main (verified on a clean tree via git stash + rerun):
 
 - `src/engine/settingsProductDefaults.test.ts` — pinned literal `"globalView.forceLayout.elkNodeSpacingPx": 20` vs `SETTINGS_SPEC` default `40`.
@@ -26,4 +27,4 @@ Not fixed in ticket nid_ts4rx2pfo6o18verzk07z16g8_e (depth for pinned nodes) bec
 --------------------------------------------------------------------------------
 HUMAN DECISION:
 THE default is now 40.  
-Lets lower the commenting so that we don't duplicate the values stated in the comments to avoid such mismatches, we should be able to adjust the code for default without having to hunt for comments.   
+Lets lower the commenting so that we don't duplicate the values stated in the comments to avoid such mismatches, we should be able to adjust the code for default without having to hunt for comments.
