@@ -10,7 +10,8 @@ const TARGET_B = asVaultPath("notes/b.md");
 function occurrenceAt(offset: number | null): LinkOccurrence {
 	return {
 		offset,
-		context: offset === null ? null : { shortContext: `line@${offset}`, expandedContext: `block@${offset}` },
+		context:
+			offset === null ? null : { shortContext: `line@${offset}`, expandedContext: `block@${offset}`, line: offset },
 	};
 }
 

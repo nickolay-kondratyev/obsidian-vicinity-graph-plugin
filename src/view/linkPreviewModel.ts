@@ -67,6 +67,9 @@ export interface NodePreviewInputs {
 	readonly backlinks: readonly BacklinkSourceOccurrences[];
 }
 
+/** Either modal payload — what `LinkPreviewModal` hosts and the content renders. */
+export type LinkPreviewModel = NodePreviewModel | EdgePreviewModel;
+
 export interface EdgePreviewInputs {
 	readonly sourcePath: VaultPath;
 	readonly targetPath: VaultPath;

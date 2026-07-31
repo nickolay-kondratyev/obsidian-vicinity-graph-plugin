@@ -1,0 +1,207 @@
+/*
+ * Link-preview modal (LinkPreviewModal.tsx + LinkPreviewContent.tsx).
+ *
+ * Colors and metrics come exclusively from Obsidian theme variables — light
+ * and dark both just work. Hierarchy tiers, top-down: modal title (Obsidian's
+ * own) > section titles (muted small-caps) > backlink group titles (normal
+ * text, semibold) > row context (monospace, muted until expanded). The bulk
+ * buttons keep Obsidian's native button styling; only the disabled state is
+ * spelled out here because the ticket requires visible disabled treatment.
+ */
+
+.vicinity-graph-link-preview-modal {
+	/* The content is a text list; Obsidian's default modal can go too narrow.
+	 * Fixed comfortable width, capped to the viewport on small windows. */
+	width: 560px;
+	max-width: 90vw;
+}
+
+/* ===== toolbar (Expand all / Collapse all) ============================= */
+
+.vicinity-graph-link-preview__toolbar {
+	display: flex;
+	justify-content: flex-end;
+	gap: var(--size-4-2);
+	padding-bottom: var(--size-4-2);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.vicinity-graph-link-preview__toolbar button:disabled {
+	opacity: 0.45;
+	cursor: not-allowed;
+	box-shadow: none;
+}
+
+/* ===== sections ======================================================== */
+
+.vicinity-graph-link-preview__section {
+	margin-top: var(--size-4-4);
+}
+
+.vicinity-graph-link-preview__section-title {
+	margin: 0 0 var(--size-4-2);
+	font-size: var(--font-ui-smaller);
+	font-weight: var(--font-semibold);
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+}
+
+/* Entry-count pill on section and group titles. */
+.vicinity-graph-link-preview__count {
+	margin-left: var(--size-4-2);
+	padding: 0 var(--size-4-2);
+	border-radius: var(--radius-s);
+	background-color: var(--background-secondary);
+	font-size: var(--font-ui-smaller);
+	font-weight: var(--font-normal);
+	letter-spacing: normal;
+	color: var(--text-faint);
+}
+
+.vicinity-graph-link-preview__empty {
+	margin: 0;
+	font-size: var(--font-ui-small);
+	font-style: italic;
+	color: var(--text-faint);
+}
+
+/* ===== outline ========================================================= */
+
+.vicinity-graph-link-preview__outline {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+}
+
+.vicinity-graph-link-preview__outline li {
+	padding: var(--size-2-1) 0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* Indent one step (12px) per heading level below H1 — nesting made visible. */
+.vicinity-graph-link-preview__outline-entry--level-1 { padding-left: 0; }
+.vicinity-graph-link-preview__outline-entry--level-2 { padding-left: var(--size-4-3); }
+.vicinity-graph-link-preview__outline-entry--level-3 { padding-left: calc(var(--size-4-3) * 2); }
+.vicinity-graph-link-preview__outline-entry--level-4 { padding-left: calc(var(--size-4-3) * 3); }
+.vicinity-graph-link-preview__outline-entry--level-5 { padding-left: calc(var(--size-4-3) * 4); }
+.vicinity-graph-link-preview__outline-entry--level-6 { padding-left: calc(var(--size-4-3) * 5); }
+
+/* ===== backlink groups ================================================= */
+
+.vicinity-graph-link-preview__group + .vicinity-graph-link-preview__group {
+	/* More space BETWEEN groups than between a group title and its rows. */
+	margin-top: var(--size-4-3);
+}
+
+.vicinity-graph-link-preview__group-title {
+	margin: 0 0 var(--size-2-1);
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-semibold);
+	color: var(--text-normal);
+}
+
+/* ===== occurrence rows ================================================= */
+
+.vicinity-graph-link-preview__rows {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.vicinity-graph-link-preview__row {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--size-4-1);
+	border-radius: var(--radius-s);
+}
+
+.vicinity-graph-link-preview__row:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.vicinity-graph-link-preview__row--no-context {
+	padding: var(--size-2-1) var(--size-4-2);
+	font-size: var(--font-ui-small);
+	font-style: italic;
+	color: var(--text-faint);
+}
+
+/* Row toggle resets Obsidian's global button styling on purpose: the row IS
+ * the control, and a raised button per row would shout over the content. */
+.vicinity-graph-link-preview__row-toggle {
+	all: unset;
+	flex: 1 1 auto;
+	min-width: 0;
+	display: flex;
+	align-items: baseline;
+	gap: var(--size-4-1);
+	padding: var(--size-2-1) 0 var(--size-2-1) var(--size-4-1);
+	cursor: pointer;
+}
+
+/* CSS-only disclosure marker; `aria-expanded` doubles as the state hook. */
+.vicinity-graph-link-preview__row-toggle::before {
+	content: "\25B8"; /* ▸ */
+	flex: 0 0 auto;
+	color: var(--text-faint);
+	transition: transform 100ms ease-in-out;
+}
+
+.vicinity-graph-link-preview__row-toggle[aria-expanded="true"]::before {
+	transform: rotate(90deg);
+}
+
+.vicinity-graph-link-preview__context {
+	min-width: 0;
+	font-family: var(--font-monospace);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	/* Collapsed: one ellipsised line. */
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.vicinity-graph-link-preview__row-toggle[aria-expanded="true"] .vicinity-graph-link-preview__context {
+	/* Expanded: the raw multi-line snippet, wrapped — and promoted a text tier
+	 * so the block the user asked for reads above its collapsed siblings. */
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+	color: var(--text-normal);
+}
+
+/* ===== GO button ======================================================= */
+
+.vicinity-graph-link-preview__go {
+	all: unset;
+	flex: 0 0 auto;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: var(--size-2-1) var(--size-4-1);
+	border-radius: var(--radius-s);
+	color: var(--text-faint);
+	cursor: pointer;
+}
+
+.vicinity-graph-link-preview__go:hover {
+	color: var(--text-accent);
+	background-color: var(--background-modifier-hover);
+}
+
+.vicinity-graph-link-preview__go-icon {
+	display: flex;
+	--icon-size: var(--icon-s);
+}
+
+/* Visible keyboard focus on the unstyled (`all: unset`) controls — the reset
+ * above also removed the browser's default ring, so restore an explicit one. */
+.vicinity-graph-link-preview__row-toggle:focus-visible,
+.vicinity-graph-link-preview__go:focus-visible {
+	box-shadow: 0 0 0 2px var(--background-modifier-border-focus);
+}

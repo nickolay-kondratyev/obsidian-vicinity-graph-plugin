@@ -29,6 +29,12 @@ export class ObsidianNoteNavigator implements NoteNavigatorPort {
 			return;
 		}
 		const newTab = options?.newTab === true;
+		if (options?.line !== undefined) {
+			// `eState.line` is the editor's 0-based scroll-to-line ephemeral state —
+			// the same mechanism Obsidian's own search results use to jump to a match.
+			void this.app.workspace.getLeaf(newTab).openFile(file, { eState: { line: options.line } });
+			return;
+		}
 		if (options?.heading === undefined) {
 			void this.app.workspace.getLeaf(newTab).openFile(file);
 			return;

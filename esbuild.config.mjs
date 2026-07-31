@@ -50,6 +50,8 @@ const AUTHORED_CSS_FILES = [
 	path.join("src", "view", "settings-tab.css"),
 	// Shared by BOTH surfaces above; all-new selectors, so appending last is safe.
 	path.join("src", "view", "segmented-control.css"),
+	// Link-preview modal; all-new selectors under its own prefix.
+	path.join("src", "view", "link-preview.css"),
 ];
 
 function generateStylesCss() {
