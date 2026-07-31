@@ -113,7 +113,7 @@ describe("SettingsRowView (rendered): a commit the panel does not refuse reseeds
 		const accessor = SettingsRowAccessors.sizingNumber("maxPx");
 		const { actions, state, rerenderAt } = renderMaxPxRow();
 		// Far past the declared ceiling: accepted (a real number), clamped on the way in.
-		const typed = (accessor.bounds.max ?? Number.MAX_SAFE_INTEGER) + state.globalView.sizing.maxPx;
+		const typed = accessor.bounds.max + state.globalView.sizing.maxPx;
 		const settled = accessor.settlesAt(typed);
 		commitTyped(String(typed));
 		// The rebuilt snapshot echoes what the write path stored — the settled number,

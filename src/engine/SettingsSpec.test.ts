@@ -8,7 +8,6 @@ import {
 	EngineDefaults,
 	FORCE_LAYOUT_RANGES,
 	MAX_STEPPER_DEPTH,
-	MIN_NODE_CAP,
 	MIN_STEPPER_DEPTH,
 	SIZING_RANGES,
 } from "./constants";
@@ -149,8 +148,7 @@ describe("adapters derive from SETTINGS_SPEC", () => {
 	});
 
 	it("WHEN the view bound constants are read THEN they alias the spec limits", () => {
-		expect({ MIN_NODE_CAP, MIN_STEPPER_DEPTH, MAX_STEPPER_DEPTH }).toEqual({
-			MIN_NODE_CAP: SETTINGS_SPEC.globalView.nodeCap.min,
+		expect({ MIN_STEPPER_DEPTH, MAX_STEPPER_DEPTH }).toEqual({
 			MIN_STEPPER_DEPTH: SETTINGS_SPEC.globalDepths.linkDepthOut.min,
 			MAX_STEPPER_DEPTH: SETTINGS_SPEC.globalDepths.linkDepthOut.max,
 		});

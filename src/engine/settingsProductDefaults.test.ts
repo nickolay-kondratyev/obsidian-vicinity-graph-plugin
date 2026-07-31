@@ -101,11 +101,11 @@ describe("shipped settings defaults (the hand-pinned literal baseline)", () => {
  * bounded leaf's declared range is ENFORCED and that its default is reachable inside it,
  * which is the property that matters and the one the deleted limits baseline never had.
  *
- * The two ranges pinned below are the exceptions, each for a stated reason. No other range
+ * The three ranges pinned below are the exceptions, each for a stated reason. No other range
  * has a literal tripwire, and widening one is therefore NOT something `npm test` notices —
  * said plainly here rather than implied by silence.
  */
-describe("settings ranges pinned as literals (the two exceptions)", () => {
+describe("settings ranges pinned as literals (the three exceptions)", () => {
 	it("WHEN the outline depth range is read THEN it is 1..6 (markdown's own heading levels, never 0)", () => {
 		// Product-meaningful: 6 is markdown's own ceiling and 1 (never 0) is what keeps
 		// depth from becoming a second, silent off-switch for previews.
@@ -120,5 +120,14 @@ describe("settings ranges pinned as literals (the two exceptions)", () => {
 		// load-bearing for the anti-collapse invariant in `forceLayoutSettings.test.ts`.
 		const spec = SETTINGS_SPEC.globalView.forceLayout.linkStrengthFactor;
 		expect({ min: spec.min, max: spec.max }).toEqual({ min: 0.25, max: 4 });
+	});
+
+	it("WHEN the node-cap range is read THEN it is 1..1000 (the owner-picked ceiling on vicinity size)", () => {
+		// Product-meaningful (owner decision 2026-07-29): 1000 is comfortably above any
+		// legible graph AND a deliberate hard "no" to whole-vault rendering — the value
+		// closes the typo/paste hole that used to silently disable truncation. Moving
+		// either bound is a product call, so it gets a literal tripwire.
+		const spec = SETTINGS_SPEC.globalView.nodeCap;
+		expect({ min: spec.min, max: spec.max }).toEqual({ min: 1, max: 1000 });
 	});
 });

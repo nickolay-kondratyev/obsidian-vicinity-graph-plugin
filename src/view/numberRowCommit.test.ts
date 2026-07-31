@@ -199,6 +199,13 @@ describe("NumberRowCommitPolicy: a row whose accessor is its whole policy", () =
 	it("WHEN the node cap is committed below its declared minimum THEN nothing is written", () => {
 		expect(nodeCapPolicy().commit("0", SEEDED_WITH).value).toBeNull();
 	});
+
+	it("WHEN the node cap is committed above its declared maximum THEN nothing is written", () => {
+		// The typo/paste hole the 1000 ceiling closes: a pasted huge cap is refused
+		// at the field, and clampNodeCap backstops any path that skips the field.
+		const aboveMax = SettingsRowAccessors.nodeCap().bounds.max + 1;
+		expect(nodeCapPolicy().commit(String(aboveMax), SEEDED_WITH).value).toBeNull();
+	});
 });
 
 describe("NumberRowCommitPolicy: a size metric's weight", () => {

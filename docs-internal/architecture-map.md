@@ -113,8 +113,8 @@ view  ──▶  adapters  ──▶  engine  (pure core)
 - `view/settingsRowAccessors.ts` — **the VALUE half of that contract**, one accessor
   per control kind: `{read(state), bounds, settlesAt, interaction(value)}` (+ `accept`
   on typed rows). Presenters are markup plus one accessor call — they never name an
-  engine range table or clamp. `SettingsTrackAccessor` demands a `max`, so a slider on
-  a max-less field is a compile error. A SIBLING of `settingsRows.ts` (different reason
+  engine range table or clamp. `SettingsRowBounds` demands a `max` (every spec leaf
+  is fully bounded), so a track control can never fall back to the range default. A SIBLING of `settingsRows.ts` (different reason
   to change, and it keeps the engine ranges out of the module e2e imports). Guards:
   `settingsRowAccessors.test.ts`, `settingsRowDepthClamp.test.ts`, and the
   `ACCESSOR_OWNED_SYMBOLS` scan in `settingsRowParity.test.ts`.

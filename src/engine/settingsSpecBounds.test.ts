@@ -4,6 +4,7 @@ import {
 	MAX_OUTLINE_DEPTH,
 	MIN_OUTLINE_DEPTH,
 	clampForceLayoutSettings,
+	clampNodeCap,
 	clampOutlineMaxDepth,
 	clampSizingNumber,
 } from "./constants";
@@ -43,11 +44,12 @@ function forceLayoutEnforcer(field: keyof ForceLayoutSettings): BoundsEnforcer {
 }
 
 /**
- * WHO enforces each bounded field's bounds, by leaf id. Engine clamps only — the two
+ * WHO enforces each bounded field's bounds, by leaf id. Engine clamps only — the
  * fields whose enforcement lives elsewhere are listed in
  * {@link BOUNDS_ENFORCED_OUTSIDE_THE_ENGINE} with the reason.
  */
 const BOUNDS_ENFORCERS: Readonly<Record<string, BoundsEnforcer>> = {
+	"globalView.nodeCap": clampNodeCap,
 	"globalView.outlineMaxDepth": clampOutlineMaxDepth,
 	"globalView.sizing.metricWeight": sizingEnforcer("metricWeight"),
 	"globalView.sizing.depthDecayK": sizingEnforcer("depthDecayK"),
@@ -74,12 +76,6 @@ const BOUNDS_ENFORCED_OUTSIDE_THE_ENGINE: Readonly<Record<string, string>> = {
 		"depth (see SETTINGS_SPEC). Covered by src/view/settingsRowDepthClamp.test.ts.",
 	"globalDepths.embedDepthOut": "the depth accessor's own clamp — see linkDepthOut.",
 	"globalDepths.linkDepthIn": "the depth accessor's own clamp — see linkDepthOut.",
-	"globalView.nodeCap":
-		"the node-cap number inputs reject anything below MIN_NODE_CAP (VicinityGraphSettingTab / " +
-		"SettingsRowView). Deliberately NOT clamped on load: a stored 0 survives parsing by design " +
-		"(pinned in persistedShapes.test.ts — falsy is a real value, not an absence). Owner decided " +
-		"(nid_5meu9s38sbrv1703na77of4m7_e) the min is an INPUT affordance only, like the depth " +
-		"stepper bounds — a stored 0 is harmless (central renders alone), not an off-switch.",
 };
 
 const BOUNDED_LEAVES: readonly SettingsSpecLeaf[] = EVERY_SETTINGS_SPEC_LEAF.filter(
