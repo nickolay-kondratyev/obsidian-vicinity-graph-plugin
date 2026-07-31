@@ -1,17 +1,17 @@
 ---
 id: nid_aau4r0sj8oudhi711qr9j5x1l_e
 tags: [settings]
-title: "Node cap has no upper bound in SETTINGS_SPEC"
-status: open
+title: Node cap has no upper bound in SETTINGS_SPEC
+status: in_progress
 deps: []
 links: []
-created_iso: 2026-07-27T17:44:42Z
-status_updated_iso: 2026-07-27T17:44:42Z
+created_iso: '2026-07-27T17:44:42Z'
+status_updated_iso: '2026-07-31T17:58:56Z'
 type: task
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin
 ---
-
 `SETTINGS_SPEC.globalView.nodeCap` (`src/engine/SettingsSpec.ts`, `MinBoundedNumberSpec`) is the ONLY numeric setting with no `max`. `src/view/VicinityGraphSettingTab.ts` (`renderPerformance()`) therefore accepts any integer >= `MIN_NODE_CAP`; a typed `100000000` reaches `src/engine/GraphTruncator.ts` and the layout pass.
 
 Explicitly held OUT OF SCOPE of the settings debounce/validation ticket (`nid_x6l6x07rd1d1h4cefqmnyrbec_e`): that ticket named only sizing px + decay-k, and capping the cap changes user-visible behavior.
