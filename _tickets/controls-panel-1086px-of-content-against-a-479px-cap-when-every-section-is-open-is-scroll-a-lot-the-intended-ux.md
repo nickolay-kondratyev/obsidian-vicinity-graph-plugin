@@ -9,7 +9,7 @@ status_updated_iso: 2026-07-30T02:49:41Z
 type: task
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
-tags: [settings-cleanup, settings, ux, decide]
+tags: [settings-cleanup, settings, ux]
 ---
 
 The in-graph controls panel is a ~260px-wide surface whose body is capped at 60vh
@@ -41,4 +41,22 @@ Context / evidence:
 Owner has decided one of: (a) leave as-is (close WONTFIX), (b) resize the panel,
 (c) make the disclosures an accordion, or (d) move sections to the settings tab.
 If a code change follows, it is covered by the existing clip guard in e2e/settingsUxVisual.e2e.ts.
+
+## Decision (2026-07-31)
+
+Owner chose **(a) leave as-is — closed WONTFIX**. Rationale:
+
+- The 2.3-screen scroll is opt-in: only "Depth (all notes)" defaults open
+  (`openInPanel: true` in src/view/settingsRows.ts); the other six sections default
+  closed, so the default panel state is quiet and fits the 60vh cap.
+- Scrolling is now honest (visible scrollbar, no clipping) after the
+  nid_9wed7bqboqb83aghmt1sctv90_e fix, guarded by e2e/settingsUxVisual.e2e.ts.
+- The settings tab remains the long-form editing surface; the panel is for live
+  tweaking, and users who open everything accept the scroll.
+- Rejected alternatives: accordion (auto-closing sections violates POLS and blocks
+  cross-section comparison while tuning), moving sections to the tab (guts the
+  panel's purpose and breaks tab/panel parity), resizing (width doesn't reduce row
+  height; a taller cap was judged not worth changing given the opt-in nature).
+
+No code change. Ticket closed.
 
