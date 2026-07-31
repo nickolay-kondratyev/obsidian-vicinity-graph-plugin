@@ -258,7 +258,9 @@ function useNumberFieldCommit(
 			"aria-invalid": shownRefusal !== undefined,
 			"aria-describedby": shownRefusal === undefined ? undefined : refusalId,
 			onBlur: (event) => {
-				const committed = policy.commit(event.target.value);
+				// `stored` is the field's `defaultValue`, so it is what an untouched
+				// field still holds: the policy turns that commit into a no-op write.
+				const committed = policy.commit(event.target.value, stored);
 				setRefusal(NumberFieldRefusal.fromCommit(committed, stored));
 				if (committed.value !== null) {
 					onCommit(committed.value);
