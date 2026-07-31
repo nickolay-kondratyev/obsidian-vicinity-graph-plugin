@@ -9,7 +9,7 @@ status_updated_iso: 2026-07-30T00:57:03Z
 type: task
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
-tags: [settings, testing, decide]
+tags: [settings, testing]
 ---
 
 The panel controls (`src/view/*.tsx`) have NO component-test harness: vitest runs in the node environment, there is no jsdom/happy-dom and no react renderer dev-dep. Correctness therefore lives in pure helpers next to the components (`optimisticValue.ts`, `ControlsModel.ts`, `settingsWritePlan.ts`) and the components themselves are covered only by Playwright e2e (a release gate, not `npm test`).
@@ -23,7 +23,7 @@ What is still NOT pinned by `npm test` today, after that fix:
 
 SCOPE: add jsdom (or happy-dom) + a minimal react renderer as devDeps, a vitest environment override scoped to component test files only (the rest of the suite must stay node-env -- the source-scan guards read the filesystem), and ONE exemplar component test: rapid + clicks on `DepthStepper` are not dropped.
 
-#DECIDE: the reviewer of that ticket asked whether this should be a BLOCKING dependency of settings-cleanup chain step 4 (dual presenters, nid_armoson86j0ii8c33r1odo1rc_e), since step 4 moves more behaviour into React. Owner call: block step 4 on this, or land it alongside?
+#DECIDE [RESOLVED 2026-07-31 — moot, see note below]: the reviewer of that ticket asked whether this should be a BLOCKING dependency of settings-cleanup chain step 4 (dual presenters, nid_armoson86j0ii8c33r1odo1rc_e), since step 4 moves more behaviour into React. Owner call: block step 4 on this, or land it alongside? → Step 4 closed 2026-07-30 without this harness; the harness lands after, as follow-up hardening.
 
 
 ## Notes
@@ -68,3 +68,33 @@ review, 2026-07-30 — panel per-metric Weight became uncontrolled + blur-commit
    the stored value moves under the field (Restore defaults). The rule itself is now a pure
    seam, `NumberFieldRefusal` in `src/view/numberRowCommit.ts`, unit-tested in
    `numberRowCommit.test.ts`; the wiring of that rule into the markup is not.
+
+**2026-07-31T17:18:53Z**
+
+DECISION RESOLVED (2026-07-31) — the #DECIDE question is moot, overtaken by events.
+
+The question was: should this harness be a BLOCKING dependency of settings-cleanup
+step 4 (dual presenters, nid_armoson86j0ii8c33r1odo1rc_e), or land alongside it?
+
+FACTS: step 4 closed 2026-07-30T02:29Z without this harness; the e2e release gate was
+run on the dual-presenter branch (nid_que9qloigra7ku2boh83qizz0_e, closed) and the
+whole settings-cleanup chain plus its follow-ups are closed. Neither option remains:
+the harness lands AFTER step 4, as follow-up hardening. No dependency edge to add —
+nothing open depends on this ticket, and this ticket depends on nothing.
+
+CONSEQUENCE FOR SCOPE: unchanged, and strictly MORE valuable now — every gap this
+ticket enumerates (component-loop behaviour of DepthStepper, per-row rendered parity
+over SETTINGS_GROUPS, disabledWhen verdicts, the refusal-element wiring) is live
+shipped behaviour pinned only by e2e (release gate) or by source scans, not by
+`npm test`. Ticket stays open as an implementation task at p2.
+
+IMPLEMENTATION RECOMMENDATION (deciding at build time is fine; recorded so the
+implementer does not re-litigate): jsdom + @testing-library/react. The acceptance
+criteria are phrased in ACCESSIBLE NAMES and rendered disabled/alert states —
+exactly what testing-library's role/name queries assert natively; happy-dom's
+faster-but-looser DOM is the wrong trade when accessible-name computation is the
+point. Keep the environment override scoped per-file (`// @vitest-environment jsdom`
+or a `environmentMatchGlobs` entry for `src/view/**/*.component.test.tsx`) so the
+source-scan suites stay in node env, as the SCOPE section already requires.
+
+Removing the [decide] tag: all decisions reached.
