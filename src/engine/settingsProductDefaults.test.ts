@@ -16,9 +16,10 @@ import { EVERY_SETTINGS_SPEC_LEAF } from "./testFixtures/settingsSpecLeaves";
  * measured and documented on the spec is already protected by the layout-quality suites
  * that run AT the shipped defaults. Review MEASURED that theory and it was only partly
  * true: mutating `repelStrength`, `collidePaddingPx`, `elkNodeSpacingPx` or `linkGapPx`
- * does redden the geometry suites, but `centerPullStrength` 0.05 → 0.15,
- * `linkStrengthFactor` 1 → 4 and `edgeRoutingClearancePx` 11 → 14 left the ENTIRE suite
- * green. Three shipped defaults with zero tripwire, under a comment claiming otherwise.
+ * does redden the geometry suites, but driving `centerPullStrength`, `linkStrengthFactor`
+ * and `edgeRoutingClearancePx` to the far end of their declared ranges left the ENTIRE
+ * suite green. Three shipped defaults with zero tripwire, under a comment claiming
+ * otherwise.
  *
  * So the admission rule is now the only one that cannot rot: EVERY spec leaf's default is
  * pinned here, and the guard below fails if a leaf is missing, extra, or changed. The
@@ -74,7 +75,7 @@ const SHIPPED_SETTINGS_DEFAULTS: Readonly<Record<string, unknown>> = {
 	"globalView.sizing.metrics.depth-decay": { enabled: false, weight: 1 },
 	"globalView.sizing.metricWeight": 1, // Equal weight until a per-metric slider ships.
 	"globalView.sizing.depthDecayK": 1,
-	"globalView.sizing.minPx": 40, // Nodes span 40..160px on first run.
+	"globalView.sizing.minPx": 40, // The node-diameter floor on first run; `maxPx` is its ceiling.
 	"globalView.sizing.maxPx": 160,
 
 	// The force-layout tuning set = the DEFAULT RENDERED LAYOUT. Four of these are also
