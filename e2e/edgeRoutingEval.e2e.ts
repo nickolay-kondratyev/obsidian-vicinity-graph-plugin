@@ -3,6 +3,7 @@ import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import type { ConsoleMessage, Page } from "@playwright/test";
+import { EngineDefaults } from "../src/engine";
 import { ObsidianHarness } from "./obsidianHarness";
 
 /**
@@ -99,7 +100,12 @@ test.beforeAll(async () => {
 	page.on("console", onConsole);
 	await harness.openGraphView();
 	// Depth 2 outgoing so sibling chords are walked, render, and load the router.
-	await harness.saveGlobalDepths({ linkDepthOut: 2, embedDepthOut: 2, linkDepthIn: 1 });
+	await harness.saveGlobalDepths({
+		...EngineDefaults.depthSettings(),
+		linkDepthOut: 2,
+		embedDepthOut: 2,
+		linkDepthIn: 1,
+	});
 	fs.mkdirSync(OUT_DIR, { recursive: true });
 });
 

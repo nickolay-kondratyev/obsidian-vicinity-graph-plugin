@@ -93,13 +93,14 @@ they ship, then drop them.
       every open view, where it used to affect only the active note. One depth pair
       also drives MAIN and every pinned central; the per-pinned-central dials are
       gone. Both surfaces now say so on the label: the panel disclosure and the
-      settings-tab card are both headed **"Depth (all notes)"** (the card used to
-      read "Depth defaults", which implied a per-note override).
+      settings-tab card are both headed **"Depth"** (the card used to read
+      "Depth defaults", which implied a per-note override; the heading briefly
+      read "Depth (all notes)" before the per-role split below made that wrong).
 - [ ] **Saved GLOBAL depth settings reset to the defaults on this upgrade.** The
       three depth budgets were renamed in `data.json` (`outgoingDepth` →
       `linkDepthOut`, `incomingDepth` → `linkDepthIn`, plus a new
       `embedDepthOut`), and old keys are not read — there is no migration. If you
-      had changed a depth, set it again: **Depth (all notes)** → Links out /
+      had changed a depth, set it again: **Depth** → Links out /
       Embeds out / Links in, each back at **1**. Nothing else in `data.json` is
       touched (pins, view settings and exclusions are kept).
       Ticket `nid_fay1hu5sxcoygizopkkg0f0d7_e`.
@@ -111,6 +112,14 @@ they ship, then drop them.
       it is written, and never becomes a node; (b) the two outgoing budgets are
       walked INDEPENDENTLY, so above 1 hop a chain that changes kind partway (a
       note you embed, which then links something else) stops at the change.
+- [ ] **New settings: per-role depth for pinned notes** ("Pinned links out",
+      "Pinned embeds out", "Pinned links in"). Pinned centrals now traverse with
+      their own global depth trio; the active note keeps the original trio, and a
+      pinned note that is ALSO the active note uses the active-note depths. All
+      three ship at **1**, equal to the active-note defaults, so a default
+      install renders exactly as before. The section heading dropped its
+      "(all notes)" suffix to plain **"Depth"** — depths are global per ROLE,
+      never per note. Ticket `nid_ts4rx2pfo6o18verzk07z16g8_e`.
 
 ## 8. License note
 

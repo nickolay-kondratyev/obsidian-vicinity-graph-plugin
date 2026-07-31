@@ -124,6 +124,12 @@ function parseDepthFields(raw: unknown): Partial<DepthSettings> {
 		linkDepthOut: numberOrUndefined(raw["linkDepthOut"]),
 		embedDepthOut: numberOrUndefined(raw["embedDepthOut"]),
 		linkDepthIn: numberOrUndefined(raw["linkDepthIn"]),
+		// Added WITHOUT a PERSISTED_SHAPE_VERSION bump (same call as
+		// edgeRoutingClearancePx): a missing known field falls back to its spec
+		// default per field, so an existing data.json parses correctly.
+		pinnedLinkDepthOut: numberOrUndefined(raw["pinnedLinkDepthOut"]),
+		pinnedEmbedDepthOut: numberOrUndefined(raw["pinnedEmbedDepthOut"]),
+		pinnedLinkDepthIn: numberOrUndefined(raw["pinnedLinkDepthIn"]),
 	});
 }
 

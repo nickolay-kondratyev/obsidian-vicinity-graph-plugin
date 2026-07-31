@@ -57,7 +57,14 @@ describe("settings section field map", () => {
  */
 describe("section resets together cover every settings field", () => {
 	const TUNED: SettingsWriteContext = {
-		globalDepths: { linkDepthOut: 4, embedDepthOut: 4, linkDepthIn: 5 },
+		globalDepths: {
+			linkDepthOut: 4,
+			embedDepthOut: 4,
+			linkDepthIn: 5,
+			pinnedLinkDepthOut: 3,
+			pinnedEmbedDepthOut: 2,
+			pinnedLinkDepthIn: 5,
+		},
 		globalView: {
 			nodeCap: 17,
 			outlineMaxDepth: 5,

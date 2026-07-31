@@ -27,14 +27,16 @@
  * consumers never re-map identities.
  *
  * ## Settings are GLOBAL-only (owner decision 2026-07-29)
- * There is no per-doc settings layer: `globalDepths` drives MAIN and every
- * pinned root, `globalView` is used verbatim. Pins themselves stay global.
+ * There is no per-doc settings layer: `globalDepths` carries one set of depth
+ * budgets for MAIN and one for every pinned root (per ROLE, never per note),
+ * `globalView` is used verbatim. Pins themselves stay global.
  */
 
 export type {
 	AttachmentRef,
 	CentralNodeDescriptor,
 	Channel,
+	ChannelDepths,
 	DepthSettings,
 	DepthTag,
 	DirectedLink,
@@ -55,7 +57,14 @@ export type {
 	VaultPath,
 	ViewSettings,
 } from "./types";
-export { asDocId, asFolderPath, asVaultPath, CHANNEL_DEPTH_FIELD, NODE_PREVIEW_PREFERENCES } from "./types";
+export {
+	asDocId,
+	asFolderPath,
+	asVaultPath,
+	CHANNEL_DEPTH_FIELD,
+	DepthSettingsFacts,
+	NODE_PREVIEW_PREFERENCES,
+} from "./types";
 
 export type { FileMetadata, LinkProvider, OutgoingReference } from "./LinkProvider";
 export { OutgoingReferences } from "./LinkProvider";

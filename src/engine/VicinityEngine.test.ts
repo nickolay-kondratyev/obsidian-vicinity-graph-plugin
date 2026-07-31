@@ -41,7 +41,16 @@ function buildRequest(overrides: Partial<GraphBuildRequest> = {}): GraphBuildReq
 	return {
 		main: { path: asVaultPath("hub.md"), docid: asDocId("docid_hub_e") },
 		pinned: [PIN],
-		globalDepths: { linkDepthOut: 2, embedDepthOut: 2, linkDepthIn: 1 },
+		globalDepths: {
+			linkDepthOut: 2,
+			embedDepthOut: 2,
+			linkDepthIn: 1,
+			// Pinned budgets mirror the active ones so the fixture graph is the same
+			// union it was before pinned roots got their own dials.
+			pinnedLinkDepthOut: 2,
+			pinnedEmbedDepthOut: 2,
+			pinnedLinkDepthIn: 1,
+		},
 		globalView: EngineDefaults.viewSettings(),
 		...overrides,
 	};
@@ -150,7 +159,9 @@ describe("VicinityEngine settings integration", () => {
 	}
 
 	it("WHEN the global outgoing depth allows one hop THEN the second hop disappears", () => {
-		const graph = build({ globalDepths: { linkDepthOut: 1, embedDepthOut: 1, linkDepthIn: 1 } });
+		const graph = build({
+			globalDepths: { ...EngineDefaults.depthSettings(), linkDepthOut: 1, embedDepthOut: 1, linkDepthIn: 1 },
+		});
 		expect(node(graph, "notes/gamma.md")).toBeUndefined();
 	});
 
@@ -190,7 +201,7 @@ describe("VicinityEngine walked-edge semantics (CLARIFICATION Q5)", () => {
 		});
 		return new VicinityEngine(provider).build({
 			main: { path: asVaultPath("hub.md") },
-			globalDepths: { linkDepthOut: 1, embedDepthOut: 1, linkDepthIn: 0 },
+			globalDepths: { ...EngineDefaults.depthSettings(), linkDepthOut: 1, embedDepthOut: 1, linkDepthIn: 0 },
 			globalView: EngineDefaults.viewSettings(),
 			...overrides,
 		});
@@ -207,7 +218,9 @@ describe("VicinityEngine walked-edge semantics (CLARIFICATION Q5)", () => {
 	// The lever the edge-routing e2e fixtures use to render sibling chords: depth,
 	// not a visibility mode — a second hop WALKS the sibling link.
 	it("WHEN the walk reaches the sibling link at depth 2 THEN it becomes an edge", () => {
-		const graph = siblingBuild({ globalDepths: { linkDepthOut: 2, embedDepthOut: 2, linkDepthIn: 0 } });
+		const graph = siblingBuild({
+			globalDepths: { ...EngineDefaults.depthSettings(), linkDepthOut: 2, embedDepthOut: 2, linkDepthIn: 0 },
+		});
 		expect(edgeStrings(graph)).toEqual(["a.md->b.md", "hub.md->a.md", "hub.md->b.md"]);
 	});
 
@@ -305,7 +318,7 @@ describe("VicinityEngine cross links never drop a walked edge", () => {
 		);
 		return new VicinityEngine(provider).build({
 			main: { path: asVaultPath("hub.md") },
-			globalDepths: { linkDepthOut: 1, embedDepthOut: 1, linkDepthIn: 1 },
+			globalDepths: { ...EngineDefaults.depthSettings(), linkDepthOut: 1, embedDepthOut: 1, linkDepthIn: 1 },
 			globalView: { ...EngineDefaults.viewSettings(), showCrossLinks },
 		});
 	}
@@ -336,7 +349,7 @@ describe("VicinityEngine cross-link edge counts", () => {
 		});
 		const graph = new VicinityEngine(provider).build({
 			main: { path: asVaultPath("hub.md") },
-			globalDepths: { linkDepthOut: 1, embedDepthOut: 1, linkDepthIn: 0 },
+			globalDepths: { ...EngineDefaults.depthSettings(), linkDepthOut: 1, embedDepthOut: 1, linkDepthIn: 0 },
 			globalView: { ...EngineDefaults.viewSettings(), showCrossLinks: true },
 		});
 		return Object.fromEntries(graph.edges.map((edge) => [`${edge.source}->${edge.target}`, edge.count]));
@@ -361,7 +374,7 @@ describe("VicinityEngine edge link counts (step-05, CLARIFICATION Q1)", () => {
 	function edgeCounts(): Record<string, number> {
 		const graph = duplicateLinkEngine().build({
 			main: { path: asVaultPath("hub.md") },
-			globalDepths: { linkDepthOut: 1, embedDepthOut: 1, linkDepthIn: 1 },
+			globalDepths: { ...EngineDefaults.depthSettings(), linkDepthOut: 1, embedDepthOut: 1, linkDepthIn: 1 },
 			globalView: EngineDefaults.viewSettings(),
 		});
 		return Object.fromEntries(graph.edges.map((edge) => [`${edge.source}->${edge.target}`, edge.count]));
@@ -404,7 +417,14 @@ describe("VicinityEngine pinned-central depth exploration", () => {
 		return new VicinityEngine(chainProvider()).build({
 			main: { path: asVaultPath(mainPath) },
 			pinned: [X_PIN],
-			globalDepths: { linkDepthOut: globalOutgoing, embedDepthOut: globalOutgoing, linkDepthIn: 0 },
+			globalDepths: {
+				linkDepthOut: globalOutgoing,
+				embedDepthOut: globalOutgoing,
+				linkDepthIn: 0,
+				pinnedLinkDepthOut: globalOutgoing,
+				pinnedEmbedDepthOut: globalOutgoing,
+				pinnedLinkDepthIn: 0,
+			},
 			globalView: { ...EngineDefaults.viewSettings(), nodeCap: 100 },
 		});
 	}
@@ -434,6 +454,62 @@ describe("VicinityEngine pinned-central depth exploration", () => {
 	});
 });
 
+/**
+ * The active/pinned depth split (ticket `nid_ts4rx2pfo6o18verzk07z16g8_e`):
+ * MAIN traverses with the base budgets, every pinned root with the `pinned*`
+ * budgets, and a pinned note that IS the active note follows the active dials
+ * (MAIN-first dedupe — the assembler also drops such a pin before the engine).
+ */
+describe("VicinityEngine active-vs-pinned depth budgets", () => {
+	/** Two independent chains: MAIN m.md → m1 → m2, pinned x.md → x1 → x2. */
+	function twoChainProvider(): FakeLinkProvider {
+		return new FakeLinkProvider({
+			files: [
+				{ path: "m.md" },
+				{ path: "m1.md" },
+				{ path: "m2.md" },
+				{ path: "x.md" },
+				{ path: "x1.md" },
+				{ path: "x2.md" },
+			],
+			links: { "m.md": ["m1.md"], "m1.md": ["m2.md"], "x.md": ["x1.md"], "x1.md": ["x2.md"] },
+		});
+	}
+
+	function buildSplit(activeOutgoing: number, pinnedOutgoing: number, pinnedPath = "x.md"): VicinityGraph {
+		return new VicinityEngine(twoChainProvider()).build({
+			main: { path: asVaultPath("m.md") },
+			pinned: [{ path: asVaultPath(pinnedPath), docid: asDocId("docid_split_pin_e"), pinTimestamp: 1 }],
+			globalDepths: {
+				linkDepthOut: activeOutgoing,
+				embedDepthOut: 0,
+				linkDepthIn: 0,
+				pinnedLinkDepthOut: pinnedOutgoing,
+				pinnedEmbedDepthOut: 0,
+				pinnedLinkDepthIn: 0,
+			},
+			globalView: EngineDefaults.viewSettings(),
+		});
+	}
+
+	it("WHEN the pinned outgoing depth is 0 THEN the pinned root expands nothing while MAIN's chain is walked", () => {
+		const graph = buildSplit(2, 0);
+		expect(graph.nodes.map((n) => n.path).sort()).toEqual(["m.md", "m1.md", "m2.md", "x.md"]);
+	});
+
+	it("WHEN the pinned outgoing depth EXCEEDS the active one THEN only the pinned chain reaches its second hop", () => {
+		const graph = buildSplit(1, 2);
+		expect(graph.nodes.map((n) => n.path).sort()).toEqual(["m.md", "m1.md", "x.md", "x1.md", "x2.md"]);
+	});
+
+	it("WHEN the active note is ALSO pinned THEN it traverses with the ACTIVE budgets, not the pinned ones", () => {
+		// Pinned budget 0 would freeze m.md if the pin's depths won; the concrete
+		// second hop proves the active dials drive it.
+		const graph = buildSplit(2, 0, "m.md");
+		expect(graph.nodes.map((n) => n.path).sort()).toEqual(["m.md", "m1.md", "m2.md"]);
+	});
+});
+
 describe("VicinityEngine outline pass-through", () => {
 	it("WHEN a graph is built THEN each output node carries its file's outline", () => {
 		// GIVEN a hub linking one note that declares an outline (the spread-through guard:
@@ -444,7 +520,7 @@ describe("VicinityEngine outline pass-through", () => {
 		});
 		const graph = new VicinityEngine(provider).build({
 			main: { path: asVaultPath("hub.md") },
-			globalDepths: { linkDepthOut: 1, embedDepthOut: 1, linkDepthIn: 0 },
+			globalDepths: { ...EngineDefaults.depthSettings(), linkDepthOut: 1, embedDepthOut: 1, linkDepthIn: 0 },
 			globalView: EngineDefaults.viewSettings(),
 		});
 		expect(graph.nodes.find((candidate) => candidate.path === "child.md")?.outline).toEqual([
@@ -464,7 +540,7 @@ describe("VicinityEngine outline pass-through", () => {
 		});
 		const graph = new VicinityEngine(provider).build({
 			main: { path: asVaultPath("hub.md") },
-			globalDepths: { linkDepthOut: 1, embedDepthOut: 1, linkDepthIn: 0 },
+			globalDepths: { ...EngineDefaults.depthSettings(), linkDepthOut: 1, embedDepthOut: 1, linkDepthIn: 0 },
 			globalView: EngineDefaults.viewSettings(),
 		});
 		expect(graph.nodes.find((candidate) => candidate.path === "cover.md")?.imagePrecedesOutline).toBe(true);

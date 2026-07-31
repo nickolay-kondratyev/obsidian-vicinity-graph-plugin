@@ -8,10 +8,11 @@ import { ObsidianHarness } from "./obsidianHarness";
  *
  * 1. the GLOBAL pin lifecycle as a human performs it — pin the MAIN central,
  *    switch MAIN away (it stays as a pinned central), unpin it;
- * 2. the ONE global depth setting driving MAIN *and* every pinned central
- *    (ticket `nid_ez38gf1mrdgh5kxedzrdicwzl_e`) — the two depth tests below split
- *    that claim into its halves, so a failure names which root stopped honouring
- *    the setting. There are no per-note or per-central depth dials to test.
+ * 2. the PER-ROLE global depth dials (ticket `nid_ts4rx2pfo6o18verzk07z16g8_e`):
+ *    the active-note "Links out" drives MAIN's reach, the "Pinned links out"
+ *    dial drives every pinned central's reach — the depth tests below split
+ *    that claim into its halves, so a failure names which root stopped
+ *    honouring its dial. There are still no per-NOTE depth dials to test.
  *
  * SERIAL and order-dependent by design (see `test.describe.configure`): each test
  * states the GIVEN it inherits from the one above it and verifies it before acting.
@@ -44,7 +45,7 @@ const OTHER_MAIN = "sc_z.md";
 const X = "sc_x.md";
 /** Two hops out from the hub, one hop out from `sc_x` — reachable only above the default depth 1. */
 const X1 = "sc_x1.md";
-/** Three hops out from the hub, two from `sc_x`: at global depth 2 ONLY a pinned `sc_x` reaches it. */
+/** Three hops out from the hub, two from `sc_x`: ONLY a pinned `sc_x` at pinned depth 2 reaches it. */
 const X2 = "sc_x2.md";
 
 let harness: ObsidianHarness;
@@ -72,9 +73,14 @@ async function clickPin(path: string): Promise<void> {
 	await node.locator(".vicinity-graph-pin-button").click();
 }
 
-/** The panel's Depth section: the ONE global depth setting, for every central alike. */
+/** The panel's ACTIVE-note depth block (`:not` — the pinned block shares the base class). */
 function depthSection(): Locator {
-	return page.locator(".vicinity-graph-depth-controls");
+	return page.locator(".vicinity-graph-depth-controls:not(.vicinity-graph-depth-controls--pinned)");
+}
+
+/** The panel's PINNED-note depth block. */
+function pinnedDepthSection(): Locator {
+	return page.locator(".vicinity-graph-depth-controls--pinned");
 }
 
 function linksOutDepthValue(): Locator {
@@ -98,8 +104,16 @@ async function openToolbar(): Promise<void> {
 
 /** Fires the stepper's real handler: in a headless window the panel can sit off-viewport. */
 async function bumpLinksOutDepth(): Promise<void> {
+	// `exact`: the pinned block's "Increase pinned links out" contains this name.
 	await depthSection()
-		.getByRole("button", { name: "Increase links out" })
+		.getByRole("button", { name: "Increase links out", exact: true })
+		.evaluate((el) => (el as HTMLButtonElement).click());
+}
+
+/** Same real-handler firing, for the pinned block's own outgoing dial. */
+async function bumpPinnedLinksOutDepth(): Promise<void> {
+	await pinnedDepthSection()
+		.getByRole("button", { name: "Increase pinned links out" })
 		.evaluate((el) => (el as HTMLButtonElement).click());
 }
 
@@ -138,7 +152,7 @@ test("the MAIN central itself can be pinned, survives switching MAIN, and can be
 	await expect(noteNode(HUB)).toHaveAttribute("data-tier", "regular");
 });
 
-test("WHEN the global Links-out depth is raised THEN MAIN's own reach grows by a hop", async () => {
+test("WHEN the ACTIVE-note Links-out depth is raised THEN MAIN's own reach grows by a hop", async () => {
 	// GIVEN sc_hub is MAIN with NOTHING pinned (the lifecycle test above leaves sc_x
 	// pinned, so unpinning it is part of the GIVEN) at the shipped depth of 1: the
 	// graph stops at sc_x, one hop out.
@@ -157,8 +171,8 @@ test("WHEN the global Links-out depth is raised THEN MAIN's own reach grows by a
 	await expect(noteNode(X1)).toHaveCount(1);
 });
 
-test("WHEN a note is pinned THEN it traverses from ITSELF at that same global depth", async () => {
-	// GIVEN the global "Links out" depth is 2 (previous test) and nothing is pinned, so
+test("WHEN a note is pinned THEN its reach follows the PINNED depth dial, not the active-note one", async () => {
+	// GIVEN the ACTIVE "Links out" depth is 2 (previous test) and nothing is pinned, so
 	// sc_x2 — THREE hops from MAIN — is out of reach.
 	await expect(linksOutDepthValue()).toHaveText("2");
 	await expect(noteNode(X2)).toHaveCount(0);
@@ -168,7 +182,15 @@ test("WHEN a note is pinned THEN it traverses from ITSELF at that same global de
 	await clickPin(X);
 	await expect(noteNode(X)).toHaveAttribute("data-tier", "pinned-central");
 
-	// THEN sc_x2 joins the graph: only a root AT sc_x reaches it within depth 2, so
-	// the pinned central is traversing with the one global setting — no dial of its own.
+	// THEN sc_x2 is STILL out of reach: the pinned dial sits at its default of 1, and
+	// the active-note depth of 2 deliberately does not apply to a pinned root.
+	await expect(noteNode(X2)).toHaveCount(0);
+
+	// WHEN the pinned "Pinned links out" dial goes 1 → 2.
+	await openToolbar();
+	await bumpPinnedLinksOutDepth();
+
+	// THEN sc_x2 joins the graph: only a root AT sc_x reaches it within 2 hops, so the
+	// pinned central is traversing with the pinned dial.
 	await expect(noteNode(X2)).toHaveCount(1);
 });

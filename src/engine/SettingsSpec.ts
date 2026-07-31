@@ -51,6 +51,9 @@ export interface DepthSpec {
 	readonly linkDepthOut: BoundedNumberSpec;
 	readonly embedDepthOut: BoundedNumberSpec;
 	readonly linkDepthIn: BoundedNumberSpec;
+	readonly pinnedLinkDepthOut: BoundedNumberSpec;
+	readonly pinnedEmbedDepthOut: BoundedNumberSpec;
+	readonly pinnedLinkDepthIn: BoundedNumberSpec;
 }
 
 export interface SizingSpec {
@@ -171,6 +174,15 @@ export const SETTINGS_SPEC: SettingsSpec = {
 		 */
 		embedDepthOut: { default: 1, ...DEPTH_STEPPER_BOUNDS },
 		linkDepthIn: { default: 1, ...DEPTH_STEPPER_BOUNDS },
+		/**
+		 * The pinned-note budgets DELIBERATELY EQUAL the active-note defaults above:
+		 * before pinned notes had their own dials, every root traversed with the one
+		 * global set — so at these defaults, pinning a note draws exactly the graph
+		 * it always drew, and the split is invisible until someone moves a dial.
+		 */
+		pinnedLinkDepthOut: { default: 1, ...DEPTH_STEPPER_BOUNDS },
+		pinnedEmbedDepthOut: { default: 1, ...DEPTH_STEPPER_BOUNDS },
+		pinnedLinkDepthIn: { default: 1, ...DEPTH_STEPPER_BOUNDS },
 	},
 	globalView: {
 		/**

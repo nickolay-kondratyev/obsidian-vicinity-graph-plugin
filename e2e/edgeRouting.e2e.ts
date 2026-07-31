@@ -3,6 +3,7 @@ import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
+import { EngineDefaults } from "../src/engine";
 import { ObsidianHarness } from "./obsidianHarness";
 
 /**
@@ -59,7 +60,12 @@ const EDGE_PATH_SELECTOR = ".vicinity-graph-flow .react-flow__edge-path";
  * Depths both fixtures here run at: the second outgoing hop is what walks the ring's
  * diameter chords AND the `facing/` neighbours' cluster links (see the file header).
  */
-const WALK_SIBLINGS_DEPTHS = { linkDepthOut: 2, embedDepthOut: 2, linkDepthIn: 1 };
+const WALK_SIBLINGS_DEPTHS = {
+	...EngineDefaults.depthSettings(),
+	linkDepthOut: 2,
+	embedDepthOut: 2,
+	linkDepthIn: 1,
+};
 
 /** `facing` fixture (scripts/setup-dev-vault.sh): a folder-group box crowded from one side. */
 const FACING_HUB_PATH = "facing/hub-facing.md";

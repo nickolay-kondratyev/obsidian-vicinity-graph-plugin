@@ -4,7 +4,7 @@ import type { SettingsWriteContext } from "./settingsWritePlan";
 import { planSettingsWrite } from "./settingsWritePlan";
 
 const CTX: SettingsWriteContext = {
-	globalDepths: { linkDepthOut: 1, embedDepthOut: 1, linkDepthIn: 1 },
+	globalDepths: EngineDefaults.depthSettings(),
 	globalView: EngineDefaults.viewSettings(),
 	nodeExclusion: EngineDefaults.nodeExclusionSettings(),
 };
@@ -13,7 +13,7 @@ describe("planSettingsWrite global writes", () => {
 	it("WHEN global-depth outgoing value 2 THEN it merges over ctx.globalDepths preserving the other field", () => {
 		expect(planSettingsWrite({ kind: "global-depth", field: "linkDepthOut", value: 2 }, CTX)).toEqual({
 			kind: "global-depths",
-			depths: { linkDepthOut: 2, embedDepthOut: 1, linkDepthIn: 1 },
+			depths: { ...EngineDefaults.depthSettings(), linkDepthOut: 2 },
 		});
 	});
 
