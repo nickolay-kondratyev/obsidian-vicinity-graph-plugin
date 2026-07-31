@@ -65,8 +65,14 @@
 }
 
 /* Row resets Obsidian's global button styling on purpose (compact, in-node).
- * `display: block` + a constrained width is what makes text-overflow apply. */
-.vicinity-graph-outline__entry {
+ * `display: block` + a constrained width is what makes text-overflow apply.
+ *
+ * The ancestor class is LOAD-BEARING, not scoping hygiene: Obsidian paints every
+ * plain button via `button:not(.clickable-icon)` at specificity (0,1,1), which
+ * BEATS a single class (0,1,0) — with one class this reset silently loses
+ * background/box-shadow/color and the tree renders as nested raised pills
+ * (covered by the flat-rows assertion in e2e/nodeOutline.e2e.ts). */
+.vicinity-graph-outline .vicinity-graph-outline__entry {
 	display: block;
 	width: 100%;
 	height: auto;
@@ -98,11 +104,11 @@
 .vicinity-graph-outline > .vicinity-graph-outline__list > .vicinity-graph-outline__item > .vicinity-graph-outline__entry {
 	font-weight: var(--font-medium);
 }
-.vicinity-graph-outline__entry:hover {
+.vicinity-graph-outline .vicinity-graph-outline__entry:hover {
 	color: var(--text-normal);
 	background: var(--background-modifier-hover);
 }
-.vicinity-graph-outline__entry:focus-visible {
+.vicinity-graph-outline .vicinity-graph-outline__entry:focus-visible {
 	outline: none;
 	box-shadow: 0 0 0 2px var(--interactive-accent);
 }
