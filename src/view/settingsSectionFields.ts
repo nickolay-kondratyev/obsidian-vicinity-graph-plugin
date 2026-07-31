@@ -49,7 +49,18 @@ export interface SectionSettingsFields {
 const NO_FIELDS = [] as const;
 
 export const SECTION_SETTINGS_FIELDS = {
-	"depth-defaults": { view: NO_FIELDS, depth: ["linkDepthOut", "embedDepthOut", "linkDepthIn"], exclusion: NO_FIELDS },
+	"depth-defaults": {
+		view: NO_FIELDS,
+		depth: [
+			"linkDepthOut",
+			"embedDepthOut",
+			"linkDepthIn",
+			"pinnedLinkDepthOut",
+			"pinnedEmbedDepthOut",
+			"pinnedLinkDepthIn",
+		],
+		exclusion: NO_FIELDS,
+	},
 	edges: { view: ["showCrossLinks"], depth: NO_FIELDS, exclusion: NO_FIELDS },
 	"node-sizing": { view: ["sizing"], depth: NO_FIELDS, exclusion: NO_FIELDS },
 	"node-contents": { view: ["outlineMaxDepth", "nodePreviewPreference"], depth: NO_FIELDS, exclusion: NO_FIELDS },

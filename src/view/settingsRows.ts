@@ -282,11 +282,13 @@ function forceLayoutRow(field: keyof ForceLayoutSettings): SettingsRow {
  * without rows.
  */
 export const SETTINGS_GROUPS: Readonly<Record<SettingsSection, SettingsGroup>> = {
-	// Heading and row copy say "every"/"all notes" rather than "defaults" (owner
-	// decision 2026-07-29): "default" implies a per-note override layer, and there is
-	// none — this IS the one value every graph traverses with.
+	// Row copy names the ROLE ("the active note" / "each pinned note") rather than
+	// "defaults" (in the spirit of the 2026-07-29 owner copy decision): "default"
+	// implies a per-note override layer, and there is none — depth is one dial per
+	// role, applied to every graph. Two blocks, one per role; the pinned labels are
+	// prefixed so both surfaces' accessible names stay unambiguous.
 	"depth-defaults": {
-		heading: "Depth (all notes)",
+		heading: "Depth",
 		openInPanel: true,
 		blocks: [
 			{
@@ -294,20 +296,45 @@ export const SETTINGS_GROUPS: Readonly<Record<SettingsSection, SettingsGroup>> =
 				rows: [
 					{
 						label: "Links out",
-						description: "How many hops of plain outgoing links to expand from every central note.",
+						description: "How many hops of plain outgoing links to expand from the active note.",
 						control: { kind: "depth", field: "linkDepthOut" },
 					},
 					{
 						label: "Embeds out",
 						description:
-							"How many hops of EMBEDDED notes (`![[note]]`, and canvas cards holding a note) to expand from every central note. Images and other attachments are unaffected — they are attachments however they are written, and never become nodes.",
+							"How many hops of EMBEDDED notes (`![[note]]`, and canvas cards holding a note) to expand from the active note. Images and other attachments are unaffected — they are attachments however they are written, and never become nodes.",
 						control: { kind: "depth", field: "embedDepthOut" },
 					},
 					{
 						label: "Links in",
 						description:
-							"How many hops of incoming links (backlinks) to expand from every central note. A note that EMBEDS a central note arrives here too — incoming links are counted the same way whatever their kind.",
+							"How many hops of incoming links (backlinks) to expand from the active note. A note that EMBEDS the active note arrives here too — incoming links are counted the same way whatever their kind.",
 						control: { kind: "depth", field: "linkDepthIn" },
+					},
+				],
+			},
+			{
+				// Same base class (one stepper layout), plus a modifier so e2e locators can
+				// address the active and pinned blocks separately.
+				panelClass: "vicinity-graph-depth-controls vicinity-graph-depth-controls--pinned",
+				rows: [
+					{
+						label: "Pinned links out",
+						description:
+							"How many hops of plain outgoing links to expand from each pinned note. A pinned note that is also the active note uses the active-note depths.",
+						control: { kind: "depth", field: "pinnedLinkDepthOut" },
+					},
+					{
+						label: "Pinned embeds out",
+						description:
+							"How many hops of EMBEDDED notes to expand from each pinned note (see Embeds out). A pinned note that is also the active note uses the active-note depths.",
+						control: { kind: "depth", field: "pinnedEmbedDepthOut" },
+					},
+					{
+						label: "Pinned links in",
+						description:
+							"How many hops of incoming links (backlinks) to expand from each pinned note. A pinned note that is also the active note uses the active-note depths.",
+						control: { kind: "depth", field: "pinnedLinkDepthIn" },
 					},
 				],
 			},

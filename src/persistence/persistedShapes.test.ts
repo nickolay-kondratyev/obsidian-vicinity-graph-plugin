@@ -24,7 +24,14 @@ describe("PersistedShapes.parsePluginData", () => {
 			version: PERSISTED_SHAPE_VERSION,
 			// Every value is NON-default on purpose, so "parsed" cannot be mistaken for
 			// "fell back to the spec default".
-			globalDepths: { linkDepthOut: 3, embedDepthOut: 4, linkDepthIn: 2 },
+			globalDepths: {
+				linkDepthOut: 3,
+				embedDepthOut: 4,
+				linkDepthIn: 2,
+				pinnedLinkDepthOut: 5,
+				pinnedEmbedDepthOut: 0,
+				pinnedLinkDepthIn: 3,
+			},
 			globalView: { ...EngineDefaults.viewSettings(), nodeCap: 42 },
 			pins: [{ docid: "docid_a_e", pinTimestamp: 1000 }],
 			nodeExclusion: { enabled: true, patterns: ["^rel/", "templates/"] },
@@ -246,6 +253,7 @@ describe("PersistedShapes global depth parsing", () => {
 
 	it("WHEN a depth field carries the wrong type THEN only that field falls back to the default", () => {
 		expect(parsedGlobalDepths({ linkDepthOut: "3", embedDepthOut: 3, linkDepthIn: 2 })).toEqual({
+			...EngineDefaults.depthSettings(),
 			linkDepthOut: EngineDefaults.depthSettings().linkDepthOut,
 			embedDepthOut: 3,
 			linkDepthIn: 2,

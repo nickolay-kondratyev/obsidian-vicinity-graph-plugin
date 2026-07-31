@@ -18,9 +18,16 @@ describe("PluginDataStore", () => {
 
 	it("WHEN settings are saved THEN a re-initialized store reads them back (round-trip)", async () => {
 		const port = new FakePluginDataPort();
-		await (await initializedStore(port)).saveGlobalDepths({ linkDepthOut: 4, embedDepthOut: 4, linkDepthIn: 2 });
+		const savedDepths = {
+			...EngineDefaults.depthSettings(),
+			linkDepthOut: 4,
+			embedDepthOut: 4,
+			linkDepthIn: 2,
+			pinnedLinkDepthOut: 3,
+		};
+		await (await initializedStore(port)).saveGlobalDepths(savedDepths);
 		const reloaded = await initializedStore(port);
-		expect(reloaded.globalDepths()).toEqual({ linkDepthOut: 4, embedDepthOut: 4, linkDepthIn: 2 });
+		expect(reloaded.globalDepths()).toEqual(savedDepths);
 	});
 
 	it("WHEN a fresh install is read THEN node exclusion defaults to disabled with no patterns", async () => {

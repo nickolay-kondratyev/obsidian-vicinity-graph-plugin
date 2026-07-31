@@ -9,7 +9,7 @@ import type {
 	AttachmentRef,
 	CentralNodeDescriptor,
 	Channel,
-	DepthSettings,
+	ChannelDepths,
 	DepthTag,
 	DirectedLink,
 	DocId,
@@ -22,7 +22,7 @@ import { CHANNEL_DEPTH_FIELD, CHANNELS } from "./types";
 /** One traversal root with its (already resolved) per-root depth limits. */
 export interface TraversalRoot {
 	readonly descriptor: CentralNodeDescriptor;
-	readonly depths: DepthSettings;
+	readonly depths: ChannelDepths;
 }
 
 /** Traversal output node: everything except sizing (sizing is a later stage). */

@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import * as fs from "node:fs";
+import { EngineDefaults } from "../src/engine";
 import { ObsidianHarness } from "./obsidianHarness";
 import { ALL_SETTINGS_RESET_CONFIRM_TITLE, EVERY_SETTINGS_RESET_NAME } from "./settingsBaseline";
 import { SettingsTabPage } from "./settingsTabPage";
@@ -35,7 +36,13 @@ test.afterAll(async () => {
 
 /** Puts EVERY section into a non-default state, then re-renders the tab. */
 async function dirtyEverySection(): Promise<void> {
-	await harness.saveGlobalDepths({ linkDepthOut: 4, embedDepthOut: 2, linkDepthIn: 3 });
+	await harness.saveGlobalDepths({
+		...EngineDefaults.depthSettings(),
+		linkDepthOut: 4,
+		embedDepthOut: 2,
+		linkDepthIn: 3,
+		pinnedLinkDepthOut: 2,
+	});
 	const view = await harness.readGlobalView();
 	await harness.saveGlobalView({
 		nodeCap: 42,
@@ -53,11 +60,11 @@ async function dirtyEverySection(): Promise<void> {
 test("REVIEW: isolation matrix — each section reset touches only its own keys", async () => {
 	await settingsTab.open();
 
-	// --- Depth (all notes) --------------------------------------------------
+	// --- Depth ---------------------------------------------------------------
 	await dirtyEverySection();
-	await settingsTab.resetButton("Depth (all notes)").click();
+	await settingsTab.resetButton("Depth").click();
 	let after = await harness.readGlobals();
-	expect(after.depths).toEqual({ linkDepthOut: 1, embedDepthOut: 1, linkDepthIn: 1 });
+	expect(after.depths).toEqual(EngineDefaults.depthSettings());
 	expect(after.view.nodeCap).toBe(42);
 	expect(after.view.sizing.minPx).toBe(11);
 	expect(after.view.forceLayout.repelStrength).toBe(800);
@@ -224,7 +231,7 @@ test("REVIEW: confirm modal — keyboard-only confirm restores everything", asyn
 	// The three slice writes are awaited in sequence, so poll for the LAST one.
 	await expect.poll(async () => (await harness.readGlobals()).exclusion).toEqual({ enabled: false, patterns: [] });
 	const after = await harness.readGlobals();
-	expect(after.depths).toEqual({ linkDepthOut: 1, embedDepthOut: 1, linkDepthIn: 1 });
+	expect(after.depths).toEqual(EngineDefaults.depthSettings());
 	expect(after.view.nodeCap).toBe(100);
 	expect(after.view.sizing.minPx).not.toBe(11);
 	expect(after.view.forceLayout.repelStrength).not.toBe(800);

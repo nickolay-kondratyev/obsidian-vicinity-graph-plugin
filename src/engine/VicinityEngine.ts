@@ -17,21 +17,23 @@ import type {
 	PinnedNodeDescriptor,
 	ViewSettings,
 } from "./types";
+import { DepthSettingsFacts } from "./types";
 
 /**
  * Everything a graph build needs. All inputs are PATH-keyed: persisted
  * docid-keyed data (the pinned set) must be translated by the step-03 adapter
  * before it reaches the engine (see CLARIFICATION Q1).
  *
- * Settings are GLOBAL-only: {@link globalDepths} applies to MAIN and to EVERY
- * pinned root alike, and {@link globalView} is the view configuration verbatim.
- * There is no per-doc override layer to cascade (owner decision 2026-07-29).
+ * Settings are GLOBAL-only: {@link globalDepths} carries one set of budgets for
+ * the MAIN root and one for every pinned root (never per-note), and
+ * {@link globalView} is the view configuration verbatim. There is no per-doc
+ * override layer to cascade (owner decision 2026-07-29).
  */
 export interface GraphBuildRequest {
 	/** The active document. */
 	readonly main: CentralNodeDescriptor;
 	readonly pinned?: readonly PinnedNodeDescriptor[];
-	/** The one depth configuration every root traverses with. */
+	/** The one depth configuration: active-note budgets + pinned-note budgets. */
 	readonly globalDepths: DepthSettings;
 	readonly globalView: ViewSettings;
 	/**
@@ -125,11 +127,16 @@ export class VicinityEngine {
 
 	/**
 	 * MAIN first — when MAIN is also pinned, traversal dedupe keeps MAIN's
-	 * descriptor. Every root gets the SAME depths: one global dial, no per-root
-	 * layer to resolve.
+	 * descriptor, so such a note traverses with the ACTIVE-note budgets (the
+	 * assembler also drops a pin on the main path before it gets here). Depths
+	 * are per ROLE, never per note: one dial for the active note, one for every
+	 * pinned note.
 	 */
 	private toRoots(request: GraphBuildRequest): readonly TraversalRoot[] {
-		const descriptors: readonly CentralNodeDescriptor[] = [request.main, ...(request.pinned ?? [])];
-		return descriptors.map((descriptor) => ({ descriptor, depths: request.globalDepths }));
+		const pinnedDepths = DepthSettingsFacts.pinnedChannelDepths(request.globalDepths);
+		return [
+			{ descriptor: request.main, depths: DepthSettingsFacts.activeChannelDepths(request.globalDepths) },
+			...(request.pinned ?? []).map((descriptor) => ({ descriptor, depths: pinnedDepths })),
+		];
 	}
 }

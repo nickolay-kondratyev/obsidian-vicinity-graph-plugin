@@ -59,9 +59,9 @@ function noteNode(path: string): Locator {
 	return page.locator(`.vicinity-graph-node[data-path="${path}"]`);
 }
 
-/** The panel's Depth section: the ONE global depth setting (drives MAIN and every pinned central). */
+/** The panel's ACTIVE-note depth block (`:not` — the pinned block shares the base class). */
 function depthSection(): Locator {
-	return page.locator(".vicinity-graph-depth-controls");
+	return page.locator(".vicinity-graph-depth-controls:not(.vicinity-graph-depth-controls--pinned)");
 }
 
 function linksInDepthValue(): Locator {
@@ -102,7 +102,7 @@ async function clickPin(path: string): Promise<void> {
  */
 async function bumpLinksInDepth(): Promise<void> {
 	await depthSection()
-		.getByRole("button", { name: "Increase links in" })
+		.getByRole("button", { name: "Increase links in", exact: true })
 		.evaluate((el) => (el as HTMLButtonElement).click());
 }
 

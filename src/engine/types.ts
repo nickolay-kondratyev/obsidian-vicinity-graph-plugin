@@ -220,25 +220,74 @@ export const _assertEveryNodePreviewPreferenceListed: UnlistedPreference extends
 // ---------------------------------------------------------------------------
 
 /**
- * The traversal depths every root walks with (MAIN and every pinned central) —
- * one budget per {@link Channel}, wired by {@link CHANNEL_DEPTH_FIELD}.
+ * The per-channel depth budgets ONE traversal root walks with — one budget per
+ * {@link Channel}, wired by {@link CHANNEL_DEPTH_FIELD}. This is the shape the
+ * BFS consumes; WHICH budgets a root gets (active-note vs pinned — see
+ * {@link DepthSettings}) is resolved by the engine facade before traversal.
  */
-export interface DepthSettings {
-	/** Hops of PLAIN outgoing links (`[[x]]`, `[x](y)`) expanded from each root. */
+export interface ChannelDepths {
+	/** Hops of PLAIN outgoing links (`[[x]]`, `[x](y)`) expanded from this root. */
 	readonly linkDepthOut: number;
 	/**
 	 * Hops of EMBEDDED outgoing notes (`![[x]]`, canvas file nodes) expanded from
-	 * each root. Embedded ATTACHMENTS are not affected: attachment-ness is decided
+	 * this root. Embedded ATTACHMENTS are not affected: attachment-ness is decided
 	 * by node-bearing-ness, never by kind (owner decision D5), so a `![[chart.png]]`
 	 * is an attachment exactly like `[[chart.png]]` and never consumes this budget.
 	 */
 	readonly embedDepthOut: number;
 	/**
-	 * Hops of incoming links expanded from each root. KIND-BLIND by scope decision:
+	 * Hops of incoming links expanded from this root. KIND-BLIND by scope decision:
 	 * a note that embeds a central note arrives here like any other linker — there
 	 * is deliberately no "embedded in" budget.
 	 */
 	readonly linkDepthIn: number;
+}
+
+/**
+ * The GLOBAL depth settings family (persisted as `globalDepths`): the base
+ * fields are the ACTIVE note's budgets, the `pinned*` fields are the budgets
+ * every PINNED note traverses with instead (ticket
+ * `nid_ts4rx2pfo6o18verzk07z16g8_e` — one dial per role, still no per-note
+ * layer). A pinned note that is also the active note uses the active-note
+ * budgets: the assembler drops such a pin before the engine sees it, and the
+ * traversal's MAIN-first dedupe backstops it.
+ *
+ * FLAT fields rather than a nested `{active, pinned}` pair, deliberately: every
+ * settings mechanism in this repo (row declarations, the write plan's one-field
+ * merge, the persistence field parser, the section/reset tables) is keyed by
+ * `keyof DepthSettings`, and flat fields ride all of it unchanged.
+ */
+export interface DepthSettings extends ChannelDepths {
+	/** {@link ChannelDepths.linkDepthOut}, for pinned roots. */
+	readonly pinnedLinkDepthOut: number;
+	/** {@link ChannelDepths.embedDepthOut}, for pinned roots. */
+	readonly pinnedEmbedDepthOut: number;
+	/** {@link ChannelDepths.linkDepthIn}, for pinned roots. */
+	readonly pinnedLinkDepthIn: number;
+}
+
+/**
+ * Projections of {@link DepthSettings} onto the {@link ChannelDepths} one root
+ * traverses with — the ONE place the role → fields mapping lives.
+ */
+export class DepthSettingsFacts {
+	/** The active (MAIN) note's budgets. Explicit projection: never hand the 6-field object to a root. */
+	static activeChannelDepths(settings: DepthSettings): ChannelDepths {
+		return {
+			linkDepthOut: settings.linkDepthOut,
+			embedDepthOut: settings.embedDepthOut,
+			linkDepthIn: settings.linkDepthIn,
+		};
+	}
+
+	/** The budgets every pinned root traverses with. */
+	static pinnedChannelDepths(settings: DepthSettings): ChannelDepths {
+		return {
+			linkDepthOut: settings.pinnedLinkDepthOut,
+			embedDepthOut: settings.pinnedEmbedDepthOut,
+			linkDepthIn: settings.pinnedLinkDepthIn,
+		};
+	}
 }
 
 /**
@@ -255,14 +304,14 @@ export interface NodeExclusionSettings {
 }
 
 /**
- * Single source of truth mapping a {@link Channel} to the {@link DepthSettings}
+ * Single source of truth mapping a {@link Channel} to the {@link ChannelDepths}
  * budget it spends. Read by the traversal only — a settings row names its FIELD
  * directly, so this stays the BFS's own table.
  *
  * `Record<Channel, …>`, so a new channel cannot ship without deciding which budget
  * limits it. POLS — trivially invertible.
  */
-export const CHANNEL_DEPTH_FIELD: Readonly<Record<Channel, keyof DepthSettings>> = {
+export const CHANNEL_DEPTH_FIELD: Readonly<Record<Channel, keyof ChannelDepths>> = {
 	"outgoing-link": "linkDepthOut",
 	"outgoing-embed": "embedDepthOut",
 	incoming: "linkDepthIn",

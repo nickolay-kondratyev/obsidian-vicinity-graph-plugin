@@ -14,6 +14,7 @@ import {
 import { SettingsTabPage } from "./settingsTabPage";
 // Type-only, so the pure engine barrel never loads in the node-side test process.
 import type { NodePreviewPreference } from "../src/engine";
+import { EngineDefaults } from "../src/engine";
 
 /**
  * Settings-ux-improvements feature spec: asserts the controls panel's default
@@ -133,7 +134,7 @@ test("panel: WHEN the controls panel renders THEN its top-level disclosures are 
 	// (GraphToolbar's section summary), so its textContent is "Node exclusion" or
 	// "Node exclusion12" depending on the fixture, and an exact string would be a
 	// latent flake for that entry. `\d*` tolerates that badge and NOTHING else —
-	// tail-anchoring keeps a rename like "Depth (all notes)" → "Depth & scope" failing, which
+	// tail-anchoring keeps a rename like "Depth" → "Depth & scope" failing, which
 	// an open-ended prefix would have let through. If the badge ever stops being a
 	// bare integer, the resulting failure is intended, not a flake.
 	await expect(summaries).toHaveText(
@@ -333,7 +334,7 @@ test("settings tab: WHEN the tab renders THEN every input carries its row name a
 	// only meaningful once each family is proven present AND named.
 	await expect(settings.getByLabel("Repel force")).toHaveAttribute("type", "range");
 	await expect(settings.getByLabel("Outline depth")).toHaveAttribute("type", "range");
-	await expect(settings.getByLabel("Links out")).toHaveAttribute("type", "range");
+	await expect(settings.getByLabel("Links out", { exact: true })).toHaveAttribute("type", "range");
 	await expect(settings.getByLabel("Node cap")).toHaveAttribute("type", "number");
 	await expect(settings.getByLabel("Exclusion patterns")).toHaveCount(1);
 	await expect(settings.getByLabel("Exclude notes from the graph")).toHaveAttribute("type", "checkbox");
@@ -356,7 +357,7 @@ test("settings tab: a section restore resets ONLY that section", async () => {
 	// the controls panel grows its own node-cap row.
 	const nodeCap = page.locator(".vicinity-graph-settings").getByLabel("Node cap");
 	await harness.setGlobalNodeCap(42);
-	await harness.saveGlobalDepths({ linkDepthOut: 4, embedDepthOut: 4, linkDepthIn: 4 });
+	await harness.saveGlobalDepths({ ...EngineDefaults.depthSettings(), linkDepthOut: 4, embedDepthOut: 4, linkDepthIn: 4 });
 	await settingsTab.redisplay();
 	await expect(nodeCap).toHaveValue("42");
 	await settingsTab.resetButton("Performance").click();

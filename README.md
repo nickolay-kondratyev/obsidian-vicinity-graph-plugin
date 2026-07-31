@@ -74,7 +74,7 @@ tab (**Settings → Vicinity Graph**) and the in-view **Graph controls** panel;
 changing either writes the one global value and refreshes every open graph.
 
 **Both surfaces show the same sections, in the same order, under the same names**
-— *Depth (all notes)*, *Edges*, *Node sizing*, *Node contents*, *Force layout*,
+— *Depth*, *Edges*, *Node sizing*, *Node contents*, *Force layout*,
 *Node exclusion*, *Performance*. Every setting appears on both. The panel is narrow, so
 it uses compact controls (steppers instead of sliders for depth) and moves the
 long descriptions into hover tooltips. One deliberate exception: exclusion
@@ -88,9 +88,10 @@ changed gets reverted by the next change.
 
 ### The settings
 
-- **Depth (all notes)** — how far traversal reaches from each central note, with
-  a separate budget per kind of relationship. Also on the controls panel, as
-  `−` / `+` steppers under the same heading.
+- **Depth** — how far traversal reaches from each central note, with a separate
+  budget per kind of relationship *and per role*: one trio of dials for the
+  **active note**, a second trio for **pinned notes**. Also on the controls
+  panel, as `−` / `+` steppers under the same heading.
     - **Links out** — hops of plain outgoing links (`[[note]]`, `[note](note.md)`).
     - **Embeds out** — hops of *embedded* notes (`![[note]]`, and canvas cards that
       hold a note). Images and other attachments are unaffected: they are
@@ -98,10 +99,13 @@ changed gets reverted by the next change.
     - **Links in** — hops of incoming links. Kind-blind: a note that *embeds* the
       central note arrives here like any other linker; there is no "embedded in"
       budget.
+    - **Pinned links out / Pinned embeds out / Pinned links in** — the same three
+      budgets, applied to every *pinned* central instead. A pinned note that is
+      also the active note uses the active-note trio.
 
-  **One set of values:** it applies to the active note *and* to every pinned
-  central, so nudging it there changes every graph, not just the one in front of
-  you — which is what the heading says out loud on both surfaces.
+  **Global, per role — never per note:** each trio applies to every note in that
+  role, so nudging a dial changes every graph, not just the one in front of you.
+  There is still no per-note depth dial.
 
   > Note on how the two outgoing budgets combine: each is walked independently,
   > so a chain that changes kind partway (a note you *embed*, which then *links*
@@ -165,9 +169,10 @@ changed gets reverted by the next change.
 - The **pinned set is global state and survives restarts** (stored in the
   plugin's `data.json`). Pins are keyed by a stable note id, so renaming or moving
   a pinned note keeps it pinned.
-- **Pinned centrals share the one global depth** — there is no per-pin depth dial.
-  Raising any depth budget extends the active note's reach *and* every pinned
-  central's reach.
+- **Pinned centrals traverse with their own global depth trio** (the *Pinned
+  links out / Pinned embeds out / Pinned links in* dials) — shared by every
+  pinned note; there is still no per-pin depth dial. A pinned note that is also
+  the active note uses the active-note depths.
 
 > Known caveat: right after an Obsidian restart, a persisted pinned central can
 > briefly render as a regular node (no pinned accent) until the background cleanup

@@ -52,6 +52,12 @@ const SHIPPED_SETTINGS_DEFAULTS: Readonly<Record<string, unknown>> = {
 	"globalDepths.linkDepthOut": 1,
 	"globalDepths.embedDepthOut": 1,
 	"globalDepths.linkDepthIn": 1,
+	// The pinned budgets MUST ship equal to the active-note budgets above: that
+	// equality is what makes the active/pinned split invisible until a dial moves
+	// (see SETTINGS_SPEC).
+	"globalDepths.pinnedLinkDepthOut": 1,
+	"globalDepths.pinnedEmbedDepthOut": 1,
+	"globalDepths.pinnedLinkDepthIn": 1,
 
 	"globalView.nodeCap": 100, // The shipped performance ceiling.
 	"globalView.outlineMaxDepth": 2, // Sections + subsections — what fits a 160px node.
