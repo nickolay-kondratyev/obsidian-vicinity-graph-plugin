@@ -51,7 +51,7 @@ export interface CrossLinkSweepInput {
  * the setting's promise ("every link between two visible nodes") and the equally
  * kind-blind {@link LinkProvider.getLinkCount} behind the `xN` badge — the depth dials
  * govern REACH, this toggle governs what is drawn between what reach already found.
- * A swept pair still RENDERS with its true kind (dashed embed stroke etc.): the kind
+ * A swept pair still CARRIES its true kind (the per-kind CSS class hook): the kind
  * summary is attached downstream by EdgeAssembly, from the same reference-list truth,
  * for walked and swept pairs alike.
  *

@@ -322,8 +322,8 @@ function accumulateCollapsedEdge(
 
 /**
  * Class the React Flow edge WRAPPER carries per {@link EdgeKind} — the CSS-only
- * hook behind the stroke vocabulary (solid link / dashed embed / dash-dot both,
- * see graph-view.css). A `Record`, so a new kind cannot ship unstyled.
+ * hook for per-kind styling (currently all kinds share one solid stroke, see
+ * graph-view.css). A `Record`, so a new kind cannot ship without a class.
  */
 const EDGE_KIND_CLASS: Readonly<Record<EdgeKind, string>> = {
 	link: "vicinity-graph-edge--kind-link",
