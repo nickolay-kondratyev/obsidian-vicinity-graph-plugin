@@ -10,7 +10,7 @@ const OTHER = asVaultPath("other.md");
 const PROVIDER = new FakeLinkOccurrenceProvider({
 	outgoing: {
 		"note.md": [
-			{ targetPath: TARGET, offset: 5, context: { shortContext: "a", expandedContext: "a" } },
+			{ targetPath: TARGET, offset: 5, context: { shortContext: "a", expandedContext: "a", line: 0 } },
 			{ targetPath: OTHER, offset: 9, context: null },
 			{ targetPath: TARGET, offset: 20, context: null },
 		],

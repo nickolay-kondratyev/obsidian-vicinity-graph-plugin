@@ -51,7 +51,15 @@ describe("LinkContextSnippets.snippetAt", () => {
 	});
 
 	it("WHEN the file is empty THEN both contexts are empty strings", () => {
-		expect(LinkContextSnippets.snippetAt("", 0)).toEqual({ shortContext: "", expandedContext: "" });
+		expect(LinkContextSnippets.snippetAt("", 0)).toEqual({ shortContext: "", expandedContext: "", line: 0 });
+	});
+
+	it("WHEN the occurrence sits mid-file THEN line is the 0-based occurrence line index", () => {
+		expect(LinkContextSnippets.snippetAt(FIVE_LINES, LINK_OFFSET).line).toBe(2);
+	});
+
+	it("WHEN the offset is past the text length THEN line clamps to the last line", () => {
+		expect(LinkContextSnippets.snippetAt("first\nsecond", 999).line).toBe(1);
 	});
 
 	it("WHEN blank lines pad the expanded window THEN the joined snippet is end-trimmed", () => {

@@ -16,6 +16,12 @@ export interface LinkContextSnippet {
 	 * neighbouring lines each side, newline-joined, trimmed at the ends.
 	 */
 	readonly expandedContext: string;
+	/**
+	 * 0-based index of the occurrence line in the source file — the editor's
+	 * `eState.line` coordinate, so the modal's GO navigation lands on the line
+	 * the snippet came from without re-reading the file.
+	 */
+	readonly line: number;
 }
 
 /**
@@ -39,6 +45,7 @@ export class LinkContextSnippets {
 		return {
 			shortContext: (lines[lineIndex] ?? "").trim(),
 			expandedContext: lines.slice(firstLine, lastLine + 1).join("\n").trim(),
+			line: lineIndex,
 		};
 	}
 

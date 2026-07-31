@@ -111,8 +111,16 @@ export interface OpenNoteOptions {
 	 * RAW heading text to position the note at (`OutlineEntry.rawText`); absent =
 	 * the top of the note. The ADAPTER sanitises it into a link subpath with
 	 * Obsidian's own `stripHeadingForLink` — callers pass it through verbatim.
+	 * Mutually exclusive with {@link line}.
 	 */
 	readonly heading?: string;
+	/**
+	 * 0-based line to position the note at (`LinkContextSnippet.line`, the
+	 * editor's `eState.line` coordinate) — the link-preview modal's GO
+	 * navigation. Mutually exclusive with {@link heading}; when both are given,
+	 * `line` wins (it is the more precise coordinate).
+	 */
+	readonly line?: number;
 }
 
 /** The slice of Obsidian navigation the controller needs: read the active file
