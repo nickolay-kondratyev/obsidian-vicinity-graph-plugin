@@ -11,9 +11,11 @@ import { fileURLToPath } from "node:url";
  * decides how much each of those guards covers, and a second copy of it silently narrows
  * whichever guard was not updated when a renderer was added.
  *
- * WHY source scans exist at all: nothing under `npm test` renders React (see
- * `settingsRowParity.test.ts`), so a property of the MARKUP — that a case exists, that a
- * field is wired to the shared commit protocol — can only be observed in the text.
+ * WHY source scans exist at all: the settings tab cannot render under `npm test` (the
+ * `obsidian` package is types-only — see `settingsRowParity.test.ts`), and a rule about
+ * EVERY module — that a case exists everywhere, that every field is wired to the shared
+ * commit protocol — must hold in files a rendered suite never mounts. The panel's
+ * rendered half lives in the `*.component.test.tsx` suites (jsdom).
  */
 
 const VIEW_DIR = dirname(fileURLToPath(import.meta.url));

@@ -13,10 +13,11 @@ import type { SizingRowVerdict } from "./sizingRowWrite";
  * backspaced to blank on the way to a new number, because the refused keystroke left
  * the controlled input showing the stored value again.
  *
- * WHY A MODULE OF ITS OWN: nothing under `npm test` renders React (see
- * `settingsRowParity.test.ts`), so the decision a blur makes — write what, say what —
- * has to live outside the component to be testable at all. `SettingsRowView` is then
- * markup plus one {@link NumberRowCommitPolicy} call.
+ * WHY A MODULE OF ITS OWN: the decision a blur makes — write what, say what — is a
+ * rule, not markup, so it is enumerated exhaustively here (`numberRowCommit.test.ts`)
+ * while the rendered wiring is pinned separately in
+ * `SettingsRowView.component.test.tsx`. `SettingsRowView` is then markup plus one
+ * {@link NumberRowCommitPolicy} call.
  *
  * The two halves of a row's write policy stay where they already are: the accessor
  * owns what counts as a typed value ({@link SettingsTypedNumberAccessor.accept}) and

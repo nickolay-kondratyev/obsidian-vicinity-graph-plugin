@@ -14,8 +14,8 @@ import { describe, expect, it } from "vitest";
  * was before this guard existed.
  *
  * Guarded as a source scan for the same reason `importGuard`, `selectorGuard`
- * and `vaultTarget` are: the repo has no ESLint, and (for this one) no React
- * component-test infrastructure to assert the button's behaviour directly.
+ * and `vaultTarget` are: the repo has no ESLint, and an import rule must hold in
+ * every module, not just the ones a rendered suite happens to mount.
  */
 
 const VIEW_DIR = dirname(fileURLToPath(import.meta.url));
@@ -50,12 +50,16 @@ const ALLOWED_MODULES: Readonly<Record<string, string>> = {
 /**
  * Test modules are excluded deliberately, not incidentally: 12 view test files
  * legitimately build fixtures from these factories, so scanning them would make
- * the guard red for entirely correct reasons.
+ * the guard red for entirely correct reasons. `testFixtures/` is the same
+ * exclusion one level up — test-support modules nothing in the plugin bundle
+ * imports (e.g. `settingsPanelHarness.tsx` seeds component-test state from the
+ * shipped defaults).
  */
 function viewModulesUnderScan(): string[] {
 	return readdirSync(VIEW_DIR, { withFileTypes: true, recursive: true })
 		.filter((entry) => entry.isFile() && /\.tsx?$/.test(entry.name) && !/\.test\.tsx?$/.test(entry.name))
-		.map((entry) => relative(VIEW_DIR, `${entry.parentPath}/${entry.name}`));
+		.map((entry) => relative(VIEW_DIR, `${entry.parentPath}/${entry.name}`))
+		.filter((module) => !module.startsWith("testFixtures/"));
 }
 
 function readsDefaultsFactory(module: string): boolean {

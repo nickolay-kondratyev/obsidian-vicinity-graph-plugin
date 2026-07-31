@@ -19,10 +19,10 @@ import { useOptimisticValue } from "./useOptimisticValue";
  * and rapid clicks looked dropped. The store still wins as soon as it disagrees.
  *
  * Each click therefore steps from `shown`, NOT from the `value` prop: `value` is the
- * last snapshot, which mid-burst is several clicks behind. That loop is pinned in
- * `optimisticValue.test.ts` ("PendingEdits driving a depth stepper") as a simulation
- * of this component, not of this component — a real component test needs the React
- * harness tracked in `nid_7qot0m6nuxxmd5z0yb9jylsd6_e`.
+ * last snapshot, which mid-burst is several clicks behind. That loop is pinned twice:
+ * as a pure simulation in `optimisticValue.test.ts` ("PendingEdits driving a depth
+ * stepper"), and RENDERED — this component, clicked in a burst — in
+ * `DepthStepper.component.test.tsx` (jsdom).
  *
  * There is no reset-to-inherit affordance and no pinned/inherited distinction:
  * the value it edits IS the global default (the settings tab's "Restore depth
