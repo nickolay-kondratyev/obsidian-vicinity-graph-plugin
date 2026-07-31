@@ -77,8 +77,9 @@ const BOUNDS_ENFORCED_OUTSIDE_THE_ENGINE: Readonly<Record<string, string>> = {
 	"globalView.nodeCap":
 		"the node-cap number inputs reject anything below MIN_NODE_CAP (VicinityGraphSettingTab / " +
 		"SettingsRowView). Deliberately NOT clamped on load: a stored 0 survives parsing by design " +
-		"(pinned in persistedShapes.test.ts — falsy is a real value, not an absence). Whether a " +
-		"hand-edited data.json below the declared min should clamp is nid_5meu9s38sbrv1703na77of4m7_e.",
+		"(pinned in persistedShapes.test.ts — falsy is a real value, not an absence). Owner decided " +
+		"(nid_5meu9s38sbrv1703na77of4m7_e) the min is an INPUT affordance only, like the depth " +
+		"stepper bounds — a stored 0 is harmless (central renders alone), not an off-switch.",
 };
 
 const BOUNDED_LEAVES: readonly SettingsSpecLeaf[] = EVERY_SETTINGS_SPEC_LEAF.filter(

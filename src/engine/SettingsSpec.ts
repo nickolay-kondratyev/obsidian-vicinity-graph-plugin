@@ -181,7 +181,12 @@ export const SETTINGS_SPEC: SettingsSpec = {
 	globalView: {
 		/**
 		 * Hard cap default on non-central node count (step doc: default 100).
-		 * `min 1`: at least the central must be renderable.
+		 * `min 1`: at least the central must be renderable. The min is an INPUT
+		 * affordance only, exactly like the depth stepper bounds: the number
+		 * inputs refuse values below it, but a persisted value is stored and
+		 * loaded verbatim (owner decision, nid_5meu9s38sbrv1703na77of4m7_e) —
+		 * a hand-edited nodeCap of 0 is harmless (the central renders alone),
+		 * unlike outlineMaxDepth's 0, which would be a hidden off-switch.
 		 */
 		nodeCap: { default: 100, min: 1 },
 		/**
