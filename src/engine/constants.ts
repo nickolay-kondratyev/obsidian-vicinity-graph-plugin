@@ -18,8 +18,17 @@ import type {
 // or build a whole shape via `EngineDefaults`.
 // ---------------------------------------------------------------------------
 
-/** Lower bound of the node-cap input. @see SETTINGS_SPEC — `globalView.nodeCap.min`. */
-export const MIN_NODE_CAP = SETTINGS_SPEC.globalView.nodeCap.min;
+/**
+ * THE node-cap clamp, shared by the persistence load path and the node-cap
+ * accessor's settle rule (the number inputs themselves REFUSE out-of-spec
+ * entries — this is the backstop behind them). Rounds: a cap is a whole
+ * number of nodes. @see SETTINGS_SPEC — `globalView.nodeCap` for the WHY of
+ * the 1..1000 range.
+ */
+export function clampNodeCap(value: number): number {
+	const spec = SETTINGS_SPEC.globalView.nodeCap;
+	return Math.round(clampIntoRange(value, spec, spec.default));
+}
 
 /** @see SETTINGS_SPEC — `globalView.outlineMaxDepth.{min,max}`. */
 export const MIN_OUTLINE_DEPTH = SETTINGS_SPEC.globalView.outlineMaxDepth.min;

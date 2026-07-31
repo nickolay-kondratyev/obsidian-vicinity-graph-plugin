@@ -292,8 +292,16 @@ describe("PersistedShapes view field presence semantics", () => {
 		expect(parsedGlobalView(JSON.parse(JSON.stringify(NON_DEFAULT_VIEW)))).toEqual(NON_DEFAULT_VIEW);
 	});
 
-	it("WHEN a persisted view stores nodeCap zero THEN the zero survives (a real value, not an absence)", () => {
-		expect(parsedGlobalView({ nodeCap: 0 }).nodeCap).toBe(0);
+	it("WHEN a persisted view stores a nodeCap below the spec minimum THEN it clamps to the minimum on load", () => {
+		// Supersedes the loaded-verbatim rule (owner decision 2026-07-29, pre-release
+		// clean break): a stored 0 now loads as the min, like every other bounded field.
+		expect(parsedGlobalView({ nodeCap: 0 }).nodeCap).toBe(SETTINGS_SPEC.globalView.nodeCap.min);
+	});
+
+	it("WHEN a persisted view stores a nodeCap above the spec maximum THEN it clamps to the maximum on load", () => {
+		// The typo/paste hole the ceiling closes: a huge stored cap must not silently
+		// disable truncation and hand the whole vault to the layout pass.
+		expect(parsedGlobalView({ nodeCap: 100000000 }).nodeCap).toBe(SETTINGS_SPEC.globalView.nodeCap.max);
 	});
 
 	it("WHEN a persisted view omits a field THEN that field takes the spec default", () => {
