@@ -1,12 +1,12 @@
 import type { ReactElement } from "react";
-import type { SettingsTrackAccessor } from "./settingsRowAccessors";
+import type { SettingsNumberAccessor } from "./settingsRowAccessors";
 import type { SettingsRow } from "./settingsRows";
 import { SettingsRowNames } from "./settingsRows";
 import { useOptimisticValue } from "./useOptimisticValue";
 
 /**
  * One depth row's stepper: `−  value  +`. Where it stops, how far one tap moves and
- * what a tap CLAMPS to all come from the one {@link SettingsTrackAccessor} it is
+ * what a tap CLAMPS to all come from the one {@link SettingsNumberAccessor} it is
  * handed, so the track it offers and the value the write stores cannot disagree.
  *
  * The label and both button names come from the declared row (see
@@ -37,7 +37,7 @@ export function DepthStepper({
 }: {
 	readonly row: SettingsRow;
 	/** The depth field's declared track: its bounds, its step and its clamp. */
-	readonly accessor: SettingsTrackAccessor;
+	readonly accessor: SettingsNumberAccessor;
 	readonly value: number;
 	/** Persists the new, already clamped value. */
 	readonly onChange: (value: number) => Promise<void>;

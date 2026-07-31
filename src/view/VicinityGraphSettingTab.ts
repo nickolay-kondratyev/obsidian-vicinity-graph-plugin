@@ -12,7 +12,7 @@ import type { SettingsResetScope } from "./settingsResetPlan";
 import { ALL_SETTINGS_RESET_SCOPE, SETTINGS_RESET_SCOPES } from "./settingsResetPlan";
 import type { SettingsResetTarget } from "./settingsResetSequence";
 import { SettingsResetSequence } from "./settingsResetSequence";
-import type { SettingsRowBounds, SettingsTrackAccessor, SettingsValueAccessor } from "./settingsRowAccessors";
+import type { SettingsNumberAccessor, SettingsRowBounds, SettingsValueAccessor } from "./settingsRowAccessors";
 import { SettingsRowAccessors } from "./settingsRowAccessors";
 import type { SettingsGroup, SettingsRow, SettingsRowBlock, SettingsRowState } from "./settingsRows";
 import { SETTINGS_GROUPS, SettingsRowNames, isSettingsRowDisabled, unhandledRowControl } from "./settingsRows";
@@ -701,7 +701,7 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	private addSlider(
 		container: HTMLElement,
 		row: SettingsRow,
-		accessor: SettingsTrackAccessor,
+		accessor: SettingsNumberAccessor,
 		state: SettingsRowState,
 	): void {
 		const name = SettingsRowNames.sole(row);
@@ -721,9 +721,7 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	/** Mirrors declared {@link SettingsRowBounds} onto a number input's stepper attributes. */
 	private static applyBounds(input: HTMLInputElement, bounds: SettingsRowBounds): void {
 		input.min = String(bounds.min);
-		if (bounds.max !== undefined) {
-			input.max = String(bounds.max);
-		}
+		input.max = String(bounds.max);
 		input.step = String(bounds.step);
 	}
 }

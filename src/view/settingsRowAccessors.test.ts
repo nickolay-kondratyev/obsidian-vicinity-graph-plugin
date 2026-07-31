@@ -88,7 +88,7 @@ interface NumberProbeFacts {
  */
 function beyondBounds(bounds: SettingsRowBounds): number {
 	const BEYOND_BOUNDS_STEPS = 1000;
-	return (bounds.max ?? bounds.min) + bounds.step * BEYOND_BOUNDS_STEPS;
+	return bounds.max + bounds.step * BEYOND_BOUNDS_STEPS;
 }
 
 function identity<T>(value: T): T {
@@ -133,10 +133,10 @@ function valueProbe<T>(name: string, accessor: SettingsValueAccessor<T>, distinc
  */
 function distinctInBounds(accessor: SettingsNumberAccessor, current: number): number {
 	const { min, max, step } = accessor.bounds;
-	if (max !== undefined && max !== current) {
+	if (max !== current) {
 		return max;
 	}
-	// No ceiling (the node cap) or the ceiling IS the current value: fall back to the floor.
+	// The ceiling IS the current value: fall back to the floor.
 	return current === min ? min + step : min;
 }
 
@@ -239,11 +239,11 @@ describe("settings row accessors: read and interaction name the same field", () 
  * over-trusts a guard is worse off than one who knows its edge.
  *
  * `interaction(v)` emits `settlesAt(v)`, so for the accessors that DO clamp (depth,
- * outline depth, sizing numbers, metric weight) the first assertion holds by
+ * outline depth, node cap, sizing numbers, metric weight) the first assertion holds by
  * construction and proves only that the pipeline adds no FURTHER clamp behind the
- * accessor's back. Where it genuinely bites is the accessors that clamp NOTHING
- * (`nodeCap`, `forceLayout`): there it pins that the write path really does store the
- * value verbatim, which is what their identity `settlesAt` promises.
+ * accessor's back. Where it genuinely bites is the accessor that clamps NOTHING
+ * (`forceLayout`): there it pins that the write path really does store the
+ * value verbatim, which is what its identity `settlesAt` promises.
  *
  * The second assertion is the one that bites on a CLAMPING accessor: whatever it
  * settles at must be a value its own declared bounds actually offer. That is what
@@ -266,7 +266,7 @@ describe("settings row accessors: settlesAt promises what the write path stores"
 		const lawless = EVERY_NUMBER_PROBE.flatMap(({ name, bounds, settlesAt }) => {
 			const requested = beyondBounds(bounds);
 			const settled = settlesAt(requested);
-			const insideBounds = settled >= bounds.min && (bounds.max === undefined || settled <= bounds.max);
+			const insideBounds = settled >= bounds.min && settled <= bounds.max;
 			return insideBounds || settled === requested
 				? []
 				: [`${name}: settles ${requested} at ${settled} — outside bounds=[${JSON.stringify(bounds)}] and not verbatim`];

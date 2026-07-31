@@ -9,7 +9,6 @@ import type { NumberRowJudge } from "./numberRowCommit";
 import { NO_CROSS_FIELD_RULE, NumberFieldRefusal, NumberRowCommitPolicy } from "./numberRowCommit";
 import type {
 	SettingsNumberAccessor,
-	SettingsTrackAccessor,
 	SettingsTypedNumberAccessor,
 	SettingsValueAccessor,
 } from "./settingsRowAccessors";
@@ -130,8 +129,8 @@ function useSettingsNumber(
  * inline readout replaces the settings tab's hover tooltip: a drag needs feedback
  * without a hover.
  *
- * Takes a {@link SettingsTrackAccessor}, so the field it renders is guaranteed to have
- * a ceiling: a native range input whose `max` is absent silently defaults to 100.
+ * The accessor's bounds always carry a ceiling ({@link SettingsRowBounds} requires
+ * `max`): a native range input whose `max` is absent silently defaults to 100.
  */
 function SliderRow({
 	row,
@@ -139,7 +138,7 @@ function SliderRow({
 	state,
 }: {
 	readonly row: SettingsRow;
-	readonly accessor: SettingsTrackAccessor;
+	readonly accessor: SettingsNumberAccessor;
 	readonly state: SettingsRowState;
 }): ReactElement {
 	const range = accessor.bounds;
