@@ -1,18 +1,18 @@
 ---
 id: nid_1drobt9qaq3e89gt76fzghlik_e
-title: "Link preview: occurrence data layer (positions + context snippets)"
-status: open
+title: 'Link preview: occurrence data layer (positions + context snippets)'
+status: in_progress
 deps: []
 links: []
-created_iso: 2026-07-31T18:49:31Z
-status_updated_iso: 2026-07-31T18:49:31Z
+created_iso: '2026-07-31T18:49:31Z'
+status_updated_iso: '2026-07-31T18:52:43Z'
 type: task
 priority: 3
 assignee: nickolaykondratyev
 parent: nid_tohotgq2s92dvd1iov1rd0umv_e
 tags: [link-preview]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 ---
-
 Part 1/4 of parent ticket nid_tohotgq2s92dvd1iov1rd0umv_e (_tickets/show-the-preview-of-the-links.md): a modal previewing a node's links/backlinks with short context, and an edge-scoped variant.
 
 Today src/engine/LinkProvider.ts exposes only deduped target/source PATHS - no per-occurrence positions. src/adapters/ObsidianLinkProvider.ts computes per-reference document offsets internally (via src/adapters/ReferenceOrder.ts) but discards them before returning; src/adapters/BacklinksAdapter.ts extracts only source paths from the undocumented metadataCache.getBacklinksForFile even though the raw result carries per-reference position data.
@@ -31,4 +31,3 @@ Deliver (no UI in this ticket):
 - Port returns per-occurrence positions for outgoing links, backlinks grouped by source, and edge-scoped (source->target) queries
 - Snippet extractor covered by BDD tests incl. link at file start/end, multi-occurrence lines, canvas/null-context
 - npm test and npm run check pass
-
