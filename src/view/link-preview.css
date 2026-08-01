@@ -31,15 +31,103 @@
 	animation: vicinity-graph-drawer-from-bottom 180ms ease-out;
 }
 
+/* User-resized via the drag handle (ticket nid_nsuszxnzggbck1ajwte4mqwzf_e):
+ * the JS clamp (drawerResize.ts) is the primary bound; the 90cq* backstop
+ * only matters when the pane shrinks after the drag. Height applies to the
+ * bottom drawer only — the wide-pane block BELOW must stay later in this file
+ * so its `height: auto` / `max-height: none` win the equal-specificity tie. */
+.vicinity-graph-link-preview-drawer--height-resized {
+	height: var(--vicinity-drawer-height);
+	max-height: 90cqh;
+}
+
 /* Wide pane → side sheet from the right, full height. */
 @container vicinity-graph-pane (min-aspect-ratio: 1/1) {
 	.vicinity-graph-link-preview-drawer {
 		inset: 0 0 0 auto;
 		width: min(420px, 60cqw);
+		height: auto; /* neutralize a remembered bottom-mode height */
 		max-height: none;
 		border-top: none;
 		border-left: 1px solid var(--background-modifier-border);
 		animation: vicinity-graph-drawer-from-right 180ms ease-out;
+	}
+
+	/* A remembered width only means anything while docked to the right. */
+	.vicinity-graph-link-preview-drawer--width-resized {
+		width: var(--vicinity-drawer-width);
+		max-width: 90cqw;
+	}
+}
+
+/* ===== resize handle ===================================================
+ * One handle per docking edge; the container query below shows exactly the
+ * one on the graph-facing edge. The strip straddles the drawer border (half
+ * over the graph) so it is easy to grab, and carries a visible centered grip
+ * bar as the affordance.
+ */
+
+.vicinity-graph-link-preview-drawer__resize {
+	position: absolute;
+	z-index: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	touch-action: none;
+}
+
+/* The visible grip bar. */
+.vicinity-graph-link-preview-drawer__resize::after {
+	content: "";
+	border-radius: 999px;
+	background-color: var(--background-modifier-border);
+}
+
+.vicinity-graph-link-preview-drawer__resize:hover::after,
+.vicinity-graph-link-preview-drawer__resize:active::after {
+	background-color: var(--interactive-accent);
+}
+
+.vicinity-graph-link-preview-drawer__resize:focus-visible {
+	outline: none;
+	box-shadow: inset 0 0 0 2px var(--background-modifier-border-focus);
+}
+
+.vicinity-graph-link-preview-drawer__resize--top {
+	top: -5px;
+	left: 0;
+	right: 0;
+	height: 10px;
+	cursor: row-resize;
+}
+
+.vicinity-graph-link-preview-drawer__resize--top::after {
+	width: 40px;
+	height: 4px;
+}
+
+/* Hidden until the wide-pane query flips the drawer to the right edge. */
+.vicinity-graph-link-preview-drawer__resize--left {
+	display: none;
+}
+
+@container vicinity-graph-pane (min-aspect-ratio: 1/1) {
+	.vicinity-graph-link-preview-drawer__resize--top {
+		display: none;
+	}
+
+	.vicinity-graph-link-preview-drawer__resize--left {
+		display: flex;
+		left: -5px;
+		top: 0;
+		bottom: 0;
+		width: 10px;
+		cursor: col-resize;
+	}
+
+	.vicinity-graph-link-preview-drawer__resize--left::after {
+		width: 4px;
+		height: 40px;
 	}
 }
 
