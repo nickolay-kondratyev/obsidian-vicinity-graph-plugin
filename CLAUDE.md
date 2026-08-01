@@ -28,11 +28,15 @@ npm run setup:dev-vault  # idempotent: build + create/copy plugin into .dev-vaul
 npm test                 # vitest (src/**/*.test.{ts,tsx} + e2e/**/*.test.ts harness guards)
 npm run check            # tsc -noEmit (strict) for src/, then check:e2e for e2e/
 npm run build            # check + production bundle → main.js
-npm run test:e2e         # Playwright against a REAL Obsidian (release gate, not npm test)
+npm run test:e2e         # Playwright against a REAL Obsidian (not part of npm test)
+                         # Self-contained on Linux/CI: auto-downloads the pinned build,
+                         # auto-headless. Run it as part of normal work — see below.
                          # VICINITY_E2E_VAULT drives an arbitrary vault — see README safety caveat
 ```
 
 Redirect verbose build/test output to `.tmp/` to conserve context.
+
+**When to run `npm run test:e2e`.** It is a *development* gate, not only a release one — `scripts/run-e2e.sh` provisions its own Obsidian and display, so on Linux/CI there is nothing to set up. Run it (at minimum the specs covering the touched surface, e.g. `npm run test:e2e -- vicinityGraph.e2e.ts`) before calling ANY change to rendered graph/panel/settings behavior done, and always for: view-layer DOM or CSS changes, settings rows, and anything `npm test` can only reach through jsdom or a source scan — the settings TAB has no `npm test` coverage at all. Pure engine/persistence changes stay on `npm test`. On macOS/Windows it needs `OBSIDIAN_PATH`; if it genuinely cannot run, say so explicitly rather than reporting the change verified.
 
 ## Conventions (repo-specific)
 
