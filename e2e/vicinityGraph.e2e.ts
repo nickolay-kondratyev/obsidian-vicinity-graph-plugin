@@ -222,7 +222,7 @@ for (const theme of ["dark", "light"] as const) {
 	});
 }
 
-// --- interactions: click opens note, ctrl/cmd-click opens a NEW tab ---------
+// --- interactions: click focuses the node, ctrl/cmd-click opens a NEW tab ---
 //
 // These exercise a REAL pointer click (the native open gesture is what's under
 // test). They run on the ALPHA graph, NOT note1's: alpha has only 3 nodes, so
@@ -236,13 +236,16 @@ for (const theme of ["dark", "light"] as const) {
 const activeFilePath = () =>
 	page.evaluate(() => (window as unknown as { app: any }).app.workspace.getActiveFile()?.path);
 
-test("clicking a node opens that note in the current tab", async () => {
+test("clicking a node makes it the graph's MAIN without opening its note", async () => {
 	// Land on the alpha graph (big nodes) with alpha as the active/main note, so
-	// clicking the note1 neighbor is an observable current-tab switch.
+	// clicking the note1 neighbor is an observable graph re-center
+	// (ticket nid_lfcyfbrggrusyv8xn1aroc7h1_e).
 	await harness.openFile(ALPHA_PATH);
 	await harness.remountGraphView(); // refit so the target node is physically clickable
 	await noteNode(NOTE1_PATH).click();
-	await expect.poll(activeFilePath).toBe(NOTE1_PATH);
+	await expect(noteNode(NOTE1_PATH)).toHaveAttribute("data-tier", "main");
+	// The editor stays where it was — focusing is a graph-only gesture.
+	await expect.poll(activeFilePath).toBe(ALPHA_PATH);
 });
 
 test("ctrl/cmd-clicking a node opens the note in a NEW tab", async () => {
