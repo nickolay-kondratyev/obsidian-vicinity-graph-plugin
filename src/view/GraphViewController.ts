@@ -186,10 +186,28 @@ export class GraphViewController {
 	}
 
 	/**
-	 * Plain node click (ticket `nid_z2k1eebic1nilpz9z3r65cnrx_e`): build the
-	 * NODE-scoped preview model — the async occurrence queries live here, keeping
-	 * the flow component sync — and hand it to the preview seam. Folder-group ids
-	 * are inert, same guard as {@link openNode}.
+	 * Plain node click (ticket `nid_lfcyfbrggrusyv8xn1aroc7h1_e`): re-center the
+	 * graph on the clicked node WITHOUT opening its note — the editor's active
+	 * file is untouched, so the next active-file change re-takes MAIN as usual.
+	 * Folder-group ids are inert (no note behind them) and re-focusing the
+	 * current MAIN is a no-op, mirroring {@link decideActiveFileRebuild}.
+	 */
+	focusNode(path: string): void {
+		if (isFolderGroupId(path) || path === this.mainPath) {
+			return;
+		}
+		this.clearDebounce();
+		this.mainPath = path;
+		void this.runRebuild();
+	}
+
+	/**
+	 * NODE-scoped preview model (ticket `nid_z2k1eebic1nilpz9z3r65cnrx_e`): the
+	 * async occurrence queries live here, keeping the flow component sync — the
+	 * model is handed to the preview seam. Folder-group ids are inert, same
+	 * guard as {@link openNode}. Since ticket `nid_lfcyfbrggrusyv8xn1aroc7h1_e`
+	 * a plain node click focuses instead, leaving this without a UI trigger —
+	 * kept pending the decide ticket on the node flyout's fate.
 	 */
 	async openNodePreview(path: string): Promise<void> {
 		if (isFolderGroupId(path)) {

@@ -876,6 +876,60 @@ describe("GraphViewController metadata-resolve debounce", () => {
 	});
 });
 
+describe("GraphViewController node focus", () => {
+	/** GIVEN a rendered graph centered on a.md with neighbour b.md. */
+	async function focusHarness(): Promise<Harness> {
+		const h = setup();
+		h.controller.handleActiveFileChanged("a.md");
+		h.source.resolveBuild(0, graphOf("a.md", "b.md"));
+		await flush();
+		return h;
+	}
+
+	it("WHEN a node is focused THEN a rebuild centered on that node starts", async () => {
+		const h = await focusHarness();
+
+		h.controller.focusNode("b.md");
+
+		expect(h.source.calls).toEqual(["a.md", "b.md"]);
+	});
+
+	it("WHEN a node is focused THEN the note is NOT opened in the editor", async () => {
+		const h = await focusHarness();
+
+		h.controller.focusNode("b.md");
+
+		expect(h.navigator.opened).toEqual([]);
+	});
+
+	it("WHEN the current MAIN node is focused THEN no rebuild starts", async () => {
+		const h = await focusHarness();
+
+		h.controller.focusNode("a.md");
+
+		expect(h.source.calls).toEqual(["a.md"]);
+	});
+
+	it("WHEN a folder-group id is focused THEN no rebuild starts", async () => {
+		const h = await focusHarness();
+
+		h.controller.focusNode("folder-group:sub");
+
+		expect(h.source.calls).toEqual(["a.md"]);
+	});
+
+	it("WHEN the active file later changes to the focused path THEN the change is a no-op", async () => {
+		const h = await focusHarness();
+		h.controller.focusNode("b.md");
+		h.source.resolveBuild(1, graphOf("b.md", "a.md"));
+		await flush();
+
+		h.controller.handleActiveFileChanged("b.md");
+
+		expect(h.source.calls).toEqual(["a.md", "b.md"]);
+	});
+});
+
 describe("GraphViewController link previews", () => {
 	const NOTE_OUTLINE: OutlineEntry[] = [{ rawText: "Intro", level: 1 }];
 	const OCCURRENCES = new FakeLinkOccurrenceProvider({

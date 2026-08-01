@@ -58,18 +58,22 @@ export function VicinityGraphFlow({
 	const edges = useMemo<Edge[]>(() => snapshot.edges.map(toReactFlowEdge), [snapshot.edges]);
 
 	const onNodeClick = useCallback<NodeMouseHandler>(
-		// Plain click previews, ctrl/cmd-click opens the note in a NEW tab (human
-		// alignment 2026-07-31, ticket nid_z2k1eebic1nilpz9z3r65cnrx_e) —
-		// `opensInNewTab` is the ONE definition of that gesture, shared with the
-		// outline entries. The controller ignores folder-group ids on both paths.
+		// Plain click FOCUSES the node — it becomes the graph's MAIN (ticket
+		// nid_lfcyfbrggrusyv8xn1aroc7h1_e, superseding the flyout of ticket
+		// nid_z2k1eebic1nilpz9z3r65cnrx_e); ctrl/cmd-click opens the note in a
+		// NEW tab — `opensInNewTab` is the ONE definition of that gesture,
+		// shared with the outline entries. Any open drawer is dismissed first
+		// (same rule as the pane click). The controller ignores folder-group
+		// ids on both paths.
 		(event, node) => {
 			if (opensInNewTab(event)) {
 				controller.openNode(node.id, { newTab: true });
 				return;
 			}
-			void controller.openNodePreview(node.id);
+			linkPreview.close();
+			controller.focusNode(node.id);
 		},
-		[controller],
+		[controller, linkPreview],
 	);
 
 	const onEdgeClick = useCallback<EdgeMouseHandler>(
