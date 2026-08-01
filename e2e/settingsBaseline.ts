@@ -1,5 +1,5 @@
 import { ALL_SETTINGS_RESET_SCOPE, SETTINGS_RESET_SCOPES } from "../src/view/settingsResetPlan";
-import { SETTINGS_GROUPS, SettingsRowNames, settingsRowsFor } from "../src/view/settingsRows";
+import { EVERY_SETTINGS_BLOCK, SETTINGS_GROUPS, SettingsRowNames, settingsRowsFor } from "../src/view/settingsRows";
 import type { SettingsRowControlKind } from "../src/view/settingsRows";
 import { SETTINGS_SECTIONS } from "../src/view/settingsSectionFields";
 import type { SizingNumberField } from "../src/view/settingsWritePlan";
@@ -55,6 +55,22 @@ export const SETTINGS_TAB_SECTIONS: readonly SettingsTabSection[] = SETTINGS_SEC
 /** Card headings, in render order. */
 export const SETTINGS_TAB_SECTION_HEADINGS: readonly string[] = SETTINGS_TAB_SECTIONS.map(
 	(section) => section.heading,
+);
+
+/**
+ * Every declared block subheading, in render order across every card — the names that
+ * split one card's rows into groups (today the Depth card's active-note / pinned-note
+ * runs of three steppers).
+ *
+ * DERIVED like every other name here. It exists because the settings TAB cannot be
+ * mounted under `npm test` at all: the panel's half of this grouping is asserted
+ * against a rendered DOM (`src/view/GraphToolbar.component.test.tsx`), while the tab's
+ * only `npm test` guard is a source scan that proves the word `subheading` appears in
+ * the tab's source — not that the element reaches the settings modal. That last step is
+ * this gate's job (`settingsUxVisual.e2e.ts`).
+ */
+export const SETTINGS_TAB_BLOCK_SUBHEADINGS: readonly string[] = EVERY_SETTINGS_BLOCK.flatMap((block) =>
+	block.subheading === undefined ? [] : [block.subheading],
 );
 
 /** The six in-card restore rows, in render order. */

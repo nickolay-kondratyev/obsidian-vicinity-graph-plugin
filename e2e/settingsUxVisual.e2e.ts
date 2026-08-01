@@ -8,6 +8,7 @@ import {
 	CONTROLS_PANEL_DISCLOSURES,
 	FORCE_LAYOUT_RESET_NAME,
 	SECTION_RESET_NAMES,
+	SETTINGS_TAB_BLOCK_SUBHEADINGS,
 	SETTINGS_TAB_SECTION_HEADINGS,
 	SETTINGS_TAB_SECTIONS,
 } from "./settingsBaseline";
@@ -282,6 +283,39 @@ test("settings tab renders one framed card per section, headed and with plugin C
 	await page.screenshot({ path: `${OUT_DIR}/settings-tab-cards-dark.png` });
 	await harness.setTheme("light");
 	await page.screenshot({ path: `${OUT_DIR}/settings-tab-cards-light.png` });
+});
+
+test("settings tab: every declared block subheading names the rows below it", async () => {
+	await settingsTab.open();
+	const subheadings = page.locator(".vicinity-graph-settings .vicinity-graph-settings-subheading");
+	// Text, count and order in one assertion — a card that lost a group name, gained a
+	// stray one, or renamed one goes red here.
+	await expect(subheadings).toHaveText(SETTINGS_TAB_BLOCK_SUBHEADINGS);
+	// A guard that matched nothing would pass the line above if the model declared none.
+	expect(SETTINGS_TAB_BLOCK_SUBHEADINGS.length).toBeGreaterThan(1);
+
+	// The GROUPING, not just the copy: a name whose next sibling is not a setting row
+	// (rendered after its block, or above the card's restore footer) labels the wrong
+	// thing while still reading correctly in a text assertion.
+	const misplaced = await subheadings.evaluateAll((elements) =>
+		elements
+			.filter((el) => {
+				const next = el.nextElementSibling;
+				return (
+					next === null ||
+					!next.classList.contains("setting-item") ||
+					next.classList.contains("vicinity-graph-settings-reset")
+				);
+			})
+			.map((el) => el.textContent ?? ""),
+	);
+	expect(misplaced).toEqual([]);
+
+	// The plugin's settings-tab CSS actually reached these elements: without it the
+	// name renders at row altitude and the sub-group reads as one more setting.
+	const textTransform = await subheadings.first().evaluate((el) => getComputedStyle(el).textTransform);
+	expect(textTransform).toBe("uppercase");
+	await page.screenshot({ path: `${OUT_DIR}/settings-tab-subheadings-light.png` });
 });
 
 test("settings tab: every section card ends with its own scoped restore row", async () => {
