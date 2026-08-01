@@ -1,7 +1,7 @@
 ---
 id: nid_u877k92mv4vgcc3h3i2t2e1wi_e
 title: Work on styling the links in the side panel
-status: in_progress
+status: open
 deps: []
 links: []
 created_iso: '2026-08-01T01:30:37Z'
