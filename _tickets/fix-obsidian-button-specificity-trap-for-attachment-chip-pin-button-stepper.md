@@ -11,6 +11,9 @@ priority: 3
 assignee: CC_WITH-nickolaykondratyev
 ---
 
+(FIRST analyze whether the fix is right)
+
+
 Obsidian paints every plain button via `button:not(.clickable-icon)` (specificity 0,1,1): background-color: var(--interactive-normal); box-shadow: var(--input-shadow); color: var(--text-color). Any plugin reset written as a SINGLE class (0,1,0) silently LOSES those three properties in the real app (invisible in unit tests; only real-Obsidian e2e can see it).
 
 The in-node outline had exactly this bug (nid_sg4wqt2n7iphzvu3c83q4rota_e) — fixed by prefixing the ancestor class in src/view/node-outline.css, guarded by the "outline entries render as flat tree rows" assertion in e2e/nodeOutline.e2e.ts.
