@@ -6,8 +6,8 @@ import { groupHiddenTitleText, plusNText } from "./badgeText";
 import type { FlowGroupData } from "./flowMapping";
 
 /**
- * Folder-group container (step-05): neutral Obsidian-theme styling — subtle
- * border, secondary-background fill, folder-name label — deliberately NO
+ * Folder-group container (step-05): neutral Obsidian-theme styling — visible
+ * neutral border, secondary-background fill, folder-name label — deliberately NO
  * folder colors (human decision, CLARIFICATION palette section). The "+N"
  * badge surfaces this folder's truncated-away members (Q4). Member nodes
  * render on top because React Flow orders parents before children.

@@ -362,7 +362,10 @@
 	/* Slightly translucent so edges passing under the container stay legible
 	 * (progressive enhancement — solid fallback above). */
 	background: color-mix(in srgb, var(--background-secondary) 70%, transparent);
-	border: 1px solid var(--background-modifier-border);
+	/* 2px + the hover-tier border color: the default border tier at 1px goes
+	 * sub-pixel at zoomed-out graph scales, making groups nearly invisible.
+	 * Still a neutral theme variable — folder colors stay deliberately out. */
+	border: 2px solid var(--background-modifier-border-hover);
 	border-radius: var(--radius-l);
 }
 
