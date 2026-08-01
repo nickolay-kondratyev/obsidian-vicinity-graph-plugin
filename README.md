@@ -68,14 +68,15 @@ is just focuses it — no rebuild.
 
 ## Interacting with the graph
 
-- **Click a node** — opens the **link preview** modal for that note: its heading
-  outline, its outgoing links and its backlinks, each occurrence expandable to
-  its surrounding context with a **GO** button that jumps the editor to that
-  exact line.
+- **Click a node** — the node becomes the graph's **central** note, and its
+  markdown opens in the **current tab** (the last-used main-area tab is reused —
+  never a new one).
 - **Ctrl/Cmd-click a node** — opens the note itself, in a **new tab**. (Same
   modifier convention as outline entries and Obsidian links generally.)
-- **Click an edge** — opens the same modal scoped to **that edge only**: just
-  the occurrences of links from its source note to its target note.
+- **Click an edge** — opens the **link preview** drawer scoped to **that edge
+  only**: the occurrences of links from its source note to its target note,
+  each expandable to its surrounding context with a **GO** button that jumps
+  the editor to that exact line.
 - **Hover a node** — Obsidian's native page preview (Page preview core plugin).
 - **Right-click a node** — pin / unpin menu (see *Pinning*).
 - Folder-group boxes are containers, not notes — clicking one does nothing.

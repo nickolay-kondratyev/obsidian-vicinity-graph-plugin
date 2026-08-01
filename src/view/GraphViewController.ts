@@ -196,10 +196,12 @@ export class GraphViewController {
 
 	/**
 	 * Plain node click (ticket `nid_lfcyfbrggrusyv8xn1aroc7h1_e`): re-center the
-	 * graph on the clicked node WITHOUT opening its note — the editor's active
-	 * file is untouched, so the next active-file change re-takes MAIN as usual.
-	 * Folder-group ids are inert (no note behind them) and re-focusing the
-	 * current MAIN is a no-op, mirroring {@link decideActiveFileRebuild}.
+	 * graph on the clicked node AND open its markdown in the current main-area
+	 * tab (ticket `nid_r5xy3vuw2kj1v75soe4ffwdjz_e` — never a new tab, keeping
+	 * the tab count down). MAIN is set BEFORE the open so the resulting
+	 * active-file event is a no-op in {@link decideActiveFileRebuild} — one
+	 * rebuild, not two. Folder-group ids are inert (no note behind them) and
+	 * re-focusing the current MAIN is a no-op, mirroring that same decision.
 	 */
 	focusNode(path: string): void {
 		if (isFolderGroupId(path) || path === this.mainPath) {
@@ -207,6 +209,7 @@ export class GraphViewController {
 		}
 		this.clearDebounce();
 		this.mainPath = path;
+		this.navigator.openNote(path, { newTab: false });
 		void this.runRebuild();
 	}
 
