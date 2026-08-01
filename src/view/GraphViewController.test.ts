@@ -906,12 +906,20 @@ describe("GraphViewController node focus", () => {
 		expect(h.source.calls).toEqual(["a.md", "b.md"]);
 	});
 
-	it("WHEN a node is focused THEN the note is NOT opened in the editor", async () => {
+	it("WHEN a node is focused THEN its note opens in the editor", async () => {
 		const h = await focusHarness();
 
 		h.controller.focusNode("b.md");
 
-		expect(h.navigator.opened).toEqual([]);
+		expect(h.navigator.opened).toEqual(["b.md"]);
+	});
+
+	it("WHEN a node is focused THEN the note reuses the current tab (no new tab)", async () => {
+		const h = await focusHarness();
+
+		h.controller.focusNode("b.md");
+
+		expect(h.navigator.openedOptions).toEqual([{ newTab: false }]);
 	});
 
 	it("WHEN the current MAIN node is focused THEN no rebuild starts", async () => {
@@ -922,12 +930,28 @@ describe("GraphViewController node focus", () => {
 		expect(h.source.calls).toEqual(["a.md"]);
 	});
 
+	it("WHEN the current MAIN node is focused THEN its note is NOT re-opened", async () => {
+		const h = await focusHarness();
+
+		h.controller.focusNode("a.md");
+
+		expect(h.navigator.opened).toEqual([]);
+	});
+
 	it("WHEN a folder-group id is focused THEN no rebuild starts", async () => {
 		const h = await focusHarness();
 
 		h.controller.focusNode("folder-group:sub");
 
 		expect(h.source.calls).toEqual(["a.md"]);
+	});
+
+	it("WHEN a folder-group id is focused THEN no note opens", async () => {
+		const h = await focusHarness();
+
+		h.controller.focusNode("folder-group:sub");
+
+		expect(h.navigator.opened).toEqual([]);
 	});
 
 	it("WHEN the active file later changes to the focused path THEN the change is a no-op", async () => {

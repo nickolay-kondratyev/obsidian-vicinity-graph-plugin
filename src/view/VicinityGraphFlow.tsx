@@ -58,8 +58,10 @@ export function VicinityGraphFlow({
 	const edges = useMemo<Edge[]>(() => snapshot.edges.map(toReactFlowEdge), [snapshot.edges]);
 
 	const onNodeClick = useCallback<NodeMouseHandler>(
-		// Plain click FOCUSES the node — it becomes the graph's MAIN (ticket
-		// nid_lfcyfbrggrusyv8xn1aroc7h1_e, superseding the flyout of ticket
+		// Plain click FOCUSES the node — it becomes the graph's MAIN and its
+		// markdown opens in the current tab (tickets
+		// nid_lfcyfbrggrusyv8xn1aroc7h1_e + nid_r5xy3vuw2kj1v75soe4ffwdjz_e,
+		// superseding the flyout of ticket
 		// nid_z2k1eebic1nilpz9z3r65cnrx_e); ctrl/cmd-click opens the note in a
 		// NEW tab — `opensInNewTab` is the ONE definition of that gesture,
 		// shared with the outline entries. Any open drawer is dismissed first

@@ -236,23 +236,28 @@ for (const theme of ["dark", "light"] as const) {
 const activeFilePath = () =>
 	page.evaluate(() => (window as unknown as { app: any }).app.workspace.getActiveFile()?.path);
 
-test("clicking a node makes it the graph's MAIN without opening its note", async () => {
+const markdownLeafCount = () =>
+	page.evaluate(() => (window as unknown as { app: any }).app.workspace.getLeavesOfType("markdown").length);
+
+test("clicking a node makes it the graph's MAIN and shows its markdown in the current tab", async () => {
 	// Land on the alpha graph (big nodes) with alpha as the active/main note, so
 	// clicking the note1 neighbor is an observable graph re-center
-	// (ticket nid_lfcyfbrggrusyv8xn1aroc7h1_e).
+	// (ticket nid_lfcyfbrggrusyv8xn1aroc7h1_e). The note opens in the SAME tab
+	// (ticket nid_r5xy3vuw2kj1v75soe4ffwdjz_e) — never a new one.
 	await harness.openFile(ALPHA_PATH);
 	await harness.remountGraphView(); // refit so the target node is physically clickable
+	const leavesBefore = await markdownLeafCount();
 	await noteNode(NOTE1_PATH).click();
 	await expect(noteNode(NOTE1_PATH)).toHaveAttribute("data-tier", "main");
-	// The editor stays where it was — focusing is a graph-only gesture.
-	await expect.poll(activeFilePath).toBe(ALPHA_PATH);
+	// The editor followed the focus — the clicked note's markdown is on screen…
+	await expect.poll(activeFilePath).toBe(NOTE1_PATH);
+	// …in the tab that was already open, keeping the tab count down.
+	await expect.poll(markdownLeafCount).toBe(leavesBefore);
 });
 
 test("ctrl/cmd-clicking a node opens the note in a NEW tab", async () => {
 	await harness.openFile(ALPHA_PATH);
 	await harness.remountGraphView();
-	const markdownLeafCount = () =>
-		page.evaluate(() => (window as unknown as { app: any }).app.workspace.getLeavesOfType("markdown").length);
 	const leavesBefore = await markdownLeafCount();
 	await noteNode(NOTE1_PATH).click({ modifiers: ["ControlOrMeta"] });
 	await expect.poll(markdownLeafCount).toBe(leavesBefore + 1);
