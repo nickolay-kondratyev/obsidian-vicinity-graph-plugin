@@ -9,7 +9,7 @@ status_updated_iso: 2026-08-01T00:46:12Z
 type: task
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
-tags: [decide]
+tags: []
 ---
 
 Plain node click now FOCUSES the node (ticket nid_lfcyfbrggrusyv8xn1aroc7h1_e) instead of opening the node-scoped preview flyout. That leaves the NODE preview path with no UI trigger:
@@ -21,8 +21,6 @@ Plain node click now FOCUSES the node (ticket nid_lfcyfbrggrusyv8xn1aroc7h1_e) i
 The EDGE preview (edge click -> drawer) is still live and unaffected.
 
 Human decision needed — options:
-1. REMOVE the node-preview machinery outright (clean break, no dead code).
-2. REBIND it to another gesture (e.g. alt-click or a node context-menu item) so the outline/backlinks flyout stays reachable.
+HUMAN DECISION: REMOVE the node-preview machinery outright (clean break, no dead code).
 
-Until decided, the code is kept intact (behavior tests still pass) with a WHY note on `openNodePreview`.
 
