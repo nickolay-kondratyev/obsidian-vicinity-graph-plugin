@@ -104,9 +104,13 @@ function CloseButton({
 	);
 }
 
-/** Same title rule the modal had: note title, or `source → target` for an edge. */
+/**
+ * Note title for a node; the clicked visual's endpoint names for an edge — a
+ * folder-group endpoint reads as its folder name, and a collapsed edge that
+ * unions both directions gets "↔" instead of the directional arrow.
+ */
 function titleOf(model: LinkPreviewModel): string {
 	return model.kind === "node"
 		? VaultPathFacts.titleOf(model.path)
-		: `${VaultPathFacts.titleOf(model.sourcePath)} → ${VaultPathFacts.titleOf(model.targetPath)}`;
+		: `${model.sourceName} ${model.bidirectional ? "↔" : "→"} ${model.targetName}`;
 }

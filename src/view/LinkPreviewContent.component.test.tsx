@@ -102,6 +102,13 @@ function nodeModel(
 	});
 }
 
+/** Edge model with neutral endpoint names — pair grouping is what these tests exercise. */
+function edgeModel(
+	pairs: Parameters<typeof LinkPreviewModels.edge>[0]["pairs"],
+): ReturnType<typeof LinkPreviewModels.edge> {
+	return LinkPreviewModels.edge({ sourceName: "center", targetName: "target", bidirectional: false, pairs });
+}
+
 const expandAll = (): HTMLElement => screen.getByRole("button", { name: "Expand all" });
 const collapseAll = (): HTMLElement => screen.getByRole("button", { name: "Collapse all" });
 /** Every context-row toggle, in display order. */
@@ -127,9 +134,37 @@ describe("LinkPreviewContent sections", () => {
 	});
 
 	it("WHEN an edge model renders THEN only the single occurrences section appears", () => {
-		renderContent(LinkPreviewModels.edge({ sourcePath: NOTE, targetPath: TARGET, occurrences: [occurrenceAt(3)] }));
+		renderContent(edgeModel([{ sourcePath: NOTE, targetPath: TARGET, occurrences: [occurrenceAt(3)] }]));
 		const titles = screen.getAllByRole("region").map((section) => section.getAttribute("aria-label"));
 		expect(titles).toEqual(["Link occurrences"]);
+	});
+
+	it("WHEN an edge model has ONE pair THEN its rows render flat, with no from→to group header", () => {
+		renderContent(edgeModel([{ sourcePath: NOTE, targetPath: TARGET, occurrences: [occurrenceAt(3)] }]));
+		expect(screen.queryAllByRole("heading", { level: 4 })).toEqual([]);
+	});
+
+	it("WHEN an edge model has several pairs THEN each pair is headed by 'source → target' titles", () => {
+		renderContent(
+			edgeModel([
+				{ sourcePath: SOURCE_B, targetPath: TARGET, occurrences: [occurrenceAt(5)] },
+				{ sourcePath: SOURCE_A, targetPath: TARGET, occurrences: [occurrenceAt(3)] },
+			]),
+		);
+		const groupTitles = screen.getAllByRole("heading", { level: 4 }).map((heading) => heading.textContent);
+		// Model orders pairs by (source, target) path; the count pill renders inside the heading.
+		expect(groupTitles).toEqual(["alpha → target1", "beta → target1"]);
+	});
+
+	it("WHEN an edge model has several pairs THEN the section count sums every pair's rows", () => {
+		renderContent(
+			edgeModel([
+				{ sourcePath: SOURCE_A, targetPath: TARGET, occurrences: [occurrenceAt(3), occurrenceAt(5)] },
+				{ sourcePath: SOURCE_B, targetPath: TARGET, occurrences: [occurrenceAt(7)] },
+			]),
+		);
+		const section = screen.getByRole("region", { name: "Link occurrences" });
+		expect(section.querySelector(".vicinity-graph-link-preview__count")?.textContent).toBe("3");
 	});
 
 	it("WHEN the outline renders THEN heading labels are formatted, not raw markdown", () => {
@@ -220,11 +255,20 @@ describe("LinkPreviewContent GO", () => {
 	});
 
 	it("WHEN an edge-row GO is clicked THEN the payload targets the edge's SOURCE note", () => {
-		const { goTargets } = renderContent(
-			LinkPreviewModels.edge({ sourcePath: NOTE, targetPath: TARGET, occurrences: [occurrenceAt(9)] }),
-		);
+		const { goTargets } = renderContent(edgeModel([{ sourcePath: NOTE, targetPath: TARGET, occurrences: [occurrenceAt(9)] }]));
 		fireEvent.click(screen.getByRole("button", { name: "Go to line 10 in center" }));
 		expect(goTargets).toEqual([{ path: NOTE, line: 9 }]);
+	});
+
+	it("WHEN a GO is clicked in a multi-pair edge preview THEN the payload targets THAT pair's source note", () => {
+		const { goTargets } = renderContent(
+			edgeModel([
+				{ sourcePath: SOURCE_A, targetPath: TARGET, occurrences: [occurrenceAt(3)] },
+				{ sourcePath: SOURCE_B, targetPath: TARGET, occurrences: [occurrenceAt(7)] },
+			]),
+		);
+		fireEvent.click(screen.getByRole("button", { name: "Go to line 8 in beta" }));
+		expect(goTargets).toEqual([{ path: SOURCE_B, line: 7 }]);
 	});
 
 	it("WHEN a GO is clicked THEN its row does NOT toggle", () => {

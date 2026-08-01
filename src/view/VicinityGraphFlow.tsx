@@ -77,8 +77,10 @@ export function VicinityGraphFlow({
 	);
 
 	const onEdgeClick = useCallback<EdgeMouseHandler>(
-		// Edge source/target are note vault paths (folder groups never carry edges).
-		(_event, edge) => void controller.openEdgePreview(edge.source, edge.target),
+		// By id, not endpoints: a group-collapsed edge's source/target are
+		// folder-group ids — the controller resolves the note pairs behind the
+		// visual from the published FlowEdge.notePairs.
+		(_event, edge) => void controller.openEdgePreview(edge.id),
 		[controller],
 	);
 

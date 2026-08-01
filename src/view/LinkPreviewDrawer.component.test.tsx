@@ -33,8 +33,13 @@ function nodeModel(): LinkPreviewModel {
 	});
 }
 
-function edgeModel(): LinkPreviewModel {
-	return LinkPreviewModels.edge({ sourcePath: SOURCE, targetPath: TARGET, occurrences: [] });
+function edgeModel(bidirectional = false): LinkPreviewModel {
+	return LinkPreviewModels.edge({
+		sourceName: "alpha",
+		targetName: "beta",
+		bidirectional,
+		pairs: [{ sourcePath: SOURCE, targetPath: TARGET, occurrences: [] }],
+	});
 }
 
 function renderDrawer(model: LinkPreviewModel): {
@@ -70,6 +75,11 @@ describe("LinkPreviewDrawer", () => {
 	it("WHEN an edge model renders THEN the drawer title is 'source → target'", () => {
 		renderDrawer(edgeModel());
 		expect(screen.getByRole("dialog", { name: "alpha → beta" })).toBeTruthy();
+	});
+
+	it("WHEN a bidirectional edge model renders THEN the drawer title joins the endpoints with '↔'", () => {
+		renderDrawer(edgeModel(true));
+		expect(screen.getByRole("dialog", { name: "alpha ↔ beta" })).toBeTruthy();
 	});
 
 	it("WHEN the close button is clicked THEN onClose fires", () => {

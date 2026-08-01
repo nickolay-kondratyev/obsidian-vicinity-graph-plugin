@@ -36,6 +36,11 @@ export function isFolderGroupId(id: string): boolean {
 	return id.startsWith(FOLDER_GROUP_ID_PREFIX);
 }
 
+/** Inverse of {@link folderGroupIdOf}: the folder path behind a group id. */
+export function folderOfGroupId(id: string): string {
+	return id.slice(FOLDER_GROUP_ID_PREFIX.length);
+}
+
 /** Rendered box of a note node. */
 export interface NodeDimensions {
 	readonly width: number;

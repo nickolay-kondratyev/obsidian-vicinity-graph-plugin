@@ -3,7 +3,7 @@ import type { ReactElement } from "react";
 import type { LinkOccurrence, OutlineEntry } from "../engine";
 import { VaultPathFacts } from "../shared/VaultPathFacts";
 import { ContextRowCollapseState } from "./contextRowCollapse";
-import type { BacklinkGroupModel, ContextRow, LinkPreviewModel } from "./linkPreviewModel";
+import type { BacklinkGroupModel, ContextRow, EdgePairGroupModel, LinkPreviewModel } from "./linkPreviewModel";
 import { outlineEntryLabel } from "./outlineEntryLabel";
 
 /**
@@ -92,8 +92,12 @@ export function LinkPreviewContent({
 					</Section>
 				</>
 			) : (
-				<Section title="Link occurrences" count={model.rows.length} emptyText="No link occurrences.">
-					<RowList rows={model.rows} goPath={model.sourcePath} shared={rowProps} />
+				<Section
+					title="Link occurrences"
+					count={model.pairs.reduce((sum, pair) => sum + pair.rows.length, 0)}
+					emptyText="No link occurrences."
+				>
+					<EdgePairGroups pairs={model.pairs} shared={rowProps} />
 				</Section>
 			)}
 		</div>
@@ -163,6 +167,47 @@ function RowList({
 				<OccurrenceRow key={row.rowId} row={row} goPath={goPath} shared={shared} />
 			))}
 		</ul>
+	);
+}
+
+/**
+ * The edge preview's occurrence lists. ONE pair renders flat — the drawer title
+ * already names the from→to. Several pairs (a group-collapsed edge) each get a
+ * "source → target" header, so it stays clear which notes every occurrence
+ * connects (ticket `nid_tiitgrp5bt7g2niwcvthxw1jk_e`).
+ */
+function EdgePairGroups({
+	pairs,
+	shared,
+}: {
+	readonly pairs: readonly EdgePairGroupModel[];
+	readonly shared: SharedRowProps;
+}): ReactElement {
+	const single = pairs.length === 1 ? pairs[0] : undefined;
+	if (single !== undefined) {
+		return <RowList rows={single.rows} goPath={single.sourcePath} shared={shared} />;
+	}
+	return (
+		<div className="vicinity-graph-link-preview__groups">
+			{pairs.map((pair) => (
+				<div key={`${pair.sourcePath}->${pair.targetPath}`} className="vicinity-graph-link-preview__group">
+					<h4
+						className="vicinity-graph-link-preview__group-title"
+						title={`${pair.sourcePath} → ${pair.targetPath}`}
+					>
+						{`${VaultPathFacts.titleOf(pair.sourcePath)} → ${VaultPathFacts.titleOf(pair.targetPath)}`}
+						<span className="vicinity-graph-link-preview__count">{pair.rows.length}</span>
+					</h4>
+					{pair.rows.length === 0 ? (
+						// A pair the occurrence provider answered empty for (cache race) still
+						// gets its designed empty state, never a void.
+						<p className="vicinity-graph-link-preview__empty">No link occurrences.</p>
+					) : (
+						<RowList rows={pair.rows} goPath={pair.sourcePath} shared={shared} />
+					)}
+				</div>
+			))}
+		</div>
 	);
 }
 

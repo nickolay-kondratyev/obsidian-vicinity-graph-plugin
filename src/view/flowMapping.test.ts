@@ -289,7 +289,42 @@ describe("vicinityGraphToFlow group-collapsed edges", () => {
 		});
 		const edges = toFlow(graph).edges;
 		expect(edges).toEqual([
-			{ id: "notes/a.md->notes/b.md", source: "notes/a.md", target: "notes/b.md", count: 1, kind: "link", hasOpposite: false, bidirectional: false },
+			{
+				id: "notes/a.md->notes/b.md",
+				source: "notes/a.md",
+				target: "notes/b.md",
+				notePairs: [{ source: "notes/a.md", target: "notes/b.md" }],
+				count: 1,
+				kind: "link",
+				hasOpposite: false,
+				bidirectional: false,
+			},
+		]);
+	});
+
+	it("WHEN a passthrough edge maps THEN its notePairs is exactly its own note pair", () => {
+		const graph = makeGraph({
+			nodes: [makeNode({ path: asVaultPath("a.md") }), makeNode({ path: asVaultPath("b.md") })],
+			edges: [makeEdge("a.md", "b.md")],
+		});
+		expect(toFlow(graph).edges[0]?.notePairs).toEqual([{ source: "a.md", target: "b.md" }]);
+	});
+
+	it("WHEN member edges collapse THEN notePairs lists every contributing pair in first-seen order", () => {
+		expect(toFlow(collapsedGraph()).edges[0]?.notePairs).toEqual([
+			{ source: "hub.md", target: "notes/a.md" },
+			{ source: "hub.md", target: "notes/b.md" },
+		]);
+	});
+
+	it("WHEN both directions collapse onto one edge THEN notePairs keeps each pair's own direction", () => {
+		const graph = makeGraph({
+			nodes: collapsedGraph().nodes,
+			edges: [makeEdge("hub.md", "notes/a.md"), makeEdge("notes/b.md", "hub.md")],
+		});
+		expect(toFlow(graph).edges[0]?.notePairs).toEqual([
+			{ source: "hub.md", target: "notes/a.md" },
+			{ source: "notes/b.md", target: "hub.md" },
 		]);
 	});
 

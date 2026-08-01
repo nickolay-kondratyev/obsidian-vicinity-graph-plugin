@@ -1011,18 +1011,74 @@ describe("GraphViewController link previews", () => {
 	it("WHEN an edge preview opens THEN the seam shows the edge-scoped occurrences only", async () => {
 		const h = await renderedHarness();
 
-		await h.controller.openEdgePreview("a.md", "b.md");
+		await h.controller.openEdgePreview("a.md->b.md");
 
 		expect(h.linkPreview.shown).toMatchObject([
-			{ kind: "edge", sourcePath: "a.md", targetPath: "b.md", rows: [{ occurrence: { offset: 3 } }] },
+			{
+				kind: "edge",
+				sourceName: "a",
+				targetName: "b",
+				pairs: [{ sourcePath: "a.md", targetPath: "b.md", rows: [{ occurrence: { offset: 3 } }] }],
+			},
 		]);
 	});
 
-	it("WHEN an edge preview names a folder-group endpoint THEN nothing is shown", async () => {
+	it("WHEN the clicked edge id is not in the rendered graph THEN nothing is shown", async () => {
 		const h = await renderedHarness();
 
-		await h.controller.openEdgePreview("folder-group:sub", "b.md");
+		await h.controller.openEdgePreview("ghost.md->b.md");
 
 		expect(h.linkPreview.shown).toEqual([]);
+	});
+
+	/**
+	 * GIVEN a rendered graph where hub.md fans into BOTH members of the 2-member
+	 * `notes` folder — the fan renders as ONE collapsed edge
+	 * `hub.md->folder-group:notes` (ticket `nid_tiitgrp5bt7g2niwcvthxw1jk_e`).
+	 */
+	async function collapsedEdgeHarness(): Promise<Harness> {
+		const occurrences = new FakeLinkOccurrenceProvider({
+			outgoing: {
+				"hub.md": [
+					{ targetPath: asVaultPath("notes/a.md"), offset: 3, context: null },
+					{ targetPath: asVaultPath("notes/b.md"), offset: 9, context: null },
+				],
+			},
+		});
+		const h = setup(new FakeEdgeRouter(), occurrences);
+		h.controller.handleActiveFileChanged("hub.md");
+		const nodes = [
+			makeNode({ path: asVaultPath("hub.md") }),
+			makeNode({ path: asVaultPath("notes/a.md"), folder: asFolderPath("notes") }),
+			makeNode({ path: asVaultPath("notes/b.md"), folder: asFolderPath("notes") }),
+		];
+		const edges = [makeEdge("hub.md", "notes/a.md"), makeEdge("hub.md", "notes/b.md")];
+		h.source.resolveBuild(0, makeGraph({ nodes, edges }));
+		await flush();
+		return h;
+	}
+
+	it("WHEN a collapsed group edge preview opens THEN the model groups occurrences per contributing note pair", async () => {
+		const h = await collapsedEdgeHarness();
+
+		await h.controller.openEdgePreview("hub.md->folder-group:notes");
+
+		expect(h.linkPreview.shown).toMatchObject([
+			{
+				kind: "edge",
+				pairs: [
+					{ sourcePath: "hub.md", targetPath: "notes/a.md", rows: [{ occurrence: { offset: 3 } }] },
+					{ sourcePath: "hub.md", targetPath: "notes/b.md", rows: [{ occurrence: { offset: 9 } }] },
+				],
+			},
+		]);
+	});
+
+	it("WHEN a collapsed group edge preview opens THEN the endpoint names are the note title and the folder name", async () => {
+		const h = await collapsedEdgeHarness();
+
+		await h.controller.openEdgePreview("hub.md->folder-group:notes");
+
+		expect(h.linkPreview.shown).toMatchObject([{ kind: "edge", sourceName: "hub", targetName: "notes" }]);
 	});
 });

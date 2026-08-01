@@ -1,4 +1,4 @@
-import type { EdgeKind, FolderPath, GraphNode, OutlineEntry, ViewSettings, VicinityGraph } from "../engine";
+import type { EdgeKind, FolderPath, GraphEdge, GraphNode, OutlineEntry, ViewSettings, VicinityGraph } from "../engine";
 import { VaultPathFacts } from "../shared/VaultPathFacts";
 import { OUTLINE_RENDER_LIMIT } from "./constants";
 import type { NodePreviewKind } from "./nodePreviewChoice";
@@ -112,10 +112,24 @@ export interface GroupFlowNode extends FlowNodeBase {
 
 export type FlowNode = NoteFlowNode | GroupFlowNode;
 
+/** One engine note→note pair a rendered edge stands for (directed, vault paths). */
+export interface EdgeNotePair {
+	readonly source: string;
+	readonly target: string;
+}
+
 export interface FlowEdge {
 	readonly id: string;
 	readonly source: string;
 	readonly target: string;
+	/**
+	 * The engine note→note pairs behind this rendered edge, in first-seen engine
+	 * order: exactly one for a passthrough edge; every contributor (both
+	 * directions included) for a group-collapsed edge, whose `source`/`target`
+	 * are folder-group ids. The edge-click preview queries occurrences per pair
+	 * from this list — the rendered endpoints alone cannot name the notes.
+	 */
+	readonly notePairs: readonly EdgeNotePair[];
 	/** Distinct links source→target — the edge's count badge (1 = no badge). */
 	readonly count: number;
 	/**
@@ -220,6 +234,8 @@ interface CollapsedEdgeAccumulator {
 	backwardSeen: boolean;
 	count: number;
 	kind: EdgeKind;
+	/** Contributing engine note→note pairs, in first-seen order. */
+	readonly notePairs: EdgeNotePair[];
 }
 
 /** Separator that cannot occur in a vault path or folder-group id — a collision-proof delimiter. */
@@ -259,6 +275,7 @@ function buildFlowEdges(
 				id: edgeIdOf(edge),
 				source: edge.source,
 				target: edge.target,
+				notePairs: [{ source: edge.source, target: edge.target }],
 				count: edge.count,
 				kind: edge.kind,
 				hasOpposite: renderedEdgeIds.has(edgeIdOf({ source: edge.target, target: edge.source })),
@@ -266,13 +283,14 @@ function buildFlowEdges(
 			});
 			continue;
 		}
-		accumulateCollapsedEdge(collapsedByPair, projSource, projTarget, edge.count, edge.kind);
+		accumulateCollapsedEdge(collapsedByPair, projSource, projTarget, edge);
 	}
 	const collapsed = [...collapsedByPair.values()].map(
 		(pair): FlowEdge => ({
 			id: `${pair.from}->${pair.to}`,
 			source: pair.from,
 			target: pair.to,
+			notePairs: pair.notePairs,
 			count: pair.count,
 			kind: pair.kind,
 			hasOpposite: false,
@@ -295,8 +313,7 @@ function accumulateCollapsedEdge(
 	collapsedByPair: Map<string, CollapsedEdgeAccumulator>,
 	projSource: string,
 	projTarget: string,
-	count: number,
-	kind: EdgeKind,
+	edge: GraphEdge,
 ): void {
 	const key = [projSource, projTarget].sort().join(UNORDERED_PAIR_KEY_SEPARATOR);
 	const existing = collapsedByPair.get(key);
@@ -306,13 +323,15 @@ function accumulateCollapsedEdge(
 			to: projTarget,
 			forwardSeen: true,
 			backwardSeen: false,
-			count,
-			kind,
+			count: edge.count,
+			kind: edge.kind,
+			notePairs: [{ source: edge.source, target: edge.target }],
 		});
 		return;
 	}
-	existing.count += count;
-	existing.kind = mergeEdgeKinds(existing.kind, kind);
+	existing.count += edge.count;
+	existing.kind = mergeEdgeKinds(existing.kind, edge.kind);
+	existing.notePairs.push({ source: edge.source, target: edge.target });
 	if (projSource === existing.from && projTarget === existing.to) {
 		existing.forwardSeen = true;
 	} else {
