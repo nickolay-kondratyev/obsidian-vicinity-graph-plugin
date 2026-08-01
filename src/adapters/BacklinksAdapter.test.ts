@@ -22,32 +22,6 @@ describe("BacklinksAdapter.extractSourcePaths (shape tolerance)", () => {
 	});
 });
 
-describe("BacklinksAdapter.extractOccurrenceOffsets (shape tolerance)", () => {
-	it("WHEN data is Map-shaped with positioned references THEN offsets are extracted per source", () => {
-		const result = { data: new Map([["a.md", [{ position: { start: { offset: 7 } } }, { position: { start: { offset: 30 } } }]]]) };
-		expect(BacklinksAdapter.extractOccurrenceOffsets(result)).toEqual(new Map([["a.md", [7, 30]]]));
-	});
-
-	it("WHEN data is Record-shaped with positioned references THEN offsets are extracted per source", () => {
-		const result = { data: { "a.md": [{ position: { start: { offset: 12 } } }] } };
-		expect(BacklinksAdapter.extractOccurrenceOffsets(result)).toEqual(new Map([["a.md", [12]]]));
-	});
-
-	it("WHEN a reference carries no readable position THEN it degrades to a null offset, not a throw", () => {
-		const result = { data: new Map([["a.md", [{ unexpected: true }]]]) };
-		expect(BacklinksAdapter.extractOccurrenceOffsets(result)).toEqual(new Map([["a.md", [null]]]));
-	});
-
-	it("WHEN a source's reference list is not an array THEN that source degrades to an empty offset list", () => {
-		const result = { data: new Map([["a.md", "not-a-list"]]) };
-		expect(BacklinksAdapter.extractOccurrenceOffsets(result)).toEqual(new Map([["a.md", []]]));
-	});
-
-	it("WHEN the result carries no recognizable data THEN null signals the fallback", () => {
-		expect(BacklinksAdapter.extractOccurrenceOffsets({ unexpected: true })).toBeNull();
-	});
-});
-
 // GIVEN fake metadata caches with and without the undocumented API
 describe("BacklinksAdapter presence check and call-through", () => {
 	const target: VaultFilePort = {
@@ -81,20 +55,5 @@ describe("BacklinksAdapter presence check and call-through", () => {
 	it("WHEN the API is absent THEN backlinkSourcePaths returns null (caller falls back)", () => {
 		const ports = new FakeObsidianPorts({ files: [{ path: "target.md" }] });
 		expect(BacklinksAdapter.backlinkSourcePaths(ports.metadataCache, target)).toBeNull();
-	});
-
-	it("WHEN the API exists with positioned references THEN per-source occurrence offsets are extracted", () => {
-		const ports = new FakeObsidianPorts({
-			files: [{ path: "target.md" }],
-			backlinkOffsets: { "target.md": { "linker.md": [5, 42] } },
-		});
-		expect(BacklinksAdapter.backlinkOccurrenceOffsets(ports.metadataCache, target)).toEqual(
-			new Map([["linker.md", [5, 42]]]),
-		);
-	});
-
-	it("WHEN the API is absent THEN backlinkOccurrenceOffsets returns null (caller falls back)", () => {
-		const ports = new FakeObsidianPorts({ files: [{ path: "target.md" }] });
-		expect(BacklinksAdapter.backlinkOccurrenceOffsets(ports.metadataCache, target)).toBeNull();
 	});
 });

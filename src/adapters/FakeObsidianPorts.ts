@@ -36,13 +36,6 @@ export interface FakeObsidianSpec {
 	 * `getBacklinksForFile`. Omit to fake an install WITHOUT that API.
 	 */
 	readonly backlinks?: Readonly<Record<string, readonly string[]>>;
-	/**
-	 * target path → (source path → reference start offsets), for fixtures that
-	 * care about PER-REFERENCE positions in the `getBacklinksForFile` result.
-	 * Sources listed here are merged with {@link backlinks}; a source listed
-	 * only in `backlinks` serves an empty reference list (position-less).
-	 */
-	readonly backlinkOffsets?: Readonly<Record<string, Readonly<Record<string, readonly number[]>>>>;
 }
 
 /**
@@ -101,26 +94,15 @@ export class FakeObsidianPorts {
 				return targetPath === undefined ? null : (this.filesByPath.get(targetPath) ?? null);
 			},
 		};
-		if (this.spec.backlinks !== undefined || this.spec.backlinkOffsets !== undefined) {
+		if (this.spec.backlinks !== undefined) {
 			return Object.assign(cache, {
 				// Mirrors the undocumented runtime API: result.data is Map-like of
-				// source path → reference objects (positions where the fixture gives them).
+				// source path → reference objects (empty lists — only membership matters).
 				getBacklinksForFile: (file: VaultFilePort) => ({
-					data: this.backlinkDataFor(file.path),
+					data: new Map((this.spec.backlinks?.[file.path] ?? []).map((source) => [source, []])),
 				}),
 			});
 		}
 		return cache;
-	}
-
-	private backlinkDataFor(targetPath: string): Map<string, readonly { position: { start: { offset: number } } }[]> {
-		const offsetsBySource = this.spec.backlinkOffsets?.[targetPath] ?? {};
-		const sources = new Set([...(this.spec.backlinks?.[targetPath] ?? []), ...Object.keys(offsetsBySource)]);
-		return new Map(
-			[...sources].map((source) => [
-				source,
-				(offsetsBySource[source] ?? []).map((offset) => ({ position: { start: { offset } } })),
-			]),
-		);
 	}
 }

@@ -1,14 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { asVaultPath } from "../engine";
 import { LinkPreviewOverlayStore } from "./LinkPreviewOverlayStore";
 import { LinkPreviewModels } from "./linkPreviewModel";
-import type { LinkPreviewModel } from "./linkPreviewModel";
+import type { EdgePreviewModel } from "./linkPreviewModel";
 
-const NOTE = asVaultPath("notes/center.md");
-const OTHER = asVaultPath("notes/other.md");
-
-function nodeModel(path = NOTE): LinkPreviewModel {
-	return LinkPreviewModels.node({ path, outline: [], outgoing: [], backlinks: [] });
+function edgeModel(sourceName = "center"): EdgePreviewModel {
+	return LinkPreviewModels.edge({ sourceName, targetName: "target", bidirectional: false, pairs: [] });
 }
 
 describe("LinkPreviewOverlayStore", () => {
@@ -20,7 +16,7 @@ describe("LinkPreviewOverlayStore", () => {
 		const store = new LinkPreviewOverlayStore();
 		const listener = vi.fn();
 		store.subscribe(listener);
-		const model = nodeModel();
+		const model = edgeModel();
 		store.showLinkPreview(model);
 		expect(store.getSnapshot()).toBe(model);
 		expect(listener).toHaveBeenCalledTimes(1);
@@ -28,15 +24,15 @@ describe("LinkPreviewOverlayStore", () => {
 
 	it("WHEN a second model is shown THEN it replaces the first", () => {
 		const store = new LinkPreviewOverlayStore();
-		store.showLinkPreview(nodeModel());
-		const second = nodeModel(OTHER);
+		store.showLinkPreview(edgeModel());
+		const second = edgeModel("other");
 		store.showLinkPreview(second);
 		expect(store.getSnapshot()).toBe(second);
 	});
 
 	it("WHEN close is called THEN the snapshot is null and subscribers are notified", () => {
 		const store = new LinkPreviewOverlayStore();
-		store.showLinkPreview(nodeModel());
+		store.showLinkPreview(edgeModel());
 		const listener = vi.fn();
 		store.subscribe(listener);
 		store.close();
@@ -57,7 +53,7 @@ describe("LinkPreviewOverlayStore", () => {
 		const listener = vi.fn();
 		const unsubscribe = store.subscribe(listener);
 		unsubscribe();
-		store.showLinkPreview(nodeModel());
+		store.showLinkPreview(edgeModel());
 		expect(listener).not.toHaveBeenCalled();
 	});
 });

@@ -1,4 +1,4 @@
-import type { LinkOccurrenceProvider, OutlineEntry, VicinityGraph } from "../engine";
+import type { LinkOccurrenceProvider, VicinityGraph } from "../engine";
 import { asVaultPath, EngineDefaults } from "../engine";
 import type { ControlsModel } from "./ControlsModel";
 import { REBUILD_DEBOUNCE_MS, SIZE_RELAYOUT_THRESHOLD } from "./constants";
@@ -214,28 +214,6 @@ export class GraphViewController {
 	}
 
 	/**
-	 * NODE-scoped preview model (ticket `nid_z2k1eebic1nilpz9z3r65cnrx_e`): the
-	 * async occurrence queries live here, keeping the flow component sync — the
-	 * model is handed to the preview seam. Folder-group ids are inert, same
-	 * guard as {@link openNode}. Since ticket `nid_lfcyfbrggrusyv8xn1aroc7h1_e`
-	 * a plain node click focuses instead, leaving this without a UI trigger —
-	 * kept pending the decide ticket on the node flyout's fate.
-	 */
-	async openNodePreview(path: string): Promise<void> {
-		if (isFolderGroupId(path)) {
-			return;
-		}
-		const vaultPath = asVaultPath(path);
-		const [outgoing, backlinks] = await Promise.all([
-			this.occurrences.outgoingOccurrences(vaultPath),
-			this.occurrences.backlinkOccurrences(vaultPath),
-		]);
-		this.linkPreview.showLinkPreview(
-			LinkPreviewModels.node({ path: vaultPath, outline: this.renderedOutlineOf(path), outgoing, backlinks }),
-		);
-	}
-
-	/**
 	 * Edge click: the EDGE-scoped preview, grouped per contributing note→note
 	 * pair (ticket `nid_tiitgrp5bt7g2niwcvthxw1jk_e`). Looked up by rendered
 	 * edge id because a group-collapsed edge's `source`/`target` are folder-group
@@ -265,15 +243,6 @@ export class GraphViewController {
 				pairs,
 			}),
 		);
-	}
-
-	/**
-	 * The clicked node's outline as RENDERED (verbatim `FileMetadata.outline`,
-	 * carried on the engine node) — never re-derived, so the preview agrees with
-	 * the graph it was opened from. Empty when the node left the graph mid-click.
-	 */
-	private renderedOutlineOf(path: string): readonly OutlineEntry[] {
-		return this.previousGraph?.nodes.find((node) => node.path === path)?.outline ?? [];
 	}
 
 	// --- pipeline ----------------------------------------------------------

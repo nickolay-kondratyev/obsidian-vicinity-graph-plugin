@@ -15,20 +15,9 @@ const PROVIDER = new FakeLinkOccurrenceProvider({
 			{ targetPath: TARGET, offset: 20, context: null },
 		],
 	},
-	backlinks: {
-		"target.md": [{ sourcePath: NOTE, occurrences: [{ offset: 5, context: null }] }],
-	},
 });
 
 describe("FakeLinkOccurrenceProvider", () => {
-	it("WHEN outgoing occurrences are declared THEN they answer verbatim", async () => {
-		expect((await PROVIDER.outgoingOccurrences(NOTE)).map((occurrence) => occurrence.offset)).toEqual([5, 9, 20]);
-	});
-
-	it("WHEN backlink groups are declared THEN they answer verbatim", async () => {
-		expect((await PROVIDER.backlinkOccurrences(TARGET)).map((group) => group.sourcePath)).toEqual([NOTE]);
-	});
-
 	it("WHEN the edge scope names one target THEN only its occurrences answer (a filter, like the real adapter)", async () => {
 		expect((await PROVIDER.occurrencesBetween(NOTE, TARGET)).map((occurrence) => occurrence.offset)).toEqual([
 			5, 20,
@@ -36,6 +25,6 @@ describe("FakeLinkOccurrenceProvider", () => {
 	});
 
 	it("WHEN a path is undeclared THEN the answer is empty, mirroring the real adapter", async () => {
-		expect(await PROVIDER.outgoingOccurrences(asVaultPath("missing.md"))).toEqual([]);
+		expect(await PROVIDER.occurrencesBetween(asVaultPath("missing.md"), TARGET)).toEqual([]);
 	});
 });

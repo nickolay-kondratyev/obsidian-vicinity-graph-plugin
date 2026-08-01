@@ -7,44 +7,36 @@ import { RESIZE_HANDLE_LABEL } from "./DrawerResizeHandle";
 import type { LinkPreviewGoTarget } from "./LinkPreviewContent";
 import { LinkPreviewDrawer } from "./LinkPreviewDrawer";
 import { LinkPreviewModels } from "./linkPreviewModel";
-import type { LinkPreviewModel } from "./linkPreviewModel";
+import type { EdgePreviewModel } from "./linkPreviewModel";
 
 /**
  * RENDERED behaviour of the in-graph link-preview drawer (ticket
- * `nid_5j9mygfywppaiakuim3utf6r2_e`): title per model kind, the close
+ * `nid_5j9mygfywppaiakuim3utf6r2_e`): the title, the close
  * affordances (button, Escape) and the close-on-GO contract the modal used to
  * own. Content behaviour itself is covered by LinkPreviewContent's own suite.
  */
 
-const NOTE = asVaultPath("notes/center.md");
 const SOURCE = asVaultPath("notes/alpha.md");
 const TARGET = asVaultPath("notes/beta.md");
 
-function nodeModel(): LinkPreviewModel {
-	return LinkPreviewModels.node({
-		path: NOTE,
-		outline: [],
-		outgoing: [
-			{
-				targetPath: TARGET,
-				offset: 30,
-				context: { shortContext: "short@3", expandedContext: "expanded@3", line: 3 },
-			},
-		],
-		backlinks: [],
-	});
-}
-
-function edgeModel(bidirectional = false): LinkPreviewModel {
+function edgeModel(bidirectional = false): EdgePreviewModel {
 	return LinkPreviewModels.edge({
 		sourceName: "alpha",
 		targetName: "beta",
 		bidirectional,
-		pairs: [{ sourcePath: SOURCE, targetPath: TARGET, occurrences: [] }],
+		pairs: [
+			{
+				sourcePath: SOURCE,
+				targetPath: TARGET,
+				occurrences: [
+					{ offset: 30, context: { shortContext: "short@3", expandedContext: "expanded@3", line: 3 } },
+				],
+			},
+		],
 	});
 }
 
-function renderDrawer(model: LinkPreviewModel): {
+function renderDrawer(model: EdgePreviewModel): {
 	onClose: ReturnType<typeof vi.fn>;
 	goTargets: LinkPreviewGoTarget[];
 } {
@@ -116,11 +108,6 @@ function dragTo(handle: HTMLElement, pointer: { clientX: number; clientY: number
 }
 
 describe("LinkPreviewDrawer", () => {
-	it("WHEN a node model renders THEN the drawer is a dialog titled with the note title", () => {
-		renderDrawer(nodeModel());
-		expect(screen.getByRole("dialog", { name: "center" })).toBeTruthy();
-	});
-
 	it("WHEN an edge model renders THEN the drawer title is 'source → target'", () => {
 		renderDrawer(edgeModel());
 		expect(screen.getByRole("dialog", { name: "alpha → beta" })).toBeTruthy();
@@ -132,26 +119,26 @@ describe("LinkPreviewDrawer", () => {
 	});
 
 	it("WHEN the close button is clicked THEN onClose fires", () => {
-		const { onClose } = renderDrawer(nodeModel());
+		const { onClose } = renderDrawer(edgeModel());
 		fireEvent.click(screen.getByRole("button", { name: "Close preview" }));
 		expect(onClose).toHaveBeenCalledTimes(1);
 	});
 
 	it("WHEN Escape is pressed THEN onClose fires", () => {
-		const { onClose } = renderDrawer(nodeModel());
+		const { onClose } = renderDrawer(edgeModel());
 		fireEvent.keyDown(window, { key: "Escape" });
 		expect(onClose).toHaveBeenCalledTimes(1);
 	});
 
 	it("WHEN a GO button is clicked THEN the target is reported AND the drawer closes", () => {
-		const { onClose, goTargets } = renderDrawer(nodeModel());
+		const { onClose, goTargets } = renderDrawer(edgeModel());
 		fireEvent.click(screen.getByRole("button", { name: /^Go to line 4/ }));
-		expect(goTargets).toEqual([{ path: NOTE, line: 3 }]);
+		expect(goTargets).toEqual([{ path: SOURCE, line: 3 }]);
 		expect(onClose).toHaveBeenCalledTimes(1);
 	});
 
 	it("WHEN the top handle is dragged THEN the drawer height follows the pointer's distance to the pane bottom", () => {
-		renderDrawer(nodeModel());
+		renderDrawer(edgeModel());
 		stubPaneMetrics();
 		dragTo(handleFor("height"), { clientX: 0, clientY: CONTAINER_SIZE.height - 300 });
 		const drawer = screen.getByRole("dialog");
@@ -160,14 +147,14 @@ describe("LinkPreviewDrawer", () => {
 	});
 
 	it("WHEN the left handle is dragged THEN the drawer width follows the pointer's distance to the pane right edge", () => {
-		renderDrawer(nodeModel());
+		renderDrawer(edgeModel());
 		stubPaneMetrics();
 		dragTo(handleFor("width"), { clientX: CONTAINER_SIZE.width - 500, clientY: 0 });
 		expect(screen.getByRole("dialog").style.getPropertyValue("--vicinity-drawer-width")).toBe("500px");
 	});
 
 	it("WHEN a drag asks for less than the minimum height THEN the drawer clamps to the minimum", () => {
-		renderDrawer(nodeModel());
+		renderDrawer(edgeModel());
 		stubPaneMetrics();
 		dragTo(handleFor("height"), { clientX: 0, clientY: CONTAINER_SIZE.height - 10 });
 		expect(screen.getByRole("dialog").style.getPropertyValue("--vicinity-drawer-height")).toBe(
@@ -176,14 +163,14 @@ describe("LinkPreviewDrawer", () => {
 	});
 
 	it("WHEN the pointer moves without a preceding pointer down THEN the drawer does not resize", () => {
-		renderDrawer(nodeModel());
+		renderDrawer(edgeModel());
 		stubPaneMetrics();
 		fireEvent.pointerMove(handleFor("height"), { pointerId: 1, clientX: 0, clientY: 100 });
 		expect(screen.getByRole("dialog").style.getPropertyValue("--vicinity-drawer-height")).toBe("");
 	});
 
 	it("WHEN ArrowUp is pressed on the focused top handle THEN the drawer grows by the keyboard step", () => {
-		renderDrawer(nodeModel());
+		renderDrawer(edgeModel());
 		stubPaneMetrics();
 		dragTo(handleFor("height"), { clientX: 0, clientY: CONTAINER_SIZE.height - 300 });
 		fireEvent.keyDown(handleFor("height"), { key: "ArrowUp" });
@@ -193,11 +180,11 @@ describe("LinkPreviewDrawer", () => {
 	});
 
 	it("WHEN the drawer is reopened THEN it keeps the size from the previous drag (session memory)", () => {
-		renderDrawer(nodeModel());
+		renderDrawer(edgeModel());
 		stubPaneMetrics();
 		dragTo(handleFor("height"), { clientX: 0, clientY: CONTAINER_SIZE.height - 300 });
 		cleanup();
-		renderDrawer(nodeModel());
+		renderDrawer(edgeModel());
 		expect(screen.getByRole("dialog").style.getPropertyValue("--vicinity-drawer-height")).toBe("300px");
 	});
 });

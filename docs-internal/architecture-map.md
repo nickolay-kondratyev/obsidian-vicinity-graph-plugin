@@ -52,8 +52,8 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   so context is the only channel). `NodeOutline.tsx` owns in-node outline
   rendering — the tree/label/markup decisions and `node-outline.css`.
   `LinkPreviewPort` is the link-preview seam (parent ticket
-  `nid_tohotgq2s92dvd1iov1rd0umv_e`): node click / edge click reach
-  `GraphViewController.openNodePreview/openEdgePreview` (the async
+  `nid_tohotgq2s92dvd1iov1rd0umv_e`): an edge click reaches
+  `GraphViewController.openEdgePreview` (the async
   `LinkOccurrenceProvider` queries stay in the controller), which builds a pure
   `linkPreviewModel.ts` model and hands it to the port; `LinkPreviewOverlayStore`
   implements it as an external store `VicinityGraphFlow` renders as the in-graph

@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, ReactElement, RefObject } from "react";
-import { VaultPathFacts } from "../shared/VaultPathFacts";
 import { DrawerResizeHandle } from "./DrawerResizeHandle";
 import { DRAWER_KEYBOARD_STEP_PX, DrawerResizeMath, sessionDrawerSizes } from "./drawerResize";
 import type { DrawerPointerPosition, DrawerResizeAxis, DrawerSizeSnapshot } from "./drawerResize";
 import { LinkPreviewContent } from "./LinkPreviewContent";
 import type { LinkPreviewGoTarget } from "./LinkPreviewContent";
-import type { LinkPreviewModel } from "./linkPreviewModel";
+import type { EdgePreviewModel } from "./linkPreviewModel";
 
 /**
  * The in-graph link-preview drawer (ticket `nid_5j9mygfywppaiakuim3utf6r2_e`):
@@ -24,7 +23,7 @@ import type { LinkPreviewModel } from "./linkPreviewModel";
 export const CLOSE_ICON_ID = "x";
 
 export interface LinkPreviewDrawerProps {
-	readonly model: LinkPreviewModel;
+	readonly model: EdgePreviewModel;
 	/** The `GraphUiPort.renderIcon` seam — built-in (lucide) icon into `el`. */
 	readonly renderIcon: (el: HTMLElement, iconId: string) => void;
 	/** The `GraphUiPort.renderMarkdown` seam — Obsidian-rendered snippet into `el`. */
@@ -193,12 +192,10 @@ function CloseButton({
 }
 
 /**
- * Note title for a node; the clicked visual's endpoint names for an edge — a
- * folder-group endpoint reads as its folder name, and a collapsed edge that
- * unions both directions gets "↔" instead of the directional arrow.
+ * The clicked visual's endpoint names — a folder-group endpoint reads as its
+ * folder name, and a collapsed edge that unions both directions gets "↔"
+ * instead of the directional arrow.
  */
-function titleOf(model: LinkPreviewModel): string {
-	return model.kind === "node"
-		? VaultPathFacts.titleOf(model.path)
-		: `${model.sourceName} ${model.bidirectional ? "↔" : "→"} ${model.targetName}`;
+function titleOf(model: EdgePreviewModel): string {
+	return `${model.sourceName} ${model.bidirectional ? "↔" : "→"} ${model.targetName}`;
 }
