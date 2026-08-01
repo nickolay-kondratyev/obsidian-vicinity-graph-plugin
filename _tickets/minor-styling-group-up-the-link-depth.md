@@ -1,16 +1,16 @@
 ---
 id: nid_z4wsbv37irjrk6hul0x9jcco1_e
-title: "minor styling group up the link depth"
-status: open
+title: minor styling group up the link depth
+status: in_progress
 deps: []
 links: []
-created_iso: 2026-08-01T18:52:26Z
-status_updated_iso: 2026-08-01T18:52:26Z
+created_iso: '2026-08-01T18:52:26Z'
+status_updated_iso: '2026-08-01T18:53:45Z'
 type: task
 priority: 3
 assignee: nickolaykondratyev
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin
 ---
-
 Right now under graph controls we have 6 levers for the link Depth, under 'Graph Controls/Depth'. 
 They are actually 3, and 3. 3 for the central nodes and 3 for the pinned nodes.
 However, there is not much in the UI to indicate that they are actually 2 groups of 3 levers.
