@@ -129,6 +129,20 @@ export function VicinityGraphFlow({
 							// each new-tab click would also toggle a meaningless persistent
 							// multi-selection in this read-only graph. Disable it.
 							multiSelectionKeyCode={null}
+							// EVERY RF key binding below must stay null: RF listens on the
+							// WHOLE window/document and preventDefault()s matching keys for
+							// as long as this view is mounted — its contenteditable
+							// exemption does not cover keystrokes Obsidian forwards from
+							// controlled iframes (canvas cards), so the default Space
+							// binding ate Space in canvas text nodes app-wide (ticket
+							// nid_156zg4bvhjc7nnl0gwut20bvs_e; gated by
+							// e2e/canvasSpaceKey.e2e.ts). The graph is read-only and needs
+							// none of them: nothing to delete, no marquee selection, and
+							// pan/zoom work by pointer alone.
+							deleteKeyCode={null}
+							selectionKeyCode={null}
+							panActivationKeyCode={null}
+							zoomActivationKeyCode={null}
 							// See GRAPH_MIN_ZOOM — RF's 0.5 default clamps fitView on dense
 							// graphs, leaving part of the vicinity unreachable off-pane.
 							minZoom={GRAPH_MIN_ZOOM}
