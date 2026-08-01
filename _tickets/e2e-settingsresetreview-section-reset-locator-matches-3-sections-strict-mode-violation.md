@@ -1,18 +1,18 @@
 ---
 id: nid_eep1kqfw25odv8intx4ddv1h7_e
-title: "e2e settingsResetReview: section reset locator matches 3 sections (strict mode violation)"
-status: open
+title: 'e2e settingsResetReview: section reset locator matches 3 sections (strict
+  mode violation)'
+status: in_progress
 deps: []
 links: []
-created_iso: 2026-08-01T05:05:05Z
-status_updated_iso: 2026-08-01T05:05:05Z
+created_iso: '2026-08-01T05:05:05Z'
+status_updated_iso: '2026-08-01T05:31:00Z'
 type: bug
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
 tags: [e2e, test-infra]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 ---
-
-
 ## Notes
 
 **2026-08-01T05:05:24Z**
