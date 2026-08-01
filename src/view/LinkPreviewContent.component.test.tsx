@@ -34,17 +34,60 @@ function backlinksFrom(sourcePath: string, lines: readonly (number | null)[]): B
 	return { sourcePath: asVaultPath(sourcePath), occurrences: lines.map(occurrenceAt) };
 }
 
-/** Records GO payloads; renderIcon stamps the icon id so tests can see it landed. */
-function renderContent(model: Parameters<typeof LinkPreviewContent>[0]["model"]): LinkPreviewGoTarget[] {
-	const goTargets: LinkPreviewGoTarget[] = [];
+/** One renderMarkdown seam call, as the fake recorded it. */
+interface MarkdownRenderCall {
+	readonly markdown: string;
+	readonly sourcePath: string;
+}
+
+/** One onOpenLink report from a clicked rendered internal link. */
+interface OpenedLink {
+	readonly linktext: string;
+	readonly sourcePath: string;
+}
+
+/** Everything the recording fakes captured for one rendered content. */
+interface RenderedContentRecorders {
+	readonly goTargets: LinkPreviewGoTarget[];
+	readonly markdownCalls: MarkdownRenderCall[];
+	readonly openedLinks: OpenedLink[];
+}
+
+/**
+ * Renders through recording fakes. The renderMarkdown fake mimics the ONE
+ * Obsidian output shape the component depends on: `[[X]]` becomes an
+ * `a.internal-link` anchor carrying the linktext on `data-href`; everything
+ * else stays text (so `getByText` keeps working on snippets).
+ */
+function renderContent(model: Parameters<typeof LinkPreviewContent>[0]["model"]): RenderedContentRecorders {
+	const recorders: RenderedContentRecorders = { goTargets: [], markdownCalls: [], openedLinks: [] };
 	render(
 		<LinkPreviewContent
 			model={model}
 			renderIcon={(el, iconId) => el.setAttribute("data-icon-id", iconId)}
-			onGo={(target) => goTargets.push(target)}
+			renderMarkdown={(el, markdown, sourcePath) => {
+				recorders.markdownCalls.push({ markdown, sourcePath });
+				el.replaceChildren();
+				for (const part of markdown.split(/(\[\[[^\]]+\]\])/)) {
+					const wikiLink = /^\[\[([^\]]+)\]\]$/.exec(part);
+					const linktext = wikiLink?.[1];
+					if (linktext === undefined) {
+						el.appendChild(el.ownerDocument.createTextNode(part));
+						continue;
+					}
+					const anchor = el.ownerDocument.createElement("a");
+					anchor.className = "internal-link";
+					anchor.setAttribute("data-href", linktext);
+					anchor.textContent = linktext;
+					el.appendChild(anchor);
+				}
+				return Promise.resolve();
+			}}
+			onOpenLink={(linktext, sourcePath) => recorders.openedLinks.push({ linktext, sourcePath })}
+			onGo={(target) => recorders.goTargets.push(target)}
 		/>,
 	);
-	return goTargets;
+	return recorders;
 }
 
 function nodeModel(
@@ -165,19 +208,19 @@ describe("LinkPreviewContent bulk buttons", () => {
 
 describe("LinkPreviewContent GO", () => {
 	it("WHEN a Links-row GO is clicked THEN the payload targets the clicked note at the occurrence line", () => {
-		const goTargets = renderContent(nodeModel({ backlinks: [] }));
+		const { goTargets } = renderContent(nodeModel({ backlinks: [] }));
 		fireEvent.click(screen.getByRole("button", { name: "Go to line 4 in center" }));
 		expect(goTargets).toEqual([{ path: NOTE, line: 3 }]);
 	});
 
 	it("WHEN a backlink-row GO is clicked THEN the payload targets the SOURCE note at the occurrence line", () => {
-		const goTargets = renderContent(nodeModel({ outgoing: [] }));
+		const { goTargets } = renderContent(nodeModel({ outgoing: [] }));
 		fireEvent.click(screen.getByRole("button", { name: "Go to line 8 in alpha" }));
 		expect(goTargets).toEqual([{ path: SOURCE_A, line: 7 }]);
 	});
 
 	it("WHEN an edge-row GO is clicked THEN the payload targets the edge's SOURCE note", () => {
-		const goTargets = renderContent(
+		const { goTargets } = renderContent(
 			LinkPreviewModels.edge({ sourcePath: NOTE, targetPath: TARGET, occurrences: [occurrenceAt(9)] }),
 		);
 		fireEvent.click(screen.getByRole("button", { name: "Go to line 10 in center" }));
@@ -196,6 +239,43 @@ describe("LinkPreviewContent GO", () => {
 			.getByRole("button", { name: "Go to line 4 in center" })
 			.querySelector("[data-icon-id]");
 		expect(icon?.getAttribute("data-icon-id")).toBe(GO_ICON_ID);
+	});
+});
+
+describe("LinkPreviewContent snippet markdown rendering", () => {
+	/** Outgoing occurrence whose snippet holds a wiki link. */
+	const linkedOutgoing: OutgoingLinkOccurrence = {
+		targetPath: TARGET,
+		offset: 30,
+		context: { shortContext: "see [[Wiki Target]]", expandedContext: "see [[Wiki Target]] and more", line: 3 },
+	};
+
+	it("WHEN a Links-row snippet renders THEN it goes through the renderMarkdown seam against the containing note", () => {
+		const { markdownCalls } = renderContent(nodeModel({ backlinks: [] }));
+		expect(markdownCalls).toContainEqual({ markdown: "short@3", sourcePath: NOTE });
+	});
+
+	it("WHEN a backlink-row snippet renders THEN its sourcePath is the backlink SOURCE note", () => {
+		const { markdownCalls } = renderContent(nodeModel({ outgoing: [] }));
+		expect(markdownCalls).toContainEqual({ markdown: "short@7", sourcePath: SOURCE_A });
+	});
+
+	it("WHEN a row expands THEN the expanded snippet re-renders through the seam", () => {
+		const { markdownCalls } = renderContent(nodeModel({ backlinks: [] }));
+		fireEvent.click(screen.getByText("short@3"));
+		expect(markdownCalls).toContainEqual({ markdown: "expanded@3", sourcePath: NOTE });
+	});
+
+	it("WHEN a rendered internal link is clicked THEN its linktext and the snippet's note reach onOpenLink", () => {
+		const { openedLinks } = renderContent(nodeModel({ outgoing: [linkedOutgoing], backlinks: [] }));
+		fireEvent.click(screen.getByText("Wiki Target"));
+		expect(openedLinks).toEqual([{ linktext: "Wiki Target", sourcePath: NOTE }]);
+	});
+
+	it("WHEN a rendered internal link is clicked THEN its row does NOT toggle", () => {
+		renderContent(nodeModel({ outgoing: [linkedOutgoing], backlinks: [] }));
+		fireEvent.click(screen.getByText("Wiki Target"));
+		expect(rowToggles().every((toggle) => toggle.getAttribute("aria-expanded") === "false")).toBe(true);
 	});
 });
 

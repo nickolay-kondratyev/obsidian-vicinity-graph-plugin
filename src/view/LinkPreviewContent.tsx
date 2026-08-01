@@ -29,6 +29,10 @@ export interface LinkPreviewContentProps {
 	readonly model: LinkPreviewModel;
 	/** The `GraphUiPort.renderIcon` seam — built-in (lucide) icon into `el`. */
 	readonly renderIcon: (el: HTMLElement, iconId: string) => void;
+	/** The `GraphUiPort.renderMarkdown` seam — Obsidian-rendered snippet into `el`. */
+	readonly renderMarkdown: (el: HTMLElement, markdown: string, sourcePath: string) => Promise<void>;
+	/** Click on a rendered `a.internal-link` anchor — a linktext, resolved against the snippet's note. */
+	readonly onOpenLink: (linktext: string, sourcePath: string) => void;
 	/** GO click. The DRAWER closes itself and navigates — this component only reports. */
 	readonly onGo: (target: LinkPreviewGoTarget) => void;
 }
@@ -36,13 +40,21 @@ export interface LinkPreviewContentProps {
 /** Lucide icon of every GO button — one id, so every row's affordance matches. */
 export const GO_ICON_ID = "corner-down-right";
 
-export function LinkPreviewContent({ model, renderIcon, onGo }: LinkPreviewContentProps): ReactElement {
+export function LinkPreviewContent({
+	model,
+	renderIcon,
+	renderMarkdown,
+	onOpenLink,
+	onGo,
+}: LinkPreviewContentProps): ReactElement {
 	const [collapse, setCollapse] = useState(() => ContextRowCollapseState.allCollapsed(model.rowIds));
 	const enablement = collapse.enablement();
 	const rowProps: SharedRowProps = {
 		collapse,
 		onToggle: (rowId) => setCollapse((state) => state.toggled(rowId)),
 		renderIcon,
+		renderMarkdown,
+		onOpenLink,
 		onGo,
 	};
 	return (
@@ -93,6 +105,8 @@ interface SharedRowProps {
 	readonly collapse: ContextRowCollapseState;
 	readonly onToggle: (rowId: string) => void;
 	readonly renderIcon: (el: HTMLElement, iconId: string) => void;
+	readonly renderMarkdown: (el: HTMLElement, markdown: string, sourcePath: string) => Promise<void>;
+	readonly onOpenLink: (linktext: string, sourcePath: string) => void;
 	readonly onGo: (target: LinkPreviewGoTarget) => void;
 }
 
@@ -206,10 +220,12 @@ function OccurrenceRow({
 				aria-expanded={expanded}
 				onClick={() => shared.onToggle(row.rowId)}
 			>
-				{/* Raw markdown text, per the parent ticket's explicit v1 allowance. */}
-				<span className="vicinity-graph-link-preview__context">
-					{expanded ? context.expandedContext : context.shortContext}
-				</span>
+				<SnippetMarkdown
+					markdown={expanded ? context.expandedContext : context.shortContext}
+					sourcePath={goPath}
+					renderMarkdown={shared.renderMarkdown}
+					onOpenLink={shared.onOpenLink}
+				/>
 			</button>
 			<GoButton
 				target={{ path: goPath, line: context.line }}
@@ -217,6 +233,55 @@ function OccurrenceRow({
 				onGo={shared.onGo}
 			/>
 		</li>
+	);
+}
+
+/**
+ * One snippet, rendered through Obsidian's markdown renderer (ticket
+ * `nid_zlvkl9m4eepitt4efzbhtbhh6_e`) — same ref+effect shape as
+ * {@link GoButton}'s icon. Links resolve against `sourcePath`, the note the
+ * snippet was read from. Obsidian wires internal-link clicks only inside a
+ * real markdown view, so ONE delegated handler routes them out through
+ * `onOpenLink`; `stopPropagation` keeps a link click from also toggling the
+ * row (the surrounding button).
+ */
+function SnippetMarkdown({
+	markdown,
+	sourcePath,
+	renderMarkdown,
+	onOpenLink,
+}: {
+	readonly markdown: string;
+	readonly sourcePath: string;
+	readonly renderMarkdown: (el: HTMLElement, markdown: string, sourcePath: string) => Promise<void>;
+	readonly onOpenLink: (linktext: string, sourcePath: string) => void;
+}): ReactElement {
+	const snippetRef = useRef<HTMLSpanElement>(null);
+	useEffect(() => {
+		if (snippetRef.current !== null) {
+			// The seam replaces content on every run, so toggles never stack output.
+			void renderMarkdown(snippetRef.current, markdown, sourcePath);
+		}
+	}, [renderMarkdown, markdown, sourcePath]);
+	return (
+		// A span (not a div): the host is a button, whose content model is phrasing.
+		<span
+			ref={snippetRef}
+			className="vicinity-graph-link-preview__context"
+			onClick={(event) => {
+				const anchor = (event.target as HTMLElement).closest("a.internal-link");
+				if (anchor === null) {
+					return; // Plain snippet click: bubble on, the row toggles.
+				}
+				event.preventDefault();
+				event.stopPropagation();
+				// Obsidian's renderer stamps the raw linktext on `data-href`.
+				const linktext = anchor.getAttribute("data-href") ?? anchor.getAttribute("href");
+				if (linktext !== null) {
+					onOpenLink(linktext, sourcePath);
+				}
+			}}
+		/>
 	);
 }
 

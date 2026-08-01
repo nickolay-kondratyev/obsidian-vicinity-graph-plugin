@@ -47,6 +47,11 @@ function renderDrawer(model: LinkPreviewModel): {
 		<LinkPreviewDrawer
 			model={model}
 			renderIcon={(el, iconId) => el.setAttribute("data-icon-id", iconId)}
+			renderMarkdown={(el, markdown) => {
+				el.textContent = markdown;
+				return Promise.resolve();
+			}}
+			onOpenLink={() => undefined}
 			onClose={onClose}
 			onGo={(target) => goTargets.push(target)}
 		/>,

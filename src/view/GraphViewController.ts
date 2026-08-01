@@ -186,6 +186,15 @@ export class GraphViewController {
 	}
 
 	/**
+	 * Click on an `a.internal-link` anchor inside a rendered snippet (the
+	 * link-preview drawer): a LINKTEXT, not a node path, so it skips the
+	 * folder-group guard and resolves via {@link NoteNavigatorPort.openMarkdownLink}.
+	 */
+	openMarkdownLink(linktext: string, sourcePath: string): void {
+		this.navigator.openMarkdownLink(linktext, sourcePath);
+	}
+
+	/**
 	 * Plain node click (ticket `nid_lfcyfbrggrusyv8xn1aroc7h1_e`): re-center the
 	 * graph on the clicked node WITHOUT opening its note — the editor's active
 	 * file is untouched, so the next active-file change re-takes MAIN as usual.

@@ -154,6 +154,7 @@ class FakeEdgeRouter implements EdgeRouter {
 class FakeNavigator implements NoteNavigatorPort {
 	readonly opened: string[] = [];
 	readonly openedOptions: (OpenNoteOptions | undefined)[] = [];
+	readonly openedMarkdownLinks: { linktext: string; sourcePath: string }[] = [];
 	activePath: string | null = null;
 
 	activeFilePath(): string | null {
@@ -163,6 +164,10 @@ class FakeNavigator implements NoteNavigatorPort {
 	openNote(path: string, options?: OpenNoteOptions): void {
 		this.opened.push(path);
 		this.openedOptions.push(options);
+	}
+
+	openMarkdownLink(linktext: string, sourcePath: string): void {
+		this.openedMarkdownLinks.push({ linktext, sourcePath });
 	}
 }
 
@@ -302,6 +307,13 @@ describe("GraphViewController MAIN gating", () => {
 		h.controller.openNode("notes/a.md", { newTab: false, heading: "Status of [[note1]] **today**" });
 
 		expect(h.navigator.openedOptions).toEqual([{ newTab: false, heading: "Status of [[note1]] **today**" }]);
+	});
+
+	it("WHEN a rendered snippet's internal link is opened THEN linktext and sourcePath reach the navigator verbatim", () => {
+		const h = setup();
+		h.controller.openMarkdownLink("Target Note#Heading", "notes/a.md");
+
+		expect(h.navigator.openedMarkdownLinks).toEqual([{ linktext: "Target Note#Heading", sourcePath: "notes/a.md" }]);
 	});
 });
 

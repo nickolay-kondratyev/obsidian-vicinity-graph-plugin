@@ -1,5 +1,5 @@
-import { Menu, setIcon } from "obsidian";
-import type { App, HoverPopover, HoverParent } from "obsidian";
+import { MarkdownRenderer, Menu, setIcon } from "obsidian";
+import type { App, Component, HoverPopover, HoverParent } from "obsidian";
 import { VaultPathFacts } from "../shared/VaultPathFacts";
 import { attachmentIconId } from "./attachmentIcons";
 import { planAttachmentMenu } from "./attachmentMenu";
@@ -21,6 +21,8 @@ export class ObsidianGraphUi implements GraphUiPort, HoverParent {
 		private readonly app: App,
 		/** `hover-link` source id — the view type, registered in `main.ts` via `registerHoverLinkSource`. */
 		private readonly hoverSourceId: string,
+		/** Lifecycle owner of rendered markdown (embed children unload with it) — the hosting `ItemView`. */
+		private readonly component: Component,
 	) {}
 
 	resourcePath(path: string): string | null {
@@ -67,6 +69,13 @@ export class ObsidianGraphUi implements GraphUiPort, HoverParent {
 
 	renderIcon(el: HTMLElement, iconId: string): void {
 		setIcon(el, iconId);
+	}
+
+	renderMarkdown(el: HTMLElement, markdown: string, sourcePath: string): Promise<void> {
+		// `render` APPENDS; clearing first makes re-runs (expand/collapse, React
+		// StrictMode's doubled effects) replace instead of stack.
+		el.replaceChildren();
+		return MarkdownRenderer.render(this.app, markdown, el, sourcePath, this.component);
 	}
 
 	/** Obsidian default handling: attachments open in their default viewer (CLARIFICATION Q3). */
