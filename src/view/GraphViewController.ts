@@ -188,7 +188,7 @@ export class GraphViewController {
 	/**
 	 * Plain node click (ticket `nid_z2k1eebic1nilpz9z3r65cnrx_e`): build the
 	 * NODE-scoped preview model — the async occurrence queries live here, keeping
-	 * the flow component sync — and hand it to the modal seam. Folder-group ids
+	 * the flow component sync — and hand it to the preview seam. Folder-group ids
 	 * are inert, same guard as {@link openNode}.
 	 */
 	async openNodePreview(path: string): Promise<void> {
@@ -220,7 +220,7 @@ export class GraphViewController {
 
 	/**
 	 * The clicked node's outline as RENDERED (verbatim `FileMetadata.outline`,
-	 * carried on the engine node) — never re-derived, so the modal agrees with
+	 * carried on the engine node) — never re-derived, so the preview agrees with
 	 * the graph it was opened from. Empty when the node left the graph mid-click.
 	 */
 	private renderedOutlineOf(path: string): readonly OutlineEntry[] {

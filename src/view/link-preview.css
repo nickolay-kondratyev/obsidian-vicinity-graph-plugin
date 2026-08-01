@@ -1,19 +1,117 @@
 /*
- * Link-preview modal (LinkPreviewModal.tsx + LinkPreviewContent.tsx).
+ * Link-preview drawer (LinkPreviewDrawer.tsx + LinkPreviewContent.tsx).
  *
  * Colors and metrics come exclusively from Obsidian theme variables — light
- * and dark both just work. Hierarchy tiers, top-down: modal title (Obsidian's
- * own) > section titles (muted small-caps) > backlink group titles (normal
- * text, semibold) > row context (monospace, muted until expanded). The bulk
- * buttons keep Obsidian's native button styling; only the disabled state is
- * spelled out here because the ticket requires visible disabled treatment.
+ * and dark both just work. Hierarchy tiers, top-down: drawer title > section
+ * titles (muted small-caps) > backlink group titles (normal text, semibold) >
+ * row context (monospace, muted until expanded). The bulk buttons keep
+ * Obsidian's native button styling; only the disabled state is spelled out
+ * here because the ticket requires visible disabled treatment.
  */
 
-.vicinity-graph-link-preview-modal {
-	/* The content is a text list; Obsidian's default modal can go too narrow.
-	 * Fixed comfortable width, capped to the viewport on small windows. */
-	width: 560px;
-	max-width: 90vw;
+/* ===== drawer shell ====================================================
+ * A slide-out INSIDE the graph pane (ticket nid_5j9mygfywppaiakuim3utf6r2_e),
+ * absolutely positioned in `.vicinity-graph-flow` (the query container,
+ * graph-view.css). Which edge it slides from is the pane's aspect ratio:
+ * a tall sidebar pane slides it up from the bottom; a wide pane (graph
+ * docked at the bottom / main area) slides it in from the right.
+ */
+
+.vicinity-graph-link-preview-drawer {
+	position: absolute;
+	inset: auto 0 0 0; /* default: docked to the bottom edge */
+	/* Above React Flow's panes/controls/panels (they sit at z-index <= 5). */
+	z-index: 10;
+	display: flex;
+	flex-direction: column;
+	max-height: 60cqh;
+	background-color: var(--background-primary);
+	border-top: 1px solid var(--background-modifier-border);
+	box-shadow: var(--shadow-s);
+	animation: vicinity-graph-drawer-from-bottom 180ms ease-out;
+}
+
+/* Wide pane → side sheet from the right, full height. */
+@container vicinity-graph-pane (min-aspect-ratio: 1/1) {
+	.vicinity-graph-link-preview-drawer {
+		inset: 0 0 0 auto;
+		width: min(420px, 60cqw);
+		max-height: none;
+		border-top: none;
+		border-left: 1px solid var(--background-modifier-border);
+		animation: vicinity-graph-drawer-from-right 180ms ease-out;
+	}
+}
+
+@keyframes vicinity-graph-drawer-from-bottom {
+	from { transform: translateY(100%); }
+	to { transform: translateY(0); }
+}
+
+@keyframes vicinity-graph-drawer-from-right {
+	from { transform: translateX(100%); }
+	to { transform: translateX(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.vicinity-graph-link-preview-drawer {
+		animation: none;
+	}
+}
+
+.vicinity-graph-link-preview-drawer__header {
+	flex: 0 0 auto;
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	padding: var(--size-4-2) var(--size-4-3);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.vicinity-graph-link-preview-drawer__title {
+	flex: 1 1 auto;
+	min-width: 0;
+	margin: 0;
+	font-size: var(--font-ui-medium);
+	font-weight: var(--font-semibold);
+	color: var(--text-normal);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* Same unstyled-icon-button treatment as the GO buttons below. */
+.vicinity-graph-link-preview-drawer__close {
+	all: unset;
+	flex: 0 0 auto;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: var(--size-2-1);
+	border-radius: var(--radius-s);
+	color: var(--text-muted);
+	cursor: pointer;
+}
+
+.vicinity-graph-link-preview-drawer__close:hover {
+	color: var(--text-normal);
+	background-color: var(--background-modifier-hover);
+}
+
+.vicinity-graph-link-preview-drawer__close:focus-visible {
+	box-shadow: 0 0 0 2px var(--background-modifier-border-focus);
+}
+
+.vicinity-graph-link-preview-drawer__close-icon {
+	display: flex;
+	--icon-size: var(--icon-s);
+}
+
+/* The lists scroll; the header stays put. */
+.vicinity-graph-link-preview-drawer__body {
+	flex: 1 1 auto;
+	overflow-y: auto;
+	padding: var(--size-4-2) var(--size-4-3) var(--size-4-3);
 }
 
 /* ===== toolbar (Expand all / Collapse all) ============================= */
