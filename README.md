@@ -300,14 +300,17 @@ re-running never clobbers local edits.
 | `npm run check:e2e` | `tsc -noEmit -p e2e/tsconfig.json` (type-checks the e2e specs) |
 | `npm test` | our vitest suite (`obsidian-id-lib` ships its own tested build from npm) |
 | `npm run setup:dev-vault` | build + create/copy the plugin into `.dev-vault/` |
-| `npm run test:e2e` | release-time Playwright e2e: drives a REAL Obsidian on a copy of the dev vault (see below) |
+| `npm run test:e2e` | Playwright e2e: drives a REAL Obsidian on a copy of the dev vault (see below) |
 
 ### e2e suite (`npm run test:e2e`)
 
 Launches a real Obsidian (Electron) on a throwaway COPY of `.dev-vault` (plus
 e2e-only `crowd/` fixtures) with a sandboxed `--user-data-dir`, and asserts
 rendered DOM state (node counts, tier classes, badges, edge markers,
-theme-reactive arrowheads). It is a release gate, not part of `npm test`.
+theme-reactive arrowheads). It is separate from `npm test` (which never launches
+Obsidian), but it is **not release-only**: it is the only suite that exercises
+the real rendered plugin, so run it while developing any change to the view
+layer, the settings tab, or graph behavior — and again as a release gate.
 
 On **Linux / Docker / CI it just runs** — no setup:
 
