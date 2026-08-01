@@ -13,7 +13,7 @@ import type { EdgeRouteMap, EdgeRouter, EdgeRoutingInput, RoutedPoint } from "./
 import { isFolderGroupId } from "./graphIdentity";
 import { NO_ORPHAN_TRUNCATION } from "./truncationBadges";
 import type { OrphanTruncation } from "./truncationBadges";
-import { LinkPreviewModels } from "./linkPreviewModel";
+import { LinkPreviewModels, edgeEndpointDisplayName } from "./linkPreviewModel";
 import type {
 	GraphLayoutPort,
 	GraphSourcePort,
@@ -232,16 +232,35 @@ export class GraphViewController {
 		);
 	}
 
-	/** Edge click: the EDGE-scoped preview — only the source → target occurrences. */
-	async openEdgePreview(sourcePath: string, targetPath: string): Promise<void> {
-		if (isFolderGroupId(sourcePath) || isFolderGroupId(targetPath)) {
-			return; // Engine edges never touch group containers; guard against future edge kinds.
+	/**
+	 * Edge click: the EDGE-scoped preview, grouped per contributing note→note
+	 * pair (ticket `nid_tiitgrp5bt7g2niwcvthxw1jk_e`). Looked up by rendered
+	 * edge id because a group-collapsed edge's `source`/`target` are folder-group
+	 * ids — the note pairs behind the visual live on {@link FlowEdge.notePairs}.
+	 */
+	async openEdgePreview(edgeId: string): Promise<void> {
+		const edge = this.snapshot.edges.find((candidate) => candidate.id === edgeId);
+		if (edge === undefined) {
+			return; // The clicked edge left the graph before the click was handled.
 		}
-		const source = asVaultPath(sourcePath);
-		const target = asVaultPath(targetPath);
-		const occurrences = await this.occurrences.occurrencesBetween(source, target);
+		const pairs = await Promise.all(
+			edge.notePairs.map(async (pair) => {
+				const sourcePath = asVaultPath(pair.source);
+				const targetPath = asVaultPath(pair.target);
+				return {
+					sourcePath,
+					targetPath,
+					occurrences: await this.occurrences.occurrencesBetween(sourcePath, targetPath),
+				};
+			}),
+		);
 		this.linkPreview.showLinkPreview(
-			LinkPreviewModels.edge({ sourcePath: source, targetPath: target, occurrences }),
+			LinkPreviewModels.edge({
+				sourceName: edgeEndpointDisplayName(edge.source),
+				targetName: edgeEndpointDisplayName(edge.target),
+				bidirectional: edge.bidirectional,
+				pairs,
+			}),
 		);
 	}
 
