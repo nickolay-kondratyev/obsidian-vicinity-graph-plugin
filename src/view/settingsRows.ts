@@ -226,10 +226,30 @@ export interface SettingsRowBlock {
 	 * surfaces (a native `<details>` in the tab, a nested `Disclosure` in the panel).
 	 */
 	readonly collapsedUnder?: string;
+	/**
+	 * Non-null ⇒ the block's rows carry this NAME above them on both surfaces — the
+	 * always-visible counterpart of {@link collapsedUnder}, for a run of rows that is a
+	 * group but must stay open (the six depth levers are two groups of three, and
+	 * unnamed they read as one flat run of six).
+	 *
+	 * Copy only, never an identity: blocks stay addressable by {@link panelClass}, and a
+	 * row's own label remains its whole accessible name — a subheading is not read out
+	 * with the control, so it may CONFIRM a grouping the labels already carry but must
+	 * never be the only thing that disambiguates two rows.
+	 */
+	readonly subheading?: string;
 	/** BEM class for the block's wrapper in the PANEL. Layout only — the tab has its own card frame. */
 	readonly panelClass?: string;
 	readonly rows: readonly SettingsRow[];
 }
+
+/**
+ * The class both surfaces put on a {@link SettingsRowBlock.subheading} element. ONE
+ * constant rather than a literal per presenter: the two surfaces frame their rows
+ * differently, but a sub-group label is the same typographic step on both, so it is
+ * styled by one rule set (scoped per surface in `graph-view.css` / `settings-tab.css`).
+ */
+export const SETTINGS_SUBHEADING_CLASS = "vicinity-graph-settings-subheading";
 
 /** One settings section as both surfaces present it. */
 export interface SettingsGroup {
@@ -285,13 +305,17 @@ export const SETTINGS_GROUPS: Readonly<Record<SettingsSection, SettingsGroup>> =
 	// Row copy names the ROLE ("the active note" / "each pinned note") rather than
 	// "defaults" (in the spirit of the 2026-07-29 owner copy decision): "default"
 	// implies a per-note override layer, and there is none — depth is one dial per
-	// role, applied to every graph. Two blocks, one per role; the pinned labels are
-	// prefixed so both surfaces' accessible names stay unambiguous.
+	// role, applied to every graph. Two blocks, one per role, each NAMED by the role it
+	// expands from: six steppers in one flat run read as one knob with six dials, and
+	// the labels alone put the only cue ("Pinned …") at the far left of every second
+	// row. The pinned labels keep that prefix regardless — a subheading is not part of
+	// a control's accessible name.
 	"depth-defaults": {
 		heading: "Depth",
 		openInPanel: true,
 		blocks: [
 			{
+				subheading: "From the active note",
 				panelClass: "vicinity-graph-depth-controls",
 				rows: [
 					{
@@ -314,6 +338,7 @@ export const SETTINGS_GROUPS: Readonly<Record<SettingsSection, SettingsGroup>> =
 				],
 			},
 			{
+				subheading: "From each pinned note",
 				// Same base class (one stepper layout), plus a modifier so e2e locators can
 				// address the active and pinned blocks separately.
 				panelClass: "vicinity-graph-depth-controls vicinity-graph-depth-controls--pinned",
@@ -457,10 +482,13 @@ export const SETTINGS_GROUPS: Readonly<Record<SettingsSection, SettingsGroup>> =
 	},
 };
 
-/** Every declared row, in render order across every section — what a parity test iterates. */
-export const EVERY_SETTINGS_ROW: readonly SettingsRow[] = SETTINGS_SECTIONS.flatMap((section) =>
-	SETTINGS_GROUPS[section].blocks.flatMap((block) => block.rows),
+/** Every declared block, in render order across every section — the grouping layer. */
+export const EVERY_SETTINGS_BLOCK: readonly SettingsRowBlock[] = SETTINGS_SECTIONS.flatMap(
+	(section) => SETTINGS_GROUPS[section].blocks,
 );
+
+/** Every declared row, in render order across every section — what a parity test iterates. */
+export const EVERY_SETTINGS_ROW: readonly SettingsRow[] = EVERY_SETTINGS_BLOCK.flatMap((block) => block.rows);
 
 /** Every declared row carrying this control kind (five for `sizing-metric`, one for most). */
 export function settingsRowsFor(kind: SettingsRowControlKind): readonly SettingsRow[] {

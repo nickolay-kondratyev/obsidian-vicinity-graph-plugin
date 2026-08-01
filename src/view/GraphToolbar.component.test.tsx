@@ -3,8 +3,14 @@ import { cleanup, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { EngineDefaults } from "../engine";
 import { GraphToolbar } from "./GraphToolbar";
-import type { SettingsRow, SettingsRowState } from "./settingsRows";
-import { EVERY_SETTINGS_ROW, SettingsRowNames, settingsRowsFor } from "./settingsRows";
+import type { SettingsRow, SettingsRowBlock, SettingsRowState } from "./settingsRows";
+import {
+	EVERY_SETTINGS_BLOCK,
+	EVERY_SETTINGS_ROW,
+	SETTINGS_SUBHEADING_CLASS,
+	SettingsRowNames,
+	settingsRowsFor,
+} from "./settingsRows";
 import {
 	RecordingControlsActions,
 	controlsModelFixture,
@@ -87,6 +93,46 @@ describe("GraphToolbar (rendered): every declared row produces its declared cont
 		renderToolbar(stateRenderingEveryControl());
 		const list = screen.getByLabelText(SettingsRowNames.sole(patternsRow));
 		expect(list.closest("[aria-disabled]")?.getAttribute("aria-disabled")).toBe("false");
+	});
+});
+
+describe("GraphToolbar (rendered): a declared block subheading groups its own rows", () => {
+	/** The blocks that name a group, in declared render order. */
+	const namedBlocks = EVERY_SETTINGS_BLOCK.filter(
+		(block): block is SettingsRowBlock & { readonly subheading: string } => block.subheading !== undefined,
+	);
+
+	it("WHEN the panel renders THEN every declared subheading appears, in declared order", () => {
+		const container = renderToolbar(stateRenderingEveryControl());
+		const rendered = Array.from(container.querySelectorAll(`.${SETTINGS_SUBHEADING_CLASS}`)).map(
+			(el) => el.textContent,
+		);
+		expect(rendered).toEqual(namedBlocks.map((block) => block.subheading));
+	});
+
+	it("WHEN a block names a group THEN the name and that block's rows share ONE element", () => {
+		// The grouping itself, not just the copy: a subheading rendered as a SIBLING of
+		// its rows is spaced by the disclosure body's inter-block gap and reads as a
+		// label for everything below it — including the next group.
+		const container = renderToolbar(stateRenderingEveryControl());
+		const ungrouped = namedBlocks.filter((block) => {
+			const heading = Array.from(container.querySelectorAll(`.${SETTINGS_SUBHEADING_CLASS}`)).find(
+				(el) => el.textContent === block.subheading,
+			);
+			const group = heading?.parentElement;
+			return (
+				group === undefined ||
+				group === null ||
+				!block.rows
+					.flatMap(expectedControlNames)
+					.every((name) => group.querySelector(`[aria-label="${name}"]`) !== null)
+			);
+		});
+		expect(ungrouped.map((block) => block.subheading)).toEqual([]);
+	});
+
+	it("WHEN the grouping is checked THEN the model actually declares some (the guard is not vacuous)", () => {
+		expect(namedBlocks.length).toBeGreaterThan(1);
 	});
 });
 

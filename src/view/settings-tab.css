@@ -30,6 +30,29 @@
 	border-top: none;
 }
 
+/* A named group of rows INSIDE a card (the depth card's active-note and pinned-note
+ * blocks): the always-visible counterpart of the "Advanced spacing" collapsible
+ * below. Quieter and smaller than the card heading — same micro-label treatment the
+ * controls panel gives it — so the altitude reads card > group > row. The rule above
+ * it does the separation Obsidian's flat run of `.setting-item`s otherwise lacks —
+ * except directly under the card heading, where the frame already separates and a
+ * second rule an inch below the first would only add noise. */
+.vicinity-graph-settings .vicinity-graph-settings-subheading {
+	margin-top: var(--size-4-4);
+	padding-top: var(--size-4-3);
+	border-top: 1px solid var(--background-modifier-border);
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+	font-weight: var(--font-semibold);
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+}
+.vicinity-graph-settings .setting-item-heading + .vicinity-graph-settings-subheading {
+	margin-top: var(--size-4-2);
+	padding-top: 0;
+	border-top: none;
+}
+
 /* Each card's LAST row is its restore-defaults affordance. It is a footer, not a
  * peer of the controls above it: separated by a rule, and demoted (small, muted
  * name) so the settings themselves stay the primary content of the card. */

@@ -15,7 +15,13 @@ import { SettingsResetSequence } from "./settingsResetSequence";
 import type { SettingsNumberAccessor, SettingsRowBounds, SettingsValueAccessor } from "./settingsRowAccessors";
 import { SettingsRowAccessors } from "./settingsRowAccessors";
 import type { SettingsGroup, SettingsRow, SettingsRowBlock, SettingsRowState } from "./settingsRows";
-import { SETTINGS_GROUPS, SettingsRowNames, isSettingsRowDisabled, unhandledRowControl } from "./settingsRows";
+import {
+	SETTINGS_GROUPS,
+	SETTINGS_SUBHEADING_CLASS,
+	SettingsRowNames,
+	isSettingsRowDisabled,
+	unhandledRowControl,
+} from "./settingsRows";
 import type { SettingsSection } from "./settingsSectionFields";
 import { SETTINGS_SECTIONS } from "./settingsSectionFields";
 import type { SettingsFeedback } from "./settingsValidation";
@@ -205,13 +211,21 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	/**
 	 * A declared row block. `collapsedUnder` becomes a native `<details>` because
 	 * Obsidian's `Setting` API has no collapsible group of its own, and a native
-	 * element keeps it dependency-free.
+	 * element keeps it dependency-free; a `subheading` is the always-open counterpart —
+	 * a quiet label above the block's rows, one typographic step below the card heading.
+	 *
+	 * WHY-NOT `new Setting(card).setName(…).setHeading()` for the subheading: that is the
+	 * CARD heading's own markup, so a sub-group would render at the same altitude as the
+	 * section it sits inside and flatten the very hierarchy it exists to show.
 	 */
 	private renderBlock(card: HTMLElement, block: SettingsRowBlock, state: SettingsRowState): void {
 		let container = card;
 		if (block.collapsedUnder !== undefined) {
 			container = card.createEl("details", { cls: "vicinity-graph-settings-advanced" });
 			container.createEl("summary", { text: block.collapsedUnder });
+		}
+		if (block.subheading !== undefined) {
+			container.createDiv({ cls: SETTINGS_SUBHEADING_CLASS, text: block.subheading });
 		}
 		for (const row of block.rows) {
 			this.addRow(container, row, state);

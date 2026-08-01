@@ -141,6 +141,14 @@ describe("settings row parity: tab and panel present the same declared rows", ()
 		expect(walkersNotReading("SETTINGS_SECTIONS")).toEqual([]);
 	});
 
+	it("WHEN a block declares a subheading THEN every surface renders that name", () => {
+		// A block's grouping copy is as declared as a row's label, and the surface that
+		// ignores it shows a flat run of rows where the other shows two named groups.
+		// The PANEL's rendered half is `GraphToolbar.component.test.tsx`; for the tab
+		// (unmountable under `npm test`) this scan is the guard.
+		expect(walkersNotReading("subheading")).toEqual([]);
+	});
+
 	it("WHEN the scan runs THEN the model it checks against is non-empty (the guard is not vacuous)", () => {
 		expect(EVERY_SETTINGS_ROW.length).toBeGreaterThan(SETTINGS_SECTIONS.length);
 		expect(SETTINGS_ROW_CONTROL_KINDS.length).toBeGreaterThan(0);

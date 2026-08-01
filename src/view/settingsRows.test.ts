@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { EngineDefaults } from "../engine";
 import {
 	DEPENDENCY_AWARE_CONTROL_KINDS,
+	EVERY_SETTINGS_BLOCK,
 	EVERY_SETTINGS_ROW,
 	SETTINGS_GROUPS,
 	SETTINGS_ROW_CONTROL_KINDS,
@@ -32,6 +33,38 @@ describe("settings row model", () => {
 	it("WHEN a section declares no rows THEN it is reported, because a card with no control is a bug", () => {
 		const empty = SETTINGS_SECTIONS.filter((section) => SETTINGS_GROUPS[section].blocks.every((b) => b.rows.length === 0));
 		expect(empty).toEqual([]);
+	});
+
+	it("WHEN a block names its rows THEN it does not ALSO hide them behind a collapsible", () => {
+		// The two are the same job — naming a run of rows — with opposite disclosure
+		// behaviour, so a block declaring both would render its name twice on both
+		// surfaces (a summary AND a subheading inside it).
+		const both = EVERY_SETTINGS_BLOCK.filter(
+			(block) => block.subheading !== undefined && block.collapsedUnder !== undefined,
+		);
+		expect(both).toEqual([]);
+	});
+
+	it("WHEN a section names one of its always-open blocks THEN it names every one of them", () => {
+		// The drift this states: the depth section's six steppers are two groups of three
+		// (active note / pinned note), and naming only ONE of them is worse than naming
+		// neither — the unnamed run then reads as belonging to the named one above it.
+		// All-or-nothing per section, so a section whose blocks are pure layout (node
+		// sizing) is free to stay unnamed.
+		const partial = SETTINGS_SECTIONS.filter((section) => {
+			const open = SETTINGS_GROUPS[section].blocks.filter((block) => block.collapsedUnder === undefined);
+			const named = open.filter((block) => block.subheading !== undefined);
+			return named.length > 0 && named.length !== open.length;
+		});
+		expect(partial).toEqual([]);
+	});
+
+	it("WHEN the depth section is declared THEN its two groups of levers are named", () => {
+		// The ticket's actual ask, pinned as behaviour: six depth levers must present as
+		// two groups. The COPY is not asserted (that would freeze a wording decision here
+		// rather than in the model); that each group carries one is.
+		const named = SETTINGS_GROUPS["depth-defaults"].blocks.filter((block) => block.subheading !== undefined);
+		expect(named).toHaveLength(SETTINGS_GROUPS["depth-defaults"].blocks.length);
 	});
 
 	it("WHEN the sizing metric rows are read THEN there is one per shipped metric", () => {
