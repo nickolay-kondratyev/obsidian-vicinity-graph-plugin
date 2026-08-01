@@ -12,6 +12,7 @@ import { GraphToolbar } from "./GraphToolbar";
 import type { GraphViewController } from "./GraphViewController";
 import { GraphUiContext } from "./GraphUiContext";
 import { LinkPreviewDrawer } from "./LinkPreviewDrawer";
+import { REACT_FLOW_GLOBAL_KEY_BINDINGS } from "./reactFlowKeyBindings";
 import type { LinkPreviewOverlayStore } from "./LinkPreviewOverlayStore";
 import { VicinityEdge } from "./VicinityEdge";
 import { NoteNode } from "./NoteNode";
@@ -124,25 +125,10 @@ export function VicinityGraphFlow({
 							// would only snap back. Disable it rather than ship half-working
 							// drag (decision 2026-07-20, [[ticket-node-drag-reposition]]).
 							nodesDraggable={false}
-							// Ctrl/cmd is the "open in new tab" gesture (CLARIFICATION Q2);
-							// RF's default multiSelectionKeyCode is the SAME modifier, so
-							// each new-tab click would also toggle a meaningless persistent
-							// multi-selection in this read-only graph. Disable it.
-							multiSelectionKeyCode={null}
-							// EVERY RF key binding below must stay null: RF listens on the
-							// WHOLE window/document and preventDefault()s matching keys for
-							// as long as this view is mounted — its contenteditable
-							// exemption does not cover keystrokes Obsidian forwards from
-							// controlled iframes (canvas cards), so the default Space
-							// binding ate Space in canvas text nodes app-wide (ticket
-							// nid_156zg4bvhjc7nnl0gwut20bvs_e; gated by
-							// e2e/canvasSpaceKey.e2e.ts). The graph is read-only and needs
-							// none of them: nothing to delete, no marquee selection, and
-							// pan/zoom work by pointer alone.
-							deleteKeyCode={null}
-							selectionKeyCode={null}
-							panActivationKeyCode={null}
-							zoomActivationKeyCode={null}
+							// Null EVERY RF key binding — RF would otherwise grab keys
+							// window-wide (ate Space in canvas cards, ticket
+							// nid_156zg4bvhjc7nnl0gwut20bvs_e). WHY lives on the constant.
+							{...REACT_FLOW_GLOBAL_KEY_BINDINGS}
 							// See GRAPH_MIN_ZOOM — RF's 0.5 default clamps fitView on dense
 							// graphs, leaving part of the vicinity unreachable off-pane.
 							minZoom={GRAPH_MIN_ZOOM}

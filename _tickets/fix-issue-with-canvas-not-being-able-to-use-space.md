@@ -29,6 +29,8 @@ Let's make sure we end e2e test for this. And a follow up ticket to add e2e test
 
 **Test.** New `e2e/canvasSpaceKey.e2e.ts` (written FIRST, red before the fix, green after): opens the vicinity view, renders a note's vicinity, navigates to a canvas, creates a text card via the canvas API, types through the controlled iframe, asserts the space survives.
 
-**Verified.** `npm run check` clean; `npm test` 1462/1462; `npm run test:e2e -- vicinityGraph.e2e.ts canvasSpaceKey.e2e.ts` 27/27.
+**Verified.** `npm run check` clean; `npm test` 1462/1462; `npm run test:e2e -- vicinityGraph.e2e.ts canvasSpaceKey.e2e.ts` 26/26.
+
+**Hardening (same day).** The null-list was allowlist-by-hand: an RF upgrade adding a NEW default binding would re-grab keys with no compile error. Now the bindings live in ONE constant (`src/view/reactFlowKeyBindings.ts`, spread into `<ReactFlow>`), and `src/view/reactFlowKeyBindings.component.test.tsx` mounts the REAL `<ReactFlow>` under jsdom with window/document `addEventListener` wrapped, asserting ZERO key listeners register (with a control case proving RF defaults DO register — so the recorder cannot rot vacuous). Runs on every `npm test`.
 
 **Follow-up.** `nid_5f1o7z2iyis3sgbbpeu7j8oor_e` — broader e2e coverage that core canvas + note editing keeps working while the plugin is enabled (Space/Backspace/Shift typing, canvas node deletion, and the navigate-then-edit sequence from this repro).
