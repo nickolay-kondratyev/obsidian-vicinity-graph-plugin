@@ -172,6 +172,18 @@ test("stepper buttons render flat inside their control pill, not as Obsidian but
 	expect(chrome.actual).toEqual(chrome.declared);
 });
 
+test("React Flow zoom controls keep their themed chrome, not Obsidian's raised-button chrome", async () => {
+	// The library styles these via `.react-flow__controls-button` (0,1,0), which
+	// loses to Obsidian's `button:not(.clickable-icon)` (0,1,1) without the
+	// prefixed override in graph-view.css.
+	const controlsButton = page.locator("button.react-flow__controls-button").first();
+	const chrome = await buttonChromeVsDeclared(controlsButton, {
+		background: "var(--background-primary)",
+		boxShadow: "none",
+	});
+	expect(chrome.actual).toEqual(chrome.declared);
+});
+
 test("duplicate links collapse into one edge with a ×2 count badge", async () => {
 	const badge = page.locator(".vicinity-graph-edge__count-badge");
 	await expect(badge).toHaveCount(1); // single-link edges carry NO badge

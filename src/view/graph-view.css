@@ -57,6 +57,35 @@
 	box-shadow: var(--shadow-s);
 }
 
+/*
+ * The `.vicinity-graph-flow` prefix is LOAD-BEARING (same trap as the node's
+ * attachment chip / pin button / stepper): the library styles these buttons via
+ * `.react-flow__controls-button` (0,1,0), which Obsidian's app-wide
+ * `button:not(.clickable-icon)` (0,1,1) beats for background/box-shadow/color —
+ * AND for height/padding/border-radius, so without this the `--xy-controls-*`
+ * variables above never take effect and the buttons ship as raised Obsidian
+ * pills. Re-declares the library's own chrome at (0,2,0). Covered by the
+ * controls-chrome assertion in e2e/vicinityGraph.e2e.ts.
+ */
+.vicinity-graph-flow .react-flow__controls-button {
+	height: 26px;
+	padding: 4px;
+	font-size: var(--font-ui-small);
+	color: var(--xy-controls-button-color);
+	background-color: var(--xy-controls-button-background-color);
+	border: none;
+	border-bottom: 1px solid var(--xy-controls-button-border-color);
+	border-radius: 0;
+	box-shadow: none;
+}
+.vicinity-graph-flow .react-flow__controls-button:hover {
+	color: var(--xy-controls-button-color-hover);
+	background-color: var(--xy-controls-button-background-color-hover);
+}
+.vicinity-graph-flow .react-flow__controls-button:last-child {
+	border-bottom: none;
+}
+
 .vicinity-graph-empty {
 	height: 100%;
 	display: flex;
