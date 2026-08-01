@@ -1,16 +1,16 @@
 ---
 id: nid_zine3xz9xp8a04vn8v0bezakz_e
-title: "Fix Obsidian button-specificity trap for attachment chip, pin button, stepper"
-status: open
+title: Fix Obsidian button-specificity trap for attachment chip, pin button, stepper
+status: in_progress
 deps: []
 links: []
-created_iso: 2026-07-31T18:35:22Z
-status_updated_iso: 2026-07-31T18:35:22Z
+created_iso: '2026-07-31T18:35:22Z'
+status_updated_iso: '2026-08-01T05:30:26Z'
 type: bug
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin
 ---
-
 (FIRST analyze whether the fix is right)
 
 
@@ -25,4 +25,3 @@ Still affected (all in src/view/graph-view.css, single-class selectors that set 
 - Audit ALL other plain <button> styling in src/view/*.css for the same trap.
 
 Fix pattern: prefix an ancestor class (e.g. .vicinity-graph-node .vicinity-graph-attachment) to reach (0,2,0) > (0,1,1); add e2e computed-style assertions like the outline one.
-
