@@ -1,16 +1,16 @@
 ---
 id: nid_u877k92mv4vgcc3h3i2t2e1wi_e
-title: "Work on styling the links in the side panel"
-status: open
+title: Work on styling the links in the side panel
+status: in_progress
 deps: []
 links: []
-created_iso: 2026-08-01T01:30:37Z
-status_updated_iso: 2026-08-01T01:30:37Z
+created_iso: '2026-08-01T01:30:37Z'
+status_updated_iso: '2026-08-01T05:59:28Z'
 type: task
 priority: 3
 assignee: nickolaykondratyev
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin
 ---
-
 Need to improve the styling of the links in the side panel.
 
 Use playwright to analyze how the styling/display of links looks like right now.
@@ -21,4 +21,4 @@ Problems that currently exist (may be more of them):
     - One approach that comes to mind is to render as raw markdown in such cases. BUT maybe we do a mix like pre-process to render as markdown by first removing the `!` in front of the `[[` and then add the ! back after the the markdown is rendered? (For now likely the KISS approach of going raw markdown for embedded links is the way to go)
       - If you have other better approaches that come to mind I am all ears to hear about it as well.
 - there is no wrapping which shows up especially for longer text, we should have wrapping and multi line rendering of markdown
-- The style of the link refernce looks a bit ugly itself (the gray backgounrd right now on dark background does not looked polished.) 
+- The style of the link refernce looks a bit ugly itself (the gray backgounrd right now on dark background does not looked polished.)
