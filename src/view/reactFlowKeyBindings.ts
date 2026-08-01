@@ -18,7 +18,9 @@ import type { ReactFlowProps } from "@xyflow/react";
  * `reactFlowKeyBindings.component.test.tsx` mounts the REAL `<ReactFlow>`
  * with this object and asserts zero window/document key listeners, so an RF
  * upgrade that grows a NEW default binding fails there — extend this object,
- * don't hand a listener back to RF silently.
+ * don't hand a listener back to RF silently. `reactFlowKeyBindingsUsage.test.ts`
+ * guards the other half: no view module may name a `*KeyCode` prop outside
+ * this file, so the spread cannot be overridden at the call site.
  */
 export const REACT_FLOW_GLOBAL_KEY_BINDINGS = {
 	deleteKeyCode: null,
