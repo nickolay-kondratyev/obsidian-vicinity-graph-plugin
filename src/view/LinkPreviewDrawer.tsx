@@ -1,6 +1,9 @@
-import { useEffect, useRef } from "react";
-import type { ReactElement } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { CSSProperties, ReactElement, RefObject } from "react";
 import { VaultPathFacts } from "../shared/VaultPathFacts";
+import { DrawerResizeHandle } from "./DrawerResizeHandle";
+import { DRAWER_KEYBOARD_STEP_PX, DrawerResizeMath, sessionDrawerSizes } from "./drawerResize";
+import type { DrawerPointerPosition, DrawerResizeAxis, DrawerSizeSnapshot } from "./drawerResize";
 import { LinkPreviewContent } from "./LinkPreviewContent";
 import type { LinkPreviewGoTarget } from "./LinkPreviewContent";
 import type { LinkPreviewModel } from "./linkPreviewModel";
@@ -53,9 +56,18 @@ export function LinkPreviewDrawer({
 		window.addEventListener("keydown", onKeyDown);
 		return () => window.removeEventListener("keydown", onKeyDown);
 	}, [onClose]);
+	const resize = useDrawerResize();
 	const title = titleOf(model);
 	return (
-		<div className="vicinity-graph-link-preview-drawer" role="dialog" aria-label={title}>
+		<div
+			ref={resize.drawerRef}
+			className={drawerClassName(resize.sizes)}
+			style={drawerSizeStyle(resize.sizes)}
+			role="dialog"
+			aria-label={title}
+		>
+			<DrawerResizeHandle axis="height" onDragTo={resize.dragTo("height")} onNudge={resize.nudge("height")} />
+			<DrawerResizeHandle axis="width" onDragTo={resize.dragTo("width")} onNudge={resize.nudge("width")} />
 			<header className="vicinity-graph-link-preview-drawer__header">
 				<h2 className="vicinity-graph-link-preview-drawer__title" title={title}>
 					{title}
@@ -76,6 +88,82 @@ export function LinkPreviewDrawer({
 			</div>
 		</div>
 	);
+}
+
+interface DrawerResizeState {
+	readonly drawerRef: RefObject<HTMLDivElement>;
+	readonly sizes: DrawerSizeSnapshot;
+	readonly dragTo: (axis: DrawerResizeAxis) => (pointer: DrawerPointerPosition) => void;
+	readonly nudge: (axis: DrawerResizeAxis) => (direction: 1 | -1) => void;
+}
+
+/**
+ * Drawer-side half of resizing (ticket `nid_nsuszxnzggbck1ajwte4mqwzf_e`):
+ * turns handle gestures into a clamped size, remembers it in the session
+ * memory (a reopened drawer keeps its size) and republishes it as the CSS
+ * variables `link-preview.css` sizes the drawer with. The clamp here is the
+ * primary bound; the stylesheet keeps a 90% backstop for panes that shrink
+ * after the drag.
+ */
+function useDrawerResize(): DrawerResizeState {
+	const drawerRef = useRef<HTMLDivElement>(null);
+	const [sizes, setSizes] = useState<DrawerSizeSnapshot>(() => sessionDrawerSizes.snapshot());
+
+	const resizeTo = (axis: DrawerResizeAxis, rawPx: number): void => {
+		const container = drawerRef.current?.parentElement;
+		if (container == null) {
+			return;
+		}
+		const containerPx = axis === "height" ? container.clientHeight : container.clientWidth;
+		sessionDrawerSizes.set(axis, DrawerResizeMath.clampSize(axis, rawPx, containerPx));
+		setSizes(sessionDrawerSizes.snapshot());
+	};
+
+	const dragTo = (axis: DrawerResizeAxis) => (pointer: DrawerPointerPosition) => {
+		const container = drawerRef.current?.parentElement;
+		if (container == null) {
+			return;
+		}
+		resizeTo(axis, DrawerResizeMath.sizeFromPointer(axis, pointer, container.getBoundingClientRect()));
+	};
+
+	const nudge = (axis: DrawerResizeAxis) => (direction: 1 | -1) => {
+		const stored = sizes[axis];
+		const current = stored ?? renderedSize(drawerRef.current, axis);
+		resizeTo(axis, current + direction * DRAWER_KEYBOARD_STEP_PX);
+	};
+
+	return { drawerRef, sizes, dragTo, nudge };
+}
+
+/** First keyboard nudge on a never-resized drawer starts from its laid-out size. */
+function renderedSize(drawer: HTMLDivElement | null, axis: DrawerResizeAxis): number {
+	if (drawer === null) {
+		return 0;
+	}
+	return axis === "height" ? drawer.offsetHeight : drawer.offsetWidth;
+}
+
+function drawerClassName(sizes: DrawerSizeSnapshot): string {
+	const classes = ["vicinity-graph-link-preview-drawer"];
+	if (sizes.height !== undefined) {
+		classes.push("vicinity-graph-link-preview-drawer--height-resized");
+	}
+	if (sizes.width !== undefined) {
+		classes.push("vicinity-graph-link-preview-drawer--width-resized");
+	}
+	return classes.join(" ");
+}
+
+function drawerSizeStyle(sizes: DrawerSizeSnapshot): CSSProperties {
+	const style: Record<string, string> = {};
+	if (sizes.height !== undefined) {
+		style["--vicinity-drawer-height"] = `${sizes.height}px`;
+	}
+	if (sizes.width !== undefined) {
+		style["--vicinity-drawer-width"] = `${sizes.width}px`;
+	}
+	return style as CSSProperties;
 }
 
 function CloseButton({
