@@ -256,21 +256,39 @@
 
 .vicinity-graph-link-preview__context {
 	min-width: 0;
-	font-family: var(--font-monospace);
+	display: block;
 	font-size: var(--font-ui-smaller);
 	color: var(--text-muted);
+	text-align: start;
 	/* Collapsed: one ellipsised line. */
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
 
+/* The snippet is Obsidian-rendered markdown: flatten its block children so the
+ * collapsed container's one-line ellipsis clip actually applies to them. */
+.vicinity-graph-link-preview__context > * {
+	display: inline;
+	margin: 0;
+}
+
 .vicinity-graph-link-preview__row-toggle[aria-expanded="true"] .vicinity-graph-link-preview__context {
-	/* Expanded: the raw multi-line snippet, wrapped — and promoted a text tier
-	 * so the block the user asked for reads above its collapsed siblings. */
-	white-space: pre-wrap;
+	/* Expanded: the rendered multi-line snippet, wrapped — and promoted a text
+	 * tier so the block the user asked for reads above its collapsed siblings. */
+	white-space: normal;
 	overflow-wrap: anywhere;
 	color: var(--text-normal);
+}
+
+.vicinity-graph-link-preview__row-toggle[aria-expanded="true"] .vicinity-graph-link-preview__context > * {
+	/* Expanded: let the rendered blocks be blocks again, with tight rhythm. */
+	display: block;
+	margin: 0 0 var(--size-2-2);
+}
+
+.vicinity-graph-link-preview__row-toggle[aria-expanded="true"] .vicinity-graph-link-preview__context > *:last-child {
+	margin-bottom: 0;
 }
 
 /* ===== GO button ======================================================= */

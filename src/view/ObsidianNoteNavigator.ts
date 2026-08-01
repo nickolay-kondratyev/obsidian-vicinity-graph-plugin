@@ -45,4 +45,11 @@ export class ObsidianNoteNavigator implements NoteNavigatorPort {
 		// Obsidian's own behaviour for such links (documented in the README).
 		void this.app.workspace.openLinkText(`${path}#${stripHeadingForLink(options.heading)}`, path, newTab);
 	}
+
+	openMarkdownLink(linktext: string, sourcePath: string): void {
+		// No existence guard on purpose (contrast openNote): the linktext came from
+		// REAL note content, so an unresolved target must behave exactly as it does
+		// when clicked in that note's editor — Obsidian offers to create it.
+		void this.app.workspace.openLinkText(linktext, sourcePath, false);
+	}
 }

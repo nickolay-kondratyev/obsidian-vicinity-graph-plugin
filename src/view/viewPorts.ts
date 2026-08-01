@@ -129,6 +129,15 @@ export interface OpenNoteOptions {
 export interface NoteNavigatorPort {
 	activeFilePath(): string | null;
 	openNote(path: string, options?: OpenNoteOptions): void;
+	/**
+	 * Opens a LINKTEXT (`[[Note#Heading]]` target text, not a vault path) exactly
+	 * as Obsidian resolves it in `sourcePath`'s editor — the click handler behind
+	 * `a.internal-link` anchors in {@link GraphUiPort.renderMarkdown} output,
+	 * which Obsidian only auto-wires inside a real markdown view. An unresolved
+	 * linktext gets Obsidian's stock behaviour (offer to create the note), the
+	 * same as clicking it in the source note.
+	 */
+	openMarkdownLink(linktext: string, sourcePath: string): void;
 }
 
 /**
@@ -201,4 +210,13 @@ export interface GraphUiPort {
 	showNodeMenu(request: NodeMenuRequest): void;
 	/** Renders a built-in (lucide) icon into `el`, replacing its content. */
 	renderIcon(el: HTMLElement, iconId: string): void;
+	/**
+	 * Renders a markdown string into `el` with Obsidian's own renderer,
+	 * replacing `el`'s content (safe to re-run on the same element). Wiki links
+	 * resolve against `sourcePath` — the note the markdown was read from — and
+	 * come out as `a.internal-link` anchors; clicks on those are NOT auto-wired
+	 * outside a markdown view, so callers route them through
+	 * {@link NoteNavigatorPort.openMarkdownLink}.
+	 */
+	renderMarkdown(el: HTMLElement, markdown: string, sourcePath: string): Promise<void>;
 }

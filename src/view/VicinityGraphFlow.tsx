@@ -172,6 +172,9 @@ export function VicinityGraphFlow({
 							<LinkPreviewDrawer
 								model={previewModel}
 								renderIcon={(el, iconId) => ui.renderIcon(el, iconId)}
+								renderMarkdown={(el, markdown, sourcePath) => ui.renderMarkdown(el, markdown, sourcePath)}
+								// A snippet's [[link]] click carries a LINKTEXT, not a node path.
+								onOpenLink={(linktext, sourcePath) => controller.openMarkdownLink(linktext, sourcePath)}
 								onClose={() => linkPreview.close()}
 								// GO reuses the node-open path (folder-group guard included);
 								// the drawer already closed itself before reporting.

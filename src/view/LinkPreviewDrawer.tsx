@@ -24,13 +24,24 @@ export interface LinkPreviewDrawerProps {
 	readonly model: LinkPreviewModel;
 	/** The `GraphUiPort.renderIcon` seam — built-in (lucide) icon into `el`. */
 	readonly renderIcon: (el: HTMLElement, iconId: string) => void;
+	/** The `GraphUiPort.renderMarkdown` seam — Obsidian-rendered snippet into `el`. */
+	readonly renderMarkdown: (el: HTMLElement, markdown: string, sourcePath: string) => Promise<void>;
+	/** Click on a rendered `a.internal-link` anchor inside a snippet. */
+	readonly onOpenLink: (linktext: string, sourcePath: string) => void;
 	/** Dismiss the drawer (close button, Escape; the flow adds pane clicks). */
 	readonly onClose: () => void;
 	/** GO click. The drawer closes itself first — the editor takes over. */
 	readonly onGo: (target: LinkPreviewGoTarget) => void;
 }
 
-export function LinkPreviewDrawer({ model, renderIcon, onClose, onGo }: LinkPreviewDrawerProps): ReactElement {
+export function LinkPreviewDrawer({
+	model,
+	renderIcon,
+	renderMarkdown,
+	onOpenLink,
+	onClose,
+	onGo,
+}: LinkPreviewDrawerProps): ReactElement {
 	// Escape must work without the drawer holding focus (the graph usually has
 	// it), so listen on the window for the drawer's lifetime.
 	useEffect(() => {
@@ -55,6 +66,8 @@ export function LinkPreviewDrawer({ model, renderIcon, onClose, onGo }: LinkPrev
 				<LinkPreviewContent
 					model={model}
 					renderIcon={renderIcon}
+					renderMarkdown={renderMarkdown}
+					onOpenLink={onOpenLink}
 					onGo={(target) => {
 						onClose();
 						onGo(target);
