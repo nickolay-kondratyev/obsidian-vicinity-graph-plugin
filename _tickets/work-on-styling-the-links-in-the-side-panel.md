@@ -12,3 +12,10 @@ assignee: nickolaykondratyev
 ---
 
 Need to improve the styling of the links in the side panel.
+
+Use playwright to analyze how the styling/display of links looks like right now.
+
+Problems that currently exist (may be more of them):
+- There is problem around embedded notes they appear to render with too much space even when the link is in collapsed state.
+- there is no wrapping which shows up especially for longer text, we should have wrapping and multi line rendering of markdown
+- The style of the link refernce looks a bit ugly itself (the gray backgounrd right now on dark background does not looked polished.) 
