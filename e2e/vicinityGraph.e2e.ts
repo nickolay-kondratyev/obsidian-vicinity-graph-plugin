@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { asFolderPath } from "../src/engine";
 import { hiddenOverlayText, linkCountBadgeText, orphanBreakdownTitle, plusNText } from "../src/view/badgeText";
 import { attachmentGroupLabel } from "../src/view/attachmentIcons";
@@ -113,6 +113,63 @@ test("attachment tiles sit outside the preview-hover zone, so hovering a tile sh
 	// the pointer leaves the preview target when it reaches a tile, so Obsidian's
 	// popover never covers the chip the human is reaching for.
 	await expect(alpha.locator(".vicinity-graph-node__preview-zone button.vicinity-graph-attachment")).toHaveCount(0);
+});
+
+/**
+ * Computed background/box-shadow of a button, paired with what the given CSS
+ * values RESOLVE to at that same element — so assertions stay variable-based
+ * instead of hardcoding theme-dependent rgb() strings. Only a real Obsidian can
+ * observe this: its app-wide `button:not(.clickable-icon)` rule (specificity
+ * 0,1,1) silently beats any single-class (0,1,0) reset (same trap the outline
+ * entries once shipped with — see e2e/nodeOutline.e2e.ts).
+ */
+async function buttonChromeVsDeclared(
+	button: Locator,
+	declared: { readonly background: string; readonly boxShadow: string },
+): Promise<{ actual: unknown; declared: unknown }> {
+	return button.evaluate((el, want) => {
+		// Probe: a child div resolves the SAME CSS variables in the SAME theme scope.
+		const probe = document.createElement("div");
+		probe.style.backgroundColor = want.background;
+		probe.style.boxShadow = want.boxShadow;
+		el.appendChild(probe);
+		const probeStyle = getComputedStyle(probe);
+		const resolved = { backgroundColor: probeStyle.backgroundColor, boxShadow: probeStyle.boxShadow };
+		probe.remove();
+		const style = getComputedStyle(el);
+		return {
+			actual: { backgroundColor: style.backgroundColor, boxShadow: style.boxShadow },
+			declared: resolved,
+		};
+	}, declared);
+}
+
+test("attachment chips keep their flat chip chrome, not Obsidian's raised-button chrome", async () => {
+	const chip = noteNode(ALPHA_PATH).locator("button.vicinity-graph-attachment").first();
+	const chrome = await buttonChromeVsDeclared(chip, {
+		background: "var(--background-secondary)",
+		boxShadow: "none",
+	});
+	expect(chrome.actual).toEqual(chrome.declared);
+});
+
+test("the pin button keeps its declared chip chrome, not Obsidian's raised-button chrome", async () => {
+	const pin = noteNode(ALPHA_PATH).locator("button.vicinity-graph-pin-button");
+	const chrome = await buttonChromeVsDeclared(pin, {
+		background: "var(--background-primary)",
+		boxShadow: "var(--shadow-s)",
+	});
+	expect(chrome.actual).toEqual(chrome.declared);
+});
+
+test("stepper buttons render flat inside their control pill, not as Obsidian buttons", async () => {
+	// Computed style resolves regardless of the toolbar disclosure's open state.
+	const stepperButton = page.locator("button.vicinity-graph-stepper__button").first();
+	const chrome = await buttonChromeVsDeclared(stepperButton, {
+		background: "transparent",
+		boxShadow: "none",
+	});
+	expect(chrome.actual).toEqual(chrome.declared);
 });
 
 test("duplicate links collapse into one edge with a ×2 count badge", async () => {

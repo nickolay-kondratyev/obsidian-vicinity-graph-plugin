@@ -168,8 +168,13 @@
 	text-overflow: ellipsis;
 }
 
-/* Same unstyled-icon-button treatment as the GO buttons below. */
-.vicinity-graph-link-preview-drawer__close {
+/* Same unstyled-icon-button treatment as the GO buttons below.
+ * The drawer prefix is LOAD-BEARING on every unstyled button in this file:
+ * Obsidian paints plain buttons via `button:not(.clickable-icon)` (0,1,1),
+ * which beats a single class (0,1,0) — even `all: unset` loses that cascade
+ * fight per-property, so without the prefix these render as raised pills
+ * (same trap as the outline entries, see node-outline.css). */
+.vicinity-graph-link-preview-drawer .vicinity-graph-link-preview-drawer__close {
 	all: unset;
 	flex: 0 0 auto;
 	display: flex;
@@ -181,12 +186,12 @@
 	cursor: pointer;
 }
 
-.vicinity-graph-link-preview-drawer__close:hover {
+.vicinity-graph-link-preview-drawer .vicinity-graph-link-preview-drawer__close:hover {
 	color: var(--text-normal);
 	background-color: var(--background-modifier-hover);
 }
 
-.vicinity-graph-link-preview-drawer__close:focus-visible {
+.vicinity-graph-link-preview-drawer .vicinity-graph-link-preview-drawer__close:focus-visible {
 	box-shadow: 0 0 0 2px var(--background-modifier-border-focus);
 }
 
@@ -293,8 +298,9 @@
 }
 
 /* Row toggle resets Obsidian's global button styling on purpose: the row IS
- * the control, and a raised button per row would shout over the content. */
-.vicinity-graph-link-preview__row-toggle {
+ * the control, and a raised button per row would shout over the content.
+ * Prefix load-bearing — see the close button's comment above. */
+.vicinity-graph-link-preview .vicinity-graph-link-preview__row-toggle {
 	all: unset;
 	flex: 1 1 auto;
 	min-width: 0;
@@ -356,7 +362,8 @@
 
 /* ===== GO button ======================================================= */
 
-.vicinity-graph-link-preview__go {
+/* Prefix load-bearing — see the close button's comment above. */
+.vicinity-graph-link-preview .vicinity-graph-link-preview__go {
 	all: unset;
 	flex: 0 0 auto;
 	display: flex;
@@ -368,7 +375,7 @@
 	cursor: pointer;
 }
 
-.vicinity-graph-link-preview__go:hover {
+.vicinity-graph-link-preview .vicinity-graph-link-preview__go:hover {
 	color: var(--text-accent);
 	background-color: var(--background-modifier-hover);
 }
@@ -380,7 +387,7 @@
 
 /* Visible keyboard focus on the unstyled (`all: unset`) controls — the reset
  * above also removed the browser's default ring, so restore an explicit one. */
-.vicinity-graph-link-preview__row-toggle:focus-visible,
-.vicinity-graph-link-preview__go:focus-visible {
+.vicinity-graph-link-preview .vicinity-graph-link-preview__row-toggle:focus-visible,
+.vicinity-graph-link-preview .vicinity-graph-link-preview__go:focus-visible {
 	box-shadow: 0 0 0 2px var(--background-modifier-border-focus);
 }
