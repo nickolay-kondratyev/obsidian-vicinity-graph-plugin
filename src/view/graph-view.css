@@ -575,6 +575,27 @@
 	flex-shrink: 0;
 }
 
+/* ===== block subheadings (a named group of rows inside one section) ===== */
+
+/*
+ * The always-visible counterpart of a nested disclosure summary: it NAMES a run of
+ * rows without hiding it. Deliberately quieter than the disclosure summary above it
+ * (`--text-faint`, uppercase micro-label) so the hierarchy reads section > group >
+ * row rather than two competing headings; the grouping itself is proximity — the
+ * disclosure body's `--size-4-2` gap between blocks against the tighter within-block
+ * gap — and this label only says what each group IS.
+ */
+.vicinity-graph-toolbar .vicinity-graph-settings-subheading {
+	/* The label belongs to the rows BELOW it: this puts more space above it than the
+	 * block's own row gap leaves below, so proximity points the right way. */
+	margin-top: var(--size-4-1);
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+	font-weight: var(--font-semibold);
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+}
+
 /* ===== depth rows (the ONE global depth setting) ======================== */
 
 /*

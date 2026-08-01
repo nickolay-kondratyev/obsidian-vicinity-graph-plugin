@@ -4,7 +4,7 @@ import { useControlsActions } from "./ControlsActionsContext";
 import { Disclosure } from "./Disclosure";
 import { SETTINGS_RESET_SCOPES } from "./settingsResetPlan";
 import type { SettingsGroup, SettingsRowBlock, SettingsRowState } from "./settingsRows";
-import { SETTINGS_GROUPS } from "./settingsRows";
+import { SETTINGS_GROUPS, SETTINGS_SUBHEADING_CLASS } from "./settingsRows";
 import { SettingsRowView } from "./SettingsRowView";
 import type { SettingsSection } from "./settingsSectionFields";
 import { SETTINGS_SECTIONS } from "./settingsSectionFields";
@@ -88,6 +88,11 @@ function SettingsSectionView({
  * A block of rows, wrapped in its declared layout class and — when the block
  * declares one — behind a nested collapsible, exactly as the settings tab renders
  * the same block in a native `<details>`.
+ *
+ * A declared `subheading` names the block IN PLACE instead (the always-open
+ * counterpart of `collapsedUnder`), and forces the wrapper even where the block
+ * declares no layout class: the name and the rows it names must be one element, or
+ * the disclosure body's flex gap spaces them as unrelated siblings.
  */
 function SettingsRowBlockView({
 	block,
@@ -108,6 +113,14 @@ function SettingsRowBlockView({
 			<Disclosure summary={block.collapsedUnder} className={block.panelClass}>
 				{rows}
 			</Disclosure>
+		);
+	}
+	if (block.subheading !== undefined) {
+		return (
+			<div className={block.panelClass}>
+				<div className={SETTINGS_SUBHEADING_CLASS}>{block.subheading}</div>
+				{rows}
+			</div>
 		);
 	}
 	// No wrapper when the block declares no layout class: an empty div would add a
