@@ -115,9 +115,19 @@ export class SettingsTabPage {
 		await this.control(accessibleName).blur();
 	}
 
-	/** One framed section card, addressed by its heading text. */
+	/**
+	 * One framed section card, addressed by its heading text.
+	 *
+	 * Matched against the card's `.setting-item-heading` (what `setHeading()` renders —
+	 * a styled div, NOT an aria heading, so `getByRole("heading")` cannot find it),
+	 * with `exact: true`. A bare `hasText` over the card would be a substring match
+	 * over the whole subtree — `card("Depth")` then also matches the cards holding
+	 * the "Depth decay k" and "Outline depth" rows.
+	 */
 	card(headingText: string): Locator {
-		return this.page.locator(".vicinity-graph-settings-section", { hasText: headingText });
+		return this.page.locator(".vicinity-graph-settings-section", {
+			has: this.page.locator(".setting-item-heading").getByText(headingText, { exact: true }),
+		});
 	}
 
 	/** That card's own scoped restore button. */
