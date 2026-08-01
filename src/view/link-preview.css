@@ -252,32 +252,7 @@
 	color: var(--text-faint);
 }
 
-/* ===== outline ========================================================= */
-
-.vicinity-graph-link-preview__outline {
-	margin: 0;
-	padding: 0;
-	list-style: none;
-	font-size: var(--font-ui-small);
-	color: var(--text-normal);
-}
-
-.vicinity-graph-link-preview__outline li {
-	padding: var(--size-2-1) 0;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
-}
-
-/* Indent one step (12px) per heading level below H1 — nesting made visible. */
-.vicinity-graph-link-preview__outline-entry--level-1 { padding-left: 0; }
-.vicinity-graph-link-preview__outline-entry--level-2 { padding-left: var(--size-4-3); }
-.vicinity-graph-link-preview__outline-entry--level-3 { padding-left: calc(var(--size-4-3) * 2); }
-.vicinity-graph-link-preview__outline-entry--level-4 { padding-left: calc(var(--size-4-3) * 3); }
-.vicinity-graph-link-preview__outline-entry--level-5 { padding-left: calc(var(--size-4-3) * 4); }
-.vicinity-graph-link-preview__outline-entry--level-6 { padding-left: calc(var(--size-4-3) * 5); }
-
-/* ===== backlink groups ================================================= */
+/* ===== edge pair groups ================================================ */
 
 .vicinity-graph-link-preview__group + .vicinity-graph-link-preview__group {
 	/* More space BETWEEN groups than between a group title and its rows. */

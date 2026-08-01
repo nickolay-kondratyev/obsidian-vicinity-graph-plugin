@@ -1,15 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReactElement } from "react";
-import type { LinkOccurrence, OutlineEntry } from "../engine";
 import { VaultPathFacts } from "../shared/VaultPathFacts";
 import { ContextRowCollapseState } from "./contextRowCollapse";
-import type { BacklinkGroupModel, ContextRow, EdgePairGroupModel, LinkPreviewModel } from "./linkPreviewModel";
-import { outlineEntryLabel } from "./outlineEntryLabel";
+import type { ContextRow, EdgePairGroupModel, EdgePreviewModel } from "./linkPreviewModel";
 
 /**
  * The link preview's React content (parent ticket
  * `nid_tohotgq2s92dvd1iov1rd0umv_e`), hosted by `LinkPreviewDrawer`: sections +
- * expandable context rows over a built {@link LinkPreviewModel}. Collapse/expand
+ * expandable context rows over a built {@link EdgePreviewModel}. Collapse/expand
  * state lives HERE (one `ContextRowCollapseState` in a `useState`) — the model
  * is immutable data.
  *
@@ -26,7 +24,7 @@ export interface LinkPreviewGoTarget {
 }
 
 export interface LinkPreviewContentProps {
-	readonly model: LinkPreviewModel;
+	readonly model: EdgePreviewModel;
 	/** The `GraphUiPort.renderIcon` seam — built-in (lucide) icon into `el`. */
 	readonly renderIcon: (el: HTMLElement, iconId: string) => void;
 	/** The `GraphUiPort.renderMarkdown` seam — Obsidian-rendered snippet into `el`. */
@@ -75,31 +73,13 @@ export function LinkPreviewContent({
 					Collapse all
 				</button>
 			</div>
-			{model.kind === "node" ? (
-				<>
-					<Section title="Outline" count={model.outline.length} emptyText="No headings in this note.">
-						<OutlineList entries={model.outline} />
-					</Section>
-					<Section title="Links" count={model.linkRows.length} emptyText="No outgoing links.">
-						<RowList rows={model.linkRows} goPath={model.path} shared={rowProps} />
-					</Section>
-					<Section
-						title="Backlinks"
-						count={model.backlinkGroups.reduce((sum, group) => sum + group.rows.length, 0)}
-						emptyText="No backlinks."
-					>
-						<BacklinkGroups groups={model.backlinkGroups} shared={rowProps} />
-					</Section>
-				</>
-			) : (
-				<Section
-					title="Link occurrences"
-					count={model.pairs.reduce((sum, pair) => sum + pair.rows.length, 0)}
-					emptyText="No link occurrences."
-				>
-					<EdgePairGroups pairs={model.pairs} shared={rowProps} />
-				</Section>
-			)}
+			<Section
+				title="Link occurrences"
+				count={model.pairs.reduce((sum, pair) => sum + pair.rows.length, 0)}
+				emptyText="No link occurrences."
+			>
+				<EdgePairGroups pairs={model.pairs} shared={rowProps} />
+			</Section>
 		</div>
 	);
 }
@@ -134,20 +114,6 @@ function Section({
 			</h3>
 			{count === 0 ? <p className="vicinity-graph-link-preview__empty">{emptyText}</p> : children}
 		</section>
-	);
-}
-
-/** The clicked note's headings, indented by level — display only (GO is per occurrence). */
-function OutlineList({ entries }: { readonly entries: readonly OutlineEntry[] }): ReactElement {
-	return (
-		<ul className="vicinity-graph-link-preview__outline">
-			{entries.map((entry, index) => (
-				// Index keys are safe: the list is immutable for the preview's lifetime.
-				<li key={index} className={`vicinity-graph-link-preview__outline-entry--level-${entry.level}`}>
-					{outlineEntryLabel(entry.rawText)}
-				</li>
-			))}
-		</ul>
 	);
 }
 
@@ -211,28 +177,6 @@ function EdgePairGroups({
 	);
 }
 
-function BacklinkGroups({
-	groups,
-	shared,
-}: {
-	readonly groups: readonly BacklinkGroupModel[];
-	readonly shared: SharedRowProps;
-}): ReactElement {
-	return (
-		<div className="vicinity-graph-link-preview__groups">
-			{groups.map((group) => (
-				<div key={group.sourcePath} className="vicinity-graph-link-preview__group">
-					<h4 className="vicinity-graph-link-preview__group-title" title={group.sourcePath}>
-						{VaultPathFacts.titleOf(group.sourcePath)}
-						<span className="vicinity-graph-link-preview__count">{group.rows.length}</span>
-					</h4>
-					<RowList rows={group.rows} goPath={group.sourcePath} shared={shared} />
-				</div>
-			))}
-		</div>
-	);
-}
-
 /**
  * One occurrence. With context: a toggle button (short ↔ expanded snippet,
  * CSS disclosure marker driven by `aria-expanded`) plus a GO icon button.
@@ -244,7 +188,7 @@ function OccurrenceRow({
 	goPath,
 	shared,
 }: {
-	readonly row: ContextRow<LinkOccurrence>;
+	readonly row: ContextRow;
 	readonly goPath: string;
 	readonly shared: SharedRowProps;
 }): ReactElement {

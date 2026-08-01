@@ -32,36 +32,6 @@ export class BacklinksAdapter {
 		return entries === null ? null : entries.map(([sourcePath]) => sourcePath);
 	}
 
-	/**
-	 * Per-source occurrence OFFSETS of `file`'s backlinks, or `null` when the
-	 * API is absent (⇒ resolvedLinks-inversion fallback, whose occurrences have
-	 * no positions). Same shape tolerance as {@link backlinkSourcePaths}; a
-	 * reference whose position cannot be read contributes `null`, and a source
-	 * whose reference LIST cannot be read contributes an empty array — the
-	 * occurrence provider turns both into position-less occurrences.
-	 */
-	static backlinkOccurrenceOffsets(
-		metadataCache: MetadataCachePort,
-		file: VaultFilePort,
-	): ReadonlyMap<string, readonly (number | null)[]> | null {
-		const rawApi = BacklinksAdapter.rawApiOf(metadataCache);
-		if (typeof rawApi !== "function") {
-			return null;
-		}
-		return BacklinksAdapter.extractOccurrenceOffsets(rawApi.call(metadataCache, file));
-	}
-
-	/** Occurrence offsets per source path; `null` on unrecognized shapes, never a throw. */
-	static extractOccurrenceOffsets(result: unknown): ReadonlyMap<string, readonly (number | null)[]> | null {
-		const entries = BacklinksAdapter.dataEntriesOf(result);
-		if (entries === null) {
-			return null;
-		}
-		return new Map(
-			entries.map(([sourcePath, references]) => [sourcePath, BacklinksAdapter.offsetsOf(references)]),
-		);
-	}
-
 	/** The result's `data` as [sourcePath, rawReferences] entries, or `null` → fallback. */
 	private static dataEntriesOf(result: unknown): readonly (readonly [string, unknown])[] | null {
 		if (typeof result !== "object" || result === null) {
@@ -75,17 +45,6 @@ export class BacklinksAdapter {
 			return Object.entries(data);
 		}
 		return null;
-	}
-
-	/** Start offsets of one source's raw reference list; unreadable pieces degrade to null/empty. */
-	private static offsetsOf(references: unknown): readonly (number | null)[] {
-		if (!Array.isArray(references)) {
-			return [];
-		}
-		return references.map((reference) => {
-			const offset = (reference as { position?: { start?: { offset?: unknown } } })?.position?.start?.offset;
-			return typeof offset === "number" ? offset : null;
-		});
 	}
 
 	// The ONLY cast onto the undocumented API surface (CLARIFICATION Q1).

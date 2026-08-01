@@ -23,26 +23,14 @@ const SPEC: FakeObsidianSpec = {
 
 /**
  * Thin-glue coverage only: occurrence CORRECTNESS lives in
- * `ObsidianLinkOccurrenceProvider.test.ts`; these prove the per-query snapshot
- * wrapper actually reaches it for each of the three queries.
+ * `ObsidianLinkOccurrenceProvider.test.ts`; this proves the per-query snapshot
+ * wrapper actually reaches it.
  */
 describe("LiveLinkOccurrenceProvider delegation", () => {
 	function provider(): LiveLinkOccurrenceProvider {
 		const ports = new FakeObsidianPorts(SPEC);
 		return new LiveLinkOccurrenceProvider(ports.vault, ports.metadataCache, new CanvasParseCache());
 	}
-
-	it("WHEN outgoing occurrences are queried THEN the snapshot provider's answer comes back", async () => {
-		const occurrences = await provider().outgoingOccurrences(NOTE);
-		expect(occurrences.map(({ targetPath, offset }) => ({ targetPath, offset }))).toEqual([
-			{ targetPath: TARGET, offset: TARGET_OFFSET },
-		]);
-	});
-
-	it("WHEN backlink occurrences are queried THEN the snapshot provider's answer comes back", async () => {
-		const groups = await provider().backlinkOccurrences(TARGET);
-		expect(groups.map((group) => group.sourcePath)).toEqual([NOTE]);
-	});
 
 	it("WHEN edge-scoped occurrences are queried THEN the snapshot provider's answer comes back", async () => {
 		const occurrences = await provider().occurrencesBetween(NOTE, TARGET);

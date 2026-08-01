@@ -7,7 +7,7 @@ import { GraphViewController } from "./GraphViewController";
 import type { FlowSnapshot } from "./GraphViewController";
 import type { FlowNode, NoteFlowNode } from "./flowMapping";
 import type { ControlsModel } from "./ControlsModel";
-import type { LinkPreviewModel } from "./linkPreviewModel";
+import type { EdgePreviewModel } from "./linkPreviewModel";
 import type {
 	GraphBuildResult,
 	GraphLayoutPort,
@@ -173,9 +173,9 @@ class FakeNavigator implements NoteNavigatorPort {
 
 /** Records every model the controller asked the modal seam to show. */
 class FakeLinkPreview implements LinkPreviewPort {
-	readonly shown: LinkPreviewModel[] = [];
+	readonly shown: EdgePreviewModel[] = [];
 
-	showLinkPreview(model: LinkPreviewModel): void {
+	showLinkPreview(model: EdgePreviewModel): void {
 		this.shown.push(model);
 	}
 }
@@ -967,7 +967,6 @@ describe("GraphViewController node focus", () => {
 });
 
 describe("GraphViewController link previews", () => {
-	const NOTE_OUTLINE: OutlineEntry[] = [{ rawText: "Intro", level: 1 }];
 	const OCCURRENCES = new FakeLinkOccurrenceProvider({
 		outgoing: {
 			"a.md": [
@@ -975,17 +974,14 @@ describe("GraphViewController link previews", () => {
 				{ targetPath: asVaultPath("c.md"), offset: 9, context: null },
 			],
 		},
-		backlinks: {
-			"a.md": [{ sourcePath: asVaultPath("z.md"), occurrences: [{ offset: 1, context: null }] }],
-		},
 	});
 
-	/** GIVEN a rendered graph where a.md (with an outline) links b.md and c.md. */
+	/** GIVEN a rendered graph where a.md links b.md and c.md. */
 	async function renderedHarness(): Promise<Harness> {
 		const h = setup(new FakeEdgeRouter(), OCCURRENCES);
 		h.controller.handleActiveFileChanged("a.md");
 		const nodes = [
-			makeNode({ path: asVaultPath("a.md"), outline: NOTE_OUTLINE }),
+			makeNode({ path: asVaultPath("a.md") }),
 			makeNode({ path: asVaultPath("b.md") }),
 			makeNode({ path: asVaultPath("c.md") }),
 		];
@@ -995,43 +991,6 @@ describe("GraphViewController link previews", () => {
 		return h;
 	}
 
-	it("WHEN a node preview opens THEN the seam shows a node model carrying the rendered node's outline", async () => {
-		const h = await renderedHarness();
-
-		await h.controller.openNodePreview("a.md");
-
-		expect(h.linkPreview.shown).toMatchObject([{ kind: "node", path: "a.md", outline: NOTE_OUTLINE }]);
-	});
-
-	it("WHEN a node preview opens THEN its link rows are the provider's outgoing occurrences in order", async () => {
-		const h = await renderedHarness();
-
-		await h.controller.openNodePreview("a.md");
-
-		const model = h.linkPreview.shown[0];
-		expect(model?.kind === "node" ? model.linkRows.map((row) => row.occurrence.targetPath) : []).toEqual([
-			"b.md",
-			"c.md",
-		]);
-	});
-
-	it("WHEN a node preview opens THEN its backlink groups are the provider's answer", async () => {
-		const h = await renderedHarness();
-
-		await h.controller.openNodePreview("a.md");
-
-		const model = h.linkPreview.shown[0];
-		expect(model?.kind === "node" ? model.backlinkGroups.map((group) => group.sourcePath) : []).toEqual(["z.md"]);
-	});
-
-	it("WHEN a node preview is requested for a folder-group id THEN nothing is shown", async () => {
-		const h = await renderedHarness();
-
-		await h.controller.openNodePreview("folder-group:sub");
-
-		expect(h.linkPreview.shown).toEqual([]);
-	});
-
 	it("WHEN an edge preview opens THEN the seam shows the edge-scoped occurrences only", async () => {
 		const h = await renderedHarness();
 
@@ -1039,7 +998,6 @@ describe("GraphViewController link previews", () => {
 
 		expect(h.linkPreview.shown).toMatchObject([
 			{
-				kind: "edge",
 				sourceName: "a",
 				targetName: "b",
 				pairs: [{ sourcePath: "a.md", targetPath: "b.md", rows: [{ occurrence: { offset: 3 } }] }],
@@ -1089,7 +1047,6 @@ describe("GraphViewController link previews", () => {
 
 		expect(h.linkPreview.shown).toMatchObject([
 			{
-				kind: "edge",
 				pairs: [
 					{ sourcePath: "hub.md", targetPath: "notes/a.md", rows: [{ occurrence: { offset: 3 } }] },
 					{ sourcePath: "hub.md", targetPath: "notes/b.md", rows: [{ occurrence: { offset: 9 } }] },
@@ -1103,6 +1060,6 @@ describe("GraphViewController link previews", () => {
 
 		await h.controller.openEdgePreview("hub.md->folder-group:notes");
 
-		expect(h.linkPreview.shown).toMatchObject([{ kind: "edge", sourceName: "hub", targetName: "notes" }]);
+		expect(h.linkPreview.shown).toMatchObject([{ sourceName: "hub", targetName: "notes" }]);
 	});
 });

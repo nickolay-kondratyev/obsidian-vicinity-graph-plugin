@@ -72,7 +72,6 @@ export { OutgoingReferences } from "./LinkProvider";
 // syntax matchers must name it; the engine is still its public owner.
 export type { LinkKind } from "../shared/LinkKind";
 export type {
-	BacklinkSourceOccurrences,
 	LinkOccurrence,
 	LinkOccurrenceProvider,
 	OutgoingLinkOccurrence,

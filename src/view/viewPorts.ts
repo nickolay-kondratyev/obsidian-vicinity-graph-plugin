@@ -1,7 +1,7 @@
 import type { ElkNode } from "elkjs";
 import type { ForceLayoutSettings, ViewSettings, VicinityGraph } from "../engine";
 import type { ControlsModel } from "./ControlsModel";
-import type { LinkPreviewModel } from "./linkPreviewModel";
+import type { EdgePreviewModel } from "./linkPreviewModel";
 import type { SettingsResetScope } from "./settingsResetPlan";
 import type { SettingsInteraction } from "./settingsWritePlan";
 
@@ -161,7 +161,7 @@ export interface NoteOpenPort {
  * `LinkPreviewOverlayStore`, rendered by `VicinityGraphFlow`.
  */
 export interface LinkPreviewPort {
-	showLinkPreview(model: LinkPreviewModel): void;
+	showLinkPreview(model: EdgePreviewModel): void;
 }
 
 /** Fires Obsidian's native `hover-link` page preview for a hovered node. */

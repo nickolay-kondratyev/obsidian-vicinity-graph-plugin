@@ -1,4 +1,4 @@
-import type { LinkPreviewModel } from "./linkPreviewModel";
+import type { EdgePreviewModel } from "./linkPreviewModel";
 import type { LinkPreviewPort } from "./viewPorts";
 
 type Subscriber = () => void;
@@ -14,7 +14,7 @@ type Subscriber = () => void;
  * React tree, so showing/closing is just state, not window chrome.
  */
 export class LinkPreviewOverlayStore implements LinkPreviewPort {
-	private model: LinkPreviewModel | null = null;
+	private model: EdgePreviewModel | null = null;
 	private readonly subscribers = new Set<Subscriber>();
 
 	readonly subscribe = (listener: Subscriber): (() => void) => {
@@ -22,10 +22,10 @@ export class LinkPreviewOverlayStore implements LinkPreviewPort {
 		return () => this.subscribers.delete(listener);
 	};
 
-	readonly getSnapshot = (): LinkPreviewModel | null => this.model;
+	readonly getSnapshot = (): EdgePreviewModel | null => this.model;
 
 	/** Show (or replace) the previewed model — a later click simply retargets the drawer. */
-	showLinkPreview(model: LinkPreviewModel): void {
+	showLinkPreview(model: EdgePreviewModel): void {
 		this.model = model;
 		this.notify();
 	}
