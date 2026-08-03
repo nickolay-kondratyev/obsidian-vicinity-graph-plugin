@@ -62,7 +62,7 @@ export class VicinityGraphView extends ItemView {
 	async onOpen(): Promise<void> {
 		const navigator = new ObsidianNoteNavigator(this.app);
 		// `this` (the ItemView, a Component) owns rendered-markdown lifecycles.
-		const ui = new ObsidianGraphUi(this.app, VIEW_TYPE_VICINITY_GRAPH, this);
+		const ui = new ObsidianGraphUi(this.app, this);
 		// The in-graph preview drawer's model store (replaces the old modal seam):
 		// the controller writes it, the flow renders it — one store per view.
 		const linkPreview = new LinkPreviewOverlayStore();

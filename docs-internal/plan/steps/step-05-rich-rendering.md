@@ -33,7 +33,7 @@ Nodes that carry information — the plugin's reason to exist. Replace plain nod
 ### Theme integration + interactions
 
 - All styling from **Obsidian theme CSS variables** — light/dark just works; verify against both stock themes.
-- Click opens the note (current tab); **ctrl/cmd-click** opens in a **new tab** (`getLeaf(true)`) *(clarified 2026-07-18)*; hover fires Obsidian's `hover-link` for native page previews.
+- Click opens the note (current tab); **ctrl/cmd-click** opens in a **new tab** (`getLeaf(true)`) *(clarified 2026-07-18)*. Hover previews shipped here were later removed (ticket `nid_jnw75pg24q4itujs8vfgqj4mh_e`).
 
 ## Out of scope
 

@@ -43,7 +43,8 @@ notes.
    the editor opens the BACKLINK SOURCE note at the linking line — and because
    the active file changed, the graph recenters on that source note.
 6. **Ctrl/Cmd-click still opens the note** — in a NEW tab, no modal.
-7. **Unchanged neighbours.** Hover still fires the native page preview;
+7. **Unchanged neighbours.** Hover pops NOTHING (the native page preview was
+   removed, ticket `nid_jnw75pg24q4itujs8vfgqj4mh_e`);
    right-click still shows the pin/unpin menu; attachment chips still open their
    menu (no modal from any of these). Folder-group boxes stay inert on click.
 8. **Theme pass.** Repeat 1–2 once in light and once in dark; the modal pulls

@@ -103,14 +103,6 @@ export default class VicinityGraphPlugin extends Plugin {
 					occurrenceProvider,
 				),
 		);
-		// Node hover fires `hover-link` (step-05); registering the source lists
-		// the graph in the Page-preview core-plugin settings. `defaultMod: false`
-		// = previews on plain hover, like Obsidian's own graph view.
-		this.registerHoverLinkSource(VIEW_TYPE_VICINITY_GRAPH, {
-			display: "Vicinity graph",
-			defaultMod: false,
-		});
-
 		// Two placements, two hotkey-bindable commands (mirrors core's "Split
 		// right"/"Split down"); the opener MOVES a graph that is open elsewhere.
 		const opener = new GraphViewOpener(this.app.workspace);

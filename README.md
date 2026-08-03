@@ -77,7 +77,8 @@ is just focuses it — no rebuild.
   only**: the occurrences of links from its source note to its target note,
   each expandable to its surrounding context with a **GO** button that jumps
   the editor to that exact line.
-- **Hover a node** — Obsidian's native page preview (Page preview core plugin).
+- **Hover a node** — nothing pops up. The node already shows its own outline or
+  thumbnail, so the graph stays readable while the pointer crosses it.
 - **Right-click a node** — pin / unpin menu (see *Pinning*).
 - Folder-group boxes are containers, not notes — clicking one does nothing.
 

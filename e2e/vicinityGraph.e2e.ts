@@ -105,15 +105,32 @@ test("attachment icon strip shows one counted chip per extension", async () => {
 	}
 });
 
-test("attachment tiles sit outside the preview-hover zone, so hovering a tile shows no note preview", async () => {
+test("the content zone's flex-grow pins the attachment strip to the node's bottom edge", async () => {
 	const alpha = noteNode(ALPHA_PATH);
-	// Only the note's own content (title + thumbnail) lives inside the zone that
-	// arms the native page preview (NoteNode binds showHoverPreview to it).
-	await expect(alpha.locator(".vicinity-graph-node__preview-zone .vicinity-graph-node__title")).toHaveCount(1);
-	// The interactive attachment chips are SIBLINGS of that zone, never inside it:
-	// the pointer leaves the preview target when it reaches a tile, so Obsidian's
-	// popover never covers the chip the human is reaching for.
-	await expect(alpha.locator(".vicinity-graph-node__preview-zone button.vicinity-graph-attachment")).toHaveCount(0);
+	// The note's own content (title + thumbnail) is the zone that grows to fill
+	// the node — that grow is what replaced the strip's old `margin-top: auto`.
+	await expect(alpha.locator(".vicinity-graph-node__content .vicinity-graph-node__title")).toHaveCount(1);
+	// The attachment chips are SIBLINGS of that zone, never inside it — inside,
+	// they would be consumed by the grow instead of sitting under it.
+	await expect(alpha.locator(".vicinity-graph-node__content button.vicinity-graph-attachment")).toHaveCount(0);
+	await expect(alpha.locator(".vicinity-graph-node__attachments")).toBeVisible();
+	// The zone is otherwise a pure layout wrapper (it lost its only behavior when
+	// the hover preview went away), so assert the layout itself, not just the
+	// markup: measured against the node's own padding + border, the strip's
+	// bottom must land ON the node's inner bottom edge. Without the grow the
+	// strip would sit directly under the title with slack below it.
+	const bottomSlackPx = await alpha.evaluate((node) => {
+		const strip = node.querySelector<HTMLElement>(".vicinity-graph-node__attachments");
+		if (strip === null) throw new Error("attachment strip missing");
+		// Layout metrics, NOT getBoundingClientRect: React Flow scales nodes with
+		// the pan/zoom transform, which would scale the rects but not the
+		// computed padding, making a mixed comparison zoom-dependent.
+		// `offsetTop` is measured from the node's padding edge (the node is
+		// `position: relative`), and `clientHeight` is its padding-box height.
+		const innerBottom = node.clientHeight - parseFloat(getComputedStyle(node).paddingBottom);
+		return innerBottom - (strip.offsetTop + strip.offsetHeight);
+	});
+	expect(Math.abs(bottomSlackPx)).toBeLessThan(1); // sub-pixel: fractional layout rounding only
 });
 
 test("attachment chips keep their flat chip chrome, not Obsidian's raised-button chrome", async () => {
