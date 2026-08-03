@@ -155,9 +155,12 @@
 }
 
 /*
- * Groups the note's own content (title + thumbnail). It grows to fill the node
- * so the attachment strip below still sits on the bottom edge (replacing the
- * strip's old `margin-top: auto`).
+ * Groups the note's own content (title + thumbnail) — and ONLY those: the
+ * outline and the attachment strip are deliberate SIBLINGS (see NoteNode.tsx).
+ * It grows to fill the node so the attachment strip below still sits on the
+ * bottom edge (replacing the strip's old `margin-top: auto`); that grow is a
+ * layout invariant, asserted in e2e/vicinityGraph.e2e.ts by measuring the
+ * strip's bottom against the node's inner bottom edge.
  */
 .vicinity-graph-node__content {
 	display: flex;
@@ -302,10 +305,10 @@
 		display: block;
 	}
 	/* The outline and the thumbnail share ONE preview slot (nodePreviewChoice.ts
-	 * picks which), so when the outline renders the title zone must not also claim
+	 * picks which), so when the outline renders the content zone must not also claim
 	 * the node's spare height — the outline is what should absorb it.
 	 * INSIDE this block on purpose: below the threshold the outline is
-	 * `display: none` and cannot absorb anything, so dropping the title zone's
+	 * `display: none` and cannot absorb anything, so dropping the content zone's
 	 * flex-grow there would unpin the attachment strip from the node's bottom
 	 * edge (that grow is what replaced the strip's old `margin-top: auto`). */
 	.vicinity-graph-node[data-preview="outline"] .vicinity-graph-node__content {

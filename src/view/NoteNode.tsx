@@ -85,8 +85,11 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
 					</div>
 				)}
 			</div>
-			{/* A SIBLING of the content zone, not a child: the zone flex-grows to
-			    fill the node, and the outline claims that height for itself. */}
+			{/* A SIBLING of the content zone, not a child: whichever of the two is
+			    growing must be the one that reaches the node's spare height. In
+			    outline mode CSS hands the grow to the outline (the content zone
+			    drops to `flex: 0 0 auto`), which only works while the outline is
+			    the zone's sibling — nested, it would be capped by the zone. */}
 			{data.preview === "outline" && <NodeOutline notePath={data.path} entries={data.outline} />}
 			{data.attachmentGroups.length > 0 && (
 				<div className="vicinity-graph-node__attachments">
