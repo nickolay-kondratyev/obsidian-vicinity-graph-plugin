@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-08-03T23:49:09Z
 id: nid_kyowb4v8v51nslbicl4szgcd5_e
 title: rethink node sizing
-status: in_progress
+status: closed
 deps: []
-links: []
+links: [nid_o5hz7ilcauwe2acqdfh6pcuam_e, nid_cx5zoz7ptucg9nxalibv0mbjb_e, nid_lwionnvohw9k58jw7a2dybht2_e, nid_qjsj5mth2phdqctbm0vfx9elw_e, nid_9hx6okamx3yt0rg9iad2f4151_e]
 created_iso: '2026-08-01T01:26:15Z'
-status_updated_iso: '2026-08-03T23:45:40Z'
+status_updated_iso: 2026-08-03T23:49:09Z
 type: task
 priority: 3
 assignee: nickolaykondratyev
@@ -30,3 +31,17 @@ Some of the things we want to avoid:
 Each node in the graph when hovered over will have a setting icon pop up at the bottom right edge. When clicked we will have ability to override the content of the node. When clicked on the setting we will be able to choose Content:['Inherit', 'Outline', 'Image'] this will override the content for this node id globally. 
 
 NOTE: the outcome of this is not implementation, first a discussion and then likely multiple tickets and a plan to achieve the objectives.
+
+## Resolution (2026-08-03)
+
+Discussion + plan delivered, implementation split into tickets as requested.
+
+- **Design/discussion doc**: `docs-internal/plan/node-sizing-rethink.md` — problem statement, what the codebase already gives us (pins are the exact docid-keyed global-persistence pattern to reuse; `@xyflow/react` 12 already ships `NodeResizer`, no new dependency; `nodePreviewChoice.ts` is the seam for a per-node content override), recommended design positions, stored-shape sketch (`nodeOverrides` map in `data.json`, version bump, clean break — unpublished).
+- **Open decisions for the human** (Q1–Q5: default size driver, central/pinned prominence floor instead of the maxPx bypass, whether overrides may exceed global dials, truncation-ranking independence, silent frontmatter id assignment): written to `.ai_out/_current_decision/current_decision.md` and tracked in decide ticket `nid_o5hz7ilcauwe2acqdfh6pcuam_e` (tag `decide`).
+- **Implementation tickets** (dep-ordered, all linked to this one):
+  - `nid_cx5zoz7ptucg9nxalibv0mbjb_e` engine: content-aware central/pinned sizing (deps: decide)
+  - `nid_lwionnvohw9k58jw7a2dybht2_e` persistence: docid-keyed per-node overrides in data.json (deps: decide)
+  - `nid_qjsj5mth2phdqctbm0vfx9elw_e` view: drag-to-resize via NodeResizer (deps: persistence)
+  - `nid_9hx6okamx3yt0rg9iad2f4151_e` view: hover gear + Content [Inherit|Outline|Image] override (deps: persistence)
+
+Next step for the human: answer `.ai_out/_current_decision/current_decision.md` (Q1–Q5) into the decide ticket; that unblocks everything else.
