@@ -164,15 +164,6 @@ export interface LinkPreviewPort {
 	showLinkPreview(model: EdgePreviewModel): void;
 }
 
-/** Fires Obsidian's native `hover-link` page preview for a hovered node. */
-export interface HoverPreviewRequest {
-	readonly nativeEvent: MouseEvent;
-	/** The hovered node element the popover anchors to. */
-	readonly targetEl: HTMLElement;
-	/** Vault path of the hovered note. */
-	readonly path: string;
-}
-
 /** Opens the native attachment menu for one icon-strip chip. */
 export interface AttachmentMenuRequest {
 	readonly nativeEvent: MouseEvent;
@@ -204,7 +195,6 @@ export interface NodeMenuRequest {
 export interface GraphUiPort {
 	/** App-servable URL for a vault file; `null` when the path resolves to no file. */
 	resourcePath(path: string): string | null;
-	showHoverPreview(request: HoverPreviewRequest): void;
 	showAttachmentMenu(request: AttachmentMenuRequest): void;
 	/** Opens the native pin/unpin menu at the cursor for a right-clicked node. */
 	showNodeMenu(request: NodeMenuRequest): void;

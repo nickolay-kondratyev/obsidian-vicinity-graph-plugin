@@ -1,26 +1,19 @@
 import { MarkdownRenderer, Menu, setIcon } from "obsidian";
-import type { App, Component, HoverPopover, HoverParent } from "obsidian";
+import type { App, Component } from "obsidian";
 import { VaultPathFacts } from "../shared/VaultPathFacts";
 import { attachmentIconId } from "./attachmentIcons";
 import { planAttachmentMenu } from "./attachmentMenu";
-import type { AttachmentMenuRequest, GraphUiPort, HoverPreviewRequest, NodeMenuRequest } from "./viewPorts";
+import type { AttachmentMenuRequest, GraphUiPort, NodeMenuRequest } from "./viewPorts";
 
 /**
- * Adapts Obsidian UI services (resource URLs, `hover-link` page previews,
- * native menus, icon rendering) to the {@link GraphUiPort} the React node
- * components consume via context. The ONLY view-layer home of these Obsidian
- * calls, mirroring {@link ObsidianNoteNavigator} for navigation.
- *
- * Implements {@link HoverParent} because the Page-preview core plugin stores
- * the popover it opens on the event's `hoverParent` to manage its lifecycle.
+ * Adapts Obsidian UI services (resource URLs, native menus, icon rendering) to
+ * the {@link GraphUiPort} the React node components consume via context. The
+ * ONLY view-layer home of these Obsidian calls, mirroring
+ * {@link ObsidianNoteNavigator} for navigation.
  */
-export class ObsidianGraphUi implements GraphUiPort, HoverParent {
-	hoverPopover: HoverPopover | null = null;
-
+export class ObsidianGraphUi implements GraphUiPort {
 	constructor(
 		private readonly app: App,
-		/** `hover-link` source id — the view type, registered in `main.ts` via `registerHoverLinkSource`. */
-		private readonly hoverSourceId: string,
 		/** Lifecycle owner of rendered markdown (embed children unload with it) — the hosting `ItemView`. */
 		private readonly component: Component,
 	) {}
@@ -28,17 +21,6 @@ export class ObsidianGraphUi implements GraphUiPort, HoverParent {
 	resourcePath(path: string): string | null {
 		const file = this.app.vault.getFileByPath(path);
 		return file === null ? null : this.app.vault.getResourcePath(file);
-	}
-
-	showHoverPreview(request: HoverPreviewRequest): void {
-		this.app.workspace.trigger("hover-link", {
-			event: request.nativeEvent,
-			source: this.hoverSourceId,
-			hoverParent: this,
-			targetEl: request.targetEl,
-			linktext: request.path,
-			sourcePath: request.path,
-		});
 	}
 
 	showAttachmentMenu(request: AttachmentMenuRequest): void {

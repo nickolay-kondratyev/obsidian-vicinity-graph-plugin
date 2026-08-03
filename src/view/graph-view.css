@@ -155,14 +155,11 @@
 }
 
 /*
- * Groups the note's own content (title + thumbnail) into the ONLY region that
- * arms the native page preview (NoteNode.onMouseEnter → showHoverPreview). It
- * grows to fill the node so the attachment strip below still sits on the bottom
- * edge (replacing the strip's old `margin-top: auto`), and — being a sibling of
- * the tiles, not their ancestor — makes the attachment chips / pin button a
- * hover dead zone: the popover never covers the affordance being clicked.
+ * Groups the note's own content (title + thumbnail). It grows to fill the node
+ * so the attachment strip below still sits on the bottom edge (replacing the
+ * strip's old `margin-top: auto`).
  */
-.vicinity-graph-node__preview-zone {
+.vicinity-graph-node__content {
 	display: flex;
 	flex-direction: column;
 	flex: 1 1 auto;
@@ -219,7 +216,7 @@
 	display: none;
 	flex-wrap: wrap;
 	gap: var(--size-4-1);
-	/* The preview-zone above flex-grows to fill the node, so the strip already
+	/* The content zone above flex-grows to fill the node, so the strip already
 	 * lands on the bottom edge without its own `margin-top: auto`. */
 	flex-shrink: 0;
 	overflow: hidden;
@@ -311,7 +308,7 @@
 	 * `display: none` and cannot absorb anything, so dropping the title zone's
 	 * flex-grow there would unpin the attachment strip from the node's bottom
 	 * edge (that grow is what replaced the strip's old `margin-top: auto`). */
-	.vicinity-graph-node[data-preview="outline"] .vicinity-graph-node__preview-zone {
+	.vicinity-graph-node[data-preview="outline"] .vicinity-graph-node__content {
 		flex: 0 0 auto;
 	}
 }

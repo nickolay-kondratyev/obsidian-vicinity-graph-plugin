@@ -59,23 +59,6 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
 		[pinAction, ui, runPinAction],
 	);
 
-	// The native page preview anchors to (and is kept alive by) this inner
-	// content zone — NOT the whole node — so the interactive tiles below it (the
-	// attachment chips, the pin button) are a deliberate dead zone: hovering a
-	// tile leaves the zone, so no note preview pops over the affordance the human
-	// is reaching for. Obsidian opens the popover only while the pointer is over
-	// `targetEl`, and closes it on leave, so scoping the element is the whole fix.
-	const onPreviewEnter = useCallback(
-		(event: ReactMouseEvent<HTMLDivElement>) => {
-			ui.showHoverPreview({
-				nativeEvent: event.nativeEvent,
-				targetEl: event.currentTarget,
-				path: data.path,
-			});
-		},
-		[ui, data.path],
-	);
-
 	return (
 		<div
 			className="vicinity-graph-node"
@@ -88,7 +71,7 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
 			{/* Read-only graph: handles exist only as edge anchors (top target /
 			    bottom source matches the elk DOWN direction) and are hidden in CSS. */}
 			<Handle type="target" position={Position.Top} className="vicinity-graph-node__handle" />
-			<div className="vicinity-graph-node__preview-zone" onMouseEnter={onPreviewEnter}>
+			<div className="vicinity-graph-node__content">
 				<div className="vicinity-graph-node__title" title={data.title}>
 					{data.title}
 				</div>
@@ -102,9 +85,8 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
 					</div>
 				)}
 			</div>
-			{/* A SIBLING of the preview zone, not a child: its rows are clickable, and
-			    the zone is precisely the region that arms the native page preview —
-			    interactive tiles must stay a hover dead zone. */}
+			{/* A SIBLING of the content zone, not a child: the zone flex-grows to
+			    fill the node, and the outline claims that height for itself. */}
 			{data.preview === "outline" && <NodeOutline notePath={data.path} entries={data.outline} />}
 			{data.attachmentGroups.length > 0 && (
 				<div className="vicinity-graph-node__attachments">
