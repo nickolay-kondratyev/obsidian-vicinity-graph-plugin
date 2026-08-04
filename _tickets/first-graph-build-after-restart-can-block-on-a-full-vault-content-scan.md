@@ -27,8 +27,9 @@ before the graph renders.
 The scan is chunked (batch 20 with a real yield), so Obsidian stays responsive, but the
 graph view shows nothing until it finishes. On a 10k-note vault that is seconds. It is
 bounded — a resolved docid is mapped and an unresolvable one is cached as a per-session
-miss, so this is at most one full scan per session — and today it only happens when the
-user HAS pins/overrides.
+miss (a walk whose READS failed forgives the miss ONCE, so the ceiling is two full scans
+per unresolvable docid per session, not one) — and today it only happens when the user
+HAS pins/overrides.
 
 Directions (pick ONE, do not stack):
 - (a) Resolve markdown docids from `metadataCache.getFileCache(file).frontmatter` instead

@@ -131,3 +131,38 @@ a rebuild silently.
 
 Verified after the fix: `npm test` (1536 pass), `npm run check`,
 `npm run test:e2e -- controlsRestart.e2e.ts` (pass).
+
+## Third review round (2026-08-04)
+
+Two issues, both in what the previous round introduced; fixed here (the
+behavioural one test-first, proven to fail without the fix):
+
+5. **The miss rule made the read path's rescans UNBOUNDED.** Round 2 refused to
+   cache a miss after a walk whose reads failed, justified by "rescanning
+   converges: a rejected read means the file went away". That holds for the
+   vanishing-file RACE only. A file that stays unreadable — a not-yet-downloaded
+   cloud placeholder, a permission error, a locked file — fails the same way
+   forever, so with ONE such file plus ONE unresolvable docid (an orphaned
+   pin/override, which the sweep also refuses to delete on the same evidence
+   rule) EVERY rebuild re-read the whole vault before rendering: permanent, and
+   permanent across sessions. `DocIdMapWarmer.recordMiss` now forgives such a
+   miss exactly ONCE and lets the next walk decide — the race still converges on
+   that retry, the permanent failure costs two full scans per session instead of
+   one per rebuild. Nothing is DELETED on this judgment (the sweep keeps its
+   stricter rule), so being wrong costs one pin/override unrendered until the
+   next session, never lost state.
+6. **The warm list re-derived "which maps are docid-keyed" in the build path.**
+   `VicinityGraphBuilder` assembled `pins ∪ Object.keys(nodeOverrides)` itself,
+   so a third docid-keyed map would be warmed only if whoever added it
+   remembered this call — and forgetting it silently re-opens exactly this
+   ticket's bug for the new map (no test fails). `PluginDataStore` now answers
+   it: `docIdKeyedDocids()`, the READ twin of `forgetDocs`, so both halves of
+   that knowledge live in the store.
+
+Also renamed `scanEligibleFiles`'s result to `everyReadSucceeded` — for a walk
+that STOPS EARLY (the read path's) "every file read" was never true, and only
+`warmAll` (which never stops early) may read it as that.
+
+Verified after the fix: `npm test` (1539 pass), `npm run check`,
+`npm run test:e2e -- controlsRestart.e2e.ts` (pass — and confirmed to FAIL when
+the pinned-central expectation is flipped, so the assertion is real).

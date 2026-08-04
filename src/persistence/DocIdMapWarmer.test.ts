@@ -107,6 +107,23 @@ describe("DocIdMapWarmer when a file cannot be read", () => {
 		expect(docIdPort.getDocIdCalls).toBeGreaterThan(callsAfterFirstScan);
 	});
 
+	/**
+	 * The retry above exists for the VANISHING-file race, which converges — the
+	 * file leaves the next `getFiles()`. A file that stays unreadable (a
+	 * not-yet-downloaded cloud placeholder, a permission error) never does, and
+	 * every rebuild would then pay a FULL vault content scan. So the forgiveness
+	 * is exactly ONE walk per docid.
+	 */
+	it("WHEN two walks in a row fail the same read THEN a third warmFor does not rescan (rescans are bounded)", async () => {
+		const { warmer, docIdPort, fakeDocIds } = warmerFixture();
+		fakeDocIds.markUnreadable("b.md");
+		await warmer.warmFor(["docid_orphan_e"]);
+		await warmer.warmFor(["docid_orphan_e"]);
+		const callsAfterSecondScan = docIdPort.getDocIdCalls;
+		await warmer.warmFor(["docid_orphan_e"]);
+		expect(docIdPort.getDocIdCalls).toBe(callsAfterSecondScan);
+	});
+
 	/** The user-visible point of the rule above: a LIVE pin is not hidden for the session. */
 	it("WHEN a transient read failure clears THEN the docid that file carries resolves on the next warm", async () => {
 		const { warmer, fakeDocIds, pathDocIdMap } = warmerFixture();

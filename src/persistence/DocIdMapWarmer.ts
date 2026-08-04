@@ -39,23 +39,28 @@ export interface FullScanOutcome {
  * - a docid already in the map costs NOTHING (no scan starts at all);
  * - a scan stops as soon as every wanted docid is found, and every docid it
  *   reads on the way is kept (free warm-up for later builds);
- * - a docid a COMPLETE scan could not resolve is remembered as a miss, so an
- *   orphaned pin/override never forces a rescan on every rebuild — the sweep
- *   deletes it later. A miss is per-session on purpose: {@link missing} consults
- *   the MAP first and every write intent maps its own docid
- *   (PersistenceServices), so a live doc never gets stuck behind a cached miss.
+ * - a docid no scan could resolve is remembered as a miss, so an orphaned
+ *   pin/override never forces a rescan on every rebuild — the sweep deletes it
+ *   later. A miss is per-session on purpose: {@link missing} consults the MAP
+ *   first and every write intent maps its own docid (PersistenceServices), so a
+ *   live doc never gets stuck behind a cached miss.
  *
  * Failure policy: a scan NEVER rejects — a file it cannot READ is walked past
- * ({@link scanEligibleFiles}). Both callers then apply the SAME rule: nothing is
- * CONCLUDED from a walk that did not read every file. The sweep does not DELETE
- * on it ({@link FullScanOutcome.everyFileRead}) and {@link scanForMissing} does
- * not cache a MISS on it — a docid the walk did not see may well sit in the file
- * it could not read, and a cached miss would hide that live pin/override for the
- * whole session. Rescanning converges: a rejected read means the file went away
- * between the `getFiles()` snapshot and the read.
+ * ({@link scanEligibleFiles}). What a walk whose reads FAILED may CONCLUDE is
+ * bounded, and the two callers draw that bound differently because their cost of
+ * being wrong differs:
+ * - the sweep DELETES, so it concludes NOTHING from such a walk
+ *   ({@link FullScanOutcome.everyFileRead}): a doc that could not be read is not
+ *   a doc that is gone.
+ * - the read path only decides whether to SCAN AGAIN, and a rescan costs a full
+ *   vault content read — so it forgives the first such miss and lets the next
+ *   walk decide, once ({@link recordMiss}).
  */
 export class DocIdMapWarmer {
+	/** Docids no further scan will look for this session ({@link recordMiss}). */
 	private readonly unresolvedDocids = new Set<string>();
+	/** Docids missed by a walk whose reads FAILED: each gets exactly ONE more walk ({@link recordMiss}). */
+	private readonly missedOnIncompleteEvidence = new Set<string>();
 	/** Serialized scans: a concurrent rebuild (or the sweep) waits, re-checks, and usually finds everything already mapped. */
 	private readonly scans = new SerialPromiseChain();
 
@@ -86,6 +91,8 @@ export class DocIdMapWarmer {
 		await this.scans.run(async () => {
 			everyFileRead = await this.scanEligibleFiles((docid) => {
 				liveDocids.add(docid);
+				// Never stops early, which is what makes "no read failed" mean
+				// "every file read" for this caller.
 				return false;
 			});
 		});
@@ -99,22 +106,41 @@ export class DocIdMapWarmer {
 		if (wanted.size === 0) {
 			return;
 		}
-		const everyFileRead = await this.scanEligibleFiles((docid) => {
+		const everyReadSucceeded = await this.scanEligibleFiles((docid) => {
 			wanted.delete(docid);
 			return wanted.size === 0;
 		});
-		if (!everyFileRead) {
-			// ONE rule with the sweep: nothing is CONCLUDED from incomplete evidence.
-			// "This docid is in no file" is only true of a walk that read every file;
-			// caching it off a failed read would hide a LIVE pin/override for the
-			// rest of the session. The rescan converges: a rejected read means the
-			// file went away between the `getFiles()` snapshot and the read, so the
-			// next walk has one file fewer.
+		// Whatever is still WANTED was found in no file this walk read. (A walk that
+		// stopped early left `wanted` empty, so it concludes nothing about anything.)
+		for (const docid of wanted) {
+			this.recordMiss(docid, everyReadSucceeded);
+		}
+	}
+
+	/**
+	 * Remembers that no file carries `docid`, so an orphaned pin/override does not
+	 * force a rescan on every rebuild.
+	 *
+	 * A walk whose reads FAILED is weaker evidence — the docid may sit in the very
+	 * file that could not be read, and caching the miss then hides a LIVE
+	 * pin/override until restart. So the FIRST such miss is forgiven and the next
+	 * walk decides. It is forgiven ONCE, deliberately: the race this exists for
+	 * converges on that retry (a file that vanished between the `getFiles()`
+	 * snapshot and its read is gone from the NEXT snapshot), while a file that
+	 * stays unreadable — a not-yet-downloaded cloud placeholder, a permission
+	 * error — never will, and rescanning it per rebuild costs a full vault content
+	 * read every time. Nothing is DELETED on this judgment (the sweep keeps its
+	 * own, stricter rule), so being wrong costs one pin/override unrendered until
+	 * the next session, never lost state.
+	 */
+	private recordMiss(docid: string, everyReadSucceeded: boolean): void {
+		if (!everyReadSucceeded && !this.missedOnIncompleteEvidence.has(docid)) {
+			this.missedOnIncompleteEvidence.add(docid);
 			return;
 		}
-		for (const docid of wanted) {
-			this.unresolvedDocids.add(docid);
-		}
+		// Kept disjoint: once a docid is a settled miss, its retry ticket is spent.
+		this.missedOnIncompleteEvidence.delete(docid);
+		this.unresolvedDocids.add(docid);
 	}
 
 	private missing(docids: readonly string[]): readonly string[] {
@@ -126,8 +152,9 @@ export class DocIdMapWarmer {
 	/**
 	 * ONE walk shape for both callers: every eligible file, chunked with yields,
 	 * each resolved docid mapped and then handed to `onDocId` — which returns
-	 * `true` to stop the walk early. Resolves `false` when at least one file
-	 * could not be READ.
+	 * `true` to stop the walk early. Resolves `false` when at least one READ
+	 * failed; for a walk that was never stopped early that is the same thing as
+	 * "not every file was read".
 	 *
 	 * `getDocId` reads file content (`cachedRead`) and a walk spans yields, so a
 	 * file can be deleted or turn unreadable between the `getFiles()` snapshot
@@ -138,7 +165,7 @@ export class DocIdMapWarmer {
 	 */
 	private async scanEligibleFiles(onDocId: (docid: string) => boolean): Promise<boolean> {
 		const eligibleFiles = this.vault.getFiles().filter((file) => this.docIdPort.isEligible(file));
-		let everyFileRead = true;
+		let everyReadSucceeded = true;
 		await ChunkedWork.forEachChunkedUntil(
 			eligibleFiles,
 			WARM_BATCH_SIZE,
@@ -148,7 +175,7 @@ export class DocIdMapWarmer {
 					docid = await this.docIdPort.getDocId(file);
 				} catch (error: unknown) {
 					console.warn(`vicinity-graph: docid warm-up could not read path=[${file.path}]`, error);
-					everyFileRead = false;
+					everyReadSucceeded = false;
 					return false;
 				}
 				if (docid === null) {
@@ -159,6 +186,6 @@ export class DocIdMapWarmer {
 			},
 			this.yieldBetweenBatches,
 		);
-		return everyFileRead;
+		return everyReadSucceeded;
 	}
 }

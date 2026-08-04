@@ -183,3 +183,25 @@ describe("PluginDataStore.forgetDocs", () => {
 		expect(port.saved).toBeNull();
 	});
 });
+
+/**
+ * The READ counterpart of `forgetDocs`: the read path warms exactly these docids
+ * (`DocIdMapWarmer`), so a third docid-keyed map is warmed by adding it HERE and
+ * nowhere else — a warm list assembled by a caller would silently omit it, and an
+ * unwarmed map is invisible on the first build after a restart.
+ */
+describe("PluginDataStore.docIdKeyedDocids", () => {
+	it("WHEN a docid has state in BOTH docid-keyed maps THEN it is reported once", async () => {
+		const store = await initializedStore();
+		await store.addPin("docid_a_e", 1);
+		await store.saveNodeOverrideField("docid_a_e", CONTENT_CHANGE);
+		expect(store.docIdKeyedDocids()).toEqual(["docid_a_e"]);
+	});
+
+	it("WHEN a docid has state in ONLY the override map THEN it is still reported", async () => {
+		const store = await initializedStore();
+		await store.addPin("docid_a_e", 1);
+		await store.saveNodeOverrideField("docid_b_e", CONTENT_CHANGE);
+		expect(store.docIdKeyedDocids()).toEqual(["docid_a_e", "docid_b_e"]);
+	});
+});

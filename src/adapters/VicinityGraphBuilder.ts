@@ -51,8 +51,10 @@ export class VicinityGraphBuilder {
 		// overrides render correctly on the FIRST build after a restart instead
 		// of waiting for the delayed sweep warm-up. Best-effort by contract — it
 		// never rejects, so a docid it could not resolve is simply skipped
-		// downstream, exactly as before the fix.
-		await this.docIdMapWarmer.warmFor([...pins.map((pin) => pin.docid), ...Object.keys(nodeOverrides)]);
+		// downstream, exactly as before the fix. The STORE names the docids (not
+		// a list assembled here), so a future docid-keyed map is warmed without
+		// this call having to learn about it.
+		await this.docIdMapWarmer.warmFor(this.pluginDataStore.docIdKeyedDocids());
 		// ONE inputs object feeds BOTH the graph AND the toolbar model, so the value
 		// a control shows is structurally the value the graph used.
 		const inputs: GraphRequestInputs = {

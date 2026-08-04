@@ -27,10 +27,14 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   override is a global fact about a doc, like a pin; the `doc-data/<docid>.json`
   store was deleted with the per-doc settings layer (ticket
   `nid_ez38gf1mrdgh5kxedzrdicwzl_e`); stale dirs from older builds are ignored,
-  never read. Delayed, chunked `OrphanSweeper` prunes entries in EVERY
-  docid-keyed map whose doc no longer resolves, through the one
-  `PluginDataStore.forgetDocs` call the live `vault.on('delete')` handler also
-  uses. Every persisted shape carries a `version` field.
+  never read. `DocIdMapWarmer` is THE path↔docid scanner (one instance, wired in
+  `main.ts`): the read path warms exactly the docids a build needs so pins and
+  overrides render on the FIRST build after a restart, and the delayed, chunked
+  `OrphanSweeper` reuses the same walk to prune entries in EVERY docid-keyed map
+  whose doc no longer resolves — through the one `PluginDataStore.forgetDocs`
+  call the live `vault.on('delete')` handler also uses (its read-side twin,
+  `docIdKeyedDocids()`, is what the warm-up asks for). Every persisted shape
+  carries a `version` field.
 - **`src/view/`** — React 18 mounted in an Obsidian `ItemView`. Rendering,
   toolbar controls, layout. `GraphViewController.ts` owns the rebuild pipeline
   `events → engine → structural diff → layout → React Flow` and is the **only**
