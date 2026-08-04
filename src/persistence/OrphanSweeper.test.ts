@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { FakeDocIdPort } from "../adapters/FakeDocIdPort";
 import { FakeObsidianPorts } from "../adapters/FakeObsidianPorts";
+import { DocIdMapWarmer } from "./DocIdMapWarmer";
 import { FakePluginDataPort } from "./FakePluginDataPort";
 import { OrphanSweeper } from "./OrphanSweeper";
 import { PathDocIdMap } from "./PathDocIdMap";
 import { PluginDataStore } from "./PluginDataStore";
 
-/** > the sweeper's internal batch size of 20, so the warm phase must yield at least once. */
+/** > the scanner's internal batch size of 20, so the warm phase must yield at least once. */
 const LIVE_NOTE_COUNT = 25;
 
 /**
@@ -32,9 +33,13 @@ async function sweptFixture() {
 
 	const pathDocIdMap = new PathDocIdMap();
 	let yields = 0;
-	const sweeper = new OrphanSweeper(ports.vault, docIdPort, pathDocIdMap, pluginDataStore, async () => {
-		yields += 1;
-	});
+	const sweeper = new OrphanSweeper(
+		new DocIdMapWarmer(ports.vault, docIdPort, pathDocIdMap, async () => {
+			yields += 1;
+		}),
+		pathDocIdMap,
+		pluginDataStore,
+	);
 	const summary = await sweeper.run();
 	return { docIdPort, pluginDataStore, pathDocIdMap, yieldCount: () => yields, summary };
 }
@@ -67,7 +72,7 @@ describe("OrphanSweeper", () => {
 
 	it("WHEN the sweep completes THEN its summary counts exactly what was removed", async () => {
 		const { summary } = await sweptFixture();
-		expect(summary).toEqual({ pinsRemoved: 1, overridesRemoved: 1 }); // docid_stale_e, docid_gone_e
+		expect(summary).toEqual({ pinsRemoved: 1, overridesRemoved: 1, everyFileRead: true }); // docid_stale_e, docid_gone_e
 	});
 });
 
@@ -100,11 +105,9 @@ async function midSweepWriteFixture() {
 	};
 
 	const sweeper = new OrphanSweeper(
-		ports.vault,
-		docIdPort,
+		new DocIdMapWarmer(ports.vault, docIdPort, pathDocIdMap, simulateWriteIntentOnFirstYield),
 		pathDocIdMap,
 		pluginDataStore,
-		simulateWriteIntentOnFirstYield,
 	);
 	await sweeper.run();
 	return { pluginDataStore };
@@ -126,7 +129,7 @@ describe("OrphanSweeper mid-sweep write race", () => {
  */
 const HUNDREDS_NOTE_COUNT = 500;
 /**
- * The warm-up chunks 500 eligible files in batches of SWEEP_BATCH_SIZE (20),
+ * The warm-up chunks 500 eligible files in batches of the scanner's batch size (20),
  * yielding after every FULL batch except the last (ChunkedWork's boundary rule):
  * boundaries at 20, 40, ... 480 → 24 yields.
  */
@@ -142,9 +145,13 @@ async function hundredsOfFilesSweep() {
 
 	const pathDocIdMap = new PathDocIdMap();
 	let yields = 0;
-	const sweeper = new OrphanSweeper(ports.vault, docIdPort, pathDocIdMap, pluginDataStore, async () => {
-		yields += 1;
-	});
+	const sweeper = new OrphanSweeper(
+		new DocIdMapWarmer(ports.vault, docIdPort, pathDocIdMap, async () => {
+			yields += 1;
+		}),
+		pathDocIdMap,
+		pluginDataStore,
+	);
 	const summary = await sweeper.run();
 	return { yieldCount: () => yields, summary };
 }
@@ -157,6 +164,50 @@ describe("OrphanSweeper at hundreds-of-files scale", () => {
 
 	it("WHEN hundreds of files are all live THEN the sweep removes nothing", async () => {
 		const { summary } = await hundredsOfFilesSweep();
-		expect(summary).toEqual({ pinsRemoved: 0, overridesRemoved: 0 });
+		expect(summary).toEqual({ pinsRemoved: 0, overridesRemoved: 0, everyFileRead: true });
+	});
+});
+
+/**
+ * One note vanishes mid-scan (its read REJECTS). The scan must still finish and
+ * warm the map — but the sweep DELETES, and a doc it could not read is not
+ * evidence that the doc is gone, so this pass must drop nothing at all.
+ */
+async function sweepWithUnreadableFileFixture() {
+	const files = Array.from({ length: LIVE_NOTE_COUNT }, (_, i) => ({ path: `note${i}.md` }));
+	const docids = Object.fromEntries(files.map((file, i) => [file.path, `docid_note${i}_e`]));
+	const ports = new FakeObsidianPorts({ files });
+	const docIdPort = new FakeDocIdPort(docids);
+	docIdPort.markUnreadable("note3.md");
+
+	const pluginDataStore = new PluginDataStore(new FakePluginDataPort());
+	await pluginDataStore.init();
+	await pluginDataStore.addPin("docid_note1_e", 100);
+	await pluginDataStore.addPin("docid_stale_e", 200);
+
+	const pathDocIdMap = new PathDocIdMap();
+	const sweeper = new OrphanSweeper(
+		new DocIdMapWarmer(ports.vault, docIdPort, pathDocIdMap),
+		pathDocIdMap,
+		pluginDataStore,
+	);
+	const summary = await sweeper.run();
+	return { pluginDataStore, pathDocIdMap, summary };
+}
+
+describe("OrphanSweeper when a file cannot be read", () => {
+	it("WHEN one file read fails THEN the sweep drops NOTHING (a doc it could not read is not a doc that is gone)", async () => {
+		const { pluginDataStore } = await sweepWithUnreadableFileFixture();
+		expect(pluginDataStore.pins().map((pin) => pin.docid)).toEqual(["docid_note1_e", "docid_stale_e"]);
+	});
+
+	it("WHEN one file read fails THEN the summary says the evidence was incomplete", async () => {
+		const { summary } = await sweepWithUnreadableFileFixture();
+		expect(summary).toEqual({ pinsRemoved: 0, overridesRemoved: 0, everyFileRead: false });
+	});
+
+	it("WHEN one file read fails THEN the map is still warmed by the same pass", async () => {
+		const { pathDocIdMap } = await sweepWithUnreadableFileFixture();
+		expect(pathDocIdMap.getDocId("note7.md")).toBe("docid_note7_e");
 	});
 });

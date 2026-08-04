@@ -1,6 +1,15 @@
 # Ticket: Pinned-central status lags ~15s after an Obsidian restart
 
-**Status:** OPEN — surfaced by the step-06 restart-round-trip e2e (`e2e/controlsRestart.e2e.ts`).
+**Status:** RESOLVED 2026-08-04 via `nid_gbyqsuplz8b7pv0u5k34sdz1q_e` — the
+read path now warms the cold map on demand (`src/persistence/DocIdMapWarmer.ts`,
+called from `VicinityGraphBuilder.build`): before assembling a request, the
+builder resolves exactly the docids present in the pinned set and
+`nodeOverrides` by scanning eligible files with `getDocId` (read-only,
+chunked, early-exit), caching unresolvable docids as per-session misses so an
+orphan never forces a rescan per rebuild. First build after restart renders
+pins AND overrides correctly; the delayed sweep remains the orphan-deletion
+backstop. This was option "D" (on-demand read-path resolution), chosen over
+A/B/C below — kept for the record.
 **Severity:** minor UX; no data loss — the pin IS persisted and reappears.
 **Tracked as `nid_gbyqsuplz8b7pv0u5k34sdz1q_e`** (2026-08-04): per-node
 overrides (`nodeOverrides`) hit the SAME cold map and raise the severity to a

@@ -149,11 +149,24 @@ export class PluginDataStore {
 	}
 
 	/**
+	 * Every docid this store keys state by — pins ∪ per-node overrides, each once.
+	 * The READ counterpart of {@link forgetDocs}: both answer "WHICH maps are
+	 * docid-keyed" from this one file, so a third such map is pruned AND warmed by
+	 * editing here. The read path warms exactly this list (`DocIdMapWarmer`), and a
+	 * list a caller assembled itself would silently omit the new map — leaving it
+	 * invisible on the first build after a restart (ticket
+	 * nid_gbyqsuplz8b7pv0u5k34sdz1q_e).
+	 */
+	docIdKeyedDocids(): readonly string[] {
+		return [...new Set([...this.data.pins.map((pin) => pin.docid), ...Object.keys(this.data.nodeOverrides)])];
+	}
+
+	/**
 	 * Drops every docid-keyed trace of the named docs in ONE write — the single
-	 * place that knows WHICH maps are docid-keyed, shared by the live
-	 * `vault.on('delete')` handler and the orphan sweep, so a third such map is
-	 * wired here and nowhere else. Deleting a doc is NOT unpinning it: this is
-	 * the only removal that spans maps.
+	 * place that knows WHICH maps are docid-keyed on the REMOVAL side, shared by
+	 * the live `vault.on('delete')` handler and the orphan sweep
+	 * ({@link docIdKeyedDocids} is its read-side twin). Deleting a doc is NOT
+	 * unpinning it: this is the only removal that spans maps.
 	 */
 	async forgetDocs(docids: readonly string[]): Promise<void> {
 		const forgotten = new Set(docids);

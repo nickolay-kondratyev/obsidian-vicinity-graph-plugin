@@ -1,4 +1,5 @@
 import { VicinityEngine } from "../engine";
+import type { DocIdMapWarmer } from "../persistence/DocIdMapWarmer";
 import type { PathDocIdMap } from "../persistence/PathDocIdMap";
 import type { PluginDataStore } from "../persistence/PluginDataStore";
 import { ControlsModelBuilder } from "../view/ControlsModel";
@@ -26,6 +27,8 @@ export class VicinityGraphBuilder {
 		private readonly canvasParseCache: CanvasParseCache,
 		private readonly pluginDataStore: PluginDataStore,
 		private readonly pathDocIdMap: PathDocIdMap,
+		/** INJECTED, not built here: the sweep shares this exact instance (one scan discipline, one miss cache). */
+		private readonly docIdMapWarmer: DocIdMapWarmer,
 	) {}
 
 	/** `null` when `mainPath` does not resolve to a vault file. */
@@ -41,13 +44,24 @@ export class VicinityGraphBuilder {
 			// delete-handling exact for docs seen before the sweep warm-up.
 			this.pathDocIdMap.set(mainPath, mainDocId);
 		}
+		const pins = this.pluginDataStore.pins();
+		const nodeOverrides = this.pluginDataStore.nodeOverrides();
+		// Cold-map fix (ticket nid_gbyqsuplz8b7pv0u5k34sdz1q_e): resolve the
+		// docids this build actually needs on demand, so pins and per-node
+		// overrides render correctly on the FIRST build after a restart instead
+		// of waiting for the delayed sweep warm-up. Best-effort by contract — it
+		// never rejects, so a docid it could not resolve is simply skipped
+		// downstream, exactly as before the fix. The STORE names the docids (not
+		// a list assembled here), so a future docid-keyed map is warmed without
+		// this call having to learn about it.
+		await this.docIdMapWarmer.warmFor(this.pluginDataStore.docIdKeyedDocids());
 		// ONE inputs object feeds BOTH the graph AND the toolbar model, so the value
 		// a control shows is structurally the value the graph used.
 		const inputs: GraphRequestInputs = {
 			mainPath,
 			mainDocId,
-			pins: this.pluginDataStore.pins(),
-			nodeOverrides: this.pluginDataStore.nodeOverrides(),
+			pins,
+			nodeOverrides,
 			resolveDocPath: (docid) => this.pathDocIdMap.getPath(docid),
 			globalDepths: this.pluginDataStore.globalDepths(),
 			globalView: this.pluginDataStore.globalView(),

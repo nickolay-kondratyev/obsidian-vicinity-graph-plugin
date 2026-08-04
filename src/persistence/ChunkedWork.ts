@@ -5,19 +5,23 @@
  */
 export class ChunkedWork {
 	/**
-	 * Runs `work` over every item, yielding via `yieldBetweenBatches` after
-	 * each full batch (never after the last, partial or not — no trailing idle
-	 * hop). `yieldBetweenBatches` is injectable so tests can count yields.
+	 * Runs `work` over items, yielding via `yieldBetweenBatches` after each full
+	 * batch (never after the last, partial or not — no trailing idle hop).
+	 * `work` returns `true` to STOP: the remaining items are never visited and
+	 * no trailing yield happens (a scan that can finish early — the docid
+	 * warm-up). `yieldBetweenBatches` is injectable so tests can count yields.
 	 */
-	static async forEachChunked<T>(
+	static async forEachChunkedUntil<T>(
 		items: readonly T[],
 		batchSize: number,
-		work: (item: T) => void | Promise<void>,
+		work: (item: T) => boolean | Promise<boolean>,
 		yieldBetweenBatches: () => Promise<void> = ChunkedWork.sleepZero,
 	): Promise<void> {
 		for (let index = 0; index < items.length; index++) {
 			const item = items[index] as T;
-			await work(item);
+			if (await work(item)) {
+				return;
+			}
 			const batchBoundary = (index + 1) % batchSize === 0 && index + 1 < items.length;
 			if (batchBoundary) {
 				await yieldBetweenBatches();

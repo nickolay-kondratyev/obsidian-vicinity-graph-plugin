@@ -1,8 +1,9 @@
 /**
  * In-memory bidirectional path↔docid map. Persistence is docid-keyed, but
  * vault events (`delete`) and pin resolution speak paths — this map bridges
- * them without disk reads. Warmed by the delayed sweep, lazily filled on
- * visit, kept fresh by `vault.on('rename'|'delete')` (see main.ts wiring).
+ * them without disk reads. Filled by `DocIdMapWarmer` — on demand for the docids
+ * a build needs, and in full by the delayed sweep — plus lazily on visit, and
+ * kept fresh by `vault.on('rename'|'delete')` (see main.ts wiring).
  */
 export class PathDocIdMap {
 	private readonly docidByPath = new Map<string, string>();
