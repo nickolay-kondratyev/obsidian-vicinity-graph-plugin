@@ -264,7 +264,12 @@ export class GraphViewController {
 		}
 		const graph = result.graph;
 		this.controls = result.controls;
-		const decision = decideLayout(this.previousGraph, graph, SIZE_RELAYOUT_THRESHOLD);
+		// The diff judges a committed resize against the geometry the reuse path would
+		// keep (does the new box still fit where it is?), so it gets that geometry.
+		const decision = decideLayout(this.previousGraph, graph, SIZE_RELAYOUT_THRESHOLD, {
+			positions: this.positions,
+			groupDimensions: this.groupDimensions,
+		});
 		const flow = vicinityGraphToFlow(graph, result.controls.mainPinned);
 		let positions: ReadonlyMap<string, XY>;
 		let groupDimensions: ReadonlyMap<string, Dimensions>;

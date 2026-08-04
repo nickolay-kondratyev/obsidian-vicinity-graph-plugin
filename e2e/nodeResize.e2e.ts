@@ -74,6 +74,22 @@ async function renderedBoxPx(path: string): Promise<{ widthPx: number; heightPx:
 }
 
 /**
+ * Every rendered React Flow node's placement, keyed by id. Read off the inline
+ * `transform` — React Flow writes each node's FLOW-unit position there, so this
+ * is the layout's own output, unaffected by pan/zoom.
+ */
+async function flowNodePositions(): Promise<Record<string, string>> {
+	return page.evaluate(() =>
+		Object.fromEntries(
+			Array.from(document.querySelectorAll<HTMLElement>(".react-flow__node")).map((el) => [
+				el.dataset["id"] ?? "",
+				el.style.transform,
+			]),
+		),
+	);
+}
+
+/**
  * The bottom-right corner grip. Located under the React Flow node WRAPPER, not
  * under `.vicinity-graph-node`: the grip overhangs the node box, and that box
  * clips its content (`overflow: hidden`), so the grips are mounted outside it.
@@ -232,4 +248,26 @@ test("WHEN the RIGHT edge line is dragged THEN the width alone grows (the line i
 		widerThanBefore: true,
 		heightPx: Math.round(before.heightPx),
 	});
+});
+
+test("WHEN a committed resize still FITS where the node sits THEN the rest of the graph does not move", async () => {
+	// Ticket nid_9ep12hkmk4zjv2p28emmrhieq_e: a resize used to re-run the layout
+	// unconditionally, re-arranging (and re-fitting) a graph that was fine. A SHRINK
+	// is the deterministic probe — a smaller box can collide with nothing, so the
+	// reuse path MUST be taken and every other node must keep its exact position.
+	const before = await flowNodePositions();
+	const storedBefore = await storedOverrideSizePx();
+
+	await dragResizeHandle(TARGET, -DRAG_DELTA_X_PX, -DRAG_DELTA_Y_PX);
+
+	// Wait for the rebuild the release triggers to have PUBLISHED the smaller box...
+	await expect.poll(async () => (await storedOverrideSizePx()).widthPx).toBeLessThan(storedBefore.widthPx);
+	await expect.poll(async () => (await renderedBoxPx(TARGET)).widthPx).toBe(
+		(await storedOverrideSizePx()).widthPx,
+	);
+	// ...then nothing but the resized node may have moved.
+	const after = await flowNodePositions();
+	delete before[TARGET];
+	delete after[TARGET];
+	expect(after).toEqual(before);
 });

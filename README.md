@@ -207,9 +207,10 @@ changed gets reverted by the next change.
 - **Drag any node bigger or smaller.** Hovering a node reveals a grab line on
   its right and bottom edges and a handle at the bottom-right corner; the new
   box is saved when you **release**, not while you drag.
-- **The graph re-arranges itself around the new box on release** — so the
-  resized note never ends up sitting on top of its neighbours or hanging out of
-  its folder group. Nothing moves while you are still dragging.
+- **The graph only re-arranges itself if it has to.** If the new box still has
+  room where the note sits, everything stays exactly where it was. If it would
+  sit on top of a neighbour or hang out of its folder group, the graph re-lays
+  out around it on release. Nothing moves while you are still dragging.
 - **A resized note keeps that size everywhere** — it is remembered per note
   (like a pin, keyed by a stable note id, so renames and moves keep it) and
   applies in every graph the note appears in, across restarts.
@@ -221,8 +222,9 @@ changed gets reverted by the next change.
 - Only the right/bottom/corner grips exist: dragging a top or left edge would
   move the node, and positions come from the layout, so it would snap back.
 
-> Known caveat: because the release re-runs the layout, it also re-fits the
+> Known caveat: when the release DOES re-run the layout, it also re-fits the
 > viewport — the graph re-zooms and re-pans instead of staying where you had it.
+> (A resize that fits keeps both the layout and your framing.)
 > Nothing is lost, only your framing. Tracked in
 > `_tickets/view-releasing-a-drag-resize-refits-the-viewport-relayout-bumps-layoutversion.md`.
 

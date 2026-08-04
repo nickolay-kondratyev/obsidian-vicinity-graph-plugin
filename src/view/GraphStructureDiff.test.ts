@@ -3,6 +3,8 @@ import type { ForceLayoutSettings } from "../engine";
 import { asVaultPath, FORCE_LAYOUT_RANGES } from "../engine";
 import { SIZE_RELAYOUT_THRESHOLD } from "./constants";
 import { decideLayout } from "./GraphStructureDiff";
+import { NO_RENDERED_LAYOUT } from "./layoutFit";
+import type { RenderedLayout } from "./layoutFit";
 import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
 
 describe("decideLayout structural identity", () => {
@@ -13,7 +15,7 @@ describe("decideLayout structural identity", () => {
 	});
 
 	it("WHEN there is no previous graph THEN it relayouts", () => {
-		expect(decideLayout(null, base, SIZE_RELAYOUT_THRESHOLD)).toBe("relayout");
+		expect(decideLayout(null, base, SIZE_RELAYOUT_THRESHOLD, NO_RENDERED_LAYOUT)).toBe("relayout");
 	});
 
 	it("WHEN node and edge structure are unchanged THEN it reuses the layout", () => {
@@ -21,7 +23,7 @@ describe("decideLayout structural identity", () => {
 			nodes: [makeNode({ path: asVaultPath("a.md") }), makeNode({ path: asVaultPath("b.md") })],
 			edges: [makeEdge("a.md", "b.md")],
 		});
-		expect(decideLayout(base, next, SIZE_RELAYOUT_THRESHOLD)).toBe("reuse-layout");
+		expect(decideLayout(base, next, SIZE_RELAYOUT_THRESHOLD, NO_RENDERED_LAYOUT)).toBe("reuse-layout");
 	});
 
 	it("WHEN a node is added THEN it relayouts", () => {
@@ -33,7 +35,7 @@ describe("decideLayout structural identity", () => {
 			],
 			edges: [makeEdge("a.md", "b.md")],
 		});
-		expect(decideLayout(base, next, SIZE_RELAYOUT_THRESHOLD)).toBe("relayout");
+		expect(decideLayout(base, next, SIZE_RELAYOUT_THRESHOLD, NO_RENDERED_LAYOUT)).toBe("relayout");
 	});
 
 	it("WHEN an edge is added between the same nodes THEN it relayouts", () => {
@@ -41,7 +43,7 @@ describe("decideLayout structural identity", () => {
 			nodes: [makeNode({ path: asVaultPath("a.md") }), makeNode({ path: asVaultPath("b.md") })],
 			edges: [makeEdge("a.md", "b.md"), makeEdge("b.md", "a.md")],
 		});
-		expect(decideLayout(base, next, SIZE_RELAYOUT_THRESHOLD)).toBe("relayout");
+		expect(decideLayout(base, next, SIZE_RELAYOUT_THRESHOLD, NO_RENDERED_LAYOUT)).toBe("relayout");
 	});
 
 	it("WHEN two builds differ ONLY in nodePreviewPreference THEN it reuses the layout", () => {
@@ -57,77 +59,125 @@ describe("decideLayout structural identity", () => {
 			edges: [makeEdge("a.md", "b.md")],
 			viewSettings: { ...base.viewSettings, nodePreviewPreference: "image" },
 		});
-		expect(decideLayout(base, next, SIZE_RELAYOUT_THRESHOLD)).toBe("reuse-layout");
+		expect(decideLayout(base, next, SIZE_RELAYOUT_THRESHOLD, NO_RENDERED_LAYOUT)).toBe("reuse-layout");
 	});
 });
 
 describe("decideLayout size-growth exception", () => {
-	const previous = makeGraph({ nodes: [makeNode({ path: asVaultPath("a.md"), sizePx: 50 })] });
+	const previous = makeGraph({
+		nodes: [makeNode({ path: asVaultPath("a.md"), sizePx: 50 })],
+	});
 
 	function nextWithSize(sizePx: number) {
-		return makeGraph({ nodes: [makeNode({ path: asVaultPath("a.md"), sizePx })] });
+		return makeGraph({
+			nodes: [makeNode({ path: asVaultPath("a.md"), sizePx })],
+		});
 	}
 
 	it("WHEN a surviving node grew by exactly the threshold THEN it still reuses the layout", () => {
 		// +100% of 50 = 100; growth ratio 1.0 is NOT beyond the 1.0 threshold.
-		expect(decideLayout(previous, nextWithSize(100), SIZE_RELAYOUT_THRESHOLD)).toBe("reuse-layout");
+		expect(decideLayout(previous, nextWithSize(100), SIZE_RELAYOUT_THRESHOLD, NO_RENDERED_LAYOUT)).toBe("reuse-layout");
 	});
 
 	it("WHEN a surviving node grew just beyond the threshold THEN it relayouts", () => {
-		expect(decideLayout(previous, nextWithSize(101), SIZE_RELAYOUT_THRESHOLD)).toBe("relayout");
+		expect(decideLayout(previous, nextWithSize(101), SIZE_RELAYOUT_THRESHOLD, NO_RENDERED_LAYOUT)).toBe("relayout");
 	});
 
 	it("WHEN a surviving node shrank THEN it reuses the layout", () => {
-		expect(decideLayout(previous, nextWithSize(10), SIZE_RELAYOUT_THRESHOLD)).toBe("reuse-layout");
+		expect(decideLayout(previous, nextWithSize(10), SIZE_RELAYOUT_THRESHOLD, NO_RENDERED_LAYOUT)).toBe("reuse-layout");
 	});
 });
 
-describe("decideLayout size-override growth (drag-to-resize commit)", () => {
-	// GIVEN a node whose box is pinned by an override in BOTH builds, so the label
-	// estimate plays no part and the growth ratio is exactly the override's.
+describe("decideLayout size-override commit (drag-to-resize)", () => {
+	// GIVEN two nodes whose boxes are pinned by overrides in BOTH builds (so the label
+	// estimate plays no part), laid out side by side 100px apart: "a.md" at the origin
+	// with a 100x100 box, "b.md" starting at x=200.
+	const NEIGHBOUR_X = 200;
 	function graphWithOverride(widthPx: number, heightPx: number) {
 		return makeGraph({
-			nodes: [makeNode({ path: asVaultPath("a.md"), override: { sizePx: { widthPx, heightPx } } })],
+			nodes: [
+				makeNode({
+					path: asVaultPath("a.md"),
+					override: { sizePx: { widthPx, heightPx } },
+				}),
+				makeNode({
+					path: asVaultPath("b.md"),
+					override: { sizePx: { widthPx: 100, heightPx: 100 } },
+				}),
+			],
 		});
 	}
 	const previous = graphWithOverride(100, 100);
+	const rendered: RenderedLayout = {
+		positions: new Map([
+			["a.md", { x: 0, y: 0 }],
+			["b.md", { x: NEIGHBOUR_X, y: 0 }],
+		]),
+		groupDimensions: new Map(),
+	};
 
-	it("WHEN a committed resize grew the HEIGHT just beyond the threshold THEN it relayouts", () => {
-		expect(decideLayout(previous, graphWithOverride(100, 201), SIZE_RELAYOUT_THRESHOLD)).toBe("relayout");
+	it("WHEN a committed resize still fits where the node sits THEN it reuses the layout", () => {
+		// The point of ticket nid_9ep12hkmk4zjv2p28emmrhieq_e: a resize with room to
+		// spare must not re-arrange (and re-fit) the whole graph around it.
+		expect(decideLayout(previous, graphWithOverride(150, 150), SIZE_RELAYOUT_THRESHOLD, rendered)).toBe("reuse-layout");
 	});
 
-	it("WHEN a committed resize grew the WIDTH just beyond the threshold THEN it relayouts", () => {
-		// Width growth alone must count: the raw engine sizePx is unchanged here.
-		expect(decideLayout(previous, graphWithOverride(201, 100), SIZE_RELAYOUT_THRESHOLD)).toBe("relayout");
+	it("WHEN a committed resize now overlaps a neighbour THEN it relayouts", () => {
+		expect(decideLayout(previous, graphWithOverride(250, 100), SIZE_RELAYOUT_THRESHOLD, rendered)).toBe("relayout");
 	});
 
-	it("WHEN a committed resize stays within the threshold THEN it STILL relayouts", () => {
-		// The whole point of the override rule: the growth threshold is for PASSIVE
-		// engine growth, and a sub-threshold resize used to keep the stale positions
-		// (grown node overlapping its neighbours / spilling out of its group box).
-		expect(decideLayout(previous, graphWithOverride(200, 200), SIZE_RELAYOUT_THRESHOLD)).toBe("relayout");
+	it("WHEN a committed resize grew far beyond the growth threshold but still fits THEN it reuses the layout", () => {
+		// +300% in height, nothing below it: the threshold damps PASSIVE growth only,
+		// so it must not relayout a resize the fit rule has already cleared.
+		expect(decideLayout(previous, graphWithOverride(100, 400), SIZE_RELAYOUT_THRESHOLD, rendered)).toBe("reuse-layout");
 	});
 
-	it("WHEN a committed resize shrank the node THEN it relayouts", () => {
-		expect(decideLayout(previous, graphWithOverride(30, 30), SIZE_RELAYOUT_THRESHOLD)).toBe("relayout");
+	it("WHEN a committed resize shrank the node THEN it reuses the layout", () => {
+		// A smaller box can collide with nothing; the gap it leaves is the user's own doing.
+		expect(decideLayout(previous, graphWithOverride(30, 30), SIZE_RELAYOUT_THRESHOLD, rendered)).toBe("reuse-layout");
 	});
 
 	it("WHEN a resize commits a box IDENTICAL to the stored one THEN it reuses the layout", () => {
 		// Values, not identity: a rebuild re-reads `data.json` into a fresh object
 		// every time, so an identity check would relayout on every unrelated rebuild.
-		expect(decideLayout(previous, graphWithOverride(100, 100), SIZE_RELAYOUT_THRESHOLD)).toBe("reuse-layout");
+		expect(decideLayout(previous, graphWithOverride(100, 100), SIZE_RELAYOUT_THRESHOLD, NO_RENDERED_LAYOUT)).toBe(
+			"reuse-layout",
+		);
 	});
 
-	it("WHEN a node GAINS a size override THEN it relayouts", () => {
-		const unoverridden = makeGraph({ nodes: [makeNode({ path: asVaultPath("a.md") })] });
-		expect(decideLayout(unoverridden, graphWithOverride(100, 100), SIZE_RELAYOUT_THRESHOLD)).toBe("relayout");
+	it("WHEN a node GAINS a size override that no longer fits THEN it relayouts", () => {
+		const unoverridden = makeGraph({
+			nodes: [
+				makeNode({ path: asVaultPath("a.md") }),
+				makeNode({
+					path: asVaultPath("b.md"),
+					override: { sizePx: { widthPx: 100, heightPx: 100 } },
+				}),
+			],
+		});
+		expect(decideLayout(unoverridden, graphWithOverride(250, 100), SIZE_RELAYOUT_THRESHOLD, rendered)).toBe("relayout");
 	});
 
-	it("WHEN 'Reset size' CLEARS a node's override THEN it relayouts", () => {
-		// The computed box is usually SMALLER, so the threshold never fired here and
-		// the reset left a hole in the layout where the big box had been.
-		const unoverridden = makeGraph({ nodes: [makeNode({ path: asVaultPath("a.md") })] });
-		expect(decideLayout(previous, unoverridden, SIZE_RELAYOUT_THRESHOLD)).toBe("relayout");
+	it("WHEN 'Reset size' CLEARS a node's override THEN it reuses the layout", () => {
+		// The computed box is usually SMALLER, so it fits by construction — the hole it
+		// leaves behind is not worth re-arranging the whole graph for.
+		const unoverridden = makeGraph({
+			nodes: [
+				makeNode({ path: asVaultPath("a.md") }),
+				makeNode({
+					path: asVaultPath("b.md"),
+					override: { sizePx: { widthPx: 100, heightPx: 100 } },
+				}),
+			],
+		});
+		expect(decideLayout(previous, unoverridden, SIZE_RELAYOUT_THRESHOLD, rendered)).toBe("reuse-layout");
+	});
+
+	it("WHEN there is no rendered geometry to judge the new box against THEN it relayouts", () => {
+		// Conservative: a fit that cannot be verified is not claimed.
+		expect(decideLayout(previous, graphWithOverride(150, 150), SIZE_RELAYOUT_THRESHOLD, NO_RENDERED_LAYOUT)).toBe(
+			"relayout",
+		);
 	});
 });
 
@@ -143,7 +193,7 @@ describe("decideLayout force-layout tuning change (ticket-04 live sliders)", () 
 				forceLayout: { ...previous.viewSettings.forceLayout, linkGapPx: 90 },
 			},
 		});
-		expect(decideLayout(previous, next, 1.0)).toBe("relayout");
+		expect(decideLayout(previous, next, 1.0, NO_RENDERED_LAYOUT)).toBe("relayout");
 	});
 
 	// Every field, not just one: guards the comparison against silently dropping a
@@ -156,10 +206,13 @@ describe("decideLayout force-layout tuning change (ticket-04 live sliders)", () 
 				nodes,
 				viewSettings: {
 					...previous.viewSettings,
-					forceLayout: { ...previous.viewSettings.forceLayout, [field]: bumpedPastRangeMax },
+					forceLayout: {
+						...previous.viewSettings.forceLayout,
+						[field]: bumpedPastRangeMax,
+					},
 				},
 			});
-			expect(decideLayout(previous, next, 1.0)).toBe("relayout");
+			expect(decideLayout(previous, next, 1.0, NO_RENDERED_LAYOUT)).toBe("relayout");
 		},
 	);
 
@@ -171,6 +224,6 @@ describe("decideLayout force-layout tuning change (ticket-04 live sliders)", () 
 				forceLayout: { ...previous.viewSettings.forceLayout },
 			},
 		});
-		expect(decideLayout(previous, next, 1.0)).toBe("reuse-layout");
+		expect(decideLayout(previous, next, 1.0, NO_RENDERED_LAYOUT)).toBe("reuse-layout");
 	});
 });
