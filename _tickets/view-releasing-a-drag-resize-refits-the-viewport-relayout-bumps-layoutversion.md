@@ -27,6 +27,11 @@ Options:
 
 HUMAN DECISION REQUIRED: which of the three.
 
+Interim (review follow-up, 2026-08-04): the refit is now stated as a *Known
+caveat* under README's *Node size*, so the shipped behaviour is not silently
+different from what that section promises. That is option 3's documentation half
+only — it does NOT pre-empt the decision; delete the caveat if 1 or 2 wins.
+
 ## Acceptance Criteria
 
 Releasing a resize handle leaves the viewport where the user had it (or the accepted behaviour is documented in README), with the overlap fix intact. A BDD test captures the rule; `npm test`, `npm run check`, `npm run test:e2e -- nodeResize.e2e.ts` green.

@@ -59,6 +59,35 @@ export function nodeSizeOverridePx(node: GraphNode): NodeSizeOverridePx | undefi
 }
 
 /**
+ * Every field of a size override, derived from the TYPE rather than hand-listed:
+ * the table is `Record<keyof NodeSizeOverridePx, …>`, so a future field is
+ * compile-forced into it and automatically compared by
+ * {@link sameNodeSizeOverridePx} (a hand-written field list could silently
+ * ignore one, leaving that dimension unable to trigger a relayout).
+ */
+const NODE_SIZE_OVERRIDE_FIELDS = Object.keys({
+	widthPx: true,
+	heightPx: true,
+} satisfies Record<keyof NodeSizeOverridePx, true>) as readonly (keyof NodeSizeOverridePx)[];
+
+/**
+ * ONE definition of "these two nodes carry the same stored size" — `undefined`
+ * (no override) is a value here, so gaining and losing an override both read as
+ * a difference. Compared by VALUE, never identity: every rebuild resolves a
+ * FRESH override object out of `data.json`, so identity would report a change
+ * on every unrelated rebuild.
+ */
+export function sameNodeSizeOverridePx(
+	a: NodeSizeOverridePx | undefined,
+	b: NodeSizeOverridePx | undefined,
+): boolean {
+	if (a === undefined || b === undefined) {
+		return a === b;
+	}
+	return NODE_SIZE_OVERRIDE_FIELDS.every((field) => a[field] === b[field]);
+}
+
+/**
  * Rendered box of a note node. A user size override wins outright (Q3: the
  * per-node intent is the MOST explicit — it may exceed the label cap or the
  * global sizing dials; hard sanity bounds were already applied by

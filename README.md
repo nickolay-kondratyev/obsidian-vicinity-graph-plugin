@@ -221,6 +221,11 @@ changed gets reverted by the next change.
 - Only the right/bottom/corner grips exist: dragging a top or left edge would
   move the node, and positions come from the layout, so it would snap back.
 
+> Known caveat: because the release re-runs the layout, it also re-fits the
+> viewport — the graph re-zooms and re-pans instead of staying where you had it.
+> Nothing is lost, only your framing. Tracked in
+> `_tickets/view-releasing-a-drag-resize-refits-the-viewport-relayout-bumps-layoutversion.md`.
+
 ### Node exclusion
 
 Keep whole classes of notes out of every graph — index/MOC hubs, templates, a

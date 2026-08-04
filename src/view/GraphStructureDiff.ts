@@ -1,6 +1,6 @@
 import type { ForceLayoutSettings, GraphNode, VicinityGraph } from "../engine";
 import { FORCE_LAYOUT_RANGES } from "../engine";
-import { edgeIdOf, nodeDimensionsPx, nodeSizeOverridePx } from "./graphIdentity";
+import { edgeIdOf, nodeDimensionsPx, nodeSizeOverridePx, sameNodeSizeOverridePx } from "./graphIdentity";
 
 /**
  * Decides whether a rebuilt graph needs a fresh elk layout or can reuse the
@@ -98,24 +98,13 @@ function sameIds(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
  * Note this cannot fire mid-drag: the drag lives in React Flow's local node state
  * and reaches the store — hence a rebuild — only on release.
  *
- * Compared by VALUE: every rebuild resolves the override from `data.json` into a
- * fresh object, so an identity check would relayout on every unrelated rebuild.
- * Reached only when the id sets already match, so every `next` node has a
- * `previous` counterpart.
+ * Equality (including "no override at all") is {@link sameNodeSizeOverridePx}'s
+ * to define — this rule only decides what a difference MEANS. Reached only when
+ * the id sets already match, so every `next` node has a `previous` counterpart.
  */
 function anySizeOverrideChanged(previous: readonly GraphNode[], next: readonly GraphNode[]): boolean {
 	const previousOverrideByPath = new Map(previous.map((node) => [node.path, nodeSizeOverridePx(node)]));
-	return next.some((node) => {
-		const previousOverride = previousOverrideByPath.get(node.path);
-		const nextOverride = nodeSizeOverridePx(node);
-		if (previousOverride === undefined || nextOverride === undefined) {
-			return previousOverride !== nextOverride; // one side has no override at all
-		}
-		return (
-			previousOverride.widthPx !== nextOverride.widthPx ||
-			previousOverride.heightPx !== nextOverride.heightPx
-		);
-	});
+	return next.some((node) => !sameNodeSizeOverridePx(previousOverrideByPath.get(node.path), nodeSizeOverridePx(node)));
 }
 
 /**
