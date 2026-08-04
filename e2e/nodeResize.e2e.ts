@@ -12,7 +12,11 @@ import { ObsidianHarness } from "./obsidianHarness";
  *   independent of zoom);
  * - the override survives a view remount AND a central switch (it is a global
  *   fact about the doc, like a pin);
- * - the context menu's "Reset size" clears it.
+ * - the context menu's "Reset size" clears it;
+ * - each grip is REACHABLE by a real pointer (the corner chip's overhanging
+ *   half, and the right edge's grab band — both are geometry no unit test can
+ *   see, and both have shipped broken once);
+ * - the gesture's seam into React Flow stays narrow: no node ends up SELECTED.
  *
  * SERIAL and order-dependent: each test builds on the state above it.
  */
@@ -78,20 +82,27 @@ function cornerResizeHandle(path: string): Locator {
 	return flowNodeWrapper(path).locator(".react-flow__resize-control.handle.bottom.right");
 }
 
-/** Hover-reveals the bottom-right handle, then drags it by the given screen deltas. */
-async function dragResizeHandle(path: string, deltaX: number, deltaY: number): Promise<void> {
-	const node = noteNode(path);
-	await node.hover();
-	const handle = cornerResizeHandle(path);
-	await expect(handle).toBeVisible();
+/**
+ * An EDGE grip (the right or bottom grab band). A band, not React Flow's stock
+ * 1px hairline: the plugin widens it in CSS, and `hover()` below is what proves
+ * a real pointer can land on it — a hairline fails the actionability hit-check.
+ */
+function edgeResizeLine(path: string, side: "right" | "bottom"): Locator {
+	return flowNodeWrapper(path).locator(`.react-flow__resize-control.line.${side}`);
+}
+
+/** Hover-reveals the node's grips, then drags `grip` by the given screen deltas. */
+async function dragGrip(path: string, grip: Locator, deltaX: number, deltaY: number): Promise<void> {
+	await noteNode(path).hover();
+	await expect(grip).toBeVisible();
 	// hover() (not raw mouse.move to the box centre): Playwright's actionability
-	// hit-check is what reliably lands the pointer ON the handle before the press.
-	await handle.hover();
+	// hit-check is what reliably lands the pointer ON the grip before the press.
+	await grip.hover();
 	// Measured AFTER the hover, so the deltas below are applied to the box the
 	// pointer is actually resting in (hover can settle the graph's layout).
-	const box = await handle.boundingBox();
+	const box = await grip.boundingBox();
 	if (box === null) {
-		throw new Error("resize handle has no bounding box");
+		throw new Error("resize grip has no bounding box");
 	}
 	const startX = box.x + box.width / 2;
 	const startY = box.y + box.height / 2;
@@ -99,6 +110,20 @@ async function dragResizeHandle(path: string, deltaX: number, deltaY: number): P
 	// Stepped move: XYResizer listens to pointermove, one jump can be swallowed.
 	await page.mouse.move(startX + deltaX, startY + deltaY, { steps: 8 });
 	await page.mouse.up();
+}
+
+/** Hover-reveals the bottom-right handle, then drags it by the given screen deltas. */
+async function dragResizeHandle(path: string, deltaX: number, deltaY: number): Promise<void> {
+	await dragGrip(path, cornerResizeHandle(path), deltaX, deltaY);
+}
+
+/** The doc's stored size override, or a thrown GIVEN violation if it is not there. */
+async function storedOverrideSizePx(): Promise<{ widthPx: number; heightPx: number }> {
+	const sizePx = (await harness.readNodeOverrides())[TARGET_DOCID]?.sizePx;
+	if (sizePx === undefined) {
+		throw new Error("no stored size override for the resize target");
+	}
+	return sizePx;
 }
 
 test("WHEN a node's corner handle is dragged and released THEN the box persists as the doc's override and renders verbatim", async () => {
@@ -111,10 +136,7 @@ test("WHEN a node's corner handle is dragged and released THEN the box persists 
 	await expect
 		.poll(async () => (await harness.readNodeOverrides())[TARGET_DOCID]?.sizePx !== undefined)
 		.toBe(true);
-	const override = (await harness.readNodeOverrides())[TARGET_DOCID]?.sizePx;
-	if (override === undefined) {
-		throw new Error("override vanished between polls");
-	}
+	const override = await storedOverrideSizePx();
 	expect(override.widthPx).toBeGreaterThan(before.widthPx);
 	expect(override.heightPx).toBeGreaterThan(before.heightPx);
 	// ...and the ONE rebuild renders the node at exactly the persisted box.
@@ -125,10 +147,7 @@ test("WHEN a node's corner handle is dragged and released THEN the box persists 
 });
 
 test("WHEN the graph view is remounted THEN the resized node reopens at its overridden box", async () => {
-	const override = (await harness.readNodeOverrides())[TARGET_DOCID]?.sizePx;
-	if (override === undefined) {
-		throw new Error("GIVEN violated: no stored override from the previous test");
-	}
+	const override = await storedOverrideSizePx();
 	await harness.remountGraphView();
 	await expect(noteNode(TARGET)).toBeVisible();
 	await expect.poll(() => renderedBoxPx(TARGET)).toEqual({
@@ -138,10 +157,7 @@ test("WHEN the graph view is remounted THEN the resized node reopens at its over
 });
 
 test("WHEN the central switches to another note THEN the override still applies (global by docid, not per-view)", async () => {
-	const override = (await harness.readNodeOverrides())[TARGET_DOCID]?.sizePx;
-	if (override === undefined) {
-		throw new Error("GIVEN violated: no stored override from the previous tests");
-	}
+	const override = await storedOverrideSizePx();
 	await harness.openFile(OTHER_MAIN);
 	await expect(noteNode(OTHER_MAIN)).toHaveAttribute("data-tier", "main");
 	await expect.poll(() => renderedBoxPx(TARGET)).toEqual({
@@ -189,4 +205,31 @@ test("WHEN the corner grip is pressed and released without moving THEN the note 
 	expect(await harness.readNodeOverrides()).toEqual({});
 	await expect(noteNode(OTHER_MAIN)).toHaveAttribute("data-tier", "main");
 	await expect(noteNode(TARGET)).not.toHaveAttribute("data-tier", "main");
+});
+
+test("WHEN a node is clicked THEN React Flow leaves NO node selected (the graph is read-only)", async () => {
+	// The resize commit made <ReactFlow> apply onNodesChange, which is also how RF
+	// would write its own SELECTION into the controller-owned node state — an
+	// accent ring the graph never asked for, on a graph whose only selection-like
+	// state is the MAIN tier. Clicking the CURRENT main is the sharp probe: it is
+	// the one click that triggers no rebuild, so a selection STICKS instead of
+	// being washed away by the next publish — asserted with NO refresh in between
+	// for exactly that reason.
+	await noteNode(OTHER_MAIN).click();
+	expect(await page.locator(".react-flow__node.selected").count()).toBe(0);
+});
+
+test("WHEN the RIGHT edge line is dragged THEN the width alone grows (the line is a grabbable band)", async () => {
+	// React Flow's stock line control is a 1px-wide box — 1 FLOW pixel, so a
+	// fraction of a screen pixel at any zoom below 1, and unhittable in practice.
+	// `dragGrip`'s hover() is the proof: it fails the actionability hit-check
+	// unless a real pointer can land on the band.
+	const before = await renderedBoxPx(TARGET);
+	await dragGrip(TARGET, edgeResizeLine(TARGET, "right"), DRAG_DELTA_X_PX, 0);
+	await expect.poll(async () => (await harness.readNodeOverrides())[TARGET_DOCID]?.sizePx).toBeDefined();
+	const override = await storedOverrideSizePx();
+	expect({ widerThanBefore: override.widthPx > before.widthPx, heightPx: override.heightPx }).toEqual({
+		widerThanBefore: true,
+		heightPx: Math.round(before.heightPx),
+	});
 });

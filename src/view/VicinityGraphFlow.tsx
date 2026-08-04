@@ -1,5 +1,14 @@
 import { applyNodeChanges, Background, Controls, Panel, ReactFlow, useReactFlow, useStore } from "@xyflow/react";
-import type { Edge, EdgeMouseHandler, EdgeTypes, Node, NodeMouseHandler, NodeTypes, OnNodesChange } from "@xyflow/react";
+import type {
+	Edge,
+	EdgeMouseHandler,
+	EdgeTypes,
+	Node,
+	NodeChange,
+	NodeMouseHandler,
+	NodeTypes,
+	OnNodesChange,
+} from "@xyflow/react";
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { ReactElement } from "react";
 import { hiddenOverlayText, orphanBreakdownTitle } from "./badgeText";
@@ -79,8 +88,19 @@ export function VicinityGraphFlow({
 		setSeededFrom(snapshot.nodes);
 		setNodes(snapshot.nodes.map(toReactFlowNode));
 	}
+	// ONLY the resizer's dimension changes are applied — the one change this
+	// controlled graph asked React Flow for. Everything else RF routes through
+	// this same callback belongs to the controller (positions come from elk) or
+	// to nobody (the graph is read-only: no deletion, and SELECTION is a state
+	// this view has no meaning for — MAIN and pinned-central are its only node
+	// tiers, both engine facts). Applied unfiltered, a plain node click would
+	// write RF's own `selected` into controller-owned state and paint the focus
+	// ring on it, sticking until the next publish — and a click on the CURRENT
+	// main publishes nothing at all. Filtering here, rather than turning
+	// `elementsSelectable` off, keeps RF's selectable-coupled edge styling
+	// (cursor, focus stroke) intact and holds for every change type RF grows.
 	const onNodesChange = useCallback<OnNodesChange>(
-		(changes) => setNodes((current) => applyNodeChanges(changes, current)),
+		(changes) => setNodes((current) => applyNodeChanges(changes.filter(isDimensionsChange), current)),
 		[],
 	);
 	const edges = useMemo<Edge[]>(() => snapshot.edges.map(toReactFlowEdge), [snapshot.edges]);
@@ -251,6 +271,11 @@ function FitViewOnLayoutChange({ layoutVersion }: { readonly layoutVersion: numb
 		return () => cancelAnimationFrame(frame);
 	}, [fitView, paneReady, layoutVersion]);
 	return null;
+}
+
+/** The resize gesture's change — a node's new box (see {@link VicinityGraphFlow}'s `onNodesChange`). */
+function isDimensionsChange(change: NodeChange): boolean {
+	return change.type === "dimensions";
 }
 
 function toReactFlowNode(node: FlowNode): Node {

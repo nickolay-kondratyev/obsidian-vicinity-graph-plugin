@@ -9,7 +9,7 @@ status_updated_iso: 2026-08-04T16:11:57Z
 type: bug
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
-tags: [ui, sizing]
+tags: [ui, sizing, decide]
 ---
 
 `decideLayout` (src/view/GraphStructureDiff.ts) relayouts only when a surviving node's rendered box grew past `SIZE_RELAYOUT_THRESHOLD` (+100%). Since drag-to-resize (ticket nid_qjsj5mth2phdqctbm0vfx9elw_e) feeds the committed `sizePx` override through `nodeDimensionsPx`, a resize BELOW that threshold — e.g. dragging a 100px node to 180px — takes the `reuse-layout` path: elk positions AND the cached folder-group box dimensions (`GraphViewController.groupDimensions`) are reused verbatim, so the grown node can visibly overlap its neighbours and spill outside its folder-group border until some unrelated structural change forces a fresh layout.
@@ -26,6 +26,18 @@ Options (pick one, they are mutually exclusive):
 3. Accept the overlap and say so in README (*Node size*).
 
 Whichever wins, `groupDimensions` must be re-derived with the positions; today both are reused together.
+
+## DECIDE (why this is not just "pick option 2")
+
+Relayouting on every committed resize is NOT free, and the cost lands on the same gesture: a fresh layout bumps `layoutVersion`, which is what `FitViewOnLayoutChange` fits the viewport on — so releasing the drag would re-zoom and re-pan the WHOLE graph, and elk may reorder the neighbours the user was reading. Today's behaviour instead leaves the node exactly where it was, overlapping.
+
+So the product question is which of the two the human wants after a release:
+- **(a) correct layout, moving graph** — options 1/2, plus deciding whether a resize-driven relayout should be exempt from the refit (a second, smaller decision: `fitView` is currently unconditional per new layout).
+- **(b) still graph, overlapping node** — option 3, documented in README.
+
+A middle road exists and is worth pricing: relayout, but SEED elk with the current positions (already flagged as the V2 refinement under *Layout stability* in the high-level plan), which keeps the movement local to the resized node's neighbourhood.
+
+Reviewer's recommendation: (a) via option 2 + suppressing the refit for a resize-driven relayout — the user is looking straight at one node and a viewport jump is the most disorienting part of the change. Not implemented, because the refit exemption is a behaviour change beyond this ticket's one-line diff.
 
 ## Acceptance Criteria
 

@@ -64,3 +64,15 @@ REVIEW CORRECTION (adversarial review of 868a5b9..HEAD). Two statements in the r
 ALSO fixed: a press on a grip that never MOVED reached `onNodeClick` and focused/opened the note (d3-drag suppresses the click only once the pointer has moved) — `startedOnResizeGrip` now guards it. Regression tests: `e2e/nodeResize.e2e.ts` gained the hit-test probe and the zero-move press (both verified failing before the fix), `NoteNode.component.test.tsx` asserts no grip sits inside the clipping box, `nodeResize.test.ts` covers the predicate.
 
 Filed nid_sj9qg27cmear9lgdlz5umwra5_e: a resize UNDER `SIZE_RELAYOUT_THRESHOLD` reuses the layout AND the cached group-box dimensions, so the grown node can overlap its neighbours — a product call, left unpatched here.
+
+**2026-08-04T16:33:18Z**
+
+REVIEW CORRECTION 2 (adversarial review of 868a5b9..HEAD, third round). The resolution note above lists 'three NodeResizeControls (right line, bottom line, bottom-right corner handle)' as shipped. Only the CORNER one was reachable.
+
+React Flow's Line variant is a 1px-wide box centred on the node's edge (`.line.right { width: 1px }`), measured in FLOW units, and RF `autoScale`s only the HANDLE variant against zoom. A real pointer therefore hit-tests THROUGH the hairline to the node body — `grip.hover()` reports '.vicinity-graph-node intercepts pointer events' — so the right/bottom edge drag README documents could not be started at all. Compounding it, the grips are EARLIER siblings of `.vicinity-graph-node` (the round-2 fix), and two positioned siblings at `z-index: auto` paint in DOM order, so the node body also sat above every half of a grip that overlapped it.
+
+FIXED in graph-view.css only: an 8px grab BAND straddling the edge with the accent line drawn by a pseudo-element (widening the box alone would push RF's border half a band off the edge), plus `z-index: 1` on every grip. Regression test: the right-line drag in e2e/nodeResize.e2e.ts (verified failing before the fix).
+
+ALSO fixed: wiring `onNodesChange` for the resize handed React Flow its SELECTION bookkeeping too — a plain node click wrote `selected: true` into the controller-owned node state and painted the focus ring, sticking until the next publish (and a click on the CURRENT main publishes nothing). The callback now applies `dimensions` changes only. Regression test in the same spec, also verified failing first.
+
+Filed nothing new; nid_sj9qg27cmear9lgdlz5umwra5_e gained the `decide` tag and the refit tradeoff its options list omitted.

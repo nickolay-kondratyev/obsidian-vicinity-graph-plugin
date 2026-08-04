@@ -409,6 +409,17 @@
  * itself back on.
  */
 .vicinity-graph-flow .react-flow__resize-control {
+	/* ABOVE `.vicinity-graph-node`: the grips are its earlier SIBLINGS, and two
+	 * positioned siblings at `z-index: auto` paint in DOM order — so without this
+	 * the node's body paints over (and hit-tests ahead of) every half of a grip
+	 * that overlaps it, leaving only the part hanging outside the box grabbable.
+	 * Confined to this node's own React Flow wrapper, which sets a z-index of its
+	 * own, so a grip can never rise above a NEIGHBOURING node. The pin button
+	 * stays clickable regardless: `.vicinity-graph-node` is a stacking context
+	 * (`container-type: size` ⇒ layout containment), so the button's z-index is
+	 * scoped inside it — and the grips clear it by design (a grip band reaches
+	 * 4px into the node, the button sits 5px in). */
+	z-index: 1;
 	opacity: 0;
 	transition: opacity 0.12s ease;
 }
@@ -425,9 +436,54 @@
 	border: 1px solid var(--background-primary);
 	border-radius: var(--radius-s);
 }
-/* Edge lines: accent the grabbable edge itself. */
+/*
+ * Edge grips: a grabbable BAND straddling the edge, with the accent line drawn
+ * inside it — NOT React Flow's stock line control, whose whole box is 1px wide
+ * (`.line.right { width: 1px }`, in FLOW units, so a fraction of a screen pixel
+ * at any zoom below 1). Centred on the edge, that 1px box hit-tests to the node
+ * body underneath it: `.vicinity-graph-node intercepts pointer events` is what
+ * a real hover reports, so the right/bottom drag the README advertises could
+ * not be started at all. Only the corner handle survived, because React Flow
+ * `autoScale`s the HANDLE variant (never the line) against the zoom.
+ *
+ * The band therefore carries the hit area and a pseudo-element carries the
+ * paint: widening the box alone would push RF's border — the visible line —
+ * half a band off the edge it marks. Gated by the right-line drag in
+ * e2e/nodeResize.e2e.ts, which fails the actionability hit-check if the band
+ * ever shrinks back to a hairline.
+ */
 .vicinity-graph-flow .react-flow__resize-control.line {
-	border-color: var(--interactive-accent);
+	/* Half of the band sits inside the node, half outside — the same reach in
+	 * both directions the corner handle gets from its 50% translate. */
+	--vicinity-graph-resize-band-px: 8px;
+	--vicinity-graph-resize-line-px: 2px;
+
+	border-width: 0;
+}
+.vicinity-graph-flow .react-flow__resize-control.line.right {
+	width: var(--vicinity-graph-resize-band-px);
+}
+.vicinity-graph-flow .react-flow__resize-control.line.bottom {
+	height: var(--vicinity-graph-resize-band-px);
+}
+.vicinity-graph-flow .react-flow__resize-control.line::after {
+	content: "";
+	position: absolute;
+	background: var(--interactive-accent);
+}
+.vicinity-graph-flow .react-flow__resize-control.line.right::after {
+	top: 0;
+	bottom: 0;
+	left: 50%;
+	width: var(--vicinity-graph-resize-line-px);
+	transform: translateX(-50%);
+}
+.vicinity-graph-flow .react-flow__resize-control.line.bottom::after {
+	left: 0;
+	right: 0;
+	top: 50%;
+	height: var(--vicinity-graph-resize-line-px);
+	transform: translateY(-50%);
 }
 
 /* ===== folder groups ==================================================== */

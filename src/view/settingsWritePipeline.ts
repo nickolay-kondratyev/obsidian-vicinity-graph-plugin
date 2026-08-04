@@ -144,17 +144,18 @@ export class SettingsWritePipeline implements SerialSettingsWrites {
 
 	/**
 	 * A serialised `data.json` write that is NOT a settings command — today the pinned
-	 * set, which `ControlsActions` writes through `PersistenceServices`. Same chain
-	 * (two fast pin clicks must land in click order, and a pin must not interleave with
-	 * a settings write mid-save) and, crucially, the SAME failure policy (rule 5): the
-	 * task's rejection is caught HERE, named through the same copy seam, and never
-	 * re-thrown at the handler that `void`s this promise.
+	 * set and the per-node size overrides, both of which `ControlsActions` writes through
+	 * `PersistenceServices`. Same chain (two fast pin clicks must land in click order, and
+	 * neither a pin nor a released resize may interleave with a settings write mid-save)
+	 * and, crucially, the SAME failure policy (rule 5): the task's rejection is caught
+	 * HERE, named through the same copy seam, and never re-thrown at the handler that
+	 * `void`s this promise.
 	 *
 	 * WHY this exists at all, rather than callers catching around their own body: a
 	 * second `try` would be a second policy, free to drift on wording, on logging and on
-	 * whether it re-throws. The pinned set needs the policy MORE than settings do — the
-	 * pin is already in memory when the save fails, so the node goes on rendering as
-	 * pinned until a restart silently drops it.
+	 * whether it re-throws. These writes need the policy MORE than settings do — the pin
+	 * (or the resized box) is already in memory when the save fails, so the node goes on
+	 * rendering as pinned/resized until a restart silently drops it.
 	 *
 	 * The fan-out is the pipeline's here too, on the SAME rule {@link write} follows,
 	 * and the task's {@link GuardedWriteOutcome} is the only thing it asks: a body that
