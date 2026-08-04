@@ -9,7 +9,7 @@ status_updated_iso: 2026-08-04T16:11:57Z
 type: bug
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
-tags: [ui, sizing, decide]
+tags: [ui, sizing]
 ---
 
 `decideLayout` (src/view/GraphStructureDiff.ts) relayouts only when a surviving node's rendered box grew past `SIZE_RELAYOUT_THRESHOLD` (+100%). Since drag-to-resize (ticket nid_qjsj5mth2phdqctbm0vfx9elw_e) feeds the committed `sizePx` override through `nodeDimensionsPx`, a resize BELOW that threshold — e.g. dragging a 100px node to 180px — takes the `reuse-layout` path: elk positions AND the cached folder-group box dimensions (`GraphViewController.groupDimensions`) are reused verbatim, so the grown node can visibly overlap its neighbours and spill outside its folder-group border until some unrelated structural change forces a fresh layout.
@@ -21,9 +21,7 @@ Found during the adversarial review of the drag-to-resize commit (868a5b9..HEAD)
 ## Design
 
 Options (pick one, they are mutually exclusive):
-1. A committed size override always relayouts — teach the rebuild path that THIS rebuild came from a resize (a signal the generic `ViewsRefreshPort` fan-out does not carry today, so it needs a seam).
-2. Compare overrides separately in `decideLayout`: any node whose `override.sizePx` CHANGED between builds forces `relayout`, while engine `sizePx` keeps the threshold. Purely local to src/view/GraphStructureDiff.ts and needs no new seam — likely the 80/20.
-3. Accept the overlap and say so in README (*Node size*).
+1. A committed size override always relayouts — teach the rebuild path that THIS rebuild came from a resize (a signal the generic `ViewsRefreshPort` fan-out does not carry today, so it needs a seam). - [HUMAN: LETS try this out this seems like a simple approach we resize, and it triggers a layout re-render making sure the rendering will look good.]
 
 Whichever wins, `groupDimensions` must be re-derived with the positions; today both are reused together.
 
@@ -44,4 +42,7 @@ Reviewer's recommendation: (a) via option 2 + suppressing the refit for a resize
 A note dragged to ~1.5x its computed size no longer overlaps its neighbours or its folder-group border after the commit rebuild (or the accepted behaviour is documented in README).
 A BDD test in src/view/GraphStructureDiff.test.ts captures the chosen rule.
 `npm test`, `npm run check` and `npm run test:e2e -- nodeResize.e2e.ts` green.
+
+--------------------------------------------------------------------------------
+HUMAN: while the layout is not free we can KISS and only trigger the re-layout after the resize is complete. So we DO NOT trigger the re-layout while the human is dragging the resize, but once the dragging is complete THEN we trigger the re-layout. 
 
