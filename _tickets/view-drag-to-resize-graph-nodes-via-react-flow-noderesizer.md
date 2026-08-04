@@ -1,17 +1,18 @@
 ---
 id: nid_qjsj5mth2phdqctbm0vfx9elw_e
-title: "view: drag-to-resize graph nodes via React Flow NodeResizer"
-status: open
+title: 'view: drag-to-resize graph nodes via React Flow NodeResizer'
+status: in_progress
 deps: [nid_lwionnvohw9k58jw7a2dybht2_e]
-links: [nid_o5hz7ilcauwe2acqdfh6pcuam_e, nid_cx5zoz7ptucg9nxalibv0mbjb_e, nid_lwionnvohw9k58jw7a2dybht2_e, nid_9hx6okamx3yt0rg9iad2f4151_e, nid_kyowb4v8v51nslbicl4szgcd5_e, nid_gbyqsuplz8b7pv0u5k34sdz1q_e]
-created_iso: 2026-08-03T23:48:48Z
-status_updated_iso: 2026-08-03T23:48:48Z
+links: [nid_o5hz7ilcauwe2acqdfh6pcuam_e, nid_cx5zoz7ptucg9nxalibv0mbjb_e, nid_lwionnvohw9k58jw7a2dybht2_e,
+  nid_9hx6okamx3yt0rg9iad2f4151_e, nid_kyowb4v8v51nslbicl4szgcd5_e, nid_gbyqsuplz8b7pv0u5k34sdz1q_e]
+created_iso: '2026-08-03T23:48:48Z'
+status_updated_iso: '2026-08-04T03:59:57Z'
 type: feature
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
 tags: [sizing, ui]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin
 ---
-
 Part of the node-sizing rethink (docs-internal/plan/node-sizing-rethink.md, origin nid_kyowb4v8v51nslbicl4szgcd5_e).
 
 Let the user drag node edges to set a custom size (larger OR smaller than computed). Use the NodeResizer additional component already shipped in @xyflow/react 12 (no new dependency) inside src/view/NoteNode.tsx:
