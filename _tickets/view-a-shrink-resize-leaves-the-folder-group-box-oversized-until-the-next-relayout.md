@@ -20,8 +20,6 @@ This is knowingly accepted in the ticket ("the hole it leaves behind is not wort
 
 HUMAN DECISION REQUIRED — the options are not obviously ranked:
 1. Accept as-is (cheapest; the box self-corrects on the next structural change).
-2. Relayout when a SHRINKING node is a folder-group member (loses the no-jump/no-refit win exactly where groups are involved).
-3. Re-fit the group box alone on the reuse path — recompute the container box from its members' cached rects + elk padding, without moving anything. Keeps the no-jump win; costs a SECOND opinion on elk's padding in the view, which `layoutFit.ts` deliberately avoided (see its WHY-NOT on clearance).
+   2. YES fow now lets accept it that we dont shrink grouping until next layout.
 
-Option 3 is the only one that keeps both properties, but only if the padding can come from the SAME source elk is configured with (`src/view/elkMapping.ts`) rather than a new constant.
 
