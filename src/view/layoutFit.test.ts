@@ -99,6 +99,14 @@ describe("resizedNodesFitRenderedLayout against folder-group borders", () => {
 		expect(resizedNodesFitRenderedLayout(resized, groupedNodes(200, 280), layout)).toBe(false);
 	});
 
+	it("WHEN a group member SHRINKS THEN it fits, leaving the group box oversized", () => {
+		// The accepted limitation of ticket `nid_brzatca9hp65cg6w3s4xz27k6_e`, pinned:
+		// a smaller box always fits, so the layout (and with it the now-roomy 300x300
+		// folder border) is reused until the next structural relayout. See `layoutFit.ts`.
+		const layout = layoutOf(positionsInGroup, groupBox);
+		expect(resizedNodesFitRenderedLayout(resized, groupedNodes(20, 20), layout)).toBe(true);
+	});
+
 	it("WHEN an ungrouped node's new box overlaps ANOTHER folder's group box THEN it does not fit", () => {
 		// The group's padding is empty space no note node may grow into.
 		// Placed clear of BOTH members (y 150..190) — only the group's own box is hit.

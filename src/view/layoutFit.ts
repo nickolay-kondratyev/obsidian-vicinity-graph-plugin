@@ -14,6 +14,18 @@ import { folderGroupIdOf, nodeDimensionsPx } from "./graphIdentity";
  * and only a box that collides relayouts.
  *
  * Pure and node-testable; the structural diff is its only caller.
+ *
+ * ACCEPTED LIMITATION — a SHRINK leaves its folder-group box oversized (ticket
+ * `nid_brzatca9hp65cg6w3s4xz27k6_e`, decided). A smaller box always fits, so a
+ * shrink (drag inward, or "Reset size") always reuses the layout — and the
+ * reuse path keeps the elk-computed `groupDimensions` as-is. A shrunken GROUP
+ * MEMBER therefore sits in a folder rectangle still sized for its old, bigger
+ * box, with visible dead space, until the next structural relayout re-runs elk.
+ * WHY accepted: re-arranging the whole graph — every node jumping — is a worse
+ * outcome than a temporarily roomy border, and the border self-corrects on the
+ * next structural change. WHY-NOT shrink the group box in place here: its size
+ * is elk's answer to the whole subtree's packing, not a max over member boxes,
+ * so recomputing it in the view would be a second, diverging layout opinion.
  */
 
 /**
