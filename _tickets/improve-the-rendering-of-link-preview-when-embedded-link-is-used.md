@@ -19,4 +19,4 @@ I am thinking maybe we just render them as
 !{{Rendered Note Name/or title if title exists in frontmatter}}
 ```
 
-So that we would just render the note name and the `!` to signify the embed. But not the full embedded portion.  
+So that we would just render the note name and the `!` to signify the embed. But not the full embedded portion.
