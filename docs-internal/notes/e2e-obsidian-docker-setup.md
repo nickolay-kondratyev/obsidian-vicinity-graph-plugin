@@ -18,8 +18,12 @@ isolated `--user-data-dir` and attaches over CDP.
 
 Responsibilities:
 
-- Pin the version: `OBSIDIAN_VERSION="1.12.7"` (a floating "latest" lets a new
-  Obsidian release break e2e with no code change — bump deliberately).
+- Pin the version, overridably: `OBSIDIAN_VERSION="${OBSIDIAN_VERSION:-1.12.7}"` (a
+  floating "latest" lets a new Obsidian release break e2e with no code change — bump
+  the default deliberately). The env knob lets one run target another build; since the
+  cache dir keys off the version, several builds coexist. Pair it with a floor run
+  (`test:e2e:floor`) that derives its version from `manifest.json` `minAppVersion`, so
+  the supported floor is exercised without a second version literal anywhere.
 - Pick the asset by arch: `obsidian-<v>.tar.gz` (x86_64) / `obsidian-<v>-arm64.tar.gz`.
   **Use the `.tar.gz`, not the AppImage** — it extracts to a plain dir with a runnable
   `obsidian` binary, needing no FUSE / `--appimage-extract` (both absent in containers).

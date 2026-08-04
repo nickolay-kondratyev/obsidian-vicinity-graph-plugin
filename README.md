@@ -336,6 +336,7 @@ re-running never clobbers local edits.
 | `npm test` | our vitest suite (`obsidian-id-lib` ships its own tested build from npm) |
 | `npm run setup:dev-vault` | build + create/copy the plugin into `.dev-vault/` |
 | `npm run test:e2e` | Playwright e2e: drives a REAL Obsidian on a copy of the dev vault (see below) |
+| `npm run test:e2e:floor` | the same e2e suite against the `minAppVersion` floor build (see below) |
 
 ### e2e suite (`npm run test:e2e`)
 
@@ -358,8 +359,8 @@ npm run test:e2e
 - **Binary:** when `OBSIDIAN_PATH` is unset it auto-downloads a pinned Obsidian
   build once (the Linux tarball — no FUSE/AppImage extraction), caches it under
   `.tmp/obsidian/`, and points the suite at it (`scripts/setup-obsidian-bin.sh`;
-  also `npm run setup:obsidian`). Bump the pinned `OBSIDIAN_VERSION` in that
-  script deliberately.
+  also `npm run setup:obsidian`). Bump that script's pinned default
+  deliberately; override it per run with `OBSIDIAN_VERSION` (see below).
 - **Display:** when no display server is detected (`$DISPLAY`/`$WAYLAND_DISPLAY`
   unset), it defaults the headless Chromium-Ozone flags
   (`--ozone-platform=headless --disable-gpu`) so Electron boots offscreen instead
@@ -378,6 +379,29 @@ npm run test:e2e
 In its default mode the suite is idempotent (fresh vault copy + fresh sandbox
 config per run under `.tmp/e2e/`) and never touches your real Obsidian config or
 the dev-vault fixtures.
+
+#### Running against another Obsidian version (`OBSIDIAN_VERSION`)
+
+The default run downloads ONE pinned build, so nothing proves the plugin still
+works on the [`minAppVersion` floor](#minappversion-manifestjson) — the oldest
+Obsidian we claim to support — or on a newer release. Both are one command:
+
+```bash
+npm run test:e2e:floor       # the floor, derived from manifest.json minAppVersion
+OBSIDIAN_VERSION=1.13.1 npm run test:e2e   # any other published build
+```
+
+`OBSIDIAN_VERSION` overrides the pinned default for one run (it only takes
+effect when `OBSIDIAN_PATH` is unset, i.e. when the binary is auto-downloaded —
+Linux/Docker). Each version is cached separately under `.tmp/obsidian/`, so
+switching back and forth re-downloads nothing. `test:e2e:floor` never names a
+version literal: it reads `manifest.json`, so bumping the floor is one edit.
+
+Expect a little version-dependent noise: a few specs match Obsidian's own chrome,
+which moves between releases (e.g. on 1.13+ the slider value readout moves from a
+hover tooltip to an inline element — see the caveat in
+`scripts/setup-obsidian-bin.sh`). A red there is likelier a locator miss than a
+plugin regression; confirm against the default run before treating it as one.
 
 #### Driving your own vault (`VICINITY_E2E_VAULT`) — opt-in
 

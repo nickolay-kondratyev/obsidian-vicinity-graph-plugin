@@ -13,7 +13,12 @@
 #
 # Pinned on purpose: the harness comments/behaviour are verified against this
 # version, and a floating "latest" would let a new Obsidian release break e2e
-# with NO code change. Bump OBSIDIAN_VERSION deliberately.
+# with NO code change. Bump the DEFAULT deliberately.
+#
+# OBSIDIAN_VERSION overrides the default for one run, so the suite can be pointed
+# at another build without a code change — e.g. the manifest floor
+# (`npm run test:e2e:floor`) or a newer release you want to smoke-test. The cache
+# dir keys off the version, so several builds coexist under `.tmp/obsidian/`.
 #
 # Bumping to 1.13+ specifically: the slider value-readout e2e switches to a second,
 # NEVER-VERIFIED matching arm there (inline readout replaces the hover tooltip) — see
@@ -28,7 +33,7 @@
 # Set OBSIDIAN_PATH yourself — see obsidianHarness.resolveObsidianPath().
 set -euo pipefail
 
-OBSIDIAN_VERSION="1.12.7"
+OBSIDIAN_VERSION="${OBSIDIAN_VERSION:-1.12.7}"
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CACHE_DIR="${REPO_ROOT}/.tmp/obsidian"
