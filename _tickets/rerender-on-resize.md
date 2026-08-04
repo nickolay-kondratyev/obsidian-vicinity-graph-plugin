@@ -4,7 +4,7 @@ id: nid_9ep12hkmk4zjv2p28emmrhieq_e
 title: Rerender on resize - poke if can be improved
 status: closed
 deps: []
-links: []
+links: [nid_brzatca9hp65cg6w3s4xz27k6_e]
 created_iso: '2026-08-04T18:32:19Z'
 status_updated_iso: 2026-08-04T18:44:54Z
 type: null

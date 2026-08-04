@@ -132,6 +132,34 @@ describe("decideLayout size-override commit (drag-to-resize)", () => {
 		expect(decideLayout(previous, graphWithOverride(100, 400), SIZE_RELAYOUT_THRESHOLD, rendered)).toBe("reuse-layout");
 	});
 
+	it("WHEN a fitting resize coincides with ANOTHER node's passive growth beyond the threshold THEN it relayouts", () => {
+		// The threshold is skipped for the RESIZED node, never for the rebuild: a
+		// blanket skip (any resize disarms the threshold) passes every other case here.
+		// "b.md" grows +102% while sitting clear of the resized "a.md" — so the fit
+		// rule says yes and the relayout can only come from the threshold.
+		const PASSIVE_PREVIOUS_PX = 50;
+		const PASSIVE_NEXT_PX = 101;
+		function withPassiveGrower(overridePx: number, passivePx: number) {
+			return makeGraph({
+				nodes: [
+					makeNode({
+						path: asVaultPath("a.md"),
+						override: { sizePx: { widthPx: overridePx, heightPx: overridePx } },
+					}),
+					makeNode({ path: asVaultPath("b.md"), sizePx: passivePx }),
+				],
+			});
+		}
+		expect(
+			decideLayout(
+				withPassiveGrower(100, PASSIVE_PREVIOUS_PX),
+				withPassiveGrower(150, PASSIVE_NEXT_PX),
+				SIZE_RELAYOUT_THRESHOLD,
+				rendered,
+			),
+		).toBe("relayout");
+	});
+
 	it("WHEN a committed resize shrank the node THEN it reuses the layout", () => {
 		// A smaller box can collide with nothing; the gap it leaves is the user's own doing.
 		expect(decideLayout(previous, graphWithOverride(30, 30), SIZE_RELAYOUT_THRESHOLD, rendered)).toBe("reuse-layout");

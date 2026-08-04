@@ -387,6 +387,58 @@ describe("GraphViewController structural diff", () => {
 	});
 });
 
+describe("GraphViewController committed-resize fit (ticket nid_9ep12hkmk4zjv2p28emmrhieq_e)", () => {
+	// The CONTROLLER half of the fit rule: `decideLayout` can only answer the
+	// geometry question if the controller hands it the layout it is holding. Passing
+	// an empty one instead would make every fit answer "no" and silently collapse
+	// this feature back into "a resize always relayouts" — with no other unit test
+	// noticing, because the pure ones supply their own geometry.
+	//
+	// FakeLayout places root children at x = index * 200, y = 0, so "a.md" sits at
+	// the origin with "b.md" 200px to its right. Both boxes are pinned by overrides,
+	// so the numbers below ARE the geometry the fit rule judges.
+	const NEIGHBOUR_LEFT_EDGE_PX = 200;
+	const FITTING_WIDTH_PX = 150;
+	const COLLIDING_WIDTH_PX = NEIGHBOUR_LEFT_EDGE_PX + 50;
+
+	function graphResizedTo(widthPx: number): VicinityGraph {
+		return makeGraph({
+			nodes: [
+				makeNode({
+					path: asVaultPath("a.md"),
+					override: { sizePx: { widthPx, heightPx: 100 } },
+				}),
+				makeNode({
+					path: asVaultPath("b.md"),
+					override: { sizePx: { widthPx: 100, heightPx: 100 } },
+				}),
+			],
+			edges: [makeEdge("a.md", "b.md")],
+		});
+	}
+
+	/** GIVEN a rendered graph, WHEN "a.md" commits `widthPx` and the view rebuilds. */
+	async function afterResizeCommit(widthPx: number): Promise<Harness> {
+		const h = setup();
+		h.controller.handleActiveFileChanged("a.md");
+		h.source.resolveBuild(0, graphResizedTo(100));
+		await flush();
+
+		h.controller.handleSettingsChanged(); // the commit-on-release rebuild
+		h.source.resolveBuild(1, graphResizedTo(widthPx));
+		await flush();
+		return h;
+	}
+
+	it("WHEN the committed box still clears its neighbour THEN elk is not re-run", async () => {
+		expect((await afterResizeCommit(FITTING_WIDTH_PX)).layout.callCount).toBe(1);
+	});
+
+	it("WHEN the committed box overlaps its neighbour THEN elk runs again", async () => {
+		expect((await afterResizeCommit(COLLIDING_WIDTH_PX)).layout.callCount).toBe(2);
+	});
+});
+
 describe("GraphViewController outline data refresh", () => {
 	const EDITED_OUTLINE: readonly OutlineEntry[] = [{ rawText: "Intro", level: 1 }];
 
