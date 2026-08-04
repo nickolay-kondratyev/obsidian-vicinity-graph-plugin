@@ -3,7 +3,7 @@ id: nid_ct22qotgtw4rezbdn5m0diyb3_e
 title: "view: releasing a drag-resize refits the viewport (relayout bumps layoutVersion)"
 status: open
 deps: []
-links: [nid_sj9qg27cmear9lgdlz5umwra5_e]
+links: [nid_sj9qg27cmear9lgdlz5umwra5_e, nid_9ep12hkmk4zjv2p28emmrhieq_e]
 created_iso: 2026-08-04T18:17:18Z
 status_updated_iso: 2026-08-04T18:17:18Z
 type: bug
@@ -12,7 +12,9 @@ assignee: CC_WITH-nickolaykondratyev
 tags: [ui, sizing, decide]
 ---
 
-A committed size override now always relayouts (ticket nid_sj9qg27cmear9lgdlz5umwra5_e, `anySizeOverrideChanged` in src/view/GraphStructureDiff.ts) so the resized node no longer overlaps its neighbours or its folder-group box.
+A committed size override relayouts so the resized node no longer overlaps its neighbours or its folder-group box (ticket nid_sj9qg27cmear9lgdlz5umwra5_e).
+
+UPDATE 2026-08-04 (ticket nid_9ep12hkmk4zjv2p28emmrhieq_e): the relayout is no longer unconditional — `src/view/layoutFit.ts` now asks whether the new box still FITS where the layout put it, and a fitting resize reuses the layout, so it neither re-arranges the graph nor refits the viewport. This SHRINKS the problem below to the colliding case (where a re-arrangement is happening anyway and a refit is far more defensible), but does not decide it.
 
 Side effect, accepted knowingly there: a fresh layout bumps `GraphViewController.layoutVersion`, and `FitViewOnLayoutChange` in src/view/VicinityGraphFlow.tsx refits the viewport on EVERY layoutVersion change. So releasing a resize handle now re-zooms and re-pans the whole graph, while the user is looking straight at ONE node.
 
@@ -27,9 +29,9 @@ Options:
 
 HUMAN DECISION REQUIRED: which of the three.
 
-Interim (review follow-up, 2026-08-04): the refit is now stated as a *Known
-caveat* under README's *Node size*, so the shipped behaviour is not silently
-different from what that section promises. That is option 3's documentation half
+Interim (review follow-up, 2026-08-04): the refit is stated as a *Known
+caveat* under README's *Node size* (now scoped to the colliding case), so the
+shipped behaviour is not silently different from what that section promises. That is option 3's documentation half
 only — it does NOT pre-empt the decision; delete the caveat if 1 or 2 wins.
 
 ## Acceptance Criteria

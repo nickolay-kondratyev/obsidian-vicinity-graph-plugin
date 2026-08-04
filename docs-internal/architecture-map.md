@@ -159,6 +159,8 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   routing (WASM; see build note below).
 - Structural diff (`GraphStructureDiff.ts`) skips relayout when structure is
   unchanged; a node growing past `SIZE_RELAYOUT_THRESHOLD` forces a full relayout.
+  A node the user RESIZED is judged instead by `layoutFit.ts` — a relayout only
+  if its new box no longer fits where the rendered layout put it.
 
 ## Build note: libavoid WASM
 
