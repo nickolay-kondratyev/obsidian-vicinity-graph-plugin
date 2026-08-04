@@ -74,3 +74,15 @@ and code-span awareness (an `![[x]]` written inside a code span is flattened too
 - Filed out of the review: `nid_lgo91fzkivxiu32g1j5bttzca_e` (the shared
   wikilink matcher can match across newlines, so a stray `![[` can swallow lines
   of an expanded snippet).
+
+## Adversarial review round 2 (2026-08-04)
+
+- The newline over-match is FIXED here rather than deferred: this feature is what
+  turned it from a phantom canvas edge into DELETED prose in a preview row (the
+  matched text is now rewritten), and the fix is one character in
+  `WIKILINK_SOURCE`. Failing-first tests in `Wikilinks.test.ts` and
+  `MarkdownEmbeds.test.ts`; `nid_lgo91fzkivxiu32g1j5bttzca_e` stays open for the
+  `MarkdownInlineLinks` half only, which needs its own decision.
+- `MarkdownEmbeds` no longer carries its own `".md"` literal: which extension is
+  a NOTE's is `FileKinds`'s knowledge, and reusing it also made the check
+  case-blind (`![[Note.MD]]` → `!<<Note>>`, not `!<<Note.MD>>`).

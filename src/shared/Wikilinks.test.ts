@@ -50,6 +50,12 @@ describe("Wikilinks.harvestedLinksOf targets", () => {
 		expect(targetsOf("plain text with [a](b.md) only")).toEqual([]);
 	});
 
+	it("WHEN a `[[` is never closed on its line THEN it does not pair with a later line's `]]`", () => {
+		// Obsidian requires a wikilink to open and close on the SAME line, so the
+		// only link here is the closed one — `[[stray` names nothing.
+		expect(targetsOf("[[stray\nprose\n[[real]]")).toEqual(["real"]);
+	});
+
 	it("WHEN two calls scan different texts THEN neither sees the other's scan position", () => {
 		// GIVEN a /g regex's mutable lastIndex — a shared instance would make the
 		// SECOND call start mid-string and miss the leading link.

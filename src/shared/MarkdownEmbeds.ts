@@ -24,6 +24,7 @@
  * territory; nothing has asked for it yet.
  */
 
+import { FileKinds } from "./FileKinds";
 import { LinkKinds } from "./LinkKind";
 import { VaultPathFacts } from "./VaultPathFacts";
 import { Wikilinks } from "./Wikilinks";
@@ -40,9 +41,6 @@ const MARKER_CLOSE = ">>";
  * well-formed open tag) and would otherwise vanish from the rendered row.
  */
 const ASCII_PUNCTUATION = /[!-/:-@[-`{-~]/g;
-
-/** The `.md` a wikilink target may spell out; Obsidian hides it everywhere else. */
-const MARKDOWN_SUFFIX = ".md";
 
 /**
  * A pipe value that is a SIZE, not a name: on an EMBED Obsidian reads `|300` /
@@ -88,11 +86,13 @@ function displayNameOf(parts: WikilinkParts, titleOf: EmbedTargetTitle): string 
 /**
  * The written target's file name. The extension stays for attachments
  * (`![[chart.png]]` → `chart.png`, which is how Obsidian names them) and goes
- * for notes, whose extension is never spelled in the UI.
+ * for notes, whose extension is never spelled in the UI. WHICH extension is a
+ * note's is {@link FileKinds}'s knowledge, not a second `.md` literal here — and
+ * it is case-blind, because the vault decides casing (`Note.MD` is that note).
  */
 function fileNameOf(target: string): string {
 	const basename = VaultPathFacts.basenameOf(target);
-	return basename.endsWith(MARKDOWN_SUFFIX) ? VaultPathFacts.titleOf(basename) : basename;
+	return FileKinds.isMarkdownPath(basename) ? VaultPathFacts.titleOf(basename) : basename;
 }
 
 function escapedForMarkdown(text: string): string {

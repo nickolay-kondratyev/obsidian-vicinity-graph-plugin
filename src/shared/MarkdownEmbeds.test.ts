@@ -31,6 +31,10 @@ describe("MarkdownEmbeds.flattened", () => {
 		expect(asRendered(MarkdownEmbeds.flattened("![[Note.md]]", NO_TITLES))).toBe("!<<Note>>");
 	});
 
+	it("WHEN the .md extension is spelled in another CASE THEN the marker still drops it", () => {
+		expect(asRendered(MarkdownEmbeds.flattened("![[Note.MD]]", NO_TITLES))).toBe("!<<Note>>");
+	});
+
 	it("WHEN the embed target is an attachment THEN the marker keeps its extension", () => {
 		expect(asRendered(MarkdownEmbeds.flattened("![[chart.png]]", NO_TITLES))).toBe("!<<chart.png>>");
 	});
@@ -90,6 +94,13 @@ describe("MarkdownEmbeds.flattened", () => {
 
 	it("WHEN a display name carries markdown syntax THEN it is escaped too, so it renders literally", () => {
 		expect(MarkdownEmbeds.flattened("![[Note|a_b_c]]", NO_TITLES)).toBe("\\!\\<\\<a\\_b\\_c\\>\\>");
+	});
+
+	it("WHEN an unclosed `![[` opens a line THEN the following lines are not swallowed into one marker", () => {
+		// The expanded snippet is MULTI-line and this transform REWRITES what it
+		// matches, so an over-matching matcher would delete the reader's prose.
+		const stray = "![[stray\nkept prose\nclosed on another line ]] tail";
+		expect(MarkdownEmbeds.flattened(stray, NO_TITLES)).toBe(stray);
 	});
 
 	it("WHEN the text has no embed THEN it is returned unchanged", () => {

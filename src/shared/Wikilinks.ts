@@ -25,8 +25,14 @@ import { LinkKinds } from "./LinkKind";
  * (`target`, `target#heading|alias`, …). The marker is CAPTURED rather than
  * merely tolerated because `![[x]]` and `[[x]]` are different kinds of reference
  * (see {@link LinkKind}), and a matcher that swallows the `!` cannot say which.
+ *
+ * The inner text excludes the NEWLINE: Obsidian requires a wikilink to open and
+ * close on the same line, so an unclosed `[[` pairing with a later line's `]]`
+ * is pure over-match — a phantom canvas edge, and (since `MarkdownEmbeds`
+ * REWRITES what this matches) lines of a reader's prose deleted from a preview
+ * snippet.
  */
-const WIKILINK_SOURCE = "(!?)\\[\\[([^\\]]+)\\]\\]";
+const WIKILINK_SOURCE = "(!?)\\[\\[([^\\]\\n]+)\\]\\]";
 
 /** 1-based capture-group positions in {@link WIKILINK_SOURCE} (also the `String.replace` callback's argument order). */
 const EMBED_MARKER_GROUP = 1;
