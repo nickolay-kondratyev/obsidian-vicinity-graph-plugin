@@ -1,5 +1,5 @@
 import { VicinityEngine } from "../engine";
-import { DocIdMapWarmer } from "../persistence/DocIdMapWarmer";
+import type { DocIdMapWarmer } from "../persistence/DocIdMapWarmer";
 import type { PathDocIdMap } from "../persistence/PathDocIdMap";
 import type { PluginDataStore } from "../persistence/PluginDataStore";
 import { ControlsModelBuilder } from "../view/ControlsModel";
@@ -20,9 +20,6 @@ import type { DocIdPort, MetadataCachePort, VaultPort } from "./obsidianPorts";
  * graph; it just cannot be pinned.
  */
 export class VicinityGraphBuilder {
-	/** Built here, not injected: a pure composition of this builder's own deps, ONE per plugin (one builder). */
-	private readonly docIdMapWarmer: DocIdMapWarmer;
-
 	constructor(
 		private readonly vault: VaultPort,
 		private readonly metadataCache: MetadataCachePort,
@@ -30,9 +27,9 @@ export class VicinityGraphBuilder {
 		private readonly canvasParseCache: CanvasParseCache,
 		private readonly pluginDataStore: PluginDataStore,
 		private readonly pathDocIdMap: PathDocIdMap,
-	) {
-		this.docIdMapWarmer = new DocIdMapWarmer(vault, docIdPort, pathDocIdMap);
-	}
+		/** INJECTED, not built here: the sweep shares this exact instance (one scan discipline, one miss cache). */
+		private readonly docIdMapWarmer: DocIdMapWarmer,
+	) {}
 
 	/** `null` when `mainPath` does not resolve to a vault file. */
 	async build(mainPath: string): Promise<GraphBuildResult | null> {
@@ -52,7 +49,9 @@ export class VicinityGraphBuilder {
 		// Cold-map fix (ticket nid_gbyqsuplz8b7pv0u5k34sdz1q_e): resolve the
 		// docids this build actually needs on demand, so pins and per-node
 		// overrides render correctly on the FIRST build after a restart instead
-		// of waiting for the delayed sweep warm-up.
+		// of waiting for the delayed sweep warm-up. Best-effort by contract — it
+		// never rejects, so a docid it could not resolve is simply skipped
+		// downstream, exactly as before the fix.
 		await this.docIdMapWarmer.warmFor([...pins.map((pin) => pin.docid), ...Object.keys(nodeOverrides)]);
 		// ONE inputs object feeds BOTH the graph AND the toolbar model, so the value
 		// a control shows is structurally the value the graph used.

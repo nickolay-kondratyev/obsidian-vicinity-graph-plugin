@@ -5,31 +5,11 @@
  */
 export class ChunkedWork {
 	/**
-	 * Runs `work` over every item, yielding via `yieldBetweenBatches` after
-	 * each full batch (never after the last, partial or not — no trailing idle
-	 * hop). `yieldBetweenBatches` is injectable so tests can count yields.
-	 */
-	static async forEachChunked<T>(
-		items: readonly T[],
-		batchSize: number,
-		work: (item: T) => void | Promise<void>,
-		yieldBetweenBatches: () => Promise<void> = ChunkedWork.sleepZero,
-	): Promise<void> {
-		await ChunkedWork.forEachChunkedUntil(
-			items,
-			batchSize,
-			async (item) => {
-				await work(item);
-				return false;
-			},
-			yieldBetweenBatches,
-		);
-	}
-
-	/**
-	 * Like {@link forEachChunked}, but `work` returns `true` to STOP — the
-	 * remaining items are never visited and no trailing yield happens. For
-	 * scans that can finish early (on-demand docid warm-up).
+	 * Runs `work` over items, yielding via `yieldBetweenBatches` after each full
+	 * batch (never after the last, partial or not — no trailing idle hop).
+	 * `work` returns `true` to STOP: the remaining items are never visited and
+	 * no trailing yield happens (a scan that can finish early — the docid
+	 * warm-up). `yieldBetweenBatches` is injectable so tests can count yields.
 	 */
 	static async forEachChunkedUntil<T>(
 		items: readonly T[],

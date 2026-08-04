@@ -29,12 +29,11 @@ function warmerFixture() {
 	const ports = new FakeObsidianPorts({
 		files: [{ path: "a.md" }, { path: "b.md" }, { path: "c.md" }],
 	});
-	const docIdPort = new CountingDocIdPort(
-		new FakeDocIdPort({ "a.md": "docid_a_e", "b.md": "docid_b_e", "c.md": "docid_c_e" }),
-	);
+	const fakeDocIds = new FakeDocIdPort({ "a.md": "docid_a_e", "b.md": "docid_b_e", "c.md": "docid_c_e" });
+	const docIdPort = new CountingDocIdPort(fakeDocIds);
 	const pathDocIdMap = new PathDocIdMap();
 	const warmer = new DocIdMapWarmer(ports.vault, docIdPort, pathDocIdMap);
-	return { warmer, docIdPort, pathDocIdMap };
+	return { warmer, docIdPort, fakeDocIds, pathDocIdMap };
 }
 
 describe("DocIdMapWarmer", () => {
@@ -77,5 +76,55 @@ describe("DocIdMapWarmer", () => {
 		const warmer = new DocIdMapWarmer(ports.vault, fakeDocIds, new PathDocIdMap());
 		await warmer.warmFor(["docid_a_e"]);
 		expect(fakeDocIds.ensureCalls).toBe(0);
+	});
+});
+
+/**
+ * A scan reads file CONTENT across yields, so a file can vanish (or turn
+ * unreadable) mid-walk and its read REJECTS. The warm-up is an optimization
+ * over state the sweep re-derives — it must degrade, never propagate.
+ */
+describe("DocIdMapWarmer when a file cannot be read", () => {
+	it("WHEN a file read fails THEN the scan walks past it and still resolves the wanted docid", async () => {
+		const { warmer, fakeDocIds, pathDocIdMap } = warmerFixture();
+		fakeDocIds.markUnreadable("a.md");
+		await warmer.warmFor(["docid_c_e"]);
+		expect(pathDocIdMap.getPath("docid_c_e")).toBe("c.md");
+	});
+
+	it("WHEN the file holding the wanted docid cannot be read THEN warmFor still resolves (a build never fails on it)", async () => {
+		const { warmer, fakeDocIds } = warmerFixture();
+		fakeDocIds.markUnreadable("b.md");
+		await expect(warmer.warmFor(["docid_b_e"])).resolves.toBeUndefined();
+	});
+});
+
+describe("DocIdMapWarmer.warmAll", () => {
+	it("WHEN a full pass runs THEN every eligible file's docid lands in the map", async () => {
+		const { warmer, pathDocIdMap } = warmerFixture();
+		await warmer.warmAll();
+		expect(pathDocIdMap.getDocId("c.md")).toBe("docid_c_e");
+	});
+
+	it("WHEN a full pass runs THEN it reports exactly the docids it found live", async () => {
+		const { warmer } = warmerFixture();
+		expect([...(await warmer.warmAll()).liveDocids]).toEqual(["docid_a_e", "docid_b_e", "docid_c_e"]);
+	});
+
+	it("WHEN a full pass reads every file THEN it reports COMPLETE evidence", async () => {
+		const { warmer } = warmerFixture();
+		expect((await warmer.warmAll()).everyFileRead).toBe(true);
+	});
+
+	it("WHEN a file read fails during a full pass THEN the other docids are still reported live", async () => {
+		const { warmer, fakeDocIds } = warmerFixture();
+		fakeDocIds.markUnreadable("b.md");
+		expect([...(await warmer.warmAll()).liveDocids]).toEqual(["docid_a_e", "docid_c_e"]);
+	});
+
+	it("WHEN a file read fails during a full pass THEN it reports INCOMPLETE evidence (nothing may be deleted on it)", async () => {
+		const { warmer, fakeDocIds } = warmerFixture();
+		fakeDocIds.markUnreadable("b.md");
+		expect((await warmer.warmAll()).everyFileRead).toBe(false);
 	});
 });

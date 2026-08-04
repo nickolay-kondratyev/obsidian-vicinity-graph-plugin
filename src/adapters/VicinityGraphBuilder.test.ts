@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { DocIdMapWarmer } from "../persistence/DocIdMapWarmer";
 import { FakePluginDataPort } from "../persistence/FakePluginDataPort";
 import { PathDocIdMap } from "../persistence/PathDocIdMap";
 import { PluginDataStore } from "../persistence/PluginDataStore";
@@ -38,6 +39,7 @@ async function builderFixture() {
 		new CanvasParseCache(),
 		pluginDataStore,
 		pathDocIdMap,
+		new DocIdMapWarmer(ports.vault, docIdPort, pathDocIdMap),
 	);
 	return { builder, docIdPort, pathDocIdMap, pluginDataStore };
 }
@@ -104,9 +106,11 @@ describe("VicinityGraphBuilder", () => {
  * resolve both on demand instead of waiting for the delayed sweep
  * (ticket nid_gbyqsuplz8b7pv0u5k34sdz1q_e).
  */
-async function coldMapFixture() {
+async function coldMapFixture(options: { readonly unreadablePath?: string } = {}) {
 	const ports = new FakeObsidianPorts({
-		files: [{ path: "main.md" }, { path: "a.md" }, { path: "pinned.md" }],
+		// `vanished.md` sits BEFORE the pinned island in scan order, so a test that
+		// makes it unreadable proves the warm-up walks PAST a failed read.
+		files: [{ path: "main.md" }, { path: "a.md" }, { path: "vanished.md" }, { path: "pinned.md" }],
 		fileCaches: {
 			"main.md": { links: [{ link: "a", position: { start: { offset: 0 } } }] },
 		},
@@ -117,8 +121,12 @@ async function coldMapFixture() {
 	const docIdPort = new FakeDocIdPort({
 		"main.md": "docid_main_e",
 		"a.md": "docid_a_e",
+		"vanished.md": "docid_vanished_e",
 		"pinned.md": "docid_pin_e",
 	});
+	if (options.unreadablePath !== undefined) {
+		docIdPort.markUnreadable(options.unreadablePath);
+	}
 	const pluginDataStore = new PluginDataStore(new FakePluginDataPort());
 	await pluginDataStore.init();
 	await pluginDataStore.addPin("docid_pin_e", 5);
@@ -126,13 +134,15 @@ async function coldMapFixture() {
 		field: "sizePx",
 		value: { widthPx: 320, heightPx: 180 },
 	});
+	const pathDocIdMap = new PathDocIdMap();
 	const builder = new VicinityGraphBuilder(
 		ports.vault,
 		ports.metadataCache,
 		docIdPort,
 		new CanvasParseCache(),
 		pluginDataStore,
-		new PathDocIdMap(),
+		pathDocIdMap,
+		new DocIdMapWarmer(ports.vault, docIdPort, pathDocIdMap),
 	);
 	return { builder, docIdPort };
 }
@@ -156,5 +166,16 @@ describe("VicinityGraphBuilder with a cold docid map (restart shape)", () => {
 		const { builder, docIdPort } = await coldMapFixture();
 		await builder.build("main.md");
 		expect(docIdPort.ensureCalls).toBe(0);
+	});
+
+	/**
+	 * The warm-up reads file CONTENT across yields, so an unrelated file can
+	 * vanish mid-scan and its read reject. That must cost nothing but that file:
+	 * a graph is not allowed to fail (or lose its pin) over it.
+	 */
+	it("WHEN an unrelated file cannot be read mid-warm-up THEN the build still renders the persisted pin", async () => {
+		const { builder } = await coldMapFixture({ unreadablePath: "vanished.md" });
+		const graph = (await builder.build("main.md"))?.graph;
+		expect(graph?.nodes.find((node) => node.path === "pinned.md")?.isCentral).toBe(true);
 	});
 });

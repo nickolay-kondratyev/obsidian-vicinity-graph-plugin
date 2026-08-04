@@ -4,7 +4,7 @@ id: nid_gbyqsuplz8b7pv0u5k34sdz1q_e
 title: pins & node overrides are invisible until the delayed docid-map warm-up
 status: closed
 deps: []
-links: [nid_qjsj5mth2phdqctbm0vfx9elw_e, nid_lwionnvohw9k58jw7a2dybht2_e]
+links: [nid_qjsj5mth2phdqctbm0vfx9elw_e, nid_lwionnvohw9k58jw7a2dybht2_e, nid_y081nezeucka9l0x3umebi5zo_e]
 created_iso: '2026-08-04T00:32:28Z'
 status_updated_iso: 2026-08-04T01:14:16Z
 type: bug
@@ -75,3 +75,33 @@ Known limit (accepted, pre-existing): a doc that appears AFTER the one full
 scan recorded its docid as a miss (e.g. arrives via sync) stays unresolved
 until restart — write intents map their own docid, so normal pin/override
 flows are unaffected.
+
+## Post-close review fixes (2026-08-04)
+
+An adversarial review of commit `59e26b5` found three issues; all fixed in a
+follow-up commit (tests first, each proven to fail without the fix):
+
+1. **A read failure during the warm-up killed the graph build.** `getDocId`
+   resolves an id by reading file CONTENT (`vault.cachedRead`), and the scan
+   spans yields — a file deleted mid-scan rejects. That rejection propagated
+   through `warmFor` → `build()` → `void runBuild()` (no catch), so the view
+   never published, and since nothing was cached it repeated on EVERY rebuild.
+   `DocIdMapWarmer` now treats an unreadable file as "no docid", logs the path
+   and walks on; a scan never rejects (documented contract). Because the sweep
+   DELETES on the same scan, a pass that could not read every file reports
+   `everyFileRead: false` and the sweep then drops NOTHING — a doc that could
+   not be read is not evidence that the doc is gone, and this keeps the previous
+   (abort-the-sweep) safety while still warming the map.
+2. **Two implementations of the same scan.** `OrphanSweeper` had its own
+   eligible-file walk with its own batch constant — the same knowledge, and the
+   failure policy above would have had to be written twice. `DocIdMapWarmer` is
+   now THE scanner (`warmFor` + `warmAll`), the sweeper only judges and drops.
+   Bonus: both share one instance, so the sweep and a build never scan
+   concurrently. `ChunkedWork.forEachChunked` fell out of use and was removed
+   (its yield-count tests moved onto `forEachChunkedUntil`).
+3. **The warmer was constructed inside `VicinityGraphBuilder`**, justified by a
+   comment asserting "ONE per plugin" — a fact the class cannot enforce and one
+   that blocked sharing it with the sweep. It is injected from `main.ts` now.
+
+Remaining, filed as `nid_y081nezeucka9l0x3umebi5zo_e` (not a defect): the first
+build after a restart can block on a full-vault content scan on large vaults.

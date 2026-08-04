@@ -126,8 +126,7 @@ async function setNumberInput(input: Locator, value: number): Promise<void> {
 }
 
 test("depth, pin, node cap and sizing all survive an Obsidian restart", async () => {
-	// Two Obsidian boots (initial + relaunch) plus the up-to-40s post-restart sweep
-	// poll exceed the default per-test budget.
+	// Two Obsidian boots (initial + relaunch) exceed the default per-test budget.
 	test.setTimeout(200_000);
 	await harness.remountGraphView();
 	await expect(noteNode(HUB)).toHaveAttribute("data-tier", "main");
@@ -168,12 +167,9 @@ test("depth, pin, node cap and sizing all survive an Obsidian restart", async ()
 	expect(view.sizing.metrics[OWN_FILE_SIZE_METRIC]?.weight).toBe(DISTINCTIVE_WEIGHT); // §11
 	expect(view.nodeCap).toBe(DISTINCTIVE_NODE_CAP); // §13
 
-	// §6 pin: the pin IS persisted (data.json pinned set), but a pinned central's
-	// docid→path resolution only warms after the delayed orphan sweep (15s), and a
-	// rebuild must then pick it up. So poll with remounts until the pinned-central
-	// status returns — this asserts the pin survives, on the product's real timing.
-	await expect(async () => {
-		await harness.remountGraphView();
-		await expect(noteNode(PIN_TARGET)).toHaveAttribute("data-tier", "pinned-central", { timeout: 3_000 });
-	}).toPass({ timeout: 40_000 });
+	// §6 pin: persisted in the data.json pinned set, docid-KEYED — so its path only
+	// resolves through a warmed path↔docid map. The FIRST build after a restart
+	// warms what it needs on demand (ticket nid_gbyqsuplz8b7pv0u5k34sdz1q_e), so
+	// this is a plain assertion: no polling, no waiting out the 15s orphan sweep.
+	await expect(noteNode(PIN_TARGET)).toHaveAttribute("data-tier", "pinned-central");
 });

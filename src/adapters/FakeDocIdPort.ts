@@ -12,6 +12,7 @@ export class FakeDocIdPort implements DocIdPort {
 
 	private readonly docidByPath: Map<string, string>;
 	private readonly unidentifiablePaths = new Set<string>();
+	private readonly unreadablePaths = new Set<string>();
 	private mintedCount = 0;
 
 	constructor(docidByPath: Readonly<Record<string, string>> = {}) {
@@ -19,11 +20,13 @@ export class FakeDocIdPort implements DocIdPort {
 	}
 
 	async getDocId(file: VaultFilePort): Promise<string | null> {
+		this.failIfUnreadable(file);
 		return this.docidByPath.get(file.path) ?? null;
 	}
 
 	async ensureDocId(file: VaultFilePort): Promise<string | null> {
 		this.ensureCalls += 1;
+		this.failIfUnreadable(file);
 		if (this.unidentifiablePaths.has(file.path)) {
 			return null;
 		}
@@ -45,5 +48,20 @@ export class FakeDocIdPort implements DocIdPort {
 	markUnidentifiable(path: string): void {
 		this.docidByPath.delete(path);
 		this.unidentifiablePaths.add(path);
+	}
+
+	/**
+	 * Test seeding: reading this path THROWS. Real shape — id-lib resolves an id
+	 * through `vault.cachedRead`, which rejects for a file deleted (or made
+	 * unreadable) after the caller took its `getFiles()` snapshot.
+	 */
+	markUnreadable(path: string): void {
+		this.unreadablePaths.add(path);
+	}
+
+	private failIfUnreadable(file: VaultFilePort): void {
+		if (this.unreadablePaths.has(file.path)) {
+			throw new Error(`FakeDocIdPort: unreadable path=[${file.path}]`);
+		}
 	}
 }

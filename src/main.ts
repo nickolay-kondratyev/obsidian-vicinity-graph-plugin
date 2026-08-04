@@ -8,6 +8,7 @@ import { CanvasParseCache } from "./adapters/CanvasParseCache";
 import { LiveLinkOccurrenceProvider } from "./adapters/LiveLinkOccurrenceProvider";
 import { VicinityGraphBuilder } from "./adapters/VicinityGraphBuilder";
 import { ObsidianLinkProvider } from "./adapters/ObsidianLinkProvider";
+import { DocIdMapWarmer } from "./persistence/DocIdMapWarmer";
 import { OrphanSweeper, SWEEP_DELAY_MS } from "./persistence/OrphanSweeper";
 import { PathDocIdMap } from "./persistence/PathDocIdMap";
 import { PersistenceServices } from "./persistence/PersistenceServices";
@@ -41,6 +42,12 @@ export default class VicinityGraphPlugin extends Plugin {
 
 	private docIdService!: DocIdService;
 	private readonly pathDocIdMap = new PathDocIdMap();
+	/**
+	 * ONE scanner for the whole plugin: the read path's on-demand warm-up and the
+	 * delayed sweep share it, so the two never scan the vault concurrently and a
+	 * docid resolved (or missed) by one is known to the other.
+	 */
+	private docIdMapWarmer!: DocIdMapWarmer;
 	/** Plugin-lived on purpose: canvas parses survive across graph rebuilds (mtime-keyed). */
 	private readonly canvasParseCache = new CanvasParseCache();
 	private sweepTimer: number | null = null;
@@ -70,6 +77,7 @@ export default class VicinityGraphPlugin extends Plugin {
 		await this.pluginDataStore.init();
 		this.settingsWrites = new SettingsWritePipeline(this.pluginDataStore, this.viewsRefresh, this.notices);
 		this.persistenceServices = new PersistenceServices(this.docIdService, this.pluginDataStore, this.pathDocIdMap);
+		this.docIdMapWarmer = new DocIdMapWarmer(this.app.vault, this.docIdService, this.pathDocIdMap);
 		this.graphBuilder = new VicinityGraphBuilder(
 			this.app.vault,
 			this.app.metadataCache,
@@ -77,6 +85,7 @@ export default class VicinityGraphPlugin extends Plugin {
 			this.canvasParseCache,
 			this.pluginDataStore,
 			this.pathDocIdMap,
+			this.docIdMapWarmer,
 		);
 
 		this.registerVaultLifecycleHandlers();
@@ -179,14 +188,14 @@ export default class VicinityGraphPlugin extends Plugin {
 	}
 
 	private scheduleOrphanSweep(): void {
-		const sweeper = new OrphanSweeper(this.app.vault, this.docIdService, this.pathDocIdMap, this.pluginDataStore);
+		const sweeper = new OrphanSweeper(this.docIdMapWarmer, this.pathDocIdMap, this.pluginDataStore);
 		this.sweepTimer = window.setTimeout(
 			() =>
 				void sweeper
 					.run()
 					.then((summary) => {
 						console.log(
-							`vicinity-graph: orphan sweep complete pinsRemoved=[${summary.pinsRemoved}] overridesRemoved=[${summary.overridesRemoved}]`,
+							`vicinity-graph: orphan sweep complete pinsRemoved=[${summary.pinsRemoved}] overridesRemoved=[${summary.overridesRemoved}] everyFileRead=[${summary.everyFileRead}]`,
 						);
 					})
 					.catch((error: unknown) => {
