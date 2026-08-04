@@ -65,3 +65,15 @@ SECOND ADVERSARIAL REVIEW (2026-08-04, third commit on this branch). Four issues
 Also: PersistenceServices.saveNodeOverride RENAMED saveNodeOverrideField - both override entry points are field-scoped, so both are named for it (the consuming ticket's API note is updated).
 
 Verified: npm run check clean, npm test 1509 passed, npm run test:e2e vicinityGraph.e2e.ts 25 passed.
+
+**2026-08-04T00:56:48Z**
+
+THIRD ADVERSARIAL REVIEW (2026-08-04, fourth commit on this branch). One behavioral fix, two stale docs; the rest of the round-1/2 work held up.
+
+1. **Non-finite pixel box: REFUSED, not degraded.** `clampNodeSizeOverridePx` turned `NaN` into `NODE_OVERRIDE_HARD_MIN_PX`, so an unmeasurable box from a future drag-resize would have persisted a 24x24 dot and been indistinguishable from a deliberate tiny node. It also contradicted the load path (which drops an unusable `sizePx`) and the repo's own `clampSizingNumber` rule (`NaN` -> the field's spec DEFAULT; an override has NO default — ABSENCE is what "no override" means). Now returns `NodeSizeOverridePx | undefined`; `saveNodeOverrideField` writes NOTHING for a refused box (no `data.json` write, previously stored box survives) and `parseNodeSizeOverride` stopped re-testing finiteness, so load and write ask ONE rule. +3 tests.
+2. `docs-internal/architecture-map.md` (the "orient here first" doc) still said `data.json` = "global settings + the pinned set" and `OrphanSweeper` "prunes stale pins" — rounds 1/2 updated CLAUDE.md and high-level-plan.md but missed it.
+3. `SettingsRootSnapshot`'s contract comment ("`PluginData` minus `version`/`pins`") now also excludes `nodeOverrides` — it is the definition a future settings slice gets added against.
+
+Reported but NOT fixed (deliberate, 80/20): a foreign docid of literally `__proto__` passes `DocPersistEligibility.isFilenameSafeDocId`, and `nodeOverrides` is the first docid-keyed OBJECT map here, so `map[docid] = entry` would mutate the prototype and silently lose that doc's override. Closing it properly means renaming `isFilenameSafeDocId` (behavior must match the name) plus caller/test ripple — out of proportion to a case no generated `docid_{24 base36}_e` can reach, and the blast radius is one entry.
+
+Verified: `npm run check` clean, `npm test` 1512 passed. Pure engine/persistence — `npm test` is the gate per CLAUDE.md (no view surface touched).

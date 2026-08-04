@@ -102,24 +102,34 @@ export class PluginDataStore {
 	/**
 	 * Sets ONE field of a doc's override, merged over the doc's stored entry
 	 * read FRESH here — never over an entry the caller composed from a rendered
-	 * graph (see {@link NodeOverrideChange}). The pixel box is clamped with the
-	 * SAME hard-sanity clamp the load path uses.
+	 * graph (see {@link NodeOverrideChange}). The pixel box goes through the SAME
+	 * hard-sanity rule the load path uses, which can also REFUSE it outright.
 	 */
 	async saveNodeOverrideField(docid: string, change: NodeOverrideChange): Promise<void> {
+		const written = PluginDataStore.storedForm(change);
+		if (written === undefined) {
+			// An unusable value (a non-finite pixel box) carries no intent, and an
+			// override has no default to fall back to — so it stores NOTHING and
+			// leaves the field as it was, exactly as the load path drops such a box.
+			return;
+		}
 		const stored = this.data.nodeOverrides[docid] ?? {};
-		await this.putNodeOverride(docid, { ...stored, ...PluginDataStore.storedForm(change) });
+		await this.putNodeOverride(docid, { ...stored, ...written });
 	}
 
 	/**
-	 * ONE change as its stored one-field shape — the only place a written
-	 * override value is normalized. The switch is exhaustive on purpose: a new
-	 * {@link NodeOverrideChange} variant fails to compile here (noImplicitReturns)
-	 * instead of silently landing under another field's key.
+	 * ONE change as its stored one-field shape, or `undefined` when the value is
+	 * unusable — the only place a written override value is normalized. The
+	 * switch is exhaustive on purpose: a new {@link NodeOverrideChange} variant
+	 * fails to compile here (noImplicitReturns) instead of silently landing
+	 * under another field's key.
 	 */
-	private static storedForm(change: NodeOverrideChange): NodeOverride {
+	private static storedForm(change: NodeOverrideChange): NodeOverride | undefined {
 		switch (change.field) {
-			case "sizePx":
-				return { sizePx: clampNodeSizeOverridePx(change.value) };
+			case "sizePx": {
+				const sizePx = clampNodeSizeOverridePx(change.value);
+				return sizePx === undefined ? undefined : { sizePx };
+			}
 			case "content":
 				return { content: change.value };
 		}

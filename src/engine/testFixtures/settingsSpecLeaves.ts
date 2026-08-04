@@ -43,7 +43,9 @@ export interface SettingsSpecLeaf {
 
 /**
  * The three persisted settings slices — {@link import("../../persistence/persistedShapes").PluginData}
- * minus `version`/`pins`, i.e. the same triple the view calls `SettingsWriteContext`.
+ * minus `version` and minus the docid-keyed maps (`pins`, `nodeOverrides`,
+ * which are facts about docs, not settings), i.e. the same triple the view
+ * calls `SettingsWriteContext`.
  * Restated here because the engine cannot import the view (layering) and must not
  * import persistence.
  */

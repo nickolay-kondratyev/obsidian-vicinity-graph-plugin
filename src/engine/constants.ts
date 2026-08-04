@@ -128,18 +128,30 @@ export const NODE_OVERRIDE_HARD_MIN_PX = 24;
 export const NODE_OVERRIDE_HARD_MAX_PX = 1200;
 
 /**
- * THE per-node size-override clamp, shared by the persistence LOAD path and the
- * override WRITE path (store choke point) — never a bespoke guard that could
- * drift. These numbers become node geometry (React-Flow box → libavoid
- * obstacle), so like every sizing clamp it must be total: `NaN` carries no
- * intent and degrades to the hard minimum (the load path never reaches this —
- * non-finite fields are dropped there — this is the write-path backstop).
+ * THE per-node size-override box rule, shared by the persistence LOAD path and
+ * the override WRITE path (store choke point) — never a bespoke guard that
+ * could drift. These numbers become node geometry (React-Flow box → libavoid
+ * obstacle), so a dimension that is NOT FINITE yields NO box (`undefined`)
+ * rather than some invented number.
+ *
+ * WHY-NOT degrade a non-finite dimension to a bound, the way
+ * {@link clampSizingNumber} degrades `NaN` to the field's spec DEFAULT: an
+ * override has no default to fall back to — ABSENCE is what "no override"
+ * means — so inventing 24px would persist a dot the user never asked for and
+ * make a bug indistinguishable from a deliberate tiny node. Refusing matches
+ * what the load path already does with an unusable `sizePx` (drops the field),
+ * so the two paths cannot disagree about which boxes exist.
+ *
+ * WHY `±Infinity` is refused HERE but accepted by a settings dial (where it
+ * means "as large/small as possible"): this value is not typed, it is MEASURED
+ * off a drag-resize — an unmeasurable box states nothing about intent.
  */
-export function clampNodeSizeOverridePx(size: NodeSizeOverridePx): NodeSizeOverridePx {
+export function clampNodeSizeOverridePx(size: NodeSizeOverridePx): NodeSizeOverridePx | undefined {
+	if (!Number.isFinite(size.widthPx) || !Number.isFinite(size.heightPx)) {
+		return undefined;
+	}
 	const clamp = (value: number): number =>
-		Number.isNaN(value)
-			? NODE_OVERRIDE_HARD_MIN_PX
-			: Math.min(NODE_OVERRIDE_HARD_MAX_PX, Math.max(NODE_OVERRIDE_HARD_MIN_PX, value));
+		Math.min(NODE_OVERRIDE_HARD_MAX_PX, Math.max(NODE_OVERRIDE_HARD_MIN_PX, value));
 	return { widthPx: clamp(size.widthPx), heightPx: clamp(size.heightPx) };
 }
 

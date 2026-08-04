@@ -129,6 +129,31 @@ describe("PluginDataStore node overrides", () => {
 			docid_a_e: { sizePx: { widthPx: NODE_OVERRIDE_HARD_MAX_PX, heightPx: NODE_OVERRIDE_HARD_MIN_PX } },
 		});
 	});
+
+	it("WHEN a saved pixel box is not finite THEN it is REFUSED, not degraded to a bound", async () => {
+		// Absence is what "no override" means, so an unmeasurable box has no
+		// number to fall back to — inventing the hard minimum would persist a dot.
+		const store = await initializedStore();
+		await store.saveNodeOverrideField("docid_a_e", { field: "sizePx", value: { widthPx: NaN, heightPx: 200 } });
+		expect(store.nodeOverrides()).toEqual({});
+	});
+
+	it("WHEN a non-finite box is saved over a stored one THEN the stored box SURVIVES", async () => {
+		const store = await initializedStore();
+		await store.saveNodeOverrideField("docid_a_e", SIZE_CHANGE);
+		await store.saveNodeOverrideField("docid_a_e", {
+			field: "sizePx",
+			value: { widthPx: Number.POSITIVE_INFINITY, heightPx: 200 },
+		});
+		expect(store.nodeOverrides()).toEqual({ docid_a_e: { sizePx: { widthPx: 320, heightPx: 180 } } });
+	});
+
+	it("WHEN a refused box is the only write THEN data.json is not rewritten", async () => {
+		const port = new FakePluginDataPort();
+		const store = await initializedStore(port);
+		await store.saveNodeOverrideField("docid_a_e", { field: "sizePx", value: { widthPx: NaN, heightPx: NaN } });
+		expect(port.saved).toBeNull();
+	});
 });
 
 /** Deleting a doc is not unpinning it — every docid-keyed map drops the doc at once. */

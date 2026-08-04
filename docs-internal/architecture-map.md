@@ -22,11 +22,15 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   (resolvedLinks + backlinks), the canvas parser (run for EVERY canvas),
   `VicinityGraphBuilder` (per-rebuild orchestration), docid ↔ path translation.
 - **`src/persistence/`** — JSON storage, and `data.json` (`PluginDataStore`) is
-  the ONLY store: global settings + the pinned set. **Nothing is per-document** —
-  the `doc-data/<docid>.json` store was deleted with the per-doc settings layer
-  (ticket `nid_ez38gf1mrdgh5kxedzrdicwzl_e`); stale dirs from older builds are
-  ignored, never read. Delayed, chunked `OrphanSweeper` prunes stale pins. Every
-  persisted shape carries a `version` field.
+  the ONLY store: global settings + two docid-keyed maps, the pinned set and
+  per-node overrides (`nodeOverrides`). **Nothing is per-document** — an
+  override is a global fact about a doc, like a pin; the `doc-data/<docid>.json`
+  store was deleted with the per-doc settings layer (ticket
+  `nid_ez38gf1mrdgh5kxedzrdicwzl_e`); stale dirs from older builds are ignored,
+  never read. Delayed, chunked `OrphanSweeper` prunes entries in EVERY
+  docid-keyed map whose doc no longer resolves, through the one
+  `PluginDataStore.forgetDocs` call the live `vault.on('delete')` handler also
+  uses. Every persisted shape carries a `version` field.
 - **`src/view/`** — React 18 mounted in an Obsidian `ItemView`. Rendering,
   toolbar controls, layout. `GraphViewController.ts` owns the rebuild pipeline
   `events → engine → structural diff → layout → React Flow` and is the **only**

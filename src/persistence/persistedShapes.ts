@@ -332,11 +332,14 @@ function parseNodeSizeOverride(raw: unknown): NodeSizeOverridePx | undefined {
 	if (!isRecord(raw)) {
 		return undefined;
 	}
-	const widthPx = numberOrUndefined(raw["widthPx"]);
-	const heightPx = numberOrUndefined(raw["heightPx"]);
-	if (widthPx === undefined || heightPx === undefined) {
+	const widthPx = raw["widthPx"];
+	const heightPx = raw["heightPx"];
+	if (typeof widthPx !== "number" || typeof heightPx !== "number") {
 		return undefined;
 	}
+	// "Is this number usable as node geometry" is the CLAMP's rule, asked once —
+	// re-testing finiteness here would let the load and write paths disagree
+	// about which boxes exist.
 	return clampNodeSizeOverridePx({ widthPx, heightPx });
 }
 
