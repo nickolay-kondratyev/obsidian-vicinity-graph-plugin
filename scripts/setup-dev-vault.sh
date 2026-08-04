@@ -370,13 +370,25 @@ for i in $(seq 1 "${FACING_MEMBER_COUNT}"); do
 		| write_if_missing "${VAULT}/facing/facing-m${i}.md"
 done
 
+# Each neighbour carries three headings: content-fit sizing renders a bare
+# one-line note at ~minPx (40px), and at that scale the 12-node blob packs so
+# tightly against the box corner that libavoid's cheapest pin for one edge is a
+# WRAPPED border (the wrong-side wrap itself is a tracked routing follow-up).
+# Three outline entries keep each neighbour at ~93px — the scale the crowd
+# formation and the facing-side guard were tuned around.
+FACING_NEIGHBOUR_BODY_PADDING='
+# Alpha
+
+## Beta
+
+## Gamma'
 for i in $(seq 1 "${FACING_NEIGHBOUR_COUNT}"); do
 	name="facing-near${i}"
 	if [[ "${name}" == "${FACING_CLUSTER_HUB}" ]]; then
-		printf 'Facing neighbour %d — the cluster mini-hub the other neighbours link to.\n' "${i}" \
+		printf 'Facing neighbour %d — the cluster mini-hub the other neighbours link to.\n%s\n' "${i}" "${FACING_NEIGHBOUR_BODY_PADDING}" \
 			| write_if_missing "${VAULT}/${name}.md"
 	else
-		printf 'Facing neighbour %d (ungrouped root note). Cluster link [[%s]].\n' "${i}" "${FACING_CLUSTER_HUB}" \
+		printf 'Facing neighbour %d (ungrouped root note). Cluster link [[%s]].\n%s\n' "${i}" "${FACING_CLUSTER_HUB}" "${FACING_NEIGHBOUR_BODY_PADDING}" \
 			| write_if_missing "${VAULT}/${name}.md"
 	fi
 done

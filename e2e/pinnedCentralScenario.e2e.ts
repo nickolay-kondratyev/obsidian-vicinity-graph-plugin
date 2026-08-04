@@ -30,10 +30,18 @@ test.describe.configure({ mode: "serial" });
  * frontmatter key): a note can only be PINNED once it has a stable docid.
  * Seeding models the normal steady state (a note that already participates in
  * the graph), and avoids an id-minting frontmatter write on pin.
+ *
+ * The hub and the pin target carry three headings each: content-fit sizing
+ * gives a bare one-line note ~minPx (40px) — and an empty MAIN only the 82px
+ * central prominence floor — both below the hover pin chip's 72px CONTENT-box
+ * container threshold (`graph-view.css` — border-box 90px after the node's
+ * padding+border). Three outline entries size a node to 93px border-box
+ * (75px content), so `clickPin` stays a plain hover-and-click. The hidden chip
+ * on small/default-central nodes itself is a tracked UX follow-up.
  */
 const SCENARIO_FIXTURES: Record<string, string> = {
-	"sc_hub.md": "---\nid: docid_scenariohub_e\n---\nScenario MAIN — links out to [[sc_x]].\n",
-	"sc_x.md": "---\nid: docid_scenariox_e\n---\nPinned-central fixture — links out to [[sc_x1]].\n",
+	"sc_hub.md": "---\nid: docid_scenariohub_e\n---\nScenario MAIN — links out to [[sc_x]].\n\n# Alpha\n\n## Beta\n\n## Gamma\n",
+	"sc_x.md": "---\nid: docid_scenariox_e\n---\nPinned-central fixture — links out to [[sc_x1]].\n\n# Alpha\n\n## Beta\n\n## Gamma\n",
 	"sc_x1.md": "Chain hop 1 → [[sc_x2]].\n",
 	"sc_x2.md": "Chain hop 2 → [[sc_x3]].\n",
 	"sc_x3.md": "Chain leaf.\n",
