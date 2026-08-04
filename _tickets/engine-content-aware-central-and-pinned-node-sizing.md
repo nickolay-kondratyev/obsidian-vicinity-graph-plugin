@@ -1,17 +1,18 @@
 ---
 id: nid_cx5zoz7ptucg9nxalibv0mbjb_e
-title: "engine: content-aware central and pinned node sizing"
-status: open
+title: 'engine: content-aware central and pinned node sizing'
+status: in_progress
 deps: [nid_o5hz7ilcauwe2acqdfh6pcuam_e]
-links: [nid_o5hz7ilcauwe2acqdfh6pcuam_e, nid_lwionnvohw9k58jw7a2dybht2_e, nid_qjsj5mth2phdqctbm0vfx9elw_e, nid_9hx6okamx3yt0rg9iad2f4151_e, nid_kyowb4v8v51nslbicl4szgcd5_e, nid_jcxzhexfaksge2arjzca3w7ff_e]
-created_iso: 2026-08-03T23:48:47Z
-status_updated_iso: 2026-08-03T23:48:47Z
+links: [nid_o5hz7ilcauwe2acqdfh6pcuam_e, nid_lwionnvohw9k58jw7a2dybht2_e, nid_qjsj5mth2phdqctbm0vfx9elw_e,
+  nid_9hx6okamx3yt0rg9iad2f4151_e, nid_kyowb4v8v51nslbicl4szgcd5_e, nid_jcxzhexfaksge2arjzca3w7ff_e]
+created_iso: '2026-08-03T23:48:47Z'
+status_updated_iso: '2026-08-04T22:37:29Z'
 type: feature
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
 tags: [sizing, engine]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-4
 ---
-
 Part of the node-sizing rethink (docs-internal/plan/node-sizing-rethink.md, origin nid_kyowb4v8v51nslbicl4szgcd5_e).
 
 Today src/engine/NodeSizer.ts gives every central (MAIN + pinned) CENTRAL_SIZE_SCORE (=1.0 -> maxPx) regardless of content, so an empty central/pinned note renders huge. Per the decided direction (see decide ticket answers for Q1/Q2):
