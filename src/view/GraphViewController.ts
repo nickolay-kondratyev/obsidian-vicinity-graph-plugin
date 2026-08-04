@@ -275,6 +275,9 @@ export class GraphViewController {
 		let groupDimensions: ReadonlyMap<string, Dimensions>;
 		if (decision === "reuse-layout") {
 			// No structural change: keep positions and group sizes, refresh node data only.
+			// Keeping the group sizes is exactly why a SHRINK leaves its folder-group box
+			// oversized until the next relayout — an accepted limitation, reasoned out in
+			// `layoutFit.ts` (ticket `nid_brzatca9hp65cg6w3s4xz27k6_e`).
 			console.debug("vicinity-graph: structural diff skipped elk layout (data-only refresh)");
 			positions = this.positions;
 			groupDimensions = this.groupDimensions;
