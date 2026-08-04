@@ -1,17 +1,17 @@
 ---
 id: nid_y081nezeucka9l0x3umebi5zo_e
-title: "first graph build after restart can block on a full-vault content scan"
-status: open
+title: first graph build after restart can block on a full-vault content scan
+status: in_progress
 deps: []
 links: [nid_gbyqsuplz8b7pv0u5k34sdz1q_e]
-created_iso: 2026-08-04T01:39:54Z
-status_updated_iso: 2026-08-04T01:39:54Z
+created_iso: '2026-08-04T01:39:54Z'
+status_updated_iso: '2026-08-04T22:15:17Z'
 type: task
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
 tags: [persistence, perf]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-2
 ---
-
 The cold-map fix (ticket nid_gbyqsuplz8b7pv0u5k34sdz1q_e, commit 59e26b5) made
 `VicinityGraphBuilder.build` AWAIT `DocIdMapWarmer.warmFor(...)` before assembling the
 request (`src/adapters/VicinityGraphBuilder.ts`, `src/persistence/DocIdMapWarmer.ts`).
@@ -49,4 +49,4 @@ No behavior is WRONG today — this is a first-paint latency ceiling on large va
 On a vault with thousands of notes and at least one pinned doc, the first graph build after a restart is not visibly delayed by the docid warm-up (measured, not assumed), and pins/overrides still render correctly on the first build the user sees.
 
 --------------------------------------------------------------------------------
-HUMAN DECISION: This is only for the initial load right? I am thinking for now its acceptable to await on graph to load, It would be good to have 'loading' show up in such case. BUT only if its very straightforward and doesnt add unecessary complications. I havent found this to be an issue and I have been using it on large vaults. 
+HUMAN DECISION: This is only for the initial load right? I am thinking for now its acceptable to await on graph to load, It would be good to have 'loading' show up in such case. BUT only if its very straightforward and doesnt add unecessary complications. I havent found this to be an issue and I have been using it on large vaults.
