@@ -21,8 +21,6 @@ import type {
 	ForceLayoutSettings,
 	NodeExclusionSettings,
 	NodePreviewPreference,
-	SizeMetricId,
-	SizingMetricSetting,
 	ViewSettings,
 } from "./types";
 
@@ -56,11 +54,12 @@ export interface DepthSpec {
 	readonly pinnedLinkDepthIn: BoundedNumberSpec;
 }
 
+/**
+ * The two node-size CLAMPS. The metric-dial leaves (`metrics`, `metricWeight`,
+ * `depthDecayK`) were removed with the dials themselves (node-sizing rethink,
+ * decided 2026-08-03): default size is content-fit, bounded by this pair.
+ */
 export interface SizingSpec {
-	readonly metrics: Readonly<Record<SizeMetricId, DefaultSpec<SizingMetricSetting>>>;
-	/** Bounds for EVERY metric's weight (the per-metric spec above carries only its default). */
-	readonly metricWeight: BoundedNumberSpec;
-	readonly depthDecayK: BoundedNumberSpec;
 	readonly minPx: BoundedNumberSpec;
 	readonly maxPx: BoundedNumberSpec;
 }
@@ -102,9 +101,9 @@ export interface SettingsSpec {
  * The error names the offending key, e.g.
  *   Type 'true' is not assignable to type '"embedDepthOut"'.
  *
- * NOTE: only TOP-LEVEL keys are compared. {@link SizingSpec} deliberately carries
- * an extra `metricWeight` (bounds shared by every metric's weight) with no
- * `SizingSettings` counterpart, so a leaf-level guard would false-positive.
+ * NOTE: only TOP-LEVEL keys are compared (a leaf-level guard has false-positived
+ * before, when {@link SizingSpec} carried a shared-bounds leaf with no settings
+ * counterpart).
  *
  * WHY-NOT a generic `assertTotal<A, B>()` helper for the idiom: it would make the
  * compiler report the helper's type parameters instead of the missing key name,
@@ -136,9 +135,6 @@ export const _assertNoOrphanSpecField: OrphanSpecField extends never ? true : Or
  * nonsensical value. `min 0` = central only (no expansion that direction).
  */
 const DEPTH_STEPPER_BOUNDS = { min: 0, max: 5, step: 1 } as const;
-
-/** Default weight of every sizing metric (equal-weight composition until a metric slider ships). */
-const DEFAULT_METRIC_WEIGHT = 1;
 
 /**
  * Node pixel-size input bounds, shared by `minPx` and `maxPx`. These numbers
@@ -223,35 +219,11 @@ export const SETTINGS_SPEC: SettingsSpec = {
 		 * into a hairball the moment it is switched on.
 		 */
 		showCrossLinks: { default: false },
+		/**
+		 * The content-fit clamps (the only sizing dials — the metric dials were
+		 * removed, node-sizing rethink 2026-08-03).
+		 */
 		sizing: {
-			/** `own-file-size` is the only default-on metric (step doc); the other four ship OFF. */
-			metrics: {
-				"own-file-size": { default: { enabled: true, weight: DEFAULT_METRIC_WEIGHT } },
-				"total-linker-size": { default: { enabled: false, weight: DEFAULT_METRIC_WEIGHT } },
-				"backlink-count": { default: { enabled: false, weight: DEFAULT_METRIC_WEIGHT } },
-				"outlink-count": { default: { enabled: false, weight: DEFAULT_METRIC_WEIGHT } },
-				"depth-decay": { default: { enabled: false, weight: DEFAULT_METRIC_WEIGHT } },
-			},
-			/**
-			 * Relative weight of one metric in the weighted average. Only RATIOS
-			 * matter (the composition divides by the total weight), so the range
-			 * only has to span "ignored" to "dominant": `min 0` mutes a metric
-			 * without untoggling it, and at `max 100` a metric already outvotes an
-			 * equal-weight peer 100:1 — past that nothing on screen changes, while
-			 * an unbounded weight makes `weightedSum / totalWeight` `Infinity/Infinity`
-			 * = `NaN` and poisons every node's size.
-			 */
-			metricWeight: { default: DEFAULT_METRIC_WEIGHT, min: 0, max: 100, step: 0.5 },
-			/**
-			 * `k` of depth-decay `1 / (1 + k * depth)`.
-			 *
-			 * `min 0` is a CORRECTNESS bound, not taste: the denominator vanishes at
-			 * `k = -1 / depth` (`k = -1` at depth 1 → `Infinity` `sizePx`), and a
-			 * `k >= 0` keeps it `>= 1` at every depth. `k = 0` disables the decay
-			 * (every node scores 1). `max 10`: a depth-1 node already decays to
-			 * 1/11 of the central there, so a steeper curve is indistinguishable.
-			 */
-			depthDecayK: { default: 1, min: 0, max: 10, step: 0.5 },
 			minPx: { default: 40, ...NODE_SIZE_PX_BOUNDS },
 			maxPx: { default: 160, ...NODE_SIZE_PX_BOUNDS },
 		},

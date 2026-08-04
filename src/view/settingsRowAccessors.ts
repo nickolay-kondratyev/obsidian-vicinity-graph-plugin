@@ -1,4 +1,4 @@
-import type { DepthSettings, ForceLayoutSettings, NodePreviewPreference, SizeMetricId } from "../engine";
+import type { DepthSettings, ForceLayoutSettings, NodePreviewPreference } from "../engine";
 import {
 	FORCE_LAYOUT_RANGES,
 	SETTINGS_SPEC,
@@ -119,7 +119,7 @@ export class SettingsRowAccessors {
 		};
 	}
 
-	/** One sizing number (min/max px, depth decay k). Clamped exactly as `planSettingsWrite` clamps it. */
+	/** One sizing clamp (min/max node px). Clamped exactly as `planSettingsWrite` clamps it. */
 	static sizingNumber(field: SizingNumberField): SettingsTypedNumberAccessor {
 		const settlesAt = (value: number): number => clampSizingNumber(field, value);
 		return {
@@ -128,26 +128,6 @@ export class SettingsRowAccessors {
 			settlesAt,
 			accept: parseSizingInput,
 			interaction: (value) => ({ kind: "global-sizing-number", field, value: settlesAt(value) }),
-		};
-	}
-
-	/** Whether one size metric contributes at all. */
-	static metricEnabled(metric: SizeMetricId): SettingsValueAccessor<boolean> {
-		return {
-			read: (state) => state.globalView.sizing.metrics[metric].enabled,
-			interaction: (enabled) => ({ kind: "global-sizing-metric-enabled", metric, enabled }),
-		};
-	}
-
-	/** One size metric's contribution weight — bounded by the shared `metricWeight` range. */
-	static metricWeight(metric: SizeMetricId): SettingsTypedNumberAccessor {
-		const settlesAt = (value: number): number => clampSizingNumber("metricWeight", value);
-		return {
-			bounds: SIZING_RANGES.metricWeight,
-			read: (state) => state.globalView.sizing.metrics[metric].weight,
-			settlesAt,
-			accept: parseSizingInput,
-			interaction: (weight) => ({ kind: "global-sizing-metric-weight", metric, weight: settlesAt(weight) }),
 		};
 	}
 

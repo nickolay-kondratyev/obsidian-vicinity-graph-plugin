@@ -3,13 +3,12 @@ import type { DocId, VaultPath } from "./types";
 /**
  * The facts the deterministic priority chain ranks on. Callers ranking
  * entities that predate a build (e.g. pinned descriptors during settings
- * resolution) supply `minDepth: 0` / `sizeScore` of a central — the chain then
- * effectively collapses to pin recency → docid.
+ * resolution) supply `minDepth: 0` — the chain then effectively collapses to
+ * pin recency → docid.
  */
 export interface PriorityRankable {
 	readonly path: VaultPath;
 	readonly minDepth: number;
-	readonly sizeScore: number;
 	/** Undirected graph distance to MAIN; undefined when disconnected from MAIN. */
 	readonly distanceToMain?: number;
 	/** Epoch ms; present only on pinned entities. */
@@ -22,9 +21,14 @@ export interface PriorityRankable {
  * implementation) used by BOTH graph truncation and multi-pin conflict
  * resolution in the view-settings cascade:
  *
- *   lower minDepth → higher size score → closer to MAIN (connected beats
- *   disconnected) → pin recency (most recent wins; pinned beats unpinned) →
+ *   lower minDepth → closer to MAIN (connected beats disconnected) →
+ *   pin recency (most recent wins; pinned beats unpinned) →
  *   docid (lexicographic; present beats absent) → path (lexicographic).
+ *
+ * The "higher size score" level between minDepth and distance-to-MAIN was
+ * REMOVED with the sizing metrics (node-sizing rethink, 2026-08-03): with
+ * size now content-fit, a hidden relevance score would have ranked truncation
+ * by how VERBOSE a note is, so distance-to-MAIN takes over as the tiebreak.
  *
  * The final path comparison is a determinism guarantee beyond the step-doc
  * chain: ordinary (non-pinned) nodes carry no docid, and "same input → same
@@ -34,7 +38,6 @@ export class NodePriorityChain {
 	static compare(a: PriorityRankable, b: PriorityRankable): number {
 		return (
 			ascending(a.minDepth, b.minDepth) ||
-			descending(a.sizeScore, b.sizeScore) ||
 			presentFirst(a.distanceToMain, b.distanceToMain, ascending) ||
 			presentFirst(a.pinTimestamp, b.pinTimestamp, descending) ||
 			presentFirst(a.docid, b.docid, lexicographic) ||

@@ -1,6 +1,6 @@
 import { PluginSettingTab, Setting } from "obsidian";
 import type { App, TextAreaComponent, TextComponent, ToggleComponent } from "obsidian";
-import type { DepthSettings, ForceLayoutSettings, SizeMetricId } from "../engine";
+import type { DepthSettings, ForceLayoutSettings } from "../engine";
 import { NODE_PREVIEW_PREFERENCES } from "../engine";
 import type VicinityGraphPlugin from "../main";
 import type { PluginDataStore } from "../persistence/PluginDataStore";
@@ -247,9 +247,6 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 		switch (row.control.kind) {
 			case "depth":
 				this.addSlider(container, row, SettingsRowAccessors.depth(row.control.field), state);
-				return;
-			case "sizing-metric":
-				this.addSizingMetricRow(container, row, row.control.metric, state);
 				return;
 			case "sizing-number":
 				this.addSizingNumber(container, row, row.control.field, state);
@@ -503,63 +500,6 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 		});
 	}
 
-	/**
-	 * One metric row: an enable toggle plus the weight input that toggle governs, in
-	 * a single `Setting` (they are one decision, not two).
-	 *
-	 * WHY the weight is disabled imperatively rather than by `disabledWhen`: it is
-	 * the SECOND control on this row, and `disabledWhen` is a ROW-level declaration.
-	 * A row whose whole control is inert (exclusion patterns) is the declarative
-	 * case; a control governed by its own row-mate is this one.
-	 */
-	private addSizingMetricRow(
-		container: HTMLElement,
-		row: SettingsRow,
-		metric: SizeMetricId,
-		state: SettingsRowState,
-	): void {
-		const enabledAccessor = SettingsRowAccessors.metricEnabled(metric);
-		const weightAccessor = SettingsRowAccessors.metricWeight(metric);
-		const enabledNow = enabledAccessor.read(state);
-		// The weight input this row's toggle enables and disables. Definite
-		// assignment, not an optional: `Setting.addText` below invokes its builder
-		// SYNCHRONOUSLY, so the input exists before the row is ever on screen — and
-		// the toggle handler can only run once it is.
-		let weightInput!: TextComponent;
-		VicinityGraphSettingTab.row(container, row)
-			.addToggle((toggle) => {
-				// Two controls share this row, so the row name alone would not
-				// distinguish them — hence the declared role suffix.
-				VicinityGraphSettingTab.nameToggle(toggle, SettingsRowNames.role(row, "enabled"));
-				toggle.setValue(enabledNow).onChange((enabled) => {
-					// Flipped BEFORE the write is awaited so the row answers the click
-					// immediately; this cannot paint a stale value, because the flip happens
-					// in click order — the newest click paints last.
-					weightInput.setDisabled(!enabled);
-					// Pending typed edits first so this row's own weight, still inside the
-					// debounce window, is not left behind the enable flag it belongs to.
-					return this.settlePendingWrites().then(() => this.writes.apply(enabledAccessor.interaction(enabled)));
-				});
-			})
-			.addText((text) => {
-				weightInput = text;
-				const weightName = SettingsRowNames.role(row, "weight");
-				text.inputEl.type = "number";
-				VicinityGraphSettingTab.applyBounds(text.inputEl, weightAccessor.bounds);
-				text.setValue(String(weightAccessor.read(state)));
-				text.setDisabled(!enabledNow);
-				VicinityGraphSettingTab.nameControl(text.inputEl, weightName);
-				this.flushOnBlur(text.inputEl);
-				text.onChange((raw) => {
-					const weight = weightAccessor.accept(raw);
-					if (weight === undefined) {
-						this.debounced.drop(weightName);
-						return;
-					}
-					this.debounced.schedule(weightName, (writer) => writer.apply(weightAccessor.interaction(weight)));
-				});
-			});
-	}
 
 	/**
 	 * One sizing number input. Pure obsidian glue: {@link parseSizingInput} decides

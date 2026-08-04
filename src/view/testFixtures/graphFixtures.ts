@@ -21,7 +21,6 @@ export function makeNode(overrides: Partial<GraphNode> = {}): GraphNode {
 		attachments: [],
 		outline: [],
 		imagePrecedesOutline: false,
-		sizeScore: 0.5,
 		sizePx: 100,
 		...overrides,
 	};
@@ -46,14 +45,6 @@ function makeViewSettings(): ViewSettings {
 		nodePreviewPreference: "auto",
 		showCrossLinks: false,
 		sizing: {
-			metrics: {
-				"own-file-size": { enabled: true, weight: 1 },
-				"total-linker-size": { enabled: false, weight: 1 },
-				"backlink-count": { enabled: false, weight: 1 },
-				"outlink-count": { enabled: false, weight: 1 },
-				"depth-decay": { enabled: false, weight: 1 },
-			},
-			depthDecayK: 1,
 			minPx: 40,
 			maxPx: 160,
 		},

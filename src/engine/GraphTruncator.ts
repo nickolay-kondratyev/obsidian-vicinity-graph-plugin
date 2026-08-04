@@ -1,11 +1,9 @@
 import type { TraversedNode } from "./VicinityTraversal";
 import { NodePriorityChain } from "./NodePriorityChain";
-import type { NodeSize } from "./NodeSizer";
 import type { DirectedLink, FolderPath, VaultPath } from "./types";
 
 export interface TruncationInput {
 	readonly nodes: ReadonlyMap<VaultPath, TraversedNode>;
-	readonly sizes: ReadonlyMap<VaultPath, NodeSize>;
 	readonly edges: readonly DirectedLink[];
 	readonly mainPath: VaultPath;
 	/** Hard cap on the number of NON-central nodes kept. */
@@ -30,9 +28,7 @@ export class GraphTruncator {
 	static truncate(input: TruncationInput): TruncationResult {
 		const distances = undirectedDistancesFrom(input.mainPath, input.edges);
 		const candidates = [...input.nodes.values()].filter((node) => !node.isCentral);
-		candidates.sort((a, b) =>
-			NodePriorityChain.compare(toRankable(a, input, distances), toRankable(b, input, distances)),
-		);
+		candidates.sort((a, b) => NodePriorityChain.compare(toRankable(a, distances), toRankable(b, distances)));
 		const visiblePaths = new Set<VaultPath>();
 		for (const node of input.nodes.values()) {
 			if (node.isCentral) {
@@ -54,11 +50,10 @@ export class GraphTruncator {
 	}
 }
 
-function toRankable(node: TraversedNode, input: TruncationInput, distances: ReadonlyMap<VaultPath, number>) {
+function toRankable(node: TraversedNode, distances: ReadonlyMap<VaultPath, number>) {
 	return {
 		path: node.path,
 		minDepth: node.minDepth,
-		sizeScore: input.sizes.get(node.path)?.sizeScore ?? 0,
 		distanceToMain: distances.get(node.path),
 		// Pinned nodes are centrals (cap-exempt), so recency never arbitrates here;
 		// the pin-recency level of the shared chain serves the settings cascade.

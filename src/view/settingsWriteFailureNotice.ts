@@ -127,11 +127,6 @@ export class SettingsWriteFailureNotice {
 				return { kind: "show-cross-links" };
 			case "global-sizing-number":
 				return { kind: "sizing-number", field: interaction.field };
-			// One ROW carries both of a metric's controls (its enable flag and the weight
-			// that flag governs), so both interactions name the same row.
-			case "global-sizing-metric-enabled":
-			case "global-sizing-metric-weight":
-				return { kind: "sizing-metric", metric: interaction.metric };
 			case "global-force-layout-field":
 				return { kind: "force-layout", field: interaction.field };
 			case "global-exclusion-enabled":
@@ -143,8 +138,8 @@ export class SettingsWriteFailureNotice {
 
 	/**
 	 * A control's identity as a lookup key: its kind, plus the field it names where the
-	 * kind alone would collide (three depths, three sizing numbers, seven force-layout
-	 * sliders, five metrics). Exhaustive and closed by {@link unhandledRowControl}, so a
+	 * kind alone would collide (three depths, two sizing numbers, seven force-layout
+	 * sliders). Exhaustive and closed by {@link unhandledRowControl}, so a
 	 * new field-bearing control kind cannot silently key on its bare kind and label
 	 * every one of its rows with the first one's copy.
 	 *
@@ -160,8 +155,6 @@ export class SettingsWriteFailureNotice {
 		switch (control.kind) {
 			case "depth":
 				return `depth:${control.field}`;
-			case "sizing-metric":
-				return `sizing-metric:${control.metric}`;
 			case "sizing-number":
 				return `sizing-number:${control.field}`;
 			case "force-layout":

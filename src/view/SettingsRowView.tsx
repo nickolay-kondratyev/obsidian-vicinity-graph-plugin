@@ -1,6 +1,6 @@
 import type { FocusEventHandler, KeyboardEventHandler, ReactElement } from "react";
 import { useId, useState } from "react";
-import type { DepthSettings, ForceLayoutSettings, NodePreviewPreference, SizeMetricId } from "../engine";
+import type { DepthSettings, ForceLayoutSettings, NodePreviewPreference } from "../engine";
 import { NODE_PREVIEW_PREFERENCES } from "../engine";
 import { useControlsActions } from "./ControlsActionsContext";
 import { DepthStepper } from "./DepthStepper";
@@ -64,8 +64,6 @@ export function SettingsRowView({
 	switch (row.control.kind) {
 		case "depth":
 			return <DepthRow row={row} field={row.control.field} state={state} />;
-		case "sizing-metric":
-			return <SizingMetricRow row={row} metric={row.control.metric} state={state} />;
 		case "sizing-number":
 			return <SizingNumberRow row={row} field={row.control.field} state={state} />;
 		case "node-preview":
@@ -211,11 +209,10 @@ interface CommittedNumberFieldProps {
  * to blank on the way to a new number. Typing is now the user's alone; the store
  * answers only once they leave the field.
  *
- * A HOOK and not a component because the panel's typed fields do not share markup: one
- * is a label beside a narrow field ({@link NumberRow}), the other sits beside its
- * metric's enable toggle and is disabled with it ({@link SizingMetricRow}). Only the
- * PROTOCOL is common, so only the protocol is shared — a component serving both would
- * need a layout switch, and layout is exactly what this module owns per row kind.
+ * A HOOK and not a component so a typed field with its OWN markup (the removed
+ * metric-weight field was one) shares the PROTOCOL without forcing a layout
+ * switch into a shared component — layout is exactly what this module owns per
+ * row kind. Today {@link NumberRow} is its only consumer.
  *
  * A refusal belongs to a COMMIT, not to the current state of the fields, so it can go
  * stale in ONE direction: repairing the sibling bound in the other row does not clear
@@ -338,58 +335,6 @@ function DepthRow({
 			value={accessor.read(state)}
 			onChange={(value) => actions.applySettings(accessor.interaction(value))}
 		/>
-	);
-}
-
-/**
- * One metric: the enable toggle and the weight it governs — one decision, two controls.
- *
- * The weight is a typed field like any other, so it commits ON BLUR through the shared
- * protocol; it keeps its own markup because it shares a line with the toggle and is
- * disabled with it, which the label-beside-field shape cannot express.
- */
-function SizingMetricRow({
-	row,
-	metric,
-	state,
-}: {
-	readonly row: SettingsRow;
-	readonly metric: SizeMetricId;
-	readonly state: SettingsRowState;
-}): ReactElement {
-	const weightAccessor = SettingsRowAccessors.metricWeight(metric);
-	const [enabled, requestEnabled] = useSettingsValue(SettingsRowAccessors.metricEnabled(metric), state);
-	const [weight, requestWeight] = useSettingsNumber(weightAccessor, state);
-	// No cross-field rule: a weight is judged entirely by what its accessor accepts.
-	const weightField = useNumberFieldCommit(weightAccessor, NO_CROSS_FIELD_RULE, weight, requestWeight);
-	return (
-		// The same block as a number row: the metric is a single flex LINE, so a refusal
-		// has to sit under it rather than compete with the field for that line.
-		<div className="vicinity-graph-number-row-block">
-			<div className="vicinity-graph-sizing__metric">
-				<label className="vicinity-graph-sizing__toggle">
-					<input
-						type="checkbox"
-						aria-label={SettingsRowNames.role(row, "enabled")}
-						checked={enabled}
-						onChange={(event) => requestEnabled(event.target.checked)}
-					/>
-					<span>{row.label}</span>
-				</label>
-				<input
-					key={weightField.key}
-					type="number"
-					className="vicinity-graph-sizing__weight"
-					aria-label={SettingsRowNames.role(row, "weight")}
-					title="Weight"
-					{...weightField.inputProps}
-					// AFTER the spread: this row's disabled state is its own, and must win
-					// over anything the shared protocol grows later.
-					disabled={!enabled}
-				/>
-			</div>
-			{weightField.refusal}
-		</div>
 	);
 }
 

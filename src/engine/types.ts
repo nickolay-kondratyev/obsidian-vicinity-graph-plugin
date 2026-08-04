@@ -140,15 +140,20 @@ export interface GraphNode {
 	 * it into "outline or thumbnail" (see `FileMetadata.imagePrecedesOutline`).
 	 */
 	readonly imagePrecedesOutline: boolean;
-	/** Composed, normalized sizing score in [0, 1]. Centrals are pinned to 1. */
-	readonly sizeScore: number;
-	/** Pixel size mapped from {@link sizeScore}; the stable field step-04 diffs against. */
+	/**
+	 * Content-fit node height (px): the estimate of what this node SHOWS (title
+	 * lines, renderable outline entries or thumbnail), clamped into the
+	 * `sizing.minPx..maxPx` dials, with centrals floored at a modest prominence
+	 * point of that range (never forced to maxPx — node-sizing rethink Q2). The
+	 * stable field step-04 diffs against. Computed by
+	 * {@link import("./NodeSizer").NodeSizer}.
+	 */
 	readonly sizePx: number;
 	/**
 	 * The user's per-node override, echoed from the request (docid → path
 	 * translated by the adapter) so the view applies it without re-mapping
-	 * identities. Q4 (decided): overrides move PIXELS only — {@link sizeScore}
-	 * stays pure relevance and keeps ranking truncation.
+	 * identities. Q4 (decided): overrides move PIXELS only — truncation ranking
+	 * (`NodePriorityChain`) is unaffected by a manual resize.
 	 */
 	readonly override?: NodeOverride;
 }
@@ -196,8 +201,9 @@ export interface GraphEdge extends DirectedLink {
  * - `"outline"` — prefer the outline, overriding document position.
  * - `"image"` — prefer the first image, overriding document position.
  *
- * A view-layer knob like {@link ViewSettings.outlineMaxDepth}: the engine carries
- * it and reports the facts, the view's `nodePreviewChoice` applies it.
+ * The precedence rule itself is engine-owned (`nodePreviewKind`) because the
+ * content-fit sizer needs the same decision the view renders by; the view's
+ * mapping calls the same function.
  */
 export type NodePreviewPreference = "auto" | "outline" | "image";
 
@@ -375,24 +381,16 @@ export const CHANNEL_DEPTH_FIELD: Readonly<Record<Channel, keyof ChannelDepths>>
 	incoming: "linkDepthIn",
 };
 
-/** Toggle + weight of one sizing metric. */
-export interface SizingMetricSetting {
-	readonly enabled: boolean;
-	readonly weight: number;
-}
-
-export type SizeMetricId =
-	| "own-file-size"
-	| "total-linker-size"
-	| "backlink-count"
-	| "outlink-count"
-	| "depth-decay";
-
-/** Composable sizing configuration: each metric independently toggled/weighted. */
+/**
+ * Node sizing configuration: the CLAMPS on the content-fit size.
+ *
+ * The metric dials (own-file-size, total-linker-size, backlink-count,
+ * outlink-count, depth-decay) were REMOVED outright (owner decision 2026-08-03,
+ * node-sizing rethink Q1): a node's default size fits the content it actually
+ * shows — title, renderable outline lines, or thumbnail — and these two dials
+ * bound that fit. See {@link import("./NodeSizer").NodeSizer}.
+ */
 export interface SizingSettings {
-	readonly metrics: Readonly<Record<SizeMetricId, SizingMetricSetting>>;
-	/** `k` in the depth-decay formula `1 / (1 + k * depth)`. */
-	readonly depthDecayK: number;
 	readonly minPx: number;
 	readonly maxPx: number;
 }

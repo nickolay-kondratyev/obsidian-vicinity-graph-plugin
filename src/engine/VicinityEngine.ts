@@ -47,7 +47,7 @@ export interface GraphBuildRequest {
 	 * Per-node user overrides, already docid→path translated by the adapter
 	 * (like the pinned set). The engine ECHOES a matching entry onto its output
 	 * node ({@link GraphNode.override}) — application is downstream: pixels in
-	 * the view mapping, content in `nodePreviewChoice`. Absent ⇒ no overrides.
+	 * the view mapping, content in `nodePreviewKind`. Absent ⇒ no overrides.
 	 */
 	readonly nodeOverrides?: ReadonlyMap<VaultPath, NodeOverride>;
 }
@@ -65,10 +65,9 @@ export class VicinityEngine {
 		const traversal = new VicinityTraversal(this.provider, this.exclusionMatcher(request)).traverse(
 			this.toRoots(request),
 		);
-		const sizes = new NodeSizer(this.provider).computeSizes(traversal.nodes, viewSettings.sizing);
+		const sizes = NodeSizer.computeSizes(traversal.nodes, viewSettings);
 		const truncation = GraphTruncator.truncate({
 			nodes: traversal.nodes,
-			sizes: sizes,
 			edges: traversal.edges,
 			mainPath: request.main.path,
 			nodeCap: viewSettings.nodeCap,
@@ -78,8 +77,8 @@ export class VicinityEngine {
 			if (!truncation.visiblePaths.has(node.path)) {
 				continue;
 			}
-			const size = sizes.get(node.path);
-			if (size === undefined) {
+			const sizePx = sizes.get(node.path);
+			if (sizePx === undefined) {
 				// The sizer sizes every traversed node; a gap is a pipeline bug.
 				// Fail loud rather than render a silently wrong graph.
 				throw new Error(`Engine invariant violated: no size computed for path=[${node.path}]`);
@@ -88,8 +87,7 @@ export class VicinityEngine {
 			nodes.push({
 				...node,
 				isMain: node.path === request.main.path,
-				sizeScore: size.sizeScore,
-				sizePx: size.sizePx,
+				sizePx,
 				...(override !== undefined ? { override } : {}),
 			});
 		}
