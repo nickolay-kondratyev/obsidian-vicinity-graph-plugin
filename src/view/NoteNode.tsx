@@ -53,7 +53,8 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
 			// Suppress the browser menu and the RF pane menu.
 			event.preventDefault();
 			event.stopPropagation();
-			const entries: NodeMenuEntry[] = [
+			// Pin/unpin is the entry EVERY node has, so it is what makes the menu non-empty.
+			const entries: [NodeMenuEntry, ...NodeMenuEntry[]] = [
 				{ title: pinAction.title, iconId: pinAction.iconId, onClick: runPinAction },
 			];
 			const resetSize = planResetSizeAction(data.hasSizeOverride);

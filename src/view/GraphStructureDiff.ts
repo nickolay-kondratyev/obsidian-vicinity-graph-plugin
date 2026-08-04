@@ -14,8 +14,9 @@ import { edgeIdOf, nodeDimensionsPx } from "./graphIdentity";
  * `relayout`: first build, any structural change (a node or edge added/removed),
  * a force-layout tuning change (the sliders must re-run the layout live — reusing
  * positions would silently swallow the new values), or a surviving node whose
- * `sizePx` grew beyond the threshold. Structural changes accept layout jumps in
- * V1 (position seeding is V2).
+ * RENDERED box (`nodeDimensionsPx` — engine sizing or a user size override) grew
+ * beyond the threshold. Structural changes accept layout jumps in V1 (position
+ * seeding is V2).
  */
 export type LayoutDecision = "relayout" | "reuse-layout";
 

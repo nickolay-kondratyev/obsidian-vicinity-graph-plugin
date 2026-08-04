@@ -29,6 +29,8 @@ import { SettingsWritePipeline } from "./settingsWritePipeline";
 
 /** The copy a user sees when a pin is refused; pinned here because it is user-visible. */
 const NOT_PINNABLE_MESSAGE = "This note can't be pinned (no stable id).";
+/** Its drag-resize twin — same refusal cause, its own wording. */
+const NOT_RESIZABLE_MESSAGE = "This note's size can't be saved (no stable id).";
 
 const ORIGINATING_VIEW_ID = "view-originating";
 const OTHER_VIEW_ID = "view-other";
@@ -159,19 +161,26 @@ describe("ControlsActions node size override (drag-to-resize commit)", () => {
 		expect(viewsRefresh.refreshedViewIds).toEqual([ORIGINATING_VIEW_ID, OTHER_VIEW_ID]);
 	});
 
-	it("WHEN a resize is refused as not-persistable THEN the user is told why and nothing is refreshed", async () => {
-		const { actions, viewsRefresh, notices } = await actionsUnderTest();
+	it("WHEN a resize is refused as not-persistable THEN the user is told why", async () => {
+		const { actions, notices } = await actionsUnderTest();
 		await actions.resizeNode(ID_LESS_PATH, SIZE);
-		expect({ messages: notices.messages, refreshed: viewsRefresh.refreshedViewIds }).toEqual({
-			messages: ["This note's size can't be saved (no stable id)."],
-			refreshed: [],
-		});
+		expect(notices.messages).toEqual([NOT_RESIZABLE_MESSAGE]);
 	});
 
-	it("WHEN the resized path resolves to no file THEN nothing is refreshed", async () => {
+	it("WHEN a resize is refused as not-persistable THEN every view is STILL refreshed (the dragged box must be taken back)", async () => {
+		// UNLIKE a refused pin, the release already left the dragged box in React Flow's
+		// local node state. Skipping the rebuild would leave the graph showing a size
+		// nothing stored, under a notice saying it could not be saved.
+		const { actions, viewsRefresh } = await actionsUnderTest();
+		await actions.resizeNode(ID_LESS_PATH, SIZE);
+		expect(viewsRefresh.refreshedViewIds).toEqual([ORIGINATING_VIEW_ID, OTHER_VIEW_ID]);
+	});
+
+	it("WHEN the resized path resolves to no file THEN every view is STILL refreshed", async () => {
+		// Same reason: nothing was stored, but the node on screen is already the dragged size.
 		const { actions, viewsRefresh } = await actionsUnderTest();
 		await actions.resizeNode("gone.md", SIZE);
-		expect(viewsRefresh.refreshedViewIds).toEqual([]);
+		expect(viewsRefresh.refreshedViewIds).toEqual([ORIGINATING_VIEW_ID, OTHER_VIEW_ID]);
 	});
 
 	it("WHEN a reset clears a stored override THEN the override is gone and every view is refreshed", async () => {

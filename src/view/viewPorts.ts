@@ -187,10 +187,14 @@ export interface NodeMenuEntry {
 	readonly onClick: () => void;
 }
 
-/** Opens the native right-click menu for a node. Entries render in list order; never empty. */
+/**
+ * Opens the native right-click menu for a node. Entries render in list order, and the
+ * type carries the "never empty" rule (a menu with no items is a menu that opens onto
+ * nothing) — the first entry is required, the rest are optional.
+ */
 export interface NodeMenuRequest {
 	readonly nativeEvent: MouseEvent;
-	readonly entries: readonly NodeMenuEntry[];
+	readonly entries: readonly [NodeMenuEntry, ...NodeMenuEntry[]];
 }
 
 /**

@@ -310,4 +310,12 @@ describe("SettingsWritePipeline guarded fan-out", () => {
 		await pipeline.runGuarded("pinned-set", () => Promise.resolve("store-unchanged"));
 		expect(viewsRefresh.refreshedViewIds).toEqual([]);
 	});
+
+	it("WHEN a GUARDED task wrote nothing but its gesture already moved the screen THEN every open view is refreshed", async () => {
+		// The refused drag-resize: the store is untouched, but the box on screen is the
+		// user's dragged one, so only a repaint puts the graph back on what IS stored.
+		const { viewsRefresh, pipeline } = pipelineUnderTest();
+		await pipeline.runGuarded("node-size-override", () => Promise.resolve("store-unchanged-screen-ahead"));
+		expect(viewsRefresh.refreshedViewIds).toEqual([...OPEN_VIEW_IDS]);
+	});
 });

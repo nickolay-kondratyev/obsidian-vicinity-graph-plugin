@@ -79,13 +79,19 @@ is just focuses it — no rebuild.
   the editor to that exact line.
 - **Hover a node** — nothing pops up. The node already shows its own outline or
   thumbnail, so the graph stays readable while the pointer crosses it.
-- **Right-click a node** — pin / unpin menu (see *Pinning*).
+- **Drag a node's right edge, bottom edge or bottom-right corner** — resizes
+  that note's box (see *Node size*). The handles appear on hover.
+- **Right-click a node** — pin / unpin, plus *Reset size* on a note you have
+  resized (see *Pinning* and *Node size*).
 - Folder-group boxes are containers, not notes — clicking one does nothing.
 
 ## Settings model
 
 **Every setting is global — one value, used by every note and every open graph.**
-There are no per-note settings. Two surfaces edit the same values: the settings
+There are no per-note settings: the two things the plugin does remember per note
+— which notes are **pinned** and which you have **resized** — are not settings
+but facts about that note, recorded when you act on it and applied in every
+graph. Two surfaces edit the same values: the settings
 tab (**Settings → Vicinity Graph**) and the in-view **Graph controls** panel;
 changing either writes the one global value and refreshes every open graph.
 
@@ -196,6 +202,22 @@ changed gets reverted by the next change.
 > Tracked in
 > `docs-internal/tickets/ticket-pinned-central-status-lags-after-restart.md`.
 
+### Node size
+
+- **Drag any node bigger or smaller.** Hovering a node reveals a grab line on
+  its right and bottom edges and a handle at the bottom-right corner; the new
+  box is saved when you **release**, not while you drag.
+- **A resized note keeps that size everywhere** — it is remembered per note
+  (like a pin, keyed by a stable note id, so renames and moves keep it) and
+  applies in every graph the note appears in, across restarts.
+- **A size you set wins over the *Node sizing* dials** — including the min/max
+  range and the width the title would ask for. Only sanity bounds (24–1200 px)
+  still apply.
+- **"Reset size"** in the node's right-click menu puts the note back on the
+  computed size. The entry only appears on a note you have resized.
+- Only the right/bottom/corner grips exist: dragging a top or left edge would
+  move the node, and positions come from the layout, so it would snap back.
+
 ### Node exclusion
 
 Keep whole classes of notes out of every graph — index/MOC hubs, templates, a
@@ -250,8 +272,9 @@ A node tall enough to have room shows **one** preview: either the note's
 
 - **LOCAL graph only.** No global graph.
 - **No unresolved (ghost) links.**
-- **Every setting is global**, including sizing; per-note and per-view overrides
-  come later, if at all.
+- **Every setting is global**, including sizing. The one per-note exception is
+  the size you set by dragging a node (see *Node size*); per-view overrides come
+  later, if at all.
 - **No manual node dragging persistence; layout is computed.**
 - Default **node cap is 100** (the readable ceiling).
 - **Canvas text-node links count** — `[[wikilinks]]` and markdown-style

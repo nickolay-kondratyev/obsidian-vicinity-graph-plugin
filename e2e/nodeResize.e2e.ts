@@ -75,15 +75,17 @@ async function dragResizeHandle(path: string, deltaX: number, deltaY: number): P
 	await node.hover();
 	const handle = node.locator(".react-flow__resize-control.handle.bottom.right");
 	await expect(handle).toBeVisible();
+	// hover() (not raw mouse.move to the box centre): Playwright's actionability
+	// hit-check is what reliably lands the pointer ON the handle before the press.
+	await handle.hover();
+	// Measured AFTER the hover, so the deltas below are applied to the box the
+	// pointer is actually resting in (hover can settle the graph's layout).
 	const box = await handle.boundingBox();
 	if (box === null) {
 		throw new Error("resize handle has no bounding box");
 	}
 	const startX = box.x + box.width / 2;
 	const startY = box.y + box.height / 2;
-	// hover() (not raw mouse.move to the box centre): Playwright's actionability
-	// hit-check is what reliably lands the pointer ON the handle before the press.
-	await handle.hover();
 	await page.mouse.down();
 	// Stepped move: XYResizer listens to pointermove, one jump can be swallowed.
 	await page.mouse.move(startX + deltaX, startY + deltaY, { steps: 8 });

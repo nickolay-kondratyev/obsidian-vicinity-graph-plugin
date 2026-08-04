@@ -60,12 +60,19 @@ export function VicinityGraphFlow({
 	// change itself, so the NodeResizer drag inside NoteNode only moves the box if
 	// onNodesChange applies its dimension changes somewhere. The controller stays
 	// the one source of truth — every publish (including the commit-on-release
-	// rebuild) replaces this state wholesale in the effect below.
+	// rebuild) replaces this state wholesale in the reseed below.
 	const mappedNodes = useMemo<Node[]>(() => snapshot.nodes.map(toReactFlowNode), [snapshot.nodes]);
 	const [nodes, setNodes] = useState<Node[]>(mappedNodes);
-	useEffect(() => {
+	const [seededFrom, setSeededFrom] = useState<Node[]>(mappedNodes);
+	// Reseeded DURING the render that brings the new mapping, not from an effect:
+	// `edges` below is a plain memo, so an effect-based reseed would COMMIT one frame
+	// of new edges against the previous build's nodes — React Flow would resolve those
+	// edges against ids that are not there yet. React re-runs this render before
+	// committing anything, so the two props can never disagree.
+	if (seededFrom !== mappedNodes) {
+		setSeededFrom(mappedNodes);
 		setNodes(mappedNodes);
-	}, [mappedNodes]);
+	}
 	const onNodesChange = useCallback<OnNodesChange>(
 		(changes) => setNodes((current) => applyNodeChanges(changes, current)),
 		[],

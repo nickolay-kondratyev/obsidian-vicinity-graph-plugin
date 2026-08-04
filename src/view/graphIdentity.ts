@@ -1,4 +1,4 @@
-import type { DirectedLink, GraphNode } from "../engine";
+import type { DirectedLink, GraphNode, NodeSizeOverridePx } from "../engine";
 import { NODE_MAX_LABEL_WIDTH_PX, estimateNodeLabelWidthPx } from "./constants";
 
 /**
@@ -48,6 +48,17 @@ export interface NodeDimensions {
 }
 
 /**
+ * The user's stored size for this node, or `undefined` when its box is computed.
+ * ONE definition of "a size override shapes this node": {@link nodeDimensionsPx}
+ * applies it and the flow mapping reports it as the fact the "Reset size" menu
+ * entry switches on — a second reading of `override.sizePx` would be free to
+ * disagree with the box actually rendered.
+ */
+export function nodeSizeOverridePx(node: GraphNode): NodeSizeOverridePx | undefined {
+	return node.override?.sizePx;
+}
+
+/**
  * Rendered box of a note node. A user size override wins outright (Q3: the
  * per-node intent is the MOST explicit — it may exceed the label cap or the
  * global sizing dials; hard sanity bounds were already applied by
@@ -60,7 +71,7 @@ export interface NodeDimensions {
  * the SAME numbers or layout positions and rendered boxes drift.
  */
 export function nodeDimensionsPx(node: GraphNode): NodeDimensions {
-	const overridePx = node.override?.sizePx;
+	const overridePx = nodeSizeOverridePx(node);
 	if (overridePx !== undefined) {
 		return { width: overridePx.widthPx, height: overridePx.heightPx };
 	}

@@ -8,7 +8,7 @@ import { attachmentIconStrip } from "./attachmentIconStrip";
 import { deriveFolderGroups } from "./folderGrouping";
 import type { OrphanTruncation } from "./truncationBadges";
 import { deriveTruncationBadges } from "./truncationBadges";
-import { edgeIdOf, folderGroupIdOf, nodeDimensionsPx } from "./graphIdentity";
+import { edgeIdOf, folderGroupIdOf, nodeDimensionsPx, nodeSizeOverridePx } from "./graphIdentity";
 import type { RoutedPoint } from "./edgeRouting";
 
 /**
@@ -378,7 +378,7 @@ function toFlowNodeData(node: GraphNode, mainPinned: boolean, view: ViewSettings
 		isPinned: node.isMain ? mainPinned : node.isCentral,
 		sizePx: node.sizePx,
 		sizeScore: node.sizeScore,
-		hasSizeOverride: node.override?.sizePx !== undefined,
+		hasSizeOverride: nodeSizeOverridePx(node) !== undefined,
 		folder: node.folder,
 		outline,
 		// Decided from the RENDERABLE entry count, never the engine's raw outline:
