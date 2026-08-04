@@ -50,7 +50,7 @@ async function dirtyEverySection(): Promise<void> {
 		// The Node contents card's SECOND field. A non-default here is what makes
 		// every "…and left the preference dirty" assertion below non-vacuous.
 		nodePreviewPreference: "image",
-		sizing: { ...view.sizing, minPx: 11, maxPx: 99, depthDecayK: 0.75 },
+		sizing: { ...view.sizing, minPx: 11, maxPx: 99 },
 		forceLayout: { ...view.forceLayout, repelStrength: 800, collidePaddingPx: 77 },
 	});
 	await harness.saveNodeExclusion({ enabled: true, patterns: ["^archive/", "templates/"] });
@@ -78,7 +78,6 @@ test("REVIEW: isolation matrix — each section reset touches only its own keys"
 	after = await harness.readGlobals();
 	expect(after.view.sizing.minPx).not.toBe(11);
 	expect(after.view.sizing.maxPx).not.toBe(99);
-	expect(after.view.sizing.depthDecayK).not.toBe(0.75);
 	expect(after.depths.linkDepthOut).toBe(4);
 	expect(after.view.nodeCap).toBe(42);
 	expect(after.view.forceLayout.repelStrength).toBe(800);

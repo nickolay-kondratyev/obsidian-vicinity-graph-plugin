@@ -170,14 +170,19 @@ const FLUSH_LATENCY_BUDGET_MS = SETTINGS_WRITE_DEBOUNCE_MS * FLUSH_BUDGET_SHARE_
 const FLUSH_POLL_INTERVALS_MS = [10];
 
 /**
- * The row {@link SettingsWriteWindow.drain} writes its sentinel into: `Depth decay k`.
+ * The row {@link SettingsWriteWindow.drain} writes its sentinel into: `Minimum node
+ * size (px)`.
  *
  * WHY this row: it is a DEBOUNCED typed field (so it rides the same shared window as
- * the edit under test) and it is the one sizing number with NO cross-field rule
- * (`CROSS_FIELD_ROWS` in `src/view/sizingRowWrite.ts` covers only min/max px) — so the
- * sentinel can never itself be refused by whatever inverted pair a caller just typed.
+ * the edit under test). It was `Depth decay k` until the content-fit sizing rework
+ * (nid_cx5zoz7ptucg9nxalibv0mbjb_e) removed that dial; min/max px are the only sizing
+ * numbers left and BOTH carry the cross-field rule, so the sentinel dodges refusal by
+ * VALUE instead: both {@link SENTINEL_VALUES} sit at the very FLOOR of the range, and
+ * a minPx is only refused when it exceeds the stored maxPx — unreachable unless a
+ * caller left maxPx below `min + step` px, which no spec does (and one that did would
+ * hang HERE, loudly, rather than pass).
  */
-const SENTINEL_FIELD = "depthDecayK";
+const SENTINEL_FIELD = "minPx";
 
 /** Read from the declared row model, never re-typed: a renamed row fails HERE, not in a spec. */
 const SENTINEL_CONTROL_NAME = sizingNumberControlName(SENTINEL_FIELD);
@@ -185,7 +190,8 @@ const SENTINEL_CONTROL_NAME = sizingNumberControlName(SENTINEL_FIELD);
 /**
  * Two in-bounds sentinel values, taken from the row's OWN accessor bounds so they
  * cannot fall outside the range the write path clamps to (a clamped sentinel would
- * store a number this module never polls for, and `drain` would hang).
+ * store a number this module never polls for, and `drain` would hang). At the range
+ * floor on purpose — see {@link SENTINEL_FIELD}.
  */
 const SENTINEL_VALUES = ((): { readonly low: number; readonly high: number } => {
 	const bounds = SettingsRowAccessors.sizingNumber(SENTINEL_FIELD).bounds;

@@ -3,20 +3,20 @@ import type { Locator, Page } from "@playwright/test";
 import * as fs from "node:fs";
 import { ObsidianHarness } from "./obsidianHarness";
 import { SettingsTabPage } from "./settingsTabPage";
-import { SIZING_METRICS } from "../src/view/sizingMetrics";
 
 /**
- * Ticket `nid_9k11zke41l6ze3p7n7suuo4v2_e`: the settings tab's two DEPENDENT
- * controls — the exclusion-patterns textarea and each sizing metric's weight input
- * — used to be refreshed by calling `display()`, which empties `containerEl` and
- * rebuilds all six cards. That is invisible in a screenshot and invisible to every
- * other spec, but it costs the user their scroll position and their keyboard focus
- * on every flip.
+ * Ticket `nid_9k11zke41l6ze3p7n7suuo4v2_e`: the settings tab's DEPENDENT control
+ * — the exclusion-patterns textarea — used to be refreshed by calling
+ * `display()`, which empties `containerEl` and rebuilds all six cards. That is
+ * invisible in a screenshot and invisible to every other spec, but it costs the
+ * user their scroll position and their keyboard focus on every flip.
  *
- * Since `nid_qp56jugz8en8wkgjirwcb269p_e` BOTH are the same shape: the dependent
- * control is always rendered and merely toggles `disabled` (declared as
- * `disabledWhen` in `src/view/settingsRows.ts`), so both tests below assert node
- * IDENTITY across the flip.
+ * Since `nid_qp56jugz8en8wkgjirwcb269p_e` the shape is: the dependent control is
+ * always rendered and merely toggles `disabled` (declared as `disabledWhen` in
+ * `src/view/settingsRows.ts`), so both tests below assert node IDENTITY across
+ * the flip. (The sizing-metric weight rows this spec also covered were REMOVED
+ * with the content-fit sizing rework, nid_cx5zoz7ptucg9nxalibv0mbjb_e —
+ * exclusion patterns is now the only `disabledWhen` row.)
  *
  * So each test here asserts the same three things across ONE toggle, and they are
  * the only assertions that can tell a targeted update from a rebuild:
@@ -41,13 +41,6 @@ const OUT_DIR = ".out/settings-dependent-rows";
  * about the row being updated can legitimately touch it.
  */
 const UNRELATED_CONTROL_LABEL = "Node cap";
-
-/**
- * The sizing metric whose weight input is driven by its toggle — the first one the
- * card renders. Read from the shared table rather than re-typed, so a renamed metric
- * fails HERE instead of drifting.
- */
-const METRIC_UNDER_TEST = SIZING_METRICS[0];
 
 /**
  * How far to scroll the tab before flipping a toggle. Deep enough that a rebuild's
@@ -186,14 +179,6 @@ async function expectExclusionPersisted(enabled: boolean): Promise<void> {
 		.toBe(enabled);
 }
 
-const expectMetricEnabledPersisted = async (enabled: boolean): Promise<void> => {
-	await expect
-		.poll(async () => (await harness.readGlobalView()).sizing.metrics[METRIC_UNDER_TEST.id]?.enabled, {
-			message: "the metric toggle must persist, not just disable its weight input",
-		})
-		.toBe(enabled);
-};
-
 test("settings tab: WHEN the exclusion toggle is switched off THEN its patterns row is disabled in place, keeping scroll and focus", async () => {
 	await settingsTab.open();
 	await harness.saveNodeExclusion({ enabled: true, patterns: SEEDED_PATTERNS });
@@ -202,8 +187,7 @@ test("settings tab: WHEN the exclusion toggle is switched off THEN its patterns 
 	// The card holds exactly one toggle, so `flipToggleIn` needs no finer scope.
 	const textarea = card.locator("textarea");
 	await expect(textarea).toBeEnabled();
-	// Probed too: the textarea must be DISABLED, not torn down and rebuilt — the same
-	// claim the sizing-metric test below makes about its weight input. Since
+	// Probed too: the textarea must be DISABLED, not torn down and rebuilt. Since
 	// `nid_qp56jugz8en8wkgjirwcb269p_e` this row is never removed, so its identity
 	// across the flip is the whole assertion.
 	await markIdentity(textarea);
@@ -243,37 +227,4 @@ test("settings tab: WHEN the exclusion toggle is switched back on THEN the patte
 	await expectExclusionPersisted(true);
 	await expectTabUndisturbed(offset);
 	await page.screenshot({ path: `${OUT_DIR}/02-exclusion-on-scroll-kept.png` });
-});
-
-test("settings tab: WHEN a sizing metric is switched off THEN its weight input is disabled in place, keeping scroll and focus", async () => {
-	await settingsTab.open();
-	const view = await harness.readGlobalView();
-	const metrics = view.sizing.metrics;
-	// GIVEN the metric is ON — the flip below must be a genuine on→off, whatever an
-	// earlier run left behind. Spread by hand: `saveGlobalView` merges SHALLOWLY.
-	await harness.saveGlobalView({
-		sizing: {
-			...view.sizing,
-			metrics: { ...metrics, [METRIC_UNDER_TEST.id]: { ...metrics[METRIC_UNDER_TEST.id], enabled: true } },
-		},
-	});
-	await settingsTab.redisplay();
-	const weightLabel = `${METRIC_UNDER_TEST.label} weight`;
-	const weight = control(weightLabel);
-	await expect(weight).toBeEnabled();
-	// Probed too: the weight input must be DISABLED, not rebuilt — that is the whole
-	// difference between flipping one component and re-rendering its card.
-	await markIdentity(weight);
-	const offset = await givenTabScrolledAndFocusedElsewhere();
-
-	await flipToggleIn(rowHolding(weightLabel));
-
-	await expect(weight).toBeDisabled();
-	expect(await isSameNodeAsMarked(weight), "the weight input was rebuilt instead of disabled in place").toBe(true);
-	// Also settles the handler before `expectTabUndisturbed` measures the tab: the
-	// disabled assertion above can resolve while `applySizing` is still in flight, so
-	// without this the "nothing else moved" claim would be measuring a half-run handler.
-	await expectMetricEnabledPersisted(false);
-	await expectTabUndisturbed(offset);
-	await page.screenshot({ path: `${OUT_DIR}/03-sizing-metric-off-scroll-kept.png` });
 });

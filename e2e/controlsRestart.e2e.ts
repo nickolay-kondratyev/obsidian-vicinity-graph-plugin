@@ -37,9 +37,8 @@ const PIN_TARGET = "rt_x.md";
 const IN2 = "rt_in2.md";
 
 /** Non-default values so a stale default can never masquerade as "persisted". */
-const DISTINCTIVE_WEIGHT = 7;
+const DISTINCTIVE_MIN_PX = 47;
 const DISTINCTIVE_NODE_CAP = 42;
-const OWN_FILE_SIZE_METRIC = "own-file-size";
 
 let harness: ObsidianHarness;
 let page: Page;
@@ -141,12 +140,13 @@ test("depth, pin, node cap and sizing all survive an Obsidian restart", async ()
 	await expect(linksInDepthValue()).toHaveText("2");
 	await expect(noteNode(IN2)).toHaveCount(1);
 
-	// §11 Sizing (in-view mirror): set a distinctive Own-file-size weight.
+	// §11 Sizing (in-view mirror): set a distinctive minimum node size.
 	await ensureOpen(page.locator(".vicinity-graph-sizing"));
-	await setNumberInput(page.locator(".vicinity-graph-sizing").getByLabel("Own file size weight"), DISTINCTIVE_WEIGHT);
-	await expect
-		.poll(async () => (await harness.readGlobalView()).sizing.metrics[OWN_FILE_SIZE_METRIC]?.weight)
-		.toBe(DISTINCTIVE_WEIGHT);
+	await setNumberInput(
+		page.locator(".vicinity-graph-sizing").getByLabel("Minimum node size (px)"),
+		DISTINCTIVE_MIN_PX,
+	);
+	await expect.poll(async () => (await harness.readGlobalView()).sizing.minPx).toBe(DISTINCTIVE_MIN_PX);
 
 	// §13 Node cap: a distinctive global cap.
 	await harness.setGlobalNodeCap(DISTINCTIVE_NODE_CAP);
@@ -164,7 +164,7 @@ test("depth, pin, node cap and sizing all survive an Obsidian restart", async ()
 	await expect(linksInDepthValue()).toHaveText("2"); // §1
 	await expect(noteNode(IN2)).toHaveCount(1); // §1 — the value actually drives exploration
 	const view = await harness.readGlobalView();
-	expect(view.sizing.metrics[OWN_FILE_SIZE_METRIC]?.weight).toBe(DISTINCTIVE_WEIGHT); // §11
+	expect(view.sizing.minPx).toBe(DISTINCTIVE_MIN_PX); // §11
 	expect(view.nodeCap).toBe(DISTINCTIVE_NODE_CAP); // §13
 
 	// §6 pin: persisted in the data.json pinned set, docid-KEYED — so its path only
