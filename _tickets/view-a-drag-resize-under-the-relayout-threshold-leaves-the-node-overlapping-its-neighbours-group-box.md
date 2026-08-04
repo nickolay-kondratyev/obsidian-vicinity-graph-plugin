@@ -1,17 +1,18 @@
 ---
 id: nid_sj9qg27cmear9lgdlz5umwra5_e
-title: "view: a drag-resize under the relayout threshold leaves the node overlapping its neighbours / group box"
-status: open
+title: 'view: a drag-resize under the relayout threshold leaves the node overlapping
+  its neighbours / group box'
+status: in_progress
 deps: []
 links: [nid_qjsj5mth2phdqctbm0vfx9elw_e]
-created_iso: 2026-08-04T16:11:57Z
-status_updated_iso: 2026-08-04T16:11:57Z
+created_iso: '2026-08-04T16:11:57Z'
+status_updated_iso: '2026-08-04T18:13:36Z'
 type: bug
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
 tags: [ui, sizing]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin
 ---
-
 `decideLayout` (src/view/GraphStructureDiff.ts) relayouts only when a surviving node's rendered box grew past `SIZE_RELAYOUT_THRESHOLD` (+100%). Since drag-to-resize (ticket nid_qjsj5mth2phdqctbm0vfx9elw_e) feeds the committed `sizePx` override through `nodeDimensionsPx`, a resize BELOW that threshold — e.g. dragging a 100px node to 180px — takes the `reuse-layout` path: elk positions AND the cached folder-group box dimensions (`GraphViewController.groupDimensions`) are reused verbatim, so the grown node can visibly overlap its neighbours and spill outside its folder-group border until some unrelated structural change forces a fresh layout.
 
 The threshold exists for PASSIVE growth (the engine re-scoring a node after a large paste), where a layout jump under the user's reading position is the bigger evil. An explicit drag-resize is the opposite case: the user asked for the new box and is looking straight at it.
@@ -44,5 +45,4 @@ A BDD test in src/view/GraphStructureDiff.test.ts captures the chosen rule.
 `npm test`, `npm run check` and `npm run test:e2e -- nodeResize.e2e.ts` green.
 
 --------------------------------------------------------------------------------
-HUMAN: while the layout is not free we can KISS and only trigger the re-layout after the resize is complete. So we DO NOT trigger the re-layout while the human is dragging the resize, but once the dragging is complete THEN we trigger the re-layout. 
-
+HUMAN: while the layout is not free we can KISS and only trigger the re-layout after the resize is complete. So we DO NOT trigger the re-layout while the human is dragging the resize, but once the dragging is complete THEN we trigger the re-layout.
