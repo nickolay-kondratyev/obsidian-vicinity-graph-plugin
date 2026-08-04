@@ -9,7 +9,7 @@ status_updated_iso: 2026-08-04T01:39:54Z
 type: task
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
-tags: [persistence, perf]
+tags: [persistence, perf, decide]
 ---
 
 The cold-map fix (ticket nid_gbyqsuplz8b7pv0u5k34sdz1q_e, commit 59e26b5) made

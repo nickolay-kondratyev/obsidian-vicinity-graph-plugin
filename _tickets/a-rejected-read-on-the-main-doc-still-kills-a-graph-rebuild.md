@@ -9,7 +9,7 @@ status_updated_iso: 2026-08-04T01:58:22Z
 type: bug
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
-tags: [persistence, view]
+tags: [persistence, view, decide]
 ---
 
 `VicinityGraphBuilder.build` (src/adapters/VicinityGraphBuilder.ts) resolves the MAIN
