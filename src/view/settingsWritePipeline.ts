@@ -81,17 +81,24 @@ export interface SerialSettingsWrites {
 }
 
 /**
- * What a guarded body reports back: whether it CHANGED what the store holds. This is
- * the fan-out gate (rule 3), and it asks about the STORE, not about the disk, because
- * that is what every open view renders from — `PluginDataStore.persist()` moves its
- * in-memory state before the disk write, so a body whose save REJECTED still changed
- * the store and still owes every view a repaint.
+ * What a guarded body reports back — the fan-out gate (rule 3). It asks about the
+ * STORE, not about the disk, because that is what every open view renders from:
+ * `PluginDataStore.persist()` moves its in-memory state before the disk write, so a
+ * body whose save REJECTED still changed the store and still owes every view a repaint.
  *
- * `store-unchanged` is for a body that decided not to write at all (a pin refused for
- * want of a stable id): nothing moved, so a rebuild could only redraw the screen it is
- * already showing, at the cost of one graph build plus layout in EVERY open view.
+ * `store-unchanged` is for a body that decided not to write at all AND whose gesture
+ * left the screen exactly as the store already describes it (a pin refused for want of
+ * a stable id — the node simply stays unpinned): a rebuild could only redraw the screen
+ * it is already showing, at the cost of one graph build plus layout in EVERY open view.
+ *
+ * `store-unchanged-screen-ahead` is the OTHER refusal, and the distinction is the whole
+ * reason there are three values: the body wrote nothing, but the gesture asking for the
+ * write had ALREADY moved the screen ahead of the store (a drag-resize's box lives in
+ * React Flow's local node state until a rebuild replaces it). Only a repaint takes that
+ * back — without one the graph keeps showing a size nothing ever accepted, which is the
+ * exact silent-divergence this pipeline exists to prevent.
  */
-export type GuardedWriteOutcome = "store-changed" | "store-unchanged";
+export type GuardedWriteOutcome = "store-changed" | "store-unchanged" | "store-unchanged-screen-ahead";
 
 export class SettingsWritePipeline implements SerialSettingsWrites {
 	private readonly chain = new SerialPromiseChain();
@@ -137,23 +144,25 @@ export class SettingsWritePipeline implements SerialSettingsWrites {
 
 	/**
 	 * A serialised `data.json` write that is NOT a settings command — today the pinned
-	 * set, which `ControlsActions` writes through `PersistenceServices`. Same chain
-	 * (two fast pin clicks must land in click order, and a pin must not interleave with
-	 * a settings write mid-save) and, crucially, the SAME failure policy (rule 5): the
-	 * task's rejection is caught HERE, named through the same copy seam, and never
-	 * re-thrown at the handler that `void`s this promise.
+	 * set and the per-node size overrides, both of which `ControlsActions` writes through
+	 * `PersistenceServices`. Same chain (two fast pin clicks must land in click order, and
+	 * neither a pin nor a released resize may interleave with a settings write mid-save)
+	 * and, crucially, the SAME failure policy (rule 5): the task's rejection is caught
+	 * HERE, named through the same copy seam, and never re-thrown at the handler that
+	 * `void`s this promise.
 	 *
 	 * WHY this exists at all, rather than callers catching around their own body: a
 	 * second `try` would be a second policy, free to drift on wording, on logging and on
-	 * whether it re-throws. The pinned set needs the policy MORE than settings do — the
-	 * pin is already in memory when the save fails, so the node goes on rendering as
-	 * pinned until a restart silently drops it.
+	 * whether it re-throws. These writes need the policy MORE than settings do — the pin
+	 * (or the resized box) is already in memory when the save fails, so the node goes on
+	 * rendering as pinned/resized until a restart silently drops it.
 	 *
 	 * The fan-out is the pipeline's here too, on the SAME rule {@link write} follows,
 	 * and the task's {@link GuardedWriteOutcome} is the only thing it asks: a body that
 	 * changed the store gets every view repainted — INCLUDING one whose save rejected,
 	 * which is precisely when the screen is the stale copy — and a body that wrote
-	 * nothing gets no rebuild.
+	 * nothing gets no rebuild UNLESS it reports that its gesture already moved the
+	 * screen ahead of the store.
 	 *
 	 * Keep the guarded body to the write and its outcome: the catch cannot tell a
 	 * rejected `saveData` from a bug thrown anywhere else under it, so anything else a
@@ -251,7 +260,10 @@ export class SettingsWritePipeline implements SerialSettingsWrites {
 			console.error(`vicinity-graph: data.json write failed notice=[${failureNotice}]`, error);
 			this.notices.show(failureNotice);
 		}
-		if (outcome === "store-changed") {
+		// Everything BUT the one outcome that promises the screen already matches the
+		// store repaints — so a new reason to repaint is added by naming it, never by
+		// growing a second fan-out.
+		if (outcome !== "store-unchanged") {
 			this.viewsRefresh.refreshAllViews();
 		}
 	}

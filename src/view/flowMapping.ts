@@ -8,7 +8,7 @@ import { attachmentIconStrip } from "./attachmentIconStrip";
 import { deriveFolderGroups } from "./folderGrouping";
 import type { OrphanTruncation } from "./truncationBadges";
 import { deriveTruncationBadges } from "./truncationBadges";
-import { edgeIdOf, folderGroupIdOf, nodeDimensionsPx } from "./graphIdentity";
+import { edgeIdOf, folderGroupIdOf, nodeDimensionsPx, nodeSizeOverridePx } from "./graphIdentity";
 import type { RoutedPoint } from "./edgeRouting";
 
 /**
@@ -51,6 +51,11 @@ export type FlowNodeData = {
 	readonly isPinned: boolean;
 	readonly sizePx: number;
 	readonly sizeScore: number;
+	/**
+	 * Whether a persisted per-node size override shaped this node's box — the
+	 * fact the context menu's "Reset size" entry switches on.
+	 */
+	readonly hasSizeOverride: boolean;
 	/** Engine folder path ("" = vault root). */
 	readonly folder: string;
 	/**
@@ -373,6 +378,7 @@ function toFlowNodeData(node: GraphNode, mainPinned: boolean, view: ViewSettings
 		isPinned: node.isMain ? mainPinned : node.isCentral,
 		sizePx: node.sizePx,
 		sizeScore: node.sizeScore,
+		hasSizeOverride: nodeSizeOverridePx(node) !== undefined,
 		folder: node.folder,
 		outline,
 		// Decided from the RENDERABLE entry count, never the engine's raw outline:

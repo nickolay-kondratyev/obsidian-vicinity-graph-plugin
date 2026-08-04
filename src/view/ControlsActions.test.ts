@@ -29,6 +29,8 @@ import { SettingsWritePipeline } from "./settingsWritePipeline";
 
 /** The copy a user sees when a pin is refused; pinned here because it is user-visible. */
 const NOT_PINNABLE_MESSAGE = "This note can't be pinned (no stable id).";
+/** Its drag-resize twin — same refusal cause, its own wording. */
+const NOT_RESIZABLE_MESSAGE = "This note's size can't be saved (no stable id).";
 
 const ORIGINATING_VIEW_ID = "view-originating";
 const OTHER_VIEW_ID = "view-other";
@@ -141,6 +143,65 @@ describe("ControlsActions pinning", () => {
 		const { actions, notices } = await actionsUnderTest();
 		await actions.pinNode(MAIN_PATH);
 		expect(notices.messages).toEqual([]);
+	});
+});
+
+describe("ControlsActions node size override (drag-to-resize commit)", () => {
+	const SIZE = { widthPx: 320, heightPx: 180 };
+
+	it("WHEN a resize commits THEN the override is persisted under the doc's id", async () => {
+		const { actions, pluginDataStore } = await actionsUnderTest();
+		await actions.resizeNode(MAIN_PATH, SIZE);
+		expect(pluginDataStore.nodeOverrides()[MAIN_DOCID]).toEqual({ sizePx: SIZE });
+	});
+
+	it("WHEN a resize commits THEN EVERY open view is refreshed (the ONE rebuild on release)", async () => {
+		const { actions, viewsRefresh } = await actionsUnderTest();
+		await actions.resizeNode(MAIN_PATH, SIZE);
+		expect(viewsRefresh.refreshedViewIds).toEqual([ORIGINATING_VIEW_ID, OTHER_VIEW_ID]);
+	});
+
+	it("WHEN a resize is refused as not-persistable THEN the user is told why", async () => {
+		const { actions, notices } = await actionsUnderTest();
+		await actions.resizeNode(ID_LESS_PATH, SIZE);
+		expect(notices.messages).toEqual([NOT_RESIZABLE_MESSAGE]);
+	});
+
+	it("WHEN a resize is refused as not-persistable THEN every view is STILL refreshed (the dragged box must be taken back)", async () => {
+		// UNLIKE a refused pin, the release already left the dragged box in React Flow's
+		// local node state. Skipping the rebuild would leave the graph showing a size
+		// nothing stored, under a notice saying it could not be saved.
+		const { actions, viewsRefresh } = await actionsUnderTest();
+		await actions.resizeNode(ID_LESS_PATH, SIZE);
+		expect(viewsRefresh.refreshedViewIds).toEqual([ORIGINATING_VIEW_ID, OTHER_VIEW_ID]);
+	});
+
+	it("WHEN the resized path resolves to no file THEN every view is STILL refreshed", async () => {
+		// Same reason: nothing was stored, but the node on screen is already the dragged size.
+		const { actions, viewsRefresh } = await actionsUnderTest();
+		await actions.resizeNode("gone.md", SIZE);
+		expect(viewsRefresh.refreshedViewIds).toEqual([ORIGINATING_VIEW_ID, OTHER_VIEW_ID]);
+	});
+
+	it("WHEN a reset clears a stored override THEN the override is gone and every view is refreshed", async () => {
+		const { actions, viewsRefresh, pluginDataStore } = await actionsUnderTest();
+		await actions.resizeNode(MAIN_PATH, SIZE);
+		await actions.resetNodeSize(MAIN_PATH);
+		expect({
+			override: pluginDataStore.nodeOverrides()[MAIN_DOCID],
+			refreshCount: viewsRefresh.refreshedViewIds.length,
+		}).toEqual({ override: undefined, refreshCount: 4 });
+	});
+
+	it("WHEN a resize's persist rejects THEN the user is told once and every view is refreshed anyway", async () => {
+		// Same rule as a failed pin: the store moved before the disk write, so the
+		// SCREEN is the stale copy — repaint it and let the notice be the news.
+		const { actions, viewsRefresh, notices } = await actionsUnderTest(new RejectingPluginDataPort());
+		await actions.resizeNode(MAIN_PATH, SIZE);
+		expect({ messages: notices.messages, refreshed: viewsRefresh.refreshedViewIds }).toEqual({
+			messages: [SettingsWriteFailureNotice.forNonSettingsWrite("node-size-override")],
+			refreshed: [ORIGINATING_VIEW_ID, OTHER_VIEW_ID],
+		});
 	});
 });
 

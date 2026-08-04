@@ -1,6 +1,15 @@
-import { Background, Controls, Panel, ReactFlow, useReactFlow, useStore } from "@xyflow/react";
-import type { Edge, EdgeMouseHandler, EdgeTypes, Node, NodeMouseHandler, NodeTypes } from "@xyflow/react";
-import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
+import { applyNodeChanges, Background, Controls, Panel, ReactFlow, useReactFlow, useStore } from "@xyflow/react";
+import type {
+	Edge,
+	EdgeMouseHandler,
+	EdgeTypes,
+	Node,
+	NodeChange,
+	NodeMouseHandler,
+	NodeTypes,
+	OnNodesChange,
+} from "@xyflow/react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { ReactElement } from "react";
 import { hiddenOverlayText, orphanBreakdownTitle } from "./badgeText";
 import { GRAPH_MIN_ZOOM } from "./constants";
@@ -18,6 +27,7 @@ import { VicinityEdge } from "./VicinityEdge";
 import { NoteNode } from "./NoteNode";
 import { NoteOpenContext } from "./NoteOpenContext";
 import { opensInNewTab } from "./nodeOpenIntent";
+import { startedOnResizeGrip } from "./nodeResize";
 import type { ControlsActionsPort, GraphUiPort, NoteOpenPort } from "./viewPorts";
 
 /**
@@ -55,7 +65,44 @@ export function VicinityGraphFlow({
 		}
 	}, [snapshot.status, linkPreview]);
 
-	const nodes = useMemo<Node[]>(() => snapshot.nodes.map(toReactFlowNode), [snapshot.nodes]);
+	// Nodes are LOCAL React state seeded from the controller's snapshot, not the
+	// snapshot mapped straight into the prop: a controlled <ReactFlow> applies NO
+	// change itself, so the NodeResizer drag inside NoteNode only moves the box if
+	// onNodesChange applies its dimension changes somewhere. The controller stays
+	// the one source of truth — every publish (including the commit-on-release
+	// rebuild) replaces this state wholesale in the reseed below.
+	//
+	// Reseeded DURING the render that brings the new snapshot, not from an effect:
+	// `edges` below is a plain memo, so an effect-based reseed would COMMIT one frame
+	// of new edges against the previous build's nodes — React Flow would resolve those
+	// edges against ids that are not there yet. React re-runs this render before
+	// committing anything, so the two props can never disagree.
+	//
+	// The gate is `snapshot.nodes` — the PUBLISHED array, the one thing that changes
+	// identity exactly once per publish. WHY-NOT gate on a `useMemo` of the mapping:
+	// React may drop a memo cache at will, and a recomputed mapping would then read as
+	// a fresh publish and discard the box a drag is holding mid-gesture.
+	const [nodes, setNodes] = useState<Node[]>(() => snapshot.nodes.map(toReactFlowNode));
+	const [seededFrom, setSeededFrom] = useState<readonly FlowNode[]>(snapshot.nodes);
+	if (seededFrom !== snapshot.nodes) {
+		setSeededFrom(snapshot.nodes);
+		setNodes(snapshot.nodes.map(toReactFlowNode));
+	}
+	// ONLY the resizer's dimension changes are applied — the one change this
+	// controlled graph asked React Flow for. Everything else RF routes through
+	// this same callback belongs to the controller (positions come from elk) or
+	// to nobody (the graph is read-only: no deletion, and SELECTION is a state
+	// this view has no meaning for — MAIN and pinned-central are its only node
+	// tiers, both engine facts). Applied unfiltered, a plain node click would
+	// write RF's own `selected` into controller-owned state and paint the focus
+	// ring on it, sticking until the next publish — and a click on the CURRENT
+	// main publishes nothing at all. Filtering here, rather than turning
+	// `elementsSelectable` off, keeps RF's selectable-coupled edge styling
+	// (cursor, focus stroke) intact and holds for every change type RF grows.
+	const onNodesChange = useCallback<OnNodesChange>(
+		(changes) => setNodes((current) => applyNodeChanges(changes.filter(isDimensionsChange), current)),
+		[],
+	);
 	const edges = useMemo<Edge[]>(() => snapshot.edges.map(toReactFlowEdge), [snapshot.edges]);
 
 	const onNodeClick = useCallback<NodeMouseHandler>(
@@ -69,6 +116,14 @@ export function VicinityGraphFlow({
 		// (same rule as the pane click). The controller ignores folder-group
 		// ids on both paths.
 		(event, node) => {
+			// A resize grip is a CONTROL riding the node wrapper, not the node's
+			// body: a press on one that never moved still reaches here as a click
+			// (d3-drag suppresses the click only once the pointer has MOVED), and
+			// focusing the note on a mis-grabbed handle is the opposite of what the
+			// gesture asked for.
+			if (startedOnResizeGrip(event)) {
+				return;
+			}
 			if (opensInNewTab(event)) {
 				controller.openNode(node.id, { newTab: true });
 				return;
@@ -116,6 +171,7 @@ export function VicinityGraphFlow({
 							edges={edges}
 							nodeTypes={NODE_TYPES}
 							edgeTypes={EDGE_TYPES}
+							onNodesChange={onNodesChange}
 							onNodeClick={onNodeClick}
 							onEdgeClick={onEdgeClick}
 							onPaneClick={onPaneClick}
@@ -215,6 +271,11 @@ function FitViewOnLayoutChange({ layoutVersion }: { readonly layoutVersion: numb
 		return () => cancelAnimationFrame(frame);
 	}, [fitView, paneReady, layoutVersion]);
 	return null;
+}
+
+/** The resize gesture's change — a node's new box (see {@link VicinityGraphFlow}'s `onNodesChange`). */
+function isDimensionsChange(change: NodeChange): boolean {
+	return change.type === "dimensions";
 }
 
 function toReactFlowNode(node: FlowNode): Node {

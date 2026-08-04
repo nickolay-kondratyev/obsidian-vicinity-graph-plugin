@@ -1,6 +1,6 @@
 import type { ForceLayoutSettings, GraphNode, VicinityGraph } from "../engine";
 import { FORCE_LAYOUT_RANGES } from "../engine";
-import { edgeIdOf } from "./graphIdentity";
+import { edgeIdOf, nodeDimensionsPx } from "./graphIdentity";
 
 /**
  * Decides whether a rebuilt graph needs a fresh elk layout or can reuse the
@@ -14,8 +14,9 @@ import { edgeIdOf } from "./graphIdentity";
  * `relayout`: first build, any structural change (a node or edge added/removed),
  * a force-layout tuning change (the sliders must re-run the layout live — reusing
  * positions would silently swallow the new values), or a surviving node whose
- * `sizePx` grew beyond the threshold. Structural changes accept layout jumps in
- * V1 (position seeding is V2).
+ * RENDERED box (`nodeDimensionsPx` — engine sizing or a user size override) grew
+ * beyond the threshold. Structural changes accept layout jumps in V1 (position
+ * seeding is V2).
  */
 export type LayoutDecision = "relayout" | "reuse-layout";
 
@@ -77,23 +78,32 @@ function sameIds(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
 
 /**
  * True if a node present in BOTH graphs grew by more than `threshold` (a
- * fraction of its previous size). Reached only when the id sets already match,
- * so every `next` node has a `previous` counterpart. A previous size of 0 is
- * treated as no meaningful ratio (avoids divide-by-zero; sizePx is >= minPx in
- * practice).
+ * fraction of its previous size) in EITHER rendered dimension. Compared on
+ * {@link nodeDimensionsPx} — the box elk laid out and React Flow renders — not
+ * on the raw engine `sizePx`, so a per-node size override committed by a
+ * drag-resize is seen exactly like an engine growth (that is what makes ONE
+ * relayout follow a big resize). Reached only when the id sets already match,
+ * so every `next` node has a `previous` counterpart. A previous dimension of 0
+ * is treated as no meaningful ratio (avoids divide-by-zero; dimensions are
+ * >= minPx in practice).
  */
 function anyNodeGrewBeyond(
 	previous: readonly GraphNode[],
 	next: readonly GraphNode[],
 	threshold: number,
 ): boolean {
-	const previousSizeByPath = new Map(previous.map((node) => [node.path, node.sizePx]));
+	const previousDimensionsByPath = new Map(previous.map((node) => [node.path, nodeDimensionsPx(node)]));
+	const grewBeyond = (previousPx: number, nextPx: number): boolean =>
+		previousPx > 0 && (nextPx - previousPx) / previousPx > threshold;
 	return next.some((node) => {
-		const previousSize = previousSizeByPath.get(node.path);
-		if (previousSize === undefined || previousSize <= 0) {
+		const previousDimensions = previousDimensionsByPath.get(node.path);
+		if (previousDimensions === undefined) {
 			return false;
 		}
-		const growthRatio = (node.sizePx - previousSize) / previousSize;
-		return growthRatio > threshold;
+		const nextDimensions = nodeDimensionsPx(node);
+		return (
+			grewBeyond(previousDimensions.width, nextDimensions.width) ||
+			grewBeyond(previousDimensions.height, nextDimensions.height)
+		);
 	});
 }

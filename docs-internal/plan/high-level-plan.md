@@ -15,7 +15,7 @@ An Obsidian plugin that replaces the local graph view with a React Flow based vi
 
 - **LOCAL graph only.** No global graph.
 - No unresolved (ghost) links.
-- Sizing configuration is global only; per-view sizing overrides come later once the data format settles.
+- Sizing CONFIGURATION is global only. The one per-note size is the user's own: a drag-to-resize commits a docid-keyed `sizePx` override (see Rendering and interaction) that wins over every dial. Per-VIEW sizing overrides come later once the data format settles.
 - No manual node dragging persistence; layout is computed.
 
 ## Terminology
@@ -82,7 +82,7 @@ Every **outgoing** reference carries a `LinkKind` — `link` or `embed` — whic
 - **A node that HAS an image is floored at the thumbnail-visibility height** (`THUMBNAIL_VISIBLE_MIN_NODE_PX` = 122px), so a low-relevance note never renders an image it is too short to show. The floor is capped by the user's `maxPx` (an explicit maximum is never overruled) and only ever grows a node. It keys off the stable fact `firstImagePath !== undefined`, NOT the resolved preview kind — see the preference-independence rule under Rendering. It moves `sizePx` only, never `sizeScore`, which stays pure relevance because it also ranks truncation.
 	- **The CSS density thresholds below are CONTENT-box heights, not node heights** — a size container query measures the container's content box, which is `sizePx` minus the node's border + padding (18px). So the 104px thumbnail threshold is 122px of node, and the engine constant is composed as `104 + 18`; `thumbnailDensityThreshold.test.ts` re-derives both halves from the stylesheet. Confusing the two is what made an earlier version of this floor a no-op.
 	- At exactly that floor the thumbnail slot is shown **whole**, not clipped: the reveal block caps the title at the 2 lines the 104px budget allots (the title is `flex-shrink: 0`, so an unclamped long title would otherwise push the 56px slot out through `overflow: hidden`). Budgeting the title in CSS — rather than inflating the floor to ~150px to survive a 4-line title — keeps image-heavy vicinities from ballooning.
-- Sizing is global-only in V1.
+- Sizing CONFIGURATION is global-only in V1 — but a node the user has RESIZED is sized by that override alone. `nodeDimensionsPx` returns the stored `sizePx` box verbatim (Q3: the per-node intent is the most explicit one there is, so it outranks the min/max dials, the label-width cap and the thumbnail floor), bounded only by the hard sanity range `NODE_OVERRIDE_HARD_MIN_PX`..`NODE_OVERRIDE_HARD_MAX_PX` (24..1200), which `clampNodeSizeOverridePx` applies on the store's write AND load paths so the view never has to re-judge it.
 
 ### Pinning and settings
 
@@ -128,12 +128,13 @@ Every **outgoing** reference carries a `LinkKind` — `link` or `embed` — whic
 - **WHICH links become edges is a setting — "Show cross links", global, default OFF** (ticket `nid_puf4a4q6fgn5lpehh5dowfm1r_e`; supersedes the fixed walked-only rule of step-02 CLARIFICATION Q5). OFF: only the links the BFS actually walked, the original "cleaner graph". ON: the walked set UNIONED with the INDUCED SUBGRAPH over the visible nodes — every link whose source and target are both on screen, including a link between two frontier notes the walk never took. The union is by construction (the walked edges seed the sweep's accumulator), so ON is a guaranteed SUPERSET of OFF even though the sweep reads `getOutgoingLinks` while the incoming walk reads `getIncomingLinks` — in Obsidian those are two independent authorities and the file cache degrades during the boot window, so a derived-from-outgoing-only union could otherwise DROP a visible edge. The sweep runs POST-truncation, so **node selection is unaffected**: sizing and the truncator's distance-to-MAIN ranking keep running on the walked edge set, and the visible node set is identical either way. Cross links are rendered, counted (`getLinkCount`, same `Math.max(1, …)` floor) and collapsed exactly like walked ones — deliberately NO provenance flag and no styling seam.
 - Styling pulls from **Obsidian theme CSS variables**, so light/dark themes just work.
 - Interactions: click opens the note, **clicking an outline entry opens it at that heading** (same ctrl/cmd new-tab gesture), ctrl/cmd-click for the alternate target. **No hover preview**: nodes do NOT fire Obsidian's `hover-link` (removed, ticket `nid_jnw75pg24q4itujs8vfgqj4mh_e`) — the node already shows its own outline/thumbnail, so a popover on hover only covered the graph the human is reading.
+- **Drag-to-resize** (ticket `nid_qjsj5mth2phdqctbm0vfx9elw_e`): hover-revealed React Flow `NodeResizeControl`s on a note's RIGHT edge, BOTTOM edge and bottom-right corner — deliberately no top/left grips, which resize by moving the node's ORIGIN, and positions are layout-owned, so the move would snap back on the next rebuild. The drag is local to React Flow (which is why the flow component keeps its nodes in local state and applies `onNodesChange`); **release** commits the box as the doc's `sizePx` override through the same guarded `data.json` seam a pin uses, and the pipeline's fan-out is the ONE rebuild. The node's right-click menu offers **Reset size** only while an override exists. A refused write (no stable id) still repaints — the released box is already on screen, and nothing stored it (see `GuardedWriteOutcome`).
 - View placement: **right sidebar by default** (matches native local graph muscle memory), registered as a normal view type so it can be dragged into the main area. Follows the active file; per-leaf `getState`/`setState` so workspace restore works with multiple views open.
 
 ### Layout stability
 
 - After each rebuild, **diff the node/edge structure**. Unchanged structure skips layout entirely and only refreshes node data.
-- Exception: if any surviving node's computed size grew beyond **`SIZE_RELAYOUT_THRESHOLD`** (a named constant, initially 1.0, meaning +100%, e.g. a large paste), trigger a full relayout so the graph does not turn ugly.
+- Exception: if any surviving node's RENDERED box (`nodeDimensionsPx`, in either dimension — so an engine size, a wider title and a user resize all count) grew beyond **`SIZE_RELAYOUT_THRESHOLD`** (a named constant, initially 1.0, meaning +100%, e.g. a large paste), trigger a full relayout so the graph does not turn ugly.
 - Structural changes accept layout jumps in V1. Position-seeding elk for incremental stability is a V2 refinement.
 
 ### Testing
