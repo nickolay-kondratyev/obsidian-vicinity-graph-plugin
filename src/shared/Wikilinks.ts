@@ -25,15 +25,38 @@ import { LinkKinds } from "./LinkKind";
  * (`target`, `target#heading|alias`, …). The marker is CAPTURED rather than
  * merely tolerated because `![[x]]` and `[[x]]` are different kinds of reference
  * (see {@link LinkKind}), and a matcher that swallows the `!` cannot say which.
+ *
+ * The inner text excludes the NEWLINE: Obsidian requires a wikilink to open and
+ * close on the same line, so an unclosed `[[` pairing with a later line's `]]`
+ * is pure over-match — a phantom canvas edge, and (since `MarkdownEmbeds`
+ * REWRITES what this matches) lines of a reader's prose deleted from a preview
+ * snippet.
  */
-const WIKILINK_SOURCE = "(!?)\\[\\[([^\\]]+)\\]\\]";
+const WIKILINK_SOURCE = "(!?)\\[\\[([^\\]\\n]+)\\]\\]";
 
 /** 1-based capture-group positions in {@link WIKILINK_SOURCE} (also the `String.replace` callback's argument order). */
 const EMBED_MARKER_GROUP = 1;
 const INNER_TEXT_GROUP = 2;
 
-/** Ends the link TARGET: an alias pipe or a `#heading`/`#^block` subpath. */
-const TARGET_TERMINATOR = /[#|]/;
+/** Starts the alias — what the writer wants DISPLAYED instead of the target. */
+const ALIAS_SEPARATOR = "|";
+
+/** Starts the subpath — a `#heading` or `#^block` inside the target. */
+const SUBPATH_SEPARATOR = "#";
+
+/**
+ * The three written parts of a wikilink's inner text (`folder/note#heading|Alias`),
+ * each already trimmed. Absent parts are `""`, never undefined — a caller asking
+ * "is there an alias" reads emptiness, not a null check.
+ */
+export interface WikilinkParts {
+	/** Link path (`folder/note`); `""` for a same-file link (`[[#heading]]`). */
+	readonly target: string;
+	/** Subpath WITHOUT its leading `#` (`heading`, `^block`); `""` when none. */
+	readonly subpath: string;
+	/** Display text after the pipe; `""` when none. */
+	readonly alias: string;
+}
 
 export class Wikilinks {
 	/**
@@ -55,7 +78,7 @@ export class Wikilinks {
 	static harvestedLinksOf(text: string): readonly HarvestedLink[] {
 		const links: HarvestedLink[] = [];
 		for (const match of text.matchAll(Wikilinks.globalPattern())) {
-			const linkText = Wikilinks.targetOf(match[INNER_TEXT_GROUP] ?? "");
+			const linkText = Wikilinks.partsOf(match[INNER_TEXT_GROUP] ?? "").target;
 			if (linkText !== "") {
 				links.push({ linkText, kind: LinkKinds.ofEmbedMarker(match[EMBED_MARKER_GROUP] ?? "") });
 			}
@@ -63,8 +86,21 @@ export class Wikilinks {
 		return links;
 	}
 
-	private static targetOf(innerText: string): string {
-		const terminator = innerText.search(TARGET_TERMINATOR);
-		return (terminator === -1 ? innerText : innerText.slice(0, terminator)).trim();
+	/**
+	 * The written parts of one wikilink's inner text — the ONE place the part
+	 * boundaries live, for the DISPLAY caller ({@link MarkdownEmbeds} names an
+	 * embed by its alias, else by its target) and for {@link harvestedLinksOf}'s
+	 * resolution alike, so the two can never disagree on where a target ends.
+	 */
+	static partsOf(innerText: string): WikilinkParts {
+		const aliasIndex = innerText.indexOf(ALIAS_SEPARATOR);
+		const beforeAlias = aliasIndex === -1 ? innerText : innerText.slice(0, aliasIndex);
+		const subpathIndex = beforeAlias.indexOf(SUBPATH_SEPARATOR);
+		return {
+			target: (subpathIndex === -1 ? beforeAlias : beforeAlias.slice(0, subpathIndex)).trim(),
+			// A nested `#` (`[[note#h1#h2]]`) belongs to the subpath, so only the FIRST splits.
+			subpath: subpathIndex === -1 ? "" : beforeAlias.slice(subpathIndex + 1).trim(),
+			alias: aliasIndex === -1 ? "" : innerText.slice(aliasIndex + 1).trim(),
+		};
 	}
 }

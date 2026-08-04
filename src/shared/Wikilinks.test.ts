@@ -50,6 +50,12 @@ describe("Wikilinks.harvestedLinksOf targets", () => {
 		expect(targetsOf("plain text with [a](b.md) only")).toEqual([]);
 	});
 
+	it("WHEN a `[[` is never closed on its line THEN it does not pair with a later line's `]]`", () => {
+		// Obsidian requires a wikilink to open and close on the SAME line, so the
+		// only link here is the closed one — `[[stray` names nothing.
+		expect(targetsOf("[[stray\nprose\n[[real]]")).toEqual(["real"]);
+	});
+
 	it("WHEN two calls scan different texts THEN neither sees the other's scan position", () => {
 		// GIVEN a /g regex's mutable lastIndex — a shared instance would make the
 		// SECOND call start mid-string and miss the leading link.
@@ -83,5 +89,43 @@ describe("Wikilinks.harvestedLinksOf kinds", () => {
 		expect(Wikilinks.harvestedLinksOf("![[note-b#Section|Alias]]")).toEqual([
 			{ linkText: "note-b", kind: "embed" },
 		]);
+	});
+});
+
+/**
+ * The DISPLAY split (`MarkdownEmbeds` names an embed by what the writer wrote),
+ * next to the resolution split `harvestedLinksOf` already covers.
+ */
+describe("Wikilinks.partsOf", () => {
+	it("WHEN the inner text is a bare target THEN only the target is set", () => {
+		expect(Wikilinks.partsOf("folder/note")).toEqual({ target: "folder/note", subpath: "", alias: "" });
+	});
+
+	it("WHEN the inner text carries a subpath THEN the subpath is split off without its hash", () => {
+		expect(Wikilinks.partsOf("note#Section")).toEqual({ target: "note", subpath: "Section", alias: "" });
+	});
+
+	it("WHEN the inner text carries an alias THEN the alias is split off", () => {
+		expect(Wikilinks.partsOf("note#Section|Shown")).toEqual({
+			target: "note",
+			subpath: "Section",
+			alias: "Shown",
+		});
+	});
+
+	it("WHEN the inner text is a same-file subpath THEN the target is empty", () => {
+		expect(Wikilinks.partsOf("#Section")).toEqual({ target: "", subpath: "Section", alias: "" });
+	});
+
+	it("WHEN a subpath names nested headings THEN only the FIRST hash splits", () => {
+		expect(Wikilinks.partsOf("note#H1#H2").subpath).toBe("H1#H2");
+	});
+
+	it("WHEN parts are written with surrounding spaces THEN each is trimmed", () => {
+		expect(Wikilinks.partsOf(" note # Section | Shown ")).toEqual({
+			target: "note",
+			subpath: "Section",
+			alias: "Shown",
+		});
 	});
 });
