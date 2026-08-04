@@ -13,7 +13,7 @@ import {
 } from "./vaultTarget";
 import type { DevVaultCopyTarget, LaunchOptions, VaultTarget } from "./vaultTarget";
 // Type-only, so it is erased at transpile — the pure engine barrel never loads in the node-side test process.
-import type { DepthSettings, NodeExclusionSettings, NodePreviewPreference, ViewSettings } from "../src/engine";
+import type { DepthSettings, NodeExclusionSettings, NodeOverride, NodePreviewPreference, ViewSettings } from "../src/engine";
 
 /**
  * Launches a REAL Obsidian (Electron) on a throwaway copy of `.dev-vault`,
@@ -364,6 +364,14 @@ export class ObsidianHarness {
 	/** The persisted global VIEW slice alone (see {@link readGlobals}). */
 	async readGlobalView(): Promise<ViewSettings> {
 		return (await this.readGlobals()).view;
+	}
+
+	/** The persisted docid-keyed per-node override map (drag-to-resize / content overrides). */
+	async readNodeOverrides(): Promise<Readonly<Record<string, NodeOverride>>> {
+		return this.page.evaluate((pluginId) => {
+			const store = (window as unknown as { app: any }).app.plugins.plugins[pluginId].pluginDataStore;
+			return store.nodeOverrides() as Readonly<Record<string, NodeOverride>>;
+		}, PLUGIN_ID);
 	}
 
 	/**

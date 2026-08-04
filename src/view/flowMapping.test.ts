@@ -56,11 +56,45 @@ describe("vicinityGraphToFlow nodes", () => {
 			isPinned: false,
 			sizePx: 160,
 			sizeScore: 0.5,
+			hasSizeOverride: false,
 			folder: "",
 			outline: [],
 			preview: "none",
 			imageCount: 0,
 			attachmentGroups: [],
+		});
+	});
+});
+
+describe("vicinityGraphToFlow per-node size override (drag-to-resize)", () => {
+	const overridden = makeGraph({
+		nodes: [
+			makeNode({
+				path: asVaultPath("a.md"),
+				title: "a-really-long-note-title-that-cannot-fit-a-small-square",
+				sizePx: 40,
+				override: { sizePx: { widthPx: 321, heightPx: 87 } },
+			}),
+		],
+	});
+
+	it("WHEN a node carries a size override THEN its box is the override verbatim (label sizing bypassed)", () => {
+		const node = noteNode(toFlow(overridden).nodes, "a.md");
+		expect({ width: node?.width, height: node?.height }).toEqual({ width: 321, height: 87 });
+	});
+
+	it("WHEN a node carries a size override THEN its data says so (the reset-menu fact)", () => {
+		expect(noteNode(toFlow(overridden).nodes, "a.md")?.data.hasSizeOverride).toBe(true);
+	});
+
+	it("WHEN a node's override has only a content field THEN its box stays computed (no size override)", () => {
+		const contentOnly = makeGraph({
+			nodes: [makeNode({ path: asVaultPath("a.md"), sizePx: 40, override: { content: "outline" } })],
+		});
+		const node = noteNode(toFlow(contentOnly).nodes, "a.md");
+		expect({ height: node?.height, hasSizeOverride: node?.data.hasSizeOverride }).toEqual({
+			height: 40,
+			hasSizeOverride: false,
 		});
 	});
 });
@@ -405,6 +439,7 @@ describe("withPositions", () => {
 				isPinned: false,
 				sizePx: 100,
 				sizeScore: 0.5,
+				hasSizeOverride: false,
 				folder: "",
 				outline: [],
 				preview: "none",

@@ -1,7 +1,7 @@
 import type { RenderResult } from "@testing-library/react";
 import { render } from "@testing-library/react";
 import type { ReactElement } from "react";
-import type { ViewSettings } from "../../engine";
+import type { NodeSizeOverridePx, ViewSettings } from "../../engine";
 import { EngineDefaults } from "../../engine";
 import { ControlsActionsContext } from "../ControlsActionsContext";
 import type { ControlsModel } from "../ControlsModel";
@@ -50,6 +50,14 @@ export class RecordingControlsActions implements ControlsActionsPort {
 	}
 
 	unpinNode(): Promise<void> {
+		return Promise.resolve();
+	}
+
+	resizeNode(_path: string, _sizePx: NodeSizeOverridePx): Promise<void> {
+		return Promise.resolve();
+	}
+
+	resetNodeSize(_path: string): Promise<void> {
 		return Promise.resolve();
 	}
 }

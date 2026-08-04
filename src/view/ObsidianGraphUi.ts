@@ -43,9 +43,9 @@ export class ObsidianGraphUi implements GraphUiPort {
 
 	showNodeMenu(request: NodeMenuRequest): void {
 		const menu = new Menu();
-		menu.addItem((item) =>
-			item.setTitle(request.entry.title).setIcon(request.entry.iconId).onClick(request.entry.onClick),
-		);
+		for (const entry of request.entries) {
+			menu.addItem((item) => item.setTitle(entry.title).setIcon(entry.iconId).onClick(entry.onClick));
+		}
 		menu.showAtMouseEvent(request.nativeEvent);
 	}
 

@@ -1,5 +1,5 @@
 import type { ElkNode } from "elkjs";
-import type { ForceLayoutSettings, ViewSettings, VicinityGraph } from "../engine";
+import type { ForceLayoutSettings, NodeSizeOverridePx, ViewSettings, VicinityGraph } from "../engine";
 import type { ControlsModel } from "./ControlsModel";
 import type { EdgePreviewModel } from "./linkPreviewModel";
 import type { SettingsResetScope } from "./settingsResetPlan";
@@ -66,6 +66,13 @@ export interface ControlsActionsPort {
 	pinNode(path: string): Promise<void>;
 	/** Unpin a pinned central by its docid — always lands — then rebuild every view. */
 	unpinNode(docid: string): Promise<void>;
+	/**
+	 * Persist a drag-resize as the doc's global size override (resolves + ensures a
+	 * docid, same write intent as a pin); rebuilds every view if it landed.
+	 */
+	resizeNode(path: string, sizePx: NodeSizeOverridePx): Promise<void>;
+	/** Clear the doc's size override ("back to computed size" — never mints an id); then rebuild every view. */
+	resetNodeSize(path: string): Promise<void>;
 }
 
 /**
@@ -171,19 +178,19 @@ export interface AttachmentMenuRequest {
 	readonly paths: readonly string[];
 }
 
-/** One entry of a node's right-click menu (step-06: pin / unpin). */
+/** One entry of a node's right-click menu (pin / unpin / reset size). */
 export interface NodeMenuEntry {
 	readonly title: string;
 	/** Built-in (lucide) icon id, e.g. `"pin"` / `"pin-off"`. */
 	readonly iconId: string;
-	/** The action to run — carries the resolved pin/unpin call, so the adapter needs no actions reference. */
+	/** The action to run — carries the resolved call, so the adapter needs no actions reference. */
 	readonly onClick: () => void;
 }
 
-/** Opens the native right-click menu for a node (pin/unpin). */
+/** Opens the native right-click menu for a node. Entries render in list order; never empty. */
 export interface NodeMenuRequest {
 	readonly nativeEvent: MouseEvent;
-	readonly entry: NodeMenuEntry;
+	readonly entries: readonly NodeMenuEntry[];
 }
 
 /**

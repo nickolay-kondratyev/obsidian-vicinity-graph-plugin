@@ -1,5 +1,5 @@
 import type { VaultPort } from "../adapters/obsidianPorts";
-import type { ViewSettings } from "../engine";
+import type { NodeSizeOverridePx, ViewSettings } from "../engine";
 import type { PersistableIdentity } from "../persistence/DocPersistEligibility";
 import type { PersistenceServices } from "../persistence/PersistenceServices";
 import type { SettingsResetScope } from "./settingsResetPlan";
@@ -33,13 +33,16 @@ import type { ControlsActionsPort, UserNoticePort } from "./viewPorts";
  */
 
 const NOT_PINNABLE_NOTICE = "This note can't be pinned (no stable id).";
+/** Same refusal cause as {@link NOT_PINNABLE_NOTICE} (the shared eligibility seam), worded for the resize gesture. */
+const NOT_RESIZABLE_NOTICE = "This note's size can't be saved (no stable id).";
 
 /**
- * What a failed pinned-set save is ANNOUNCED as. Only the subject lives here — the
- * sentence is `settingsWriteFailureNotice.ts`'s, and the WHEN is the pipeline's, so
- * this class states no failure policy of its own.
+ * What a failed pinned-set / size-override save is ANNOUNCED as. Only the subject
+ * lives here — the sentence is `settingsWriteFailureNotice.ts`'s, and the WHEN is
+ * the pipeline's, so this class states no failure policy of its own.
  */
 const PIN_WRITE_SUBJECT: NonSettingsWriteSubject = "pinned-set";
+const NODE_SIZE_WRITE_SUBJECT: NonSettingsWriteSubject = "node-size-override";
 
 export class ControlsActions implements ControlsActionsPort {
 	constructor(
@@ -87,6 +90,42 @@ export class ControlsActions implements ControlsActionsPort {
 	unpinNode(docid: string): Promise<void> {
 		return this.settingsWrites.runGuarded(PIN_WRITE_SUBJECT, async () => {
 			await this.persistenceServices.unpinDoc(docid);
+			return "store-changed";
+		});
+	}
+
+	/**
+	 * Commit of a released drag-resize: the doc's size override, exactly the pin
+	 * shape — a write intent on ONE doc (docid ensured lazily, the same
+	 * eligibility seam can refuse it) naming ONE field, guarded and fanned out by
+	 * the pipeline. The value was already clamped by the resize handles
+	 * (`NODE_RESIZE_BOUNDS`); the store clamps again at its choke point.
+	 */
+	resizeNode(path: string, sizePx: NodeSizeOverridePx): Promise<void> {
+		return this.settingsWrites.runGuarded(NODE_SIZE_WRITE_SUBJECT, async () => {
+			const file = this.vault.getFileByPath(path);
+			if (file === null) {
+				return "store-unchanged";
+			}
+			return this.persistOutcome(
+				await this.persistenceServices.saveNodeOverrideField(file, { field: "sizePx", value: sizePx }),
+				NOT_RESIZABLE_NOTICE,
+			);
+		});
+	}
+
+	/**
+	 * "Back to computed size": clearing never mints an id and never refuses
+	 * (`clearNodeOverrideField` — an id-less doc owns no override), so like
+	 * {@link unpinNode} it always lands and always repaints.
+	 */
+	resetNodeSize(path: string): Promise<void> {
+		return this.settingsWrites.runGuarded(NODE_SIZE_WRITE_SUBJECT, async () => {
+			const file = this.vault.getFileByPath(path);
+			if (file === null) {
+				return "store-unchanged";
+			}
+			await this.persistenceServices.clearNodeOverrideField(file, "sizePx");
 			return "store-changed";
 		});
 	}

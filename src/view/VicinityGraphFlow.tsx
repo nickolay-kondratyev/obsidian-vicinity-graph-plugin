@@ -1,6 +1,6 @@
-import { Background, Controls, Panel, ReactFlow, useReactFlow, useStore } from "@xyflow/react";
-import type { Edge, EdgeMouseHandler, EdgeTypes, Node, NodeMouseHandler, NodeTypes } from "@xyflow/react";
-import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
+import { applyNodeChanges, Background, Controls, Panel, ReactFlow, useReactFlow, useStore } from "@xyflow/react";
+import type { Edge, EdgeMouseHandler, EdgeTypes, Node, NodeMouseHandler, NodeTypes, OnNodesChange } from "@xyflow/react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { ReactElement } from "react";
 import { hiddenOverlayText, orphanBreakdownTitle } from "./badgeText";
 import { GRAPH_MIN_ZOOM } from "./constants";
@@ -55,7 +55,21 @@ export function VicinityGraphFlow({
 		}
 	}, [snapshot.status, linkPreview]);
 
-	const nodes = useMemo<Node[]>(() => snapshot.nodes.map(toReactFlowNode), [snapshot.nodes]);
+	// Nodes are LOCAL React state seeded from the controller's snapshot, not the
+	// snapshot mapped straight into the prop: a controlled <ReactFlow> applies NO
+	// change itself, so the NodeResizer drag inside NoteNode only moves the box if
+	// onNodesChange applies its dimension changes somewhere. The controller stays
+	// the one source of truth — every publish (including the commit-on-release
+	// rebuild) replaces this state wholesale in the effect below.
+	const mappedNodes = useMemo<Node[]>(() => snapshot.nodes.map(toReactFlowNode), [snapshot.nodes]);
+	const [nodes, setNodes] = useState<Node[]>(mappedNodes);
+	useEffect(() => {
+		setNodes(mappedNodes);
+	}, [mappedNodes]);
+	const onNodesChange = useCallback<OnNodesChange>(
+		(changes) => setNodes((current) => applyNodeChanges(changes, current)),
+		[],
+	);
 	const edges = useMemo<Edge[]>(() => snapshot.edges.map(toReactFlowEdge), [snapshot.edges]);
 
 	const onNodeClick = useCallback<NodeMouseHandler>(
@@ -116,6 +130,7 @@ export function VicinityGraphFlow({
 							edges={edges}
 							nodeTypes={NODE_TYPES}
 							edgeTypes={EDGE_TYPES}
+							onNodesChange={onNodesChange}
 							onNodeClick={onNodeClick}
 							onEdgeClick={onEdgeClick}
 							onPaneClick={onPaneClick}

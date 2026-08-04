@@ -144,6 +144,58 @@ describe("ControlsActions pinning", () => {
 	});
 });
 
+describe("ControlsActions node size override (drag-to-resize commit)", () => {
+	const SIZE = { widthPx: 320, heightPx: 180 };
+
+	it("WHEN a resize commits THEN the override is persisted under the doc's id", async () => {
+		const { actions, pluginDataStore } = await actionsUnderTest();
+		await actions.resizeNode(MAIN_PATH, SIZE);
+		expect(pluginDataStore.nodeOverrides()[MAIN_DOCID]).toEqual({ sizePx: SIZE });
+	});
+
+	it("WHEN a resize commits THEN EVERY open view is refreshed (the ONE rebuild on release)", async () => {
+		const { actions, viewsRefresh } = await actionsUnderTest();
+		await actions.resizeNode(MAIN_PATH, SIZE);
+		expect(viewsRefresh.refreshedViewIds).toEqual([ORIGINATING_VIEW_ID, OTHER_VIEW_ID]);
+	});
+
+	it("WHEN a resize is refused as not-persistable THEN the user is told why and nothing is refreshed", async () => {
+		const { actions, viewsRefresh, notices } = await actionsUnderTest();
+		await actions.resizeNode(ID_LESS_PATH, SIZE);
+		expect({ messages: notices.messages, refreshed: viewsRefresh.refreshedViewIds }).toEqual({
+			messages: ["This note's size can't be saved (no stable id)."],
+			refreshed: [],
+		});
+	});
+
+	it("WHEN the resized path resolves to no file THEN nothing is refreshed", async () => {
+		const { actions, viewsRefresh } = await actionsUnderTest();
+		await actions.resizeNode("gone.md", SIZE);
+		expect(viewsRefresh.refreshedViewIds).toEqual([]);
+	});
+
+	it("WHEN a reset clears a stored override THEN the override is gone and every view is refreshed", async () => {
+		const { actions, viewsRefresh, pluginDataStore } = await actionsUnderTest();
+		await actions.resizeNode(MAIN_PATH, SIZE);
+		await actions.resetNodeSize(MAIN_PATH);
+		expect({
+			override: pluginDataStore.nodeOverrides()[MAIN_DOCID],
+			refreshCount: viewsRefresh.refreshedViewIds.length,
+		}).toEqual({ override: undefined, refreshCount: 4 });
+	});
+
+	it("WHEN a resize's persist rejects THEN the user is told once and every view is refreshed anyway", async () => {
+		// Same rule as a failed pin: the store moved before the disk write, so the
+		// SCREEN is the stale copy — repaint it and let the notice be the news.
+		const { actions, viewsRefresh, notices } = await actionsUnderTest(new RejectingPluginDataPort());
+		await actions.resizeNode(MAIN_PATH, SIZE);
+		expect({ messages: notices.messages, refreshed: viewsRefresh.refreshedViewIds }).toEqual({
+			messages: [SettingsWriteFailureNotice.forNonSettingsWrite("node-size-override")],
+			refreshed: [ORIGINATING_VIEW_ID, OTHER_VIEW_ID],
+		});
+	});
+});
+
 /**
  * The pinned set is a `data.json` write like any setting, so it owes the user the
  * SAME failure policy — and needs it more: `PluginDataStore.persist()` moves the pin

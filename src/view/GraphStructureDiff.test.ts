@@ -82,6 +82,34 @@ describe("decideLayout size-growth exception", () => {
 	});
 });
 
+describe("decideLayout size-override growth (drag-to-resize commit)", () => {
+	// GIVEN a node whose box is pinned by an override in BOTH builds, so the label
+	// estimate plays no part and the growth ratio is exactly the override's.
+	function graphWithOverride(widthPx: number, heightPx: number) {
+		return makeGraph({
+			nodes: [makeNode({ path: asVaultPath("a.md"), override: { sizePx: { widthPx, heightPx } } })],
+		});
+	}
+	const previous = graphWithOverride(100, 100);
+
+	it("WHEN a committed resize grew the HEIGHT just beyond the threshold THEN it relayouts", () => {
+		expect(decideLayout(previous, graphWithOverride(100, 201), SIZE_RELAYOUT_THRESHOLD)).toBe("relayout");
+	});
+
+	it("WHEN a committed resize grew the WIDTH just beyond the threshold THEN it relayouts", () => {
+		// Width growth alone must count: the raw engine sizePx is unchanged here.
+		expect(decideLayout(previous, graphWithOverride(201, 100), SIZE_RELAYOUT_THRESHOLD)).toBe("relayout");
+	});
+
+	it("WHEN a committed resize stays within the threshold THEN it reuses the layout (data-only refresh)", () => {
+		expect(decideLayout(previous, graphWithOverride(200, 200), SIZE_RELAYOUT_THRESHOLD)).toBe("reuse-layout");
+	});
+
+	it("WHEN a committed resize shrank the node THEN it reuses the layout", () => {
+		expect(decideLayout(previous, graphWithOverride(30, 30), SIZE_RELAYOUT_THRESHOLD)).toBe("reuse-layout");
+	});
+});
+
 describe("decideLayout force-layout tuning change (ticket-04 live sliders)", () => {
 	const nodes = [makeNode({ path: asVaultPath("a.md") })];
 	const previous = makeGraph({ nodes });
