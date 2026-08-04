@@ -25,3 +25,5 @@ Caveat already recorded in `scripts/setup-obsidian-bin.sh`: on 1.13+ the slider 
 
 Non-goal: migrating to wdio-obsidian-service (analysis in the parent ticket concluded: do NOT migrate).
 
+---------------------------------------------------------------------------------
+HUMAN: I am thinking that if we are adding this tweakable environment variable we may as well have a follow up ticket to have the tests run with different version of obsidian. With MIN version and with current version, so that we can spot out the issues. 
