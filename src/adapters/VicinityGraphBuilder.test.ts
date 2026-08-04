@@ -97,3 +97,64 @@ describe("VicinityGraphBuilder", () => {
 		expect(result?.graph.nodes.some((node) => node.path === "a.md")).toBe(true);
 	});
 });
+
+/**
+ * Restart shape: data.json carries a pin AND a per-node override, but the
+ * in-memory path↔docid map is COLD (nothing pre-warmed). The first build must
+ * resolve both on demand instead of waiting for the delayed sweep
+ * (ticket nid_gbyqsuplz8b7pv0u5k34sdz1q_e).
+ */
+async function coldMapFixture() {
+	const ports = new FakeObsidianPorts({
+		files: [{ path: "main.md" }, { path: "a.md" }, { path: "pinned.md" }],
+		fileCaches: {
+			"main.md": { links: [{ link: "a", position: { start: { offset: 0 } } }] },
+		},
+		resolutions: { a: "a.md" },
+		resolvedLinks: { "main.md": { "a.md": 1 } },
+		backlinks: { "a.md": ["main.md"] },
+	});
+	const docIdPort = new FakeDocIdPort({
+		"main.md": "docid_main_e",
+		"a.md": "docid_a_e",
+		"pinned.md": "docid_pin_e",
+	});
+	const pluginDataStore = new PluginDataStore(new FakePluginDataPort());
+	await pluginDataStore.init();
+	await pluginDataStore.addPin("docid_pin_e", 5);
+	await pluginDataStore.saveNodeOverrideField("docid_a_e", {
+		field: "sizePx",
+		value: { widthPx: 320, heightPx: 180 },
+	});
+	const builder = new VicinityGraphBuilder(
+		ports.vault,
+		ports.metadataCache,
+		docIdPort,
+		new CanvasParseCache(),
+		pluginDataStore,
+		new PathDocIdMap(),
+	);
+	return { builder, docIdPort };
+}
+
+describe("VicinityGraphBuilder with a cold docid map (restart shape)", () => {
+	it("WHEN the map is cold THEN a persisted pin is a central on the FIRST build", async () => {
+		const { builder } = await coldMapFixture();
+		const graph = (await builder.build("main.md"))?.graph;
+		expect(graph?.nodes.find((node) => node.path === "pinned.md")?.isCentral).toBe(true);
+	});
+
+	it("WHEN the map is cold THEN a persisted override reaches its node on the FIRST build", async () => {
+		const { builder } = await coldMapFixture();
+		const graph = (await builder.build("main.md"))?.graph;
+		expect(graph?.nodes.find((node) => node.path === "a.md")?.override).toEqual({
+			sizePx: { widthPx: 320, heightPx: 180 },
+		});
+	});
+
+	it("WHEN the cold map is warmed on demand THEN no ids are created (read path stays read-only)", async () => {
+		const { builder, docIdPort } = await coldMapFixture();
+		await builder.build("main.md");
+		expect(docIdPort.ensureCalls).toBe(0);
+	});
+});

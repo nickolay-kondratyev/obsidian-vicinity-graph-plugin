@@ -1,4 +1,5 @@
 import { VicinityEngine } from "../engine";
+import { DocIdMapWarmer } from "../persistence/DocIdMapWarmer";
 import type { PathDocIdMap } from "../persistence/PathDocIdMap";
 import type { PluginDataStore } from "../persistence/PluginDataStore";
 import { ControlsModelBuilder } from "../view/ControlsModel";
@@ -19,6 +20,9 @@ import type { DocIdPort, MetadataCachePort, VaultPort } from "./obsidianPorts";
  * graph; it just cannot be pinned.
  */
 export class VicinityGraphBuilder {
+	/** Built here, not injected: a pure composition of this builder's own deps, ONE per plugin (one builder). */
+	private readonly docIdMapWarmer: DocIdMapWarmer;
+
 	constructor(
 		private readonly vault: VaultPort,
 		private readonly metadataCache: MetadataCachePort,
@@ -26,7 +30,9 @@ export class VicinityGraphBuilder {
 		private readonly canvasParseCache: CanvasParseCache,
 		private readonly pluginDataStore: PluginDataStore,
 		private readonly pathDocIdMap: PathDocIdMap,
-	) {}
+	) {
+		this.docIdMapWarmer = new DocIdMapWarmer(vault, docIdPort, pathDocIdMap);
+	}
 
 	/** `null` when `mainPath` does not resolve to a vault file. */
 	async build(mainPath: string): Promise<GraphBuildResult | null> {
@@ -41,13 +47,20 @@ export class VicinityGraphBuilder {
 			// delete-handling exact for docs seen before the sweep warm-up.
 			this.pathDocIdMap.set(mainPath, mainDocId);
 		}
+		const pins = this.pluginDataStore.pins();
+		const nodeOverrides = this.pluginDataStore.nodeOverrides();
+		// Cold-map fix (ticket nid_gbyqsuplz8b7pv0u5k34sdz1q_e): resolve the
+		// docids this build actually needs on demand, so pins and per-node
+		// overrides render correctly on the FIRST build after a restart instead
+		// of waiting for the delayed sweep warm-up.
+		await this.docIdMapWarmer.warmFor([...pins.map((pin) => pin.docid), ...Object.keys(nodeOverrides)]);
 		// ONE inputs object feeds BOTH the graph AND the toolbar model, so the value
 		// a control shows is structurally the value the graph used.
 		const inputs: GraphRequestInputs = {
 			mainPath,
 			mainDocId,
-			pins: this.pluginDataStore.pins(),
-			nodeOverrides: this.pluginDataStore.nodeOverrides(),
+			pins,
+			nodeOverrides,
 			resolveDocPath: (docid) => this.pathDocIdMap.getPath(docid),
 			globalDepths: this.pluginDataStore.globalDepths(),
 			globalView: this.pluginDataStore.globalView(),

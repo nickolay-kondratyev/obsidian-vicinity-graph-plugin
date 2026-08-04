@@ -15,9 +15,33 @@ export class ChunkedWork {
 		work: (item: T) => void | Promise<void>,
 		yieldBetweenBatches: () => Promise<void> = ChunkedWork.sleepZero,
 	): Promise<void> {
+		await ChunkedWork.forEachChunkedUntil(
+			items,
+			batchSize,
+			async (item) => {
+				await work(item);
+				return false;
+			},
+			yieldBetweenBatches,
+		);
+	}
+
+	/**
+	 * Like {@link forEachChunked}, but `work` returns `true` to STOP — the
+	 * remaining items are never visited and no trailing yield happens. For
+	 * scans that can finish early (on-demand docid warm-up).
+	 */
+	static async forEachChunkedUntil<T>(
+		items: readonly T[],
+		batchSize: number,
+		work: (item: T) => boolean | Promise<boolean>,
+		yieldBetweenBatches: () => Promise<void> = ChunkedWork.sleepZero,
+	): Promise<void> {
 		for (let index = 0; index < items.length; index++) {
 			const item = items[index] as T;
-			await work(item);
+			if (await work(item)) {
+				return;
+			}
 			const batchBoundary = (index + 1) % batchSize === 0 && index + 1 < items.length;
 			if (batchBoundary) {
 				await yieldBetweenBatches();

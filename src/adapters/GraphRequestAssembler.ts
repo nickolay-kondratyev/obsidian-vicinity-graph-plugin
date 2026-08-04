@@ -33,9 +33,9 @@ export interface GraphRequestInputs {
  * untranslated). Settings need no translation at all — they are global.
  *
  * Judgments encoded here:
- * - a pin/override whose docid does not resolve to a path is SKIPPED (the
- *   delayed sweep deletes it; before the sweep warms the map it is simply
- *   invisible),
+ * - a pin/override whose docid does not resolve to a path is SKIPPED — the
+ *   read path already warmed the map on demand (DocIdMapWarmer), so an
+ *   unresolved docid here is a true orphan the delayed sweep will delete,
  * - a pin pointing at the main doc is skipped (it is already central) — an
  *   OVERRIDE on the main doc is NOT: overrides apply from any central.
  */

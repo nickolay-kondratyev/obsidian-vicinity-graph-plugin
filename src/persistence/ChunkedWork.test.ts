@@ -39,3 +39,29 @@ describe("ChunkedWork.forEachChunked", () => {
 		expect(count()).toBe(0);
 	});
 });
+
+describe("ChunkedWork.forEachChunkedUntil", () => {
+	it("WHEN work signals stop THEN the remaining items are never visited", async () => {
+		const visited: number[] = [];
+		await ChunkedWork.forEachChunkedUntil([1, 2, 3, 4, 5], 2, (item) => {
+			visited.push(item);
+			return item === 2;
+		});
+		expect(visited).toEqual([1, 2]);
+	});
+
+	it("WHEN work never signals stop THEN every item is visited in order", async () => {
+		const visited: number[] = [];
+		await ChunkedWork.forEachChunkedUntil([1, 2, 3], 2, (item) => {
+			visited.push(item);
+			return false;
+		});
+		expect(visited).toEqual([1, 2, 3]);
+	});
+
+	it("WHEN work stops on a batch boundary THEN there is no trailing yield", async () => {
+		const { yieldFn, count } = countingYield();
+		await ChunkedWork.forEachChunkedUntil([1, 2, 3, 4, 5], 2, (item) => item === 2, yieldFn);
+		expect(count()).toBe(0);
+	});
+});
