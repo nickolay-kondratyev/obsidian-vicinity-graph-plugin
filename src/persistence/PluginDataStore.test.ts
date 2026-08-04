@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EngineDefaults } from "../engine";
+import { EngineDefaults, NODE_OVERRIDE_HARD_MAX_PX, NODE_OVERRIDE_HARD_MIN_PX } from "../engine";
 import { FakePluginDataPort } from "./FakePluginDataPort";
 import { PluginDataStore } from "./PluginDataStore";
 import type { PluginDataPort } from "./storagePorts";
@@ -61,10 +61,125 @@ describe("PluginDataStore", () => {
 		await store.removePins(["docid_a_e"]);
 		expect(store.pins()).toEqual([{ docid: "docid_b_e", pinTimestamp: 2 }]);
 	});
+});
 
-	it("WHEN asked about a pinned doc THEN hasPin reports it", async () => {
+const SIZE_CHANGE = { field: "sizePx", value: { widthPx: 320, heightPx: 180 } } as const;
+const CONTENT_CHANGE = { field: "content", value: "outline" } as const;
+
+describe("PluginDataStore node overrides", () => {
+	it("WHEN an override field is saved THEN it round-trips through the port", async () => {
+		const port = new FakePluginDataPort();
+		await (await initializedStore(port)).saveNodeOverrideField("docid_a_e", SIZE_CHANGE);
+		expect((await initializedStore(port)).nodeOverrides()).toEqual({
+			docid_a_e: { sizePx: { widthPx: 320, heightPx: 180 } },
+		});
+	});
+
+	it("WHEN the other field is saved THEN the stored one SURVIVES (the store merges, callers never do)", async () => {
+		const store = await initializedStore();
+		await store.saveNodeOverrideField("docid_a_e", SIZE_CHANGE);
+		await store.saveNodeOverrideField("docid_a_e", CONTENT_CHANGE);
+		expect(store.nodeOverrides()).toEqual({
+			docid_a_e: { sizePx: { widthPx: 320, heightPx: 180 }, content: "outline" },
+		});
+	});
+
+	it("WHEN the same field is saved again THEN the newer value replaces it", async () => {
+		const store = await initializedStore();
+		await store.saveNodeOverrideField("docid_a_e", CONTENT_CHANGE);
+		await store.saveNodeOverrideField("docid_a_e", { field: "content", value: "image" });
+		expect(store.nodeOverrides()).toEqual({ docid_a_e: { content: "image" } });
+	});
+
+	it("WHEN a field is cleared THEN the entry keeps ONLY the fields that were not named", async () => {
+		// Clearing rebuilds the entry, so it must copy-minus-one — never re-list
+		// the fields it knows about (a field added to NodeOverride would vanish).
+		const store = await initializedStore();
+		await store.saveNodeOverrideField("docid_a_e", SIZE_CHANGE);
+		await store.saveNodeOverrideField("docid_a_e", CONTENT_CHANGE);
+		await store.clearNodeOverrideField("docid_a_e", "sizePx");
+		expect(store.nodeOverrides()).toEqual({ docid_a_e: { content: "outline" } });
+	});
+
+	it("WHEN one field is cleared THEN the other one stays", async () => {
+		const store = await initializedStore();
+		await store.saveNodeOverrideField("docid_a_e", SIZE_CHANGE);
+		await store.saveNodeOverrideField("docid_a_e", CONTENT_CHANGE);
+		await store.clearNodeOverrideField("docid_a_e", "content");
+		expect(store.nodeOverrides()).toEqual({ docid_a_e: { sizePx: { widthPx: 320, heightPx: 180 } } });
+	});
+
+	it("WHEN the LAST field is cleared THEN the whole entry is deleted (reset = no orphan)", async () => {
+		const store = await initializedStore();
+		await store.saveNodeOverrideField("docid_a_e", CONTENT_CHANGE);
+		await store.clearNodeOverrideField("docid_a_e", "content");
+		expect(store.nodeOverrides()).toEqual({});
+	});
+
+	it("WHEN a field that was never set is cleared THEN nothing is written at all", async () => {
+		const port = new FakePluginDataPort();
+		await (await initializedStore(port)).clearNodeOverrideField("docid_a_e", "sizePx");
+		expect(port.saved).toBeNull();
+	});
+
+	it("WHEN a saved pixel box exceeds the hard sanity bounds THEN it is stored clamped into them", async () => {
+		const store = await initializedStore();
+		await store.saveNodeOverrideField("docid_a_e", { field: "sizePx", value: { widthPx: 999999, heightPx: 1 } });
+		expect(store.nodeOverrides()).toEqual({
+			docid_a_e: { sizePx: { widthPx: NODE_OVERRIDE_HARD_MAX_PX, heightPx: NODE_OVERRIDE_HARD_MIN_PX } },
+		});
+	});
+
+	it("WHEN a saved pixel box is not finite THEN it is REFUSED, not degraded to a bound", async () => {
+		// Absence is what "no override" means, so an unmeasurable box has no
+		// number to fall back to — inventing the hard minimum would persist a dot.
+		const store = await initializedStore();
+		await store.saveNodeOverrideField("docid_a_e", { field: "sizePx", value: { widthPx: NaN, heightPx: 200 } });
+		expect(store.nodeOverrides()).toEqual({});
+	});
+
+	it("WHEN a non-finite box is saved over a stored one THEN the stored box SURVIVES", async () => {
+		const store = await initializedStore();
+		await store.saveNodeOverrideField("docid_a_e", SIZE_CHANGE);
+		await store.saveNodeOverrideField("docid_a_e", {
+			field: "sizePx",
+			value: { widthPx: Number.POSITIVE_INFINITY, heightPx: 200 },
+		});
+		expect(store.nodeOverrides()).toEqual({ docid_a_e: { sizePx: { widthPx: 320, heightPx: 180 } } });
+	});
+
+	it("WHEN a refused box is the only write THEN data.json is not rewritten", async () => {
+		const port = new FakePluginDataPort();
+		const store = await initializedStore(port);
+		await store.saveNodeOverrideField("docid_a_e", { field: "sizePx", value: { widthPx: NaN, heightPx: NaN } });
+		expect(port.saved).toBeNull();
+	});
+});
+
+/** Deleting a doc is not unpinning it — every docid-keyed map drops the doc at once. */
+describe("PluginDataStore.forgetDocs", () => {
+	it("WHEN a doc is forgotten THEN both its pin and its override disappear", async () => {
 		const store = await initializedStore();
 		await store.addPin("docid_a_e", 1);
-		expect([store.hasPin("docid_a_e"), store.hasPin("docid_b_e")]).toEqual([true, false]);
+		await store.saveNodeOverrideField("docid_a_e", CONTENT_CHANGE);
+		await store.forgetDocs(["docid_a_e"]);
+		expect([store.pins(), store.nodeOverrides()]).toEqual([[], {}]);
+	});
+
+	it("WHEN a doc is forgotten THEN other docs keep their entries", async () => {
+		const store = await initializedStore();
+		await store.addPin("docid_b_e", 2);
+		await store.saveNodeOverrideField("docid_b_e", CONTENT_CHANGE);
+		await store.forgetDocs(["docid_a_e"]);
+		expect([store.pins(), store.nodeOverrides()]).toEqual([
+			[{ docid: "docid_b_e", pinTimestamp: 2 }],
+			{ docid_b_e: { content: "outline" } },
+		]);
+	});
+
+	it("WHEN a doc nothing was persisted about is forgotten THEN data.json is not rewritten", async () => {
+		const port = new FakePluginDataPort();
+		await (await initializedStore(port)).forgetDocs(["docid_untracked_e"]);
+		expect(port.saved).toBeNull();
 	});
 });

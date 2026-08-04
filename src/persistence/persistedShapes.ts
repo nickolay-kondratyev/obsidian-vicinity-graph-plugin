@@ -2,15 +2,19 @@ import type {
 	DepthSettings,
 	ForceLayoutSettings,
 	NodeExclusionSettings,
+	NodeOverride,
+	NodeSizeOverridePx,
 	SizeMetricId,
 	SizingSettings,
 	ViewSettings,
 } from "../engine";
 import {
 	EngineDefaults,
+	NODE_CONTENT_OVERRIDES,
 	NODE_PREVIEW_PREFERENCES,
 	clampForceLayoutSettings,
 	clampNodeCap,
+	clampNodeSizeOverridePx,
 	clampOutlineMaxDepth,
 	clampSizingSettings,
 } from "../engine";
@@ -23,14 +27,24 @@ import {
  * malformed-content philosophy.
  *
  * There is exactly ONE persisted file: the plugin's `data.json`. Settings are
- * GLOBAL-only and pins are global, so nothing is keyed per document (owner
- * decision 2026-07-29).
+ * GLOBAL-only; the two docid-keyed maps (pins, per-node overrides) are global
+ * facts about docs — renames are non-events — never a per-document settings
+ * layer (owner decision 2026-07-29).
  */
 
 /**
  * Bumped to 2 when the `edgeRouting` view field was removed (routing is now
  * always on): a mismatched version parses to defaults/null and the next write
  * rewrites at the current version, so stale v1 `edgeRouting` values are dropped.
+ *
+ * WHY-NOT bump per ADDED field: a version bump DISCARDS every stored setting
+ * and both docid-keyed maps wholesale, so it is reserved for a REMOVED/renamed
+ * key whose stale value would otherwise be read back wrong. An additive field
+ * (`nodeOverrides`, `edgeRoutingClearancePx`, the pinned depth fields) needs
+ * nothing: it is absent from an older file and defaults per field. Bumping for
+ * one would be strictly worse — the standing call recorded in
+ * `nid_8p0nn2g34d97finokwlz3u1dt_e` and re-affirmed (against a far stronger
+ * case, a KEY RENAME) in `nid_fay1hu5sxcoygizopkkg0f0d7_e`.
  *
  * WHY-NOT preserve-unknown-versions: a FUTURE-version file (written by a newer
  * install, then downgraded) also parses to defaults/null here, and the next
@@ -54,6 +68,12 @@ export interface PluginData {
 	readonly pins: readonly PinnedDocEntry[];
 	/** Global node exclusion (vault-wide enable + regex-lite pattern list). */
 	readonly nodeExclusion: NodeExclusionSettings;
+	/**
+	 * Per-node user overrides, keyed by docid like {@link pins}. An entry with
+	 * neither field is never stored ({@link PluginDataStore} deletes it) and is
+	 * dropped by the parser if hand-edited in.
+	 */
+	readonly nodeOverrides: Readonly<Record<string, NodeOverride>>;
 }
 
 export class PersistedShapes {
@@ -64,6 +84,7 @@ export class PersistedShapes {
 			globalView: EngineDefaults.viewSettings(),
 			pins: [],
 			nodeExclusion: EngineDefaults.nodeExclusionSettings(),
+			nodeOverrides: {},
 		};
 	}
 
@@ -82,6 +103,7 @@ export class PersistedShapes {
 			globalView: { ...defaults.globalView, ...parseViewFields(raw["globalView"]) },
 			pins: parsePins(raw["pins"]),
 			nodeExclusion: parseNodeExclusion(raw["nodeExclusion"], defaults.nodeExclusion),
+			nodeOverrides: parseNodeOverrides(raw["nodeOverrides"]),
 		};
 	}
 }
@@ -265,6 +287,60 @@ function parsePins(raw: unknown): readonly PinnedDocEntry[] {
 		}
 	}
 	return pins;
+}
+
+/**
+ * Defensive per-node override parser: a non-object map degrades to empty; per
+ * entry, an unusable `sizePx` (missing/non-finite dimension) and an
+ * unrecognized `content` each fall away; an entry left with NEITHER field is
+ * dropped whole — "empty entry" is a stored shape that must not exist
+ * (see {@link PluginData.nodeOverrides}). Surviving pixel boxes are clamped
+ * with the SAME hard-sanity clamp the write path uses.
+ *
+ * Added WITHOUT a PERSISTED_SHAPE_VERSION bump (explicit call, same as
+ * `edgeRoutingClearancePx`): the map is ADDITIVE, so a file written before it
+ * existed simply has no `nodeOverrides` key and gets the empty map here, while
+ * a bump would discard that file's settings AND its pins (see the version doc).
+ */
+function parseNodeOverrides(raw: unknown): Readonly<Record<string, NodeOverride>> {
+	if (!isRecord(raw)) {
+		return {};
+	}
+	const overrides: Record<string, NodeOverride> = {};
+	for (const [docid, entry] of Object.entries(raw)) {
+		const override = parseNodeOverride(entry);
+		if (override !== undefined) {
+			overrides[docid] = override;
+		}
+	}
+	return overrides;
+}
+
+function parseNodeOverride(raw: unknown): NodeOverride | undefined {
+	if (!isRecord(raw)) {
+		return undefined;
+	}
+	const sizePx = parseNodeSizeOverride(raw["sizePx"]);
+	const content = NODE_CONTENT_OVERRIDES.find((choice) => choice === raw["content"]);
+	if (sizePx === undefined && content === undefined) {
+		return undefined;
+	}
+	return { ...(sizePx !== undefined ? { sizePx } : {}), ...(content !== undefined ? { content } : {}) };
+}
+
+function parseNodeSizeOverride(raw: unknown): NodeSizeOverridePx | undefined {
+	if (!isRecord(raw)) {
+		return undefined;
+	}
+	const widthPx = raw["widthPx"];
+	const heightPx = raw["heightPx"];
+	if (typeof widthPx !== "number" || typeof heightPx !== "number") {
+		return undefined;
+	}
+	// "Is this number usable as node geometry" is the CLAMP's rule, asked once —
+	// re-testing finiteness here would let the load and write paths disagree
+	// about which boxes exist.
+	return clampNodeSizeOverridePx({ widthPx, heightPx });
 }
 
 function numberOrUndefined(value: unknown): number | undefined {

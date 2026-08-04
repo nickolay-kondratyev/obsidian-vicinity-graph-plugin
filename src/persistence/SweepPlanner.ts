@@ -4,25 +4,29 @@ export interface SweepInputs {
 	readonly liveDocids: ReadonlySet<string>;
 	/** Docids in the pinned set (data.json). */
 	readonly pinnedDocids: readonly string[];
+	/** Docids in the per-node override map (data.json). */
+	readonly overrideDocids: readonly string[];
 }
 
 /** Exactly what to drop — nothing else (test contract). */
 export interface SweepPlan {
 	readonly pinsToRemove: readonly string[];
+	readonly overridesToRemove: readonly string[];
 }
 
 /**
- * Pure orphan judgment (step doc): a pin is an orphan exactly when its docid no
- * longer resolves to a live doc. Effects live in `OrphanSweeper`.
+ * Pure orphan judgment (step doc): an entry is an orphan exactly when its docid
+ * no longer resolves to a live doc. Effects live in `OrphanSweeper`.
  *
- * Pins are the ONLY docid-keyed persisted state since settings became
- * global-only (2026-07-29) — `data.json`'s settings are not keyed by anything
- * that can go stale.
+ * Pins and per-node overrides are the ONLY docid-keyed persisted state —
+ * `data.json`'s settings are global and not keyed by anything that can go stale.
  */
 export class SweepPlanner {
 	static plan(inputs: SweepInputs): SweepPlan {
+		const isOrphan = (docid: string): boolean => !inputs.liveDocids.has(docid);
 		return {
-			pinsToRemove: inputs.pinnedDocids.filter((docid) => !inputs.liveDocids.has(docid)),
+			pinsToRemove: inputs.pinnedDocids.filter(isOrphan),
+			overridesToRemove: inputs.overrideDocids.filter(isOrphan),
 		};
 	}
 }

@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { ViewSettings } from "../engine";
-import { EngineDefaults, SETTINGS_SPEC, SIZING_RANGES } from "../engine";
+import {
+	EngineDefaults,
+	NODE_OVERRIDE_HARD_MAX_PX,
+	NODE_OVERRIDE_HARD_MIN_PX,
+	SETTINGS_SPEC,
+	SIZING_RANGES,
+} from "../engine";
 import { PersistedShapes, PERSISTED_SHAPE_VERSION } from "./persistedShapes";
 
 /** The parsed `globalView` — the one surface every view field is stored on. */
@@ -16,6 +22,7 @@ describe("PersistedShapes.parsePluginData", () => {
 			globalView: EngineDefaults.viewSettings(),
 			pins: [],
 			nodeExclusion: EngineDefaults.nodeExclusionSettings(),
+			nodeOverrides: {},
 		});
 	});
 
@@ -35,6 +42,10 @@ describe("PersistedShapes.parsePluginData", () => {
 			globalView: { ...EngineDefaults.viewSettings(), nodeCap: 42 },
 			pins: [{ docid: "docid_a_e", pinTimestamp: 1000 }],
 			nodeExclusion: { enabled: true, patterns: ["^rel/", "templates/"] },
+			nodeOverrides: {
+				docid_a_e: { sizePx: { widthPx: 320, heightPx: 180 }, content: "outline" },
+				docid_b_e: { content: "image" },
+			},
 		};
 		expect(PersistedShapes.parsePluginData(JSON.parse(JSON.stringify(data)))).toEqual(data);
 	});
@@ -108,6 +119,70 @@ describe("PersistedShapes.parsePluginData", () => {
 		const parsed = PersistedShapes.parsePluginData(raw).globalView;
 		expect(parsed).not.toHaveProperty("edgeRouting");
 		expect(parsed.nodeCap).toBe(7);
+	});
+});
+
+describe("PersistedShapes node-override parsing", () => {
+	function parsedOverrides(nodeOverrides: unknown) {
+		return PersistedShapes.parsePluginData({ version: PERSISTED_SHAPE_VERSION, nodeOverrides }).nodeOverrides;
+	}
+
+	it("WHEN nodeOverrides is absent THEN it defaults to an empty map", () => {
+		expect(PersistedShapes.parsePluginData({ version: PERSISTED_SHAPE_VERSION }).nodeOverrides).toEqual({});
+	});
+
+	it("WHEN a data.json persisted BEFORE the map existed is read THEN its settings and pins survive", () => {
+		// The explicit call behind adding `nodeOverrides` WITHOUT bumping
+		// PERSISTED_SHAPE_VERSION: the field is additive, so an older file needs no
+		// migration — whereas a bump would have discarded that file's settings AND
+		// its pins (parsePluginData returns defaults wholesale on a version mismatch).
+		const persistedBeforeTheMap = {
+			version: PERSISTED_SHAPE_VERSION,
+			globalView: { nodeCap: 7 },
+			pins: [{ docid: "docid_a_e", pinTimestamp: 1000 }],
+		};
+		expect(PersistedShapes.parsePluginData(persistedBeforeTheMap)).toEqual({
+			...PersistedShapes.defaultPluginData(),
+			globalView: { ...EngineDefaults.viewSettings(), nodeCap: 7 },
+			pins: [{ docid: "docid_a_e", pinTimestamp: 1000 }],
+		});
+	});
+
+	it("WHEN nodeOverrides is not an object THEN it degrades to an empty map", () => {
+		expect(parsedOverrides("scrambled")).toEqual({});
+	});
+
+	it("WHEN an entry has an unusable sizePx (missing a dimension) THEN only that field falls away", () => {
+		const raw = { docid_a_e: { sizePx: { widthPx: 300 }, content: "image" } };
+		expect(parsedOverrides(raw)).toEqual({ docid_a_e: { content: "image" } });
+	});
+
+	it("WHEN a sizePx dimension is non-finite THEN the whole sizePx falls away (never NaN geometry)", () => {
+		// 1e999 evaluates to Infinity — finite-only survives the parse.
+		const raw = { docid_a_e: { sizePx: { widthPx: 1e999, heightPx: 200 }, content: "outline" } };
+		expect(parsedOverrides(raw)).toEqual({ docid_a_e: { content: "outline" } });
+	});
+
+	it("WHEN an entry carries an unrecognized content THEN only that field falls away", () => {
+		const raw = { docid_a_e: { sizePx: { widthPx: 300, heightPx: 200 }, content: "collage" } };
+		expect(parsedOverrides(raw)).toEqual({ docid_a_e: { sizePx: { widthPx: 300, heightPx: 200 } } });
+	});
+
+	it("WHEN an entry ends up with neither field THEN the whole entry is dropped (no empty entries)", () => {
+		const raw = { docid_a_e: {}, docid_b_e: { content: "outline" } };
+		expect(parsedOverrides(raw)).toEqual({ docid_b_e: { content: "outline" } });
+	});
+
+	it("WHEN a non-object entry is stored THEN only that entry is dropped", () => {
+		const raw = { docid_a_e: "garbage", docid_b_e: { content: "image" } };
+		expect(parsedOverrides(raw)).toEqual({ docid_b_e: { content: "image" } });
+	});
+
+	it("WHEN a hand-edited sizePx exceeds the hard sanity bounds THEN it loads clamped into them", () => {
+		const raw = { docid_a_e: { sizePx: { widthPx: 999999, heightPx: 1 } } };
+		expect(parsedOverrides(raw)).toEqual({
+			docid_a_e: { sizePx: { widthPx: NODE_OVERRIDE_HARD_MAX_PX, heightPx: NODE_OVERRIDE_HARD_MIN_PX } },
+		});
 	});
 });
 

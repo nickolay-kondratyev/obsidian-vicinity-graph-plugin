@@ -59,6 +59,71 @@ describe("PersistenceServices.pinDoc", () => {
 	});
 });
 
+const CONTENT_CHANGE = { field: "content", value: "image" } as const;
+
+describe("PersistenceServices.saveNodeOverrideField", () => {
+	it("WHEN a doc with a docid gets an override THEN it persists under that docid", async () => {
+		const { persistence, pluginDataStore } = await services(new FakeDocIdPort({ "a.md": "docid_a_e" }));
+		await persistence.saveNodeOverrideField(fileAt("a.md"), {
+			field: "sizePx",
+			value: { widthPx: 320, heightPx: 180 },
+		});
+		expect(pluginDataStore.nodeOverrides()).toEqual({
+			docid_a_e: { sizePx: { widthPx: 320, heightPx: 180 } },
+		});
+	});
+
+	it("WHEN an id-less doc gets an override THEN an id is minted lazily (override = explicit write intent)", async () => {
+		const { persistence } = await services(new FakeDocIdPort());
+		expect(await persistence.saveNodeOverrideField(fileAt("new.md"), CONTENT_CHANGE)).toEqual({
+			kind: "persistable",
+			docid: "docid_minted1_e",
+		});
+	});
+
+	it("WHEN a doc gets an override THEN the path→docid map learns it (write path fills the map)", async () => {
+		const { persistence, pathDocIdMap } = await services(new FakeDocIdPort({ "a.md": "docid_a_e" }));
+		await persistence.saveNodeOverrideField(fileAt("a.md"), CONTENT_CHANGE);
+		expect(pathDocIdMap.getPath("docid_a_e")).toBe("a.md");
+	});
+
+	it("WHEN id-lib cannot identify the doc THEN the verdict is no-docid and nothing persists", async () => {
+		const docIdPort = new FakeDocIdPort();
+		docIdPort.markUnidentifiable("weird.md");
+		const { persistence, pluginDataStore } = await services(docIdPort);
+		const verdict = await persistence.saveNodeOverrideField(fileAt("weird.md"), CONTENT_CHANGE);
+		expect([verdict, pluginDataStore.nodeOverrides()]).toEqual([
+			{ kind: "not-persistable", reason: "no-docid" },
+			{},
+		]);
+	});
+
+	it("WHEN the doc carries an unsafe foreign docid THEN the verdict is unsafe-docid and nothing persists", async () => {
+		const { persistence, pluginDataStore } = await services(new FakeDocIdPort({ "a.md": "../escape" }));
+		const verdict = await persistence.saveNodeOverrideField(fileAt("a.md"), CONTENT_CHANGE);
+		expect([verdict, pluginDataStore.nodeOverrides()]).toEqual([
+			{ kind: "not-persistable", reason: "unsafe-docid" },
+			{},
+		]);
+	});
+});
+
+describe("PersistenceServices.clearNodeOverrideField", () => {
+	it("WHEN a doc's override field is cleared THEN its entry disappears", async () => {
+		const { persistence, pluginDataStore } = await services(new FakeDocIdPort({ "a.md": "docid_a_e" }));
+		await persistence.saveNodeOverrideField(fileAt("a.md"), CONTENT_CHANGE);
+		await persistence.clearNodeOverrideField(fileAt("a.md"), "content");
+		expect(pluginDataStore.nodeOverrides()).toEqual({});
+	});
+
+	it("WHEN an id-less doc's field is cleared THEN NO id is minted (clearing stores nothing)", async () => {
+		const docIdPort = new FakeDocIdPort();
+		const { persistence } = await services(docIdPort);
+		await persistence.clearNodeOverrideField(fileAt("new.md"), "content");
+		expect(docIdPort.ensureCalls).toBe(0);
+	});
+});
+
 describe("PersistenceServices.unpinDoc", () => {
 	it("WHEN a doc is unpinned THEN its pin disappears", async () => {
 		const { persistence, pluginDataStore } = await services(new FakeDocIdPort({ "a.md": "docid_a_e" }));

@@ -144,6 +144,13 @@ export interface GraphNode {
 	readonly sizeScore: number;
 	/** Pixel size mapped from {@link sizeScore}; the stable field step-04 diffs against. */
 	readonly sizePx: number;
+	/**
+	 * The user's per-node override, echoed from the request (docid → path
+	 * translated by the adapter) so the view applies it without re-mapping
+	 * identities. Q4 (decided): overrides move PIXELS only — {@link sizeScore}
+	 * stays pure relevance and keeps ranking truncation.
+	 */
+	readonly override?: NodeOverride;
 }
 
 /**
@@ -213,6 +220,57 @@ export const NODE_PREVIEW_PREFERENCES = [
 type UnlistedPreference = Exclude<NodePreviewPreference, (typeof NODE_PREVIEW_PREFERENCES)[number]>;
 export const _assertEveryNodePreviewPreferenceListed: UnlistedPreference extends never ? true : UnlistedPreference =
 	true;
+
+// ---------------------------------------------------------------------------
+// Per-node overrides (persisted in `data.json`, keyed by docid — like pins).
+// NOT a per-document settings layer (killed 2026-07-29): an override is a
+// global fact about one doc, applied from ANY central. See
+// docs-internal/plan/node-sizing-rethink.md.
+// ---------------------------------------------------------------------------
+
+/**
+ * Pixel box a user drag-resize committed for one node. Q3 (decided 2026-08-03):
+ * it may exceed the global `maxPx` dial or undercut `minPx` — the user's
+ * per-node intent is the MOST explicit — bounded only by the hard sanity bounds
+ * (`clampNodeSizeOverridePx`).
+ */
+export interface NodeSizeOverridePx {
+	readonly widthPx: number;
+	readonly heightPx: number;
+}
+
+/**
+ * Per-node content override: the {@link NodePreviewPreference} values MINUS
+ * `"auto"` — "Inherit" (fall back to the global preference, which may itself be
+ * `"auto"`) is expressed by ABSENCE of the field, never by a stored value.
+ */
+export type NodeContentOverride = Exclude<NodePreviewPreference, "auto">;
+
+/**
+ * THE value list of {@link NodeContentOverride} — persistence validates stored
+ * values against it (same single-sourcing as {@link NODE_PREVIEW_PREFERENCES}).
+ */
+export const NODE_CONTENT_OVERRIDES = ["outline", "image"] as const satisfies readonly NodeContentOverride[];
+
+/**
+ * Compile-time completeness: a preference added to {@link NodePreviewPreference}
+ * (e.g. the planned `title-only`) surfaces here as a type error until it is
+ * either listed as an override choice or explicitly excluded above.
+ */
+type UnlistedContentOverride = Exclude<NodeContentOverride, (typeof NODE_CONTENT_OVERRIDES)[number]>;
+export const _assertEveryNodeContentOverrideListed: UnlistedContentOverride extends never
+	? true
+	: UnlistedContentOverride = true;
+
+/**
+ * Everything a user overrode on ONE node. Both fields optional; an override
+ * with NEITHER field is never stored — the persistence layer deletes the entry
+ * (reset returns the node to inherit everything, no orphan lingers).
+ */
+export interface NodeOverride {
+	readonly sizePx?: NodeSizeOverridePx;
+	readonly content?: NodeContentOverride;
+}
 
 // ---------------------------------------------------------------------------
 // Settings shapes (persisted by step-03 in `data.json`). GLOBAL-only: there is

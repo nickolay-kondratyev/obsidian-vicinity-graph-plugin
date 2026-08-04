@@ -2,6 +2,7 @@ import type { DocIdPort, VaultPort } from "../adapters/obsidianPorts";
 import { ChunkedWork } from "./ChunkedWork";
 import type { PathDocIdMap } from "./PathDocIdMap";
 import type { PluginDataStore } from "./PluginDataStore";
+import type { SweepPlan } from "./SweepPlanner";
 import { SweepPlanner } from "./SweepPlanner";
 
 /** Sweep starts ~15s after plugin load (step doc) — vault/cache are settled, startup cost is zero. */
@@ -9,23 +10,24 @@ export const SWEEP_DELAY_MS = 15_000;
 /** Items handled between main-thread yields; small enough that a batch is never felt. */
 const SWEEP_BATCH_SIZE = 20;
 
-/** What a single sweep actually removed — the completion-log payload (zero ⇒ nothing was stale). */
+/** What a single sweep actually removed — the completion-log payload (zeros ⇒ nothing was stale). */
 export interface SweepSummary {
 	readonly pinsRemoved: number;
+	readonly overridesRemoved: number;
 }
 
 /**
  * Delayed self-healing pass (step doc): warms the path↔docid map over all
  * eligible files (getDocId — READ-ONLY, never creates ids), then drops exactly
- * the orphans — pins whose docid no longer resolves. The bulk warm-up is
- * chunked with yields ({@link ChunkedWork}); the judgment itself is pure
- * ({@link SweepPlanner}).
+ * the orphans — pins and per-node overrides whose docid no longer resolves. The
+ * bulk warm-up is chunked with yields ({@link ChunkedWork}); the judgment
+ * itself is pure ({@link SweepPlanner}).
  *
- * Pins are the only docid-keyed persisted state (settings are global-only since
- * 2026-07-29), so pruning them is the whole job.
+ * Pins and per-node overrides are the only docid-keyed persisted state
+ * (settings are global-only since 2026-07-29), so pruning them is the whole job.
  *
- * This is also the deferred cleanup path for unpin and for deletes that the
- * live `vault.on('delete')` handler could not map to a docid.
+ * This is also the deferred cleanup path for unpin/override-clear and for
+ * deletes that the live `vault.on('delete')` handler could not map to a docid.
  */
 export class OrphanSweeper {
 	constructor(
@@ -41,8 +43,9 @@ export class OrphanSweeper {
 		const plan = SweepPlanner.plan({
 			liveDocids,
 			pinnedDocids: this.pluginDataStore.pins().map((pin) => pin.docid),
+			overrideDocids: Object.keys(this.pluginDataStore.nodeOverrides()),
 		});
-		return this.apply(plan.pinsToRemove);
+		return this.apply(plan);
 	}
 
 	private async warmMapAndCollectLiveDocids(): Promise<ReadonlySet<string>> {
@@ -58,13 +61,16 @@ export class OrphanSweeper {
 		return liveDocids;
 	}
 
-	private async apply(pinsToRemove: readonly string[]): Promise<SweepSummary> {
-		const confirmedPinsToRemove = pinsToRemove.filter((docid) => this.isConfirmedOrphan(docid));
-		if (confirmedPinsToRemove.length > 0) {
-			// One data.json write for all stale pins — no reason to chunk a single call.
-			await this.pluginDataStore.removePins(confirmedPinsToRemove);
+	private async apply(plan: SweepPlan): Promise<SweepSummary> {
+		const pins = plan.pinsToRemove.filter((docid) => this.isConfirmedOrphan(docid));
+		const overrides = plan.overridesToRemove.filter((docid) => this.isConfirmedOrphan(docid));
+		const forgotten = new Set([...pins, ...overrides]);
+		if (forgotten.size > 0) {
+			// ONE data.json write for every stale docid — no reason to chunk a
+			// single call, and the same docid is usually stale in both maps.
+			await this.pluginDataStore.forgetDocs([...forgotten]);
 		}
-		return { pinsRemoved: confirmedPinsToRemove.length };
+		return { pinsRemoved: pins.length, overridesRemoved: overrides.length };
 	}
 
 	/**

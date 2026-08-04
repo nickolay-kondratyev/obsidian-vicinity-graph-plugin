@@ -6,6 +6,7 @@ import type {
 	DepthSettings,
 	ForceLayoutSettings,
 	NodeExclusionSettings,
+	NodeSizeOverridePx,
 	SizingSettings,
 	ViewSettings,
 } from "./types";
@@ -113,6 +114,46 @@ export const NODE_VERTICAL_CHROME_PX = 2 * (1 + 8);
  * threshold and the chrome — and fails if either half drifts.
  */
 export const THUMBNAIL_VISIBLE_MIN_NODE_PX = THUMBNAIL_REVEAL_CONTENT_BOX_PX + NODE_VERTICAL_CHROME_PX;
+
+/**
+ * Hard sanity bounds for a per-node size override ({@link import("./types").NodeSizeOverridePx}).
+ * Q3 (decided 2026-08-03): an override may exceed the global `maxPx` dial or
+ * undercut `minPx` — so these are deliberately WIDER than `NODE_SIZE_PX_BOUNDS`
+ * (1..400) and exist only to keep the number usable as geometry:
+ * - min 24: below that a node is no longer a grabbable/clickable box.
+ * - max 1200: 3× the dial ceiling — past that one node fills the pane and the
+ *   value is a typo/hand-edit, not a resize intent.
+ */
+export const NODE_OVERRIDE_HARD_MIN_PX = 24;
+export const NODE_OVERRIDE_HARD_MAX_PX = 1200;
+
+/**
+ * THE per-node size-override box rule, shared by the persistence LOAD path and
+ * the override WRITE path (store choke point) — never a bespoke guard that
+ * could drift. These numbers become node geometry (React-Flow box → libavoid
+ * obstacle), so a dimension that is NOT FINITE yields NO box (`undefined`)
+ * rather than some invented number.
+ *
+ * WHY-NOT degrade a non-finite dimension to a bound, the way
+ * {@link clampSizingNumber} degrades `NaN` to the field's spec DEFAULT: an
+ * override has no default to fall back to — ABSENCE is what "no override"
+ * means — so inventing 24px would persist a dot the user never asked for and
+ * make a bug indistinguishable from a deliberate tiny node. Refusing matches
+ * what the load path already does with an unusable `sizePx` (drops the field),
+ * so the two paths cannot disagree about which boxes exist.
+ *
+ * WHY `±Infinity` is refused HERE but accepted by a settings dial (where it
+ * means "as large/small as possible"): this value is not typed, it is MEASURED
+ * off a drag-resize — an unmeasurable box states nothing about intent.
+ */
+export function clampNodeSizeOverridePx(size: NodeSizeOverridePx): NodeSizeOverridePx | undefined {
+	if (!Number.isFinite(size.widthPx) || !Number.isFinite(size.heightPx)) {
+		return undefined;
+	}
+	const clamp = (value: number): number =>
+		Math.min(NODE_OVERRIDE_HARD_MAX_PX, Math.max(NODE_OVERRIDE_HARD_MIN_PX, value));
+	return { widthPx: clamp(size.widthPx), heightPx: clamp(size.heightPx) };
+}
 
 // ---------------------------------------------------------------------------
 // Settings input ranges — derived from SETTINGS_SPEC's per-field bounds.

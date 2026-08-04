@@ -1,11 +1,46 @@
-import type { DepthSettings, NodeExclusionSettings, ViewSettings } from "../engine";
+import type {
+	DepthSettings,
+	NodeContentOverride,
+	NodeExclusionSettings,
+	NodeOverride,
+	NodeSizeOverridePx,
+	ViewSettings,
+} from "../engine";
+import { clampNodeSizeOverridePx } from "../engine";
 import { SerialPromiseChain } from "../shared/SerialPromiseChain";
 import type { PinnedDocEntry, PluginData } from "./persistedShapes";
 import { PersistedShapes } from "./persistedShapes";
 import type { PluginDataPort } from "./storagePorts";
 
 /**
- * Typed owner of the plugin's `data.json` (global settings + the pinned set).
+ * ONE field of ONE doc's override — the whole write vocabulary for overrides.
+ * A change names a single field (the discipline `SettingsInteraction` already
+ * enforces for settings) so no caller ever hands over a COMPLETE entry: the
+ * other field is merged in {@link PluginDataStore.saveNodeOverrideField} from
+ * state read FRESH there. A caller composing an entry from the rendered graph
+ * would clobber whatever a second view — or the other control — stored since
+ * that rebuild.
+ */
+export type NodeOverrideChange =
+	| { readonly field: "sizePx"; readonly value: NodeSizeOverridePx }
+	| { readonly field: "content"; readonly value: NodeContentOverride };
+
+/** The overridable fields, named on their own for {@link PluginDataStore.clearNodeOverrideField}. */
+export type NodeOverrideField = NodeOverrideChange["field"];
+
+/**
+ * Compile-time completeness: a field added to {@link NodeOverride} surfaces
+ * here as a type error until {@link NodeOverrideChange} can carry it — an
+ * override field with no way to write or clear it would be dead storage.
+ */
+type UnwritableOverrideField = Exclude<keyof NodeOverride, NodeOverrideField>;
+export const _assertEveryNodeOverrideFieldWritable: UnwritableOverrideField extends never
+	? true
+	: UnwritableOverrideField = true;
+
+/**
+ * Typed owner of the plugin's `data.json` (global settings + the docid-keyed
+ * pinned set and per-node overrides).
  * Holds the parsed state in memory after {@link init}; every mutation
  * persists through a serialized write chain (last write wins, no interleaved
  * saveData calls).
@@ -37,8 +72,8 @@ export class PluginDataStore {
 		return this.data.nodeExclusion;
 	}
 
-	hasPin(docid: string): boolean {
-		return this.data.pins.some((pin) => pin.docid === docid);
+	nodeOverrides(): Readonly<Record<string, NodeOverride>> {
+		return this.data.nodeOverrides;
 	}
 
 	async saveGlobalDepths(globalDepths: DepthSettings): Promise<void> {
@@ -62,6 +97,106 @@ export class PluginDataStore {
 	async removePins(docids: readonly string[]): Promise<void> {
 		const removed = new Set(docids);
 		await this.persist({ ...this.data, pins: this.data.pins.filter((pin) => !removed.has(pin.docid)) });
+	}
+
+	/**
+	 * Sets ONE field of a doc's override, merged over the doc's stored entry
+	 * read FRESH here — never over an entry the caller composed from a rendered
+	 * graph (see {@link NodeOverrideChange}). The pixel box goes through the SAME
+	 * hard-sanity rule the load path uses, which can also REFUSE it outright.
+	 */
+	async saveNodeOverrideField(docid: string, change: NodeOverrideChange): Promise<void> {
+		const written = PluginDataStore.storedForm(change);
+		if (written === undefined) {
+			// An unusable value (a non-finite pixel box) carries no intent, and an
+			// override has no default to fall back to — so it stores NOTHING and
+			// leaves the field as it was, exactly as the load path drops such a box.
+			return;
+		}
+		const stored = this.data.nodeOverrides[docid] ?? {};
+		await this.putNodeOverride(docid, { ...stored, ...written });
+	}
+
+	/**
+	 * ONE change as its stored one-field shape, or `undefined` when the value is
+	 * unusable — the only place a written override value is normalized. The
+	 * switch is exhaustive on purpose: a new {@link NodeOverrideChange} variant
+	 * fails to compile here (noImplicitReturns) instead of silently landing
+	 * under another field's key.
+	 */
+	private static storedForm(change: NodeOverrideChange): NodeOverride | undefined {
+		switch (change.field) {
+			case "sizePx": {
+				const sizePx = clampNodeSizeOverridePx(change.value);
+				return sizePx === undefined ? undefined : { sizePx };
+			}
+			case "content":
+				return { content: change.value };
+		}
+	}
+
+	/**
+	 * Drops ONE field ("inherit this again"), keeping the other. A field that is
+	 * already absent is already the desired state, so nothing is written — a
+	 * delete/clear of an untouched doc must not rewrite `data.json`.
+	 */
+	async clearNodeOverrideField(docid: string, field: NodeOverrideField): Promise<void> {
+		const stored = this.data.nodeOverrides[docid];
+		if (stored === undefined || stored[field] === undefined) {
+			return;
+		}
+		await this.putNodeOverride(docid, PluginDataStore.withoutField(stored, field));
+	}
+
+	/**
+	 * Drops every docid-keyed trace of the named docs in ONE write — the single
+	 * place that knows WHICH maps are docid-keyed, shared by the live
+	 * `vault.on('delete')` handler and the orphan sweep, so a third such map is
+	 * wired here and nowhere else. Deleting a doc is NOT unpinning it: this is
+	 * the only removal that spans maps.
+	 */
+	async forgetDocs(docids: readonly string[]): Promise<void> {
+		const forgotten = new Set(docids);
+		const pins = this.data.pins.filter((pin) => !forgotten.has(pin.docid));
+		const nodeOverrides = Object.fromEntries(
+			Object.entries(this.data.nodeOverrides).filter(([docid]) => !forgotten.has(docid)),
+		);
+		const removedNothing =
+			pins.length === this.data.pins.length &&
+			Object.keys(nodeOverrides).length === Object.keys(this.data.nodeOverrides).length;
+		if (removedNothing) {
+			// Vaults delete files the plugin never persisted anything about.
+			return;
+		}
+		await this.persist({ ...this.data, pins, nodeOverrides });
+	}
+
+	/**
+	 * The one override write: an entry left with NO field is DELETED — "reset to
+	 * inherit everything" and "empty entry" are one operation, so the orphan
+	 * shape never reaches disk.
+	 *
+	 * Emptiness is asked of the KEYS, never of a hand-listed pair of fields: an
+	 * entry never carries an explicit-`undefined` field (the parser keeps only
+	 * present ones, {@link storedForm} writes exactly one, {@link withoutField}
+	 * deletes), so a field added to {@link NodeOverride} needs no edit here — the
+	 * hand-listed version would have deleted an entry holding only the new field.
+	 */
+	private async putNodeOverride(docid: string, override: NodeOverride): Promise<void> {
+		const nodeOverrides = { ...this.data.nodeOverrides };
+		if (Object.keys(override).length === 0) {
+			delete nodeOverrides[docid];
+		} else {
+			nodeOverrides[docid] = override;
+		}
+		await this.persist({ ...this.data, nodeOverrides });
+	}
+
+	/** The stored entry MINUS one field — copied, since the stored shape is readonly. */
+	private static withoutField(override: NodeOverride, field: NodeOverrideField): NodeOverride {
+		const remaining = { ...override };
+		delete remaining[field];
+		return remaining;
 	}
 
 	/**
