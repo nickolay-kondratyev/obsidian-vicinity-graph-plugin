@@ -88,29 +88,46 @@ Two failure modes the owner called out:
   An entry with neither field is deleted (reset returns the node to inherit
   everything, and the orphan never lingers).
 
-## 5. Open decisions (tracked in the `decide` ticket)
+## 5. Decisions (owner-answered 2026-08-03, decide ticket closed)
 
-- **Q1** — What does "combining node content and the sizing dials" mean for
-  the DEFAULT size: (a) keep metric dials, add content-derived metrics, or
-  (b) size-to-fit the rendered content (outline lines / thumbnail), clamped
-  by the min/max dials?
-- **Q2** — Central/pinned prominence floor: agree with the
-  metric-score-with-floor approach and roughly what floor?
-- **Q3** — May a per-node override exceed global `maxPx` / undercut `minPx`?
-- **Q4** — Confirm overrides never affect truncation ranking.
-- **Q5** — Silent frontmatter id assignment on first override save (pin
-  parity), or an explicit confirmation?
+- **Q1 — DECIDED: size-to-fit rendered content**, clamped by the min/max
+  dials. The owner went further than the original option (b): the **metric
+  dials are removed entirely** (own-file-size, total-linker-size,
+  backlink-count, outlink-count, depth-decay). Size reflects the usefulness
+  of the content the node shows — a title-only node sizes to fit just its
+  title. `minPx`/`maxPx` stay, as clamps.
+  - Open implementation point (owned by the engine ticket): with the metric
+    score gone, `NodePriorityChain`'s "higher size score" truncation tiebreak
+    either keeps a HIDDEN content-derived score for ranking only, or drops
+    that link and lets distance-to-MAIN take over.
+  - The preference-independence rule ("`sizePx` must not depend on the
+    resolved preview kind") is superseded by design: size now legitimately
+    follows displayed content, so a content-preference flip may relayout.
+- **Q2 — DECIDED: yes.** Centrals/pinned get the normal computed size floored
+  at a modest named prominence constant; no more forced maxPx.
+- **Q3 — DECIDED: yes.** A manual resize may exceed global `maxPx` / undercut
+  `minPx` (hard sanity bounds only).
+- **Q4 — DECIDED: confirmed.** Resize moves pixels only; truncation (whether
+  to show the node at all) is unaffected.
+- **Q5 — DECIDED: silent.** Frontmatter id is written whenever an id is
+  needed to save; no confirmation prompt.
+- **NEW (owner addition) — "Title only" content option**: a fourth
+  `NodePreviewPreference` value (`title-only`) rendering just the title, both
+  as a global setting and as a per-node override choice.
 
 ## 6. Ticket breakdown (created from the origin ticket)
 
-1. **decide: node sizing rethink decisions** (`decide` tag) — Q1–Q5 above.
-2. **engine: content-aware central/pinned sizing** — remove the central
-   bypass per Q1/Q2. Depends on the decide ticket.
-3. **persistence: docid-keyed per-node overrides in data.json** — shape,
-   parser, version bump, `PersistenceServices` write path reusing the pin
-   eligibility seam. Depends on the decide ticket.
-4. **view: drag-to-resize nodes via React Flow NodeResizer** — commit on
-   release, deferred relayout. Depends on ticket 3.
-5. **view: hover gear + per-node content override (Inherit/Outline/Image)** —
-   menu, override-aware `nodePreviewChoice`, reset affordance. Depends on
-   ticket 3.
+1. `nid_o5hz7ilcauwe2acqdfh6pcuam_e` **decide** — Q1–Q5. **Closed**, answers
+   recorded above and in its notes.
+2. `nid_cx5zoz7ptucg9nxalibv0mbjb_e` **engine: content-aware sizing** —
+   remove metric dials + central bypass, size-to-fit with prominence floor,
+   settle the truncation-tiebreak point.
+3. `nid_lwionnvohw9k58jw7a2dybht2_e` **persistence: docid-keyed per-node
+   overrides in data.json** — shape, parser, version bump,
+   `PersistenceServices` write path reusing the pin eligibility seam.
+4. `nid_qjsj5mth2phdqctbm0vfx9elw_e` **view: drag-to-resize via
+   NodeResizer** — commit on release, deferred relayout. Depends on 3.
+5. `nid_9hx6okamx3yt0rg9iad2f4151_e` **view: hover gear + per-node content
+   override [Inherit | Title only | Outline | Image]**. Depends on 3 and 6.
+6. `nid_jcxzhexfaksge2arjzca3w7ff_e` **settings: global "Title only" node
+   preview preference** — enum value, copy, chooser, bare-title rendering.

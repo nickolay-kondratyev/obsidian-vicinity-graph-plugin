@@ -3,7 +3,7 @@ id: nid_cx5zoz7ptucg9nxalibv0mbjb_e
 title: "engine: content-aware central and pinned node sizing"
 status: open
 deps: [nid_o5hz7ilcauwe2acqdfh6pcuam_e]
-links: [nid_o5hz7ilcauwe2acqdfh6pcuam_e, nid_lwionnvohw9k58jw7a2dybht2_e, nid_qjsj5mth2phdqctbm0vfx9elw_e, nid_9hx6okamx3yt0rg9iad2f4151_e, nid_kyowb4v8v51nslbicl4szgcd5_e]
+links: [nid_o5hz7ilcauwe2acqdfh6pcuam_e, nid_lwionnvohw9k58jw7a2dybht2_e, nid_qjsj5mth2phdqctbm0vfx9elw_e, nid_9hx6okamx3yt0rg9iad2f4151_e, nid_kyowb4v8v51nslbicl4szgcd5_e, nid_jcxzhexfaksge2arjzca3w7ff_e]
 created_iso: 2026-08-03T23:48:47Z
 status_updated_iso: 2026-08-03T23:48:47Z
 type: feature
@@ -25,3 +25,11 @@ Pure engine change: src/engine/NodeSizer.ts + constants + tests (BDD, start fail
 
 Empty central/pinned nodes no longer render at maxPx; behavior matches decided Q1/Q2; all sizing tests updated with explicit alignment noted.
 
+
+## Notes
+
+**2026-08-04T00:03:14Z**
+
+DECIDED (2026-08-03, decide ticket closed): Q1 = size-to-fit rendered content. Owner went FURTHER than option (b): REMOVE the metric dials entirely (own-file-size, total-linker-size, backlink-count, outlink-count, depth-decay). Default node size = fit what the node shows (title only -> fits the title; outline lines; thumbnail), clamped by the minPx/maxPx dials, which stay as clamps. Q2 = centrals/pinned get a modest named prominence floor, no maxPx bypass.
+
+OPEN IMPLEMENTATION POINT this ticket must settle: NodePriorityChain ranks truncation via sizeScore ("higher size score" tiebreak). With metrics gone, either keep a HIDDEN content-derived relevance score for ranking only, or drop that link in the chain and let distance-to-MAIN take over. Also: removing the dials removes their settings rows/spec leaves - clean break on stored data (version bump, unpublished), and the size-to-fit estimate lives in the view mapping like nodeDimensionsPx width today. Coordinate with the Title-only preference ticket on restating the preference-independence rule (size now legitimately follows displayed content).
