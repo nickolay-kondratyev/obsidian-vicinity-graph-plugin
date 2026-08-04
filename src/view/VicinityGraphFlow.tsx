@@ -57,8 +57,8 @@ export function VicinityGraphFlow({
 	const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
 	const previewModel = useSyncExternalStore(linkPreview.subscribe, linkPreview.getSnapshot);
 
-	// An emptied graph unmounts the flow below; drop the drawer's model too, or
-	// the NEXT graph would re-show a preview from the previous one.
+	// Any not-`ready` status unmounts the flow below; drop the drawer's model too,
+	// or the NEXT graph would re-show a preview from the previous one.
 	useEffect(() => {
 		if (snapshot.status !== "ready") {
 			linkPreview.close();
@@ -157,9 +157,10 @@ export function VicinityGraphFlow({
 	// zone so the attachment tiles stay a dead zone), not here — a node-level
 	// mouse-enter would re-cover those tiles with the popover.
 
-	// Its own element, not the empty state's copy: the first build after a restart
-	// waits on the docid warm-up (ticket nid_y081nezeucka9l0x3umebi5zo_e), and
-	// "no graph for this file" would be a wrong answer to a question still open.
+	// Its own element, not the empty state's copy: the FIRST build waits on the
+	// docid warm-up (ticket nid_y081nezeucka9l0x3umebi5zo_e), and "no graph for
+	// this file" would be a wrong answer to a question still open. Only that build
+	// publishes this status — see GraphViewController.firstBuildPending.
 	if (snapshot.status === "building") {
 		return <div className="vicinity-graph-building">Building the vicinity graph…</div>;
 	}

@@ -68,19 +68,24 @@ question still open, not a pending one.
 
 Changes (all in `src/view/`):
 - `GraphViewController.ts`: `FlowStatus` grows a third member, `building`, published from
-  `runRebuild` **only when nothing is rendered yet** (`snapshot.status !== "ready"`). A
-  rebuild over a live graph keeps that graph on screen — a placeholder on every settings
-  write would flicker.
+  `runRebuild` **only while the FIRST build is in flight** (`firstBuildPending`, cleared
+  once a build settles — graph, empty, or failure). The warm-up is paid once, so only that
+  build can visibly wait; a later rebuild is fast and a placeholder would only flicker —
+  over a live graph AND over the empty state, which rebuilds on every metadata resolve.
+  A rebuild that THROWS is caught there too: it logs and, if the placeholder is up, gives
+  way to the empty state (a rendered graph is kept), so a failed first build can never
+  leave "Building…" standing forever.
 - `VicinityGraphFlow.tsx`: renders `.vicinity-graph-building` ("Building the vicinity
   graph…") for that status; the link-preview-drawer close effect now fires on any
   not-`ready` status rather than on `empty` alone.
 - `graph-view.css`: `.vicinity-graph-building` shares the centered/muted presentation of
   `.vicinity-graph-empty`; only the sentence differs.
-- `GraphViewController.test.ts`: three BDD tests (building while first build is in flight;
-  a rendered graph stays published across a rebuild; building gives way to `empty` when a
-  build resolves with no graph). One pre-existing latest-wins test asserted `empty` for a
-  first build still in flight and now asserts `building` — same intent (the stale result
-  was not rendered), corrected literal.
+- `GraphViewController.test.ts`: BDD tests for building while the first build is in
+  flight; a rendered graph staying published across a rebuild; building giving way to
+  `empty` on a no-graph result; a settled-empty pane NOT re-entering the placeholder on a
+  later rebuild; and both rejection cases (placeholder → empty, rendered graph kept). One
+  pre-existing latest-wins test asserted `empty` for a first build still in flight and now
+  asserts `building` — same intent (the stale result was not rendered), corrected literal.
 
 No measurement was taken and none is claimed: the human explicitly accepted the await
 after using the plugin on large vaults, so the acceptance criterion's "not visibly
