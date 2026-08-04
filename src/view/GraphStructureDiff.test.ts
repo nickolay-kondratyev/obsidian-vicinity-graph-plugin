@@ -101,12 +101,33 @@ describe("decideLayout size-override growth (drag-to-resize commit)", () => {
 		expect(decideLayout(previous, graphWithOverride(201, 100), SIZE_RELAYOUT_THRESHOLD)).toBe("relayout");
 	});
 
-	it("WHEN a committed resize stays within the threshold THEN it reuses the layout (data-only refresh)", () => {
-		expect(decideLayout(previous, graphWithOverride(200, 200), SIZE_RELAYOUT_THRESHOLD)).toBe("reuse-layout");
+	it("WHEN a committed resize stays within the threshold THEN it STILL relayouts", () => {
+		// The whole point of the override rule: the growth threshold is for PASSIVE
+		// engine growth, and a sub-threshold resize used to keep the stale positions
+		// (grown node overlapping its neighbours / spilling out of its group box).
+		expect(decideLayout(previous, graphWithOverride(200, 200), SIZE_RELAYOUT_THRESHOLD)).toBe("relayout");
 	});
 
-	it("WHEN a committed resize shrank the node THEN it reuses the layout", () => {
-		expect(decideLayout(previous, graphWithOverride(30, 30), SIZE_RELAYOUT_THRESHOLD)).toBe("reuse-layout");
+	it("WHEN a committed resize shrank the node THEN it relayouts", () => {
+		expect(decideLayout(previous, graphWithOverride(30, 30), SIZE_RELAYOUT_THRESHOLD)).toBe("relayout");
+	});
+
+	it("WHEN a resize commits a box IDENTICAL to the stored one THEN it reuses the layout", () => {
+		// Values, not identity: a rebuild re-reads `data.json` into a fresh object
+		// every time, so an identity check would relayout on every unrelated rebuild.
+		expect(decideLayout(previous, graphWithOverride(100, 100), SIZE_RELAYOUT_THRESHOLD)).toBe("reuse-layout");
+	});
+
+	it("WHEN a node GAINS a size override THEN it relayouts", () => {
+		const unoverridden = makeGraph({ nodes: [makeNode({ path: asVaultPath("a.md") })] });
+		expect(decideLayout(unoverridden, graphWithOverride(100, 100), SIZE_RELAYOUT_THRESHOLD)).toBe("relayout");
+	});
+
+	it("WHEN 'Reset size' CLEARS a node's override THEN it relayouts", () => {
+		// The computed box is usually SMALLER, so the threshold never fired here and
+		// the reset left a hole in the layout where the big box had been.
+		const unoverridden = makeGraph({ nodes: [makeNode({ path: asVaultPath("a.md") })] });
+		expect(decideLayout(previous, unoverridden, SIZE_RELAYOUT_THRESHOLD)).toBe("relayout");
 	});
 });
 

@@ -134,7 +134,8 @@ Every **outgoing** reference carries a `LinkKind` — `link` or `embed` — whic
 ### Layout stability
 
 - After each rebuild, **diff the node/edge structure**. Unchanged structure skips layout entirely and only refreshes node data.
-- Exception: if any surviving node's RENDERED box (`nodeDimensionsPx`, in either dimension — so an engine size, a wider title and a user resize all count) grew beyond **`SIZE_RELAYOUT_THRESHOLD`** (a named constant, initially 1.0, meaning +100%, e.g. a large paste), trigger a full relayout so the graph does not turn ugly.
+- Exception: if any surviving node's RENDERED box (`nodeDimensionsPx`, in either dimension — so an engine size and a wider title both count) grew beyond **`SIZE_RELAYOUT_THRESHOLD`** (a named constant, initially 1.0, meaning +100%, e.g. a large paste), trigger a full relayout so the graph does not turn ugly.
+- Exception: a surviving node whose per-node size **override** CHANGED at all — set, cleared or moved to another box — relayouts unconditionally, threshold or not (ticket `nid_sj9qg27cmear9lgdlz5umwra5_e`). The threshold damps PASSIVE growth, where a jump under the reading position is the bigger evil; an override moves only because the user released a drag-resize or chose "Reset size", so the new box is the one they asked for and are looking straight at — reusing the old positions (and the cached folder-group box dimensions, which travel with them) leaves the node overlapping its neighbours and spilling outside its group border. It cannot fire mid-drag: the drag lives in React Flow's local node state and reaches the store only on release. Consequence, accepted: that relayout bumps `layoutVersion`, so the release also refits the viewport — whether a resize-driven relayout should be exempt from the refit is ticket `nid_ct22qotgtw4rezbdn5m0diyb3_e`.
 - Structural changes accept layout jumps in V1. Position-seeding elk for incremental stability is a V2 refinement.
 
 ### Testing

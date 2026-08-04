@@ -1,6 +1,6 @@
 import type { ForceLayoutSettings, GraphNode, VicinityGraph } from "../engine";
 import { FORCE_LAYOUT_RANGES } from "../engine";
-import { edgeIdOf, nodeDimensionsPx } from "./graphIdentity";
+import { edgeIdOf, nodeDimensionsPx, nodeSizeOverridePx } from "./graphIdentity";
 
 /**
  * Decides whether a rebuilt graph needs a fresh elk layout or can reuse the
@@ -13,10 +13,11 @@ import { edgeIdOf, nodeDimensionsPx } from "./graphIdentity";
  *
  * `relayout`: first build, any structural change (a node or edge added/removed),
  * a force-layout tuning change (the sliders must re-run the layout live — reusing
- * positions would silently swallow the new values), or a surviving node whose
- * RENDERED box (`nodeDimensionsPx` — engine sizing or a user size override) grew
- * beyond the threshold. Structural changes accept layout jumps in V1 (position
- * seeding is V2).
+ * positions would silently swallow the new values), a surviving node whose per-node
+ * size OVERRIDE changed at all (a committed drag-resize or a "Reset size" — see
+ * {@link anySizeOverrideChanged}), or a surviving node whose RENDERED box
+ * (`nodeDimensionsPx`) grew beyond the threshold. Structural changes accept layout
+ * jumps in V1 (position seeding is V2).
  */
 export type LayoutDecision = "relayout" | "reuse-layout";
 
@@ -35,6 +36,9 @@ export function decideLayout(
 		return "relayout";
 	}
 	if (!sameIds(edgeIdsOf(previous), edgeIdsOf(next))) {
+		return "relayout";
+	}
+	if (anySizeOverrideChanged(previous.nodes, next.nodes)) {
 		return "relayout";
 	}
 	if (anyNodeGrewBeyond(previous.nodes, next.nodes, sizeGrowthThreshold)) {
@@ -77,12 +81,51 @@ function sameIds(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
 }
 
 /**
+ * True if a node present in BOTH graphs has a DIFFERENT per-node size override
+ * than it had — set, cleared, or moved to another box (ticket
+ * `nid_sj9qg27cmear9lgdlz5umwra5_e`).
+ *
+ * WHY this is not folded into {@link anyNodeGrewBeyond}'s threshold: the threshold
+ * exists for PASSIVE growth (the engine re-scoring a node after a large paste),
+ * where a layout jump under the user's reading position is the bigger evil. An
+ * override moves for exactly ONE reason — the user committed a released
+ * drag-resize or chose "Reset size" — so the new box is what they just asked for
+ * and are looking straight at; reusing the old elk positions leaves it overlapping
+ * its neighbours and spilling outside its folder-group border. A SHRINK (and the
+ * clear, which usually shrinks) is covered for the same reason, and the threshold
+ * never saw shrinks at all.
+ *
+ * Note this cannot fire mid-drag: the drag lives in React Flow's local node state
+ * and reaches the store — hence a rebuild — only on release.
+ *
+ * Compared by VALUE: every rebuild resolves the override from `data.json` into a
+ * fresh object, so an identity check would relayout on every unrelated rebuild.
+ * Reached only when the id sets already match, so every `next` node has a
+ * `previous` counterpart.
+ */
+function anySizeOverrideChanged(previous: readonly GraphNode[], next: readonly GraphNode[]): boolean {
+	const previousOverrideByPath = new Map(previous.map((node) => [node.path, nodeSizeOverridePx(node)]));
+	return next.some((node) => {
+		const previousOverride = previousOverrideByPath.get(node.path);
+		const nextOverride = nodeSizeOverridePx(node);
+		if (previousOverride === undefined || nextOverride === undefined) {
+			return previousOverride !== nextOverride; // one side has no override at all
+		}
+		return (
+			previousOverride.widthPx !== nextOverride.widthPx ||
+			previousOverride.heightPx !== nextOverride.heightPx
+		);
+	});
+}
+
+/**
  * True if a node present in BOTH graphs grew by more than `threshold` (a
  * fraction of its previous size) in EITHER rendered dimension. Compared on
  * {@link nodeDimensionsPx} — the box elk laid out and React Flow renders — not
- * on the raw engine `sizePx`, so a per-node size override committed by a
- * drag-resize is seen exactly like an engine growth (that is what makes ONE
- * relayout follow a big resize). Reached only when the id sets already match,
+ * on the raw engine `sizePx`, so a growth of the label-driven WIDTH counts too.
+ * A changed size override never reaches here ({@link anySizeOverrideChanged}
+ * already relayouted), so this rule now sees only PASSIVE growth — which is the
+ * only kind the threshold was ever meant to damp. Reached only when the id sets already match,
  * so every `next` node has a `previous` counterpart. A previous dimension of 0
  * is treated as no meaningful ratio (avoids divide-by-zero; dimensions are
  * >= minPx in practice).

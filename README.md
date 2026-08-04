@@ -207,6 +207,9 @@ changed gets reverted by the next change.
 - **Drag any node bigger or smaller.** Hovering a node reveals a grab line on
   its right and bottom edges and a handle at the bottom-right corner; the new
   box is saved when you **release**, not while you drag.
+- **The graph re-arranges itself around the new box on release** — so the
+  resized note never ends up sitting on top of its neighbours or hanging out of
+  its folder group. Nothing moves while you are still dragging.
 - **A resized note keeps that size everywhere** — it is remembered per note
   (like a pin, keyed by a stable note id, so renames and moves keep it) and
   applies in every graph the note appears in, across restarts.
