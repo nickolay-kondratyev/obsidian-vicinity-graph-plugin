@@ -143,11 +143,12 @@ export class ControlsActions implements ControlsActionsPort {
 	/**
 	 * Turns a persistence verdict into a rebuild decision, telling the user when the
 	 * write was refused. `refusedOutcome` belongs to the CALLER because only the caller
-	 * knows whether its gesture already moved the screen — see {@link GuardedWriteOutcome}.
+	 * knows whether its gesture already moved the screen — see {@link GuardedWriteOutcome};
+	 * a refusal wrote nothing by definition, so `store-changed` is excluded at the type.
 	 */
 	private persistOutcome(
 		identity: PersistableIdentity,
-		refusal: { readonly message: string; readonly refusedOutcome: GuardedWriteOutcome },
+		refusal: { readonly message: string; readonly refusedOutcome: Exclude<GuardedWriteOutcome, "store-changed"> },
 	): GuardedWriteOutcome {
 		if (identity.kind === "not-persistable") {
 			this.notices.show(refusal.message);
