@@ -48,3 +48,5 @@ No behavior is WRONG today — this is a first-paint latency ceiling on large va
 
 On a vault with thousands of notes and at least one pinned doc, the first graph build after a restart is not visibly delayed by the docid warm-up (measured, not assumed), and pins/overrides still render correctly on the first build the user sees.
 
+--------------------------------------------------------------------------------
+HUMAN DECISION: This is only for the initial load right? I am thinking for now its acceptable to await on graph to load, It would be good to have 'loading' show up in such case. BUT only if its very straightforward and doesnt add unecessary complications. I havent found this to be an issue and I have been using it on large vaults. 
