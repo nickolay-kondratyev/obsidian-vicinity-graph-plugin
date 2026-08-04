@@ -48,3 +48,32 @@ const RESET_SIZE_ACTION: ResetSizeAction = { title: "Reset size", iconId: "undo-
 export function planResetSizeAction(hasSizeOverride: boolean): ResetSizeAction | null {
 	return hasSizeOverride ? RESET_SIZE_ACTION : null;
 }
+
+/** React Flow's class on every `NodeResizeControl` root — the grips' ONE DOM name. */
+const RESIZE_GRIP_SELECTOR = ".react-flow__resize-control";
+
+/**
+ * The only bit of a DOM node this predicate needs. Narrower than `Element` on
+ * purpose: it keeps the rule unit-testable without a DOM environment.
+ */
+interface ClosestQueryable {
+	closest(selector: string): unknown;
+}
+
+/**
+ * Whether a mouse event originated on one of a node's resize grips rather than
+ * on the node's body. The grips ride the React Flow node WRAPPER, so their
+ * events bubble into every node-level handler; a press that never MOVED is not
+ * suppressed by the drag layer either (d3-drag only swallows the click once the
+ * pointer has moved), so without this a mis-grabbed handle reads as a plain
+ * node click.
+ */
+export function startedOnResizeGrip(event: { readonly target: EventTarget | null }): boolean {
+	const { target } = event;
+	// Duck-checked rather than `instanceof Element` so the rule is unit-testable
+	// with a stub instead of a whole DOM environment.
+	if (target === null || !("closest" in target)) {
+		return false;
+	}
+	return (target as ClosestQueryable).closest(RESIZE_GRIP_SELECTOR) !== null;
+}

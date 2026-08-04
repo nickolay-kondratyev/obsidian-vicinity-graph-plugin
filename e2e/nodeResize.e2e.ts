@@ -69,11 +69,20 @@ async function renderedBoxPx(path: string): Promise<{ widthPx: number; heightPx:
 	}));
 }
 
+/**
+ * The bottom-right corner grip. Located under the React Flow node WRAPPER, not
+ * under `.vicinity-graph-node`: the grip overhangs the node box, and that box
+ * clips its content (`overflow: hidden`), so the grips are mounted outside it.
+ */
+function cornerResizeHandle(path: string): Locator {
+	return flowNodeWrapper(path).locator(".react-flow__resize-control.handle.bottom.right");
+}
+
 /** Hover-reveals the bottom-right handle, then drags it by the given screen deltas. */
 async function dragResizeHandle(path: string, deltaX: number, deltaY: number): Promise<void> {
 	const node = noteNode(path);
 	await node.hover();
-	const handle = node.locator(".react-flow__resize-control.handle.bottom.right");
+	const handle = cornerResizeHandle(path);
 	await expect(handle).toBeVisible();
 	// hover() (not raw mouse.move to the box centre): Playwright's actionability
 	// hit-check is what reliably lands the pointer ON the handle before the press.
@@ -148,4 +157,36 @@ test("WHEN 'Reset size' is chosen from the node's context menu THEN the override
 	await expect.poll(async () => (await harness.readNodeOverrides())[TARGET_DOCID]).toBeUndefined();
 	// The rebuilt box is the computed one again — different from the dragged box.
 	await expect.poll(async () => (await renderedBoxPx(TARGET)).widthPx).not.toBe(overridden.widthPx);
+});
+
+test("WHEN the corner grip's OVERHANGING half is hit-tested THEN it is the grip, not the pane", async () => {
+	// The grip is centred ON the node's corner, so half of it hangs outside the
+	// node box. `.vicinity-graph-node` is `overflow: hidden` — mounting the grips
+	// inside it clips exactly this half away, shrinking a 9px chip to a ~4px nub
+	// and the 1px edge lines to a half-pixel sliver. Probed through the real hit
+	// test because the clip changes neither the element's box nor its styles.
+	await noteNode(TARGET).hover();
+	const grip = await cornerResizeHandle(TARGET).boundingBox();
+	if (grip === null) {
+		throw new Error("corner resize grip has no bounding box");
+	}
+	const hit = await page.evaluate(
+		(point) => document.elementFromPoint(point.x, point.y)?.className ?? "",
+		{ x: grip.x + grip.width * 0.75, y: grip.y + grip.height * 0.75 },
+	);
+	expect(hit).toContain("react-flow__resize-control");
+});
+
+test("WHEN the corner grip is pressed and released without moving THEN the note is neither resized nor focused", async () => {
+	await noteNode(TARGET).hover();
+	await cornerResizeHandle(TARGET).hover();
+	await page.mouse.down();
+	await page.mouse.up();
+	// A press that never moved is no resize (XYResizer reports no end), and a grip
+	// is a control, not the node's body — so it must not focus/open the note. The
+	// forced refresh drains the rebuild queue, so a focus that DID happen shows up.
+	await harness.refreshOpenViews();
+	expect(await harness.readNodeOverrides()).toEqual({});
+	await expect(noteNode(OTHER_MAIN)).toHaveAttribute("data-tier", "main");
+	await expect(noteNode(TARGET)).not.toHaveAttribute("data-tier", "main");
 });

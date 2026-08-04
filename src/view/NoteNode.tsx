@@ -81,19 +81,21 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
 	);
 
 	return (
-		<div
-			className="vicinity-graph-node"
-			data-tier={data.tier}
-			data-path={data.path}
-			data-preview={data.preview}
-			onContextMenu={onContextMenu}
-		>
-			<PinButton action={pinAction} onActivate={runPinAction} />
+		<>
 			{/* Drag-to-resize (hover-revealed via CSS): BOTTOM/RIGHT edges + corner
 			    only, deliberately no top/left controls — those resize by MOVING the
 			    node's origin, and node positions are controller-owned (elk layout,
 			    reused on data-only rebuilds), so a moved origin would snap back on
-			    the commit rebuild. Anchored growth has no such lie. */}
+			    the commit rebuild. Anchored growth has no such lie.
+
+			    SIBLINGS of `.vicinity-graph-node`, not children of it: React Flow
+			    centres each grip ON the node's edge (`left/top: 100%` + a 50%
+			    translate), while `.vicinity-graph-node` is `overflow: hidden` (it
+			    must clip its title/thumbnail). Nested, that clip cut the grips down
+			    to the sliver that fell inside the padding box — the 1px edge lines
+			    all but vanished and only a quarter of the corner chip survived.
+			    `.react-flow__node` is positioned and clips nothing, so the grips
+			    keep the geometry React Flow computes for them. */}
 			<NodeResizeControl
 				variant={ResizeControlVariant.Line}
 				position="right"
@@ -107,38 +109,47 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
 				onResizeEnd={onResizeEnd}
 			/>
 			<NodeResizeControl position="bottom-right" {...NODE_RESIZE_BOUNDS} onResizeEnd={onResizeEnd} />
-			{/* Read-only graph: handles exist only as edge anchors (top target /
-			    bottom source matches the elk DOWN direction) and are hidden in CSS. */}
-			<Handle type="target" position={Position.Top} className="vicinity-graph-node__handle" />
-			<div className="vicinity-graph-node__content">
-				<div className="vicinity-graph-node__title" title={data.title}>
-					{data.title}
+			<div
+				className="vicinity-graph-node"
+				data-tier={data.tier}
+				data-path={data.path}
+				data-preview={data.preview}
+				onContextMenu={onContextMenu}
+			>
+				<PinButton action={pinAction} onActivate={runPinAction} />
+				{/* Read-only graph: handles exist only as edge anchors (top target /
+				    bottom source matches the elk DOWN direction) and are hidden in CSS. */}
+				<Handle type="target" position={Position.Top} className="vicinity-graph-node__handle" />
+				<div className="vicinity-graph-node__content">
+					<div className="vicinity-graph-node__title" title={data.title}>
+						{data.title}
+					</div>
+					{data.preview === "thumbnail" && thumbnailUrl !== null && (
+						<div className="vicinity-graph-node__thumbnail">
+							{/* alt="" — decorative; the adjacent title already names the note. */}
+							<img src={thumbnailUrl} alt="" loading="lazy" draggable={false} />
+							{extraImages !== null && (
+								<span className="vicinity-graph-node__thumbnail-badge">{extraImages}</span>
+							)}
+						</div>
+					)}
 				</div>
-				{data.preview === "thumbnail" && thumbnailUrl !== null && (
-					<div className="vicinity-graph-node__thumbnail">
-						{/* alt="" — decorative; the adjacent title already names the note. */}
-						<img src={thumbnailUrl} alt="" loading="lazy" draggable={false} />
-						{extraImages !== null && (
-							<span className="vicinity-graph-node__thumbnail-badge">{extraImages}</span>
-						)}
+				{/* A SIBLING of the content zone, not a child: whichever of the two is
+				    growing must be the one that reaches the node's spare height. In
+				    outline mode CSS hands the grow to the outline (the content zone
+				    drops to `flex: 0 0 auto`), which only works while the outline is
+				    the zone's sibling — nested, it would be capped by the zone. */}
+				{data.preview === "outline" && <NodeOutline notePath={data.path} entries={data.outline} />}
+				{data.attachmentGroups.length > 0 && (
+					<div className="vicinity-graph-node__attachments">
+						{data.attachmentGroups.map((group) => (
+							<AttachmentChip key={group.extension} group={group} />
+						))}
 					</div>
 				)}
+				<Handle type="source" position={Position.Bottom} className="vicinity-graph-node__handle" />
 			</div>
-			{/* A SIBLING of the content zone, not a child: whichever of the two is
-			    growing must be the one that reaches the node's spare height. In
-			    outline mode CSS hands the grow to the outline (the content zone
-			    drops to `flex: 0 0 auto`), which only works while the outline is
-			    the zone's sibling — nested, it would be capped by the zone. */}
-			{data.preview === "outline" && <NodeOutline notePath={data.path} entries={data.outline} />}
-			{data.attachmentGroups.length > 0 && (
-				<div className="vicinity-graph-node__attachments">
-					{data.attachmentGroups.map((group) => (
-						<AttachmentChip key={group.extension} group={group} />
-					))}
-				</div>
-			)}
-			<Handle type="source" position={Position.Bottom} className="vicinity-graph-node__handle" />
-		</div>
+		</>
 	);
 });
 

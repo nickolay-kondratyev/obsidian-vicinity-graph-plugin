@@ -395,24 +395,30 @@
 
 /* ===== drag-to-resize controls ==========================================
  *
- * NodeResizeControl elements (React Flow) rendered inside the note node:
- * bottom/right lines + bottom-right corner handle. The hover reveal is
- * cosmetic ONLY (opacity) — the controls stay interactive at all times.
- * WHY-NOT gate pointer-events on :hover: it is bistable. The corner handle
- * overhangs the node box (translate 50%), so the instant hover is lost there
- * the handle goes inert and can never be re-hovered to turn itself back on.
+ * NodeResizeControl elements (React Flow): bottom/right lines + bottom-right
+ * corner handle. Scoped to the RF node WRAPPER, not to `.vicinity-graph-node`,
+ * because that is where NoteNode mounts them — a grip is centred ON the node's
+ * edge, and `.vicinity-graph-node` is `overflow: hidden` (it clips its own
+ * title/thumbnail), so a nested grip is clipped down to the sliver that falls
+ * inside the padding box. See the WHY in NoteNode.tsx.
+ *
+ * The hover reveal is cosmetic ONLY (opacity) — the controls stay interactive
+ * at all times. WHY-NOT gate pointer-events on :hover: it is bistable. The
+ * corner handle overhangs the node box (translate 50%), so the instant hover
+ * is lost there the handle goes inert and can never be re-hovered to turn
+ * itself back on.
  */
-.vicinity-graph-node .react-flow__resize-control {
+.vicinity-graph-flow .react-flow__resize-control {
 	opacity: 0;
 	transition: opacity 0.12s ease;
 }
-/* :hover on the RF wrapper, not the inner div: the wrapper stays :hover while
- * the overhanging corner handle is grabbed. */
-.react-flow__node:hover .vicinity-graph-node .react-flow__resize-control {
+/* :hover on the RF wrapper: a grip is its child, so grabbing the overhanging
+ * corner handle keeps the wrapper hovered even though the pointer left the box. */
+.vicinity-graph-flow .react-flow__node:hover .react-flow__resize-control {
 	opacity: 1;
 }
 /* Corner handle: theme-accented chip instead of RF's stock blue square. */
-.vicinity-graph-node .react-flow__resize-control.handle {
+.vicinity-graph-flow .react-flow__resize-control.handle {
 	width: 9px;
 	height: 9px;
 	background: var(--interactive-accent);
@@ -420,7 +426,7 @@
 	border-radius: var(--radius-s);
 }
 /* Edge lines: accent the grabbable edge itself. */
-.vicinity-graph-node .react-flow__resize-control.line {
+.vicinity-graph-flow .react-flow__resize-control.line {
 	border-color: var(--interactive-accent);
 }
 

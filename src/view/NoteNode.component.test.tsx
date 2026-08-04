@@ -108,13 +108,23 @@ async function mountedNode(container: HTMLElement): Promise<HTMLElement> {
 	});
 }
 
+/** React Flow's node wrapper — the element NoteNode's whole output lives under. */
+async function mountedWrapper(container: HTMLElement): Promise<HTMLElement> {
+	const node = await mountedNode(container);
+	const wrapper = node.closest<HTMLElement>(".react-flow__node");
+	if (wrapper === null) {
+		throw new Error("note node is not inside a React Flow node wrapper");
+	}
+	return wrapper;
+}
+
 afterEach(cleanup);
 
 describe("NoteNode resize controls", () => {
 	it("WHEN a note node renders THEN it mounts bottom/right/bottom-right resize controls (and no top/left ones)", async () => {
 		const { result } = renderNoteNode(nodeData());
-		const node = await mountedNode(result.container);
-		const controls = Array.from(node.querySelectorAll(".react-flow__resize-control"));
+		const wrapper = await mountedWrapper(result.container);
+		const controls = Array.from(wrapper.querySelectorAll(".react-flow__resize-control"));
 		const classesOf = (el: Element) =>
 			Array.from(el.classList)
 				.filter((c) => ["top", "left", "right", "bottom", "line", "handle"].includes(c))
@@ -124,6 +134,17 @@ describe("NoteNode resize controls", () => {
 			["bottom", "line"],
 			["bottom", "handle", "right"],
 		]);
+	});
+
+	it("WHEN a note node renders THEN NO resize control sits inside the node's clipping box", async () => {
+		// `.vicinity-graph-node` is `overflow: hidden` (it clips its own title and
+		// thumbnail) and React Flow centres every grip ON the node's edge, so a grip
+		// nested there is cut down to the sliver falling inside the padding box —
+		// the edge lines all but vanish. jsdom does no layout, so the RULE that
+		// prevents it is what is asserted: grips are siblings of the node box.
+		const { result } = renderNoteNode(nodeData());
+		const node = await mountedNode(result.container);
+		expect(node.querySelectorAll(".react-flow__resize-control")).toHaveLength(0);
 	});
 });
 

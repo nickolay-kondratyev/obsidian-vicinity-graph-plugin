@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { NODE_OVERRIDE_HARD_MAX_PX, NODE_OVERRIDE_HARD_MIN_PX } from "../engine";
-import { NODE_RESIZE_BOUNDS, planResetSizeAction, resizeEndToOverride } from "./nodeResize";
+import { NODE_RESIZE_BOUNDS, planResetSizeAction, resizeEndToOverride, startedOnResizeGrip } from "./nodeResize";
 
 describe("NODE_RESIZE_BOUNDS", () => {
 	it("WHEN the resize handles clamp a drag THEN they clamp to the engine's hard sanity bounds", () => {
@@ -32,5 +32,22 @@ describe("planResetSizeAction", () => {
 
 	it("WHEN the node has no size override THEN no reset entry is offered (a no-op menu item violates POLS)", () => {
 		expect(planResetSizeAction(false)).toBeNull();
+	});
+});
+
+describe("startedOnResizeGrip", () => {
+	/** Stands in for an event target that can answer `closest` — the only DOM call the rule makes. */
+	const targetInside = (matched: boolean) => ({ closest: (): unknown => (matched ? {} : null) });
+
+	it("WHEN the click started on a resize grip THEN it is not the node's own click", () => {
+		expect(startedOnResizeGrip({ target: targetInside(true) as unknown as EventTarget })).toBe(true);
+	});
+
+	it("WHEN the click started on the node body THEN it is the node's own click", () => {
+		expect(startedOnResizeGrip({ target: targetInside(false) as unknown as EventTarget })).toBe(false);
+	});
+
+	it("WHEN the event carries no target THEN it is the node's own click (nothing says otherwise)", () => {
+		expect(startedOnResizeGrip({ target: null })).toBe(false);
 	});
 });

@@ -18,6 +18,7 @@ import { VicinityEdge } from "./VicinityEdge";
 import { NoteNode } from "./NoteNode";
 import { NoteOpenContext } from "./NoteOpenContext";
 import { opensInNewTab } from "./nodeOpenIntent";
+import { startedOnResizeGrip } from "./nodeResize";
 import type { ControlsActionsPort, GraphUiPort, NoteOpenPort } from "./viewPorts";
 
 /**
@@ -61,17 +62,22 @@ export function VicinityGraphFlow({
 	// onNodesChange applies its dimension changes somewhere. The controller stays
 	// the one source of truth — every publish (including the commit-on-release
 	// rebuild) replaces this state wholesale in the reseed below.
-	const mappedNodes = useMemo<Node[]>(() => snapshot.nodes.map(toReactFlowNode), [snapshot.nodes]);
-	const [nodes, setNodes] = useState<Node[]>(mappedNodes);
-	const [seededFrom, setSeededFrom] = useState<Node[]>(mappedNodes);
-	// Reseeded DURING the render that brings the new mapping, not from an effect:
+	//
+	// Reseeded DURING the render that brings the new snapshot, not from an effect:
 	// `edges` below is a plain memo, so an effect-based reseed would COMMIT one frame
 	// of new edges against the previous build's nodes — React Flow would resolve those
 	// edges against ids that are not there yet. React re-runs this render before
 	// committing anything, so the two props can never disagree.
-	if (seededFrom !== mappedNodes) {
-		setSeededFrom(mappedNodes);
-		setNodes(mappedNodes);
+	//
+	// The gate is `snapshot.nodes` — the PUBLISHED array, the one thing that changes
+	// identity exactly once per publish. WHY-NOT gate on a `useMemo` of the mapping:
+	// React may drop a memo cache at will, and a recomputed mapping would then read as
+	// a fresh publish and discard the box a drag is holding mid-gesture.
+	const [nodes, setNodes] = useState<Node[]>(() => snapshot.nodes.map(toReactFlowNode));
+	const [seededFrom, setSeededFrom] = useState<readonly FlowNode[]>(snapshot.nodes);
+	if (seededFrom !== snapshot.nodes) {
+		setSeededFrom(snapshot.nodes);
+		setNodes(snapshot.nodes.map(toReactFlowNode));
 	}
 	const onNodesChange = useCallback<OnNodesChange>(
 		(changes) => setNodes((current) => applyNodeChanges(changes, current)),
@@ -90,6 +96,14 @@ export function VicinityGraphFlow({
 		// (same rule as the pane click). The controller ignores folder-group
 		// ids on both paths.
 		(event, node) => {
+			// A resize grip is a CONTROL riding the node wrapper, not the node's
+			// body: a press on one that never moved still reaches here as a click
+			// (d3-drag suppresses the click only once the pointer has MOVED), and
+			// focusing the note on a mis-grabbed handle is the opposite of what the
+			// gesture asked for.
+			if (startedOnResizeGrip(event)) {
+				return;
+			}
 			if (opensInNewTab(event)) {
 				controller.openNode(node.id, { newTab: true });
 				return;

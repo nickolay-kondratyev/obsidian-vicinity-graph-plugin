@@ -4,8 +4,9 @@ id: nid_qjsj5mth2phdqctbm0vfx9elw_e
 title: 'view: drag-to-resize graph nodes via React Flow NodeResizer'
 status: closed
 deps: [nid_lwionnvohw9k58jw7a2dybht2_e]
-links: [[nid_o5hz7ilcauwe2acqdfh6pcuam_e, nid_cx5zoz7ptucg9nxalibv0mbjb_e, nid_lwionnvohw9k58jw7a2dybht2_e, nid_y8axtvcum3wvljzv3d3p8cwd1_e]
-  nid_9hx6okamx3yt0rg9iad2f4151_e, nid_kyowb4v8v51nslbicl4szgcd5_e, nid_gbyqsuplz8b7pv0u5k34sdz1q_e]
+links: [nid_o5hz7ilcauwe2acqdfh6pcuam_e, nid_cx5zoz7ptucg9nxalibv0mbjb_e, nid_lwionnvohw9k58jw7a2dybht2_e,
+  nid_sj9qg27cmear9lgdlz5umwra5_e, nid_y8axtvcum3wvljzv3d3p8cwd1_e, nid_9hx6okamx3yt0rg9iad2f4151_e,
+  nid_kyowb4v8v51nslbicl4szgcd5_e, nid_gbyqsuplz8b7pv0u5k34sdz1q_e]
 created_iso: '2026-08-03T23:48:48Z'
 status_updated_iso: 2026-08-04T04:27:01Z
 type: feature
@@ -51,3 +52,15 @@ What shipped:
 Tests: nodeResize.test.ts (pure), NoteNode.component.test.tsx (jsdom, real ReactFlow), ControlsActions.test.ts (+6), GraphStructureDiff/flowMapping suites extended, e2e/nodeResize.e2e.ts (real drag gesture; persist, remount, central switch, reset). e2e gotcha recorded there: start the drag with handle.hover(), not raw page.mouse.move to boundingBox centre — CDP hit-test misses the overhanging handle otherwise.
 
 Commit: 'feat(view): drag-to-resize graph nodes via React Flow NodeResizeControl'.
+
+**2026-08-04T16:20:00Z**
+
+REVIEW CORRECTION (adversarial review of 868a5b9..HEAD). Two statements in the resolution note above were WRONG about what shipped:
+
+1. The grips were mounted INSIDE `.vicinity-graph-node`, which is `overflow: hidden` — so the "corner handle overhangs the node box" premise behind the CSS WHY-NOT was false: the overhang was CLIPPED. Probed live with `document.elementFromPoint`, a point in the grip's outer half returned `react-flow__pane`, not the grip. The 1px edge lines fared worse (a half-pixel sliver). FIXED: `NoteNode` now renders the three `NodeResizeControl`s as SIBLINGS of `.vicinity-graph-node` (children of the React Flow node wrapper, which clips nothing), and the CSS is rescoped to `.vicinity-graph-flow`. The opacity-only reveal and its bistability WHY-NOT stand — they were always correct, just not reachable.
+
+2. "CDP hit-test misses the overhanging handle otherwise" was the clipping, not a Playwright quirk.
+
+ALSO fixed: a press on a grip that never MOVED reached `onNodeClick` and focused/opened the note (d3-drag suppresses the click only once the pointer has moved) — `startedOnResizeGrip` now guards it. Regression tests: `e2e/nodeResize.e2e.ts` gained the hit-test probe and the zero-move press (both verified failing before the fix), `NoteNode.component.test.tsx` asserts no grip sits inside the clipping box, `nodeResize.test.ts` covers the predicate.
+
+Filed nid_sj9qg27cmear9lgdlz5umwra5_e: a resize UNDER `SIZE_RELAYOUT_THRESHOLD` reuses the layout AND the cached group-box dimensions, so the grown node can overlap its neighbours — a product call, left unpatched here.
