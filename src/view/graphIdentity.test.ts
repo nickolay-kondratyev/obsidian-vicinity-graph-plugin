@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { NODE_MAX_LABEL_WIDTH_PX, estimateNodeLabelWidthPx } from "./constants";
-import { nodeDimensionsPx } from "./graphIdentity";
+import { nodeDimensionsPx, sameNodeSizeOverridePx } from "./graphIdentity";
 import { makeNode } from "./testFixtures/graphFixtures";
 
 // 15 chars: the snug single-line estimate (15*7 + 20 = 125px) lands strictly
@@ -34,5 +34,31 @@ describe("nodeDimensionsPx", () => {
 	it("WHEN a long title pins the width to the cap THEN height stays the score-driven size", () => {
 		const node = makeNode({ title: LONG_TITLE, sizePx: 40 });
 		expect(nodeDimensionsPx(node).height).toBe(40);
+	});
+});
+
+describe("sameNodeSizeOverridePx", () => {
+	it("WHEN two overrides carry the same numbers in FRESH objects THEN they are the same size", () => {
+		expect(sameNodeSizeOverridePx({ widthPx: 200, heightPx: 120 }, { widthPx: 200, heightPx: 120 })).toBe(true);
+	});
+
+	it("WHEN only the height differs THEN they are NOT the same size", () => {
+		expect(sameNodeSizeOverridePx({ widthPx: 200, heightPx: 120 }, { widthPx: 200, heightPx: 121 })).toBe(false);
+	});
+
+	it("WHEN only the width differs THEN they are NOT the same size", () => {
+		expect(sameNodeSizeOverridePx({ widthPx: 200, heightPx: 120 }, { widthPx: 201, heightPx: 120 })).toBe(false);
+	});
+
+	it("WHEN a node GAINS an override THEN it is NOT the same size", () => {
+		expect(sameNodeSizeOverridePx(undefined, { widthPx: 200, heightPx: 120 })).toBe(false);
+	});
+
+	it("WHEN 'Reset size' CLEARS an override THEN it is NOT the same size", () => {
+		expect(sameNodeSizeOverridePx({ widthPx: 200, heightPx: 120 }, undefined)).toBe(false);
+	});
+
+	it("WHEN neither node was ever resized THEN they are the same size", () => {
+		expect(sameNodeSizeOverridePx(undefined, undefined)).toBe(true);
 	});
 });

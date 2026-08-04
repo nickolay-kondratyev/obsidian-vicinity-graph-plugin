@@ -1,12 +1,13 @@
 ---
+closed_iso: 2026-08-04T18:18:03Z
 id: nid_sj9qg27cmear9lgdlz5umwra5_e
 title: 'view: a drag-resize under the relayout threshold leaves the node overlapping
   its neighbours / group box'
-status: in_progress
+status: closed
 deps: []
-links: [nid_qjsj5mth2phdqctbm0vfx9elw_e]
+links: [nid_qjsj5mth2phdqctbm0vfx9elw_e, nid_ct22qotgtw4rezbdn5m0diyb3_e]
 created_iso: '2026-08-04T16:11:57Z'
-status_updated_iso: '2026-08-04T18:13:36Z'
+status_updated_iso: 2026-08-04T18:18:03Z
 type: bug
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
@@ -46,3 +47,48 @@ A BDD test in src/view/GraphStructureDiff.test.ts captures the chosen rule.
 
 --------------------------------------------------------------------------------
 HUMAN: while the layout is not free we can KISS and only trigger the re-layout after the resize is complete. So we DO NOT trigger the re-layout while the human is dragging the resize, but once the dragging is complete THEN we trigger the re-layout.
+
+--------------------------------------------------------------------------------
+
+## RESOLUTION (2026-08-04) — option 1, WITHOUT a new seam
+
+Implemented as a pure rule in `src/view/GraphStructureDiff.ts`: a new
+`anySizeOverrideChanged(previous, next)` check, ahead of the growth threshold,
+returns `relayout` whenever a SURVIVING node's per-node `sizePx` override was
+set, cleared, or moved to another box (compared by VALUE — every rebuild
+resolves a fresh object from `data.json`, so an identity check would relayout on
+every unrelated rebuild).
+
+WHY no seam was needed after all: the override is stored state, and it can only
+change because the user released a drag-resize or chose "Reset size". So the
+rebuild's OWN inputs already say "this came from a resize" — teaching
+`ViewsRefreshPort` to carry a resize signal would have been a second, weaker
+statement of the same fact. This also satisfies the HUMAN's KISS constraint by
+construction: the drag lives in React Flow's local node state and only reaches
+the store on RELEASE, so the rule cannot fire mid-drag.
+
+`groupDimensions` is re-derived automatically — the `relayout` branch in
+`GraphViewController.runRebuild` takes both positions and
+`extractElkDimensionsById(laidOut)` from the fresh elk pass.
+
+Side effects, both intentional:
+- A CLEARED override (Reset size) now relayouts too. The computed box is usually
+  SMALLER, so the growth threshold never fired and the reset used to leave a hole
+  where the big box had been.
+- The growth threshold is now purely about PASSIVE growth (engine re-scoring, a
+  wider title), which is the only thing it was ever meant to damp.
+
+Docs: `docs-internal/plan/high-level-plan.md` (*Layout stability*) states the new
+exception; README's *Node size* section states the user-visible half.
+
+FOLLOW-UP, filed not silently patched: the relayout bumps `layoutVersion`, so
+`FitViewOnLayoutChange` refits the viewport on release — ticket
+`nid_ct22qotgtw4rezbdn5m0diyb3_e` (tagged `decide`) carries that call.
+
+Tests: 5 new BDD cases in `src/view/GraphStructureDiff.test.ts` (sub-threshold
+resize, shrink, identical re-commit, gaining an override, clearing one); two
+pre-existing cases were INVERTED on purpose — the sub-threshold and shrink cases
+asserted the old `reuse-layout`, which is exactly the bug.
+Verified: `npm test` (1570 passed), `npm run check`,
+`npm run test:e2e -- nodeResize.e2e.ts` (8 passed) and
+`npm run test:e2e -- vicinityGraph.e2e.ts` (25 passed).
