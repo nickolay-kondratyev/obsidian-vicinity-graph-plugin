@@ -39,18 +39,20 @@ export interface FullScanOutcome {
  * - a docid already in the map costs NOTHING (no scan starts at all);
  * - a scan stops as soon as every wanted docid is found, and every docid it
  *   reads on the way is kept (free warm-up for later builds);
- * - a docid the full scan could NOT resolve is remembered as a miss, so an
+ * - a docid a COMPLETE scan could not resolve is remembered as a miss, so an
  *   orphaned pin/override never forces a rescan on every rebuild — the sweep
  *   deletes it later. A miss is per-session on purpose: {@link missing} consults
  *   the MAP first and every write intent maps its own docid
  *   (PersistenceServices), so a live doc never gets stuck behind a cached miss.
  *
  * Failure policy: a scan NEVER rejects — a file it cannot READ is walked past
- * ({@link scanEligibleFiles}). The asymmetry that follows is deliberate: a MISS
- * is still cached (it only makes a doc invisible for the session, and any visit
- * or write intent undoes it), but a pass that missed a file says so
- * ({@link FullScanOutcome.everyFileRead}) because a caller that DELETES state
- * must never act on incomplete evidence.
+ * ({@link scanEligibleFiles}). Both callers then apply the SAME rule: nothing is
+ * CONCLUDED from a walk that did not read every file. The sweep does not DELETE
+ * on it ({@link FullScanOutcome.everyFileRead}) and {@link scanForMissing} does
+ * not cache a MISS on it — a docid the walk did not see may well sit in the file
+ * it could not read, and a cached miss would hide that live pin/override for the
+ * whole session. Rescanning converges: a rejected read means the file went away
+ * between the `getFiles()` snapshot and the read.
  */
 export class DocIdMapWarmer {
 	private readonly unresolvedDocids = new Set<string>();
@@ -97,10 +99,19 @@ export class DocIdMapWarmer {
 		if (wanted.size === 0) {
 			return;
 		}
-		await this.scanEligibleFiles((docid) => {
+		const everyFileRead = await this.scanEligibleFiles((docid) => {
 			wanted.delete(docid);
 			return wanted.size === 0;
 		});
+		if (!everyFileRead) {
+			// ONE rule with the sweep: nothing is CONCLUDED from incomplete evidence.
+			// "This docid is in no file" is only true of a walk that read every file;
+			// caching it off a failed read would hide a LIVE pin/override for the
+			// rest of the session. The rescan converges: a rejected read means the
+			// file went away between the `getFiles()` snapshot and the read, so the
+			// next walk has one file fewer.
+			return;
+		}
 		for (const docid of wanted) {
 			this.unresolvedDocids.add(docid);
 		}

@@ -59,6 +59,11 @@ export class FakeDocIdPort implements DocIdPort {
 		this.unreadablePaths.add(path);
 	}
 
+	/** Test seeding: undoes {@link markUnreadable} — the read failure was transient. */
+	markReadable(path: string): void {
+		this.unreadablePaths.delete(path);
+	}
+
 	private failIfUnreadable(file: VaultFilePort): void {
 		if (this.unreadablePaths.has(file.path)) {
 			throw new Error(`FakeDocIdPort: unreadable path=[${file.path}]`);

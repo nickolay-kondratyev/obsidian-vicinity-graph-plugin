@@ -4,7 +4,7 @@ id: nid_gbyqsuplz8b7pv0u5k34sdz1q_e
 title: pins & node overrides are invisible until the delayed docid-map warm-up
 status: closed
 deps: []
-links: [nid_qjsj5mth2phdqctbm0vfx9elw_e, nid_lwionnvohw9k58jw7a2dybht2_e, nid_y081nezeucka9l0x3umebi5zo_e]
+links: [nid_qjsj5mth2phdqctbm0vfx9elw_e, nid_lwionnvohw9k58jw7a2dybht2_e, nid_y081nezeucka9l0x3umebi5zo_e, nid_iqna8b4j5339pjiga7kgwdnh7_e]
 created_iso: '2026-08-04T00:32:28Z'
 status_updated_iso: 2026-08-04T01:14:16Z
 type: bug
@@ -105,3 +105,29 @@ follow-up commit (tests first, each proven to fail without the fix):
 
 Remaining, filed as `nid_y081nezeucka9l0x3umebi5zo_e` (not a defect): the first
 build after a restart can block on a full-vault content scan on large vaults.
+
+## Second review round (2026-08-04)
+
+One more issue in the same failure policy, fixed here (test first, proven to
+fail without the fix):
+
+4. **A MISS was cached off incomplete evidence.** Item 1 above gave the sweep
+   the rule "conclude nothing from a walk that did not read every file", but
+   `DocIdMapWarmer.scanForMissing` still cached a docid as a per-session miss
+   after a walk whose reads had FAILED — so the pin/override carried by the very
+   file that could not be read was hidden until restart (only a visit, a write
+   intent or the 15s sweep re-warming that path undid it). That is the bug this
+   ticket exists to fix, re-entered through a narrow door, and the class doc
+   contradicted itself about it ("never gets stuck behind a cached miss" vs.
+   "invisible for the session"). A miss is now cached only when the walk read
+   every file — ONE rule for both callers. Rescanning converges: a rejected read
+   means the file went away between the `getFiles()` snapshot and the read.
+
+Also filed, NOT patched (needs a view-level failure-policy decision):
+`nid_iqna8b4j5339pjiga7kgwdnh7_e` — the main doc's own `getDocId` in
+`VicinityGraphBuilder.build` is the same rejecting `cachedRead`, and
+`GraphViewController.runRebuild` has no catch, so that sibling call still kills
+a rebuild silently.
+
+Verified after the fix: `npm test` (1536 pass), `npm run check`,
+`npm run test:e2e -- controlsRestart.e2e.ts` (pass).

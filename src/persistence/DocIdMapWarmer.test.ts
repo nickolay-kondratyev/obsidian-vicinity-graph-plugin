@@ -97,6 +97,25 @@ describe("DocIdMapWarmer when a file cannot be read", () => {
 		fakeDocIds.markUnreadable("b.md");
 		await expect(warmer.warmFor(["docid_b_e"])).resolves.toBeUndefined();
 	});
+
+	it("WHEN a scan could not read every file THEN a docid it did not find is NOT cached as a miss", async () => {
+		const { warmer, docIdPort, fakeDocIds } = warmerFixture();
+		fakeDocIds.markUnreadable("b.md");
+		await warmer.warmFor(["docid_orphan_e"]);
+		const callsAfterFirstScan = docIdPort.getDocIdCalls;
+		await warmer.warmFor(["docid_orphan_e"]);
+		expect(docIdPort.getDocIdCalls).toBeGreaterThan(callsAfterFirstScan);
+	});
+
+	/** The user-visible point of the rule above: a LIVE pin is not hidden for the session. */
+	it("WHEN a transient read failure clears THEN the docid that file carries resolves on the next warm", async () => {
+		const { warmer, fakeDocIds, pathDocIdMap } = warmerFixture();
+		fakeDocIds.markUnreadable("b.md");
+		await warmer.warmFor(["docid_b_e"]);
+		fakeDocIds.markReadable("b.md");
+		await warmer.warmFor(["docid_b_e"]);
+		expect(pathDocIdMap.getPath("docid_b_e")).toBe("b.md");
+	});
 });
 
 describe("DocIdMapWarmer.warmAll", () => {
