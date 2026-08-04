@@ -228,7 +228,8 @@ describe("GraphViewController latest-wins concurrency", () => {
 		h.source.resolveBuild(0, graphOf("a.md")); // stale result arrives first
 		await flush();
 
-		expect(h.snapshot().status).toBe("empty");
+		// The newer build is still in flight and nothing has rendered yet.
+		expect(h.snapshot().status).toBe("building");
 	});
 
 	it("WHEN the stale build resolves THEN it never reaches elk layout", async () => {
@@ -272,6 +273,46 @@ describe("GraphViewController null / empty handling", () => {
 		h.controller.handleActiveFileChanged("a.md");
 
 		h.source.resolveBuild(0, makeGraph({ nodes: [], edges: [] }));
+		await flush();
+
+		expect(h.snapshot().status).toBe("empty");
+	});
+});
+
+/**
+ * First paint honesty (ticket nid_y081nezeucka9l0x3umebi5zo_e): the first build
+ * after a restart AWAITS the docid warm-up, which reads file content and on a
+ * large vault takes seconds. While that runs the view has nothing to show — and
+ * the empty state's copy is a WRONG answer ("no vicinity graph for this file"),
+ * not a pending one. A rebuild that has a rendered graph to keep never enters
+ * this state: replacing a live graph with a placeholder would flicker on every
+ * settings write.
+ */
+describe("GraphViewController first-paint building state", () => {
+	it("WHEN a build is in flight and nothing has rendered yet THEN the snapshot reports building", () => {
+		const h = setup();
+
+		h.controller.handleActiveFileChanged("a.md");
+
+		expect(h.snapshot().status).toBe("building");
+	});
+
+	it("WHEN a build is in flight while a graph is rendered THEN the rendered graph stays published", async () => {
+		const h = setup();
+		h.controller.handleActiveFileChanged("a.md");
+		h.source.resolveBuild(0, graphOf("a.md"));
+		await flush();
+
+		h.controller.handleSettingsChanged();
+
+		expect(h.snapshot().status).toBe("ready");
+	});
+
+	it("WHEN a build resolves with no graph THEN the building state gives way to empty", async () => {
+		const h = setup();
+		h.controller.handleActiveFileChanged("a.md");
+
+		h.source.resolveBuild(0, null);
 		await flush();
 
 		expect(h.snapshot().status).toBe("empty");

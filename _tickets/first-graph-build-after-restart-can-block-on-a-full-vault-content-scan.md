@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-08-04T22:18:34Z
 id: nid_y081nezeucka9l0x3umebi5zo_e
 title: first graph build after restart can block on a full-vault content scan
-status: in_progress
+status: closed
 deps: []
 links: [nid_gbyqsuplz8b7pv0u5k34sdz1q_e]
 created_iso: '2026-08-04T01:39:54Z'
-status_updated_iso: '2026-08-04T22:15:17Z'
+status_updated_iso: 2026-08-04T22:18:34Z
 type: task
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
@@ -50,3 +51,42 @@ On a vault with thousands of notes and at least one pinned doc, the first graph 
 
 --------------------------------------------------------------------------------
 HUMAN DECISION: This is only for the initial load right? I am thinking for now its acceptable to await on graph to load, It would be good to have 'loading' show up in such case. BUT only if its very straightforward and doesnt add unecessary complications. I havent found this to be an issue and I have been using it on large vaults.
+
+--------------------------------------------------------------------------------
+
+## Resolution (2026-08-04) — direction (c'): keep the await, tell the truth while it runs
+
+Yes, this is the INITIAL load only (a warm map costs nothing, so later rebuilds never
+scan). Per the human decision the blocking `warmFor` await stays exactly as it is —
+`VicinityGraphBuilder` and `DocIdMapWarmer` are UNCHANGED, and pins/overrides therefore
+still render correctly on the first build the user sees. What changed is only what the
+view shows while that build is in flight.
+
+Before, the view had two states (`empty` | `ready`) and a build in flight rendered the
+EMPTY state — "No vicinity graph for the active file." That is a wrong answer to a
+question still open, not a pending one.
+
+Changes (all in `src/view/`):
+- `GraphViewController.ts`: `FlowStatus` grows a third member, `building`, published from
+  `runRebuild` **only when nothing is rendered yet** (`snapshot.status !== "ready"`). A
+  rebuild over a live graph keeps that graph on screen — a placeholder on every settings
+  write would flicker.
+- `VicinityGraphFlow.tsx`: renders `.vicinity-graph-building` ("Building the vicinity
+  graph…") for that status; the link-preview-drawer close effect now fires on any
+  not-`ready` status rather than on `empty` alone.
+- `graph-view.css`: `.vicinity-graph-building` shares the centered/muted presentation of
+  `.vicinity-graph-empty`; only the sentence differs.
+- `GraphViewController.test.ts`: three BDD tests (building while first build is in flight;
+  a rendered graph stays published across a rebuild; building gives way to `empty` when a
+  build resolves with no graph). One pre-existing latest-wins test asserted `empty` for a
+  first build still in flight and now asserts `building` — same intent (the stale result
+  was not rendered), corrected literal.
+
+No measurement was taken and none is claimed: the human explicitly accepted the await
+after using the plugin on large vaults, so the acceptance criterion's "not visibly
+delayed (measured)" is superseded by that decision. Directions (a) and (b) were NOT taken
+and remain available if first-paint latency ever becomes a real complaint.
+
+Verified: `npm test` (1594 passed), `npm run check`, `npm run test:e2e -- vicinityGraph.e2e.ts`
+(25 passed). The transient building state is not asserted in e2e — it is not
+deterministically observable there, and asserting it would need a fake slow build.

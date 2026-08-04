@@ -35,7 +35,14 @@ import type {
  * graph. No sleeps.
  */
 
-export type FlowStatus = "empty" | "ready";
+/**
+ * `building` = a rebuild is in flight with NOTHING rendered to show meanwhile
+ * (first paint). It exists because the first build after a restart awaits the
+ * docid warm-up, which reads file content and on a large vault takes seconds
+ * (ticket nid_y081nezeucka9l0x3umebi5zo_e) — `empty` would answer "there is no
+ * graph for this file", which is a different, wrong statement.
+ */
+export type FlowStatus = "empty" | "building" | "ready";
 
 export interface FlowSnapshot {
 	readonly status: FlowStatus;
@@ -70,6 +77,9 @@ const EMPTY_SNAPSHOT: FlowSnapshot = {
 	controls: EMPTY_CONTROLS,
 	layoutVersion: 0,
 };
+
+/** First paint in progress: same void as {@link EMPTY_SNAPSHOT}, told honestly. */
+const BUILDING_SNAPSHOT: FlowSnapshot = { ...EMPTY_SNAPSHOT, status: "building" };
 
 /** Shared empty route map = every edge stays straight (routing off or failed). */
 const EMPTY_ROUTES: EdgeRouteMap = new Map();
@@ -253,6 +263,13 @@ export class GraphViewController {
 		if (mainPath === null) {
 			this.reset();
 			return;
+		}
+		// Say "building" only while there is nothing to show: a rebuild over a
+		// rendered graph keeps that graph on screen (a placeholder would flicker on
+		// every settings write), and it is the FIRST build — the one that awaits the
+		// docid warm-up — that can visibly wait.
+		if (this.snapshot.status !== "ready") {
+			this.setSnapshot(BUILDING_SNAPSHOT);
 		}
 		const result = await this.graphBuilder.build(mainPath);
 		if (this.isStale(token)) {
