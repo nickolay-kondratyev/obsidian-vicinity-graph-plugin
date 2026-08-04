@@ -1,17 +1,18 @@
 ---
 id: nid_fygwk293msqdumkkorz6gmyrh_e
-title: "Make the e2e Obsidian version an env knob (OBSIDIAN_VERSION) + add a minAppVersion-floor run"
-status: open
+title: Make the e2e Obsidian version an env knob (OBSIDIAN_VERSION) + add a minAppVersion-floor
+  run
+status: in_progress
 deps: []
 links: [nid_ttnk0jv42aiamw8o3x18j3dde_e]
-created_iso: 2026-08-04T17:59:07Z
-status_updated_iso: 2026-08-04T17:59:07Z
+created_iso: '2026-08-04T17:59:07Z'
+status_updated_iso: '2026-08-04T22:36:39Z'
 type: task
 priority: 3
 assignee: nickolaykondratyev
 tags: [e2e, testing]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-3
 ---
-
 Follow-up from `nid_ttnk0jv42aiamw8o3x18j3dde_e` (Analyze the current state of e2e).
 
 Today `scripts/setup-obsidian-bin.sh` hard-codes `OBSIDIAN_VERSION="1.12.7"`, so `npm run test:e2e` only ever exercises ONE Obsidian build. `manifest.json` declares `minAppVersion: 1.12.4` as a FLOOR, and nothing verifies the plugin still works there, nor on a newer release.
@@ -26,4 +27,4 @@ Caveat already recorded in `scripts/setup-obsidian-bin.sh`: on 1.13+ the slider 
 Non-goal: migrating to wdio-obsidian-service (analysis in the parent ticket concluded: do NOT migrate).
 
 ---------------------------------------------------------------------------------
-HUMAN: I am thinking that if we are adding this tweakable environment variable we may as well have a follow up ticket to have the tests run with different version of obsidian. With MIN version and with current version, so that we can spot out the issues. 
+HUMAN: I am thinking that if we are adding this tweakable environment variable we may as well have a follow up ticket to have the tests run with different version of obsidian. With MIN version and with current version, so that we can spot out the issues.
