@@ -52,6 +52,14 @@ const ASCII_PUNCTUATION = /[!-/:-@[-`{-~]/g;
 const SIZE_SPEC = /^\d+(x\d+)?$/;
 
 /**
+ * Whitespace RUN inside a display name, collapsed to one space. The marker
+ * exists to keep an occurrence on ONE line, and a name it takes from the vault
+ * is arbitrary user text — a YAML block scalar (`title: |`) keeps its newlines,
+ * which would otherwise break the very row this shortens.
+ */
+const WHITESPACE_RUN = /\s+/g;
+
+/**
  * The target's display title as the VAULT knows it (frontmatter `title`/`name`),
  * for the link path written in the embed; `null` when unresolvable or untitled.
  */
@@ -62,10 +70,15 @@ export class MarkdownEmbeds {
 	static flattened(markdown: string, titleOf: EmbedTargetTitle): string {
 		return markdown.replace(Wikilinks.globalPattern(), (match, marker: string, innerText: string) =>
 			LinkKinds.ofEmbedMarker(marker) === "embed"
-				? escapedForMarkdown(MARKER_OPEN + displayNameOf(Wikilinks.partsOf(innerText), titleOf) + MARKER_CLOSE)
+				? markerFor(displayNameOf(Wikilinks.partsOf(innerText), titleOf))
 				: match,
 		);
 	}
+}
+
+/** The rendered marker around `displayName`: kept to one line, then escaped whole. */
+function markerFor(displayName: string): string {
+	return escapedForMarkdown(MARKER_OPEN + displayName.replace(WHITESPACE_RUN, " ") + MARKER_CLOSE);
 }
 
 /**

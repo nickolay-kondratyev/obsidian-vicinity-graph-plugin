@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { asVaultPath } from "../engine";
+import { asRendered } from "../shared/testFixtures/renderedMarkdown";
 import { CanvasParseCache } from "./CanvasParseCache";
 import { FakeObsidianPorts } from "./FakeObsidianPorts";
 import type { FakeObsidianSpec } from "./FakeObsidianPorts";
@@ -100,11 +101,6 @@ const EMBEDDING_SPEC: FakeObsidianSpec = {
 	resolutions: { Target: "target.md" },
 	resolvedLinks: { "note.md": { "target.md": 1 } },
 };
-
-/** The rendered marker's text; the backslash escapes are renderer plumbing (`MarkdownEmbeds`). */
-function asRendered(markdown: string | undefined): string | undefined {
-	return markdown?.replace(/\\(.)/g, "$1");
-}
 
 describe("ObsidianLinkOccurrenceProvider embed flattening", () => {
 	it("WHEN the occurrence is an embed THEN its shortContext shows the embed MARKER, not the embed", async () => {

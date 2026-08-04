@@ -38,9 +38,6 @@ const WIKILINK_SOURCE = "(!?)\\[\\[([^\\]\\n]+)\\]\\]";
 const EMBED_MARKER_GROUP = 1;
 const INNER_TEXT_GROUP = 2;
 
-/** Ends the link TARGET: an alias pipe or a `#heading`/`#^block` subpath. */
-const TARGET_TERMINATOR = /[#|]/;
-
 /** Starts the alias — what the writer wants DISPLAYED instead of the target. */
 const ALIAS_SEPARATOR = "|";
 
@@ -81,7 +78,7 @@ export class Wikilinks {
 	static harvestedLinksOf(text: string): readonly HarvestedLink[] {
 		const links: HarvestedLink[] = [];
 		for (const match of text.matchAll(Wikilinks.globalPattern())) {
-			const linkText = Wikilinks.targetOf(match[INNER_TEXT_GROUP] ?? "");
+			const linkText = Wikilinks.partsOf(match[INNER_TEXT_GROUP] ?? "").target;
 			if (linkText !== "") {
 				links.push({ linkText, kind: LinkKinds.ofEmbedMarker(match[EMBED_MARKER_GROUP] ?? "") });
 			}
@@ -90,24 +87,20 @@ export class Wikilinks {
 	}
 
 	/**
-	 * The written parts of one wikilink's inner text — what a DISPLAY caller needs
-	 * ({@link MarkdownEmbeds} names an embed by its alias, else by its target),
-	 * and the split {@link harvestedLinksOf} already did for resolution.
+	 * The written parts of one wikilink's inner text — the ONE place the part
+	 * boundaries live, for the DISPLAY caller ({@link MarkdownEmbeds} names an
+	 * embed by its alias, else by its target) and for {@link harvestedLinksOf}'s
+	 * resolution alike, so the two can never disagree on where a target ends.
 	 */
 	static partsOf(innerText: string): WikilinkParts {
 		const aliasIndex = innerText.indexOf(ALIAS_SEPARATOR);
 		const beforeAlias = aliasIndex === -1 ? innerText : innerText.slice(0, aliasIndex);
 		const subpathIndex = beforeAlias.indexOf(SUBPATH_SEPARATOR);
 		return {
-			target: Wikilinks.targetOf(innerText),
+			target: (subpathIndex === -1 ? beforeAlias : beforeAlias.slice(0, subpathIndex)).trim(),
 			// A nested `#` (`[[note#h1#h2]]`) belongs to the subpath, so only the FIRST splits.
 			subpath: subpathIndex === -1 ? "" : beforeAlias.slice(subpathIndex + 1).trim(),
 			alias: aliasIndex === -1 ? "" : innerText.slice(aliasIndex + 1).trim(),
 		};
-	}
-
-	private static targetOf(innerText: string): string {
-		const terminator = innerText.search(TARGET_TERMINATOR);
-		return (terminator === -1 ? innerText : innerText.slice(0, terminator)).trim();
 	}
 }

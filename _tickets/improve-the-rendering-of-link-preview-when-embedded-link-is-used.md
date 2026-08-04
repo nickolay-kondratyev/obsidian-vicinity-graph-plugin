@@ -86,3 +86,21 @@ and code-span awareness (an `![[x]]` written inside a code span is flattened too
 - `MarkdownEmbeds` no longer carries its own `".md"` literal: which extension is
   a NOTE's is `FileKinds`'s knowledge, and reusing it also made the check
   case-blind (`![[Note.MD]]` → `!<<Note>>`, not `!<<Note.MD>>`).
+
+## Adversarial review round 3 (2026-08-04)
+
+- A display name taken from the VAULT can be multi-line (a YAML block scalar
+  `title: |` survives `frontmatterTitleOf`'s trim), and the marker's whole
+  purpose is keeping an occurrence on ONE line — so the name's whitespace runs
+  are now collapsed before escaping (`MarkdownEmbeds.markerFor`), failing-first
+  test in `MarkdownEmbeds.test.ts`.
+- Where a wikilink's TARGET ends was defined TWICE in `Wikilinks` — once as
+  `TARGET_TERMINATOR` (`/[#|]/`, for resolution) and once as the pipe/hash split
+  inside `partsOf` (for display). They agreed only by coincidence; `partsOf` is
+  now the one definition and `harvestedLinksOf` reads its `target`.
+- The test-only "strip the escapes to see what renders" helper was copied into
+  two suites; it is now one seam, `src/shared/testFixtures/renderedMarkdown.ts`.
+- The markdown-syntax follow-up `nid_vvdc7lhh92122ght4m66t5d61_e` now DEPENDS on
+  the newline ticket (rewriting what a newline-tolerant matcher matches is the
+  deleted-prose path) and names the external-URL case its acceptance criteria
+  had missed.

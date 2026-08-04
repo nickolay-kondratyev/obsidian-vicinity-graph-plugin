@@ -1,18 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { MarkdownEmbeds } from "./MarkdownEmbeds";
 import type { EmbedTargetTitle } from "./MarkdownEmbeds";
+import { asRendered } from "./testFixtures/renderedMarkdown";
 
 /** No note has a frontmatter title — the default for every naming test but the titled one. */
 const NO_TITLES: EmbedTargetTitle = () => null;
-
-/**
- * What a markdown renderer SHOWS for the flattened text: backslash escapes are
- * renderer plumbing (see `ASCII_PUNCTUATION`), so every naming test reads the
- * text a user would see. The escaping itself is asserted once, on its own.
- */
-function asRendered(markdown: string): string {
-	return markdown.replace(/\\(.)/g, "$1");
-}
 
 describe("MarkdownEmbeds.flattened", () => {
 	it("WHEN an embed names a note THEN it becomes the note's marker", () => {
@@ -53,6 +45,14 @@ describe("MarkdownEmbeds.flattened", () => {
 
 	it("WHEN the target has a frontmatter title THEN the title names the marker", () => {
 		expect(asRendered(MarkdownEmbeds.flattened("![[Note]]", () => "My Title"))).toBe("!<<My Title>>");
+	});
+
+	it("WHEN a resolved title spans LINES THEN the marker collapses it, so it cannot break the row it shortens", () => {
+		// A frontmatter title is arbitrary user text (YAML block scalars keep their
+		// newlines), and the marker exists to keep an occurrence on ONE line.
+		expect(asRendered(MarkdownEmbeds.flattened("![[Note]]", () => "My\nMulti  Title"))).toBe(
+			"!<<My Multi Title>>",
+		);
 	});
 
 	it("WHEN the target has BOTH an alias and a frontmatter title THEN the alias wins (the writer chose it)", () => {
