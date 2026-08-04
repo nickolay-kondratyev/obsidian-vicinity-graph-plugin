@@ -66,8 +66,6 @@ function nodeData(overrides: Partial<FlowNodeData> = {}): FlowNodeData {
 		title: "a",
 		tier: "regular",
 		isPinned: false,
-		sizePx: 100,
-		sizeScore: 0.5,
 		hasSizeOverride: false,
 		folder: "",
 		outline: [],

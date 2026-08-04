@@ -3,13 +3,17 @@ import type { PriorityRankable } from "./NodePriorityChain";
 import { NodePriorityChain } from "./NodePriorityChain";
 import { asDocId, asVaultPath } from "./types";
 
+// EXPLICIT ALIGNMENT (nid_cx5zoz7ptucg9nxalibv0mbjb_e): the former level 2
+// ("higher size score ranks first") is REMOVED with the sizing-metric rework —
+// node size is now content-fit, no score exists, and the owner settled the open
+// point by dropping the link so graph distance to MAIN takes over as level 2.
+
 function rankable(
 	overrides: Omit<Partial<PriorityRankable>, "path"> & { readonly path: string },
 ): PriorityRankable {
 	return {
 		path: asVaultPath(overrides.path),
 		minDepth: overrides.minDepth ?? 1,
-		sizeScore: overrides.sizeScore ?? 0.5,
 		distanceToMain: overrides.distanceToMain,
 		pinTimestamp: overrides.pinTimestamp,
 		docid: overrides.docid,
@@ -29,16 +33,8 @@ describe("NodePriorityChain level 1: minDepth", () => {
 	});
 });
 
-describe("NodePriorityChain level 2: size score", () => {
-	it("WHEN depths tie THEN the higher size score ranks first", () => {
-		expect(ranked(rankable({ path: "small.md", sizeScore: 0.2 }), rankable({ path: "big.md", sizeScore: 0.9 }))).toEqual(
-			["big.md", "small.md"],
-		);
-	});
-});
-
-describe("NodePriorityChain level 3: graph distance to MAIN", () => {
-	it("WHEN depth and size tie THEN the node closer to MAIN ranks first", () => {
+describe("NodePriorityChain level 2: graph distance to MAIN", () => {
+	it("WHEN depths tie THEN the node closer to MAIN ranks first", () => {
 		expect(ranked(rankable({ path: "far.md", distanceToMain: 4 }), rankable({ path: "near.md", distanceToMain: 2 }))).toEqual(
 			["near.md", "far.md"],
 		);
@@ -51,7 +47,7 @@ describe("NodePriorityChain level 3: graph distance to MAIN", () => {
 	});
 });
 
-describe("NodePriorityChain level 4: pin recency", () => {
+describe("NodePriorityChain level 3: pin recency", () => {
 	it("WHEN earlier levels tie THEN the most recently pinned ranks first", () => {
 		expect(ranked(rankable({ path: "old.md", pinTimestamp: 100 }), rankable({ path: "new.md", pinTimestamp: 200 }))).toEqual(
 			["new.md", "old.md"],
@@ -65,7 +61,7 @@ describe("NodePriorityChain level 4: pin recency", () => {
 	});
 });
 
-describe("NodePriorityChain level 5: docid", () => {
+describe("NodePriorityChain level 4: docid", () => {
 	it("WHEN everything else ties THEN the lexicographically smaller docid ranks first", () => {
 		expect(
 			ranked(
@@ -76,7 +72,7 @@ describe("NodePriorityChain level 5: docid", () => {
 	});
 });
 
-describe("NodePriorityChain level 6: path (determinism fallback)", () => {
+describe("NodePriorityChain level 5: path (determinism fallback)", () => {
 	// WHY: ordinary (non-pinned) nodes carry no docid; a total order still must exist.
 	it("WHEN no level up to docid discriminates THEN the lexicographically smaller path ranks first", () => {
 		expect(ranked(rankable({ path: "b.md" }), rankable({ path: "a.md" }))).toEqual(["a.md", "b.md"]);
@@ -85,9 +81,9 @@ describe("NodePriorityChain level 6: path (determinism fallback)", () => {
 
 describe("NodePriorityChain determinism", () => {
 	it("WHEN the same set is sorted from different starting orders THEN the result is identical", () => {
-		const a = rankable({ path: "a.md", minDepth: 2, sizeScore: 0.5 });
-		const b = rankable({ path: "b.md", minDepth: 1, sizeScore: 0.1 });
-		const c = rankable({ path: "c.md", minDepth: 1, sizeScore: 0.9 });
+		const a = rankable({ path: "a.md", minDepth: 2, distanceToMain: 1 });
+		const b = rankable({ path: "b.md", minDepth: 1, distanceToMain: 3 });
+		const c = rankable({ path: "c.md", minDepth: 1, distanceToMain: 1 });
 		expect(ranked(a, b, c)).toEqual(ranked(c, a, b));
 	});
 });

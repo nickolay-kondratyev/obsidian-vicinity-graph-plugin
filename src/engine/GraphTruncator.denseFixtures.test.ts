@@ -8,7 +8,7 @@ import {
 } from "./testFixtures/denseVaultFixtures";
 import type { TruncationResult } from "./GraphTruncator";
 import type { TruncationStages } from "./testFixtures/truncationHarness";
-import { build, traverseAndSize, truncateAt, visible } from "./testFixtures/truncationHarness";
+import { build, traverseFixture, truncateAt, visible } from "./testFixtures/truncationHarness";
 import { asVaultPath } from "./types";
 
 /**
@@ -53,19 +53,19 @@ function totalHidden(result: TruncationResult): number {
 
 describe("GraphTruncator dense fixtures respect the cap", () => {
 	it("WHEN a 220-spoke hub is capped at 50 THEN exactly 50 non-centrals survive and the hub stays", () => {
-		const stages = traverseAndSize(hubFanOut(220).spec, ["hub.md"], { linkDepthOut: 1, linkDepthIn: 0 });
+		const stages = traverseFixture(hubFanOut(220).spec, ["hub.md"], { linkDepthOut: 1, linkDepthIn: 0 });
 		const result = truncateAt(stages, 50);
 		expect(visibleNonCentral(stages, result)).toHaveLength(50);
 		expect(result.visiblePaths.has(asVaultPath("hub.md"))).toBe(true);
 	});
 
 	it("WHEN the ~500-node vault is capped at 100 THEN exactly 100 non-centrals survive", () => {
-		const stages = traverseAndSize(largeMixedVault().spec, ["hub.md"], { linkDepthOut: 2, linkDepthIn: 0 });
+		const stages = traverseFixture(largeMixedVault().spec, ["hub.md"], { linkDepthOut: 2, linkDepthIn: 0 });
 		expect(visibleNonCentral(stages, truncateAt(stages, 100))).toHaveLength(100);
 	});
 
 	it("WHEN a dense bidirectional-cluster vault is capped below its pool THEN the hidden tally accounts for the remainder", () => {
-		const stages = traverseAndSize(bidirectionalClusters().spec, ["hub.md"], { linkDepthOut: 2, linkDepthIn: 0 });
+		const stages = traverseFixture(bidirectionalClusters().spec, ["hub.md"], { linkDepthOut: 2, linkDepthIn: 0 });
 		const cap = 10;
 		const result = truncateAt(stages, cap);
 		expect(totalHidden(result)).toBe(candidateCount(stages) - cap);
@@ -105,17 +105,17 @@ describe("GraphTruncator cap edge case: centrals alone exceed the cap", () => {
 	const roots = ["m.md", "c/c0.md", "c/c1.md", "c/c2.md"];
 
 	it("WHEN centrals already exceed the cap THEN every central still renders", () => {
-		const stages = traverseAndSize(spec, roots, { linkDepthOut: 1, linkDepthIn: 0 });
+		const stages = traverseFixture(spec, roots, { linkDepthOut: 1, linkDepthIn: 0 });
 		expect(everyCentralVisible(stages, truncateAt(stages, 0))).toBe(true);
 	});
 
 	it("WHEN centrals exhaust the render budget THEN nothing non-central renders", () => {
-		const stages = traverseAndSize(spec, roots, { linkDepthOut: 1, linkDepthIn: 0 });
+		const stages = traverseFixture(spec, roots, { linkDepthOut: 1, linkDepthIn: 0 });
 		expect(visibleNonCentral(stages, truncateAt(stages, 0))).toEqual([]);
 	});
 
 	it("WHEN non-centrals are all hidden THEN hiddenNodeCountsByFolder communicates them to the UI", () => {
-		const stages = traverseAndSize(spec, roots, { linkDepthOut: 1, linkDepthIn: 0 });
+		const stages = traverseFixture(spec, roots, { linkDepthOut: 1, linkDepthIn: 0 });
 		expect([...truncateAt(stages, 0).hiddenNodeCountsByFolder.entries()].sort()).toEqual([["nc", 2]]);
 	});
 });
@@ -126,7 +126,7 @@ describe("GraphTruncator cap boundary ±1", () => {
 	const spec = hubFanOut(POOL).spec;
 
 	function keptAndHidden(cap: number): { kept: number; hidden: number } {
-		const stages = traverseAndSize(spec, ["hub.md"], { linkDepthOut: 1, linkDepthIn: 0 });
+		const stages = traverseFixture(spec, ["hub.md"], { linkDepthOut: 1, linkDepthIn: 0 });
 		const result = truncateAt(stages, cap);
 		return { kept: visibleNonCentral(stages, result).length, hidden: totalHidden(result) };
 	}
@@ -156,7 +156,7 @@ describe("GraphTruncator tiebreaker: minDepth decides", () => {
 	};
 
 	it("WHEN two candidates differ only from minDepth up THEN the shallower one is kept", () => {
-		const stages = traverseAndSize(spec, ["m.md"], { linkDepthOut: 2, linkDepthIn: 0 });
+		const stages = traverseFixture(spec, ["m.md"], { linkDepthOut: 2, linkDepthIn: 0 });
 		expect(visibleNonCentral(stages, truncateAt(stages, 1))).toEqual(["a.md"]);
 	});
 });
@@ -173,7 +173,7 @@ describe("GraphTruncator tiebreaker: sizeScore decides", () => {
 	};
 
 	it("WHEN minDepth ties THEN the larger size score is kept", () => {
-		const stages = traverseAndSize(spec, ["m.md"], { linkDepthOut: 1, linkDepthIn: 0 });
+		const stages = traverseFixture(spec, ["m.md"], { linkDepthOut: 1, linkDepthIn: 0 });
 		expect(visibleNonCentral(stages, truncateAt(stages, 1))).toEqual(["big.md"]);
 	});
 });
@@ -192,7 +192,7 @@ describe("GraphTruncator tiebreaker: distanceToMain (numeric) decides", () => {
 	};
 
 	it("WHEN minDepth and size tie THEN the two distance-1 nodes beat the distance-2 node", () => {
-		const stages = traverseAndSize(spec, ["m.md", "p.md"], { linkDepthOut: 2, linkDepthIn: 0 });
+		const stages = traverseFixture(spec, ["m.md", "p.md"], { linkDepthOut: 2, linkDepthIn: 0 });
 		// cap 2 keeps both distance-1 nodes (hop, near) and hides far (distance 2).
 		expect(visibleNonCentral(stages, truncateAt(stages, 2))).toEqual(["hop.md", "near.md"]);
 	});
@@ -211,7 +211,7 @@ describe("GraphTruncator tiebreaker: distanceToMain present-vs-absent decides", 
 	};
 
 	it("WHEN one candidate is disconnected from MAIN THEN the connected one is kept", () => {
-		const stages = traverseAndSize(spec, ["m.md", "p.md"], { linkDepthOut: 1, linkDepthIn: 0 });
+		const stages = traverseFixture(spec, ["m.md", "p.md"], { linkDepthOut: 1, linkDepthIn: 0 });
 		expect(visibleNonCentral(stages, truncateAt(stages, 1))).toEqual(["conn.md"]);
 	});
 });
@@ -228,7 +228,7 @@ describe("GraphTruncator tiebreaker: path fallback decides", () => {
 	};
 
 	it("WHEN no earlier level discriminates THEN the smaller path is kept", () => {
-		const stages = traverseAndSize(spec, ["m.md"], { linkDepthOut: 1, linkDepthIn: 0 });
+		const stages = traverseFixture(spec, ["m.md"], { linkDepthOut: 1, linkDepthIn: 0 });
 		expect(visibleNonCentral(stages, truncateAt(stages, 1))).toEqual(["aa.md"]);
 	});
 });
@@ -238,7 +238,7 @@ describe("GraphTruncator tiebreaker: pin-recency and docid are unreachable here"
 	// pool. This asserts that structural fact so the reachability claim is not silent.
 	// Those two levels are covered at NodePriorityChain.test.ts (levels 4 and 5).
 	it("WHEN dense candidates are ranked THEN none carry a docid (so docid can never decide)", () => {
-		const stages = traverseAndSize(largeMixedVault().spec, ["hub.md"], { linkDepthOut: 2, linkDepthIn: 0 });
+		const stages = traverseFixture(largeMixedVault().spec, ["hub.md"], { linkDepthOut: 2, linkDepthIn: 0 });
 		const candidatesWithDocid = [...stages.traversal.nodes.values()].filter(
 			(node) => !node.isCentral && node.docid !== undefined,
 		);
@@ -249,7 +249,7 @@ describe("GraphTruncator tiebreaker: pin-recency and docid are unreachable here"
 describe("GraphTruncator runtime cap change", () => {
 	// Re-running truncate on ONE traversal with a growing cap = the runtime cap-change path.
 	function stagesOnce(): TruncationStages {
-		return traverseAndSize(largeMixedVault().spec, ["hub.md"], { linkDepthOut: 2, linkDepthIn: 0 });
+		return traverseFixture(largeMixedVault().spec, ["hub.md"], { linkDepthOut: 2, linkDepthIn: 0 });
 	}
 
 	it("WHEN the cap grows THEN the smaller cap's visible set is a subset of the larger cap's", () => {
@@ -274,7 +274,7 @@ describe("GraphTruncator pinned disconnected vicinity under a tight cap", () => 
 	const roots = [fixture.mainPath, ...(fixture.pinnedPaths ?? [])];
 
 	it("WHEN the cap is tight THEN both the MAIN and the pinned central still render (cap-exempt)", () => {
-		const stages = traverseAndSize(fixture.spec, roots, { linkDepthOut: 1, linkDepthIn: 0 });
+		const stages = traverseFixture(fixture.spec, roots, { linkDepthOut: 1, linkDepthIn: 0 });
 		const result = truncateAt(stages, 1);
 		expect({ hub: result.visiblePaths.has(asVaultPath("hub.md")), pin: result.visiblePaths.has(asVaultPath("island/pin.md")) }).toEqual(
 			{ hub: true, pin: true },
@@ -282,13 +282,13 @@ describe("GraphTruncator pinned disconnected vicinity under a tight cap", () => 
 	});
 
 	it("WHEN one non-central survives THEN it is a MAIN-connected node, not a disconnected island one", () => {
-		const stages = traverseAndSize(fixture.spec, roots, { linkDepthOut: 1, linkDepthIn: 0 });
+		const stages = traverseFixture(fixture.spec, roots, { linkDepthOut: 1, linkDepthIn: 0 });
 		const survivors = visibleNonCentral(stages, truncateAt(stages, 1));
 		expect(survivors.every((path) => path.startsWith("connected/"))).toBe(true);
 	});
 
 	it("WHEN the cap admits the connected tier exactly THEN all connected render and all island neighbors hide", () => {
-		const stages = traverseAndSize(fixture.spec, roots, { linkDepthOut: 1, linkDepthIn: 0 });
+		const stages = traverseFixture(fixture.spec, roots, { linkDepthOut: 1, linkDepthIn: 0 });
 		const result = truncateAt(stages, 3);
 		expect(visibleNonCentral(stages, result)).toEqual(["connected/c0.md", "connected/c1.md", "connected/c2.md"]);
 	});

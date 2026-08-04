@@ -1,15 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { EngineDefaults } from "./constants";
 import { FakeLinkProvider } from "./FakeLinkProvider";
 import type { FakeVaultSpec } from "./FakeLinkProvider";
 import { GraphTruncator } from "./GraphTruncator";
 import { VicinityTraversal } from "./VicinityTraversal";
 import type { TraversalRoot } from "./VicinityTraversal";
-import { NodeSizer } from "./NodeSizer";
 import { build, visible } from "./testFixtures/truncationHarness";
 import { asVaultPath } from "./types";
 
-// GIVEN MAIN m.md linking five same-sized neighbors in two folders
+// GIVEN MAIN m.md linking five equal-priority neighbors in two folders
 const fanOutSpec: FakeVaultSpec = {
 	files: [
 		{ path: "m.md" },
@@ -25,7 +23,7 @@ const fanOutSpec: FakeVaultSpec = {
 describe("GraphTruncator cap enforcement", () => {
 	it("WHEN the cap is smaller than the neighbor count THEN only cap non-centrals survive", () => {
 		const result = build(fanOutSpec, ["m.md"], 2);
-		// Same depth/size → deterministic path fallback keeps the first two alphabetically.
+		// Same depth/distance → deterministic path fallback keeps the first two alphabetically.
 		expect(visible(result)).toEqual(["alpha/a1.md", "alpha/a2.md", "m.md"]);
 	});
 
@@ -64,22 +62,13 @@ describe("GraphTruncator edge filtering", () => {
 });
 
 describe("GraphTruncator priority ordering", () => {
-	it("WHEN nodes tie on depth THEN the higher size score survives", () => {
-		const spec: FakeVaultSpec = {
-			files: [
-				{ path: "m.md", sizeBytes: 10 },
-				{ path: "big.md", sizeBytes: 100_000 },
-				{ path: "small.md", sizeBytes: 1 },
-			],
-			links: { "m.md": ["big.md", "small.md"] },
-		};
-		const result = build(spec, ["m.md"], 1);
-		expect(visible(result)).toEqual(["big.md", "m.md"]);
-	});
+	// EXPLICIT ALIGNMENT (nid_cx5zoz7ptucg9nxalibv0mbjb_e): the "higher size
+	// score survives" test is REMOVED — truncation no longer consumes sizes
+	// (content-fit sizing has no score); distance-to-MAIN is the depth tiebreak.
 
-	it("WHEN nodes tie on depth and size THEN the node graph-closer to MAIN survives", () => {
+	it("WHEN nodes tie on depth THEN the node graph-closer to MAIN survives", () => {
 		// near.md/hop.md: distance 1 from MAIN. far.md: minDepth 1 via pinned p.md,
-		// but distance 2 from MAIN (via hop.md) — same minDepth, same (zero-byte) size.
+		// but distance 2 from MAIN (via hop.md) — same minDepth.
 		const spec: FakeVaultSpec = {
 			files: [
 				{ path: "m.md" },
@@ -96,10 +85,8 @@ describe("GraphTruncator priority ordering", () => {
 			{ descriptor: { path: asVaultPath("p.md") }, depths: { linkDepthOut: 1, embedDepthOut: 1, linkDepthIn: 0 } },
 		];
 		const traversal = new VicinityTraversal(provider).traverse(roots);
-		const sizes = new NodeSizer(provider).computeSizes(traversal.nodes, EngineDefaults.sizingSettings());
 		const result = GraphTruncator.truncate({
 			nodes: traversal.nodes,
-			sizes,
 			edges: traversal.edges,
 			mainPath: asVaultPath("m.md"),
 			nodeCap: 2,
@@ -108,7 +95,7 @@ describe("GraphTruncator priority ordering", () => {
 		expect(visible(result)).toEqual(["hop.md", "m.md", "near.md", "p.md"]);
 	});
 
-	it("WHEN a node is disconnected from MAIN THEN a connected node of equal depth/size survives instead", () => {
+	it("WHEN a node is disconnected from MAIN THEN a connected node of equal depth survives instead", () => {
 		// island.md hangs off pinned p.md with no route to MAIN.
 		const spec: FakeVaultSpec = {
 			files: [{ path: "m.md" }, { path: "near.md" }, { path: "p.md" }, { path: "island.md" }],

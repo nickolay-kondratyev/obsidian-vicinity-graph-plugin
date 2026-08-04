@@ -33,7 +33,7 @@ export function traverseFixture(
 ): TruncationStages {
 	const mainPath = rootPaths[0];
 	if (mainPath === undefined) {
-		throw new Error("traverseAndSize() needs at least one root");
+		throw new Error("traverseFixture() needs at least one root");
 	}
 	const provider = new FakeLinkProvider(spec);
 	const roots: TraversalRoot[] = rootPaths.map((path) => ({

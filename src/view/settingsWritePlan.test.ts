@@ -31,37 +31,17 @@ describe("planSettingsWrite global writes", () => {
 		});
 	});
 
-	it("WHEN one metric is disabled THEN its sibling metrics are untouched", () => {
-		const command = planSettingsWrite(
-			{ kind: "global-sizing-metric-enabled", metric: "backlink-count", enabled: false },
-			CTX,
-		);
-		const metrics = command.kind === "global-view" ? command.view.sizing.metrics : undefined;
-		expect(metrics).toEqual({
-			...CTX.globalView.sizing.metrics,
-			"backlink-count": { ...CTX.globalView.sizing.metrics["backlink-count"], enabled: false },
-		});
-	});
-
-	it("WHEN one metric's weight is edited THEN its own enabled flag is untouched", () => {
-		const command = planSettingsWrite(
-			{ kind: "global-sizing-metric-weight", metric: "outlink-count", weight: 3 },
-			CTX,
-		);
-		const metric = command.kind === "global-view" ? command.view.sizing.metrics["outlink-count"] : undefined;
-		expect(metric).toEqual({ enabled: CTX.globalView.sizing.metrics["outlink-count"].enabled, weight: 3 });
-	});
+	// EXPLICIT ALIGNMENT (nid_cx5zoz7ptucg9nxalibv0mbjb_e): the metric-enable /
+	// metric-weight / depthDecayK interaction tests left with the removed dials.
 
 	// The sizing bounds are what keeps a typed `1e9` out of node geometry (a
 	// non-finite/absurd rectangle aborts the edge router's wasm module for the rest
 	// of the session), and an `<input type=number min=…>` does NOT block a TYPED
 	// value — so the LIVE session (not just a reloaded data.json) needs the clamp.
 	// The bounds live in SETTINGS_SPEC; these pin that they still BITE.
-	it("WHEN a typed depth-decay is below its lower bound THEN the planned write is clamped up to it", () => {
-		const command = planSettingsWrite({ kind: "global-sizing-number", field: "depthDecayK", value: -1 }, CTX);
-		expect(command.kind === "global-view" ? command.view.sizing.depthDecayK : undefined).toBe(
-			SIZING_RANGES.depthDecayK.min,
-		);
+	it("WHEN a typed minPx is below its lower bound THEN the planned write is clamped up to it", () => {
+		const command = planSettingsWrite({ kind: "global-sizing-number", field: "minPx", value: -1 }, CTX);
+		expect(command.kind === "global-view" ? command.view.sizing.minPx : undefined).toBe(SIZING_RANGES.minPx.min);
 	});
 
 	it("WHEN a typed minPx exceeds its upper bound THEN the planned write is capped at that bound", () => {
@@ -76,14 +56,6 @@ describe("planSettingsWrite global writes", () => {
 			CTX,
 		);
 		expect(command.kind === "global-view" ? command.view.sizing.maxPx : undefined).toBe(SIZING_RANGES.maxPx.max);
-	});
-
-	it("WHEN a typed depthDecayK exceeds its upper bound THEN the planned write is capped at that bound", () => {
-		const value = SIZING_RANGES.depthDecayK.max + 1;
-		const command = planSettingsWrite({ kind: "global-sizing-number", field: "depthDecayK", value }, CTX);
-		expect(command.kind === "global-view" ? command.view.sizing.depthDecayK : undefined).toBe(
-			SIZING_RANGES.depthDecayK.max,
-		);
 	});
 
 	it("WHEN one force-layout knob is dragged THEN the six sibling knobs are untouched", () => {

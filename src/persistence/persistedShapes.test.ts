@@ -217,27 +217,25 @@ describe("PersistedShapes node-exclusion parsing", () => {
 describe("PersistedShapes sizing parsing", () => {
 	// Sizing replaces the default WHOLESALE, so a parsed sizing must always be
 	// complete — mangled pieces are repaired from defaults.
+	// EXPLICIT ALIGNMENT (nid_cx5zoz7ptucg9nxalibv0mbjb_e): metric/depthDecayK
+	// parsing tests left with the removed dials; stale keys in an old data.json
+	// are simply never read (deliberate no-version-bump, see persistedShapes.ts).
 
 	it("WHEN a persisted sizing round-trips through JSON THEN it parses back unchanged", () => {
-		const sizing = {
-			...EngineDefaults.viewSettings().sizing,
-			depthDecayK: 0.75,
-			metrics: { ...EngineDefaults.viewSettings().sizing.metrics, "backlink-count": { enabled: false, weight: 2 } },
-		};
+		const sizing = { ...EngineDefaults.viewSettings().sizing, minPx: 55 };
 		expect(parsedGlobalView({ sizing: JSON.parse(JSON.stringify(sizing)) }).sizing).toEqual(sizing);
 	});
 
 	it("WHEN persisted sizing is partially mangled THEN unusable pieces are repaired from defaults (complete shape out)", () => {
-		const raw = { sizing: { depthDecayK: "broken", minPx: 12, metrics: { "backlink-count": { enabled: true } } } };
+		const raw = { sizing: { minPx: 12, maxPx: "broken" } };
 		expect(parsedGlobalView(raw).sizing).toEqual({ ...EngineDefaults.viewSettings().sizing, minPx: 12 });
 	});
 
 	it("WHEN persisted sizing carries out-of-range values THEN they are clamped into the input ranges", () => {
-		// `-1` is FINITE, so the non-finite gate lets it through: it is the clamp
-		// that stops `depthDecayK = -1` reaching `1 / (1 + k * minDepth)`.
-		const parsed = parsedGlobalView({ sizing: { depthDecayK: -1, minPx: -50, maxPx: 1e10 } }).sizing;
-		expect({ depthDecayK: parsed.depthDecayK, minPx: parsed.minPx, maxPx: parsed.maxPx }).toEqual({
-			depthDecayK: SIZING_RANGES.depthDecayK.min,
+		// `-50` is FINITE, so the non-finite gate lets it through: it is the clamp
+		// that stops it reaching pixel geometry.
+		const parsed = parsedGlobalView({ sizing: { minPx: -50, maxPx: 1e10 } }).sizing;
+		expect({ minPx: parsed.minPx, maxPx: parsed.maxPx }).toEqual({
 			minPx: SIZING_RANGES.minPx.min,
 			maxPx: SIZING_RANGES.maxPx.max,
 		});
@@ -253,11 +251,6 @@ describe("PersistedShapes sizing parsing", () => {
 
 	it("WHEN a hand-edited data.json inverts the size pair THEN minPx loads exactly as stored (the rule RAISES)", () => {
 		expect(parsedGlobalView({ sizing: { minPx: 200, maxPx: 40 } }).sizing.minPx).toBe(200);
-	});
-
-	it("WHEN a persisted metric weight is out of range THEN it is clamped into the weight range", () => {
-		const raw = { sizing: { metrics: { "backlink-count": { enabled: true, weight: -3 } } } };
-		expect(parsedGlobalView(raw).sizing.metrics["backlink-count"].weight).toBe(SIZING_RANGES.metricWeight.min);
 	});
 
 	it("WHEN persisted sizing is not an object THEN the whole default sizing applies", () => {

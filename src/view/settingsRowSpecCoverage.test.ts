@@ -39,8 +39,6 @@ function specLeafIdFor(control: SettingsRowControl): string {
 	switch (control.kind) {
 		case "depth":
 			return `globalDepths.${control.field}`;
-		case "sizing-metric":
-			return `globalView.sizing.metrics.${control.metric}`;
 		case "sizing-number":
 			return `globalView.sizing.${control.field}`;
 		case "node-preview":

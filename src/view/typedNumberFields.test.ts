@@ -88,7 +88,7 @@ describe("settings surfaces: typed number fields", () => {
 	});
 
 	it("WHEN the scan runs THEN it found the panel's typed fields (the guard is not vacuous)", () => {
-		// At least two: the shared number row, and the per-metric weight beside its toggle.
-		expect(typedNumberFields().length).toBeGreaterThanOrEqual(2);
+		// At least one: the shared number row (the per-metric weight left with the dials).
+		expect(typedNumberFields().length).toBeGreaterThanOrEqual(1);
 	});
 });

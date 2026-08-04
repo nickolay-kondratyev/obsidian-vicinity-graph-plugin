@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { EngineDefaults } from "../engine";
 import { GraphToolbar } from "./GraphToolbar";
 import type { SettingsRow, SettingsRowBlock, SettingsRowState } from "./settingsRows";
 import {
@@ -42,8 +41,6 @@ function expectedControlNames(row: SettingsRow): readonly string[] {
 		case "depth":
 			// Two verb buttons share the row; the readout itself is not a control.
 			return [SettingsRowNames.action("Decrease", row), SettingsRowNames.action("Increase", row)];
-		case "sizing-metric":
-			return [SettingsRowNames.role(row, "enabled"), SettingsRowNames.role(row, "weight")];
 		default:
 			return [SettingsRowNames.sole(row)];
 	}
@@ -136,38 +133,6 @@ describe("GraphToolbar (rendered): a declared block subheading groups its own ro
 	});
 });
 
-describe("GraphToolbar (rendered): a metric's weight is disabled with its toggle", () => {
-	const metricRow = settingsRowsFor("sizing-metric")[0];
-	if (metricRow === undefined || metricRow.control.kind !== "sizing-metric") {
-		throw new Error("the declared model no longer has a sizing-metric row");
-	}
-	const metric = metricRow.control.metric;
-
-	/** Defaults with THIS metric's enable flag forced to `enabled`. */
-	function stateWithMetricEnabled(enabled: boolean): SettingsRowState {
-		const view = EngineDefaults.viewSettings();
-		return settingsRowStateFixture({
-			globalView: {
-				...view,
-				sizing: {
-					...view.sizing,
-					metrics: { ...view.sizing.metrics, [metric]: { ...view.sizing.metrics[metric], enabled } },
-				},
-			},
-		});
-	}
-
-	function weightInput(): HTMLInputElement {
-		return screen.getByRole("spinbutton", { name: SettingsRowNames.role(metricRow!, "weight") }) as HTMLInputElement;
-	}
-
-	it("WHEN the metric toggle is OFF THEN its weight input renders disabled", () => {
-		renderToolbar(stateWithMetricEnabled(false));
-		expect(weightInput().disabled).toBe(true);
-	});
-
-	it("WHEN the metric toggle is ON THEN its weight input renders enabled", () => {
-		renderToolbar(stateWithMetricEnabled(true));
-		expect(weightInput().disabled).toBe(false);
-	});
-});
+// EXPLICIT ALIGNMENT (nid_cx5zoz7ptucg9nxalibv0mbjb_e): the "a metric's weight
+// is disabled with its toggle" suite left with the removed sizing-metric rows;
+// the exclusion-patterns suite above still exercises `disabledWhen` end-to-end.

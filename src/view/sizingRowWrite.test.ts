@@ -37,26 +37,9 @@ describe("SizingRowWrite cross-field verdict", () => {
 		expect(store.row("maxPx").judge(40).rejected).toBe(true);
 	});
 
-	it("WHEN the STORED pair is inverted THEN the depth-decay row still accepts its own value", () => {
-		// The cross-field rule is about min/max ONLY: refusing depth-decay-k for a
-		// problem in two other rows would make an untouched field uneditable.
-		const store = new FakeSizingStore({ minPx: 300, maxPx: 50 });
-		expect(store.row("depthDecayK").judge(0.5).rejected).toBe(false);
-	});
-
-	it("WHEN the STORED pair is inverted THEN the depth-decay row shows no message", () => {
-		const store = new FakeSizingStore({ minPx: 300, maxPx: 50 });
-		expect(store.row("depthDecayK").judge(0.5).message).toBeUndefined();
-	});
-
-	it("WHEN the STORED pair is inverted THEN the depth-decay row still authorises its write", () => {
-		const store = new FakeSizingStore({ minPx: 300, maxPx: 50 });
-		expect(store.row("depthDecayK").interactionIfAccepted(0.5)).toEqual({
-			kind: "global-sizing-number",
-			field: "depthDecayK",
-			value: 0.5,
-		});
-	});
+	// EXPLICIT ALIGNMENT (nid_cx5zoz7ptucg9nxalibv0mbjb_e): the depth-decay-k
+	// "unaffected third row" cases left with the removed dial — min/max are now
+	// the only sizing rows, and both ARE parties to the cross-field rule.
 });
 
 describe("SizingRowWrite authorised write", () => {

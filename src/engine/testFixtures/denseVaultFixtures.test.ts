@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { FakeLinkProvider } from "../FakeLinkProvider";
-import { traverseAndSize } from "./truncationHarness";
+import { traverseFixture } from "./truncationHarness";
 import type { DenseFixture } from "./denseVaultFixtures";
 import { allDefaultDenseFixtures, hubFanOut, SeededRandom } from "./denseVaultFixtures";
 
@@ -9,7 +9,7 @@ const FIXTURES = allDefaultDenseFixtures();
 /** Traverse a fixture deep enough (per its own hint) to reach every node-bearing file. */
 function reachedNodeCount(fixture: DenseFixture): number {
 	const roots = [fixture.mainPath, ...(fixture.pinnedPaths ?? [])];
-	const stages = traverseAndSize(fixture.spec, roots, {
+	const stages = traverseFixture(fixture.spec, roots, {
 		linkDepthOut: fixture.depthToCoverAll,
 		linkDepthIn: 0,
 	});

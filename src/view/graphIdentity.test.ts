@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { NODE_MAX_LABEL_WIDTH_PX, estimateNodeLabelWidthPx } from "./constants";
+import { NODE_MAX_LABEL_WIDTH_PX, estimateNodeLabelWidthPx } from "../engine";
 import { nodeDimensionsPx, sameNodeSizeOverridePx } from "./graphIdentity";
 import { makeNode } from "./testFixtures/graphFixtures";
 
 // 15 chars: the snug single-line estimate (15*7 + 20 = 125px) lands strictly
-// between the score-driven square floor (40px) and the cap — the "medium" case.
+// between the content-fit square floor (40px) and the cap — the "medium" case.
 const MEDIUM_TITLE = "medium-title-xx";
 // Long enough that the snug estimate blows past NODE_MAX_LABEL_WIDTH_PX, so the
 // width pins to the cap and the title wraps onto the 4 lines CSS allows.
