@@ -14,7 +14,9 @@ import type {
 	GraphNode,
 	VicinityGraph,
 	NodeExclusionSettings,
+	NodeOverride,
 	PinnedNodeDescriptor,
+	VaultPath,
 	ViewSettings,
 } from "./types";
 import { DepthSettingsFacts } from "./types";
@@ -41,6 +43,13 @@ export interface GraphBuildRequest {
 	 * discovered NEIGHBORS (never roots), at BFS neighbor discovery.
 	 */
 	readonly nodeExclusion?: NodeExclusionSettings;
+	/**
+	 * Per-node user overrides, already docid→path translated by the adapter
+	 * (like the pinned set). The engine ECHOES a matching entry onto its output
+	 * node ({@link GraphNode.override}) — application is downstream: pixels in
+	 * the view mapping, content in `nodePreviewChoice`. Absent ⇒ no overrides.
+	 */
+	readonly nodeOverrides?: ReadonlyMap<VaultPath, NodeOverride>;
 }
 
 /**
@@ -75,11 +84,13 @@ export class VicinityEngine {
 				// Fail loud rather than render a silently wrong graph.
 				throw new Error(`Engine invariant violated: no size computed for path=[${node.path}]`);
 			}
+			const override = request.nodeOverrides?.get(node.path);
 			nodes.push({
 				...node,
 				isMain: node.path === request.main.path,
 				sizeScore: size.sizeScore,
 				sizePx: size.sizePx,
+				...(override !== undefined ? { override } : {}),
 			});
 		}
 		return {

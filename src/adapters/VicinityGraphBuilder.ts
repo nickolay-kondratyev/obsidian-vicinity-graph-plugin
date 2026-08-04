@@ -11,8 +11,8 @@ import type { DocIdPort, MetadataCachePort, VaultPort } from "./obsidianPorts";
 
 /**
  * The one async orchestration per rebuild: live Obsidian state → provider,
- * global settings + the docid-keyed pinned set → path-keyed request
- * ({@link GraphRequestAssembler}) → pure engine build.
+ * global settings + the docid-keyed pinned set and per-node overrides →
+ * path-keyed request ({@link GraphRequestAssembler}) → pure engine build.
  *
  * Identity discipline: this is a READ path — `getDocId` only, never
  * `ensureDocId` (id-lib contract). A main doc without a docid still gets a full
@@ -47,7 +47,8 @@ export class VicinityGraphBuilder {
 			mainPath,
 			mainDocId,
 			pins: this.pluginDataStore.pins(),
-			resolvePinPath: (docid) => this.pathDocIdMap.getPath(docid),
+			nodeOverrides: this.pluginDataStore.nodeOverrides(),
+			resolveDocPath: (docid) => this.pathDocIdMap.getPath(docid),
 			globalDepths: this.pluginDataStore.globalDepths(),
 			globalView: this.pluginDataStore.globalView(),
 			nodeExclusion: this.pluginDataStore.nodeExclusion(),

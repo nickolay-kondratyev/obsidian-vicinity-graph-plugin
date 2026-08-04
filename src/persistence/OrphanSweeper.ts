@@ -9,23 +9,24 @@ export const SWEEP_DELAY_MS = 15_000;
 /** Items handled between main-thread yields; small enough that a batch is never felt. */
 const SWEEP_BATCH_SIZE = 20;
 
-/** What a single sweep actually removed — the completion-log payload (zero ⇒ nothing was stale). */
+/** What a single sweep actually removed — the completion-log payload (zeros ⇒ nothing was stale). */
 export interface SweepSummary {
 	readonly pinsRemoved: number;
+	readonly overridesRemoved: number;
 }
 
 /**
  * Delayed self-healing pass (step doc): warms the path↔docid map over all
  * eligible files (getDocId — READ-ONLY, never creates ids), then drops exactly
- * the orphans — pins whose docid no longer resolves. The bulk warm-up is
- * chunked with yields ({@link ChunkedWork}); the judgment itself is pure
- * ({@link SweepPlanner}).
+ * the orphans — pins and per-node overrides whose docid no longer resolves. The
+ * bulk warm-up is chunked with yields ({@link ChunkedWork}); the judgment
+ * itself is pure ({@link SweepPlanner}).
  *
- * Pins are the only docid-keyed persisted state (settings are global-only since
- * 2026-07-29), so pruning them is the whole job.
+ * Pins and per-node overrides are the only docid-keyed persisted state
+ * (settings are global-only since 2026-07-29), so pruning them is the whole job.
  *
- * This is also the deferred cleanup path for unpin and for deletes that the
- * live `vault.on('delete')` handler could not map to a docid.
+ * This is also the deferred cleanup path for unpin/override-clear and for
+ * deletes that the live `vault.on('delete')` handler could not map to a docid.
  */
 export class OrphanSweeper {
 	constructor(
@@ -41,8 +42,9 @@ export class OrphanSweeper {
 		const plan = SweepPlanner.plan({
 			liveDocids,
 			pinnedDocids: this.pluginDataStore.pins().map((pin) => pin.docid),
+			overrideDocids: Object.keys(this.pluginDataStore.nodeOverrides()),
 		});
-		return this.apply(plan.pinsToRemove);
+		return this.apply(plan.pinsToRemove, plan.overridesToRemove);
 	}
 
 	private async warmMapAndCollectLiveDocids(): Promise<ReadonlySet<string>> {
@@ -58,13 +60,17 @@ export class OrphanSweeper {
 		return liveDocids;
 	}
 
-	private async apply(pinsToRemove: readonly string[]): Promise<SweepSummary> {
+	private async apply(pinsToRemove: readonly string[], overridesToRemove: readonly string[]): Promise<SweepSummary> {
 		const confirmedPinsToRemove = pinsToRemove.filter((docid) => this.isConfirmedOrphan(docid));
 		if (confirmedPinsToRemove.length > 0) {
 			// One data.json write for all stale pins — no reason to chunk a single call.
 			await this.pluginDataStore.removePins(confirmedPinsToRemove);
 		}
-		return { pinsRemoved: confirmedPinsToRemove.length };
+		const confirmedOverridesToRemove = overridesToRemove.filter((docid) => this.isConfirmedOrphan(docid));
+		if (confirmedOverridesToRemove.length > 0) {
+			await this.pluginDataStore.removeNodeOverrides(confirmedOverridesToRemove);
+		}
+		return { pinsRemoved: confirmedPinsToRemove.length, overridesRemoved: confirmedOverridesToRemove.length };
 	}
 
 	/**

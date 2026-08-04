@@ -11,7 +11,8 @@ const LIVE_NOTE_COUNT = 25;
 
 /**
  * One vault snapshot exercising the orphan rule: 25 live notes with docids
- * (docid_note0_e ...), one id-less note, one live pin and one stale pin.
+ * (docid_note0_e ...), one id-less note, one live pin and one stale pin, one
+ * live node override and one stale one.
  */
 async function sweptFixture() {
 	const files = Array.from({ length: LIVE_NOTE_COUNT }, (_, i) => ({ path: `note${i}.md` }));
@@ -23,6 +24,8 @@ async function sweptFixture() {
 	await pluginDataStore.init();
 	await pluginDataStore.addPin("docid_note1_e", 100);
 	await pluginDataStore.addPin("docid_stale_e", 200);
+	await pluginDataStore.saveNodeOverride("docid_note2_e", { content: "image" });
+	await pluginDataStore.saveNodeOverride("docid_gone_e", { sizePx: { widthPx: 300, heightPx: 200 } });
 
 	const pathDocIdMap = new PathDocIdMap();
 	let yields = 0;
@@ -37,6 +40,11 @@ describe("OrphanSweeper", () => {
 	it("WHEN a pinned doc vanished THEN exactly that pin is removed", async () => {
 		const { pluginDataStore } = await sweptFixture();
 		expect(pluginDataStore.pins().map((pin) => pin.docid)).toEqual(["docid_note1_e"]);
+	});
+
+	it("WHEN an overridden doc vanished THEN exactly that override is removed", async () => {
+		const { pluginDataStore } = await sweptFixture();
+		expect(Object.keys(pluginDataStore.nodeOverrides())).toEqual(["docid_note2_e"]);
 	});
 
 	it("WHEN the sweep warms up THEN the path→docid map answers for visited docs", async () => {
@@ -56,7 +64,7 @@ describe("OrphanSweeper", () => {
 
 	it("WHEN the sweep completes THEN its summary counts exactly what was removed", async () => {
 		const { summary } = await sweptFixture();
-		expect(summary).toEqual({ pinsRemoved: 1 }); // docid_stale_e
+		expect(summary).toEqual({ pinsRemoved: 1, overridesRemoved: 1 }); // docid_stale_e, docid_gone_e
 	});
 });
 
@@ -146,6 +154,6 @@ describe("OrphanSweeper at hundreds-of-files scale", () => {
 
 	it("WHEN hundreds of files are all live THEN the sweep removes nothing", async () => {
 		const { summary } = await hundredsOfFilesSweep();
-		expect(summary).toEqual({ pinsRemoved: 0 });
+		expect(summary).toEqual({ pinsRemoved: 0, overridesRemoved: 0 });
 	});
 });

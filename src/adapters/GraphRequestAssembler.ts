@@ -2,7 +2,9 @@ import type {
 	DepthSettings,
 	GraphBuildRequest,
 	NodeExclusionSettings,
+	NodeOverride,
 	PinnedNodeDescriptor,
+	VaultPath,
 	ViewSettings,
 } from "../engine";
 import { asDocId, asVaultPath } from "../engine";
@@ -14,8 +16,10 @@ export interface GraphRequestInputs {
 	/** `null` when the main doc has no docid (graph still builds; it just cannot be pinned). */
 	readonly mainDocId: string | null;
 	readonly pins: readonly PinnedDocEntry[];
-	/** docid → current vault path (the in-memory map). `undefined` = unresolvable pin. */
-	readonly resolvePinPath: (docid: string) => string | undefined;
+	/** The docid-keyed per-node override map (data.json, verbatim). */
+	readonly nodeOverrides: Readonly<Record<string, NodeOverride>>;
+	/** docid → current vault path (the in-memory map). `undefined` = unresolvable docid. */
+	readonly resolveDocPath: (docid: string) => string | undefined;
 	readonly globalDepths: DepthSettings;
 	readonly globalView: ViewSettings;
 	/** Global node exclusion (vault-wide). Passed straight through to the engine. */
@@ -23,25 +27,29 @@ export interface GraphRequestInputs {
 }
 
 /**
- * PURE translation of the docid-keyed pinned set into the PATH-keyed
- * {@link GraphBuildRequest} the engine demands (engine contract: persisted
- * docid-keyed data never crosses the boundary untranslated). Settings need no
- * translation at all — they are global.
+ * PURE translation of the docid-keyed persisted maps (pins, per-node
+ * overrides) into the PATH-keyed {@link GraphBuildRequest} the engine demands
+ * (engine contract: persisted docid-keyed data never crosses the boundary
+ * untranslated). Settings need no translation at all — they are global.
  *
  * Judgments encoded here:
- * - a pin whose docid does not resolve to a path is SKIPPED (the delayed
- *   sweep deletes it; before the sweep warms the map it is simply invisible),
- * - a pin pointing at the main doc is skipped (it is already central).
+ * - a pin/override whose docid does not resolve to a path is SKIPPED (the
+ *   delayed sweep deletes it; before the sweep warms the map it is simply
+ *   invisible),
+ * - a pin pointing at the main doc is skipped (it is already central) — an
+ *   OVERRIDE on the main doc is NOT: overrides apply from any central.
  */
 export class GraphRequestAssembler {
 	static assemble(inputs: GraphRequestInputs): GraphBuildRequest {
 		const pinned = GraphRequestAssembler.pinnedDescriptors(inputs);
+		const nodeOverrides = GraphRequestAssembler.pathKeyedOverrides(inputs);
 		return {
 			main: {
 				path: asVaultPath(inputs.mainPath),
 				...(inputs.mainDocId !== null ? { docid: asDocId(inputs.mainDocId) } : {}),
 			},
 			...(pinned.length > 0 ? { pinned } : {}),
+			...(nodeOverrides.size > 0 ? { nodeOverrides } : {}),
 			globalDepths: inputs.globalDepths,
 			globalView: inputs.globalView,
 			nodeExclusion: inputs.nodeExclusion,
@@ -51,7 +59,7 @@ export class GraphRequestAssembler {
 	private static pinnedDescriptors(inputs: GraphRequestInputs): readonly PinnedNodeDescriptor[] {
 		const descriptors: PinnedNodeDescriptor[] = [];
 		for (const pin of inputs.pins) {
-			const path = inputs.resolvePinPath(pin.docid);
+			const path = inputs.resolveDocPath(pin.docid);
 			if (path === undefined || path === inputs.mainPath) {
 				continue;
 			}
@@ -62,5 +70,16 @@ export class GraphRequestAssembler {
 			});
 		}
 		return descriptors;
+	}
+
+	private static pathKeyedOverrides(inputs: GraphRequestInputs): ReadonlyMap<VaultPath, NodeOverride> {
+		const overrides = new Map<VaultPath, NodeOverride>();
+		for (const [docid, override] of Object.entries(inputs.nodeOverrides)) {
+			const path = inputs.resolveDocPath(docid);
+			if (path !== undefined) {
+				overrides.set(asVaultPath(path), override);
+			}
+		}
+		return overrides;
 	}
 }

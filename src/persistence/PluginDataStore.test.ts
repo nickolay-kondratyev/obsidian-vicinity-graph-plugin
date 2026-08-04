@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EngineDefaults } from "../engine";
+import { EngineDefaults, NODE_OVERRIDE_HARD_MAX_PX, NODE_OVERRIDE_HARD_MIN_PX } from "../engine";
 import { FakePluginDataPort } from "./FakePluginDataPort";
 import { PluginDataStore } from "./PluginDataStore";
 import type { PluginDataPort } from "./storagePorts";
@@ -66,5 +66,47 @@ describe("PluginDataStore", () => {
 		const store = await initializedStore();
 		await store.addPin("docid_a_e", 1);
 		expect([store.hasPin("docid_a_e"), store.hasPin("docid_b_e")]).toEqual([true, false]);
+	});
+});
+
+describe("PluginDataStore node overrides", () => {
+	it("WHEN an override is saved THEN it round-trips through the port", async () => {
+		const port = new FakePluginDataPort();
+		await (
+			await initializedStore(port)
+		).saveNodeOverride("docid_a_e", { sizePx: { widthPx: 320, heightPx: 180 }, content: "outline" });
+		expect((await initializedStore(port)).nodeOverrides()).toEqual({
+			docid_a_e: { sizePx: { widthPx: 320, heightPx: 180 }, content: "outline" },
+		});
+	});
+
+	it("WHEN an override is saved again THEN it replaces the doc's entry wholesale", async () => {
+		const store = await initializedStore();
+		await store.saveNodeOverride("docid_a_e", { sizePx: { widthPx: 320, heightPx: 180 }, content: "outline" });
+		await store.saveNodeOverride("docid_a_e", { content: "image" });
+		expect(store.nodeOverrides()).toEqual({ docid_a_e: { content: "image" } });
+	});
+
+	it("WHEN an override with neither field is saved THEN the entry is deleted (reset = no orphan)", async () => {
+		const store = await initializedStore();
+		await store.saveNodeOverride("docid_a_e", { content: "image" });
+		await store.saveNodeOverride("docid_a_e", {});
+		expect(store.nodeOverrides()).toEqual({});
+	});
+
+	it("WHEN a saved pixel box exceeds the hard sanity bounds THEN it is stored clamped into them", async () => {
+		const store = await initializedStore();
+		await store.saveNodeOverride("docid_a_e", { sizePx: { widthPx: 999999, heightPx: 1 } });
+		expect(store.nodeOverrides()).toEqual({
+			docid_a_e: { sizePx: { widthPx: NODE_OVERRIDE_HARD_MAX_PX, heightPx: NODE_OVERRIDE_HARD_MIN_PX } },
+		});
+	});
+
+	it("WHEN overrides are removed THEN only the named docids disappear", async () => {
+		const store = await initializedStore();
+		await store.saveNodeOverride("docid_a_e", { content: "image" });
+		await store.saveNodeOverride("docid_b_e", { content: "outline" });
+		await store.removeNodeOverrides(["docid_a_e"]);
+		expect(store.nodeOverrides()).toEqual({ docid_b_e: { content: "outline" } });
 	});
 });

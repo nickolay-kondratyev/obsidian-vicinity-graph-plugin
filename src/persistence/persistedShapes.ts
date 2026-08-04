@@ -2,15 +2,19 @@ import type {
 	DepthSettings,
 	ForceLayoutSettings,
 	NodeExclusionSettings,
+	NodeOverride,
+	NodeSizeOverridePx,
 	SizeMetricId,
 	SizingSettings,
 	ViewSettings,
 } from "../engine";
 import {
 	EngineDefaults,
+	NODE_CONTENT_OVERRIDES,
 	NODE_PREVIEW_PREFERENCES,
 	clampForceLayoutSettings,
 	clampNodeCap,
+	clampNodeSizeOverridePx,
 	clampOutlineMaxDepth,
 	clampSizingSettings,
 } from "../engine";
@@ -23,11 +27,15 @@ import {
  * malformed-content philosophy.
  *
  * There is exactly ONE persisted file: the plugin's `data.json`. Settings are
- * GLOBAL-only and pins are global, so nothing is keyed per document (owner
- * decision 2026-07-29).
+ * GLOBAL-only; the two docid-keyed maps (pins, per-node overrides) are global
+ * facts about docs — renames are non-events — never a per-document settings
+ * layer (owner decision 2026-07-29).
  */
 
 /**
+ * Bumped to 3 when the docid-keyed `nodeOverrides` map was added (node-sizing
+ * rethink) — a deliberate clean break while the plugin is unpublished (no
+ * migration; older files re-parse as defaults, called out in the release note).
  * Bumped to 2 when the `edgeRouting` view field was removed (routing is now
  * always on): a mismatched version parses to defaults/null and the next write
  * rewrites at the current version, so stale v1 `edgeRouting` values are dropped.
@@ -38,7 +46,7 @@ import {
  * goal. A future parser that must survive a downgrade-then-upgrade round trip
  * has to handle that path explicitly before shipping.
  */
-export const PERSISTED_SHAPE_VERSION = 2;
+export const PERSISTED_SHAPE_VERSION = 3;
 
 /** One pinned doc; `pinTimestamp` (epoch ms) feeds the recency tiebreaker. */
 export interface PinnedDocEntry {
@@ -54,6 +62,12 @@ export interface PluginData {
 	readonly pins: readonly PinnedDocEntry[];
 	/** Global node exclusion (vault-wide enable + regex-lite pattern list). */
 	readonly nodeExclusion: NodeExclusionSettings;
+	/**
+	 * Per-node user overrides, keyed by docid like {@link pins}. An entry with
+	 * neither field is never stored ({@link PluginDataStore} deletes it) and is
+	 * dropped by the parser if hand-edited in.
+	 */
+	readonly nodeOverrides: Readonly<Record<string, NodeOverride>>;
 }
 
 export class PersistedShapes {
@@ -64,6 +78,7 @@ export class PersistedShapes {
 			globalView: EngineDefaults.viewSettings(),
 			pins: [],
 			nodeExclusion: EngineDefaults.nodeExclusionSettings(),
+			nodeOverrides: {},
 		};
 	}
 
@@ -82,6 +97,7 @@ export class PersistedShapes {
 			globalView: { ...defaults.globalView, ...parseViewFields(raw["globalView"]) },
 			pins: parsePins(raw["pins"]),
 			nodeExclusion: parseNodeExclusion(raw["nodeExclusion"], defaults.nodeExclusion),
+			nodeOverrides: parseNodeOverrides(raw["nodeOverrides"]),
 		};
 	}
 }
@@ -265,6 +281,52 @@ function parsePins(raw: unknown): readonly PinnedDocEntry[] {
 		}
 	}
 	return pins;
+}
+
+/**
+ * Defensive per-node override parser: a non-object map degrades to empty; per
+ * entry, an unusable `sizePx` (missing/non-finite dimension) and an
+ * unrecognized `content` each fall away; an entry left with NEITHER field is
+ * dropped whole — "empty entry" is a stored shape that must not exist
+ * (see {@link PluginData.nodeOverrides}). Surviving pixel boxes are clamped
+ * with the SAME hard-sanity clamp the write path uses.
+ */
+function parseNodeOverrides(raw: unknown): Readonly<Record<string, NodeOverride>> {
+	if (!isRecord(raw)) {
+		return {};
+	}
+	const overrides: Record<string, NodeOverride> = {};
+	for (const [docid, entry] of Object.entries(raw)) {
+		const override = parseNodeOverride(entry);
+		if (override !== undefined) {
+			overrides[docid] = override;
+		}
+	}
+	return overrides;
+}
+
+function parseNodeOverride(raw: unknown): NodeOverride | undefined {
+	if (!isRecord(raw)) {
+		return undefined;
+	}
+	const sizePx = parseNodeSizeOverride(raw["sizePx"]);
+	const content = NODE_CONTENT_OVERRIDES.find((choice) => choice === raw["content"]);
+	if (sizePx === undefined && content === undefined) {
+		return undefined;
+	}
+	return { ...(sizePx !== undefined ? { sizePx } : {}), ...(content !== undefined ? { content } : {}) };
+}
+
+function parseNodeSizeOverride(raw: unknown): NodeSizeOverridePx | undefined {
+	if (!isRecord(raw)) {
+		return undefined;
+	}
+	const widthPx = numberOrUndefined(raw["widthPx"]);
+	const heightPx = numberOrUndefined(raw["heightPx"]);
+	if (widthPx === undefined || heightPx === undefined) {
+		return undefined;
+	}
+	return clampNodeSizeOverridePx({ widthPx, heightPx });
 }
 
 function numberOrUndefined(value: unknown): number | undefined {

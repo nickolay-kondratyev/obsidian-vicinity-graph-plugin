@@ -1,11 +1,13 @@
-import type { DepthSettings, NodeExclusionSettings, ViewSettings } from "../engine";
+import type { DepthSettings, NodeExclusionSettings, NodeOverride, ViewSettings } from "../engine";
+import { clampNodeSizeOverridePx } from "../engine";
 import { SerialPromiseChain } from "../shared/SerialPromiseChain";
 import type { PinnedDocEntry, PluginData } from "./persistedShapes";
 import { PersistedShapes } from "./persistedShapes";
 import type { PluginDataPort } from "./storagePorts";
 
 /**
- * Typed owner of the plugin's `data.json` (global settings + the pinned set).
+ * Typed owner of the plugin's `data.json` (global settings + the docid-keyed
+ * pinned set and per-node overrides).
  * Holds the parsed state in memory after {@link init}; every mutation
  * persists through a serialized write chain (last write wins, no interleaved
  * saveData calls).
@@ -41,6 +43,10 @@ export class PluginDataStore {
 		return this.data.pins.some((pin) => pin.docid === docid);
 	}
 
+	nodeOverrides(): Readonly<Record<string, NodeOverride>> {
+		return this.data.nodeOverrides;
+	}
+
 	async saveGlobalDepths(globalDepths: DepthSettings): Promise<void> {
 		await this.persist({ ...this.data, globalDepths });
 	}
@@ -62,6 +68,34 @@ export class PluginDataStore {
 	async removePins(docids: readonly string[]): Promise<void> {
 		const removed = new Set(docids);
 		await this.persist({ ...this.data, pins: this.data.pins.filter((pin) => !removed.has(pin.docid)) });
+	}
+
+	/**
+	 * Stores the COMPLETE desired override for one doc (callers compose partial
+	 * changes over {@link nodeOverrides} themselves). The pixel box is clamped
+	 * with the SAME hard-sanity clamp the load path uses; an override with
+	 * NEITHER field DELETES the entry — "reset to inherit everything" and "empty
+	 * entry" are one operation, so the orphan shape never reaches disk.
+	 */
+	async saveNodeOverride(docid: string, override: NodeOverride): Promise<void> {
+		const sizePx = override.sizePx === undefined ? undefined : clampNodeSizeOverridePx(override.sizePx);
+		if (sizePx === undefined && override.content === undefined) {
+			await this.removeNodeOverrides([docid]);
+			return;
+		}
+		const entry: NodeOverride = {
+			...(sizePx !== undefined ? { sizePx } : {}),
+			...(override.content !== undefined ? { content: override.content } : {}),
+		};
+		await this.persist({ ...this.data, nodeOverrides: { ...this.data.nodeOverrides, [docid]: entry } });
+	}
+
+	async removeNodeOverrides(docids: readonly string[]): Promise<void> {
+		const removed = new Set(docids);
+		const remaining = Object.fromEntries(
+			Object.entries(this.data.nodeOverrides).filter(([docid]) => !removed.has(docid)),
+		);
+		await this.persist({ ...this.data, nodeOverrides: remaining });
 	}
 
 	/**

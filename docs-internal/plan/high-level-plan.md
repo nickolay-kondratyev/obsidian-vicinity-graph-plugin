@@ -100,10 +100,10 @@ Every **outgoing** reference carries a `LinkKind` — `link` or `embed` — whic
 ### Persistence
 
 - All storage is **JSON**.
-- **`data.json` via `saveData`/`loadData` is the ONLY store**: global settings plus the pinned set. Nothing is written per document, so the plugin owns exactly one file.
+- **`data.json` via `saveData`/`loadData` is the ONLY store**: global settings plus the two docid-keyed maps — the pinned set and per-node overrides (`nodeOverrides`: optional `sizePx` box, optional `content` choice; see `docs-internal/plan/node-sizing-rethink.md`). Nothing is written per document, so the plugin owns exactly one file.
     - The per-doc file store this plan originally specified (`.obsidian/plugins/<id>/doc-data/<docid>.json`, one file per doc, chosen for sync-friendliness) was deleted with the per-doc settings layer. Existing `doc-data/` directories are simply **ignored** — dead files, never read, never written, never cleaned up. The release note says so; the clean-break-while-unpublished convention (`CLAUDE.md`) is what allows discarding them instead of migrating. The sync-friendliness argument stands and should be re-read before any future per-doc store is added.
 - **docid is a stable unique id** from the submodule library. Markdown docs: frontmatter. Canvas docs: Obsidian's native canvas `metadata.frontmatter`, which survives canvas edits. Stable ids make renames a non-event.
-- Deletes: `vault.on('delete')` plus an in-memory path-to-docid map for live cleanup, and an **orphan sweep** for everything else. With only one docid-keyed collection left, the sweep validates **pinned docids** and drops any pin whose doc no longer resolves.
+- Deletes: `vault.on('delete')` plus an in-memory path-to-docid map for live cleanup, and an **orphan sweep** for everything else. The sweep validates the docid-keyed collections (**pins** and **node overrides**) and drops any entry whose doc no longer resolves.
 - Sweep constraints: **delayed start (~15s after plugin load)** so it never competes with startup, and **chunked with yields** (process a batch, `await sleep(0)`, continue) since async alone does not protect the single-threaded main loop.
 - Every persisted shape carries a `version` field from day one.
 

@@ -91,6 +91,42 @@ describe("VicinityEngine global node exclusion", () => {
 	});
 });
 
+describe("VicinityEngine per-node override echo", () => {
+	// The engine ECHOES a request override onto its output node (like docids) —
+	// application is downstream: pixels in the view mapping, content in
+	// `nodePreviewChoice`.
+
+	it("WHEN the request carries an override for a neighbor THEN that node echoes it", () => {
+		const override = { sizePx: { widthPx: 320, heightPx: 180 } };
+		const graph = build({ nodeOverrides: new Map([[asVaultPath("notes/alpha.md"), override]]) });
+		expect(node(graph, "notes/alpha.md")?.override).toEqual(override);
+	});
+
+	it("WHEN the request carries an override for MAIN THEN the central echoes it too (any central)", () => {
+		const override = { content: "image" as const };
+		const graph = build({ nodeOverrides: new Map([[asVaultPath("hub.md"), override]]) });
+		expect(node(graph, "hub.md")?.override).toEqual(override);
+	});
+
+	it("WHEN a node has no override THEN the field is ABSENT (never an empty object)", () => {
+		expect(node(build(), "notes/alpha.md")).not.toHaveProperty("override");
+	});
+
+	it("WHEN an override targets a path outside the vicinity THEN the build is unaffected", () => {
+		const graph = build({
+			nodeOverrides: new Map([[asVaultPath("elsewhere.md"), { content: "outline" as const }]]),
+		});
+		expect(graph.nodes.some((candidate) => candidate.override !== undefined)).toBe(false);
+	});
+
+	it("WHEN an override is echoed THEN sizeScore is untouched (Q4: pixels only, truncation ranking unaffected)", () => {
+		const withOverride = build({
+			nodeOverrides: new Map([[asVaultPath("notes/alpha.md"), { sizePx: { widthPx: 900, heightPx: 900 } }]]),
+		});
+		expect(node(withOverride, "notes/alpha.md")?.sizeScore).toBe(node(build(), "notes/alpha.md")?.sizeScore);
+	});
+});
+
 describe("VicinityEngine end-to-end build", () => {
 	it("WHEN building THEN the union covers MAIN's vicinity and the disconnected pinned island", () => {
 		expect(build().nodes.map((n) => n.path).sort()).toEqual([

@@ -10,7 +10,8 @@ function inputs(partial: Partial<GraphRequestInputs> = {}): GraphRequestInputs {
 		mainPath: "main.md",
 		mainDocId: "docid_main_e",
 		pins: [],
-		resolvePinPath: (docid) => PIN_PATHS[docid],
+		nodeOverrides: {},
+		resolveDocPath: (docid) => PIN_PATHS[docid],
 		globalDepths: EngineDefaults.depthSettings(),
 		globalView: EngineDefaults.viewSettings(),
 		nodeExclusion: EngineDefaults.nodeExclusionSettings(),
@@ -33,7 +34,7 @@ describe("GraphRequestAssembler pins", () => {
 		const request = GraphRequestAssembler.assemble(
 			inputs({
 				pins: [{ docid: "docid_main_e", pinTimestamp: 1 }],
-				resolvePinPath: () => "main.md",
+				resolveDocPath: () => "main.md",
 			}),
 		);
 		expect(request.pinned).toBeUndefined();
@@ -46,6 +47,32 @@ describe("GraphRequestAssembler pins", () => {
 	it("WHEN inputs carry node exclusion THEN it is threaded onto the request unchanged", () => {
 		const nodeExclusion = { enabled: true, patterns: ["^rel/"] };
 		expect(GraphRequestAssembler.assemble(inputs({ nodeExclusion })).nodeExclusion).toEqual(nodeExclusion);
+	});
+});
+
+describe("GraphRequestAssembler node overrides", () => {
+	it("WHEN an override's docid resolves THEN the request carries it path-keyed", () => {
+		const request = GraphRequestAssembler.assemble(
+			inputs({ nodeOverrides: { docid_pin_e: { content: "image" } } }),
+		);
+		expect(request.nodeOverrides).toEqual(new Map([["pinned.md", { content: "image" }]]));
+	});
+
+	it("WHEN an override's docid does not resolve (cold map / deleted doc) THEN it is skipped", () => {
+		const request = GraphRequestAssembler.assemble(
+			inputs({ nodeOverrides: { docid_ghost_e: { content: "image" } } }),
+		);
+		expect(request.nodeOverrides).toBeUndefined();
+	});
+
+	it("WHEN an override resolves to the main doc THEN it is KEPT (overrides apply from any central)", () => {
+		const request = GraphRequestAssembler.assemble(
+			inputs({
+				nodeOverrides: { docid_main_e: { sizePx: { widthPx: 300, heightPx: 200 } } },
+				resolveDocPath: () => "main.md",
+			}),
+		);
+		expect(request.nodeOverrides).toEqual(new Map([["main.md", { sizePx: { widthPx: 300, heightPx: 200 } }]]));
 	});
 });
 

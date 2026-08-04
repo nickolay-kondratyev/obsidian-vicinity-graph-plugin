@@ -1,3 +1,4 @@
+import type { NodeOverride } from "../engine";
 import type { DocIdPort, VaultFilePort } from "../adapters/obsidianPorts";
 import type { PersistableIdentity } from "./DocPersistEligibility";
 import { DocPersistEligibility } from "./DocPersistEligibility";
@@ -12,8 +13,9 @@ import type { PluginDataStore } from "./PluginDataStore";
  * foreign docid) persists NOTHING and the typed reason feeds the node emblem.
  *
  * Settings have NO doc identity involved (they are global) — callers use
- * {@link PluginDataStore} directly. What is left doc-scoped is the pinned set,
- * which is itself stored globally in `data.json` but keyed by docid.
+ * {@link PluginDataStore} directly. What is left doc-scoped is the pinned set
+ * and the per-node override map, both stored globally in `data.json` but keyed
+ * by docid.
  */
 export class PersistenceServices {
 	constructor(
@@ -36,6 +38,26 @@ export class PersistenceServices {
 	 */
 	async unpinDoc(docid: string): Promise<void> {
 		await this.pluginDataStore.removePins([docid]);
+	}
+
+	/**
+	 * Saving an override is a write intent exactly like pinning: the id is
+	 * ensured LAZILY (frontmatter is written only now, Q5: silently), the same
+	 * eligibility rule refuses the same docs, and a refused doc persists
+	 * NOTHING. An override with neither field deletes the stored entry
+	 * (see {@link PluginDataStore.saveNodeOverride}).
+	 */
+	async saveNodeOverride(file: VaultFilePort, override: NodeOverride): Promise<PersistableIdentity> {
+		return this.withPersistableIdentity(file, (docid) => this.pluginDataStore.saveNodeOverride(docid, override));
+	}
+
+	/**
+	 * Removal lands unconditionally and returns NO verdict, for the same reason
+	 * as {@link unpinDoc}: it needs only the docid the entry is keyed by, and an
+	 * entry that is no longer there is already the desired state.
+	 */
+	async removeNodeOverride(docid: string): Promise<void> {
+		await this.pluginDataStore.removeNodeOverrides([docid]);
 	}
 
 	/** ensureDocId (write intent!) → Q3 classification → persist only on a "persistable" verdict. */
