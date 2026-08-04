@@ -1,9 +1,8 @@
-import type { NodeOverride } from "../engine";
 import type { DocIdPort, VaultFilePort } from "../adapters/obsidianPorts";
 import type { PersistableIdentity } from "./DocPersistEligibility";
 import { DocPersistEligibility } from "./DocPersistEligibility";
 import type { PathDocIdMap } from "./PathDocIdMap";
-import type { PluginDataStore } from "./PluginDataStore";
+import type { NodeOverrideChange, NodeOverrideField, PluginDataStore } from "./PluginDataStore";
 
 /**
  * The doc-scoped write-intent facade: every entry point is an EXPLICIT user
@@ -41,23 +40,32 @@ export class PersistenceServices {
 	}
 
 	/**
-	 * Saving an override is a write intent exactly like pinning: the id is
-	 * ensured LAZILY (frontmatter is written only now, Q5: silently), the same
-	 * eligibility rule refuses the same docs, and a refused doc persists
-	 * NOTHING. An override with neither field deletes the stored entry
-	 * (see {@link PluginDataStore.saveNodeOverride}).
+	 * Setting an override field is a write intent exactly like pinning: the id
+	 * is ensured LAZILY (frontmatter is written only now, Q5: silently), the
+	 * same eligibility rule refuses the same docs, and a refused doc persists
+	 * NOTHING. The change names ONE field — the doc's other override field is
+	 * merged in the store from state read fresh there.
 	 */
-	async saveNodeOverride(file: VaultFilePort, override: NodeOverride): Promise<PersistableIdentity> {
-		return this.withPersistableIdentity(file, (docid) => this.pluginDataStore.saveNodeOverride(docid, override));
+	async saveNodeOverride(file: VaultFilePort, change: NodeOverrideChange): Promise<PersistableIdentity> {
+		return this.withPersistableIdentity(file, (docid) =>
+			this.pluginDataStore.saveNodeOverrideField(docid, change),
+		);
 	}
 
 	/**
-	 * Removal lands unconditionally and returns NO verdict, for the same reason
-	 * as {@link unpinDoc}: it needs only the docid the entry is keyed by, and an
-	 * entry that is no longer there is already the desired state.
+	 * Clearing a field ("inherit this again") NEVER mints an id — it reads with
+	 * `getDocId`: a doc without a persistable docid cannot own a stored
+	 * override, so "cleared" is ALREADY true and ensuring an id would mutate the
+	 * user's note to store nothing. Like {@link unpinDoc} it lands
+	 * unconditionally and reports no verdict: there is nothing to refuse.
 	 */
-	async removeNodeOverride(docid: string): Promise<void> {
-		await this.pluginDataStore.removeNodeOverrides([docid]);
+	async clearNodeOverrideField(file: VaultFilePort, field: NodeOverrideField): Promise<void> {
+		const identity = DocPersistEligibility.classify(await this.docIdPort.getDocId(file));
+		if (identity.kind !== "persistable") {
+			return;
+		}
+		this.pathDocIdMap.set(file.path, identity.docid);
+		await this.pluginDataStore.clearNodeOverrideField(identity.docid, field);
 	}
 
 	/** ensureDocId (write intent!) → Q3 classification → persist only on a "persistable" verdict. */

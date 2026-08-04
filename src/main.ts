@@ -165,12 +165,16 @@ export default class VicinityGraphPlugin extends Plugin {
 		this.registerEvent(this.app.vault.on("delete", (file) => void this.handleVaultDelete(file.path)));
 	}
 
-	/** Live cleanup for mapped docs; unmapped paths are the delayed sweep's job (backstop). */
+	/**
+	 * Live cleanup for mapped docs — EVERY docid-keyed map at once
+	 * ({@link PluginDataStore.forgetDocs}), so a new map is never forgotten
+	 * here. Unmapped paths are the delayed sweep's job (backstop).
+	 */
 	private async handleVaultDelete(path: string): Promise<void> {
 		this.canvasParseCache.evict(path);
 		const docid = this.pathDocIdMap.handleDelete(path);
-		if (docid !== undefined && this.pluginDataStore.hasPin(docid)) {
-			await this.pluginDataStore.removePins([docid]);
+		if (docid !== undefined) {
+			await this.pluginDataStore.forgetDocs([docid]);
 		}
 	}
 
@@ -181,7 +185,9 @@ export default class VicinityGraphPlugin extends Plugin {
 				void sweeper
 					.run()
 					.then((summary) => {
-						console.log(`vicinity-graph: orphan sweep complete pinsRemoved=[${summary.pinsRemoved}]`);
+						console.log(
+							`vicinity-graph: orphan sweep complete pinsRemoved=[${summary.pinsRemoved}] overridesRemoved=[${summary.overridesRemoved}]`,
+						);
 					})
 					.catch((error: unknown) => {
 						console.error("vicinity-graph: orphan sweep failed", error);

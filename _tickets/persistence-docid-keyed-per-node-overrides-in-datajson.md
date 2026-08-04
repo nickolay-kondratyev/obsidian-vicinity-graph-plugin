@@ -4,7 +4,7 @@ id: nid_lwionnvohw9k58jw7a2dybht2_e
 title: 'persistence: docid-keyed per-node overrides in data.json'
 status: closed
 deps: [nid_o5hz7ilcauwe2acqdfh6pcuam_e]
-links: [nid_o5hz7ilcauwe2acqdfh6pcuam_e, nid_cx5zoz7ptucg9nxalibv0mbjb_e, nid_qjsj5mth2phdqctbm0vfx9elw_e,
+links: [[nid_o5hz7ilcauwe2acqdfh6pcuam_e, nid_cx5zoz7ptucg9nxalibv0mbjb_e, nid_qjsj5mth2phdqctbm0vfx9elw_e, nid_gbyqsuplz8b7pv0u5k34sdz1q_e]
   nid_9hx6okamx3yt0rg9iad2f4151_e, nid_kyowb4v8v51nslbicl4szgcd5_e]
 created_iso: '2026-08-03T23:48:47Z'
 status_updated_iso: 2026-08-04T00:18:25Z
@@ -44,3 +44,12 @@ RESOLVED (2026-08-04). Implemented exactly per ticket + node-sizing-rethink.md s
 - Orphan cleanup: SweepPlanner/OrphanSweeper prune override entries whose docid no longer resolves (same confirmed-orphan re-check as pins); SweepSummary gains overridesRemoved.
 - Docs: CLAUDE.md persistence bullet, high-level-plan.md Persistence section updated.
 - Tests: npm test 1502 passed (round-trip, parser degradation, empty-entry drop, clamp, store save/replace/delete, services eligibility/refusal/lazy mint, sweep, assembler translation, engine echo). npm run check clean. Commit 36354cd.
+
+**2026-08-04T00:32:39Z**
+
+ADVERSARIAL REVIEW FOLLOW-UP (2026-08-04, separate commit on top of 36354cd):
+- The live `vault.on('delete')` handler pruned only PINS, so a deleted doc's override survived until the next startup sweep. Both maps now drop through ONE `PluginDataStore.forgetDocs` call (also used by the sweep, one data.json write instead of two).
+- The override write API was wholesale-replace (`saveNodeOverride(docid, completeOverride)`), which forces a consumer to compose an entry from the RENDERED graph and clobber the other field. Replaced by field-scoped `NodeOverrideChange` (`saveNodeOverrideField` / `clearNodeOverrideField`); the store merges over state read fresh, matching the settings-pipeline rule.
+- Clearing a field no longer calls `ensureDocId`: an id-less doc owns no override, so the old empty-override path minted a frontmatter id to store nothing.
+- The sweep completion log now reports overridesRemoved.
+- Cold-docid-map window (pins AND overrides invisible until the 15s sweep) filed as nid_gbyqsuplz8b7pv0u5k34sdz1q_e.

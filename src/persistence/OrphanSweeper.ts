@@ -2,6 +2,7 @@ import type { DocIdPort, VaultPort } from "../adapters/obsidianPorts";
 import { ChunkedWork } from "./ChunkedWork";
 import type { PathDocIdMap } from "./PathDocIdMap";
 import type { PluginDataStore } from "./PluginDataStore";
+import type { SweepPlan } from "./SweepPlanner";
 import { SweepPlanner } from "./SweepPlanner";
 
 /** Sweep starts ~15s after plugin load (step doc) — vault/cache are settled, startup cost is zero. */
@@ -44,7 +45,7 @@ export class OrphanSweeper {
 			pinnedDocids: this.pluginDataStore.pins().map((pin) => pin.docid),
 			overrideDocids: Object.keys(this.pluginDataStore.nodeOverrides()),
 		});
-		return this.apply(plan.pinsToRemove, plan.overridesToRemove);
+		return this.apply(plan);
 	}
 
 	private async warmMapAndCollectLiveDocids(): Promise<ReadonlySet<string>> {
@@ -60,17 +61,16 @@ export class OrphanSweeper {
 		return liveDocids;
 	}
 
-	private async apply(pinsToRemove: readonly string[], overridesToRemove: readonly string[]): Promise<SweepSummary> {
-		const confirmedPinsToRemove = pinsToRemove.filter((docid) => this.isConfirmedOrphan(docid));
-		if (confirmedPinsToRemove.length > 0) {
-			// One data.json write for all stale pins — no reason to chunk a single call.
-			await this.pluginDataStore.removePins(confirmedPinsToRemove);
+	private async apply(plan: SweepPlan): Promise<SweepSummary> {
+		const pins = plan.pinsToRemove.filter((docid) => this.isConfirmedOrphan(docid));
+		const overrides = plan.overridesToRemove.filter((docid) => this.isConfirmedOrphan(docid));
+		const forgotten = new Set([...pins, ...overrides]);
+		if (forgotten.size > 0) {
+			// ONE data.json write for every stale docid — no reason to chunk a
+			// single call, and the same docid is usually stale in both maps.
+			await this.pluginDataStore.forgetDocs([...forgotten]);
 		}
-		const confirmedOverridesToRemove = overridesToRemove.filter((docid) => this.isConfirmedOrphan(docid));
-		if (confirmedOverridesToRemove.length > 0) {
-			await this.pluginDataStore.removeNodeOverrides(confirmedOverridesToRemove);
-		}
-		return { pinsRemoved: confirmedPinsToRemove.length, overridesRemoved: confirmedOverridesToRemove.length };
+		return { pinsRemoved: pins.length, overridesRemoved: overrides.length };
 	}
 
 	/**

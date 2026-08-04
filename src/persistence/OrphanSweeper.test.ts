@@ -24,8 +24,11 @@ async function sweptFixture() {
 	await pluginDataStore.init();
 	await pluginDataStore.addPin("docid_note1_e", 100);
 	await pluginDataStore.addPin("docid_stale_e", 200);
-	await pluginDataStore.saveNodeOverride("docid_note2_e", { content: "image" });
-	await pluginDataStore.saveNodeOverride("docid_gone_e", { sizePx: { widthPx: 300, heightPx: 200 } });
+	await pluginDataStore.saveNodeOverrideField("docid_note2_e", { field: "content", value: "image" });
+	await pluginDataStore.saveNodeOverrideField("docid_gone_e", {
+		field: "sizePx",
+		value: { widthPx: 300, heightPx: 200 },
+	});
 
 	const pathDocIdMap = new PathDocIdMap();
 	let yields = 0;
