@@ -1,17 +1,17 @@
 ---
 id: nid_gbyqsuplz8b7pv0u5k34sdz1q_e
-title: "pins & node overrides are invisible until the delayed docid-map warm-up"
-status: open
+title: pins & node overrides are invisible until the delayed docid-map warm-up
+status: in_progress
 deps: []
 links: [nid_qjsj5mth2phdqctbm0vfx9elw_e, nid_lwionnvohw9k58jw7a2dybht2_e]
-created_iso: 2026-08-04T00:32:28Z
-status_updated_iso: 2026-08-04T00:32:28Z
+created_iso: '2026-08-04T00:32:28Z'
+status_updated_iso: '2026-08-04T01:07:15Z'
 type: bug
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
 tags: [persistence, sizing]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin
 ---
-
 **This ticket OWNS the cold-map problem.** Its root cause and the option list
 were already written up for the pin side in
 `docs-internal/tickets/ticket-pinned-central-status-lags-after-restart.md`
@@ -38,4 +38,3 @@ waiting for the bulk warm-up. Pick ONE direction, do not stack.
 ## Acceptance Criteria
 
 Opening a vault with a pinned doc and a per-node override renders both correctly on the FIRST graph build, without waiting for the delayed sweep.
-
