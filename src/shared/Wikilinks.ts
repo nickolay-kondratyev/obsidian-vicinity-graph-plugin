@@ -35,6 +35,26 @@ const INNER_TEXT_GROUP = 2;
 /** Ends the link TARGET: an alias pipe or a `#heading`/`#^block` subpath. */
 const TARGET_TERMINATOR = /[#|]/;
 
+/** Starts the alias — what the writer wants DISPLAYED instead of the target. */
+const ALIAS_SEPARATOR = "|";
+
+/** Starts the subpath — a `#heading` or `#^block` inside the target. */
+const SUBPATH_SEPARATOR = "#";
+
+/**
+ * The three written parts of a wikilink's inner text (`folder/note#heading|Alias`),
+ * each already trimmed. Absent parts are `""`, never undefined — a caller asking
+ * "is there an alias" reads emptiness, not a null check.
+ */
+export interface WikilinkParts {
+	/** Link path (`folder/note`); `""` for a same-file link (`[[#heading]]`). */
+	readonly target: string;
+	/** Subpath WITHOUT its leading `#` (`heading`, `^block`); `""` when none. */
+	readonly subpath: string;
+	/** Display text after the pipe; `""` when none. */
+	readonly alias: string;
+}
+
 export class Wikilinks {
 	/**
 	 * A FRESH global matcher each call — a `/g` regex carries mutable `lastIndex`,
@@ -61,6 +81,23 @@ export class Wikilinks {
 			}
 		}
 		return links;
+	}
+
+	/**
+	 * The written parts of one wikilink's inner text — what a DISPLAY caller needs
+	 * ({@link MarkdownEmbeds} names an embed by its alias, else by its target),
+	 * and the split {@link harvestedLinksOf} already did for resolution.
+	 */
+	static partsOf(innerText: string): WikilinkParts {
+		const aliasIndex = innerText.indexOf(ALIAS_SEPARATOR);
+		const beforeAlias = aliasIndex === -1 ? innerText : innerText.slice(0, aliasIndex);
+		const subpathIndex = beforeAlias.indexOf(SUBPATH_SEPARATOR);
+		return {
+			target: Wikilinks.targetOf(innerText),
+			// A nested `#` (`[[note#h1#h2]]`) belongs to the subpath, so only the FIRST splits.
+			subpath: subpathIndex === -1 ? "" : beforeAlias.slice(subpathIndex + 1).trim(),
+			alias: aliasIndex === -1 ? "" : innerText.slice(aliasIndex + 1).trim(),
+		};
 	}
 
 	private static targetOf(innerText: string): string {

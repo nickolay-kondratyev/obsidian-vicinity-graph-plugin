@@ -85,3 +85,41 @@ describe("Wikilinks.harvestedLinksOf kinds", () => {
 		]);
 	});
 });
+
+/**
+ * The DISPLAY split (`MarkdownEmbeds` names an embed by what the writer wrote),
+ * next to the resolution split `harvestedLinksOf` already covers.
+ */
+describe("Wikilinks.partsOf", () => {
+	it("WHEN the inner text is a bare target THEN only the target is set", () => {
+		expect(Wikilinks.partsOf("folder/note")).toEqual({ target: "folder/note", subpath: "", alias: "" });
+	});
+
+	it("WHEN the inner text carries a subpath THEN the subpath is split off without its hash", () => {
+		expect(Wikilinks.partsOf("note#Section")).toEqual({ target: "note", subpath: "Section", alias: "" });
+	});
+
+	it("WHEN the inner text carries an alias THEN the alias is split off", () => {
+		expect(Wikilinks.partsOf("note#Section|Shown")).toEqual({
+			target: "note",
+			subpath: "Section",
+			alias: "Shown",
+		});
+	});
+
+	it("WHEN the inner text is a same-file subpath THEN the target is empty", () => {
+		expect(Wikilinks.partsOf("#Section")).toEqual({ target: "", subpath: "Section", alias: "" });
+	});
+
+	it("WHEN a subpath names nested headings THEN only the FIRST hash splits", () => {
+		expect(Wikilinks.partsOf("note#H1#H2").subpath).toBe("H1#H2");
+	});
+
+	it("WHEN parts are written with surrounding spaces THEN each is trimmed", () => {
+		expect(Wikilinks.partsOf(" note # Section | Shown ")).toEqual({
+			target: "note",
+			subpath: "Section",
+			alias: "Shown",
+		});
+	});
+});

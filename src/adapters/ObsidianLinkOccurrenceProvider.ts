@@ -7,6 +7,7 @@ import type {
 } from "../engine";
 import { asVaultPath, LinkContextSnippets } from "../engine";
 import { FileKinds } from "../shared/FileKinds";
+import { MarkdownEmbeds } from "../shared/MarkdownEmbeds";
 import { ReferenceOrder } from "./ReferenceOrder";
 import type { MetadataCachePort, VaultPort } from "./obsidianPorts";
 
@@ -62,10 +63,46 @@ export class ObsidianLinkOccurrenceProvider implements LinkOccurrenceProvider {
 			occurrences.push({
 				targetPath: asVaultPath(target),
 				// Frontmatter links carry a negative sentinel offset — no body position.
-				...(reference.offset < 0 ? POSITIONLESS_OCCURRENCE : occurrenceAt(text, reference.offset)),
+				...(reference.offset < 0
+					? POSITIONLESS_OCCURRENCE
+					: this.occurrenceAt(text, reference.offset, file.path)),
 			});
 		}
 		return occurrences;
+	}
+
+	/**
+	 * The occurrence at `offset`, with its context snippets made SAFE to render:
+	 * every `![[…]]` written there collapses to a marker (ticket
+	 * `nid_yw2m80g72pahcvtsxi09o7vkd_e`), because the drawer renders snippets
+	 * through Obsidian's markdown renderer, which would expand each embed into
+	 * the whole embedded note. Flattening happens HERE, not in the pure
+	 * `LinkContextSnippets` (which stays raw-text extraction) and not in the view
+	 * (which cannot resolve a link text against the vault).
+	 */
+	private occurrenceAt(text: string, offset: number, sourcePath: string): LinkOccurrence {
+		const snippet = LinkContextSnippets.snippetAt(text, offset);
+		return {
+			offset,
+			context: {
+				...snippet,
+				shortContext: this.withEmbedsFlattened(snippet.shortContext, sourcePath),
+				expandedContext: this.withEmbedsFlattened(snippet.expandedContext, sourcePath),
+			},
+		};
+	}
+
+	private withEmbedsFlattened(markdown: string, sourcePath: string): string {
+		return MarkdownEmbeds.flattened(markdown, (linkPath) => this.frontmatterTitleOf(linkPath, sourcePath));
+	}
+
+	/** The embedded note's display title, resolved the way Obsidian resolves the link text itself. */
+	private frontmatterTitleOf(linkPath: string, sourcePath: string): string | null {
+		const target = this.metadataCache.getFirstLinkpathDest(linkPath, sourcePath);
+		if (target === null) {
+			return null;
+		}
+		return this.linkProvider.getFileMetadata(asVaultPath(target.path))?.frontmatterTitle ?? null;
 	}
 
 	private positionlessOutgoingOccurrences(path: VaultPath): readonly OutgoingLinkOccurrence[] {
@@ -78,8 +115,4 @@ export class ObsidianLinkOccurrenceProvider implements LinkOccurrenceProvider {
 		}
 		return occurrences;
 	}
-}
-
-function occurrenceAt(text: string, offset: number): LinkOccurrence {
-	return { offset, context: LinkContextSnippets.snippetAt(text, offset) };
 }

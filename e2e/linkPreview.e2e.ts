@@ -32,11 +32,30 @@ const ALPHA_PATH = "projects/alpha.md";
 const CLICKED_EDGE_ID = "folder-group:projects->note1.md";
 const EXPECTED_OCCURRENCE_ROWS = 2;
 
+/**
+ * Own root-level fixtures for the EMBED case (ticket
+ * nid_yw2m80g72pahcvtsxi09o7vkd_e): a note that EMBEDS a titled note. Root
+ * level so the pair renders as two plain nodes (no folder group), and linked to
+ * nothing else so the alpha vicinity every other test here uses is untouched.
+ *
+ * Only a real Obsidian can observe what this is about: its markdown renderer
+ * expands `![[…]]` into the whole embedded note, which is what the flattening
+ * (`shared/MarkdownEmbeds`) exists to prevent.
+ */
+const EMBEDDED_TITLE = "Embedded Title";
+const EMBEDDED_BODY_LINE = "Embedded body prose that must never reach an occurrence row.";
+const EMBED_FIXTURES: Record<string, string> = {
+	"embed-target.md": `---\ntitle: ${EMBEDDED_TITLE}\n---\n\n${EMBEDDED_BODY_LINE}\n`,
+	"embed-source.md": "Source line embeds ![[embed-target]] inline.\n",
+};
+const EMBED_SOURCE_PATH = "embed-source.md";
+const EMBED_EDGE_ID = "embed-source.md->embed-target.md";
+
 let harness: ObsidianHarness;
 let page: Page;
 
 test.beforeAll(async () => {
-	harness = await ObsidianHarness.launch();
+	harness = await ObsidianHarness.launch({ extraFixtures: EMBED_FIXTURES });
 	page = harness.page;
 	await harness.openGraphView();
 	await harness.openFile(ALPHA_PATH);
@@ -131,4 +150,20 @@ test("clicking the close button dismisses the drawer", async () => {
 	await drawer().locator("button.vicinity-graph-link-preview-drawer__close").click();
 
 	await expect(drawer()).toHaveCount(0);
+});
+
+// --- an EMBED occurrence renders as a marker, not as the embedded note -------
+
+test("an embed occurrence shows the embed marker and never the embedded note's body", async () => {
+	await harness.openFile(EMBED_SOURCE_PATH);
+	await expect(page.locator(`.vicinity-graph-node[data-path="${EMBED_SOURCE_PATH}"]`)).toHaveAttribute(
+		"data-tier",
+		"main",
+	);
+
+	await clickEdgePath(EMBED_EDGE_ID);
+
+	// The frontmatter title names the marker; the embedded body stays out of the row.
+	await expect(rowToggles()).toHaveText([`Source line embeds !<<${EMBEDDED_TITLE}>> inline.`]);
+	await expect(drawer()).not.toContainText(EMBEDDED_BODY_LINE);
 });

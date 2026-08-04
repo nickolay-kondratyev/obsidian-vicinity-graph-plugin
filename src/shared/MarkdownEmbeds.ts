@@ -1,0 +1,91 @@
+/**
+ * Embeds (`![[…]]`) rewritten to a one-line MARKER for DISPLAY — ticket
+ * `nid_yw2m80g72pahcvtsxi09o7vkd_e`.
+ *
+ * WHY: the link-preview drawer renders each context snippet through Obsidian's
+ * markdown renderer, which EXPANDS an embed into the whole embedded note (or
+ * image). A row meant to show ONE line then shows an entire document. The
+ * marker `!<<Name>>` keeps the FACT that the occurrence is an embed — the `!`
+ * — while naming the target instead of inlining it.
+ *
+ * A DISPLAY transform, so it names the target the way a reader would: the
+ * written alias, else the target's frontmatter title (supplied by the caller —
+ * only an adapter can resolve a link text against the vault), else the file
+ * name.
+ *
+ * DELIBERATELY NOT code-aware: like `view/outlineEntryLabel` (and unlike the
+ * canvas harvesting that masks with {@link MarkdownCodeRegions}), this is about
+ * what a reader SEES, and a snippet is a few lines of prose. An `![[x]]`
+ * written inside a code span is flattened too — a cosmetic miss in a preview,
+ * not a wrong graph.
+ *
+ * Wikilink embeds ONLY: markdown-style `![alt](img.png)` embeds are a different
+ * syntax whose expansion (an image) is the sibling `MarkdownInlineLinks`'s
+ * territory; nothing has asked for it yet.
+ */
+
+import { LinkKinds } from "./LinkKind";
+import { VaultPathFacts } from "./VaultPathFacts";
+import { Wikilinks } from "./Wikilinks";
+import type { WikilinkParts } from "./Wikilinks";
+
+/** The marker an embed collapses to, around its display name. */
+const MARKER_OPEN = "!<<";
+const MARKER_CLOSE = ">>";
+
+/**
+ * Every ASCII punctuation character — CommonMark allows a backslash escape on
+ * ALL of them, so escaping the whole marker makes it render VERBATIM. Load
+ * bearing: `<<Name>>` reaches the renderer as raw HTML (`<Name …>` is a
+ * well-formed open tag) and would otherwise vanish from the rendered row.
+ */
+const ASCII_PUNCTUATION = /[!-/:-@[-`{-~]/g;
+
+/** The `.md` a wikilink target may spell out; Obsidian hides it everywhere else. */
+const MARKDOWN_SUFFIX = ".md";
+
+/**
+ * The target's display title as the VAULT knows it (frontmatter `title`/`name`),
+ * for the link path written in the embed; `null` when unresolvable or untitled.
+ */
+export type EmbedTargetTitle = (linkPath: string) => string | null;
+
+export class MarkdownEmbeds {
+	/** `markdown` with every embed replaced by its marker; plain links untouched. */
+	static flattened(markdown: string, titleOf: EmbedTargetTitle): string {
+		return markdown.replace(Wikilinks.globalPattern(), (match, marker: string, innerText: string) =>
+			LinkKinds.ofEmbedMarker(marker) === "embed"
+				? escapedForMarkdown(MARKER_OPEN + displayNameOf(Wikilinks.partsOf(innerText), titleOf) + MARKER_CLOSE)
+				: match,
+		);
+	}
+}
+
+/**
+ * What the marker names, most-specific first: the alias the writer chose, the
+ * target's frontmatter title, the target's file name. A same-file embed
+ * (`![[#Heading]]`) has no target to name, so its subpath is the name.
+ */
+function displayNameOf(parts: WikilinkParts, titleOf: EmbedTargetTitle): string {
+	if (parts.alias !== "") {
+		return parts.alias;
+	}
+	if (parts.target === "") {
+		return parts.subpath;
+	}
+	return titleOf(parts.target) ?? fileNameOf(parts.target);
+}
+
+/**
+ * The written target's file name. The extension stays for attachments
+ * (`![[chart.png]]` → `chart.png`, which is how Obsidian names them) and goes
+ * for notes, whose extension is never spelled in the UI.
+ */
+function fileNameOf(target: string): string {
+	const basename = VaultPathFacts.basenameOf(target);
+	return basename.endsWith(MARKDOWN_SUFFIX) ? VaultPathFacts.titleOf(basename) : basename;
+}
+
+function escapedForMarkdown(text: string): string {
+	return text.replace(ASCII_PUNCTUATION, "\\$&");
+}
