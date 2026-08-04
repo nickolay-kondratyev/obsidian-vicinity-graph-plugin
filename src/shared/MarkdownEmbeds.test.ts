@@ -55,6 +55,22 @@ describe("MarkdownEmbeds.flattened", () => {
 		expect(asRendered(MarkdownEmbeds.flattened("![[Note|Shown]]", () => "My Title"))).toBe("!<<Shown>>");
 	});
 
+	it("WHEN the pipe carries an image WIDTH THEN it names nothing and the target names the marker", () => {
+		expect(asRendered(MarkdownEmbeds.flattened("![[chart.png|300]]", NO_TITLES))).toBe("!<<chart.png>>");
+	});
+
+	it("WHEN the pipe carries a WIDTHxHEIGHT size THEN it names nothing and the target names the marker", () => {
+		expect(asRendered(MarkdownEmbeds.flattened("![[chart.png|300x200]]", NO_TITLES))).toBe("!<<chart.png>>");
+	});
+
+	it("WHEN a size-shaped pipe sits on a TITLED note THEN the title still names the marker", () => {
+		expect(asRendered(MarkdownEmbeds.flattened("![[Note|300]]", () => "My Title"))).toBe("!<<My Title>>");
+	});
+
+	it("WHEN an alias merely CONTAINS digits THEN it is still a name, not a size", () => {
+		expect(asRendered(MarkdownEmbeds.flattened("![[Note|Chapter 300]]", NO_TITLES))).toBe("!<<Chapter 300>>");
+	});
+
 	it("WHEN a title is resolved THEN it is asked for by the written target, subpath stripped", () => {
 		const asked: string[] = [];
 		MarkdownEmbeds.flattened("![[folder/Note#Section]]", (linkPath) => {

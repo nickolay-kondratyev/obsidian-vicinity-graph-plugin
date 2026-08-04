@@ -9,9 +9,9 @@
  * — while naming the target instead of inlining it.
  *
  * A DISPLAY transform, so it names the target the way a reader would: the
- * written alias, else the target's frontmatter title (supplied by the caller —
- * only an adapter can resolve a link text against the vault), else the file
- * name.
+ * written alias (unless it is a {@link SIZE_SPEC}, which names nothing), else
+ * the target's frontmatter title (supplied by the caller — only an adapter can
+ * resolve a link text against the vault), else the file name.
  *
  * DELIBERATELY NOT code-aware: like `view/outlineEntryLabel` (and unlike the
  * canvas harvesting that masks with {@link MarkdownCodeRegions}), this is about
@@ -45,6 +45,15 @@ const ASCII_PUNCTUATION = /[!-/:-@[-`{-~]/g;
 const MARKDOWN_SUFFIX = ".md";
 
 /**
+ * A pipe value that is a SIZE, not a name: on an EMBED Obsidian reads `|300` /
+ * `|300x200` as the rendered width (×height), so `![[chart.png|300]]` names
+ * nothing and must still be named by its target. Shape-based rather than
+ * kind-based on purpose — the same rule then holds for a note embed sized by a
+ * theme snippet, and it needs no vault resolution to decide.
+ */
+const SIZE_SPEC = /^\d+(x\d+)?$/;
+
+/**
  * The target's display title as the VAULT knows it (frontmatter `title`/`name`),
  * for the link path written in the embed; `null` when unresolvable or untitled.
  */
@@ -67,7 +76,7 @@ export class MarkdownEmbeds {
  * (`![[#Heading]]`) has no target to name, so its subpath is the name.
  */
 function displayNameOf(parts: WikilinkParts, titleOf: EmbedTargetTitle): string {
-	if (parts.alias !== "") {
+	if (parts.alias !== "" && !SIZE_SPEC.test(parts.alias)) {
 		return parts.alias;
 	}
 	if (parts.target === "") {

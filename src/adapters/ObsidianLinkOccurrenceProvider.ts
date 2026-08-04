@@ -8,6 +8,7 @@ import type {
 import { asVaultPath, LinkContextSnippets } from "../engine";
 import { FileKinds } from "../shared/FileKinds";
 import { MarkdownEmbeds } from "../shared/MarkdownEmbeds";
+import type { EmbedTargetTitle } from "../shared/MarkdownEmbeds";
 import { ReferenceOrder } from "./ReferenceOrder";
 import type { MetadataCachePort, VaultPort } from "./obsidianPorts";
 
@@ -55,6 +56,7 @@ export class ObsidianLinkOccurrenceProvider implements LinkOccurrenceProvider {
 		}
 		const text = await this.vault.cachedRead(file);
 		const occurrences: OutgoingLinkOccurrence[] = [];
+		const titleOf = this.embedTitleResolver(file.path);
 		for (const reference of ReferenceOrder.orderedReferences(cache)) {
 			const target = this.metadataCache.getFirstLinkpathDest(reference.link, file.path)?.path;
 			if (target === undefined) {
@@ -65,35 +67,32 @@ export class ObsidianLinkOccurrenceProvider implements LinkOccurrenceProvider {
 				// Frontmatter links carry a negative sentinel offset — no body position.
 				...(reference.offset < 0
 					? POSITIONLESS_OCCURRENCE
-					: this.occurrenceAt(text, reference.offset, file.path)),
+					: occurrenceAt(text, reference.offset, titleOf)),
 			});
 		}
 		return occurrences;
 	}
 
 	/**
-	 * The occurrence at `offset`, with its context snippets made SAFE to render:
-	 * every `![[…]]` written there collapses to a marker (ticket
-	 * `nid_yw2m80g72pahcvtsxi09o7vkd_e`), because the drawer renders snippets
-	 * through Obsidian's markdown renderer, which would expand each embed into
-	 * the whole embedded note. Flattening happens HERE, not in the pure
-	 * `LinkContextSnippets` (which stays raw-text extraction) and not in the view
-	 * (which cannot resolve a link text against the vault).
+	 * Embed-target titles for ONE scan of `sourcePath`, memoised by the link path
+	 * as WRITTEN. The same embed is flattened once per snippet it falls into (the
+	 * occurrence's own line plus every expanded window reaching it), and a miss
+	 * costs a `getFileMetadata` — which derives the target's whole reference
+	 * ordering. The map lives for the scan only, so an edited frontmatter title
+	 * is never served stale.
 	 */
-	private occurrenceAt(text: string, offset: number, sourcePath: string): LinkOccurrence {
-		const snippet = LinkContextSnippets.snippetAt(text, offset);
-		return {
-			offset,
-			context: {
-				...snippet,
-				shortContext: this.withEmbedsFlattened(snippet.shortContext, sourcePath),
-				expandedContext: this.withEmbedsFlattened(snippet.expandedContext, sourcePath),
-			},
+	private embedTitleResolver(sourcePath: string): EmbedTargetTitle {
+		const titles = new Map<string, string | null>();
+		return (linkPath) => {
+			// `get` says undefined for a MISS; a resolved-but-untitled target is null.
+			const memoised = titles.get(linkPath);
+			if (memoised !== undefined) {
+				return memoised;
+			}
+			const title = this.frontmatterTitleOf(linkPath, sourcePath);
+			titles.set(linkPath, title);
+			return title;
 		};
-	}
-
-	private withEmbedsFlattened(markdown: string, sourcePath: string): string {
-		return MarkdownEmbeds.flattened(markdown, (linkPath) => this.frontmatterTitleOf(linkPath, sourcePath));
 	}
 
 	/** The embedded note's display title, resolved the way Obsidian resolves the link text itself. */
@@ -115,4 +114,25 @@ export class ObsidianLinkOccurrenceProvider implements LinkOccurrenceProvider {
 		}
 		return occurrences;
 	}
+}
+
+/**
+ * The occurrence at `offset`, with its context snippets made SAFE to render:
+ * every `![[…]]` written there collapses to a marker (ticket
+ * `nid_yw2m80g72pahcvtsxi09o7vkd_e`), because the drawer renders snippets
+ * through Obsidian's markdown renderer, which would expand each embed into the
+ * whole embedded note. Flattening happens HERE, not in the pure
+ * `LinkContextSnippets` (which stays raw-text extraction) and not in the view
+ * (which cannot resolve a link text against the vault).
+ */
+function occurrenceAt(text: string, offset: number, titleOf: EmbedTargetTitle): LinkOccurrence {
+	const snippet = LinkContextSnippets.snippetAt(text, offset);
+	return {
+		offset,
+		context: {
+			...snippet,
+			shortContext: MarkdownEmbeds.flattened(snippet.shortContext, titleOf),
+			expandedContext: MarkdownEmbeds.flattened(snippet.expandedContext, titleOf),
+		},
+	};
 }

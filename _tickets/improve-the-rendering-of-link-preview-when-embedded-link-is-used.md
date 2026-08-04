@@ -55,5 +55,22 @@ longer expands the embed and that the escaped marker shows literally.
 (6/6) all pass.
 
 **Deliberately out of scope:** markdown-style `![alt](img.png)` embeds (different
-syntax, nothing asked for it) and code-span awareness (an `![[x]]` written inside
-a code span is flattened too — cosmetic, in a preview).
+syntax, nothing asked for it — now tracked as `nid_vvdc7lhh92122ght4m66t5d61_e`)
+and code-span awareness (an `![[x]]` written inside a code span is flattened too
+— cosmetic, in a preview).
+
+## Review pass (2026-08-04)
+
+- A pipe value that is a SIZE is no longer read as a display name:
+  `![[chart.png|300]]` names the file, not `300` — Obsidian reads `|300` /
+  `|300x200` on an embed as the rendered width (×height).
+- Embed-target titles are memoised per file scan
+  (`ObsidianLinkOccurrenceProvider.embedTitleResolver`). The same embed is
+  flattened once per snippet it falls into, and each miss costs a
+  `getFileMetadata`, which derives the target's whole reference ordering — an
+  embed-heavy note made opening one drawer quadratic.
+- `LinkContextSnippet` now DOCUMENTS that its snippets are display markdown, not
+  guaranteed-verbatim source (the offsets/line stay source coordinates).
+- Filed out of the review: `nid_lgo91fzkivxiu32g1j5bttzca_e` (the shared
+  wikilink matcher can match across newlines, so a stray `![[` can swallow lines
+  of an expanded snippet).

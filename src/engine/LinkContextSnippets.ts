@@ -7,6 +7,13 @@ export const EXPANDED_CONTEXT_LINES_EACH_SIDE = 2;
 /**
  * The two context views of one link occurrence inside a note's text — what the
  * link-preview modal renders next to the occurrence.
+ *
+ * DISPLAY markdown, not guaranteed-verbatim source: {@link LinkContextSnippets}
+ * extracts the raw lines, but a provider may rewrite constructs that would
+ * MISRENDER in a one-line row (the Obsidian adapter flattens `![[…]]` embeds,
+ * which the renderer would otherwise expand into the whole embedded note). The
+ * {@link line} and the occurrence offset always stay source coordinates, so GO
+ * navigation is unaffected.
  */
 export interface LinkContextSnippet {
 	/** The trimmed line containing the occurrence. */
