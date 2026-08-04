@@ -61,7 +61,6 @@ describe("PluginDataStore", () => {
 		await store.removePins(["docid_a_e"]);
 		expect(store.pins()).toEqual([{ docid: "docid_b_e", pinTimestamp: 2 }]);
 	});
-
 });
 
 const SIZE_CHANGE = { field: "sizePx", value: { widthPx: 320, heightPx: 180 } } as const;
@@ -90,6 +89,16 @@ describe("PluginDataStore node overrides", () => {
 		await store.saveNodeOverrideField("docid_a_e", CONTENT_CHANGE);
 		await store.saveNodeOverrideField("docid_a_e", { field: "content", value: "image" });
 		expect(store.nodeOverrides()).toEqual({ docid_a_e: { content: "image" } });
+	});
+
+	it("WHEN a field is cleared THEN the entry keeps ONLY the fields that were not named", async () => {
+		// Clearing rebuilds the entry, so it must copy-minus-one — never re-list
+		// the fields it knows about (a field added to NodeOverride would vanish).
+		const store = await initializedStore();
+		await store.saveNodeOverrideField("docid_a_e", SIZE_CHANGE);
+		await store.saveNodeOverrideField("docid_a_e", CONTENT_CHANGE);
+		await store.clearNodeOverrideField("docid_a_e", "sizePx");
+		expect(store.nodeOverrides()).toEqual({ docid_a_e: { content: "outline" } });
 	});
 
 	it("WHEN one field is cleared THEN the other one stays", async () => {

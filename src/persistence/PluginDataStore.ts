@@ -107,12 +107,22 @@ export class PluginDataStore {
 	 */
 	async saveNodeOverrideField(docid: string, change: NodeOverrideChange): Promise<void> {
 		const stored = this.data.nodeOverrides[docid] ?? {};
-		await this.putNodeOverride(
-			docid,
-			change.field === "sizePx"
-				? { ...stored, sizePx: clampNodeSizeOverridePx(change.value) }
-				: { ...stored, content: change.value },
-		);
+		await this.putNodeOverride(docid, { ...stored, ...PluginDataStore.storedForm(change) });
+	}
+
+	/**
+	 * ONE change as its stored one-field shape — the only place a written
+	 * override value is normalized. The switch is exhaustive on purpose: a new
+	 * {@link NodeOverrideChange} variant fails to compile here (noImplicitReturns)
+	 * instead of silently landing under another field's key.
+	 */
+	private static storedForm(change: NodeOverrideChange): NodeOverride {
+		switch (change.field) {
+			case "sizePx":
+				return { sizePx: clampNodeSizeOverridePx(change.value) };
+			case "content":
+				return { content: change.value };
+		}
 	}
 
 	/**
@@ -155,10 +165,16 @@ export class PluginDataStore {
 	 * The one override write: an entry left with NO field is DELETED — "reset to
 	 * inherit everything" and "empty entry" are one operation, so the orphan
 	 * shape never reaches disk.
+	 *
+	 * Emptiness is asked of the KEYS, never of a hand-listed pair of fields: an
+	 * entry never carries an explicit-`undefined` field (the parser keeps only
+	 * present ones, {@link storedForm} writes exactly one, {@link withoutField}
+	 * deletes), so a field added to {@link NodeOverride} needs no edit here — the
+	 * hand-listed version would have deleted an entry holding only the new field.
 	 */
 	private async putNodeOverride(docid: string, override: NodeOverride): Promise<void> {
 		const nodeOverrides = { ...this.data.nodeOverrides };
-		if (override.sizePx === undefined && override.content === undefined) {
+		if (Object.keys(override).length === 0) {
 			delete nodeOverrides[docid];
 		} else {
 			nodeOverrides[docid] = override;
@@ -166,13 +182,11 @@ export class PluginDataStore {
 		await this.persist({ ...this.data, nodeOverrides });
 	}
 
-	/** The stored entry MINUS one field — rebuilt, since the stored shape is readonly. */
+	/** The stored entry MINUS one field — copied, since the stored shape is readonly. */
 	private static withoutField(override: NodeOverride, field: NodeOverrideField): NodeOverride {
-		const { sizePx, content } = override;
-		return {
-			...(field !== "sizePx" && sizePx !== undefined ? { sizePx } : {}),
-			...(field !== "content" && content !== undefined ? { content } : {}),
-		};
+		const remaining = { ...override };
+		delete remaining[field];
+		return remaining;
 	}
 
 	/**

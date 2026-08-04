@@ -119,7 +119,7 @@ export const THUMBNAIL_VISIBLE_MIN_NODE_PX = THUMBNAIL_REVEAL_CONTENT_BOX_PX + N
  * Hard sanity bounds for a per-node size override ({@link import("./types").NodeSizeOverridePx}).
  * Q3 (decided 2026-08-03): an override may exceed the global `maxPx` dial or
  * undercut `minPx` — so these are deliberately WIDER than `NODE_SIZE_PX_BOUNDS`
- * (1..400) and exist only to keep the number renderable geometry:
+ * (1..400) and exist only to keep the number usable as geometry:
  * - min 24: below that a node is no longer a grabbable/clickable box.
  * - max 1200: 3× the dial ceiling — past that one node fills the pane and the
  *   value is a typo/hand-edit, not a resize intent.

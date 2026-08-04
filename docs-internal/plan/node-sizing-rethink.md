@@ -73,8 +73,14 @@ Two failure modes the owner called out:
   id-less note writes frontmatter — same behavior as pinning today, same
   refusal path (`DocPersistEligibility`) with the same notice for docs that
   cannot carry a safe id. Pending Q5 confirms silent-assign is acceptable.
-- **Stored shape (clean break, no migration — not published yet):**
-  `data.json` gains a docid-keyed map, `PERSISTED_SHAPE_VERSION` bump:
+- **Stored shape (no migration — not published yet):**
+  `data.json` gains a docid-keyed map, and `PERSISTED_SHAPE_VERSION` does
+  **NOT** bump (corrected 2026-08-04; this line first said "bump"). The map is
+  ADDITIVE: a file written before it existed just lacks the key and gets the
+  empty map per field, whereas a bump discards that file's settings AND its
+  pins wholesale. Bumping is reserved for a REMOVED/renamed key — the standing
+  call in `nid_8p0nn2g34d97finokwlz3u1dt_e`, re-affirmed against a key rename
+  in `nid_fay1hu5sxcoygizopkkg0f0d7_e`.
 
   ```jsonc
   "nodeOverrides": {
@@ -123,7 +129,7 @@ Two failure modes the owner called out:
    remove metric dials + central bypass, size-to-fit with prominence floor,
    settle the truncation-tiebreak point.
 3. `nid_lwionnvohw9k58jw7a2dybht2_e` **persistence: docid-keyed per-node
-   overrides in data.json** — shape, parser, version bump,
+   overrides in data.json** — shape, parser (no version bump — see §4),
    `PersistenceServices` write path reusing the pin eligibility seam.
 4. `nid_qjsj5mth2phdqctbm0vfx9elw_e` **view: drag-to-resize via
    NodeResizer** — commit on release, deferred relayout. Depends on 3.

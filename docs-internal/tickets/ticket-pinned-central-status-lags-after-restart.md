@@ -2,6 +2,10 @@
 
 **Status:** OPEN — surfaced by the step-06 restart-round-trip e2e (`e2e/controlsRestart.e2e.ts`).
 **Severity:** minor UX; no data loss — the pin IS persisted and reappears.
+**Tracked as `nid_gbyqsuplz8b7pv0u5k34sdz1q_e`** (2026-08-04): per-node
+overrides (`nodeOverrides`) hit the SAME cold map and raise the severity to a
+visible layout jump, so that ticket owns the fix and this file stays as the
+root-cause + options write-up it links to. Fix one, fix both.
 
 > **2026-07-29 RE-VERIFIED after `nid_ez38gf1mrdgh5kxedzrdicwzl_e` (global-only
 > settings) landed: STILL REPRODUCIBLE — this ticket stays OPEN.** Nothing in the
@@ -23,7 +27,7 @@ picks it up.
 ## Root cause
 
 `PathDocIdMap` is in-memory only, so a restart starts it empty. A pin resolves to
-a graph node via `resolvePinPath(docid)` → `PathDocIdMap.getPath(docid)`; a cold
+a graph node via `resolveDocPath(docid)` → `PathDocIdMap.getPath(docid)`; a cold
 map makes the assembler SKIP the pin (`GraphRequestAssembler` — "a pin whose docid
 does not resolve to a path is SKIPPED"). The map is only warmed for neighbour
 docids by `OrphanSweeper.run()` (`pathDocIdMap.set(...)`), scheduled at

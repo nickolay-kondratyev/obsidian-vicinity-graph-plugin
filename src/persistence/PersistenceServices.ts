@@ -46,7 +46,7 @@ export class PersistenceServices {
 	 * NOTHING. The change names ONE field — the doc's other override field is
 	 * merged in the store from state read fresh there.
 	 */
-	async saveNodeOverride(file: VaultFilePort, change: NodeOverrideChange): Promise<PersistableIdentity> {
+	async saveNodeOverrideField(file: VaultFilePort, change: NodeOverrideChange): Promise<PersistableIdentity> {
 		return this.withPersistableIdentity(file, (docid) =>
 			this.pluginDataStore.saveNodeOverrideField(docid, change),
 		);

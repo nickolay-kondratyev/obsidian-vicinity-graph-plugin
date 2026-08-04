@@ -131,6 +131,23 @@ describe("PersistedShapes node-override parsing", () => {
 		expect(PersistedShapes.parsePluginData({ version: PERSISTED_SHAPE_VERSION }).nodeOverrides).toEqual({});
 	});
 
+	it("WHEN a data.json persisted BEFORE the map existed is read THEN its settings and pins survive", () => {
+		// The explicit call behind adding `nodeOverrides` WITHOUT bumping
+		// PERSISTED_SHAPE_VERSION: the field is additive, so an older file needs no
+		// migration — whereas a bump would have discarded that file's settings AND
+		// its pins (parsePluginData returns defaults wholesale on a version mismatch).
+		const persistedBeforeTheMap = {
+			version: PERSISTED_SHAPE_VERSION,
+			globalView: { nodeCap: 7 },
+			pins: [{ docid: "docid_a_e", pinTimestamp: 1000 }],
+		};
+		expect(PersistedShapes.parsePluginData(persistedBeforeTheMap)).toEqual({
+			...PersistedShapes.defaultPluginData(),
+			globalView: { ...EngineDefaults.viewSettings(), nodeCap: 7 },
+			pins: [{ docid: "docid_a_e", pinTimestamp: 1000 }],
+		});
+	});
+
 	it("WHEN nodeOverrides is not an object THEN it degrades to an empty map", () => {
 		expect(parsedOverrides("scrambled")).toEqual({});
 	});

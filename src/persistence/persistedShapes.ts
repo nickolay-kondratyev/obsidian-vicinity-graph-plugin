@@ -33,12 +33,18 @@ import {
  */
 
 /**
- * Bumped to 3 when the docid-keyed `nodeOverrides` map was added (node-sizing
- * rethink) — a deliberate clean break while the plugin is unpublished (no
- * migration; older files re-parse as defaults, called out in the release note).
  * Bumped to 2 when the `edgeRouting` view field was removed (routing is now
  * always on): a mismatched version parses to defaults/null and the next write
  * rewrites at the current version, so stale v1 `edgeRouting` values are dropped.
+ *
+ * WHY-NOT bump per ADDED field: a version bump DISCARDS every stored setting
+ * and both docid-keyed maps wholesale, so it is reserved for a REMOVED/renamed
+ * key whose stale value would otherwise be read back wrong. An additive field
+ * (`nodeOverrides`, `edgeRoutingClearancePx`, the pinned depth fields) needs
+ * nothing: it is absent from an older file and defaults per field. Bumping for
+ * one would be strictly worse — the standing call recorded in
+ * `nid_8p0nn2g34d97finokwlz3u1dt_e` and re-affirmed (against a far stronger
+ * case, a KEY RENAME) in `nid_fay1hu5sxcoygizopkkg0f0d7_e`.
  *
  * WHY-NOT preserve-unknown-versions: a FUTURE-version file (written by a newer
  * install, then downgraded) also parses to defaults/null here, and the next
@@ -46,7 +52,7 @@ import {
  * goal. A future parser that must survive a downgrade-then-upgrade round trip
  * has to handle that path explicitly before shipping.
  */
-export const PERSISTED_SHAPE_VERSION = 3;
+export const PERSISTED_SHAPE_VERSION = 2;
 
 /** One pinned doc; `pinTimestamp` (epoch ms) feeds the recency tiebreaker. */
 export interface PinnedDocEntry {
@@ -290,6 +296,11 @@ function parsePins(raw: unknown): readonly PinnedDocEntry[] {
  * dropped whole — "empty entry" is a stored shape that must not exist
  * (see {@link PluginData.nodeOverrides}). Surviving pixel boxes are clamped
  * with the SAME hard-sanity clamp the write path uses.
+ *
+ * Added WITHOUT a PERSISTED_SHAPE_VERSION bump (explicit call, same as
+ * `edgeRoutingClearancePx`): the map is ADDITIVE, so a file written before it
+ * existed simply has no `nodeOverrides` key and gets the empty map here, while
+ * a bump would discard that file's settings AND its pins (see the version doc).
  */
 function parseNodeOverrides(raw: unknown): Readonly<Record<string, NodeOverride>> {
 	if (!isRecord(raw)) {

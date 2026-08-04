@@ -4,8 +4,7 @@ id: nid_lwionnvohw9k58jw7a2dybht2_e
 title: 'persistence: docid-keyed per-node overrides in data.json'
 status: closed
 deps: [nid_o5hz7ilcauwe2acqdfh6pcuam_e]
-links: [[nid_o5hz7ilcauwe2acqdfh6pcuam_e, nid_cx5zoz7ptucg9nxalibv0mbjb_e, nid_qjsj5mth2phdqctbm0vfx9elw_e, nid_gbyqsuplz8b7pv0u5k34sdz1q_e]
-  nid_9hx6okamx3yt0rg9iad2f4151_e, nid_kyowb4v8v51nslbicl4szgcd5_e]
+links: [nid_o5hz7ilcauwe2acqdfh6pcuam_e, nid_cx5zoz7ptucg9nxalibv0mbjb_e, nid_qjsj5mth2phdqctbm0vfx9elw_e, nid_gbyqsuplz8b7pv0u5k34sdz1q_e, nid_9hx6okamx3yt0rg9iad2f4151_e, nid_kyowb4v8v51nslbicl4szgcd5_e]
 created_iso: '2026-08-03T23:48:47Z'
 status_updated_iso: 2026-08-04T00:18:25Z
 type: feature
@@ -53,3 +52,16 @@ ADVERSARIAL REVIEW FOLLOW-UP (2026-08-04, separate commit on top of 36354cd):
 - Clearing a field no longer calls `ensureDocId`: an id-less doc owns no override, so the old empty-override path minted a frontmatter id to store nothing.
 - The sweep completion log now reports overridesRemoved.
 - Cold-docid-map window (pins AND overrides invisible until the 15s sweep) filed as nid_gbyqsuplz8b7pv0u5k34sdz1q_e.
+
+**2026-08-04T00:45:09Z**
+
+SECOND ADVERSARIAL REVIEW (2026-08-04, third commit on this branch). Four issues fixed:
+
+1. PERSISTED_SHAPE_VERSION REVERTED 3 -> 2. **This overturns this ticket's own instruction ("Bump PERSISTED_SHAPE_VERSION") and the same line in node-sizing-rethink.md section 4 (also corrected) - HUMAN, overturn me with a one-line edit if you disagree.** WHY: nodeOverrides is a purely ADDITIVE key. An older data.json simply lacks it and gets {} per field, so nothing is stale to discard - while a version bump makes parsePluginData return defaults WHOLESALE, wiping every global setting AND the pinned set for zero benefit. That is the standing rule in this repo, stated twice in code (`edgeRoutingClearancePx`, the pinned depth fields: "Added WITHOUT a PERSISTED_SHAPE_VERSION bump") and decided twice in closed tickets: nid_8p0nn2g34d97finokwlz3u1dt_e ("must not be bumped for additive fields") and nid_fay1hu5sxcoygizopkkg0f0d7_e ("Do NOT bump ... that would discard globals wholesale, strictly worse") - that second one against a far stronger case, a KEY RENAME. Bumping is reserved for a REMOVED/renamed key. Consequence: the earlier release-note callout is void - there is no data loss to announce (and no RELEASE_CHECKLIST.md line was ever added for it).
+2. PluginDataStore's override write hand-listed the two field names in TWO spots with no compile-time guard: putNodeOverride's emptiness test (`sizePx === undefined && content === undefined`) would DELETE an entry holding only a newly added third field, and withoutField rebuilt the entry from a literal pair, silently DROPPING a third field on any clear. Both are now field-agnostic (Object.keys emptiness, copy-minus-delete), and the written value goes through an exhaustive `storedForm` switch that fails to compile (noImplicitReturns) on a new NodeOverrideChange variant. Verified by temporarily adding a probe field: the store now fails the build in exactly those places instead of losing data.
+3. This ticket's `links:` frontmatter was CORRUPTED by the previous note-writing pass ("links: [[a, b, c, d]\n  e, f]") - the tool reads the list line-wise, so link 1 came back as "[nid_..." (unresolvable) and two links were invisible. Repaired on ONE line; `ticket show` now resolves all six.
+4. nid_gbyqsuplz8b7pv0u5k34sdz1q_e (cold docid map) restated a root cause and option list that already existed in docs-internal/tickets/ticket-pinned-central-status-lags-after-restart.md. The two now cross-reference: the _tickets one OWNS the fix, the docs-internal file stays as the write-up (and its stale `resolvePinPath` reference is fixed).
+
+Also: PersistenceServices.saveNodeOverride RENAMED saveNodeOverrideField - both override entry points are field-scoped, so both are named for it (the consuming ticket's API note is updated).
+
+Verified: npm run check clean, npm test 1509 passed, npm run test:e2e vicinityGraph.e2e.ts 25 passed.
