@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-08-04T01:14:16Z
 id: nid_gbyqsuplz8b7pv0u5k34sdz1q_e
 title: pins & node overrides are invisible until the delayed docid-map warm-up
-status: in_progress
+status: closed
 deps: []
 links: [nid_qjsj5mth2phdqctbm0vfx9elw_e, nid_lwionnvohw9k58jw7a2dybht2_e]
 created_iso: '2026-08-04T00:32:28Z'
-status_updated_iso: '2026-08-04T01:07:15Z'
+status_updated_iso: 2026-08-04T01:14:16Z
 type: bug
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
@@ -38,3 +39,39 @@ waiting for the bulk warm-up. Pick ONE direction, do not stack.
 ## Acceptance Criteria
 
 Opening a vault with a pinned doc and a per-node override renders both correctly on the FIRST graph build, without waiting for the delayed sweep.
+
+## Resolution (2026-08-04, commit 59e26b5)
+
+Implemented the on-demand read-path option (the "D" this ticket added to the
+A/B/C list) — ONE direction, nothing stacked:
+
+- **`src/persistence/DocIdMapWarmer.ts`** (new): given the docids a build
+  needs, it resolves the ones missing from the cold `PathDocIdMap` by scanning
+  eligible files with `DocIdPort.getDocId` (READ-ONLY — id-lib-legal; the
+  `ensureCalls === 0` test guards it). The scan is chunked (batch 20, same
+  politeness budget as the sweep), EARLY-EXITS once every wanted docid is
+  found, learns every docid it passes (free warm-up), serialises concurrent
+  scans on `SerialPromiseChain`, and caches per-session MISSES so an orphaned
+  pin/override never forces a full rescan on every rebuild (the delayed sweep
+  still deletes orphans — it stays the backstop).
+- **`VicinityGraphBuilder.build`** awaits `warmFor(pins ∪ nodeOverride docids)`
+  before assembling the request, so the FIRST build after a restart already
+  resolves both maps. Warm map ⇒ `warmFor` is a no-op (no scan starts).
+- **`ChunkedWork.forEachChunkedUntil`** added (stop-early variant);
+  `forEachChunked` now delegates to it.
+
+Acceptance criterion covered by BDD tests: a cold-map fixture in
+`src/adapters/VicinityGraphBuilder.test.ts` asserts a persisted pin is a
+central AND a persisted `sizePx` override reaches its node on the FIRST build;
+`src/persistence/DocIdMapWarmer.test.ts` covers no-scan-when-warm, early exit,
+miss caching and read-only identity. Verified: `npm test` (1524 pass),
+`npm run check`, and `npm run test:e2e -- controlsRestart.e2e.ts` (pass).
+
+The root-cause write-up
+`docs-internal/tickets/ticket-pinned-central-status-lags-after-restart.md` is
+marked RESOLVED and points back here.
+
+Known limit (accepted, pre-existing): a doc that appears AFTER the one full
+scan recorded its docid as a miss (e.g. arrives via sync) stays unresolved
+until restart — write intents map their own docid, so normal pin/override
+flows are unaffected.
