@@ -35,7 +35,14 @@ import type {
  * graph. No sleeps.
  */
 
-export type FlowStatus = "empty" | "ready";
+/**
+ * `building` = the FIRST build of this controller's life is in flight, so there
+ * is no answer yet. It exists because that build — and only that build — awaits
+ * the docid warm-up, which reads file content and on a large vault takes seconds
+ * (ticket nid_y081nezeucka9l0x3umebi5zo_e); `empty` would answer "there is no
+ * graph for this file", which is a different, wrong statement.
+ */
+export type FlowStatus = "empty" | "building" | "ready";
 
 export interface FlowSnapshot {
 	readonly status: FlowStatus;
@@ -71,6 +78,9 @@ const EMPTY_SNAPSHOT: FlowSnapshot = {
 	layoutVersion: 0,
 };
 
+/** First build in flight: same void as {@link EMPTY_SNAPSHOT}, told honestly. */
+const BUILDING_SNAPSHOT: FlowSnapshot = { ...EMPTY_SNAPSHOT, status: "building" };
+
 /** Shared empty route map = every edge stays straight (routing off or failed). */
 const EMPTY_ROUTES: EdgeRouteMap = new Map();
 
@@ -94,6 +104,18 @@ export class GraphViewController {
 	private mainPath: string | null = null;
 	private rebuildToken = 0;
 	private debounceTimer: number | null = null;
+	/**
+	 * True until a build has SETTLED — reached a terminal answer (a graph, empty,
+	 * or a failure). Only that first build awaits the docid warm-up, a content
+	 * scan that on a large vault takes seconds (ticket
+	 * nid_y081nezeucka9l0x3umebi5zo_e), so it is the only build that can visibly
+	 * wait and the only one allowed to publish {@link BUILDING_SNAPSHOT}. Every
+	 * later rebuild reads a warm map and returns fast; a placeholder there would
+	 * only flicker the pane — over a rendered graph AND over the empty state,
+	 * which rebuilds on every metadata resolve (i.e. on every keystroke burst in
+	 * a note with no vicinity graph).
+	 */
+	private firstBuildPending = true;
 	/** Never reset — monotonicity lets the render layer diff it safely across empty gaps. */
 	private layoutVersion = 0;
 	/**
@@ -251,9 +273,36 @@ export class GraphViewController {
 		const token = ++this.rebuildToken;
 		const mainPath = this.mainPath;
 		if (mainPath === null) {
+			// No MAIN to build: a definite (empty) answer, not a pending one — and no
+			// build ran, so the next one is still the first paint.
 			this.reset();
 			return;
 		}
+		if (this.firstBuildPending) {
+			this.setSnapshot(BUILDING_SNAPSHOT);
+		}
+		try {
+			await this.buildAndPublish(token, mainPath);
+		} catch (error: unknown) {
+			// A rebuild that throws must not leave the placeholder standing: "Building…"
+			// is a promise this pipeline can no longer keep, and nothing re-enters it
+			// until the next vault/settings event. A RENDERED graph is kept — it is
+			// still the last true answer we had — so only the placeholder gives way.
+			console.error("vicinity-graph: rebuild failed", error);
+			if (!this.isStale(token) && this.snapshot.status === "building") {
+				this.reset();
+			}
+		} finally {
+			// A superseded build settles nothing — its successor is still the first
+			// paint, and the warm-up it awaits has not been paid for yet.
+			if (!this.isStale(token)) {
+				this.firstBuildPending = false;
+			}
+		}
+	}
+
+	/** One rebuild pass: engine build → structural diff → elk → routing → publish. */
+	private async buildAndPublish(token: number, mainPath: string): Promise<void> {
 		const result = await this.graphBuilder.build(mainPath);
 		if (this.isStale(token)) {
 			return;

@@ -86,7 +86,10 @@
 	border-bottom: none;
 }
 
-.vicinity-graph-empty {
+/* The two "no canvas yet" states — nothing to draw, and not drawn YET — share
+   one centered, muted presentation; only the sentence differs. */
+.vicinity-graph-empty,
+.vicinity-graph-building {
 	height: 100%;
 	display: flex;
 	align-items: center;

@@ -42,14 +42,17 @@ const EMPTY_CONTROLS: ControlsModel = {
 interface Deferred<T> {
 	readonly promise: Promise<T>;
 	resolve(value: T): void;
+	reject(error: unknown): void;
 }
 
 function deferred<T>(): Deferred<T> {
 	let resolve!: (value: T) => void;
-	const promise = new Promise<T>((res) => {
+	let reject!: (error: unknown) => void;
+	const promise = new Promise<T>((res, rej) => {
 		resolve = res;
+		reject = rej;
 	});
-	return { promise, resolve };
+	return { promise, resolve, reject };
 }
 
 /** Drains the microtask queue so a resolved build's pipeline continuation runs. */
@@ -71,11 +74,20 @@ class FakeGraphSource implements GraphSourcePort {
 
 	/** Tests supply just the graph; the empty controls model is attached here. */
 	resolveBuild(index: number, graph: VicinityGraph | null): void {
+		this.pendingAt(index).resolve(graph === null ? null : { graph, controls: EMPTY_CONTROLS });
+	}
+
+	/** The real builder reads the vault and can reject (e.g. a file deleted mid-read). */
+	rejectBuild(index: number, error: unknown): void {
+		this.pendingAt(index).reject(error);
+	}
+
+	private pendingAt(index: number): Deferred<GraphBuildResult | null> {
 		const pending = this.deferreds[index];
 		if (pending === undefined) {
 			throw new Error(`no pending build at index ${index}`);
 		}
-		pending.resolve(graph === null ? null : { graph, controls: EMPTY_CONTROLS });
+		return pending;
 	}
 }
 
@@ -228,7 +240,8 @@ describe("GraphViewController latest-wins concurrency", () => {
 		h.source.resolveBuild(0, graphOf("a.md")); // stale result arrives first
 		await flush();
 
-		expect(h.snapshot().status).toBe("empty");
+		// The newer build is still in flight and nothing has rendered yet.
+		expect(h.snapshot().status).toBe("building");
 	});
 
 	it("WHEN the stale build resolves THEN it never reaches elk layout", async () => {
@@ -275,6 +288,85 @@ describe("GraphViewController null / empty handling", () => {
 		await flush();
 
 		expect(h.snapshot().status).toBe("empty");
+	});
+});
+
+/**
+ * First paint honesty (ticket nid_y081nezeucka9l0x3umebi5zo_e): the FIRST build
+ * AWAITS the docid warm-up, which reads file content and on a large vault takes
+ * seconds. While that runs the view has nothing to show — and the empty state's
+ * copy is a WRONG answer ("no vicinity graph for this file"), not a pending one.
+ * That warm-up is paid ONCE, so only that build may show the placeholder: every
+ * later rebuild is fast, and a placeholder there would flicker the pane — over a
+ * rendered graph and equally over the empty state, which rebuilds on every
+ * metadata resolve.
+ */
+describe("GraphViewController first-paint building state", () => {
+	it("WHEN the first build is in flight THEN the snapshot reports building", () => {
+		const h = setup();
+
+		h.controller.handleActiveFileChanged("a.md");
+
+		expect(h.snapshot().status).toBe("building");
+	});
+
+	it("WHEN a build is in flight while a graph is rendered THEN the rendered graph stays published", async () => {
+		const h = setup();
+		h.controller.handleActiveFileChanged("a.md");
+		h.source.resolveBuild(0, graphOf("a.md"));
+		await flush();
+
+		h.controller.handleSettingsChanged();
+
+		expect(h.snapshot().status).toBe("ready");
+	});
+
+	it("WHEN a build resolves with no graph THEN the building state gives way to empty", async () => {
+		const h = setup();
+		h.controller.handleActiveFileChanged("a.md");
+
+		h.source.resolveBuild(0, null);
+		await flush();
+
+		expect(h.snapshot().status).toBe("empty");
+	});
+
+	it("WHEN a rebuild follows a build that settled empty THEN the empty state is not replaced by the placeholder", async () => {
+		const h = setup();
+		h.controller.handleActiveFileChanged("a.md");
+		h.source.resolveBuild(0, null);
+		await flush();
+
+		h.controller.handleSettingsChanged();
+
+		expect(h.snapshot().status).toBe("empty");
+	});
+
+	it("WHEN the first build rejects THEN the placeholder gives way to empty", async () => {
+		const h = setup();
+		const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+		h.controller.handleActiveFileChanged("a.md");
+
+		h.source.rejectBuild(0, new Error("vault read failed"));
+		await flush();
+
+		expect(h.snapshot().status).toBe("empty");
+		consoleError.mockRestore();
+	});
+
+	it("WHEN a rebuild rejects while a graph is rendered THEN that graph stays published", async () => {
+		const h = setup();
+		const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+		h.controller.handleActiveFileChanged("a.md");
+		h.source.resolveBuild(0, graphOf("a.md"));
+		await flush();
+
+		h.controller.handleSettingsChanged();
+		h.source.rejectBuild(1, new Error("vault read failed"));
+		await flush();
+
+		expect(nodeIds(h.snapshot())).toEqual(["a.md"]);
+		consoleError.mockRestore();
 	});
 });
 
