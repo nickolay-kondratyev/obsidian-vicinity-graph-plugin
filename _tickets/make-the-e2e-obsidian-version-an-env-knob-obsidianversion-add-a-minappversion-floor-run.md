@@ -40,12 +40,15 @@ HUMAN: I am thinking that if we are adding this tweakable environment variable w
 - `scripts/obsidian-floor-version.sh` (new): prints `manifest.json` `minAppVersion`. This is the
   "derive, don't duplicate" option from the scope — there is NO second version literal anywhere.
 - `scripts/run-e2e-floor.sh` (new) + `npm run test:e2e:floor`: same suite, same flags, floor
-  binary. Extra args pass through. It warns (and does NOT pretend) when `OBSIDIAN_PATH` is set,
-  since run-e2e.sh honours that binary and the floor download would be skipped silently.
-- `e2e/obsidianVersionKnob.test.ts` (new, part of `npm test`): 5 BDD guards — the `:-` default
-  form, the pinned literal declared exactly once, the floor script actually printing
-  `manifest.minAppVersion` (executed, not scanned), and the floor runner naming no version
-  literal while exporting `OBSIDIAN_VERSION`. Written failing first.
+  binary. Extra args pass through. It REFUSES (exit 1) when `OBSIDIAN_PATH` is set, since
+  run-e2e.sh honours that binary and its green would not be a floor green (review follow-up:
+  it originally only warned and ran anyway, which made `test:e2e:floor` able to exit 0 without
+  ever touching the floor).
+- `e2e/obsidianVersionKnob.test.ts` (new, part of `npm test`): 7 BDD guards — the `:-` default
+  form, the pinned version named exactly once in the script, the docs note quoting the same
+  default line, the floor script actually printing `manifest.minAppVersion` (executed, not
+  scanned), the floor runner naming no version literal while exporting `OBSIDIAN_VERSION`, and
+  the refusal above (executed). Written failing first.
 - Docs: README (script table + new "Running against another Obsidian version" section covering
   both `npm run test:e2e:floor` and `OBSIDIAN_VERSION=<v> npm run test:e2e`, the
   `OBSIDIAN_PATH` interaction, caching, and how to read version-dependent noise), `CLAUDE.md`

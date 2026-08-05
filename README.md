@@ -395,7 +395,10 @@ OBSIDIAN_VERSION=1.13.1 npm run test:e2e   # any other published build
 effect when `OBSIDIAN_PATH` is unset, i.e. when the binary is auto-downloaded —
 Linux/Docker). Each version is cached separately under `.tmp/obsidian/`, so
 switching back and forth re-downloads nothing. `test:e2e:floor` never names a
-version literal: it reads `manifest.json`, so bumping the floor is one edit.
+version literal: it reads `manifest.json`, so bumping the floor is one edit — and
+it **refuses to run at all** when `OBSIDIAN_PATH` is set, since that binary would
+win and its green would not be a floor green (use `npm run test:e2e` for your own
+binary).
 
 Expect a little version-dependent noise: a few specs match Obsidian's own chrome,
 which moves between releases (e.g. on 1.13+ the slider value readout moves from a
