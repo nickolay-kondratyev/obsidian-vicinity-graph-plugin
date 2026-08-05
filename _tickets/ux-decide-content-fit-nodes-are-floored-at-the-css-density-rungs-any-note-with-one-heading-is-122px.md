@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-08-05T17:58:59Z
 id: nid_1mq3t7706vw2kj2kv7ljqlw6l_e
 title: "UX decide: content-fit nodes are floored at the CSS density rungs — any note with ONE heading is >= 122px"
-status: open
+status: closed
 deps: []
-links: []
+links: [nid_k2pa8khm6ugozmhkd6nlbdrq6_e, nid_jcxzhexfaksge2arjzca3w7ff_e, nid_9hx6okamx3yt0rg9iad2f4151_e]
 created_iso: 2026-08-05T00:52:58Z
-status_updated_iso: 2026-08-05T00:52:58Z
+status_updated_iso: 2026-08-05T17:58:59Z
 type: task
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
@@ -40,3 +41,11 @@ Owner picks one of the three options; if it is not option 1, `NodeSizer.revealFl
 Follow-up review of the same change found the floor was 2px short for CENTRALS: `[data-tier="main"]` / `[data-tier="pinned-central"]` draw a 2px accent border, so a central's content box is `sizePx - 20`, not `sizePx - 18`. Sized at the flat 122px floor, a MAIN note with 1-4 headings got a 102px content box, missed the 104px container query, and rendered as a title over dead space — the exact trap the floor exists to prevent. It was safe to ignore before this change only because centrals used to be pinned to maxPx.
 
 FIXED: `revealMinNodePx(rung, isCentral)` in src/engine/constants.ts is now the ONE place `rung + chrome` is spelled out, `NodeSizer` floors (and sums) with the node's own chrome, and src/view/nodeDensityThresholds.test.ts parses BOTH `[data-tier]` borders so the central chrome cannot drift either. A central floors at 124/92 instead of 122/90 — which does not change the options this ticket asks the owner to pick between.
+
+**2026-08-05T17:58:59Z**
+
+OWNER DECISION (2026-08-05): option 1 — keep as landed, NO changes now. The CSS density rungs and revealMinNodePx stay where they are.
+
+Rationale: rather than lower the rungs so tiny nodes can paint an outline, the owner wants to cut the DEMAND for the outline — in auto mode, non-central non-pinned notes should show TITLE ONLY. Peripheral notes then show no preview region at all, so the reveal floor never engages for them and they fall back to minPx; size discrimination is restored without touching the density ladder. The floor keeps doing its job exactly where the 104px slot is genuinely wanted (centrals, pinned, explicit overrides).
+
+Follow-up: nid_k2pa8khm6ugozmhkd6nlbdrq6_e (_tickets/auto-preview-do-not-show-the-outline-by-default-for-non-central-non-pinned-notes.md). Closing this one.
