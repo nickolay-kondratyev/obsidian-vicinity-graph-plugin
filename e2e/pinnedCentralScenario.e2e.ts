@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import { PIN_CHIP_FULL_SIZE_CONTENT_BOX_PX } from "../src/engine";
+import { nodeContentBoxHeightPx } from "./nodeContentBox";
 import { ObsidianHarness } from "./obsidianHarness";
 
 /**
@@ -76,17 +77,6 @@ function noteNode(path: string): Locator {
 	return page.locator(`.vicinity-graph-node[data-path="${path}"]`);
 }
 
-/**
- * The height the node's `@container (min-height: …)` queries actually measure —
- * `clientHeight` still includes padding, and those queries read the CONTENT box.
- */
-async function contentBoxHeightPx(node: Locator): Promise<number> {
-	return node.evaluate((el) => {
-		const style = getComputedStyle(el);
-		return el.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
-	});
-}
-
 /** Reveals a node's hover-only pin button, then clicks it. */
 async function clickPin(path: string): Promise<void> {
 	const node = noteNode(path);
@@ -155,7 +145,7 @@ test("the MAIN central itself can be pinned, survives switching MAIN, and can be
 	// which ticket nid_tclb98q9hxhmcuonamvr4ig1f_e tuned to clear the chip's
 	// full-size rung. Asserted here rather than in the engine alone, because the
 	// central's 2px accent ring is exactly what made the obvious floor 2px short.
-	expect(await contentBoxHeightPx(noteNode(HUB))).toBeGreaterThanOrEqual(PIN_CHIP_FULL_SIZE_CONTENT_BOX_PX);
+	expect(await nodeContentBoxHeightPx(noteNode(HUB))).toBeGreaterThanOrEqual(PIN_CHIP_FULL_SIZE_CONTENT_BOX_PX);
 	await expect(noteNode(HUB).locator(".vicinity-graph-pin-button")).toHaveAttribute("aria-label", "Pin to graph");
 	await clickPin(HUB);
 	// Still MAIN-tier (main styling wins) but the toggle flips to unpin.

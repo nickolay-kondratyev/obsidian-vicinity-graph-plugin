@@ -77,3 +77,22 @@ ladder, not two) names what the tuning is against.
 `npm test` (1611), `npm run check` and the FULL `npm run test:e2e` (135 passed, 1 skipped)
 all green. Visually verified with screenshots of a hovered minPx node and a hovered empty
 MAIN central (`.out/`, not source-controlled).
+
+## Follow-up (2026-08-05, adversarial review of the fix)
+
+The "compact chip clears the node's centre point" claim above held only for the
+SHIPPED 40px `minPx`. `minPx` is a dial with a 1px floor and a drag-resize override
+may be as low as `NODE_OVERRIDE_HARD_MIN_PX` (24px) — on such a node the 14px/2px
+chip sits ON the centre point and, being revealed by the same hover that precedes
+the click, swallowed the open-click. Before this ticket the 72px `display` gate had
+hidden it there, so the always-on chip regressed click-to-open at those sizes.
+
+Added a CENTRE-CLEARANCE rung in `src/view/graph-view.css`: the chip is withheld
+when the node's content box is ≤16px on BOTH axes — `2 x (inset + size) - padding`,
+the exact band in which the corner chip covers the centre. `and`, not a comma: a
+wide-but-short node's centre is nowhere near the chip. Stated as `max-*` so it fails
+OPEN (a broken container leaves the chip present rather than deleting it everywhere),
+and the chip now declares `box-sizing: border-box` so its reach is what the rung
+assumes. `nodeDensityThresholds.test.ts` recomputes the 16px from the chip's own
+declarations plus the node padding. At shipped defaults nothing changes (a 40px node
+is 22px of content), so the ticket's decision stands intact.

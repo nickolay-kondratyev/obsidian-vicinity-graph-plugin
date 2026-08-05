@@ -335,14 +335,14 @@
  * focused) so an idle graph stays uncluttered (CLARIFICATION Q3). A round chip
  * in the node's top-right corner; `nodrag nopan` keeps its click off the canvas.
  *
- * EVERY node carries the chip, at every height (ticket
- * `nid_tclb98q9hxhmcuonamvr4ig1f_e`, owner-decided): content-fit sizing made the
- * small node the COMMON case — a title-only note sits at ~minPx — and hiding the
- * affordance there left the right-click menu as the only way to pin the notes
- * people pin most. Below the density rung the chip only gets SMALLER (the custom
- * properties below), it never disappears.
+ * EVERY node the chip FITS carries it (ticket `nid_tclb98q9hxhmcuonamvr4ig1f_e`,
+ * owner-decided): content-fit sizing made the small node the COMMON case — a
+ * title-only note sits at ~minPx — and hiding the affordance there left the
+ * right-click menu as the only way to pin the notes people pin most. Below the
+ * density rung the chip only gets SMALLER (the custom properties below) instead of
+ * disappearing; the one place it still disappears is guard 3, where "fits" fails.
  *
- * Two guards keep it from swallowing the node's open-click on small nodes (a
+ * Three guards keep it from swallowing the node's open-click on small nodes (a
  * dense fit-view shrinks nodes toward the 40px minimum):
  *   1. `pointer-events: none` while hidden — an opacity:0 element STILL receives
  *      pointer events, so without this the transparent button eats a click that
@@ -351,6 +351,12 @@
  *      narrow as ~40px for a short title) a 20px chip inset 4px reaches the
  *      node's centre point, which is exactly where a click meant to OPEN the
  *      note lands. The 14px/2px chip clears it.
+ *   3. the centre-clearance rung below — the ONE height/width band where even the
+ *      compact chip cannot clear that centre point. `minPx` is a dial the user can
+ *      take to 1px and a drag-resize override may go as low as 24px
+ *      (`NODE_OVERRIDE_HARD_MIN_PX`), so "small" is NOT bounded by the shipped
+ *      40px default and guard 2 alone would be a claim about defaults, not a
+ *      guarantee.
  *
  * The `.vicinity-graph-node` prefix is LOAD-BEARING (same trap as the attachment
  * chip above): without it, Obsidian's `button:not(.clickable-icon)` (0,1,1)
@@ -365,6 +371,11 @@
 	--vicinity-graph-pin-chip-inset: 2px;
 	--vicinity-graph-pin-icon-size: 10px;
 	position: absolute;
+	/* Declared, not inherited from the app: the chip's REACH into the node
+	 * (`inset + size`) is what the centre-clearance rung below is computed from,
+	 * and under `content-box` the 1px border would make that reach 2px larger
+	 * than the rung assumes. */
+	box-sizing: border-box;
 	top: var(--vicinity-graph-pin-chip-inset);
 	right: var(--vicinity-graph-pin-chip-inset);
 	z-index: 1;
@@ -385,6 +396,29 @@
 	transition:
 		opacity 0.12s ease,
 		color 0.12s ease;
+}
+/* Centre-clearance rung — the ONE band where the chip is withheld (pin/unpin is
+ * still reachable there through the node's right-click menu, as it was before the
+ * chip became always-on). The corner chip reaches `inset + size` = 16px into the
+ * node's PADDING box from the top-right; the node's centre point falls inside it
+ * only when BOTH padding-box axes are under 2 x 16px — i.e. when both CONTENT-box
+ * axes are at most 2 x 16px - 2 x 8px of node padding = 16px. Hence `and`, not a
+ * comma: a wide-but-short node's centre is nowhere near the chip.
+ *
+ * Stated as a max-* query on purpose, inverting the ladder above: this is a
+ * withholding, not a reveal, so a container that stopped resolving (a
+ * `container-type` regression) fails OPEN — chip present — rather than deleting
+ * the affordance from every node.
+ *
+ * `nodeDensityThresholds.test.ts` recomputes the 16px from the compact chip's own
+ * declarations and the node's padding, so re-tuning the chip cannot leave this
+ * rung behind. At the shipped 40px `minPx` a node's content box is 22px, so the
+ * ordinary small node keeps its chip; only a hand-shrunk `minPx` or a drag-resize
+ * override reaches this band. */
+@container (max-height: 16px) and (max-width: 16px) {
+	.vicinity-graph-node .vicinity-graph-pin-button {
+		display: none;
+	}
 }
 /* Node tall enough to host the FULL-SIZE chip without blanketing its body — the
  * lower rung of the density ladder above, reused: a node that can seat a chip row
@@ -412,11 +446,13 @@
 	outline: none;
 	box-shadow: 0 0 0 2px var(--interactive-accent);
 }
-/* Inherits the chip's icon size (the property is set on the button above). */
+/* Inherits the chip's icon size (the property is declared unconditionally on the
+ * button above, so NO fallback here — a fallback could only ever name one rung's
+ * size and would silently overflow the other). */
 .vicinity-graph-pin-button__icon svg {
 	display: block;
-	width: var(--vicinity-graph-pin-icon-size, 13px);
-	height: var(--vicinity-graph-pin-icon-size, 13px);
+	width: var(--vicinity-graph-pin-icon-size);
+	height: var(--vicinity-graph-pin-icon-size);
 }
 
 /* ===== drag-to-resize controls ==========================================

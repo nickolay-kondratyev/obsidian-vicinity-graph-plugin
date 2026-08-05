@@ -65,6 +65,14 @@ const CENTRAL_TIERS = ["main", "pinned-central"] as const;
 // The pin chip's OWN rule block, and the chip-size property the ladder re-declares.
 const PIN_BUTTON_RULE = /\n\.vicinity-graph-node \.vicinity-graph-pin-button \{\n([\s\S]*?)\n\}/;
 const PIN_CHIP_SIZE = /--vicinity-graph-pin-chip-size:\s*(\d+)px/;
+const PIN_CHIP_INSET = /--vicinity-graph-pin-chip-inset:\s*(\d+)px/;
+// The chip's reach is measured from its BORDER box, so the rung below is only
+// honest while the chip declares it (Obsidian's own reset is not this file's).
+const PIN_CHIP_BORDER_BOX = /\n\tbox-sizing: border-box;/;
+// The centre-clearance rung: the chip is withheld only where it would cover the
+// node's centre point, i.e. on BOTH axes at once.
+const PIN_CHIP_WITHHOLD_QUERY =
+	/@container \(max-height:\s*(\d+)px\) and \(max-width:\s*(\d+)px\)\s*\{\n\t\.vicinity-graph-node \.vicinity-graph-pin-button \{\n\t\tdisplay: none;/;
 // The thumbnail slot's fixed height, declared as a custom property on the node root.
 // Anchored to a line start: it is the rule's FIRST declaration, so there is no
 // preceding newline inside the captured body.
@@ -115,6 +123,36 @@ function parsedNodeVerticalChromePx(): number {
 		throw new Error("`.vicinity-graph-node` no longer declares a plain px border");
 	}
 	return 2 * Number(border) + parsedNodeVerticalPaddingPx();
+}
+
+function pinButtonDeclarations(): string {
+	const match = PIN_BUTTON_RULE.exec(stylesheet());
+	if (match?.[1] === undefined) {
+		throw new Error("graph-view.css no longer declares a `.vicinity-graph-node .vicinity-graph-pin-button` rule block");
+	}
+	return match[1];
+}
+
+/**
+ * The largest CONTENT-box square on which the COMPACT chip still covers the
+ * node's centre point — derived, never asserted as a literal.
+ *
+ * The chip is a top-right corner box reaching `inset + size` into the node's
+ * PADDING box; the centre sits at half that box. So it is covered while
+ * `paddingBox / 2 <= inset + size`, and `paddingBox = contentBox + padding`.
+ *
+ * ONE number for both axes: the node's `padding` is the shorthand, so its
+ * horizontal and vertical totals are the same — which is why the stylesheet's
+ * withholding query can state the same px on `max-height` and `max-width`.
+ */
+function compactChipCentreClearanceContentBoxPx(): number {
+	const declarations = pinButtonDeclarations();
+	const size = PIN_CHIP_SIZE.exec(declarations)?.[1];
+	const inset = PIN_CHIP_INSET.exec(declarations)?.[1];
+	if (size === undefined || inset === undefined) {
+		throw new Error("the pin chip no longer declares a compact px size + inset");
+	}
+	return 2 * (Number(size) + Number(inset)) - parsedNodeVerticalPaddingPx();
 }
 
 /** The same for one central tier's overriding border. */
@@ -175,13 +213,31 @@ describe("node density thresholds", () => {
 	// GROWS it — and `CENTRAL_PROMINENCE_FLOOR_SCORE` is tuned against that rung, so a
 	// stylesheet that moved it would silently leave centrals on the compact chip.
 	it("WHEN the pin chip is styled THEN it is displayed at every node height, not gated on the density ladder", () => {
-		const declarations = PIN_BUTTON_RULE.exec(stylesheet())?.[1];
-		expect(declarations).toMatch(/\n\tdisplay: inline-flex;/);
+		expect(pinButtonDeclarations()).toMatch(/\n\tdisplay: inline-flex;/);
 	});
 
 	it("WHEN the stylesheet grows the pin chip to full size THEN it does so at the rung the engine tunes the central floor against", () => {
 		expect(soleRevealMinHeightPx(PIN_CHIP_SIZE)).toBe(PIN_CHIP_FULL_SIZE_CONTENT_BOX_PX);
 	});
+
+	// The one exception to "every node", and the reason it is not a judgement call:
+	// the compact chip reaches `inset + size` into the node's padding box from the
+	// top-right corner, so below a computable size it sits ON the node's centre point
+	// — where a click means OPEN THE NOTE. `minPx` is a dial the user can take to 1px
+	// and a drag-resize override may be 24px, so this band is reachable; re-tuning the
+	// chip without moving the rung would silently make it unreachable-by-click again.
+	it("WHEN the chip is measured for centre clearance THEN it is sized from its BORDER box", () => {
+		expect(pinButtonDeclarations()).toMatch(PIN_CHIP_BORDER_BOX);
+	});
+
+	it.each(["max-height", "max-width"] as const)(
+		"WHEN the stylesheet withholds the pin chip THEN its %s rung is the content box at which the compact chip covers the node's centre",
+		(axis) => {
+			const withheld = PIN_CHIP_WITHHOLD_QUERY.exec(stylesheet());
+			const declared = Number(withheld?.[axis === "max-height" ? 1 : 2]);
+			expect(declared).toBe(compactChipCentreClearanceContentBoxPx());
+		},
+	);
 
 	// A central's accent ring is 2px, so at the SAME sizePx its content box is 2px
 	// shorter — and content-fit sizing lands centrals exactly ON a reveal floor

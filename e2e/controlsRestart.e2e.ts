@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import { PIN_CHIP_FULL_SIZE_CONTENT_BOX_PX } from "../src/engine";
+import { nodeContentBoxHeightPx } from "./nodeContentBox";
 import { ObsidianHarness } from "./obsidianHarness";
 
 /**
@@ -143,9 +144,7 @@ test("depth, pin, node cap and sizing all survive an Obsidian restart", async ()
 	// COMPACT-chip band — the state that had no hover pin affordance at all before
 	// ticket nid_tclb98q9hxhmcuonamvr4ig1f_e. Asserted, not assumed: padding the
 	// fixture would otherwise silently retire that coverage.
-	expect(await noteNode(PIN_TARGET).evaluate((el) => el.clientHeight)).toBeLessThan(
-		PIN_CHIP_FULL_SIZE_CONTENT_BOX_PX,
-	);
+	expect(await nodeContentBoxHeightPx(noteNode(PIN_TARGET))).toBeLessThan(PIN_CHIP_FULL_SIZE_CONTENT_BOX_PX);
 	await clickPin(PIN_TARGET);
 	await expect(noteNode(PIN_TARGET)).toHaveAttribute("data-tier", "pinned-central");
 
