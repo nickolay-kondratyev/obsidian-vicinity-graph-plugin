@@ -90,6 +90,14 @@ async function flowNodePositions(): Promise<Record<string, string>> {
 }
 
 /**
+ * React Flow's pane transform — the user's pan and zoom, verbatim. `fitView`
+ * rewrites it, so an unchanged string is proof that NO refit ran.
+ */
+async function viewportTransform(): Promise<string> {
+	return page.locator(".react-flow__viewport").evaluate((el) => (el as HTMLElement).style.transform);
+}
+
+/**
  * The bottom-right corner grip. Located under the React Flow node WRAPPER, not
  * under `.vicinity-graph-node`: the grip overhangs the node box, and that box
  * clips its content (`overflow: hidden`), so the grips are mounted outside it.
@@ -250,12 +258,27 @@ test("WHEN the RIGHT edge line is dragged THEN the width alone grows (the line i
 	});
 });
 
-test("WHEN a committed resize still FITS where the node sits THEN the rest of the graph does not move", async () => {
+test("WHEN a committed resize still FITS where the node sits THEN neither the other nodes nor the viewport move", async () => {
 	// Ticket nid_9ep12hkmk4zjv2p28emmrhieq_e: a resize used to re-run the layout
 	// unconditionally, re-arranging (and re-fitting) a graph that was fine. A SHRINK
 	// is the deterministic probe — a smaller box can collide with nothing, so the
 	// reuse path MUST be taken and every other node must keep its exact position.
+	//
+	// The viewport half is ticket nid_ct22qotgtw4rezbdn5m0diyb3_e: only a FRESH elk
+	// layout bumps `layoutVersion`, and only that re-runs `fitView`. Probed from a
+	// zoom the user made themselves — a refit would snap that framing away, so an
+	// unchanged pane transform is the assertion that the framing survives. Wheel,
+	// not a drag: a press-move-release on the pane can land as a CLICK on a node
+	// (which opens it and switches the central), and this test must change nothing
+	// but the framing.
+	await noteNode(TARGET).hover();
+	const framingBeforeZoom = await viewportTransform();
+	await page.mouse.wheel(0, -120);
+	// GIVEN violation if the zoom never took: the probe below would then be
+	// comparing the FITTED framing against itself and could not fail.
+	await expect.poll(viewportTransform).not.toBe(framingBeforeZoom);
 	const before = await flowNodePositions();
+	const viewportBefore = await viewportTransform();
 	const storedBefore = await storedOverrideSizePx();
 
 	await dragResizeHandle(TARGET, -DRAG_DELTA_X_PX, -DRAG_DELTA_Y_PX);
@@ -265,9 +288,13 @@ test("WHEN a committed resize still FITS where the node sits THEN the rest of th
 	await expect.poll(async () => (await renderedBoxPx(TARGET)).widthPx).toBe(
 		(await storedOverrideSizePx()).widthPx,
 	);
-	// ...then nothing but the resized node may have moved.
+	// ...then nothing but the resized node may have moved — neither its neighbours
+	// (no relayout) nor the user's framing (no refit).
 	const after = await flowNodePositions();
 	delete before[TARGET];
 	delete after[TARGET];
-	expect(after).toEqual(before);
+	expect({ positions: after, framing: await viewportTransform() }).toEqual({
+		positions: before,
+		framing: viewportBefore,
+	});
 });

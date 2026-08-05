@@ -225,11 +225,10 @@ changed gets reverted by the next change.
 - Only the right/bottom/corner grips exist: dragging a top or left edge would
   move the node, and positions come from the layout, so it would snap back.
 
-> Known caveat: when the release DOES re-run the layout, it also re-fits the
-> viewport — the graph re-zooms and re-pans instead of staying where you had it.
-> (A resize that fits keeps both the layout and your framing.)
-> Nothing is lost, only your framing. Tracked in
-> `_tickets/view-releasing-a-drag-resize-refits-the-viewport-relayout-bumps-layoutversion.md`.
+> By design: when the release DOES re-run the layout, it also re-fits the
+> viewport — the graph re-zooms and re-pans so the re-arranged graph is fully in
+> frame. A resize that fits keeps both the layout and your framing, so this only
+> happens when the nodes moved anyway.
 
 ### Node exclusion
 
