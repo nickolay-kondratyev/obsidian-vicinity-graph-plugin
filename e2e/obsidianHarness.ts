@@ -107,15 +107,17 @@ const PLUGIN_READY_TIMEOUT_MS = 30_000;
 
 /**
  * e2e-only fixtures layered on top of the setup-dev-vault ones: a 4-note
- * `crowd/` folder all linking to note1. c1/c2 carry a large body so the
- * default `own-file-size` metric ranks them deterministically ABOVE every
- * other depth-1 neighbor — with `nodeCap: 2` exactly c1+c2 survive, giving a
+ * `crowd/` folder all linking to note1. With `nodeCap: 2` exactly c1+c2
+ * survive — the priority chain's deterministic PATH fallback keeps the two
+ * lexicographically smallest of note1's equal-depth, equal-distance neighbors
+ * (`crowd/` sorts before every `note*`/`projects/` sibling) — giving a
  * rendered `crowd` group with a "+2" badge AND a corner "+N hidden" overlay.
+ * (These same two used to win via the `own-file-size` metric before the
+ * content-fit sizing rework removed size from the ranking.)
  */
-const CROWD_FILLER = "filler line for the own-file-size sizing metric\n".repeat(200);
 const CROWD_FIXTURES: Record<string, string> = {
-	"crowd/c1.md": `Crowd member one links to [[note1]].\n\n${CROWD_FILLER}`,
-	"crowd/c2.md": `Crowd member two links to [[note1]].\n\n${CROWD_FILLER}`,
+	"crowd/c1.md": "Crowd member one links to [[note1]].\n",
+	"crowd/c2.md": "Crowd member two links to [[note1]].\n",
 	"crowd/c3.md": "Crowd member three links to [[note1]].\n",
 	"crowd/c4.md": "Crowd member four links to [[note1]].\n",
 };

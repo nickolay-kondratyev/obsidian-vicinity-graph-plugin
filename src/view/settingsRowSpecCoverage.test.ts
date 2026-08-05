@@ -18,7 +18,7 @@ import type { SettingsRowControl } from "./settingsRows";
  *
  * The hole is ONE-DIRECTIONAL and only this direction needed closing: a row naming a
  * BOGUS field is already a compile error, because every control arm carries a typed
- * field reference (`keyof DepthSettings`, `SizeMetricId`, …).
+ * field reference (`keyof DepthSettings`, `SizingNumberField`, …).
  *
  * Bounds-only spec leaves are out of scope by construction — {@link SETTINGS_FIELD_LEAVES}
  * already excludes them (they declare bounds for a sibling shape and are no field at all,
@@ -39,8 +39,6 @@ function specLeafIdFor(control: SettingsRowControl): string {
 	switch (control.kind) {
 		case "depth":
 			return `globalDepths.${control.field}`;
-		case "sizing-metric":
-			return `globalView.sizing.metrics.${control.metric}`;
 		case "sizing-number":
 			return `globalView.sizing.${control.field}`;
 		case "node-preview":

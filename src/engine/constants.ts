@@ -65,55 +65,163 @@ export const MAX_STEPPER_DEPTH = SETTINGS_SPEC.globalDepths.linkDepthOut.max;
 // ---------------------------------------------------------------------------
 
 /**
- * Normalized value when a metric cannot discriminate (all raw values equal,
- * e.g. single-node graph or all-zero-byte notes): the neutral midpoint.
+ * Where in the `minPx..maxPx` ramp a central's (MAIN + pinned, even when
+ * disconnected from MAIN) size is FLOORED: `minPx + 0.35 * (maxPx - minPx)`.
+ *
+ * A modest prominence floor, NOT a bypass (node-sizing rethink Q2, decided
+ * 2026-08-03): an empty central no longer renders at maxPx — centrality stays
+ * visible via the floor plus border styling, while a content-rich central still
+ * grows past it like any other node. 0.35 is tuned visually: noticeably above
+ * the minPx a bare title-only neighbor clamps to, well under the midpoint, so a
+ * central never dominates by role alone.
  */
-export const NEUTRAL_NORMALIZED_VALUE = 0.5;
-
-/**
- * Centrals (MAIN + pinned, even when disconnected from MAIN) bypass metric
- * composition and get the top score → max pixel size.
- */
-export const CENTRAL_SIZE_SCORE = 1;
+export const CENTRAL_PROMINENCE_FLOOR_SCORE = 0.35;
 
 /**
  * Content-box height (px) at which `src/view/graph-view.css` reveals the node's
- * image thumbnail — its density budget for the fixed-height thumbnail slot on
- * top of two title lines and one attachment-chip row.
+ * PREVIEW SLOT — the thumbnail and the outline share it (they are mutually
+ * exclusive, see `nodePreviewKind`) and share this ONE container query, so this
+ * is one threshold, not two.
  *
  * NOT a node height: a CSS size container query measures the container's CONTENT
- * box, so this number must be grown by {@link NODE_VERTICAL_CHROME_PX} before it
- * can be compared to `sizePx`.
+ * box, so this number must be grown by the node's own chrome (see
+ * {@link revealMinNodePx}) before it can be compared to `sizePx`.
  */
-const THUMBNAIL_REVEAL_CONTENT_BOX_PX = 104;
+export const PREVIEW_SLOT_REVEAL_CONTENT_BOX_PX = 104;
 
 /**
- * How much taller a node's BORDER box is than the content box the container
- * query sees: `.vicinity-graph-node` is `box-sizing: border-box` with a 1px
- * border and `--size-4-2` (8px) of padding, top and bottom.
- *
- * (The `[data-tier]` centrals use a 2px border, so their chrome is 20 — not
- * modelled here. Centrals are sized at `maxPx`, so they clear the reveal on
- * their own only once `maxPx >= 124`; between 122 and 123 a central hides its
- * thumbnail while a non-central of the same height shows one. Deliberately left
- * unmodelled: the default `maxPx` is 160, and that 2px band is not worth a
- * per-tier floor.)
+ * Content-box height (px) at which `src/view/graph-view.css` reveals the
+ * attachment-chip row — the lower rung of the same density ladder. Same
+ * content-box caveat as {@link PREVIEW_SLOT_REVEAL_CONTENT_BOX_PX}.
+ */
+export const ATTACHMENT_ROW_REVEAL_CONTENT_BOX_PX = 72;
+
+/**
+ * How much taller an ordinary node's BORDER box is than the content box the
+ * container query sees: `.vicinity-graph-node` is `box-sizing: border-box` with
+ * a 1px border and `--size-4-2` (8px) of padding, top and bottom.
  */
 export const NODE_VERTICAL_CHROME_PX = 2 * (1 + 8);
 
 /**
- * Node height (px) at which a note's image thumbnail is actually displayed —
- * the CSS reveal threshold expressed as the border-box height React Flow gives
- * the node. Nodes below it show the title only, so a note that HAS an image but
- * scores low would never display it: {@link NodeSizer} floors image-bearing
- * nodes here.
+ * The same for a CENTRAL: `[data-tier="main"]` and `[data-tier="pinned-central"]`
+ * draw a 2px accent border, so their content box is 2px SHORTER at the same
+ * `sizePx`.
+ *
+ * Modelled — not rounded away — because content-fit sizing lands centrals
+ * EXACTLY on a reveal floor routinely (a MAIN note with one to four headings
+ * fits well under the rung, so the floor IS its size). Sized with the 18px
+ * chrome, such a central gets a 102px content box, misses the 104px query by
+ * 2px, and renders as a title over 40px of dead space — precisely the trap the
+ * floor exists to prevent. (Under the old sizer centrals were pinned to `maxPx`,
+ * which is why the band was safe to ignore then.)
+ */
+export const CENTRAL_NODE_VERTICAL_CHROME_PX = 2 * (2 + 8);
+
+/** How much taller than the container-query content box THIS node's border box is. */
+export function nodeVerticalChromePx(isCentral: boolean): number {
+	return isCentral ? CENTRAL_NODE_VERTICAL_CHROME_PX : NODE_VERTICAL_CHROME_PX;
+}
+
+/**
+ * Node height (px) at which `graph-view.css` actually PAINTS the region its
+ * container query gates at `contentBoxRungPx` — the rung expressed as the
+ * border-box height React Flow gives the node, which is the only form `sizePx`
+ * can be compared against. THE one place `rung + chrome` is spelled out.
+ *
+ * `NodeSizer` floors every node that carries such a region here: sizing a node
+ * to fit an outline (or a chip row) the stylesheet then refuses to paint would
+ * buy nothing but dead space.
  *
  * DUPLICATED KNOWLEDGE, deliberately guarded: the reveal itself is a CSS
  * container query and CSS cannot import a TS constant.
- * `src/view/thumbnailDensityThreshold.test.ts` parses the stylesheet — both the
- * threshold and the chrome — and fails if either half drifts.
+ * `src/view/nodeDensityThresholds.test.ts` parses the stylesheet — both rungs
+ * and both chromes — and fails if any half drifts.
  */
-export const THUMBNAIL_VISIBLE_MIN_NODE_PX = THUMBNAIL_REVEAL_CONTENT_BOX_PX + NODE_VERTICAL_CHROME_PX;
+export function revealMinNodePx(contentBoxRungPx: number, isCentral: boolean): number {
+	return contentBoxRungPx + nodeVerticalChromePx(isCentral);
+}
+
+/** The preview rung as an ordinary (non-central) node height — see {@link revealMinNodePx}. */
+export const PREVIEW_VISIBLE_MIN_NODE_PX = revealMinNodePx(PREVIEW_SLOT_REVEAL_CONTENT_BOX_PX, false);
+
+/** The chip-row rung as an ordinary (non-central) node height — see {@link revealMinNodePx}. */
+export const ATTACHMENT_ROW_VISIBLE_MIN_NODE_PX = revealMinNodePx(ATTACHMENT_ROW_REVEAL_CONTENT_BOX_PX, false);
+
+// ---------------------------------------------------------------------------
+// Content-fit size estimate (NodeSizer) + label width estimate.
+//
+// ESTIMATES of the node CSS, not measurements: the engine stays pure (no DOM),
+// so these mirror `src/view/graph-view.css` the way NODE_TITLE_CHAR_WIDTH_PX
+// always has. They only steer the box the layout hands React Flow — the CSS
+// itself flexes whatever content into whatever box it gets (the outline
+// scrolls, the thumbnail shrinks), and minPx/maxPx clamp the result anyway,
+// so a few px of drift is invisible.
+// ---------------------------------------------------------------------------
+
+/**
+ * Approximate average glyph advance (px) of the node-title font
+ * (`--font-ui-smaller`, ~12–13px in Obsidian's default theme). Used to size a
+ * node's width to fit its title on one line. Snug (not generous) because the
+ * title CSS clamps to {@link NODE_TITLE_LINE_CLAMP} lines: when a title needs
+ * more than {@link NODE_MAX_LABEL_WIDTH_PX} the width pins to that cap and the
+ * overflow wraps onto the next lines — the wrap, not width overshoot, is the
+ * safety net against ellipsis.
+ */
+export const NODE_TITLE_CHAR_WIDTH_PX = 7;
+
+/** Horizontal chrome around the title text: node padding (both sides) + border. */
+export const NODE_LABEL_HORIZONTAL_PADDING_PX = 20;
+
+/**
+ * Upper bound on the label-driven node width. Beyond this a title stops widening
+ * the node and instead wraps onto the next lines the title CSS allows
+ * (`-webkit-line-clamp`). Set a bit above the 160px default max HEIGHT so a
+ * long title gets some horizontal room before wrapping, while the node stays a
+ * readable, not-too-wide box.
+ */
+export const NODE_MAX_LABEL_WIDTH_PX = 250;
+
+/** Max rendered title lines (`-webkit-line-clamp: 4` in graph-view.css). */
+export const NODE_TITLE_LINE_CLAMP = 4;
+
+/**
+ * Max rendered title lines on a node whose preview is its THUMBNAIL: the reveal
+ * block in `graph-view.css` re-clamps `[data-preview="thumbnail"]` titles to 2,
+ * so the fixed-height slot is never pushed out by a long name. The height
+ * estimate must budget the same 2 lines the CSS will actually paint.
+ */
+export const THUMBNAIL_PREVIEW_TITLE_LINE_CLAMP = 2;
+
+/**
+ * Snug width (px) a note node needs to render its title on ONE line. Char-count
+ * heuristic — see {@link NODE_TITLE_CHAR_WIDTH_PX}. Callers cap this at
+ * {@link NODE_MAX_LABEL_WIDTH_PX} (a longer title wraps instead).
+ */
+export function estimateNodeLabelWidthPx(title: string): number {
+	return Math.ceil(title.length * NODE_TITLE_CHAR_WIDTH_PX) + NODE_LABEL_HORIZONTAL_PADDING_PX;
+}
+
+/** One rendered title line (`--font-ui-smaller` × `line-height: 1.25`, rounded up). */
+export const ESTIMATED_TITLE_LINE_PX = 17;
+
+/** One rendered outline entry (`--font-smallest` × 1.5 + the entry's own padding). */
+export const ESTIMATED_OUTLINE_ENTRY_PX = 18;
+
+/** The attachment-chip row (chip padding + icon), present when a note has attachments. */
+export const ESTIMATED_ATTACHMENT_ROW_PX = 22;
+
+/**
+ * The image thumbnail's slot (`--vicinity-graph-thumbnail-height`, also its
+ * `min-height`, so it is a FLOOR the flexbox cannot shrink past). Counted like
+ * any other region: a thumbnail node that also carries a chip row and a wrapped
+ * title needs room for all three, or the chip row is pushed out through the
+ * node's `overflow: hidden`.
+ */
+export const ESTIMATED_THUMBNAIL_SLOT_PX = 56;
+
+/** Flex gap between the node's content regions (`--size-4-1`). */
+export const NODE_REGION_GAP_PX = 4;
 
 /**
  * Hard sanity bounds for a per-node size override ({@link import("./types").NodeSizeOverridePx}).
@@ -220,13 +328,10 @@ export function clampForceLayoutSettings(settings: ForceLayoutSettings): ForceLa
  * The bounded sizing fields — DERIVED from the spec, so a new bounded sizing
  * field fails to compile in {@link SIZING_RANGES} below until it is given a
  * range, instead of silently getting no range and no clamp.
- * (`metrics` carries defaults only — its weights are bounded by `metricWeight`.)
  */
-export type SizingRangeField = Exclude<keyof SizingSpec, "metrics">;
+export type SizingRangeField = keyof SizingSpec;
 
 export const SIZING_RANGES: Readonly<Record<SizingRangeField, SettingsRange>> = rangesOf({
-	metricWeight: SETTINGS_SPEC.globalView.sizing.metricWeight,
-	depthDecayK: SETTINGS_SPEC.globalView.sizing.depthDecayK,
 	minPx: SETTINGS_SPEC.globalView.sizing.minPx,
 	maxPx: SETTINGS_SPEC.globalView.sizing.maxPx,
 });
@@ -253,9 +358,9 @@ export function clampSizingNumber(field: SizingRangeField, value: number): numbe
  *
  * Also enforces the ONE cross-field sizing rule — `maxPx >= minPx` — by RAISING
  * `maxPx`, because `minPx` and `maxPx` are clamped into the SAME range and so can
- * be inverted without either leaving its bounds. `NodeSizer` reads the pair as
- * `minPx + score * (maxPx - minPx)`, so an inverted pair is a finite but BACKWARDS
- * ramp: the most relevant note draws smallest.
+ * be inverted without either leaving its bounds. `NodeSizer` clamps the content
+ * fit into `[minPx, maxPx]` and floors centrals at a point of that ramp, so an
+ * inverted pair would size nodes backwards.
  *
  * WHY raise rather than swap or reset: raising never shrinks a node the user asked
  * to be big, and it keeps the Min/Max labels agreeing with the number typed under
@@ -266,16 +371,8 @@ export function clampSizingNumber(field: SizingRangeField, value: number): numbe
  * fine: it never has to be explained to anyone.
  */
 export function clampSizingSettings(settings: SizingSettings): SizingSettings {
-	const metrics = Object.fromEntries(
-		Object.entries(settings.metrics).map(([metricId, metric]) => [
-			metricId,
-			{ ...metric, weight: clampSizingNumber("metricWeight", metric.weight) },
-		]),
-	) as SizingSettings["metrics"];
 	const minPx = clampSizingNumber("minPx", settings.minPx);
 	return {
-		metrics,
-		depthDecayK: clampSizingNumber("depthDecayK", settings.depthDecayK),
 		minPx,
 		// The CLAMPED minPx is the floor: raising to the typed one would drag maxPx
 		// outside its own range, which is exactly what this function exists to prevent.
@@ -303,17 +400,7 @@ export class EngineDefaults {
 
 	static sizingSettings(): SizingSettings {
 		const sizing = SETTINGS_SPEC.globalView.sizing;
-		const metrics = Object.fromEntries(
-			// Defensive per-metric copy: never hand out the spec's own leaf object,
-			// so a future in-place mutation of a default can't corrupt SETTINGS_SPEC.
-			Object.entries(sizing.metrics).map(([metricId, metric]) => [metricId, { ...metric.default }]),
-		) as SizingSettings["metrics"];
-		return {
-			metrics,
-			depthDecayK: sizing.depthDecayK.default,
-			minPx: sizing.minPx.default,
-			maxPx: sizing.maxPx.default,
-		};
+		return { minPx: sizing.minPx.default, maxPx: sizing.maxPx.default };
 	}
 
 	static nodeExclusionSettings(): NodeExclusionSettings {

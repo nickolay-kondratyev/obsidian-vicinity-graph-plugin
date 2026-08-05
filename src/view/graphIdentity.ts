@@ -1,5 +1,5 @@
 import type { DirectedLink, GraphNode, NodeSizeOverridePx } from "../engine";
-import { NODE_MAX_LABEL_WIDTH_PX, estimateNodeLabelWidthPx } from "./constants";
+import { NODE_MAX_LABEL_WIDTH_PX, estimateNodeLabelWidthPx } from "../engine";
 
 /**
  * Structural identity helpers shared by the React-Flow mapping, the elk mapping
@@ -93,8 +93,8 @@ export function sameNodeSizeOverridePx(
  * global sizing dials; hard sanity bounds were already applied by
  * `clampNodeSizeOverridePx` on the store's write AND load paths, so the value
  * is used verbatim here). Otherwise HEIGHT is the engine's diff-stable,
- * score-driven `sizePx`, and WIDTH is the snug label estimate, floored at the
- * score-driven square (`sizePx`) and capped at {@link NODE_MAX_LABEL_WIDTH_PX}
+ * content-fit `sizePx`, and WIDTH is the snug label estimate, floored at the
+ * content-fit square (`sizePx`) and capped at {@link NODE_MAX_LABEL_WIDTH_PX}
  * — a longer title stops widening the node and wraps onto the further lines
  * the title CSS allows. Both the elk input and the React Flow node MUST use
  * the SAME numbers or layout positions and rendered boxes drift.

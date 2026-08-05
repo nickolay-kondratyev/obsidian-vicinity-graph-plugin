@@ -14,8 +14,7 @@ import type { SettingsInteraction } from "./settingsWritePlan";
  * than re-deriving it from the row model, which would assert nothing.
  *
  * One case per lookup shape: a field-bearing control (three depth rows share a kind,
- * so keying on the kind alone would label them all "Links out"), a field-less one, and
- * a metric row whose two controls must both resolve to their single row.
+ * so keying on the kind alone would label them all "Links out") and a field-less one.
  */
 describe("SettingsWriteFailureNotice for an interaction", () => {
 	it("WHEN a depth write fails THEN the notice names THAT depth row, not another one sharing its kind", () => {
@@ -26,15 +25,6 @@ describe("SettingsWriteFailureNotice for an interaction", () => {
 	it("WHEN a field-less control's write fails THEN the notice names its row", () => {
 		const notice = SettingsWriteFailureNotice.forInteraction({ kind: "global-cap", value: 42 });
 		expect(notice).toContain("Node cap");
-	});
-
-	it("WHEN a metric WEIGHT write fails THEN the notice names the metric's row", () => {
-		const notice = SettingsWriteFailureNotice.forInteraction({
-			kind: "global-sizing-metric-weight",
-			metric: "backlink-count",
-			weight: 3,
-		});
-		expect(notice).toContain("Backlinks");
 	});
 
 	it("WHEN any write fails THEN the notice attributes itself to this plugin", () => {
@@ -86,16 +76,11 @@ describe("SettingsWriteFailureNotice over every declared row", () => {
 		return accessor.interaction(accessor.read(defaults()));
 	}
 
-	/** Every interaction one row's controls can emit — a metric row's two, everyone else's one. */
+	/** Every interaction one row's controls can emit. */
 	function interactionsFor(control: SettingsRowControl): readonly SettingsInteraction[] {
 		switch (control.kind) {
 			case "depth":
 				return [interactionOf(SettingsRowAccessors.depth(control.field))];
-			case "sizing-metric":
-				return [
-					interactionOf(SettingsRowAccessors.metricEnabled(control.metric)),
-					interactionOf(SettingsRowAccessors.metricWeight(control.metric)),
-				];
 			case "sizing-number":
 				return [interactionOf(SettingsRowAccessors.sizingNumber(control.field))];
 			case "node-preview":
@@ -133,9 +118,9 @@ describe("SettingsWriteFailureNotice over every declared row", () => {
 		expect(misnamed).toEqual([]);
 	});
 
-	it("WHEN the row walk runs THEN it found more interactions than rows (the metric rows emit two)", () => {
+	it("WHEN the row walk runs THEN it found one interaction per row (no multi-control rows remain)", () => {
 		// Without this the assertion above would pass a walk that found nothing to check.
-		expect(EVERY_ROW_INTERACTION.length).toBeGreaterThan(EVERY_SETTINGS_ROW.length);
+		expect(EVERY_ROW_INTERACTION.length).toBe(EVERY_SETTINGS_ROW.length);
 	});
 });
 

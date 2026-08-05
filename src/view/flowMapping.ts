@@ -1,8 +1,16 @@
-import type { EdgeKind, FolderPath, GraphEdge, GraphNode, OutlineEntry, ViewSettings, VicinityGraph } from "../engine";
+import type {
+	EdgeKind,
+	FolderPath,
+	GraphEdge,
+	GraphNode,
+	NodePreviewKind,
+	OutlineEntry,
+	ViewSettings,
+	VicinityGraph,
+} from "../engine";
+import { nodePreviewKind } from "../engine";
 import { VaultPathFacts } from "../shared/VaultPathFacts";
 import { OUTLINE_RENDER_LIMIT } from "./constants";
-import type { NodePreviewKind } from "./nodePreviewChoice";
-import { nodePreviewKind } from "./nodePreviewChoice";
 import type { AttachmentIconGroup } from "./attachmentIconStrip";
 import { attachmentIconStrip } from "./attachmentIconStrip";
 import { deriveFolderGroups } from "./folderGrouping";
@@ -49,8 +57,6 @@ export type FlowNodeData = {
 	 * still styles as `main` but must offer "unpin".
 	 */
 	readonly isPinned: boolean;
-	readonly sizePx: number;
-	readonly sizeScore: number;
 	/**
 	 * Whether a persisted per-node size override shaped this node's box — the
 	 * fact the context menu's "Reset size" entry switches on.
@@ -376,8 +382,6 @@ function toFlowNodeData(node: GraphNode, mainPinned: boolean, view: ViewSettings
 		tier: tierOf(node),
 		// A non-MAIN central IS a pin by definition; MAIN's pinned-ness comes from the caller.
 		isPinned: node.isMain ? mainPinned : node.isCentral,
-		sizePx: node.sizePx,
-		sizeScore: node.sizeScore,
 		hasSizeOverride: nodeSizeOverridePx(node) !== undefined,
 		folder: node.folder,
 		outline,

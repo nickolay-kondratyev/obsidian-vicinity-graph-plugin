@@ -1,4 +1,4 @@
-import type { NodePreviewPreference } from "../engine";
+import type { NodePreviewPreference } from "./types";
 
 /**
  * Which preview region a note node renders. At most ONE — the outline and the
@@ -21,6 +21,11 @@ export interface NodePreviewInput {
 /**
  * THE one place the outline-vs-image precedence lives. The adapter reports facts
  * and pre-decides nothing, so a node offering both regions is resolved here.
+ *
+ * Engine-owned (moved from the view) because TWO consumers must agree on it:
+ * the view mapping (which region renders) and the content-fit `NodeSizer`
+ * (how tall the node must be for that region). A view-local copy would let the
+ * sizer reserve space for a region the node never shows.
  */
 export function nodePreviewKind({
 	preference,

@@ -13,9 +13,11 @@ import { ObsidianHarness } from "./obsidianHarness";
  * and are deliberately self-contained, so they cannot shift the node counts the
  * other e2e suites assert on.
  *
- * Every assertion targets the MAIN node: centrals bypass sizing composition and
- * are always maxPx (160px), which is the only DETERMINISTIC way to be above the
- * 104px threshold that reveals the outline at all.
+ * Every assertion targets the MAIN node: the fixture's eleven depth-2 headings
+ * size it to maxPx (160px) under content-fit sizing, comfortably above the 104px
+ * threshold that reveals the outline at all. (Centrals no longer bypass sizing —
+ * their prominence FLOOR alone would not clear that threshold, so the fixture's
+ * outline is what keeps this deterministic.)
  *
  * Serial by design: ONE Obsidian instance for the whole file. E1–E5 share the
  * MAIN node `beforeAll` established; every case that needs a DIFFERENT one

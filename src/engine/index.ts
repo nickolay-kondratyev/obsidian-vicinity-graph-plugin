@@ -54,8 +54,6 @@ export type {
 	OutlineEntry,
 	VicinityGraph,
 	PinnedNodeDescriptor,
-	SizeMetricId,
-	SizingMetricSetting,
 	SizingSettings,
 	VaultPath,
 	ViewSettings,
@@ -97,7 +95,9 @@ export type { GraphBuildRequest } from "./VicinityEngine";
 export { VicinityTraversal } from "./VicinityTraversal";
 export type { TraversalResult, TraversalRoot, TraversedNode } from "./VicinityTraversal";
 export { NodeSizer } from "./NodeSizer";
-export type { NodeSize } from "./NodeSizer";
+export type { NodeSizingView } from "./NodeSizer";
+export { nodePreviewKind } from "./nodePreviewKind";
+export type { NodePreviewInput, NodePreviewKind } from "./nodePreviewKind";
 export { GraphTruncator } from "./GraphTruncator";
 export type { TruncationInput, TruncationResult } from "./GraphTruncator";
 export { EdgeAssembly } from "./EdgeAssembly";
@@ -108,25 +108,35 @@ export { NodePriorityChain } from "./NodePriorityChain";
 export type { PriorityRankable } from "./NodePriorityChain";
 
 export {
-	CENTRAL_SIZE_SCORE,
+	ATTACHMENT_ROW_REVEAL_CONTENT_BOX_PX,
+	ATTACHMENT_ROW_VISIBLE_MIN_NODE_PX,
+	CENTRAL_NODE_VERTICAL_CHROME_PX,
+	CENTRAL_PROMINENCE_FLOOR_SCORE,
+	ESTIMATED_THUMBNAIL_SLOT_PX,
 	EngineDefaults,
 	FORCE_LAYOUT_RANGES,
 	MAX_OUTLINE_DEPTH,
 	MAX_STEPPER_DEPTH,
 	MIN_OUTLINE_DEPTH,
 	MIN_STEPPER_DEPTH,
-	NEUTRAL_NORMALIZED_VALUE,
+	NODE_MAX_LABEL_WIDTH_PX,
 	NODE_OVERRIDE_HARD_MAX_PX,
 	NODE_OVERRIDE_HARD_MIN_PX,
+	NODE_TITLE_CHAR_WIDTH_PX,
 	NODE_VERTICAL_CHROME_PX,
+	PREVIEW_SLOT_REVEAL_CONTENT_BOX_PX,
+	PREVIEW_VISIBLE_MIN_NODE_PX,
 	SIZING_RANGES,
-	THUMBNAIL_VISIBLE_MIN_NODE_PX,
+	THUMBNAIL_PREVIEW_TITLE_LINE_CLAMP,
 	clampForceLayoutSettings,
 	clampNodeCap,
 	clampNodeSizeOverridePx,
 	clampOutlineMaxDepth,
 	clampSizingNumber,
 	clampSizingSettings,
+	estimateNodeLabelWidthPx,
+	nodeVerticalChromePx,
+	revealMinNodePx,
 } from "./constants";
 export type { SettingsRange, SizingRangeField } from "./constants";
 

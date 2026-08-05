@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EngineDefaults } from "./constants";
+import { CENTRAL_PROMINENCE_FLOOR_SCORE, EngineDefaults } from "./constants";
 import { FakeLinkProvider } from "./FakeLinkProvider";
 import type { LinkProvider, OutgoingReference } from "./LinkProvider";
 import { OutgoingReferences } from "./LinkProvider";
@@ -94,7 +94,7 @@ describe("VicinityEngine global node exclusion", () => {
 describe("VicinityEngine per-node override echo", () => {
 	// The engine ECHOES a request override onto its output node (like docids) —
 	// application is downstream: pixels in the view mapping, content in
-	// `nodePreviewChoice`.
+	// `nodePreviewKind`.
 
 	it("WHEN the request carries an override for a neighbor THEN that node echoes it", () => {
 		const override = { sizePx: { widthPx: 320, heightPx: 180 } };
@@ -119,11 +119,13 @@ describe("VicinityEngine per-node override echo", () => {
 		expect(graph.nodes.some((candidate) => candidate.override !== undefined)).toBe(false);
 	});
 
-	it("WHEN an override is echoed THEN sizeScore is untouched (Q4: pixels only, truncation ranking unaffected)", () => {
+	it("WHEN an override is echoed THEN sizePx is untouched (Q4: pixels only, the computed fit is unaffected)", () => {
+		// The override wins at the VIEW's `nodeDimensionsPx`; the engine's own
+		// content-fit `sizePx` must not be rewritten by it.
 		const withOverride = build({
 			nodeOverrides: new Map([[asVaultPath("notes/alpha.md"), { sizePx: { widthPx: 900, heightPx: 900 } }]]),
 		});
-		expect(node(withOverride, "notes/alpha.md")?.sizeScore).toBe(node(build(), "notes/alpha.md")?.sizeScore);
+		expect(node(withOverride, "notes/alpha.md")?.sizePx).toBe(node(build(), "notes/alpha.md")?.sizePx);
 	});
 });
 
@@ -157,9 +159,14 @@ describe("VicinityEngine end-to-end build", () => {
 		expect(`${pin?.docid}|${pin?.isCentral}|${pin?.isMain}`).toBe("docid_pin_e|true|false");
 	});
 
-	it("WHEN building THEN the disconnected pinned root still gets central (max) sizing", () => {
+	it("WHEN building THEN the disconnected pinned root still gets the central prominence floor", () => {
+		// EXPLICIT ALIGNMENT (nid_cx5zoz7ptucg9nxalibv0mbjb_e): centrals no longer
+		// get maxPx outright — they get a modest named floor over the content fit
+		// (Q2), so an empty pinned note stops dominating the canvas.
 		const graph = build();
-		expect(node(graph, "island/pin.md")?.sizePx).toBe(graph.viewSettings.sizing.maxPx);
+		const { minPx, maxPx } = graph.viewSettings.sizing;
+		const floorPx = Math.round(minPx + CENTRAL_PROMINENCE_FLOOR_SCORE * (maxPx - minPx));
+		expect(node(graph, "island/pin.md")?.sizePx).toBe(floorPx);
 	});
 
 	it("WHEN building THEN depth tags record the second hop from MAIN", () => {

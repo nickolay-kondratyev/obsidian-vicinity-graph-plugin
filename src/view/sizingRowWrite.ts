@@ -21,9 +21,11 @@ import type { SettingsInteraction, SizingNumberField } from "./settingsWritePlan
  */
 
 /**
- * The rows the `maxPx >= minPx` rule is ABOUT. `depthDecayK` is deliberately absent:
- * the pair it would be judged against is not its own, so an inverted stored pair
- * would refuse every keystroke in an unrelated row, with a message naming other fields.
+ * The rows the `maxPx >= minPx` rule is ABOUT — today every sizing row, but still
+ * declared rather than assumed: a future sizing number that is not a party to the
+ * pair must not be refused for an inverted pair two rows away, with a message
+ * naming fields it does not own. (`depthDecayK` was exactly that case until the
+ * metric dials were removed.)
  */
 const CROSS_FIELD_ROWS: ReadonlySet<SizingNumberField> = new Set<SizingNumberField>(["minPx", "maxPx"]);
 

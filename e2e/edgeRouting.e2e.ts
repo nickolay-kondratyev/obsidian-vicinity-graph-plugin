@@ -235,7 +235,14 @@ function readFacingAttachment(): Promise<FacingAttachmentReport> {
 					}
 					terminalCount += 1;
 					if (!facesFrom(side, counterpartRect)) {
-						wrongSideTerminals.push(`${counterpartId}:${side}@${Math.round(x)},${Math.round(y)}`);
+						// Centre + box rect in the message: a wrong-side report is only
+						// actionable when it shows WHERE the counterpart actually sat.
+						const cx = Math.round(counterpartRect.left + counterpartRect.width / 2);
+						const cy = Math.round(counterpartRect.top + counterpartRect.height / 2);
+						const boxDesc = `${Math.round(box.left)},${Math.round(box.top)},${Math.round(box.right)},${Math.round(box.bottom)}`;
+						wrongSideTerminals.push(
+							`${counterpartId}:${side}@${Math.round(x)},${Math.round(y)} centre@${cx},${cy} box@${boxDesc}`,
+						);
 					}
 				}
 			}

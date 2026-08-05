@@ -25,11 +25,6 @@ function nodeCapPolicy(): NumberRowCommitPolicy {
 	return new NumberRowCommitPolicy(SettingsRowAccessors.nodeCap(), NO_CROSS_FIELD_RULE);
 }
 
-/** One metric's weight row. Every metric shares the same bounds, so any one of them stands for all. */
-function weightPolicy(): NumberRowCommitPolicy {
-	return new NumberRowCommitPolicy(SettingsRowAccessors.metricWeight("backlink-count"), NO_CROSS_FIELD_RULE);
-}
-
 /**
  * What the field under test was SEEDED with, wherever the test is not ABOUT the seed:
  * a number no suite below commits, so equality with it is never met by accident.
@@ -48,9 +43,6 @@ function refusedMaxPxCommit(): NumberRowCommit {
 
 /** A number the sizing range cannot hold — what the write path will cap on the way in. */
 const ABOVE_MAX_PX = SIZING_RANGES.maxPx.max + 100;
-
-/** The same, for a metric weight. */
-const ABOVE_MAX_WEIGHT = SIZING_RANGES.metricWeight.max + 50;
 
 describe("NumberRowCommitPolicy: a value the row accepts", () => {
 	it("WHEN an in-range number is committed THEN it is the value to write", () => {
@@ -90,11 +82,6 @@ describe("NumberRowCommitPolicy: a value the row refuses", () => {
 		expect(sizingPolicy("minPx", { maxPx: 80 }).commit("200", SEEDED_WITH).value).toBeNull();
 	});
 
-	it("WHEN the STORED pair is already inverted THEN the depth-decay row still commits its own value", () => {
-		// The cross-field rule is about the two bounds only; an untouched row must not
-		// become uneditable because of a problem two rows away.
-		expect(sizingPolicy("depthDecayK", { minPx: 300, maxPx: 50 }).commit("0.5", SEEDED_WITH).value).toBe(0.5);
-	});
 });
 
 describe("NumberRowCommitPolicy: text that is not a value yet", () => {
@@ -208,33 +195,10 @@ describe("NumberRowCommitPolicy: a row whose accessor is its whole policy", () =
 	});
 });
 
-describe("NumberRowCommitPolicy: a size metric's weight", () => {
-	// The weight sits beside its metric's toggle rather than in a `NumberRow`, so its
-	// wiring to this policy is what `typedNumberFields.test.ts` scans for. These
-	// assertions are the behaviour that wiring buys.
-
-	it("WHEN a weight in range is committed THEN it is the value to write", () => {
-		expect(weightPolicy().commit("2.5", SEEDED_WITH).value).toBe(2.5);
-	});
-
-	it("WHEN a weight ABOVE the range is committed THEN it is still written (the write path caps it)", () => {
-		// The snap this row used to do mid-word: typing `150` into a 0..100 weight clamped
-		// the box after the third key. Nothing is refused — the field is reseeded instead.
-		expect(weightPolicy().commit(String(ABOVE_MAX_WEIGHT), SEEDED_WITH).value).toBe(ABOVE_MAX_WEIGHT);
-	});
-
-	it("WHEN a weight above the range is committed THEN the row says nothing (the reseeded field states it)", () => {
-		expect(weightPolicy().commit(String(ABOVE_MAX_WEIGHT), SEEDED_WITH).refusal).toBeUndefined();
-	});
-
-	it("WHEN the weight is committed BLANK THEN nothing is written", () => {
-		expect(weightPolicy().commit("", SEEDED_WITH).value).toBeNull();
-	});
-
-	it("WHEN the weight is committed blank THEN the field is reseeded from the store", () => {
-		expect(weightPolicy().commit("", SEEDED_WITH).reseedsFromStore).toBe(true);
-	});
-});
+// EXPLICIT ALIGNMENT (nid_cx5zoz7ptucg9nxalibv0mbjb_e): the metric-weight commit
+// suite (and the depth-decay "still commits under an inverted pair" case) left
+// with the removed metric dials; the sizing-number suites above keep the
+// accept/cap/blank/reseed behaviour covered.
 
 describe("NumberFieldRefusal: how long a refusal stays under the field", () => {
 	/** What the store held for the refused row at the moment it was judged. */

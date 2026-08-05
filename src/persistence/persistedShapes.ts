@@ -4,7 +4,6 @@ import type {
 	NodeExclusionSettings,
 	NodeOverride,
 	NodeSizeOverridePx,
-	SizeMetricId,
 	SizingSettings,
 	ViewSettings,
 } from "../engine";
@@ -200,23 +199,22 @@ function parseViewFields(raw: unknown): Partial<ViewSettings> {
  * {@link SizingSettings}: recognized fields survive, unusable ones are repaired
  * from the engine default. Non-object → the whole default.
  * The result is CLAMPED into the input ranges, so a hand-edited `data.json`
- * cannot reach a size or a decay `k` the inputs make unreachable (a FINITE
- * `depthDecayK: -1` passes the non-finite gate below — the clamp is what stops
- * it dividing `1 / (1 + k * depth)` by zero).
+ * cannot reach a size the inputs make unreachable.
+ *
+ * The metric-dial keys older files may still carry (`metrics`, `depthDecayK`)
+ * were removed WITHOUT a PERSISTED_SHAPE_VERSION bump — deliberately, despite
+ * the "bump on a removed key" rule: that rule exists for a stale value that
+ * would otherwise be READ BACK WRONG, and these keys are simply never read
+ * again (this parser is field-allowlisting, so they fall away on the next
+ * write). A bump would discard every stored setting AND both docid-keyed maps
+ * to delete two keys that cost nothing to ignore.
  */
 function parseSizing(raw: unknown): SizingSettings | undefined {
 	if (!isRecord(raw)) {
 		return undefined;
 	}
 	const defaults = EngineDefaults.viewSettings().sizing;
-	const rawMetrics = isRecord(raw["metrics"]) ? raw["metrics"] : {};
-	const metrics = {} as Record<SizeMetricId, SizingSettings["metrics"][SizeMetricId]>;
-	for (const metricId of Object.keys(defaults.metrics) as SizeMetricId[]) {
-		metrics[metricId] = parseMetricSetting(rawMetrics[metricId]) ?? defaults.metrics[metricId];
-	}
 	return clampSizingSettings({
-		metrics,
-		depthDecayK: numberOrUndefined(raw["depthDecayK"]) ?? defaults.depthDecayK,
 		minPx: numberOrUndefined(raw["minPx"]) ?? defaults.minPx,
 		maxPx: numberOrUndefined(raw["maxPx"]) ?? defaults.maxPx,
 	});
@@ -248,14 +246,6 @@ function parseForceLayout(raw: unknown): ForceLayoutSettings | undefined {
 		// instead DISCARD every stored setting (see the version doc above).
 		edgeRoutingClearancePx: numberOrUndefined(raw["edgeRoutingClearancePx"]) ?? defaults.edgeRoutingClearancePx,
 	});
-}
-
-function parseMetricSetting(raw: unknown): SizingSettings["metrics"][SizeMetricId] | undefined {
-	if (!isRecord(raw) || typeof raw["enabled"] !== "boolean") {
-		return undefined;
-	}
-	const weight = numberOrUndefined(raw["weight"]);
-	return weight === undefined ? undefined : { enabled: raw["enabled"], weight };
 }
 
 /**

@@ -141,7 +141,7 @@ export const SETTINGS_RESET_SCOPES: Readonly<Record<SettingsResetScope, Settings
 	"node-sizing": {
 		label: "Restore node sizing defaults",
 		description:
-			"Resets every sizing metric and weight, the minimum and maximum node size, and the depth decay k.",
+			"Resets the minimum and maximum node size.",
 		plan: (ctx) => planSectionReset("node-sizing", ctx),
 	},
 	"node-contents": {

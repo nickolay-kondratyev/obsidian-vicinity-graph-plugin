@@ -278,10 +278,13 @@
  *
  * These are CONTENT-box heights: a size container query measures the container's
  * content box, which is `sizePx` MINUS this node's border + padding. The engine
- * mirrors 104 as `THUMBNAIL_VISIBLE_MIN_NODE_PX` (src/engine/constants.ts) —
- * 104 PLUS that chrome — to floor the height of image-bearing nodes so their
- * thumbnail is reachable at all. `thumbnailDensityThreshold.test.ts` re-derives
- * the chrome from the rules above and fails if either half drifts. */
+ * mirrors BOTH rungs (src/engine/constants.ts) — each PLUS that chrome
+ * (`revealMinNodePx`) — and floors any node carrying those regions there, so the
+ * content-fit sizer never reserves space for a region these queries then refuse
+ * to paint. The chrome is PER TIER: the `[data-tier]` centrals below draw a 2px
+ * ring, so at the same height their content box is 2px shorter and their floor
+ * is 2px higher. `nodeDensityThresholds.test.ts` re-derives both chromes from
+ * the rules above and fails if any half drifts. */
 @container (min-height: 72px) {
 	.vicinity-graph-node__attachments {
 		display: flex;
@@ -307,7 +310,7 @@
 	.vicinity-graph-outline {
 		display: block;
 	}
-	/* The outline and the thumbnail share ONE preview slot (nodePreviewChoice.ts
+	/* The outline and the thumbnail share ONE preview slot (nodePreviewKind.ts
 	 * picks which), so when the outline renders the content zone must not also claim
 	 * the node's spare height — the outline is what should absorb it.
 	 * INSIDE this block on purpose: below the threshold the outline is
@@ -797,37 +800,9 @@
 
 /* ===== sizing section ================================================= */
 
-.vicinity-graph-sizing__metrics {
-	display: flex;
-	flex-direction: column;
-	gap: var(--size-4-1);
-}
-.vicinity-graph-sizing__metric {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: var(--size-4-2);
-}
-.vicinity-graph-sizing__toggle {
-	display: inline-flex;
-	align-items: center;
-	gap: var(--size-4-1);
-	min-width: 0;
-	color: var(--text-normal);
-	cursor: pointer;
-}
-.vicinity-graph-sizing__toggle span {
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
-.vicinity-graph-sizing__weight {
-	width: 3.5em;
-	flex-shrink: 0;
-}
-.vicinity-graph-sizing__weight:disabled {
-	opacity: 0.55;
-}
+/* The metric rows' rules (`__metrics`, `__metric`, `__toggle`, `__weight`) went
+ * with the metric dials themselves (node-sizing rethink, 2026-08-03): nothing
+ * emits those classes any more. */
 
 .vicinity-graph-sizing__ranges {
 	display: flex;

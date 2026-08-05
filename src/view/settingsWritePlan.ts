@@ -3,7 +3,6 @@ import type {
 	ForceLayoutSettings,
 	NodeExclusionSettings,
 	NodePreviewPreference,
-	SizeMetricId,
 	SizingSettings,
 	ViewSettings,
 } from "../engine";
@@ -28,7 +27,7 @@ import { clampSizingSettings } from "../engine";
  */
 
 /** The sizing rows that carry a single number. Guarded: a new one is a compile error here. */
-export type SizingNumberField = Exclude<keyof SizingSettings, "metrics">;
+export type SizingNumberField = keyof SizingSettings;
 
 /** A user interaction on a control surface (panel stepper / sizing / settings tab). */
 export type SettingsInteraction =
@@ -42,12 +41,8 @@ export type SettingsInteraction =
 	| { readonly kind: "global-node-preview"; readonly value: NodePreviewPreference }
 	/** Whether links between two visible nodes are drawn even when the walk never took them. */
 	| { readonly kind: "global-show-cross-links"; readonly showCrossLinks: boolean }
-	/** One sizing number (min/max px, depth decay). */
+	/** One sizing clamp (min/max node px). */
 	| { readonly kind: "global-sizing-number"; readonly field: SizingNumberField; readonly value: number }
-	/** Whether one size metric contributes at all. */
-	| { readonly kind: "global-sizing-metric-enabled"; readonly metric: SizeMetricId; readonly enabled: boolean }
-	/** One size metric's contribution weight. */
-	| { readonly kind: "global-sizing-metric-weight"; readonly metric: SizeMetricId; readonly weight: number }
 	/** One force-layout tuning value. */
 	| {
 			readonly kind: "global-force-layout-field";
@@ -92,10 +87,6 @@ export function planSettingsWrite(interaction: SettingsInteraction, ctx: Setting
 			return { kind: "global-view", view: { ...ctx.globalView, showCrossLinks: interaction.showCrossLinks } };
 		case "global-sizing-number":
 			return sizingCommand(ctx, { ...ctx.globalView.sizing, [interaction.field]: interaction.value });
-		case "global-sizing-metric-enabled":
-			return sizingCommand(ctx, withMetric(ctx.globalView.sizing, interaction.metric, { enabled: interaction.enabled }));
-		case "global-sizing-metric-weight":
-			return sizingCommand(ctx, withMetric(ctx.globalView.sizing, interaction.metric, { weight: interaction.weight }));
 		case "global-force-layout-field":
 			return {
 				kind: "global-view",
@@ -116,13 +107,4 @@ export function planSettingsWrite(interaction: SettingsInteraction, ctx: Setting
  */
 function sizingCommand(ctx: SettingsWriteContext, sizing: SizingSettings): SettingsCommand {
 	return { kind: "global-view", view: { ...ctx.globalView, sizing: clampSizingSettings(sizing) } };
-}
-
-/** One metric's patch merged over the CURRENT metric table — sibling metrics carried over. */
-function withMetric(
-	sizing: SizingSettings,
-	metric: SizeMetricId,
-	patch: { readonly enabled?: boolean; readonly weight?: number },
-): SizingSettings {
-	return { ...sizing, metrics: { ...sizing.metrics, [metric]: { ...sizing.metrics[metric], ...patch } } };
 }

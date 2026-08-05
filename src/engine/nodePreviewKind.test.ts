@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { NodePreviewPreference } from "../engine";
-import type { NodePreviewInput } from "./nodePreviewChoice";
-import { nodePreviewKind } from "./nodePreviewChoice";
+import type { NodePreviewPreference } from "./types";
+import type { NodePreviewInput } from "./nodePreviewKind";
+import { nodePreviewKind } from "./nodePreviewKind";
 
 /**
  * The outline-vs-image precedence rule as a truth table: every preference × every

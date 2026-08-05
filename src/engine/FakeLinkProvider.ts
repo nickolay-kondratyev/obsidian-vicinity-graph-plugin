@@ -27,7 +27,7 @@ export interface FakeFileSpec {
 	/**
 	 * The adapter's document-position FACT: a resolved image sits above the note's
 	 * first heading. Default `false` — the fixture supplies the fact, and the
-	 * outline-vs-image DECISION stays in the view (`nodePreviewChoice`).
+	 * outline-vs-image DECISION belongs to `nodePreviewKind`.
 	 */
 	readonly imagePrecedesOutline?: boolean;
 }

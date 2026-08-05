@@ -39,7 +39,7 @@ const SECOND_CANVAS_PATH = "test2.canvas";
 const SECOND_CANVAS_NODE_COUNT = 3;
 const GAMMA_TRIMMED_TITLE = "Gamma (solo, trimmed title)";
 
-/** Truncation scenario: cap 2 keeps exactly crowd/c1+c2 (largest depth-1 neighbors). */
+/** Truncation scenario: cap 2 keeps exactly crowd/c1+c2 (the path-order tiebreak — see CROWD_FIXTURES). */
 const TRUNCATION_NODE_CAP = 2;
 const CROWD_HIDDEN_COUNT = 2; // c3, c4
 const ORPHAN_BREAKDOWN = [
@@ -359,7 +359,7 @@ test("a low node cap surfaces the group badge and the corner overlay", async () 
 	await harness.openFile(ALPHA_PATH);
 	await harness.openFile(NOTE1_PATH);
 
-	// Visible: note1 (central, cap-exempt) + crowd/c1 + crowd/c2 (largest depth-1 neighbors).
+	// Visible: note1 (central, cap-exempt) + crowd/c1 + crowd/c2 (path-order tiebreak).
 	await expect(page.locator(".vicinity-graph-node")).toHaveCount(3);
 
 	const crowdBadge = folderGroup("crowd").locator(".vicinity-graph-group__badge");

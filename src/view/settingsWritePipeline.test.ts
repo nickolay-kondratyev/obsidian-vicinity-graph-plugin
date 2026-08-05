@@ -52,14 +52,6 @@ describe("SettingsWritePipeline fresh-read merge base", () => {
 		expect(store.globalView().sizing.maxPx).toBe(300);
 	});
 
-	it("WHEN a metric weight is edited right after a metric was disabled THEN the disable is not reverted", async () => {
-		const { store, pipeline } = pipelineUnderTest();
-		const disable = pipeline.apply({ kind: "global-sizing-metric-enabled", metric: "backlink-count", enabled: false });
-		const weight = pipeline.apply({ kind: "global-sizing-metric-weight", metric: "outlink-count", weight: 3 });
-		await Promise.all([disable, weight]);
-		expect(store.globalView().sizing.metrics["backlink-count"].enabled).toBe(false);
-	});
-
 	it("WHEN two force-layout sliders are dragged before either write is awaited THEN both values land", async () => {
 		const { store, pipeline } = pipelineUnderTest();
 		const linkGapPx = EngineDefaults.forceLayoutSettings().linkGapPx + 5;

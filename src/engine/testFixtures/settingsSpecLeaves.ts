@@ -104,12 +104,10 @@ export const EVERY_SETTINGS_SPEC_LEAF: readonly SettingsSpecLeaf[] = leavesUnder
 /**
  * Spec leaves that deliberately have NO settings field of their own, so nothing can
  * parse, persist or reset them — they exist to declare bounds for a SIBLING shape.
- *
- * `metricWeight` bounds EVERY metric's `weight` (the per-metric leaf carries only its
- * default), which is the same exception `SettingsSpec.ts` documents on its own
- * top-level-keys-only completeness guard.
+ * Currently empty (the last such leaf, the metric weight, left with the metric
+ * dials); kept so a future bounds-only leaf has its declared escape hatch.
  */
-export const BOUNDS_ONLY_SPEC_LEAF_IDS: readonly string[] = ["globalView.sizing.metricWeight"];
+export const BOUNDS_ONLY_SPEC_LEAF_IDS: readonly string[] = [];
 
 /** The leaves that ARE settings fields — the surface parse / round-trip / reset must cover. */
 export const SETTINGS_FIELD_LEAVES: readonly SettingsSpecLeaf[] = EVERY_SETTINGS_SPEC_LEAF.filter(
@@ -183,10 +181,6 @@ const ALTERNATE_EXCLUSION_PATTERNS: readonly string[] = ["^Attachments/"];
 /** The ONE string-valued settings leaf {@link alternateLeafValue} knows a domain for. */
 const NODE_PREVIEW_LEAF_ID = "globalView.nodePreviewPreference";
 
-function isMetricSetting(value: unknown): value is { readonly enabled: boolean; readonly weight: number } {
-	return isRecord(value) && typeof value["enabled"] === "boolean" && typeof value["weight"] === "number";
-}
-
 /**
  * A value for `leaf` that is VALID but NOT its default — what a round-trip, a
  * fall-back-to-default and a restore-defaults test all need in order to prove anything.
@@ -228,9 +222,6 @@ export function alternateLeafValue(leaf: SettingsSpecLeaf): unknown {
 	}
 	if (Array.isArray(declared)) {
 		return [...ALTERNATE_EXCLUSION_PATTERNS];
-	}
-	if (isMetricSetting(declared)) {
-		return { enabled: !declared.enabled, weight: SETTINGS_SPEC.globalView.sizing.metricWeight.min };
 	}
 	return undefined;
 }

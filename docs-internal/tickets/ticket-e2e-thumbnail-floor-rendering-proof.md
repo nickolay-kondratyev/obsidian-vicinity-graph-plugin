@@ -4,9 +4,9 @@
 
 ## Why
 
-The image-height floor (`THUMBNAIL_VISIBLE_MIN_NODE_PX`) is arithmetic over CSS
+The preview-reveal floor (`PREVIEW_VISIBLE_MIN_NODE_PX`) is arithmetic over CSS
 knowledge: reveal threshold + node chrome, with the title budgeted to 2 lines so
-the 56px slot is not clipped. `src/view/thumbnailDensityThreshold.test.ts` guards
+the 56px slot is not clipped. `src/view/nodeDensityThresholds.test.ts` guards
 the arithmetic, but **no test in `npm test` runs a layout engine**, so a future
 CSS change that quietly re-breaks the reveal (the exact failure this feature was
 shipped to fix — the first attempt was off by the node's 18px chrome and rendered

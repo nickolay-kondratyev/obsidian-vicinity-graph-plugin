@@ -67,11 +67,8 @@ describe("settings row model", () => {
 		expect(named).toHaveLength(SETTINGS_GROUPS["depth-defaults"].blocks.length);
 	});
 
-	it("WHEN the sizing metric rows are read THEN there is one per shipped metric", () => {
-		expect(settingsRowsFor("sizing-metric")).toHaveLength(
-			Object.keys(EngineDefaults.viewSettings().sizing.metrics).length,
-		);
-	});
+	// EXPLICIT ALIGNMENT (nid_cx5zoz7ptucg9nxalibv0mbjb_e): the "one sizing-metric
+	// row per shipped metric" test left with the removed metric dials.
 });
 
 /**
@@ -131,10 +128,6 @@ describe("settings row accessible names", () => {
 
 	it("WHEN a row has one control THEN its accessible name is the row label verbatim", () => {
 		expect(SettingsRowNames.sole(row)).toBe("Links out");
-	});
-
-	it("WHEN a row has several controls THEN each is named by the label plus its role", () => {
-		expect(SettingsRowNames.role({ ...row, label: "Backlinks" }, "weight")).toBe("Backlinks weight");
 	});
 
 	it("WHEN a control acts on the row's value THEN it is named verb-first, over the lower-cased label", () => {

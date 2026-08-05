@@ -1,4 +1,4 @@
-import type { DepthSettings, ForceLayoutSettings, SizeMetricId } from "../engine";
+import type { DepthSettings, ForceLayoutSettings } from "../engine";
 import {
 	FORCE_LAYOUT_ADVANCED_FIELDS,
 	FORCE_LAYOUT_FIELD_META,
@@ -7,7 +7,6 @@ import {
 import type { SettingsSection } from "./settingsSectionFields";
 import { SETTINGS_SECTIONS } from "./settingsSectionFields";
 import type { SettingsWriteContext, SizingNumberField } from "./settingsWritePlan";
-import { SIZING_METRICS } from "./sizingMetrics";
 
 /**
  * THE SETTINGS ROW CONTRACT — what a settings row IS, declared once for both
@@ -26,7 +25,7 @@ import { SIZING_METRICS } from "./sizingMetrics";
  * clear", per-family key columns consumed by three separately-typed
  * `restoreFields<T>` calls. This one answers "which ROWS does this section
  * PRESENT" — a different question with a different cardinality (one `sizing` field
- * is eight rows). Both are keyed by the same {@link SettingsSection}, so a section
+ * is two rows). Both are keyed by the same {@link SettingsSection}, so a section
  * cannot exist in one and not the other.
  *
  * WHAT THIS MODULE DOES NOT OWN: where a row's VALUE lives, which bounds it moves
@@ -37,7 +36,7 @@ import { SIZING_METRICS } from "./sizingMetrics";
  *
  * NO `{family, key}` row union is invented here either: every
  * {@link SettingsRowControl} arm carries its OWN typed field reference
- * (`keyof DepthSettings`, `SizeMetricId`, `SizingNumberField`, `keyof ForceLayoutSettings`),
+ * (`keyof DepthSettings`, `SizingNumberField`, `keyof ForceLayoutSettings`),
  * which is what lets each presenter build the row's `SettingsInteraction` without
  * re-widening anything.
  *
@@ -59,7 +58,6 @@ import { SIZING_METRICS } from "./sizingMetrics";
  */
 export const SETTINGS_ROW_CONTROL_KINDS = [
 	"depth",
-	"sizing-metric",
 	"sizing-number",
 	"node-preview",
 	"show-cross-links",
@@ -76,9 +74,7 @@ export type SettingsRowControlKind = (typeof SETTINGS_ROW_CONTROL_KINDS)[number]
 export type SettingsRowControl =
 	/** One global depth budget, named by the field it moves (tab: slider, panel: stepper). */
 	| { readonly kind: "depth"; readonly field: keyof DepthSettings }
-	/** One sizing metric: its enable flag AND the weight that flag governs. */
-	| { readonly kind: "sizing-metric"; readonly metric: SizeMetricId }
-	/** One sizing number (min/max px, depth decay k). */
+	/** One sizing clamp (min/max node px). */
 	| { readonly kind: "sizing-number"; readonly field: SizingNumberField }
 	/** The preview preference pill (options come from `NODE_PREVIEW_OPTION_META`). */
 	| { readonly kind: "node-preview" }
@@ -128,8 +124,7 @@ export function unhandledRowControl(control: never): never {
 /**
  * A row whose control is INERT until another setting turns it on. Declared rather
  * than branched at the call site: both surfaces render such a row ALWAYS and merely
- * disable it (owner decision 2026-07-29, ticket `nid_qp56jugz8en8wkgjirwcb269p_e`),
- * which is the pattern the sizing weight input already uses — so there is no
+ * disable it (owner decision 2026-07-29, ticket `nid_qp56jugz8en8wkgjirwcb269p_e`) — so there is no
  * hide/reveal repaint that can go stale and nothing drops out of settings search.
  */
 export type SettingsRowDependency = "exclusion-enabled";
@@ -285,11 +280,6 @@ const NODE_PREVIEW_ROW_DESCRIPTION =
 	"Which preview a node shows when it has both a heading outline and an image. " +
 	"A note that only has one of the two always shows that one.";
 
-/** The five metric rows, DERIVED from the shared metric table so labels/order live once. */
-const SIZING_METRIC_ROWS: readonly SettingsRow[] = SIZING_METRICS.map(
-	({ id, label }): SettingsRow => ({ label, control: { kind: "sizing-metric", metric: id } }),
-);
-
 /** One force-layout slider row: label and description come from the shared meta table. */
 function forceLayoutRow(field: keyof ForceLayoutSettings): SettingsRow {
 	const { label, description } = FORCE_LAYOUT_FIELD_META[field];
@@ -385,20 +375,21 @@ export const SETTINGS_GROUPS: Readonly<Record<SettingsSection, SettingsGroup>> =
 			},
 		],
 	},
+	// The metric rows (five toggles + weights, depth decay k) were REMOVED with
+	// the metric dials (node-sizing rethink, 2026-08-03): a node now sizes to
+	// fit what it shows, and these two clamps bound that fit.
 	"node-sizing": {
 		heading: "Node sizing",
 		description:
-			"Enable metrics and weight their contribution to each node's size. Sizes are normalised across the graph.",
+			"Each node sizes itself to fit what it shows — its title, outline or image — between these two bounds.",
 		panelClass: "vicinity-graph-sizing",
 		panelBodyClass: "nowheel",
 		blocks: [
-			{ panelClass: "vicinity-graph-sizing__metrics", rows: SIZING_METRIC_ROWS },
 			{
 				panelClass: "vicinity-graph-sizing__ranges",
 				rows: [
 					{ label: "Minimum node size (px)", control: { kind: "sizing-number", field: "minPx" } },
 					{ label: "Maximum node size (px)", control: { kind: "sizing-number", field: "maxPx" } },
-					{ label: "Depth decay k", control: { kind: "sizing-number", field: "depthDecayK" } },
 				],
 			},
 		],
@@ -490,7 +481,7 @@ export const EVERY_SETTINGS_BLOCK: readonly SettingsRowBlock[] = SETTINGS_SECTIO
 /** Every declared row, in render order across every section — what a parity test iterates. */
 export const EVERY_SETTINGS_ROW: readonly SettingsRow[] = EVERY_SETTINGS_BLOCK.flatMap((block) => block.rows);
 
-/** Every declared row carrying this control kind (five for `sizing-metric`, one for most). */
+/** Every declared row carrying this control kind (one for most). */
 export function settingsRowsFor(kind: SettingsRowControlKind): readonly SettingsRow[] {
 	return EVERY_SETTINGS_ROW.filter((row) => row.control.kind === kind);
 }
@@ -515,14 +506,6 @@ export class SettingsRowNames {
 	}
 
 	/**
-	 * One of SEVERAL controls on a row: the row label plus what this control does,
-	 * because the label alone would not distinguish them (e.g. `Backlinks weight`).
-	 */
-	static role(row: SettingsRow, role: SettingsRowControlRole): string {
-		return `${row.label} ${role}`;
-	}
-
-	/**
 	 * A VERB button acting on the row's value (a stepper's − / +). Verb first, so a
 	 * screen reader announces the action before the thing — and the label is
 	 * lower-cased into the sentence, e.g. `Decrease links out`.
@@ -531,9 +514,6 @@ export class SettingsRowNames {
 		return `${verb} ${row.label.toLowerCase()}`;
 	}
 }
-
-/** The roles a row's secondary controls can carry. Closed so the suffixes cannot drift. */
-export type SettingsRowControlRole = "enabled" | "weight";
 
 /** The verbs a row's action buttons can carry. */
 export type SettingsRowActionVerb = "Decrease" | "Increase";

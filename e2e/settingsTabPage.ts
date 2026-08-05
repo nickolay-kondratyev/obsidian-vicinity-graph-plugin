@@ -121,8 +121,8 @@ export class SettingsTabPage {
 	 * Matched against the card's `.setting-item-heading` (what `setHeading()` renders —
 	 * a styled div, NOT an aria heading, so `getByRole("heading")` cannot find it),
 	 * with `exact: true`. A bare `hasText` over the card would be a substring match
-	 * over the whole subtree — `card("Depth")` then also matches the cards holding
-	 * the "Depth decay k" and "Outline depth" rows.
+	 * over the whole subtree — `card("Depth")` then also matches the card holding
+	 * the "Outline depth" row.
 	 */
 	card(headingText: string): Locator {
 		return this.page.locator(".vicinity-graph-settings-section", {

@@ -51,8 +51,6 @@ function forceLayoutEnforcer(field: keyof ForceLayoutSettings): BoundsEnforcer {
 const BOUNDS_ENFORCERS: Readonly<Record<string, BoundsEnforcer>> = {
 	"globalView.nodeCap": clampNodeCap,
 	"globalView.outlineMaxDepth": clampOutlineMaxDepth,
-	"globalView.sizing.metricWeight": sizingEnforcer("metricWeight"),
-	"globalView.sizing.depthDecayK": sizingEnforcer("depthDecayK"),
 	"globalView.sizing.minPx": sizingEnforcer("minPx"),
 	"globalView.sizing.maxPx": sizingEnforcer("maxPx"),
 	"globalView.forceLayout.centerPullStrength": forceLayoutEnforcer("centerPullStrength"),

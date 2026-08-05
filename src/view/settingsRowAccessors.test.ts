@@ -174,11 +174,6 @@ function probesFor(control: SettingsRowControl): readonly AccessorProbe[] {
 	switch (control.kind) {
 		case "depth":
 			return [numberProbe(control.field, SettingsRowAccessors.depth(control.field))];
-		case "sizing-metric":
-			return [
-				valueProbe(`${control.metric} enabled`, SettingsRowAccessors.metricEnabled(control.metric), (on) => !on),
-				typedNumberProbe(`${control.metric} weight`, SettingsRowAccessors.metricWeight(control.metric)),
-			];
 		case "sizing-number":
 			return [typedNumberProbe(control.field, SettingsRowAccessors.sizingNumber(control.field))];
 		case "node-preview":
@@ -306,7 +301,7 @@ describe("settings row accessors cover every declared row", () => {
 		expect(EVERY_SETTINGS_ROW.filter((row) => probesFor(row.control).length === 0)).toEqual([]);
 	});
 
-	it("WHEN the rows are walked THEN there are more accessors than rows (the metric rows carry two)", () => {
-		expect(EVERY_PROBE.length).toBeGreaterThan(EVERY_SETTINGS_ROW.length);
+	it("WHEN the rows are walked THEN every row carried exactly one accessor (no multi-control rows remain)", () => {
+		expect(EVERY_PROBE.length).toBe(EVERY_SETTINGS_ROW.length);
 	});
 });

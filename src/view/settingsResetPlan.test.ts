@@ -21,14 +21,8 @@ const TUNED_VIEW: ViewSettings = {
 	nodePreviewPreference: "image",
 	sizing: {
 		...EngineDefaults.sizingSettings(),
-		metrics: {
-			...EngineDefaults.sizingSettings().metrics,
-			"own-file-size": { enabled: false, weight: 9 },
-			"backlink-count": { enabled: true, weight: 3 },
-		},
 		minPx: 11,
 		maxPx: 999,
-		depthDecayK: 7,
 	},
 	forceLayout: { ...EngineDefaults.forceLayoutSettings(), repelStrength: 900, linkGapPx: 200 },
 };

@@ -49,12 +49,13 @@ the type field-by-field is the parse layer, guarded by `ParsedViewFields`.)
    ROOT of the family: everything downstream derives from the spec. Now guarded
    in **both** directions (missing entry, and orphan entry for a deleted field).
 5. `src/engine/constants.ts` — `SizingRangeField` was a hand-typed union, so a
-   new bounded sizing field silently got no range and no clamp. Now
-   `Exclude<keyof SizingSpec, "metrics">`.
-6. `src/view/sizingMetrics.ts` — `SIZING_METRICS` is an order-bearing array, so
-   a missing metric vanished from both sizing surfaces without a compile error.
-   Now `as const satisfies` + a completeness guard. (The unit test stays: it
-   catches a metric listed TWICE, which a type guard cannot see.)
+   new bounded sizing field silently got no range and no clamp. Now derived from
+   the spec (`keyof SizingSpec`).
+6. ~~`src/view/sizingMetrics.ts` — `SIZING_METRICS` order-bearing array~~ — the
+   module and its completeness guard went with the sizing METRIC dials
+   themselves (content-fit sizing, `nid_cx5zoz7ptucg9nxalibv0mbjb_e`,
+   2026-08-03). Kept here because the SHAPE of the hole is the lesson: an
+   order-bearing array parallel to a union is silent when one side changes.
 
 Plus one live structural defect: the in-graph panel's force-layout "Restore
 defaults" built its own defaults object instead of using the shared reset plan —

@@ -45,7 +45,7 @@ Two failure modes the owner called out:
   components) — hover/selected resize handles on a custom node, with
   `onResizeEnd` for commit-on-release. No new dependency.
 - **Per-node content choice is one pure function** —
-  `src/view/nodePreviewChoice.ts` over `FlowNodeData.preview`; an override
+  `src/engine/nodePreviewKind.ts` over `FlowNodeData.preview`; an override
   layer slots in front of the global preference without touching `NoteNode`.
 - **Precedent for "pixels only, never score"**: the thumbnail floor moves
   `sizePx` but never `sizeScore`, because the score also ranks truncation
@@ -102,10 +102,11 @@ Two failure modes the owner called out:
   backlink-count, outlink-count, depth-decay). Size reflects the usefulness
   of the content the node shows — a title-only node sizes to fit just its
   title. `minPx`/`maxPx` stay, as clamps.
-  - Open implementation point (owned by the engine ticket): with the metric
-    score gone, `NodePriorityChain`'s "higher size score" truncation tiebreak
-    either keeps a HIDDEN content-derived score for ranking only, or drops
-    that link and lets distance-to-MAIN take over.
+  - ~~Open implementation point~~ **SETTLED** (engine ticket, 2026-08-04):
+    the "higher size score" truncation tiebreak was DROPPED — no hidden
+    content score; distance-to-MAIN takes over as the depth tiebreak
+    (`NodePriorityChain`). A hidden score would have made truncation depend on
+    invisible content statistics, the exact smell Q1 removed from sizing.
   - The preference-independence rule ("`sizePx` must not depend on the
     resolved preview kind") is superseded by design: size now legitimately
     follows displayed content, so a content-preference flip may relayout.
@@ -127,7 +128,10 @@ Two failure modes the owner called out:
    recorded above and in its notes.
 2. `nid_cx5zoz7ptucg9nxalibv0mbjb_e` **engine: content-aware sizing** —
    remove metric dials + central bypass, size-to-fit with prominence floor,
-   settle the truncation-tiebreak point.
+   settle the truncation-tiebreak point. **Done** (2026-08-04): content fit
+   estimated engine-side in `NodeSizer.contentFitPx` (deliberate deviation
+   from the "view mapping" note here — `GraphNode.sizePx` stays the one
+   number downstream reads); tiebreak dropped (see §5); no version bump.
 3. `nid_lwionnvohw9k58jw7a2dybht2_e` **persistence: docid-keyed per-node
    overrides in data.json** — shape, parser (no version bump — see §4),
    `PersistenceServices` write path reusing the pin eligibility seam.

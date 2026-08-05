@@ -66,15 +66,8 @@ const SHIPPED_SETTINGS_DEFAULTS: Readonly<Record<string, unknown>> = {
 	// OFF ships the walked-only graph; ON is the opt-in denser induced subgraph.
 	"globalView.showCrossLinks": false,
 
-	// `own-file-size` is the ONLY metric shipped ON; the other four are opt-in. Every
-	// metric ships at the equal weight `globalView.sizing.metricWeight` declares.
-	"globalView.sizing.metrics.own-file-size": { enabled: true, weight: 1 },
-	"globalView.sizing.metrics.total-linker-size": { enabled: false, weight: 1 },
-	"globalView.sizing.metrics.backlink-count": { enabled: false, weight: 1 },
-	"globalView.sizing.metrics.outlink-count": { enabled: false, weight: 1 },
-	"globalView.sizing.metrics.depth-decay": { enabled: false, weight: 1 },
-	"globalView.sizing.metricWeight": 1, // Equal weight until a per-metric slider ships.
-	"globalView.sizing.depthDecayK": 1,
+	// Content-fit sizing (nid_cx5zoz7ptucg9nxalibv0mbjb_e): the metric dials are
+	// GONE — a node fits what it shows, and these two clamps are the only dials.
 	"globalView.sizing.minPx": 40, // The node-diameter floor on first run; `maxPx` is its ceiling.
 	"globalView.sizing.maxPx": 160,
 
