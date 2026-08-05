@@ -432,7 +432,7 @@
  * further (`inset + size` = 24px), so growing it here is only safe while the rung
  * itself is above the content box at which THAT reach covers the node's centre —
  * 32px, comfortably under 72. The withholding query cannot catch a breach here (it
- * only ever fires at 16px), so `nodeDensityThresholds.test.ts` recomputes this half
+ * only ever fires at 18px), so `nodeDensityThresholds.test.ts` recomputes this half
  * from these declarations too. Prefixed to match the base rule's (0,2,0). */
 @container (min-height: 72px) {
 	.vicinity-graph-node .vicinity-graph-pin-button {
