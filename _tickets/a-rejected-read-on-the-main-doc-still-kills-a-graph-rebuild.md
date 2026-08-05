@@ -1,17 +1,17 @@
 ---
 id: nid_iqna8b4j5339pjiga7kgwdnh7_e
-title: "a rejected read on the MAIN doc still kills a graph rebuild"
-status: open
+title: a rejected read on the MAIN doc still kills a graph rebuild
+status: in_progress
 deps: []
 links: [nid_gbyqsuplz8b7pv0u5k34sdz1q_e]
-created_iso: 2026-08-04T01:58:22Z
-status_updated_iso: 2026-08-04T01:58:22Z
+created_iso: '2026-08-04T01:58:22Z'
+status_updated_iso: '2026-08-05T02:38:13Z'
 type: bug
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
 tags: [persistence, view]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-2
 ---
-
 `VicinityGraphBuilder.build` (src/adapters/VicinityGraphBuilder.ts) resolves the MAIN
 doc's identity with `await this.docIdPort.getDocId(mainFile)` right after
 `vault.getFileByPath(mainPath)` returned non-null. obsidian-id-lib resolves an id by
@@ -41,4 +41,3 @@ HUMAN QUESTION: IF we failed to build can we AUTO try again? OR is it not going 
 ## Acceptance Criteria
 
 A rebuild whose main-doc identity read REJECTS does not produce an unhandled rejection, and the view follows one DECLARED failure policy (covered by a controller test over a fake GraphSourcePort that rejects).
-
