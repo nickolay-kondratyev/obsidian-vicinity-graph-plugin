@@ -1,16 +1,16 @@
 ---
 id: nid_rcs31edfd3uadudhlxo1gdjue_e
-title: "resize affordance UI"
-status: open
+title: resize affordance UI
+status: in_progress
 deps: []
 links: []
-created_iso: 2026-08-05T16:43:41Z
-status_updated_iso: 2026-08-05T16:43:41Z
+created_iso: '2026-08-05T16:43:41Z'
+status_updated_iso: '2026-08-05T16:47:49Z'
 type: task
 priority: 3
 assignee: nickolaykondratyev
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-2
 ---
-
 Right now resize affordance UI looks clear what it does but it doesn't look as pretty as it can.
 The thing that throws me off right now is that when we hover over the node to resize the lines to resize go past the round borders of the nodes that at they are resizing creating an unpolished look
 
