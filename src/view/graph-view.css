@@ -347,10 +347,12 @@
  *   1. `pointer-events: none` while hidden — an opacity:0 element STILL receives
  *      pointer events, so without this the transparent button eats a click that
  *      should open the note. Re-enabled only when revealed (hover/focus).
- *   2. the compact size + 2px inset below the rung: at minPx (40px tall, and as
+ *   2. the compact size + 3px inset below the rung: at minPx (40px tall, and as
  *      narrow as ~40px for a short title) a 20px chip inset 4px reaches the
  *      node's centre point, which is exactly where a click meant to OPEN the
- *      note lands. The 14px/2px chip clears it.
+ *      note lands. The 14px/3px chip clears it. The inset is 3px and not 2px
+ *      because the drag-resize grip bands reach 4px INTO the node — see the
+ *      clearance note in the drag-to-resize section below.
  *   3. the centre-clearance rung below — the ONE height/width band where even the
  *      compact chip cannot clear that centre point. `minPx` is a dial the user can
  *      take to 1px and a drag-resize override may go as low as 24px
@@ -368,7 +370,7 @@
 	 * competing rule blocks, so the reveal query restates SIZE only — the chrome
 	 * reset below it stays declared once. */
 	--vicinity-graph-pin-chip-size: 14px;
-	--vicinity-graph-pin-chip-inset: 2px;
+	--vicinity-graph-pin-chip-inset: 3px;
 	--vicinity-graph-pin-icon-size: 10px;
 	position: absolute;
 	/* Declared, not inherited from the app: the chip's REACH into the node
@@ -399,10 +401,10 @@
 }
 /* Centre-clearance rung — the ONE band where the chip is withheld (pin/unpin is
  * still reachable there through the node's right-click menu, as it was before the
- * chip became always-on). The corner chip reaches `inset + size` = 16px into the
+ * chip became always-on). The corner chip reaches `inset + size` = 17px into the
  * node's PADDING box from the top-right; the node's centre point falls inside it
- * only when BOTH padding-box axes are under 2 x 16px — i.e. when both CONTENT-box
- * axes are at most 2 x 16px - 2 x 8px of node padding = 16px. Hence `and`, not a
+ * only when BOTH padding-box axes are under 2 x 17px — i.e. when both CONTENT-box
+ * axes are at most 2 x 17px - 2 x 8px of node padding = 18px. Hence `and`, not a
  * comma: a wide-but-short node's centre is nowhere near the chip.
  *
  * Stated as a max-* query on purpose, inverting the ladder above: this is a
@@ -410,12 +412,12 @@
  * `container-type` regression) fails OPEN — chip present — rather than deleting
  * the affordance from every node.
  *
- * `nodeDensityThresholds.test.ts` recomputes the 16px from the compact chip's own
+ * `nodeDensityThresholds.test.ts` recomputes the 18px from the compact chip's own
  * declarations and the node's padding, so re-tuning the chip cannot leave this
  * rung behind. At the shipped 40px `minPx` a node's content box is 22px, so the
  * ordinary small node keeps its chip; only a hand-shrunk `minPx` or a drag-resize
  * override reaches this band. */
-@container (max-height: 16px) and (max-width: 16px) {
+@container (max-height: 18px) and (max-width: 18px) {
 	.vicinity-graph-node .vicinity-graph-pin-button {
 		display: none;
 	}
@@ -485,8 +487,10 @@
 	 * own, so a grip can never rise above a NEIGHBOURING node. The pin button
 	 * stays clickable regardless: `.vicinity-graph-node` is a stacking context
 	 * (`container-type: size` ⇒ layout containment), so the button's z-index is
-	 * scoped inside it — and the grips clear it by design (a grip band reaches
-	 * 4px into the node, the button sits 5px in). */
+	 * scoped inside it — and the grips clear it by design: a grip band reaches
+	 * 4px into the node, while the chip's outer edge sits `border + inset` in —
+	 * 5px at the full-size rung, 4px on the compact one (which is WHY that rung
+	 * insets 3px and not 2px: at 2px the band would take a pixel of the chip). */
 	z-index: 1;
 	opacity: 0;
 	transition: opacity 0.12s ease;

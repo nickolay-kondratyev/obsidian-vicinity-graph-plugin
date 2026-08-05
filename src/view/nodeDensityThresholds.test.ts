@@ -75,6 +75,9 @@ const PIN_CHIP_BORDER_BOX = /\n\tbox-sizing: border-box;/;
 // node's centre point, i.e. on BOTH axes at once.
 const PIN_CHIP_WITHHOLD_QUERY =
 	/@container \(max-height:\s*(\d+)px\) and \(max-width:\s*(\d+)px\)\s*\{\n\t\.vicinity-graph-node \.vicinity-graph-pin-button \{\n\t\tdisplay: none;/;
+// The drag-resize grip band straddles the node's edge, so HALF of it reaches
+// inside — over whatever the node's own top-right corner holds.
+const RESIZE_BAND = /--vicinity-graph-resize-band-px:\s*(\d+)px;/;
 // The thumbnail slot's fixed height, declared as a custom property on the node root.
 // Anchored to a line start: it is the rule's FIRST declaration, so there is no
 // preceding newline inside the captured body.
@@ -174,6 +177,30 @@ function chipCentreCoveredContentBoxPx(rungDeclarations: string, subject: string
 	return 2 * reachPx - parsedNodeVerticalPaddingPx();
 }
 
+/**
+ * How far the chip's OUTER edge sits from the node's border-box edge, measured
+ * where the drag-resize grips live: `right`/`top` are offsets into the PADDING
+ * box, so the node's border is part of the distance. The ORDINARY node's 1px
+ * border is the tight case — a central's 2px ring only pushes the chip further in.
+ */
+function chipOuterEdgeInsetPx(rungDeclarations: string, subject: string): number {
+	const inset = PIN_CHIP_INSET.exec(rungDeclarations)?.[1];
+	const border = NODE_BORDER_WIDTH.exec(nodeRootDeclarations())?.[1];
+	if (inset === undefined || border === undefined) {
+		throw new Error(`cannot measure the ${subject} chip's offset from the node's border-box edge`);
+	}
+	return Number(border) + parsedLengthPx(inset, `${subject} chip inset`);
+}
+
+/** How far a drag-resize grip band reaches INSIDE the node — half the band straddles the edge. */
+function resizeBandInwardReachPx(): number {
+	const band = RESIZE_BAND.exec(stylesheet())?.[1];
+	if (band === undefined) {
+		throw new Error("graph-view.css no longer declares a --vicinity-graph-resize-band-px");
+	}
+	return Number(band) / 2;
+}
+
 /** The same for one central tier's overriding border. */
 function parsedCentralVerticalChromePx(tier: string): number {
 	const declarations = CENTRAL_TIER_RULE(tier).exec(stylesheet())?.[1];
@@ -269,6 +296,18 @@ describe("node density thresholds", () => {
 	it("WHEN the pin chip grows to full size THEN it does so only above the content box where it would cover the node's centre", () => {
 		const fullSize = soleRevealBlock(PIN_CHIP_SIZE);
 		expect(fullSize.minHeightPx).toBeGreaterThan(chipCentreCoveredContentBoxPx(fullSize.body, "full-size"));
+	});
+
+	// The chip shares the node's top-right corner with the drag-resize RIGHT-edge
+	// grip, which paints and hit-tests ABOVE the whole node (see the z-index WHY in
+	// graph-view.css). The grip band therefore eats any part of the chip it overlaps
+	// — silently, since neither element changes size or style. The compact rung's
+	// inset was 1px too small for exactly this reason once.
+	it.each([
+		{ subject: "compact", declarations: () => pinButtonDeclarations() },
+		{ subject: "full-size", declarations: () => soleRevealBlock(PIN_CHIP_SIZE).body },
+	])("WHEN the $subject pin chip is placed THEN the drag-resize grip band does not reach over it", ({ subject, declarations }) => {
+		expect(chipOuterEdgeInsetPx(declarations(), subject)).toBeGreaterThanOrEqual(resizeBandInwardReachPx());
 	});
 
 	// A central's accent ring is 2px, so at the SAME sizePx its content box is 2px

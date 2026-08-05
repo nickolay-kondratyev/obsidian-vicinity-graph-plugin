@@ -116,3 +116,35 @@ full-size inset uses, so neither rung has to be restated in px for the guard's
 benefit) and asserts the full-size rung sits above its chip's covered band. No
 behavior change — 72 > 32 today; verified the new guard bites by temporarily
 growing the full-size chip to 40px.
+
+## Follow-up (2026-08-05, third adversarial review)
+
+Two findings, both fixed.
+
+**1. The compact chip's 2px inset broke a documented clearance in a NEIGHBOURING
+feature.** The drag-to-resize RIGHT-edge grip is a band straddling the node's
+edge that reaches 4px INSIDE it, and it paints and hit-tests above the whole node
+(the z-index WHY in the drag-to-resize section). `graph-view.css` recorded that
+invariant as "a grip band reaches 4px into the node, the button sits 5px in" —
+true for the full-size chip (1px node border + 4px inset), false for the compact
+one (1px + 2px = 3px in), so the band silently took the chip's rightmost pixel
+column. Fixed by insetting the compact rung 3px, which puts its outer edge
+exactly ON the band's inner edge; the centre-clearance rung follows the chip's
+own geometry, so it moves 16px → 18px (still far under the 22px content box a
+shipped 40px `minPx` node has — nothing changes at defaults). The stale comment
+is rewritten and `nodeDensityThresholds.test.ts` now derives the invariant for
+both rungs (verified it bites by reverting the inset to 2px).
+
+**2. The e2e for the withholding rung faked its node and asserted the wrong
+thing.** It mutated React Flow's inline wrapper styles to conjure a 24px node and
+checked a computed `display`, which proves neither that the plugin ever RENDERS
+such a node nor that the affordance it protects (click-to-open) survives. Moved
+to `e2e/nodeResize.e2e.ts` — the spec that owns size overrides — where a stored
+override renders the node at a chosen box through the real rebuild, via a new
+`ObsidianHarness.saveNodeSizeOverride` (a drag's deltas are screen pixels against
+an unknown zoom, so no drag can name an exact box). Four tests: at the shipped
+`minPx` the chip is present AND a body click still opens the note; at
+`NODE_OVERRIDE_HARD_MIN_PX` the chip is withheld AND a body click still opens the
+note. The click assertions are what the whole centre-clearance apparatus exists
+for and nothing covered them before. The stale "clicking a big node needs no such
+margin" rationale in `vicinityGraph.e2e.ts` is rewritten to point here.

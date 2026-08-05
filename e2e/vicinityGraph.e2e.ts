@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
-import { NODE_OVERRIDE_HARD_MIN_PX, asFolderPath } from "../src/engine";
+import { asFolderPath } from "../src/engine";
 import { buttonChromeVsDeclared } from "./buttonChrome";
 import { hiddenOverlayText, linkCountBadgeText, orphanBreakdownTitle, plusNText } from "../src/view/badgeText";
 import { attachmentGroupLabel } from "../src/view/attachmentIcons";
@@ -151,41 +151,10 @@ test("the pin button keeps its declared chip chrome, not Obsidian's raised-butto
 	expect(chrome.actual).toEqual(chrome.declared);
 });
 
-/**
- * The centre-clearance rung (graph-view.css): below it the corner chip would sit
- * ON the node's centre point and swallow the click that opens the note. Only a
- * REAL engine can answer this — `nodeDensityThresholds.test.ts` proves the rung's
- * arithmetic against the stylesheet, but not that this Chromium PARSES a two-axis
- * `@container … and …` prelude (an unparsable one is dropped silently, leaving the
- * chip on every tiny node again).
- *
- * The node is resized through React Flow's wrapper — the box the plugin itself
- * writes on a drag-resize — because no fixture graph renders a 24px node, and 24px
- * is exactly what a `NODE_OVERRIDE_HARD_MIN_PX` override produces.
- */
-test("a node shrunk to the drag-resize floor withholds the pin chip that would cover its centre", async () => {
-	const pinDisplays = await noteNode(ALPHA_PATH).evaluate((el, sidePx) => {
-		const wrapper = el.closest(".react-flow__node") as HTMLElement;
-		const pin = el.querySelector(".vicinity-graph-pin-button") as HTMLElement;
-		// React Flow OWNS the wrapper's inline box, so put its own values back —
-		// clearing them would collapse the node until the next rebuild.
-		const laidOut = { width: wrapper.style.width, height: wrapper.style.height };
-		const pinDisplay = (): string => getComputedStyle(pin).display;
-		try {
-			const atLaidOutSize = pinDisplay();
-			wrapper.style.width = `${sidePx}px`;
-			wrapper.style.height = `${sidePx}px`;
-			return { atLaidOutSize, atDragResizeFloor: pinDisplay() };
-		} finally {
-			wrapper.style.width = laidOut.width;
-			wrapper.style.height = laidOut.height;
-		}
-	}, NODE_OVERRIDE_HARD_MIN_PX);
-
-	// `flex`, not the authored `inline-flex`: the chip is absolutely positioned, and
-	// CSS blockifies an out-of-flow box's display.
-	expect(pinDisplays).toEqual({ atLaidOutSize: "flex", atDragResizeFloor: "none" });
-});
+// The pin chip's two size rungs and the centre-clearance band that withholds it
+// are covered in e2e/nodeResize.e2e.ts, where a stored size override renders the
+// node at a chosen box through the REAL rebuild — and where the assertion is the
+// invariant itself (the node still opens on click), not a computed style.
 
 test("stepper buttons render flat inside their control pill, not as Obsidian buttons", async () => {
 	// Computed style resolves regardless of the toolbar disclosure's open state.
@@ -320,13 +289,11 @@ for (const theme of ["dark", "light"] as const) {
 //
 // These exercise a REAL pointer click (the native open gesture is what's under
 // test). They run on the ALPHA graph, NOT note1's: alpha has only 3 nodes, so
-// each renders large enough that a click lands on the node BODY. In note1's
-// 11-node fit the nodes shrink toward minPx, where the top-right pin chip — which
-// Playwright's own hover reveals on the way to the click — can cover the node's
-// centre point and swallow the open-click (it stops propagation). The chip goes
-// COMPACT below the density rung precisely to keep that overlap off the centre
-// (ticket nid_tclb98q9hxhmcuonamvr4ig1f_e); clicking a big node needs no such
-// margin at all.
+// each renders at a comfortable size and the fitted zoom stays near 1, which
+// keeps the click target physically large in a headless window. That the open
+// click ALSO survives on the smallest nodes — where the hover-revealed pin chip
+// shares the box with the node body — is asserted in e2e/nodeResize.e2e.ts
+// (ticket nid_tclb98q9hxhmcuonamvr4ig1f_e), not here.
 
 const activeFilePath = () =>
 	page.evaluate(() => (window as unknown as { app: any }).app.workspace.getActiveFile()?.path);
