@@ -1,17 +1,17 @@
 ---
 id: nid_ct22qotgtw4rezbdn5m0diyb3_e
-title: "view: releasing a drag-resize refits the viewport (relayout bumps layoutVersion)"
-status: open
+title: 'view: releasing a drag-resize refits the viewport (relayout bumps layoutVersion)'
+status: in_progress
 deps: []
 links: [nid_sj9qg27cmear9lgdlz5umwra5_e, nid_9ep12hkmk4zjv2p28emmrhieq_e]
-created_iso: 2026-08-04T18:17:18Z
-status_updated_iso: 2026-08-04T18:17:18Z
+created_iso: '2026-08-04T18:17:18Z'
+status_updated_iso: '2026-08-05T01:21:57Z'
 type: bug
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
 tags: [ui, sizing]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 ---
-
 A committed size override relayouts so the resized node no longer overlaps its neighbours or its folder-group box (ticket nid_sj9qg27cmear9lgdlz5umwra5_e).
 
 UPDATE 2026-08-04 (ticket nid_9ep12hkmk4zjv2p28emmrhieq_e): the relayout is no longer unconditional — `src/view/layoutFit.ts` now asks whether the new box still FITS where the layout put it, and a fitting resize reuses the layout, so it neither re-arranges the graph nor refits the viewport. This SHRINKS the problem below to the colliding case (where a re-arrangement is happening anyway and a refit is far more defensible), but does not decide it.
