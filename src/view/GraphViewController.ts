@@ -42,7 +42,20 @@ import type {
  * (ticket nid_y081nezeucka9l0x3umebi5zo_e); `empty` would answer "there is no
  * graph for this file", which is a different, wrong statement.
  */
-export type FlowStatus = "empty" | "building" | "ready";
+export type FlowStatus = "empty" | "building" | "ready" | "failed";
+
+/**
+ * Attempts one rebuild gets before the view declares it FAILED: the try plus ONE
+ * automatic retry. The failures this pipeline sees are races, not verdicts — the
+ * main doc's identity read (`vault.cachedRead`) rejects when the file went away
+ * between the index lookup and the read (ticket
+ * nid_iqna8b4j5339pjiga7kgwdnh7_e) — and a second pass re-reads live Obsidian
+ * state, so it either succeeds or reaches a definite answer (a deleted main no
+ * longer resolves, so `build()` returns null → the empty state). Retried
+ * immediately: there is no timer to cancel, and {@link rebuildToken} still makes
+ * a superseded attempt drop out.
+ */
+const REBUILD_ATTEMPTS = 2;
 
 export interface FlowSnapshot {
 	readonly status: FlowStatus;
@@ -80,6 +93,16 @@ const EMPTY_SNAPSHOT: FlowSnapshot = {
 
 /** First build in flight: same void as {@link EMPTY_SNAPSHOT}, told honestly. */
 const BUILDING_SNAPSHOT: FlowSnapshot = { ...EMPTY_SNAPSHOT, status: "building" };
+
+/**
+ * Every attempt of a rebuild failed ({@link REBUILD_ATTEMPTS}). Published over
+ * whatever was on screen — INCLUDING a rendered graph. That graph is no longer an
+ * answer to the question the pane is being asked (it predates the vault state the
+ * failed pass tried to read), and leaving it up would silently pass it off as
+ * current; the view says so and offers a retry instead
+ * ({@link GraphViewController.retryRebuild}).
+ */
+const FAILED_SNAPSHOT: FlowSnapshot = { ...EMPTY_SNAPSHOT, status: "failed" };
 
 /** Shared empty route map = every edge stays straight (routing off or failed). */
 const EMPTY_ROUTES: EdgeRouteMap = new Map();
@@ -189,6 +212,17 @@ export class GraphViewController {
 		void this.runRebuild();
 	}
 
+	/**
+	 * The user asked, from the failed state, to build the graph again — the manual
+	 * way back into the pipeline after {@link REBUILD_ATTEMPTS} were spent. Same
+	 * pass as any other rebuild (it re-reads live Obsidian state), so it can just as
+	 * well settle empty or ready. No-op when no MAIN is set.
+	 */
+	retryRebuild(): void {
+		this.clearDebounce();
+		void this.runRebuild();
+	}
+
 	/** Vault content changed while the view is open — debounce the resolve burst. */
 	handleMetadataResolved(): void {
 		this.clearDebounce();
@@ -278,20 +312,16 @@ export class GraphViewController {
 			this.reset();
 			return;
 		}
-		if (this.firstBuildPending) {
+		// The placeholder stands in for a screen that shows NO graph: the first paint
+		// (which pays the docid warm-up) and a retry off the failed state — there,
+		// leaving the failure copy up through the pass makes the button look dead, and
+		// there is no graph to flicker. Every other rebuild reads a warm map, returns
+		// fast, and keeps whatever is on screen.
+		if (this.firstBuildPending || this.snapshot.status === "failed") {
 			this.setSnapshot(BUILDING_SNAPSHOT);
 		}
 		try {
-			await this.buildAndPublish(token, mainPath);
-		} catch (error: unknown) {
-			// A rebuild that throws must not leave the placeholder standing: "Building…"
-			// is a promise this pipeline can no longer keep, and nothing re-enters it
-			// until the next vault/settings event. A RENDERED graph is kept — it is
-			// still the last true answer we had — so only the placeholder gives way.
-			console.error("vicinity-graph: rebuild failed", error);
-			if (!this.isStale(token) && this.snapshot.status === "building") {
-				this.reset();
-			}
+			await this.attemptBuildAndPublish(token, mainPath);
 		} finally {
 			// A superseded build settles nothing — its successor is still the first
 			// paint, and the warm-up it awaits has not been paid for yet.
@@ -299,6 +329,35 @@ export class GraphViewController {
 				this.firstBuildPending = false;
 			}
 		}
+	}
+
+	/**
+	 * Runs {@link buildAndPublish} until it succeeds or {@link REBUILD_ATTEMPTS} are
+	 * spent, then declares the rebuild FAILED. THE view-level failure policy — one
+	 * rule for every cause (a rejected main-doc identity read, a layout pass that
+	 * threw), because the pane can say nothing useful about which one it was:
+	 * report it to the console, publish {@link FAILED_SNAPSHOT}, and let the user
+	 * re-enter the pipeline through {@link retryRebuild}. Nothing else re-enters it
+	 * until the next vault/settings event, so a swallowed failure would leave the
+	 * pane frozen on a screen it no longer stands behind.
+	 *
+	 * A SUPERSEDED attempt is neither retried nor reported as a failure: its
+	 * successor owns the screen.
+	 */
+	private async attemptBuildAndPublish(token: number, mainPath: string): Promise<void> {
+		for (let attempt = 1; attempt <= REBUILD_ATTEMPTS; attempt += 1) {
+			try {
+				await this.buildAndPublish(token, mainPath);
+				return;
+			} catch (error: unknown) {
+				console.error("vicinity-graph: rebuild failed", { attempt, attempts: REBUILD_ATTEMPTS }, error);
+				if (this.isStale(token)) {
+					return;
+				}
+			}
+		}
+		this.clearRenderedGraph();
+		this.setSnapshot(FAILED_SNAPSHOT);
 	}
 
 	/** One rebuild pass: engine build → structural diff → elk → routing → publish. */
@@ -487,11 +546,22 @@ export class GraphViewController {
 	}
 
 	private reset(): void {
+		this.clearRenderedGraph();
+		this.setSnapshot(EMPTY_SNAPSHOT);
+	}
+
+	/**
+	 * Drops the rendered graph and every piece of state derived from it, so the
+	 * next successful build diffs against nothing and lays out fresh. Shared by the
+	 * empty and failed outcomes — both take the graph off screen, and a baseline
+	 * kept behind a screen that shows no graph would let the structural diff reuse
+	 * positions for a layout the user never saw.
+	 */
+	private clearRenderedGraph(): void {
 		this.previousGraph = null;
 		this.positions = new Map();
 		this.groupDimensions = new Map();
 		this.controls = EMPTY_CONTROLS;
-		this.setSnapshot(EMPTY_SNAPSHOT);
 	}
 
 	private setSnapshot(snapshot: FlowSnapshot): void {
