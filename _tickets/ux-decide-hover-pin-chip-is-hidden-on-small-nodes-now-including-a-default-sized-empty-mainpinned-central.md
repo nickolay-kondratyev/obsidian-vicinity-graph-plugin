@@ -1,12 +1,13 @@
 ---
+closed_iso: 2026-08-05T02:23:14Z
 id: nid_tclb98q9hxhmcuonamvr4ig1f_e
 title: "UX decide: hover pin chip is hidden on small nodes \u2014 now including a\
   \ default-sized empty MAIN/pinned central"
-status: in_progress
+status: closed
 deps: []
 links: []
 created_iso: '2026-08-04T23:36:52Z'
-status_updated_iso: '2026-08-05T02:06:32Z'
+status_updated_iso: 2026-08-05T02:23:14Z
 type: bug
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
@@ -31,3 +32,48 @@ Owner decision recorded; if a change is made, the hover pin affordance on a defa
 **2026-08-05T00:55:15Z**
 
 Partly moved by the reveal-floor fix (nid_1mq3t7706vw2kj2kv7ljqlw6l_e): a node carrying an outline or a thumbnail is now floored at 122px and one carrying attachments at 90px, so BOTH clear the chip's 90px threshold. Still open for the cases named above: a title-only note (minPx, 40px) and an EMPTY MAIN/pinned central (prominence floor, 82px) have no hover pin affordance.
+
+## Resolution (2026-08-05) — BOTH options implemented, as marked above
+
+**1. The chip is now revealed on hover at EVERY node height** (`src/view/graph-view.css`).
+The `@container (min-height: 72px)` `display` gate is gone; the base rule is
+`display: inline-flex` with the pre-existing `opacity: 0` + `pointer-events: none`
+guard (unchanged — an invisible chip must not eat the node's open-click). Below the
+rung the chip only goes COMPACT: `14px` chip / `10px` icon / `2px` inset, driven by
+three custom properties (`--vicinity-graph-pin-chip-{size,inset}`,
+`--vicinity-graph-pin-icon-size`) that the 72px query re-declares as `20px` / `13px` /
+`--size-4-1`. WHY compact rather than one size: at minPx a node can be ~40x40, and a
+20px chip inset 4px reaches the node's CENTRE point — exactly where a click meant to
+open the note lands. The custom-property split also keeps the chrome reset (which
+must out-specify Obsidian's `button:not(.clickable-icon)`) declared once.
+
+**2. `CENTRAL_PROMINENCE_FLOOR_SCORE` 0.35 -> 0.44** (`src/engine/constants.ts`), so the
+node people pin/unpin most gets the FULL-SIZE chip. 0.42 (the figure guessed in the
+ticket) is 2px short: a central's 2px accent ring costs it content box, so it needs
+92px border-box, not 90. 0.44 -> 93px / 73px content. Deliberately still a FRACTION of
+the user's `minPx..maxPx` ramp, so it can never exceed `maxPx`; at dials with no room
+for the full-size chip the chip simply stays compact — it is revealed either way.
+
+New constant `PIN_CHIP_FULL_SIZE_CONTENT_BOX_PX` (aliases the attachment rung — one
+ladder, not two) names what the tuning is against.
+
+### Coverage
+- `src/engine/NodeSizer.test.ts` — an empty central's floor clears
+  `revealMinNodePx(PIN_CHIP_FULL_SIZE_CONTENT_BOX_PX, true)` (the 0.44 tuning, executable).
+- `src/view/nodeDensityThresholds.test.ts` — two new guards: the chip's base rule is
+  `display: inline-flex` (never height-gated again), and the sole container query that
+  resizes it sits on the rung the engine tunes against.
+- e2e: both padded pin fixtures are BARE again — `rt_x.md` (`e2e/controlsRestart.e2e.ts`)
+  is a minPx node and `sc_hub.md` (`e2e/pinnedCentralScenario.e2e.ts`) is an EMPTY MAIN
+  central, so each spec's existing hover-and-click IS the affordance proof. Each also
+  asserts its precondition (content box below / at-or-above the rung) so re-padding the
+  fixture cannot silently retire the coverage. `sc_x.md` keeps its headings — it doubles
+  as the pinned-central depth fixture.
+- Stale comment in `e2e/vicinityGraph.e2e.ts` (why the click tests use the big-node
+  vault, and the "tracked follow-up" pointer at this ticket) rewritten.
+- `docs-internal/plan/high-level-plan.md` updated (prominence floor + a new node-render
+  bullet for the always-on chip).
+
+`npm test` (1611), `npm run check` and the FULL `npm run test:e2e` (135 passed, 1 skipped)
+all green. Visually verified with screenshots of a hovered minPx node and a hovered empty
+MAIN central (`.out/`, not source-controlled).

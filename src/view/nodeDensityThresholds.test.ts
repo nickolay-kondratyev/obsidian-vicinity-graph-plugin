@@ -7,6 +7,7 @@ import {
 	CENTRAL_NODE_VERTICAL_CHROME_PX,
 	ESTIMATED_THUMBNAIL_SLOT_PX,
 	NODE_VERTICAL_CHROME_PX,
+	PIN_CHIP_FULL_SIZE_CONTENT_BOX_PX,
 	PREVIEW_VISIBLE_MIN_NODE_PX,
 	THUMBNAIL_PREVIEW_TITLE_LINE_CLAMP,
 } from "../engine";
@@ -61,6 +62,9 @@ const THUMBNAIL_PREVIEW_TITLE_CLAMP =
 const CENTRAL_TIER_RULE = (tier: string): RegExp =>
 	new RegExp(`\\n\\.vicinity-graph-node\\[data-tier="${tier}"\\] \\{([\\s\\S]*?)\\n\\}`);
 const CENTRAL_TIERS = ["main", "pinned-central"] as const;
+// The pin chip's OWN rule block, and the chip-size property the ladder re-declares.
+const PIN_BUTTON_RULE = /\n\.vicinity-graph-node \.vicinity-graph-pin-button \{\n([\s\S]*?)\n\}/;
+const PIN_CHIP_SIZE = /--vicinity-graph-pin-chip-size:\s*(\d+)px/;
 // The thumbnail slot's fixed height, declared as a custom property on the node root.
 // Anchored to a line start: it is the rule's FIRST declaration, so there is no
 // preceding newline inside the captured body.
@@ -162,6 +166,21 @@ describe("node density thresholds", () => {
 	it("WHEN the thumbnail slot declares its fixed height THEN the engine's estimate of that region matches", () => {
 		const slot = THUMBNAIL_SLOT_HEIGHT.exec(nodeRootDeclarations())?.[1];
 		expect(Number(slot)).toBe(ESTIMATED_THUMBNAIL_SLOT_PX);
+	});
+
+	// The pin chip is NOT part of the ladder's reveal set (ticket
+	// nid_tclb98q9hxhmcuonamvr4ig1f_e, owner-decided): it is hover-revealed at every
+	// node height, because content-fit sizing made the small node the common case and
+	// the right-click menu was the only pin affordance left there. The rung merely
+	// GROWS it — and `CENTRAL_PROMINENCE_FLOOR_SCORE` is tuned against that rung, so a
+	// stylesheet that moved it would silently leave centrals on the compact chip.
+	it("WHEN the pin chip is styled THEN it is displayed at every node height, not gated on the density ladder", () => {
+		const declarations = PIN_BUTTON_RULE.exec(stylesheet())?.[1];
+		expect(declarations).toMatch(/\n\tdisplay: inline-flex;/);
+	});
+
+	it("WHEN the stylesheet grows the pin chip to full size THEN it does so at the rung the engine tunes the central floor against", () => {
+		expect(soleRevealMinHeightPx(PIN_CHIP_SIZE)).toBe(PIN_CHIP_FULL_SIZE_CONTENT_BOX_PX);
 	});
 
 	// A central's accent ring is 2px, so at the SAME sizePx its content box is 2px

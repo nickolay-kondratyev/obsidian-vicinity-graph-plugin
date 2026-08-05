@@ -335,14 +335,22 @@
  * focused) so an idle graph stays uncluttered (CLARIFICATION Q3). A round chip
  * in the node's top-right corner; `nodrag nopan` keeps its click off the canvas.
  *
- * Two guards keep this 20px chip from swallowing the node's open-click on small
- * nodes (a dense fit-view shrinks nodes toward the 40px minimum):
+ * EVERY node carries the chip, at every height (ticket
+ * `nid_tclb98q9hxhmcuonamvr4ig1f_e`, owner-decided): content-fit sizing made the
+ * small node the COMMON case — a title-only note sits at ~minPx — and hiding the
+ * affordance there left the right-click menu as the only way to pin the notes
+ * people pin most. Below the density rung the chip only gets SMALLER (the custom
+ * properties below), it never disappears.
+ *
+ * Two guards keep it from swallowing the node's open-click on small nodes (a
+ * dense fit-view shrinks nodes toward the 40px minimum):
  *   1. `pointer-events: none` while hidden — an opacity:0 element STILL receives
  *      pointer events, so without this the transparent button eats a click that
  *      should open the note. Re-enabled only when revealed (hover/focus).
- *   2. `display: none` below the 72px density threshold (same as the attachment
- *      strip): tiny nodes carry no pin affordance at all — pin/unpin is still
- *      reachable there via the right-click menu (NoteNode onContextMenu).
+ *   2. the compact size + 2px inset below the rung: at minPx (40px tall, and as
+ *      narrow as ~40px for a short title) a 20px chip inset 4px reaches the
+ *      node's centre point, which is exactly where a click meant to OPEN the
+ *      note lands. The 14px/2px chip clears it.
  *
  * The `.vicinity-graph-node` prefix is LOAD-BEARING (same trap as the attachment
  * chip above): without it, Obsidian's `button:not(.clickable-icon)` (0,1,1)
@@ -350,15 +358,21 @@
  * pin-chrome assertion in e2e/vicinityGraph.e2e.ts.
  */
 .vicinity-graph-node .vicinity-graph-pin-button {
+	/* Compact rung (see the size-up query below). Custom properties, not two
+	 * competing rule blocks, so the reveal query restates SIZE only — the chrome
+	 * reset below it stays declared once. */
+	--vicinity-graph-pin-chip-size: 14px;
+	--vicinity-graph-pin-chip-inset: 2px;
+	--vicinity-graph-pin-icon-size: 10px;
 	position: absolute;
-	top: var(--size-4-1);
-	right: var(--size-4-1);
+	top: var(--vicinity-graph-pin-chip-inset);
+	right: var(--vicinity-graph-pin-chip-inset);
 	z-index: 1;
-	display: none;
+	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	width: 20px;
-	height: 20px;
+	width: var(--vicinity-graph-pin-chip-size);
+	height: var(--vicinity-graph-pin-chip-size);
 	padding: 0;
 	color: var(--text-muted);
 	background: var(--background-primary);
@@ -372,12 +386,17 @@
 		opacity 0.12s ease,
 		color 0.12s ease;
 }
-/* Node tall enough to host the chip without blanketing its body. */
+/* Node tall enough to host the FULL-SIZE chip without blanketing its body — the
+ * lower rung of the density ladder above, reused: a node that can seat a chip row
+ * can seat a chip. The engine floors every CENTRAL here so the node people pin
+ * and unpin most gets the full-size target (`CENTRAL_PROMINENCE_FLOOR_SCORE` in
+ * src/engine/constants.ts); `nodeDensityThresholds.test.ts` guards both halves.
+ * Prefixed to match the base rule's (0,2,0). */
 @container (min-height: 72px) {
-	/* Prefixed to match the base rule's (0,2,0): a lower-specificity reveal here
-	 * would lose to the base `display: none` and the button would never show. */
 	.vicinity-graph-node .vicinity-graph-pin-button {
-		display: inline-flex;
+		--vicinity-graph-pin-chip-size: 20px;
+		--vicinity-graph-pin-chip-inset: var(--size-4-1);
+		--vicinity-graph-pin-icon-size: 13px;
 	}
 }
 .vicinity-graph-node:hover .vicinity-graph-pin-button,
@@ -393,10 +412,11 @@
 	outline: none;
 	box-shadow: 0 0 0 2px var(--interactive-accent);
 }
+/* Inherits the chip's icon size (the property is set on the button above). */
 .vicinity-graph-pin-button__icon svg {
 	display: block;
-	width: 13px;
-	height: 13px;
+	width: var(--vicinity-graph-pin-icon-size, 13px);
+	height: var(--vicinity-graph-pin-icon-size, 13px);
 }
 
 /* ===== drag-to-resize controls ==========================================

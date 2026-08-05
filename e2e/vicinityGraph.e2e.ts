@@ -285,11 +285,12 @@ for (const theme of ["dark", "light"] as const) {
 // These exercise a REAL pointer click (the native open gesture is what's under
 // test). They run on the ALPHA graph, NOT note1's: alpha has only 3 nodes, so
 // each renders large enough that a click lands on the node BODY. In note1's
-// 11-node fit every node shrinks to ~20px — smaller than the hover-reveal pin
-// button (a 20px top-right chip that is pointer-interactive even while
-// invisible), so a center click hits the pin (which stops propagation) instead
-// of opening the note. Clicking a big node sidesteps that overlap.
-// (The tiny-node pin overlap itself is tracked as a follow-up UX ticket.)
+// 11-node fit the nodes shrink toward minPx, where the top-right pin chip — which
+// Playwright's own hover reveals on the way to the click — can cover the node's
+// centre point and swallow the open-click (it stops propagation). The chip goes
+// COMPACT below the density rung precisely to keep that overlap off the centre
+// (ticket nid_tclb98q9hxhmcuonamvr4ig1f_e); clicking a big node needs no such
+// margin at all.
 
 const activeFilePath = () =>
 	page.evaluate(() => (window as unknown as { app: any }).app.workspace.getActiveFile()?.path);

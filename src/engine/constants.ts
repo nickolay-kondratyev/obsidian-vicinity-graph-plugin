@@ -71,11 +71,24 @@ export const MAX_STEPPER_DEPTH = SETTINGS_SPEC.globalDepths.linkDepthOut.max;
  * A modest prominence floor, NOT a bypass (node-sizing rethink Q2, decided
  * 2026-08-03): an empty central no longer renders at maxPx — centrality stays
  * visible via the floor plus border styling, while a content-rich central still
- * grows past it like any other node. 0.35 is tuned visually: noticeably above
- * the minPx a bare title-only neighbor clamps to, well under the midpoint, so a
- * central never dominates by role alone.
+ * grows past it like any other node. Tuned to sit noticeably above the minPx a
+ * bare title-only neighbor clamps to, and well under the midpoint, so a central
+ * never dominates by role alone.
+ *
+ * 0.44 rather than the originally tuned 0.35 (ticket
+ * `nid_tclb98q9hxhmcuonamvr4ig1f_e`, owner-decided): at the shipped 40/160 dials
+ * 0.35 floors an EMPTY central at 82px, whose 64px content box misses the
+ * hover pin chip's full-size rung — so the node people pin and unpin most got
+ * the compact chip. 0.44 → 93px, a 73px content box, just over
+ * {@link PIN_CHIP_FULL_SIZE_CONTENT_BOX_PX} (0.42 is 2px short: a central's
+ * accent ring costs it 2px of content box). Asserted in `NodeSizer.test.ts`; the
+ * rung ↔ stylesheet half is guarded by `nodeDensityThresholds.test.ts`.
+ *
+ * A FRACTION of the user's ramp, deliberately, so it can never exceed `maxPx`:
+ * at dials that leave no room for the full-size chip the chip simply stays
+ * compact — it is revealed at every height either way.
  */
-export const CENTRAL_PROMINENCE_FLOOR_SCORE = 0.35;
+export const CENTRAL_PROMINENCE_FLOOR_SCORE = 0.44;
 
 /**
  * Content-box height (px) at which `src/view/graph-view.css` reveals the node's
@@ -95,6 +108,19 @@ export const PREVIEW_SLOT_REVEAL_CONTENT_BOX_PX = 104;
  * content-box caveat as {@link PREVIEW_SLOT_REVEAL_CONTENT_BOX_PX}.
  */
 export const ATTACHMENT_ROW_REVEAL_CONTENT_BOX_PX = 72;
+
+/**
+ * Content-box height (px) at which `src/view/graph-view.css` grows the hover pin
+ * chip from its compact form to full size. NOT a reveal: the chip is revealed on
+ * hover at EVERY height (ticket `nid_tclb98q9hxhmcuonamvr4ig1f_e`) — below this
+ * it is merely smaller, so a minPx node is not blanketed by it.
+ *
+ * The same rung the attachment row rides, because it is the same judgement ("this
+ * node can seat a chip"); aliased rather than repeated so the ladder stays ONE
+ * ladder. Used to tune {@link CENTRAL_PROMINENCE_FLOOR_SCORE}, which is what puts
+ * the full-size chip on every central.
+ */
+export const PIN_CHIP_FULL_SIZE_CONTENT_BOX_PX = ATTACHMENT_ROW_REVEAL_CONTENT_BOX_PX;
 
 /**
  * How much taller an ordinary node's BORDER box is than the content box the
