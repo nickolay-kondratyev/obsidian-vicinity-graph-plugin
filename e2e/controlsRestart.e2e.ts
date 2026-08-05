@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
+import { PIN_CHIP_FULL_SIZE_CONTENT_BOX_PX } from "../src/engine";
+import { nodeContentBoxHeightPx } from "./nodeContentBox";
 import { ObsidianHarness } from "./obsidianHarness";
 
 /**
@@ -24,16 +26,16 @@ test.describe.configure({ mode: "serial" });
  * Seeding models the normal steady state and avoids an id-minting frontmatter
  * write on pin.
  *
- * The pin target carries three headings: content-fit sizing gives a bare
- * one-line note ~minPx (40px), far below the hover pin chip's 72px CONTENT-box
- * container threshold (`graph-view.css` — border-box 90px after the node's
- * padding+border). An outline-bearing node is floored at the preview reveal
- * instead — 122px border-box (104px content) — so `clickPin` stays a plain
- * hover-and-click.
+ * The pin target is deliberately BARE (no headings): content-fit sizing clamps a
+ * one-line note to ~minPx (40px), so `clickPin` below is also the e2e proof that
+ * the hover pin chip is reachable on the SMALLEST node the plugin renders —
+ * ticket `nid_tclb98q9hxhmcuonamvr4ig1f_e` removed the 72px container gate that
+ * used to hide it there (the chip just renders compact below that rung). Restore
+ * the headings and this spec stops covering that.
  */
 const RESTART_FIXTURES: Record<string, string> = {
 	"rt_hub.md": "---\nid: docid_restarthub_e\n---\nRestart MAIN — links out to [[rt_x]].\n",
-	"rt_x.md": "---\nid: docid_restartx_e\n---\nPin target — links out to [[rt_x1]].\n\n# Alpha\n\n## Beta\n\n## Gamma\n",
+	"rt_x.md": "---\nid: docid_restartx_e\n---\nPin target — links out to [[rt_x1]].\n",
 	"rt_x1.md": "Chain leaf.\n",
 	"rt_in1.md": "Incoming hop 1 → [[rt_hub]].\n",
 	"rt_in2.md": "Incoming hop 2 → [[rt_in1]].\n",
@@ -138,6 +140,11 @@ test("depth, pin, node cap and sizing all survive an Obsidian restart", async ()
 	await expect(noteNode(HUB)).toHaveAttribute("data-tier", "main");
 
 	// §6 Pin (while the toolbar is collapsed so it can't cover the node): rt_x → pinned central.
+	// GIVEN the pin target is a bare note, so content-fit sizing puts it in the
+	// COMPACT-chip band — the state that had no hover pin affordance at all before
+	// ticket nid_tclb98q9hxhmcuonamvr4ig1f_e. Asserted, not assumed: padding the
+	// fixture would otherwise silently retire that coverage.
+	expect(await nodeContentBoxHeightPx(noteNode(PIN_TARGET))).toBeLessThan(PIN_CHIP_FULL_SIZE_CONTENT_BOX_PX);
 	await clickPin(PIN_TARGET);
 	await expect(noteNode(PIN_TARGET)).toHaveAttribute("data-tier", "pinned-central");
 

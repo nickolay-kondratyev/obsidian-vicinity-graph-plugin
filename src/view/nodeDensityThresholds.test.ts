@@ -7,6 +7,7 @@ import {
 	CENTRAL_NODE_VERTICAL_CHROME_PX,
 	ESTIMATED_THUMBNAIL_SLOT_PX,
 	NODE_VERTICAL_CHROME_PX,
+	PIN_CHIP_FULL_SIZE_CONTENT_BOX_PX,
 	PREVIEW_VISIBLE_MIN_NODE_PX,
 	THUMBNAIL_PREVIEW_TITLE_LINE_CLAMP,
 } from "../engine";
@@ -61,6 +62,22 @@ const THUMBNAIL_PREVIEW_TITLE_CLAMP =
 const CENTRAL_TIER_RULE = (tier: string): RegExp =>
 	new RegExp(`\\n\\.vicinity-graph-node\\[data-tier="${tier}"\\] \\{([\\s\\S]*?)\\n\\}`);
 const CENTRAL_TIERS = ["main", "pinned-central"] as const;
+// The pin chip's OWN rule block, and the chip-size property the ladder re-declares.
+const PIN_BUTTON_RULE = /\n\.vicinity-graph-node \.vicinity-graph-pin-button \{\n([\s\S]*?)\n\}/;
+// Whole declared VALUE, not a px literal: the compact rung states px, the full-size
+// rung reuses Obsidian's `--size-4-1` inset token, and both rungs must be measurable.
+const PIN_CHIP_SIZE = /--vicinity-graph-pin-chip-size:\s*([^;]+);/;
+const PIN_CHIP_INSET = /--vicinity-graph-pin-chip-inset:\s*([^;]+);/;
+// The chip's reach is measured from its BORDER box, so the rung below is only
+// honest while the chip declares it (Obsidian's own reset is not this file's).
+const PIN_CHIP_BORDER_BOX = /\n\tbox-sizing: border-box;/;
+// The centre-clearance rung: the chip is withheld only where it would cover the
+// node's centre point, i.e. on BOTH axes at once.
+const PIN_CHIP_WITHHOLD_QUERY =
+	/@container \(max-height:\s*(\d+)px\) and \(max-width:\s*(\d+)px\)\s*\{\n\t\.vicinity-graph-node \.vicinity-graph-pin-button \{\n\t\tdisplay: none;/;
+// The drag-resize grip band straddles the node's edge, so HALF of it reaches
+// inside — over whatever the node's own top-right corner holds.
+const RESIZE_BAND = /--vicinity-graph-resize-band-px:\s*(\d+)px;/;
 // The thumbnail slot's fixed height, declared as a custom property on the node root.
 // Anchored to a line start: it is the rule's FIRST declaration, so there is no
 // preceding newline inside the captured body.
@@ -78,13 +95,17 @@ function revealBlocks(reveals: RegExp): { readonly minHeightPx: number; readonly
 }
 
 /** The ONE query revealing a region — a second one would make "the" threshold a lie. */
-function soleRevealMinHeightPx(reveals: RegExp): number {
+function soleRevealBlock(reveals: RegExp): { readonly minHeightPx: number; readonly body: string } {
 	const blocks = revealBlocks(reveals);
 	const sole = blocks.length === 1 ? blocks[0] : undefined;
 	if (sole === undefined) {
 		throw new Error(`expected exactly ONE container query to reveal this region, found ${blocks.length}`);
 	}
-	return sole.minHeightPx;
+	return sole;
+}
+
+function soleRevealMinHeightPx(reveals: RegExp): number {
+	return soleRevealBlock(reveals).minHeightPx;
 }
 
 function nodeRootDeclarations(): string {
@@ -111,6 +132,73 @@ function parsedNodeVerticalChromePx(): number {
 		throw new Error("`.vicinity-graph-node` no longer declares a plain px border");
 	}
 	return 2 * Number(border) + parsedNodeVerticalPaddingPx();
+}
+
+function pinButtonDeclarations(): string {
+	const match = PIN_BUTTON_RULE.exec(stylesheet());
+	if (match?.[1] === undefined) {
+		throw new Error("graph-view.css no longer declares a `.vicinity-graph-node .vicinity-graph-pin-button` rule block");
+	}
+	return match[1];
+}
+
+/** A length the stylesheet writes either as a px literal or as an Obsidian spacing token. */
+function parsedLengthPx(value: string, subject: string): number {
+	const px = /^(\d+)px$/.exec(value.trim())?.[1];
+	if (px !== undefined) {
+		return Number(px);
+	}
+	const steps = /^var\(--size-4-(\d+)\)$/.exec(value.trim())?.[1];
+	if (steps === undefined) {
+		throw new Error(`${subject} is neither a px literal nor a --size-4-N token: [${value}]`);
+	}
+	return Number(steps) * OBSIDIAN_SPACING_STEP_PX;
+}
+
+/**
+ * The largest CONTENT-box square on which a top-right corner chip of this rung's
+ * geometry still covers the node's CENTRE point — derived, never a literal.
+ *
+ * The chip reaches `inset + size` into the node's PADDING box; the centre sits at
+ * half that box. So the centre is covered while `paddingBox / 2 <= inset + size`,
+ * and `paddingBox = contentBox + padding`.
+ *
+ * ONE number for both axes: the node's `padding` is the shorthand, so its
+ * horizontal and vertical totals are the same — which is why the stylesheet's
+ * withholding query can state the same px on `max-height` and `max-width`.
+ */
+function chipCentreCoveredContentBoxPx(rungDeclarations: string, subject: string): number {
+	const size = PIN_CHIP_SIZE.exec(rungDeclarations)?.[1];
+	const inset = PIN_CHIP_INSET.exec(rungDeclarations)?.[1];
+	if (size === undefined || inset === undefined) {
+		throw new Error(`the ${subject} pin chip no longer declares both a size and an inset`);
+	}
+	const reachPx = parsedLengthPx(size, `${subject} chip size`) + parsedLengthPx(inset, `${subject} chip inset`);
+	return 2 * reachPx - parsedNodeVerticalPaddingPx();
+}
+
+/**
+ * How far the chip's OUTER edge sits from the node's border-box edge, measured
+ * where the drag-resize grips live: `right`/`top` are offsets into the PADDING
+ * box, so the node's border is part of the distance. The ORDINARY node's 1px
+ * border is the tight case — a central's 2px ring only pushes the chip further in.
+ */
+function chipOuterEdgeInsetPx(rungDeclarations: string, subject: string): number {
+	const inset = PIN_CHIP_INSET.exec(rungDeclarations)?.[1];
+	const border = NODE_BORDER_WIDTH.exec(nodeRootDeclarations())?.[1];
+	if (inset === undefined || border === undefined) {
+		throw new Error(`cannot measure the ${subject} chip's offset from the node's border-box edge`);
+	}
+	return Number(border) + parsedLengthPx(inset, `${subject} chip inset`);
+}
+
+/** How far a drag-resize grip band reaches INSIDE the node — half the band straddles the edge. */
+function resizeBandInwardReachPx(): number {
+	const band = RESIZE_BAND.exec(stylesheet())?.[1];
+	if (band === undefined) {
+		throw new Error("graph-view.css no longer declares a --vicinity-graph-resize-band-px");
+	}
+	return Number(band) / 2;
 }
 
 /** The same for one central tier's overriding border. */
@@ -162,6 +250,64 @@ describe("node density thresholds", () => {
 	it("WHEN the thumbnail slot declares its fixed height THEN the engine's estimate of that region matches", () => {
 		const slot = THUMBNAIL_SLOT_HEIGHT.exec(nodeRootDeclarations())?.[1];
 		expect(Number(slot)).toBe(ESTIMATED_THUMBNAIL_SLOT_PX);
+	});
+
+	// The pin chip is NOT part of the ladder's reveal set (ticket
+	// nid_tclb98q9hxhmcuonamvr4ig1f_e, owner-decided): it is hover-revealed at every
+	// node height, because content-fit sizing made the small node the common case and
+	// the right-click menu was the only pin affordance left there. The rung merely
+	// GROWS it — and `CENTRAL_PROMINENCE_FLOOR_SCORE` is tuned against that rung, so a
+	// stylesheet that moved it would silently leave centrals on the compact chip.
+	it("WHEN the pin chip is styled THEN it is displayed at every node height, not gated on the density ladder", () => {
+		expect(pinButtonDeclarations()).toMatch(/\n\tdisplay: inline-flex;/);
+	});
+
+	it("WHEN the stylesheet grows the pin chip to full size THEN it does so at the rung the engine tunes the central floor against", () => {
+		expect(soleRevealMinHeightPx(PIN_CHIP_SIZE)).toBe(PIN_CHIP_FULL_SIZE_CONTENT_BOX_PX);
+	});
+
+	// The one exception to "every node", and the reason it is not a judgement call:
+	// the compact chip reaches `inset + size` into the node's padding box from the
+	// top-right corner, so below a computable size it sits ON the node's centre point
+	// — where a click means OPEN THE NOTE. `minPx` is a dial the user can take to 1px
+	// and a drag-resize override may be 24px, so this band is reachable; re-tuning the
+	// chip without moving the rung would silently make it unreachable-by-click again.
+	it("WHEN the chip is measured for centre clearance THEN it is sized from its BORDER box", () => {
+		expect(pinButtonDeclarations()).toMatch(PIN_CHIP_BORDER_BOX);
+	});
+
+	it.each(["max-height", "max-width"] as const)(
+		"WHEN the stylesheet withholds the pin chip THEN its %s rung is the content box at which the compact chip covers the node's centre",
+		(axis) => {
+			const withheld = PIN_CHIP_WITHHOLD_QUERY.exec(stylesheet());
+			const declared = Number(withheld?.[axis === "max-height" ? 1 : 2]);
+			expect(declared).toBe(chipCentreCoveredContentBoxPx(pinButtonDeclarations(), "compact"));
+		},
+	);
+
+	// The OTHER half of "the chip never covers the centre", and the one the
+	// withholding query cannot cover: above the rung the chip grows, and it grows
+	// past the reach the withholding query was computed from. The rung itself is
+	// inherited from the attachment row for an unrelated reason
+	// ({@link PIN_CHIP_FULL_SIZE_CONTENT_BOX_PX}), so nothing about the FULL-SIZE
+	// chip's geometry is implied by it — lower that rung (or grow that chip) and the
+	// swallowed open-click comes back in a band the max-* query never sees, with
+	// every other guard here still green.
+	it("WHEN the pin chip grows to full size THEN it does so only above the content box where it would cover the node's centre", () => {
+		const fullSize = soleRevealBlock(PIN_CHIP_SIZE);
+		expect(fullSize.minHeightPx).toBeGreaterThan(chipCentreCoveredContentBoxPx(fullSize.body, "full-size"));
+	});
+
+	// The chip shares the node's top-right corner with the drag-resize RIGHT-edge
+	// grip, which paints and hit-tests ABOVE the whole node (see the z-index WHY in
+	// graph-view.css). The grip band therefore eats any part of the chip it overlaps
+	// — silently, since neither element changes size or style. The compact rung's
+	// inset was 1px too small for exactly this reason once.
+	it.each([
+		{ subject: "compact", declarations: () => pinButtonDeclarations() },
+		{ subject: "full-size", declarations: () => soleRevealBlock(PIN_CHIP_SIZE).body },
+	])("WHEN the $subject pin chip is placed THEN the drag-resize grip band does not reach over it", ({ subject, declarations }) => {
+		expect(chipOuterEdgeInsetPx(declarations(), subject)).toBeGreaterThanOrEqual(resizeBandInwardReachPx());
 	});
 
 	// A central's accent ring is 2px, so at the SAME sizePx its content box is 2px

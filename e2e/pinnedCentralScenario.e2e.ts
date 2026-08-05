@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
+import { PIN_CHIP_FULL_SIZE_CONTENT_BOX_PX } from "../src/engine";
+import { nodeContentBoxHeightPx } from "./nodeContentBox";
 import { ObsidianHarness } from "./obsidianHarness";
 
 /**
@@ -31,17 +33,17 @@ test.describe.configure({ mode: "serial" });
  * Seeding models the normal steady state (a note that already participates in
  * the graph), and avoids an id-minting frontmatter write on pin.
  *
- * The hub and the pin target carry three headings each: content-fit sizing
- * gives a bare one-line note ~minPx (40px) — and an empty MAIN only the 82px
- * central prominence floor — both below the hover pin chip's 72px CONTENT-box
- * container threshold (`graph-view.css` — border-box 90px after the node's
- * padding+border). An outline-bearing node is floored at the preview reveal
- * instead — 122px border-box, 124px for a central's 2px ring — so `clickPin`
- * stays a plain hover-and-click. The hidden chip on small/default-central nodes
- * itself is a tracked UX follow-up.
+ * The hub is deliberately BARE (no headings): an EMPTY MAIN central renders at
+ * the central prominence floor, so `clickPin(HUB)` below is also the e2e proof
+ * that the hover pin chip is usable on a default-sized central — ticket
+ * `nid_tclb98q9hxhmcuonamvr4ig1f_e` raised that floor past the chip's full-size
+ * rung and dropped the container gate that used to hide the chip outright.
+ * Restore the headings and this spec stops covering that. (`sc_x` keeps its
+ * outline: it doubles as the pinned-central DEPTH fixture below, and a node with
+ * headings is the ordinary case there.)
  */
 const SCENARIO_FIXTURES: Record<string, string> = {
-	"sc_hub.md": "---\nid: docid_scenariohub_e\n---\nScenario MAIN — links out to [[sc_x]].\n\n# Alpha\n\n## Beta\n\n## Gamma\n",
+	"sc_hub.md": "---\nid: docid_scenariohub_e\n---\nScenario MAIN — links out to [[sc_x]].\n",
 	"sc_x.md": "---\nid: docid_scenariox_e\n---\nPinned-central fixture — links out to [[sc_x1]].\n\n# Alpha\n\n## Beta\n\n## Gamma\n",
 	"sc_x1.md": "Chain hop 1 → [[sc_x2]].\n",
 	"sc_x2.md": "Chain hop 2 → [[sc_x3]].\n",
@@ -139,6 +141,11 @@ test("the MAIN central itself can be pinned, survives switching MAIN, and can be
 	await expect(noteNode(X)).toHaveAttribute("data-tier", "pinned-central");
 
 	// MAIN offers the pin gesture too (keep the current central around before navigating away).
+	// GIVEN the hub is an EMPTY central, so it renders at the prominence floor —
+	// which ticket nid_tclb98q9hxhmcuonamvr4ig1f_e tuned to clear the chip's
+	// full-size rung. Asserted here rather than in the engine alone, because the
+	// central's 2px accent ring is exactly what made the obvious floor 2px short.
+	expect(await nodeContentBoxHeightPx(noteNode(HUB))).toBeGreaterThanOrEqual(PIN_CHIP_FULL_SIZE_CONTENT_BOX_PX);
 	await expect(noteNode(HUB).locator(".vicinity-graph-pin-button")).toHaveAttribute("aria-label", "Pin to graph");
 	await clickPin(HUB);
 	// Still MAIN-tier (main styling wins) but the toggle flips to unpin.

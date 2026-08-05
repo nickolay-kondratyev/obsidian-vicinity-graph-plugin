@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
+import { EngineDefaults, NODE_OVERRIDE_HARD_MIN_PX } from "../src/engine";
 import { ObsidianHarness } from "./obsidianHarness";
 
 /**
@@ -17,6 +18,12 @@ import { ObsidianHarness } from "./obsidianHarness";
  *   half, and the right edge's grab band — both are geometry no unit test can
  *   see, and both have shipped broken once);
  * - the gesture's seam into React Flow stays narrow: no node ends up SELECTED.
+ *
+ * The override is ALSO this suite's way of putting a node at a chosen box, which
+ * is why the hover pin chip's small-node behavior is asserted here (ticket
+ * `nid_tclb98q9hxhmcuonamvr4ig1f_e`): the chip is revealed at every node height
+ * and only withheld where it would cover the node's CENTRE point, and the sizes
+ * that band applies to are not sizes a fixture graph renders on its own.
  *
  * SERIAL and order-dependent: each test builds on the state above it.
  */
@@ -38,6 +45,9 @@ const HUB = "rz_hub.md";
 const OTHER_MAIN = "rz_other.md";
 const TARGET = "rz_target.md";
 const TARGET_DOCID = "docid_resizetarget_e";
+
+/** The smallest box content-fit sizing produces at shipped dials — the COMMON small node. */
+const SHIPPED_MIN_NODE_PX = EngineDefaults.sizingSettings().minPx;
 
 /** Screen-pixel drag deltas — large enough that ANY fitted zoom yields clear growth. */
 const DRAG_DELTA_X_PX = 90;
@@ -297,4 +307,67 @@ test("WHEN a committed resize still FITS where the node sits THEN neither the ot
 		positions: before,
 		framing: viewportBefore,
 	});
+});
+
+// --- the hover pin chip on a SMALL node (nid_tclb98q9hxhmcuonamvr4ig1f_e) ----
+
+/**
+ * Puts the target on screen as an ordinary NEIGHBOUR at exactly `sidePx` square,
+ * through the real store-override → rebuild path (a drag's deltas are screen
+ * pixels against an unknown zoom, so it cannot name an exact box).
+ *
+ * Neighbour, not MAIN: a central carries the 2px accent ring, so at the SAME box
+ * it has 2px LESS content for the chip's container query to measure — the
+ * ordinary node is the tight case, and it is also the one whose click must open
+ * the note rather than being a no-op re-centre on itself.
+ */
+async function renderTargetAsNeighbourAt(sidePx: number): Promise<void> {
+	await harness.openFile(HUB);
+	await expect(noteNode(HUB)).toHaveAttribute("data-tier", "main");
+	await harness.saveNodeSizeOverride(TARGET_DOCID, { widthPx: sidePx, heightPx: sidePx });
+	await harness.refreshOpenViews();
+	await expect.poll(() => renderedBoxPx(TARGET)).toEqual({ widthPx: sidePx, heightPx: sidePx });
+}
+
+/**
+ * The chip's COMPUTED display. `flex`, not the authored `inline-flex`: the chip
+ * is absolutely positioned, and CSS blockifies an out-of-flow box's display.
+ * `none` is the stylesheet WITHHOLDING it (the centre-clearance rung).
+ */
+async function pinChipDisplay(path: string): Promise<string> {
+	return noteNode(path).locator(".vicinity-graph-pin-button").evaluate((el) => getComputedStyle(el).display);
+}
+
+const activeFilePath = () =>
+	page.evaluate(() => (window as unknown as { app: any }).app.workspace.getActiveFile()?.path);
+
+test("WHEN a node renders at the shipped minimum THEN it still carries the hover pin chip", async () => {
+	// The whole point of the ticket: content-fit sizing made this the COMMON node,
+	// and the old 72px display gate left it with no pin affordance but the menu.
+	await renderTargetAsNeighbourAt(SHIPPED_MIN_NODE_PX);
+	expect(await pinChipDisplay(TARGET)).toBe("flex");
+});
+
+test("WHEN that minimum-sized node's body is clicked THEN the note opens (the compact chip does not swallow it)", async () => {
+	// The invariant the compact rung exists for. Playwright's own hover REVEALS the
+	// chip on the way to the click, so a chip reaching the centre point would stop
+	// propagation here and the active file would never change.
+	await renderTargetAsNeighbourAt(SHIPPED_MIN_NODE_PX);
+	await noteNode(TARGET).click();
+	await expect.poll(activeFilePath).toBe(TARGET);
+});
+
+test("WHEN a node is shrunk to the drag-resize floor THEN the chip that would cover its centre is withheld", async () => {
+	// The one band where "every node carries the chip" yields. Only a real engine
+	// answers this: nodeDensityThresholds.test.ts proves the rung's arithmetic
+	// against the stylesheet, but not that Chromium PARSES a two-axis
+	// `@container … and …` prelude — an unparsable one is dropped SILENTLY.
+	await renderTargetAsNeighbourAt(NODE_OVERRIDE_HARD_MIN_PX);
+	expect(await pinChipDisplay(TARGET)).toBe("none");
+});
+
+test("WHEN that floor-sized node's body is clicked THEN the note still opens", async () => {
+	await renderTargetAsNeighbourAt(NODE_OVERRIDE_HARD_MIN_PX);
+	await noteNode(TARGET).click();
+	await expect.poll(activeFilePath).toBe(TARGET);
 });

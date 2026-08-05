@@ -377,6 +377,26 @@ export class ObsidianHarness {
 	}
 
 	/**
+	 * Stores a doc's size override — the SAME store write a released drag-resize
+	 * commits ({@link readNodeOverrides} is its read half).
+	 *
+	 * For sizes a real drag cannot reach on demand: the gesture's deltas are
+	 * SCREEN pixels against whatever zoom the graph settled at, so "shrink this
+	 * node to exactly the hard floor" is not a drag a spec can spell reliably.
+	 * The rebuild is NOT included — call {@link refreshOpenViews} after, exactly
+	 * as the write pipeline's fan-out would.
+	 */
+	async saveNodeSizeOverride(docid: string, sizePx: { widthPx: number; heightPx: number }): Promise<void> {
+		await this.page.evaluate(
+			async ({ pluginId, targetDocid, value }) => {
+				const store = (window as unknown as { app: any }).app.plugins.plugins[pluginId].pluginDataStore;
+				await store.saveNodeOverrideField(targetDocid, { field: "sizePx", value });
+			},
+			{ pluginId: PLUGIN_ID, targetDocid: docid, value: sizePx },
+		);
+	}
+
+	/**
 	 * Merges `patch` over the stored global view slice.
 	 *
 	 * SHALLOW merge, exactly like the store's own callers: a nested field

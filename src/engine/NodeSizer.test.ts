@@ -10,8 +10,10 @@ import {
 	ESTIMATED_TITLE_LINE_PX,
 	NODE_REGION_GAP_PX,
 	NODE_VERTICAL_CHROME_PX,
+	PIN_CHIP_FULL_SIZE_CONTENT_BOX_PX,
 	PREVIEW_SLOT_REVEAL_CONTENT_BOX_PX,
 	PREVIEW_VISIBLE_MIN_NODE_PX,
+	revealMinNodePx,
 	THUMBNAIL_PREVIEW_TITLE_LINE_CLAMP,
 } from "./constants";
 import { FakeLinkProvider } from "./FakeLinkProvider";
@@ -102,6 +104,17 @@ describe("NodeSizer central prominence floor (rethink Q2)", () => {
 			["m.md"],
 		);
 		expect(sizeOf(sizes, "m.md")).toBeGreaterThan(DEFAULT_CENTRAL_FLOOR_PX);
+	});
+
+	it("WHEN an empty note is central THEN its floor seats a FULL-SIZE hover pin chip", () => {
+		// The tuning behind CENTRAL_PROMINENCE_FLOOR_SCORE's 0.44 (ticket
+		// nid_tclb98q9hxhmcuonamvr4ig1f_e), made executable: an empty MAIN/pinned
+		// central is the node pinned and unpinned most, so at the SHIPPED dials it
+		// must clear the chip's full-size rung — not fall back to the compact chip.
+		const sizes = sizeAll(emptyCentral, viewWith(), ["m.md"]);
+		expect(sizeOf(sizes, "m.md")).toBeGreaterThanOrEqual(
+			revealMinNodePx(PIN_CHIP_FULL_SIZE_CONTENT_BOX_PX, true),
+		);
 	});
 
 	it("WHEN an empty non-central sits beside an empty central THEN the central is the larger box", () => {

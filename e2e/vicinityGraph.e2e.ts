@@ -151,6 +151,11 @@ test("the pin button keeps its declared chip chrome, not Obsidian's raised-butto
 	expect(chrome.actual).toEqual(chrome.declared);
 });
 
+// The pin chip's two size rungs and the centre-clearance band that withholds it
+// are covered in e2e/nodeResize.e2e.ts, where a stored size override renders the
+// node at a chosen box through the REAL rebuild — and where the assertion is the
+// invariant itself (the node still opens on click), not a computed style.
+
 test("stepper buttons render flat inside their control pill, not as Obsidian buttons", async () => {
 	// Computed style resolves regardless of the toolbar disclosure's open state.
 	const stepperButton = page.locator("button.vicinity-graph-stepper__button").first();
@@ -284,12 +289,11 @@ for (const theme of ["dark", "light"] as const) {
 //
 // These exercise a REAL pointer click (the native open gesture is what's under
 // test). They run on the ALPHA graph, NOT note1's: alpha has only 3 nodes, so
-// each renders large enough that a click lands on the node BODY. In note1's
-// 11-node fit every node shrinks to ~20px — smaller than the hover-reveal pin
-// button (a 20px top-right chip that is pointer-interactive even while
-// invisible), so a center click hits the pin (which stops propagation) instead
-// of opening the note. Clicking a big node sidesteps that overlap.
-// (The tiny-node pin overlap itself is tracked as a follow-up UX ticket.)
+// each renders at a comfortable size and the fitted zoom stays near 1, which
+// keeps the click target physically large in a headless window. That the open
+// click ALSO survives on the smallest nodes — where the hover-revealed pin chip
+// shares the box with the node body — is asserted in e2e/nodeResize.e2e.ts
+// (ticket nid_tclb98q9hxhmcuonamvr4ig1f_e), not here.
 
 const activeFilePath = () =>
 	page.evaluate(() => (window as unknown as { app: any }).app.workspace.getActiveFile()?.path);
