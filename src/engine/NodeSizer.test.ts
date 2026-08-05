@@ -1,14 +1,18 @@
 import { describe, expect, it } from "vitest";
 import {
 	ATTACHMENT_ROW_VISIBLE_MIN_NODE_PX,
+	CENTRAL_NODE_VERTICAL_CHROME_PX,
 	CENTRAL_PROMINENCE_FLOOR_SCORE,
 	EngineDefaults,
 	ESTIMATED_ATTACHMENT_ROW_PX,
 	ESTIMATED_OUTLINE_ENTRY_PX,
+	ESTIMATED_THUMBNAIL_SLOT_PX,
 	ESTIMATED_TITLE_LINE_PX,
 	NODE_REGION_GAP_PX,
 	NODE_VERTICAL_CHROME_PX,
+	PREVIEW_SLOT_REVEAL_CONTENT_BOX_PX,
 	PREVIEW_VISIBLE_MIN_NODE_PX,
+	THUMBNAIL_PREVIEW_TITLE_LINE_CLAMP,
 } from "./constants";
 import { FakeLinkProvider } from "./FakeLinkProvider";
 import type { FakeVaultSpec } from "./FakeLinkProvider";
@@ -207,6 +211,14 @@ describe("NodeSizer reveal floors (a counted region must be a PAINTED region)", 
 		expect(sizeOf(sizes, "a.md")).toBe(ATTACHMENT_ROW_VISIBLE_MIN_NODE_PX);
 	});
 
+	it("WHEN the floored node is a CENTRAL THEN the floor covers its 2px accent border too", () => {
+		// A central's ring makes its content box 2px shorter at the same sizePx, so
+		// the ordinary 122px floor would leave it 2px UNDER the container query and
+		// paint no outline at all — the dead space this floor exists to prevent.
+		const sizes = sizeAll({ files: [{ path: "m.md", outline: headings(1) }] }, viewWith(), ["m.md"]);
+		expect(sizeOf(sizes, "m.md")).toBe(PREVIEW_SLOT_REVEAL_CONTENT_BOX_PX + CENTRAL_NODE_VERTICAL_CHROME_PX);
+	});
+
 	it("WHEN a note shows NO preview and NO attachments THEN no floor applies", () => {
 		const sizes = sizeAll({ files: [{ path: "m.md" }, { path: "a.md" }], links: { "m.md": ["a.md"] } }, viewWith(), [
 			"m.md",
@@ -229,6 +241,58 @@ describe("NodeSizer thumbnail sizing (preview-kind driven — preference-indepen
 	it("WHEN maxPx is below the reveal threshold THEN the explicit maximum still wins", () => {
 		const sizes = sizeAll(imageNote, viewWith({ sizing: { minPx: 40, maxPx: 100 } }), ["m.md"]);
 		expect(sizeOf(sizes, "a.md")).toBe(100);
+	});
+
+	it("WHEN a thumbnail node also wraps its title and carries a chip row THEN the slot is counted, not assumed", () => {
+		// The three regions together exceed the reveal floor, so the floor no longer
+		// covers for an uncounted slot: leaving the 56px out here sizes the node to
+		// 122px, and the chip row is pushed out through the node's `overflow:hidden`.
+		const sizes = sizeAll(
+			{
+				files: [
+					{ path: "m.md" },
+					// Long enough to wrap onto the 2 lines the thumbnail CSS clamps to.
+					{ path: "a.md", frontmatterTitle: "A deliberately long note title that wraps" },
+					{ path: "pic.png" },
+				],
+				links: { "m.md": ["a.md"], "a.md": ["pic.png"] },
+			},
+			viewWith(),
+			["m.md"],
+		);
+		const expected =
+			NODE_VERTICAL_CHROME_PX +
+			THUMBNAIL_PREVIEW_TITLE_LINE_CLAMP * ESTIMATED_TITLE_LINE_PX +
+			NODE_REGION_GAP_PX +
+			ESTIMATED_THUMBNAIL_SLOT_PX +
+			NODE_REGION_GAP_PX +
+			ESTIMATED_ATTACHMENT_ROW_PX;
+		expect(sizeOf(sizes, "a.md")).toBe(expected);
+	});
+
+	it("WHEN a thumbnail node's title is long THEN it is budgeted the 2 lines the CSS clamps it to", () => {
+		// The 4-line clamp applies to every OTHER preview kind; budgeting 4 here
+		// would reserve two lines the stylesheet never paints.
+		const sizes = sizeAll(
+			{
+				files: [
+					{ path: "m.md" },
+					{ path: "a.md", frontmatterTitle: "A".repeat(300) },
+					{ path: "pic.png" },
+				],
+				links: { "m.md": ["a.md"], "a.md": ["pic.png"] },
+			},
+			viewWith(),
+			["m.md"],
+		);
+		expect(sizeOf(sizes, "a.md")).toBe(
+			NODE_VERTICAL_CHROME_PX +
+				THUMBNAIL_PREVIEW_TITLE_LINE_CLAMP * ESTIMATED_TITLE_LINE_PX +
+				NODE_REGION_GAP_PX +
+				ESTIMATED_THUMBNAIL_SLOT_PX +
+				NODE_REGION_GAP_PX +
+				ESTIMATED_ATTACHMENT_ROW_PX,
+		);
 	});
 
 	it("WHEN the preference resolves the preview to the outline THEN no thumbnail space is reserved", () => {

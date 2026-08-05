@@ -278,12 +278,13 @@
  *
  * These are CONTENT-box heights: a size container query measures the container's
  * content box, which is `sizePx` MINUS this node's border + padding. The engine
- * mirrors BOTH rungs (src/engine/constants.ts) — each PLUS that chrome, as
- * `PREVIEW_VISIBLE_MIN_NODE_PX` and `ATTACHMENT_ROW_VISIBLE_MIN_NODE_PX` — and
- * floors any node carrying those regions there, so the content-fit sizer never
- * reserves space for a region these queries then refuse to paint.
- * `nodeDensityThresholds.test.ts` re-derives the chrome from the rules above and
- * fails if any half drifts. */
+ * mirrors BOTH rungs (src/engine/constants.ts) — each PLUS that chrome
+ * (`revealMinNodePx`) — and floors any node carrying those regions there, so the
+ * content-fit sizer never reserves space for a region these queries then refuse
+ * to paint. The chrome is PER TIER: the `[data-tier]` centrals below draw a 2px
+ * ring, so at the same height their content box is 2px shorter and their floor
+ * is 2px higher. `nodeDensityThresholds.test.ts` re-derives both chromes from
+ * the rules above and fails if any half drifts. */
 @container (min-height: 72px) {
 	.vicinity-graph-node__attachments {
 		display: flex;

@@ -1,17 +1,20 @@
 import {
-	ATTACHMENT_ROW_VISIBLE_MIN_NODE_PX,
+	ATTACHMENT_ROW_REVEAL_CONTENT_BOX_PX,
 	CENTRAL_PROMINENCE_FLOOR_SCORE,
 	ESTIMATED_ATTACHMENT_ROW_PX,
 	ESTIMATED_OUTLINE_ENTRY_PX,
+	ESTIMATED_THUMBNAIL_SLOT_PX,
 	ESTIMATED_TITLE_LINE_PX,
 	NODE_LABEL_HORIZONTAL_PADDING_PX,
 	NODE_MAX_LABEL_WIDTH_PX,
 	NODE_REGION_GAP_PX,
 	NODE_TITLE_LINE_CLAMP,
-	NODE_VERTICAL_CHROME_PX,
-	PREVIEW_VISIBLE_MIN_NODE_PX,
+	PREVIEW_SLOT_REVEAL_CONTENT_BOX_PX,
+	THUMBNAIL_PREVIEW_TITLE_LINE_CLAMP,
 	clampSizingSettings,
 	estimateNodeLabelWidthPx,
+	nodeVerticalChromePx,
+	revealMinNodePx,
 } from "./constants";
 import type { NodePreviewKind } from "./nodePreviewKind";
 import { nodePreviewKind } from "./nodePreviewKind";
@@ -77,7 +80,6 @@ export class NodeSizer {
 	 * whatever box this steers the layout to.
 	 */
 	static contentFitPx(node: TraversedNode, view: Pick<NodeSizingView, "outlineMaxDepth" | "nodePreviewPreference">): number {
-		const regions: number[] = [NodeSizer.titleLines(node.title) * ESTIMATED_TITLE_LINE_PX];
 		// Decided from the RENDERABLE entry count (post depth-filter), the same
 		// zero-vs-some fact the view mapping decides with — the view's additional
 		// DOM cap cannot flip it (a capped non-empty outline stays non-empty).
@@ -88,16 +90,20 @@ export class NodeSizer {
 			hasImage: node.firstImagePath !== undefined,
 			imagePrecedesOutline: node.imagePrecedesOutline,
 		});
+		const titleClamp = preview === "thumbnail" ? THUMBNAIL_PREVIEW_TITLE_LINE_CLAMP : NODE_TITLE_LINE_CLAMP;
+		const regions: number[] = [NodeSizer.titleLines(node.title, titleClamp) * ESTIMATED_TITLE_LINE_PX];
 		if (preview === "outline") {
 			regions.push(renderableOutlineEntries * ESTIMATED_OUTLINE_ENTRY_PX);
+		} else if (preview === "thumbnail") {
+			regions.push(ESTIMATED_THUMBNAIL_SLOT_PX);
 		}
 		const hasAttachments = node.attachments.length > 0;
 		if (hasAttachments) {
 			regions.push(ESTIMATED_ATTACHMENT_ROW_PX);
 		}
-		const fit =
-			NODE_VERTICAL_CHROME_PX + regions.reduce((sum, px) => sum + px, 0) + (regions.length - 1) * NODE_REGION_GAP_PX;
-		return Math.max(fit, NodeSizer.revealFloorPx(preview, hasAttachments));
+		const chromePx = nodeVerticalChromePx(node.isCentral);
+		const fit = chromePx + regions.reduce((sum, px) => sum + px, 0) + (regions.length - 1) * NODE_REGION_GAP_PX;
+		return Math.max(fit, NodeSizer.revealFloorPx(preview, hasAttachments, node.isCentral));
 	}
 
 	/**
@@ -118,21 +124,27 @@ export class NodeSizer {
 	 * this floor into `minPx..maxPx`, so an explicit `maxPx` below a threshold
 	 * still wins (the node is then small AND hides the region, which is what was
 	 * asked for).
+	 *
+	 * Per-TIER, because the query reads the CONTENT box: a central's 2px accent
+	 * border makes its content box 2px shorter at the same `sizePx`, and a floor
+	 * that ignored that would miss the reveal by exactly those 2px — see
+	 * `CENTRAL_NODE_VERTICAL_CHROME_PX` in `constants.ts`.
 	 */
-	private static revealFloorPx(preview: NodePreviewKind, hasAttachments: boolean): number {
+	private static revealFloorPx(preview: NodePreviewKind, hasAttachments: boolean, isCentral: boolean): number {
 		return Math.max(
-			preview === "none" ? 0 : PREVIEW_VISIBLE_MIN_NODE_PX,
-			hasAttachments ? ATTACHMENT_ROW_VISIBLE_MIN_NODE_PX : 0,
+			preview === "none" ? 0 : revealMinNodePx(PREVIEW_SLOT_REVEAL_CONTENT_BOX_PX, isCentral),
+			hasAttachments ? revealMinNodePx(ATTACHMENT_ROW_REVEAL_CONTENT_BOX_PX, isCentral) : 0,
 		);
 	}
 
 	/**
-	 * Lines the title wraps onto at the label-width cap, clamped by the CSS
-	 * line clamp — the height counterpart of the view's snug width estimate.
+	 * Lines the title wraps onto at the label-width cap, clamped by the CSS line
+	 * clamp in force for this node's preview — the height counterpart of the
+	 * view's snug width estimate.
 	 */
-	private static titleLines(title: string): number {
+	private static titleLines(title: string, lineClamp: number): number {
 		const textWidthPx = estimateNodeLabelWidthPx(title) - NODE_LABEL_HORIZONTAL_PADDING_PX;
 		const lineWidthPx = NODE_MAX_LABEL_WIDTH_PX - NODE_LABEL_HORIZONTAL_PADDING_PX;
-		return Math.min(NODE_TITLE_LINE_CLAMP, Math.max(1, Math.ceil(textWidthPx / lineWidthPx)));
+		return Math.min(lineClamp, Math.max(1, Math.ceil(textWidthPx / lineWidthPx)));
 	}
 }

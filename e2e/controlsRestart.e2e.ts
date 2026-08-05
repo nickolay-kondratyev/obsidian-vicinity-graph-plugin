@@ -27,8 +27,9 @@ test.describe.configure({ mode: "serial" });
  * The pin target carries three headings: content-fit sizing gives a bare
  * one-line note ~minPx (40px), far below the hover pin chip's 72px CONTENT-box
  * container threshold (`graph-view.css` — border-box 90px after the node's
- * padding+border). Three outline entries size the node to 93px border-box
- * (75px content), so `clickPin` stays a plain hover-and-click.
+ * padding+border). An outline-bearing node is floored at the preview reveal
+ * instead — 122px border-box (104px content) — so `clickPin` stays a plain
+ * hover-and-click.
  */
 const RESTART_FIXTURES: Record<string, string> = {
 	"rt_hub.md": "---\nid: docid_restarthub_e\n---\nRestart MAIN — links out to [[rt_x]].\n",

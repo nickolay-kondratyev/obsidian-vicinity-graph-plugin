@@ -35,9 +35,10 @@ test.describe.configure({ mode: "serial" });
  * gives a bare one-line note ~minPx (40px) — and an empty MAIN only the 82px
  * central prominence floor — both below the hover pin chip's 72px CONTENT-box
  * container threshold (`graph-view.css` — border-box 90px after the node's
- * padding+border). Three outline entries size a node to 93px border-box
- * (75px content), so `clickPin` stays a plain hover-and-click. The hidden chip
- * on small/default-central nodes itself is a tracked UX follow-up.
+ * padding+border). An outline-bearing node is floored at the preview reveal
+ * instead — 122px border-box, 124px for a central's 2px ring — so `clickPin`
+ * stays a plain hover-and-click. The hidden chip on small/default-central nodes
+ * itself is a tracked UX follow-up.
  */
 const SCENARIO_FIXTURES: Record<string, string> = {
 	"sc_hub.md": "---\nid: docid_scenariohub_e\n---\nScenario MAIN — links out to [[sc_x]].\n\n# Alpha\n\n## Beta\n\n## Gamma\n",

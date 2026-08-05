@@ -108,8 +108,11 @@ export { NodePriorityChain } from "./NodePriorityChain";
 export type { PriorityRankable } from "./NodePriorityChain";
 
 export {
+	ATTACHMENT_ROW_REVEAL_CONTENT_BOX_PX,
 	ATTACHMENT_ROW_VISIBLE_MIN_NODE_PX,
+	CENTRAL_NODE_VERTICAL_CHROME_PX,
 	CENTRAL_PROMINENCE_FLOOR_SCORE,
+	ESTIMATED_THUMBNAIL_SLOT_PX,
 	EngineDefaults,
 	FORCE_LAYOUT_RANGES,
 	MAX_OUTLINE_DEPTH,
@@ -121,8 +124,10 @@ export {
 	NODE_OVERRIDE_HARD_MIN_PX,
 	NODE_TITLE_CHAR_WIDTH_PX,
 	NODE_VERTICAL_CHROME_PX,
+	PREVIEW_SLOT_REVEAL_CONTENT_BOX_PX,
 	PREVIEW_VISIBLE_MIN_NODE_PX,
 	SIZING_RANGES,
+	THUMBNAIL_PREVIEW_TITLE_LINE_CLAMP,
 	clampForceLayoutSettings,
 	clampNodeCap,
 	clampNodeSizeOverridePx,
@@ -130,6 +135,8 @@ export {
 	clampSizingNumber,
 	clampSizingSettings,
 	estimateNodeLabelWidthPx,
+	nodeVerticalChromePx,
+	revealMinNodePx,
 } from "./constants";
 export type { SettingsRange, SizingRangeField } from "./constants";
 

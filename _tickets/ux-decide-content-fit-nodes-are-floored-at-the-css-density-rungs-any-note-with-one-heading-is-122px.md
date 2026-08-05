@@ -32,3 +32,11 @@ Related: `docs-internal/tickets/ux-decide-hover-pin-chip-is-hidden-on-small-node
 
 Owner picks one of the three options; if it is not option 1, `NodeSizer.revealFloorPx` and/or the graph-view.css rungs are changed together with `src/view/nodeDensityThresholds.test.ts` (which pins engine constant == css rung + chrome) and the affected e2e band assertions.
 
+
+## Notes
+
+**2026-08-05T01:11:55Z**
+
+Follow-up review of the same change found the floor was 2px short for CENTRALS: `[data-tier="main"]` / `[data-tier="pinned-central"]` draw a 2px accent border, so a central's content box is `sizePx - 20`, not `sizePx - 18`. Sized at the flat 122px floor, a MAIN note with 1-4 headings got a 102px content box, missed the 104px container query, and rendered as a title over dead space — the exact trap the floor exists to prevent. It was safe to ignore before this change only because centrals used to be pinned to maxPx.
+
+FIXED: `revealMinNodePx(rung, isCentral)` in src/engine/constants.ts is now the ONE place `rung + chrome` is spelled out, `NodeSizer` floors (and sums) with the node's own chrome, and src/view/nodeDensityThresholds.test.ts parses BOTH `[data-tier]` borders so the central chrome cannot drift either. A central floors at 124/92 instead of 122/90 — which does not change the options this ticket asks the owner to pick between.

@@ -84,51 +84,69 @@ export const CENTRAL_PROMINENCE_FLOOR_SCORE = 0.35;
  * is one threshold, not two.
  *
  * NOT a node height: a CSS size container query measures the container's CONTENT
- * box, so this number must be grown by {@link NODE_VERTICAL_CHROME_PX} before it
- * can be compared to `sizePx`.
+ * box, so this number must be grown by the node's own chrome (see
+ * {@link revealMinNodePx}) before it can be compared to `sizePx`.
  */
-const PREVIEW_SLOT_REVEAL_CONTENT_BOX_PX = 104;
+export const PREVIEW_SLOT_REVEAL_CONTENT_BOX_PX = 104;
 
 /**
  * Content-box height (px) at which `src/view/graph-view.css` reveals the
  * attachment-chip row — the lower rung of the same density ladder. Same
  * content-box caveat as {@link PREVIEW_SLOT_REVEAL_CONTENT_BOX_PX}.
  */
-const ATTACHMENT_ROW_REVEAL_CONTENT_BOX_PX = 72;
+export const ATTACHMENT_ROW_REVEAL_CONTENT_BOX_PX = 72;
 
 /**
- * How much taller a node's BORDER box is than the content box the container
- * query sees: `.vicinity-graph-node` is `box-sizing: border-box` with a 1px
- * border and `--size-4-2` (8px) of padding, top and bottom.
- *
- * (The `[data-tier]` centrals use a 2px border, so their chrome is 20 — not
- * modelled here. Deliberately left unmodelled: that 2px band is not worth a
- * per-tier floor.)
+ * How much taller an ordinary node's BORDER box is than the content box the
+ * container query sees: `.vicinity-graph-node` is `box-sizing: border-box` with
+ * a 1px border and `--size-4-2` (8px) of padding, top and bottom.
  */
 export const NODE_VERTICAL_CHROME_PX = 2 * (1 + 8);
 
 /**
- * Node height (px) at which a note's PREVIEW REGION — its thumbnail or its
- * outline — is actually displayed: the CSS reveal threshold expressed as the
- * border-box height React Flow gives the node. Below it the node shows its
- * title only, so `NodeSizer` floors EVERY node whose preview kind is not
- * `"none"` here: sizing a node to fit an outline the stylesheet then refuses to
- * paint would buy nothing but dead space.
+ * The same for a CENTRAL: `[data-tier="main"]` and `[data-tier="pinned-central"]`
+ * draw a 2px accent border, so their content box is 2px SHORTER at the same
+ * `sizePx`.
+ *
+ * Modelled — not rounded away — because content-fit sizing lands centrals
+ * EXACTLY on a reveal floor routinely (a MAIN note with one to four headings
+ * fits well under the rung, so the floor IS its size). Sized with the 18px
+ * chrome, such a central gets a 102px content box, misses the 104px query by
+ * 2px, and renders as a title over 40px of dead space — precisely the trap the
+ * floor exists to prevent. (Under the old sizer centrals were pinned to `maxPx`,
+ * which is why the band was safe to ignore then.)
+ */
+export const CENTRAL_NODE_VERTICAL_CHROME_PX = 2 * (2 + 8);
+
+/** How much taller than the container-query content box THIS node's border box is. */
+export function nodeVerticalChromePx(isCentral: boolean): number {
+	return isCentral ? CENTRAL_NODE_VERTICAL_CHROME_PX : NODE_VERTICAL_CHROME_PX;
+}
+
+/**
+ * Node height (px) at which `graph-view.css` actually PAINTS the region its
+ * container query gates at `contentBoxRungPx` — the rung expressed as the
+ * border-box height React Flow gives the node, which is the only form `sizePx`
+ * can be compared against. THE one place `rung + chrome` is spelled out.
+ *
+ * `NodeSizer` floors every node that carries such a region here: sizing a node
+ * to fit an outline (or a chip row) the stylesheet then refuses to paint would
+ * buy nothing but dead space.
  *
  * DUPLICATED KNOWLEDGE, deliberately guarded: the reveal itself is a CSS
  * container query and CSS cannot import a TS constant.
- * `src/view/nodeDensityThresholds.test.ts` parses the stylesheet — both
- * thresholds and the chrome — and fails if any half drifts.
+ * `src/view/nodeDensityThresholds.test.ts` parses the stylesheet — both rungs
+ * and both chromes — and fails if any half drifts.
  */
-export const PREVIEW_VISIBLE_MIN_NODE_PX = PREVIEW_SLOT_REVEAL_CONTENT_BOX_PX + NODE_VERTICAL_CHROME_PX;
+export function revealMinNodePx(contentBoxRungPx: number, isCentral: boolean): number {
+	return contentBoxRungPx + nodeVerticalChromePx(isCentral);
+}
 
-/**
- * Node height (px) at which the attachment-chip row is actually displayed — the
- * lower rung, same border-box reasoning as {@link PREVIEW_VISIBLE_MIN_NODE_PX}
- * and floored the same way for a node that HAS attachments.
- */
-export const ATTACHMENT_ROW_VISIBLE_MIN_NODE_PX =
-	ATTACHMENT_ROW_REVEAL_CONTENT_BOX_PX + NODE_VERTICAL_CHROME_PX;
+/** The preview rung as an ordinary (non-central) node height — see {@link revealMinNodePx}. */
+export const PREVIEW_VISIBLE_MIN_NODE_PX = revealMinNodePx(PREVIEW_SLOT_REVEAL_CONTENT_BOX_PX, false);
+
+/** The chip-row rung as an ordinary (non-central) node height — see {@link revealMinNodePx}. */
+export const ATTACHMENT_ROW_VISIBLE_MIN_NODE_PX = revealMinNodePx(ATTACHMENT_ROW_REVEAL_CONTENT_BOX_PX, false);
 
 // ---------------------------------------------------------------------------
 // Content-fit size estimate (NodeSizer) + label width estimate.
@@ -168,6 +186,14 @@ export const NODE_MAX_LABEL_WIDTH_PX = 250;
 export const NODE_TITLE_LINE_CLAMP = 4;
 
 /**
+ * Max rendered title lines on a node whose preview is its THUMBNAIL: the reveal
+ * block in `graph-view.css` re-clamps `[data-preview="thumbnail"]` titles to 2,
+ * so the fixed-height slot is never pushed out by a long name. The height
+ * estimate must budget the same 2 lines the CSS will actually paint.
+ */
+export const THUMBNAIL_PREVIEW_TITLE_LINE_CLAMP = 2;
+
+/**
  * Snug width (px) a note node needs to render its title on ONE line. Char-count
  * heuristic — see {@link NODE_TITLE_CHAR_WIDTH_PX}. Callers cap this at
  * {@link NODE_MAX_LABEL_WIDTH_PX} (a longer title wraps instead).
@@ -184,6 +210,15 @@ export const ESTIMATED_OUTLINE_ENTRY_PX = 18;
 
 /** The attachment-chip row (chip padding + icon), present when a note has attachments. */
 export const ESTIMATED_ATTACHMENT_ROW_PX = 22;
+
+/**
+ * The image thumbnail's slot (`--vicinity-graph-thumbnail-height`, also its
+ * `min-height`, so it is a FLOOR the flexbox cannot shrink past). Counted like
+ * any other region: a thumbnail node that also carries a chip row and a wrapped
+ * title needs room for all three, or the chip row is pushed out through the
+ * node's `overflow: hidden`.
+ */
+export const ESTIMATED_THUMBNAIL_SLOT_PX = 56;
 
 /** Flex gap between the node's content regions (`--size-4-1`). */
 export const NODE_REGION_GAP_PX = 4;

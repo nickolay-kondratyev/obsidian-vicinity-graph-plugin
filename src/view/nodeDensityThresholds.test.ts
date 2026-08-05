@@ -2,7 +2,14 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { ATTACHMENT_ROW_VISIBLE_MIN_NODE_PX, NODE_VERTICAL_CHROME_PX, PREVIEW_VISIBLE_MIN_NODE_PX } from "../engine";
+import {
+	ATTACHMENT_ROW_VISIBLE_MIN_NODE_PX,
+	CENTRAL_NODE_VERTICAL_CHROME_PX,
+	ESTIMATED_THUMBNAIL_SLOT_PX,
+	NODE_VERTICAL_CHROME_PX,
+	PREVIEW_VISIBLE_MIN_NODE_PX,
+	THUMBNAIL_PREVIEW_TITLE_LINE_CLAMP,
+} from "../engine";
 
 /**
  * The node's density ladder is knowledge held TWICE: the stylesheet's
@@ -44,8 +51,20 @@ const NODE_PADDING_SPACING_STEPS = /\n\tpadding:\s*var\(--size-4-(\d+)\)/;
 /** Obsidian's spacing scale: `--size-4-N` is `N * 4px`. */
 const OBSIDIAN_SPACING_STEP_PX = 4;
 // The title budget the preview reveal threshold is sized against (see graph-view.css).
-const CLAMPS_TITLE_TO_TWO_LINES =
-	/\.vicinity-graph-node\[data-preview="thumbnail"\] \.vicinity-graph-node__title \{[^}]*-webkit-line-clamp:\s*2/;
+const THUMBNAIL_PREVIEW_TITLE_CLAMP =
+	/\.vicinity-graph-node\[data-preview="thumbnail"\] \.vicinity-graph-node__title \{[^}]*-webkit-line-clamp:\s*(\d+)/;
+// The centrals' own border: BOTH tiers carry the accent ring, and the engine
+// models ONE central chrome, so a tier that drifted to a different width would
+// leave one of them unmodelled.
+// Captures from just after the `{`, so the leading newline `NODE_BORDER_WIDTH`
+// anchors on is part of the body even when the border is the tier's ONLY rule.
+const CENTRAL_TIER_RULE = (tier: string): RegExp =>
+	new RegExp(`\\n\\.vicinity-graph-node\\[data-tier="${tier}"\\] \\{([\\s\\S]*?)\\n\\}`);
+const CENTRAL_TIERS = ["main", "pinned-central"] as const;
+// The thumbnail slot's fixed height, declared as a custom property on the node root.
+// Anchored to a line start: it is the rule's FIRST declaration, so there is no
+// preceding newline inside the captured body.
+const THUMBNAIL_SLOT_HEIGHT = /(?:^|\n)\t--vicinity-graph-thumbnail-height:\s*(\d+)px/;
 
 function stylesheet(): string {
 	return readFileSync(STYLESHEET, "utf8");
@@ -76,15 +95,32 @@ function nodeRootDeclarations(): string {
 	return match[1];
 }
 
+/** Vertical padding of the node root — shared by every tier (only the border varies). */
+function parsedNodeVerticalPaddingPx(): number {
+	const paddingSteps = NODE_PADDING_SPACING_STEPS.exec(nodeRootDeclarations())?.[1];
+	if (paddingSteps === undefined) {
+		throw new Error("`.vicinity-graph-node` no longer declares a --size-4-N padding");
+	}
+	return 2 * Number(paddingSteps) * OBSIDIAN_SPACING_STEP_PX;
+}
+
 /** Vertical border + padding of the node root, i.e. `borderBox - contentBox`. */
 function parsedNodeVerticalChromePx(): number {
-	const declarations = nodeRootDeclarations();
-	const border = NODE_BORDER_WIDTH.exec(declarations)?.[1];
-	const paddingSteps = NODE_PADDING_SPACING_STEPS.exec(declarations)?.[1];
-	if (border === undefined || paddingSteps === undefined) {
-		throw new Error("`.vicinity-graph-node` no longer declares a plain px border and a --size-4-N padding");
+	const border = NODE_BORDER_WIDTH.exec(nodeRootDeclarations())?.[1];
+	if (border === undefined) {
+		throw new Error("`.vicinity-graph-node` no longer declares a plain px border");
 	}
-	return 2 * (Number(border) + Number(paddingSteps) * OBSIDIAN_SPACING_STEP_PX);
+	return 2 * Number(border) + parsedNodeVerticalPaddingPx();
+}
+
+/** The same for one central tier's overriding border. */
+function parsedCentralVerticalChromePx(tier: string): number {
+	const declarations = CENTRAL_TIER_RULE(tier).exec(stylesheet())?.[1];
+	const border = declarations === undefined ? undefined : NODE_BORDER_WIDTH.exec(declarations)?.[1];
+	if (border === undefined) {
+		throw new Error(`\`.vicinity-graph-node[data-tier="${tier}"]\` no longer declares a plain px border`);
+	}
+	return 2 * Number(border) + parsedNodeVerticalPaddingPx();
 }
 
 describe("node density thresholds", () => {
@@ -118,7 +154,21 @@ describe("node density thresholds", () => {
 		);
 	});
 
-	it("WHEN the stylesheet reveals the thumbnail THEN it also caps the title at the 2 lines the threshold budgets", () => {
-		expect(revealBlocks(REVEALS_THUMBNAIL)[0]?.body ?? "").toMatch(CLAMPS_TITLE_TO_TWO_LINES);
+	it("WHEN the stylesheet reveals the thumbnail THEN it caps the title at the lines the engine budgets for it", () => {
+		const clamp = THUMBNAIL_PREVIEW_TITLE_CLAMP.exec(revealBlocks(REVEALS_THUMBNAIL)[0]?.body ?? "")?.[1];
+		expect(Number(clamp)).toBe(THUMBNAIL_PREVIEW_TITLE_LINE_CLAMP);
+	});
+
+	it("WHEN the thumbnail slot declares its fixed height THEN the engine's estimate of that region matches", () => {
+		const slot = THUMBNAIL_SLOT_HEIGHT.exec(nodeRootDeclarations())?.[1];
+		expect(Number(slot)).toBe(ESTIMATED_THUMBNAIL_SLOT_PX);
+	});
+
+	// A central's accent ring is 2px, so at the SAME sizePx its content box is 2px
+	// shorter — and content-fit sizing lands centrals exactly ON a reveal floor
+	// routinely, where 2px is the whole difference between painting the region and
+	// reserving dead space for it. Hence the engine models this chrome separately.
+	it.each(CENTRAL_TIERS)("WHEN a %s central is styled THEN its chrome matches the engine's central correction", (tier) => {
+		expect(parsedCentralVerticalChromePx(tier)).toBe(CENTRAL_NODE_VERTICAL_CHROME_PX);
 	});
 });

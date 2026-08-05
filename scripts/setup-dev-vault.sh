@@ -374,8 +374,9 @@ done
 # one-line note at ~minPx (40px), and at that scale the 12-node blob packs so
 # tightly against the box corner that libavoid's cheapest pin for one edge is a
 # WRAPPED border (the wrong-side wrap itself is a tracked routing follow-up).
-# Three outline entries keep each neighbour at ~93px — the scale the crowd
-# formation and the facing-side guard were tuned around.
+# An outline-bearing node is floored at the preview reveal (122px border-box),
+# which is the scale the crowd formation and the facing-side guard were tuned
+# around.
 FACING_NEIGHBOUR_BODY_PADDING='
 # Alpha
 
