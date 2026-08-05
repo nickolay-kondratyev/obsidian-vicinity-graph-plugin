@@ -9,6 +9,9 @@ There is no release automation yet; every step below is **manual.**
 
 ## 1. Green gates (must all pass)
 
+(`npm run test:all` runs the first three in order, fail-fast; `npm run test:all --
+--with-floor` adds the floor e2e run.)
+
 - [ ] `npm run check` — strict `tsc -noEmit`, EXIT 0.
 - [ ] `npm test` — vitest suite, 0 failures.
 - [ ] `npm run build` — production bundle to `main.js` + `styles.css`, EXIT 0.
