@@ -537,6 +537,13 @@
 	 * both directions the corner handle gets from its 50% translate. */
 	--vicinity-graph-resize-band-px: 8px;
 	--vicinity-graph-resize-line-px: 2px;
+	/* Where the node's corner arc starts, so the painted line STOPS there instead
+	 * of running straight past the rounding it is supposed to trace (ticket
+	 * `nid_rcs31edfd3uadudhlxo1gdjue_e`). The node root's own `border-radius`
+	 * token, verbatim — `resizeLineInset.test.ts` fails the two apart. Applied to
+	 * the PAINT below, never to this band: the band is the drag target, and the
+	 * corners are where an edge drag is most likely to be aimed. */
+	--vicinity-graph-resize-line-inset: var(--radius-m);
 
 	border-width: 0;
 }
@@ -550,17 +557,20 @@
 	content: "";
 	position: absolute;
 	background: var(--interactive-accent);
+	/* Half the line's own thickness ⇒ the pulled-back ends read as caps rather
+	 * than as a bar that was cut short. */
+	border-radius: var(--vicinity-graph-resize-line-px);
 }
 .vicinity-graph-flow .react-flow__resize-control.line.right::after {
-	top: 0;
-	bottom: 0;
+	top: var(--vicinity-graph-resize-line-inset);
+	bottom: var(--vicinity-graph-resize-line-inset);
 	left: 50%;
 	width: var(--vicinity-graph-resize-line-px);
 	transform: translateX(-50%);
 }
 .vicinity-graph-flow .react-flow__resize-control.line.bottom::after {
-	left: 0;
-	right: 0;
+	left: var(--vicinity-graph-resize-line-inset);
+	right: var(--vicinity-graph-resize-line-inset);
 	top: 50%;
 	height: var(--vicinity-graph-resize-line-px);
 	transform: translateY(-50%);
