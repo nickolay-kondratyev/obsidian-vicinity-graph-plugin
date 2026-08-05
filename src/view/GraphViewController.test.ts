@@ -82,6 +82,11 @@ class FakeGraphSource implements GraphSourcePort {
 		this.pendingAt(index).reject(error);
 	}
 
+	/** Whether a build was started at this index — how the failure tests find the automatic retry. */
+	hasPendingAt(index: number): boolean {
+		return this.deferreds[index] !== undefined;
+	}
+
 	private pendingAt(index: number): Deferred<GraphBuildResult | null> {
 		const pending = this.deferreds[index];
 		if (pending === undefined) {
@@ -214,6 +219,19 @@ function setup(
 	return { controller, source, layout, navigator, router, linkPreview, snapshot: () => controller.getSnapshot() };
 }
 
+/**
+ * Rejects the build at `firstIndex` and every automatic retry it spawns, leaving
+ * the controller at its terminal failure answer. Driven by what the source was
+ * ASKED for rather than by a copy of the attempt budget, so raising/lowering
+ * `REBUILD_ATTEMPTS` cannot silently leave these tests mid-sequence.
+ */
+async function rejectEveryAttempt(h: Harness, firstIndex: number): Promise<void> {
+	for (let index = firstIndex; h.source.hasPendingAt(index); index += 1) {
+		h.source.rejectBuild(index, new Error("vault read failed"));
+		await flush();
+	}
+}
+
 function nodeIds(snapshot: FlowSnapshot): string[] {
 	return snapshot.nodes.map((node) => node.id);
 }
@@ -342,31 +360,136 @@ describe("GraphViewController first-paint building state", () => {
 		expect(h.snapshot().status).toBe("empty");
 	});
 
-	it("WHEN the first build rejects THEN the placeholder gives way to empty", async () => {
+	it("WHEN the first build rejects THEN the placeholder gives way to the failed state", async () => {
 		const h = setup();
 		const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+		h.controller.handleActiveFileChanged("a.md");
+
+		await rejectEveryAttempt(h, 0);
+
+		expect(h.snapshot().status).toBe("failed");
+		consoleError.mockRestore();
+	});
+});
+
+/**
+ * Rebuild failure policy (ticket nid_iqna8b4j5339pjiga7kgwdnh7_e). A build can
+ * REJECT — the main doc's identity read is a content read that loses its race
+ * when the file goes away between the index lookup and the read. Those failures
+ * are races, not verdicts, so one automatic retry runs first; only when that is
+ * also spent does the view declare the rebuild FAILED and hand the user a manual
+ * way back in. ONE policy for every cause and every prior screen — a rendered
+ * graph is NOT kept, because it predates the vault state the failed pass tried to
+ * read and leaving it up would pass it off as current.
+ */
+describe("GraphViewController rebuild failure policy", () => {
+	let consoleError: ReturnType<typeof vi.spyOn>;
+
+	beforeEach(() => {
+		consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+	});
+
+	afterEach(() => {
+		consoleError.mockRestore();
+	});
+
+	it("WHEN a build rejects THEN it is retried automatically", async () => {
+		const h = setup();
 		h.controller.handleActiveFileChanged("a.md");
 
 		h.source.rejectBuild(0, new Error("vault read failed"));
 		await flush();
 
-		expect(h.snapshot().status).toBe("empty");
-		consoleError.mockRestore();
+		expect(h.source.calls).toEqual(["a.md", "a.md"]);
 	});
 
-	it("WHEN a rebuild rejects while a graph is rendered THEN that graph stays published", async () => {
+	it("WHEN the automatic retry succeeds THEN its graph is rendered", async () => {
 		const h = setup();
-		const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+		h.controller.handleActiveFileChanged("a.md");
+
+		h.source.rejectBuild(0, new Error("vault read failed"));
+		await flush();
+		h.source.resolveBuild(1, graphOf("a.md"));
+		await flush();
+
+		expect(nodeIds(h.snapshot())).toEqual(["a.md"]);
+	});
+
+	it("WHEN the automatic retry also rejects THEN no further attempt is made", async () => {
+		const h = setup();
+		h.controller.handleActiveFileChanged("a.md");
+
+		await rejectEveryAttempt(h, 0);
+
+		expect(h.source.calls).toEqual(["a.md", "a.md"]);
+	});
+
+	it("WHEN a rebuild fails while a graph is rendered THEN the failed state replaces it", async () => {
+		const h = setup();
 		h.controller.handleActiveFileChanged("a.md");
 		h.source.resolveBuild(0, graphOf("a.md"));
 		await flush();
 
 		h.controller.handleSettingsChanged();
-		h.source.rejectBuild(1, new Error("vault read failed"));
+		await rejectEveryAttempt(h, 1);
+
+		expect(h.snapshot().status).toBe("failed");
+	});
+
+	it("WHEN a rejecting build was superseded THEN it is not retried", async () => {
+		const h = setup();
+		h.controller.handleActiveFileChanged("a.md"); // token 1, build[0]
+		h.controller.handleActiveFileChanged("b.md"); // token 2 supersedes it, build[1]
+
+		h.source.rejectBuild(0, new Error("vault read failed"));
+		await flush();
+
+		expect(h.source.calls).toEqual(["a.md", "b.md"]);
+	});
+
+	it("WHEN a rejecting build was superseded THEN the failed state is not published over its successor", async () => {
+		const h = setup();
+		h.controller.handleActiveFileChanged("a.md");
+		h.controller.handleActiveFileChanged("b.md");
+
+		h.source.rejectBuild(0, new Error("vault read failed"));
+		await flush();
+		h.source.resolveBuild(1, graphOf("b.md"));
+		await flush();
+
+		expect(nodeIds(h.snapshot())).toEqual(["b.md"]);
+	});
+
+	it("WHEN the user retries from the failed state THEN a fresh build runs", async () => {
+		const h = setup();
+		h.controller.handleActiveFileChanged("a.md");
+		await rejectEveryAttempt(h, 0);
+
+		h.controller.retryRebuild();
+
+		expect(h.source.calls).toEqual(["a.md", "a.md", "a.md"]);
+	});
+
+	it("WHEN the user retries from the failed state THEN the failure copy gives way to the placeholder", async () => {
+		const h = setup();
+		h.controller.handleActiveFileChanged("a.md");
+		await rejectEveryAttempt(h, 0);
+
+		h.controller.retryRebuild();
+
+		expect(h.snapshot().status).toBe("building");
+	});
+
+	it("WHEN a retried build resolves THEN its graph is rendered", async () => {
+		const h = setup();
+		h.controller.handleActiveFileChanged("a.md");
+		await rejectEveryAttempt(h, 0);
+
+		h.controller.retryRebuild();
+		h.source.resolveBuild(2, graphOf("a.md"));
 		await flush();
 
 		expect(nodeIds(h.snapshot())).toEqual(["a.md"]);
-		consoleError.mockRestore();
 	});
 });
 

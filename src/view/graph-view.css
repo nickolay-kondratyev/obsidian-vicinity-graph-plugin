@@ -86,10 +86,11 @@
 	border-bottom: none;
 }
 
-/* The two "no canvas yet" states — nothing to draw, and not drawn YET — share
-   one centered, muted presentation; only the sentence differs. */
+/* The "no canvas" states — nothing to draw, not drawn YET, and could not be
+   drawn — share one centered, muted presentation; only the content differs. */
 .vicinity-graph-empty,
-.vicinity-graph-building {
+.vicinity-graph-building,
+.vicinity-graph-failed {
 	height: 100%;
 	display: flex;
 	align-items: center;
@@ -98,6 +99,13 @@
 	padding: var(--size-4-4);
 	color: var(--text-muted);
 	font-size: var(--font-ui-small);
+}
+
+/* The failure state adds a retry button under its sentence — the only one of the
+   three the user can act on, so it stacks instead of centering a single line. */
+.vicinity-graph-failed {
+	flex-direction: column;
+	gap: var(--size-4-3);
 }
 
 /* ===== note nodes ======================================================= */

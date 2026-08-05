@@ -167,6 +167,20 @@ export function VicinityGraphFlow({
 	if (snapshot.status === "empty") {
 		return <div className="vicinity-graph-empty">No vicinity graph for the active file.</div>;
 	}
+	// Every attempt of the rebuild failed (GraphViewController.REBUILD_ATTEMPTS —
+	// the automatic retry is already spent by the time this renders), so the pane
+	// says so instead of standing behind a screen it can no longer vouch for. The
+	// button is the ONLY way back into the pipeline short of a vault/settings event.
+	if (snapshot.status === "failed") {
+		return (
+			<div className="vicinity-graph-failed">
+				<div>Could not build the vicinity graph for the active file.</div>
+				<button type="button" className="mod-cta" onClick={() => controller.retryRebuild()}>
+					Try again
+				</button>
+			</div>
+		);
+	}
 
 	return (
 		<GraphUiContext.Provider value={ui}>
