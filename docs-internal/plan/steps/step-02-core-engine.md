@@ -25,11 +25,13 @@ The entire decision-heavy core as pure functions with **no Obsidian imports**, t
 ### Truncation
 
 - Hard cap (parameter; default `100` as a named constant). **Centrals exempt**; folder containers don't count.
-- Deterministic priority chain: lower minDepth → higher size score → graph distance to MAIN (when connected) → pin recency (most recent wins) → docid tiebreaker.
+- Deterministic priority chain: lower minDepth → higher size score → graph distance to MAIN (when connected) → pin recency (most recent wins) → docid tiebreaker. **(SUPERSEDED 2026-08-04: the "higher size score" level was removed with the sizing metrics — see `../high-level-plan` and `NodePriorityChain`.)**
 - Output includes **hidden-node counts, per folder group**, for the UI badge.
 - The same chain is exposed as a reusable comparator — it also resolves multi-pin conflicts in the settings cascade (DRY: one implementation).
 
 ### Sizing
+
+**SUPERSEDED 2026-08-03** (owner decision, ticket `nid_cx5zoz7ptucg9nxalibv0mbjb_e`; see `../node-sizing-rethink` and the Sizing section of `../high-level-plan`): the metric system below was removed wholesale. A node now sizes to FIT what it shows, clamped by `minPx`/`maxPx`, with a prominence floor for centrals. The bullets stay as the record of what step-02 shipped.
 
 - Composable metric system: each metric independently normalized, toggled, weighted; composed score maps to a min/max pixel range.
 - Metrics: `own-file-size` (default-on, log/sqrt normalization for byte sizes), `total-linker-size`, `backlink-count`, `outlink-count`, `depth-decay` (`1 / (1 + k * depth)` on shortest depth from any central).

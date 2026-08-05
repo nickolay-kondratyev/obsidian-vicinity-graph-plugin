@@ -141,11 +141,13 @@ changed gets reverted by the next change.
   notes are shown never changes**, only the lines between them; a cross link looks
   exactly like any other line, `xN` count included.
 - **Sizing** — each node sizes itself to fit what it shows (its title, outline or
-  image) between the **min size** and **max size** dials. A note showing a
-  thumbnail is never sized below the height at which the thumbnail is shown in
-  full (122px) — capped by your **max size**, so an explicit maximum still wins
-  (set max below 122 and thumbnails stay hidden). Your central and pinned notes
-  get a modest size floor so they stay easy to spot even when empty.
+  image) between the **min size** and **max size** dials. A node is never sized
+  below the height at which the region it shows becomes visible — 122px for a
+  preview (outline *or* thumbnail), 90px for the attachment chips — because a
+  node just short of that would show dead space instead. Your **max size** still
+  caps it, so an explicit maximum wins (set max below 122 and previews stay
+  hidden). Your central and pinned notes get a modest size floor of their own so
+  they stay easy to spot even when empty.
 - **Preview** — a three-way pill choosing what a node shows in its preview slot:
   **Auto** (default), **Outline** or **Image**. See *Node contents* below. The
   same pill is in the in-view graph controls, under *Node contents* — both edit

@@ -25,7 +25,7 @@ Human eyes are now needed only for the **visual/native-feel** residue of §1/§6
 - `planSettingsWrite` — which write lands where, per interaction, every write landing in `data.json` as a global (there is no pin-on-toggle and no field delete left).
 - `ControlsModelBuilder` — the panel renders the same `globalDepths` the engine traverses with (shown value == graphed value, structurally).
 - The headline claim in `src/engine/VicinityEngine.test.ts`: the one global depth drives MAIN **and** every pinned root, and a pinned root's reach does not change when MAIN does.
-- `clampStepperDepth` bounds 0..5, `planNodePinAction` (main→none/regular→pin/pinned→unpin), `sizingMetrics` invariant vs engine `SizeMetricId`.
+- `clampStepperDepth` bounds 0..5, `planNodePinAction` (main→none/regular→pin/pinned→unpin), `sizingMetrics` invariant vs engine `SizeMetricId` (that last guard and the metric dials it covered were REMOVED by content-fit sizing, `nid_cx5zoz7ptucg9nxalibv0mbjb_e` — the sizing card is now two clamps, so smoke-run it as such).
 
 ## What needs HUMAN eyes (native feel / visual / restart round-trip)
 

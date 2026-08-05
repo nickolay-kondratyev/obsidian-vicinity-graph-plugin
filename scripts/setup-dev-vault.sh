@@ -5,9 +5,11 @@
 # checkout has no vault to open, and the plugin has to be built + copied in
 # before Obsidian can load it. This script makes the whole loop one command.
 #
-# Idempotent: fixtures and `.obsidian` config are (re)created ONLY when missing,
-# so local enrichment of note1/note2/... is never clobbered. Re-run any time to
-# rebuild and re-copy the plugin artifacts.
+# Idempotent, with TWO fixture writers (see each one's WHY below): most fixtures
+# and the `.obsidian` config are (re)created ONLY when missing, so local
+# enrichment of note1/note2/... is never clobbered — while fixtures an e2e spec
+# MEASURES are script-OWNED and re-written whenever they drift from what this
+# script declares. Re-run any time to rebuild and re-copy the plugin artifacts.
 #
 # Ref: docs-internal/tickets/ticket-step-03-human-smoke-run.md
 set -euo pipefail
@@ -30,6 +32,30 @@ write_if_missing() {
 	mkdir -p "$(dirname "${target}")"
 	cat >"${target}"
 	echo "  create ${target}"
+}
+
+# write_fixture PATH < CONTENT — a SCRIPT-OWNED fixture: created when absent AND
+# rewritten whenever its content drifted from what this script declares.
+#
+# WHY a second writer: `write_if_missing` protects local enrichment, which is
+# right for the notes a human explores with — but it makes a fixture BODY change
+# a silent no-op on every vault that already exists. `e2e/` runs against a COPY
+# of this vault, so a fixture an e2e spec MEASURES (node sizes, edge geometry)
+# must be the declared one on every machine, or the suite passes on a fresh
+# checkout and fails on a developer's older vault with no clue why. Fixtures
+# that are only READ (link shape, titles) can stay `write_if_missing`.
+write_fixture() {
+	local target="$1" content
+	content="$(cat)"
+	# `$(cat file)` strips trailing newlines on BOTH sides, so the comparison and
+	# the write below agree on exactly one terminating newline.
+	if [[ -e "${target}" && "$(cat "${target}")" == "${content}" ]]; then
+		echo "  keep   ${target} (matches the declared fixture)"
+		return
+	fi
+	mkdir -p "$(dirname "${target}")"
+	printf '%s\n' "${content}" >"${target}"
+	echo "  write  ${target} (declared fixture)"
 }
 
 # copy_if_missing SRC DEST — copy a binary fixture (e.g. an image) only when DEST is absent.
@@ -363,11 +389,11 @@ FACING_CLUSTER_HUB="facing-near1"
 	for i in $(seq 1 "${FACING_NEIGHBOUR_COUNT}"); do
 		printf 'Neighbour [[facing-near%d]].\n' "${i}"
 	done
-} | write_if_missing "${VAULT}/facing/hub-facing.md"
+} | write_fixture "${VAULT}/facing/hub-facing.md"
 
 for i in $(seq 1 "${FACING_MEMBER_COUNT}"); do
 	printf 'facing/ member %d — gives the group box real area and inset members. Hub [[hub-facing]].\n' "${i}" \
-		| write_if_missing "${VAULT}/facing/facing-m${i}.md"
+		| write_fixture "${VAULT}/facing/facing-m${i}.md"
 done
 
 # Each neighbour carries three headings: content-fit sizing renders a bare
@@ -387,10 +413,10 @@ for i in $(seq 1 "${FACING_NEIGHBOUR_COUNT}"); do
 	name="facing-near${i}"
 	if [[ "${name}" == "${FACING_CLUSTER_HUB}" ]]; then
 		printf 'Facing neighbour %d — the cluster mini-hub the other neighbours link to.\n%s\n' "${i}" "${FACING_NEIGHBOUR_BODY_PADDING}" \
-			| write_if_missing "${VAULT}/${name}.md"
+			| write_fixture "${VAULT}/${name}.md"
 	else
 		printf 'Facing neighbour %d (ungrouped root note). Cluster link [[%s]].\n%s\n' "${i}" "${FACING_CLUSTER_HUB}" "${FACING_NEIGHBOUR_BODY_PADDING}" \
-			| write_if_missing "${VAULT}/${name}.md"
+			| write_fixture "${VAULT}/${name}.md"
 	fi
 done
 
