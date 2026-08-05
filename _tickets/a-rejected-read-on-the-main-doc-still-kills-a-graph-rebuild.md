@@ -75,5 +75,8 @@ so no structural-diff baseline survives a screen that shows no graph.
 Covered by `GraphViewController.test.ts` → "GraphViewController rebuild failure
 policy" (9 tests: auto-retry happens, retry success renders, no third attempt,
 failed replaces a rendered graph, superseded builds neither retry nor publish
-failed, manual retry runs / shows the placeholder / renders). `npm test` (1616),
-`npm run check`, and `npm run test:e2e -- vicinityGraph.e2e.ts` (25) all green.
+failed, manual retry runs / shows the placeholder / renders), plus
+`VicinityGraphFlow.component.test.tsx` for the RENDERED half — the controller
+tests prove `retryRebuild()` works, not that the pane ever offers it, and that
+button is the user's only way back in. `npm test` (1620), `npm run check`, and
+`npm run test:e2e -- vicinityGraph.e2e.ts` (25) all green.
