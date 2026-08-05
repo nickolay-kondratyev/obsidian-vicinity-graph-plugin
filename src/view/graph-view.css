@@ -20,6 +20,13 @@
 	position: relative;
 	container: vicinity-graph-pane / size;
 
+	/* The node box's corner radius, declared ONCE for everything that has to
+	 * agree with it — the node root paints the arc, the drag-resize edge lines
+	 * stop where the arc starts (ticket `nid_rcs31edfd3uadudhlxo1gdjue_e`). Both
+	 * are descendants of this pane, so the cascade — not a test asserting two
+	 * literals still match — is what keeps them one number. */
+	--vicinity-graph-node-radius: var(--radius-m);
+
 	/* Retheme React Flow's own chrome via its published custom properties. */
 	--xy-background-color: transparent;
 	--xy-background-pattern-dots-color: var(--background-modifier-border);
@@ -131,7 +138,7 @@
 	padding: var(--size-4-2);
 	background: var(--background-primary);
 	border: 1px solid var(--background-modifier-border);
-	border-radius: var(--radius-m);
+	border-radius: var(--vicinity-graph-node-radius);
 	overflow: hidden;
 	cursor: pointer;
 	transition:
@@ -537,13 +544,6 @@
 	 * both directions the corner handle gets from its 50% translate. */
 	--vicinity-graph-resize-band-px: 8px;
 	--vicinity-graph-resize-line-px: 2px;
-	/* Where the node's corner arc starts, so the painted line STOPS there instead
-	 * of running straight past the rounding it is supposed to trace (ticket
-	 * `nid_rcs31edfd3uadudhlxo1gdjue_e`). The node root's own `border-radius`
-	 * token, verbatim — `resizeLineInset.test.ts` fails the two apart. Applied to
-	 * the PAINT below, never to this band: the band is the drag target, and the
-	 * corners are where an edge drag is most likely to be aimed. */
-	--vicinity-graph-resize-line-inset: var(--radius-m);
 
 	border-width: 0;
 }
@@ -553,24 +553,31 @@
 .vicinity-graph-flow .react-flow__resize-control.line.bottom {
 	height: var(--vicinity-graph-resize-band-px);
 }
+/*
+ * The PAINT. Its ends stop a node-radius short of the band's, so the line traces
+ * the straight run of the edge and hands the corner back to the node's own arc
+ * instead of shooting past it (ticket `nid_rcs31edfd3uadudhlxo1gdjue_e`). The
+ * inset is on the paint ONLY, never on the band above: the band is the drag
+ * target, and the corners are where an edge drag is most likely to be aimed.
+ */
 .vicinity-graph-flow .react-flow__resize-control.line::after {
 	content: "";
 	position: absolute;
 	background: var(--interactive-accent);
-	/* Half the line's own thickness ⇒ the pulled-back ends read as caps rather
-	 * than as a bar that was cut short. */
-	border-radius: var(--vicinity-graph-resize-line-px);
+	/* Half the line's own thickness ⇒ the pulled-back ends read as round caps
+	 * rather than as a bar that was cut short. */
+	border-radius: calc(var(--vicinity-graph-resize-line-px) / 2);
 }
 .vicinity-graph-flow .react-flow__resize-control.line.right::after {
-	top: var(--vicinity-graph-resize-line-inset);
-	bottom: var(--vicinity-graph-resize-line-inset);
+	top: var(--vicinity-graph-node-radius);
+	bottom: var(--vicinity-graph-node-radius);
 	left: 50%;
 	width: var(--vicinity-graph-resize-line-px);
 	transform: translateX(-50%);
 }
 .vicinity-graph-flow .react-flow__resize-control.line.bottom::after {
-	left: var(--vicinity-graph-resize-line-inset);
-	right: var(--vicinity-graph-resize-line-inset);
+	left: var(--vicinity-graph-node-radius);
+	right: var(--vicinity-graph-node-radius);
 	top: 50%;
 	height: var(--vicinity-graph-resize-line-px);
 	transform: translateY(-50%);
