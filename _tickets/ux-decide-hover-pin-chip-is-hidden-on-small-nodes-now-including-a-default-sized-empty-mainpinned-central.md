@@ -96,3 +96,23 @@ and the chip now declares `box-sizing: border-box` so its reach is what the rung
 assumes. `nodeDensityThresholds.test.ts` recomputes the 16px from the chip's own
 declarations plus the node padding. At shipped defaults nothing changes (a 40px node
 is 22px of content), so the ticket's decision stands intact.
+
+## Follow-up (2026-08-05, second adversarial review)
+
+The centre-clearance invariant was proven for only ONE of the two chip rungs. The
+withholding query (`max-height: 16px and max-width: 16px`) is derived from the
+COMPACT chip's declarations, but above 72px the chip grows to `20px` inset `4px` —
+a 24px reach, which covers the centre of any node whose content box is ≤32px. The
+72px rung itself is inherited from the attachment row for an unrelated reason
+(`PIN_CHIP_FULL_SIZE_CONTENT_BOX_PX` aliases it), so nothing tied it to that reach:
+lowering the rung, or growing the full-size chip, would reinstate the swallowed
+open-click in a band the `max-*` query never fires in, with every existing guard
+still green — the same "a claim about defaults, not a guarantee" criticism the
+first follow-up levelled at guard 2.
+
+`nodeDensityThresholds.test.ts` now recomputes the clearance for BOTH rungs from
+each rung's own declarations (the parser accepts the `--size-4-N` token the
+full-size inset uses, so neither rung has to be restated in px for the guard's
+benefit) and asserts the full-size rung sits above its chip's covered band. No
+behavior change — 72 > 32 today; verified the new guard bites by temporarily
+growing the full-size chip to 40px.

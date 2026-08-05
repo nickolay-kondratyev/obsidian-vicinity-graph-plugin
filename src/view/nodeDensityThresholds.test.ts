@@ -64,8 +64,10 @@ const CENTRAL_TIER_RULE = (tier: string): RegExp =>
 const CENTRAL_TIERS = ["main", "pinned-central"] as const;
 // The pin chip's OWN rule block, and the chip-size property the ladder re-declares.
 const PIN_BUTTON_RULE = /\n\.vicinity-graph-node \.vicinity-graph-pin-button \{\n([\s\S]*?)\n\}/;
-const PIN_CHIP_SIZE = /--vicinity-graph-pin-chip-size:\s*(\d+)px/;
-const PIN_CHIP_INSET = /--vicinity-graph-pin-chip-inset:\s*(\d+)px/;
+// Whole declared VALUE, not a px literal: the compact rung states px, the full-size
+// rung reuses Obsidian's `--size-4-1` inset token, and both rungs must be measurable.
+const PIN_CHIP_SIZE = /--vicinity-graph-pin-chip-size:\s*([^;]+);/;
+const PIN_CHIP_INSET = /--vicinity-graph-pin-chip-inset:\s*([^;]+);/;
 // The chip's reach is measured from its BORDER box, so the rung below is only
 // honest while the chip declares it (Obsidian's own reset is not this file's).
 const PIN_CHIP_BORDER_BOX = /\n\tbox-sizing: border-box;/;
@@ -90,13 +92,17 @@ function revealBlocks(reveals: RegExp): { readonly minHeightPx: number; readonly
 }
 
 /** The ONE query revealing a region — a second one would make "the" threshold a lie. */
-function soleRevealMinHeightPx(reveals: RegExp): number {
+function soleRevealBlock(reveals: RegExp): { readonly minHeightPx: number; readonly body: string } {
 	const blocks = revealBlocks(reveals);
 	const sole = blocks.length === 1 ? blocks[0] : undefined;
 	if (sole === undefined) {
 		throw new Error(`expected exactly ONE container query to reveal this region, found ${blocks.length}`);
 	}
-	return sole.minHeightPx;
+	return sole;
+}
+
+function soleRevealMinHeightPx(reveals: RegExp): number {
+	return soleRevealBlock(reveals).minHeightPx;
 }
 
 function nodeRootDeclarations(): string {
@@ -133,26 +139,39 @@ function pinButtonDeclarations(): string {
 	return match[1];
 }
 
+/** A length the stylesheet writes either as a px literal or as an Obsidian spacing token. */
+function parsedLengthPx(value: string, subject: string): number {
+	const px = /^(\d+)px$/.exec(value.trim())?.[1];
+	if (px !== undefined) {
+		return Number(px);
+	}
+	const steps = /^var\(--size-4-(\d+)\)$/.exec(value.trim())?.[1];
+	if (steps === undefined) {
+		throw new Error(`${subject} is neither a px literal nor a --size-4-N token: [${value}]`);
+	}
+	return Number(steps) * OBSIDIAN_SPACING_STEP_PX;
+}
+
 /**
- * The largest CONTENT-box square on which the COMPACT chip still covers the
- * node's centre point — derived, never asserted as a literal.
+ * The largest CONTENT-box square on which a top-right corner chip of this rung's
+ * geometry still covers the node's CENTRE point — derived, never a literal.
  *
- * The chip is a top-right corner box reaching `inset + size` into the node's
- * PADDING box; the centre sits at half that box. So it is covered while
- * `paddingBox / 2 <= inset + size`, and `paddingBox = contentBox + padding`.
+ * The chip reaches `inset + size` into the node's PADDING box; the centre sits at
+ * half that box. So the centre is covered while `paddingBox / 2 <= inset + size`,
+ * and `paddingBox = contentBox + padding`.
  *
  * ONE number for both axes: the node's `padding` is the shorthand, so its
  * horizontal and vertical totals are the same — which is why the stylesheet's
  * withholding query can state the same px on `max-height` and `max-width`.
  */
-function compactChipCentreClearanceContentBoxPx(): number {
-	const declarations = pinButtonDeclarations();
-	const size = PIN_CHIP_SIZE.exec(declarations)?.[1];
-	const inset = PIN_CHIP_INSET.exec(declarations)?.[1];
+function chipCentreCoveredContentBoxPx(rungDeclarations: string, subject: string): number {
+	const size = PIN_CHIP_SIZE.exec(rungDeclarations)?.[1];
+	const inset = PIN_CHIP_INSET.exec(rungDeclarations)?.[1];
 	if (size === undefined || inset === undefined) {
-		throw new Error("the pin chip no longer declares a compact px size + inset");
+		throw new Error(`the ${subject} pin chip no longer declares both a size and an inset`);
 	}
-	return 2 * (Number(size) + Number(inset)) - parsedNodeVerticalPaddingPx();
+	const reachPx = parsedLengthPx(size, `${subject} chip size`) + parsedLengthPx(inset, `${subject} chip inset`);
+	return 2 * reachPx - parsedNodeVerticalPaddingPx();
 }
 
 /** The same for one central tier's overriding border. */
@@ -235,9 +254,22 @@ describe("node density thresholds", () => {
 		(axis) => {
 			const withheld = PIN_CHIP_WITHHOLD_QUERY.exec(stylesheet());
 			const declared = Number(withheld?.[axis === "max-height" ? 1 : 2]);
-			expect(declared).toBe(compactChipCentreClearanceContentBoxPx());
+			expect(declared).toBe(chipCentreCoveredContentBoxPx(pinButtonDeclarations(), "compact"));
 		},
 	);
+
+	// The OTHER half of "the chip never covers the centre", and the one the
+	// withholding query cannot cover: above the rung the chip grows, and it grows
+	// past the reach the withholding query was computed from. The rung itself is
+	// inherited from the attachment row for an unrelated reason
+	// ({@link PIN_CHIP_FULL_SIZE_CONTENT_BOX_PX}), so nothing about the FULL-SIZE
+	// chip's geometry is implied by it — lower that rung (or grow that chip) and the
+	// swallowed open-click comes back in a band the max-* query never sees, with
+	// every other guard here still green.
+	it("WHEN the pin chip grows to full size THEN it does so only above the content box where it would cover the node's centre", () => {
+		const fullSize = soleRevealBlock(PIN_CHIP_SIZE);
+		expect(fullSize.minHeightPx).toBeGreaterThan(chipCentreCoveredContentBoxPx(fullSize.body, "full-size"));
+	});
 
 	// A central's accent ring is 2px, so at the SAME sizePx its content box is 2px
 	// shorter — and content-fit sizing lands centrals exactly ON a reveal floor

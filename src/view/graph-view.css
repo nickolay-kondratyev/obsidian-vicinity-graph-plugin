@@ -425,7 +425,13 @@
  * can seat a chip. The engine floors every CENTRAL here so the node people pin
  * and unpin most gets the full-size target (`CENTRAL_PROMINENCE_FLOOR_SCORE` in
  * src/engine/constants.ts); `nodeDensityThresholds.test.ts` guards both halves.
- * Prefixed to match the base rule's (0,2,0). */
+ *
+ * This rung ALSO owes the centre-clearance invariant above: the bigger chip reaches
+ * further (`inset + size` = 24px), so growing it here is only safe while the rung
+ * itself is above the content box at which THAT reach covers the node's centre —
+ * 32px, comfortably under 72. The withholding query cannot catch a breach here (it
+ * only ever fires at 16px), so `nodeDensityThresholds.test.ts` recomputes this half
+ * from these declarations too. Prefixed to match the base rule's (0,2,0). */
 @container (min-height: 72px) {
 	.vicinity-graph-node .vicinity-graph-pin-button {
 		--vicinity-graph-pin-chip-size: 20px;
