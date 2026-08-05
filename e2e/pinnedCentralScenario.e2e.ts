@@ -1,7 +1,5 @@
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
-import { PIN_CHIP_FULL_SIZE_CONTENT_BOX_PX } from "../src/engine";
-import { nodeContentBoxHeightPx } from "./nodeContentBox";
 import { ObsidianHarness } from "./obsidianHarness";
 
 /**
@@ -141,11 +139,6 @@ test("the MAIN central itself can be pinned, survives switching MAIN, and can be
 	await expect(noteNode(X)).toHaveAttribute("data-tier", "pinned-central");
 
 	// MAIN offers the pin gesture too (keep the current central around before navigating away).
-	// GIVEN the hub is an EMPTY central, so it renders at the prominence floor —
-	// which ticket nid_tclb98q9hxhmcuonamvr4ig1f_e tuned to clear the chip's
-	// full-size rung. Asserted here rather than in the engine alone, because the
-	// central's 2px accent ring is exactly what made the obvious floor 2px short.
-	expect(await nodeContentBoxHeightPx(noteNode(HUB))).toBeGreaterThanOrEqual(PIN_CHIP_FULL_SIZE_CONTENT_BOX_PX);
 	await expect(noteNode(HUB).locator(".vicinity-graph-pin-button")).toHaveAttribute("aria-label", "Pin to graph");
 	await clickPin(HUB);
 	// Still MAIN-tier (main styling wins) but the toggle flips to unpin.
