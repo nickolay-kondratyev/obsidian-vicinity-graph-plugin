@@ -9,7 +9,7 @@ status_updated_iso: 2026-08-04T01:58:22Z
 type: bug
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
-tags: [persistence, view, decide]
+tags: [persistence, view]
 ---
 
 `VicinityGraphBuilder.build` (src/adapters/VicinityGraphBuilder.ts) resolves the MAIN
@@ -34,6 +34,9 @@ Needs a DECISION on view-level failure policy first: does a failed rebuild leave
 previous graph on screen silently, publish the empty snapshot, or surface a notice
 (`UserNoticePort`)? Pick ONE and put it in `runRebuild` — a bare catch that swallows is
 not acceptable.
+
+--------------------------------------------------------------------------------
+HUMAN QUESTION: IF we failed to build can we AUTO try again? OR is it not going to work? I am thinking one retry and then we put a manual error in the graph view, with a button to try to rerender the graph again. 
 
 ## Acceptance Criteria
 
