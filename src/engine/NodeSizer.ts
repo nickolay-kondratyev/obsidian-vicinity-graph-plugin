@@ -1,4 +1,5 @@
 import {
+	ATTACHMENT_ROW_VISIBLE_MIN_NODE_PX,
 	CENTRAL_PROMINENCE_FLOOR_SCORE,
 	ESTIMATED_ATTACHMENT_ROW_PX,
 	ESTIMATED_OUTLINE_ENTRY_PX,
@@ -8,10 +9,11 @@ import {
 	NODE_REGION_GAP_PX,
 	NODE_TITLE_LINE_CLAMP,
 	NODE_VERTICAL_CHROME_PX,
-	THUMBNAIL_VISIBLE_MIN_NODE_PX,
+	PREVIEW_VISIBLE_MIN_NODE_PX,
 	clampSizingSettings,
 	estimateNodeLabelWidthPx,
 } from "./constants";
+import type { NodePreviewKind } from "./nodePreviewKind";
 import { nodePreviewKind } from "./nodePreviewKind";
 import type { TraversedNode } from "./VicinityTraversal";
 import type { VaultPath, ViewSettings } from "./types";
@@ -28,7 +30,9 @@ export type NodeSizingView = Pick<ViewSettings, "sizing" | "outlineMaxDepth" | "
  *
  *   `sizePx = clamp(contentFitPx, minPx, maxPx)`, where `contentFitPx` counts
  *   the title lines, the renderable outline entries or the thumbnail slot, and
- *   the attachment-chip row.
+ *   the attachment-chip row — then floors that sum at the CSS density rung the
+ *   counted regions are REVEALED at (see {@link NodeSizer.revealFloorPx}), so
+ *   the box never reserves space for a region the stylesheet hides.
  *
  * Centrals (MAIN + pinned — even when disconnected from MAIN) are additionally
  * FLOORED at {@link CENTRAL_PROMINENCE_FLOOR_SCORE} of the `minPx..maxPx` ramp
@@ -87,19 +91,39 @@ export class NodeSizer {
 		if (preview === "outline") {
 			regions.push(renderableOutlineEntries * ESTIMATED_OUTLINE_ENTRY_PX);
 		}
-		if (node.attachments.length > 0) {
+		const hasAttachments = node.attachments.length > 0;
+		if (hasAttachments) {
 			regions.push(ESTIMATED_ATTACHMENT_ROW_PX);
 		}
 		const fit =
 			NODE_VERTICAL_CHROME_PX + regions.reduce((sum, px) => sum + px, 0) + (regions.length - 1) * NODE_REGION_GAP_PX;
-		if (preview === "thumbnail") {
-			// The thumbnail region is not summed like the others: the CSS reveals it
-			// only at the container-query threshold, so "fits its thumbnail" IS that
-			// threshold — anything between fit-with-slot and the reveal would reserve
-			// space for an image the node then hides.
-			return Math.max(fit, THUMBNAIL_VISIBLE_MIN_NODE_PX);
-		}
-		return fit;
+		return Math.max(fit, NodeSizer.revealFloorPx(preview, hasAttachments));
+	}
+
+	/**
+	 * The height a node must reach before `graph-view.css` PAINTS the regions
+	 * counted above — its rung of the stylesheet's density ladder.
+	 *
+	 * WHY a floor and not just the summed regions: the reveals are container
+	 * queries, so "fits its outline" IS the threshold. A node sized to the bare
+	 * sum of a two-entry outline (75px) sits below the 122px reveal and renders
+	 * as a title with 40px of dead space and NO outline — the same trap the
+	 * thumbnail floor has always existed to avoid, which the outline and the chip
+	 * row share because they share the ladder.
+	 *
+	 * WHY-NOT drop the hidden region from the sum instead (leaving the node
+	 * small): then a note with two headings could never show them at any dial
+	 * setting, and the preview kind the view renders by would name a region that
+	 * never paints. The size dials remain the user's say — `computeSizes` clamps
+	 * this floor into `minPx..maxPx`, so an explicit `maxPx` below a threshold
+	 * still wins (the node is then small AND hides the region, which is what was
+	 * asked for).
+	 */
+	private static revealFloorPx(preview: NodePreviewKind, hasAttachments: boolean): number {
+		return Math.max(
+			preview === "none" ? 0 : PREVIEW_VISIBLE_MIN_NODE_PX,
+			hasAttachments ? ATTACHMENT_ROW_VISIBLE_MIN_NODE_PX : 0,
+		);
 	}
 
 	/**

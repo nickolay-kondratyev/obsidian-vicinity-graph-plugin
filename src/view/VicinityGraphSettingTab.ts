@@ -500,7 +500,6 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 		});
 	}
 
-
 	/**
 	 * One sizing number input. Pure obsidian glue: {@link parseSizingInput} decides
 	 * what counts as typed input (the same rule the in-view sizing mirror uses) and

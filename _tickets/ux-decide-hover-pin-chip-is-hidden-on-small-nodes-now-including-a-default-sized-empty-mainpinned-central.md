@@ -26,3 +26,9 @@ Options to decide between (not exclusive):
 
 Owner decision recorded; if a change is made, the hover pin affordance on a default-sized (empty, title-only) node and on an empty MAIN central is either present or explicitly decided against, with e2e coverage matching.
 
+
+## Notes
+
+**2026-08-05T00:55:15Z**
+
+Partly moved by the reveal-floor fix (nid_1mq3t7706vw2kj2kv7ljqlw6l_e): a node carrying an outline or a thumbnail is now floored at 122px and one carrying attachments at 90px, so BOTH clear the chip's 90px threshold. Still open for the cases named above: a title-only note (minPx, 40px) and an EMPTY MAIN/pinned central (prominence floor, 82px) have no hover pin affordance.

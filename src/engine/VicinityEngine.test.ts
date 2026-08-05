@@ -94,7 +94,7 @@ describe("VicinityEngine global node exclusion", () => {
 describe("VicinityEngine per-node override echo", () => {
 	// The engine ECHOES a request override onto its output node (like docids) —
 	// application is downstream: pixels in the view mapping, content in
-	// `nodePreviewChoice`.
+	// `nodePreviewKind`.
 
 	it("WHEN the request carries an override for a neighbor THEN that node echoes it", () => {
 		const override = { sizePx: { widthPx: 320, heightPx: 180 } };

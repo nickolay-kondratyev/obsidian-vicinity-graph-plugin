@@ -50,7 +50,7 @@ view  ──▶  adapters  ──▶  engine  (pure core)
 - `engine/LinkProvider.ts` — the sole Obsidian→engine boundary; canvas
   detection lives here. It reports **facts, not decisions**: e.g.
   `FileMetadata.imagePrecedesOutline` says where the note's first image sits
-  relative to its first heading, and `view/nodePreviewChoice.ts` alone owns the
+  relative to its first heading, and `engine/nodePreviewKind.ts` alone owns the
   resulting outline-vs-image precedence (one pure function, honouring the global
   `nodePreviewPreference`).
 - `view/viewPorts.ts` — `GraphSourcePort`, `GraphLayoutPort`, `NoteNavigatorPort`

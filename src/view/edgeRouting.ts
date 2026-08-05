@@ -174,12 +174,13 @@ export function extractEdgeRoutingInput(input: {
  * of the Obsidian session to straight edges. Zero-size and negative-size rects are
  * fine; only non-finiteness is fatal, so nothing else is rejected here.
  *
- * NOT paranoia: `Depth decay k = -1` in the sizing panel USED to make `NodeSizer`'s
- * `1 / (1 + k * minDepth)` divide by zero and send that `Infinity` to `sizePx` →
- * `FlowNode.width/height` → this obstacle. That source is now closed upstream
- * (`clampSizingSettings` bounds the sizing inputs on every write and load path),
- * but this guard STAYS: the cost of a miss is the whole session's routing, and
- * nothing stops a FUTURE source of non-finite geometry reaching here.
+ * NOT paranoia: a `Depth decay k` of `-1` in the sizing panel USED to make the
+ * old metric-composing `NodeSizer` divide `1 / (1 + k * minDepth)` by zero and
+ * send that `Infinity` to `sizePx` → `FlowNode.width/height` → this obstacle.
+ * That dial is gone (content-fit sizing, 2026-08-03) and `clampSizingSettings`
+ * bounds what is left on every write and load path, but this guard STAYS: the
+ * cost of a miss is the whole session's routing, and nothing stops a FUTURE
+ * source of non-finite geometry reaching here.
  *
  * WHY-NOT guard inside `route()`: it could filter obstacles just as effectively, but
  * extraction is pure — testable without loading wasm — and is already where this file

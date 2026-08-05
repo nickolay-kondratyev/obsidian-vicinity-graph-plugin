@@ -339,7 +339,7 @@ function DepthRow({
 }
 
 /**
- * A sizing bound (or the decay k) — the ONE row kind with a cross-field rule, so the
+ * A sizing bound (min/max node px) — the ONE row kind with a cross-field rule, so the
  * one that hands {@link NumberRow} a `SizingRowWrite`. That is the same object the
  * settings tab judges its sizing rows with, over the same FRESH read of the globals
  * (`ControlsActionsPort.storedGlobalView`, taken at commit time): the snapshot this

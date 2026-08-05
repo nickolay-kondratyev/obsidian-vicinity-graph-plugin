@@ -23,8 +23,10 @@ import { asVaultPath } from "./types";
  * assigned only to roots, and roots are centrals, which are cap-exempt and excluded
  * from the pool). So the pin-recency AND docid chain levels are STRUCTURALLY
  * unreachable here — they are exercised at `NodePriorityChain.test.ts` (levels 4/5).
- * The reachable deciding levels are minDepth, sizeScore, distanceToMain (numeric and
- * present-vs-absent) and the path fallback — each isolated below.
+ * The reachable deciding levels are minDepth, distanceToMain (numeric and
+ * present-vs-absent) and the path fallback — each isolated below. (The size-score
+ * level between them left with the sizing metrics, node-sizing rethink 2026-08-03;
+ * a case below asserts that bytes no longer rank anything.)
  */
 
 function centralPaths(stages: TruncationStages) {
@@ -161,20 +163,22 @@ describe("GraphTruncator tiebreaker: minDepth decides", () => {
 	});
 });
 
-describe("GraphTruncator tiebreaker: sizeScore decides", () => {
-	// Same minDepth, same distance; only size differs.
+describe("GraphTruncator ranking ignores file size (content-fit sizing removed the score level)", () => {
+	// Same minDepth, same distance; only BYTES differ — and the byte-heavy note is
+	// the lexicographically LATER path, so a surviving size level would show up as
+	// the path fallback losing.
 	const spec: FakeVaultSpec = {
 		files: [
 			{ path: "m.md" },
-			{ path: "big.md", sizeBytes: 100_000 },
-			{ path: "small.md", sizeBytes: 1 },
+			{ path: "a_small.md", sizeBytes: 1 },
+			{ path: "b_big.md", sizeBytes: 100_000 },
 		],
-		links: { "m.md": ["big.md", "small.md"] },
+		links: { "m.md": ["a_small.md", "b_big.md"] },
 	};
 
-	it("WHEN minDepth ties THEN the larger size score is kept", () => {
+	it("WHEN two candidates differ only in bytes THEN the byte count does not decide", () => {
 		const stages = traverseFixture(spec, ["m.md"], { linkDepthOut: 1, linkDepthIn: 0 });
-		expect(visibleNonCentral(stages, truncateAt(stages, 1))).toEqual(["big.md"]);
+		expect(visibleNonCentral(stages, truncateAt(stages, 1))).toEqual(["a_small.md"]);
 	});
 });
 

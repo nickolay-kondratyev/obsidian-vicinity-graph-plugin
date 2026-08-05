@@ -18,7 +18,7 @@ The original acceptance wording (QA_CHECKLIST §1, echoed by
 
 **Nothing was changed here** — the shipped `contain` behavior stands until a human
 picks. This ticket exists because the choice just became more visible: the new
-image-bearing height floor (`THUMBNAIL_VISIBLE_MIN_NODE_PX`, `src/engine/NodeSizer.ts`)
+preview-reveal height floor (`PREVIEW_VISIBLE_MIN_NODE_PX`, `src/engine/NodeSizer.ts`)
 means every note with an image now renders a thumbnail, where before only
 high-scoring notes did.
 

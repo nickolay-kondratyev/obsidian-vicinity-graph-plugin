@@ -716,7 +716,7 @@ describe("ObsidianLinkProvider note outline", () => {
 
 	it("WHEN the note's first image is embedded BEFORE the first heading THEN the outline STILL carries the headings", async () => {
 		// The adapter no longer deletes the losing side: which region wins is the
-		// view's call (`nodePreviewChoice`), driven by `imagePrecedesOutline`.
+		// engine's call (`nodePreviewKind`), driven by `imagePrecedesOutline`.
 		const outline = await outlineOf(
 			{
 				files: [{ path: "note.md" }, { path: "pic.png" }],

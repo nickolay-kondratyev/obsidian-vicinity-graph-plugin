@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+	ATTACHMENT_ROW_VISIBLE_MIN_NODE_PX,
 	CENTRAL_PROMINENCE_FLOOR_SCORE,
 	EngineDefaults,
 	ESTIMATED_ATTACHMENT_ROW_PX,
@@ -7,7 +8,7 @@ import {
 	ESTIMATED_TITLE_LINE_PX,
 	NODE_REGION_GAP_PX,
 	NODE_VERTICAL_CHROME_PX,
-	THUMBNAIL_VISIBLE_MIN_NODE_PX,
+	PREVIEW_VISIBLE_MIN_NODE_PX,
 } from "./constants";
 import { FakeLinkProvider } from "./FakeLinkProvider";
 import type { FakeVaultSpec } from "./FakeLinkProvider";
@@ -116,7 +117,7 @@ describe("NodeSizer content fit (rethink Q1: size follows what the node shows)",
 	it("WHEN a note has more renderable outline entries THEN its node is taller", () => {
 		const sizes = sizeAll(
 			{
-				files: [{ path: "m.md" }, { path: "few.md", outline: headings(2) }, { path: "many.md", outline: headings(5) }],
+				files: [{ path: "m.md" }, { path: "few.md", outline: headings(6) }, { path: "many.md", outline: headings(8) }],
 				links: { "m.md": ["few.md", "many.md"] },
 			},
 			viewWith(),
@@ -126,13 +127,15 @@ describe("NodeSizer content fit (rethink Q1: size follows what the node shows)",
 	});
 
 	it("WHEN the outline fit is computed THEN it is title + entries + chrome + gaps exactly", () => {
+		// Six entries: the summed fit is ABOVE the CSS reveal floor, so this case
+		// measures the arithmetic and not the floor (which owns its own tests below).
 		const sizes = sizeAll(
-			{ files: [{ path: "m.md" }, { path: "a.md", outline: headings(3) }], links: { "m.md": ["a.md"] } },
+			{ files: [{ path: "m.md" }, { path: "a.md", outline: headings(6) }], links: { "m.md": ["a.md"] } },
 			viewWith(),
 			["m.md"],
 		);
 		const expected =
-			NODE_VERTICAL_CHROME_PX + ESTIMATED_TITLE_LINE_PX + NODE_REGION_GAP_PX + 3 * ESTIMATED_OUTLINE_ENTRY_PX;
+			NODE_VERTICAL_CHROME_PX + ESTIMATED_TITLE_LINE_PX + NODE_REGION_GAP_PX + 6 * ESTIMATED_OUTLINE_ENTRY_PX;
 		expect(sizeOf(sizes, "a.md")).toBe(expected);
 	});
 
@@ -158,15 +161,57 @@ describe("NodeSizer content fit (rethink Q1: size follows what the node shows)",
 	it("WHEN attachments exist THEN the chip row adds height", () => {
 		const sizes = sizeAll(
 			{
-				files: [{ path: "m.md" }, { path: "a.md", outline: headings(3) }, { path: "doc.pdf" }],
+				files: [{ path: "m.md" }, { path: "a.md", outline: headings(5) }, { path: "doc.pdf" }],
 				links: { "m.md": ["a.md"], "a.md": ["doc.pdf"] },
 			},
 			viewWith(),
 			["m.md"],
 		);
+		// Five entries: the summed fit clears the reveal floor and, WITH the chip
+		// row, still stays under maxPx — so this measures the added row alone.
 		const bare =
-			NODE_VERTICAL_CHROME_PX + ESTIMATED_TITLE_LINE_PX + NODE_REGION_GAP_PX + 3 * ESTIMATED_OUTLINE_ENTRY_PX;
+			NODE_VERTICAL_CHROME_PX + ESTIMATED_TITLE_LINE_PX + NODE_REGION_GAP_PX + 5 * ESTIMATED_OUTLINE_ENTRY_PX;
 		expect(sizeOf(sizes, "a.md")).toBe(bare + NODE_REGION_GAP_PX + ESTIMATED_ATTACHMENT_ROW_PX);
+	});
+});
+
+/**
+ * The regions the sizer counts are painted by `graph-view.css` only above their
+ * container-query rungs, so a bare region SUM can land in a band where the node
+ * is taller than its title yet shows nothing more — dead space plus a preview
+ * the user never sees. These cases pin the floor that closes that band;
+ * `src/view/nodeDensityThresholds.test.ts` pins the numbers to the stylesheet.
+ */
+describe("NodeSizer reveal floors (a counted region must be a PAINTED region)", () => {
+	const oneHeadingNote: FakeVaultSpec = {
+		files: [{ path: "m.md" }, { path: "a.md", outline: headings(1) }],
+		links: { "m.md": ["a.md"] },
+	};
+
+	it("WHEN a note's outline is too short to reach the CSS reveal THEN the node is floored at it", () => {
+		const sizes = sizeAll(oneHeadingNote, viewWith(), ["m.md"]);
+		expect(sizeOf(sizes, "a.md")).toBe(PREVIEW_VISIBLE_MIN_NODE_PX);
+	});
+
+	it("WHEN maxPx sits below the preview reveal THEN the explicit maximum still wins over the floor", () => {
+		const sizes = sizeAll(oneHeadingNote, viewWith({ sizing: { minPx: 40, maxPx: 100 } }), ["m.md"]);
+		expect(sizeOf(sizes, "a.md")).toBe(100);
+	});
+
+	it("WHEN a title-only note carries an attachment THEN the node is floored at the chip row's reveal", () => {
+		const sizes = sizeAll(
+			{ files: [{ path: "m.md" }, { path: "a.md" }, { path: "doc.pdf" }], links: { "m.md": ["a.md"], "a.md": ["doc.pdf"] } },
+			viewWith(),
+			["m.md"],
+		);
+		expect(sizeOf(sizes, "a.md")).toBe(ATTACHMENT_ROW_VISIBLE_MIN_NODE_PX);
+	});
+
+	it("WHEN a note shows NO preview and NO attachments THEN no floor applies", () => {
+		const sizes = sizeAll({ files: [{ path: "m.md" }, { path: "a.md" }], links: { "m.md": ["a.md"] } }, viewWith(), [
+			"m.md",
+		]);
+		expect(sizeOf(sizes, "a.md")).toBe(DEFAULTS.minPx);
 	});
 });
 
@@ -178,7 +223,7 @@ describe("NodeSizer thumbnail sizing (preview-kind driven — preference-indepen
 
 	it("WHEN a note's preview is its thumbnail THEN the node reaches the CSS reveal threshold", () => {
 		const sizes = sizeAll(imageNote, viewWith(), ["m.md"]);
-		expect(sizeOf(sizes, "a.md")).toBe(THUMBNAIL_VISIBLE_MIN_NODE_PX);
+		expect(sizeOf(sizes, "a.md")).toBe(PREVIEW_VISIBLE_MIN_NODE_PX);
 	});
 
 	it("WHEN maxPx is below the reveal threshold THEN the explicit maximum still wins", () => {
@@ -193,7 +238,11 @@ describe("NodeSizer thumbnail sizing (preview-kind driven — preference-indepen
 		// design; that rule is superseded: size follows displayed content.)
 		const sizes = sizeAll(
 			{
-				files: [{ path: "m.md" }, { path: "a.md", outline: headings(2), imagePrecedesOutline: true }, { path: "pic.png" }],
+				files: [
+					{ path: "m.md" },
+					{ path: "a.md", outline: headings(5), imagePrecedesOutline: true },
+					{ path: "pic.png" },
+				],
 				links: { "m.md": ["a.md"], "a.md": ["pic.png"] },
 			},
 			viewWith({ nodePreviewPreference: "outline" }),
@@ -203,7 +252,7 @@ describe("NodeSizer thumbnail sizing (preview-kind driven — preference-indepen
 			NODE_VERTICAL_CHROME_PX +
 			ESTIMATED_TITLE_LINE_PX +
 			NODE_REGION_GAP_PX +
-			2 * ESTIMATED_OUTLINE_ENTRY_PX +
+			5 * ESTIMATED_OUTLINE_ENTRY_PX +
 			NODE_REGION_GAP_PX +
 			ESTIMATED_ATTACHMENT_ROW_PX;
 		expect(sizeOf(sizes, "a.md")).toBe(expected);

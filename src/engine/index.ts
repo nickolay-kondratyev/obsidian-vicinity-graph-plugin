@@ -108,6 +108,7 @@ export { NodePriorityChain } from "./NodePriorityChain";
 export type { PriorityRankable } from "./NodePriorityChain";
 
 export {
+	ATTACHMENT_ROW_VISIBLE_MIN_NODE_PX,
 	CENTRAL_PROMINENCE_FLOOR_SCORE,
 	EngineDefaults,
 	FORCE_LAYOUT_RANGES,
@@ -120,8 +121,8 @@ export {
 	NODE_OVERRIDE_HARD_MIN_PX,
 	NODE_TITLE_CHAR_WIDTH_PX,
 	NODE_VERTICAL_CHROME_PX,
+	PREVIEW_VISIBLE_MIN_NODE_PX,
 	SIZING_RANGES,
-	THUMBNAIL_VISIBLE_MIN_NODE_PX,
 	clampForceLayoutSettings,
 	clampNodeCap,
 	clampNodeSizeOverridePx,

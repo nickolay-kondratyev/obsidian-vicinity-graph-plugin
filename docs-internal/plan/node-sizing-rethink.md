@@ -45,7 +45,7 @@ Two failure modes the owner called out:
   components) — hover/selected resize handles on a custom node, with
   `onResizeEnd` for commit-on-release. No new dependency.
 - **Per-node content choice is one pure function** —
-  `src/view/nodePreviewChoice.ts` over `FlowNodeData.preview`; an override
+  `src/engine/nodePreviewKind.ts` over `FlowNodeData.preview`; an override
   layer slots in front of the global preference without touching `NoteNode`.
 - **Precedent for "pixels only, never score"**: the thumbnail floor moves
   `sizePx` but never `sizeScore`, because the score also ranks truncation

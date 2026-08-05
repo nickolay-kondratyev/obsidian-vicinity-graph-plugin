@@ -258,11 +258,11 @@ export function largeMixedVault(
  * scenarios. MAIN's connected neighbors and the pin's disconnected neighbors compete
  * for the cap; the pin and MAIN themselves are cap-exempt centrals.
  *
- * WHY uniform neighbor sizes: every neighbor is one hop from its root (equal minDepth)
- * AND equal-sized (equal sizeScore) so the ONLY thing separating a connected neighbor
- * from a disconnected one is `distanceToMain` — the present-beats-absent tiebreaker we
- * want this fixture to exercise. Random sizes would let sizeScore (an earlier level)
- * decide first and mask it.
+ * WHY uniform neighbor sizes: every neighbor is one hop from its root (equal minDepth),
+ * so the ONLY thing separating a connected neighbor from a disconnected one is
+ * `distanceToMain` — the present-beats-absent tiebreaker we want this fixture to
+ * exercise. (Byte sizes no longer rank anything since the sizing metrics were removed;
+ * they stay uniform so the fixture keeps stating that ties are ties.)
  */
 export function pinnedDisconnectedVault(connectedNeighbors = 3, disconnectedNeighbors = 3): DenseFixture {
 	const files: FakeFileSpec[] = [

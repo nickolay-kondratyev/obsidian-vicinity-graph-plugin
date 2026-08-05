@@ -11,7 +11,7 @@ Those numbers are **content-box** heights. `.vicinity-graph-node` is
 `box-sizing: border-box` with a 1px border and 8px padding, and React Flow sizes
 it to exactly `sizePx`, so a size container query sees `sizePx - 18`. In node px
 the bands are really 90–121 (attachments only) and 122+ (thumbnail / outline).
-See `THUMBNAIL_VISIBLE_MIN_NODE_PX` and `src/view/thumbnailDensityThreshold.test.ts`.
+See `PREVIEW_VISIBLE_MIN_NODE_PX` / `ATTACHMENT_ROW_VISIBLE_MIN_NODE_PX` and `src/view/nodeDensityThresholds.test.ts`.
 
 The tests still **pass** — they assert the hidden side at 96 and the visible side
 at 160 and never probe the boundary — so this is a comprehension trap, not a bug.

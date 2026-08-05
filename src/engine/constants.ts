@@ -79,14 +79,22 @@ export const CENTRAL_PROMINENCE_FLOOR_SCORE = 0.35;
 
 /**
  * Content-box height (px) at which `src/view/graph-view.css` reveals the node's
- * image thumbnail — its density budget for the fixed-height thumbnail slot on
- * top of two title lines and one attachment-chip row.
+ * PREVIEW SLOT — the thumbnail and the outline share it (they are mutually
+ * exclusive, see `nodePreviewKind`) and share this ONE container query, so this
+ * is one threshold, not two.
  *
  * NOT a node height: a CSS size container query measures the container's CONTENT
  * box, so this number must be grown by {@link NODE_VERTICAL_CHROME_PX} before it
  * can be compared to `sizePx`.
  */
-const THUMBNAIL_REVEAL_CONTENT_BOX_PX = 104;
+const PREVIEW_SLOT_REVEAL_CONTENT_BOX_PX = 104;
+
+/**
+ * Content-box height (px) at which `src/view/graph-view.css` reveals the
+ * attachment-chip row — the lower rung of the same density ladder. Same
+ * content-box caveat as {@link PREVIEW_SLOT_REVEAL_CONTENT_BOX_PX}.
+ */
+const ATTACHMENT_ROW_REVEAL_CONTENT_BOX_PX = 72;
 
 /**
  * How much taller a node's BORDER box is than the content box the container
@@ -100,18 +108,27 @@ const THUMBNAIL_REVEAL_CONTENT_BOX_PX = 104;
 export const NODE_VERTICAL_CHROME_PX = 2 * (1 + 8);
 
 /**
- * Node height (px) at which a note's image thumbnail is actually displayed —
- * the CSS reveal threshold expressed as the border-box height React Flow gives
- * the node. Nodes below it show the title only, so a note that HAS an image but
- * scores low would never display it: {@link NodeSizer} floors image-bearing
- * nodes here.
+ * Node height (px) at which a note's PREVIEW REGION — its thumbnail or its
+ * outline — is actually displayed: the CSS reveal threshold expressed as the
+ * border-box height React Flow gives the node. Below it the node shows its
+ * title only, so `NodeSizer` floors EVERY node whose preview kind is not
+ * `"none"` here: sizing a node to fit an outline the stylesheet then refuses to
+ * paint would buy nothing but dead space.
  *
  * DUPLICATED KNOWLEDGE, deliberately guarded: the reveal itself is a CSS
  * container query and CSS cannot import a TS constant.
- * `src/view/thumbnailDensityThreshold.test.ts` parses the stylesheet — both the
- * threshold and the chrome — and fails if either half drifts.
+ * `src/view/nodeDensityThresholds.test.ts` parses the stylesheet — both
+ * thresholds and the chrome — and fails if any half drifts.
  */
-export const THUMBNAIL_VISIBLE_MIN_NODE_PX = THUMBNAIL_REVEAL_CONTENT_BOX_PX + NODE_VERTICAL_CHROME_PX;
+export const PREVIEW_VISIBLE_MIN_NODE_PX = PREVIEW_SLOT_REVEAL_CONTENT_BOX_PX + NODE_VERTICAL_CHROME_PX;
+
+/**
+ * Node height (px) at which the attachment-chip row is actually displayed — the
+ * lower rung, same border-box reasoning as {@link PREVIEW_VISIBLE_MIN_NODE_PX}
+ * and floored the same way for a node that HAS attachments.
+ */
+export const ATTACHMENT_ROW_VISIBLE_MIN_NODE_PX =
+	ATTACHMENT_ROW_REVEAL_CONTENT_BOX_PX + NODE_VERTICAL_CHROME_PX;
 
 // ---------------------------------------------------------------------------
 // Content-fit size estimate (NodeSizer) + label width estimate.
