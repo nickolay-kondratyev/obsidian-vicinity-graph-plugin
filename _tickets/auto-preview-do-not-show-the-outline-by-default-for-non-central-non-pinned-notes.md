@@ -2,7 +2,7 @@
 id: nid_k2pa8khm6ugozmhkd6nlbdrq6_e
 title: "auto preview: do NOT show the outline by default for non-central non-pinned notes"
 status: open
-deps: [nid_jcxzhexfaksge2arjzca3w7ff_e]
+deps: []
 links: [nid_1mq3t7706vw2kj2kv7ljqlw6l_e, nid_jcxzhexfaksge2arjzca3w7ff_e, nid_9hx6okamx3yt0rg9iad2f4151_e]
 created_iso: 2026-08-05T17:58:46Z
 status_updated_iso: 2026-08-05T17:58:46Z
@@ -14,24 +14,37 @@ tags: [ui, sizing, decide]
 
 OWNER DECISION (2026-08-05), taken while closing the density-floor decide ticket nid_1mq3t7706vw2kj2kv7ljqlw6l_e (_tickets/closed/ux-decide-content-fit-nodes-are-floored-at-the-css-density-rungs-any-note-with-one-heading-is-122px.md).
 
-WHERE WE WANT TO GO: in the AUTO node preview mode, an ordinary note - NOT the central, NOT pinned - should render TITLE ONLY by default. The outline (and by extension the preview slot) becomes a thing the central / pinned nodes get, not something every neighbour in the vicinity gets.
+WHERE WE WANT TO GO: 
+- In the AUTO node preview mode, an ordinary note - NOT the central, NOT pinned - should not render outline by default
+  - AUTO should render an image if it exist anywhere in the note (first image wins)
+  - AUTO should render title if there is no image and no override for the node.
+  - The outline (and by extension the preview slot) becomes a thing the central / pinned nodes get, not something every neighbour in the vicinity gets. UNLESS it is overwritten (we will allow overwrites per node later)
 
-WHY: with content-fit sizing landed (nid_cx5zoz7ptucg9nxalibv0mbjb_e), any note with even ONE renderable heading is floored at the CSS reveal rung (122px, 124px for centrals) so the outline actually paints. At shipped defaults 40/160 that means nearly every content-bearing node sits in 122..160px: node size stops discriminating, and the graph reads as a wall of near-identical big boxes. Rather than lower the CSS density rungs (option 2/3 in the closed ticket) the owner wants to cut the demand for the outline instead - peripheral notes do not need their headings shown, the central does.
+So the AUTO ladder becomes, for an ordinary neighbour: image (first image anywhere in the note) -> title only. Never the outline. For a central / pinned root the AUTO ladder is unchanged from today (outline vs image resolved by `imagePrecedesOutline`).
 
-EXPECTED CONSEQUENCE (the point of the change): a peripheral note with headings falls back to minPx (40px at defaults) because it shows no preview region, so the reveal floor never engages for it. Size discrimination is restored where it matters and the graph gets much lighter. The density-floor question in the closed ticket then only concerns centrals / pinned / explicitly-overridden nodes, where the 104px slot is genuinely wanted.
+WHY: with content-fit sizing landed (nid_cx5zoz7ptucg9nxalibv0mbjb_e), any note with even ONE renderable heading is floored at the CSS reveal rung (122px, 124px for centrals) so the outline actually paints. At shipped defaults 40/160 that means nearly every content-bearing node sits in 122..160px: node size stops discriminating, and the graph reads as a wall of near-identical big boxes. Rather than lower the CSS density rungs (option 2/3 in the closed ticket) the owner wants to cut the demand for the preview slot instead - a peripheral note does not need its headings shown, the central does.
 
-SCOPE / TOUCH POINTS:
-- src/view/nodePreviewChoice.ts - the pure chooser is where auto resolves today; it must become tier-aware (main / pinned-central / pinned vs ordinary neighbour). Keep it PURE and unit-tested.
-- src/engine/NodeSizer.ts - sizing must agree with what the chooser resolves, otherwise we reintroduce exactly the dead-space bug the floor was added to fix (a node sized for an outline the view never renders). revealFloorPx / revealMinNodePx(rung, isCentral) in src/engine/constants.ts only apply where a preview is actually shown.
+EXPECTED CONSEQUENCE: a peripheral note whose only content is headings shows NO preview region, so the reveal floor never engages for it and it lands at minPx (40px at defaults). A peripheral note WITH an image still takes the thumbnail, so it still floors at the 122px preview rung - the 104px thumbnail slot is fixed-height and genuinely needs it. Net: the wall of big boxes thins out to exactly the image-bearing notes plus the centrals, which is the intended signal ("there is a picture here" / "this is a root"), and the density-floor question from the closed ticket narrows to those.
+
+SCOPE / TOUCH POINTS (verified against the tree at 2026-08-05):
+- src/engine/nodePreviewKind.ts - THE chooser, and it is ENGINE-owned, not src/view/. That is load-bearing here: src/engine/NodeSizer.ts calls the same function, so the box and the rendered region cannot disagree by construction. Add the tier fact to NodePreviewInput (see below) and branch AUTO on it; keep it pure + unit-tested (src/engine/nodePreviewKind.test.ts).
+- The tier fact already exists and already means what the owner drew the line at: TraversedNode.isCentral is documented "True for MAIN and every pinned root" (src/engine/types.ts). Pinning MAKES a note a root, so there is no third "pinned but not central" case to design for. Pass isCentral into nodePreviewKind; both call sites (NodeSizer.contentFitPx, src/view/flowMapping.ts ~line 394) already hold it.
+- "First image wins, anywhere in the note" is ALREADY the semantics of TraversedNode.firstImagePath - src/engine/VicinityTraversal.ts takes the first `isImage` entry of metadata.attachments (document order, resolved refs only). No adapter or provider change. What changes is that `imagePrecedesOutline` stops being consulted on the peripheral branch; it stays live for centrals, so it is NOT dead code.
+- No new preview kind is needed: NodePreviewKind already has "none", and src/view/NoteNode.tsx already renders nothing in the content slot for it (it gates on `data.preview === "outline" | "thumbnail"`).
+- src/engine/NodeSizer.ts - once the chooser is tier-aware the sizer follows for free (it already sizes from the chooser's answer, and revealFloorPx only floors when preview !== "none"). Verify, do not duplicate the branch.
 - Explicit per-node overrides and an explicit GLOBAL Outline preference must still win - this changes AUTO only.
-- src/view/nodeDensityThresholds.test.ts pins engine constant == css rung + chrome; keep it green.
-- e2e/nodeOutline.e2e.ts asserts outline reveal bands on rendered nodes - several of those are behaviour-capturing on NON-central nodes and will need explicit re-alignment as part of this change, not silent edits.
+- src/view/nodeDensityThresholds.test.ts pins engine constant == css rung + chrome; keep it green (this ticket must not move a rung).
+- e2e/nodeOutline.e2e.ts asserts outline reveal bands on rendered nodes - most of those fixtures are NON-central notes that will stop showing an outline entirely. They are behaviour-capturing: re-align them explicitly (retarget to a central, or restate the band as a thumbnail band), never quietly delete.
+- Dev-vault fixtures: whatever e2e note is used to prove "outline renders" must now be central or pinned; check e2e/ fixture writers before assuming a spec can just be re-pointed.
 
-RELATED / SEQUENCING: overlaps the Title-only preference ticket nid_jcxzhexfaksge2arjzca3w7ff_e (adds the "title-only" preview kind to the enum + copy) - this ticket is most cheaply built ON TOP of that kind rather than inventing a second way to render a bare title. Per-node override menu: nid_9hx6okamx3yt0rg9iad2f4151_e.
+RELATED / SEQUENCING: the Title-only preference ticket nid_jcxzhexfaksge2arjzca3w7ff_e is now a LINK, not a blocker - AUTO resolving to the existing "none" kind needs nothing from that enum value. The two should still agree on copy if a settings knob comes out of question (b) below. Per-node override menu (the "UNLESS it is overwritten" half of the decision): nid_9hx6okamx3yt0rg9iad2f4151_e - until that ships there is NO way to get an outline back on a peripheral note except pinning it or flipping the global preference to Outline, which is a real (accepted) gap for the interim.
 
-STILL TO DECIDE (flag to owner before implementing): (a) do PINNED non-central notes get the outline, or only the central + pinned-CENTRAL? (b) is this fixed behaviour or a global setting with the new tier-aware behaviour as the default? Prefer fixed first (80/20) and add a knob only if it is missed.
+STILL TO DECIDE (flag to owner before implementing):
+(a) RESOLVED by the tree, not a question: "central or pinned" is exactly TraversedNode.isCentral. Nothing to choose.
+(b) Fixed behaviour, or a global setting with this as the default? Prefer fixed first (80/20); add a knob only if it is missed.
+(c) NEW, from the image half of the decision: in a vault where most notes embed an image, every peripheral node takes the thumbnail and the graph is a wall of 122px boxes again - the exact complaint this ticket exists to fix, just re-sourced. Do we care yet? Cheapest answer if we do: peripheral AUTO gets a SMALLER thumbnail rung (the image can scale; the current 104px slot is sized for centrals). Do not build that pre-emptively - look at a real vault first.
 
 ## Acceptance Criteria
 
-In auto mode an ordinary non-central non-pinned note renders title only and sizes to minPx; the central (and pinned, per the decision above) still renders its outline; an explicit global Outline preference or a per-node override still forces the outline anywhere; NodeSizer never sizes for a region the chooser will not render; npm test and npm run test:e2e green with the nodeOutline e2e bands explicitly re-aligned.
+In auto mode: an ordinary (non-central, non-pinned) note with headings and NO image renders title only and sizes to minPx; the same note WITH an image renders the thumbnail; a central or pinned root still resolves outline-vs-image the way it does today. An explicit global Outline preference still forces the outline anywhere. NodeSizer never sizes for a region the chooser will not render (one shared call to nodePreviewKind, no duplicated branch). No CSS density rung moves. npm test and npm run test:e2e green, with the e2e/nodeOutline.e2e.ts bands explicitly re-aligned rather than deleted.
 

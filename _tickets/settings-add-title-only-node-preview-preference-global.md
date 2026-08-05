@@ -2,8 +2,8 @@
 id: nid_jcxzhexfaksge2arjzca3w7ff_e
 title: "settings: add Title only node preview preference (global)"
 status: open
-deps: []
-links: [nid_o5hz7ilcauwe2acqdfh6pcuam_e, nid_cx5zoz7ptucg9nxalibv0mbjb_e, nid_9hx6okamx3yt0rg9iad2f4151_e, nid_k2pa8khm6ugozmhkd6nlbdrq6_e, nid_1mq3t7706vw2kj2kv7ljqlw6l_e]
+deps: [nid_k2pa8khm6ugozmhkd6nlbdrq6_e]
+links: [nid_o5hz7ilcauwe2acqdfh6pcuam_e, nid_cx5zoz7ptucg9nxalibv0mbjb_e, nid_9hx6okamx3yt0rg9iad2f4151_e]
 created_iso: 2026-08-04T00:03:13Z
 status_updated_iso: 2026-08-04T00:03:13Z
 type: feature
