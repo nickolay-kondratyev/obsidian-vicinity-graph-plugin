@@ -194,12 +194,20 @@ export interface GraphEdge extends DirectedLink {
 }
 
 /**
- * Which region a node's single preview slot shows when the note offers BOTH a
- * heading outline and an image (a note offering only one always shows that one):
- * - `"auto"` — the note decides by document position: the image wins iff it sits
- *   above the first heading (the documented "show the picture instead" hatch).
- * - `"outline"` — prefer the outline, overriding document position.
- * - `"image"` — prefer the first image, overriding document position.
+ * Which region a node's single preview slot shows:
+ * - `"auto"` — TIER-AWARE (ticket nid_k2pa8khm6ugozmhkd6nlbdrq6_e). On a CENTRAL
+ *   ({@link GraphNode.isCentral} — MAIN and every pinned root) document position
+ *   decides: the image wins iff it sits above the first heading (the documented
+ *   "show the picture instead" hatch). On an ordinary neighbour the outline is
+ *   NOT offered at all — the ladder is first image, else nothing — so a
+ *   headings-only neighbour is title-only and never claims the slot.
+ * - `"outline"` — prefer the outline for EVERY node, overriding both document
+ *   position and the tier rule.
+ * - `"image"` — prefer the first image for every node, same overriding scope.
+ *
+ * Under an EXPLICIT preference a note offering only one region always shows that
+ * one (a preference never empties a node); under `"auto"` that holds for centrals
+ * only, by design — see `nodePreviewKind` for the WHY.
  *
  * The precedence rule itself is engine-owned (`nodePreviewKind`) because the
  * content-fit sizer needs the same decision the view renders by; the view's

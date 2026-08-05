@@ -478,12 +478,20 @@ cat <<EOF
      editing and reading view — Obsidian scrolls to and flashes it)
    - outline-cover's MAIN node shows the image, never an outline
      (true at the DEFAULT Preview = Auto; the pill can override it)
+   - Auto is TIER-AWARE (nid_k2pa8khm6ugozmhkd6nlbdrq6_e): with
+     outline-cover as MAIN, its NEIGHBOUR outline-note shows a
+     thumbnail (not the outline document position would give a
+     central); a headings-only neighbour anywhere in the vault is
+     title-only at minPx. Pin it and its outline comes back.
 
  Preview-pill check (Node contents, on the settings tab AND in the
  in-view graph controls — one global value, two surfaces):
-   - Outline: outline-cover's MAIN node swaps its image for its outline
+   - Outline: outline-cover's MAIN node swaps its image for its outline,
+     AND every peripheral note with headings gains one (the pill
+     overrides the tier rule, not just document position)
    - Image: outline-note's MAIN node swaps its outline for a thumbnail
-   - back to Auto: both nodes return to what document position says
+   - back to Auto: both MAIN nodes return to what document position says,
+     and the peripheral outlines disappear again
    - flipping the pill must NOT move any node (data-only refresh)
    - eyeball the pill in LIGHT and DARK: the selected segment's label
      must stay legible on the accent fill (--text-on-accent), and the

@@ -47,8 +47,11 @@ export function nodePreviewKind({
 	// image → title only; an EXPLICIT preference (or, later, a per-node override)
 	// still reaches the outline anywhere.
 	const outlineOffered = outlineEntryCount > 0 && (preference !== "auto" || isCentral);
-	// A preference is a PREFERENCE, never a blank node: when only one side exists
-	// it wins outright, so the branches below never restate the fallback.
+	// Two ways to land here, one answer: the note has no renderable outline, or
+	// Auto withheld it. Either way the image is the only candidate left — which is
+	// also why an EXPLICIT preference is a PREFERENCE and never a blank node (it
+	// only ever withholds the kind the note DOES have another of), so the branches
+	// below never restate the fallback.
 	if (!outlineOffered) {
 		return hasImage ? "thumbnail" : "none";
 	}
