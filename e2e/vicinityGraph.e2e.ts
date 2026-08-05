@@ -178,6 +178,19 @@ test("React Flow zoom controls keep their themed chrome, not Obsidian's raised-b
 	expect(chrome.actual).toEqual(chrome.declared);
 });
 
+test("React Flow's interactivity lock button is not shipped — it has nothing to unlock here", async () => {
+	// The lock toggles the STORE's nodesDraggable/nodesConnectable/elementsSelectable.
+	// None of the three can reach this graph: dragging is off via the `nodesDraggable`
+	// PROP (React Flow drills the prop, not the store, into every node wrapper),
+	// nothing is wired to `onConnect`, and selection changes are filtered out in
+	// `onNodesChange`. So the button only ever changed edge cursor styling and made
+	// the (decorative) handles connectable again — ticket
+	// nid_xvuptvuct2b9uget7oc2asyif_e. Zoom + fit-view stay.
+	await expect(page.locator("button.react-flow__controls-interactive")).toHaveCount(0);
+	await expect(page.locator("button.react-flow__controls-fitview")).toHaveCount(1);
+	await expect(page.locator("button.react-flow__controls-zoomin")).toHaveCount(1);
+});
+
 test("duplicate links collapse into one edge with a ×2 count badge", async () => {
 	const badge = page.locator(".vicinity-graph-edge__count-badge");
 	await expect(badge).toHaveCount(1); // single-link edges carry NO badge

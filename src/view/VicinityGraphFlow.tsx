@@ -234,7 +234,19 @@ export function VicinityGraphFlow({
 						>
 							<FitViewOnLayoutChange layoutVersion={snapshot.layoutVersion} />
 							<Background />
-							<Controls />
+							{/*
+							 * Zoom + fit-view only. The library's interactivity LOCK toggles
+							 * the store's nodesDraggable/nodesConnectable/elementsSelectable,
+							 * and not one of them can reach this graph: React Flow drills the
+							 * `nodesDraggable` PROP (false, above) into every node wrapper
+							 * rather than reading the store, nothing is wired to `onConnect`,
+							 * and selection changes are filtered out in `onNodesChange`. All
+							 * the button ever did was drop the edge pointer cursor while
+							 * "locked" and re-arm the decorative handles as connectable when
+							 * unlocked — a control that promises interactivity it cannot
+							 * grant (ticket nid_xvuptvuct2b9uget7oc2asyif_e).
+							 */}
+							<Controls showInteractive={false} />
 							<Panel position="top-left">
 								<GraphToolbar controls={snapshot.controls} />
 							</Panel>
