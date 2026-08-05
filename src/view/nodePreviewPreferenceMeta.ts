@@ -28,7 +28,8 @@ export interface NodePreviewOptionMeta {
 export const NODE_PREVIEW_OPTION_META: Readonly<Record<NodePreviewPreference, NodePreviewOptionMeta>> = {
 	auto: {
 		label: "Auto",
-		description: "Let the note decide: the image wins only when it sits before the first heading.",
+		description:
+			"Outline on the active and pinned notes only (an image above their first heading still wins). Every other note shows its image, or just its title.",
 	},
 	outline: {
 		label: "Outline",

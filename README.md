@@ -263,17 +263,26 @@ A node tall enough to have room shows **one** preview: either the note's
 - **The *Preview* pill picks which one**, globally. It lives in **Settings →
   Vicinity Graph → Node contents** *and* in the in-view graph controls under
   *Node contents*; the two are one setting shown twice, so either writes both.
-  - **Auto** (the default, and what the plugin has always done) — **document
-    position decides.** If the note's first image sits **before** its first
-    heading, the node shows the **image**; otherwise it shows the **outline**.
-    That is the escape hatch: move the image above the first heading to say
-    "show the picture for this note", and it still works exactly as before.
+  - **Auto** (the default) — **the outline is for your roots.** On the **active
+    note and your pinned notes**, document position decides: if the note's first
+    image sits **before** its first heading, the node shows the **image**;
+    otherwise it shows the **outline**. That is the escape hatch — move the image
+    above the first heading to say "show the picture for this note".
+    Every **other** note in the vicinity shows its **first image** if it has one
+    (anywhere in the note) and otherwise **just its title** — no outline. Reason:
+    nodes are sized to fit what they show, so letting every neighbour open an
+    outline made the whole graph a wall of same-sized big boxes; peripheral notes
+    now stay small, and a big box means "there is a picture here" or "this is a
+    root". To read a neighbour's headings, **pin it** — or set the pill to
+    *Outline*.
   - **Outline** — prefer the outline for every note that has headings, whatever
     document position says.
   - **Image** — prefer the first image for every note that has one.
-- **A preference never empties a node.** *Outline* on a note without headings
-  still shows its image; *Image* on a note without an image still shows its
-  outline. A node only goes preview-less when the note has neither.
+- **An EXPLICIT preference never empties a node, and ignores the root rule.**
+  *Outline* shows headings on every note that has them, peripheral or not;
+  *Outline* on a note without headings still shows its image; *Image* on a note
+  without an image still shows its outline. Under an explicit preference a node
+  only goes preview-less when the note has neither.
 - The outline is a **nested list** capped by the *Outline depth* setting. It
   scrolls when it does not fit (the scrollbar appears on hover); an over-long
   entry ellipsises on its own, and its full text is in the tooltip.

@@ -272,13 +272,14 @@ export interface SettingsGroup {
 const NODE_PREVIEW_ROW_LABEL = "Preview";
 
 /**
- * States the case where the preference actually bites (a note with BOTH), because
- * that is the only situation the three options differ in — the graceful fallback is
- * the second sentence so nobody fears a blank node.
+ * States what the pill decides, then the ONE surprise a user could otherwise only
+ * discover by staring at the graph: under Auto a peripheral note never shows an
+ * outline (ticket nid_k2pa8khm6ugozmhkd6nlbdrq6_e), so "my headings vanished" has
+ * an answer on the row itself. The per-OPTION copy carries the rest.
  */
 const NODE_PREVIEW_ROW_DESCRIPTION =
-	"Which preview a node shows when it has both a heading outline and an image. " +
-	"A note that only has one of the two always shows that one.";
+	"Which preview a node shows: its heading outline or its first image. " +
+	"Auto keeps the outline for the active and pinned notes; Outline and Image apply everywhere.";
 
 /** One force-layout slider row: label and description come from the shared meta table. */
 function forceLayoutRow(field: keyof ForceLayoutSettings): SettingsRow {

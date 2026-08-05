@@ -201,14 +201,19 @@ export const SETTINGS_SPEC: SettingsSpec = {
 		 * Markdown has 6 levels; `2` shows sections + subsections, which is what
 		 * fits the ≤160px node the engine's sizing can produce. `min 1` (never 0):
 		 * DEPTH is not an on/off switch — choosing outline vs image is
-		 * {@link ViewSpec.nodePreviewPreference}'s job, and under its `auto` default
-		 * document position still decides (image above the first heading wins).
+		 * {@link ViewSpec.nodePreviewPreference}'s job (under its `auto` default a
+		 * central's document position decides, and a neighbour is not offered the
+		 * outline at all).
 		 */
 		outlineMaxDepth: { default: 2, min: 1, max: 6, step: 1 },
 		/**
-		 * `auto` preserves the documented document-position rule (an image above the
-		 * first heading wins the preview slot) exactly as it shipped, so upgrading
-		 * changes nothing on screen; `outline`/`image` are opt-in overrides.
+		 * `auto` is the tier-aware default (ticket nid_k2pa8khm6ugozmhkd6nlbdrq6_e):
+		 * a CENTRAL keeps the documented document-position rule (an image above the
+		 * first heading wins the preview slot), an ordinary neighbour is offered its
+		 * image or nothing. It is the default because the alternative — every note in
+		 * the vicinity claiming the preview slot — floors the whole graph at the CSS
+		 * reveal rung and erases size discrimination. `outline`/`image` are the opt-in
+		 * overrides of BOTH rules, for the user who wants one kind everywhere.
 		 */
 		nodePreviewPreference: { default: "auto" },
 		/**

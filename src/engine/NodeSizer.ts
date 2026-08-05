@@ -89,6 +89,7 @@ export class NodeSizer {
 			outlineEntryCount: renderableOutlineEntries,
 			hasImage: node.firstImagePath !== undefined,
 			imagePrecedesOutline: node.imagePrecedesOutline,
+			isCentral: node.isCentral,
 		});
 		const titleClamp = preview === "thumbnail" ? THUMBNAIL_PREVIEW_TITLE_LINE_CLAMP : NODE_TITLE_LINE_CLAMP;
 		const regions: number[] = [NodeSizer.titleLines(node.title, titleClamp) * ESTIMATED_TITLE_LINE_PX];

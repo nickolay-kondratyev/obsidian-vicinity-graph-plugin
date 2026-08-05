@@ -632,10 +632,28 @@ describe("vicinityGraphToFlow preview decision", () => {
 		expect(previewOf(coverNode(), { nodePreviewPreference: "auto" })).toBe("thumbnail");
 	});
 
-	it("WHEN the preference is Auto AND a node's image does NOT precede its outline THEN the mapped preview is the outline", () => {
+	it("WHEN the preference is Auto AND a CENTRAL's image does NOT precede its outline THEN the mapped preview is the outline", () => {
+		// EXPLICIT ALIGNMENT (nid_k2pa8khm6ugozmhkd6nlbdrq6_e): document position
+		// decides only where the outline is on offer at all, i.e. on a central.
+		expect(
+			previewOf({ ...coverNode(), isCentral: true, imagePrecedesOutline: false }, { nodePreviewPreference: "auto" }),
+		).toBe("outline");
+	});
+
+	it("WHEN the preference is Auto AND an ordinary neighbour's image does NOT precede its outline THEN the mapped preview is STILL the thumbnail", () => {
 		expect(previewOf({ ...coverNode(), imagePrecedesOutline: false }, { nodePreviewPreference: "auto" })).toBe(
-			"outline",
+			"thumbnail",
 		);
+	});
+
+	it("WHEN the preference is Auto AND an ordinary neighbour has an outline but no image THEN the mapped preview is none", () => {
+		expect(previewOf({ outline: [{ rawText: "Intro", level: 1 }] }, { nodePreviewPreference: "auto" })).toBe("none");
+	});
+
+	it("WHEN the preference is Auto AND a CENTRAL has an outline but no image THEN the mapped preview is the outline", () => {
+		expect(
+			previewOf({ outline: [{ rawText: "Intro", level: 1 }], isCentral: true }, { nodePreviewPreference: "auto" }),
+		).toBe("outline");
 	});
 
 	it("WHEN the preference is Outline AND a node's image precedes its outline THEN the mapped preview is the outline", () => {

@@ -1,12 +1,13 @@
 ---
+closed_iso: 2026-08-05T18:22:12Z
 id: nid_k2pa8khm6ugozmhkd6nlbdrq6_e
 title: 'auto preview: do NOT show the outline by default for non-central non-pinned
   notes'
-status: in_progress
+status: closed
 deps: []
 links: [nid_1mq3t7706vw2kj2kv7ljqlw6l_e, nid_jcxzhexfaksge2arjzca3w7ff_e, nid_9hx6okamx3yt0rg9iad2f4151_e]
 created_iso: '2026-08-05T17:58:46Z'
-status_updated_iso: '2026-08-05T18:07:16Z'
+status_updated_iso: 2026-08-05T18:22:12Z
 type: feature
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
@@ -48,3 +49,64 @@ STILL TO DECIDE (flag to owner before implementing):
 ## Acceptance Criteria
 
 In auto mode: an ordinary (non-central, non-pinned) note with headings and NO image renders title only and sizes to minPx; the same note WITH an image renders the thumbnail; a central or pinned root still resolves outline-vs-image the way it does today. An explicit global Outline preference still forces the outline anywhere. NodeSizer never sizes for a region the chooser will not render (one shared call to nodePreviewKind, no duplicated branch). No CSS density rung moves. npm test and npm run test:e2e green, with the e2e/nodeOutline.e2e.ts bands explicitly re-aligned rather than deleted.
+
+## RESOLUTION (2026-08-05) — implemented, closed
+
+Decision (b) answered the 80/20 way: **fixed behaviour, no new knob.** The Auto
+tier rule is not configurable; the existing Preview pill (`outline` / `image`)
+is the escape hatch. (c) was NOT built — no smaller peripheral thumbnail rung;
+look at a real vault first, as the ticket said.
+
+### What changed
+
+- `src/engine/nodePreviewKind.ts` — `NodePreviewInput` gained `isCentral`, and
+  the chooser now computes `outlineOffered = outlineEntryCount > 0 && (preference
+  !== "auto" || isCentral)` before the existing fallback branch. Auto on an
+  ordinary neighbour therefore falls into the "no outline offered" arm:
+  `hasImage ? "thumbnail" : "none"` — first image anywhere wins, else title only.
+  `imagePrecedesOutline` is untouched and still live on the central branch.
+- `src/engine/NodeSizer.ts` and `src/view/flowMapping.ts` — both pass
+  `isCentral: node.isCentral` into the ONE shared `nodePreviewKind` call. No
+  branch was duplicated; the sizer follows for free (its `revealFloorPx` only
+  floors when `preview !== "none"`), so a headings-only neighbour now lands at
+  `minPx`. Verified by test, not by inspection.
+- No CSS rung moved; `src/view/nodeDensityThresholds.test.ts` is untouched and green.
+
+### Tests
+
+- `src/engine/nodePreviewKind.test.ts` — the truth table is now tier-aware:
+  `previewForCentral` / `previewForNeighbour` helpers, a new
+  "Auto preference for an ordinary neighbour" suite (5 cells) and a
+  "neighbour under an EXPLICIT preference" suite proving the tier gate is Auto's
+  alone.
+- `src/engine/NodeSizer.test.ts` — behaviour-capturing cases that measured a
+  NON-central node's outline HEIGHT were **re-aligned, not deleted**: they now
+  state the Outline preference through a new `outlineShowingView()` helper whose
+  doc comment records why. A new describe captures the tier rule as SIZE
+  (headings-only neighbour → minPx; the same note pinned → larger; explicit
+  Outline → sized for its outline anyway).
+- `src/view/flowMapping.test.ts` — the Auto "position decides" case was retargeted
+  to a CENTRAL and three cases added for the neighbour ladder.
+- `e2e/nodeOutline.e2e.ts` — needed NO band re-alignment: every assertion in that
+  file already targets the MAIN node. That is now LOAD-BEARING rather than
+  incidental, so the file header says so explicitly.
+
+### Copy / docs kept honest
+
+- `src/view/nodePreviewPreferenceMeta.ts` (Auto option) and
+  `src/view/settingsRows.ts` (Preview row description) both said things that are
+  now false ("A note that only has one of the two always shows that one") — rewritten.
+- `README.md` *Node contents* and `docs-internal/plan/high-level-plan.md` state
+  the tier rule, its WHY, and the interim gap (pin it, or flip the pill, until
+  per-node overrides `nid_9hx6okamx3yt0rg9iad2f4151_e` ship).
+
+### Verification
+
+`npm run check` clean. `npm test` 1647 passed / 119 files. `npm run test:e2e`
+139 passed — green on two consecutive full runs on the final tree.
+
+CALLED OUT: during this work the full e2e suite failed twice on an UNRELATED
+case (`e2e/nodeResize.e2e.ts` "shrunk to the drag-resize floor"), then went green
+on the two later full runs; a clean-tree full run was also green. Filed as
+`nid_g1f5tjmxzr0hbfdeujvgwywsd_e` (order/state-dependent e2e flake) rather than
+silently patched.
