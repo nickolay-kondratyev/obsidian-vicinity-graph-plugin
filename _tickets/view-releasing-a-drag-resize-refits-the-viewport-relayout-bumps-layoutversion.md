@@ -9,7 +9,7 @@ status_updated_iso: 2026-08-04T18:17:18Z
 type: bug
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
-tags: [ui, sizing, decide]
+tags: [ui, sizing]
 ---
 
 A committed size override relayouts so the resized node no longer overlaps its neighbours or its folder-group box (ticket nid_sj9qg27cmear9lgdlz5umwra5_e).
@@ -39,4 +39,4 @@ only — it does NOT pre-empt the decision; delete the caveat if 1 or 2 wins.
 Releasing a resize handle leaves the viewport where the user had it (or the accepted behaviour is documented in README), with the overlap fix intact. A BDD test captures the rule; `npm test`, `npm run check`, `npm run test:e2e -- nodeResize.e2e.ts` green.
 
 --------------------------------------------------------------------------------
-HUMAN QUESTION: I tested the resizing and when there is no layout I dont see a change in where the graph is, the view appears to be stable, the graph appears to be stable (unless we do a relayout due to clashes, which is expected to relayout). 
+HUMAN QUESTION: I tested the resizing and when there is no layout I dont see a change in where the graph is, the view appears to be stable, the graph appears to be stable (unless we do a relayout due to clashes, which is expected to relayout).  - validate whether this ticket describes a real issue.
