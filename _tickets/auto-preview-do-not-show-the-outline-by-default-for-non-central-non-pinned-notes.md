@@ -1,17 +1,18 @@
 ---
 id: nid_k2pa8khm6ugozmhkd6nlbdrq6_e
-title: "auto preview: do NOT show the outline by default for non-central non-pinned notes"
-status: open
+title: 'auto preview: do NOT show the outline by default for non-central non-pinned
+  notes'
+status: in_progress
 deps: []
 links: [nid_1mq3t7706vw2kj2kv7ljqlw6l_e, nid_jcxzhexfaksge2arjzca3w7ff_e, nid_9hx6okamx3yt0rg9iad2f4151_e]
-created_iso: 2026-08-05T17:58:46Z
-status_updated_iso: 2026-08-05T17:58:46Z
+created_iso: '2026-08-05T17:58:46Z'
+status_updated_iso: '2026-08-05T18:07:16Z'
 type: feature
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
 tags: [ui, sizing]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 ---
-
 OWNER DECISION (2026-08-05), taken while closing the density-floor decide ticket nid_1mq3t7706vw2kj2kv7ljqlw6l_e (_tickets/closed/ux-decide-content-fit-nodes-are-floored-at-the-css-density-rungs-any-note-with-one-heading-is-122px.md).
 
 WHERE WE WANT TO GO: 
@@ -47,4 +48,3 @@ STILL TO DECIDE (flag to owner before implementing):
 ## Acceptance Criteria
 
 In auto mode: an ordinary (non-central, non-pinned) note with headings and NO image renders title only and sizes to minPx; the same note WITH an image renders the thumbnail; a central or pinned root still resolves outline-vs-image the way it does today. An explicit global Outline preference still forces the outline anywhere. NodeSizer never sizes for a region the chooser will not render (one shared call to nodePreviewKind, no duplicated branch). No CSS density rung moves. npm test and npm run test:e2e green, with the e2e/nodeOutline.e2e.ts bands explicitly re-aligned rather than deleted.
-
