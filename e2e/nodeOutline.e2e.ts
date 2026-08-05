@@ -13,7 +13,11 @@ import { ObsidianHarness } from "./obsidianHarness";
  * and are deliberately self-contained, so they cannot shift the node counts the
  * other e2e suites assert on.
  *
- * Every assertion targets the MAIN node: the fixture's eleven depth-2 headings
+ * Every assertion targets the MAIN node — which since ticket
+ * nid_k2pa8khm6ugozmhkd6nlbdrq6_e is LOAD-BEARING, not just convenient: under the
+ * default Auto preference the outline is a CENTRAL's affordance, so re-pointing
+ * any case here at a peripheral note would assert on a node that renders no
+ * outline at all. The fixture's eleven depth-2 headings
  * size it to maxPx (160px) under content-fit sizing, comfortably above the 104px
  * threshold that reveals the outline at all. (Centrals no longer bypass sizing —
  * their prominence FLOOR alone would not clear that threshold, so the fixture's

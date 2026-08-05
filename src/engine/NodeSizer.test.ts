@@ -45,6 +45,19 @@ function viewWith(overrides: Partial<NodeSizingView> = {}): NodeSizingView {
 	};
 }
 
+/**
+ * EXPLICIT ALIGNMENT (ticket nid_k2pa8khm6ugozmhkd6nlbdrq6_e, owner-decided
+ * 2026-08-05): under the Auto preference the outline is a CENTRAL's affordance —
+ * an ordinary neighbour's Auto ladder is image → title only. Every case that
+ * measures a NON-central node's outline HEIGHT therefore states the Outline
+ * preference, so it keeps measuring the arithmetic it was written for instead of
+ * silently becoming a title-only node. The tier rule itself is captured by its
+ * own cases (below, and in `nodePreviewKind.test.ts`), never smuggled in here.
+ */
+function outlineShowingView(overrides: Partial<NodeSizingView> = {}): NodeSizingView {
+	return viewWith({ nodePreviewPreference: "outline", ...overrides });
+}
+
 /** Traverses from the given roots (default: every .md file) and sizes the union. */
 function sizeAll(
 	spec: FakeVaultSpec,
@@ -137,7 +150,7 @@ describe("NodeSizer content fit (rethink Q1: size follows what the node shows)",
 				files: [{ path: "m.md" }, { path: "few.md", outline: headings(6) }, { path: "many.md", outline: headings(8) }],
 				links: { "m.md": ["few.md", "many.md"] },
 			},
-			viewWith(),
+			outlineShowingView(),
 			["m.md"],
 		);
 		expect(sizeOf(sizes, "many.md")).toBeGreaterThan(sizeOf(sizes, "few.md"));
@@ -148,7 +161,7 @@ describe("NodeSizer content fit (rethink Q1: size follows what the node shows)",
 		// measures the arithmetic and not the floor (which owns its own tests below).
 		const sizes = sizeAll(
 			{ files: [{ path: "m.md" }, { path: "a.md", outline: headings(6) }], links: { "m.md": ["a.md"] } },
-			viewWith(),
+			outlineShowingView(),
 			["m.md"],
 		);
 		const expected =
@@ -159,7 +172,7 @@ describe("NodeSizer content fit (rethink Q1: size follows what the node shows)",
 	it("WHEN a note has a huge outline THEN the node clamps at maxPx", () => {
 		const sizes = sizeAll(
 			{ files: [{ path: "m.md" }, { path: "a.md", outline: headings(40) }], links: { "m.md": ["a.md"] } },
-			viewWith(),
+			outlineShowingView(),
 			["m.md"],
 		);
 		expect(sizeOf(sizes, "a.md")).toBe(DEFAULTS.maxPx);
@@ -170,7 +183,7 @@ describe("NodeSizer content fit (rethink Q1: size follows what the node shows)",
 			files: [{ path: "m.md" }, { path: "a.md", outline: headings(6, 3) }],
 			links: { "m.md": ["a.md"] },
 		};
-		const shallow = sizeAll(spec, viewWith({ outlineMaxDepth: 2 }), ["m.md"]);
+		const shallow = sizeAll(spec, outlineShowingView({ outlineMaxDepth: 2 }), ["m.md"]);
 		// Level-3 headings are not renderable at depth 2, so the note is title-only.
 		expect(sizeOf(shallow, "a.md")).toBe(DEFAULTS.minPx);
 	});
@@ -181,7 +194,7 @@ describe("NodeSizer content fit (rethink Q1: size follows what the node shows)",
 				files: [{ path: "m.md" }, { path: "a.md", outline: headings(5) }, { path: "doc.pdf" }],
 				links: { "m.md": ["a.md"], "a.md": ["doc.pdf"] },
 			},
-			viewWith(),
+			outlineShowingView(),
 			["m.md"],
 		);
 		// Five entries: the summed fit clears the reveal floor and, WITH the chip
@@ -206,12 +219,12 @@ describe("NodeSizer reveal floors (a counted region must be a PAINTED region)", 
 	};
 
 	it("WHEN a note's outline is too short to reach the CSS reveal THEN the node is floored at it", () => {
-		const sizes = sizeAll(oneHeadingNote, viewWith(), ["m.md"]);
+		const sizes = sizeAll(oneHeadingNote, outlineShowingView(), ["m.md"]);
 		expect(sizeOf(sizes, "a.md")).toBe(PREVIEW_VISIBLE_MIN_NODE_PX);
 	});
 
 	it("WHEN maxPx sits below the preview reveal THEN the explicit maximum still wins over the floor", () => {
-		const sizes = sizeAll(oneHeadingNote, viewWith({ sizing: { minPx: 40, maxPx: 100 } }), ["m.md"]);
+		const sizes = sizeAll(oneHeadingNote, outlineShowingView({ sizing: { minPx: 40, maxPx: 100 } }), ["m.md"]);
 		expect(sizeOf(sizes, "a.md")).toBe(100);
 	});
 
@@ -237,6 +250,37 @@ describe("NodeSizer reveal floors (a counted region must be a PAINTED region)", 
 			"m.md",
 		]);
 		expect(sizeOf(sizes, "a.md")).toBe(DEFAULTS.minPx);
+	});
+});
+
+/**
+ * The Auto tier rule (ticket nid_k2pa8khm6ugozmhkd6nlbdrq6_e) expressed as SIZE,
+ * which is the reason it exists: with content-fit sizing, a peripheral note with
+ * even ONE heading used to be floored at the preview reveal rung, so the whole
+ * vicinity rendered as near-identical big boxes. Withholding the outline from
+ * ordinary neighbours withholds the floor with it. The IMAGE half of the ladder
+ * is unaffected — the thumbnail suite below sizes a non-central image note.
+ */
+describe("NodeSizer under Auto (the outline is a central's affordance)", () => {
+	const headingsOnlyNeighbour: FakeVaultSpec = {
+		files: [{ path: "m.md" }, { path: "a.md", outline: headings(6) }],
+		links: { "m.md": ["a.md"] },
+	};
+
+	it("WHEN an ordinary neighbour's only content is headings THEN it sizes to minPx (no preview region reserved)", () => {
+		const sizes = sizeAll(headingsOnlyNeighbour, viewWith(), ["m.md"]);
+		expect(sizeOf(sizes, "a.md")).toBe(DEFAULTS.minPx);
+	});
+
+	it("WHEN that same note is PINNED (a second root) THEN its outline is sized for again", () => {
+		const peripheral = sizeAll(headingsOnlyNeighbour, viewWith(), ["m.md"]);
+		const pinned = sizeAll(headingsOnlyNeighbour, viewWith(), ["m.md", "a.md"]);
+		expect(sizeOf(pinned, "a.md")).toBeGreaterThan(sizeOf(peripheral, "a.md"));
+	});
+
+	it("WHEN the preference is an explicit Outline THEN an ordinary neighbour is sized for its outline anyway", () => {
+		const sizes = sizeAll(headingsOnlyNeighbour, outlineShowingView(), ["m.md"]);
+		expect(sizeOf(sizes, "a.md")).toBeGreaterThan(DEFAULTS.minPx);
 	});
 });
 

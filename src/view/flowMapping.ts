@@ -393,6 +393,7 @@ function toFlowNodeData(node: GraphNode, mainPinned: boolean, view: ViewSettings
 			outlineEntryCount: outline.length,
 			hasImage: node.firstImagePath !== undefined,
 			imagePrecedesOutline: node.imagePrecedesOutline,
+			isCentral: node.isCentral,
 		}),
 		...(node.firstImagePath === undefined ? {} : { firstImagePath: node.firstImagePath }),
 		imageCount: node.attachments.filter((attachment) => attachment.isImage).length,

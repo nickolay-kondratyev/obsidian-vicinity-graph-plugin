@@ -16,6 +16,11 @@ export interface NodePreviewInput {
 	readonly hasImage: boolean;
 	/** The adapter's document-position fact (`GraphNode.imagePrecedesOutline`). */
 	readonly imagePrecedesOutline: boolean;
+	/**
+	 * `TraversedNode.isCentral` — true for MAIN and every pinned root. Under Auto
+	 * this is the tier line: only a root is offered the outline (see below).
+	 */
+	readonly isCentral: boolean;
 }
 
 /**
@@ -32,10 +37,19 @@ export function nodePreviewKind({
 	outlineEntryCount,
 	hasImage,
 	imagePrecedesOutline,
+	isCentral,
 }: NodePreviewInput): NodePreviewKind {
+	// Under Auto the outline is a ROOT's affordance, not every neighbour's (owner
+	// decision 2026-08-05, nid_k2pa8khm6ugozmhkd6nlbdrq6_e): with content-fit
+	// sizing, any note with ONE heading floors at the CSS reveal rung, so letting
+	// the whole vicinity claim the preview slot turns the graph into a wall of
+	// near-identical big boxes. An ordinary neighbour's Auto ladder is therefore
+	// image → title only; an EXPLICIT preference (or, later, a per-node override)
+	// still reaches the outline anywhere.
+	const outlineOffered = outlineEntryCount > 0 && (preference !== "auto" || isCentral);
 	// A preference is a PREFERENCE, never a blank node: when only one side exists
 	// it wins outright, so the branches below never restate the fallback.
-	if (outlineEntryCount === 0) {
+	if (!outlineOffered) {
 		return hasImage ? "thumbnail" : "none";
 	}
 	if (!hasImage) {
