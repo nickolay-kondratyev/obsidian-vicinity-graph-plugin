@@ -1,17 +1,18 @@
 ---
 id: nid_tclb98q9hxhmcuonamvr4ig1f_e
-title: "UX decide: hover pin chip is hidden on small nodes — now including a default-sized empty MAIN/pinned central"
-status: open
+title: "UX decide: hover pin chip is hidden on small nodes \u2014 now including a\
+  \ default-sized empty MAIN/pinned central"
+status: in_progress
 deps: []
 links: []
-created_iso: 2026-08-04T23:36:52Z
-status_updated_iso: 2026-08-04T23:36:52Z
+created_iso: '2026-08-04T23:36:52Z'
+status_updated_iso: '2026-08-05T02:06:32Z'
 type: bug
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
 tags: [ui]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 ---
-
 Pre-existing density rule: the hover pin chip renders only when the node is at least 72px CONTENT-box tall (`src/view/graph-view.css`, the @container (min-height: 72px) reveal — about 90px border-box after padding+border). Below that, pin/unpin is only reachable via the node's right-click menu.
 
 Content-fit sizing (ticket nid_cx5zoz7ptucg9nxalibv0mbjb_e, owner-decided) made this the COMMON case: a title-only note now renders at ~minPx (40px), and an EMPTY central sits at the 0.35 prominence floor = 82px border-box (64px content) — so even the MAIN central of an empty note has NO hover pin affordance at shipped defaults. Two e2e pin fixtures had to be padded with headings to keep the hover gesture testable (e2e/controlsRestart.e2e.ts, e2e/pinnedCentralScenario.e2e.ts).
