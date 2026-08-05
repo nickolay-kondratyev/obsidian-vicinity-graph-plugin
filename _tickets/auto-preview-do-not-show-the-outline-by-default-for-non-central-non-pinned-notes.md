@@ -9,7 +9,7 @@ status_updated_iso: 2026-08-05T17:58:46Z
 type: feature
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
-tags: [ui, sizing, decide]
+tags: [ui, sizing]
 ---
 
 OWNER DECISION (2026-08-05), taken while closing the density-floor decide ticket nid_1mq3t7706vw2kj2kv7ljqlw6l_e (_tickets/closed/ux-decide-content-fit-nodes-are-floored-at-the-css-density-rungs-any-note-with-one-heading-is-122px.md).
