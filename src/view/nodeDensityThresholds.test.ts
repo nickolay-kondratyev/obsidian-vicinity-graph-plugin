@@ -75,6 +75,12 @@ const PIN_CHIP_BORDER_BOX = /\n\tbox-sizing: border-box;/;
 // chip above it would cover the node's centre point.
 const PIN_CHIP_STEP_DOWN_QUERY =
 	/@container \(max-height:\s*(\d+)px\) and \(max-width:\s*(\d+)px\)\s*\{\n\t\.vicinity-graph-node \.vicinity-graph-pin-button \{\n([\s\S]*?)\n\t\}\n\}/g;
+// ANY top-level container query, whatever its prelude — the density ladder's
+// `min-height` rungs included. The step-down regex above can only see rungs that
+// already have the ladder's shape, so it is blind to the very regression this
+// ticket removed (a `min-*` rung GROWING the chip); this one sees every rung.
+const ANY_CONTAINER_QUERY = /@container ([^{]*)\{\n([\s\S]*?)\n\}/g;
+const MENTIONS_PIN_CHIP = /\.vicinity-graph-pin-button/;
 // Anchored to a line start, not a preceding newline: it is the rung's ONLY
 // declaration, so there is nothing before it inside the captured body.
 const WITHHOLDS_CHIP = /(?:^|\n)\t\tdisplay: none;/;
@@ -177,6 +183,18 @@ function compactPinChipRung(): PinChipRung {
 
 function withholdPinChipRung(): PinChipRung {
 	return solePinChipRung(WITHHOLDS_CHIP, "withhold the chip");
+}
+
+/** Preludes of EVERY container query that styles the pin chip, in source order. */
+function pinChipContainerQueryPreludes(): string[] {
+	return [...stylesheet().matchAll(ANY_CONTAINER_QUERY)]
+		.filter(([, , body]) => body !== undefined && MENTIONS_PIN_CHIP.test(body))
+		.map(([, prelude]) => (prelude ?? "").trim());
+}
+
+/** How a step-down rung of the ladder states itself: both axes, both `max-*`. */
+function twoAxisMaxPrelude(rung: PinChipRung): string {
+	return `(max-height: ${rung.maxHeightPx}px) and (max-width: ${rung.maxWidthPx}px)`;
 }
 
 /** A length the stylesheet writes either as a px literal or as an Obsidian spacing token. */
@@ -307,10 +325,25 @@ describe("node density thresholds", () => {
 	});
 
 	// …and it is FULL SIZE at every node size the geometry allows (ticket
-	// nid_8i5936g90vrllosssaz7v3xbr_e): one chip size throughout. The ladder may only
-	// step DOWN from the default, so a stylesheet that re-declared a BIGGER chip in a
-	// rung — reintroducing the old grow-on-height shape — fails here rather than in
-	// the centre-clearance arithmetic below, which such a rung would also breach.
+	// nid_8i5936g90vrllosssaz7v3xbr_e): one chip size throughout, so the ladder may
+	// only ever step DOWN from the default.
+	//
+	// This guard comes FIRST because every other pin-chip guard below reads the
+	// ladder through `PIN_CHIP_STEP_DOWN_QUERY`, which matches only rungs that
+	// ALREADY have the two-axis `max-*` shape. That makes them all blind to exactly
+	// the regression this ticket removed: chip declarations added to a `min-height`
+	// rung — the density ladder's own rungs sit a few lines up in the same file —
+	// would grow the chip on HEIGHT alone again while every arithmetic guard below
+	// stayed green, because none of them would ever see that rung.
+	it("WHEN a container query styles the pin chip THEN it is one of the ladder's two-axis max-* step-downs, never a min-* rung", () => {
+		expect([...pinChipContainerQueryPreludes()].sort()).toEqual(
+			[twoAxisMaxPrelude(compactPinChipRung()), twoAxisMaxPrelude(withholdPinChipRung())].sort(),
+		);
+	});
+
+	// With the shape pinned above, "step DOWN" is then a claim about SIZE: a rung
+	// re-declaring a BIGGER chip fails here (and would also breach the centre-
+	// clearance arithmetic below, which is computed from the chip it steps down from).
 	it("WHEN the stylesheet steps the pin chip down THEN it steps down from the DEFAULT rung's full-size chip", () => {
 		expect(declaredChipSizePx(compactPinChipRung().body, "compact")).toBeLessThan(
 			declaredChipSizePx(pinButtonDeclarations(), "full-size"),

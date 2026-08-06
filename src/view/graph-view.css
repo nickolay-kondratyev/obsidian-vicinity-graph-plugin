@@ -443,8 +443,14 @@
  * regression) fails OPEN — full-size chip present — rather than shrinking or
  * deleting the affordance on every node.
  *
- * `nodeDensityThresholds.test.ts` recomputes BOTH rungs from the chip declarations
- * they guard plus the node's padding, so re-tuning a chip cannot leave a rung
+ * NEVER declare the chip inside one of the `min-height` density rungs above: that
+ * is the shape this ticket removed, and it is the shape a maintainer reaches for
+ * out of habit because those rungs sit a few lines up in this same file.
+ * `nodeDensityThresholds.test.ts` fails any container query that styles the chip
+ * and is not one of the two rungs below.
+ *
+ * It also recomputes BOTH rungs from the chip declarations they guard plus the
+ * node's padding, so re-tuning a chip cannot leave a rung
  * behind — and separately asserts the rungs DESCEND, since each is derived from the
  * chip ABOVE it and a step-down that shrank the chip's size while growing its inset
  * would consistently derive a band SWALLOWING the one above (the compact chip would

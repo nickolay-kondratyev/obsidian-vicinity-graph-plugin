@@ -335,16 +335,31 @@ async function renderTargetAsNeighbourAt(sidePx: number): Promise<void> {
 /** The same, at a box that need not be square — the chip's rungs read BOTH axes. */
 async function renderTargetAsNeighbourBox(box: { widthPx: number; heightPx: number }): Promise<void> {
 	await harness.openFile(HUB);
-	// The predecessor test opens the TARGET by clicking it, so a rebuild centred on
-	// the TARGET can still be in flight here. Both waits earn their keep and neither
-	// subsumes the other: the active file is the INPUT the next rebuild reads, and
-	// HUB rendering as MAIN is proof a HUB-centred rebuild already LANDED — so the
-	// override below cannot race an in-flight one. The assertion is then repeated
-	// AFTER the refresh, because only that makes the refresh the last word.
+	// The active file is the INPUT the next rebuild reads, so settle it before
+	// writing. WHY-NOT also wait on `HUB` rendering as `data-tier=main` as PROOF a
+	// HUB-centred rebuild landed: HUB is MAIN both BEFORE and AFTER the predecessor
+	// test re-centres on the TARGET (that rebuild can still be in flight, and a
+	// superseded one never publishes), so the attribute is satisfied by the STALE
+	// screen and the wait proves nothing. The rendered box below is the only
+	// honest settle point — it is the thing this helper promises.
 	await expect.poll(activeFilePath).toBe(HUB);
-	await expect(noteNode(HUB)).toHaveAttribute("data-tier", "main");
 	await harness.saveNodeSizeOverride(TARGET_DOCID, box);
-	await harness.refreshOpenViews();
+	// REMOUNTED, not `refreshOpenViews()`d. An in-place fan-out does not reliably
+	// bring this box to the screen: with a graph already rendered, a published
+	// override change can be lost — the pane keeps painting the PREVIOUS box against
+	// a store that already holds this one, and further fan-outs do not re-converge
+	// it (measured: 8 of them across 15s). That is a REAL defect, reproduced and
+	// tracked in ticket `nid_c78k90su87jrzigxvfjv5t95g_e`, NOT something a longer
+	// wait or a retry loop fixes — both were tried and both stayed flaky.
+	//
+	// A remount tears the view down and builds a fresh one straight off the store,
+	// so no stale React-Flow local node state can survive into it. That makes this
+	// helper deterministic WITHOUT standing on the seam under investigation: these
+	// are chip-GEOMETRY specs, and the fan-out's delivery guarantee is that
+	// ticket's subject to prove, not theirs to depend on.
+	await harness.remountGraphView();
+	// Meaningful HERE, unlike before the write: the view is FRESH, so this attribute
+	// cannot be left over from a previous graph.
 	await expect(noteNode(HUB)).toHaveAttribute("data-tier", "main");
 	await expect.poll(() => renderedBoxPx(TARGET)).toEqual(box);
 }
