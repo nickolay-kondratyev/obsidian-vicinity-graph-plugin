@@ -33,13 +33,24 @@ export function resizeEndToOverride(widthPx: number, heightPx: number): NodeSize
 	return { widthPx: Math.round(widthPx), heightPx: Math.round(heightPx) };
 }
 
-/** The node context menu's "back to computed size" entry (title + lucide icon id). */
+/** The node context menu's "back to computed size" entry (title + lucide icon id + educational sub-line). */
 export interface ResetSizeAction {
 	readonly title: string;
 	readonly iconId: string;
+	/**
+	 * The muted sub-line the menu renders under the title. "Custom size" (a box
+	 * set by dragging the node's edges) is not a term the UI names anywhere else,
+	 * so the entry has to teach it: what the reset does, and — since the entry
+	 * only ever appears once such a size exists — implicitly when it shows.
+	 */
+	readonly description: string;
 }
 
-const RESET_SIZE_ACTION: ResetSizeAction = { title: "Reset size", iconId: "undo-2" };
+const RESET_SIZE_ACTION: ResetSizeAction = {
+	title: "Reset size",
+	iconId: "undo-2",
+	description: "Clears the custom size you set by dragging; the note returns to its computed size.",
+};
 
 /**
  * The reset affordance is offered ONLY while a size override exists — on a

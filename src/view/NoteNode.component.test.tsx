@@ -176,6 +176,13 @@ describe("NoteNode context menu reset entry", () => {
 		ui.nodeMenuRequests[0]?.entries.find((entry) => entry.title === "Reset size")?.onClick();
 		expect(actions.resetPaths).toEqual([NODE_PATH]);
 	});
+
+	it("WHEN 'Reset size' is offered THEN it carries an educational sub-line (the adapter renders it under the label)", async () => {
+		const { ui, result } = renderNoteNode(nodeData({ hasSizeOverride: true }));
+		fireEvent.contextMenu(await mountedNode(result.container));
+		const reset = ui.nodeMenuRequests[0]?.entries.find((entry) => entry.title === "Reset size");
+		expect(reset?.description).not.toBe(undefined);
+	});
 });
 
 /** The gear (top-right) button, once React Flow has mounted the node. */
@@ -265,5 +272,12 @@ describe("NoteNode gear content menu", () => {
 			.find((entry) => entry.title === "Reset size")
 			?.onClick();
 		expect(actions.resetPaths).toEqual([NODE_PATH]);
+	});
+
+	it("WHEN the gear hosts 'Reset size' THEN it carries an educational sub-line", async () => {
+		const { ui, result } = renderNoteNode(nodeData({ hasSizeOverride: true }));
+		fireEvent.click(await mountedGear(result.container));
+		const reset = gearMenuEntries(ui).find((entry) => entry.title === "Reset size");
+		expect(reset?.description).not.toBe(undefined);
 	});
 });

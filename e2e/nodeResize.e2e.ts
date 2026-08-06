@@ -207,6 +207,13 @@ test("WHEN the central switches to another note THEN the override still applies 
 	});
 });
 
+test("WHEN 'Reset size' is offered THEN it renders its educational sub-line under the label", async () => {
+	await noteNode(TARGET).click({ button: "right" });
+	const resetItem = page.locator(".menu .menu-item", { hasText: "Reset size" });
+	await expect(resetItem.locator(".vicinity-graph-menu-item__description")).toContainText("dragging");
+	await page.keyboard.press("Escape");
+});
+
 test("WHEN 'Reset size' is chosen from the node's context menu THEN the override is cleared and the computed box returns", async () => {
 	const overridden = await renderedBoxPx(TARGET);
 	await noteNode(TARGET).click({ button: "right" });

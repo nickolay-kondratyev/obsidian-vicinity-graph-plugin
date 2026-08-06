@@ -72,6 +72,7 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
 				entries.push({
 					title: resetSize.title,
 					iconId: resetSize.iconId,
+					description: resetSize.description,
 					onClick: () => void actions.resetNodeSize(data.path),
 				});
 			}
@@ -123,6 +124,7 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
 				entries.push({
 					title: resetSize.title,
 					iconId: resetSize.iconId,
+					description: resetSize.description,
 					section: SIZE_MENU_SECTION,
 					onClick: () => void actions.resetNodeSize(data.path),
 				});
