@@ -1,17 +1,17 @@
 ---
 id: nid_qveuch88qov6rr7pr2y7a1vki_e
-title: "Custom sizing - add ability to drop custom size"
-status: open
+title: Custom sizing - add ability to drop custom size
+status: in_progress
 deps: [nid_9hx6okamx3yt0rg9iad2f4151_e]
 links: []
 tags: []
-created_iso: 2026-08-05T16:38:59Z
-status_updated_iso: 2026-08-05T16:38:59Z
+created_iso: '2026-08-05T16:38:59Z'
+status_updated_iso: '2026-08-06T22:41:50Z'
 type: task
 priority: 3
 assignee: nickolaykondratyev
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin
 ---
-
 Right now once we custom size a node we do not have a way to drop the custom size.
 
 We should add ability to drop the custom size when the node has custom size, 
