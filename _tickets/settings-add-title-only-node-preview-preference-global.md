@@ -1,17 +1,17 @@
 ---
 id: nid_jcxzhexfaksge2arjzca3w7ff_e
-title: "settings: add Title only node preview preference (global)"
-status: open
+title: 'settings: add Title only node preview preference (global)'
+status: in_progress
 deps: [nid_k2pa8khm6ugozmhkd6nlbdrq6_e]
 links: [nid_o5hz7ilcauwe2acqdfh6pcuam_e, nid_cx5zoz7ptucg9nxalibv0mbjb_e, nid_9hx6okamx3yt0rg9iad2f4151_e]
-created_iso: 2026-08-04T00:03:13Z
-status_updated_iso: 2026-08-04T00:03:13Z
+created_iso: '2026-08-04T00:03:13Z'
+status_updated_iso: '2026-08-06T16:50:06Z'
 type: feature
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
 tags: [sizing, ui, settings]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-2
 ---
-
 From the node-sizing rethink decisions (decide ticket nid_o5hz7ilcauwe2acqdfh6pcuam_e, docs-internal/plan/node-sizing-rethink.md).
 
 Add a fourth NodePreviewPreference value, e.g. "title-only" (TitleOnly): the node renders ONLY its title — no outline, no image. Available as a GLOBAL setting; the per-node override ticket (nid_9hx6okamx3yt0rg9iad2f4151_e) adds it to the per-node menu.
@@ -28,4 +28,3 @@ Tests: chooser unit tests, jsdom component test for the pill option, and npm run
 ## Acceptance Criteria
 
 Global preference offers Auto/Title only/Outline/Image; choosing Title only renders bare-title nodes; both settings surfaces show the new option; e2e passes.
-
