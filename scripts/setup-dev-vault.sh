@@ -5,11 +5,14 @@
 # checkout has no vault to open, and the plugin has to be built + copied in
 # before Obsidian can load it. This script makes the whole loop one command.
 #
-# Idempotent, with TWO fixture writers (see each one's WHY below): most fixtures
-# and the `.obsidian` config are (re)created ONLY when missing, so local
-# enrichment of note1/note2/... is never clobbered — while fixtures an e2e spec
-# MEASURES are script-OWNED and re-written whenever they drift from what this
-# script declares. Re-run any time to rebuild and re-copy the plugin artifacts.
+# Idempotent, with a SCRIPT-OWNED vs ENRICHABLE split (see each writer's WHY
+# below): every fixture an e2e spec READS/MEASURES/COUNTS is script-OWNED —
+# written through `write_fixture` (text) or `copy_fixture` (binary), so a fixture
+# BODY edit reaches every existing vault on the next run instead of being a silent
+# no-op. The only fixtures still (re)created ONLY when missing (`write_if_missing`
+# / `copy_if_missing`) are the ones NO spec touches — the `stranded-*` + `p/ep/*`
+# manual-smoke cluster and the `.obsidian` config — so local enrichment of those
+# is never clobbered. Re-run any time to rebuild and re-copy the plugin artifacts.
 #
 # Ref: docs-internal/tickets/ticket-step-03-human-smoke-run.md
 set -euo pipefail
@@ -40,10 +43,12 @@ write_if_missing() {
 # WHY a second writer: `write_if_missing` protects local enrichment, which is
 # right for the notes a human explores with — but it makes a fixture BODY change
 # a silent no-op on every vault that already exists. `e2e/` runs against a COPY
-# of this vault, so a fixture an e2e spec MEASURES (node sizes, edge geometry)
-# must be the declared one on every machine, or the suite passes on a fresh
-# checkout and fails on a developer's older vault with no clue why. Fixtures
-# that are only READ (link shape, titles) can stay `write_if_missing`.
+# of this vault, so a fixture an e2e spec READS — whether it MEASURES it (node
+# sizes, edge geometry, outline density) or merely COUNTS it (node/edge/attachment
+# counts, link shape) — must be the declared one on every machine, or the suite
+# passes on a fresh checkout and fails on a developer's older vault with no clue
+# why. So EVERY spec-read fixture below uses `write_fixture`; `write_if_missing`
+# is reserved for fixtures no spec touches (ticket nid_v5510dvzp7nw9p4qrrpw7d35s_e).
 write_fixture() {
 	local target="$1" content
 	content="$(cat)"
@@ -70,9 +75,25 @@ copy_if_missing() {
 	echo "  create ${dest}"
 }
 
+# copy_fixture SRC DEST — the binary analog of `write_fixture`: a SCRIPT-OWNED
+# binary fixture, copied when absent AND re-copied whenever DEST drifted from SRC
+# (`cmp -s` byte-compare). Used for the images an e2e spec MEASURES (a note's
+# thumbnail, the outline-vs-image escape hatch), so swapping the committed source
+# image reaches every existing vault instead of only fresh checkouts.
+copy_fixture() {
+	local src="$1" dest="$2"
+	if [[ -e "${dest}" ]] && cmp -s "${src}" "${dest}"; then
+		echo "  keep   ${dest} (matches the declared fixture)"
+		return
+	fi
+	mkdir -p "$(dirname "${dest}")"
+	cp "${src}" "${dest}"
+	echo "  write  ${dest} (declared fixture)"
+}
+
 echo "==> Ensuring dev-vault fixtures in ${VAULT}/"
 
-write_if_missing "${VAULT}/note1.md" <<'EOF'
+write_fixture "${VAULT}/note1.md" <<'EOF'
 Central note for the step-03 debug harness.
 
 Links out: [[note2]] and [[note3]].
@@ -82,18 +103,18 @@ Embedded attachment (first-image candidate):
 ![[pic.jpg]]
 EOF
 
-write_if_missing "${VAULT}/note2.md" <<'EOF'
+write_fixture "${VAULT}/note2.md" <<'EOF'
 Backlink to [[note1]] (incoming edge for the harness).
 EOF
 
-write_if_missing "${VAULT}/note3.md" <<'EOF'
+write_fixture "${VAULT}/note3.md" <<'EOF'
 Leaf note: reachable from note1 (body link) and from test.canvas (file node).
 EOF
 
 # test.canvas exercises BOTH canvas reference kinds the plugin must report
 # identically on either link regime: file nodes (note1, note3) and a text-node
 # wikilink (note2). Ticket nid_s676x55uojmtcwh9t4l9mc6zl_e.
-write_if_missing "${VAULT}/test.canvas" <<'EOF'
+write_fixture "${VAULT}/test.canvas" <<'EOF'
 {
 	"nodes": [
 		{ "id": "n1", "type": "file", "file": "note1.md", "x": 0, "y": 0, "width": 300, "height": 200 },
@@ -109,7 +130,7 @@ EOF
 # `resolvedLinks` and the other not — the regime must be decided per canvas).
 # Deliberately reaches note2/note3, which puts it at depth 2 from note1 and so
 # OUTSIDE the note1 vicinity the other specs count. Ticket nid_s676x55uojmtcwh9t4l9mc6zl_e.
-write_if_missing "${VAULT}/test2.canvas" <<'EOF'
+write_fixture "${VAULT}/test2.canvas" <<'EOF'
 {
 	"nodes": [
 		{ "id": "n1", "type": "file", "file": "note3.md", "x": 0, "y": 0, "width": 300, "height": 200 },
@@ -123,17 +144,19 @@ EOF
 # Apollo 17) — the first-image attachment candidate for note1. Sourced once
 # from Wikimedia Commons and committed small under scripts/dev-vault-fixtures/
 # so a clean checkout doesn't need network access to build the vault.
-copy_if_missing "scripts/dev-vault-fixtures/pic.jpg" "${VAULT}/pic.jpg"
+# copy_fixture: note1's node MEASURES this as its thumbnail (vicinityGraph.e2e.ts),
+# so a swapped source image must reach every existing vault, not just fresh ones.
+copy_fixture "scripts/dev-vault-fixtures/pic.jpg" "${VAULT}/pic.jpg"
 
 # --- step-05 fixtures: rich rendering smoke-run material ---------------------
 # Exercises: 2+ folder group (projects/), singleton folder (solo/), frontmatter
 # titles (incl. whitespace that must render trimmed), duplicate links (edge
 # count badge), bidirectional links (mirrored curves), and several attachment
-# types (icon strip). New notes link TO note1 (incoming edges) on purpose:
-# note1.md is never rewritten once present, so they must pull themselves into
-# its vicinity rather than rely on edits to note1.
+# types (icon strip). New notes link TO note1 (incoming edges) on purpose: each
+# fixture pulls ITSELF into note1's vicinity, so it stays self-describing and does
+# not depend on a matching edit to note1's body.
 
-write_if_missing "${VAULT}/projects/alpha.md" <<'EOF'
+write_fixture "${VAULT}/projects/alpha.md" <<'EOF'
 ---
 title: Project Alpha (fm title)
 ---
@@ -146,11 +169,11 @@ Bidirectional intra-group link: [[beta]].
 Attachment types for the icon strip: ![[pic.jpg]], ![[report.pdf]], ![[data.csv]].
 EOF
 
-write_if_missing "${VAULT}/projects/beta.md" <<'EOF'
+write_fixture "${VAULT}/projects/beta.md" <<'EOF'
 Second projects/ member. Links back to [[alpha]] (bidirectional pair) and to [[note1]].
 EOF
 
-write_if_missing "${VAULT}/solo/gamma.md" <<'EOF'
+write_fixture "${VAULT}/solo/gamma.md" <<'EOF'
 ---
 title: "  Gamma (solo, trimmed title)  "
 ---
@@ -160,18 +183,19 @@ Links to [[note1]].
 Second recognizable image, so the thumbnail feature isn't only exercised by one shared file: ![[pic2.jpg]].
 EOF
 
-write_if_missing "${VAULT}/assets/data.csv" <<'EOF'
+write_fixture "${VAULT}/assets/data.csv" <<'EOF'
 id,name
 1,alpha
 2,beta
 EOF
 
 # pic2.jpg: second tiny recognizable public-domain photo (NASA Apollo 11,
-# "Buzz Aldrin on the Moon") — solo/gamma's embedded image.
-copy_if_missing "scripts/dev-vault-fixtures/pic2.jpg" "${VAULT}/assets/pic2.jpg"
+# "Buzz Aldrin on the Moon") — solo/gamma's embedded image AND outline-cover's
+# cover thumbnail, which nodeOutline.e2e.ts reads — so copy_fixture, not copy_if_missing.
+copy_fixture "scripts/dev-vault-fixtures/pic2.jpg" "${VAULT}/assets/pic2.jpg"
 
 # report.pdf: minimal valid single-page PDF — a non-image attachment type.
-write_if_missing "${VAULT}/assets/report.pdf" <<'EOF'
+write_fixture "${VAULT}/assets/report.pdf" <<'EOF'
 %PDF-1.4
 1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
 2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj
@@ -185,13 +209,17 @@ EOF
 # on realistic obstacle sets. Both are self-contained (their members link only to
 # their OWN hub, never to note1/crowd), so they never alter note1's vicinity or
 # the pre-existing e2e assertions. Open hub-medium.md / zzdense-hub.md to inspect.
+# `edgeRoutingEval.e2e.ts` opens each hub central and MEASURES the routing pass
+# (dense also drives the perf budget), so the members define the measured graph —
+# ALL of these are `write_fixture`, members included, even though no spec names
+# an individual member/spoke.
 #
 # MEDIUM: a root hub + five 3-member folder groups, each member linking to the hub
 # (cross-boundary edges collapse onto the group box) plus an inter-group ring —
 # exercises collapsed group-box edge attachment across layered (INCLUDE_CHILDREN)
 # and radial/force (SEPARATE_CHILDREN + projectedRootEdges).
 echo "==> Ensuring medium folder-group routing fixture (hub-medium + grp-*/)"
-write_if_missing "${VAULT}/hub-medium.md" <<'EOF'
+write_fixture "${VAULT}/hub-medium.md" <<'EOF'
 Medium routing fixture hub (edge-routing__03): five folder groups link inward.
 
 Groups: [[ma1]] [[mb1]] [[mc1]] [[md1]] [[me1]].
@@ -201,13 +229,13 @@ EOF
 # the hub, member 1 also linking to the next group's member 1 (inter-group ring).
 medium_group() {
 	local letter="$1" next="$2"
-	write_if_missing "${VAULT}/grp-${letter}/m${letter}1.md" <<EOF
+	write_fixture "${VAULT}/grp-${letter}/m${letter}1.md" <<EOF
 Group ${letter} member 1. Hub [[hub-medium]]. Inter-group ring link [[m${next}1]].
 EOF
-	write_if_missing "${VAULT}/grp-${letter}/m${letter}2.md" <<EOF
+	write_fixture "${VAULT}/grp-${letter}/m${letter}2.md" <<EOF
 Group ${letter} member 2. Hub [[hub-medium]]. Intra-group link [[m${letter}1]].
 EOF
-	write_if_missing "${VAULT}/grp-${letter}/m${letter}3.md" <<EOF
+	write_fixture "${VAULT}/grp-${letter}/m${letter}3.md" <<EOF
 Group ${letter} member 3. Hub [[hub-medium]]. Intra-group link [[m${letter}2]].
 EOF
 }
@@ -233,14 +261,14 @@ DENSE_CHORD_STEP=7
 	for i in $(seq 1 "${DENSE_COUNT}"); do
 		printf 'Spoke [[%s]].\n' "$(printf 'zzdense-%03d' "${i}")"
 	done
-} | write_if_missing "${VAULT}/zzdense-hub.md"
+} | write_fixture "${VAULT}/zzdense-hub.md"
 
 for i in $(seq 1 "${DENSE_COUNT}"); do
 	name="$(printf 'zzdense-%03d' "${i}")"
 	chord=$(( ((i - 1 + DENSE_CHORD_STEP) % DENSE_COUNT) + 1 ))
 	chordname="$(printf 'zzdense-%03d' "${chord}")"
 	printf 'Dense spoke %d. Hub [[zzdense-hub]]. Chord [[%s]].\n' "${i}" "${chordname}" \
-		| write_if_missing "${VAULT}/${name}.md"
+		| write_fixture "${VAULT}/${name}.md"
 done
 
 # --- ticket-03 stranding fixture: folder-grouped hub + degree-1 leaf ----------
@@ -250,6 +278,11 @@ done
 # The old circular collide stranded the leaf far off the tall group container;
 # with the AABB collide it must sit adjacent to the group. Self-contained
 # (nothing links note1/hub-medium/zzdense).
+#
+# KEPT ON write_if_missing: this cluster is exercised ONLY by the manual smoke-run
+# check below ("Ticket-03 stranding check"), never by an automated e2e assertion
+# (no spec opens or counts it) — so a human can enrich it without the script
+# clobbering their edits. If a future spec ever MEASURES it, move it to write_fixture.
 echo "==> Ensuring ticket-03 stranding fixture (stranded-main + p/ep/)"
 write_if_missing "${VAULT}/stranded-main.md" <<'EOF'
 Ticket-03 stranding repro root. Open my vicinity graph with outgoing depth >= 2
@@ -296,7 +329,7 @@ echo "==> Ensuring node-outline fixtures (outline-note + outline-cover)"
 # default depth of 2), one level-1 with two level-2 children (nesting), two
 # level-3 headings (depth filter), and one heading carrying inline markdown
 # (display stripping: it must render as "Status of outline-cover today").
-write_if_missing "${VAULT}/outline-note.md" <<'EOF'
+write_fixture "${VAULT}/outline-note.md" <<'EOF'
 # Overview
 
 ![[pic.jpg]]
@@ -342,7 +375,7 @@ EOF
 
 # outline-cover: image BEFORE the first heading -> the node shows the IMAGE.
 # This is the documented escape hatch for "I want the picture, not the outline".
-write_if_missing "${VAULT}/outline-cover.md" <<'EOF'
+write_fixture "${VAULT}/outline-cover.md" <<'EOF'
 ![[assets/pic2.jpg]]
 
 # Cover heading
