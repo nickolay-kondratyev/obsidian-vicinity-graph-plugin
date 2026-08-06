@@ -207,10 +207,11 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
 });
 
 /**
- * Hover-reveal pin/unpin button (top-right of the node). Hidden until the node
- * is hovered (CSS), a `nodrag nopan` escape hatch so the click never starts a
- * node drag or canvas pan. Its click carries the same shared pin decision as
- * the context menu.
+ * Hover-reveal pin/unpin button (top-LEFT of the node — the left edge carries no
+ * drag-resize grip; the gear takes the top-right). Hidden until the node is
+ * hovered (CSS), a `nodrag nopan` escape hatch so the click never starts a node
+ * drag or canvas pan. Its click carries the same shared pin decision as the
+ * context menu.
  */
 function PinButton({
 	action,

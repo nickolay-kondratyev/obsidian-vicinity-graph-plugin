@@ -20,12 +20,6 @@ export interface NodePreviewOptionMeta {
 }
 
 /**
- * Per-option copy. A `Record` over the union is compile-time exhaustive, so a new
- * preference cannot ship label-less. The RENDER ORDER comes from
- * `NODE_PREVIEW_PREFERENCES`, never from `Object.keys` — key insertion order is
- * not a contract.
- */
-/**
  * Copy for the hover gear's "Inherit" content choice — the ABSENCE of a per-node
  * override (fall back to the global preference). It has no {@link NodePreviewPreference}
  * value of its own (Inherit is expressed by NOT storing a `content` field), so it
@@ -37,6 +31,12 @@ export const NODE_CONTENT_INHERIT_META: NodePreviewOptionMeta = {
 	description: "Follow the global content preference for this note.",
 };
 
+/**
+ * Per-option copy. A `Record` over the union is compile-time exhaustive, so a new
+ * preference cannot ship label-less. The RENDER ORDER comes from
+ * `NODE_PREVIEW_PREFERENCES`, never from `Object.keys` — key insertion order is
+ * not a contract.
+ */
 export const NODE_PREVIEW_OPTION_META: Readonly<Record<NodePreviewPreference, NodePreviewOptionMeta>> = {
 	auto: {
 		label: "Auto",

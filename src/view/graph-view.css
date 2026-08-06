@@ -495,8 +495,11 @@
 		--vicinity-graph-node-chip-icon-size: 10px;
 	}
 }
-/* Both chips stay reachable in this band through the node's right-click menu, as
- * pin/unpin was everywhere before the chip became always-on. */
+/* Below this band the chips are withheld. Pin/unpin stays reachable through the
+ * node's right-click menu, as it was everywhere before the chip became always-on.
+ * The gear's Content override has NO right-click equivalent, so it is unavailable
+ * here — acceptable because a sub-18px node renders essentially nothing to preview
+ * (tracked: _tickets/gear-content-override-unreachable-below-the-18px-chip-withhold-band.md). */
 @container (max-height: 18px) and (max-width: 18px) {
 	.vicinity-graph-node .vicinity-graph-node-chip {
 		display: none;
