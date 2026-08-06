@@ -1,4 +1,4 @@
-import { applyNodeChanges, Background, Controls, Panel, ReactFlow, useReactFlow, useStore } from "@xyflow/react";
+import { applyNodeChanges, Background, ControlButton, Controls, Panel, ReactFlow, useReactFlow, useStore } from "@xyflow/react";
 import type {
 	Edge,
 	EdgeMouseHandler,
@@ -252,7 +252,24 @@ export function VicinityGraphFlow({
 							 * unlocked — a control that promises interactivity it cannot
 							 * grant (ticket nid_xvuptvuct2b9uget7oc2asyif_e).
 							 */}
-							<Controls showInteractive={false} />
+							<Controls showInteractive={false}>
+								{/*
+								 * Manual redraw (ticket nid_cd9x8a7ltnht3vvxh13qcvlzr_e): a
+								 * data-only refresh can keep a stale layout (most visibly a
+								 * folder-group box left oversized after a shrink), so this
+								 * FORCES a fresh elk pass of the current main. Sits with the
+								 * zoom/fit buttons as a native `ControlButton`, so it inherits
+								 * the same themed chrome (graph-view.css) and icon sizing as
+								 * the library's own buttons (which include `type="button"`).
+								 */}
+								<ControlButton
+									onClick={() => controller.redraw()}
+									title="Redraw graph"
+									aria-label="Redraw graph"
+								>
+									<RedrawIcon />
+								</ControlButton>
+							</Controls>
 							<Panel position="top-left">
 								<GraphToolbar controls={snapshot.controls} />
 							</Panel>
@@ -310,6 +327,34 @@ function FitViewOnLayoutChange({ layoutVersion }: { readonly layoutVersion: numb
 		return () => cancelAnimationFrame(frame);
 	}, [fitView, paneReady, layoutVersion]);
 	return null;
+}
+
+/**
+ * The redraw control's glyph: the two-arrow "refresh" mark (lucide `refresh-cw`),
+ * the conventional icon for "regenerate / redraw this". Inline SVG rather than
+ * `GraphUiPort.renderIcon` so it renders exactly like React Flow's own zoom/fit
+ * buttons (both inline SVG); the library's `.react-flow__controls-button svg`
+ * rule sizes it, and `currentColor` inherits the themed button colour. This is a
+ * STROKE (outline) glyph, so the `vicinity-graph-redraw-icon` class re-asserts
+ * `fill: none` over that same library rule's `fill: currentColor` (graph-view.css).
+ */
+function RedrawIcon(): ReactElement {
+	return (
+		<svg
+			className="vicinity-graph-redraw-icon"
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth={2}
+			strokeLinecap="round"
+			strokeLinejoin="round"
+			aria-hidden="true"
+		>
+			<polyline points="23 4 23 10 17 10" />
+			<polyline points="1 20 1 14 7 14" />
+			<path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+		</svg>
+	);
 }
 
 function toReactFlowNode(node: FlowNode): Node {

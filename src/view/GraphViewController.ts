@@ -3,6 +3,7 @@ import { asVaultPath, EngineDefaults } from "../engine";
 import type { ControlsModel } from "./ControlsModel";
 import { REBUILD_DEBOUNCE_MS, SIZE_RELAYOUT_THRESHOLD } from "./constants";
 import { decideLayout } from "./GraphStructureDiff";
+import type { LayoutDecision } from "./GraphStructureDiff";
 import { decideActiveFileRebuild } from "./RebuildDecision";
 import { vicinityGraphToElk, extractElkDimensionsById, extractElkPositions } from "./elkMapping";
 import { vicinityGraphToFlow, withGroupDimensions, withPositions } from "./flowMapping";
@@ -111,6 +112,15 @@ const EMPTY_ROUTES: EdgeRouteMap = new Map();
 const UNSTRINGIFIABLE_FAILURE_SIGNATURE = "<unstringifiable routing failure>";
 
 type Subscriber = () => void;
+
+/**
+ * Per-pass rebuild knobs. `forceRelayout` bypasses the reuse-layout heuristic so
+ * the elk pass always runs — the manual redraw ({@link GraphViewController.redraw}).
+ * Absent/false keeps the default structural-diff behaviour every other trigger uses.
+ */
+interface RebuildOptions {
+	readonly forceRelayout?: boolean;
+}
 
 export class GraphViewController {
 	private snapshot: FlowSnapshot = EMPTY_SNAPSHOT;
@@ -223,6 +233,19 @@ export class GraphViewController {
 		void this.runRebuild();
 	}
 
+	/**
+	 * The user pressed the redraw control (bottom-left, in line with zoom): rebuild
+	 * the CURRENT main and FORCE a fresh elk layout, so the structural diff cannot
+	 * reuse the on-screen positions. This is the manual escape hatch for the cases
+	 * a data-only refresh keeps a stale layout — most visibly a folder-group box
+	 * left oversized after a shrink (see {@link GraphStructureDiff} / `layoutFit`).
+	 * No-op when no MAIN is set.
+	 */
+	redraw(): void {
+		this.clearDebounce();
+		void this.runRebuild({ forceRelayout: true });
+	}
+
 	/** Vault content changed while the view is open — debounce the resolve burst. */
 	handleMetadataResolved(): void {
 		this.clearDebounce();
@@ -303,7 +326,7 @@ export class GraphViewController {
 
 	// --- pipeline ----------------------------------------------------------
 
-	private async runRebuild(): Promise<void> {
+	private async runRebuild(options: RebuildOptions = {}): Promise<void> {
 		const token = ++this.rebuildToken;
 		const mainPath = this.mainPath;
 		if (mainPath === null) {
@@ -321,7 +344,7 @@ export class GraphViewController {
 			this.setSnapshot(BUILDING_SNAPSHOT);
 		}
 		try {
-			await this.attemptBuildAndPublish(token, mainPath);
+			await this.attemptBuildAndPublish(token, mainPath, options.forceRelayout ?? false);
 		} finally {
 			// A superseded build settles nothing — its successor is still the first
 			// paint, and the warm-up it awaits has not been paid for yet.
@@ -344,10 +367,10 @@ export class GraphViewController {
 	 * A SUPERSEDED attempt is neither retried nor reported as a failure: its
 	 * successor owns the screen.
 	 */
-	private async attemptBuildAndPublish(token: number, mainPath: string): Promise<void> {
+	private async attemptBuildAndPublish(token: number, mainPath: string, forceRelayout: boolean): Promise<void> {
 		for (let attempt = 1; attempt <= REBUILD_ATTEMPTS; attempt += 1) {
 			try {
-				await this.buildAndPublish(token, mainPath);
+				await this.buildAndPublish(token, mainPath, forceRelayout);
 				return;
 			} catch (error: unknown) {
 				console.error("vicinity-graph: rebuild failed", { attempt, attempts: REBUILD_ATTEMPTS }, error);
@@ -361,7 +384,7 @@ export class GraphViewController {
 	}
 
 	/** One rebuild pass: engine build → structural diff → elk → routing → publish. */
-	private async buildAndPublish(token: number, mainPath: string): Promise<void> {
+	private async buildAndPublish(token: number, mainPath: string, forceRelayout: boolean): Promise<void> {
 		const result = await this.graphBuilder.build(mainPath);
 		if (this.isStale(token)) {
 			return;
@@ -372,12 +395,17 @@ export class GraphViewController {
 		}
 		const graph = result.graph;
 		this.controls = result.controls;
-		// The diff judges a committed resize against the geometry the reuse path would
-		// keep (does the new box still fit where it is?), so it gets that geometry.
-		const decision = decideLayout(this.previousGraph, graph, SIZE_RELAYOUT_THRESHOLD, {
-			positions: this.positions,
-			groupDimensions: this.groupDimensions,
-		});
+		// A manual redraw ({@link redraw}) forces the elk pass unconditionally — the
+		// user asked for a fresh layout, so the reuse-layout heuristic is bypassed
+		// rather than consulted. The diff judges a committed resize against the
+		// geometry the reuse path would keep (does the new box still fit where it
+		// is?), so it gets that geometry.
+		const decision: LayoutDecision = forceRelayout
+			? "relayout"
+			: decideLayout(this.previousGraph, graph, SIZE_RELAYOUT_THRESHOLD, {
+					positions: this.positions,
+					groupDimensions: this.groupDimensions,
+				});
 		const flow = vicinityGraphToFlow(graph, result.controls.mainPinned);
 		let positions: ReadonlyMap<string, XY>;
 		let groupDimensions: ReadonlyMap<string, Dimensions>;
