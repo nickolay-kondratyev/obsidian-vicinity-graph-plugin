@@ -5,7 +5,7 @@ title: 'e2e flake: nodeResize ''shrunk to the drag-resize floor'' times out in t
   FULL-suite run'
 status: closed
 deps: []
-links: []
+links: [nid_8vekpgg97n5x7ckxbwswr5uar_e]
 created_iso: '2026-08-05T18:21:46Z'
 status_updated_iso: 2026-08-06T17:10:22Z
 type: bug

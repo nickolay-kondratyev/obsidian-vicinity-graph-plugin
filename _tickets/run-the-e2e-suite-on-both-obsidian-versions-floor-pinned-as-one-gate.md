@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-08-06T22:37:35Z
 id: nid_a5jbonflbm3110gsy6puf18ds_e
 title: Run the e2e suite on BOTH Obsidian versions (floor + pinned) as one gate
-status: in_progress
+status: closed
 deps: [nid_fygwk293msqdumkkorz6gmyrh_e]
-links: [nid_fygwk293msqdumkkorz6gmyrh_e]
+links: [nid_fygwk293msqdumkkorz6gmyrh_e, nid_8vekpgg97n5x7ckxbwswr5uar_e]
 created_iso: '2026-08-04T22:41:18Z'
-status_updated_iso: '2026-08-06T22:28:09Z'
+status_updated_iso: 2026-08-06T22:37:35Z
 type: task
 priority: 3
 assignee: nickolaykondratyev
@@ -37,3 +38,55 @@ Migrating off Playwright (the parent analysis `nid_ttnk0jv42aiamw8o3x18j3dde_e` 
 
 ---------------------------------------------------------------------------------
 HUMAN: I am thinking we do NOT want to run against two versions all the time, but lets have that test happen when we run the `./release.sh` script. And add comments into the script that's the script that should be called when we are about to publish a release upwards (later).
+
+---------------------------------------------------------------------------------
+
+## Resolution (2026-08-06) — CLOSED
+
+Built the two-version matrix as a RELEASE gate (per the HUMAN note), NOT an
+every-change gate.
+
+### Floor baseline (recorded before designing, as the ticket required)
+- `npm run test:e2e:floor` (Obsidian 1.12.4) — **1 failed / 153 passed / 1 skipped**
+  (`.tmp/floor-baseline.log`). The single red was `e2e/nodeResize.e2e.ts:433`
+  ("WHEN a node is short but WIDE …"): the render poll read the PREVIOUS test's
+  `40×40` box instead of the requested `160×40` for 15s (store write had landed).
+- **Understood, not a floor regression:** `npm run test:e2e -- nodeResize.e2e.ts` on
+  the floor build is **15 passed** in isolation (`.tmp/floor-noderesize-rerun.log`),
+  and a later full `./release.sh` run had the floor arm **157 passed** (flake did
+  not fire). So the floor is functionally GREEN; the red is the intermittent
+  full-suite repaint-stall flake first tracked by `nid_g1f5tjmxzr0hbfdeujvgwywsd_e`
+  (closed, believed fixed by commit b610e39) — it still recurs on the floor under
+  full-suite load. Filed as its own follow-up: **`nid_8vekpgg97n5x7ckxbwswr5uar_e`**
+  (e2e/flaky). The matrix over the floor was therefore worth building.
+
+### What was delivered
+- **`./release.sh`** (repo root, executable) — the pre-publish gate. Runs
+  `check` → `npm test` (fail-fast, version-independent), then the SAME e2e suite on
+  BOTH shipped builds — pinned default AND manifest floor. It runs **both e2e arms
+  even if the first fails** and prints a **per-version pass/fail summary** that names
+  the failing build (so a floor-only red is triaged with the version in hand —
+  answers the ticket's "what a floor-only red MEANS" scope item). Up-front refusal if
+  `OBSIDIAN_PATH` is set (both arms would use one binary; the floor arm refuses).
+  Header comments state it is the script to run before publishing a release upwards.
+- **Cost decision (recorded in README + CLAUDE.md next to "When to run
+  `npm run test:e2e`", and in `docs-internal/RELEASE_CHECKLIST.md` §1):** the matrix
+  is a RELEASE gate, not every-change — the floor build is a second ~200MB download +
+  full second suite run. `npm run test:all -- --with-floor` stays as the lighter
+  fail-fast dev spot-check; `./release.sh` is the full per-version matrix.
+- **Guard:** `e2e/obsidianVersionKnob.test.ts` gains a `release.sh` block asserting
+  both arms are invoked AND neither aborts the run on failure (so the matrix can
+  never silently drop a version or regress to fail-fast). `npm test` green.
+- **No `npm run test:e2e:matrix` alias** (WHY-NOT documented in the script): an npm
+  script invites hot-path use, which the cost split rules out; the release-named
+  entry point keeps the intent legible.
+
+### Verification
+- `npm test` (incl. the new guard block) — green (1708 tests).
+- `npm run check` / `check:e2e` — clean.
+- `./release.sh` end-to-end — **MATRIX GREEN**: check ✓, unit 1708 ✓, e2e pinned
+  **157 passed**, e2e floor 1.12.4 **157 passed**, per-version summary + exit 0
+  correct (`.tmp/release-run.log`). Refusal path (`OBSIDIAN_PATH` set) exits 1 with
+  the REFUSING message.
+
+Non-goal respected: no Playwright migration.

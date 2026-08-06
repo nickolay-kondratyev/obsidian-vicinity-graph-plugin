@@ -9,17 +9,25 @@ There is no release automation yet; every step below is **manual.**
 
 ## 1. Green gates (must all pass)
 
-(`npm run test:all` runs `check` → `npm test` → `test:e2e` in that order, fail-fast,
-and so covers the four gates below: `test:e2e` builds the production bundle before
-it drives Obsidian, which is the `npm run build` gate. `npm run test:all --
---with-floor` appends the floor e2e run. It does NOT cover the manual re-verify
-below.)
+(`./release.sh` is the pre-publish gate: it runs `check` → `npm test` → the e2e
+suite on BOTH shipped Obsidian builds — the pinned default AND the manifest floor —
+running both e2e arms even if the first fails and printing a per-version pass/fail
+matrix. That is the two-version coverage a release needs, in one command. It covers
+the four gates below (`test:e2e` builds the production bundle before it drives
+Obsidian, which is the `npm run build` gate) but NOT the manual re-verify below.
+`npm run test:all` is the lighter every-change gate — pinned build only, fail-fast;
+`-- --with-floor` appends the floor run but stops at the first red rather than
+reporting the full matrix.)
 
 - [ ] `npm run check` — strict `tsc -noEmit`, EXIT 0.
 - [ ] `npm test` — vitest suite, 0 failures.
 - [ ] `npm run build` — production bundle to `main.js` + `styles.css`, EXIT 0.
-- [ ] `npm run test:e2e` — real-Obsidian Playwright gate. Run in a display-capable
-      env before release (auto-provisions the pinned Obsidian binary on Linux/CI).
+- [ ] `./release.sh` — real-Obsidian Playwright gate on BOTH shipped builds (pinned
+      + manifest floor). Run in a display-capable env before release (auto-provisions
+      each Obsidian binary on Linux/CI). Both arms must be green — see the per-version
+      summary it prints. A floor-only red that is version-dependent Obsidian chrome
+      (not a plugin regression) is the one documented exception; confirm it is that
+      before shipping.
 - [ ] On an Obsidian version bump: visually re-verify the in-graph exclusion
       toggle — `src/view/ToggleSwitch.tsx` reuses Obsidian's internal
       `checkbox-container` markup contract (no plugin CSS fallback).
