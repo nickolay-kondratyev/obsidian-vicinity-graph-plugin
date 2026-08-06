@@ -100,12 +100,24 @@ export class MarkdownInlineLinks {
 	 * shape Obsidian's link RESOLUTION accepts. Destinations that name no vault
 	 * document — external URLs and empty ones — yield nothing.
 	 */
+	/**
+	 * True when a match straddles a paragraph break. A single line ending is legal
+	 * inside an inline link/embed, but a blank line is a CommonMark paragraph break
+	 * that ENDS the inline — so a `[label](dest)` spanning one is not one reference.
+	 * Both the harvester (which would mint a phantom edge) and the preview flattener
+	 * (which REWRITES what it matches, so it must not swallow prose across the break)
+	 * ask this before acting on a match.
+	 */
+	static spansParagraphBreak(matchText: string): boolean {
+		return PARAGRAPH_BREAK.test(matchText);
+	}
+
 	static harvestedLinksOf(text: string): readonly HarvestedLink[] {
 		const links: HarvestedLink[] = [];
 		for (const match of text.matchAll(MarkdownInlineLinks.globalPattern())) {
 			// A blank line anywhere in the match is a paragraph break, so this is not
 			// one link — drop it rather than mint a phantom edge from either half.
-			if (PARAGRAPH_BREAK.test(match[0])) {
+			if (MarkdownInlineLinks.spansParagraphBreak(match[0])) {
 				continue;
 			}
 			const linkText = MarkdownInlineLinks.targetOf(match[PARENTHETICAL_GROUP] ?? "");

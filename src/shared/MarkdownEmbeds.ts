@@ -12,12 +12,17 @@
  * A DISPLAY transform: it leaves the written link text exactly as the author
  * typed it (alias, subpath, size and all) and only makes it render literally.
  *
- * Wikilink embeds ONLY: markdown-style `![alt](img.png)` embeds are a different
- * syntax whose expansion (an image) is the sibling `MarkdownInlineLinks`'s
- * territory; nothing has asked for it yet.
+ * BOTH embed syntaxes are flattened: wikilink embeds (`![[note]]`) and
+ * markdown-style embeds (`![alt](pic.png)`), the latter expanding to an IMAGE in
+ * the row just as destructively (ticket `nid_vvdc7lhh92122ght4m66t5d61_e`).
+ * External destinations (`![alt](https://host/pic.png)`) are in scope too — the
+ * renderer expands a remote image the same way — and need no resolution because
+ * this transform only escapes the WRITTEN text, never names the target. Plain
+ * markdown links (`[label](note.md)`, no bang) are left clickable, untouched.
  */
 
 import { LinkKinds } from "./LinkKind";
+import { MarkdownInlineLinks } from "./MarkdownInlineLinks";
 import { Wikilinks } from "./Wikilinks";
 
 /**
@@ -31,8 +36,17 @@ const ASCII_PUNCTUATION = /[!-/:-@[-`{-~]/g;
 export class MarkdownEmbeds {
 	/** `markdown` with every embed escaped to render as its own raw text; plain links untouched. */
 	static flattened(markdown: string): string {
-		return markdown.replace(Wikilinks.globalPattern(), (match, marker: string) =>
+		const wikilinksFlattened = markdown.replace(Wikilinks.globalPattern(), (match, marker: string) =>
 			LinkKinds.ofEmbedMarker(marker) === "embed" ? escapedForMarkdown(match) : match,
+		);
+		// A markdown embed may span a single line ending but NOT a paragraph break;
+		// rewriting a match that straddles one would delete the reader's prose between
+		// the halves, so a broken match is left verbatim (mirrors the wikilink
+		// matcher's newline exclusion — ticket nid_lgo91fzkivxiu32g1j5bttzca_e).
+		return wikilinksFlattened.replace(MarkdownInlineLinks.globalPattern(), (match, marker: string) =>
+			LinkKinds.ofEmbedMarker(marker) === "embed" && !MarkdownInlineLinks.spansParagraphBreak(match)
+				? escapedForMarkdown(match)
+				: match,
 		);
 	}
 }

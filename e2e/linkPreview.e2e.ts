@@ -45,12 +45,30 @@ const EXPECTED_OCCURRENCE_ROWS = 2;
  */
 const EMBEDDED_TITLE = "Embedded Title";
 const EMBEDDED_BODY_LINE = "Embedded body prose that must never reach an occurrence row.";
+/**
+ * The markdown-style image embed case (ticket
+ * nid_vvdc7lhh92122ght4m66t5d61_e): a note whose occurrence line ALSO carries a
+ * `![alt](pic.png)` image embed. Only a real Obsidian expands that into an
+ * `<img>` in the one-line row — the same blow-up the wikilink embed causes, and
+ * the same escape (`shared/MarkdownEmbeds`) prevents it. The `[[…]]` wikilink is
+ * what mints the edge; the image embed rides along in its context snippet.
+ */
+const MD_EMBED_MARKER_TEXT = "![chart](pictures/chart.png)";
+const MD_EMBED_SOURCE_LINE = `Chart ${MD_EMBED_MARKER_TEXT} precedes [[md-embed-target]] on one line.`;
+// The plain wikilink in that line stays a clickable link, so Obsidian shows its
+// label (`md-embed-target`), not the raw `[[…]]` — while the image embed beside
+// it shows raw. That contrast is exactly the acceptance criterion.
+const MD_EMBED_RENDERED_ROW_TEXT = `Chart ${MD_EMBED_MARKER_TEXT} precedes md-embed-target on one line.`;
 const EMBED_FIXTURES: Record<string, string> = {
 	"embed-target.md": `---\ntitle: ${EMBEDDED_TITLE}\n---\n\n${EMBEDDED_BODY_LINE}\n`,
 	"embed-source.md": "Source line embeds ![[embed-target]] inline.\n",
+	"md-embed-target.md": "Plain target of the markdown-embed source.\n",
+	"md-embed-source.md": `${MD_EMBED_SOURCE_LINE}\n`,
 };
 const EMBED_SOURCE_PATH = "embed-source.md";
 const EMBED_EDGE_ID = "embed-source.md->embed-target.md";
+const MD_EMBED_SOURCE_PATH = "md-embed-source.md";
+const MD_EMBED_EDGE_ID = "md-embed-source.md->md-embed-target.md";
 
 let harness: ObsidianHarness;
 let page: Page;
@@ -167,4 +185,19 @@ test("an embed occurrence shows its raw wikilink text and never the embedded not
 	// The embed renders as its own raw text; the embedded body stays out of the row.
 	await expect(rowToggles()).toHaveText(["Source line embeds ![[embed-target]] inline."]);
 	await expect(drawer()).not.toContainText(EMBEDDED_BODY_LINE);
+});
+
+test("a markdown-style image embed in an occurrence shows its raw text and never an expanded image", async () => {
+	await harness.openFile(MD_EMBED_SOURCE_PATH);
+	await expect(page.locator(`.vicinity-graph-node[data-path="${MD_EMBED_SOURCE_PATH}"]`)).toHaveAttribute(
+		"data-tier",
+		"main",
+	);
+
+	await clickEdgePath(MD_EMBED_EDGE_ID);
+
+	// The `![alt](pic.png)` renders as its own raw text, so the row keeps its
+	// height; without the escape Obsidian would drop an <img> into the one-line row.
+	await expect(rowToggles()).toHaveText([MD_EMBED_RENDERED_ROW_TEXT]);
+	await expect(drawer().locator("img")).toHaveCount(0);
 });
