@@ -1,7 +1,7 @@
 ---
 id: nid_bhgjaq9mbfkvx0nhab6xscagm_e
 title: "Link fly out display look at deduping when multiple links in the same paragraph"
-status: open
+status: punted
 deps: []
 links: []
 created_iso: 2026-08-01T05:20:13Z
@@ -9,6 +9,7 @@ status_updated_iso: 2026-08-01T05:20:13Z
 type: task
 priority: 3
 assignee: nickolaykondratyev
+tags: [polish, links]
 ---
 
 
