@@ -1,12 +1,13 @@
 ---
+closed_iso: 2026-08-06T20:58:42Z
 id: nid_5f1o7z2iyis3sgbbpeu7j8oor_e
 title: Add e2e coverage for core canvas and note editing while the vicinity graph
   plugin is enabled
-status: in_progress
+status: closed
 deps: []
 links: [nid_156zg4bvhjc7nnl0gwut20bvs_e]
 created_iso: '2026-08-01T18:25:40Z'
-status_updated_iso: '2026-08-06T20:49:02Z'
+status_updated_iso: 2026-08-06T20:58:42Z
 type: task
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
@@ -24,3 +25,37 @@ Build on e2e/canvasSpaceKey.e2e.ts (canvas card creation recipe via canvas.creat
 ## Acceptance Criteria
 
 npm run test:e2e passes with new specs covering: canvas text-node typing (Space/Backspace/Shift), canvas node deletion, and markdown note typing — all while the vicinity graph view is open and rendering a non-empty graph.
+
+## Resolution (2026-08-06)
+
+Added `e2e/coreEditingWhileGraphOpen.e2e.ts` (serial, its own `core-edit/` fixtures:
+`note.md` → `[[target]]`, plus an empty `board.canvas`). `beforeAll` opens the graph
+view and the note so a real `.vicinity-graph-node` is rendered throughout. Six specs:
+
+1. **Canvas typing — Shift + Space.** Creates a text node via `canvas.createTextNode`
+   (focus:true), types `"Hello World"` into the controlled-iframe `.cm-content`, asserts
+   `toHaveText("Hello World")` — capitals prove Shift survived, the middle space proves
+   `panActivationKeyCode` no longer eats it.
+2. **Canvas typing — Backspace.** Continues on the same card, 6 Backspaces, asserts
+   `toHaveText("Hello")`.
+3. **Canvas node deletion — Backspace.** New node (focus:false), selected via the canvas'
+   own `selectOnly` + `wrapperEl.focus()` (a Playwright pixel click is intercepted by
+   `.canvas-node-content-blocker`; `selectOnly` is the same selection path minus the
+   pointer math, matching `canvasSpaceKey.e2e.ts`'s `createTextNode` rationale), then a
+   REAL `Backspace` keypress; asserts `canvas.nodes.size` drops by one (RF `deleteKeyCode`
+   must not grab it).
+4. **Canvas node deletion — Delete.** Same, with the `Delete` key.
+5. **Markdown note editing in the main pane.** Re-navigates to the note (the repro
+   emphasised NAVIGATING with the view open), types onto a fresh trailing line, asserts
+   Space/Shift landed and Backspace deleted.
+6. **Generic guard.** With `.vicinity-graph-flow` still mounted, dispatches a cancelable
+   `keydown` for each RF-bound editing key (Space/Backspace/Delete/Shift/Control/Meta + a
+   plain letter) on `document.body` and asserts NONE is `defaultPrevented` — a re-grabbed
+   RF binding would go red here.
+
+Verification: `npm run check` (clean), `npm test` (1669 pass), `npm run test:e2e` — all 6
+new specs green (also green in isolation). One UNRELATED flake surfaced once in the full
+run (`nodeResize.e2e.ts:433`, a pin-chip measurement assertion) but passes 15/15 in
+isolation; each e2e spec launches its own fresh Obsidian + vault copy, so the new spec
+cannot influence it — a pre-existing headless-render timing flake, filed as out of scope
+for this ticket.
