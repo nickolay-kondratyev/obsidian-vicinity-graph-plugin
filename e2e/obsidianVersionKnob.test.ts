@@ -84,7 +84,11 @@ describe("release.sh", () => {
 	 * arm — a silent drop of either would turn a "two-version gate" back into one.
 	 */
 	it("WHEN read THEN it runs the pinned-default e2e arm", () => {
-		expect(releaseScript).toContain("npm run test:e2e");
+		// Match the pinned INVOCATION, not a bare `npm run test:e2e`: that bare
+		// substring also lives inside the floor line (`npm run test:e2e:floor`),
+		// so a bare `.toContain` would still pass with the pinned arm deleted —
+		// the exact silent drop this test claims to guard against.
+		expect(releaseScript).toContain("npm run test:e2e || pinned_status=$?");
 	});
 
 	it("WHEN read THEN it runs the manifest-floor e2e arm", () => {
