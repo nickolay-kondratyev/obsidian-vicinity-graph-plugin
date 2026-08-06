@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
-import { PIN_CHIP_FULL_SIZE_CONTENT_BOX_PX } from "../src/engine";
+import { ATTACHMENT_ROW_REVEAL_CONTENT_BOX_PX } from "../src/engine";
 import { nodeContentBoxHeightPx } from "./nodeContentBox";
 import { ObsidianHarness } from "./obsidianHarness";
 
@@ -140,11 +140,12 @@ test("depth, pin, node cap and sizing all survive an Obsidian restart", async ()
 	await expect(noteNode(HUB)).toHaveAttribute("data-tier", "main");
 
 	// §6 Pin (while the toolbar is collapsed so it can't cover the node): rt_x → pinned central.
-	// GIVEN the pin target is a bare note, so content-fit sizing puts it in the
-	// COMPACT-chip band — the state that had no hover pin affordance at all before
-	// ticket nid_tclb98q9hxhmcuonamvr4ig1f_e. Asserted, not assumed: padding the
-	// fixture would otherwise silently retire that coverage.
-	expect(await nodeContentBoxHeightPx(noteNode(PIN_TARGET))).toBeLessThan(PIN_CHIP_FULL_SIZE_CONTENT_BOX_PX);
+	// GIVEN the pin target is a bare note, so content-fit sizing keeps it SMALL —
+	// below even the lowest region rung, the state that had no hover pin affordance
+	// at all before ticket nid_tclb98q9hxhmcuonamvr4ig1f_e. Asserted, not assumed:
+	// padding the fixture would otherwise silently retire that coverage. (Which chip
+	// SIZE a small node wears is nodeResize.e2e.ts's subject, not this restart spec's.)
+	expect(await nodeContentBoxHeightPx(noteNode(PIN_TARGET))).toBeLessThan(ATTACHMENT_ROW_REVEAL_CONTENT_BOX_PX);
 	await clickPin(PIN_TARGET);
 	await expect(noteNode(PIN_TARGET)).toHaveAttribute("data-tier", "pinned-central");
 

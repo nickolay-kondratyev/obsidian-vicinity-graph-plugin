@@ -49,6 +49,13 @@ const TARGET_DOCID = "docid_resizetarget_e";
 /** The smallest box content-fit sizing produces at shipped dials — the COMMON small node. */
 const SHIPPED_MIN_NODE_PX = EngineDefaults.sizingSettings().minPx;
 
+/**
+ * A width no chip rung can reach — the shipped `maxPx`, so the node under it is
+ * "small" on its HEIGHT axis only: the title-only note the pin chip's default size
+ * exists for (ticket nid_8i5936g90vrllosssaz7v3xbr_e).
+ */
+const WIDE_NODE_WIDTH_PX = EngineDefaults.sizingSettings().maxPx;
+
 /** Screen-pixel drag deltas — large enough that ANY fitted zoom yields clear growth. */
 const DRAG_DELTA_X_PX = 90;
 const DRAG_DELTA_Y_PX = 60;
@@ -322,11 +329,46 @@ test("WHEN a committed resize still FITS where the node sits THEN neither the ot
  * the note rather than being a no-op re-centre on itself.
  */
 async function renderTargetAsNeighbourAt(sidePx: number): Promise<void> {
+	await renderTargetAsNeighbourBox({ widthPx: sidePx, heightPx: sidePx });
+}
+
+/** The same, at a box that need not be square — the chip's rungs read BOTH axes. */
+async function renderTargetAsNeighbourBox(box: { widthPx: number; heightPx: number }): Promise<void> {
 	await harness.openFile(HUB);
+	// The active file is the INPUT the next rebuild reads, so settle it before
+	// writing. WHY-NOT also wait on `HUB` rendering as `data-tier=main` as PROOF a
+	// HUB-centred rebuild landed: HUB is MAIN both BEFORE and AFTER the predecessor
+	// test re-centres on the TARGET (that rebuild can still be in flight, and a
+	// superseded one never publishes), so the attribute is satisfied by the STALE
+	// screen and the wait proves nothing. The rendered box below is the only
+	// honest settle point — it is the thing this helper promises.
+	await expect.poll(activeFilePath).toBe(HUB);
+	await harness.saveNodeSizeOverride(TARGET_DOCID, box);
+	// REMOUNTED, not `refreshOpenViews()`d. An in-place fan-out does not reliably
+	// bring this box to the screen: with a graph already rendered, a published
+	// override change can be lost — the pane keeps painting the PREVIOUS box against
+	// a store that already holds this one, and further fan-outs do not re-converge
+	// it (measured: 8 of them across 15s). That is a REAL defect, reproduced and
+	// tracked in ticket `nid_c78k90su87jrzigxvfjv5t95g_e`, NOT something a longer
+	// wait or a retry loop fixes — both were tried and both stayed flaky.
+	//
+	// A remount tears the view down and builds a fresh one straight off the store,
+	// so no stale React-Flow local node state can survive into it. That makes this
+	// helper deterministic WITHOUT standing on the seam under investigation: these
+	// are chip-GEOMETRY specs, and the fan-out's delivery guarantee is that
+	// ticket's subject to prove, not theirs to depend on.
+	await harness.remountGraphView();
+	// Meaningful HERE, unlike before the write: the view is FRESH, so this attribute
+	// cannot be left over from a previous graph.
 	await expect(noteNode(HUB)).toHaveAttribute("data-tier", "main");
-	await harness.saveNodeSizeOverride(TARGET_DOCID, { widthPx: sidePx, heightPx: sidePx });
-	await harness.refreshOpenViews();
-	await expect.poll(() => renderedBoxPx(TARGET)).toEqual({ widthPx: sidePx, heightPx: sidePx });
+	await expect.poll(() => renderedBoxPx(TARGET)).toEqual(box);
+}
+
+/** One computed style value off the node's pin chip — the rung the CASCADE picked. */
+async function pinChipComputedStyle(path: string, property: "display" | "width" | "height"): Promise<string> {
+	return noteNode(path)
+		.locator(".vicinity-graph-pin-button")
+		.evaluate((el, prop) => getComputedStyle(el).getPropertyValue(prop), property);
 }
 
 /**
@@ -335,7 +377,34 @@ async function renderTargetAsNeighbourAt(sidePx: number): Promise<void> {
  * `none` is the stylesheet WITHHOLDING it (the centre-clearance rung).
  */
 async function pinChipDisplay(path: string): Promise<string> {
-	return noteNode(path).locator(".vicinity-graph-pin-button").evaluate((el) => getComputedStyle(el).display);
+	return pinChipComputedStyle(path, "display");
+}
+
+/**
+ * The chip's RENDERED box, as the browser RESOLVED it — which is the rung the
+ * container queries actually applied, not what the stylesheet authored.
+ *
+ * Computed `width`/`height`, NOT `getBoundingClientRect()`: React Flow scales the
+ * whole pane by the current fitted zoom, and a rect is that scaling applied to
+ * translated corner points, so two chips of the identical CSS size can differ in
+ * the last bits of a double — an exact `toEqual` between two nodes would then flake
+ * on nothing. The computed value is the used length in CSS px, transform-free, so
+ * the comparison this asks for ("one chip size throughout") is exact.
+ */
+async function pinChipBoxPx(path: string): Promise<{ widthPx: number; heightPx: number }> {
+	return {
+		widthPx: parsedComputedPx(await pinChipComputedStyle(path, "width"), `${path} chip width`),
+		heightPx: parsedComputedPx(await pinChipComputedStyle(path, "height"), `${path} chip height`),
+	};
+}
+
+/** A resolved CSS length. Thrown on, never NaN-propagated into an assertion. */
+function parsedComputedPx(value: string, subject: string): number {
+	const px = Number.parseFloat(value);
+	if (!Number.isFinite(px)) {
+		throw new Error(`${subject} did not resolve to a px length: [${value}]`);
+	}
+	return px;
 }
 
 const activeFilePath = () =>
@@ -355,6 +424,27 @@ test("WHEN that minimum-sized node's body is clicked THEN the note opens (the co
 	await renderTargetAsNeighbourAt(SHIPPED_MIN_NODE_PX);
 	await noteNode(TARGET).click();
 	await expect.poll(activeFilePath).toBe(TARGET);
+});
+
+// --- one chip size throughout (nid_8i5936g90vrllosssaz7v3xbr_e) --------------
+
+test("WHEN a node is short but WIDE THEN its pin chip is the same size as a large node's", async () => {
+	// The ticket: the common small node is a title-only note — minPx TALL but as wide
+	// as its title — and the old ladder grew the chip on HEIGHT alone, so that node
+	// wore the tiny chip with its corner half empty. The MAIN hub is the large node
+	// to match; comparing the two RESOLVED chips (rather than a px literal from the
+	// stylesheet) is the "same size throughout" claim itself.
+	await renderTargetAsNeighbourBox({ widthPx: WIDE_NODE_WIDTH_PX, heightPx: SHIPPED_MIN_NODE_PX });
+	expect(await pinChipBoxPx(TARGET)).toEqual(await pinChipBoxPx(HUB));
+});
+
+test("WHEN a node is small on BOTH axes THEN its chip steps down, so the node stays clickable", async () => {
+	// The other half, and what keeps the test above from passing on a stylesheet that
+	// simply shrank every chip: the step-down still fires where the full-size chip
+	// would cover the node's centre point.
+	await renderTargetAsNeighbourAt(SHIPPED_MIN_NODE_PX);
+	const compact = await pinChipBoxPx(TARGET);
+	expect(compact.heightPx).toBeLessThan((await pinChipBoxPx(HUB)).heightPx);
 });
 
 test("WHEN a node is shrunk to the drag-resize floor THEN the chip that would cover its centre is withheld", async () => {

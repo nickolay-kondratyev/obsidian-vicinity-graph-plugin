@@ -7,7 +7,6 @@ import {
 	CENTRAL_NODE_VERTICAL_CHROME_PX,
 	ESTIMATED_THUMBNAIL_SLOT_PX,
 	NODE_VERTICAL_CHROME_PX,
-	PIN_CHIP_FULL_SIZE_CONTENT_BOX_PX,
 	PREVIEW_VISIBLE_MIN_NODE_PX,
 	THUMBNAIL_PREVIEW_TITLE_LINE_CLAMP,
 } from "../engine";
@@ -62,19 +61,29 @@ const THUMBNAIL_PREVIEW_TITLE_CLAMP =
 const CENTRAL_TIER_RULE = (tier: string): RegExp =>
 	new RegExp(`\\n\\.vicinity-graph-node\\[data-tier="${tier}"\\] \\{([\\s\\S]*?)\\n\\}`);
 const CENTRAL_TIERS = ["main", "pinned-central"] as const;
-// The pin chip's OWN rule block, and the chip-size property the ladder re-declares.
+// The pin chip's OWN rule block — the DEFAULT rung, where the full-size chip lives.
 const PIN_BUTTON_RULE = /\n\.vicinity-graph-node \.vicinity-graph-pin-button \{\n([\s\S]*?)\n\}/;
 // Whole declared VALUE, not a px literal: the compact rung states px, the full-size
 // rung reuses Obsidian's `--size-4-1` inset token, and both rungs must be measurable.
 const PIN_CHIP_SIZE = /--vicinity-graph-pin-chip-size:\s*([^;]+);/;
 const PIN_CHIP_INSET = /--vicinity-graph-pin-chip-inset:\s*([^;]+);/;
-// The chip's reach is measured from its BORDER box, so the rung below is only
+// The chip's reach is measured from its BORDER box, so the rungs below are only
 // honest while the chip declares it (Obsidian's own reset is not this file's).
 const PIN_CHIP_BORDER_BOX = /\n\tbox-sizing: border-box;/;
-// The centre-clearance rung: the chip is withheld only where it would cover the
-// node's centre point, i.e. on BOTH axes at once.
-const PIN_CHIP_WITHHOLD_QUERY =
-	/@container \(max-height:\s*(\d+)px\) and \(max-width:\s*(\d+)px\)\s*\{\n\t\.vicinity-graph-node \.vicinity-graph-pin-button \{\n\t\tdisplay: none;/;
+// The chip's centre-clearance ladder: `max-*` rungs on BOTH axes at once, each
+// stepping the chip down (to the compact size, then to nothing) exactly where the
+// chip above it would cover the node's centre point.
+const PIN_CHIP_STEP_DOWN_QUERY =
+	/@container \(max-height:\s*(\d+)px\) and \(max-width:\s*(\d+)px\)\s*\{\n\t\.vicinity-graph-node \.vicinity-graph-pin-button \{\n([\s\S]*?)\n\t\}\n\}/g;
+// ANY top-level container query, whatever its prelude — the density ladder's
+// `min-height` rungs included. The step-down regex above can only see rungs that
+// already have the ladder's shape, so it is blind to the very regression this
+// ticket removed (a `min-*` rung GROWING the chip); this one sees every rung.
+const ANY_CONTAINER_QUERY = /@container ([^{]*)\{\n([\s\S]*?)\n\}/g;
+const MENTIONS_PIN_CHIP = /\.vicinity-graph-pin-button/;
+// Anchored to a line start, not a preceding newline: it is the rung's ONLY
+// declaration, so there is nothing before it inside the captured body.
+const WITHHOLDS_CHIP = /(?:^|\n)\t\tdisplay: none;/;
 // The drag-resize grip band straddles the node's edge, so HALF of it reaches
 // inside — over whatever the node's own top-right corner holds.
 const RESIZE_BAND = /--vicinity-graph-resize-band-px:\s*(\d+)px;/;
@@ -142,6 +151,52 @@ function pinButtonDeclarations(): string {
 	return match[1];
 }
 
+/** One `max-height`/`max-width` step-down rung of the pin chip's ladder. */
+interface PinChipRung {
+	readonly maxHeightPx: number;
+	readonly maxWidthPx: number;
+	readonly body: string;
+}
+
+function pinChipStepDownRungs(): PinChipRung[] {
+	return [...stylesheet().matchAll(PIN_CHIP_STEP_DOWN_QUERY)].map(([, maxHeight, maxWidth, body]) => ({
+		maxHeightPx: Number(maxHeight),
+		maxWidthPx: Number(maxWidth),
+		body: body ?? "",
+	}));
+}
+
+/** The ONE rung doing `does`, so "the" rung stays a fact rather than a first match. */
+function solePinChipRung(does: RegExp, subject: string): PinChipRung {
+	const rungs = pinChipStepDownRungs().filter((rung) => does.test(rung.body));
+	const sole = rungs.length === 1 ? rungs[0] : undefined;
+	if (sole === undefined) {
+		throw new Error(`expected exactly ONE pin chip rung to ${subject}, found ${rungs.length}`);
+	}
+	return sole;
+}
+
+/** The rung that shrinks the chip; the other one withholds it outright. */
+function compactPinChipRung(): PinChipRung {
+	return solePinChipRung(PIN_CHIP_SIZE, "re-declare the chip's size");
+}
+
+function withholdPinChipRung(): PinChipRung {
+	return solePinChipRung(WITHHOLDS_CHIP, "withhold the chip");
+}
+
+/** Preludes of EVERY container query that styles the pin chip, in source order. */
+function pinChipContainerQueryPreludes(): string[] {
+	return [...stylesheet().matchAll(ANY_CONTAINER_QUERY)]
+		.filter(([, , body]) => body !== undefined && MENTIONS_PIN_CHIP.test(body))
+		.map(([, prelude]) => (prelude ?? "").trim());
+}
+
+/** How a step-down rung of the ladder states itself: both axes, both `max-*`. */
+function twoAxisMaxPrelude(rung: PinChipRung): string {
+	return `(max-height: ${rung.maxHeightPx}px) and (max-width: ${rung.maxWidthPx}px)`;
+}
+
 /** A length the stylesheet writes either as a px literal or as an Obsidian spacing token. */
 function parsedLengthPx(value: string, subject: string): number {
 	const px = /^(\d+)px$/.exec(value.trim())?.[1];
@@ -175,6 +230,15 @@ function chipCentreCoveredContentBoxPx(rungDeclarations: string, subject: string
 	}
 	const reachPx = parsedLengthPx(size, `${subject} chip size`) + parsedLengthPx(inset, `${subject} chip inset`);
 	return 2 * reachPx - parsedNodeVerticalPaddingPx();
+}
+
+/** The chip's declared box size at one rung, in px. */
+function declaredChipSizePx(rungDeclarations: string, subject: string): number {
+	const size = PIN_CHIP_SIZE.exec(rungDeclarations)?.[1];
+	if (size === undefined) {
+		throw new Error(`the ${subject} pin chip no longer declares a size`);
+	}
+	return parsedLengthPx(size, `${subject} chip size`);
 }
 
 /**
@@ -255,48 +319,75 @@ describe("node density thresholds", () => {
 	// The pin chip is NOT part of the ladder's reveal set (ticket
 	// nid_tclb98q9hxhmcuonamvr4ig1f_e, owner-decided): it is hover-revealed at every
 	// node height, because content-fit sizing made the small node the common case and
-	// the right-click menu was the only pin affordance left there. The rung merely
-	// GROWS it — and `CENTRAL_PROMINENCE_FLOOR_SCORE` is tuned against that rung, so a
-	// stylesheet that moved it would silently leave centrals on the compact chip.
+	// the right-click menu was the only pin affordance left there.
 	it("WHEN the pin chip is styled THEN it is displayed at every node height, not gated on the density ladder", () => {
 		expect(pinButtonDeclarations()).toMatch(/\n\tdisplay: inline-flex;/);
 	});
 
-	it("WHEN the stylesheet grows the pin chip to full size THEN it does so at the rung the engine tunes the central floor against", () => {
-		expect(soleRevealMinHeightPx(PIN_CHIP_SIZE)).toBe(PIN_CHIP_FULL_SIZE_CONTENT_BOX_PX);
+	// …and it is FULL SIZE at every node size the geometry allows (ticket
+	// nid_8i5936g90vrllosssaz7v3xbr_e): one chip size throughout, so the ladder may
+	// only ever step DOWN from the default.
+	//
+	// This guard comes FIRST because every other pin-chip guard below reads the
+	// ladder through `PIN_CHIP_STEP_DOWN_QUERY`, which matches only rungs that
+	// ALREADY have the two-axis `max-*` shape. That makes them all blind to exactly
+	// the regression this ticket removed: chip declarations added to a `min-height`
+	// rung — the density ladder's own rungs sit a few lines up in the same file —
+	// would grow the chip on HEIGHT alone again while every arithmetic guard below
+	// stayed green, because none of them would ever see that rung.
+	it("WHEN a container query styles the pin chip THEN it is one of the ladder's two-axis max-* step-downs, never a min-* rung", () => {
+		expect([...pinChipContainerQueryPreludes()].sort()).toEqual(
+			[twoAxisMaxPrelude(compactPinChipRung()), twoAxisMaxPrelude(withholdPinChipRung())].sort(),
+		);
 	});
 
-	// The one exception to "every node", and the reason it is not a judgement call:
-	// the compact chip reaches `inset + size` into the node's padding box from the
-	// top-right corner, so below a computable size it sits ON the node's centre point
-	// — where a click means OPEN THE NOTE. `minPx` is a dial the user can take to 1px
-	// and a drag-resize override may be 24px, so this band is reachable; re-tuning the
-	// chip without moving the rung would silently make it unreachable-by-click again.
+	// With the shape pinned above, "step DOWN" is then a claim about SIZE: a rung
+	// re-declaring a BIGGER chip fails here (and would also breach the centre-
+	// clearance arithmetic below, which is computed from the chip it steps down from).
+	it("WHEN the stylesheet steps the pin chip down THEN it steps down from the DEFAULT rung's full-size chip", () => {
+		expect(declaredChipSizePx(compactPinChipRung().body, "compact")).toBeLessThan(
+			declaredChipSizePx(pinButtonDeclarations(), "full-size"),
+		);
+	});
+
+	// Why the ladder exists at all, and why its rungs are not judgement calls: a chip
+	// reaches `inset + size` into the node's padding box from the top-right corner, so
+	// below a computable size it sits ON the node's centre point — where a click means
+	// OPEN THE NOTE. `minPx` is a dial the user can take to 1px and a drag-resize
+	// override may be 24px, so those bands are reachable; re-tuning a chip without
+	// moving the rung under it would silently make the node unreachable-by-click.
 	it("WHEN the chip is measured for centre clearance THEN it is sized from its BORDER box", () => {
 		expect(pinButtonDeclarations()).toMatch(PIN_CHIP_BORDER_BOX);
 	});
 
-	it.each(["max-height", "max-width"] as const)(
-		"WHEN the stylesheet withholds the pin chip THEN its %s rung is the content box at which the compact chip covers the node's centre",
+	// Each rung is computed from the chip ABOVE it — the one it steps down from.
+	it.each(["maxHeightPx", "maxWidthPx"] as const)(
+		"WHEN the stylesheet steps the pin chip down to compact THEN its %s rung is the content box at which the full-size chip covers the node's centre",
 		(axis) => {
-			const withheld = PIN_CHIP_WITHHOLD_QUERY.exec(stylesheet());
-			const declared = Number(withheld?.[axis === "max-height" ? 1 : 2]);
-			expect(declared).toBe(chipCentreCoveredContentBoxPx(pinButtonDeclarations(), "compact"));
+			expect(compactPinChipRung()[axis]).toBe(chipCentreCoveredContentBoxPx(pinButtonDeclarations(), "full-size"));
 		},
 	);
 
-	// The OTHER half of "the chip never covers the centre", and the one the
-	// withholding query cannot cover: above the rung the chip grows, and it grows
-	// past the reach the withholding query was computed from. The rung itself is
-	// inherited from the attachment row for an unrelated reason
-	// ({@link PIN_CHIP_FULL_SIZE_CONTENT_BOX_PX}), so nothing about the FULL-SIZE
-	// chip's geometry is implied by it — lower that rung (or grow that chip) and the
-	// swallowed open-click comes back in a band the max-* query never sees, with
-	// every other guard here still green.
-	it("WHEN the pin chip grows to full size THEN it does so only above the content box where it would cover the node's centre", () => {
-		const fullSize = soleRevealBlock(PIN_CHIP_SIZE);
-		expect(fullSize.minHeightPx).toBeGreaterThan(chipCentreCoveredContentBoxPx(fullSize.body, "full-size"));
-	});
+	it.each(["maxHeightPx", "maxWidthPx"] as const)(
+		"WHEN the stylesheet withholds the pin chip THEN its %s rung is the content box at which the compact chip covers the node's centre",
+		(axis) => {
+			expect(withholdPinChipRung()[axis]).toBe(chipCentreCoveredContentBoxPx(compactPinChipRung().body, "compact"));
+		},
+	);
+
+	// The ladder must also DESCEND, which the two guards above do NOT imply: each is
+	// computed from the chip it steps down FROM, so a rung that shrank the chip's SIZE
+	// (satisfying the monotonicity guard) while GROWING its inset reaches further than
+	// the chip above it — and then its own consistent arithmetic puts its band OUTSIDE
+	// the band of the rung above. Both guards stay green while the withheld band
+	// swallows the compact one: the compact chip would never render at all, and nodes
+	// just above the step-down would lose a chip that never covered their centre.
+	it.each(["maxHeightPx", "maxWidthPx"] as const)(
+		"WHEN the pin chip's rungs are read THEN each %s band sits strictly inside the band of the rung above it",
+		(axis) => {
+			expect(withholdPinChipRung()[axis]).toBeLessThan(compactPinChipRung()[axis]);
+		},
+	);
 
 	// The chip shares the node's top-right corner with the drag-resize RIGHT-edge
 	// grip, which paints and hit-tests ABOVE the whole node (see the z-index WHY in
@@ -304,8 +395,8 @@ describe("node density thresholds", () => {
 	// — silently, since neither element changes size or style. The compact rung's
 	// inset was 1px too small for exactly this reason once.
 	it.each([
-		{ subject: "compact", declarations: () => pinButtonDeclarations() },
-		{ subject: "full-size", declarations: () => soleRevealBlock(PIN_CHIP_SIZE).body },
+		{ subject: "full-size", declarations: () => pinButtonDeclarations() },
+		{ subject: "compact", declarations: () => compactPinChipRung().body },
 	])("WHEN the $subject pin chip is placed THEN the drag-resize grip band does not reach over it", ({ subject, declarations }) => {
 		expect(chipOuterEdgeInsetPx(declarations(), subject)).toBeGreaterThanOrEqual(resizeBandInwardReachPx());
 	});
