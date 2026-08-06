@@ -75,6 +75,37 @@ describe("scripts/run-e2e-floor.sh", () => {
 	});
 });
 
+describe("release.sh", () => {
+	const releaseScript = readRepoFile("release.sh");
+
+	/**
+	 * release.sh is the pre-publish gate that makes the floor+pinned pair a matrix.
+	 * Its whole reason to exist is running BOTH builds, so guard that it invokes each
+	 * arm — a silent drop of either would turn a "two-version gate" back into one.
+	 */
+	it("WHEN read THEN it runs the pinned-default e2e arm", () => {
+		// Match the pinned INVOCATION, not a bare `npm run test:e2e`: that bare
+		// substring also lives inside the floor line (`npm run test:e2e:floor`),
+		// so a bare `.toContain` would still pass with the pinned arm deleted —
+		// the exact silent drop this test claims to guard against.
+		expect(releaseScript).toContain("npm run test:e2e || pinned_status=$?");
+	});
+
+	it("WHEN read THEN it runs the manifest-floor e2e arm", () => {
+		expect(releaseScript).toContain("npm run test:e2e:floor");
+	});
+
+	/**
+	 * The matrix must survive a red FIRST arm to report the full floor-vs-pinned
+	 * picture; a fail-fast between arms would hide whether the floor is also broken.
+	 * `|| ..._status=$?` is how each arm is run without `set -e` aborting the script.
+	 */
+	it("WHEN read THEN each e2e arm is run without aborting the run on failure", () => {
+		expect(releaseScript).toContain("|| pinned_status=$?");
+		expect(releaseScript).toContain("|| floor_status=$?");
+	});
+});
+
 function readRepoFile(...segments: readonly string[]): string {
 	return fs.readFileSync(path.join(REPO_ROOT, ...segments), "utf8");
 }
