@@ -1,17 +1,18 @@
 ---
 id: nid_8vekpgg97n5x7ckxbwswr5uar_e
-title: "e2e flake recurs: nodeResize 'short but WIDE' render-poll times out in the FULL floor-suite run (post-b610e39)"
-status: open
+title: 'e2e flake recurs: nodeResize ''short but WIDE'' render-poll times out in the
+  FULL floor-suite run (post-b610e39)'
+status: in_progress
 deps: []
 links: [nid_g1f5tjmxzr0hbfdeujvgwywsd_e, nid_a5jbonflbm3110gsy6puf18ds_e]
-created_iso: 2026-08-06T22:36:50Z
-status_updated_iso: 2026-08-06T22:36:50Z
+created_iso: '2026-08-06T22:36:50Z'
+status_updated_iso: '2026-08-06T23:03:57Z'
 type: bug
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
 tags: [e2e, flaky]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 ---
-
 Observed 2026-08-06 while landing nid_a5jbonflbm3110gsy6puf18ds_e (the floor+pinned release matrix / ./release.sh).
 
 This is a RECURRENCE of the flake closed in nid_g1f5tjmxzr0hbfdeujvgwywsd_e (`e2e/nodeResize.e2e.ts` render-poll reads the PREVIOUS test's box for 15s). That ticket concluded the underlying repaint defect was fixed by commit b610e39 (nid_c78k90su87jrzigxvfjv5t95g_e, "stop RF re-measurements clobbering a fresh publish") and verified two consecutive green full suites. The current tree INCLUDES b610e39, yet the flake still fires intermittently.
@@ -34,4 +35,3 @@ WHAT TO DO: the b610e39 `isResizeGestureChange` filter reduced but did not elimi
 ## Acceptance Criteria
 
 The full e2e suite (both pinned and floor builds via ./release.sh) is green across repeated runs; the nodeResize render-poll flake no longer recurs, OR renderTargetAsNeighbourBox is hardened so the repaint stall cannot leave the previous test's box on screen for the poll window.
-
