@@ -1,7 +1,8 @@
 ---
+status_updated_iso: '2026-08-06T22:30:11Z'
 id: nid_gearcontentunreachable18pxband_e
 title: 'view: gear Content override unreachable below the 18px chip-withhold band'
-status: open
+status: in_progress
 deps: []
 links: [nid_9hx6okamx3yt0rg9iad2f4151_e]
 created_iso: '2026-08-06T21:10:00Z'
@@ -9,7 +10,7 @@ type: bug
 priority: 4
 assignee: CC_WITH-nickolaykondratyev
 tags: [ui, decide]
-pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 ---
 Follow-up from nid_9hx6okamx3yt0rg9iad2f4151_e (hover gear with per-node Content override).
 
