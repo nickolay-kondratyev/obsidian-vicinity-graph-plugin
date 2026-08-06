@@ -1,17 +1,18 @@
 ---
 id: nid_g1f5tjmxzr0hbfdeujvgwywsd_e
-title: "e2e flake: nodeResize 'shrunk to the drag-resize floor' times out in the FULL-suite run"
-status: open
+title: 'e2e flake: nodeResize ''shrunk to the drag-resize floor'' times out in the
+  FULL-suite run'
+status: in_progress
 deps: []
 links: []
-created_iso: 2026-08-05T18:21:46Z
-status_updated_iso: 2026-08-05T18:21:46Z
+created_iso: '2026-08-05T18:21:46Z'
+status_updated_iso: '2026-08-06T16:49:36Z'
 type: bug
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
 tags: [e2e, flaky]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin
 ---
-
 Observed 2026-08-05 while landing nid_k2pa8khm6ugozmhkd6nlbdrq6_e.
 
 SYMPTOM: `npm run test:e2e` (FULL suite, one worker) failed twice in a row on
@@ -49,4 +50,3 @@ stop inheriting each other's dials.
 ## Acceptance Criteria
 
 The full `npm run test:e2e` suite is green across repeated runs, and the nodeResize floor case either cannot inherit another spec's stored dials or fails with a message naming which half (store write vs repaint) was lost.
-
