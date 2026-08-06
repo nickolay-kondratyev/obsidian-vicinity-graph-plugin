@@ -91,6 +91,30 @@ describe("MarkdownInlineLinks.harvestedLinksOf targets", () => {
 		expect(targetsOf("[a]()")).toEqual([]);
 	});
 
+	it("WHEN an inline link's LABEL is split by a single newline THEN it is still a link", () => {
+		// Real Obsidian indexes this — CommonMark lets an inline link's label span a
+		// single line ending (observed by `e2e/canvasMarkdownLinkIndexing.e2e.ts`),
+		// so excluding the newline (the wikilink rule) would DROP a real edge here.
+		expect(targetsOf("[foo\nbar](note-b.md)")).toEqual(["note-b.md"]);
+	});
+
+	it("WHEN an inline link's destination sits on its own line inside the parens THEN it is still a link", () => {
+		// CommonMark allows a line ending between `(` and the destination; core
+		// indexes it (same e2e observation).
+		expect(targetsOf("[x](\nnote-b.md\n)")).toEqual(["note-b.md"]);
+	});
+
+	it("WHEN an inline link's label is split by a BLANK line THEN it names no document", () => {
+		// A blank line is a paragraph break: it ENDS the inline, so `[foo` and
+		// `bar](note-b.md)` are not one link. Real Obsidian indexes nothing here
+		// (`blankLabel=false` in the e2e observation) — matching it would be a phantom edge.
+		expect(targetsOf("[foo\n\nbar](note-b.md)")).toEqual([]);
+	});
+
+	it("WHEN a blank line falls inside the destination parens THEN it names no document", () => {
+		expect(targetsOf("[x](\n\nnote-b.md\n)")).toEqual([]);
+	});
+
 	it("WHEN the text carries only a wikilink THEN nothing is returned (that is Wikilinks' job)", () => {
 		expect(targetsOf("see [[note-b]] and ![[pic.png]]")).toEqual([]);
 	});
