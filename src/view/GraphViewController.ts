@@ -73,6 +73,16 @@ export interface FlowSnapshot {
 	 * after rebuilds nor survives Obsidian's pane-timing on mount.
 	 */
 	readonly layoutVersion: number;
+	/**
+	 * Only meaningful while `status === "building"`: `true` marks the ONE build
+	 * that pays the docid warm-up — the first build of this controller's life,
+	 * i.e. the graph coming up for the first time after Obsidian loaded (that
+	 * warm-up is what makes it visibly slow; every later build reads a warm map
+	 * and the placeholder barely shows). The render layer uses it to reassure the
+	 * user this wait is a one-off, not the graph's normal speed. A retry off the
+	 * failed state also builds, but it is NOT the first build, so it stays `false`.
+	 */
+	readonly isInitialBuild: boolean;
 }
 
 const EMPTY_CONTROLS: ControlsModel = {
@@ -90,10 +100,22 @@ const EMPTY_SNAPSHOT: FlowSnapshot = {
 	orphanTruncation: NO_ORPHAN_TRUNCATION,
 	controls: EMPTY_CONTROLS,
 	layoutVersion: 0,
+	isInitialBuild: false,
 };
 
-/** First build in flight: same void as {@link EMPTY_SNAPSHOT}, told honestly. */
+/**
+ * A rebuild that shows NO graph while it runs, but is NOT the first paint: the
+ * retry off the failed state ({@link GraphViewController.runRebuild}). "Building
+ * the vicinity graph…" with no first-load caveat, because a warm map makes it fast.
+ */
 const BUILDING_SNAPSHOT: FlowSnapshot = { ...EMPTY_SNAPSHOT, status: "building" };
+
+/**
+ * The FIRST build of this controller's life — the one that pays the docid warm-up
+ * ({@link GraphViewController.firstBuildPending}). Told apart from a plain rebuild
+ * so the render layer can say this one-off wait is expected right after Obsidian loads.
+ */
+const INITIAL_BUILDING_SNAPSHOT: FlowSnapshot = { ...EMPTY_SNAPSHOT, status: "building", isInitialBuild: true };
 
 /**
  * Every attempt of a rebuild failed ({@link REBUILD_ATTEMPTS}). Published over
@@ -361,7 +383,9 @@ export class GraphViewController {
 		// leaving the failure copy up through the pass makes the button look dead, and
 		// there is no graph to flicker. Every other rebuild reads a warm map, returns
 		// fast, and keeps whatever is on screen.
-		if (this.firstBuildPending || this.snapshot.status === "failed") {
+		if (this.firstBuildPending) {
+			this.setSnapshot(INITIAL_BUILDING_SNAPSHOT);
+		} else if (this.snapshot.status === "failed") {
 			this.setSnapshot(BUILDING_SNAPSHOT);
 		}
 		try {
@@ -591,6 +615,7 @@ export class GraphViewController {
 			orphanTruncation: flow.orphanTruncation,
 			controls: this.controls,
 			layoutVersion: this.layoutVersion,
+			isInitialBuild: false,
 		});
 	}
 

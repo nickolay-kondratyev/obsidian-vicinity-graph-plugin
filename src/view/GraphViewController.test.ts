@@ -339,6 +339,25 @@ describe("GraphViewController first-paint building state", () => {
 		expect(h.snapshot().status).toBe("ready");
 	});
 
+	it("WHEN the first build is in flight THEN it is flagged as the initial build", () => {
+		const h = setup();
+
+		h.controller.handleActiveFileChanged("a.md");
+
+		expect(h.snapshot().isInitialBuild).toBe(true);
+	});
+
+	it("WHEN a retry off the failed state builds THEN the placeholder is NOT flagged as the initial build", async () => {
+		const h = setup();
+		h.controller.handleActiveFileChanged("a.md");
+		await rejectEveryAttempt(h, 0);
+
+		h.controller.retryRebuild();
+
+		expect(h.snapshot().status).toBe("building");
+		expect(h.snapshot().isInitialBuild).toBe(false);
+	});
+
 	it("WHEN a build resolves with no graph THEN the building state gives way to empty", async () => {
 		const h = setup();
 		h.controller.handleActiveFileChanged("a.md");
