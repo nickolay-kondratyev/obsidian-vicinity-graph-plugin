@@ -2,9 +2,9 @@
 id: nid_qveuch88qov6rr7pr2y7a1vki_e
 title: "Custom sizing - add ability to drop custom size"
 status: open
-deps: []
+deps: [nid_9hx6okamx3yt0rg9iad2f4151_e]
 links: []
-tags: [educate-human]
+tags: []
 created_iso: 2026-08-05T16:38:59Z
 status_updated_iso: 2026-08-05T16:38:59Z
 type: task
@@ -14,8 +14,5 @@ assignee: nickolaykondratyev
 
 Right now once we custom size a node we do not have a way to drop the custom size.
 
-I am thinking when we are hovering over the sizing side, we get a signifier/affordance to be able to reset the size of the node. It should always pop up but when the node is already in non-custom sizing, it should show that it cannot be activated (like disabled view). 
-
-When we do this we should make sure that its not annoying to get to so there is an area of hover from the resize signifier that keeps this icon alive. 
-
-Let's discuss and educate ME (prior to planning or implementing this) whether my approach alligns with UX principles or whether there are other patterns that are better suited for this problem.  
+We should add ability to drop the custom size when the node has custom size, 
+It we should get an icon that pops up when the node has custom size and when we are hovering over the node we would see this icon IF the node sizing has been overriden. Clicking on this icon would reset the node sizing to default (remove the override of node sizing that is was set by dragging the node), after reset of the size we would not see the node icon anymore since it wouldnt be actionable. We will also want to have a hover over the icon to explain what it does and when its shown to edecate the user. 
