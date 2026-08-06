@@ -207,6 +207,14 @@ export interface NodeMenuEntry {
 	 */
 	readonly checked?: boolean;
 	/**
+	 * Optional one-line explanation rendered as a muted sub-line under the title —
+	 * how an entry whose effect is not obvious from its label educates the user
+	 * (today "Reset size", which only ever appears once a drag has set a custom
+	 * size, so the sub-line says both what it does and, implicitly, when it shows).
+	 * Absent = a title-only item.
+	 */
+	readonly description?: string;
+	/**
 	 * Optional native-menu section id: entries sharing one are grouped and a
 	 * separator is drawn between sections (the gear menu splits Content choices
 	 * from "Reset size"). Absent = the default (top) section.

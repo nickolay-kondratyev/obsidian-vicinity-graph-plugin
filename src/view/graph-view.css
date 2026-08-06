@@ -1129,3 +1129,21 @@
 	align-self: flex-start;
 	font-size: var(--font-ui-smaller);
 }
+
+/* --- Node menu item description -------------------------------------------- */
+
+/* The muted sub-line under a native node-menu item whose effect its label can't
+ * fully teach (today "Reset size"). NOT scoped under `.vicinity-graph`: Obsidian
+ * renders its menu at the document body, so the item's title fragment lives
+ * outside the view container. Sits inside `.menu-item-title`; the title span
+ * above it keeps the default size, this line drops to muted + smallest so the
+ * item still reads label-first. `white-space: normal` lets the sentence wrap
+ * inside the menu's width instead of stretching it. */
+.vicinity-graph-menu-item__description {
+	margin-top: var(--size-2-1);
+	max-width: 15em;
+	font-size: var(--font-smallest);
+	line-height: var(--line-height-tight);
+	color: var(--text-muted);
+	white-space: normal;
+}

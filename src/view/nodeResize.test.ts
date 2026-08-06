@@ -34,7 +34,15 @@ describe("resizeEndToOverride", () => {
 
 describe("planResetSizeAction", () => {
 	it("WHEN the node has a size override THEN the reset entry is offered", () => {
-		expect(planResetSizeAction(true)).toEqual({ title: "Reset size", iconId: "undo-2" });
+		expect(planResetSizeAction(true)).toEqual({
+			title: "Reset size",
+			iconId: "undo-2",
+			description: "Clears the custom size you set by dragging; the note returns to its computed size.",
+		});
+	});
+
+	it("WHEN the reset entry is offered THEN it carries an educational sub-line ('custom size' is named nowhere else)", () => {
+		expect(planResetSizeAction(true)?.description).not.toBe("");
 	});
 
 	it("WHEN the node has no size override THEN no reset entry is offered (a no-op menu item violates POLS)", () => {
