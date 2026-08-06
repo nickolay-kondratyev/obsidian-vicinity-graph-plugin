@@ -36,6 +36,7 @@ research doc; that's reversible.
 - **A (recommended): keep `punted`.** Acceptance is met, padding removed, deeper
   wrap folded into the parked research with a clear reopen trigger ("~40px wrap
   becomes a real user-facing complaint"). No new routing risk.
+  - 
 - **B: `closed`.** Same as A but call it done — treat the sizing-floor change as
   having resolved the reproducible case. (I avoided this unilaterally because the
   title's defect isn't fixed.)
