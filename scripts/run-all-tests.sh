@@ -11,6 +11,12 @@
 #   2. unit   — vitest run (unit + integration + source-scan guards)
 #   3. e2e    — Playwright against a REAL Obsidian (auto-provisions on Linux/CI)
 #
+# WHY-NOT a separate `npm run build` stage: `scripts/run-e2e.sh` builds the bundle
+# on BOTH of its branches before driving Obsidian, so the e2e stage already fails
+# on a broken production build. Keep it that way — if run-e2e.sh ever stops
+# building, the release checklist's "test:all covers the build gate" claim
+# (docs-internal/RELEASE_CHECKLIST.md §1) goes with it and a stage belongs here.
+#
 # Flags:
 #   --with-floor   also run the e2e suite against the manifest minAppVersion floor
 #                  build. Off by default: it is the SAME suite on an older binary,
@@ -39,10 +45,15 @@ run_stage() {
 	shift
 	echo "" >&2
 	echo "=== test:all: ${name} ===" >&2
-	if ! "$@"; then
+	# Exit with the STAGE's own status, not a flat 1: a wrapper that rewrites the
+	# code its child failed with hides what the tool reported (Playwright and tsc
+	# both distinguish their failure modes by exit code).
+	local status=0
+	"$@" || status=$?
+	if [[ "${status}" != "0" ]]; then
 		echo "" >&2
-		echo "test:all: FAILED at stage=[${name}] — stopping." >&2
-		exit 1
+		echo "test:all: FAILED at stage=[${name}] exit=[${status}] — stopping." >&2
+		exit "${status}"
 	fi
 }
 
