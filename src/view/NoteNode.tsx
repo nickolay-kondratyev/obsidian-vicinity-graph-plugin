@@ -209,11 +209,10 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
 });
 
 /**
- * Hover-reveal pin/unpin button (top-LEFT of the node — the left edge carries no
- * drag-resize grip; the gear takes the top-right). Hidden until the node is
- * hovered (CSS), a `nodrag nopan` escape hatch so the click never starts a node
- * drag or canvas pan. Its click carries the same shared pin decision as the
- * context menu.
+ * Hover-reveal pin/unpin button (top-RIGHT of the node, sitting just LEFT of the
+ * gear so the pair reads PIN GEAR). Hidden until the node is hovered (CSS), a
+ * `nodrag nopan` escape hatch so the click never starts a node drag or canvas
+ * pan. Its click carries the same shared pin decision as the context menu.
  */
 function PinButton({
 	action,
@@ -248,9 +247,9 @@ function PinButton({
 }
 
 /**
- * Hover-reveal gear button (top-right of the node — the conventional settings
- * corner; the pin sits top-left and the resize grips own the bottom/right edges,
- * so nothing here fights for the same clicks). Hidden until the node is hovered
+ * Hover-reveal gear button (top-right corner of the node — the conventional
+ * settings corner; the pin sits just to its left and the resize grips own the
+ * bottom/right edges, so nothing here fights for the same clicks). Hidden until the node is hovered
  * (CSS), a `nodrag nopan` escape hatch so the click never starts a node drag or
  * canvas pan. Its click opens the per-node content/size menu at the cursor.
  */

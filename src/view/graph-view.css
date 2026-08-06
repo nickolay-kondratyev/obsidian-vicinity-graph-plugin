@@ -414,6 +414,16 @@
 	 * only — the chrome reset below it stays declared once. */
 	--vicinity-graph-node-chip-size: 20px;
 	--vicinity-graph-node-chip-inset: var(--size-4-1);
+	/* Gap between the two right-corner chips (pin sits just LEFT of the gear). Kept
+	 * out of the size ladder because the ladder guards the CORNER chip (the gear),
+	 * whose reach `inset + size` this gap does not change — and both chips share the
+	 * top edge, so VERTICAL clearance is identical for both. It DOES push the pin
+	 * `size + gap` further inboard HORIZONTALLY, so the pin is no longer a corner
+	 * chip: on a wide-but-short node its revealed box can reach the horizontal
+	 * centre in a band the ladder (a corner-chip guard, symmetric on both axes) does
+	 * not cover. Accepted edge, tracked in
+	 * docs-internal/tickets/ticket-pin-offset-centre-clearance.md. */
+	--vicinity-graph-node-chip-gap: var(--size-2-1);
 	--vicinity-graph-node-chip-icon-size: 13px;
 	position: absolute;
 	/* Declared, not inherited from the app: the chip's REACH into the node
@@ -441,12 +451,18 @@
 		opacity 0.12s ease,
 		color 0.12s ease;
 }
-/* Corner placement — the ONLY per-chip difference. Pin sits top-LEFT (the left
- * edge carries no drag-resize grip, so it is the calmest corner); the gear takes
- * the top-RIGHT, the conventional settings corner, clearing the right-edge grip
- * band by the same inset the ladder guards. */
+/* Corner placement — the ONLY per-chip difference. Both chips ride the top-RIGHT
+ * corner: the gear takes the corner itself (the conventional settings corner),
+ * clearing the right-edge grip band by the inset the ladder guards; the pin sits
+ * one chip-width + gap to its LEFT, so the pair reads PIN GEAR. Both offsets are
+ * built from the SAME custom properties the size ladder steps, so the pin stays
+ * flush against the gear at every rung. The gear's inset is what the grip-band
+ * guard measures, so the corner-most chip is always the one against the grip. */
 .vicinity-graph-node .vicinity-graph-pin-button {
-	left: var(--vicinity-graph-node-chip-inset);
+	right: calc(
+		var(--vicinity-graph-node-chip-inset) + var(--vicinity-graph-node-chip-size) +
+			var(--vicinity-graph-node-chip-gap)
+	);
 }
 .vicinity-graph-node .vicinity-graph-gear-button {
 	right: var(--vicinity-graph-node-chip-inset);
