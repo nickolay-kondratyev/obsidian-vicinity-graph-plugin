@@ -191,6 +191,20 @@ test("React Flow's interactivity lock button is not shipped — it has nothing t
 	await expect(page.locator("button.react-flow__controls-zoomin")).toHaveCount(1);
 });
 
+test("the redraw control sits with the zoom buttons and re-renders the graph when pressed", async () => {
+	// Ticket nid_cd9x8a7ltnht3vvxh13qcvlzr_e: a manual redraw next to +/- that
+	// forces a fresh elk layout. It IS a `.react-flow__controls-button`, so it
+	// shares the themed chrome asserted above; found by its accessible name.
+	const redraw = page.locator("button.react-flow__controls-button[aria-label='Redraw graph']");
+	await expect(redraw).toHaveCount(1);
+
+	await redraw.click();
+
+	// The forced relayout rebuilds and republishes the SAME alpha vicinity — the
+	// graph stays whole (the click is not a no-op that blanks the pane).
+	await expect(page.locator(".vicinity-graph-node")).toHaveCount(ALPHA_NODE_COUNT);
+});
+
 test("duplicate links collapse into one edge with a ×2 count badge", async () => {
 	const badge = page.locator(".vicinity-graph-edge__count-badge");
 	await expect(badge).toHaveCount(1); // single-link edges carry NO badge
