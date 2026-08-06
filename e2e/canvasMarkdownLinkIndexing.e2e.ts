@@ -32,6 +32,12 @@ const PHANTOM_BAIT_PATH = `${FIXTURE_FOLDER}/spaced.md`;
 /** Existing notes linked ONLY from inside a code span / fenced block — the code-region bait. */
 const CODE_SPAN_TARGET_PATH = `${FIXTURE_FOLDER}/code-span-target.md`;
 const FENCE_TARGET_PATH = `${FIXTURE_FOLDER}/fence-target.md`;
+/** Target of an inline link whose LABEL is split by a single newline. */
+const NEWLINE_LABEL_TARGET_PATH = `${FIXTURE_FOLDER}/newline-label-target.md`;
+/** Target of an inline link whose label is split by a BLANK line (paragraph break). */
+const BLANK_LABEL_TARGET_PATH = `${FIXTURE_FOLDER}/blank-label-target.md`;
+/** Target of an inline link whose DESTINATION sits on its own line inside the parens. */
+const NEWLINE_DEST_TARGET_PATH = `${FIXTURE_FOLDER}/newline-dest-target.md`;
 
 /** Canvas re-index after a content touch; the metadata pass is not instant. */
 const CANVAS_INDEX_TIMEOUT_MS = 20_000;
@@ -65,10 +71,24 @@ const CODE_REGION_TEXT = [
 	"```",
 ].join("\n");
 
+/**
+ * A SEPARATE text node carrying the MULTI-LINE inline-link shapes the newline
+ * decision turns on (ticket `nid_lgo91fzkivxiu32g1j5bttzca_e`). CommonMark lets an
+ * inline link's LABEL and DESTINATION-parenthetical span a single line ending but
+ * NOT a blank line (a paragraph break ends the inline). Each target exists, so
+ * whatever core indexes here is the ground truth the matcher must match.
+ */
+const MULTILINE_TEXT = [
+	"single-newline label [foo\nbar](newline-label-target.md)",
+	"blank-line label [foo\n\nbar](blank-label-target.md)",
+	"newline destination [x](\nnewline-dest-target.md\n)",
+].join("\n\n");
+
 const CANVAS_JSON = JSON.stringify({
 	nodes: [
 		{ id: "t1", type: "text", text: CANVAS_TEXT, x: 0, y: 0, width: 600, height: 300 },
 		{ id: "t2", type: "text", text: CODE_REGION_TEXT, x: 0, y: 400, width: 600, height: 300 },
+		{ id: "t3", type: "text", text: MULTILINE_TEXT, x: 0, y: 800, width: 600, height: 400 },
 	],
 	edges: [],
 });
@@ -80,6 +100,9 @@ const EXTRA_FIXTURES: Record<string, string> = {
 	[PHANTOM_BAIT_PATH]: "Bait: exists only so a truncated destination would resolve to something.\n",
 	[CODE_SPAN_TARGET_PATH]: "Bait: linked ONLY from inside an inline code span.\n",
 	[FENCE_TARGET_PATH]: "Bait: linked ONLY from inside a fenced code block.\n",
+	[NEWLINE_LABEL_TARGET_PATH]: "Target of a single-newline-label inline link.\n",
+	[BLANK_LABEL_TARGET_PATH]: "Target of a blank-line-label inline link.\n",
+	[NEWLINE_DEST_TARGET_PATH]: "Target of a newline-destination inline link.\n",
 };
 
 let harness: ObsidianHarness;
@@ -150,6 +173,26 @@ test("core makes no link for a link inside an inline code span", async () => {
 
 test("core makes no link for a link inside a fenced code block", async () => {
 	expect(Object.keys(await indexedCanvasLinks())).not.toContain(FENCE_TARGET_PATH);
+});
+
+/**
+ * PINS the newline decision for `src/shared/MarkdownInlineLinks.ts` (ticket
+ * `nid_lgo91fzkivxiu32g1j5bttzca_e`) to real core, not a copy of the wikilink
+ * rule. CommonMark lets an inline link's label and destination-parenthetical span
+ * a SINGLE line ending but a BLANK line ends the inline — and this observes core
+ * agreeing, so the matcher's newline tolerance (with its paragraph-break guard) is
+ * measured, not assumed. Printed so a future reader sees the raw observation.
+ */
+test("core indexes a single-newline inline link but not one split by a blank line", async () => {
+	const keys = Object.keys(await indexedCanvasLinks());
+	console.log(
+		`[observed-multiline] newlineLabel=${keys.includes(NEWLINE_LABEL_TARGET_PATH)} ` +
+			`blankLabel=${keys.includes(BLANK_LABEL_TARGET_PATH)} ` +
+			`newlineDest=${keys.includes(NEWLINE_DEST_TARGET_PATH)}`,
+	);
+	expect(keys).toContain(NEWLINE_LABEL_TARGET_PATH);
+	expect(keys).toContain(NEWLINE_DEST_TARGET_PATH);
+	expect(keys).not.toContain(BLANK_LABEL_TARGET_PATH);
 });
 
 test("core makes no link for an external URL", async () => {

@@ -35,8 +35,27 @@ import { LinkKinds } from "./LinkKind";
  * `[[wikilinks]]` and `![[embeds]]`. The marker is CAPTURED rather than merely
  * tolerated because `![a](x)` and `[a](x)` are different kinds of reference (see
  * {@link LinkKind}).
+ *
+ * Newlines are DELIBERATELY tolerated in both the label and the parenthetical —
+ * unlike the wikilink matcher, and NOT a copy of its rule. Real Obsidian indexes
+ * `[foo\nbar](x.md)` and `[x](\ny.md\n)`: CommonMark lets an inline link's label
+ * and destination-parenthetical span a single line ending (observed by
+ * `e2e/canvasMarkdownLinkIndexing.e2e.ts`). A BLANK line is the one exception — a
+ * paragraph break ends the inline — and that is enforced past the regex by
+ * {@link PARAGRAPH_BREAK} rather than by a newline-excluding class, which would
+ * wrongly drop the legal single-newline links.
  */
 const INLINE_LINK_SOURCE = "(!?)\\[[^\\[\\]]*\\]\\(([^()]*)\\)";
+
+/**
+ * A blank line inside a match: a line ending, only spaces/tabs, then another line
+ * ending. CommonMark treats it as a paragraph break that ENDS the inline, so a
+ * `[label](dest)` straddling one is not a link — real Obsidian indexes nothing
+ * there (`blankLabel=false` in `e2e/canvasMarkdownLinkIndexing.e2e.ts`). A single
+ * line ending is NOT a break, so `[^\S\n]*` (whitespace but not a second newline)
+ * is what keeps this off the legal single-newline case.
+ */
+const PARAGRAPH_BREAK = /\n[^\S\n]*\n/;
 
 /** 1-based capture-group positions in {@link INLINE_LINK_SOURCE}. */
 const EMBED_MARKER_GROUP = 1;
@@ -84,6 +103,11 @@ export class MarkdownInlineLinks {
 	static harvestedLinksOf(text: string): readonly HarvestedLink[] {
 		const links: HarvestedLink[] = [];
 		for (const match of text.matchAll(MarkdownInlineLinks.globalPattern())) {
+			// A blank line anywhere in the match is a paragraph break, so this is not
+			// one link — drop it rather than mint a phantom edge from either half.
+			if (PARAGRAPH_BREAK.test(match[0])) {
+				continue;
+			}
 			const linkText = MarkdownInlineLinks.targetOf(match[PARENTHETICAL_GROUP] ?? "");
 			if (linkText !== "") {
 				links.push({ linkText, kind: LinkKinds.ofEmbedMarker(match[EMBED_MARKER_GROUP] ?? "") });
