@@ -1,12 +1,13 @@
 ---
+closed_iso: 2026-08-06T16:06:21Z
 id: nid_c78k90su87jrzigxvfjv5t95g_e
 title: A refreshOpenViews fan-out can be swallowed, leaving the screen stale against
   data.json with nothing to re-converge it
-status: in_progress
+status: closed
 deps: []
 links: []
 created_iso: '2026-08-06T00:40:08Z'
-status_updated_iso: '2026-08-06T16:00:43Z'
+status_updated_iso: 2026-08-06T16:06:21Z
 type: bug
 priority: 1
 assignee: CC_WITH-nickolaykondratyev
@@ -75,3 +76,55 @@ Candidates NOT yet excluded (each needs checking):
 ## Acceptance
 
 A failing test FIRST that pins the invariant "after an awaited store write followed by ONE refreshOpenViews(), the pane renders the stored state" — ideally at the `GraphViewController` unit level (it is fake-driven) rather than only in e2e. Then the fix. Then `renderTargetAsNeighbourBox` (`e2e/nodeResize.e2e.ts`) can go back to `refreshOpenViews()` instead of `remountGraphView()` — it remounts ONLY because of this bug, and says so in its comment.
+
+## Notes
+
+**2026-08-06T16:06:21Z**
+
+## RESOLUTION (2026-08-06) — FIXED
+
+The leading hypothesis was correct: React Flow's ResizeObserver re-measurement
+clobbered a fresh publish.
+
+### Root cause
+`onNodesChange` in `src/view/VicinityGraphFlow.tsx` folded RF `dimensions`
+changes into controller-owned local node state filtered only by change TYPE
+(`isDimensionsChange` = `change.type === "dimensions"`). RF emits `dimensions`
+changes from TWO sources:
+  - a NodeResizer drag GESTURE — carries a `resizing` boolean (`true` mid-drag,
+    `false` on release). Verified: `@xyflow/react` index.js:4876/4898.
+  - RF's own ResizeObserver RE-MEASURING a node it already rendered — a plain
+    `{type:'dimensions', dimensions}` with NO `resizing` field. Verified:
+    `@xyflow/system` updateNodeInternals, index.js:1874-1878.
+
+A publish reseeds local state with the NEW box; a ResizeObserver callback that
+measured the node's PRE-reseed DOM then fed the OLD box straight back in. Local
+state then agreed with the (still-stale) DOM, so nothing re-converged it — the
+whole fan-out was swallowed. Matches every observation (stickiness, both
+directions, remount immunity, retry-loop not helping).
+
+### Fix
+Extracted `isResizeGestureChange` into `src/view/nodeResize.ts`:
+`change.type === "dimensions" && change.resizing !== undefined`. The `resizing`
+flag's PRESENCE is the source discriminator — a gesture carries it, a
+re-measurement never does. `onNodesChange` now filters on it, so RF
+re-measurements no longer touch controller-owned state while the resize-drag
+box still survives to the commit rebuild (GuardedWriteOutcome "screen-ahead").
+
+### Tests
+- FAILING-first unit test at the seam: `src/view/nodeResize.test.ts` —
+  `isResizeGestureChange` applies mid-drag + released resizes, does NOT apply a
+  re-measurement (the case the old predicate got wrong) or a selection change.
+  This is the fake-driven unit level; the GraphViewController itself was already
+  airtight (it publishes the correct snapshot — the staleness was purely in the
+  view's RF local state, so a controller test would pass with or without the fix).
+- `renderTargetAsNeighbourBox` (`e2e/nodeResize.e2e.ts`) restored to
+  `refreshOpenViews()` (was `remountGraphView()` only to dodge this bug); comment
+  updated. Green 3/3 full-spec runs (was ~1-in-3 flaky).
+
+### Verification
+`npm run check` clean; `npm test` 1660/1660; `npm run test:e2e -- nodeResize.e2e.ts`
+15/15 ×3; `npm run test:e2e -- vicinityGraph.e2e.ts` 26/26.
+
+Also fixes the predicted USER-visible case: two graph views open, a drag-resize
+in view A fans out to view B whose local state never saw the drag.

@@ -1,6 +1,13 @@
+import type { NodeChange } from "@xyflow/react";
 import { describe, expect, it } from "vitest";
 import { NODE_OVERRIDE_HARD_MAX_PX, NODE_OVERRIDE_HARD_MIN_PX } from "../engine";
-import { NODE_RESIZE_BOUNDS, planResetSizeAction, resizeEndToOverride, startedOnResizeGrip } from "./nodeResize";
+import {
+	isResizeGestureChange,
+	NODE_RESIZE_BOUNDS,
+	planResetSizeAction,
+	resizeEndToOverride,
+	startedOnResizeGrip,
+} from "./nodeResize";
 
 describe("NODE_RESIZE_BOUNDS", () => {
 	it("WHEN the resize handles clamp a drag THEN they clamp to the engine's hard sanity bounds", () => {
@@ -49,5 +56,43 @@ describe("startedOnResizeGrip", () => {
 
 	it("WHEN the event carries no target THEN it is the node's own click (nothing says otherwise)", () => {
 		expect(startedOnResizeGrip({ target: null })).toBe(false);
+	});
+});
+
+describe("isResizeGestureChange", () => {
+	// The distinguishing FACTS of each React Flow `dimensions` change source; the
+	// gesture ones carry `resizing`, the ResizeObserver re-measurement does not.
+	const midDragResize: NodeChange = {
+		id: "n1",
+		type: "dimensions",
+		resizing: true,
+		dimensions: { width: 160, height: 40 },
+	};
+	const releasedResize: NodeChange = {
+		id: "n1",
+		type: "dimensions",
+		resizing: false,
+		dimensions: { width: 160, height: 40 },
+	};
+	const reMeasurement: NodeChange = {
+		id: "n1",
+		type: "dimensions",
+		dimensions: { width: 40, height: 40 },
+	};
+
+	it("WHEN a change is a resize drag in progress THEN it is applied to controller-owned state", () => {
+		expect(isResizeGestureChange(midDragResize)).toBe(true);
+	});
+
+	it("WHEN a change is a released resize drag THEN it is applied to controller-owned state", () => {
+		expect(isResizeGestureChange(releasedResize)).toBe(true);
+	});
+
+	it("WHEN a change is React Flow re-measuring a node it already rendered THEN it is NOT applied (it would clobber a fresh publish)", () => {
+		expect(isResizeGestureChange(reMeasurement)).toBe(false);
+	});
+
+	it("WHEN a change is a plain node selection THEN it is not applied", () => {
+		expect(isResizeGestureChange({ id: "n1", type: "select", selected: true })).toBe(false);
 	});
 });

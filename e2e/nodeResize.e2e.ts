@@ -344,22 +344,14 @@ async function renderTargetAsNeighbourBox(box: { widthPx: number; heightPx: numb
 	// honest settle point — it is the thing this helper promises.
 	await expect.poll(activeFilePath).toBe(HUB);
 	await harness.saveNodeSizeOverride(TARGET_DOCID, box);
-	// REMOUNTED, not `refreshOpenViews()`d. An in-place fan-out does not reliably
-	// bring this box to the screen: with a graph already rendered, a published
-	// override change can be lost — the pane keeps painting the PREVIOUS box against
-	// a store that already holds this one, and further fan-outs do not re-converge
-	// it (measured: 8 of them across 15s). That is a REAL defect, reproduced and
-	// tracked in ticket `nid_c78k90su87jrzigxvfjv5t95g_e`, NOT something a longer
-	// wait or a retry loop fixes — both were tried and both stayed flaky.
-	//
-	// A remount tears the view down and builds a fresh one straight off the store,
-	// so no stale React-Flow local node state can survive into it. That makes this
-	// helper deterministic WITHOUT standing on the seam under investigation: these
-	// are chip-GEOMETRY specs, and the fan-out's delivery guarantee is that
-	// ticket's subject to prove, not theirs to depend on.
-	await harness.remountGraphView();
-	// Meaningful HERE, unlike before the write: the view is FRESH, so this attribute
-	// cannot be left over from a previous graph.
+	// The SAME in-place fan-out the production write pipeline runs — no remount.
+	// This once had to remount because an in-place fan-out could be swallowed: with
+	// a graph already rendered, React Flow's ResizeObserver re-measured the node's
+	// pre-reseed DOM and fed the PREVIOUS box straight back into local state,
+	// clobbering the publish (ticket `nid_c78k90su87jrzigxvfjv5t95g_e`). That is
+	// fixed — `onNodesChange` now folds in only resize-GESTURE dimension changes —
+	// so this helper exercises the real fan-out, the way production does.
+	await harness.refreshOpenViews();
 	await expect(noteNode(HUB)).toHaveAttribute("data-tier", "main");
 	await expect.poll(() => renderedBoxPx(TARGET)).toEqual(box);
 }
