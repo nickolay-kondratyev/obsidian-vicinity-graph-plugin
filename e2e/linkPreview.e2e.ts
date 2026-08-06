@@ -34,13 +34,14 @@ const EXPECTED_OCCURRENCE_ROWS = 2;
 
 /**
  * Own root-level fixtures for the EMBED case (ticket
- * nid_yw2m80g72pahcvtsxi09o7vkd_e): a note that EMBEDS a titled note. Root
+ * nid_0dle910iia37t42t28dqndc5b_e): a note that EMBEDS a titled note. Root
  * level so the pair renders as two plain nodes (no folder group), and linked to
  * nothing else so the alpha vicinity every other test here uses is untouched.
  *
  * Only a real Obsidian can observe what this is about: its markdown renderer
- * expands `![[…]]` into the whole embedded note, which is what the flattening
- * (`shared/MarkdownEmbeds`) exists to prevent.
+ * expands `![[…]]` into the whole embedded note, which is what escaping the
+ * embed (`shared/MarkdownEmbeds`) exists to prevent — the row shows the embed's
+ * own raw wikilink text instead.
  */
 const EMBEDDED_TITLE = "Embedded Title";
 const EMBEDDED_BODY_LINE = "Embedded body prose that must never reach an occurrence row.";
@@ -152,9 +153,9 @@ test("clicking the close button dismisses the drawer", async () => {
 	await expect(drawer()).toHaveCount(0);
 });
 
-// --- an EMBED occurrence renders as a marker, not as the embedded note -------
+// --- an EMBED occurrence renders as raw text, not as the embedded note -------
 
-test("an embed occurrence shows the embed marker and never the embedded note's body", async () => {
+test("an embed occurrence shows its raw wikilink text and never the embedded note's body", async () => {
 	await harness.openFile(EMBED_SOURCE_PATH);
 	await expect(page.locator(`.vicinity-graph-node[data-path="${EMBED_SOURCE_PATH}"]`)).toHaveAttribute(
 		"data-tier",
@@ -163,7 +164,7 @@ test("an embed occurrence shows the embed marker and never the embedded note's b
 
 	await clickEdgePath(EMBED_EDGE_ID);
 
-	// The frontmatter title names the marker; the embedded body stays out of the row.
-	await expect(rowToggles()).toHaveText([`Source line embeds !<<${EMBEDDED_TITLE}>> inline.`]);
+	// The embed renders as its own raw text; the embedded body stays out of the row.
+	await expect(rowToggles()).toHaveText(["Source line embeds ![[embed-target]] inline."]);
 	await expect(drawer()).not.toContainText(EMBEDDED_BODY_LINE);
 });

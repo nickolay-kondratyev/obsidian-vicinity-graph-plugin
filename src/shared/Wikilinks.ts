@@ -88,9 +88,9 @@ export class Wikilinks {
 
 	/**
 	 * The written parts of one wikilink's inner text — the ONE place the part
-	 * boundaries live, for the DISPLAY caller ({@link MarkdownEmbeds} names an
-	 * embed by its alias, else by its target) and for {@link harvestedLinksOf}'s
-	 * resolution alike, so the two can never disagree on where a target ends.
+	 * boundaries live, for {@link harvestedLinksOf}'s resolution (target only,
+	 * alias and subpath stripped) and any other caller that must split a wikilink
+	 * the same way, so they can never disagree on where a target ends.
 	 */
 	static partsOf(innerText: string): WikilinkParts {
 		const aliasIndex = innerText.indexOf(ALIAS_SEPARATOR);

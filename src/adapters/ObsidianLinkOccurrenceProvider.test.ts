@@ -85,8 +85,9 @@ describe("ObsidianLinkOccurrenceProvider edge-scoped occurrences", () => {
 });
 
 // GIVEN a note whose body EMBEDS target.md — the snippet the drawer renders
-// (ticket nid_yw2m80g72pahcvtsxi09o7vkd_e): an embed must reach the renderer as
-// a MARKER, or Obsidian expands the whole embedded note into the row.
+// (ticket nid_0dle910iia37t42t28dqndc5b_e): an embed must reach the renderer
+// ESCAPED, so it shows as its own raw text instead of Obsidian expanding the
+// whole embedded note into the row.
 const EMBEDDING_TEXT = ["intro line", "embeds ![[Target]] inline", "outro"].join("\n");
 const EMBED_OFFSET = EMBEDDING_TEXT.indexOf("![[Target]]");
 
@@ -103,29 +104,17 @@ const EMBEDDING_SPEC: FakeObsidianSpec = {
 };
 
 describe("ObsidianLinkOccurrenceProvider embed flattening", () => {
-	it("WHEN the occurrence is an embed THEN its shortContext shows the embed MARKER, not the embed", async () => {
+	it("WHEN the occurrence is an embed THEN its shortContext shows the embed as RAW text, not expanded", async () => {
 		const provider = await providerOver(EMBEDDING_SPEC);
 		const occurrences = await provider.occurrencesBetween(NOTE, TARGET);
-		expect(asRendered(occurrences[0]?.context?.shortContext)).toBe("embeds !<<Target>> inline");
+		expect(asRendered(occurrences[0]?.context?.shortContext)).toBe("embeds ![[Target]] inline");
 	});
 
-	it("WHEN the embed target has a frontmatter title THEN the marker names the note by that title", async () => {
-		const provider = await providerOver({
-			...EMBEDDING_SPEC,
-			fileCaches: {
-				...EMBEDDING_SPEC.fileCaches,
-				"target.md": { frontmatter: { title: "Target Title" } },
-			},
-		});
-		const occurrences = await provider.occurrencesBetween(NOTE, TARGET);
-		expect(asRendered(occurrences[0]?.context?.shortContext)).toBe("embeds !<<Target Title>> inline");
-	});
-
-	it("WHEN the expanded context spans the embed THEN it is flattened there too", async () => {
+	it("WHEN the expanded context spans the embed THEN it is escaped there too", async () => {
 		const provider = await providerOver(EMBEDDING_SPEC);
 		const occurrences = await provider.occurrencesBetween(NOTE, TARGET);
 		expect(asRendered(occurrences[0]?.context?.expandedContext)).toBe(
-			["intro line", "embeds !<<Target>> inline", "outro"].join("\n"),
+			["intro line", "embeds ![[Target]] inline", "outro"].join("\n"),
 		);
 	});
 
