@@ -35,3 +35,5 @@ The floor run (`npm run test:e2e:floor`, Obsidian 1.12.4) was executed once agai
 ## Non-goal
 Migrating off Playwright (the parent analysis `nid_ttnk0jv42aiamw8o3x18j3dde_e` concluded: do NOT migrate to wdio-obsidian-service).
 
+---------------------------------------------------------------------------------
+HUMAN: I am thinking we do NOT want to run against two versions all the time, but lets have that test happen when we run the `./release.sh` script. And add comments into the script that's the script that should be called when we are about to publish a release upwards (later).
