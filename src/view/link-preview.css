@@ -238,16 +238,20 @@
 	color: var(--text-muted);
 }
 
-/* Entry-count pill on section and group titles. */
+/* Entry-count pill on section and group titles. A subtle OUTLINED chip, not a
+ * filled slab: a flat `--background-secondary` fill reads as an unpolished grey
+ * block on a dark theme (ticket nid_u877k92mv4vgcc3h3i2t2e1wi_e), so the count
+ * sits in a hairline border instead and lets the drawer background show. */
 .vicinity-graph-link-preview__count {
 	margin-left: var(--size-4-2);
 	padding: 0 var(--size-4-2);
 	border-radius: var(--radius-s);
-	background-color: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	background-color: transparent;
 	font-size: var(--font-ui-smaller);
 	font-weight: var(--font-normal);
 	letter-spacing: normal;
-	color: var(--text-faint);
+	color: var(--text-muted);
 }
 
 .vicinity-graph-link-preview__empty {
@@ -284,10 +288,17 @@
 	align-items: flex-start;
 	gap: var(--size-4-1);
 	border-radius: var(--radius-s);
+	/* Always-reserved accent rail so the hover state below can colour it in
+	 * WITHOUT shifting the row's text (ticket nid_u877k92mv4vgcc3h3i2t2e1wi_e). */
+	border-left: 2px solid transparent;
 }
 
+/* Hover reads as a CONTAINED, rounded highlight with an accent rail — not the
+ * old full-bleed grey slab, which sprawled once a row was expanded to several
+ * lines (ticket nid_u877k92mv4vgcc3h3i2t2e1wi_e). */
 .vicinity-graph-link-preview__row:hover {
 	background-color: var(--background-modifier-hover);
+	border-left-color: var(--interactive-accent);
 }
 
 .vicinity-graph-link-preview__row--no-context {
@@ -325,28 +336,35 @@
 
 .vicinity-graph-link-preview__context {
 	min-width: 0;
-	display: block;
 	font-size: var(--font-ui-smaller);
 	color: var(--text-muted);
 	text-align: start;
-	/* Collapsed: one ellipsised line. */
-	white-space: nowrap;
+	/* Collapsed: WRAP the snippet, clamped to two lines (ticket
+	 * nid_u877k92mv4vgcc3h3i2t2e1wi_e). Longer context now reads as multi-line
+	 * prose with an ellipsis on the second line instead of one hard-cut line;
+	 * expanding still reveals the whole thing. `-webkit-line-clamp` needs the
+	 * `-webkit-box` display and vertical orientation to take effect. */
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
 	overflow: hidden;
-	text-overflow: ellipsis;
+	overflow-wrap: anywhere;
 }
 
 /* The snippet is Obsidian-rendered markdown: flatten its block children so the
- * collapsed container's one-line ellipsis clip actually applies to them. */
+ * collapsed clamp treats the whole snippet as one wrapping text flow. */
 .vicinity-graph-link-preview__context > * {
 	display: inline;
 	margin: 0;
 }
 
 .vicinity-graph-link-preview__row-toggle[aria-expanded="true"] .vicinity-graph-link-preview__context {
-	/* Expanded: the rendered multi-line snippet, wrapped — and promoted a text
-	 * tier so the block the user asked for reads above its collapsed siblings. */
-	white-space: normal;
-	overflow-wrap: anywhere;
+	/* Expanded: drop the two-line clamp so the whole rendered snippet shows,
+	 * wrapped — and promote a text tier so the block the user asked for reads
+	 * above its collapsed siblings. */
+	display: block;
+	-webkit-line-clamp: none;
+	overflow: visible;
 	color: var(--text-normal);
 }
 
