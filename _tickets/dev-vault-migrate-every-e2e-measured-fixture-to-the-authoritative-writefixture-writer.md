@@ -1,17 +1,18 @@
 ---
 id: nid_v5510dvzp7nw9p4qrrpw7d35s_e
-title: "dev-vault: migrate every e2e-MEASURED fixture to the authoritative write_fixture writer"
-status: open
+title: 'dev-vault: migrate every e2e-MEASURED fixture to the authoritative write_fixture
+  writer'
+status: in_progress
 deps: []
 links: []
-created_iso: 2026-08-05T01:26:07Z
-status_updated_iso: 2026-08-05T01:26:07Z
+created_iso: '2026-08-05T01:26:07Z'
+status_updated_iso: '2026-08-06T15:55:26Z'
 type: task
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
 tags: [e2e, dev-env]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-2
 ---
-
 Found in adversarial review of `a150312..HEAD` (content-fit node sizing).
 
 PROBLEM: `scripts/setup-dev-vault.sh` seeds `.dev-vault/` with `write_if_missing`, and `scripts/run-e2e.sh` runs Playwright against a COPY of that vault. So a change to a fixture BODY is a silent no-op on every machine whose `.dev-vault/` already exists — the suite then measures different content than the script declares, and passes on a fresh checkout while failing on an older vault with no clue why.
@@ -30,4 +31,3 @@ Keep `write_if_missing` only for fixtures no spec reads, so a human can still en
 ## Acceptance Criteria
 
 Every dev-vault fixture an e2e spec reads is written through `write_fixture` (or moved into the harness fixture map), so a fixture edit reaches every existing vault on the next `npm run setup:dev-vault`; fixtures kept on `write_if_missing` are the ones no spec touches, stated in the script.
-
