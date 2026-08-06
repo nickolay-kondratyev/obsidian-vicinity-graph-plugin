@@ -4,7 +4,6 @@ import type {
 	EdgeMouseHandler,
 	EdgeTypes,
 	Node,
-	NodeChange,
 	NodeMouseHandler,
 	NodeTypes,
 	OnNodesChange,
@@ -27,7 +26,7 @@ import { VicinityEdge } from "./VicinityEdge";
 import { NoteNode } from "./NoteNode";
 import { NoteOpenContext } from "./NoteOpenContext";
 import { opensInNewTab } from "./nodeOpenIntent";
-import { startedOnResizeGrip } from "./nodeResize";
+import { isResizeGestureChange, startedOnResizeGrip } from "./nodeResize";
 import type { ControlsActionsPort, GraphUiPort, NoteOpenPort } from "./viewPorts";
 
 /**
@@ -88,7 +87,7 @@ export function VicinityGraphFlow({
 		setSeededFrom(snapshot.nodes);
 		setNodes(snapshot.nodes.map(toReactFlowNode));
 	}
-	// ONLY the resizer's dimension changes are applied — the one change this
+	// ONLY a resize GESTURE's dimension change is applied — the one change this
 	// controlled graph asked React Flow for. Everything else RF routes through
 	// this same callback belongs to the controller (positions come from elk) or
 	// to nobody (the graph is read-only: no deletion, and SELECTION is a state
@@ -99,8 +98,15 @@ export function VicinityGraphFlow({
 	// main publishes nothing at all. Filtering here, rather than turning
 	// `elementsSelectable` off, keeps RF's selectable-coupled edge styling
 	// (cursor, focus stroke) intact and holds for every change type RF grows.
+	//
+	// The filter is by SOURCE, not just by change TYPE: RF emits `dimensions`
+	// changes both from the resize drag AND from its own ResizeObserver
+	// re-measuring a node it already rendered. Folding the latter in lets a stale
+	// measurement of the PRE-reseed DOM clobber a fresh publish, stranding the pane
+	// against the store with nothing to re-converge it (ticket
+	// nid_c78k90su87jrzigxvfjv5t95g_e) — `isResizeGestureChange` keeps only the drag.
 	const onNodesChange = useCallback<OnNodesChange>(
-		(changes) => setNodes((current) => applyNodeChanges(changes.filter(isDimensionsChange), current)),
+		(changes) => setNodes((current) => applyNodeChanges(changes.filter(isResizeGestureChange), current)),
 		[],
 	);
 	const edges = useMemo<Edge[]>(() => snapshot.edges.map(toReactFlowEdge), [snapshot.edges]);
@@ -304,11 +310,6 @@ function FitViewOnLayoutChange({ layoutVersion }: { readonly layoutVersion: numb
 		return () => cancelAnimationFrame(frame);
 	}, [fitView, paneReady, layoutVersion]);
 	return null;
-}
-
-/** The resize gesture's change — a node's new box (see {@link VicinityGraphFlow}'s `onNodesChange`). */
-function isDimensionsChange(change: NodeChange): boolean {
-	return change.type === "dimensions";
 }
 
 function toReactFlowNode(node: FlowNode): Node {

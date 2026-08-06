@@ -1,3 +1,4 @@
+import type { NodeChange } from "@xyflow/react";
 import type { NodeSizeOverridePx } from "../engine";
 import { NODE_OVERRIDE_HARD_MAX_PX, NODE_OVERRIDE_HARD_MIN_PX } from "../engine";
 
@@ -76,4 +77,32 @@ export function startedOnResizeGrip(event: { readonly target: EventTarget | null
 		return false;
 	}
 	return (target as ClosestQueryable).closest(RESIZE_GRIP_SELECTOR) !== null;
+}
+
+/**
+ * Whether a React Flow node change is one this CONTROLLED, read-only graph
+ * solicited and must fold back into controller-owned local node state — i.e. a
+ * resize GESTURE moving a box. React Flow emits `dimensions` changes from TWO
+ * sources that share a `type` but not an origin:
+ *
+ *  - a `NodeResizer` drag — carries a `resizing` flag (`true` mid-drag, `false`
+ *    on release). This is the ONE change this graph asked for, and the only one
+ *    whose new box must survive in local state until the commit rebuild
+ *    republishes it (see `VicinityGraphFlow`'s reseed and the `GuardedWriteOutcome`
+ *    "screen-ahead" note in CLAUDE.md).
+ *  - React Flow's own ResizeObserver RE-MEASURING a node it already rendered — a
+ *    plain `{type:'dimensions', dimensions}` with NO `resizing` flag.
+ *
+ * Folding the SECOND kind into local state is the bug behind ticket
+ * nid_c78k90su87jrzigxvfjv5t95g_e: right after a publish reseeds local state with
+ * a node's NEW box, a ResizeObserver callback that measured the node's PRE-reseed
+ * DOM feeds the OLD box straight back in. Local state then agrees with the (still
+ * stale) DOM, so nothing re-converges it — the pane stays stale against the store
+ * until some unrelated event rebuilds it, and a whole refreshOpenViews() fan-out
+ * (every settings / pin / size-override write) is silently swallowed. A gesture
+ * carries `resizing`; a re-measurement never does, so that flag's PRESENCE is the
+ * source discriminator.
+ */
+export function isResizeGestureChange(change: NodeChange): boolean {
+	return change.type === "dimensions" && change.resizing !== undefined;
 }
