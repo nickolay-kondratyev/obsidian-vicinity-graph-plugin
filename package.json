@@ -13,6 +13,7 @@
 		"check": "tsc -noEmit && npm run check:e2e",
 		"check:e2e": "tsc -noEmit -p e2e/tsconfig.json",
 		"test": "vitest run",
+		"test:all": "bash scripts/run-all-tests.sh",
 		"test:e2e": "bash scripts/run-e2e.sh",
 		"test:e2e:floor": "bash scripts/run-e2e-floor.sh",
 		"test:watch": "vitest"

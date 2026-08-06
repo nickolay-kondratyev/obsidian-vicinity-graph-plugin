@@ -348,6 +348,7 @@ re-running never clobbers local edits.
 | `npm run setup:dev-vault` | build + create/copy the plugin into `.dev-vault/` |
 | `npm run test:e2e` | Playwright e2e: drives a REAL Obsidian on a copy of the dev vault (see below) |
 | `npm run test:e2e:floor` | the same e2e suite against the `minAppVersion` floor build (see below) |
+| `npm run test:all` | every gate in one command: `check` → `npm test` → `test:e2e`, fail-fast (`-- --with-floor` adds the floor e2e run) |
 
 ### e2e suite (`npm run test:e2e`)
 

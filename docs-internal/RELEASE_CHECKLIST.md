@@ -9,6 +9,12 @@ There is no release automation yet; every step below is **manual.**
 
 ## 1. Green gates (must all pass)
 
+(`npm run test:all` runs `check` → `npm test` → `test:e2e` in that order, fail-fast,
+and so covers the four gates below: `test:e2e` builds the production bundle before
+it drives Obsidian, which is the `npm run build` gate. `npm run test:all --
+--with-floor` appends the floor e2e run. It does NOT cover the manual re-verify
+below.)
+
 - [ ] `npm run check` — strict `tsc -noEmit`, EXIT 0.
 - [ ] `npm test` — vitest suite, 0 failures.
 - [ ] `npm run build` — production bundle to `main.js` + `styles.css`, EXIT 0.

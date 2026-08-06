@@ -32,6 +32,8 @@ npm run test:e2e         # Playwright against a REAL Obsidian (not part of npm t
                          # Self-contained on Linux/CI: auto-downloads the pinned build,
                          # auto-headless. Run it as part of normal work — see below.
                          # VICINITY_E2E_VAULT drives an arbitrary vault — see README safety caveat
+npm run test:all         # every gate, fail-fast: check → npm test → test:e2e
+                         # (`-- --with-floor` also runs the floor e2e suite)
 npm run test:e2e:floor   # same suite on the manifest minAppVersion floor build
                          # (OBSIDIAN_VERSION=<v> npm run test:e2e targets any other build)
 ```
