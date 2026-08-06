@@ -353,9 +353,10 @@
  * EVERY node the chip FITS carries it (ticket `nid_tclb98q9hxhmcuonamvr4ig1f_e`,
  * owner-decided): content-fit sizing made the small node the COMMON case — a
  * title-only note sits at ~minPx — and hiding the affordance there left the
- * right-click menu as the only way to pin the notes people pin most. Below the
- * step-down rung the chip only gets SMALLER (the custom properties below) instead
- * of disappearing; the one place it still disappears is guard 3, where "fits" fails.
+ * right-click menu as the only way to pin the notes people pin most. On the way
+ * down the chip only gets SMALLER (the custom properties below) instead of
+ * disappearing; the ONE band where it does disappear is the ladder's bottom rung,
+ * where even the compact chip no longer fits clear of the node's centre.
  *
  * And it is FULL SIZE unless the node's own geometry forbids it (ticket
  * `nid_8i5936g90vrllosssaz7v3xbr_e`): one chip size throughout, so the icon does
@@ -371,15 +372,15 @@
  *   1. `pointer-events: none` while hidden — an opacity:0 element STILL receives
  *      pointer events, so without this the transparent button eats a click that
  *      should open the note. Re-enabled only when revealed (hover/focus).
- *   2. the step-down rung below: on a node that is small on BOTH axes (as narrow
- *      as ~40px for a short title, and 40px tall at minPx) the full-size 20px chip
- *      inset 4px reaches the node's centre point, which is exactly where a click
+ *   2. the ladder's STEP-DOWN rung below: on a node that is small on BOTH axes (as
+ *      narrow as ~40px for a short title, and 40px tall at minPx) the full-size 20px
+ *      chip inset 4px reaches the node's centre point, which is exactly where a click
  *      meant to OPEN the note lands. The 14px/3px compact chip clears it. That
  *      inset is 3px and not 2px because the drag-resize grip bands reach 4px INTO
  *      the node — see the clearance note in the drag-to-resize section below.
- *   3. the centre-clearance rung below — the ONE height/width band where even the
- *      compact chip cannot clear that centre point. `minPx` is a dial the user can
- *      take to 1px and a drag-resize override may go as low as 24px
+ *   3. the ladder's WITHHOLDING rung below — the ONE height/width band where even
+ *      the compact chip cannot clear that centre point. `minPx` is a dial the user
+ *      can take to 1px and a drag-resize override may go as low as 24px
  *      (`NODE_OVERRIDE_HARD_MIN_PX`), so "small" is NOT bounded by the shipped
  *      40px default and guard 2 alone would be a claim about defaults, not a
  *      guarantee.
@@ -444,9 +445,16 @@
  *
  * `nodeDensityThresholds.test.ts` recomputes BOTH rungs from the chip declarations
  * they guard plus the node's padding, so re-tuning a chip cannot leave a rung
- * behind. At the shipped 40px `minPx` a node's content box is 22px, so an ordinary
+ * behind — and separately asserts the rungs DESCEND, since each is derived from the
+ * chip ABOVE it and a step-down that shrank the chip's size while growing its inset
+ * would consistently derive a band SWALLOWING the one above (the compact chip would
+ * then never render). At the shipped 40px `minPx` a node's content box is 22px, so an ordinary
  * small node keeps its chip — compact if it is narrow too, full-size otherwise;
- * only a hand-shrunk `minPx` or a drag-resize override reaches the withheld band. */
+ * only a hand-shrunk `minPx` or a drag-resize override reaches the withheld band.
+ *
+ * ORDER between the two blocks is not load-bearing (they declare disjoint
+ * properties, and `display: none` in the lower one has nothing above it to lose
+ * to), which is why the arithmetic — not the source order — is what is guarded. */
 @container (max-height: 32px) and (max-width: 32px) {
 	.vicinity-graph-node .vicinity-graph-pin-button {
 		--vicinity-graph-pin-chip-size: 14px;

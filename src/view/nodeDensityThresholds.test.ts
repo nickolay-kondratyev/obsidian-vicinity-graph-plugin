@@ -342,6 +342,20 @@ describe("node density thresholds", () => {
 		},
 	);
 
+	// The ladder must also DESCEND, which the two guards above do NOT imply: each is
+	// computed from the chip it steps down FROM, so a rung that shrank the chip's SIZE
+	// (satisfying the monotonicity guard) while GROWING its inset reaches further than
+	// the chip above it — and then its own consistent arithmetic puts its band OUTSIDE
+	// the band of the rung above. Both guards stay green while the withheld band
+	// swallows the compact one: the compact chip would never render at all, and nodes
+	// just above the step-down would lose a chip that never covered their centre.
+	it.each(["maxHeightPx", "maxWidthPx"] as const)(
+		"WHEN the pin chip's rungs are read THEN each %s band sits strictly inside the band of the rung above it",
+		(axis) => {
+			expect(withholdPinChipRung()[axis]).toBeLessThan(compactPinChipRung()[axis]);
+		},
+	);
+
 	// The chip shares the node's top-right corner with the drag-resize RIGHT-edge
 	// grip, which paints and hit-tests ABOVE the whole node (see the z-index WHY in
 	// graph-view.css). The grip band therefore eats any part of the chip it overlaps
