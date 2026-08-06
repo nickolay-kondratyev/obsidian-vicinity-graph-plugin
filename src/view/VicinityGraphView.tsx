@@ -133,5 +133,11 @@ export class VicinityGraphView extends ItemView {
 		this.registerEvent(this.app.workspace.on("active-leaf-change", trackActiveFile));
 		this.registerEvent(this.app.workspace.on("file-open", trackActiveFile));
 		this.registerEvent(this.app.metadataCache.on("resolved", () => controller.handleMetadataResolved()));
+		// A rename fires NEITHER active-leaf-change NOR file-open — the open note just
+		// changed path. Without this the MAIN goes stale and the pane collapses to empty
+		// under the still-open note (ticket nid_q3rscvfkznktgu1cqyybp54v1_e).
+		this.registerEvent(
+			this.app.vault.on("rename", (file, oldPath) => controller.handleMainRenamed(oldPath, file.path)),
+		);
 	}
 }

@@ -265,6 +265,31 @@ export class ObsidianHarness {
 		}, vaultPath);
 	}
 
+	/**
+	 * Renames a vault file through `vault.rename` — the layer under
+	 * `fileManager.renameFile` that actually moves the file and fires
+	 * `vault.on('rename')`, the exact event a user rename (file explorer / title
+	 * bar) triggers and that the vicinity view listens to (ticket
+	 * nid_q3rscvfkznktgu1cqyybp54v1_e). WHY-NOT `fileManager.renameFile`: its
+	 * link-rewrite pass never settles in this headless build and hangs the
+	 * evaluate — link updates are irrelevant to what this reproduces (the view
+	 * re-centering on the renamed MAIN), so the lower-level move is both sufficient
+	 * and reliable.
+	 */
+	async renameFile(fromPath: string, toPath: string): Promise<void> {
+		await this.page.evaluate(
+			async ({ from, to }) => {
+				const app = (window as unknown as { app: any }).app;
+				const file = app.vault.getAbstractFileByPath(from);
+				if (!file) {
+					throw new Error(`e2e: vault file not found: path=[${from}]`);
+				}
+				await app.vault.rename(file, to);
+			},
+			{ from: fromPath, to: toPath },
+		);
+	}
+
 	/** Runs a plugin command by id, failing loudly when Obsidian reports it unavailable. */
 	async executeCommand(commandId: string): Promise<void> {
 		const executed = await this.page.evaluate(

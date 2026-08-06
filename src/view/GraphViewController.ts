@@ -201,6 +201,27 @@ export class GraphViewController {
 	}
 
 	/**
+	 * The MAIN note was renamed IN PLACE (ticket nid_q3rscvfkznktgu1cqyybp54v1_e).
+	 * Obsidian fires `vault.on('rename')` for this but NOT `file-open` /
+	 * `active-leaf-change` — the same note stays open, only its path changed — so
+	 * without this entry point {@link mainPath} keeps pointing at a path that no
+	 * longer exists, the next rebuild's `build()` returns null, and the pane
+	 * collapses to the empty "No vicinity graph" state under the still-open note.
+	 * Re-point MAIN and rebuild (dropping any pending resolve, as an active-file
+	 * change would). A rename of any OTHER file is not our MAIN's identity — the
+	 * link graph it touches arrives via {@link handleMetadataResolved} — so it is
+	 * a no-op.
+	 */
+	handleMainRenamed(oldPath: string, newPath: string): void {
+		if (oldPath !== this.mainPath) {
+			return;
+		}
+		this.clearDebounce();
+		this.mainPath = newPath;
+		void this.runRebuild();
+	}
+
+	/**
 	 * A settings write (toolbar stepper / settings tab) changed persisted state
 	 * for the current MAIN. Not a file change, so this bypasses
 	 * {@link decideActiveFileRebuild}; it drops any pending debounced resolve and

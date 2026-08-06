@@ -1155,6 +1155,53 @@ describe("GraphViewController metadata-resolve debounce", () => {
 	});
 });
 
+/**
+ * MAIN rename (ticket nid_q3rscvfkznktgu1cqyybp54v1_e). Renaming a note in place
+ * fires `vault.on('rename')` but NOT `file-open`/`active-leaf-change`, so without
+ * a dedicated entry point the controller keeps building against the OLD path — the
+ * file no longer exists there, `build()` returns null, and the pane collapses to
+ * "No vicinity graph for the active file" even though the same note is still open.
+ * The fix re-points MAIN at the new path and rebuilds; a rename of any OTHER file
+ * is not our MAIN's identity, so it is a no-op here.
+ */
+describe("GraphViewController main rename", () => {
+	/** GIVEN a rendered graph centered on a.md. */
+	async function renamedHarness(): Promise<Harness> {
+		const h = setup();
+		h.controller.handleActiveFileChanged("a.md");
+		h.source.resolveBuild(0, graphOf("a.md"));
+		await flush();
+		return h;
+	}
+
+	it("WHEN the MAIN note is renamed THEN a rebuild against the NEW path starts", async () => {
+		const h = await renamedHarness();
+
+		h.controller.handleMainRenamed("a.md", "renamed.md");
+
+		expect(h.source.calls).toEqual(["a.md", "renamed.md"]);
+	});
+
+	it("WHEN the MAIN note is renamed THEN MAIN re-points so re-activating the new path is a no-op", async () => {
+		const h = await renamedHarness();
+		h.controller.handleMainRenamed("a.md", "renamed.md");
+		h.source.resolveBuild(1, graphOf("renamed.md"));
+		await flush();
+
+		h.controller.handleActiveFileChanged("renamed.md");
+
+		expect(h.source.calls).toEqual(["a.md", "renamed.md"]);
+	});
+
+	it("WHEN a file OTHER than the MAIN is renamed THEN no rebuild starts", async () => {
+		const h = await renamedHarness();
+
+		h.controller.handleMainRenamed("elsewhere.md", "elsewhere-renamed.md");
+
+		expect(h.source.calls).toEqual(["a.md"]);
+	});
+});
+
 describe("GraphViewController node focus", () => {
 	/** GIVEN a rendered graph centered on a.md with neighbour b.md. */
 	async function focusHarness(): Promise<Harness> {
