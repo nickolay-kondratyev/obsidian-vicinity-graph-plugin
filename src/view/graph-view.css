@@ -92,6 +92,18 @@
 .vicinity-graph-flow .react-flow__controls-button:last-child {
 	border-bottom: none;
 }
+/*
+ * The redraw glyph (ticket nid_cd9x8a7ltnht3vvxh13qcvlzr_e) is a STROKE icon,
+ * but the library's `.react-flow__controls-button svg` rule sets `fill:
+ * currentColor` (its own zoom/fit glyphs are filled shapes), which CSS applies
+ * over the SVG's `fill="none"` presentation attribute and would flood the
+ * outline solid. Re-assert the outline here: no fill, stroke follows the button
+ * colour. Prefixed so it beats the library rule on specificity.
+ */
+.vicinity-graph-flow .react-flow__controls-button svg.vicinity-graph-redraw-icon {
+	fill: none;
+	stroke: currentColor;
+}
 
 /* The "no canvas" states — nothing to draw, not drawn YET, and could not be
    drawn — share one centered, muted presentation; only the content differs. */

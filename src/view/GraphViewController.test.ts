@@ -799,6 +799,46 @@ describe("GraphViewController structural-diff skip rate", () => {
 	});
 });
 
+describe("GraphViewController redraw (manual relayout)", () => {
+	it("WHEN redraw is pressed on an unchanged graph THEN elk re-runs (the diff is bypassed)", async () => {
+		const h = setup();
+		h.controller.handleActiveFileChanged("a.md");
+		h.source.resolveBuild(0, graphOf("n1.md", "n2.md"));
+		await flush();
+		// A settings change with an identical id-set would reuse the layout (proven
+		// above); redraw asks for the elk pass anyway.
+		expect(h.layout.callCount).toBe(1);
+
+		h.controller.redraw();
+		h.source.resolveBuild(1, graphOf("n1.md", "n2.md"));
+		await flush();
+
+		expect(h.layout.callCount).toBe(2);
+	});
+
+	it("WHEN redraw re-runs elk THEN layoutVersion increments (the view refits)", async () => {
+		const h = setup();
+		h.controller.handleActiveFileChanged("a.md");
+		h.source.resolveBuild(0, graphOf("n1.md", "n2.md"));
+		await flush();
+
+		h.controller.redraw();
+		h.source.resolveBuild(1, graphOf("n1.md", "n2.md"));
+		await flush();
+
+		expect(h.snapshot().layoutVersion).toBe(2);
+	});
+
+	it("WHEN redraw is pressed with no MAIN set THEN it is a no-op (no build runs)", async () => {
+		const h = setup();
+
+		h.controller.redraw();
+		await flush();
+
+		expect(h.source.calls.length).toBe(0);
+	});
+});
+
 describe("GraphViewController edge-routing pass", () => {
 	function edgeById(snapshot: FlowSnapshot, id: string): FlowSnapshot["edges"][number] {
 		const edge = snapshot.edges.find((candidate) => candidate.id === id);
