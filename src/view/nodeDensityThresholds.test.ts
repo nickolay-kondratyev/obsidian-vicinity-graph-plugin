@@ -85,7 +85,7 @@ const MENTIONS_NODE_CHIP = /\.vicinity-graph-node-chip/;
 // declaration, so there is nothing before it inside the captured body.
 const WITHHOLDS_CHIP = /(?:^|\n)\t\tdisplay: none;/;
 // The drag-resize grip band straddles the node's edge, so HALF of it reaches
-// inside — over whatever the node's own corner holds (the gear at top-right; the pin's top-left carries no grip).
+// inside — over the top-right corner, where the gear sits (the pin rides just to the gear's left, inside the same corner).
 const RESIZE_BAND = /--vicinity-graph-resize-band-px:\s*(\d+)px;/;
 // The thumbnail slot's fixed height, declared as a custom property on the node root.
 // Anchored to a line start: it is the rule's FIRST declaration, so there is no
@@ -393,9 +393,9 @@ describe("node density thresholds", () => {
 	// RIGHT-edge grip, which paints and hit-tests ABOVE the whole node (see the
 	// z-index WHY in graph-view.css). The grip band therefore eats any part of the
 	// chip it overlaps — silently, since neither element changes size or style. The
-	// compact rung's inset was 1px too small for exactly this reason once. Both
-	// chips share ONE inset (the base class), so guarding it on either corner
-	// guards both; the pin's own corner (top-left) carries no grip at all.
+	// compact rung's inset was 1px too small for exactly this reason once. The GEAR
+	// is the corner-most chip and shares the base-class inset the guard reads; the
+	// pin rides one chip-width + gap further in, so the grip band clears it too.
 	it.each([
 		{ subject: "full-size", declarations: () => nodeChipDeclarations() },
 		{ subject: "compact", declarations: () => compactNodeChipRung().body },
