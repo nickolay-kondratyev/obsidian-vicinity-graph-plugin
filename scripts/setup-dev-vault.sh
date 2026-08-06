@@ -429,26 +429,21 @@ for i in $(seq 1 "${FACING_MEMBER_COUNT}"); do
 		| write_fixture "${VAULT}/facing/facing-m${i}.md"
 done
 
-# Each neighbour carries three headings: content-fit sizing renders a bare
-# one-line note at ~minPx (40px), and at that scale the 12-node blob packs so
-# tightly against the box corner that libavoid's cheapest pin for one edge is a
-# WRAPPED border (the wrong-side wrap itself is a tracked routing follow-up).
-# An outline-bearing node is floored at the preview reveal (122px border-box),
-# which is the scale the crowd formation and the facing-side guard were tuned
-# around.
-FACING_NEIGHBOUR_BODY_PADDING='
-# Alpha
-
-## Beta
-
-## Gamma'
+# Each neighbour is a bare ONE-LINE note. Content-fit sizing (b191c1d: floor/fit
+# against the node's OWN chrome) renders a title-only note at ~89x34 — which is
+# the ~93px crowding geometry the facing-side guard was tuned for, so the earlier
+# artificial heading padding is now redundant (ticket
+# nid_izwyr4brgokbnw6equmyfe5xv_e). The deeper wrong-side wrap that only a
+# GENUINELY tiny (~minPx) title can still trigger is the PARKED routing problem in
+# docs-internal/research/facing-side-edge-attachment.md, not reachable from a
+# one-line body at today's sizing.
 for i in $(seq 1 "${FACING_NEIGHBOUR_COUNT}"); do
 	name="facing-near${i}"
 	if [[ "${name}" == "${FACING_CLUSTER_HUB}" ]]; then
-		printf 'Facing neighbour %d — the cluster mini-hub the other neighbours link to.\n%s\n' "${i}" "${FACING_NEIGHBOUR_BODY_PADDING}" \
+		printf 'Facing neighbour %d — the cluster mini-hub the other neighbours link to.\n' "${i}" \
 			| write_fixture "${VAULT}/${name}.md"
 	else
-		printf 'Facing neighbour %d (ungrouped root note). Cluster link [[%s]].\n%s\n' "${i}" "${FACING_CLUSTER_HUB}" "${FACING_NEIGHBOUR_BODY_PADDING}" \
+		printf 'Facing neighbour %d (ungrouped root note). Cluster link [[%s]].\n' "${i}" "${FACING_CLUSTER_HUB}" \
 			| write_fixture "${VAULT}/${name}.md"
 	fi
 done

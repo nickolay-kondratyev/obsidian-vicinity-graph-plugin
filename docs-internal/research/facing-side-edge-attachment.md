@@ -125,3 +125,22 @@ screenshot/aggregate smoke case, not a regression guard.
 - libavoid-js gains `ClusterRef` bindings, or we take ownership of the WebIDL.
 - Routing moves off the main thread (see
   `crossing-penalty-and-worker-offload.md`) — a second pass becomes cheap.
+
+## Concrete instance folded in — ticket `nid_izwyr4brgokbnw6equmyfe5xv_e` (PUNTED here)
+
+The first revisit trigger materialised: content-fit sizing
+(`nid_cx5zoz7ptucg9nxalibv0mbjb_e`) can render a title-only note at ~minPx, and at
+that scale a crowded group-box corner produces exactly this wrap. That ticket's
+acceptance ("strip the `facing-near*` fixture bodies to one line, e2e passes")
+is now met WITHOUT a routing change, because a LATER sizing refinement
+(`b191c1d`, floor/fit against the node's own chrome) floors a one-line note to
+~89x34 — the same ~93px geometry the fixture's artificial padding used to force,
+so the padding was removed as redundant and the guard stays green at its tuned
+crowd. **The deeper wrap is unfixed and confirmed still reachable** at a genuinely
+tiny (~40px) node: a real-wasm probe (one-sided crowd of 40px squares above a
+200×240 group box, shipped clearance 11) reproduced a right-border terminal on a
+node whose centre sits above the box. That case is this parked problem, not a
+separate one — the two-pass design above is still the robust fix, still gated on
+the triggers above. Reopen the ticket (or fold it entirely into whichever
+`edge-routing` ticket builds the two-pass) if the ~40px wrap becomes a real
+user-facing complaint.
