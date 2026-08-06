@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-08-06T16:32:10Z
 id: nid_s1474ljrdqneqhqt5zrkpwva2_e
 title: "Revisit CENTRAL_PROMINENCE_FLOOR_SCORE now that the pin chip no longer constrains it"
-status: open
+status: closed
 deps: []
 links: []
 created_iso: 2026-08-05T18:58:40Z
-status_updated_iso: 2026-08-05T18:58:40Z
+status_updated_iso: 2026-08-06T16:32:10Z
 type: chore
 priority: 3
 assignee: nickolaykondratyev

@@ -75,15 +75,16 @@ export const MAX_STEPPER_DEPTH = SETTINGS_SPEC.globalDepths.linkDepthOut.max;
  * bare title-only neighbor clamps to, and well under the midpoint, so a central
  * never dominates by role alone.
  *
- * 0.44 rather than the originally tuned 0.35 (ticket
- * `nid_tclb98q9hxhmcuonamvr4ig1f_e`, owner-decided): 0.35 floored an EMPTY central
- * at 82px, whose content box missed the hover pin chip's old full-size rung — so
- * the node people pin and unpin most got the compact chip. That rung is GONE
- * (ticket `nid_8i5936g90vrllosssaz7v3xbr_e`: the chip is full size by default, and
- * `graph-view.css` only steps it down on a node small on BOTH axes, which a
- * central never is), so the pin chip no longer constrains this number — 0.44 is
- * kept as the SHIPPED prominence, not re-derived from a rung that no longer
- * exists. Revisiting it is ticket `nid_s1474ljrdqneqhqt5zrkpwva2_e`.
+ * 0.44 rather than the originally tuned 0.35: 0.44 was first reached to clear the
+ * hover pin chip's old full-size rung (ticket `nid_tclb98q9hxhmcuonamvr4ig1f_e`) —
+ * 0.35 floored an EMPTY central at 82px, missing that rung, so the node people pin
+ * and unpin most got the compact chip. That rung is GONE (ticket
+ * `nid_8i5936g90vrllosssaz7v3xbr_e`: the chip is full size by default, stepped down
+ * only on a node small on BOTH axes, which a central never is), so the chip no
+ * longer constrains this number. Owner-decided (ticket
+ * `nid_s1474ljrdqneqhqt5zrkpwva2_e`) to KEEP 0.44 as the final shipped prominence:
+ * at 40/160 an empty central reads at 93px — a touch more clearly the anchor than
+ * 0.35's 82px — while still sitting well under the midpoint.
  *
  * A FRACTION of the user's ramp, deliberately, so it can never exceed `maxPx`.
  */
