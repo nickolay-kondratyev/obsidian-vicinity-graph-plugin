@@ -1,17 +1,16 @@
 ---
 id: nid_mw1az1i1aznfoxqsgcwnfus07_e
 title: Add procesing for external URL in the graph
-status: open
+status: in_progress
 deps: []
 links: []
 created_iso: '2026-08-04T16:55:26Z'
-status_updated_iso: '2026-08-06T23:17:27Z'
+status_updated_iso: '2026-08-06T23:58:14Z'
 type: task
 priority: 4
 assignee: nickolaykondratyev
 pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-4
 ---
-
 TASK: **PLAN**. Lets clarify any gaps that exist for this ticket
   (if you need to explore code base use cheaper Explore-cheap sub-agent)
   ask human any questions that come up that require human decision.
