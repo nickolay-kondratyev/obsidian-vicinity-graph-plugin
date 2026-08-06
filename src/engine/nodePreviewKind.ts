@@ -39,6 +39,13 @@ export function nodePreviewKind({
 	imagePrecedesOutline,
 	isCentral,
 }: NodePreviewInput): NodePreviewKind {
+	// The ONE preference that deliberately empties the content slot: no outline,
+	// no thumbnail, just the title — regardless of what the note has. Every OTHER
+	// preference only ever withholds the kind the note has an alternative of (it
+	// never blanks a node), so this is the single early-out before that rule.
+	if (preference === "title-only") {
+		return "none";
+	}
 	// Under Auto the outline is a ROOT's affordance, not every neighbour's (owner
 	// decision 2026-08-05, nid_k2pa8khm6ugozmhkd6nlbdrq6_e): with content-fit
 	// sizing, any note with ONE heading floors at the CSS reveal rung, so letting

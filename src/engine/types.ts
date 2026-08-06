@@ -213,7 +213,7 @@ export interface GraphEdge extends DirectedLink {
  * content-fit sizer needs the same decision the view renders by; the view's
  * mapping calls the same function.
  */
-export type NodePreviewPreference = "auto" | "outline" | "image";
+export type NodePreviewPreference = "auto" | "title-only" | "outline" | "image";
 
 /**
  * THE value list of {@link NodePreviewPreference}, in the order the segmented
@@ -222,6 +222,7 @@ export type NodePreviewPreference = "auto" | "outline" | "image";
  */
 export const NODE_PREVIEW_PREFERENCES = [
 	"auto",
+	"title-only",
 	"outline",
 	"image",
 ] as const satisfies readonly NodePreviewPreference[];
@@ -257,8 +258,13 @@ export interface NodeSizeOverridePx {
  * Per-node content override: the {@link NodePreviewPreference} values MINUS
  * `"auto"` — "Inherit" (fall back to the global preference, which may itself be
  * `"auto"`) is expressed by ABSENCE of the field, never by a stored value.
+ *
+ * `"title-only"` is MINUS'd too, on purpose: it ships as a GLOBAL preference
+ * first (nid_jcxzhexfaksge2arjzca3w7ff_e); adding it to the per-node menu is its
+ * own ticket (nid_9hx6okamx3yt0rg9iad2f4151_e), which drops this exclusion and
+ * lists it in {@link NODE_CONTENT_OVERRIDES}.
  */
-export type NodeContentOverride = Exclude<NodePreviewPreference, "auto">;
+export type NodeContentOverride = Exclude<NodePreviewPreference, "auto" | "title-only">;
 
 /**
  * THE value list of {@link NodeContentOverride} — persistence validates stored

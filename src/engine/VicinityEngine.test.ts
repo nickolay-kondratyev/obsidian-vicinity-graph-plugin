@@ -6,7 +6,7 @@ import { OutgoingReferences } from "./LinkProvider";
 import type { GraphBuildRequest } from "./VicinityEngine";
 import { VicinityEngine } from "./VicinityEngine";
 import type { NodePreviewPreference, VaultPath, VicinityGraph, PinnedNodeDescriptor } from "./types";
-import { asDocId, asVaultPath, NODE_PREVIEW_PREFERENCES } from "./types";
+import { asDocId, asVaultPath } from "./types";
 
 /**
  * GIVEN a small "vault": MAIN hub.md with two neighbors (one attachment-heavy),
@@ -591,22 +591,25 @@ describe("VicinityEngine outline pass-through", () => {
 });
 
 /**
- * The `globalView -> NodeSizer` seam counterpart of the invariant
- * pinned in `NodeSizer.test.ts`: only `viewSettings.sizing` may reach sizing.
- * Someone routing `viewSettings` wholesale into a new size metric surfaces HERE,
- * and every preview-pill flip would then force a relayout instead of the
- * data-only refresh it promises.
+ * The `globalView -> NodeSizer` seam under CONTENT-FIT sizing: the preview
+ * preference legitimately reaches sizing now (node-sizing rethink Q1 — the old
+ * preference-independence rule is superseded, see {@link NodeSizer}'s docstring),
+ * because the box must fit the region the preference actually renders. A flip is
+ * therefore EXPECTED to relayout, not a data-only refresh — this pins that the
+ * seam still carries the preference through, so a future refactor that routes
+ * only `viewSettings.sizing` (dropping the preference) surfaces HERE.
  */
-describe("VicinityEngine sizing ignores the node preview preference", () => {
-	it("WHEN two builds differ ONLY in nodePreviewPreference THEN every node's sizePx is identical", () => {
-		const sizesUnderPreference = (preference: NodePreviewPreference) =>
-			build({
-				globalView: { ...EngineDefaults.viewSettings(), nodePreviewPreference: preference },
-			}).nodes.map((candidate) => ({ path: candidate.path, sizePx: candidate.sizePx }));
+describe("VicinityEngine sizing follows the node preview preference", () => {
+	function sizeUnder(preference: NodePreviewPreference, path: string): number | undefined {
+		return node(build({ globalView: { ...EngineDefaults.viewSettings(), nodePreviewPreference: preference } }), path)
+			?.sizePx;
+	}
 
-		const baseline = sizesUnderPreference(NODE_PREVIEW_PREFERENCES[0]);
-		// Keyed by preference so a failure names the offending value.
-		const actual = Object.fromEntries(NODE_PREVIEW_PREFERENCES.map((p) => [p, sizesUnderPreference(p)]));
-		expect(actual).toEqual(Object.fromEntries(NODE_PREVIEW_PREFERENCES.map((p) => [p, baseline])));
+	it("WHEN Title only hides a node's content THEN its box shrinks below what an image preview needs", () => {
+		// `notes/alpha.md` carries an image, so Image fits a thumbnail slot; Title
+		// only renders the bare title, so its content-fit floor is strictly smaller.
+		const titleOnly = sizeUnder("title-only", "notes/alpha.md");
+		const image = sizeUnder("image", "notes/alpha.md");
+		expect(titleOnly !== undefined && image !== undefined && titleOnly < image).toBe(true);
 	});
 });

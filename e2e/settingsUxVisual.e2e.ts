@@ -453,9 +453,9 @@ function tabPreviewRadio(optionLabel: string): Locator {
 test("settings tab: the Preview pill shows one segment per option and checks the stored one", async () => {
 	await settingsTab.open();
 	await seedPreviewPreference("auto");
-	// Precondition: all three options are offered (a pill that lost one would
+	// Precondition: all four options are offered (a pill that lost one would
 	// still satisfy the checked-state assertion below).
-	await expect(settingsTab.card("Node contents").getByRole("radio")).toHaveCount(3);
+	await expect(settingsTab.card("Node contents").getByRole("radio")).toHaveCount(4);
 
 	await expect(tabPreviewRadio("Auto")).toBeChecked();
 });
