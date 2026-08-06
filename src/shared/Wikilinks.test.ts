@@ -93,8 +93,8 @@ describe("Wikilinks.harvestedLinksOf kinds", () => {
 });
 
 /**
- * The DISPLAY split (`MarkdownEmbeds` names an embed by what the writer wrote),
- * next to the resolution split `harvestedLinksOf` already covers.
+ * The full part split (target / subpath / alias), next to the resolution split
+ * `harvestedLinksOf` already covers (which reads only the target).
  */
 describe("Wikilinks.partsOf", () => {
 	it("WHEN the inner text is a bare target THEN only the target is set", () => {

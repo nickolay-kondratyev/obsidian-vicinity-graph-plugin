@@ -1,109 +1,64 @@
 import { describe, expect, it } from "vitest";
 import { MarkdownEmbeds } from "./MarkdownEmbeds";
-import type { EmbedTargetTitle } from "./MarkdownEmbeds";
 import { asRendered } from "./testFixtures/renderedMarkdown";
 
-/** No note has a frontmatter title — the default for every naming test but the titled one. */
-const NO_TITLES: EmbedTargetTitle = () => null;
-
 describe("MarkdownEmbeds.flattened", () => {
-	it("WHEN an embed names a note THEN it becomes the note's marker", () => {
-		expect(asRendered(MarkdownEmbeds.flattened("see ![[Note]] here", NO_TITLES))).toBe("see !<<Note>> here");
+	it("WHEN an embed names a note THEN it renders as its own raw wikilink text", () => {
+		expect(asRendered(MarkdownEmbeds.flattened("see ![[Note]] here"))).toBe("see ![[Note]] here");
 	});
 
 	it("WHEN the text has a plain wikilink THEN it is left exactly as written", () => {
-		expect(MarkdownEmbeds.flattened("see [[Note]] here", NO_TITLES)).toBe("see [[Note]] here");
+		expect(MarkdownEmbeds.flattened("see [[Note]] here")).toBe("see [[Note]] here");
 	});
 
-	it("WHEN the embed target is a path THEN only its file name names the marker", () => {
-		expect(asRendered(MarkdownEmbeds.flattened("![[folder/sub/Note]]", NO_TITLES))).toBe("!<<Note>>");
+	it("WHEN the embed target is a path THEN the whole path is kept as written", () => {
+		expect(asRendered(MarkdownEmbeds.flattened("![[folder/sub/Note]]"))).toBe("![[folder/sub/Note]]");
 	});
 
-	it("WHEN the embed target spells the .md extension THEN the marker drops it", () => {
-		expect(asRendered(MarkdownEmbeds.flattened("![[Note.md]]", NO_TITLES))).toBe("!<<Note>>");
+	it("WHEN the embed target spells the .md extension THEN it is kept as written", () => {
+		expect(asRendered(MarkdownEmbeds.flattened("![[Note.md]]"))).toBe("![[Note.md]]");
 	});
 
-	it("WHEN the .md extension is spelled in another CASE THEN the marker still drops it", () => {
-		expect(asRendered(MarkdownEmbeds.flattened("![[Note.MD]]", NO_TITLES))).toBe("!<<Note>>");
+	it("WHEN the embed target is an attachment THEN it is kept as written", () => {
+		expect(asRendered(MarkdownEmbeds.flattened("![[chart.png]]"))).toBe("![[chart.png]]");
 	});
 
-	it("WHEN the embed target is an attachment THEN the marker keeps its extension", () => {
-		expect(asRendered(MarkdownEmbeds.flattened("![[chart.png]]", NO_TITLES))).toBe("!<<chart.png>>");
+	it("WHEN the embed carries a subpath THEN the subpath is kept as written", () => {
+		expect(asRendered(MarkdownEmbeds.flattened("![[Note#Section]]"))).toBe("![[Note#Section]]");
 	});
 
-	it("WHEN the embed carries a subpath THEN the marker names the target, not the subpath", () => {
-		expect(asRendered(MarkdownEmbeds.flattened("![[Note#Section]]", NO_TITLES))).toBe("!<<Note>>");
+	it("WHEN the embed is a same-file section embed THEN it is kept as written", () => {
+		expect(asRendered(MarkdownEmbeds.flattened("![[#Section]]"))).toBe("![[#Section]]");
 	});
 
-	it("WHEN the embed is a same-file section embed THEN its subpath names the marker", () => {
-		expect(asRendered(MarkdownEmbeds.flattened("![[#Section]]", NO_TITLES))).toBe("!<<Section>>");
+	it("WHEN the embed carries an alias THEN the alias is kept as written", () => {
+		expect(asRendered(MarkdownEmbeds.flattened("![[Note#Section|Shown]]"))).toBe("![[Note#Section|Shown]]");
 	});
 
-	it("WHEN the embed carries an alias THEN the alias names the marker", () => {
-		expect(asRendered(MarkdownEmbeds.flattened("![[Note#Section|Shown]]", NO_TITLES))).toBe("!<<Shown>>");
+	it("WHEN the pipe carries an image size THEN it is kept as written", () => {
+		expect(asRendered(MarkdownEmbeds.flattened("![[chart.png|300x200]]"))).toBe("![[chart.png|300x200]]");
 	});
 
-	it("WHEN the target has a frontmatter title THEN the title names the marker", () => {
-		expect(asRendered(MarkdownEmbeds.flattened("![[Note]]", () => "My Title"))).toBe("!<<My Title>>");
+	it("WHEN a line embeds twice THEN both embeds render as raw text", () => {
+		expect(asRendered(MarkdownEmbeds.flattened("![[One]] and ![[Two]]"))).toBe("![[One]] and ![[Two]]");
 	});
 
-	it("WHEN a resolved title spans LINES THEN the marker collapses it, so it cannot break the row it shortens", () => {
-		// A frontmatter title is arbitrary user text (YAML block scalars keep their
-		// newlines), and the marker exists to keep an occurrence on ONE line.
-		expect(asRendered(MarkdownEmbeds.flattened("![[Note]]", () => "My\nMulti  Title"))).toBe(
-			"!<<My Multi Title>>",
-		);
+	it("WHEN an embed is escaped THEN every markdown-significant character is escaped (else the renderer expands it)", () => {
+		expect(MarkdownEmbeds.flattened("![[Note]]")).toBe("\\!\\[\\[Note\\]\\]");
 	});
 
-	it("WHEN the target has BOTH an alias and a frontmatter title THEN the alias wins (the writer chose it)", () => {
-		expect(asRendered(MarkdownEmbeds.flattened("![[Note|Shown]]", () => "My Title"))).toBe("!<<Shown>>");
+	it("WHEN an embed's text carries markdown syntax THEN it is escaped too, so it renders literally", () => {
+		expect(MarkdownEmbeds.flattened("![[Note|a_b_c]]")).toBe("\\!\\[\\[Note\\|a\\_b\\_c\\]\\]");
 	});
 
-	it("WHEN the pipe carries an image WIDTH THEN it names nothing and the target names the marker", () => {
-		expect(asRendered(MarkdownEmbeds.flattened("![[chart.png|300]]", NO_TITLES))).toBe("!<<chart.png>>");
-	});
-
-	it("WHEN the pipe carries a WIDTHxHEIGHT size THEN it names nothing and the target names the marker", () => {
-		expect(asRendered(MarkdownEmbeds.flattened("![[chart.png|300x200]]", NO_TITLES))).toBe("!<<chart.png>>");
-	});
-
-	it("WHEN a size-shaped pipe sits on a TITLED note THEN the title still names the marker", () => {
-		expect(asRendered(MarkdownEmbeds.flattened("![[Note|300]]", () => "My Title"))).toBe("!<<My Title>>");
-	});
-
-	it("WHEN an alias merely CONTAINS digits THEN it is still a name, not a size", () => {
-		expect(asRendered(MarkdownEmbeds.flattened("![[Note|Chapter 300]]", NO_TITLES))).toBe("!<<Chapter 300>>");
-	});
-
-	it("WHEN a title is resolved THEN it is asked for by the written target, subpath stripped", () => {
-		const asked: string[] = [];
-		MarkdownEmbeds.flattened("![[folder/Note#Section]]", (linkPath) => {
-			asked.push(linkPath);
-			return null;
-		});
-		expect(asked).toEqual(["folder/Note"]);
-	});
-
-	it("WHEN a line embeds twice THEN both embeds flatten", () => {
-		expect(asRendered(MarkdownEmbeds.flattened("![[One]] and ![[Two]]", NO_TITLES))).toBe("!<<One>> and !<<Two>>");
-	});
-
-	it("WHEN the marker is produced THEN its markdown-significant characters are escaped (else the renderer eats `<<Name>>` as HTML)", () => {
-		expect(MarkdownEmbeds.flattened("![[Note]]", NO_TITLES)).toBe("\\!\\<\\<Note\\>\\>");
-	});
-
-	it("WHEN a display name carries markdown syntax THEN it is escaped too, so it renders literally", () => {
-		expect(MarkdownEmbeds.flattened("![[Note|a_b_c]]", NO_TITLES)).toBe("\\!\\<\\<a\\_b\\_c\\>\\>");
-	});
-
-	it("WHEN an unclosed `![[` opens a line THEN the following lines are not swallowed into one marker", () => {
+	it("WHEN an unclosed `![[` opens a line THEN the following lines are not swallowed", () => {
 		// The expanded snippet is MULTI-line and this transform REWRITES what it
 		// matches, so an over-matching matcher would delete the reader's prose.
 		const stray = "![[stray\nkept prose\nclosed on another line ]] tail";
-		expect(MarkdownEmbeds.flattened(stray, NO_TITLES)).toBe(stray);
+		expect(MarkdownEmbeds.flattened(stray)).toBe(stray);
 	});
 
 	it("WHEN the text has no embed THEN it is returned unchanged", () => {
-		expect(MarkdownEmbeds.flattened("plain prose, no links", NO_TITLES)).toBe("plain prose, no links");
+		expect(MarkdownEmbeds.flattened("plain prose, no links")).toBe("plain prose, no links");
 	});
 });
