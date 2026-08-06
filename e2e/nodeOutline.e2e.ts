@@ -339,6 +339,20 @@ test("with the Preview preference on Image, an outline-first note shows its thum
 	await expect(noteNode(OUTLINE_NOTE_PATH)).toHaveAttribute("data-preview", "thumbnail");
 });
 
+test("with the Preview preference on Title only, a content-bearing note shows just its title", async () => {
+	await showNoteWithRefitGraph(OUTLINE_NOTE_PATH);
+	// Precondition (set explicitly, not inherited from a prior case): Outline gives
+	// this note a preview region — the one Title only withholds — so an empty
+	// content slot is the preference at work, not an empty note.
+	await harness.setNodePreviewPreference("outline");
+	await expect(noteNode(OUTLINE_NOTE_PATH)).toHaveAttribute("data-preview", "outline");
+
+	await harness.setNodePreviewPreference("title-only");
+
+	await expect(noteNode(OUTLINE_NOTE_PATH)).toHaveAttribute("data-preview", "none");
+	await expect(outlineOf(OUTLINE_NOTE_PATH)).toHaveCount(0);
+});
+
 test("back on Auto, document position decides again", async () => {
 	// Own your own MAIN node rather than inheriting E8.2's: an outline-bearing note
 	// is what makes "position decides" observable at all.

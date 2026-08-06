@@ -122,6 +122,34 @@ describe("nodePreviewKind under the Outline preference", () => {
 	});
 });
 
+describe("nodePreviewKind under the Title only preference", () => {
+	// The one preference that empties the content slot: no region is ever claimed,
+	// whatever the note has. Tabulated across every fact combination to pin that.
+	it("WHEN the note has both AND the image precedes the outline THEN no region is claimed", () => {
+		expect(previewForCentral("title-only", BOTH_IMAGE_FIRST)).toBe("none");
+	});
+
+	it("WHEN the note has both AND the outline precedes the image THEN no region is claimed", () => {
+		expect(previewForCentral("title-only", BOTH_OUTLINE_FIRST)).toBe("none");
+	});
+
+	it("WHEN the note has an outline only THEN no region is claimed (the preference wins over the outline)", () => {
+		expect(previewForCentral("title-only", OUTLINE_ONLY)).toBe("none");
+	});
+
+	it("WHEN the note has an image only THEN no region is claimed (the preference wins over the image)", () => {
+		expect(previewForCentral("title-only", IMAGE_ONLY)).toBe("none");
+	});
+
+	it("WHEN the note has neither THEN no region is claimed", () => {
+		expect(previewForCentral("title-only", NEITHER)).toBe("none");
+	});
+
+	it("WHEN the node is an ordinary neighbour with an outline THEN no region is claimed (tier is irrelevant here)", () => {
+		expect(previewForNeighbour("title-only", OUTLINE_ONLY)).toBe("none");
+	});
+});
+
 describe("nodePreviewKind under the Image preference", () => {
 	it("WHEN the note has both AND the image does NOT precede the outline THEN the thumbnail claims the slot (the preference overrides document position)", () => {
 		expect(previewForCentral("image", BOTH_OUTLINE_FIRST)).toBe("thumbnail");

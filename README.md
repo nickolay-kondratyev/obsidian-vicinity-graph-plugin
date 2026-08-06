@@ -148,10 +148,10 @@ changed gets reverted by the next change.
   caps it, so an explicit maximum wins (set max below 122 and previews stay
   hidden). Your central and pinned notes get a modest size floor of their own so
   they stay easy to spot even when empty.
-- **Preview** — a three-way pill choosing what a node shows in its preview slot:
-  **Auto** (default), **Outline** or **Image**. See *Node contents* below. The
-  same pill is in the in-view graph controls, under *Node contents* — both edit
-  the one global value.
+- **Preview** — a four-way pill choosing what a node shows in its preview slot:
+  **Auto** (default), **Title only**, **Outline** or **Image**. See *Node
+  contents* below. The same pill is in the in-view graph controls, under *Node
+  contents* — both edit the one global value.
 - **Outline depth** — how many markdown heading levels a node's outline shows
   (**1–6**, default **2**: sections plus subsections, which is what fits a node).
   Also in the controls panel, under *Node contents* beside the *Preview* pill. See
@@ -275,14 +275,18 @@ A node tall enough to have room shows **one** preview: either the note's
     now stay small, and a big box means "there is a picture here" or "this is a
     root". To read a neighbour's headings, **pin it** — or set the pill to
     *Outline*.
+  - **Title only** — every node shows **just its title**, no outline and no
+    image. The one preference that deliberately empties the preview slot, so
+    nodes stay compact regardless of what a note contains.
   - **Outline** — prefer the outline for every note that has headings, whatever
     document position says.
   - **Image** — prefer the first image for every note that has one.
-- **An EXPLICIT preference never empties a node, and ignores the root rule.**
-  *Outline* shows headings on every note that has them, peripheral or not;
-  *Outline* on a note without headings still shows its image; *Image* on a note
-  without an image still shows its outline. Under an explicit preference a node
-  only goes preview-less when the note has neither.
+- **An EXPLICIT preference ignores the root rule, and — except *Title only* —
+  never empties a node.** *Outline* shows headings on every note that has them,
+  peripheral or not; *Outline* on a note without headings still shows its image;
+  *Image* on a note without an image still shows its outline. Under one of those
+  two a node only goes preview-less when the note has neither; *Title only* goes
+  preview-less always, by design.
 - The outline is a **nested list** capped by the *Outline depth* setting. It
   scrolls when it does not fit (the scrollbar appears on hover); an over-long
   entry ellipsises on its own, and its full text is in the tooltip.
