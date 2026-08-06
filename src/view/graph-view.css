@@ -415,9 +415,14 @@
 	--vicinity-graph-node-chip-size: 20px;
 	--vicinity-graph-node-chip-inset: var(--size-4-1);
 	/* Gap between the two right-corner chips (pin sits just LEFT of the gear). Kept
-	 * out of the size ladder because it never affects centre-clearance: both chips
-	 * share the top edge, so the ladder's arithmetic — reach `inset + size` from the
-	 * corner — is unchanged. */
+	 * out of the size ladder because the ladder guards the CORNER chip (the gear),
+	 * whose reach `inset + size` this gap does not change — and both chips share the
+	 * top edge, so VERTICAL clearance is identical for both. It DOES push the pin
+	 * `size + gap` further inboard HORIZONTALLY, so the pin is no longer a corner
+	 * chip: on a wide-but-short node its revealed box can reach the horizontal
+	 * centre in a band the ladder (a corner-chip guard, symmetric on both axes) does
+	 * not cover. Accepted edge, tracked in
+	 * docs-internal/tickets/ticket-pin-offset-centre-clearance.md. */
 	--vicinity-graph-node-chip-gap: var(--size-2-1);
 	--vicinity-graph-node-chip-icon-size: 13px;
 	position: absolute;

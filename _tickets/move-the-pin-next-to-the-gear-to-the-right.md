@@ -47,10 +47,15 @@ CSS-only move in `src/view/graph-view.css` (no JS change needed):
   properties the size ladder steps, so the pin stays flush against the gear at
   both the full-size and compact rungs.
 
-Centre-clearance/grip-band arithmetic is unchanged: both chips still share the
-top edge and the base-class inset, and the gear is the corner-most chip the
-grip-band guard measures. Stale "top-left" comments updated in
-`src/view/NoteNode.tsx` (PinButton/GearButton docs) and
+Grip-band arithmetic is unchanged: the gear is the corner-most chip the grip-band
+guard measures, and both chips share the base-class inset. VERTICAL centre-clearance
+is also unchanged (both chips share the top edge). But HORIZONTAL centre-clearance
+is NOT: the pin now sits `size + gap` inboard of the gear, so it is no longer a
+corner chip and the corner-chip ladder does not guard its horizontal reach — a
+wide-but-short node can have the revealed pin over its centre-click target. Narrow,
+non-destructive edge, tracked in
+`docs-internal/tickets/ticket-pin-offset-centre-clearance.md`. Stale "top-left"
+comments updated in `src/view/NoteNode.tsx` (PinButton/GearButton docs) and
 `src/view/nodeDensityThresholds.test.ts`.
 
 Verification: `npm run check`, `npm test` (1705 passed), and
