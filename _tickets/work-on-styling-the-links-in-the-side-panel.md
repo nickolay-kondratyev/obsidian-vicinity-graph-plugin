@@ -1,15 +1,15 @@
 ---
 id: nid_u877k92mv4vgcc3h3i2t2e1wi_e
 title: Work on styling the links in the side panel
-status: open
+status: in_progress
 deps: []
 links: []
 created_iso: '2026-08-01T01:30:37Z'
-status_updated_iso: '2026-08-01T05:59:28Z'
+status_updated_iso: '2026-08-06T20:47:17Z'
 type: task
 priority: 3
 assignee: nickolaykondratyev
-pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-2
 ---
 Need to improve the styling of the links in the side panel.
 
