@@ -1,8 +1,9 @@
 ---
-status_updated_iso: '2026-08-06T22:30:11Z'
+closed_iso: 2026-08-06T22:39:44Z
+status_updated_iso: 2026-08-06T22:39:44Z
 id: nid_gearcontentunreachable18pxband_e
 title: 'view: gear Content override unreachable below the 18px chip-withhold band'
-status: in_progress
+status: closed
 deps: []
 links: [nid_9hx6okamx3yt0rg9iad2f4151_e]
 created_iso: '2026-08-06T21:10:00Z'
@@ -42,3 +43,27 @@ central where it is larger (the override is global by docid).
    right-click" invariant holds for BOTH chips. Watch section/ordering: the context
    menu currently sets no `section`, so mixing sectioned Content items with the
    unsectioned pin entry needs a consistent grouping decision.
+
+## Resolution (2026-08-06) — Option 1, accept as-is
+
+Decision by the human engineer: **KISS, accept the limitation, no code change.**
+
+Key fact that settled it: the sub-18px-on-both-axes withhold band is NEVER reached
+in normal operation. At the shipped 40px `minPx` a node's content box is ~22px — above
+the 18px threshold — so every node keeps at least a compact chip. Only a DELIBERATE user
+action lands a node in the band: a per-node drag-resize override on that node, or a
+hand-shrunk global `minPx`. A user who has dragged a node down to a ~17px sliver has
+explicitly said "I don't care about this node's content here", and the override is global
+by docid so it stays settable from any larger view of the same doc. The unreachability is
+self-inflicted and fully recoverable.
+
+Option 2 (Content override in the right-click menu) was considered for its general
+discoverability win — right-click is conventional and the pin already lives there — but
+its cost (every node's right-click menu grows from 1–2 to 5–6 items) is not justified by
+this priority-4 edge case, which nobody reaches by accident. Not pursued now; if the
+discoverability angle is ever wanted, it is a fresh, band-independent UX ticket.
+
+No code change. The behavior (both chips `display: none` in the band) and its
+documentation already ship correctly: `src/view/graph-view.css` lines ~498–502 (the
+withhold-band comment) and ~484–486 (only a hand-shrunk `minPx` or a drag-resize override
+reaches the band). Closed.
