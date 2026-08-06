@@ -1,17 +1,17 @@
 ---
 id: nid_a5jbonflbm3110gsy6puf18ds_e
-title: "Run the e2e suite on BOTH Obsidian versions (floor + pinned) as one gate"
-status: open
+title: Run the e2e suite on BOTH Obsidian versions (floor + pinned) as one gate
+status: in_progress
 deps: [nid_fygwk293msqdumkkorz6gmyrh_e]
 links: [nid_fygwk293msqdumkkorz6gmyrh_e]
-created_iso: 2026-08-04T22:41:18Z
-status_updated_iso: 2026-08-04T22:41:18Z
+created_iso: '2026-08-04T22:41:18Z'
+status_updated_iso: '2026-08-06T22:28:09Z'
 type: task
 priority: 3
 assignee: nickolaykondratyev
 tags: [e2e, testing]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-2
 ---
-
 Follow-up from `nid_fygwk293msqdumkkorz6gmyrh_e` (which made the e2e Obsidian build an env knob).
 
 ## State after that ticket
