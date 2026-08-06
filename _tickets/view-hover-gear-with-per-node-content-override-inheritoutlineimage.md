@@ -1,17 +1,19 @@
 ---
 id: nid_9hx6okamx3yt0rg9iad2f4151_e
-title: "view: hover gear with per-node content override (Inherit/Outline/Image)"
-status: open
+title: 'view: hover gear with per-node content override (Inherit/Outline/Image)'
+status: in_progress
 deps: [nid_lwionnvohw9k58jw7a2dybht2_e, nid_jcxzhexfaksge2arjzca3w7ff_e]
-links: [nid_o5hz7ilcauwe2acqdfh6pcuam_e, nid_cx5zoz7ptucg9nxalibv0mbjb_e, nid_lwionnvohw9k58jw7a2dybht2_e, nid_qjsj5mth2phdqctbm0vfx9elw_e, nid_kyowb4v8v51nslbicl4szgcd5_e, nid_jcxzhexfaksge2arjzca3w7ff_e, nid_k2pa8khm6ugozmhkd6nlbdrq6_e, nid_1mq3t7706vw2kj2kv7ljqlw6l_e]
-created_iso: 2026-08-03T23:48:48Z
-status_updated_iso: 2026-08-03T23:48:48Z
+links: [nid_o5hz7ilcauwe2acqdfh6pcuam_e, nid_cx5zoz7ptucg9nxalibv0mbjb_e, nid_lwionnvohw9k58jw7a2dybht2_e,
+  nid_qjsj5mth2phdqctbm0vfx9elw_e, nid_kyowb4v8v51nslbicl4szgcd5_e, nid_jcxzhexfaksge2arjzca3w7ff_e,
+  nid_k2pa8khm6ugozmhkd6nlbdrq6_e, nid_1mq3t7706vw2kj2kv7ljqlw6l_e]
+created_iso: '2026-08-03T23:48:48Z'
+status_updated_iso: '2026-08-06T20:12:44Z'
 type: feature
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
 tags: [sizing, ui]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin
 ---
-
 Part of the node-sizing rethink (docs-internal/plan/node-sizing-rethink.md, origin nid_kyowb4v8v51nslbicl4szgcd5_e).
 
 Each graph node, on hover, shows a settings (gear) icon at its bottom-right. Clicking it opens a small per-node menu:
