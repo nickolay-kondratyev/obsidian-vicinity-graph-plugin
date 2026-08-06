@@ -344,6 +344,16 @@ async function renderTargetAsNeighbourBox(box: { widthPx: number; heightPx: numb
 	// honest settle point — it is the thing this helper promises.
 	await expect.poll(activeFilePath).toBe(HUB);
 	await harness.saveNodeSizeOverride(TARGET_DOCID, box);
+	// Split the two halves of this helper so a failure is LEGIBLE (ticket
+	// nid_g1f5tjmxzr0hbfdeujvgwywsd_e): assert the WRITE landed in the store BEFORE
+	// polling the rendered box. A store that already holds `box` here means a later
+	// failure of the render poll can only be a lost REPAINT, not a lost write — the
+	// full-suite flake this guards used to read the PREVIOUS test's box for 15s with
+	// no way to tell which half was stale. The store keeps the box verbatim
+	// (`clampNodeSizeOverridePx` only bounds 24..1200), so an exact match is right.
+	await expect
+		.poll(async () => (await harness.readNodeOverrides())[TARGET_DOCID]?.sizePx)
+		.toEqual(box);
 	// The SAME in-place fan-out the production write pipeline runs — no remount.
 	// This once had to remount because an in-place fan-out could be swallowed: with
 	// a graph already rendered, React Flow's ResizeObserver re-measured the node's
