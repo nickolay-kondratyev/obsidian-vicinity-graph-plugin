@@ -1,17 +1,18 @@
 ---
 id: nid_c78k90su87jrzigxvfjv5t95g_e
-title: "A refreshOpenViews fan-out can be swallowed, leaving the screen stale against data.json with nothing to re-converge it"
-status: open
+title: A refreshOpenViews fan-out can be swallowed, leaving the screen stale against
+  data.json with nothing to re-converge it
+status: in_progress
 deps: []
 links: []
-created_iso: 2026-08-06T00:40:08Z
-status_updated_iso: 2026-08-06T00:40:08Z
+created_iso: '2026-08-06T00:40:08Z'
+status_updated_iso: '2026-08-06T16:00:43Z'
 type: bug
 priority: 1
 assignee: CC_WITH-nickolaykondratyev
 tags: [view, decide]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 ---
-
 Found while reviewing ticket `nid_8i5936g90vrllosssaz7v3xbr_e` (the pin-chip ladder). NOT caused by it — that ticket only added the e2e spec that exposes it.
 
 ## Reproduction (~1 in 3 runs; the spec below now REMOUNTS instead, so reproducing needs the step-3 variant restored)
@@ -74,4 +75,3 @@ Candidates NOT yet excluded (each needs checking):
 ## Acceptance
 
 A failing test FIRST that pins the invariant "after an awaited store write followed by ONE refreshOpenViews(), the pane renders the stored state" — ideally at the `GraphViewController` unit level (it is fake-driven) rather than only in e2e. Then the fix. Then `renderTargetAsNeighbourBox` (`e2e/nodeResize.e2e.ts`) can go back to `refreshOpenViews()` instead of `remountGraphView()` — it remounts ONLY because of this bug, and says so in its comment.
-
