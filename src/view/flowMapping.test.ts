@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { GraphNode, NodePreviewPreference, OutlineEntry, ViewSettings } from "../engine";
-import { asDocId, asFolderPath, asVaultPath, NODE_PREVIEW_PREFERENCES } from "../engine";
+import type { GraphNode, NodeContentOverride, NodePreviewPreference, OutlineEntry, ViewSettings } from "../engine";
+import { asDocId, asFolderPath, asVaultPath, NODE_CONTENT_OVERRIDES, NODE_PREVIEW_PREFERENCES } from "../engine";
 import { OUTLINE_RENDER_LIMIT } from "./constants";
 import { edgeKindClassName, vicinityGraphToFlow, withGroupDimensions, withPositions } from "./flowMapping";
 import type { FlowNode, NoteFlowNode } from "./flowMapping";
@@ -681,6 +681,41 @@ describe("vicinityGraphToFlow preview decision", () => {
 	it("WHEN outlineMaxDepth drops every heading AND the node has no image THEN the preview is none", () => {
 		expect(previewOf({ outline: [{ rawText: "Deep", level: 4 }] }, { outlineMaxDepth: 2 })).toBe("none");
 	});
+
+	// The per-node content override (the hover gear) sits IN FRONT of the chooser:
+	// it REPLACES the global preference for that node only.
+	it("WHEN a node overrides content to Outline AND the global is Image THEN the mapped preview is the outline", () => {
+		expect(
+			previewOf(
+				{ ...coverNode(), imagePrecedesOutline: false, override: { content: "outline" } },
+				{ nodePreviewPreference: "image" },
+			),
+		).toBe("outline");
+	});
+
+	it("WHEN a node overrides content to Image AND the global is Outline THEN the mapped preview is the thumbnail", () => {
+		expect(
+			previewOf({ ...coverNode(), override: { content: "image" } }, { nodePreviewPreference: "outline" }),
+		).toBe("thumbnail");
+	});
+
+	it("WHEN a node overrides content to Title only THEN the mapped preview is none, regardless of the global", () => {
+		expect(previewOf({ ...coverNode(), override: { content: "title-only" } }, { nodePreviewPreference: "image" })).toBe(
+			"none",
+		);
+	});
+
+	it("WHEN a node has NO content override THEN the mapped preview follows the global preference (Inherit)", () => {
+		expect(previewOf(coverNode(), { nodePreviewPreference: "image" })).toBe("thumbnail");
+	});
+
+	it("WHEN a node overrides content THEN its data echoes the override (the gear's checked-state fact)", () => {
+		expect(mappedData({ ...coverNode(), override: { content: "outline" } })?.contentOverride).toBe("outline");
+	});
+
+	it("WHEN a node has NO content override THEN its data carries no contentOverride (Inherit is absence)", () => {
+		expect(mappedData(coverNode())?.contentOverride).toBeUndefined();
+	});
 });
 
 /**
@@ -721,5 +756,39 @@ describe("vicinityGraphToFlow node geometry ignores the node preview preference"
 		// Keyed by preference so a failure names the offending value.
 		const actual = Object.fromEntries(NODE_PREVIEW_PREFERENCES.map((p) => [p, boxesUnderPreference(p)]));
 		expect(actual).toEqual(Object.fromEntries(NODE_PREVIEW_PREFERENCES.map((p) => [p, baseline])));
+	});
+});
+
+/**
+ * The same invariant for the PER-NODE content override (the hover gear): flipping
+ * one node's content override changes only which region it renders, never its box —
+ * so the rebuild after a gear flip reuses layout instead of relaying out (the
+ * acceptance criterion "flip does not trigger relayout"). The sizer reads the
+ * GLOBAL preference only, so this holds even though a preference flip CAN relayout.
+ */
+describe("vicinityGraphToFlow node geometry ignores the per-node content override", () => {
+	const IMAGE = asVaultPath("img/cover.png");
+
+	function boxesUnderOverride(content: NodeContentOverride | undefined) {
+		const nodes = [
+			makeNode({
+				path: asVaultPath("a.md"),
+				sizePx: 160,
+				outline: [{ rawText: "Intro", level: 1 }],
+				attachments: [{ path: IMAGE, isImage: true }],
+				firstImagePath: IMAGE,
+				imagePrecedesOutline: true,
+				...(content === undefined ? {} : { override: { content } }),
+			}),
+		];
+		const graph = makeGraph({ nodes });
+		return toFlow(graph).nodes.map((node) => ({ id: node.id, width: node.width, height: node.height }));
+	}
+
+	it("WHEN a node's content override varies THEN its flow box keeps the same width and height", () => {
+		const baseline = boxesUnderOverride(undefined);
+		const choices: (NodeContentOverride | undefined)[] = [undefined, ...NODE_CONTENT_OVERRIDES];
+		const actual = Object.fromEntries(choices.map((c) => [String(c), boxesUnderOverride(c)]));
+		expect(actual).toEqual(Object.fromEntries(choices.map((c) => [String(c), baseline])));
 	});
 });

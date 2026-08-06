@@ -3,12 +3,14 @@ import type {
 	FolderPath,
 	GraphEdge,
 	GraphNode,
+	NodeContentOverride,
 	NodePreviewKind,
 	OutlineEntry,
 	ViewSettings,
 	VicinityGraph,
 } from "../engine";
 import { nodePreviewKind } from "../engine";
+import { resolveNodePreviewPreference } from "./nodePreviewChoice";
 import { VaultPathFacts } from "../shared/VaultPathFacts";
 import { OUTLINE_RENDER_LIMIT } from "./constants";
 import type { AttachmentIconGroup } from "./attachmentIconStrip";
@@ -79,6 +81,14 @@ export type FlowNodeData = {
 	 * `data-preview` can never advertise a region the node does not render.
 	 */
 	readonly preview: NodePreviewKind;
+	/**
+	 * The doc's stored per-node CONTENT override, or absent for "Inherit" — the
+	 * fact the hover gear's Content menu checks the current choice against.
+	 * REPORTED, not applied: {@link preview} already reflects it (resolved through
+	 * {@link resolveNodePreviewPreference}); this echoes the raw override so the
+	 * menu can distinguish "Inherit" from an override that happens to match global.
+	 */
+	readonly contentOverride?: NodeContentOverride;
 	/** Thumbnail candidate (vault path; the component resolves it to a URL). */
 	readonly firstImagePath?: string;
 	/** Total images among attachments — the thumbnail's "+N more" badge is imageCount - 1. */
@@ -387,14 +397,18 @@ function toFlowNodeData(node: GraphNode, mainPinned: boolean, view: ViewSettings
 		outline,
 		// Decided from the RENDERABLE entry count, never the engine's raw outline:
 		// a note whose every heading is deeper than the cap must not claim the
-		// outline slot and render an empty box.
+		// outline slot and render an empty box. The per-node CONTENT override wins
+		// over the global preference here (resolveNodePreviewPreference) — applied
+		// in the VIEW so a flip stays a data-only refresh (the sizer reads the
+		// global preference only, so sizePx does not move).
 		preview: nodePreviewKind({
-			preference: view.nodePreviewPreference,
+			preference: resolveNodePreviewPreference(view.nodePreviewPreference, node.override?.content),
 			outlineEntryCount: outline.length,
 			hasImage: node.firstImagePath !== undefined,
 			imagePrecedesOutline: node.imagePrecedesOutline,
 			isCentral: node.isCentral,
 		}),
+		...(node.override?.content === undefined ? {} : { contentOverride: node.override.content }),
 		...(node.firstImagePath === undefined ? {} : { firstImagePath: node.firstImagePath }),
 		imageCount: node.attachments.filter((attachment) => attachment.isImage).length,
 		attachmentGroups: attachmentIconStrip(node.attachments),

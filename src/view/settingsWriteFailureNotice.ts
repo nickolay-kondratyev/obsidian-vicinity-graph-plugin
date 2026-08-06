@@ -13,7 +13,7 @@ import type { SettingsInteraction } from "./settingsWritePlan";
  * A closed union rather than a caller-supplied string: the subject is USER-VISIBLE
  * copy, and the whole point of this module is that no call site types any.
  */
-export type NonSettingsWriteSubject = "pinned-set" | "node-size-override";
+export type NonSettingsWriteSubject = "pinned-set" | "node-size-override" | "node-content-override";
 
 /**
  * The label each {@link NonSettingsWriteSubject} is announced by. Hand-written (there
@@ -23,6 +23,7 @@ export type NonSettingsWriteSubject = "pinned-set" | "node-size-override";
 const NON_SETTINGS_WRITE_LABELS: Readonly<Record<NonSettingsWriteSubject, string>> = {
 	"pinned-set": "Pinned notes",
 	"node-size-override": "Node size",
+	"node-content-override": "Node content",
 };
 
 /**

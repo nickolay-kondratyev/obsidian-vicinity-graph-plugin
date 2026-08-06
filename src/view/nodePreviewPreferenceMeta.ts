@@ -25,6 +25,18 @@ export interface NodePreviewOptionMeta {
  * `NODE_PREVIEW_PREFERENCES`, never from `Object.keys` — key insertion order is
  * not a contract.
  */
+/**
+ * Copy for the hover gear's "Inherit" content choice — the ABSENCE of a per-node
+ * override (fall back to the global preference). It has no {@link NodePreviewPreference}
+ * value of its own (Inherit is expressed by NOT storing a `content` field), so it
+ * cannot live in {@link NODE_PREVIEW_OPTION_META}'s value-keyed record; it sits beside
+ * it, the ONE place gear-menu copy is authored.
+ */
+export const NODE_CONTENT_INHERIT_META: NodePreviewOptionMeta = {
+	label: "Inherit",
+	description: "Follow the global content preference for this note.",
+};
+
 export const NODE_PREVIEW_OPTION_META: Readonly<Record<NodePreviewPreference, NodePreviewOptionMeta>> = {
 	auto: {
 		label: "Auto",

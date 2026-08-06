@@ -1,5 +1,11 @@
 import type { ElkNode } from "elkjs";
-import type { ForceLayoutSettings, NodeSizeOverridePx, ViewSettings, VicinityGraph } from "../engine";
+import type {
+	ForceLayoutSettings,
+	NodeContentOverride,
+	NodeSizeOverridePx,
+	ViewSettings,
+	VicinityGraph,
+} from "../engine";
 import type { ControlsModel } from "./ControlsModel";
 import type { EdgePreviewModel } from "./linkPreviewModel";
 import type { SettingsResetScope } from "./settingsResetPlan";
@@ -73,6 +79,14 @@ export interface ControlsActionsPort {
 	resizeNode(path: string, sizePx: NodeSizeOverridePx): Promise<void>;
 	/** Clear the doc's size override ("back to computed size" — never mints an id); then rebuild every view. */
 	resetNodeSize(path: string): Promise<void>;
+	/**
+	 * Persist the doc's per-node CONTENT override (resolves + ensures a docid, the
+	 * same write intent as a pin); rebuilds every view if it landed. A content flip
+	 * moves no pixels, so the rebuild is a data-only refresh (no relayout).
+	 */
+	setNodeContentOverride(path: string, content: NodeContentOverride): Promise<void>;
+	/** Clear the doc's content override ("Inherit" — never mints an id); then rebuild every view. */
+	clearNodeContentOverride(path: string): Promise<void>;
 }
 
 /**
@@ -178,11 +192,26 @@ export interface AttachmentMenuRequest {
 	readonly paths: readonly string[];
 }
 
-/** One entry of a node's right-click menu (pin / unpin / reset size). */
+/** One entry of a node menu (pin / unpin / reset size, or a gear-menu content choice). */
 export interface NodeMenuEntry {
 	readonly title: string;
-	/** Built-in (lucide) icon id, e.g. `"pin"` / `"pin-off"`. */
-	readonly iconId: string;
+	/**
+	 * Built-in (lucide) icon id, e.g. `"pin"` / `"pin-off"`. Optional: the gear
+	 * menu's Content choices carry no icon — their selection is shown by
+	 * {@link checked}, and a checkmark plus an icon would double-encode it.
+	 */
+	readonly iconId?: string;
+	/**
+	 * When defined, the entry renders as a checkable item in that state — the gear
+	 * menu's Content row marks the current choice. Absent = a plain command item.
+	 */
+	readonly checked?: boolean;
+	/**
+	 * Optional native-menu section id: entries sharing one are grouped and a
+	 * separator is drawn between sections (the gear menu splits Content choices
+	 * from "Reset size"). Absent = the default (top) section.
+	 */
+	readonly section?: string;
 	/** The action to run — carries the resolved call, so the adapter needs no actions reference. */
 	readonly onClick: () => void;
 }

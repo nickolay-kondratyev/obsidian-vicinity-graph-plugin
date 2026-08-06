@@ -355,12 +355,18 @@
 	pointer-events: none;
 }
 
-/* ===== hover pin/unpin button ========================================== */
+/* ===== hover corner chips (pin + gear) ================================= */
 
 /*
+ * The two hover-revealed corner chips share ALL of their chrome and their
+ * centre-clearance ladder — only the CORNER differs (pin top-left, gear
+ * top-right; see the placement rules just below). One base class, so the ladder
+ * arithmetic and the drag-resize clearance are stated ONCE and both chips are
+ * guarded by the same `nodeDensityThresholds.test.ts` rungs.
+ *
  * Revealed only while the node is hovered (or the button itself is keyboard
- * focused) so an idle graph stays uncluttered (CLARIFICATION Q3). A round chip
- * in the node's top-right corner; `nodrag nopan` keeps its click off the canvas.
+ * focused) so an idle graph stays uncluttered (CLARIFICATION Q3). Round chips;
+ * `nodrag nopan` (in the markup) keeps their clicks off the canvas.
  *
  * EVERY node the chip FITS carries it (ticket `nid_tclb98q9hxhmcuonamvr4ig1f_e`,
  * owner-decided): content-fit sizing made the small node the COMMON case — a
@@ -375,11 +381,11 @@
  * not read as a different affordance on the small node than on the big one. The
  * previous ladder grew the chip on HEIGHT alone (`min-height: 72px`), so the
  * common small node — short but WIDE, a title-only note at ~minPx — wore the
- * compact chip even though its top-right corner had room to spare. Size is now
+ * compact chip even though its corner had room to spare. Size is now
  * stepped DOWN, and only in the band where the step-down is what keeps the node
  * clickable at all.
  *
- * Three guards keep it from swallowing the node's open-click on small nodes (a
+ * Three guards keep a chip from swallowing the node's open-click on small nodes (a
  * dense fit-view shrinks nodes toward the 40px minimum):
  *   1. `pointer-events: none` while hidden — an opacity:0 element STILL receives
  *      pointer events, so without this the transparent button eats a click that
@@ -402,27 +408,26 @@
  * beats this reset's (0,1,0) for background/box-shadow/color. Covered by the
  * pin-chrome assertion in e2e/vicinityGraph.e2e.ts.
  */
-.vicinity-graph-node .vicinity-graph-pin-button {
+.vicinity-graph-node .vicinity-graph-node-chip {
 	/* Full-size rung — the DEFAULT (see the step-down queries below). Custom
 	 * properties, not two competing rule blocks, so a step-down query restates SIZE
 	 * only — the chrome reset below it stays declared once. */
-	--vicinity-graph-pin-chip-size: 20px;
-	--vicinity-graph-pin-chip-inset: var(--size-4-1);
-	--vicinity-graph-pin-icon-size: 13px;
+	--vicinity-graph-node-chip-size: 20px;
+	--vicinity-graph-node-chip-inset: var(--size-4-1);
+	--vicinity-graph-node-chip-icon-size: 13px;
 	position: absolute;
 	/* Declared, not inherited from the app: the chip's REACH into the node
 	 * (`inset + size`) is what the centre-clearance rung below is computed from,
 	 * and under `content-box` the 1px border would make that reach 2px larger
 	 * than the rung assumes. */
 	box-sizing: border-box;
-	top: var(--vicinity-graph-pin-chip-inset);
-	right: var(--vicinity-graph-pin-chip-inset);
+	top: var(--vicinity-graph-node-chip-inset);
 	z-index: 1;
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	width: var(--vicinity-graph-pin-chip-size);
-	height: var(--vicinity-graph-pin-chip-size);
+	width: var(--vicinity-graph-node-chip-size);
+	height: var(--vicinity-graph-node-chip-size);
 	padding: 0;
 	color: var(--text-muted);
 	background: var(--background-primary);
@@ -436,12 +441,22 @@
 		opacity 0.12s ease,
 		color 0.12s ease;
 }
+/* Corner placement — the ONLY per-chip difference. Pin sits top-LEFT (the left
+ * edge carries no drag-resize grip, so it is the calmest corner); the gear takes
+ * the top-RIGHT, the conventional settings corner, clearing the right-edge grip
+ * band by the same inset the ladder guards. */
+.vicinity-graph-node .vicinity-graph-pin-button {
+	left: var(--vicinity-graph-node-chip-inset);
+}
+.vicinity-graph-node .vicinity-graph-gear-button {
+	right: var(--vicinity-graph-node-chip-inset);
+}
 /* The chip's size ladder, stated as centre-clearance rungs: ONE rule per step,
  * each firing exactly where the chip ABOVE it would cover the node's centre point
  * — where a click means OPEN THE NOTE.
  *
  * The arithmetic, once: a corner chip reaches `inset + size` into the node's
- * PADDING box from the top-right, and the node's centre falls inside that reach
+ * PADDING box from its corner, and the node's centre falls inside that reach
  * only when BOTH padding-box axes are within 2 x reach — i.e. when both
  * CONTENT-box axes are at most `2 x reach - 2 x 8px` of node padding. Hence `and`,
  * not a comma: a wide-but-short node's centre is nowhere near the chip, which is
@@ -456,10 +471,10 @@
  * deleting the affordance on every node.
  *
  * NEVER declare the chip inside one of the `min-height` density rungs above: that
- * is the shape this ticket removed, and it is the shape a maintainer reaches for
- * out of habit because those rungs sit a few lines up in this same file.
- * `nodeDensityThresholds.test.ts` fails any container query that styles the chip
- * and is not one of the two rungs below.
+ * is the shape ticket `nid_8i5936g90vrllosssaz7v3xbr_e` removed, and it is the
+ * shape a maintainer reaches for out of habit because those rungs sit a few lines
+ * up in this same file. `nodeDensityThresholds.test.ts` fails any container query
+ * that styles the chip and is not one of the two rungs below.
  *
  * It also recomputes BOTH rungs from the chip declarations they guard plus the
  * node's padding, so re-tuning a chip cannot leave a rung
@@ -474,39 +489,39 @@
  * properties, and `display: none` in the lower one has nothing above it to lose
  * to), which is why the arithmetic — not the source order — is what is guarded. */
 @container (max-height: 32px) and (max-width: 32px) {
-	.vicinity-graph-node .vicinity-graph-pin-button {
-		--vicinity-graph-pin-chip-size: 14px;
-		--vicinity-graph-pin-chip-inset: 3px;
-		--vicinity-graph-pin-icon-size: 10px;
+	.vicinity-graph-node .vicinity-graph-node-chip {
+		--vicinity-graph-node-chip-size: 14px;
+		--vicinity-graph-node-chip-inset: 3px;
+		--vicinity-graph-node-chip-icon-size: 10px;
 	}
 }
-/* Pin/unpin stays reachable in this band through the node's right-click menu, as
- * it was everywhere before the chip became always-on. */
+/* Both chips stay reachable in this band through the node's right-click menu, as
+ * pin/unpin was everywhere before the chip became always-on. */
 @container (max-height: 18px) and (max-width: 18px) {
-	.vicinity-graph-node .vicinity-graph-pin-button {
+	.vicinity-graph-node .vicinity-graph-node-chip {
 		display: none;
 	}
 }
-.vicinity-graph-node:hover .vicinity-graph-pin-button,
-.vicinity-graph-node .vicinity-graph-pin-button:focus-visible {
+.vicinity-graph-node:hover .vicinity-graph-node-chip,
+.vicinity-graph-node .vicinity-graph-node-chip:focus-visible {
 	opacity: 1;
 	pointer-events: auto;
 }
-.vicinity-graph-node .vicinity-graph-pin-button:hover {
+.vicinity-graph-node .vicinity-graph-node-chip:hover {
 	color: var(--interactive-accent);
 	background: var(--background-modifier-hover);
 }
-.vicinity-graph-node .vicinity-graph-pin-button:focus-visible {
+.vicinity-graph-node .vicinity-graph-node-chip:focus-visible {
 	outline: none;
 	box-shadow: 0 0 0 2px var(--interactive-accent);
 }
 /* Inherits the chip's icon size (the property is declared unconditionally on the
- * button above, so NO fallback here — a fallback could only ever name one rung's
+ * chip above, so NO fallback here — a fallback could only ever name one rung's
  * size and would silently overflow the other). */
-.vicinity-graph-pin-button__icon svg {
+.vicinity-graph-node-chip__icon svg {
 	display: block;
-	width: var(--vicinity-graph-pin-icon-size);
-	height: var(--vicinity-graph-pin-icon-size);
+	width: var(--vicinity-graph-node-chip-icon-size);
+	height: var(--vicinity-graph-node-chip-icon-size);
 }
 
 /* ===== drag-to-resize controls ==========================================

@@ -1,7 +1,7 @@
 import type { RenderResult } from "@testing-library/react";
 import { render } from "@testing-library/react";
 import type { ReactElement } from "react";
-import type { NodeSizeOverridePx, ViewSettings } from "../../engine";
+import type { NodeContentOverride, NodeSizeOverridePx, ViewSettings } from "../../engine";
 import { EngineDefaults } from "../../engine";
 import { ControlsActionsContext } from "../ControlsActionsContext";
 import type { ControlsModel } from "../ControlsModel";
@@ -58,6 +58,14 @@ export class RecordingControlsActions implements ControlsActionsPort {
 	}
 
 	resetNodeSize(_path: string): Promise<void> {
+		return Promise.resolve();
+	}
+
+	setNodeContentOverride(_path: string, _content: NodeContentOverride): Promise<void> {
+		return Promise.resolve();
+	}
+
+	clearNodeContentOverride(_path: string): Promise<void> {
 		return Promise.resolve();
 	}
 }

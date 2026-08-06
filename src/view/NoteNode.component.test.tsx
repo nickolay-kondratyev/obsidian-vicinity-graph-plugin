@@ -2,13 +2,14 @@
 import { ReactFlow } from "@xyflow/react";
 import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import type { NodeSizeOverridePx } from "../engine";
+import type { NodeContentOverride, NodeSizeOverridePx } from "../engine";
 import { ControlsActionsContext } from "./ControlsActionsContext";
 import type { FlowNodeData } from "./flowMapping";
 import { GraphUiContext } from "./GraphUiContext";
 import { NoteNode } from "./NoteNode";
+import { planNodeContentMenu } from "./nodePreviewChoice";
 import { RecordingControlsActions } from "./testFixtures/settingsPanelHarness";
-import type { GraphUiPort, NodeMenuRequest } from "./viewPorts";
+import type { GraphUiPort, NodeMenuEntry, NodeMenuRequest } from "./viewPorts";
 
 /**
  * Rendered proof of the drag-to-resize surface (ticket
@@ -48,12 +49,22 @@ class RecordingGraphUi implements GraphUiPort {
 class RecordingResizeActions extends RecordingControlsActions {
 	readonly resized: { path: string; sizePx: NodeSizeOverridePx }[] = [];
 	readonly resetPaths: string[] = [];
+	readonly contentSet: { path: string; content: NodeContentOverride }[] = [];
+	readonly contentCleared: string[] = [];
 	override resizeNode(path: string, sizePx: NodeSizeOverridePx): Promise<void> {
 		this.resized.push({ path, sizePx });
 		return Promise.resolve();
 	}
 	override resetNodeSize(path: string): Promise<void> {
 		this.resetPaths.push(path);
+		return Promise.resolve();
+	}
+	override setNodeContentOverride(path: string, content: NodeContentOverride): Promise<void> {
+		this.contentSet.push({ path, content });
+		return Promise.resolve();
+	}
+	override clearNodeContentOverride(path: string): Promise<void> {
+		this.contentCleared.push(path);
 		return Promise.resolve();
 	}
 }
@@ -163,6 +174,96 @@ describe("NoteNode context menu reset entry", () => {
 		const { ui, actions, result } = renderNoteNode(nodeData({ hasSizeOverride: true }));
 		fireEvent.contextMenu(await mountedNode(result.container));
 		ui.nodeMenuRequests[0]?.entries.find((entry) => entry.title === "Reset size")?.onClick();
+		expect(actions.resetPaths).toEqual([NODE_PATH]);
+	});
+});
+
+/** The gear (top-right) button, once React Flow has mounted the node. */
+async function mountedGear(container: HTMLElement): Promise<HTMLElement> {
+	const node = await mountedNode(container);
+	const gear = node.querySelector<HTMLElement>("button.vicinity-graph-gear-button");
+	if (gear === null) {
+		throw new Error("gear button not mounted");
+	}
+	return gear;
+}
+
+/** The entries of the menu the gear opened (the recorder captures the request). */
+function gearMenuEntries(ui: RecordingGraphUi): readonly NodeMenuEntry[] {
+	const request = ui.nodeMenuRequests[0];
+	if (request === undefined) {
+		throw new Error("gear opened no menu");
+	}
+	return request.entries;
+}
+
+describe("NoteNode gear content menu", () => {
+	it("WHEN a note node renders THEN it mounts a hover gear button distinct from the pin", async () => {
+		const { result } = renderNoteNode(nodeData());
+		const node = await mountedNode(result.container);
+		expect(node.querySelectorAll("button.vicinity-graph-gear-button")).toHaveLength(1);
+		// The pin moved to its own corner; both chips coexist.
+		expect(node.querySelectorAll("button.vicinity-graph-pin-button")).toHaveLength(1);
+	});
+
+	it("WHEN the gear is clicked THEN it opens a menu offering every content choice", async () => {
+		const { ui, result } = renderNoteNode(nodeData());
+		fireEvent.click(await mountedGear(result.container));
+		const titles = gearMenuEntries(ui)
+			.filter((entry) => entry.checked !== undefined)
+			.map((entry) => entry.title);
+		expect(titles).toEqual(planNodeContentMenu("inherit").map((item) => item.label));
+	});
+
+	it("WHEN a node has NO content override THEN the gear menu checks Inherit", async () => {
+		const { ui, result } = renderNoteNode(nodeData());
+		fireEvent.click(await mountedGear(result.container));
+		const checked = gearMenuEntries(ui).filter((entry) => entry.checked === true);
+		expect(checked.map((entry) => entry.title)).toEqual([planNodeContentMenu("inherit")[0]?.label]);
+	});
+
+	it("WHEN a node overrides content THEN the gear menu checks that override, not Inherit", async () => {
+		const { ui, result } = renderNoteNode(nodeData({ contentOverride: "image" }));
+		fireEvent.click(await mountedGear(result.container));
+		const checked = gearMenuEntries(ui)
+			.filter((entry) => entry.checked === true)
+			.map((entry) => entry.title);
+		expect(checked).toEqual([planNodeContentMenu("image").find((item) => item.choice === "image")?.label]);
+	});
+
+	it("WHEN an override choice is activated THEN it reaches setNodeContentOverride with that value", async () => {
+		const { ui, actions, result } = renderNoteNode(nodeData());
+		fireEvent.click(await mountedGear(result.container));
+		const outlineLabel = planNodeContentMenu("inherit").find((item) => item.choice === "outline")?.label;
+		gearMenuEntries(ui)
+			.find((entry) => entry.title === outlineLabel)
+			?.onClick();
+		expect(actions.contentSet).toEqual([{ path: NODE_PATH, content: "outline" }]);
+	});
+
+	it("WHEN Inherit is activated THEN it reaches clearNodeContentOverride (never a stored value)", async () => {
+		const { ui, actions, result } = renderNoteNode(nodeData({ contentOverride: "image" }));
+		fireEvent.click(await mountedGear(result.container));
+		const inheritLabel = planNodeContentMenu("inherit")[0]?.label;
+		gearMenuEntries(ui)
+			.find((entry) => entry.title === inheritLabel)
+			?.onClick();
+		expect(actions.contentCleared).toEqual([NODE_PATH]);
+		expect(actions.contentSet).toEqual([]);
+	});
+
+	it("WHEN a node has NO size override THEN the gear menu omits 'Reset size'", async () => {
+		const { ui, result } = renderNoteNode(nodeData());
+		fireEvent.click(await mountedGear(result.container));
+		expect(gearMenuEntries(ui).some((entry) => entry.title === "Reset size")).toBe(false);
+	});
+
+	it("WHEN a node HAS a size override THEN the gear menu hosts 'Reset size' and it reaches resetNodeSize", async () => {
+		const { ui, actions, result } = renderNoteNode(nodeData({ hasSizeOverride: true }));
+		fireEvent.click(await mountedGear(result.container));
+		gearMenuEntries(ui)
+			.find((entry) => entry.title === "Reset size")
+			?.onClick();
 		expect(actions.resetPaths).toEqual([NODE_PATH]);
 	});
 });
