@@ -255,3 +255,39 @@ describe("decideLayout force-layout tuning change (ticket-04 live sliders)", () 
 		expect(decideLayout(previous, next, 1.0, NO_RENDERED_LAYOUT)).toBe("reuse-layout");
 	});
 });
+
+describe("decideLayout per-node content override (hover gear)", () => {
+	// A content override moves NO pixels (the sizer reads the GLOBAL preference only,
+	// and nodeDimensionsPx ignores override.content), so flipping one node's content
+	// override must reuse layout — the acceptance criterion "flip does not trigger
+	// relayout". GIVEN a node with a FIXED sizePx in both builds.
+	function graphWithContent(content: "outline" | "image" | undefined) {
+		return makeGraph({
+			nodes: [
+				makeNode({
+					path: asVaultPath("a.md"),
+					sizePx: 120,
+					...(content === undefined ? {} : { override: { content } }),
+				}),
+			],
+		});
+	}
+
+	it("WHEN a node GAINS a content override (same sizePx) THEN it reuses layout", () => {
+		expect(decideLayout(graphWithContent(undefined), graphWithContent("image"), SIZE_RELAYOUT_THRESHOLD, NO_RENDERED_LAYOUT)).toBe(
+			"reuse-layout",
+		);
+	});
+
+	it("WHEN a node's content override CHANGES value (same sizePx) THEN it reuses layout", () => {
+		expect(decideLayout(graphWithContent("outline"), graphWithContent("image"), SIZE_RELAYOUT_THRESHOLD, NO_RENDERED_LAYOUT)).toBe(
+			"reuse-layout",
+		);
+	});
+
+	it("WHEN a node CLEARS its content override (same sizePx) THEN it reuses layout", () => {
+		expect(decideLayout(graphWithContent("image"), graphWithContent(undefined), SIZE_RELAYOUT_THRESHOLD, NO_RENDERED_LAYOUT)).toBe(
+			"reuse-layout",
+		);
+	});
+});

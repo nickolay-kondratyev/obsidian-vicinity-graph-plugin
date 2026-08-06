@@ -9,6 +9,7 @@ import { useControlsActions } from "./ControlsActionsContext";
 import type { FlowNodeData } from "./flowMapping";
 import { useGraphUi } from "./GraphUiContext";
 import { NodeOutline } from "./NodeOutline";
+import { currentNodeContentChoice, planNodeContentMenu } from "./nodePreviewChoice";
 import { planNodePinAction } from "./nodePinAction";
 import { NODE_RESIZE_BOUNDS, planResetSizeAction, resizeEndToOverride } from "./nodeResize";
 import type { NodeMenuEntry } from "./viewPorts";
@@ -27,6 +28,15 @@ import type { NodeMenuEntry } from "./viewPorts";
  */
 
 export type NoteNodeType = Node<FlowNodeData, "note">;
+
+/** Lucide id of the hover gear (per-node content menu) — the conventional settings glyph. */
+const GEAR_ICON_ID = "settings";
+/**
+ * Native-menu section ids for the gear menu, kept apart so a separator is drawn
+ * between the Content choices and "Reset size" (see {@link NodeMenuEntry.section}).
+ */
+const CONTENT_MENU_SECTION = "content";
+const SIZE_MENU_SECTION = "size";
 
 export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>): ReactElement {
 	const ui = useGraphUi();
@@ -79,6 +89,48 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
 		},
 		[actions, data.path],
 	);
+	// The hover gear's per-node menu: a Content override row (Inherit / Title only /
+	// Outline / Image, the current one checked) and — once a size override exists —
+	// "Reset size". `NoteNode` assembles the plan into native entries and wires the
+	// clicks; the decision of WHAT to show is the pure planner's.
+	const onGearClick = useCallback(
+		(event: ReactMouseEvent<HTMLButtonElement>) => {
+			// The gear must not double as a node click (which would open the note).
+			event.stopPropagation();
+			const contentEntries: NodeMenuEntry[] = planNodeContentMenu(
+				currentNodeContentChoice(data.contentOverride),
+			).map((item) => ({
+				title: item.label,
+				checked: item.checked,
+				section: CONTENT_MENU_SECTION,
+				onClick: () => {
+					if (item.choice === "inherit") {
+						void actions.clearNodeContentOverride(data.path);
+					} else {
+						void actions.setNodeContentOverride(data.path, item.choice);
+					}
+				},
+			}));
+			// The Content row is never empty (Inherit is always offered), so this holds;
+			// the guard makes that a type fact, not a `!`.
+			const [firstContent, ...restContent] = contentEntries;
+			if (firstContent === undefined) {
+				return;
+			}
+			const entries: [NodeMenuEntry, ...NodeMenuEntry[]] = [firstContent, ...restContent];
+			const resetSize = planResetSizeAction(data.hasSizeOverride);
+			if (resetSize !== null) {
+				entries.push({
+					title: resetSize.title,
+					iconId: resetSize.iconId,
+					section: SIZE_MENU_SECTION,
+					onClick: () => void actions.resetNodeSize(data.path),
+				});
+			}
+			ui.showNodeMenu({ nativeEvent: event.nativeEvent, entries });
+		},
+		[actions, ui, data.contentOverride, data.hasSizeOverride, data.path],
+	);
 
 	return (
 		<>
@@ -117,6 +169,7 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
 				onContextMenu={onContextMenu}
 			>
 				<PinButton action={pinAction} onActivate={runPinAction} />
+				<GearButton onActivate={onGearClick} />
 				{/* Read-only graph: handles exist only as edge anchors (top target /
 				    bottom source matches the elk DOWN direction) and are hidden in CSS. */}
 				<Handle type="target" position={Position.Top} className="vicinity-graph-node__handle" />
@@ -154,10 +207,11 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
 });
 
 /**
- * Hover-reveal pin/unpin button (top-right of the node). Hidden until the node
- * is hovered (CSS), a `nodrag nopan` escape hatch so the click never starts a
- * node drag or canvas pan. Its click carries the same shared pin decision as
- * the context menu.
+ * Hover-reveal pin/unpin button (top-LEFT of the node — the left edge carries no
+ * drag-resize grip; the gear takes the top-right). Hidden until the node is
+ * hovered (CSS), a `nodrag nopan` escape hatch so the click never starts a node
+ * drag or canvas pan. Its click carries the same shared pin decision as the
+ * context menu.
  */
 function PinButton({
 	action,
@@ -181,12 +235,44 @@ function PinButton({
 	return (
 		<button
 			type="button"
-			className="vicinity-graph-pin-button nodrag nopan"
+			className="vicinity-graph-node-chip vicinity-graph-pin-button nodrag nopan"
 			aria-label={action.title}
 			title={action.title}
 			onClick={onClick}
 		>
-			<span ref={iconRef} className="vicinity-graph-pin-button__icon" aria-hidden="true" />
+			<span ref={iconRef} className="vicinity-graph-node-chip__icon" aria-hidden="true" />
+		</button>
+	);
+}
+
+/**
+ * Hover-reveal gear button (top-right of the node — the conventional settings
+ * corner; the pin sits top-left and the resize grips own the bottom/right edges,
+ * so nothing here fights for the same clicks). Hidden until the node is hovered
+ * (CSS), a `nodrag nopan` escape hatch so the click never starts a node drag or
+ * canvas pan. Its click opens the per-node content/size menu at the cursor.
+ */
+function GearButton({
+	onActivate,
+}: {
+	readonly onActivate: (event: ReactMouseEvent<HTMLButtonElement>) => void;
+}): ReactElement {
+	const ui = useGraphUi();
+	const iconRef = useRef<HTMLSpanElement>(null);
+	useEffect(() => {
+		if (iconRef.current !== null) {
+			ui.renderIcon(iconRef.current, GEAR_ICON_ID);
+		}
+	}, [ui]);
+	return (
+		<button
+			type="button"
+			className="vicinity-graph-node-chip vicinity-graph-gear-button nodrag nopan"
+			aria-label="Node settings"
+			title="Node settings"
+			onClick={onActivate}
+		>
+			<span ref={iconRef} className="vicinity-graph-node-chip__icon" aria-hidden="true" />
 		</button>
 	);
 }

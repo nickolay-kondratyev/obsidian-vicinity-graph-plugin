@@ -44,7 +44,21 @@ export class ObsidianGraphUi implements GraphUiPort {
 	showNodeMenu(request: NodeMenuRequest): void {
 		const menu = new Menu();
 		for (const entry of request.entries) {
-			menu.addItem((item) => item.setTitle(entry.title).setIcon(entry.iconId).onClick(entry.onClick));
+			menu.addItem((item) => {
+				item.setTitle(entry.title).onClick(entry.onClick);
+				// Each is set only when the entry declares it: a content choice carries a
+				// `checked` state and no icon; a command (pin / reset) carries an icon and
+				// no check. `setSection` groups + separates the gear menu's two halves.
+				if (entry.iconId !== undefined) {
+					item.setIcon(entry.iconId);
+				}
+				if (entry.checked !== undefined) {
+					item.setChecked(entry.checked);
+				}
+				if (entry.section !== undefined) {
+					item.setSection(entry.section);
+				}
+			});
 		}
 		menu.showAtMouseEvent(request.nativeEvent);
 	}

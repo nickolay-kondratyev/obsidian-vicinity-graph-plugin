@@ -205,6 +205,55 @@ describe("ControlsActions node size override (drag-to-resize commit)", () => {
 	});
 });
 
+describe("ControlsActions node content override (hover gear)", () => {
+	const NOT_CONTENT_OVERRIDABLE_MESSAGE = "This note's content choice can't be saved (no stable id).";
+
+	it("WHEN a content choice is set THEN the override is persisted under the doc's id", async () => {
+		const { actions, pluginDataStore } = await actionsUnderTest();
+		await actions.setNodeContentOverride(MAIN_PATH, "outline");
+		expect(pluginDataStore.nodeOverrides()[MAIN_DOCID]).toEqual({ content: "outline" });
+	});
+
+	it("WHEN a content choice is set THEN EVERY open view is refreshed (a data-only rebuild)", async () => {
+		const { actions, viewsRefresh } = await actionsUnderTest();
+		await actions.setNodeContentOverride(MAIN_PATH, "image");
+		expect(viewsRefresh.refreshedViewIds).toEqual([ORIGINATING_VIEW_ID, OTHER_VIEW_ID]);
+	});
+
+	it("WHEN a content set is refused as not-persistable THEN the user is told why", async () => {
+		const { actions, notices } = await actionsUnderTest();
+		await actions.setNodeContentOverride(ID_LESS_PATH, "outline");
+		expect(notices.messages).toEqual([NOT_CONTENT_OVERRIDABLE_MESSAGE]);
+	});
+
+	it("WHEN a content set is refused as not-persistable THEN NO view is refreshed (the menu closed, screen unchanged)", async () => {
+		// UNLIKE a resize, nothing on screen moved optimistically — so a refusal, like a
+		// refused pin, has nothing to repaint.
+		const { actions, viewsRefresh } = await actionsUnderTest();
+		await actions.setNodeContentOverride(ID_LESS_PATH, "outline");
+		expect(viewsRefresh.refreshedViewIds).toEqual([]);
+	});
+
+	it("WHEN Inherit clears a stored override THEN the override is gone and every view is refreshed", async () => {
+		const { actions, viewsRefresh, pluginDataStore } = await actionsUnderTest();
+		await actions.setNodeContentOverride(MAIN_PATH, "image");
+		await actions.clearNodeContentOverride(MAIN_PATH);
+		expect({
+			override: pluginDataStore.nodeOverrides()[MAIN_DOCID],
+			refreshCount: viewsRefresh.refreshedViewIds.length,
+		}).toEqual({ override: undefined, refreshCount: 4 });
+	});
+
+	it("WHEN a content set's persist rejects THEN the user is told once and every view is refreshed anyway", async () => {
+		const { actions, viewsRefresh, notices } = await actionsUnderTest(new RejectingPluginDataPort());
+		await actions.setNodeContentOverride(MAIN_PATH, "outline");
+		expect({ messages: notices.messages, refreshed: viewsRefresh.refreshedViewIds }).toEqual({
+			messages: [SettingsWriteFailureNotice.forNonSettingsWrite("node-content-override")],
+			refreshed: [ORIGINATING_VIEW_ID, OTHER_VIEW_ID],
+		});
+	});
+});
+
 /**
  * The pinned set is a `data.json` write like any setting, so it owes the user the
  * SAME failure policy — and needs it more: `PluginDataStore.persist()` moves the pin

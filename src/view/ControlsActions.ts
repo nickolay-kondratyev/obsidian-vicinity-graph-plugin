@@ -1,5 +1,5 @@
 import type { VaultPort } from "../adapters/obsidianPorts";
-import type { NodeSizeOverridePx, ViewSettings } from "../engine";
+import type { NodeContentOverride, NodeSizeOverridePx, ViewSettings } from "../engine";
 import type { PersistableIdentity } from "../persistence/DocPersistEligibility";
 import type { PersistenceServices } from "../persistence/PersistenceServices";
 import type { SettingsResetScope } from "./settingsResetPlan";
@@ -36,6 +36,8 @@ import type { ControlsActionsPort, UserNoticePort } from "./viewPorts";
 const NOT_PINNABLE_NOTICE = "This note can't be pinned (no stable id).";
 /** Same refusal cause as {@link NOT_PINNABLE_NOTICE} (the shared eligibility seam), worded for the resize gesture. */
 const NOT_RESIZABLE_NOTICE = "This note's size can't be saved (no stable id).";
+/** Same refusal cause again, worded for the per-node content override. */
+const NOT_CONTENT_OVERRIDABLE_NOTICE = "This note's content choice can't be saved (no stable id).";
 
 /**
  * What a failed pinned-set / size-override save is ANNOUNCED as. Only the subject
@@ -44,6 +46,7 @@ const NOT_RESIZABLE_NOTICE = "This note's size can't be saved (no stable id).";
  */
 const PIN_WRITE_SUBJECT: NonSettingsWriteSubject = "pinned-set";
 const NODE_SIZE_WRITE_SUBJECT: NonSettingsWriteSubject = "node-size-override";
+const NODE_CONTENT_WRITE_SUBJECT: NonSettingsWriteSubject = "node-content-override";
 
 export class ControlsActions implements ControlsActionsPort {
 	constructor(
@@ -136,6 +139,43 @@ export class ControlsActions implements ControlsActionsPort {
 				return "store-unchanged";
 			}
 			await this.persistenceServices.clearNodeOverrideField(file, "sizePx");
+			return "store-changed";
+		});
+	}
+
+	/**
+	 * The gear menu's Content choice (Title only / Outline / Image): the doc's
+	 * global content override, the same pin-shaped write intent naming ONE field
+	 * (docid ensured lazily, the same eligibility seam can refuse it), guarded and
+	 * fanned out by the pipeline. UNLIKE a resize, nothing moved on screen
+	 * optimistically — the menu simply closed — so a refusal reports `store-unchanged`
+	 * (no repaint needed), exactly like a refused pin.
+	 */
+	setNodeContentOverride(path: string, content: NodeContentOverride): Promise<void> {
+		return this.settingsWrites.runGuarded(NODE_CONTENT_WRITE_SUBJECT, async () => {
+			const file = this.vault.getFileByPath(path);
+			if (file === null) {
+				return "store-unchanged";
+			}
+			return this.persistOutcome(
+				await this.persistenceServices.saveNodeOverrideField(file, { field: "content", value: content }),
+				{ message: NOT_CONTENT_OVERRIDABLE_NOTICE, refusedOutcome: "store-unchanged" },
+			);
+		});
+	}
+
+	/**
+	 * "Inherit": clearing never mints an id and never refuses
+	 * (`clearNodeOverrideField` — an id-less doc owns no override), so like
+	 * {@link unpinNode} it always lands and always repaints.
+	 */
+	clearNodeContentOverride(path: string): Promise<void> {
+		return this.settingsWrites.runGuarded(NODE_CONTENT_WRITE_SUBJECT, async () => {
+			const file = this.vault.getFileByPath(path);
+			if (file === null) {
+				return "store-unchanged";
+			}
+			await this.persistenceServices.clearNodeOverrideField(file, "content");
 			return "store-changed";
 		});
 	}

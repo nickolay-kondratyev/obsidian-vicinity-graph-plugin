@@ -259,18 +259,24 @@ export interface NodeSizeOverridePx {
  * `"auto"` — "Inherit" (fall back to the global preference, which may itself be
  * `"auto"`) is expressed by ABSENCE of the field, never by a stored value.
  *
- * `"title-only"` is MINUS'd too, on purpose: it ships as a GLOBAL preference
- * first (nid_jcxzhexfaksge2arjzca3w7ff_e); adding it to the per-node menu is its
- * own ticket (nid_9hx6okamx3yt0rg9iad2f4151_e), which drops this exclusion and
- * lists it in {@link NODE_CONTENT_OVERRIDES}.
+ * `"auto"` is the ONLY exclusion: it is not a concrete region, it IS the
+ * "decide per document/tier" rule the override exists to opt OUT of, so a stored
+ * `"auto"` would be indistinguishable from Inherit. `"title-only"` IS a per-node
+ * choice (owner decision 2026-08-04, ticket nid_9hx6okamx3yt0rg9iad2f4151_e):
+ * the hover gear offers [Inherit | Title only | Outline | Image].
  */
-export type NodeContentOverride = Exclude<NodePreviewPreference, "auto" | "title-only">;
+export type NodeContentOverride = Exclude<NodePreviewPreference, "auto">;
 
 /**
- * THE value list of {@link NodeContentOverride} — persistence validates stored
- * values against it (same single-sourcing as {@link NODE_PREVIEW_PREFERENCES}).
+ * THE value list of {@link NodeContentOverride}, in the order the hover gear menu
+ * renders them (after "Inherit") — persistence validates stored values against it
+ * (same single-sourcing as {@link NODE_PREVIEW_PREFERENCES}).
  */
-export const NODE_CONTENT_OVERRIDES = ["outline", "image"] as const satisfies readonly NodeContentOverride[];
+export const NODE_CONTENT_OVERRIDES = [
+	"title-only",
+	"outline",
+	"image",
+] as const satisfies readonly NodeContentOverride[];
 
 /**
  * Compile-time completeness: a preference added to {@link NodePreviewPreference}
