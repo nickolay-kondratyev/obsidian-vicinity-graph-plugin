@@ -1,17 +1,17 @@
 ---
 id: nid_56ggaa2iz70di7xc3h8objt8n_e
-title: "Local pinning core: persistence map + adapter merge into pinned roots"
-status: open
+title: 'Local pinning core: persistence map + adapter merge into pinned roots'
+status: in_progress
 deps: [nid_2zm28ijiqp786yw6grwbvmffv_e]
 links: [nid_ndoy0bq50w1p1qzd2i9di2fxo_e, nid_2zm28ijiqp786yw6grwbvmffv_e, nid_6eust4js4l85s163nezeq3v3g_e]
-created_iso: 2026-08-07T19:30:35Z
-status_updated_iso: 2026-08-07T19:30:35Z
+created_iso: '2026-08-07T19:30:35Z'
+status_updated_iso: '2026-08-07T19:51:10Z'
 type: feature
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
 tags: []
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin
 ---
-
 Core (non-UI) half of LOCAL PINNING (planned from nid_ndoy0bq50w1p1qzd2i9di2fxo_e; decisions in nid_2zm28ijiqp786yw6grwbvmffv_e — defaults there are the spec unless overturned).
 
 FEATURE: a local pin marks a target note as pinned ONLY while a specific MAIN (active) note is active. Global pinning is unchanged; a note can hold both pin kinds at once. When the main note is active, its locally pinned notes behave exactly like globally pinned centrals: pinned depth trio, isCentral, cap-exempt, survive restarts.
