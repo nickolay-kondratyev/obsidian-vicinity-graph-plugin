@@ -31,3 +31,6 @@ Instrument a full-suite floor run (the only place it reproduces, ~1 in 3 histori
 
 Root cause identified (controller lost/superseded publish vs view reseed race) with a failing-first test at that seam; fix lands; e2e/nodeResize.ts renderTargetAsNeighbourBox reverts to a plain in-place refreshOpenViews() fan-out (no remount fallback) and stays green across repeated FULL floor+pinned suites.
 
+--------------------------------------------------------------------------------
+
+This ticket was done prior to hard reset look for a branch with 'nid_1s77g4wx33uj8b380d1oph1d6_e' to see how it was handled.
