@@ -53,6 +53,7 @@ const BOUNDS_ENFORCERS: Readonly<Record<string, BoundsEnforcer>> = {
 	"globalView.outlineMaxDepth": clampOutlineMaxDepth,
 	"globalView.sizing.minPx": sizingEnforcer("minPx"),
 	"globalView.sizing.maxPx": sizingEnforcer("maxPx"),
+	"globalView.sizing.minImageHeightPx": sizingEnforcer("minImageHeightPx"),
 	"globalView.forceLayout.centerPullStrength": forceLayoutEnforcer("centerPullStrength"),
 	"globalView.forceLayout.repelStrength": forceLayoutEnforcer("repelStrength"),
 	"globalView.forceLayout.linkStrengthFactor": forceLayoutEnforcer("linkStrengthFactor"),

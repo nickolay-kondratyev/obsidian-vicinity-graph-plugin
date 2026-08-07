@@ -217,6 +217,7 @@ function parseSizing(raw: unknown): SizingSettings | undefined {
 	return clampSizingSettings({
 		minPx: numberOrUndefined(raw["minPx"]) ?? defaults.minPx,
 		maxPx: numberOrUndefined(raw["maxPx"]) ?? defaults.maxPx,
+		minImageHeightPx: numberOrUndefined(raw["minImageHeightPx"]) ?? defaults.minImageHeightPx,
 	});
 }
 

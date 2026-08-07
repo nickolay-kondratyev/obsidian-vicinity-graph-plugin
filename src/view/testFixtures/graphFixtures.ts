@@ -47,6 +47,7 @@ function makeViewSettings(): ViewSettings {
 		sizing: {
 			minPx: 40,
 			maxPx: 160,
+			minImageHeightPx: 120,
 		},
 		forceLayout: {
 			centerPullStrength: 0.05,

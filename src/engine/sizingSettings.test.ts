@@ -23,9 +23,21 @@ describe("clampSizingSettings (defaults pass through)", () => {
 	});
 });
 
-/** Sizing settings with both clamps set. */
-function sizingWithNumbers(fields: { readonly minPx: number; readonly maxPx: number }): SizingSettings {
-	return { minPx: fields.minPx, maxPx: fields.maxPx };
+/**
+ * Sizing settings with the clamps set. `minImageHeightPx` defaults to the shipped
+ * value (in range, so the pair-focused cases are unaffected) and is overridable
+ * for the cases that exercise the image floor's own clamp.
+ */
+function sizingWithNumbers(fields: {
+	readonly minPx: number;
+	readonly maxPx: number;
+	readonly minImageHeightPx?: number;
+}): SizingSettings {
+	return {
+		minPx: fields.minPx,
+		maxPx: fields.maxPx,
+		minImageHeightPx: fields.minImageHeightPx ?? EngineDefaults.sizingSettings().minImageHeightPx,
+	};
 }
 
 describe("clampSizingSettings (degenerate values are unreachable)", () => {
@@ -85,6 +97,20 @@ describe("clampSizingSettings (degenerate values are unreachable)", () => {
 	it("WHEN minPx equals maxPx THEN neither moves (every node the same size is a real choice)", () => {
 		const flat = sizingWithNumbers({ minPx: 80, maxPx: 80 });
 		expect(clampSizingSettings(flat)).toEqual(flat);
+	});
+
+	it("WHEN minImageHeightPx is out of range THEN it is clamped into the shared px bounds", () => {
+		const clamped = clampSizingSettings(
+			sizingWithNumbers({ minPx: 40, maxPx: 160, minImageHeightPx: SIZING_RANGES.minImageHeightPx.max + 1000 }),
+		);
+		expect(clamped.minImageHeightPx).toBe(SIZING_RANGES.minImageHeightPx.max);
+	});
+
+	it("WHEN minImageHeightPx exceeds maxPx THEN it is NOT lowered (it is capped later, by the sizer)", () => {
+		// No cross-field rule with the pair: unlike maxPx>=minPx, the image floor is
+		// left as typed and `NodeSizer` bounds it at maxPx per image node.
+		const clamped = clampSizingSettings(sizingWithNumbers({ minPx: 40, maxPx: 80, minImageHeightPx: 160 }));
+		expect(clamped.minImageHeightPx).toBe(160);
 	});
 
 	it("WHEN an out-of-range minPx inverts the pair only AFTER clamping THEN maxPx follows the CLAMPED minPx", () => {

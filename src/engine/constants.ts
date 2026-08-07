@@ -347,6 +347,7 @@ export type SizingRangeField = keyof SizingSpec;
 export const SIZING_RANGES: Readonly<Record<SizingRangeField, SettingsRange>> = rangesOf({
 	minPx: SETTINGS_SPEC.globalView.sizing.minPx,
 	maxPx: SETTINGS_SPEC.globalView.sizing.maxPx,
+	minImageHeightPx: SETTINGS_SPEC.globalView.sizing.minImageHeightPx,
 });
 
 /**
@@ -390,6 +391,10 @@ export function clampSizingSettings(settings: SizingSettings): SizingSettings {
 		// The CLAMPED minPx is the floor: raising to the typed one would drag maxPx
 		// outside its own range, which is exactly what this function exists to prevent.
 		maxPx: Math.max(minPx, clampSizingNumber("maxPx", settings.maxPx)),
+		// An INDEPENDENT floor (no cross-field rule with the pair): it is applied ONLY
+		// to image nodes and `NodeSizer` caps it at `maxPx` there, so it needs no
+		// inversion repair here — just the same range clamp every sizing number gets.
+		minImageHeightPx: clampSizingNumber("minImageHeightPx", settings.minImageHeightPx),
 	};
 }
 
@@ -413,7 +418,11 @@ export class EngineDefaults {
 
 	static sizingSettings(): SizingSettings {
 		const sizing = SETTINGS_SPEC.globalView.sizing;
-		return { minPx: sizing.minPx.default, maxPx: sizing.maxPx.default };
+		return {
+			minPx: sizing.minPx.default,
+			maxPx: sizing.maxPx.default,
+			minImageHeightPx: sizing.minImageHeightPx.default,
+		};
 	}
 
 	static nodeExclusionSettings(): NodeExclusionSettings {

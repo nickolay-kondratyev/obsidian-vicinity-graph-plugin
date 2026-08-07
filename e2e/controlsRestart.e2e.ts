@@ -158,7 +158,7 @@ test("depth, pin, node cap and sizing all survive an Obsidian restart", async ()
 	// §11 Sizing (in-view mirror): set a distinctive minimum node size.
 	await ensureOpen(page.locator(".vicinity-graph-sizing"));
 	await setNumberInput(
-		page.locator(".vicinity-graph-sizing").getByLabel("Minimum node size (px)"),
+		page.locator(".vicinity-graph-sizing").getByLabel("Minimum node height (px)", { exact: true }),
 		DISTINCTIVE_MIN_PX,
 	);
 	await expect.poll(async () => (await harness.readGlobalView()).sizing.minPx).toBe(DISTINCTIVE_MIN_PX);

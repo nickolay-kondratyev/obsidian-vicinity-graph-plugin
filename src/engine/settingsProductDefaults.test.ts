@@ -70,6 +70,8 @@ const SHIPPED_SETTINGS_DEFAULTS: Readonly<Record<string, unknown>> = {
 	// GONE — a node fits what it shows, and these two clamps are the only dials.
 	"globalView.sizing.minPx": 40, // The node-diameter floor on first run; `maxPx` is its ceiling.
 	"globalView.sizing.maxPx": 160,
+	// Ships just below a thumbnail's ~122px natural floor, so it is a no-op until raised.
+	"globalView.sizing.minImageHeightPx": 120,
 
 	// The force-layout tuning set = the DEFAULT RENDERED LAYOUT. Four of these are also
 	// observable in the geometry suites; three (centerPullStrength, linkStrengthFactor,
