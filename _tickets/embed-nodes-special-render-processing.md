@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-08-07T01:54:38Z
 id: nid_14potmihi2tc0x421abf0awz6_e
 title: Embed nodes special render processing
-status: in_progress
+status: closed
 deps: []
-links: []
+links: [nid_e79vxubva52s9gq24idypb77x_e]
 created_iso: '2026-08-07T01:30:04Z'
-status_updated_iso: '2026-08-07T01:49:12Z'
+status_updated_iso: 2026-08-07T01:54:38Z
 type: feature
 priority: 3
 assignee: nickolaykondratyev
@@ -62,3 +63,38 @@ No other node is allowed to nest central node.
 #### Pinned nodes can only be nested into central node or other pinned node.
 Pinned nodes can be nested into central node OR pinned node.
 Pinned nodes cannot be nested into a regular node.
+
+--------------------------------------------------------------------------------
+
+## RESOLUTION (planning complete, 2026-08-07)
+
+Planning done; this ticket is closed. Codebase exploration confirmed the feature
+is well-supported: embed-vs-link is already first-class (`src/shared/LinkKind.ts`,
+`EdgeKind` in `src/engine/types.ts`, kind-pure traversal channels), and compound
+rendering + edge-collapse-with-`notePairs`-preserved already exists for folder
+groups (`src/view/flowMapping.ts`, `src/view/elkMapping.ts`) — nesting reuses that
+machinery, and the link-preview drawer already shows true note→note pairs for
+collapsed edges, satisfying the "see where relationships truly go" requirement.
+
+### Open decisions (human) — ticket `nid_e79vxubva52s9gq24idypb77x_e` (tag: decide)
+9 questions (Q1–Q9) with recommended defaults were written to
+`.ai_out/_current_decision/current_decision.md`: central==isMain; container
+tie-breaks (minDepth, then path); embed-cycle handling (forest, refuse cyclic
+assignment); nesting wins over folder groups; no container↔descendant edges /
+drop self-loops; losing embedders keep a collapsed edge; nesting computed
+post-truncation in the view layer; v1 disables resize on containers/nested;
+global toggle "Nest embedded notes" default ON.
+
+### Plan tickets created (dependency chain)
+1. `nid_e79vxubva52s9gq24idypb77x_e` — resolve decisions Q1–Q9 (**decide**).
+2. `nid_r3qiyd7xx3bund6f73wf5h0vd_e` — P1: engine stamps per-source embed order
+   on embed/both edges (pure, `EdgeAssembly`).
+3. `nid_1moqnutin09drbiyxkd3l7r5k_e` — P2: pure view-layer nesting-assignment
+   forest (`src/view/embedNesting.ts`): precedence, constraints, ties, cycles,
+   child order.
+4. `nid_qy5rc7sq261z23bp79bk8wsem_e` — P3: render nested subflows (React Flow
+   `parentId` + elk compound), collapse edges to outermost container keeping
+   `notePairs`, folder-group interplay, CSS; e2e suite green.
+5. `nid_jbsbfqqxyy1brm26ul7873v5h_e` — P4: settings toggle per repo settings
+   conventions + dedicated e2e specs + docs (`high-level-plan.md`,
+   `architecture-map.md`, README).
