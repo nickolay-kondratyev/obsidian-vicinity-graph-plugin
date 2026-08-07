@@ -77,8 +77,8 @@ machinery, and the link-preview drawer already shows true note→note pairs for
 collapsed edges, satisfying the "see where relationships truly go" requirement.
 
 ### Open decisions (human) — ticket `nid_e79vxubva52s9gq24idypb77x_e` (tag: decide)
-9 questions (Q1–Q9) with recommended defaults were written to
-`.ai_out/_current_decision/current_decision.md`: central==isMain; container
+9 questions (Q1–Q9) — answers RECORDED in ticket
+`nid_e79vxubva52s9gq24idypb77x_e` body: central==isMain; container
 tie-breaks (minDepth, then path); embed-cycle handling (forest, refuse cyclic
 assignment); nesting wins over folder groups; no container↔descendant edges /
 drop self-loops; losing embedders keep a collapsed edge; nesting computed

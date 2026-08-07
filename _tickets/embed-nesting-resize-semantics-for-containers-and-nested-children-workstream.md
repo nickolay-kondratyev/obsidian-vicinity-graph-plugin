@@ -1,11 +1,11 @@
 ---
 id: nid_1av3d7fx1072oyp5lxyhjd451_e
 title: 'Embed nesting: resize semantics for containers and nested children (workstream)'
-status: in_progress
-deps: []
-links: [nid_e79vxubva52s9gq24idypb77x_e, nid_1ht2a3rm0ng8wnlis259u5egg_e]
+status: open
+deps: [nid_qy5rc7sq261z23bp79bk8wsem_e]
+links: [nid_e79vxubva52s9gq24idypb77x_e, nid_1ht2a3rm0ng8wnlis259u5egg_e, nid_rju51kn8sndg0v4dvxvwzdkap_e, nid_wi1x92hhm65wemtcrqzbc33aw_e, nid_0bvt1rkun36xtcmo5df9btm92_e]
 created_iso: '2026-08-07T02:12:49Z'
-status_updated_iso: '2026-08-07T02:24:12Z'
+status_updated_iso: '2026-08-07T03:08:44Z'
 type: feature
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
@@ -26,3 +26,62 @@ OPEN QUESTIONS for the plan: what does a persisted size override MEAN for a node
 ## Acceptance Criteria
 
 Plan produced and approved; then containers and nested children are resizable per the owner vision with persisted-override semantics defined and tested.
+
+## PLAN PASS — recorded 2026-08-07 (status: OPEN, not implemented)
+
+**Plan produced and APPROVED (owner decisions Q1–Q6 recorded below); implementation
+BLOCKED on V1.** The V1 embed-nesting
+feature (P1–P4: nid_r3qiyd7xx3bund6f73wf5h0vd_e, nid_1moqnutin09drbiyxkd3l7r5k_e,
+nid_qy5rc7sq261z23bp79bk8wsem_e, nid_jbsbfqqxyy1brm26ul7873v5h_e) is all still **open** —
+containers/nesting don't exist in `src/` yet, so there is nothing to attach resize
+semantics to. Added `deps: [nid_qy5rc7sq261z23bp79bk8wsem_e]` (V1 rendering) accordingly.
+
+**Deliverable of this pass:** design & phased plan —
+`docs-internal/plan/embed-nesting-resize-semantics.md` (self-contained; all owner
+decisions folded in there and summarized below).
+
+**Design in one line:** a `sizePx` override is a node's OUTER rendered box (for a leaf =
+its content; for a container = the whole box incl. the nested stack). Inside a container
+the split — own-content vs children region, and the children fit `scale` — is DERIVED
+each rebuild from `(outerBox, children natural sizes)`, never stored. From that: #1
+(container grows its own image) and #2 (child resize auto-upsizes the chain) fall out of
+V1's elk auto-grow; #3 (container downsize scales the nested stack) is a derived
+`childrenScale < 1`, with child own-sizes untouched.
+
+**DECISIONS — RESOLVED 2026-08-07 (owner):**
+- **Q1 (how to scale children down): (B) container-scoped fit factor** — scale the
+  rendered children region; leave each child's own `sizePx` alone. Grabbing a child's OWN
+  handle records on the child; a change caused by the container does not.
+- **Q2 (persist the scale?): DERIVE, do NOT persist.** The container SIZE wins; the
+  persisted fact is the container's outer box; `childrenScale = f(outerBox, childrenNatural)`
+  is recomputed every rebuild. Never lost, and **no new `NodeOverride` field / no schema
+  or `version` bump.** (Rejected: rewriting child overrides — POLS violation.)
+- **Q3 (sequencing): stagger** — this workstream `deps: [P3]`; ordered sub-tickets Phase
+  A (#1+#2) → B (#3) → C (children grow), each deps the last (same view modules).
+
+**Round 2 — children may GROW past natural (owner, design doc §9):**
+- **Q4 (own-content cap): GLOBAL px setting, every nesting level.** One new SETTINGS_SPEC
+  leaf through the one settings pipeline — NOT a per-node field, so still schema-clean.
+- **Q5 (appetite): content KIND, both axes.** Image/representative-image grows (W and H)
+  up to the cap; title-only and fully-shown outline are saturated (max = natural). ("at
+  least width-wise" dropped — width is not special.)
+- **Q6 (distribution): EVEN across ALL unsaturated descendants** of the subtree (one flat
+  pool, not per-level, not proportional, not priority-ordered). Greedy ordering later.
+
+**Answers to this ticket's original OPEN QUESTIONS:** override meaning nested vs
+standalone = the same outer box either way (drops V1's "ignore overrides while nested");
+override vs auto-grow minimum = one outer box floored at ownMin; child-scaling on downsize
+= derived, not persisted (Q2). Full detail in the design doc §3–§4, §9.
+
+**DECOMPOSED into executable tickets (2026-08-07)** — this ticket is now the UMBRELLA;
+implementation lives in three ordered, self-contained phase tickets (each references the
+design doc and captures its own requirements + key approach):
+- **Phase A** `nid_rju51kn8sndg0v4dvxvwzdkap_e` — container + child drag-resize (#1 grow own
+  content, #2 auto-upsize chain). `deps: [P3]`.
+- **Phase B** `nid_wi1x92hhm65wemtcrqzbc33aw_e` — container downsize scales the nested stack
+  (#3, derived not persisted). `deps: [A]`.
+- **Phase C** `nid_0bvt1rkun36xtcmo5df9btm92_e` — children grow past natural (water-filling
+  + global own-content cap setting). `deps: [B]`.
+
+None add a per-node persisted field; only Phase C adds one global settings dial (the cap).
+**Close this umbrella when A + B + C are all done.** All still blocked on V1 (P1–P4).

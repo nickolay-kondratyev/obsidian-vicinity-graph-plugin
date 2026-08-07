@@ -14,7 +14,7 @@ assignee: CC_WITH-nickolaykondratyev
 tags: [embed-nesting]
 pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-2
 ---
-Part 1 of the embed-nesting feature (plan: closed ticket nid_14potmihi2tc0x421abf0awz6_e; decisions: ticket nid_e79vxubva52s9gq24idypb77x_e and .ai_out/_current_decision/current_decision.md).
+Part 1 of the embed-nesting feature (plan: closed ticket nid_14potmihi2tc0x421abf0awz6_e; decisions RECORDED in ticket nid_e79vxubva52s9gq24idypb77x_e body).
 
 GOAL: the view will nest embedded notes inside their embedder and must render children IN EMBED ORDER (order of `![[...]]` occurrences in the source note). Today `GraphEdge` (src/engine/types.ts) carries `{source, target, count, kind}` with NO ordering, while reference order already exists at the LinkProvider seam: `LinkProvider.getOutgoingReferences` returns references in reference order (src/engine/LinkProvider.ts, adapters/ObsidianLinkProvider.ts via adapters/ReferenceOrder.ts).
 
