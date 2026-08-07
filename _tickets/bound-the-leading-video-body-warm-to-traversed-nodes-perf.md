@@ -23,3 +23,6 @@ OPTIONS to bound it (decide):
 
 Context: the leading-video warm is gated on `globalView.externalPreviews` in `src/adapters/VicinityGraphBuilder.ts` (OFF ⇒ zero reads), and the edge-click path (`src/adapters/LiveLinkOccurrenceProvider.ts`) passes no cache, so this cost is confined to graph builds with external previews ON. Data-model ticket that introduced it: nid_ur7veu8yqx8x6q8j6vz2z2ioa_e.
 
+--------------------------------------------------------------------------------
+
+I am trying to understand why we would need this if we were fine getting images from the nodes when we needed to build the graph, Why can't we just limit reading the nodes that are part of the graph when it comes to videos as well?
