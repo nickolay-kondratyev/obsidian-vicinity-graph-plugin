@@ -1,17 +1,17 @@
 ---
 id: nid_ndoy0bq50w1p1qzd2i9di2fxo_e
-title: "Add ability to do local pinning"
-status: open
+title: Add ability to do local pinning
+status: in_progress
 deps: []
 links: []
-created_iso: 2026-08-07T19:24:26Z
-status_updated_iso: 2026-08-07T19:24:26Z
+created_iso: '2026-08-07T19:24:26Z'
+status_updated_iso: '2026-08-07T19:27:21Z'
 type: task
 priority: 3
 assignee: nickolaykondratyev
 tags: []
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-3
 ---
-
 TASK: **PLAN**. Lets clarify any gaps that exist for this ticket
   (if you need to explore code base use cheaper Explore-cheap sub-agent)
   ask human any questions that come up that require human decision.
@@ -28,4 +28,4 @@ We still retain global pinning functionality, and we will add another icon to re
 A locally pinned note is seen as a PINNED note in the context of the MAIN(active) note. 
 A note can be globally pinned AND locally pinned at the same time, or just one type of pinned.
 
-We want to persist the pinned of the notes that are locally pinned for the note so we will want to save the IDs of the notes that are locally pinned under the settings for main id note. 
+We want to persist the pinned of the notes that are locally pinned for the note so we will want to save the IDs of the notes that are locally pinned under the settings for main id note.
