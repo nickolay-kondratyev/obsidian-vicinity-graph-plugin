@@ -1,17 +1,17 @@
 ---
 id: nid_14potmihi2tc0x421abf0awz6_e
-title: "Embed nodes special render processing"
-status: open
+title: Embed nodes special render processing
+status: in_progress
 deps: []
 links: []
-created_iso: 2026-08-07T01:30:04Z
-status_updated_iso: 2026-08-07T01:30:04Z
+created_iso: '2026-08-07T01:30:04Z'
+status_updated_iso: '2026-08-07T01:49:12Z'
 type: feature
 priority: 3
 assignee: nickolaykondratyev
 tags: []
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin
 ---
-
 TASK: **PLAN**. Lets clarify any gaps that exist for this ticket
   (if you need to explore code base use cheaper Explore-cheap sub-agent)
   ask human any questions that come up that require human decision.
@@ -61,4 +61,4 @@ No other node is allowed to nest central node.
 
 #### Pinned nodes can only be nested into central node or other pinned node.
 Pinned nodes can be nested into central node OR pinned node.
-Pinned nodes cannot be nested into a regular node. 
+Pinned nodes cannot be nested into a regular node.
