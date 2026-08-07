@@ -5,12 +5,14 @@
  *
  * WHY gate here: the master external-previews setting
  * ({@link ExternalPreviewsGate.externalPreviews}) promises that OFF means the plugin
- * contacts NO third-party server. The primary enforcement is at the RENDER boundary — the
- * view only emits a poster `<img>` / embed `<iframe>` when the setting is ON — and this
- * builder is defense in depth: every network URL it issues is `null` when the setting is
- * OFF, so a caller can never hand a live src to the DOM behind the gate's back. It is NOT a
- * fortress enforced by a source scan; a canonical watch link (a plain string a user clicks,
- * no automatic network) is deliberately built elsewhere, next to the videoId it belongs to.
+ * contacts NO third-party server. This builder gates every network URL it issues — each is
+ * `null` when the setting is OFF — so a caller can never hand a live src to the DOM behind
+ * the gate's back. A source-scan tripwire (`externalContentSeam.test.ts`) keeps this the
+ * SOLE module that names a network-bearing host (`EXTERNAL_CONTENT_HOSTS`) or a
+ * `fetch(`/`requestUrl(` — that is what makes "OFF means zero network" an invariant as the
+ * feature grows, not a per-caller promise. The scan is scoped to NETWORK: a canonical watch
+ * link (`https://www.youtube.com/watch?v=<id>`, an identity string a user clicks, no
+ * automatic network) is deliberately built elsewhere next to its videoId and is NOT a leak.
  *
  * PURE and leaf: no `obsidian` / `react` imports, and it does NOT depend on the engine's
  * `ViewSettings` — it declares its own narrow {@link ExternalPreviewsGate} so the
@@ -20,7 +22,7 @@
  * URL construction only. Actual network I/O (`requestUrl`/`fetch`) is a FUTURE resident:
  * when a thumbnail/favicon fetch arrives it lands as one adapter class wrapping
  * `requestUrl` behind an engine-defined port (DIP, like `LinkProvider`), gated on the same
- * setting — never sprinkled across callers.
+ * setting and added to the tripwire's sanctioned list — never sprinkled across callers.
  */
 
 /**
@@ -33,8 +35,9 @@ export interface ExternalPreviewsGate {
 }
 
 /**
- * The external hosts this builder owns. Declared as data (imported, never re-typed) so the
- * network-bearing host literals live in ONE place.
+ * The external hosts this builder owns. Declared as data so the tripwire can assert these
+ * literals appear in NO other module — importing the constant is fine, re-typing the literal
+ * is the leak it catches.
  */
 export const EXTERNAL_CONTENT_HOSTS = {
 	/** YouTube's thumbnail/poster CDN. */

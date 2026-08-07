@@ -73,11 +73,17 @@ DECISION (human, 2026-08-07) — hero placement RESOLVED (option A, exclusive): 
 
 **2026-08-07T18:47:18Z**
 
-GOAL-1 GUARANTEE ELEVATED (2026-08-07) — the external-content source-scan tripwire was
-removed (seam ticket nid_tvtm9gj5zaj4tbfbpti3v6sy2_e note of same date). This ticket's
-OFF-path e2e assertion (OFF => NO i.ytimg.com poster <img>, NO youtube-nocookie iframe,
-normal hero fallback) is therefore now THE primary enforcement that "external-previews
-OFF means zero network" — not just a nice-to-have. It MUST ship and MUST NOT be dropped
-or weakened; it is the behavioral backstop that replaced the deleted source scan. The
-ON-path assertion (poster src present; click => nocookie iframe present) stays as
-specified. Everything else in this ticket is unchanged.
+GOAL-1 GUARANTEE (2026-08-07) — this ticket's OFF-path e2e assertion (OFF => NO
+i.ytimg.com poster <img>, NO youtube-nocookie iframe, normal hero fallback) is a REQUIRED
+behavioral cover for "external-previews OFF means zero network". It MUST ship and MUST NOT
+be dropped or weakened. The ON-path assertion (poster src present; click => nocookie iframe
+present) stays as specified.
+
+CORRECTION (same date) — an earlier draft of this note said the source-scan tripwire was
+removed and that this e2e "replaced" it. That is WRONG: the tripwire
+(externalContentSeam.test.ts) was only NARROWED (its over-broad generic-URL pattern
+dropped; owned-host + fetch + requestUrl scan retained — see seam ticket
+nid_tvtm9gj5zaj4tbfbpti3v6sy2_e). The build-time source scan and this OFF-path e2e are
+COMPLEMENTARY layers, not a replacement: the scan proves no module reaches a network host
+(covering unrendered files); the e2e proves the rendered DOM stays clean when OFF. Both
+stand. Everything else in this ticket is unchanged.

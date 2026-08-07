@@ -494,12 +494,13 @@ export interface ViewSettings {
 	 * external is ever contacted.
 	 *
 	 * ONE switch, not per-provider (KISS): the disclosure a user consents to is
-	 * "external content is loaded", and that is a single yes/no. Enforcement lives
-	 * at the RENDER boundary: the view only emits a network-bearing element (poster
-	 * `<img>`, embed `<iframe>`) when this is ON. `shared/ExternalContentUrls.ts` is
-	 * the single builder for those network URLs (poster/embed), returning `null`
-	 * when this is OFF — defense in depth, and the future home of the embed player.
-	 * This field is the gate both consult.
+	 * "external content is loaded", and that is a single yes/no. The enforcement
+	 * seam that reads this is `shared/ExternalContentUrls.ts` (ticket
+	 * `nid_tvtm9gj5zaj4tbfbpti3v6sy2_e`) — the ONE builder of network-bearing host
+	 * URLs (poster/embed), returning `null` for every one when this is OFF; a
+	 * source-scan tripwire (`shared/externalContentSeam.test.ts`) fails the build if
+	 * any other module names an owned external host, `fetch(`, or `requestUrl(`. This
+	 * field is the gate that seam consults.
 	 */
 	readonly externalPreviews: boolean;
 	readonly sizing: SizingSettings;

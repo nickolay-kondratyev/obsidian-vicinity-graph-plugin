@@ -47,15 +47,23 @@ The render ticket (nid_15r71ajjkbel5s704kmj6wszw_e) now builds its poster/iframe
 
 **2026-08-07T18:47:18Z**
 
-UPDATE (2026-08-07) — the hard source-scan tripwire was REMOVED (commit on branch
-drop-external-content-source-scan-tripwire). `src/shared/externalContentSeam.test.ts`
-forbade any http(s):// literal outside the seam; it conflated network calls with
-harmless identity strings (YoutubeVideoIdentity.canonicalUrl, a watch link a user
-clicks — no automatic network) and produced a false build failure.
+UPDATE (2026-08-07) — the source-scan tripwire (`src/shared/externalContentSeam.test.ts`)
+was NARROWED, not removed. It had carried an over-broad `http(s)://` literal pattern
+BEYOND the human DECISION above (which named only "external host literal, fetch(, or
+requestUrl("). That extra pattern flagged `YoutubeHeroEmbed.ts`'s canonical watch link
+(`https://www.youtube.com/watch?v=<id>`) — a harmless IDENTITY string a user clicks, no
+automatic network — as a false leak, producing a false build failure.
 
-The "OFF means zero network" guarantee is UNCHANGED but now rests on the RENDER
-BOUNDARY, behaviorally: the view only emits a poster <img> / embed <iframe> when
-externalPreviews is ON (flowMapping.previewOf; e2e ON/OFF DOM assertions in the
-render ticket nid_15r71ajjkbel5s704kmj6wszw_e). ExternalContentUrls remains the single
-gated builder for network URLs (returns null when OFF) as defense in depth. The seam
-class and EXTERNAL_CONTENT_HOSTS are intact; only the blanket source scan is gone.
+FIX: dropped that one generic-URL pattern; the scan now forbids exactly the human-specced
+network-bearing set (owned `EXTERNAL_CONTENT_HOSTS` literals + `fetch(` + `requestUrl(`)
+outside the sanctioned seam. Those patterns never matched `www.youtube.com`, so the false
+positive is gone while the STRONG BLOCK invariant — build fails if any other module reaches
+a network host or makes a call — is preserved and still covers every file in the bundle,
+including ones no test renders. The render ticket's OFF-path e2e (poster/iframe DOM
+assertions, nid_15r71ajjkbel5s704kmj6wszw_e) stays as complementary behavioral cover.
+
+CORRECTION to an earlier draft of this note: the tripwire was NOT deleted wholesale and the
+guarantee does NOT rest on the render boundary alone — deleting a human-mandated STRONG
+BLOCK because a self-added sub-pattern misfired would have been a short-term patch, not a
+fix. The seam class and EXTERNAL_CONTENT_HOSTS are intact; only the generic-URL pattern is
+gone.
