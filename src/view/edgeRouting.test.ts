@@ -6,8 +6,6 @@ import { asFolderPath, asVaultPath, EngineDefaults, FORCE_LAYOUT_RANGES } from "
 import { GROUP_SIDE_PADDING_PX } from "./constants";
 import { vicinityGraphToFlow } from "./flowMapping";
 import type { Dimensions, FlowPinFacts, XY } from "./flowMapping";
-
-const NO_PINS: FlowPinFacts = { globalPinnedDocids: new Set(), localPinnedDocids: new Set() };
 import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
 import { ARROWHEAD_HALF_WIDTH_PX } from "./edgeGeometry";
 import {
@@ -34,6 +32,9 @@ const SHIPPED_CLEARANCE_PX = EngineDefaults.forceLayoutSettings().edgeRoutingCle
 
 /** The whole span a slider — or a clamped, hand-edited `data.json` — can reach. */
 const CLEARANCE_RANGE = FORCE_LAYOUT_RANGES.edgeRoutingClearancePx;
+
+/** No pins — these scenes exercise edge routing, not the global/local pin split. */
+const NO_PINS: FlowPinFacts = { globalPinnedDocids: new Set(), localPinnedDocids: new Set() };
 
 describe("extractEdgeRoutingInput", () => {
 	/**
