@@ -77,25 +77,42 @@ function sameForceLayout(a: ForceLayoutSettings, b: ForceLayoutSettings): boolea
 }
 
 /**
- * Value equality of the two graphs' nesting FORESTS by each node's container
- * assignment. Reached only when the node id sets already match, so a differing
- * `containerPath` for any path is a genuine nesting change (a node re-parented, or
- * a container gained/lost a child). Compared on `containerPath` — the direct
- * parent, which is exactly what React Flow's parent chain and elk's compound tree
- * key on; the outermost/child lists are derived from it. `deriveNestingForest` is
- * pure, so this re-derivation is deterministic.
+ * Value equality of the two graphs' nesting FORESTS. Reached only when the node id
+ * sets already match, so any difference here is a genuine nesting change.
+ *
+ * Two facts are compared per node:
+ * - `containerPath` — the direct parent, which React Flow's parent chain and elk's
+ *   compound tree key on; the outermost chain is fully derived from it.
+ * - `childPaths` — the ORDERED nested children. Order comes from `embedOrder`
+ *   (the position of each `![[…]]` in the source note), which {@link edgeIdOf}
+ *   does NOT encode — so reordering two embeds in a note leaves every node id AND
+ *   edge id identical while flipping the vertical stack order. Comparing only
+ *   `containerPath` would then reuse positions and leave the children stacked in
+ *   the OLD order; comparing `childPaths` forces the relayout that order needs.
+ *
+ * `deriveNestingForest` is pure, so this re-derivation is deterministic.
  */
 function sameNesting(previous: VicinityGraph, next: VicinityGraph): boolean {
 	const previousForest = deriveNestingForest(previous);
 	const nextForest = deriveNestingForest(next);
 	for (const node of next.nodes) {
-		const previousContainer = previousForest.nestingByPath.get(node.path)?.containerPath;
-		const nextContainer = nextForest.nestingByPath.get(node.path)?.containerPath;
-		if (previousContainer !== nextContainer) {
+		const previousNesting = previousForest.nestingByPath.get(node.path);
+		const nextNesting = nextForest.nestingByPath.get(node.path);
+		if (previousNesting?.containerPath !== nextNesting?.containerPath) {
+			return false;
+		}
+		if (!sameOrderedPaths(previousNesting?.childPaths, nextNesting?.childPaths)) {
 			return false;
 		}
 	}
 	return true;
+}
+
+/** Element-wise equality of two ordered child-path lists (either may be absent). */
+function sameOrderedPaths(a: readonly string[] | undefined, b: readonly string[] | undefined): boolean {
+	const left = a ?? [];
+	const right = b ?? [];
+	return left.length === right.length && left.every((path, index) => path === right[index]);
 }
 
 function nodeIdsOf(graph: VicinityGraph): Set<string> {

@@ -316,4 +316,31 @@ describe("decideLayout nesting change (embed-nesting P3)", () => {
 		});
 		expect(decideLayout(embedded, embeddedAgain, SIZE_RELAYOUT_THRESHOLD, NO_RENDERED_LAYOUT)).toBe("reuse-layout");
 	});
+
+	// GIVEN a hub embedding two children whose ONLY difference across builds is their
+	// embed ORDER — which drives the nested vertical stack. `edgeIdOf` ignores
+	// `embedOrder`, so the node AND edge id sets are identical; only comparing the
+	// ordered childPaths can catch the flipped stack.
+	const hubFirstSecond = makeGraph({
+		nodes: [
+			makeNode({ path: asVaultPath("hub.md") }),
+			makeNode({ path: asVaultPath("first.md") }),
+			makeNode({ path: asVaultPath("second.md") }),
+		],
+		edges: [makeEmbedEdge("hub.md", "first.md", 0), makeEmbedEdge("hub.md", "second.md", 1)],
+	});
+	const hubSecondFirst = makeGraph({
+		nodes: [
+			makeNode({ path: asVaultPath("hub.md") }),
+			makeNode({ path: asVaultPath("first.md") }),
+			makeNode({ path: asVaultPath("second.md") }),
+		],
+		edges: [makeEmbedEdge("hub.md", "first.md", 1), makeEmbedEdge("hub.md", "second.md", 0)],
+	});
+
+	it("WHEN embeds are REORDERED so the nested stack flips (same id sets) THEN it relayouts", () => {
+		expect(decideLayout(hubFirstSecond, hubSecondFirst, SIZE_RELAYOUT_THRESHOLD, NO_RENDERED_LAYOUT)).toBe(
+			"relayout",
+		);
+	});
 });
