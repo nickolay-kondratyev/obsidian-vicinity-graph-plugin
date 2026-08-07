@@ -44,3 +44,18 @@ nid_ur7veu8yqx8x6q8j6vz2z2ioa_e (data-model ticket).
 PLAN REVIEW (2026-08-07) — two decisions pinned to remove open forks:
 1. MECHANISM = a direct privacy-domain iframe (https://www.youtube-nocookie.com/embed/<videoId>), NOT MarkdownRenderer. Rationale: we already own the parse and hold the videoId (parse ticket output), so MarkdownRenderer would re-parse work we own AND yields a cookie-ful google iframe; a direct nocookie iframe gives us sizing control and the least third-party exposure consistent with 'still contacts YouTube'. This stays within the human's D4 sanction ('MarkdownRenderer OR a direct embed iframe').
 2. e2e = assert the DOM, not real playback. ON => an iframe element with the expected youtube-nocookie embed src for the videoId is present; OFF => NO iframe / no external request and the node falls back to its normal thumbnail/outline hero. Do NOT assert that YouTube actually loads (network-dependent => flaky). Sizing: give the hero a fixed 16:9 box at the top of the node (video aspect differs from the existing thumbnail); reuse the existing hero sizing seam where possible.
+
+**2026-08-07T16:47:42Z**
+
+DECISION (human, 2026-08-07) — RENDER = CLICK-TO-PLAY FACADE (supersedes the earlier 'live iframe on render' note for the ON state; the iframe is still the play target).
+
+Why: all-nodes scope + React Flow fit-view mounts every visible node at once (up to the 100 node cap), so N live YouTube players would boot together. A facade keeps cost == today's lazy thumbnails.
+
+Facade spec:
+- Poster = a plain lazy <img>, src https://i.ytimg.com/vi/<videoId>/hqdefault.jpg (hqdefault ALWAYS exists; do NOT use maxresdefault — it 404s for non-HD uploads). Cookieless static CDN image, NO player JS, NO oEmbed/JSON fetch — the URL is derived purely from the parsed videoId. Reuse the existing lazy-<img> thumbnail treatment (NoteNode.tsx:185, loading=lazy).
+- Overlay a play affordance. On click, swap the poster for the real iframe: https://www.youtube-nocookie.com/embed/<videoId> (fixed 16:9 box at the top of the node). At most 1-2 real players ever exist.
+- Master toggle OFF => NO poster image request, NO iframe; node falls back to its normal thumbnail/outline hero (the OFF requirement is unchanged). The poster image IS a third-party (Google CDN) request, so it lives under the toggle too — lighter than the player, not zero-contact.
+
+e2e (assert DOM, never real playback/network):
+- ON  => facade poster <img> present with the expected i.ytimg.com/vi/<id> src; after a click the youtube-nocookie embed iframe is present.
+- OFF => no poster img, no iframe, normal hero fallback.

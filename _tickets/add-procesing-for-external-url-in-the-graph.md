@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-08-07T16:47:58Z
 id: nid_mw1az1i1aznfoxqsgcwnfus07_e
 title: Add procesing for external URL in the graph
-status: open
+status: closed
 deps: []
 links: [nid_21xio7iwxv742ze4qc4p4qbmq_e, nid_k7i845kkf64tb75bs854a29m9_e, nid_ur7veu8yqx8x6q8j6vz2z2ioa_e, nid_15r71ajjkbel5s704kmj6wszw_e]
 created_iso: '2026-08-04T16:55:26Z'
-status_updated_iso: 2026-08-07T00:44:11Z
+status_updated_iso: 2026-08-07T16:47:58Z
 type: task
 priority: 4
 assignee: nickolaykondratyev
@@ -109,3 +110,14 @@ so parsing the body ourselves (repo's "we own parsing" precedent) is the robust
 source. Rendering needs a new React Flow node kind end-to-end
 (`src/view/flowMapping.ts` union → new `UrlNode.tsx` → `NODE_TYPES` in
 `src/view/VicinityGraphFlow.tsx:41` → `src/view/graph-view.css`).
+
+## Notes
+
+**2026-08-07T16:47:58Z**
+
+PLAN COMPLETE — closing (2026-08-07). YouTube-hero slice fully specced across the 4 split tickets. Final decisions (human):
+- SCOPE = all nodes with a leading YouTube embed (not just central/pinned). The central+pinned limit in this ticket governs the FUTURE separate url:-outbound-link nodes (D1-D3), still lower priority — NOT the hero-on-own-node slice.
+- RENDER = click-to-play FACADE: lazy <img> poster from i.ytimg.com/vi/<id>/hqdefault.jpg (cookieless, no player JS, no fetch — url derived from parsed videoId), real youtube-nocookie.com/embed/<id> iframe only on click. Chosen because fit-view mounts all visible nodes at once (100-node cap) and live players would boot together; facade cost == existing lazy thumbnails. Grounded on viewport culling (onlyRenderVisibleElements, VicinityGraphFlow.tsx:240) + lazy imgs (NoteNode.tsx:185).
+- Setting-aware hero is an ENGINE branch (engine already gets ViewSettings; nodePreviewKind.ts already branches on a settings field) => model ticket now deps the setting ticket.
+- Mechanism/e2e pinned; parse URL forms scoped (youtu.be + watch?v=; shorts/embed/live/playlist out).
+Remaining url:-node work (D1-D3, outbound-link nodes, Depth pill) stays open as future scope but is NOT tracked by this ticket anymore.
