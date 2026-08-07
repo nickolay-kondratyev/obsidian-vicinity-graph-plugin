@@ -1,7 +1,7 @@
 ---
 id: nid_tohotgq2s92dvd1iov1rd0umv_e
 title: "Show the preview of the links"
-status: in_progress
+status: closed
 deps: [nid_1drobt9qaq3e89gt76fzghlik_e, nid_5q8dri0jtwnzwt34vfkcnw49x_e, nid_tpghu4nsbt08slhm2vannrnqw_e, nid_z2k1eebic1nilpz9z3r65cnrx_e, nid_q9xrbnj9kjtznese9xfsdgerp_e]
 links: []
 created_iso: 2026-07-31T18:30:48Z
