@@ -1,17 +1,18 @@
 ---
 id: nid_1moqnutin09drbiyxkd3l7r5k_e
-title: "Embed nesting P2: pure nesting-assignment model (view layer)"
-status: open
+title: 'Embed nesting P2: pure nesting-assignment model (view layer)'
+status: in_progress
 deps: [nid_e79vxubva52s9gq24idypb77x_e, nid_r3qiyd7xx3bund6f73wf5h0vd_e]
-links: [nid_e79vxubva52s9gq24idypb77x_e, nid_r3qiyd7xx3bund6f73wf5h0vd_e, nid_qy5rc7sq261z23bp79bk8wsem_e, nid_jbsbfqqxyy1brm26ul7873v5h_e]
-created_iso: 2026-08-07T01:53:31Z
-status_updated_iso: 2026-08-07T01:53:31Z
+links: [nid_e79vxubva52s9gq24idypb77x_e, nid_r3qiyd7xx3bund6f73wf5h0vd_e, nid_qy5rc7sq261z23bp79bk8wsem_e,
+  nid_jbsbfqqxyy1brm26ul7873v5h_e]
+created_iso: '2026-08-07T01:53:31Z'
+status_updated_iso: '2026-08-07T03:48:40Z'
 type: feature
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
 tags: [embed-nesting]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin
 ---
-
 Part 2 of the embed-nesting feature (decisions: ticket nid_e79vxubva52s9gq24idypb77x_e; plan origin: closed ticket nid_14potmihi2tc0x421abf0awz6_e).
 
 GOAL: a pure, react-free view-layer module (sibling of src/view/folderGrouping.ts, e.g. src/view/embedNesting.ts) that, given the rendered VicinityGraph (post-truncation — decision Q7), computes the NESTING FOREST: for each rendered node, an optional container (a rendered node that embeds it), forming a forest with deterministic assignment.
@@ -34,4 +35,3 @@ STEPS:
 ## Acceptance Criteria
 
 embedNesting module returns a deterministic forest honoring precedence, constraints, ties, cycles, and child order; full BDD unit coverage of every origin-ticket scenario.
-
