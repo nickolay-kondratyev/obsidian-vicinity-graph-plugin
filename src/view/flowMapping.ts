@@ -334,6 +334,20 @@ interface CollapsedEdgeAccumulator {
 /** Separator that cannot occur in a vault path or folder-group id — a collision-proof delimiter. */
 const UNORDERED_PAIR_KEY_SEPARATOR = "\u0000";
 
+/** Direction-agnostic identity of a rendered endpoint pair. */
+function unorderedPairKey(a: string, b: string): string {
+	return [a, b].sort().join(UNORDERED_PAIR_KEY_SEPARATOR);
+}
+
+/** One engine edge resolved to the endpoints it RENDERS between (nesting + folder projection applied). */
+interface ResolvedFlowEdge {
+	readonly edge: GraphEdge;
+	readonly renderedSource: string;
+	readonly renderedTarget: string;
+	/** True when projection MOVED an endpoint — the pair must then render collapsed. */
+	readonly projected: boolean;
+}
+
 /**
  * Maps engine edges to rendered {@link FlowEdge}s, collapsing the fan of edges
  * crossing a folder-group boundary onto a single edge to the group box (mirrors
@@ -360,6 +374,14 @@ const UNORDERED_PAIR_KEY_SEPARATOR = "\u0000";
  *   embedder that lands OUTSIDE the winner's tree still gets its collapsed edge to
  *   the winner's outermost container (decision Q6) — that falls out of the one
  *   projection rule with no special case.
+ * - a rendered pair that ANY projected edge lands on collapses WHOLLY: a raw
+ *   engine edge sharing that pair (e.g. a plain member↔member link beside a
+ *   projected edge onto the same member roots) folds into the SAME collapsed
+ *   edge. Without this, the raw edge would render as a second passthrough with
+ *   the IDENTICAL `source->target` id — React Flow keys edges by id, so one of
+ *   the two would silently vanish. Hence the two passes below: resolve every
+ *   edge's rendered endpoints first, THEN decide passthrough vs collapsed per
+ *   rendered pair.
  */
 function buildFlowEdges(
 	graph: VicinityGraph,
@@ -373,8 +395,8 @@ function buildFlowEdges(
 		return folder === undefined ? container : folderGroupIdOf(folder);
 	};
 	const renderedEdgeIds = new Set(graph.edges.map(edgeIdOf));
-	const passthrough: FlowEdge[] = [];
-	const collapsedByPair = new Map<string, CollapsedEdgeAccumulator>();
+	// Pass 1: resolve each surviving engine edge to its RENDERED endpoints.
+	const resolved: ResolvedFlowEdge[] = [];
 	for (const edge of graph.edges) {
 		// Edges wholly inside one nesting tree are dropped (Q5) — the ONE rule
 		// shared with elkMapping via isIntraTreeEdge.
@@ -389,29 +411,42 @@ function buildFlowEdges(
 		const wasProjected = projSource !== edge.source || projTarget !== edge.target;
 		if (!wasProjected || (projSource === projTarget && !nestingMoved)) {
 			// Untouched by both projections, or intra-group between PLAIN members —
-			// member-to-member passthrough with curved-pair semantics, as ever.
-			passthrough.push({
-				id: edgeIdOf(edge),
-				source: edge.source,
-				target: edge.target,
-				notePairs: [{ source: edge.source, target: edge.target }],
-				count: edge.count,
-				kind: edge.kind,
-				hasOpposite: renderedEdgeIds.has(edgeIdOf({ source: edge.target, target: edge.source })),
-				bidirectional: false,
-			});
-			continue;
-		}
-		if (projSource === projTarget) {
+			// renders member-to-member on its raw endpoints.
+			resolved.push({ edge, renderedSource: edge.source, renderedTarget: edge.target, projected: false });
+		} else if (projSource === projTarget) {
 			// Intra-group with a NESTED endpoint: the edge lives member-root to
 			// member-root — the exact refs elkMapping's intraGroupContainerOf hands
 			// elk — never the buried nested node, and never a group self-loop.
-			// Collapsed (not passthrough) because several true pairs can share one
-			// root pair once nesting projects them.
-			accumulateCollapsedEdge(collapsedByPair, rootSource, rootTarget, edge);
+			resolved.push({ edge, renderedSource: rootSource, renderedTarget: rootTarget, projected: true });
+		} else {
+			resolved.push({ edge, renderedSource: projSource, renderedTarget: projTarget, projected: true });
+		}
+	}
+	// Pass 2: any rendered pair a PROJECTED edge landed on collapses wholly (see
+	// the merged-pair rule in the doc above); everything else stays passthrough
+	// with the curved-pair semantics, as ever.
+	const collapsedPairKeys = new Set(
+		resolved
+			.filter((entry) => entry.projected)
+			.map((entry) => unorderedPairKey(entry.renderedSource, entry.renderedTarget)),
+	);
+	const passthrough: FlowEdge[] = [];
+	const collapsedByPair = new Map<string, CollapsedEdgeAccumulator>();
+	for (const { edge, renderedSource, renderedTarget } of resolved) {
+		if (collapsedPairKeys.has(unorderedPairKey(renderedSource, renderedTarget))) {
+			accumulateCollapsedEdge(collapsedByPair, renderedSource, renderedTarget, edge);
 			continue;
 		}
-		accumulateCollapsedEdge(collapsedByPair, projSource, projTarget, edge);
+		passthrough.push({
+			id: edgeIdOf(edge),
+			source: edge.source,
+			target: edge.target,
+			notePairs: [{ source: edge.source, target: edge.target }],
+			count: edge.count,
+			kind: edge.kind,
+			hasOpposite: renderedEdgeIds.has(edgeIdOf({ source: edge.target, target: edge.source })),
+			bidirectional: false,
+		});
 	}
 	const collapsed = [...collapsedByPair.values()].map(
 		(pair): FlowEdge => ({
@@ -443,7 +478,7 @@ function accumulateCollapsedEdge(
 	projTarget: string,
 	edge: GraphEdge,
 ): void {
-	const key = [projSource, projTarget].sort().join(UNORDERED_PAIR_KEY_SEPARATOR);
+	const key = unorderedPairKey(projSource, projTarget);
 	const existing = collapsedByPair.get(key);
 	if (existing === undefined) {
 		collapsedByPair.set(key, {

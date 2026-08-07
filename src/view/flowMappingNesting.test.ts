@@ -235,6 +235,74 @@ describe("vicinityGraphToFlow nesting edge collapse (Q5/Q6)", () => {
 	});
 });
 
+describe("vicinityGraphToFlow merged rendered pairs (raw + projected edges on ONE pair)", () => {
+	// React Flow keys edges by id, so two rendered edges must never share a
+	// source->target pair: when a nesting-projected edge lands on the same
+	// rendered pair as a raw engine edge, they merge into ONE collapsed edge.
+
+	it("WHEN a plain member edge coincides with a nested-projected edge THEN ONE collapsed edge carries both true pairs", () => {
+		// notes/c1 + notes/c2 group; c1 embeds ext/x. Raw c1 → c2 AND projected
+		// x → c2 both render between the member roots c1 and c2.
+		const graph = makeGraph({
+			nodes: [
+				makeNode({ path: asVaultPath("notes/c1.md"), folder: asFolderPath("notes") }),
+				makeNode({ path: asVaultPath("notes/c2.md"), folder: asFolderPath("notes") }),
+				makeNode({ path: asVaultPath("ext/x.md"), folder: asFolderPath("ext") }),
+			],
+			edges: [
+				makeEmbedEdge("notes/c1.md", "ext/x.md", 0),
+				makeEdge("notes/c1.md", "notes/c2.md"),
+				makeEdge("ext/x.md", "notes/c2.md"),
+			],
+		});
+		const edges = toFlow(graph).edges;
+		expect(edges).toHaveLength(1);
+		expect(edges[0]?.notePairs).toEqual([
+			{ source: "notes/c1.md", target: "notes/c2.md" },
+			{ source: "ext/x.md", target: "notes/c2.md" },
+		]);
+	});
+
+	it("WHEN a raw edge to a container coincides with an edge projected ONTO that container THEN one edge renders", () => {
+		// ext → hub (raw) and ext → child (projects to ext → hub) share the pair.
+		const graph = makeGraph({
+			nodes: [
+				makeNode({ path: asVaultPath("hub.md") }),
+				makeNode({ path: asVaultPath("child.md") }),
+				makeNode({ path: asVaultPath("ext.md") }),
+			],
+			edges: [
+				makeEmbedEdge("hub.md", "child.md", 0),
+				makeEdge("ext.md", "hub.md"),
+				makeEdge("ext.md", "child.md"),
+			],
+		});
+		const edges = toFlow(graph).edges;
+		expect(edges).toHaveLength(1);
+		expect(edges[0]?.count).toBe(2);
+	});
+
+	it("WHEN the raw and projected contributors disagree on direction THEN the merged edge is bidirectional", () => {
+		// hub → ext raw; ext → child projects to ext → hub — opposite directions
+		// union into one double-arrowed edge, never two overlapping edges.
+		const graph = makeGraph({
+			nodes: [
+				makeNode({ path: asVaultPath("hub.md") }),
+				makeNode({ path: asVaultPath("child.md") }),
+				makeNode({ path: asVaultPath("ext.md") }),
+			],
+			edges: [
+				makeEmbedEdge("hub.md", "child.md", 0),
+				makeEdge("hub.md", "ext.md"),
+				makeEdge("ext.md", "child.md"),
+			],
+		});
+		const edges = toFlow(graph).edges;
+		expect(edges).toHaveLength(1);
+		expect(edges[0]?.bidirectional).toBe(true);
+	});
+});
+
 describe("vicinityGraphToFlow nesting node data + sizing", () => {
 	it("WHEN a note embeds another THEN its data marks it a container", () => {
 		const graph = makeGraph({
