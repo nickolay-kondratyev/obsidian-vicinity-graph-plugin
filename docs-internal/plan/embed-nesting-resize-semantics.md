@@ -5,10 +5,11 @@ decision **Q8** (`nid_e79vxubva52s9gq24idypb77x_e`). Consumes the V1 nesting fea
 (P1–P4: `nid_r3qiyd7xx3bund6f73wf5h0vd_e`, `nid_1moqnutin09drbiyxkd3l7r5k_e`,
 `nid_qy5rc7sq261z23bp79bk8wsem_e`, `nid_jbsbfqqxyy1brm26ul7873v5h_e`).
 
-> **STATUS: PLAN — not implemented.** V1 embed-nesting (P1–P4) is still open; this
-> workstream is blocked on it. Two data-model decisions below need human approval
-> (see `.ai_out/_current_decision/current_decision.md`). Once V1 ships and the
-> decisions land, implement Phase A then Phase B.
+> **STATUS: PLAN — not implemented; decisions RESOLVED 2026-08-07.** V1 embed-nesting
+> (P1–P4) is still open; this workstream is blocked on it. The two data-model questions
+> are now decided (owner, §4.1): container downsize scales children via a **derived**
+> (not persisted) fit factor — **no new persisted field, no schema/version bump**. Once
+> V1 ships, implement Phase A then Phase B.
 
 ---
 
@@ -49,86 +50,104 @@ stack `[n2[n3 n4]]`.
 
 ---
 
-## 3. Core model — "the override always sizes a node's OWN content"
+## 3. Core model — "the override is a node's OUTER box; the internal split is DERIVED"
 
-The one idea that makes every behavior fall out cleanly, and answers the ticket's
-first open question:
+Two ideas make every behavior fall out cleanly and answer all the ticket's open
+questions:
 
-> **A persisted `sizePx` override always describes the node's OWN direct-content box
-> (title / outline / representative image), never the aggregate box that includes
-> descendants.** Standalone, the own-content box *is* the whole node. As a container,
-> layout adds the children region *below* it. So the override travels **unchanged**
-> between the nested and standalone states — it means the same thing in both.
+> **(a) A `sizePx` override is always the node's OUTER rendered box — the box the user
+> dragged the handle to.** For a leaf that outer box *is* its own content. For a
+> container it is the whole box *including* the nested stack below. The override's
+> meaning ("this is how big this node is on screen") is therefore identical whether the
+> node is nested or standalone.
+>
+> **(b) Inside a container, the split — how much of the box is the container's own
+> content (image) vs the children region, and the children's fit `scale` — is DERIVED
+> on every rebuild, never stored.** It is a pure function of `(container outer box,
+> children natural sizes)`. Because the durable fact (the container's box) is
+> persisted, the derived scale is deterministic and is never "lost" on a repaint.
 
-Concretely, split today's single function in two:
+Concretely, split today's single function and add a derivation:
 
-- `nodeOwnContentDimensionsPx(node)` — exactly today's `nodeDimensionsPx` body
-  (override wins verbatim; else auto). This is the node's own region, and the box a
-  standalone (non-container, non-nested) node renders at. **Unchanged semantics.**
-- Layout composition (elk): `containerTotal = ownContent ⊕verticalStack⊕ childrenRegion + padding`,
-  where `childrenRegion` is elk-auto-sized from the child boxes (each child recursing
-  the same rule). The React Flow container node height = elk-derived total; the
-  own-content region *inside* `NoteNode` is styled to `ownContent.height`.
+- `nodeOwnContentDimensionsPx(node)` — the node's own-content box: today's
+  `nodeDimensionsPx` body for a leaf (override wins verbatim; else auto). For a
+  *container*, this is its own **natural** content box (auto), used as the own-region's
+  preferred size before the split.
+- `deriveContainerLayout(outerBox, ownNatural, childrenNatural)` (pure) → `{ ownBox,
+  childrenScale }`, per axis:
+  - `outerBox` = container override if present, else `ownNatural ⊕ childrenNatural`
+    (V1 auto-grow).
+  - surplus first to own content: `ownBox = clamp(outerBox − childrenNatural, ownMin, …)`.
+  - `childrenScale = clamp((outerBox − ownBox) / childrenNatural, minScale, 1)` — `< 1`
+    only when the box can't hold the natural stack (#3); recovers to `1` as room
+    returns; **capped at 1** so surplus beyond natural goes to the image (#1, "primarily
+    to direct content"), not to ballooning children. (If the owner later wants children
+    to grow past natural, lift that cap — one constant.)
+- Layout (elk): the compound container node's total = `outerBox`; the children region
+  is laid out at `childrenScale`; `NoteNode` styles its own-content region to `ownBox`.
 
-This is the same "compose, don't store the aggregate" discipline the codebase already
-uses for folder groups and for `PluginDataStore` merging one field over a fresh read.
+This is the same "compose/derive, don't store the aggregate" discipline the codebase
+already uses for folder groups and for `PluginDataStore` merging one field over a fresh
+read. **No new persisted field** — the container's existing `sizePx` override carries
+everything.
 
 ### Why each owner behavior then falls out
 
-- **#1 Container grows own content.** A container-resize drag reports a *total* box.
-  On commit compute `newOwn = draggedTotal − childrenRegion` (per axis), clamp to
-  `≥ ownMin`, persist as the container's **own** `sizePx`. The children region is
-  pinned to the children's intrinsic sizes, so all the extra space lands on the own
-  region. Matches "extra space → the image."
-- **#2 Child resize auto-upsizes the chain.** A nested child is just a node with its
-  own override. Enabling its drag-resize writes a bigger own `sizePx`; the next
-  relayout re-derives `childrenRegion` → container auto-grows → its parent's
-  `childrenRegion` grows → up the chain. **This is V1 auto-grow already** — we only
-  need to *enable* child resize + relayout on commit. No bespoke upsize code.
-- **#3 Container downsize scales children.** The genuinely hard one — §4.
+- **#1 Container grows own content.** A container-resize drag persists the new
+  `outerBox`. On the next `deriveContainerLayout`, surplus above `childrenNatural` goes
+  to `ownBox` (children stay at scale 1). Extra space lands on the image.
+- **#2 Child resize auto-upsizes the chain.** A nested child is a node with its own
+  `sizePx`. Its drag-resize writes a bigger own box → `childrenNatural` grows. If the
+  container is **un-sized** (no override), its `outerBox` auto-grows to fit — V1
+  auto-grow, free, up the chain. If the container **is** explicitly sized, the child
+  would otherwise be scaled back down; so a *child-handle* commit also **bumps the
+  ancestor `outerBox` overrides outward** just enough to keep the child at its own size
+  (§4 asymmetry). Either way the container edge moves out.
+- **#3 Container downsize scales children.** A container-resize drag persists a smaller
+  `outerBox`; once it's below `ownMin + childrenNatural`, `deriveContainerLayout` yields
+  `childrenScale < 1` and the stack shrinks to fit. Child own-sizes are **untouched**;
+  the scale is derived, so it holds across repaints. See §4.
 
-### Answers to the remaining open questions
+### Answers to the ticket's open questions
 
-- **Override vs auto-grow minimums.** They are independent floors on independent
-  regions: an override sets the *own* region (clamped `≥ ownMin`); auto-grow sets the
-  *children* region (from child boxes, each `≥` its own floor). Total = sum. An
-  override can never shrink the container below its children region (that is what #3 /
-  §4 governs), and never below `ownMin`.
-- **Nested vs standalone meaning** — resolved by the core model above: same meaning,
-  so V1's "ignore overrides while nested" is *dropped* — a nested node with an
-  override renders its own region at that override, and layout composes around it.
+- **Override vs auto-grow minimums.** The container's `outerBox` is one box with a floor
+  of `ownMin` (`childrenScale` absorbs the rest). Un-sized → `outerBox = ownNatural ⊕
+  childrenNatural` (V1 auto-grow). A child growing raises `childrenNatural`, which raises
+  an un-sized container's `outerBox` and, for a sized container, is handled by the #2
+  ancestor-bump. No independent "children floor" fights the override.
+- **Nested vs standalone meaning** — same box either way (idea (a)); V1's "ignore
+  overrides while nested" is **dropped**.
+- **Child-scaling persisted or visual** — **derived, not persisted** (idea (b) / §4.1).
 
 ---
 
-## 4. The hard case: container downsize (#3) — needs a decision
+## 4. Container downsize (#3) — DECIDED
 
-When the user drags a container **below** `ownMin + childrenRegion`, the own region is
-already at its floor. Further shrink must come out of the children stack. Three options:
+When the user drags a container **below** `ownMin + childrenNatural`, the own region is
+at its floor and the deficit comes out of the children stack via the derived
+`childrenScale < 1`. Child own-`sizePx` is never rewritten.
 
-- **4a — Rewrite child overrides (rejected).** Proportionally shrink each nested
-  child's persisted own `sizePx`. Cascading writes; mutates a child's *standalone*
-  size as a side effect of resizing an unrelated ancestor — a POLS violation ("I
-  shrank n1, why did n3 change size everywhere?"). Rejected.
-- **4b — Container-scoped visual `childrenScale` (recommended).** The container carries
-  a scale factor `s ∈ (0,1]` applied to the *rendered* children region only; child
-  own-overrides untouched. `s = min(1, availableChildrenHeight / naturalChildrenHeight)`
-  when the drag pushes below the natural stack. It is a container property, not a child
-  fact — so it composes down one level and never leaks to a child's standalone view.
-- **4c — Defer #3 entirely (Pareto fallback).** Ship #1 + #2 (the 80%): container
-  grows own content; child resize auto-upsizes the chain. Clamp container drag at
-  `ownMin + childrenRegion` (cannot shrink past the stack). Revisit #3 if it's missed.
+### 4.1 Decision (owner, 2026-08-07)
 
-**Sub-decision for 4b — persist the scale?**
-- *Persist* (`childrenScale` on the container's `NodeOverride`): survives rebuild /
-  relayout; without it the down-scale **snaps back** on the next repaint (surprising).
-  Cost: a new persisted field (schema `version` bump; clean-break per CLAUDE.md since
-  unpublished).
-- *Visual-only*: no schema change, but lost on any relayout — likely reads as a bug.
+- **Q1 — how to scale children down: (B) container-scoped fit factor.** A `childrenScale`
+  applied to the *rendered* children region only; each child's own `sizePx` is left
+  alone. Owner: *"the child size changes while it's in the container — if the container
+  pushes on the child it can be smaller than its overridden size; if the container has
+  room, the child uses it [back up to its own size]. Grabbing the child's OWN handle is
+  recorded on the child; a change due to the container is not."*
+- **Q2 — persist the scale or derive it: DERIVE (visual, not persisted).** The scale is
+  **not** stored and **not** lost. Owner: *"the container SIZE wins."* The persisted
+  fact is the container's `outerBox`; `childrenScale = f(outerBox, childrenNatural)` is
+  recomputed every rebuild, so it is deterministic across repaints with **no new
+  `NodeOverride` field and no schema/`version` bump**. Editing a child elsewhere (e.g.
+  as the central node) changes the child's own size; returning to the container view
+  simply re-derives the fit — the container box still wins.
+- **4a — rewrite child overrides — REJECTED** (recorded for posterity): mutating a
+  child's standalone size as a side effect of resizing an ancestor is a POLS violation
+  and cascades writes.
 
-**Recommendation: 4b, persisted.** It is the only option that (a) honors the owner's
-"scales the internal nodes down too" literally, (b) keeps a child's standalone size
-sacrosanct, and (c) is stable across repaints. If the human wants the smallest V-next,
-fall back to **4c** and file a follow-up for #3.
+This is strictly simpler than a stored scale: fewer persisted fields, no migration
+surface, and no way for a stored scale to drift out of sync with the container box.
 
 ---
 
@@ -136,49 +155,76 @@ fall back to **4c** and file a follow-up for #3.
 
 | File | Change |
 |------|--------|
-| `src/view/graphIdentity.ts` | Split `nodeDimensionsPx` → `nodeOwnContentDimensionsPx` (own region) + a composition seam; container total derives from elk, not from the override verbatim. |
-| `src/view/elkMapping.ts` | Compound container total = own ⊕ children-stack + padding; apply `childrenScale` (4b) to the children region; `extractElkDimensionsById` returns own-vs-total consistently. |
-| `src/view/NoteNode.tsx` | Re-enable `NodeResizeControl` on containers **and** nested children (V1 disabled both); own-content region styled to `ownContent.height`; children region honors `childrenScale`. |
-| `src/view/nodeResize.ts` | New commit mappings: container drag → `newOwn = total − childrenRegion` (clamp `≥ ownMin`); below-floor drag → `childrenScale` (4b). `NODE_RESIZE_BOUNDS` unchanged for own region. |
-| `src/engine/types.ts` | (4b-persisted only) add `childrenScale?` to `NodeOverride`; bump persisted `version`. |
-| `src/persistence` (`PluginDataStore`, `NodeOverrideChange`) | (4b-persisted only) new one-field change for `childrenScale`, merged over the fresh entry — same rule as `sizePx`. `runGuarded` failure policy reused. |
-| `src/view/layoutFit.ts` + `GraphStructureDiff.ts` | A resize that changes a container's own region or `childrenScale`, or any nested-child box, is a **relayout** (fit check must see the composed container total, not the own box). |
-| `src/view/settingsRows.ts` / reset menu (`planResetSizeAction`) | "Reset size" on a container clears own `sizePx` **and** `childrenScale`; on a nested child clears its own `sizePx` (chain re-auto-grows). |
+| `src/view/graphIdentity.ts` | Split `nodeDimensionsPx` → `nodeOwnContentDimensionsPx` (own region) + add pure `deriveContainerLayout(outerBox, ownNatural, childrenNatural) → {ownBox, childrenScale}`. Container `outerBox` = override or auto (`ownNatural ⊕ childrenNatural`). |
+| `src/view/elkMapping.ts` | Compound container total = `outerBox`; children region laid out at `childrenScale`; `extractElkDimensionsById` returns the outer box for containers. |
+| `src/view/NoteNode.tsx` | Re-enable `NodeResizeControl` on containers **and** nested children (V1 disabled both); own-content region styled to `ownBox`; children region rendered at `childrenScale`. |
+| `src/view/nodeResize.ts` | Container drag commit → persist `outerBox` as the container's `sizePx` (existing shape). Child-handle commit → persist child `sizePx`; if it overflows an explicitly-sized ancestor, bump that ancestor's `outerBox` outward (#2). Down-drag needs no special commit — the smaller `outerBox` alone yields `childrenScale < 1` at derive time. `NODE_RESIZE_BOUNDS` unchanged. |
+| `src/engine/types.ts` / `src/persistence` | **No change** — the derived-scale decision (§4.1) adds no persisted field. The container's existing `NodeSizeOverridePx` carries the whole outer box; `#2` ancestor bumps reuse the existing `NodeOverrideChange` `sizePx` write. |
+| `src/view/layoutFit.ts` + `GraphStructureDiff.ts` | A resize that changes any node's `sizePx` (leaf, child, or container outer box) is a **relayout** (fit must see the composed container total incl. the derived scale, not the own box). |
+| `src/view/settingsRows.ts` / reset menu (`planResetSizeAction`) | "Reset size" clears the node's `sizePx` — on a container that drops its `outerBox` back to auto (own ⊕ children, scale 1); on a nested child, the chain re-auto-grows. One rule, no new field to clear. |
 
 ---
 
 ## 6. Phased implementation plan (AFTER V1 ships + decisions land)
 
-**Phase A — #1 + #2 (the 80%), no schema change.**
+Both phases are **no-schema-change** (§4.1). Phase B builds directly on Phase A's
+`deriveContainerLayout`; keep them as ordered tickets so their view-layer edits don't
+collide (see §8).
+
+**Phase A — #1 + #2 (the 80%).**
 1. Failing BDD unit tests: `nodeOwnContentDimensionsPx` returns today's values for a
-   standalone node; a container's elk total = own ⊕ children + padding; a bigger nested
-   child grows the container total up the chain; container drag commit maps
-   `total − childrenRegion → own`, clamped `≥ ownMin`.
-2. Split `graphIdentity.ts`; compose in `elkMapping.ts`; re-enable `NodeResizeControl`
-   for containers + nested children in `NoteNode.tsx`; container/child commit mappings
-   in `nodeResize.ts`; relayout classification in `GraphStructureDiff.ts` / `layoutFit.ts`.
-3. Reset menu covers the container + nested-child cases.
+   standalone node; `deriveContainerLayout` gives surplus to `ownBox` and keeps
+   `childrenScale = 1` when the box holds the natural stack; a bigger nested child grows
+   an un-sized container's outer box up the chain; a child-handle commit that overflows a
+   sized ancestor bumps that ancestor's `outerBox` outward.
+2. Split `graphIdentity.ts` + add `deriveContainerLayout`; compose in `elkMapping.ts`;
+   re-enable `NodeResizeControl` for containers + nested children in `NoteNode.tsx`;
+   container/child commit mappings in `nodeResize.ts`; relayout classification in
+   `GraphStructureDiff.ts` / `layoutFit.ts`.
+3. Reset menu covers the container + nested-child cases (one `sizePx` clear).
 4. `npm run check` + `npm test` green; **`npm run test:e2e`** (view-layer DOM/CSS — required
    per CLAUDE.md): grow a container → image region grows, stack fixed; grow a nested
    child → container chain upsizes; reset → auto size returns.
 
-**Phase B — #3 container downsize (4b).** Gate on the §4 decision.
-1. Failing tests: dragging a container below `ownMin + childrenRegion` yields
-   `childrenScale < 1`; child own-overrides unchanged; (persisted) `childrenScale`
-   round-trips and resets; the down-scale survives a rebuild.
-2. `elkMapping` applies the scale; `nodeResize` commit computes it; (persisted)
-   `types.ts` field + `NodeOverrideChange` + `PluginDataStore` merge + `version` bump.
-3. e2e: shrink a container past its stack → nested nodes scale down and hold across a
-   repaint.
+**Phase B — #3 container downsize (derived scale, no persistence).**
+1. Failing tests: a container `outerBox` below `ownMin + childrenNatural` yields
+   `childrenScale < 1`; child own-`sizePx` unchanged; the scale **re-derives** to the
+   same value after a rebuild (proving nothing needed persisting); `childrenScale`
+   recovers to 1 (never > 1) as the box grows back.
+2. `elkMapping` lays out the children region at `childrenScale`; `NoteNode` renders it.
+   No `types.ts` / persistence change.
+3. e2e: shrink a container past its stack → nested nodes scale down and **hold across a
+   repaint** (fan-out / relayout).
 
 ---
 
 ## 7. Testing posture
 
-BDD, one behavior per test, colocated. Pure geometry (own-vs-total composition, commit
-mappings, scale math) is fixture-tested in the view-pure modules (`graphIdentity`,
-`elkMapping`, `nodeResize`) — keep correctness in the tested core, `NoteNode` thin.
-jsdom component tests for the container resize handles rendering. `npm run test:e2e`
-before calling any rendered change done. A `childrenScale` schema field (4b-persisted)
-must round-trip through the `settingsProductDefaults`/persistence tripwires like every
-other persisted shape.
+BDD, one behavior per test, colocated. Pure geometry (`nodeOwnContentDimensionsPx`,
+`deriveContainerLayout`, the commit mappings, the `childrenScale ≤ 1` cap) is
+fixture-tested in the view-pure modules (`graphIdentity`, `elkMapping`, `nodeResize`) —
+keep correctness in the tested core, `NoteNode` thin. jsdom component tests for the
+container/child resize handles rendering. `npm run test:e2e` before calling any rendered
+change done. **No new persisted shape**, so the `settingsProductDefaults` / persistence
+tripwires are untouched — the one persistence assertion worth adding is that a container
+`sizePx` override round-trips unchanged (it already does; the container just interprets
+it as an outer box).
+
+---
+
+## 8. Ticket sequencing (Q3, owner OK'd staggering)
+
+Dependency chain, to keep view-layer edits from colliding:
+
+```
+P1 (embedOrder) → P2 (nesting forest) → P3 (render nested + compound elk)
+                                              → THIS workstream, Phase A (#1+#2)
+                                                    → Phase B (#3 downsize)
+```
+
+- This workstream now carries `deps: [P3]` (`nid_qy5rc7sq261z23bp79bk8wsem_e`) — it
+  cannot start until containers render.
+- Phase A and Phase B touch the same three view modules (`graphIdentity`, `elkMapping`,
+  `nodeResize`); ship them as **ordered sub-tickets** (B `deps` A) rather than in
+  parallel, so the second rebases on the first instead of merge-conflicting. Split into
+  two tickets when V1 is close to landing (premature now — nothing can start).

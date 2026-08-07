@@ -5,11 +5,11 @@ status: open
 deps: [nid_qy5rc7sq261z23bp79bk8wsem_e]
 links: [nid_e79vxubva52s9gq24idypb77x_e, nid_1ht2a3rm0ng8wnlis259u5egg_e]
 created_iso: '2026-08-07T02:12:49Z'
-status_updated_iso: '2026-08-07T02:29:02Z'
+status_updated_iso: '2026-08-07T02:40:52Z'
 type: feature
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
-tags: [embed-nesting, decide]
+tags: [embed-nesting]
 pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin
 ---
 Follow-up workstream from embed-nesting decision Q8 (ticket nid_e79vxubva52s9gq24idypb77x_e). V1 (ticket nid_qy5rc7sq261z23bp79bk8wsem_e) ships containers that auto-grow to fit children, with drag-resize DISABLED on containers and nested children and size overrides ignored while nested. This ticket designs+implements real resize semantics. Owner flagged this will likely be its own workstream — start with a PLAN pass.
@@ -39,24 +39,31 @@ semantics to. Added `deps: [nid_qy5rc7sq261z23bp79bk8wsem_e]` (V1 rendering) acc
 - Design & phased plan: `docs-internal/plan/embed-nesting-resize-semantics.md`.
 - Human decisions surfaced: `.ai_out/_current_decision/current_decision.md` (Q1–Q3).
 
-**Design in one line:** a persisted `sizePx` override ALWAYS sizes a node's OWN direct
-content (image/title/outline), never the aggregate box including nested children. From
-that single rule: owner behavior #1 (container grows its own image) and #2 (child resize
-auto-upsizes the container chain) fall out of V1's existing elk auto-grow with minimal
-new code; #3 (container downsize scales the nested stack down) is the only new mechanism
-and is gated on the decision below.
+**Design in one line:** a `sizePx` override is a node's OUTER rendered box (for a leaf =
+its content; for a container = the whole box incl. the nested stack). Inside a container
+the split — own-content vs children region, and the children fit `scale` — is DERIVED
+each rebuild from `(outerBox, children natural sizes)`, never stored. From that: #1
+(container grows its own image) and #2 (child resize auto-upsizes the chain) fall out of
+V1's elk auto-grow; #3 (container downsize scales the nested stack) is a derived
+`childrenScale < 1`, with child own-sizes untouched.
 
-**Answers to this ticket's OPEN QUESTIONS (from the plan):**
-- *What a persisted override means when a node is sometimes nested / sometimes standalone:*
-  the SAME thing — it sizes the node's own content region in both states; layout composes
-  the children region around it. (Drops V1's "ignore overrides while nested.")
-- *Override vs auto-grow minimums:* independent floors on independent regions — override
-  sets the own region (clamped ≥ ownMin); auto-grow sets the children region (from child
-  boxes); container total = sum.
-- *Child-scaling on container-downsize persisted or visual:* recommended a container-scoped
-  `childrenScale` (child own-sizes untouched), **persisted** so it survives repaints —
-  but this is the human decision Q1/Q2 in the decision file.
+**DECISIONS — RESOLVED 2026-08-07 (owner):**
+- **Q1 (how to scale children down): (B) container-scoped fit factor** — scale the
+  rendered children region; leave each child's own `sizePx` alone. Grabbing a child's OWN
+  handle records on the child; a change caused by the container does not.
+- **Q2 (persist the scale?): DERIVE, do NOT persist.** The container SIZE wins; the
+  persisted fact is the container's outer box; `childrenScale = f(outerBox, childrenNatural)`
+  is recomputed every rebuild. Never lost, and **no new `NodeOverride` field / no schema
+  or `version` bump.** (Rejected: rewriting child overrides — POLS violation.)
+- **Q3 (sequencing): stagger** — this workstream `deps: [P3]`; Phase A (#1+#2) then Phase
+  B (#3) as ordered sub-tickets (B deps A) since both edit the same three view modules.
 
-**NEXT (blocking):** human answers Q1–Q3 → fold answers into the design doc → implement
-Phase A (#1+#2) then Phase B (#3) once V1 ships. Do NOT close until implemented + tested
-per the acceptance criteria.
+**Answers to this ticket's original OPEN QUESTIONS:** override meaning nested vs
+standalone = the same outer box either way (drops V1's "ignore overrides while nested");
+override vs auto-grow minimum = one outer box floored at ownMin, `childrenScale` absorbs
+the rest; child-scaling on downsize = derived/visual, not persisted (Q2). Full detail:
+`docs-internal/plan/embed-nesting-resize-semantics.md` §3–§4.
+
+**NEXT (blocking on V1):** once P1–P4 ship, implement Phase A then Phase B (both
+no-schema-change) per the design doc §6. Split into ordered Phase-A/Phase-B tickets when
+V1 is close. Do NOT close until implemented + tested per the acceptance criteria.
