@@ -5,7 +5,7 @@ import type { TestContext } from "vitest";
 import { asFolderPath, asVaultPath, EngineDefaults, FORCE_LAYOUT_RANGES } from "../engine";
 import { GROUP_SIDE_PADDING_PX } from "./constants";
 import { vicinityGraphToFlow } from "./flowMapping";
-import type { Dimensions, XY } from "./flowMapping";
+import type { Dimensions, FlowPinFacts, XY } from "./flowMapping";
 import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
 import { ARROWHEAD_HALF_WIDTH_PX } from "./edgeGeometry";
 import {
@@ -33,6 +33,9 @@ const SHIPPED_CLEARANCE_PX = EngineDefaults.forceLayoutSettings().edgeRoutingCle
 /** The whole span a slider — or a clamped, hand-edited `data.json` — can reach. */
 const CLEARANCE_RANGE = FORCE_LAYOUT_RANGES.edgeRoutingClearancePx;
 
+/** No pins — these scenes exercise edge routing, not the global/local pin split. */
+const NO_PINS: FlowPinFacts = { globalPinnedDocids: new Set(), localPinnedDocids: new Set() };
+
 describe("extractEdgeRoutingInput", () => {
 	/**
 	 * GIVEN a folder group `notes/` with two members (a, b), an ungrouped root
@@ -48,7 +51,7 @@ describe("extractEdgeRoutingInput", () => {
 			],
 			edges: [makeEdge("notes/a.md", "notes/b.md"), makeEdge("notes/a.md", "root.md")],
 		});
-		const flow = vicinityGraphToFlow(graph, false);
+		const flow = vicinityGraphToFlow(graph, NO_PINS);
 		const positions = new Map<string, XY>([
 			["folder-group:notes", { x: 100, y: 100 }],
 			["notes/a.md", { x: 110, y: 140 }],
@@ -111,7 +114,7 @@ describe("extractEdgeRoutingInput", () => {
 
 	it("WHEN a node lacks a position THEN it is skipped as an obstacle", () => {
 		const graph = makeGraph({ nodes: [makeNode({ path: asVaultPath("lonely.md") })], edges: [] });
-		const flow = vicinityGraphToFlow(graph, false);
+		const flow = vicinityGraphToFlow(graph, NO_PINS);
 		const input = extractEdgeRoutingInput({
 			nodes: flow.nodes,
 			edges: flow.edges,
@@ -139,7 +142,7 @@ describe("extractEdgeRoutingInput", () => {
 			],
 			edges: [makeEdge("broken.md", "ok.md")],
 		});
-		const flow = vicinityGraphToFlow(graph, false);
+		const flow = vicinityGraphToFlow(graph, NO_PINS);
 		return extractEdgeRoutingInput({
 			nodes: flow.nodes,
 			edges: flow.edges,
@@ -186,7 +189,7 @@ describe("extractEdgeRoutingInput", () => {
 			],
 			edges: [],
 		});
-		const flow = vicinityGraphToFlow(graph, false);
+		const flow = vicinityGraphToFlow(graph, NO_PINS);
 		const input = extractEdgeRoutingInput({
 			nodes: flow.nodes,
 			edges: flow.edges,

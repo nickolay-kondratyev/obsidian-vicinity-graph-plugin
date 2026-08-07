@@ -1,8 +1,18 @@
 import type { DocIdPort, VaultFilePort } from "../adapters/obsidianPorts";
-import type { PersistableIdentity } from "./DocPersistEligibility";
+import type { NotPersistableReason, PersistableIdentity } from "./DocPersistEligibility";
 import { DocPersistEligibility } from "./DocPersistEligibility";
 import type { PathDocIdMap } from "./PathDocIdMap";
 import type { NodeOverrideChange, NodeOverrideField, PluginDataStore } from "./PluginDataStore";
+
+/**
+ * Verdict of a LOCAL pin: it needs TWO persistable docids (the map is keyed by
+ * MAIN, valued by TARGET), so a refusal must name WHICH doc could not be
+ * persisted — reusing the same {@link NotPersistableReason} vocabulary a global
+ * pin reports, so the node emblem's copy stays one set of reasons.
+ */
+export type LocalPinPersistOutcome =
+	| { readonly kind: "persisted"; readonly mainDocid: string; readonly targetDocid: string }
+	| { readonly kind: "not-persistable"; readonly refusedDoc: "main" | "target"; readonly reason: NotPersistableReason };
 
 /**
  * The doc-scoped write-intent facade: every entry point is an EXPLICIT user
@@ -37,6 +47,44 @@ export class PersistenceServices {
 	 */
 	async unpinDoc(docid: string): Promise<void> {
 		await this.pluginDataStore.removePins([docid]);
+	}
+
+	/**
+	 * Locally pins TARGET under MAIN — a write intent needing a docid for BOTH
+	 * (the map is keyed by main, valued by target; Q2: minting on the un-clicked
+	 * MAIN is sanctioned). Classifies the CLICKED target FIRST, so a doomed pin
+	 * (target unpinnable) never writes frontmatter into the main the user did not
+	 * touch; MAIN is minted only once the pin is certain to land. A re-pin
+	 * refreshes the timestamp ({@link PluginDataStore.addLocalPin}).
+	 */
+	async localPinDoc(mainFile: VaultFilePort, targetFile: VaultFilePort): Promise<LocalPinPersistOutcome> {
+		const targetIdentity = DocPersistEligibility.classify(await this.docIdPort.ensureDocId(targetFile));
+		if (targetIdentity.kind !== "persistable") {
+			return { kind: "not-persistable", refusedDoc: "target", reason: targetIdentity.reason };
+		}
+		const mainIdentity = DocPersistEligibility.classify(await this.docIdPort.ensureDocId(mainFile));
+		if (mainIdentity.kind !== "persistable") {
+			return { kind: "not-persistable", refusedDoc: "main", reason: mainIdentity.reason };
+		}
+		this.pathDocIdMap.set(targetFile.path, targetIdentity.docid);
+		this.pathDocIdMap.set(mainFile.path, mainIdentity.docid);
+		await this.pluginDataStore.addLocalPin(mainIdentity.docid, targetIdentity.docid, this.clock());
+		return { kind: "persisted", mainDocid: mainIdentity.docid, targetDocid: targetIdentity.docid };
+	}
+
+	/**
+	 * Locally unpins TARGET from MAIN. Like {@link clearNodeOverrideField} it reads
+	 * the MAIN's id with `getDocId` and NEVER mints: a main with no persistable
+	 * docid owns no local pins, so "unpinned" is already true. Lands
+	 * unconditionally and reports no verdict — there is nothing to refuse.
+	 */
+	async localUnpinDoc(mainFile: VaultFilePort, targetDocid: string): Promise<void> {
+		const identity = DocPersistEligibility.classify(await this.docIdPort.getDocId(mainFile));
+		if (identity.kind !== "persistable") {
+			return;
+		}
+		this.pathDocIdMap.set(mainFile.path, identity.docid);
+		await this.pluginDataStore.removeLocalPins(identity.docid, [targetDocid]);
 	}
 
 	/**

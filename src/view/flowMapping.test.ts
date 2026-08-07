@@ -3,7 +3,7 @@ import type { GraphNode, NodeContentOverride, NodePreviewPreference, OutlineEntr
 import { asDocId, asFolderPath, asVaultPath, NODE_CONTENT_OVERRIDES, NODE_PREVIEW_PREFERENCES } from "../engine";
 import { OUTLINE_RENDER_LIMIT } from "./constants";
 import { edgeKindClassName, vicinityGraphToFlow, withGroupDimensions, withPositions } from "./flowMapping";
-import type { FlowNode, NoteFlowNode } from "./flowMapping";
+import type { FlowNode, FlowPinFacts, NoteFlowNode } from "./flowMapping";
 import { NO_ORPHAN_TRUNCATION } from "./truncationBadges";
 import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
 
@@ -12,9 +12,12 @@ function noteNode(nodes: readonly FlowNode[], id: string): NoteFlowNode | undefi
 	return found?.kind === "note" ? found : undefined;
 }
 
-/** Default mapping call: MAIN not pinned. The pinned-MAIN case has its own describe. */
+/** No pins at all — the default context for tests that do not exercise pinning. */
+const NO_PINS: FlowPinFacts = { globalPinnedDocids: new Set(), localPinnedDocids: new Set() };
+
+/** Default mapping call: nothing pinned. The pinned cases have their own describe. */
 function toFlow(graph: Parameters<typeof vicinityGraphToFlow>[0]) {
-	return vicinityGraphToFlow(graph, false);
+	return vicinityGraphToFlow(graph, NO_PINS);
 }
 
 describe("vicinityGraphToFlow nodes", () => {
@@ -53,7 +56,8 @@ describe("vicinityGraphToFlow nodes", () => {
 			path: "notes/a.md",
 			title: "a",
 			tier: "main",
-			isPinned: false,
+			isGloballyPinned: false,
+			isLocallyPinned: false,
 			hasSizeOverride: false,
 			folder: "",
 			outline: [],
@@ -130,26 +134,65 @@ describe("vicinityGraphToFlow styling tiers", () => {
 	});
 });
 
-describe("vicinityGraphToFlow isPinned fact", () => {
-	function isPinnedOf(flags: { isMain: boolean; isCentral: boolean }, mainPinned: boolean): boolean | undefined {
-		const graph = makeGraph({ nodes: [makeNode({ path: asVaultPath("n.md"), ...flags })] });
-		return noteNode(vicinityGraphToFlow(graph, mainPinned).nodes, "n.md")?.data.isPinned;
+describe("vicinityGraphToFlow pin flags (global vs local split)", () => {
+	const DOCID = "docid_n_e";
+	function pinFlagsOf(
+		flags: { isMain: boolean; isCentral: boolean; docid?: string },
+		pinFacts: FlowPinFacts,
+	): { isGloballyPinned: boolean; isLocallyPinned: boolean } | undefined {
+		const graph = makeGraph({
+			nodes: [
+				makeNode({
+					path: asVaultPath("n.md"),
+					isMain: flags.isMain,
+					isCentral: flags.isCentral,
+					...(flags.docid === undefined ? {} : { docid: asDocId(flags.docid) }),
+				}),
+			],
+		});
+		const data = noteNode(vicinityGraphToFlow(graph, pinFacts).nodes, "n.md")?.data;
+		return data === undefined
+			? undefined
+			: { isGloballyPinned: data.isGloballyPinned, isLocallyPinned: data.isLocallyPinned };
 	}
 
-	it("WHEN the node is a regular neighbor THEN it is not pinned", () => {
-		expect(isPinnedOf({ isMain: false, isCentral: false }, false)).toBe(false);
+	it("WHEN the node is a regular neighbor with no docid THEN neither flag is set", () => {
+		expect(pinFlagsOf({ isMain: false, isCentral: false }, NO_PINS)).toEqual({
+			isGloballyPinned: false,
+			isLocallyPinned: false,
+		});
 	});
 
-	it("WHEN the node is a non-MAIN central THEN it is pinned by definition", () => {
-		expect(isPinnedOf({ isMain: false, isCentral: true }, false)).toBe(true);
+	it("WHEN a central's docid is in the GLOBAL set THEN only isGloballyPinned is set", () => {
+		const pinFacts: FlowPinFacts = { globalPinnedDocids: new Set([DOCID]), localPinnedDocids: new Set() };
+		expect(pinFlagsOf({ isMain: false, isCentral: true, docid: DOCID }, pinFacts)).toEqual({
+			isGloballyPinned: true,
+			isLocallyPinned: false,
+		});
 	});
 
-	it("WHEN MAIN is not in the pinned set THEN it is not pinned", () => {
-		expect(isPinnedOf({ isMain: true, isCentral: true }, false)).toBe(false);
+	it("WHEN a central's docid is in the LOCAL set THEN only isLocallyPinned is set", () => {
+		const pinFacts: FlowPinFacts = { globalPinnedDocids: new Set(), localPinnedDocids: new Set([DOCID]) };
+		expect(pinFlagsOf({ isMain: false, isCentral: true, docid: DOCID }, pinFacts)).toEqual({
+			isGloballyPinned: false,
+			isLocallyPinned: true,
+		});
 	});
 
-	it("WHEN MAIN is in the pinned set THEN it is pinned (while still tiering as main)", () => {
-		expect(isPinnedOf({ isMain: true, isCentral: true }, true)).toBe(true);
+	it("WHEN a central's docid is in BOTH sets THEN both flags are set (a doc can hold both pin kinds)", () => {
+		const pinFacts: FlowPinFacts = { globalPinnedDocids: new Set([DOCID]), localPinnedDocids: new Set([DOCID]) };
+		expect(pinFlagsOf({ isMain: false, isCentral: true, docid: DOCID }, pinFacts)).toEqual({
+			isGloballyPinned: true,
+			isLocallyPinned: true,
+		});
+	});
+
+	it("WHEN MAIN's docid is in the GLOBAL set THEN isGloballyPinned is set (engine skips main-as-pin, the set carries it)", () => {
+		const pinFacts: FlowPinFacts = { globalPinnedDocids: new Set([DOCID]), localPinnedDocids: new Set() };
+		expect(pinFlagsOf({ isMain: true, isCentral: true, docid: DOCID }, pinFacts)).toEqual({
+			isGloballyPinned: true,
+			isLocallyPinned: false,
+		});
 	});
 });
 
@@ -434,7 +477,8 @@ describe("withPositions", () => {
 				path: "a.md",
 				title: "a",
 				tier: "regular",
-				isPinned: false,
+				isGloballyPinned: false,
+				isLocallyPinned: false,
 				hasSizeOverride: false,
 				folder: "",
 				outline: [],

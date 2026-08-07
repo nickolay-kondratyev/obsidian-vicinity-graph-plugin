@@ -8,7 +8,7 @@ import type {
 } from "../engine";
 import { clampNodeSizeOverridePx } from "../engine";
 import { SerialPromiseChain } from "../shared/SerialPromiseChain";
-import type { PinnedDocEntry, PluginData } from "./persistedShapes";
+import type { LocalPinsByMainDocid, PinnedDocEntry, PluginData } from "./persistedShapes";
 import { PersistedShapes } from "./persistedShapes";
 import type { PluginDataPort } from "./storagePorts";
 
@@ -68,6 +68,11 @@ export class PluginDataStore {
 		return this.data.pins;
 	}
 
+	/** The active main's locally-pinned targets — empty for a main with no local pins. */
+	localPins(mainDocid: string): readonly PinnedDocEntry[] {
+		return this.data.localPins[mainDocid] ?? [];
+	}
+
 	nodeExclusion(): NodeExclusionSettings {
 		return this.data.nodeExclusion;
 	}
@@ -97,6 +102,52 @@ export class PluginDataStore {
 	async removePins(docids: readonly string[]): Promise<void> {
 		const removed = new Set(docids);
 		await this.persist({ ...this.data, pins: this.data.pins.filter((pin) => !removed.has(pin.docid)) });
+	}
+
+	/**
+	 * Adds (or re-pins, refreshing the timestamp — mirrors {@link addPin} dedupe) a
+	 * target under one MAIN. Local pins are the ONLY docid-keyed MAP-of-lists, so
+	 * the merge is over the main's own list only; every other main is untouched.
+	 */
+	async addLocalPin(mainDocid: string, targetDocid: string, pinTimestamp: number): Promise<void> {
+		const existing = (this.data.localPins[mainDocid] ?? []).filter((pin) => pin.docid !== targetDocid);
+		await this.persist({
+			...this.data,
+			localPins: { ...this.data.localPins, [mainDocid]: [...existing, { docid: targetDocid, pinTimestamp }] },
+		});
+	}
+
+	/**
+	 * Removes the named targets from ONE main's local-pin list; a main left with
+	 * NO targets drops its key entirely (no empty list persists — the parser drops
+	 * such a shape anyway). An unknown main / target is already the desired state.
+	 */
+	async removeLocalPins(mainDocid: string, targetDocids: readonly string[]): Promise<void> {
+		const current = this.data.localPins[mainDocid];
+		if (current === undefined) {
+			return;
+		}
+		const removed = new Set(targetDocids);
+		const remaining = current.filter((pin) => !removed.has(pin.docid));
+		if (remaining.length === current.length) {
+			return;
+		}
+		await this.persist({ ...this.data, localPins: PluginDataStore.withLocalPinList(this.data.localPins, mainDocid, remaining) });
+	}
+
+	/** One main's local-pin list replaced — or the KEY dropped when the list is empty (no orphan main). */
+	private static withLocalPinList(
+		localPins: LocalPinsByMainDocid,
+		mainDocid: string,
+		targets: readonly PinnedDocEntry[],
+	): LocalPinsByMainDocid {
+		const next = { ...localPins };
+		if (targets.length === 0) {
+			delete next[mainDocid];
+		} else {
+			next[mainDocid] = targets;
+		}
+		return next;
 	}
 
 	/**
@@ -158,7 +209,28 @@ export class PluginDataStore {
 	 * nid_gbyqsuplz8b7pv0u5k34sdz1q_e).
 	 */
 	docIdKeyedDocids(): readonly string[] {
-		return [...new Set([...this.data.pins.map((pin) => pin.docid), ...Object.keys(this.data.nodeOverrides)])];
+		return [
+			...new Set([
+				...this.data.pins.map((pin) => pin.docid),
+				...Object.keys(this.data.nodeOverrides),
+				...this.localPinDocids(),
+			]),
+		];
+	}
+
+	/**
+	 * Every docid a local pin references — MAIN keys AND their TARGET docids, each
+	 * once. Both positions must resolve to a path for the map to render, so both
+	 * are warmed AND both are candidates for the orphan sweep (a deleted doc can be
+	 * either). Shared by {@link docIdKeyedDocids} (warm side) and the sweep.
+	 */
+	localPinDocids(): readonly string[] {
+		return [
+			...new Set([
+				...Object.keys(this.data.localPins),
+				...Object.values(this.data.localPins).flatMap((targets) => targets.map((pin) => pin.docid)),
+			]),
+		];
 	}
 
 	/**
@@ -174,14 +246,46 @@ export class PluginDataStore {
 		const nodeOverrides = Object.fromEntries(
 			Object.entries(this.data.nodeOverrides).filter(([docid]) => !forgotten.has(docid)),
 		);
+		// A forgotten doc can be a local-pin KEY (its whole main entry goes) AND a
+		// TARGET under other mains (pruned from every list). A main left with no
+		// targets after pruning drops its key — the same no-orphan-main rule as
+		// {@link removeLocalPins}.
+		const localPins = PluginDataStore.forgetFromLocalPins(this.data.localPins, forgotten);
 		const removedNothing =
 			pins.length === this.data.pins.length &&
-			Object.keys(nodeOverrides).length === Object.keys(this.data.nodeOverrides).length;
+			Object.keys(nodeOverrides).length === Object.keys(this.data.nodeOverrides).length &&
+			localPins === this.data.localPins;
 		if (removedNothing) {
 			// Vaults delete files the plugin never persisted anything about.
 			return;
 		}
-		await this.persist({ ...this.data, pins, nodeOverrides });
+		await this.persist({ ...this.data, pins, localPins, nodeOverrides });
+	}
+
+	/**
+	 * Drops forgotten docs from BOTH local-pin positions (main key and target).
+	 * Returns the SAME reference when nothing changed, so {@link forgetDocs} can
+	 * detect a pure no-op across every map by identity.
+	 */
+	private static forgetFromLocalPins(localPins: LocalPinsByMainDocid, forgotten: ReadonlySet<string>): LocalPinsByMainDocid {
+		let changed = false;
+		const next: Record<string, readonly PinnedDocEntry[]> = {};
+		for (const [mainDocid, targets] of Object.entries(localPins)) {
+			if (forgotten.has(mainDocid)) {
+				changed = true;
+				continue;
+			}
+			const prunedTargets = targets.filter((pin) => !forgotten.has(pin.docid));
+			if (prunedTargets.length === 0) {
+				changed = true;
+				continue;
+			}
+			if (prunedTargets.length !== targets.length) {
+				changed = true;
+			}
+			next[mainDocid] = prunedTargets;
+		}
+		return changed ? next : localPins;
 	}
 
 	/**

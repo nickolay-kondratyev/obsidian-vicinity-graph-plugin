@@ -124,6 +124,84 @@ describe("PersistenceServices.clearNodeOverrideField", () => {
 	});
 });
 
+describe("PersistenceServices.localPinDoc", () => {
+	it("WHEN both docs have docids THEN the local pin persists under MAIN keyed by TARGET with the clock's timestamp", async () => {
+		const { persistence, pluginDataStore } = await services(
+			new FakeDocIdPort({ "main.md": "docid_main_e", "target.md": "docid_target_e" }),
+		);
+		await persistence.localPinDoc(fileAt("main.md"), fileAt("target.md"));
+		expect(pluginDataStore.localPins("docid_main_e")).toEqual([{ docid: "docid_target_e", pinTimestamp: FIXED_NOW }]);
+	});
+
+	it("WHEN both docs are id-less THEN ids are minted for BOTH (Q2: minting on MAIN is sanctioned)", async () => {
+		const { persistence } = await services(new FakeDocIdPort());
+		expect(await persistence.localPinDoc(fileAt("main.md"), fileAt("target.md"))).toEqual({
+			kind: "persisted",
+			mainDocid: "docid_minted2_e",
+			targetDocid: "docid_minted1_e",
+		});
+	});
+
+	it("WHEN both docs get pinned THEN the path→docid map learns BOTH (write path fills the map)", async () => {
+		const { persistence, pathDocIdMap } = await services(
+			new FakeDocIdPort({ "main.md": "docid_main_e", "target.md": "docid_target_e" }),
+		);
+		await persistence.localPinDoc(fileAt("main.md"), fileAt("target.md"));
+		expect([pathDocIdMap.getPath("docid_main_e"), pathDocIdMap.getPath("docid_target_e")]).toEqual([
+			"main.md",
+			"target.md",
+		]);
+	});
+
+	it("WHEN the TARGET cannot get an id THEN the refusal names the target and nothing persists", async () => {
+		const docIdPort = new FakeDocIdPort({ "main.md": "docid_main_e" });
+		docIdPort.markUnidentifiable("target.md");
+		const { persistence, pluginDataStore } = await services(docIdPort);
+		const verdict = await persistence.localPinDoc(fileAt("main.md"), fileAt("target.md"));
+		expect([verdict, pluginDataStore.localPins("docid_main_e")]).toEqual([
+			{ kind: "not-persistable", refusedDoc: "target", reason: "no-docid" },
+			[],
+		]);
+	});
+
+	it("WHEN the TARGET refuses THEN the MAIN note is never minted (no frontmatter write on a doomed pin)", async () => {
+		const docIdPort = new FakeDocIdPort();
+		docIdPort.markUnidentifiable("target.md");
+		const { persistence } = await services(docIdPort);
+		await persistence.localPinDoc(fileAt("main.md"), fileAt("target.md"));
+		expect(docIdPort.ensureCalls).toBe(1);
+	});
+
+	it("WHEN the MAIN carries an unsafe foreign docid THEN the refusal names the main and nothing persists", async () => {
+		const { persistence, pluginDataStore } = await services(
+			new FakeDocIdPort({ "main.md": "../escape", "target.md": "docid_target_e" }),
+		);
+		const verdict = await persistence.localPinDoc(fileAt("main.md"), fileAt("target.md"));
+		expect([verdict, pluginDataStore.localPins("../escape")]).toEqual([
+			{ kind: "not-persistable", refusedDoc: "main", reason: "unsafe-docid" },
+			[],
+		]);
+	});
+});
+
+describe("PersistenceServices.localUnpinDoc", () => {
+	it("WHEN a local pin is removed THEN it disappears from the main's list", async () => {
+		const { persistence, pluginDataStore } = await services(
+			new FakeDocIdPort({ "main.md": "docid_main_e", "target.md": "docid_target_e" }),
+		);
+		await persistence.localPinDoc(fileAt("main.md"), fileAt("target.md"));
+		await persistence.localUnpinDoc(fileAt("main.md"), "docid_target_e");
+		expect(pluginDataStore.localPins("docid_main_e")).toEqual([]);
+	});
+
+	it("WHEN an id-less MAIN is locally unpinned THEN NO id is minted (clearing stores nothing)", async () => {
+		const docIdPort = new FakeDocIdPort();
+		const { persistence } = await services(docIdPort);
+		await persistence.localUnpinDoc(fileAt("main.md"), "docid_target_e");
+		expect(docIdPort.ensureCalls).toBe(0);
+	});
+});
+
 describe("PersistenceServices.unpinDoc", () => {
 	it("WHEN a doc is unpinned THEN its pin disappears", async () => {
 		const { persistence, pluginDataStore } = await services(new FakeDocIdPort({ "a.md": "docid_a_e" }));

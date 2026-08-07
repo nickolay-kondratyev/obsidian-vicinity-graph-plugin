@@ -50,7 +50,8 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
 	// BOTH the hover button and the right-click menu (CLARIFICATION Q3).
 	// Every node toggles — including MAIN, whose pin keeps it central after
 	// the human navigates to another note.
-	const pinAction = useMemo(() => planNodePinAction(data.isPinned), [data.isPinned]);
+	// This is the GLOBAL pin toggle; the local-pin control is the dependent UI ticket.
+	const pinAction = useMemo(() => planNodePinAction(data.isGloballyPinned), [data.isGloballyPinned]);
 	const runPinAction = useCallback(() => {
 		if (pinAction.kind === "pin") {
 			void actions.pinNode(data.path);

@@ -3,6 +3,7 @@ import type { DocIdMapWarmer } from "../persistence/DocIdMapWarmer";
 import type { PathDocIdMap } from "../persistence/PathDocIdMap";
 import type { PluginDataStore } from "../persistence/PluginDataStore";
 import { ControlsModelBuilder } from "../view/ControlsModel";
+import type { FlowPinFacts } from "../view/flowMapping";
 import type { GraphBuildResult } from "../view/viewPorts";
 import type { CanvasParseCache } from "./CanvasParseCache";
 import type { GraphRequestInputs } from "./GraphRequestAssembler";
@@ -45,6 +46,9 @@ export class VicinityGraphBuilder {
 			this.pathDocIdMap.set(mainPath, mainDocId);
 		}
 		const pins = this.pluginDataStore.pins();
+		// The active main's local pins are keyed by ITS docid; a main with no docid
+		// (unpinnable) can own none, so it gets the empty list.
+		const localPins = mainDocId === null ? [] : this.pluginDataStore.localPins(mainDocId);
 		const nodeOverrides = this.pluginDataStore.nodeOverrides();
 		// Cold-map fix (ticket nid_gbyqsuplz8b7pv0u5k34sdz1q_e): resolve the
 		// docids this build actually needs on demand, so pins and per-node
@@ -61,6 +65,7 @@ export class VicinityGraphBuilder {
 			mainPath,
 			mainDocId,
 			pins,
+			localPins,
 			nodeOverrides,
 			resolveDocPath: (docid) => this.pathDocIdMap.getPath(docid),
 			globalDepths: this.pluginDataStore.globalDepths(),
@@ -68,8 +73,14 @@ export class VicinityGraphBuilder {
 			nodeExclusion: this.pluginDataStore.nodeExclusion(),
 		};
 		const graph = new VicinityEngine(provider).build(GraphRequestAssembler.assemble(inputs));
+		// The two pin docid sets are derived from the SAME inputs the graph used, so
+		// the per-node global/local flags cannot disagree with the merged root list.
+		const pinFacts: FlowPinFacts = {
+			globalPinnedDocids: new Set(pins.map((pin) => pin.docid)),
+			localPinnedDocids: new Set(localPins.map((pin) => pin.docid)),
+		};
 		// The exclusion COUNT is a graph output (not an input), so it is threaded from
 		// the built graph into the toolbar model alongside the shared inputs.
-		return { graph, controls: ControlsModelBuilder.build(inputs, graph.excludedNodeCount) };
+		return { graph, controls: ControlsModelBuilder.build(inputs, graph.excludedNodeCount), pinFacts };
 	}
 }

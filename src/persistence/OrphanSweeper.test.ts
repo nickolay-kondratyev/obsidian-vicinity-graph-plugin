@@ -30,6 +30,10 @@ async function sweptFixture() {
 		field: "sizePx",
 		value: { widthPx: 300, heightPx: 200 },
 	});
+	// A local pin under a LIVE main whose TARGET vanished, plus one whose MAIN key
+	// vanished — both are orphans the sweep must reach through forgetDocs.
+	await pluginDataStore.addLocalPin("docid_note3_e", "docid_localtargetgone_e", 300);
+	await pluginDataStore.addLocalPin("docid_localmaingone_e", "docid_note4_e", 400);
 
 	const pathDocIdMap = new PathDocIdMap();
 	let yields = 0;
@@ -70,9 +74,20 @@ describe("OrphanSweeper", () => {
 		expect(yieldCount()).toBeGreaterThan(0);
 	});
 
+	it("WHEN a local-pin TARGET vanished THEN it is pruned but the live main survives", async () => {
+		const { pluginDataStore } = await sweptFixture();
+		expect(pluginDataStore.localPins("docid_note3_e")).toEqual([]);
+	});
+
+	it("WHEN a local-pin MAIN key vanished THEN its whole entry is dropped", async () => {
+		const { pluginDataStore } = await sweptFixture();
+		expect(pluginDataStore.localPins("docid_localmaingone_e")).toEqual([]);
+	});
+
 	it("WHEN the sweep completes THEN its summary counts exactly what was removed", async () => {
 		const { summary } = await sweptFixture();
-		expect(summary).toEqual({ pinsRemoved: 1, overridesRemoved: 1, everyFileRead: true }); // docid_stale_e, docid_gone_e
+		// docid_stale_e; docid_gone_e; two stale local-pin docids (target + main key).
+		expect(summary).toEqual({ pinsRemoved: 1, overridesRemoved: 1, localPinsRemoved: 2, everyFileRead: true });
 	});
 });
 
@@ -164,7 +179,7 @@ describe("OrphanSweeper at hundreds-of-files scale", () => {
 
 	it("WHEN hundreds of files are all live THEN the sweep removes nothing", async () => {
 		const { summary } = await hundredsOfFilesSweep();
-		expect(summary).toEqual({ pinsRemoved: 0, overridesRemoved: 0, everyFileRead: true });
+		expect(summary).toEqual({ pinsRemoved: 0, overridesRemoved: 0, localPinsRemoved: 0, everyFileRead: true });
 	});
 });
 
@@ -203,7 +218,7 @@ describe("OrphanSweeper when a file cannot be read", () => {
 
 	it("WHEN one file read fails THEN the summary says the evidence was incomplete", async () => {
 		const { summary } = await sweepWithUnreadableFileFixture();
-		expect(summary).toEqual({ pinsRemoved: 0, overridesRemoved: 0, everyFileRead: false });
+		expect(summary).toEqual({ pinsRemoved: 0, overridesRemoved: 0, localPinsRemoved: 0, everyFileRead: false });
 	});
 
 	it("WHEN one file read fails THEN the map is still warmed by the same pass", async () => {
