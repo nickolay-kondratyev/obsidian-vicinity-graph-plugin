@@ -94,13 +94,6 @@ export class MarkdownInlineLinks {
 	}
 
 	/**
-	 * The markdown-style inline links written in `text` — vault link TEXT plus
-	 * KIND — in written order, duplicates kept (callers dedupe). Titles, subpaths
-	 * and queries are stripped and percent-escapes decoded, because that is the
-	 * shape Obsidian's link RESOLUTION accepts. Destinations that name no vault
-	 * document — external URLs and empty ones — yield nothing.
-	 */
-	/**
 	 * True when a match straddles a paragraph break. A single line ending is legal
 	 * inside an inline link/embed, but a blank line is a CommonMark paragraph break
 	 * that ENDS the inline — so a `[label](dest)` spanning one is not one reference.
@@ -112,6 +105,13 @@ export class MarkdownInlineLinks {
 		return PARAGRAPH_BREAK.test(matchText);
 	}
 
+	/**
+	 * The markdown-style inline links written in `text` — vault link TEXT plus
+	 * KIND — in written order, duplicates kept (callers dedupe). Titles, subpaths
+	 * and queries are stripped and percent-escapes decoded, because that is the
+	 * shape Obsidian's link RESOLUTION accepts. Destinations that name no vault
+	 * document — external URLs and empty ones — yield nothing.
+	 */
 	static harvestedLinksOf(text: string): readonly HarvestedLink[] {
 		const links: HarvestedLink[] = [];
 		for (const match of text.matchAll(MarkdownInlineLinks.globalPattern())) {
