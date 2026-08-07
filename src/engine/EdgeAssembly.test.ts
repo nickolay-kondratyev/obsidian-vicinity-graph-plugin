@@ -128,3 +128,60 @@ describe("EdgeAssembly edge kind summary (stage-2 embed rendering)", () => {
 		expect(provider.outgoingQueryCount(asVaultPath("m.md"))).toBe(1);
 	});
 });
+
+/**
+ * GIVEN m.md embedding three notes in a definite order (first.md, second.md,
+ * third.md) — the per-source embed order the view nests children by.
+ */
+function embedOrderProvider(): FakeLinkProvider {
+	return new FakeLinkProvider({
+		files: [{ path: "m.md" }, { path: "first.md" }, { path: "second.md" }, { path: "third.md" }],
+		embeds: { "m.md": ["first.md", "second.md", "third.md"] },
+	});
+}
+
+function embedOrderOf(target: string, provider: FakeLinkProvider): number | undefined {
+	const edges = EdgeAssembly.attach({
+		visibleEdges: [{ source: asVaultPath("m.md"), target: asVaultPath(target) }],
+		provider,
+	});
+	return edges[0]?.embedOrder;
+}
+
+describe("EdgeAssembly embed order (embed-nesting P1)", () => {
+	it("WHEN a source embeds three notes THEN each embed edge carries its 0-based source-scoped embed position", () => {
+		const provider = embedOrderProvider();
+		expect([
+			embedOrderOf("first.md", provider),
+			embedOrderOf("second.md", provider),
+			embedOrderOf("third.md", provider),
+		]).toEqual([0, 1, 2]);
+	});
+
+	it("WHEN a pair is plainly linked only THEN its edge carries no embedOrder", () => {
+		expect(embedOrderOf("linked.md", threeKindsProvider())).toBeUndefined();
+	});
+
+	it("WHEN a target is BOTH linked and embedded THEN embedOrder is its EMBED occurrence position", () => {
+		// both.md is the 2nd (index 1) embed of m.md; its plain-link position is irrelevant.
+		expect(embedOrderOf("both.md", threeKindsProvider())).toBe(1);
+	});
+
+	it("WHEN the same target is embedded twice THEN dedup keeps the FIRST occurrence's position for later embeds", () => {
+		const provider = new FakeLinkProvider({
+			files: [{ path: "m.md" }, { path: "dup.md" }, { path: "later.md" }],
+			// dup.md embedded at positions 0 and 1; later.md at 2. After per-target dedup
+			// dup.md keeps 0 and later.md collapses to 1 — the order survives dedup.
+			embeds: { "m.md": ["dup.md", "dup.md", "later.md"] },
+		});
+		expect([embedOrderOf("dup.md", provider), embedOrderOf("later.md", provider)]).toEqual([0, 1]);
+	});
+
+	it("WHEN a pair is embedded only THEN its edge kind is 'embed' AND it carries embedOrder 0", () => {
+		const edges = EdgeAssembly.attach({
+			visibleEdges: [{ source: asVaultPath("m.md"), target: asVaultPath("embedded.md") }],
+			provider: threeKindsProvider(),
+		});
+		expect(edges[0]).toEqual({ source: "m.md", target: "embedded.md", count: 1, kind: "embed", embedOrder: 0 });
+	});
+});

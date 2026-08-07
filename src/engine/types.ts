@@ -191,6 +191,16 @@ export interface GraphEdge extends DirectedLink {
 	readonly count: number;
 	/** The pair's relationship summary — drives the view's edge styling. */
 	readonly kind: EdgeKind;
+	/**
+	 * 0-based position of the FIRST embed reference `source → target` within
+	 * `source`'s embed references (embed references only, deduped per target, in
+	 * reference order). Present iff {@link kind} is `"embed"` or `"both"` — a
+	 * plain-link pair has no embed occurrence to order. Lets the view nest
+	 * embedded children under their embedder IN EMBED ORDER (ticket
+	 * `nid_r3qiyd7xx3bund6f73wf5h0vd_e`, embed-nesting P1). Derived from provider
+	 * truth in {@link import("./EdgeAssembly").EdgeAssembly}, same seam as {@link kind}.
+	 */
+	readonly embedOrder?: number;
 }
 
 /**
