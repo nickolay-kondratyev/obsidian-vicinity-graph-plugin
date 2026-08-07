@@ -1,17 +1,17 @@
 ---
 id: nid_ur7veu8yqx8x6q8j6vz2z2ioa_e
-title: "Model leading YouTube hero video on node data"
-status: open
+title: Model leading YouTube hero video on node data
+status: in_progress
 deps: [nid_k7i845kkf64tb75bs854a29m9_e, nid_21xio7iwxv742ze4qc4p4qbmq_e]
 links: [nid_mw1az1i1aznfoxqsgcwnfus07_e]
-created_iso: 2026-08-07T15:49:50Z
-status_updated_iso: 2026-08-07T15:49:50Z
+created_iso: '2026-08-07T15:49:50Z'
+status_updated_iso: '2026-08-07T17:44:46Z'
 type: feature
 priority: 2
 assignee: nickolaykondratyev
 tags: [external-preview, youtube, data-model]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 ---
-
 Carry the parsed leading YouTube hero video (from the parsing ticket) through the node model so the view can render it. Logical/data plumbing ONLY — no rendering here.
 
 - Add the hero-video field to the engine node data structure and thread it engine -> adapters -> view mapping (src/view/flowMapping.ts flow-node union).
