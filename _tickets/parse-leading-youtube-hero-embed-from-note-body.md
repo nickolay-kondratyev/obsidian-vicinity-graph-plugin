@@ -1,17 +1,17 @@
 ---
 id: nid_k7i845kkf64tb75bs854a29m9_e
-title: "Parse leading YouTube hero embed from note body"
-status: open
+title: Parse leading YouTube hero embed from note body
+status: in_progress
 deps: []
 links: [nid_mw1az1i1aznfoxqsgcwnfus07_e]
-created_iso: 2026-08-07T15:49:50Z
-status_updated_iso: 2026-08-07T15:49:50Z
+created_iso: '2026-08-07T15:49:50Z'
+status_updated_iso: '2026-08-07T17:08:31Z'
 type: feature
 priority: 2
 assignee: nickolaykondratyev
 tags: [external-preview, youtube, parsing]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 ---
-
 Detect a YouTube video declared as an EXPANDED embed `![](<youtube-url>)` (youtu.be/... or youtube.com/watch?v=...) that appears BEFORE the first markdown heading AND before any image embed in the note body. Only a LEADING video counts as the node hero (matches the human ask: "video ... before heading and before images").
 
 OUTPUT: a normalized video identity (video id + canonical URL) for downstream data-model/rendering. No network, no fetch — parse the string only.
