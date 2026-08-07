@@ -1,17 +1,18 @@
 ---
 id: nid_ghaeps3siekw0oe17mr4xpmad_e
-title: "Restart-time stale controls: toolbar depth stepper stuck at defaults after an Obsidian restart"
-status: open
+title: 'Restart-time stale controls: toolbar depth stepper stuck at defaults after
+  an Obsidian restart'
+status: in_progress
 deps: []
 links: []
-created_iso: 2026-08-07T18:08:51Z
-status_updated_iso: 2026-08-07T18:08:51Z
+created_iso: '2026-08-07T18:08:51Z'
+status_updated_iso: '2026-08-07T19:51:29Z'
 type: bug
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
 tags: [view]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 ---
-
 Distinct root cause found while root-causing ticket nid_1s77g4wx33uj8b380d1oph1d6_e (residual live-view repaint stall). Independent of that ticket's node-box fix.
 
 SYMPTOM (floor e2e, ~10-25% under full-suite load): e2e/controlsRestart.e2e.ts:136 "depth, pin, node cap and sizing all survive an Obsidian restart" fails at line 179 — the toolbar non-pinned "Links in" stepper stays at the DEFAULT "1" for the full 15s poll while data.json holds "2" (observed 18-26x resolving to "1").
