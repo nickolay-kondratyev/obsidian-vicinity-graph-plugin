@@ -4,6 +4,7 @@ import { FakePluginDataPort } from "../persistence/FakePluginDataPort";
 import { PathDocIdMap } from "../persistence/PathDocIdMap";
 import { PluginDataStore } from "../persistence/PluginDataStore";
 import { CanvasParseCache } from "./CanvasParseCache";
+import { LeadingVideoCache } from "./LeadingVideoCache";
 import { FakeDocIdPort } from "./FakeDocIdPort";
 import { FakeObsidianPorts } from "./FakeObsidianPorts";
 import { VicinityGraphBuilder } from "./VicinityGraphBuilder";
@@ -37,6 +38,7 @@ async function builderFixture() {
 		ports.metadataCache,
 		docIdPort,
 		new CanvasParseCache(),
+		new LeadingVideoCache(),
 		pluginDataStore,
 		pathDocIdMap,
 		new DocIdMapWarmer(ports.vault, docIdPort, pathDocIdMap),
@@ -140,6 +142,7 @@ async function coldMapFixture(options: { readonly unreadablePath?: string } = {}
 		ports.metadataCache,
 		docIdPort,
 		new CanvasParseCache(),
+		new LeadingVideoCache(),
 		pluginDataStore,
 		pathDocIdMap,
 		new DocIdMapWarmer(ports.vault, docIdPort, pathDocIdMap),

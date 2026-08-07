@@ -3,7 +3,7 @@ id: nid_ur7veu8yqx8x6q8j6vz2z2ioa_e
 title: Model leading YouTube hero video on node data
 status: in_progress
 deps: [nid_k7i845kkf64tb75bs854a29m9_e, nid_21xio7iwxv742ze4qc4p4qbmq_e]
-links: [nid_mw1az1i1aznfoxqsgcwnfus07_e]
+links: [nid_mw1az1i1aznfoxqsgcwnfus07_e, nid_f3czh4cey22n7zc8prqadjlek_e]
 created_iso: '2026-08-07T15:49:50Z'
 status_updated_iso: '2026-08-07T17:44:46Z'
 type: feature

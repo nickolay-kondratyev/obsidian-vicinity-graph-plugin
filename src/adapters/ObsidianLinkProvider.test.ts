@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { asVaultPath } from "../engine";
 import { CanvasParseCache } from "./CanvasParseCache";
+import { LeadingVideoCache } from "./LeadingVideoCache";
 import type { FakeObsidianSpec } from "./FakeObsidianPorts";
 import { FakeObsidianPorts } from "./FakeObsidianPorts";
 import { ObsidianLinkProvider } from "./ObsidianLinkProvider";
@@ -1063,5 +1064,92 @@ describe("ObsidianLinkProvider outgoing reference kinds (canvas)", () => {
 				resolvedLinks: { "board.canvas": { "note-b.md": 1 } },
 			}),
 		).toEqual([{ target: "note-b.md", kind: "embed" }]);
+	});
+});
+
+/**
+ * The leading-YouTube-hero FACT: the parse ticket returns the embed OFFSET; the
+ * ADAPTER (which alone holds heading + image offsets) decides whether it "leads"
+ * — sits above BOTH the first heading and the first image. The embed lives in the
+ * note BODY (served by `cachedRead`), NOT the metadata cache, because Obsidian
+ * discards external `![](url)` embeds — so the fixture supplies `content` and the
+ * provider is created WITH a `LeadingVideoCache` (the graph-build path).
+ */
+describe("ObsidianLinkProvider leadingVideo (positional hero verdict)", () => {
+	const VIDEO_URL = "https://youtu.be/dQw4w9WgXcQ";
+	const VIDEO_ID = "dQw4w9WgXcQ";
+	const CANONICAL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
+
+	async function leadingVideoOf(spec: FakeObsidianSpec, path = "note.md") {
+		const ports = new FakeObsidianPorts(spec);
+		const provider = await ObsidianLinkProvider.create(
+			ports.vault,
+			ports.metadataCache,
+			new CanvasParseCache(),
+			new LeadingVideoCache(),
+		);
+		return provider.getFileMetadata(asVaultPath(path))?.leadingVideo;
+	}
+
+	/** A note whose entire body is the leading YouTube embed (its `!` at offset 0). */
+	function videoNote(extra: FakeObsidianSpec["fileCaches"] = {}): FakeObsidianSpec {
+		return {
+			files: [{ path: "note.md", content: `![](${VIDEO_URL})` }],
+			fileCaches: extra,
+		};
+	}
+
+	it("WHEN the leading embed precedes both heading and image THEN leadingVideo carries the normalised identity", async () => {
+		expect(await leadingVideoOf(videoNote())).toEqual({ videoId: VIDEO_ID, canonicalUrl: CANONICAL });
+	});
+
+	it("WHEN the note has a later heading THEN the embed still leads (it precedes the heading)", async () => {
+		const video = await leadingVideoOf(videoNote({ "note.md": { headings: [heading("Intro", 1, 50)] } }));
+		expect(video?.videoId).toBe(VIDEO_ID);
+	});
+
+	it("WHEN a heading precedes the embed THEN it does NOT lead (leadingVideo is absent)", async () => {
+		// Body pads the embed's `!` to offset 6; the heading sits at offset 0.
+		const spec: FakeObsidianSpec = {
+			files: [{ path: "note.md", content: `text\n\n![](${VIDEO_URL})` }],
+			fileCaches: { "note.md": { headings: [heading("Intro", 1, 0)] } },
+		};
+		expect(await leadingVideoOf(spec)).toBeUndefined();
+	});
+
+	it("WHEN an image is embedded before the video THEN it does NOT lead", async () => {
+		// The image ref sits at offset 0; the video `!` at offset 6 (padded body).
+		const spec: FakeObsidianSpec = {
+			files: [{ path: "note.md", content: `text\n\n![](${VIDEO_URL})` }, { path: "pic.png" }],
+			fileCaches: { "note.md": { embeds: [ref("pic.png", 0)] } },
+			resolutions: { "pic.png": "pic.png" },
+		};
+		expect(await leadingVideoOf(spec)).toBeUndefined();
+	});
+
+	it("WHEN the video precedes an image THEN it leads (image resolution is the 'before image' side)", async () => {
+		const spec: FakeObsidianSpec = {
+			files: [{ path: "note.md", content: `![](${VIDEO_URL})` }, { path: "pic.png" }],
+			fileCaches: { "note.md": { embeds: [ref("pic.png", 40)] } },
+			resolutions: { "pic.png": "pic.png" },
+		};
+		expect((await leadingVideoOf(spec))?.videoId).toBe(VIDEO_ID);
+	});
+
+	it("WHEN no LeadingVideoCache is supplied THEN leadingVideo is absent even with a leading embed (edge-click / OFF path)", async () => {
+		const provider = await providerOver(videoNote());
+		expect(provider.getFileMetadata(asVaultPath("note.md"))?.leadingVideo).toBeUndefined();
+	});
+
+	it("WHEN the note carries no YouTube embed THEN leadingVideo is absent", async () => {
+		const spec: FakeObsidianSpec = { files: [{ path: "note.md", content: "# Intro\n\nplain body, no video" }] };
+		expect(await leadingVideoOf(spec)).toBeUndefined();
+	});
+
+	it("WHEN the only YouTube embed is inside a fenced code block THEN leadingVideo is absent (code is masked)", async () => {
+		const spec: FakeObsidianSpec = {
+			files: [{ path: "note.md", content: `\`\`\`\n![](${VIDEO_URL})\n\`\`\`` }],
+		};
+		expect(await leadingVideoOf(spec)).toBeUndefined();
 	});
 });

@@ -5,6 +5,7 @@ import type { PluginDataStore } from "../persistence/PluginDataStore";
 import { ControlsModelBuilder } from "../view/ControlsModel";
 import type { GraphBuildResult } from "../view/viewPorts";
 import type { CanvasParseCache } from "./CanvasParseCache";
+import type { LeadingVideoCache } from "./LeadingVideoCache";
 import type { GraphRequestInputs } from "./GraphRequestAssembler";
 import { GraphRequestAssembler } from "./GraphRequestAssembler";
 import { ObsidianLinkProvider } from "./ObsidianLinkProvider";
@@ -25,6 +26,8 @@ export class VicinityGraphBuilder {
 		private readonly metadataCache: MetadataCachePort,
 		private readonly docIdPort: DocIdPort,
 		private readonly canvasParseCache: CanvasParseCache,
+		/** Plugin-lived like {@link canvasParseCache}; consulted ONLY when external previews are ON. */
+		private readonly leadingVideoCache: LeadingVideoCache,
 		private readonly pluginDataStore: PluginDataStore,
 		private readonly pathDocIdMap: PathDocIdMap,
 		/** INJECTED, not built here: the sweep shares this exact instance (one scan discipline, one miss cache). */
@@ -37,7 +40,16 @@ export class VicinityGraphBuilder {
 		if (mainFile === null) {
 			return null;
 		}
-		const provider = await ObsidianLinkProvider.create(this.vault, this.metadataCache, this.canvasParseCache);
+		// Warm the leading-video body reads ONLY when external previews are ON — the
+		// privacy switch that "stops all such requests" also stops the work behind
+		// them, and the engine ignores the fact when OFF anyway (nodePreviewKind).
+		const globalView = this.pluginDataStore.globalView();
+		const provider = await ObsidianLinkProvider.create(
+			this.vault,
+			this.metadataCache,
+			this.canvasParseCache,
+			globalView.externalPreviews ? this.leadingVideoCache : undefined,
+		);
 		const mainDocId = this.docIdPort.isEligible(mainFile) ? await this.docIdPort.getDocId(mainFile) : null;
 		if (mainDocId !== null) {
 			// Lazy map fill on visit (CLARIFICATION planning default) — keeps
@@ -64,7 +76,7 @@ export class VicinityGraphBuilder {
 			nodeOverrides,
 			resolveDocPath: (docid) => this.pathDocIdMap.getPath(docid),
 			globalDepths: this.pluginDataStore.globalDepths(),
-			globalView: this.pluginDataStore.globalView(),
+			globalView,
 			nodeExclusion: this.pluginDataStore.nodeExclusion(),
 		};
 		const graph = new VicinityEngine(provider).build(GraphRequestAssembler.assemble(inputs));

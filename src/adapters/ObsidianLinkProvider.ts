@@ -1,11 +1,21 @@
-import type { AttachmentRef, FileMetadata, LinkProvider, OutgoingReference, OutlineEntry, VaultPath } from "../engine";
+import type {
+	AttachmentRef,
+	FileMetadata,
+	LinkProvider,
+	OutgoingReference,
+	OutlineEntry,
+	VaultPath,
+	YoutubeVideoIdentity,
+} from "../engine";
 import { asFolderPath, asVaultPath, OutgoingReferences } from "../engine";
 import { FileKinds } from "../shared/FileKinds";
+import type { LeadingYoutubeEmbed } from "../shared/YoutubeHeroEmbed";
 import { BacklinksAdapter } from "./BacklinksAdapter";
 import type { OrderedReference } from "./ReferenceOrder";
 import { ReferenceOrder } from "./ReferenceOrder";
 import type { CanvasReference } from "./CanvasFallbackParser";
 import type { CanvasParseCache } from "./CanvasParseCache";
+import type { LeadingVideoCache } from "./LeadingVideoCache";
 import type { CachedMetadataPort, MetadataCachePort, VaultFilePort, VaultPort } from "./obsidianPorts";
 
 /** Kept local: "which files must be parsed as canvas" is adapter knowledge, not a shared file kind. */
@@ -66,6 +76,13 @@ export class ObsidianLinkProvider implements LinkProvider {
 		private readonly canvasOutgoingByPath: ReadonlyMap<string, readonly OutgoingReference[]>,
 		/** Target path → the canvases referencing it. */
 		private readonly canvasIncomingByPath: ReadonlyMap<string, readonly string[]>,
+		/**
+		 * Markdown path → its leading YouTube embed (or `null`), for the files warmed
+		 * in {@link create}. EMPTY when no {@link LeadingVideoCache} was supplied — the
+		 * external-previews-OFF path and the edge-click occurrence path both skip the
+		 * body reads entirely, so `leadingVideo` is simply never reported there.
+		 */
+		private readonly leadingEmbedByPath: ReadonlyMap<string, LeadingYoutubeEmbed | null>,
 		backlinksAvailable: boolean,
 	) {
 		if (!backlinksAvailable) {
@@ -74,14 +91,33 @@ export class ObsidianLinkProvider implements LinkProvider {
 		}
 	}
 
+	/**
+	 * @param leadingVideoCache OPTIONAL. When supplied (the graph-build path with
+	 * external previews ON), every markdown note's body is read once — mtime-cached
+	 * — to warm the leading-YouTube-hero fact, which cannot come from Obsidian's
+	 * metadata cache (it discards external `![](url)` embeds). Omitted on the
+	 * edge-click occurrence path and whenever external previews are OFF, so neither
+	 * pays for a fact it will never surface.
+	 */
 	static async create(
 		vault: VaultPort,
 		metadataCache: MetadataCachePort,
 		canvasParseCache: CanvasParseCache,
+		leadingVideoCache?: LeadingVideoCache,
 	): Promise<ObsidianLinkProvider> {
 		const canvasOutgoing = new Map<string, readonly OutgoingReference[]>();
 		const canvasIncoming = new Map<string, string[]>();
+		const leadingEmbedByPath = new Map<string, LeadingYoutubeEmbed | null>();
 		for (const file of vault.getFiles()) {
+			if (leadingVideoCache !== undefined && FileKinds.isMarkdownPath(file.path)) {
+				// Warm every markdown note up front: getFileMetadata is synchronous, so
+				// the async body read cannot happen at query time. Bounded to markdown
+				// (canvas bodies are JSON) and gated by the caller on external previews
+				// being ON. First build reads all; the mtime cache makes steady state
+				// re-read only changed notes. (Bounding the first read to just the
+				// traversed nodes is a perf follow-up — ticket nid_f3czh4cey22n7zc8prqadjlek_e.)
+				leadingEmbedByPath.set(file.path, await leadingVideoCache.leadingEmbedOf(vault, file));
+			}
 			if (file.extension !== CANVAS_EXTENSION) {
 				continue;
 			}
@@ -104,6 +140,7 @@ export class ObsidianLinkProvider implements LinkProvider {
 			metadataCache,
 			canvasOutgoing,
 			canvasIncoming,
+			leadingEmbedByPath,
 			BacklinksAdapter.isAvailable(metadataCache),
 		);
 	}
@@ -185,7 +222,60 @@ export class ObsidianLinkProvider implements LinkProvider {
 			// Field names match {@link FileMetadata} by design — the facts are
 			// computed together (shared guards) and travel unchanged.
 			...this.outlineFactsOf(file, cache, references),
+			leadingVideo: this.leadingVideoOf(file, cache, references),
 		};
+	}
+
+	/**
+	 * The note's LEADING YouTube hero, or `undefined` when it has none — the
+	 * positional VERDICT the parse ticket handed off (parser gives the embed
+	 * offset; the adapter, which alone holds heading and image offsets, decides
+	 * whether it "leads"). Present only when the first YouTube embed sits above
+	 * BOTH the first heading and the first image (LOCAL images, this slice).
+	 *
+	 * `undefined` whenever the leading-video cache was not warmed (external
+	 * previews OFF, or the occurrence path) — the map is empty, so nothing here
+	 * reads a body it never read. The gate that turns an existing leading video ON
+	 * or OFF lives in `nodePreviewKind`, not here: the adapter reports the fact
+	 * whenever it warmed the body, and the engine decides whether it wins the slot.
+	 */
+	private leadingVideoOf(
+		file: VaultFilePort,
+		cache: CachedMetadataPort | null,
+		references: readonly OrderedReference[] | null,
+	): YoutubeVideoIdentity | undefined {
+		const leadingEmbed = this.leadingEmbedByPath.get(file.path);
+		if (leadingEmbed === undefined || leadingEmbed === null) {
+			return undefined; // Not warmed, or warmed and the note has no YouTube embed.
+		}
+		// A missing heading / no known image cannot be "preceded", so each absent
+		// side is +Infinity — the embed leads it vacuously. "Before any image" is
+		// LOCAL images only for this slice (external image embeds are future scope).
+		const firstHeadingOffset = cache?.headings?.[0]?.position.start.offset ?? Number.POSITIVE_INFINITY;
+		const firstImageOffset = this.firstImageOffsetOf(file.path, references);
+		const leads = leadingEmbed.offset < firstHeadingOffset && leadingEmbed.offset < firstImageOffset;
+		return leads ? leadingEmbed.identity : undefined;
+	}
+
+	/**
+	 * The document offset of the note's FIRST reference that resolves to an image,
+	 * or `+Infinity` when it has none — the "first image" side of the leading-video
+	 * verdict. RESOLVED references only (the same resolution the thumbnail uses), so
+	 * an unresolvable `![[missing.png]]` never counts as an image the video must
+	 * precede. `references` arrive ascending by offset, so the first image found is
+	 * the earliest.
+	 */
+	private firstImageOffsetOf(path: string, references: readonly OrderedReference[] | null): number {
+		if (references === null) {
+			return Number.POSITIVE_INFINITY; // Order unknown ⇒ no image is KNOWN to lead.
+		}
+		for (const reference of references) {
+			const target = this.resolveReference(reference.link, path);
+			if (target !== undefined && FileKinds.isImagePath(target)) {
+				return reference.offset;
+			}
+		}
+		return Number.POSITIVE_INFINITY;
 	}
 
 	/**
