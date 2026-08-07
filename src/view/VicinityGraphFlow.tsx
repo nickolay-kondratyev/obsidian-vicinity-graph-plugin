@@ -1,4 +1,4 @@
-import { applyNodeChanges, Background, ControlButton, Controls, Panel, ReactFlow, useReactFlow, useStore } from "@xyflow/react";
+import { Background, ControlButton, Controls, Panel, ReactFlow, useReactFlow, useStore } from "@xyflow/react";
 import type {
 	Edge,
 	EdgeMouseHandler,
@@ -64,51 +64,70 @@ export function VicinityGraphFlow({
 		}
 	}, [snapshot.status, linkPreview]);
 
-	// Nodes are LOCAL React state seeded from the controller's snapshot, not the
-	// snapshot mapped straight into the prop: a controlled <ReactFlow> applies NO
-	// change itself, so the NodeResizer drag inside NoteNode only moves the box if
-	// onNodesChange applies its dimension changes somewhere. The controller stays
-	// the one source of truth — every publish (including the commit-on-release
-	// rebuild) replaces this state wholesale in the reseed below.
+	// The nodes React Flow renders are mapped STRAIGHT from the published snapshot
+	// each render — the controller is the one source of truth, so between gestures
+	// the pane can never hold a box the store no longer has. `snapshot.nodes` changes
+	// identity exactly once per publish, so this memo only remaps on a real rebuild.
+	const baseNodes = useMemo<Node[]>(() => snapshot.nodes.map(toReactFlowNode), [snapshot.nodes]);
+
+	// The ONE exception to "render the snapshot": a resize drag in flight. A
+	// controlled <ReactFlow> applies no dimension change itself, so the NodeResizer
+	// inside NoteNode only moves the box if we overlay the gesture's live size onto
+	// the dragged node until the commit-on-release rebuild republishes it. This
+	// overlay is the ONLY node state this view holds, and it is NARROW: one node, and
+	// null between gestures.
 	//
-	// Reseeded DURING the render that brings the new snapshot, not from an effect:
-	// `edges` below is a plain memo, so an effect-based reseed would COMMIT one frame
-	// of new edges against the previous build's nodes — React Flow would resolve those
-	// edges against ids that are not there yet. React re-runs this render before
-	// committing anything, so the two props can never disagree.
-	//
-	// The gate is `snapshot.nodes` — the PUBLISHED array, the one thing that changes
-	// identity exactly once per publish. WHY-NOT gate on a `useMemo` of the mapping:
-	// React may drop a memo cache at will, and a recomputed mapping would then read as
-	// a fresh publish and discard the box a drag is holding mid-gesture.
-	const [nodes, setNodes] = useState<Node[]>(() => snapshot.nodes.map(toReactFlowNode));
-	const [seededFrom, setSeededFrom] = useState<readonly FlowNode[]>(snapshot.nodes);
-	if (seededFrom !== snapshot.nodes) {
-		setSeededFrom(snapshot.nodes);
-		setNodes(snapshot.nodes.map(toReactFlowNode));
+	// WHY-NOT the previous standing local `nodes` mirror reseeded on `snapshot.nodes`
+	// identity (ticket nid_1s77g4wx33uj8b380d1oph1d6_e): that mirror could drift BELOW
+	// the snapshot and never recover. React Flow's ResizeObserver re-measures a node
+	// it already rendered and routes a `dimensions` change through `onNodesChange`;
+	// under load that measured the node's PRE-repaint DOM and a functional `setNodes`
+	// reverted the local box to the PREVIOUS build's, while the identity-keyed reseed
+	// gate — having already consumed that snapshot — could not re-fire. A whole
+	// refreshOpenViews() fan-out (every settings / pin / size-override write) was then
+	// silently swallowed until some unrelated event rebuilt the pane. Deriving from the
+	// snapshot deletes the mirror: with no gesture the overlay is null and
+	// `nodes === baseNodes === snapshot`, so there is nothing left to strand.
+	const [resizeOverlay, setResizeOverlay] = useState<ResizeOverlay | null>(null);
+	const [overlaySeededFrom, setOverlaySeededFrom] = useState<readonly FlowNode[]>(snapshot.nodes);
+	// A fresh publish makes the released/dragged box authoritative again — drop the
+	// overlay so the node tracks the snapshot. Done DURING render (not an effect), the
+	// same reason `edges` is a plain memo: an effect-based clear would commit one frame
+	// of overlay box against a snapshot that already moved on. A REFUSED drag-resize
+	// still publishes (its GuardedWriteOutcome triggers the rebuild), so this clear is
+	// what snaps that node back to the stored box instead of stranding on the overlay.
+	if (overlaySeededFrom !== snapshot.nodes) {
+		setOverlaySeededFrom(snapshot.nodes);
+		if (resizeOverlay !== null) {
+			setResizeOverlay(null);
+		}
 	}
-	// ONLY a resize GESTURE's dimension change is applied — the one change this
-	// controlled graph asked React Flow for. Everything else RF routes through
-	// this same callback belongs to the controller (positions come from elk) or
-	// to nobody (the graph is read-only: no deletion, and SELECTION is a state
-	// this view has no meaning for — MAIN and pinned-central are its only node
-	// tiers, both engine facts). Applied unfiltered, a plain node click would
-	// write RF's own `selected` into controller-owned state and paint the focus
-	// ring on it, sticking until the next publish — and a click on the CURRENT
-	// main publishes nothing at all. Filtering here, rather than turning
-	// `elementsSelectable` off, keeps RF's selectable-coupled edge styling
-	// (cursor, focus stroke) intact and holds for every change type RF grows.
-	//
-	// The filter is by SOURCE, not just by change TYPE: RF emits `dimensions`
-	// changes both from the resize drag AND from its own ResizeObserver
-	// re-measuring a node it already rendered. Folding the latter in lets a stale
-	// measurement of the PRE-reseed DOM clobber a fresh publish, stranding the pane
-	// against the store with nothing to re-converge it (ticket
-	// nid_c78k90su87jrzigxvfjv5t95g_e) — `isResizeGestureChange` keeps only the drag.
-	const onNodesChange = useCallback<OnNodesChange>(
-		(changes) => setNodes((current) => applyNodeChanges(changes.filter(isResizeGestureChange), current)),
-		[],
+	const nodes = useMemo<Node[]>(
+		() => applyResizeOverlay(baseNodes, resizeOverlay),
+		[baseNodes, resizeOverlay],
 	);
+
+	// ONLY a resize GESTURE moves the overlay. Everything else React Flow routes
+	// through this callback belongs to the controller (positions come from elk) or to
+	// nobody (the graph is read-only: no deletion, and SELECTION is a state this view
+	// has no meaning for — MAIN and pinned-central are its only node tiers, both
+	// engine facts). The discriminator is by SOURCE, not just change TYPE: RF emits
+	// `dimensions` changes both from the resize drag (carries a `resizing` flag) AND
+	// from its own ResizeObserver re-measuring a node (no flag). Only the drag opens or
+	// moves the overlay; a re-measure is ignored outright, so it can never feed a stale
+	// box back in (ticket nid_c78k90su87jrzigxvfjv5t95g_e).
+	const onNodesChange = useCallback<OnNodesChange>((changes) => {
+		for (const change of changes) {
+			if (!isResizeGestureChange(change) || change.dimensions === undefined) {
+				continue;
+			}
+			setResizeOverlay({
+				id: change.id,
+				width: change.dimensions.width,
+				height: change.dimensions.height,
+			});
+		}
+	}, []);
 	const edges = useMemo<Edge[]>(() => snapshot.edges.map(toReactFlowEdge), [snapshot.edges]);
 
 	const onNodeClick = useCallback<NodeMouseHandler>(
@@ -364,6 +383,37 @@ function RedrawIcon(): ReactElement {
 			<polyline points="1 20 1 14 7 14" />
 			<path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
 		</svg>
+	);
+}
+
+/** A resize gesture's live box, overlaid on the ONE dragged node until it commits. */
+export interface ResizeOverlay {
+	readonly id: string;
+	readonly width: number;
+	readonly height: number;
+}
+
+/**
+ * Overlays a resize gesture's live box onto the one node being dragged, leaving
+ * every other node exactly as the snapshot published it. A null overlay (between
+ * gestures) returns the base array unchanged, so React Flow keeps every node
+ * identity and re-adopts nothing. Both the RF `width`/`height` and the inline
+ * `style` are set — the wrapper reads `node.width ?? node.style.width`, so both
+ * must move together for the box to follow the pointer.
+ */
+export function applyResizeOverlay(baseNodes: Node[], overlay: ResizeOverlay | null): Node[] {
+	if (overlay === null) {
+		return baseNodes;
+	}
+	return baseNodes.map((node) =>
+		node.id === overlay.id
+			? {
+					...node,
+					width: overlay.width,
+					height: overlay.height,
+					style: { ...node.style, width: overlay.width, height: overlay.height },
+				}
+			: node,
 	);
 }
 
