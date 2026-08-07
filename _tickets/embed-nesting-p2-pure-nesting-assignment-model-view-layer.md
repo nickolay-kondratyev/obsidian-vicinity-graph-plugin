@@ -1,12 +1,13 @@
 ---
+closed_iso: 2026-08-07T03:53:43Z
 id: nid_1moqnutin09drbiyxkd3l7r5k_e
 title: 'Embed nesting P2: pure nesting-assignment model (view layer)'
-status: in_progress
+status: closed
 deps: [nid_e79vxubva52s9gq24idypb77x_e, nid_r3qiyd7xx3bund6f73wf5h0vd_e]
 links: [nid_e79vxubva52s9gq24idypb77x_e, nid_r3qiyd7xx3bund6f73wf5h0vd_e, nid_qy5rc7sq261z23bp79bk8wsem_e,
   nid_jbsbfqqxyy1brm26ul7873v5h_e]
 created_iso: '2026-08-07T01:53:31Z'
-status_updated_iso: '2026-08-07T03:48:40Z'
+status_updated_iso: 2026-08-07T03:53:43Z
 type: feature
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
@@ -35,3 +36,24 @@ STEPS:
 ## Acceptance Criteria
 
 embedNesting module returns a deterministic forest honoring precedence, constraints, ties, cycles, and child order; full BDD unit coverage of every origin-ticket scenario.
+
+## Notes
+
+**2026-08-07T03:53:43Z**
+
+## RESOLUTION — 2026-08-06 (completed)
+
+Implemented the pure, react-free nesting-forest module.
+
+**Added:**
+- `src/view/embedNesting.ts` — `deriveNestingForest(graph: VicinityGraph): NestingForest`. Pure sibling of `src/view/folderGrouping.ts`; imports only engine TYPES (no obsidian/react). Returns `nestingByPath: ReadonlyMap<string, NodeNesting>` where each `NodeNesting` carries `{ path, containerPath?, outermostPath, childPaths }`.
+- `src/view/embedNesting.test.ts` — 23 BDD tests, one behavior each.
+- `src/view/testFixtures/graphFixtures.ts` — new `makeEmbedEdge(source, target, embedOrder, kind='embed')` helper (also reusable by P3).
+
+**Algorithm (honors every recorded decision):**
+1. Candidate edges = `embed`/`both` edges between rendered nodes.
+2. SCC-exclusion (Q3): Tarjan SCC over the embed graph; drop self-embeds and any candidate whose endpoints share an SCC of size > 1. Excluded pairs stay ordinary edges (module never mutates edges). => mutual embed nests NEITHER direction regardless of input order; a cycle member still nests under an embedder OUTSIDE its SCC.
+3. Per non-main child, filter candidates by constraints (main never nested; a pin nests only under main/pin; regular under anyone), then pick the best by precedence rank (main<pin<regular, Q1) then minDepth then lexicographic path (Q2).
+4. Acyclic surviving candidate set + one-parent-per-node => forest is free (no incremental cycle check). Outermost = walk container pointers to root. Children ordered by `embedOrder` then path (P1 field).
+
+**Verification:** `npm run check` (tsc strict + e2e tsc) green; `npm test` green (123 files / 1748 tests). e2e not required for this ticket (no rendering yet — Q6 collapse + rendering land in P3).

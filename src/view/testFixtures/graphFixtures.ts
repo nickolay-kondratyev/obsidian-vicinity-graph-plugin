@@ -37,6 +37,20 @@ export function makeEdge(
 	return { source: asVaultPath(source), target: asVaultPath(target), count, kind };
 }
 
+/**
+ * An embed edge `source → target` carrying its {@link GraphEdge.embedOrder}
+ * (the field embed-nesting P2 orders nested children by). `kind` defaults to
+ * `"embed"`; pass `"both"` for a pair that also plainly links.
+ */
+export function makeEmbedEdge(
+	source: string,
+	target: string,
+	embedOrder: number,
+	kind: Extract<EdgeKind, "embed" | "both"> = "embed",
+): GraphEdge {
+	return { source: asVaultPath(source), target: asVaultPath(target), count: DEFAULT_EDGE_LINK_COUNT, kind, embedOrder };
+}
+
 /** Minimal effective view settings for view-layer tests (neutral, engine-decoupled). */
 function makeViewSettings(): ViewSettings {
 	return {
