@@ -233,31 +233,6 @@ export const ESTIMATED_ATTACHMENT_ROW_PX = 22;
  */
 export const ESTIMATED_THUMBNAIL_SLOT_PX = 56;
 
-/**
- * The reference CONTENT-box width (px) the leading-video hero's 16:9 height is
- * derived from — a nominal node width, not a measurement (the engine has no DOM).
- * Chosen at a typical rendered node width so the reserved box reads as a real
- * 16:9 video; drift is absorbed by the minPx/maxPx clamp like every other
- * estimate here.
- */
-export const VIDEO_HERO_REFERENCE_WIDTH_PX = 200;
-
-/**
- * The leading-video hero's slot height (px) — the video occupies the SAME preview
- * slot as the thumbnail (owner decision option A), but as a fixed 16:9 box rather
- * than the thumbnail's flatter fixed height, so it is counted with its own
- * constant. The 9/16 of {@link VIDEO_HERO_REFERENCE_WIDTH_PX}.
- *
- * OWNED BY THE ENGINE, not the view, for the same reason the thumbnail slot is:
- * the content-fit `NodeSizer` must reserve exactly the height `graph-view.css`
- * paints for `[data-preview="video"]`, or the box reserves space for a region the
- * node never shows (or clips one it does). The render ticket
- * (`nid_15r71ajjkbel5s704kmj6wszw_e`) sizes the hero box to THIS number; because
- * CSS cannot import a TS constant, that duplication is guarded exactly like the
- * thumbnail's (see `src/view/nodeDensityThresholds.test.ts`).
- */
-export const ESTIMATED_VIDEO_HERO_SLOT_PX = Math.round((VIDEO_HERO_REFERENCE_WIDTH_PX * 9) / 16);
-
 /** Flex gap between the node's content regions (`--size-4-1`). */
 export const NODE_REGION_GAP_PX = 4;
 
@@ -466,7 +441,6 @@ export class EngineDefaults {
 			outlineMaxDepth: view.outlineMaxDepth.default,
 			nodePreviewPreference: view.nodePreviewPreference.default,
 			showCrossLinks: view.showCrossLinks.default,
-			externalPreviews: view.externalPreviews.default,
 			sizing: EngineDefaults.sizingSettings(),
 			forceLayout: EngineDefaults.forceLayoutSettings(),
 		};

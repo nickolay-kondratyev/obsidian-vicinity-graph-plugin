@@ -5,7 +5,6 @@ import {
 	ESTIMATED_OUTLINE_ENTRY_PX,
 	ESTIMATED_THUMBNAIL_SLOT_PX,
 	ESTIMATED_TITLE_LINE_PX,
-	ESTIMATED_VIDEO_HERO_SLOT_PX,
 	NODE_LABEL_HORIZONTAL_PADDING_PX,
 	NODE_MAX_LABEL_WIDTH_PX,
 	NODE_REGION_GAP_PX,
@@ -23,22 +22,10 @@ import type { TraversedNode } from "./VicinityTraversal";
 import type { VaultPath, ViewSettings } from "./types";
 
 /**
- * The two preview kinds that fill the node's MEDIA slot — the thumbnail and the
- * leading-video hero. They share the shorter title clamp and the preview-slot
- * reveal floor; the outline (text) does not.
- */
-function isMediaPreview(preview: NodePreviewKind): boolean {
-	return preview === "thumbnail" || preview === "video";
-}
-
-/**
  * The view knobs the content-fit estimate depends on — a projection of
  * {@link ViewSettings}, accepted whole so the facade passes one object.
  */
-export type NodeSizingView = Pick<
-	ViewSettings,
-	"sizing" | "outlineMaxDepth" | "nodePreviewPreference" | "externalPreviews"
->;
+export type NodeSizingView = Pick<ViewSettings, "sizing" | "outlineMaxDepth" | "nodePreviewPreference">;
 
 /**
  * Sizes every node to FIT the content it will actually show (node-sizing
@@ -92,10 +79,7 @@ export class NodeSizer {
 	 * constants' WHY in `constants.ts`) — the CSS flexes real content into
 	 * whatever box this steers the layout to.
 	 */
-	static contentFitPx(
-		node: TraversedNode,
-		view: Pick<NodeSizingView, "outlineMaxDepth" | "nodePreviewPreference" | "externalPreviews">,
-	): number {
+	static contentFitPx(node: TraversedNode, view: Pick<NodeSizingView, "outlineMaxDepth" | "nodePreviewPreference">): number {
 		// Decided from the RENDERABLE entry count (post depth-filter), the same
 		// zero-vs-some fact the view mapping decides with — the view's additional
 		// DOM cap cannot flip it (a capped non-empty outline stays non-empty).
@@ -106,20 +90,13 @@ export class NodeSizer {
 			hasImage: node.firstImagePath !== undefined,
 			imagePrecedesOutline: node.imagePrecedesOutline,
 			isCentral: node.isCentral,
-			hasLeadingVideo: node.leadingVideo !== undefined,
-			externalPreviews: view.externalPreviews,
 		});
-		// A video hero takes the thumbnail's place and re-clamps the title the SAME
-		// way (the CSS budgets a media node's title at two lines so the fixed slot is
-		// never pushed out), so both media previews share the shorter clamp.
-		const titleClamp = isMediaPreview(preview) ? THUMBNAIL_PREVIEW_TITLE_LINE_CLAMP : NODE_TITLE_LINE_CLAMP;
+		const titleClamp = preview === "thumbnail" ? THUMBNAIL_PREVIEW_TITLE_LINE_CLAMP : NODE_TITLE_LINE_CLAMP;
 		const regions: number[] = [NodeSizer.titleLines(node.title, titleClamp) * ESTIMATED_TITLE_LINE_PX];
 		if (preview === "outline") {
 			regions.push(renderableOutlineEntries * ESTIMATED_OUTLINE_ENTRY_PX);
 		} else if (preview === "thumbnail") {
 			regions.push(ESTIMATED_THUMBNAIL_SLOT_PX);
-		} else if (preview === "video") {
-			regions.push(ESTIMATED_VIDEO_HERO_SLOT_PX);
 		}
 		const hasAttachments = node.attachments.length > 0;
 		if (hasAttachments) {

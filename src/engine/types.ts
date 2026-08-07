@@ -8,8 +8,6 @@
  *   BEFORE it enters the engine.
  */
 
-import type { YoutubeVideoIdentity } from "../shared/YoutubeHeroEmbed";
-
 /** Vault-relative file path — the engine's traversal key. Covers notes AND attachments. */
 export type VaultPath = string & { readonly __brand: "VaultPath" };
 
@@ -142,13 +140,6 @@ export interface GraphNode {
 	 * it into "outline or thumbnail" (see `FileMetadata.imagePrecedesOutline`).
 	 */
 	readonly imagePrecedesOutline: boolean;
-	/**
-	 * Provider-reported leading YouTube hero, when the note has one — the resolved
-	 * positional FACT (see `FileMetadata.leadingVideo`), echoed through so the view
-	 * mapping can hand the videoId to the renderer. Whether it WINS the preview slot
-	 * is `nodePreviewKind`'s call, gated by `ViewSettings.externalPreviews`.
-	 */
-	readonly leadingVideo?: YoutubeVideoIdentity;
 	/**
 	 * Content-fit node height (px): the estimate of what this node SHOWS (title
 	 * lines, renderable outline entries or thumbnail), clamped into the
@@ -484,25 +475,6 @@ export interface ViewSettings {
 	 * which nodes are visible is decided before this is read.
 	 */
 	readonly showCrossLinks: boolean;
-	/**
-	 * The ONE master switch for EVERY external-content preview a node can show —
-	 * the leading YouTube hero video today, external images / other providers
-	 * later. It is a PRIVACY gate, not a layout knob: ON (the shipped default, so
-	 * the feature works out of the box) lets the view load content referenced in
-	 * notes from third-party servers (e.g. YouTube/Google — embeds, posters, and
-	 * future thumbnail/favicon fetches); OFF stops ALL such requests, so nothing
-	 * external is ever contacted.
-	 *
-	 * ONE switch, not per-provider (KISS): the disclosure a user consents to is
-	 * "external content is loaded", and that is a single yes/no. The enforcement
-	 * seam that reads this is `shared/ExternalContentUrls.ts` (ticket
-	 * `nid_tvtm9gj5zaj4tbfbpti3v6sy2_e`) — the ONE builder of network-bearing host
-	 * URLs (poster/embed), returning `null` for every one when this is OFF; a
-	 * source-scan tripwire (`shared/externalContentSeam.test.ts`) fails the build if
-	 * any other module names an owned external host, `fetch(`, or `requestUrl(`. This
-	 * field is the gate that seam consults.
-	 */
-	readonly externalPreviews: boolean;
 	readonly sizing: SizingSettings;
 	readonly forceLayout: ForceLayoutSettings;
 }

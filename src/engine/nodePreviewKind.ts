@@ -1,12 +1,12 @@
 import type { NodePreviewPreference } from "./types";
 
 /**
- * Which preview region a note node renders. At most ONE — the leading video, the
- * outline and the thumbnail all share the same slot, so the choice is made once,
- * here, rather than re-derived by each JSX branch (which is how a node with no
- * thumbnail ended up advertising `data-preview="thumbnail"`).
+ * Which preview region a note node renders. At most ONE — the outline and the
+ * thumbnail share the same slot, so the choice is made once, here, rather than
+ * re-derived by each JSX branch (which is how a node with no thumbnail ended up
+ * advertising `data-preview="thumbnail"`).
  */
-export type NodePreviewKind = "video" | "outline" | "thumbnail" | "none";
+export type NodePreviewKind = "outline" | "thumbnail" | "none";
 
 export interface NodePreviewInput {
 	/** The user's resolved `ViewSettings.nodePreviewPreference`. */
@@ -21,19 +21,6 @@ export interface NodePreviewInput {
 	 * this is the tier line: only a root is offered the outline (see below).
 	 */
 	readonly isCentral: boolean;
-	/**
-	 * The adapter reported a LEADING external YouTube hero for this note
-	 * (`GraphNode.leadingVideo !== undefined`). A candidate only — {@link externalPreviews}
-	 * decides whether it is ELIGIBLE for the slot.
-	 */
-	readonly hasLeadingVideo: boolean;
-	/**
-	 * `ViewSettings.externalPreviews` — the global privacy switch. When OFF the
-	 * leading video is NOT eligible as the hero: the note falls through to the
-	 * ordinary thumbnail/outline ladder exactly as if it carried no video (the
-	 * render ticket's OFF requirement, decided at hero SELECTION, not the renderer).
-	 */
-	readonly externalPreviews: boolean;
 }
 
 /**
@@ -51,27 +38,13 @@ export function nodePreviewKind({
 	hasImage,
 	imagePrecedesOutline,
 	isCentral,
-	hasLeadingVideo,
-	externalPreviews,
 }: NodePreviewInput): NodePreviewKind {
-	// The ONE preference that deliberately empties the content slot: no video, no
-	// outline, no thumbnail, just the title — regardless of what the note has.
-	// Every OTHER preference only ever withholds the kind the note has an
-	// alternative of (it never blanks a node), so this is the single early-out
-	// before that rule — and, by sitting ABOVE the video branch, it stays the one
-	// documented preference that empties even a leading video's slot.
+	// The ONE preference that deliberately empties the content slot: no outline,
+	// no thumbnail, just the title — regardless of what the note has. Every OTHER
+	// preference only ever withholds the kind the note has an alternative of (it
+	// never blanks a node), so this is the single early-out before that rule.
 	if (preference === "title-only") {
 		return "none";
-	}
-	// The leading external video is the EXCLUSIVE winner of the preview slot when
-	// eligible (owner decision option A, 2026-08-07): resolved AHEAD of the whole
-	// thumbnail/outline ladder, and never overridden by an image/outline preference
-	// — a leading hero is the note's headline. Its ONE gate is the privacy switch:
-	// with external previews OFF the video is not eligible, and the note falls
-	// through to the ordinary ladder below exactly as if it carried no video (so an
-	// OFF setting relayouts to today's thumbnail/outline hero, never a blank slot).
-	if (externalPreviews && hasLeadingVideo) {
-		return "video";
 	}
 	// Under Auto the outline is a ROOT's affordance, not every neighbour's (owner
 	// decision 2026-08-05, nid_k2pa8khm6ugozmhkd6nlbdrq6_e): with content-fit

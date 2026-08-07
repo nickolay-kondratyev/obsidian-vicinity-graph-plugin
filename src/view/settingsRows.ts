@@ -61,7 +61,6 @@ export const SETTINGS_ROW_CONTROL_KINDS = [
 	"sizing-number",
 	"node-preview",
 	"show-cross-links",
-	"external-previews",
 	"outline-depth",
 	"force-layout",
 	"exclusion-enabled",
@@ -81,8 +80,6 @@ export type SettingsRowControl =
 	| { readonly kind: "node-preview" }
 	/** Whether links between two visible nodes are drawn even when the walk never took them. */
 	| { readonly kind: "show-cross-links" }
-	/** The master switch for all external-content previews (loads third-party content when ON). */
-	| { readonly kind: "external-previews" }
 	/** Deepest heading level a node's outline renders. */
 	| { readonly kind: "outline-depth" }
 	/** One force-layout tuning value. */
@@ -284,20 +281,6 @@ const NODE_PREVIEW_ROW_DESCRIPTION =
 	"Which preview a node shows: its heading outline or its first image. " +
 	"Auto keeps the outline for the active and pinned notes; Outline and Image apply everywhere.";
 
-/**
- * THE external-content disclosure, stated once. This is the honest-disclosure copy the
- * whole toggle exists for (ticket `nid_21xio7iwxv742ze4qc4p4qbmq_e`): it must say plainly
- * that external content referenced in notes is loaded, that doing so contacts third-party
- * servers, and that turning it off stops every such request. The README and the plugin
- * `manifest.json` description carry the SAME message (they cannot import this string), so
- * keep the three in step when reworded.
- */
-const EXTERNAL_PREVIEWS_ROW_DESCRIPTION =
-	"Show previews of external content referenced in your notes — starting with a video " +
-	"preview for YouTube links. Loading these contacts third-party servers (for example " +
-	"YouTube and Google). This is on by default; turn it off to stop all such requests, and " +
-	"nothing external is contacted while it is off.";
-
 /** One force-layout slider row: label and description come from the shared meta table. */
 function forceLayoutRow(field: keyof ForceLayoutSettings): SettingsRow {
 	const { label, description } = FORCE_LAYOUT_FIELD_META[field];
@@ -433,25 +416,6 @@ export const SETTINGS_GROUPS: Readonly<Record<SettingsSection, SettingsGroup>> =
 						label: "Outline depth",
 						description: "How many heading levels a note's outline shows inside its node.",
 						control: { kind: "outline-depth" },
-					},
-				],
-			},
-		],
-	},
-	// Its own section, not a third row under Node contents: this is a PRIVACY/network
-	// switch (it decides whether third-party servers are contacted), not a layout choice
-	// about which local region a node shows — grouping it with the outline/image preference
-	// would bury the one setting a privacy-minded user comes looking for. One master toggle
-	// gating ALL external previews (KISS), disclosed on the row itself.
-	"external-content": {
-		heading: "External content",
-		blocks: [
-			{
-				rows: [
-					{
-						label: "Load external previews",
-						description: EXTERNAL_PREVIEWS_ROW_DESCRIPTION,
-						control: { kind: "external-previews" },
 					},
 				],
 			},

@@ -28,19 +28,6 @@ import type { HarvestedLink } from "./LinkKind";
 import { LinkKinds } from "./LinkKind";
 
 /**
- * An EMBED (`![](…)`) whose destination points OUTSIDE the vault — the raw URL
- * plus the offset of its `!` in the scanned text. The counterpart of a
- * {@link HarvestedLink}: that names a vault document, this names an external
- * resource a vault-link resolver would (and does) drop.
- */
-export interface ExternalEmbed {
-	/** The destination verbatim — query and all, since a URL's query is significant. */
-	readonly url: string;
-	/** Offset of the embed's `!` in the scanned text (usable against heading offsets). */
-	readonly offset: number;
-}
-
-/**
  * `[label](destination)` and its embed form. Capture group
  * {@link EMBED_MARKER_GROUP} is the embed marker (`"!"` or empty) and group
  * {@link PARENTHETICAL_GROUP} the raw parenthetical (destination plus optional
@@ -139,45 +126,6 @@ export class MarkdownInlineLinks {
 			}
 		}
 		return links;
-	}
-
-	/**
-	 * The external EMBED destinations in `text`, in written order, each with the
-	 * offset of its `!`. The deliberate MIRROR of {@link harvestedLinksOf}: that
-	 * method keeps destinations naming a VAULT document and drops external URLs
-	 * (they resolve to no node); this keeps only EXTERNAL embed URLs — the string
-	 * that was being thrown away — for callers that render external content
-	 * (a leading hero video). EMBEDS only (`!` marker): a plain `[label](url)` is a
-	 * different reference kind, and every such caller is defined on the expanded
-	 * embed form. Callers that must skip CODE mask it first (same contract as
-	 * {@link harvestedLinksOf}); the URL is returned RAW (query kept — `watch?v=…`
-	 * is meaningful), title and angle brackets aside.
-	 */
-	static externalEmbedsOf(text: string): readonly ExternalEmbed[] {
-		const embeds: ExternalEmbed[] = [];
-		for (const match of text.matchAll(MarkdownInlineLinks.globalPattern())) {
-			if ((match[EMBED_MARKER_GROUP] ?? "") !== "!" || MarkdownInlineLinks.spansParagraphBreak(match[0])) {
-				continue;
-			}
-			const url = MarkdownInlineLinks.externalDestinationOf(match[PARENTHETICAL_GROUP] ?? "");
-			// `index` is always defined for a global `matchAll` iteration; `?? 0` only satisfies the type.
-			if (url !== null) {
-				embeds.push({ url, offset: match.index ?? 0 });
-			}
-		}
-		return embeds;
-	}
-
-	/**
-	 * The destination if it points OUTSIDE the vault, else `null`. Reuses the ONE
-	 * external verdict ({@link EXTERNAL_DESTINATION}) that {@link targetOf} uses to
-	 * DISCARD such destinations — the same knowledge, read from the other side.
-	 * Unlike {@link targetOf} the query is KEPT: an external URL's `?query` is part
-	 * of the resource, not an Obsidian subpath to strip.
-	 */
-	private static externalDestinationOf(parenthetical: string): string | null {
-		const destination = MarkdownInlineLinks.destinationOf(parenthetical.trim());
-		return EXTERNAL_DESTINATION.test(destination) ? destination : null;
 	}
 
 	private static targetOf(parenthetical: string): string {

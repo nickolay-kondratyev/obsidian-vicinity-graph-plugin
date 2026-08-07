@@ -126,8 +126,6 @@ export class SettingsWriteFailureNotice {
 				return { kind: "node-preview" };
 			case "global-show-cross-links":
 				return { kind: "show-cross-links" };
-			case "global-external-previews":
-				return { kind: "external-previews" };
 			case "global-sizing-number":
 				return { kind: "sizing-number", field: interaction.field };
 			case "global-force-layout-field":
@@ -164,7 +162,6 @@ export class SettingsWriteFailureNotice {
 				return `force-layout:${control.field}`;
 			case "node-preview":
 			case "show-cross-links":
-			case "external-previews":
 			case "outline-depth":
 			case "exclusion-enabled":
 			case "exclusion-patterns":

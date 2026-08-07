@@ -58,23 +58,10 @@ function noteNode(path: string): Locator {
 	return page.locator(`.vicinity-graph-node[data-path="${path}"]`);
 }
 
-/**
- * Opens the gear menu for a node: hover to reveal the chip, then click it.
- *
- * Wrapped in `toPass` because the reveal is a two-part CSS state: the gear is
- * `pointer-events: none` until its node is `:hover`ed, and `click()`'s hit-test
- * only passes while the cursor still sits over the node. A trailing debounced
- * rebuild's `fitView` can nudge the node out from under the fixed-coordinate
- * cursor BETWEEN the hover and the click — dropping `:hover`, re-hiding the gear,
- * and stalling the click (the mouse won't move again until actionability passes).
- * Re-hovering each attempt re-establishes `:hover` at the node's CURRENT position;
- * `toPass` stops at the first successful click, so the menu opens exactly once.
- */
+/** Opens the gear menu for a node: hover to reveal the chip, then click it. */
 async function openGearMenu(path: string): Promise<void> {
-	await expect(async () => {
-		await noteNode(path).hover();
-		await noteNode(path).locator("button.vicinity-graph-gear-button").click({ timeout: 2_000 });
-	}).toPass();
+	await noteNode(path).hover();
+	await noteNode(path).locator("button.vicinity-graph-gear-button").click();
 }
 
 /** Opens the gear menu and chooses one content option by its label. */

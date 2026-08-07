@@ -145,37 +145,3 @@ describe("MarkdownInlineLinks.harvestedLinksOf kinds", () => {
 		expect(kindsOf("![a](x.md) then [b](x.md)")).toEqual(["embed", "link"]);
 	});
 });
-
-/**
- * The mirror of {@link MarkdownInlineLinks.harvestedLinksOf}: that method keeps
- * VAULT documents and drops external URLs; this one keeps external EMBED URLs.
- */
-describe("MarkdownInlineLinks.externalEmbedsOf", () => {
-	it("WHEN an embed points at an external url THEN the raw url and the offset of its `!` are returned", () => {
-		expect(MarkdownInlineLinks.externalEmbedsOf("![](https://youtu.be/abc)")).toEqual([
-			{ url: "https://youtu.be/abc", offset: 0 },
-		]);
-	});
-
-	it("WHEN an external url carries a query THEN the query survives (it is significant for a url)", () => {
-		expect(MarkdownInlineLinks.externalEmbedsOf("![](https://x.com/watch?v=abc&t=9)")[0]?.url).toBe(
-			"https://x.com/watch?v=abc&t=9",
-		);
-	});
-
-	it("WHEN an external url is a PLAIN link rather than an embed THEN it is not returned", () => {
-		expect(MarkdownInlineLinks.externalEmbedsOf("[label](https://youtu.be/abc)")).toEqual([]);
-	});
-
-	it("WHEN an embed points at a vault document THEN it is not an external embed", () => {
-		expect(MarkdownInlineLinks.externalEmbedsOf("![](pic.png)")).toEqual([]);
-	});
-
-	it("WHEN several external embeds appear THEN they come back in written order with their offsets", () => {
-		const text = "![](https://a.com/1) and ![](https://b.com/2)";
-		expect(MarkdownInlineLinks.externalEmbedsOf(text)).toEqual([
-			{ url: "https://a.com/1", offset: 0 },
-			{ url: "https://b.com/2", offset: text.indexOf("![](https://b.com/2)") },
-		]);
-	});
-});

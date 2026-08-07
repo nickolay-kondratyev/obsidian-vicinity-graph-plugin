@@ -156,7 +156,6 @@ const SUMMARY_ALSO_MATCHES_AN_ANCESTOR: Readonly<Record<SectionResetScope, boole
 	edges: false,
 	"node-sizing": false,
 	"node-contents": false,
-	"external-content": false,
 	"force-layout": true,
 	"node-exclusion": false,
 	performance: false,

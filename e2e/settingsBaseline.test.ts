@@ -26,7 +26,6 @@ describe("settings-tab baseline", () => {
 			"Restore edges defaults",
 			"Restore node sizing defaults",
 			"Restore node contents defaults",
-			"Restore external content defaults",
 			"Restore force layout defaults",
 			"Restore node exclusion defaults",
 			"Restore performance defaults",

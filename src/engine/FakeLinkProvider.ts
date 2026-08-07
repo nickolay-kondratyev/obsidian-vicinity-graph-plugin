@@ -1,6 +1,5 @@
 import { FileKinds } from "../shared/FileKinds";
 import type { LinkKind } from "../shared/LinkKind";
-import type { YoutubeVideoIdentity } from "../shared/YoutubeHeroEmbed";
 import { VaultPathFacts } from "../shared/VaultPathFacts";
 import type { FileMetadata, LinkProvider, OutgoingReference } from "./LinkProvider";
 import { OutgoingReferences } from "./LinkProvider";
@@ -31,13 +30,6 @@ export interface FakeFileSpec {
 	 * outline-vs-image DECISION belongs to `nodePreviewKind`.
 	 */
 	readonly imagePrecedesOutline?: boolean;
-	/**
-	 * The adapter's resolved leading-YouTube-hero FACT: the note's first expanded
-	 * `![](youtube-url)` embed sits above both the first heading and the first
-	 * image. Default: none. The fixture supplies the resolved identity directly —
-	 * the positional verdict is the real adapter's job, not re-derived here.
-	 */
-	readonly leadingVideo?: YoutubeVideoIdentity;
 }
 
 /** Fixture vault: files + ordered outgoing references (incoming derived by inversion). */
@@ -147,7 +139,6 @@ export class FakeLinkProvider implements LinkProvider {
 				attachments: [], // replaced by attachAttachmentsToMetadata()
 				outline: file.outline ?? [],
 				imagePrecedesOutline: file.imagePrecedesOutline ?? false,
-				leadingVideo: file.leadingVideo,
 			},
 		});
 	}

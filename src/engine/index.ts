@@ -73,9 +73,6 @@ export { OutgoingReferences } from "./LinkProvider";
 // LinkKind lives in `shared/` (the layer BELOW the engine) because the shared
 // syntax matchers must name it; the engine is still its public owner.
 export type { LinkKind } from "../shared/LinkKind";
-// The leading-video identity is parsed in `shared/` (pure string work, no
-// obsidian) but is public engine vocabulary: it rides on `GraphNode.leadingVideo`.
-export type { YoutubeVideoIdentity } from "../shared/YoutubeHeroEmbed";
 export type {
 	LinkOccurrence,
 	LinkOccurrenceProvider,
@@ -116,7 +113,6 @@ export {
 	CENTRAL_NODE_VERTICAL_CHROME_PX,
 	CENTRAL_PROMINENCE_FLOOR_SCORE,
 	ESTIMATED_THUMBNAIL_SLOT_PX,
-	ESTIMATED_VIDEO_HERO_SLOT_PX,
 	EngineDefaults,
 	FORCE_LAYOUT_RANGES,
 	MAX_OUTLINE_DEPTH,

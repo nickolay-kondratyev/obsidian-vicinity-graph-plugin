@@ -1,5 +1,4 @@
 import type { LinkKind } from "../shared/LinkKind";
-import type { YoutubeVideoIdentity } from "../shared/YoutubeHeroEmbed";
 import type { AttachmentRef, FolderPath, OutlineEntry, VaultPath } from "./types";
 
 /**
@@ -99,22 +98,6 @@ export interface FileMetadata {
 	 * not be allowed to claim the preview slot).
 	 */
 	readonly imagePrecedesOutline: boolean;
-	/**
-	 * The note's LEADING external YouTube hero video, when it has one — a resolved
-	 * POSITIONAL verdict, not a raw parse: present ONLY when the note's first
-	 * expanded `![](<youtube-url>)` embed sits above BOTH the first heading and the
-	 * first image (the "leading" rule), absent otherwise. Carries the normalised
-	 * {@link YoutubeVideoIdentity} the renderer needs (videoId + canonical URL).
-	 *
-	 * A FACT, exactly like {@link imagePrecedesOutline}: the adapter owns the
-	 * document-position judgement (it alone sees offsets); whether this video wins
-	 * the node's preview slot is the engine's `nodePreviewKind` decision, gated by
-	 * the `externalPreviews` privacy setting. The privacy gate is deliberately NOT
-	 * applied here — an OFF setting must let the note fall through to its ordinary
-	 * thumbnail/outline hero (render ticket OFF requirement), which the engine does
-	 * by ignoring this fact, never by the adapter withholding it.
-	 */
-	readonly leadingVideo?: YoutubeVideoIdentity;
 }
 
 /**
