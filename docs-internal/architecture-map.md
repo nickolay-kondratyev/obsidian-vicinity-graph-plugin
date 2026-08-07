@@ -145,6 +145,19 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   `engine/settingsProductDefaults.test.ts` is the ONE place literal defaults/ranges
   may be written — an id-keyed table over every spec leaf, so a moved default, a new
   leaf and a deleted leaf all fail there and nowhere else.
+- `shared/ExternalContentUrls.ts` — **THE external-content seam** (ticket
+  `nid_tvtm9gj5zaj4tbfbpti3v6sy2_e`): the ONE place external host URLs are ever
+  constructed (first residents: YouTube poster on `i.ytimg.com`, privacy-enhanced
+  embed on `youtube-nocookie.com`). Every builder is gated on the master
+  `externalPreviews` setting via a narrow `ExternalPreviewsGate` (`ViewSettings`
+  satisfies it structurally, so the leaf module needs no engine dependency) —
+  OFF ⇒ it issues NO URL. `ExternalContentUrls.test.ts` proves both states; the
+  source-scan tripwire `externalContentSeam.test.ts` fails the build if any
+  module outside the sanctioned seam names an external host literal, an
+  `http(s)://` URL, `fetch(`, or `requestUrl(` — that scan is what makes "OFF
+  means zero network" an invariant as the feature grows. Future network I/O
+  (thumbnail/favicon `requestUrl`) joins as one adapter behind an engine-defined
+  port, added to the tripwire's sanctioned list.
 - `persistence/storagePorts.ts`, `adapters/obsidianPorts.ts` — testable seams,
   each with a `Fake*` implementation used by unit tests.
 
