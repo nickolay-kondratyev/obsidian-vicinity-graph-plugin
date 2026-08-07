@@ -58,6 +58,36 @@ describe("MarkdownEmbeds.flattened", () => {
 		expect(MarkdownEmbeds.flattened(stray)).toBe(stray);
 	});
 
+	it("WHEN a markdown-style image embed names a vault path THEN it renders as its own raw text", () => {
+		expect(asRendered(MarkdownEmbeds.flattened("see ![alt](pictures/chart.png) here"))).toBe(
+			"see ![alt](pictures/chart.png) here",
+		);
+	});
+
+	it("WHEN a markdown-style embed points at an external image THEN it renders as its own raw text", () => {
+		expect(asRendered(MarkdownEmbeds.flattened("![alt](https://host/pic.png)"))).toBe("![alt](https://host/pic.png)");
+	});
+
+	it("WHEN a markdown-style embed is escaped THEN every markdown-significant character is escaped (else the renderer expands it)", () => {
+		expect(MarkdownEmbeds.flattened("![alt](pic.png)")).toBe("\\!\\[alt\\]\\(pic\\.png\\)");
+	});
+
+	it("WHEN a plain markdown link names a note THEN it stays a clickable link, untouched", () => {
+		expect(MarkdownEmbeds.flattened("see [label](note.md) here")).toBe("see [label](note.md) here");
+	});
+
+	it("WHEN a markdown embed straddles a paragraph break THEN the prose between the halves is not swallowed", () => {
+		// INLINE_LINK_SOURCE tolerates a single newline, so an over-eager rewrite of a
+		// blank-line-straddling match would delete the reader's prose (as the wikilink
+		// stray case does for `![[`).
+		const straddling = "![alt\n\nkept prose\n\ndest](pic.png)";
+		expect(MarkdownEmbeds.flattened(straddling)).toBe(straddling);
+	});
+
+	it("WHEN a line mixes both embed syntaxes THEN both render as raw text", () => {
+		expect(asRendered(MarkdownEmbeds.flattened("![[One]] and ![alt](two.png)"))).toBe("![[One]] and ![alt](two.png)");
+	});
+
 	it("WHEN the text has no embed THEN it is returned unchanged", () => {
 		expect(MarkdownEmbeds.flattened("plain prose, no links")).toBe("plain prose, no links");
 	});
