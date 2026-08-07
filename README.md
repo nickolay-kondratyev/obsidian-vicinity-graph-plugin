@@ -190,9 +190,14 @@ changed gets reverted by the next change.
 
 ### Pinning
 
+There are **two kinds of pin**, each with its own control on a node (both revealed
+on hover, top-right, and both mirrored in the right-click menu):
+
+**Global pin** — pins a note into **every** graph, whatever your active note is.
+
 - **Pinning a note makes it an extra central node.** Its vicinity is
   traversed and rendered alongside your active note's. You pin/unpin from a node's
-  hover button or its right-click menu.
+  hover button (the **pin** icon) or its right-click menu.
 - **The active (central) note is pinnable too** — pin it before navigating away
   and it stays in the graph as a pinned central.
 - The **pinned set is global state and survives restarts** (stored in the
@@ -202,6 +207,21 @@ changed gets reverted by the next change.
   links out / Pinned embeds out / Pinned links in* dials) — shared by every
   pinned note; there is still no per-pin depth dial. A pinned note that is also
   the active note uses the active-note depths.
+
+**Local pin** — pins a note only **for the current note** (its *map-pin* icon,
+labelled *Pin for this note* / *Unpin for this note*).
+
+- **A local pin holds only while its main note is active.** The target renders as a
+  pinned central alongside your active note — even if your active note has **no link
+  to it** — and vanishes the moment you switch to a different note. Switch back and
+  it returns.
+- **Independent of the global pin.** A note can carry both at once and shows both
+  indicators; each toggle flips only its own kind.
+- The local-pin control is **not offered on the active note itself** — a note cannot
+  be locally pinned under itself.
+- **Local pins are global state and survive restarts**, keyed by stable note ids for
+  both the target and the note they are pinned under (so renames and moves keep them).
+  Locally pinned centrals traverse with the same *Pinned …* depth trio as global pins.
 
 > Known caveat: right after an Obsidian restart, a persisted pinned central can
 > briefly render as a regular node (no pinned accent) until the background cleanup

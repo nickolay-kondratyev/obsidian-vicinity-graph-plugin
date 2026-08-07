@@ -464,6 +464,19 @@
 			var(--vicinity-graph-node-chip-gap)
 	);
 }
+/* The LOCAL pin (present only off the MAIN — see NoteNode) sits one more chip-width +
+ * gap LEFT of the global pin, so the trio reads LOCAL GLOBAL GEAR. Same custom
+ * properties as the size ladder, so it stays flush at every rung. Being the leftmost,
+ * it extends the same horizontal centre-reach edge the global pin already accepts
+ * (tracked in docs-internal/tickets/ticket-pin-offset-centre-clearance.md): on a
+ * wide-but-short node its revealed box reaches further inboard than the corner-chip
+ * ladder guards — acceptable, and it only ever shows while the node is hovered. */
+.vicinity-graph-node .vicinity-graph-local-pin-button {
+	right: calc(
+		var(--vicinity-graph-node-chip-inset) + 2 *
+			(var(--vicinity-graph-node-chip-size) + var(--vicinity-graph-node-chip-gap))
+	);
+}
 .vicinity-graph-node .vicinity-graph-gear-button {
 	right: var(--vicinity-graph-node-chip-inset);
 }

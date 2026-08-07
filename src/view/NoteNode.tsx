@@ -10,7 +10,7 @@ import type { FlowNodeData } from "./flowMapping";
 import { useGraphUi } from "./GraphUiContext";
 import { NodeOutline } from "./NodeOutline";
 import { currentNodeContentChoice, planNodeContentMenu } from "./nodePreviewChoice";
-import { planNodePinAction } from "./nodePinAction";
+import { planNodeLocalPinAction, planNodePinAction } from "./nodePinAction";
 import { NODE_RESIZE_BOUNDS, planResetSizeAction, resizeEndToOverride } from "./nodeResize";
 import type { NodeMenuEntry } from "./viewPorts";
 
@@ -59,6 +59,19 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
 			void actions.unpinNode(data.docid);
 		}
 	}, [pinAction.kind, actions, data.path, data.docid]);
+	// The SECOND, independent pin toggle (LOCAL PINNING): a target pinned only while
+	// this main is active. Withheld on the MAIN node itself — a note cannot be locally
+	// pinned under itself (decision Q4) — so both the hover chip and the menu entry are
+	// gated on this. A node can hold BOTH pin kinds; each toggle reads its own flag.
+	const offersLocalPin = data.tier !== "main";
+	const localPinAction = useMemo(() => planNodeLocalPinAction(data.isLocallyPinned), [data.isLocallyPinned]);
+	const runLocalPinAction = useCallback(() => {
+		if (localPinAction.kind === "local-pin") {
+			void actions.localPinNode(data.path);
+		} else if (data.docid !== undefined) {
+			void actions.localUnpinNode(data.docid);
+		}
+	}, [localPinAction.kind, actions, data.path, data.docid]);
 	const onContextMenu = useCallback(
 		(event: ReactMouseEvent<HTMLDivElement>) => {
 			// Suppress the browser menu and the RF pane menu.
@@ -68,6 +81,15 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
 			const entries: [NodeMenuEntry, ...NodeMenuEntry[]] = [
 				{ title: pinAction.title, iconId: pinAction.iconId, onClick: runPinAction },
 			];
+			// The local-pin entry sits right after the global one (the two pin toggles read
+			// as a pair) — but only off the MAIN, which cannot be locally pinned under itself.
+			if (offersLocalPin) {
+				entries.push({
+					title: localPinAction.title,
+					iconId: localPinAction.iconId,
+					onClick: runLocalPinAction,
+				});
+			}
 			const resetSize = planResetSizeAction(data.hasSizeOverride);
 			if (resetSize !== null) {
 				entries.push({
@@ -79,7 +101,17 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
 			}
 			ui.showNodeMenu({ nativeEvent: event.nativeEvent, entries });
 		},
-		[pinAction, ui, runPinAction, actions, data.hasSizeOverride, data.path],
+		[
+			pinAction,
+			offersLocalPin,
+			localPinAction,
+			ui,
+			runPinAction,
+			runLocalPinAction,
+			actions,
+			data.hasSizeOverride,
+			data.path,
+		],
 	);
 	// Commit-on-release (the drag itself only moves the local React Flow box —
 	// see VicinityGraphFlow's onNodesChange): persist the released box as the
@@ -171,7 +203,18 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
 				data-preview={data.preview}
 				onContextMenu={onContextMenu}
 			>
-				<PinButton action={pinAction} onActivate={runPinAction} />
+				{offersLocalPin && (
+					<PinButton
+						action={localPinAction}
+						onActivate={runLocalPinAction}
+						variantClassName="vicinity-graph-local-pin-button"
+					/>
+				)}
+				<PinButton
+					action={pinAction}
+					onActivate={runPinAction}
+					variantClassName="vicinity-graph-pin-button"
+				/>
 				<GearButton onActivate={onGearClick} />
 				{/* Read-only graph: handles exist only as edge anchors (top target /
 				    bottom source matches the elk DOWN direction) and are hidden in CSS. */}
@@ -210,17 +253,23 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
 });
 
 /**
- * Hover-reveal pin/unpin button (top-RIGHT of the node, sitting just LEFT of the
- * gear so the pair reads PIN GEAR). Hidden until the node is hovered (CSS), a
- * `nodrag nopan` escape hatch so the click never starts a node drag or canvas
- * pan. Its click carries the same shared pin decision as the context menu.
+ * Hover-reveal pin/unpin button. Two of these ride the node's top-RIGHT corner: the
+ * GLOBAL pin just left of the gear, and — off the MAIN — the LOCAL pin one chip
+ * further left, so the row reads LOCAL GLOBAL GEAR. `variantClassName` is the ONLY
+ * difference between the two instances: it carries the per-chip horizontal placement
+ * (`vicinity-graph-pin-button` / `vicinity-graph-local-pin-button`); everything else —
+ * chrome, hover reveal, icon — is the shared chip. Hidden until the node is hovered
+ * (CSS), a `nodrag nopan` escape hatch so the click never starts a node drag or canvas
+ * pan. Its click carries the same shared pin decision as the matching context entry.
  */
 function PinButton({
 	action,
 	onActivate,
+	variantClassName,
 }: {
 	readonly action: { readonly title: string; readonly iconId: string };
 	readonly onActivate: () => void;
+	readonly variantClassName: string;
 }): ReactElement {
 	const ui = useGraphUi();
 	const iconRef = useRef<HTMLSpanElement>(null);
@@ -237,7 +286,7 @@ function PinButton({
 	return (
 		<button
 			type="button"
-			className="vicinity-graph-node-chip vicinity-graph-pin-button nodrag nopan"
+			className={`vicinity-graph-node-chip ${variantClassName} nodrag nopan`}
 			aria-label={action.title}
 			title={action.title}
 			onClick={onClick}

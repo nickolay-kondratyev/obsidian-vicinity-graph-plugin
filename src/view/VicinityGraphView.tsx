@@ -80,6 +80,9 @@ export class VicinityGraphView extends ItemView {
 			this.app.vault,
 			this.settingsWrites,
 			this.notices,
+			// The controller owns which note the graph is built around — the MAIN a local
+			// pin is scoped to (a clicked node re-centres it before the active-file event).
+			controller,
 		);
 		this.controlsActions = controlsActions;
 		this.registerGraphEvents(controller, navigator);

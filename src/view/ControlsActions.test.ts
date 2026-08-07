@@ -13,6 +13,7 @@ import { FakeUserNotices } from "./FakeUserNotices";
 import { FakeViewsRefresh } from "./FakeViewsRefresh";
 import { SettingsWriteFailureNotice } from "./settingsWriteFailureNotice";
 import { SettingsWritePipeline } from "./settingsWritePipeline";
+import type { ActiveMainProvider } from "./viewPorts";
 
 /**
  * Refresh fan-out tests for the controls executor: EVERY write it makes lands in
@@ -29,6 +30,8 @@ import { SettingsWritePipeline } from "./settingsWritePipeline";
 
 /** The copy a user sees when a pin is refused; pinned here because it is user-visible. */
 const NOT_PINNABLE_MESSAGE = "This note can't be pinned (no stable id).";
+/** The local pin's own refusal copy — same cause, worded for the "for this note" scope. */
+const NOT_LOCALLY_PINNABLE_MESSAGE = "This note can't be pinned for the current note (no stable id).";
 /** Its drag-resize twin — same refusal cause, its own wording. */
 const NOT_RESIZABLE_MESSAGE = "This note's size can't be saved (no stable id).";
 
@@ -36,6 +39,9 @@ const ORIGINATING_VIEW_ID = "view-originating";
 const OTHER_VIEW_ID = "view-other";
 const MAIN_PATH = "main.md";
 const MAIN_DOCID = "docid_main_e";
+/** The local-pin TARGET a neighbor is pinned under MAIN — resolves and carries an id. */
+const TARGET_PATH = "target.md";
+const TARGET_DOCID = "docid_target_e";
 /** Resolves to a real file, but id-lib can mint no docid for it → `not-persistable`. */
 const ID_LESS_PATH = "id-less.md";
 
@@ -43,25 +49,37 @@ function fileAt(path: string): VaultFilePort {
 	return { path, extension: path.split(".").pop() ?? "", stat: { mtime: 0, size: 0 }, parent: { path: "/" } };
 }
 
-/** Serves the MAIN and the id-less file; anything else is unresolved, as an empty vault would be. */
-const RESOLVABLE_PATHS: readonly string[] = [MAIN_PATH, ID_LESS_PATH];
+/** Serves the MAIN, the target and the id-less file; anything else is unresolved, as an empty vault would be. */
+const RESOLVABLE_PATHS: readonly string[] = [MAIN_PATH, TARGET_PATH, ID_LESS_PATH];
 const VAULT: VaultPort = {
 	getFileByPath: (path) => (RESOLVABLE_PATHS.includes(path) ? fileAt(path) : null),
 	getFiles: () => RESOLVABLE_PATHS.map(fileAt),
 	cachedRead: () => Promise.resolve(""),
 };
 
+/** A settable stand-in for the graph's active MAIN (defaults to the resolvable MAIN_PATH). */
+class FakeActiveMain implements ActiveMainProvider {
+	constructor(private mainPath: string | null = MAIN_PATH) {}
+	activeMainPath(): string | null {
+		return this.mainPath;
+	}
+	setMain(mainPath: string | null): void {
+		this.mainPath = mainPath;
+	}
+}
+
 async function actionsUnderTest(dataPort: PluginDataPort = new FakePluginDataPort()) {
 	const pluginDataStore = new PluginDataStore(dataPort);
 	await pluginDataStore.init();
-	const docIdPort = new FakeDocIdPort({ [MAIN_PATH]: MAIN_DOCID });
+	const docIdPort = new FakeDocIdPort({ [MAIN_PATH]: MAIN_DOCID, [TARGET_PATH]: TARGET_DOCID });
 	docIdPort.markUnidentifiable(ID_LESS_PATH);
 	const persistenceServices = new PersistenceServices(docIdPort, pluginDataStore, new PathDocIdMap());
 	const viewsRefresh = new FakeViewsRefresh([ORIGINATING_VIEW_ID, OTHER_VIEW_ID]);
 	const notices = new FakeUserNotices();
 	const settingsWrites = new SettingsWritePipeline(pluginDataStore, viewsRefresh, notices);
-	const actions = new ControlsActions(persistenceServices, VAULT, settingsWrites, notices);
-	return { actions, viewsRefresh, pluginDataStore, notices };
+	const activeMain = new FakeActiveMain();
+	const actions = new ControlsActions(persistenceServices, VAULT, settingsWrites, notices, activeMain);
+	return { actions, viewsRefresh, pluginDataStore, notices, activeMain };
 }
 
 describe("ControlsActions.applySettings", () => {
@@ -143,6 +161,89 @@ describe("ControlsActions pinning", () => {
 		const { actions, notices } = await actionsUnderTest();
 		await actions.pinNode(MAIN_PATH);
 		expect(notices.messages).toEqual([]);
+	});
+});
+
+describe("ControlsActions local pinning", () => {
+	it("WHEN a neighbor is locally pinned THEN the pin is stored under the active MAIN", async () => {
+		const { actions, pluginDataStore } = await actionsUnderTest();
+		await actions.localPinNode(TARGET_PATH);
+		expect(pluginDataStore.localPins(MAIN_DOCID).map((pin) => pin.docid)).toEqual([TARGET_DOCID]);
+	});
+
+	it("WHEN a neighbor is locally pinned THEN EVERY open view is refreshed (the local-pin map is global state)", async () => {
+		const { actions, viewsRefresh } = await actionsUnderTest();
+		await actions.localPinNode(TARGET_PATH);
+		expect(viewsRefresh.refreshedViewIds).toEqual([ORIGINATING_VIEW_ID, OTHER_VIEW_ID]);
+	});
+
+	it("WHEN the local-pin TARGET resolves to no file THEN nothing is refreshed", async () => {
+		const { actions, viewsRefresh } = await actionsUnderTest();
+		await actions.localPinNode("gone.md");
+		expect(viewsRefresh.refreshedViewIds).toEqual([]);
+	});
+
+	it("WHEN no MAIN is active THEN a local pin lands nothing and refreshes nothing", async () => {
+		const { actions, viewsRefresh, activeMain } = await actionsUnderTest();
+		activeMain.setMain(null);
+		await actions.localPinNode(TARGET_PATH);
+		expect(viewsRefresh.refreshedViewIds).toEqual([]);
+	});
+
+	it("WHEN the TARGET is not persistable THEN the local pin is refused, nothing refreshes, and the user is told why", async () => {
+		const { actions, viewsRefresh, notices } = await actionsUnderTest();
+		await actions.localPinNode(ID_LESS_PATH);
+		expect({ refreshed: viewsRefresh.refreshedViewIds, messages: notices.messages }).toEqual({
+			refreshed: [],
+			messages: [NOT_LOCALLY_PINNABLE_MESSAGE],
+		});
+	});
+
+	it("WHEN the active MAIN is not persistable THEN the local pin is refused and the user is told why", async () => {
+		// The un-clicked MAIN needs an id too (the map is keyed by it); a main that can
+		// get none blocks the pin exactly like an id-less target, and never has its
+		// frontmatter touched.
+		const { actions, viewsRefresh, notices, activeMain } = await actionsUnderTest();
+		activeMain.setMain(ID_LESS_PATH);
+		await actions.localPinNode(TARGET_PATH);
+		expect({ refreshed: viewsRefresh.refreshedViewIds, messages: notices.messages }).toEqual({
+			refreshed: [],
+			messages: [NOT_LOCALLY_PINNABLE_MESSAGE],
+		});
+	});
+
+	it("WHEN a local pin lands THEN the user is told nothing", async () => {
+		const { actions, notices } = await actionsUnderTest();
+		await actions.localPinNode(TARGET_PATH);
+		expect(notices.messages).toEqual([]);
+	});
+
+	it("WHEN a locally pinned target is unpinned THEN the pin is gone and EVERY open view is refreshed", async () => {
+		const { actions, viewsRefresh, pluginDataStore } = await actionsUnderTest();
+		await pluginDataStore.addLocalPin(MAIN_DOCID, TARGET_DOCID, 1);
+		await actions.localUnpinNode(TARGET_DOCID);
+		expect({
+			pins: pluginDataStore.localPins(MAIN_DOCID),
+			refreshed: viewsRefresh.refreshedViewIds,
+		}).toEqual({ pins: [], refreshed: [ORIGINATING_VIEW_ID, OTHER_VIEW_ID] });
+	});
+
+	it("WHEN no MAIN is active THEN a local unpin refreshes nothing", async () => {
+		const { actions, viewsRefresh, activeMain } = await actionsUnderTest();
+		activeMain.setMain(null);
+		await actions.localUnpinNode(TARGET_DOCID);
+		expect(viewsRefresh.refreshedViewIds).toEqual([]);
+	});
+
+	it("WHEN a local pin's persist rejects THEN the user is told once and every view is refreshed anyway", async () => {
+		// Same rule as a failed global pin: the store moved before the disk write, so the
+		// SCREEN is the stale copy — repaint it and let the notice be the news.
+		const { actions, viewsRefresh, notices } = await actionsUnderTest(new RejectingPluginDataPort());
+		await actions.localPinNode(TARGET_PATH);
+		expect({ messages: notices.messages, refreshed: viewsRefresh.refreshedViewIds }).toEqual({
+			messages: [SettingsWriteFailureNotice.forNonSettingsWrite("pinned-set")],
+			refreshed: [ORIGINATING_VIEW_ID, OTHER_VIEW_ID],
+		});
 	});
 });
 
