@@ -1,17 +1,18 @@
 ---
 id: nid_qy5rc7sq261z23bp79bk8wsem_e
-title: "Embed nesting P3: render nested nodes and collapse edges to outermost container"
-status: open
+title: 'Embed nesting P3: render nested nodes and collapse edges to outermost container'
+status: in_progress
 deps: [nid_1moqnutin09drbiyxkd3l7r5k_e]
-links: [nid_e79vxubva52s9gq24idypb77x_e, nid_r3qiyd7xx3bund6f73wf5h0vd_e, nid_1moqnutin09drbiyxkd3l7r5k_e, nid_jbsbfqqxyy1brm26ul7873v5h_e]
-created_iso: 2026-08-07T01:53:49Z
-status_updated_iso: 2026-08-07T01:53:49Z
+links: [nid_e79vxubva52s9gq24idypb77x_e, nid_r3qiyd7xx3bund6f73wf5h0vd_e, nid_1moqnutin09drbiyxkd3l7r5k_e,
+  nid_jbsbfqqxyy1brm26ul7873v5h_e]
+created_iso: '2026-08-07T01:53:49Z'
+status_updated_iso: '2026-08-07T04:05:45Z'
 type: feature
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
 tags: [embed-nesting]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin
 ---
-
 Part 3 of the embed-nesting feature (decisions: ticket nid_e79vxubva52s9gq24idypb77x_e). Consumes the nesting forest from ticket nid_1moqnutin09drbiyxkd3l7r5k_e.
 
 GOAL: render nested nodes INSIDE their container in React Flow, and re-target edges touching nested nodes onto the OUTERMOST container, reusing the folder-group machinery.
@@ -29,4 +30,3 @@ npm run check + npm test + npm run test:e2e green.
 ## Acceptance Criteria
 
 Nested notes render inside containers in embed order; edges to nested nodes attach to the outermost container with link preview showing true pairs; central/pinned precedence visible in a real vault; existing e2e suite green.
-
