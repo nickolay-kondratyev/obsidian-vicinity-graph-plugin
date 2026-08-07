@@ -232,16 +232,16 @@ export const SETTINGS_SPEC: SettingsSpec = {
 		 */
 		sizing: {
 			minPx: { default: 40, ...NODE_SIZE_PX_BOUNDS },
-			maxPx: { default: 160, ...NODE_SIZE_PX_BOUNDS },
+			maxPx: { default: 180, ...NODE_SIZE_PX_BOUNDS },
 			/**
 			 * The extra height floor for IMAGE nodes (thumbnail preview). Shares
 			 * `minPx`/`maxPx`'s bounds — it is the same kind of px height and becomes
-			 * geometry the same way. The default `120` sits just BELOW a thumbnail's
+			 * geometry the same way. The default `180` sits ABOVE a thumbnail's
 			 * natural content-fit floor (~122px, the CSS preview reveal rung), so it
-			 * ships as a NO-OP on the default graph: raising it makes image nodes
-			 * taller (capped by `maxPx`), lowering it does nothing a floor would.
+			 * gives image nodes a taller preview by default (capped by `maxPx`);
+			 * lowering it toward the fit floor does nothing a floor would.
 			 */
-			minImageHeightPx: { default: 120, ...NODE_SIZE_PX_BOUNDS },
+			minImageHeightPx: { default: 180, ...NODE_SIZE_PX_BOUNDS },
 		},
 		// -------------------------------------------------------------------
 		// Force-layout defaults + slider ranges (ticket-04). Defaults are the

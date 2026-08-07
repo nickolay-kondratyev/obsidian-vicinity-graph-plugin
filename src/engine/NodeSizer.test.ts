@@ -294,8 +294,15 @@ describe("NodeSizer thumbnail sizing (preview-kind driven — preference-indepen
 		links: { "m.md": ["a.md"], "a.md": ["pic.png"] },
 	};
 
+	// The shipped image floor (`minImageHeightPx`) now grows a sparse image node to
+	// 180px, which would mask the content-fit arithmetic these three cases exist to
+	// measure. They pin the image floor down to `minPx` so it is a no-op and the
+	// budgeted height is what shows through. The floor's own behaviour is covered by
+	// the `minImageHeightPx …` cases below.
+	const contentFitSizing = sizing({ minPx: 40, maxPx: 180, minImageHeightPx: 40 });
+
 	it("WHEN a note's preview is its thumbnail THEN the node reaches the CSS reveal threshold", () => {
-		const sizes = sizeAll(imageNote, viewWith(), ["m.md"]);
+		const sizes = sizeAll(imageNote, viewWith({ sizing: contentFitSizing }), ["m.md"]);
 		expect(sizeOf(sizes, "a.md")).toBe(PREVIEW_VISIBLE_MIN_NODE_PX);
 	});
 
@@ -318,7 +325,7 @@ describe("NodeSizer thumbnail sizing (preview-kind driven — preference-indepen
 				],
 				links: { "m.md": ["a.md"], "a.md": ["pic.png"] },
 			},
-			viewWith(),
+			viewWith({ sizing: contentFitSizing }),
 			["m.md"],
 		);
 		const expected =
@@ -343,7 +350,7 @@ describe("NodeSizer thumbnail sizing (preview-kind driven — preference-indepen
 				],
 				links: { "m.md": ["a.md"], "a.md": ["pic.png"] },
 			},
-			viewWith(),
+			viewWith({ sizing: contentFitSizing }),
 			["m.md"],
 		);
 		expect(sizeOf(sizes, "a.md")).toBe(
