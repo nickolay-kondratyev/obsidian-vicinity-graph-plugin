@@ -1,12 +1,11 @@
 ---
-closed_iso: 2026-08-07T00:05:32Z
 id: nid_mw1az1i1aznfoxqsgcwnfus07_e
 title: Add procesing for external URL in the graph
-status: closed
+status: open
 deps: []
-links: [nid_hyzwoqadcfyvisveczuet3e8c_e, nid_prsk9olcj9u2fpzqgv5gb6zhe_e, nid_ccsw8o1rjcs2l7o1elgmlqx5i_e, nid_uqgew1fuqgrdyvas6eum6vaf2_e]
+links: []
 created_iso: '2026-08-04T16:55:26Z'
-status_updated_iso: 2026-08-07T00:05:32Z
+status_updated_iso: 2026-08-07T00:44:11Z
 type: task
 priority: 4
 assignee: nickolaykondratyev
@@ -31,41 +30,50 @@ TO start out we will just render the URLs from the Pinned and Central nodes. How
 
 ---
 
-## PLANNING RESOLUTION (2026-08-06)
+## STATUS: PAUSED — blocked on an embeds-UI rethink (2026-08-06)
 
-Planning complete. Split into 4 tickets (all `link`ed to this one).
+Explored the design and made the decisions below, then paused. Detailed
+sub-tickets were discarded on purpose; THIS ticket is the only artifact. Do not
+start implementation — the blocker below comes first.
 
-### Key finding on network calls
-Obsidian has **no** API to read a URL's title/favicon without a network call
-(`requestUrl` IS a flagged network call). So the alias-only approach is the right
-constraint — we render ONLY external URLs that already carry an author-written
-alias (the markdown link display text), and never fetch anything.
+### BLOCKER (why paused)
+External **embeds** (`![](https://…/pic.png)`) are the main case worth surfacing,
+but showing a node labelled just "pic.png" is low value. Embeds need their OWN,
+better UI experience first — likely **grouping a central node's embeds together
+under it** — and that should land BEFORE the external-URL feature. Revisit this
+ticket after the embeds-UI direction exists.
 
-### Key finding on codebase fit
+### Decisions captured
+- **No network calls, ever.** Obsidian has no API to read a URL's title/favicon
+  without a flagged network call (`requestUrl` IS one). So a URL can only be
+  labelled from the URL string itself + the author's alias — never fetched
+  metadata. (Obsidian already fetches external image embeds itself when rendering
+  a note; our graph node would add no fetch and never show the remote image.)
+- **Scope:** render external URLs from **central + pinned** notes only, not from
+  ordinary traversed neighbours. A follow-up would add a **pill in the Depth
+  controls** to toggle URL rendering on/off.
+- **New node kind:** URLs are not vault docs (no docid) — they need their own id
+  space (`url:<normalized-url>`) and a **distinct UI element** that clearly reads
+  as "external, not a local note". A ~10-variant design showcase was to pick the
+  look. A URL node also needs to carry its kind (plain **link** vs **embed**).
+- **D1 — node cap:** URL nodes COUNT toward the cap, at LOWEST truncation priority
+  (notes kept first).
+- **D2 — dedup + count:** one node per URL (first-seen alias wins); show an `×N`
+  occurrence count from the central, and the link fly-out should preview WHERE the
+  central references it.
+- **D3 — click:** opens the URL in the OS browser (`window.open`); KISS — no
+  modifier, no in-Obsidian preview, no confirm.
+- **D4 — forms (UNRESOLVED, the blocker):** plain links `[label](url)` are the
+  clear win. Embeds `![](url)` are wanted but need the embeds-UI experience above
+  before they belong here.
+
+### Codebase notes for whoever picks this back up
 External URLs are discarded at 3 layers today
 (`src/adapters/ObsidianLinkProvider.ts:250`, `src/shared/MarkdownInlineLinks.ts:84`,
-`src/adapters/CanvasFallbackParser.ts:18`). Alias/`displayText` exists in Obsidian's
-raw cache but isn't modeled in `ReferencePort` (`src/adapters/obsidianPorts.ts:35`).
-Node identity is `VaultPath`-keyed everywhere, so URL nodes need their own id space
-(`url:<normalized-url>`) and their own engine collection. Rendering needs a NEW
-third React Flow node kind end-to-end (`flowMapping.ts` union → new `UrlNode.tsx` →
-`NODE_TYPES` in `VicinityGraphFlow.tsx:41` → `graph-view.css`).
-
-### Tickets created
-1. `nid_hyzwoqadcfyvisveczuet3e8c_e` — **Design showcase**: ~10 external-URL node
-   variants, human picks one (the dependency the ticket asked for). Blocks #3.
-2. `nid_prsk9olcj9u2fpzqgv5gb6zhe_e` — **Engine + adapter**: surface aliased
-   external URLs from central/pinned notes, model as engine nodes/edges, headless +
-   fully unit-tested.
-3. `nid_ccsw8o1rjcs2l7o1elgmlqx5i_e` — **View rendering**: new `external-url` node
-   kind rendering the chosen design; click opens in browser. Depends on #1 + #2.
-4. `nid_uqgew1fuqgrdyvas6eum6vaf2_e` — **Follow-up**: Depth-controls PILL to toggle
-   URL rendering (the follow-up the ticket asked for). Depends on #2 + #3.
-
-### Open decisions (defaults chosen; tagged `decide`, and in
-`.ai_out/_current_decision/current_decision.md` for human review)
-- D1 node cap: URL nodes exempt from cap/truncation (bounded by central out-degree).
-- D2 dedup: one node per URL, first-seen alias wins, one edge per source central.
-- D3 click: `window.open` to OS browser, no modifier/preview/confirm.
-- D4 scope: body plain links + frontmatter property links; embedded external URLs out.
-- D5 visual: decided by the showcase ticket.
+`src/adapters/CanvasFallbackParser.ts:18`). Alias/`displayText` lives in Obsidian's
+raw cache but isn't modeled in `ReferencePort` (`src/adapters/obsidianPorts.ts:35`);
+`MarkdownInlineLinks.EXTERNAL_DESTINATION` already recognises external destinations,
+so parsing the body ourselves (repo's "we own parsing" precedent) is the robust
+source. Rendering needs a new React Flow node kind end-to-end
+(`src/view/flowMapping.ts` union → new `UrlNode.tsx` → `NODE_TYPES` in
+`src/view/VicinityGraphFlow.tsx:41` → `src/view/graph-view.css`).
