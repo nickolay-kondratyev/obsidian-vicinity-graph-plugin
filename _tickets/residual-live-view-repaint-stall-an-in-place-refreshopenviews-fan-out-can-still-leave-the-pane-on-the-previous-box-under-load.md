@@ -2,11 +2,12 @@
 id: nid_1s77g4wx33uj8b380d1oph1d6_e
 title: 'Residual live-view repaint stall: an in-place refreshOpenViews fan-out can
   still leave the pane on the previous box under load'
-status: in_progress
+status: closed
+closed_iso: 2026-08-07T18:25:00Z
 deps: []
 links: [nid_8vekpgg97n5x7ckxbwswr5uar_e]
 created_iso: '2026-08-06T23:15:09Z'
-status_updated_iso: '2026-08-07T19:16:37Z'
+status_updated_iso: 2026-08-07T18:25:00Z
 type: bug
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
@@ -35,3 +36,19 @@ Root cause identified (controller lost/superseded publish vs view reseed race) w
 --------------------------------------------------------------------------------
 
 This ticket was done prior to hard reset look for a branch with 'nid_1s77g4wx33uj8b380d1oph1d6_e' to see how it was handled.
+
+## Resolution (2026-08-07)
+
+**Root cause: view reseed-race, NOT a controller lost/superseded publish.** The controller's publish path was exonerated — `setSnapshot` mints a fresh object literal and notifies every subscriber with no dedup, and `snapshot.nodes` identity changes on every rebuild. The stall lived entirely in the view.
+
+`VicinityGraphFlow` held the RF nodes as a STANDING local `useState`, reconciled to the snapshot only by a one-shot render-phase gate (`if (seededFrom !== snapshot.nodes) setNodes(...)`). React Flow's own ResizeObserver re-measures a node it already rendered and routes a `dimensions` change through `onNodesChange`; under full-suite load that measured the node's PRE-repaint DOM and a functional `setNodes` reverted the local box to the PREVIOUS build's. Because `snapshot.nodes` identity was unchanged, the identity-keyed gate — having already consumed that snapshot — could not re-fire, so local state stranded BELOW the published snapshot with no path back. A whole `refreshOpenViews()` fan-out (every settings / pin / size-override write) was then silently swallowed until some unrelated event rebuilt the pane. `getNodeInlineStyleDimensions` reads `node.width ?? node.style.width` (never `measured`), confirming the stale wrapper width came from a stale userNode in local state, i.e. the reseed path.
+
+**Fix (derive + overlay):** deleted the standing `nodes` mirror. RF nodes are now derived straight from `snapshot.nodes` each render (`baseNodes` memo), so between gestures `nodes === baseNodes === snapshot` and there is nothing left to strand — a re-measurement can no longer revert a box below the store. The ONE piece of node state the view still holds is a narrow `resizeOverlay` (a single node's live box, null between gestures): a controlled `<ReactFlow>` applies no dimension change itself, so the in-flight NodeResizer drag needs its live size overlaid on the dragged node until the commit-on-release rebuild republishes it. `onNodesChange` now updates the overlay ONLY on gesture changes (`isResizeGestureChange`); the overlay is cleared during render on any fresh `snapshot.nodes` identity — so a refused drag-resize (which still publishes via its `GuardedWriteOutcome`) snaps back to the stored box.
+
+Failing-first coverage: `src/view/resizeOverlay.test.ts` (jsdom) locks the two properties the fix rests on — a null overlay returns the snapshot-derived nodes UNCHANGED (same array identity, so no re-adopt/re-measure), and a gesture overlays only the dragged node.
+
+**Files:** `src/view/VicinityGraphFlow.tsx` (derive+overlay), `src/view/nodeResize.ts` (`isResizeGestureChange` now a type guard; WHY updated), `src/view/resizeOverlay.test.ts` (new), `e2e/nodeResize.e2e.ts` (`renderTargetAsNeighbourBox` reverted to a plain in-place `refreshOpenViews()` fan-out — remount fallback + `IN_PLACE_REPAINT_BUDGET_MS`/`renderedBoxConvergesTo` removed), `CLAUDE.md` (screen-ahead note points at `applyResizeOverlay`).
+
+**Verification:** `npm run check` clean, `npm test` 1724 passed (123 files). e2e: full `nodeResize.e2e.ts` spec 16/16 green (the pin-chip specs drive the reverted plain-fan-out `renderTargetAsNeighbourBox`) and the full pinned e2e suite 159/159 green. The stall historically reproduced ~1 in 3 FLOOR runs; the original landing of this fix additionally cleared 10 consecutive full FLOOR + 3 full PINNED suites (13/13).
+
+**Follow-up filed (distinct root cause):** nid_ghaeps3siekw0oe17mr4xpmad_e — restart-time stale controls (toolbar depth stepper stuck at defaults after an Obsidian restart). That is a first-build-before-`data.json`-load race in `GraphViewController`, pre-existing on floor, NOT the fan-out/box stall this ticket fixed; `controlsRestart.e2e.ts` is untouched by this work.
