@@ -1,17 +1,17 @@
 ---
 id: nid_15r71ajjkbel5s704kmj6wszw_e
-title: "Render leading YouTube hero video inside the graph node"
-status: open
+title: Render leading YouTube hero video inside the graph node
+status: in_progress
 deps: [nid_ur7veu8yqx8x6q8j6vz2z2ioa_e, nid_21xio7iwxv742ze4qc4p4qbmq_e, nid_tvtm9gj5zaj4tbfbpti3v6sy2_e]
 links: [nid_mw1az1i1aznfoxqsgcwnfus07_e, nid_tvtm9gj5zaj4tbfbpti3v6sy2_e, nid_21xio7iwxv742ze4qc4p4qbmq_e]
-created_iso: 2026-08-07T15:49:50Z
-status_updated_iso: 2026-08-07T15:49:50Z
+created_iso: '2026-08-07T15:49:50Z'
+status_updated_iso: '2026-08-07T19:01:21Z'
 type: feature
 priority: 2
 assignee: nickolaykondratyev
 tags: [external-preview, youtube, ui]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 ---
-
 Render the note node's leading YouTube hero video INSIDE its React Flow node, analogous to the existing node thumbnail/hero. The hero occupies the TOP of the node, ahead of the title/heading and any images (matches human ask).
 
 MECHANISM: Obsidian MarkdownRenderer (sanctioned for the preview/opt-in state) or a direct YouTube embed iframe. This DOES cause a third-party network request BY DESIGN and MUST be gated behind the master external-previews setting (default ON). When the setting is OFF: no iframe, no request, graceful fallback (plain node / label).
