@@ -26,30 +26,17 @@ export const MIN_GROUP_MEMBER_COUNT = 2;
 
 const VAULT_ROOT_FOLDER = "";
 
-const NO_EXCLUSIONS: ReadonlySet<string> = new Set();
-
 /**
  * CONTRACT: called independently by BOTH `elkMapping` (container structure)
  * and `flowMapping` (group nodes + parentIds) for the same graph, so it MUST
  * stay a pure, deterministic function of `nodes` — any call-site-dependent
  * behavior (randomness, mutation, per-call sorting) would silently
  * desynchronize React Flow parentIds from the elk layout.
- *
- * `excludedPaths` are nodes that leave folder grouping entirely — the nested
- * nodes of the embed-nesting forest (decision Q4: nesting wins over folder
- * grouping). An excluded node neither joins its folder group NOR counts toward
- * {@link MIN_GROUP_MEMBER_COUNT}, so a folder of one plain note plus one note
- * nested elsewhere renders ungrouped. A container (which is NOT nested) still
- * counts, so the chain group → container → nested is intact. Both callers MUST
- * pass the SAME exclusion set or parentIds and layout desynchronize.
  */
-export function deriveFolderGroups(
-	nodes: readonly GraphNode[],
-	excludedPaths: ReadonlySet<string> = NO_EXCLUSIONS,
-): FolderGroupingResult {
+export function deriveFolderGroups(nodes: readonly GraphNode[]): FolderGroupingResult {
 	const memberPathsByFolder = new Map<FolderPath, string[]>();
 	for (const node of nodes) {
-		if (node.folder === VAULT_ROOT_FOLDER || excludedPaths.has(node.path)) {
+		if (node.folder === VAULT_ROOT_FOLDER) {
 			continue;
 		}
 		const members = memberPathsByFolder.get(node.folder) ?? [];

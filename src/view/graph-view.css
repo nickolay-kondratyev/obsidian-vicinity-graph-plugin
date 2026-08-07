@@ -185,35 +185,6 @@
 }
 
 /*
- * Embed nesting (P3). A CONTAINER note's box is elk-sized to hold its own content
- * band PLUS the vertical stack of its nested children (which render as React Flow
- * subflow SIBLINGS, positioned by elk inside this box — they are NOT DOM children
- * here). So the container's own content must HUG THE TOP band and never flex-grow
- * to fill the tall box, or a grown thumbnail/outline would paint over the well the
- * children sit in. The secondary-background tint reads that lower region as a
- * "well", distinct from the children's own primary background.
- */
-.vicinity-graph-node[data-container="true"] {
-	background: var(--background-secondary);
-	justify-content: flex-start;
-}
-.vicinity-graph-node[data-container="true"] .vicinity-graph-node__content,
-.vicinity-graph-node[data-container="true"] .vicinity-graph-outline {
-	flex: 0 0 auto;
-}
-
-/*
- * A NESTED node: same node chrome (tier ring, title, preview) — distinct BUT
- * consistent. It keeps the primary background so it lifts off its container's
- * tinted well, and a soft shadow separates it further. No border override, so its
- * tier ring (MAIN/pinned/regular) still reads.
- */
-.vicinity-graph-node[data-nested="true"] {
-	background: var(--background-primary);
-	box-shadow: var(--shadow-s);
-}
-
-/*
  * Groups the note's own content (title + thumbnail) — and ONLY those: the
  * outline and the attachment strip are deliberate SIBLINGS (see NoteNode.tsx).
  * It grows to fill the node so the attachment strip below still sits on the

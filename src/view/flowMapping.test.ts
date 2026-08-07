@@ -60,8 +60,6 @@ describe("vicinityGraphToFlow nodes", () => {
 			preview: "none",
 			imageCount: 0,
 			attachmentGroups: [],
-			isContainer: false,
-			isNested: false,
 		});
 	});
 });
@@ -272,23 +270,6 @@ function collapsedGraph() {
 	});
 }
 
-/**
- * GIVEN two members of the `notes` group whose edges point AT an ungrouped MAIN
- * hub. Mirror of {@link collapsedGraph} with the hub as the MAIN node, so an embed
- * edge to it does NOT nest (main is never nested) — the fan still collapses onto
- * `folder-group:notes`, letting the kind-union tests exercise a real collapsed edge.
- */
-function collapsedToMainGraph() {
-	return makeGraph({
-		nodes: [
-			makeNode({ path: asVaultPath("hub.md"), folder: asFolderPath(""), isMain: true }),
-			makeNode({ path: asVaultPath("notes/a.md"), folder: asFolderPath("notes") }),
-			makeNode({ path: asVaultPath("notes/b.md"), folder: asFolderPath("notes") }),
-		],
-		edges: [makeEdge("notes/a.md", "hub.md"), makeEdge("notes/b.md", "hub.md")],
-	});
-}
-
 describe("vicinityGraphToFlow group-collapsed edges", () => {
 	it("WHEN many members link from one node THEN the fan collapses to a single edge to the group box", () => {
 		const edges = toFlow(collapsedGraph()).edges;
@@ -389,17 +370,10 @@ describe("vicinityGraphToFlow group-collapsed edges", () => {
 	});
 });
 
-/**
- * Kind forwarding / union on a RENDERED edge. Embed nesting (P3) changed what a
- * bare `a → b` embed does: `b` now NESTS inside `a` and the edge is DROPPED
- * (decision Q5), so these fixtures point the embed at a target that CANNOT nest —
- * the MAIN node (never nested) — to keep exercising the kind machinery, which is
- * itself unchanged by nesting.
- */
-describe("vicinityGraphToFlow edge kinds (embed kind forwarding/union)", () => {
+describe("vicinityGraphToFlow edge kinds (stage-2 embed rendering)", () => {
 	it("WHEN a passthrough edge carries an engine kind THEN it is forwarded to the flow edge", () => {
 		const graph = makeGraph({
-			nodes: [makeNode({ path: asVaultPath("a.md") }), makeNode({ path: asVaultPath("b.md"), isMain: true })],
+			nodes: [makeNode({ path: asVaultPath("a.md") }), makeNode({ path: asVaultPath("b.md") })],
 			edges: [makeEdge("a.md", "b.md", 1, "embed")],
 		});
 		expect(toFlow(graph).edges[0]?.kind).toBe("embed");
@@ -407,16 +381,16 @@ describe("vicinityGraphToFlow edge kinds (embed kind forwarding/union)", () => {
 
 	it("WHEN collapsed contributors AGREE on a kind THEN the collapsed edge keeps it", () => {
 		const graph = makeGraph({
-			nodes: collapsedToMainGraph().nodes,
-			edges: [makeEdge("notes/a.md", "hub.md", 1, "embed"), makeEdge("notes/b.md", "hub.md", 1, "embed")],
+			nodes: collapsedGraph().nodes,
+			edges: [makeEdge("hub.md", "notes/a.md", 1, "embed"), makeEdge("hub.md", "notes/b.md", 1, "embed")],
 		});
 		expect(toFlow(graph).edges[0]?.kind).toBe("embed");
 	});
 
 	it("WHEN collapsed contributors MIX kinds THEN the collapsed edge unions them to 'both'", () => {
 		const graph = makeGraph({
-			nodes: collapsedToMainGraph().nodes,
-			edges: [makeEdge("notes/a.md", "hub.md", 1, "link"), makeEdge("notes/b.md", "hub.md", 1, "embed")],
+			nodes: collapsedGraph().nodes,
+			edges: [makeEdge("hub.md", "notes/a.md", 1, "link"), makeEdge("hub.md", "notes/b.md", 1, "embed")],
 		});
 		expect(toFlow(graph).edges[0]?.kind).toBe("both");
 	});
@@ -467,8 +441,6 @@ describe("withPositions", () => {
 				preview: "none",
 				imageCount: 0,
 				attachmentGroups: [],
-				isContainer: false,
-				isNested: false,
 			},
 		},
 	];

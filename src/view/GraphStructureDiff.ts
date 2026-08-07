@@ -1,6 +1,5 @@
 import type { ForceLayoutSettings, GraphNode, VicinityGraph } from "../engine";
 import { FORCE_LAYOUT_RANGES } from "../engine";
-import { deriveNestingForest } from "./embedNesting";
 import { edgeIdOf, nodeDimensionsPx, nodeSizeOverridePx, sameNodeSizeOverridePx } from "./graphIdentity";
 import { resizedNodesFitRenderedLayout } from "./layoutFit";
 import type { RenderedLayout } from "./layoutFit";
@@ -45,14 +44,6 @@ export function decideLayout(
 	if (!sameIds(edgeIdsOf(previous), edgeIdsOf(next))) {
 		return "relayout";
 	}
-	// A nesting change (a node gained, lost, or switched its container) restructures
-	// the React Flow parent chain and the elk compound tree even when the node and
-	// edge id SETS are unchanged — e.g. pinning flips `isCentral`, which can move
-	// container precedence (embed-nesting P3). Reusing positions would leave a node
-	// visually parented where it no longer belongs, so force a relayout.
-	if (!sameNesting(previous, next)) {
-		return "relayout";
-	}
 	const resized = resizedPaths(previous.nodes, next.nodes);
 	if (resized.size > 0 && !resizedNodesFitRenderedLayout(resized, next.nodes, renderedLayout)) {
 		return "relayout";
@@ -74,45 +65,6 @@ const FORCE_LAYOUT_FIELDS = Object.keys(FORCE_LAYOUT_RANGES) as readonly (keyof 
 /** Value equality over every force-layout field (each build resolves a fresh object, so identity cannot be used). */
 function sameForceLayout(a: ForceLayoutSettings, b: ForceLayoutSettings): boolean {
 	return FORCE_LAYOUT_FIELDS.every((field) => a[field] === b[field]);
-}
-
-/**
- * Value equality of the two graphs' nesting FORESTS. Reached only when the node id
- * sets already match, so any difference here is a genuine nesting change.
- *
- * Two facts are compared per node:
- * - `containerPath` — the direct parent, which React Flow's parent chain and elk's
- *   compound tree key on; the outermost chain is fully derived from it.
- * - `childPaths` — the ORDERED nested children. Order comes from `embedOrder`
- *   (the position of each `![[…]]` in the source note), which {@link edgeIdOf}
- *   does NOT encode — so reordering two embeds in a note leaves every node id AND
- *   edge id identical while flipping the vertical stack order. Comparing only
- *   `containerPath` would then reuse positions and leave the children stacked in
- *   the OLD order; comparing `childPaths` forces the relayout that order needs.
- *
- * `deriveNestingForest` is pure, so this re-derivation is deterministic.
- */
-function sameNesting(previous: VicinityGraph, next: VicinityGraph): boolean {
-	const previousForest = deriveNestingForest(previous);
-	const nextForest = deriveNestingForest(next);
-	for (const node of next.nodes) {
-		const previousNesting = previousForest.nestingByPath.get(node.path);
-		const nextNesting = nextForest.nestingByPath.get(node.path);
-		if (previousNesting?.containerPath !== nextNesting?.containerPath) {
-			return false;
-		}
-		if (!sameOrderedPaths(previousNesting?.childPaths, nextNesting?.childPaths)) {
-			return false;
-		}
-	}
-	return true;
-}
-
-/** Element-wise equality of two ordered child-path lists (either may be absent). */
-function sameOrderedPaths(a: readonly string[] | undefined, b: readonly string[] | undefined): boolean {
-	const left = a ?? [];
-	const right = b ?? [];
-	return left.length === right.length && left.every((path, index) => path === right[index]);
 }
 
 function nodeIdsOf(graph: VicinityGraph): Set<string> {

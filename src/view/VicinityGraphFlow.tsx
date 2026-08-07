@@ -381,12 +381,7 @@ function toReactFlowNode(node: FlowNode): Node {
 	if (node.kind === "folder-group") {
 		return { ...base, type: "folder-group", data: node.data };
 	}
-	// A nested child is non-draggable regardless of the graph-wide `nodesDraggable`
-	// prop (embed-nesting P3, decision Q8): its position is owned by its container's
-	// elk stack, and a hand-moved child has no persistence or relayout story yet —
-	// dragging the OUTERMOST container is what moves the whole tree. Explicit per-node
-	// `draggable:false` outlasts any future flip of the graph-wide default.
-	return { ...base, type: "note", data: node.data, ...(node.data.isNested ? { draggable: false } : {}) };
+	return { ...base, type: "note", data: node.data };
 }
 
 function toReactFlowEdge(edge: FlowEdge): Edge {
