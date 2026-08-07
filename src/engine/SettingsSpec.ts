@@ -71,6 +71,7 @@ export interface ViewSpec {
 	readonly outlineMaxDepth: BoundedNumberSpec;
 	readonly nodePreviewPreference: DefaultSpec<NodePreviewPreference>;
 	readonly showCrossLinks: DefaultSpec<boolean>;
+	readonly externalPreviews: DefaultSpec<boolean>;
 	readonly sizing: SizingSpec;
 	readonly forceLayout: ForceLayoutSpec;
 }
@@ -224,6 +225,17 @@ export const SETTINGS_SPEC: SettingsSpec = {
 		 * into a hairball the moment it is switched on.
 		 */
 		showCrossLinks: { default: false },
+		/**
+		 * ON by default (unlike the two opt-in booleans around it): external previews
+		 * are the feature this switch exists to SHOWCASE, so it ships enabled — which
+		 * Obsidian permits ONLY because the setting help text and the plugin
+		 * description disclose plainly that external content is loaded (see
+		 * {@link ViewSettings.externalPreviews}). OFF is the privacy opt-out that stops
+		 * every third-party request; it is not the default because a graph that never
+		 * shows the video a note links would hide the feature from everyone who does not
+		 * hunt through settings.
+		 */
+		externalPreviews: { default: true },
 		/**
 		 * The content-fit clamps (the only sizing dials — the metric dials were
 		 * removed, node-sizing rethink 2026-08-03).

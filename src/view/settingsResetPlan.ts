@@ -70,7 +70,7 @@ const ALL_SCOPE_LABEL = "Restore all Vicinity Graph settings";
  * reads the label as "my pins are gone too".
  */
 const ALL_SCOPE_DESCRIPTION =
-	"Resets every Vicinity Graph setting — depth defaults, edges, node sizing, node contents, force layout, node exclusion and performance — to its shipped default. Pinned notes are kept.";
+	"Resets every Vicinity Graph setting — depth defaults, edges, node sizing, node contents, external content, force layout, node exclusion and performance — to its shipped default. Pinned notes are kept.";
 
 const EXCLUSION_SCOPE_LABEL = "Restore node exclusion defaults";
 
@@ -152,6 +152,13 @@ export const SETTINGS_RESET_SCOPES: Readonly<Record<SettingsResetScope, Settings
 			`Resets the outline depth to ${SETTINGS_SPEC.globalView.outlineMaxDepth.default} heading levels ` +
 			`and the node preview to ${NODE_PREVIEW_OPTION_META[SETTINGS_SPEC.globalView.nodePreviewPreference.default].label}.`,
 		plan: (ctx) => planSectionReset("node-contents", ctx),
+	},
+	"external-content": {
+		label: "Restore external content defaults",
+		// Direction-free like the edges copy: which way the toggle lands is SETTINGS_SPEC's
+		// alone, so a re-typed "on"/"off" here could outlive a change of default.
+		description: "Resets whether external content previews (such as YouTube video previews) are loaded.",
+		plan: (ctx) => planSectionReset("external-content", ctx),
 	},
 	"force-layout": {
 		label: "Restore force layout defaults",

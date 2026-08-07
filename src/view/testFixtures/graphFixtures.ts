@@ -44,6 +44,7 @@ function makeViewSettings(): ViewSettings {
 		outlineMaxDepth: 2,
 		nodePreviewPreference: "auto",
 		showCrossLinks: false,
+		externalPreviews: true,
 		sizing: {
 			minPx: 40,
 			maxPx: 160,

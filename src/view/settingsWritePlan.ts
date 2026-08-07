@@ -41,6 +41,8 @@ export type SettingsInteraction =
 	| { readonly kind: "global-node-preview"; readonly value: NodePreviewPreference }
 	/** Whether links between two visible nodes are drawn even when the walk never took them. */
 	| { readonly kind: "global-show-cross-links"; readonly showCrossLinks: boolean }
+	/** The master switch for all external-content previews (loads third-party content when ON). */
+	| { readonly kind: "global-external-previews"; readonly externalPreviews: boolean }
 	/** One sizing clamp (min/max node px). */
 	| { readonly kind: "global-sizing-number"; readonly field: SizingNumberField; readonly value: number }
 	/** One force-layout tuning value. */
@@ -85,6 +87,8 @@ export function planSettingsWrite(interaction: SettingsInteraction, ctx: Setting
 			return { kind: "global-view", view: { ...ctx.globalView, nodePreviewPreference: interaction.value } };
 		case "global-show-cross-links":
 			return { kind: "global-view", view: { ...ctx.globalView, showCrossLinks: interaction.showCrossLinks } };
+		case "global-external-previews":
+			return { kind: "global-view", view: { ...ctx.globalView, externalPreviews: interaction.externalPreviews } };
 		case "global-sizing-number":
 			return sizingCommand(ctx, { ...ctx.globalView.sizing, [interaction.field]: interaction.value });
 		case "global-force-layout-field":

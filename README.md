@@ -96,8 +96,8 @@ tab (**Settings → Vicinity Graph**) and the in-view **Graph controls** panel;
 changing either writes the one global value and refreshes every open graph.
 
 **Both surfaces show the same sections, in the same order, under the same names**
-— *Depth*, *Edges*, *Node sizing*, *Node contents*, *Force layout*,
-*Node exclusion*, *Performance*. Every setting appears on both. The panel is narrow, so
+— *Depth*, *Edges*, *Node sizing*, *Node contents*, *External content*,
+*Force layout*, *Node exclusion*, *Performance*. Every setting appears on both. The panel is narrow, so
 it uses compact controls (steppers instead of sliders for depth) and moves the
 long descriptions into hover tooltips. One deliberate exception: exclusion
 **patterns** are *edited* in the settings tab and shown **read-only** in the
@@ -157,6 +157,14 @@ changed gets reverted by the next change.
   Also in the controls panel, under *Node contents* beside the *Preview* pill. See
   *Node contents* below. The depth itself has no on/off switch — use the *Preview*
   pill to choose outline vs image.
+- **External content → Load external previews** (default **on**) — shows previews
+  of external content referenced in your notes, starting with a **video preview for
+  YouTube links**. Loading these **contacts third-party servers** (for example
+  YouTube and Google). It ships **on** so the feature works out of the box; **turn
+  it off** and the plugin makes **no external requests at all** — nothing external
+  is contacted while it is off. This one switch gates *every* external preview
+  (present and future), so it is the single place to control what leaves your vault.
+  Also in the controls panel, under *External content*.
 - **Grouping** and the **node cap** (default **100** — above roughly a hundred
   nodes a graph stops being readable, so the view truncates deterministically and
   shows a hidden-node count). The cap is also in the controls panel, under

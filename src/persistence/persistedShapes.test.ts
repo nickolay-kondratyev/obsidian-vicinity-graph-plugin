@@ -350,6 +350,7 @@ describe("PersistedShapes view field presence semantics", () => {
 		outlineMaxDepth: 4,
 		nodePreviewPreference: "image",
 		showCrossLinks: true,
+		externalPreviews: false,
 		sizing: { ...EngineDefaults.viewSettings().sizing, minPx: 30 },
 		forceLayout: { ...EngineDefaults.forceLayoutSettings(), linkGapPx: 60 },
 	};
