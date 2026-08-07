@@ -9,7 +9,7 @@ status_updated_iso: 2026-08-06T23:15:09Z
 type: bug
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
-tags: [view, decide]
+tags: [view]
 ---
 
 Follow-up from ticket nid_8vekpgg97n5x7ckxbwswr5uar_e (e2e nodeResize 'short but WIDE' render-poll flake) and the closed nid_c78k90su87jrzigxvfjv5t95g_e.
