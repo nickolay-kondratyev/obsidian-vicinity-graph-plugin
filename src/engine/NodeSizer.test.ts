@@ -56,6 +56,23 @@ function outlineShowingView(overrides: Partial<NodeSizingView> = {}): NodeSizing
 	return viewWith({ nodePreviewPreference: "outline", ...overrides });
 }
 
+/**
+ * A `SizingSettings` for a test that only cares about the min/max pair. Fills
+ * `minImageHeightPx` from the shipped default (the image-floor cases set it
+ * explicitly) so the pair-focused cases keep reading like `{ minPx, maxPx }`.
+ */
+function sizing(fields: {
+	readonly minPx: number;
+	readonly maxPx: number;
+	readonly minImageHeightPx?: number;
+}): NodeSizingView["sizing"] {
+	return {
+		minPx: fields.minPx,
+		maxPx: fields.maxPx,
+		minImageHeightPx: fields.minImageHeightPx ?? EngineDefaults.sizingSettings().minImageHeightPx,
+	};
+}
+
 /** Traverses from the given roots (default: every .md file) and sizes the union. */
 function sizeAll(
 	spec: FakeVaultSpec,
@@ -211,7 +228,7 @@ describe("NodeSizer reveal floors (a counted region must be a PAINTED region)", 
 	});
 
 	it("WHEN maxPx sits below the preview reveal THEN the explicit maximum still wins over the floor", () => {
-		const sizes = sizeAll(oneHeadingNote, outlineShowingView({ sizing: { minPx: 40, maxPx: 100 } }), ["m.md"]);
+		const sizes = sizeAll(oneHeadingNote, outlineShowingView({ sizing: sizing({ minPx: 40, maxPx: 100 }) }), ["m.md"]);
 		expect(sizeOf(sizes, "a.md")).toBe(100);
 	});
 
@@ -283,7 +300,7 @@ describe("NodeSizer thumbnail sizing (preview-kind driven — preference-indepen
 	});
 
 	it("WHEN maxPx is below the reveal threshold THEN the explicit maximum still wins", () => {
-		const sizes = sizeAll(imageNote, viewWith({ sizing: { minPx: 40, maxPx: 100 } }), ["m.md"]);
+		const sizes = sizeAll(imageNote, viewWith({ sizing: sizing({ minPx: 40, maxPx: 100 }) }), ["m.md"]);
 		expect(sizeOf(sizes, "a.md")).toBe(100);
 	});
 
@@ -339,6 +356,32 @@ describe("NodeSizer thumbnail sizing (preview-kind driven — preference-indepen
 		);
 	});
 
+	it("WHEN minImageHeightPx sits above the thumbnail's natural size THEN the image node is floored at it", () => {
+		// A sparse image note fits ~122px; raising the image floor above that grows it.
+		const sizes = sizeAll(imageNote, viewWith({ sizing: sizing({ minPx: 40, maxPx: 300, minImageHeightPx: 200 }) }), [
+			"m.md",
+		]);
+		expect(sizeOf(sizes, "a.md")).toBe(200);
+	});
+
+	it("WHEN minImageHeightPx exceeds maxPx THEN maxPx still caps the image node (a floor, not a bypass)", () => {
+		const sizes = sizeAll(imageNote, viewWith({ sizing: sizing({ minPx: 40, maxPx: 150, minImageHeightPx: 200 }) }), [
+			"m.md",
+		]);
+		expect(sizeOf(sizes, "a.md")).toBe(150);
+	});
+
+	it("WHEN a NON-image note sits beside the image floor THEN the image floor does not touch it", () => {
+		// The image floor is image-only: a title-only neighbour stays at minPx even
+		// when minImageHeightPx is raised high.
+		const sizes = sizeAll(
+			{ files: [{ path: "m.md" }, { path: "a.md" }, { path: "pic.png" }], links: { "m.md": ["a.md", "pic.png"] } },
+			viewWith({ sizing: sizing({ minPx: 40, maxPx: 300, minImageHeightPx: 200 }) }),
+			["m.md"],
+		);
+		expect(sizeOf(sizes, "a.md")).toBe(DEFAULTS.minPx);
+	});
+
 	it("WHEN the preference resolves the preview to the outline THEN no thumbnail space is reserved", () => {
 		// The note offers BOTH; preference `outline` wins the slot, so the node
 		// sizes to its outline, not to the thumbnail reveal. (The old rule —
@@ -371,7 +414,7 @@ describe("NodeSizer totality under hostile settings", () => {
 	it("WHEN minPx and maxPx are inverted THEN maxPx is raised and every size stays finite", () => {
 		const sizes = sizeAll(
 			{ files: [{ path: "m.md" }, { path: "a.md" }], links: { "m.md": ["a.md"] } },
-			viewWith({ sizing: { minPx: 200, maxPx: 40 } }),
+			viewWith({ sizing: sizing({ minPx: 200, maxPx: 40 }) }),
 			["m.md"],
 		);
 		// clampSizingSettings raises maxPx to minPx: everything sizes to 200.
@@ -381,7 +424,7 @@ describe("NodeSizer totality under hostile settings", () => {
 	it("WHEN a sizing dial is NaN THEN the spec default repairs it (no NaN geometry)", () => {
 		const sizes = sizeAll(
 			{ files: [{ path: "m.md" }] },
-			viewWith({ sizing: { minPx: Number.NaN, maxPx: Number.NaN } }),
+			viewWith({ sizing: sizing({ minPx: Number.NaN, maxPx: Number.NaN, minImageHeightPx: Number.NaN }) }),
 			["m.md"],
 		);
 		expect(Number.isFinite(sizeOf(sizes, "m.md"))).toBe(true);

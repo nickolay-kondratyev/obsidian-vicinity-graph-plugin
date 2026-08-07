@@ -27,6 +27,13 @@ import type { VaultPath, ViewSettings } from "./types";
  */
 export type NodeSizingView = Pick<ViewSettings, "sizing" | "outlineMaxDepth" | "nodePreviewPreference">;
 
+/** The resolved preview decision, carried between {@link NodeSizer}'s two sizing halves. */
+interface ResolvedPreview {
+	readonly kind: NodePreviewKind;
+	/** Entries the outline would render (post depth-filter) — the outline region's height driver. */
+	readonly renderableOutlineEntries: number;
+}
+
 /**
  * Sizes every node to FIT the content it will actually show (node-sizing
  * rethink Q1, decided 2026-08-03 — the metric dials are gone):
@@ -41,6 +48,10 @@ export type NodeSizingView = Pick<ViewSettings, "sizing" | "outlineMaxDepth" | "
  * FLOORED at {@link CENTRAL_PROMINENCE_FLOOR_SCORE} of the `minPx..maxPx` ramp
  * (Q2): an empty central no longer renders at maxPx, and a content-rich one
  * grows past the floor like any other node.
+ *
+ * IMAGE nodes (their preview slot resolves to the thumbnail) are floored at
+ * `sizing.minImageHeightPx` instead of the bare `minPx`, so a picture is legible
+ * even on a sparse note. Still capped by `maxPx` — it is a floor, not a bypass.
  *
  * WHY the region shown is decided HERE and not left to the view: size now
  * legitimately follows displayed content (the old preference-independence rule
@@ -62,15 +73,47 @@ export class NodeSizer {
 		// router cannot survive being handed non-finite, so hostile settings are
 		// clamped here with the SAME single-source table the settings boundary
 		// uses — never with a bespoke guard that could drift from it.
-		const { minPx, maxPx } = clampSizingSettings(rawView.sizing);
+		const { minPx, maxPx, minImageHeightPx } = clampSizingSettings(rawView.sizing);
 		const centralFloorPx = Math.round(minPx + CENTRAL_PROMINENCE_FLOOR_SCORE * (maxPx - minPx));
 		const sizes = new Map<VaultPath, number>();
 		for (const [path, node] of nodes) {
-			const fit = NodeSizer.contentFitPx(node, rawView);
-			const clamped = Math.min(maxPx, Math.max(minPx, fit));
+			const preview = NodeSizer.resolvePreview(node, rawView);
+			const fit = NodeSizer.contentFitPx(node, preview);
+			// An IMAGE node (its preview slot resolves to the thumbnail) is floored at
+			// `minImageHeightPx` so a picture is legible even on an otherwise sparse
+			// note — like every other floor, still bounded above by `maxPx`, so an
+			// explicit `maxPx` below it wins (the node is then small AND the image
+			// shrinks to fit). Text nodes keep the bare `minPx` floor.
+			const floorPx = preview.kind === "thumbnail" ? Math.max(minPx, minImageHeightPx) : minPx;
+			const clamped = Math.min(maxPx, Math.max(floorPx, fit));
 			sizes.set(path, node.isCentral ? Math.max(clamped, centralFloorPx) : clamped);
 		}
 		return sizes;
+	}
+
+	/**
+	 * Which region a node shows and how many outline entries it renders — the ONE
+	 * {@link nodePreviewKind} decision the view mapping renders by, resolved here so
+	 * {@link computeSizes} can both size the region and floor image nodes without
+	 * assembling the same inputs twice.
+	 *
+	 * Decided from the RENDERABLE entry count (post depth-filter), the same
+	 * zero-vs-some fact the view mapping decides with — the view's additional DOM cap
+	 * cannot flip it (a capped non-empty outline stays non-empty).
+	 */
+	private static resolvePreview(
+		node: TraversedNode,
+		view: Pick<NodeSizingView, "outlineMaxDepth" | "nodePreviewPreference">,
+	): ResolvedPreview {
+		const renderableOutlineEntries = node.outline.filter((entry) => entry.level <= view.outlineMaxDepth).length;
+		const kind = nodePreviewKind({
+			preference: view.nodePreviewPreference,
+			outlineEntryCount: renderableOutlineEntries,
+			hasImage: node.firstImagePath !== undefined,
+			imagePrecedesOutline: node.imagePrecedesOutline,
+			isCentral: node.isCentral,
+		});
+		return { kind, renderableOutlineEntries };
 	}
 
 	/**
@@ -79,23 +122,12 @@ export class NodeSizer {
 	 * constants' WHY in `constants.ts`) — the CSS flexes real content into
 	 * whatever box this steers the layout to.
 	 */
-	static contentFitPx(node: TraversedNode, view: Pick<NodeSizingView, "outlineMaxDepth" | "nodePreviewPreference">): number {
-		// Decided from the RENDERABLE entry count (post depth-filter), the same
-		// zero-vs-some fact the view mapping decides with — the view's additional
-		// DOM cap cannot flip it (a capped non-empty outline stays non-empty).
-		const renderableOutlineEntries = node.outline.filter((entry) => entry.level <= view.outlineMaxDepth).length;
-		const preview = nodePreviewKind({
-			preference: view.nodePreviewPreference,
-			outlineEntryCount: renderableOutlineEntries,
-			hasImage: node.firstImagePath !== undefined,
-			imagePrecedesOutline: node.imagePrecedesOutline,
-			isCentral: node.isCentral,
-		});
-		const titleClamp = preview === "thumbnail" ? THUMBNAIL_PREVIEW_TITLE_LINE_CLAMP : NODE_TITLE_LINE_CLAMP;
+	private static contentFitPx(node: TraversedNode, preview: ResolvedPreview): number {
+		const titleClamp = preview.kind === "thumbnail" ? THUMBNAIL_PREVIEW_TITLE_LINE_CLAMP : NODE_TITLE_LINE_CLAMP;
 		const regions: number[] = [NodeSizer.titleLines(node.title, titleClamp) * ESTIMATED_TITLE_LINE_PX];
-		if (preview === "outline") {
-			regions.push(renderableOutlineEntries * ESTIMATED_OUTLINE_ENTRY_PX);
-		} else if (preview === "thumbnail") {
+		if (preview.kind === "outline") {
+			regions.push(preview.renderableOutlineEntries * ESTIMATED_OUTLINE_ENTRY_PX);
+		} else if (preview.kind === "thumbnail") {
 			regions.push(ESTIMATED_THUMBNAIL_SLOT_PX);
 		}
 		const hasAttachments = node.attachments.length > 0;
@@ -104,7 +136,7 @@ export class NodeSizer {
 		}
 		const chromePx = nodeVerticalChromePx(node.isCentral);
 		const fit = chromePx + regions.reduce((sum, px) => sum + px, 0) + (regions.length - 1) * NODE_REGION_GAP_PX;
-		return Math.max(fit, NodeSizer.revealFloorPx(preview, hasAttachments, node.isCentral));
+		return Math.max(fit, NodeSizer.revealFloorPx(preview.kind, hasAttachments, node.isCentral));
 	}
 
 	/**

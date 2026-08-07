@@ -409,10 +409,24 @@ export const CHANNEL_DEPTH_FIELD: Readonly<Record<Channel, keyof ChannelDepths>>
  * node-sizing rethink Q1): a node's default size fits the content it actually
  * shows — title, renderable outline lines, or thumbnail — and these two dials
  * bound that fit. See {@link import("./NodeSizer").NodeSizer}.
+ *
+ * All three numbers are node HEIGHTS in px (a node's WIDTH follows its title —
+ * see `graphIdentity.nodeDimensionsPx`).
  */
 export interface SizingSettings {
+	/** Height (px) a node's content-fit is FLOORED at — the smallest a node can be. */
 	readonly minPx: number;
+	/** Height (px) a node's content-fit is CAPPED at — the largest a node can be. */
 	readonly maxPx: number;
+	/**
+	 * Extra height (px) floor applied ONLY to nodes that render an IMAGE (their
+	 * preview slot resolves to the thumbnail — see `nodePreviewKind`), so a picture
+	 * is given room to read even when the note is otherwise sparse. It only ever
+	 * RAISES such a node (a floor never shrinks), and — like every other floor —
+	 * {@link maxPx} still caps the result, so it is bounded by the same ceiling
+	 * text nodes are. A value at or below a thumbnail's natural size is a no-op.
+	 */
+	readonly minImageHeightPx: number;
 }
 
 /**

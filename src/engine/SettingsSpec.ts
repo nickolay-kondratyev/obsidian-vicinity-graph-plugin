@@ -55,13 +55,15 @@ export interface DepthSpec {
 }
 
 /**
- * The two node-size CLAMPS. The metric-dial leaves (`metrics`, `metricWeight`,
+ * The node-size CLAMPS. The metric-dial leaves (`metrics`, `metricWeight`,
  * `depthDecayK`) were removed with the dials themselves (node-sizing rethink,
- * decided 2026-08-03): default size is content-fit, bounded by this pair.
+ * decided 2026-08-03): default size is content-fit, bounded by `minPx`/`maxPx`,
+ * with `minImageHeightPx` an extra floor for image nodes.
  */
 export interface SizingSpec {
 	readonly minPx: BoundedNumberSpec;
 	readonly maxPx: BoundedNumberSpec;
+	readonly minImageHeightPx: BoundedNumberSpec;
 }
 
 export type ForceLayoutSpec = Readonly<Record<keyof ForceLayoutSettings, BoundedNumberSpec>>;
@@ -231,6 +233,15 @@ export const SETTINGS_SPEC: SettingsSpec = {
 		sizing: {
 			minPx: { default: 40, ...NODE_SIZE_PX_BOUNDS },
 			maxPx: { default: 160, ...NODE_SIZE_PX_BOUNDS },
+			/**
+			 * The extra height floor for IMAGE nodes (thumbnail preview). Shares
+			 * `minPx`/`maxPx`'s bounds — it is the same kind of px height and becomes
+			 * geometry the same way. The default `120` sits just BELOW a thumbnail's
+			 * natural content-fit floor (~122px, the CSS preview reveal rung), so it
+			 * ships as a NO-OP on the default graph: raising it makes image nodes
+			 * taller (capped by `maxPx`), lowering it does nothing a floor would.
+			 */
+			minImageHeightPx: { default: 120, ...NODE_SIZE_PX_BOUNDS },
 		},
 		// -------------------------------------------------------------------
 		// Force-layout defaults + slider ranges (ticket-04). Defaults are the

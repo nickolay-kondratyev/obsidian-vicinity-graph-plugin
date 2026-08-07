@@ -345,9 +345,9 @@ const NAMED_CONTROL_SELECTORS = ["input:not([type=radio])", "select", "textarea"
 const ANY_NAMED_CONTROL = NAMED_CONTROL_SELECTORS.join(", ");
 const ANY_UNNAMED_CONTROL = NAMED_CONTROL_SELECTORS.map((selector) => `${selector}:not([aria-label])`).join(", ");
 /**
- * Floor for the controls the guard covers (today exactly 15: 10 sliders + 3 number
- * inputs + the exclusion textarea + the exclusion-enable toggle — the 5 sizing-metric
- * rows left with the content-fit sizing rework). A floor, not an exact count, so
+ * Floor for the controls the guard covers (today exactly 16: 10 sliders + 4 number
+ * inputs — min/max/min-image node height + the node cap — plus the exclusion textarea
+ * and the exclusion-enable toggle). A floor, not an exact count, so
  * ADDING a row does not break this test — but a section that stopped rendering can
  * no longer let "nothing is unlabeled" pass by matching nothing.
  *

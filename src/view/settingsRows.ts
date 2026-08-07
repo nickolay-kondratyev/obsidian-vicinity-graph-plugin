@@ -382,15 +382,29 @@ export const SETTINGS_GROUPS: Readonly<Record<SettingsSection, SettingsGroup>> =
 	"node-sizing": {
 		heading: "Node sizing",
 		description:
-			"Each node sizes itself to fit what it shows — its title, outline or image — between these two bounds.",
+			"Each node sizes itself to fit what it shows — its title, outline or image. These bounds are node HEIGHTS in pixels; a node's width follows its title.",
 		panelClass: "vicinity-graph-sizing",
 		panelBodyClass: "nowheel",
 		blocks: [
 			{
 				panelClass: "vicinity-graph-sizing__ranges",
 				rows: [
-					{ label: "Minimum node size (px)", control: { kind: "sizing-number", field: "minPx" } },
-					{ label: "Maximum node size (px)", control: { kind: "sizing-number", field: "maxPx" } },
+					{
+						label: "Minimum node height (px)",
+						description: "The shortest any node can be.",
+						control: { kind: "sizing-number", field: "minPx" },
+					},
+					{
+						label: "Maximum node height (px)",
+						description: "The tallest any node can grow to fit its content.",
+						control: { kind: "sizing-number", field: "maxPx" },
+					},
+					{
+						label: "Minimum height of image nodes (px)",
+						description:
+							"An extra height floor applied only to nodes that show an image, so a picture stays legible on an otherwise sparse note. Never exceeds the maximum above; a value below an image's natural size has no effect.",
+						control: { kind: "sizing-number", field: "minImageHeightPx" },
+					},
 				],
 			},
 		],
