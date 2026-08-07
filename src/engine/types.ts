@@ -475,6 +475,21 @@ export interface ViewSettings {
 	 * which nodes are visible is decided before this is read.
 	 */
 	readonly showCrossLinks: boolean;
+	/**
+	 * The ONE master switch for EVERY external-content preview a node can show —
+	 * the leading YouTube hero video today, external images / other providers
+	 * later. It is a PRIVACY gate, not a layout knob: ON (the shipped default, so
+	 * the feature works out of the box) lets the view load content referenced in
+	 * notes from third-party servers (e.g. YouTube/Google — embeds, posters, and
+	 * future thumbnail/favicon fetches); OFF stops ALL such requests, so nothing
+	 * external is ever contacted.
+	 *
+	 * ONE switch, not per-provider (KISS): the disclosure a user consents to is
+	 * "external content is loaded", and that is a single yes/no. The actual
+	 * enforcement seam that reads this lands with a later ticket
+	 * (`nid_tvtm9gj5zaj4tbfbpti3v6sy2_e`); this field is the setting it consults.
+	 */
+	readonly externalPreviews: boolean;
 	readonly sizing: SizingSettings;
 	readonly forceLayout: ForceLayoutSettings;
 }

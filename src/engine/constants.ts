@@ -441,6 +441,7 @@ export class EngineDefaults {
 			outlineMaxDepth: view.outlineMaxDepth.default,
 			nodePreviewPreference: view.nodePreviewPreference.default,
 			showCrossLinks: view.showCrossLinks.default,
+			externalPreviews: view.externalPreviews.default,
 			sizing: EngineDefaults.sizingSettings(),
 			forceLayout: EngineDefaults.forceLayoutSettings(),
 		};

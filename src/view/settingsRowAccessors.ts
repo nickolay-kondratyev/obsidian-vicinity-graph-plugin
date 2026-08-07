@@ -189,6 +189,14 @@ export class SettingsRowAccessors {
 		};
 	}
 
+	/** The master switch for all external-content previews (loads third-party content when ON). */
+	static externalPreviews(): SettingsValueAccessor<boolean> {
+		return {
+			read: (state) => state.globalView.externalPreviews,
+			interaction: (externalPreviews) => ({ kind: "global-external-previews", externalPreviews }),
+		};
+	}
+
 	/** Whether node exclusion applies at all (the pattern list is untouched). */
 	static exclusionEnabled(): SettingsValueAccessor<boolean> {
 		return {

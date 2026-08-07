@@ -187,6 +187,10 @@ function parseViewFields(raw: unknown): Partial<ViewSettings> {
 		// A non-boolean (hand-edited `"true"`, a null) falls through as absent, so the
 		// spec default applies — never a truthiness coercion.
 		showCrossLinks: typeof raw["showCrossLinks"] === "boolean" ? raw["showCrossLinks"] : undefined,
+		// Same rule as showCrossLinks: a non-boolean falls through as absent so the spec
+		// default (ON) applies — added WITHOUT a PERSISTED_SHAPE_VERSION bump (additive
+		// field; an older data.json simply lacks the key and gets the default).
+		externalPreviews: typeof raw["externalPreviews"] === "boolean" ? raw["externalPreviews"] : undefined,
 		sizing: parseSizing(raw["sizing"]),
 		forceLayout: parseForceLayout(raw["forceLayout"]),
 	};
