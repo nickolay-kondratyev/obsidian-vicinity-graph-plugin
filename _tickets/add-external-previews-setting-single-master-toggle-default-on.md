@@ -1,0 +1,31 @@
+---
+id: nid_21xio7iwxv742ze4qc4p4qbmq_e
+title: "Add external-previews setting (single master toggle, default ON)"
+status: open
+deps: []
+links: [nid_mw1az1i1aznfoxqsgcwnfus07_e]
+created_iso: 2026-08-07T15:49:26Z
+status_updated_iso: 2026-08-07T15:49:26Z
+type: feature
+priority: 2
+assignee: nickolaykondratyev
+tags: [external-preview, settings]
+---
+
+Add ONE global boolean setting that gates ALL external content previews in graph nodes (first use: the leading YouTube hero video; later: external images / other providers). KISS: one switch, not per-type.
+
+DEFAULT: ON — the feature should shine out of the box. User can turn it OFF, which stops ALL external requests.
+
+HONEST DISCLOSURE (required, this is the whole point of the toggle): the plugin description AND the setting help text must state plainly that it loads external content referenced in notes and therefore contacts third-party servers (e.g. YouTube/Google), and that turning it OFF stops all such requests. On-by-default is acceptable in Obsidian ONLY if disclosed; do not hide it.
+
+WIRE THROUGH THE ONE SETTINGS PIPELINE (see CLAUDE.md "Settings" sections):
+- Add the spec leaf + literal default in src/engine/settingsProductDefaults.test.ts (the single source of shipped defaults).
+- Declare the row in src/view/settingsRows.ts (SETTINGS_GROUPS).
+- Add the accessor in src/view/settingsRowAccessors.ts.
+- Both presenters (settings tab + in-graph panel) render it via their switch; let the compile errors guide you.
+- Structural tests over SETTINGS_SPEC will FAIL until the leaf is wired (parse/round-trip/reset/bounds).
+
+TESTS: e2e coverage for the toggle (settings tab has no npm-test coverage; per CLAUDE.md run npm run test:e2e for settings rows). Settle the write via e2e/settingsWriteWindow.ts, never a sleep.
+
+Context / decisions: see _tickets/add-procesing-for-external-url-in-the-graph.md (D4 resolution).
+
