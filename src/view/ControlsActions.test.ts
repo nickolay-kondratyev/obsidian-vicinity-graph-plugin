@@ -235,6 +235,26 @@ describe("ControlsActions local pinning", () => {
 		expect(viewsRefresh.refreshedViewIds).toEqual([]);
 	});
 
+	it("WHEN the MAIN changes after the click but before the write slot runs THEN the pin lands under the CLICK-time main", async () => {
+		// The guarded slot queues on the shared serial chain, so it can run well after
+		// the click; the pin must scope to the main the user was LOOKING at, not
+		// whichever note the graph has re-centred on since.
+		const { actions, pluginDataStore, activeMain } = await actionsUnderTest();
+		const pinLanded = actions.localPinNode(TARGET_PATH);
+		activeMain.setMain(null);
+		await pinLanded;
+		expect(pluginDataStore.localPins(MAIN_DOCID).map((pin) => pin.docid)).toEqual([TARGET_DOCID]);
+	});
+
+	it("WHEN the MAIN changes after the click but before the write slot runs THEN the unpin removes from the CLICK-time main", async () => {
+		const { actions, pluginDataStore, activeMain } = await actionsUnderTest();
+		await pluginDataStore.addLocalPin(MAIN_DOCID, TARGET_DOCID, 1);
+		const unpinLanded = actions.localUnpinNode(TARGET_DOCID);
+		activeMain.setMain(null);
+		await unpinLanded;
+		expect(pluginDataStore.localPins(MAIN_DOCID)).toEqual([]);
+	});
+
 	it("WHEN a local pin's persist rejects THEN the user is told once and every view is refreshed anyway", async () => {
 		// Same rule as a failed global pin: the store moved before the disk write, so the
 		// SCREEN is the stale copy — repaint it and let the notice be the news.

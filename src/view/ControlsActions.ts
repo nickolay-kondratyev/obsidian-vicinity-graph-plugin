@@ -116,10 +116,17 @@ export class ControlsActions implements ControlsActionsPort {
 	 * global pin. `localPinDoc` needs a persistable id for BOTH docs; a refusal (either
 	 * doc, or no main to scope under) wrote nothing and left the node exactly as drawn,
 	 * so it reports `store-unchanged` like a refused global pin.
+	 *
+	 * The MAIN is captured at CLICK time, before the guarded slot queues: the slot can
+	 * run behind earlier writes on the shared serial chain, and the pin must scope to
+	 * the main the user was LOOKING at, not whichever note the graph has re-centred on
+	 * since. (The slot's fresh-read rule is about merging GLOBALS, not about which doc
+	 * a gesture named.)
 	 */
 	localPinNode(path: string): Promise<void> {
+		const mainPath = this.activeMain.activeMainPath();
 		return this.settingsWrites.runGuarded(PIN_WRITE_SUBJECT, async () => {
-			const mainFile = this.activeMainFile();
+			const mainFile = this.mainFileAt(mainPath);
 			const targetFile = this.vault.getFileByPath(path);
 			if (mainFile === null || targetFile === null) {
 				return "store-unchanged";
@@ -138,11 +145,12 @@ export class ControlsActions implements ControlsActionsPort {
 	 * always lands (`localUnpinDoc` reads the main's existing id without minting and
 	 * reports no verdict), so it reports `store-changed` whenever a main is active. With
 	 * no main to scope under there is nothing keyed to remove, so it reports
-	 * `store-unchanged`.
+	 * `store-unchanged`. Like {@link localPinNode}, the MAIN is captured at CLICK time.
 	 */
 	localUnpinNode(docid: string): Promise<void> {
+		const mainPath = this.activeMain.activeMainPath();
 		return this.settingsWrites.runGuarded(PIN_WRITE_SUBJECT, async () => {
-			const mainFile = this.activeMainFile();
+			const mainFile = this.mainFileAt(mainPath);
 			if (mainFile === null) {
 				return "store-unchanged";
 			}
@@ -151,9 +159,8 @@ export class ControlsActions implements ControlsActionsPort {
 		});
 	}
 
-	/** The active MAIN as a resolved file, or `null` when no main is set or its path is gone. */
-	private activeMainFile(): VaultFilePort | null {
-		const mainPath = this.activeMain.activeMainPath();
+	/** The click-time MAIN as a resolved file, or `null` when no main was set or its path is gone. */
+	private mainFileAt(mainPath: string | null): VaultFilePort | null {
 		return mainPath === null ? null : this.vault.getFileByPath(mainPath);
 	}
 
