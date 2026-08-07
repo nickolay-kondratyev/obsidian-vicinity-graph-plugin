@@ -1,17 +1,17 @@
 ---
 id: nid_21xio7iwxv742ze4qc4p4qbmq_e
-title: "Add external-previews setting (single master toggle, default ON)"
-status: open
+title: Add external-previews setting (single master toggle, default ON)
+status: in_progress
 deps: []
 links: [nid_mw1az1i1aznfoxqsgcwnfus07_e, nid_tvtm9gj5zaj4tbfbpti3v6sy2_e, nid_15r71ajjkbel5s704kmj6wszw_e]
-created_iso: 2026-08-07T15:49:26Z
-status_updated_iso: 2026-08-07T15:49:26Z
+created_iso: '2026-08-07T15:49:26Z'
+status_updated_iso: '2026-08-07T17:07:49Z'
 type: feature
 priority: 2
 assignee: nickolaykondratyev
 tags: [external-preview, settings]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin
 ---
-
 Add ONE global boolean setting that gates ALL external content previews in graph nodes (first use: the leading YouTube hero video; later: external images / other providers). KISS: one switch, not per-type.
 
 DEFAULT: ON — the feature should shine out of the box. User can turn it OFF, which stops ALL external requests.
