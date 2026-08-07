@@ -1,7 +1,7 @@
 ---
 id: nid_14potmihi2tc0x421abf0awz6_e
 title: "Embed nodes special render processing"
-status: open
+status: punted
 deps: []
 links: []
 created_iso: 2026-08-07T01:30:04Z
@@ -62,3 +62,6 @@ No other node is allowed to nest central node.
 #### Pinned nodes can only be nested into central node or other pinned node.
 Pinned nodes can be nested into central node OR pinned node.
 Pinned nodes cannot be nested into a regular node. 
+
+--------------------------------------------------------------------------------
+punted: Also see `origin/embed-try` branch that did not work out.
