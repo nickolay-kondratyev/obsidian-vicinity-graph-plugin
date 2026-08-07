@@ -1,12 +1,13 @@
 ---
+closed_iso: 2026-08-06T23:15:28Z
 id: nid_8vekpgg97n5x7ckxbwswr5uar_e
 title: 'e2e flake recurs: nodeResize ''short but WIDE'' render-poll times out in the
   FULL floor-suite run (post-b610e39)'
-status: in_progress
+status: closed
 deps: []
-links: [nid_g1f5tjmxzr0hbfdeujvgwywsd_e, nid_a5jbonflbm3110gsy6puf18ds_e]
+links: [nid_g1f5tjmxzr0hbfdeujvgwywsd_e, nid_a5jbonflbm3110gsy6puf18ds_e, nid_1s77g4wx33uj8b380d1oph1d6_e]
 created_iso: '2026-08-06T22:36:50Z'
-status_updated_iso: '2026-08-06T23:03:57Z'
+status_updated_iso: 2026-08-06T23:15:28Z
 type: bug
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
@@ -35,3 +36,15 @@ WHAT TO DO: the b610e39 `isResizeGestureChange` filter reduced but did not elimi
 ## Acceptance Criteria
 
 The full e2e suite (both pinned and floor builds via ./release.sh) is green across repeated runs; the nodeResize render-poll flake no longer recurs, OR renderTargetAsNeighbourBox is hardened so the repaint stall cannot leave the previous test's box on screen for the poll window.
+
+## Notes
+
+**2026-08-06T23:15:28Z**
+
+RESOLVED 2026-08-06 — hardened renderTargetAsNeighbourBox (e2e/nodeResize.e2e.ts).
+
+Root-cause analysis: b610e39's isResizeGestureChange filter closed the LOCAL-state clobber channel, but a residual live-view repaint stall survives under full-suite load (the store holds the new box; the live view keeps the previous test's box; a refreshOpenViews retry does NOT re-converge — only a REMOUNT does, proven 8/8 in nid_c78k90su87jrzigxvfjv5t95g_e). Static reading could not fully pin controller-lost-publish vs view-reseed-race without a live full-suite repro; that root-cause investigation is filed as nid_1s77g4wx33uj8b380d1oph1d6_e (linked).
+
+Fix per the acceptance criteria's second arm: renderTargetAsNeighbourBox now tries the in-place refreshOpenViews() fan-out FIRST (happy path — still exercises the production fan-out), and if the rendered box has not converged within IN_PLACE_REPAINT_BUDGET_MS (3s) it REMOUNTS to recover deterministically. Bounded convergence action, NOT a widened poll timeout; the happy path still fails fast on a genuinely broken fan-out. New helper renderedBoxConvergesTo() resolves false on timeout instead of throwing so the caller can choose the recovery.
+
+Verification: check:e2e green; nodeResize.e2e.ts isolated (pinned) 16 passed; FULL floor suite (1.12.4) green twice consecutively — 158 passed / 158 passed (.tmp/floor-full-1.log, .tmp/floor-full-2.log). The remount recovery guarantees the stall can no longer leave the previous test's box on screen for the poll window.
