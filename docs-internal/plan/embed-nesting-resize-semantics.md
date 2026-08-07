@@ -80,9 +80,10 @@ Concretely, split today's single function and add a derivation:
   - surplus first to own content: `ownBox = clamp(outerBox − childrenNatural, ownMin, …)`.
   - `childrenScale = clamp((outerBox − ownBox) / childrenNatural, minScale, 1)` — `< 1`
     only when the box can't hold the natural stack (#3); recovers to `1` as room
-    returns; **capped at 1** so surplus beyond natural goes to the image (#1, "primarily
-    to direct content"), not to ballooning children. (If the owner later wants children
-    to grow past natural, lift that cap — one constant.)
+    returns. **NOTE (2026-08-07): the `≤ 1` cap here is SUPERSEDED by §9** — the owner
+    now wants children to grow *past* natural once the container's own content hits a
+    cap. The split becomes a water-filling allocation (§9); this simple formula remains
+    the down-direction (#3) special case. §9 is IN DISCUSSION — finalize before coding.
 - Layout (elk): the compound container node's total = `outerBox`; the children region
   is laid out at `childrenScale`; `NoteNode` styles its own-content region to `ownBox`.
 
@@ -228,3 +229,49 @@ P1 (embedOrder) → P2 (nesting forest) → P3 (render nested + compound elk)
   `nodeResize`); ship them as **ordered sub-tickets** (B `deps` A) rather than in
   parallel, so the second rebases on the first instead of merge-conflicting. Split into
   two tickets when V1 is close to landing (premature now — nothing can start).
+
+---
+
+## 9. Children may grow — the water-filling model (owner 2026-08-07, IN DISCUSSION)
+
+The owner refined the vision: children should be able to grow **past their natural size**
+(at least in width), not just shrink. The mechanism generalizes §3's split into an
+allocation with per-region appetites.
+
+**Model.** A container's `outerBox` is an area to hand out among competing regions — the
+container's **own content** and each **nested child**. Each region has:
+- a **floor** = its natural (content-fit / own-override) size;
+- a **ceiling `max`** = its saturation point — where more space stops helping.
+
+Fill by **priority**, water-filling style:
+1. Every region gets its floor first.
+2. **Own content** takes surplus next, but only up to a **cap** (a new setting — its
+   `max`). This is what bounds #1 ("primarily to direct content") so the image can't eat
+   *all* the room.
+3. Overflow past the cap goes to **children**, which may now exceed their natural size.
+   A **title-only** child (and a fully-shown outline) is **saturated** — `max = natural`,
+   takes nothing. An **image** child has a large `max` and keeps consuming. "Most use
+   scales up first."
+4. Deficit (box below the floors) → the §3 `childrenScale < 1` shrink (#3), unchanged.
+
+So the own-content **cap** is simply own-content's `max`; §3's retired "`≤ 1`" cap
+becomes "each child's ceiling is its appetite, not its natural size." Everything else
+(derive-not-persist, container box wins, no schema change) is untouched — this only
+enriches the *derive* step; the persisted fact is still the container's outer box.
+
+**Open (in `.ai_out/_current_decision/current_decision.md`, Q4–Q6):**
+- **Q4 — the cap:** global setting vs per-container; every level vs outermost only; px vs
+  a multiple of natural. *(Recommend: global, every level, px.)* A global px cap becomes
+  a new `SETTINGS_SPEC` leaf → the full settings pipeline (row, accessor, presenters,
+  tripwire) applies; a per-container value would instead be a new `NodeOverride` field
+  (schema change — the only thing here that would reintroduce one).
+- **Q5 — appetite signal:** is it the node's content KIND (image = large `max` both axes;
+  title-only/outline = saturated), and is width always growable vs gated on kind?
+  *(Recommend: content-kind for both axes.)*
+- **Q6 — v1 ambition:** proportional spread across unsaturated children in v1, true
+  "most-use-first" greedy ordering later? *(Recommend: proportional first.)*
+
+**Sequencing.** This children-grow allocator is the natural **Phase C** — Phase A (#1+#2)
+and Phase B (#3 shrink) don't need it; ship them first, then layer the appetite/cap model
+(and its cap setting) on top. Phase C is the only phase that MIGHT add persistence, and
+only if Q4 chooses a per-container cap.
