@@ -1,15 +1,16 @@
 /**
- * ExternalContentUrls — THE one seam through which every external-content host URL is
- * constructed (ticket `nid_tvtm9gj5zaj4tbfbpti3v6sy2_e`).
+ * ExternalContentUrls — the single builder for network-bearing external-content URLs
+ * (a YouTube poster image, an embed iframe src), each gated on the master
+ * external-previews setting.
  *
- * WHY a single seam: the master external-previews setting
+ * WHY gate here: the master external-previews setting
  * ({@link ExternalPreviewsGate.externalPreviews}) promises that OFF means the plugin
- * contacts NO third-party server. A promise kept per-feature erodes the first time a new
- * thumbnail/favicon/oEmbed caller forgets it. So instead every external URL is issued from
- * HERE, gated on the setting, and a source-scan tripwire
- * (`externalContentSeam.test.ts`) fails the build if any module outside this seam names an
- * external host literal, `fetch(`, or `requestUrl(`. That is what turns "OFF means zero
- * network" from a convention into an invariant that holds as the feature grows.
+ * contacts NO third-party server. The primary enforcement is at the RENDER boundary — the
+ * view only emits a poster `<img>` / embed `<iframe>` when the setting is ON — and this
+ * builder is defense in depth: every network URL it issues is `null` when the setting is
+ * OFF, so a caller can never hand a live src to the DOM behind the gate's back. It is NOT a
+ * fortress enforced by a source scan; a canonical watch link (a plain string a user clicks,
+ * no automatic network) is deliberately built elsewhere, next to the videoId it belongs to.
  *
  * PURE and leaf: no `obsidian` / `react` imports, and it does NOT depend on the engine's
  * `ViewSettings` — it declares its own narrow {@link ExternalPreviewsGate} so the
@@ -18,8 +19,8 @@
  *
  * URL construction only. Actual network I/O (`requestUrl`/`fetch`) is a FUTURE resident:
  * when a thumbnail/favicon fetch arrives it lands as one adapter class wrapping
- * `requestUrl` behind an engine-defined port (DIP, like `LinkProvider`), added to the
- * tripwire's sanctioned list — never sprinkled across callers.
+ * `requestUrl` behind an engine-defined port (DIP, like `LinkProvider`), gated on the same
+ * setting — never sprinkled across callers.
  */
 
 /**
@@ -32,9 +33,8 @@ export interface ExternalPreviewsGate {
 }
 
 /**
- * The external hosts this seam owns. Declared as data so the tripwire can assert these
- * literals appear in NO other module — importing the constant is fine, re-typing the
- * literal is the leak it catches.
+ * The external hosts this builder owns. Declared as data (imported, never re-typed) so the
+ * network-bearing host literals live in ONE place.
  */
 export const EXTERNAL_CONTENT_HOSTS = {
 	/** YouTube's thumbnail/poster CDN. */
