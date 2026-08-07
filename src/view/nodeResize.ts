@@ -1,4 +1,4 @@
-import type { NodeChange } from "@xyflow/react";
+import type { NodeChange, NodeDimensionChange } from "@xyflow/react";
 import type { NodeSizeOverridePx } from "../engine";
 import { NODE_OVERRIDE_HARD_MAX_PX, NODE_OVERRIDE_HARD_MIN_PX } from "../engine";
 
@@ -98,22 +98,25 @@ export function startedOnResizeGrip(event: { readonly target: EventTarget | null
  *
  *  - a `NodeResizer` drag — carries a `resizing` flag (`true` mid-drag, `false`
  *    on release). This is the ONE change this graph asked for, and the only one
- *    whose new box must survive in local state until the commit rebuild
- *    republishes it (see `VicinityGraphFlow`'s reseed and the `GuardedWriteOutcome`
- *    "screen-ahead" note in CLAUDE.md).
+ *    whose live box must ride the view's narrow resize overlay until the
+ *    commit-on-release rebuild republishes it (see `VicinityGraphFlow`'s
+ *    `applyResizeOverlay` and the `GuardedWriteOutcome` "screen-ahead" note in
+ *    CLAUDE.md).
  *  - React Flow's own ResizeObserver RE-MEASURING a node it already rendered — a
  *    plain `{type:'dimensions', dimensions}` with NO `resizing` flag.
  *
- * Folding the SECOND kind into local state is the bug behind ticket
- * nid_c78k90su87jrzigxvfjv5t95g_e: right after a publish reseeds local state with
- * a node's NEW box, a ResizeObserver callback that measured the node's PRE-reseed
- * DOM feeds the OLD box straight back in. Local state then agrees with the (still
- * stale) DOM, so nothing re-converges it — the pane stays stale against the store
- * until some unrelated event rebuilds it, and a whole refreshOpenViews() fan-out
- * (every settings / pin / size-override write) is silently swallowed. A gesture
- * carries `resizing`; a re-measurement never does, so that flag's PRESENCE is the
- * source discriminator.
+ * Feeding the SECOND kind into node state is the bug behind ticket
+ * nid_c78k90su87jrzigxvfjv5t95g_e, and its residual nid_1s77g4wx33uj8b380d1oph1d6_e:
+ * a ResizeObserver callback that measured a node's PRE-repaint DOM feeds the OLD box
+ * straight back in, and while the view still kept a standing local `nodes` mirror
+ * that reverted box stranded BELOW the published snapshot with no way to re-converge
+ * — a whole refreshOpenViews() fan-out (every settings / pin / size-override write)
+ * silently swallowed until some unrelated event rebuilt the pane. The view now
+ * derives its nodes straight from the snapshot and holds only the gesture overlay, so
+ * ignoring re-measurements here is what keeps a stale box from ever re-entering. A
+ * gesture carries `resizing`; a re-measurement never does, so that flag's PRESENCE is
+ * the source discriminator.
  */
-export function isResizeGestureChange(change: NodeChange): boolean {
+export function isResizeGestureChange(change: NodeChange): change is NodeDimensionChange {
 	return change.type === "dimensions" && change.resizing !== undefined;
 }
