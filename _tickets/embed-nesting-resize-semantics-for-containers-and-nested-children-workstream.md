@@ -5,7 +5,7 @@ status: open
 deps: [nid_qy5rc7sq261z23bp79bk8wsem_e]
 links: [nid_e79vxubva52s9gq24idypb77x_e, nid_1ht2a3rm0ng8wnlis259u5egg_e]
 created_iso: '2026-08-07T02:12:49Z'
-status_updated_iso: '2026-08-07T02:40:52Z'
+status_updated_iso: '2026-08-07T03:08:44Z'
 type: feature
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
@@ -29,15 +29,16 @@ Plan produced and approved; then containers and nested children are resizable pe
 
 ## PLAN PASS — recorded 2026-08-07 (status: OPEN, not implemented)
 
-**Plan produced; NOT yet approved; implementation BLOCKED on V1.** The V1 embed-nesting
+**Plan produced and APPROVED (owner decisions Q1–Q6 recorded below); implementation
+BLOCKED on V1.** The V1 embed-nesting
 feature (P1–P4: nid_r3qiyd7xx3bund6f73wf5h0vd_e, nid_1moqnutin09drbiyxkd3l7r5k_e,
 nid_qy5rc7sq261z23bp79bk8wsem_e, nid_jbsbfqqxyy1brm26ul7873v5h_e) is all still **open** —
 containers/nesting don't exist in `src/` yet, so there is nothing to attach resize
 semantics to. Added `deps: [nid_qy5rc7sq261z23bp79bk8wsem_e]` (V1 rendering) accordingly.
 
-**Deliverables of this pass:**
-- Design & phased plan: `docs-internal/plan/embed-nesting-resize-semantics.md`.
-- Human decisions surfaced: `.ai_out/_current_decision/current_decision.md` (Q1–Q3).
+**Deliverable of this pass:** design & phased plan —
+`docs-internal/plan/embed-nesting-resize-semantics.md` (self-contained; all owner
+decisions folded in there and summarized below).
 
 **Design in one line:** a `sizePx` override is a node's OUTER rendered box (for a leaf =
 its content; for a container = the whole box incl. the nested stack). Inside a container
@@ -55,15 +56,24 @@ V1's elk auto-grow; #3 (container downsize scales the nested stack) is a derived
   persisted fact is the container's outer box; `childrenScale = f(outerBox, childrenNatural)`
   is recomputed every rebuild. Never lost, and **no new `NodeOverride` field / no schema
   or `version` bump.** (Rejected: rewriting child overrides — POLS violation.)
-- **Q3 (sequencing): stagger** — this workstream `deps: [P3]`; Phase A (#1+#2) then Phase
-  B (#3) as ordered sub-tickets (B deps A) since both edit the same three view modules.
+- **Q3 (sequencing): stagger** — this workstream `deps: [P3]`; ordered sub-tickets Phase
+  A (#1+#2) → B (#3) → C (children grow), each deps the last (same view modules).
+
+**Round 2 — children may GROW past natural (owner, design doc §9):**
+- **Q4 (own-content cap): GLOBAL px setting, every nesting level.** One new SETTINGS_SPEC
+  leaf through the one settings pipeline — NOT a per-node field, so still schema-clean.
+- **Q5 (appetite): content KIND, both axes.** Image/representative-image grows (W and H)
+  up to the cap; title-only and fully-shown outline are saturated (max = natural). ("at
+  least width-wise" dropped — width is not special.)
+- **Q6 (distribution): EVEN across ALL unsaturated descendants** of the subtree (one flat
+  pool, not per-level, not proportional, not priority-ordered). Greedy ordering later.
 
 **Answers to this ticket's original OPEN QUESTIONS:** override meaning nested vs
 standalone = the same outer box either way (drops V1's "ignore overrides while nested");
-override vs auto-grow minimum = one outer box floored at ownMin, `childrenScale` absorbs
-the rest; child-scaling on downsize = derived/visual, not persisted (Q2). Full detail:
-`docs-internal/plan/embed-nesting-resize-semantics.md` §3–§4.
+override vs auto-grow minimum = one outer box floored at ownMin; child-scaling on downsize
+= derived, not persisted (Q2). Full detail in the design doc §3–§4, §9.
 
-**NEXT (blocking on V1):** once P1–P4 ship, implement Phase A then Phase B (both
-no-schema-change) per the design doc §6. Split into ordered Phase-A/Phase-B tickets when
-V1 is close. Do NOT close until implemented + tested per the acceptance criteria.
+**NEXT (blocking on V1):** once P1–P4 ship, implement Phase A → B → C per the design doc
+§6/§9. None add a per-node persisted field; Phase C adds one global settings dial (the
+cap). Split into ordered A/B/C tickets when V1 is close. Do NOT close until implemented +
+tested per the acceptance criteria.

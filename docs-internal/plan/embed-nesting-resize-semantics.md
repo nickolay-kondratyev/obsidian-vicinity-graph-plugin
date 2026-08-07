@@ -5,11 +5,12 @@ decision **Q8** (`nid_e79vxubva52s9gq24idypb77x_e`). Consumes the V1 nesting fea
 (P1–P4: `nid_r3qiyd7xx3bund6f73wf5h0vd_e`, `nid_1moqnutin09drbiyxkd3l7r5k_e`,
 `nid_qy5rc7sq261z23bp79bk8wsem_e`, `nid_jbsbfqqxyy1brm26ul7873v5h_e`).
 
-> **STATUS: PLAN — not implemented; decisions RESOLVED 2026-08-07.** V1 embed-nesting
-> (P1–P4) is still open; this workstream is blocked on it. The two data-model questions
-> are now decided (owner, §4.1): container downsize scales children via a **derived**
-> (not persisted) fit factor — **no new persisted field, no schema/version bump**. Once
-> V1 ships, implement Phase A then Phase B.
+> **STATUS: PLAN — not implemented; all decisions RESOLVED 2026-08-07.** V1 embed-nesting
+> (P1–P4) is still open; this workstream is blocked on it. Design is settled: the internal
+> split is **derived, not persisted** (§4.1), children may grow past natural via a
+> **water-filling** allocation with a **global px cap** on own content (§9). Net effect:
+> **no new persisted field, no schema/version bump** — the only new persisted-ish thing is
+> one global settings dial (the cap). Once V1 ships, implement Phase A → B → C.
 
 ---
 
@@ -82,8 +83,8 @@ Concretely, split today's single function and add a derivation:
     only when the box can't hold the natural stack (#3); recovers to `1` as room
     returns. **NOTE (2026-08-07): the `≤ 1` cap here is SUPERSEDED by §9** — the owner
     now wants children to grow *past* natural once the container's own content hits a
-    cap. The split becomes a water-filling allocation (§9); this simple formula remains
-    the down-direction (#3) special case. §9 is IN DISCUSSION — finalize before coding.
+    cap. The split becomes a water-filling allocation (§9, DECIDED); this simple formula
+    remains the down-direction (#3) special case.
 - Layout (elk): the compound container node's total = `outerBox`; the children region
   is laid out at `childrenScale`; `NoteNode` styles its own-content region to `ownBox`.
 
@@ -197,19 +198,32 @@ collide (see §8).
 3. e2e: shrink a container past its stack → nested nodes scale down and **hold across a
    repaint** (fan-out / relayout).
 
+**Phase C — children grow past natural (§9 water-filling + global cap).**
+1. New global px cap setting: a `SETTINGS_SPEC` leaf through the ONE pipeline (row,
+   accessor, tab + panel presenters, spec tripwire) — the spec-coverage suite forces it
+   to be wired.
+2. Failing tests for the allocator (pure, in `graphIdentity`/a sibling): own content
+   grows only to the cap; overflow past the cap splits **evenly across all unsaturated
+   descendants**; a title-only / fully-shown-outline descendant is saturated and takes
+   nothing; an image descendant grows on both axes; the whole thing is derived (survives a
+   repaint) and still stores nothing per node.
+3. e2e: give the outermost container lots of room → its image grows to the cap, then the
+   nested image nodes grow evenly while title-only nodes stay put.
+
 ---
 
 ## 7. Testing posture
 
 BDD, one behavior per test, colocated. Pure geometry (`nodeOwnContentDimensionsPx`,
-`deriveContainerLayout`, the commit mappings, the `childrenScale ≤ 1` cap) is
+`deriveContainerLayout`, the commit mappings, the §9 water-filling allocation) is
 fixture-tested in the view-pure modules (`graphIdentity`, `elkMapping`, `nodeResize`) —
 keep correctness in the tested core, `NoteNode` thin. jsdom component tests for the
 container/child resize handles rendering. `npm run test:e2e` before calling any rendered
-change done. **No new persisted shape**, so the `settingsProductDefaults` / persistence
-tripwires are untouched — the one persistence assertion worth adding is that a container
-`sizePx` override round-trips unchanged (it already does; the container just interprets
-it as an outer box).
+change done. **No new persisted per-node shape**, so the persistence tripwires are
+untouched — assert only that a container `sizePx` override round-trips unchanged (it
+already does; the container just interprets it as an outer box). The Phase C **global cap**
+is the one addition to `SETTINGS_SPEC`, so it rides the existing `settingsProductDefaults`
+/ spec-coverage tripwires like every other dial.
 
 ---
 
@@ -221,57 +235,65 @@ Dependency chain, to keep view-layer edits from colliding:
 P1 (embedOrder) → P2 (nesting forest) → P3 (render nested + compound elk)
                                               → THIS workstream, Phase A (#1+#2)
                                                     → Phase B (#3 downsize)
+                                                          → Phase C (children grow, §9)
 ```
 
 - This workstream now carries `deps: [P3]` (`nid_qy5rc7sq261z23bp79bk8wsem_e`) — it
   cannot start until containers render.
-- Phase A and Phase B touch the same three view modules (`graphIdentity`, `elkMapping`,
-  `nodeResize`); ship them as **ordered sub-tickets** (B `deps` A) rather than in
-  parallel, so the second rebases on the first instead of merge-conflicting. Split into
-  two tickets when V1 is close to landing (premature now — nothing can start).
+- Phases A, B, C touch the same view modules (`graphIdentity`, `elkMapping`, `nodeResize`,
+  and for C the settings pipeline); ship them as **ordered sub-tickets** (C `deps` B `deps`
+  A) rather than in parallel, so each rebases on the last instead of merge-conflicting.
+  Split into ordered tickets when V1 is close to landing (premature now — nothing can start).
 
 ---
 
-## 9. Children may grow — the water-filling model (owner 2026-08-07, IN DISCUSSION)
+## 9. Children may grow — the water-filling model (owner 2026-08-07, DECIDED)
 
-The owner refined the vision: children should be able to grow **past their natural size**
-(at least in width), not just shrink. The mechanism generalizes §3's split into an
-allocation with per-region appetites.
+The owner refined the vision: nested nodes should be able to grow **past their natural
+size**, not just shrink. The mechanism generalizes §3's split into an allocation with
+per-region appetites, plus one global cap.
 
 **Model.** A container's `outerBox` is an area to hand out among competing regions — the
-container's **own content** and each **nested child**. Each region has:
+container's **own content** and the nodes in its subtree. Each region has:
 - a **floor** = its natural (content-fit / own-override) size;
 - a **ceiling `max`** = its saturation point — where more space stops helping.
 
-Fill by **priority**, water-filling style:
+Allocation:
 1. Every region gets its floor first.
-2. **Own content** takes surplus next, but only up to a **cap** (a new setting — its
-   `max`). This is what bounds #1 ("primarily to direct content") so the image can't eat
-   *all* the room.
-3. Overflow past the cap goes to **children**, which may now exceed their natural size.
-   A **title-only** child (and a fully-shown outline) is **saturated** — `max = natural`,
-   takes nothing. An **image** child has a large `max` and keeps consuming. "Most use
-   scales up first."
+2. **Own content** of the (outermost) container takes surplus next, up to the **cap**
+   (§9.1 Q4 — a global px setting). This bounds #1 ("primarily to direct content") so the
+   image can't eat *all* the room.
+3. **Overflow past the cap is spread EVENLY across ALL descendants in the subtree**
+   (Q5/Q6) — not per level, one flat pool over the whole tree. Only **unsaturated**
+   descendants take a share; each descendant's own content is itself bounded by the same
+   global cap (a descendant at cap drops out, its share redistributes — v1 may skip the
+   redistribute and just even-split the unsaturated set; see Q6).
 4. Deficit (box below the floors) → the §3 `childrenScale < 1` shrink (#3), unchanged.
 
-So the own-content **cap** is simply own-content's `max`; §3's retired "`≤ 1`" cap
-becomes "each child's ceiling is its appetite, not its natural size." Everything else
-(derive-not-persist, container box wins, no schema change) is untouched — this only
-enriches the *derive* step; the persisted fact is still the container's outer box.
+So the own-content **cap** is own-content's `max`; §3's retired "`≤ 1`" cap becomes "a
+node's ceiling is its appetite, not its natural size." Everything else (derive-not-persist,
+container box wins, **no schema change**) is untouched — this only enriches the *derive*
+step; the persisted fact is still the container's outer box.
 
-**Open (in `.ai_out/_current_decision/current_decision.md`, Q4–Q6):**
-- **Q4 — the cap:** global setting vs per-container; every level vs outermost only; px vs
-  a multiple of natural. *(Recommend: global, every level, px.)* A global px cap becomes
-  a new `SETTINGS_SPEC` leaf → the full settings pipeline (row, accessor, presenters,
-  tripwire) applies; a per-container value would instead be a new `NodeOverride` field
-  (schema change — the only thing here that would reintroduce one).
-- **Q5 — appetite signal:** is it the node's content KIND (image = large `max` both axes;
-  title-only/outline = saturated), and is width always growable vs gated on kind?
-  *(Recommend: content-kind for both axes.)*
-- **Q6 — v1 ambition:** proportional spread across unsaturated children in v1, true
-  "most-use-first" greedy ordering later? *(Recommend: proportional first.)*
+### 9.1 Decisions (owner, 2026-08-07)
+
+- **Q4 — the own-content cap: GLOBAL px setting, every level.** One new `SETTINGS_SPEC`
+  leaf (a `BoundedNumberSpec`, px), capping every container's own content the same way at
+  every nesting level. Flows through the ONE settings pipeline (row → accessor → tab +
+  panel presenters → spec tripwire) like every other dial. **No `NodeOverride` field**, so
+  the whole workstream stays schema-clean.
+- **Q5 — appetite signal: content KIND, BOTH axes.** ("at least width-wise" is dropped —
+  width is *not* special.) **image / representative-image** → large `max`, keeps growing
+  (both width and height) until the cap. **title-only**, and **outline once fully shown**
+  → **saturated**, `max = natural`, takes no surplus. The node's content kind (the same
+  `NodePreviewPreference` / representative-image signal the renderer already resolves) is
+  the appetite.
+- **Q6 — distribution: EVEN across all unsaturated descendants.** The surplus beyond the
+  outermost's own-content cap is divided **equally among all unsaturated descendant nodes
+  of the whole subtree** (not proportional-by-size, not per-level, not priority-ordered).
+  True "most-use-first" greedy ordering and cap-driven redistribution are later refinements.
 
 **Sequencing.** This children-grow allocator is the natural **Phase C** — Phase A (#1+#2)
-and Phase B (#3 shrink) don't need it; ship them first, then layer the appetite/cap model
-(and its cap setting) on top. Phase C is the only phase that MIGHT add persistence, and
-only if Q4 chooses a per-container cap.
+and Phase B (#3 shrink) don't need it; ship them first, then layer the appetite model +
+the global cap setting on top. With Q4 = global setting, **Phase C adds no persistence
+either** — only a new global settings dial.
