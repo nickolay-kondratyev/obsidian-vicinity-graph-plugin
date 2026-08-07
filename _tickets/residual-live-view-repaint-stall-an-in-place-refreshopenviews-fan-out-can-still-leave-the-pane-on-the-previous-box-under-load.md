@@ -1,17 +1,18 @@
 ---
 id: nid_1s77g4wx33uj8b380d1oph1d6_e
-title: "Residual live-view repaint stall: an in-place refreshOpenViews fan-out can still leave the pane on the previous box under load"
-status: open
+title: 'Residual live-view repaint stall: an in-place refreshOpenViews fan-out can
+  still leave the pane on the previous box under load'
+status: in_progress
 deps: []
 links: [nid_8vekpgg97n5x7ckxbwswr5uar_e]
-created_iso: 2026-08-06T23:15:09Z
-status_updated_iso: 2026-08-06T23:15:09Z
+created_iso: '2026-08-06T23:15:09Z'
+status_updated_iso: '2026-08-07T19:16:37Z'
 type: bug
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
 tags: [view]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 ---
-
 Follow-up from ticket nid_8vekpgg97n5x7ckxbwswr5uar_e (e2e nodeResize 'short but WIDE' render-poll flake) and the closed nid_c78k90su87jrzigxvfjv5t95g_e.
 
 b610e39 filtered `onNodesChange` to fold in only resize-GESTURE dimension changes (`isResizeGestureChange` in src/view/nodeResize.ts), closing the channel where React Flow's ResizeObserver re-measurement clobbered the view's LOCAL `nodes` state. That killed the common case but a RESIDUAL stall survives: under FULL e2e-suite load the live graph view can still keep the PREVIOUS state's box on screen while data.json already holds the new one — a lost REPAINT, and one a `refreshOpenViews()` retry does NOT re-converge (only a view REMOUNT does; proven 8/8 in nid_c78k90su87jrzigxvfjv5t95g_e).
