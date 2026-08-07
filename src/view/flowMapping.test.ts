@@ -64,6 +64,48 @@ describe("vicinityGraphToFlow nodes", () => {
 	});
 });
 
+describe("vicinityGraphToFlow leading-video hero", () => {
+	const VIDEO_ID = "dQw4w9WgXcQ";
+	const leadingVideo = { videoId: VIDEO_ID, canonicalUrl: `https://www.youtube.com/watch?v=${VIDEO_ID}` };
+
+	/** A graph of ONE node carrying a leading video, with external previews toggled. */
+	function videoGraph(externalPreviews: boolean) {
+		const base = makeGraph();
+		return makeGraph({
+			nodes: [makeNode({ path: asVaultPath("v.md"), isMain: true, isCentral: true, leadingVideo, sizePx: 160 })],
+			viewSettings: { ...base.viewSettings, externalPreviews },
+		});
+	}
+
+	function videoData(externalPreviews: boolean) {
+		return noteNode(toFlow(videoGraph(externalPreviews)).nodes, "v.md")?.data;
+	}
+
+	it("WHEN external previews are ON and a note leads with a video THEN the video wins the preview slot", () => {
+		expect(videoData(true)?.preview).toBe("video");
+	});
+
+	it("WHEN the video wins THEN the gated poster URL is built from the videoId", () => {
+		expect(videoData(true)?.videoHero?.posterUrl).toBe(`https://i.ytimg.com/vi/${VIDEO_ID}/hqdefault.jpg`);
+	});
+
+	it("WHEN the video wins THEN the gated no-cookie embed URL is built from the videoId", () => {
+		expect(videoData(true)?.videoHero?.embedUrl).toBe(`https://www.youtube-nocookie.com/embed/${VIDEO_ID}`);
+	});
+
+	it("WHEN external previews are OFF THEN the video is not the hero (falls through to the ordinary ladder)", () => {
+		expect(videoData(false)?.preview).not.toBe("video");
+	});
+
+	it("WHEN external previews are OFF THEN no network-bearing hero URLs are emitted (the OFF-means-zero-network guarantee)", () => {
+		expect(videoData(false)?.videoHero).toBeUndefined();
+	});
+
+	it("WHEN external previews are OFF THEN the leading video identity is still REPORTED (never deleted)", () => {
+		expect(videoData(false)?.leadingVideo).toEqual(leadingVideo);
+	});
+});
+
 describe("vicinityGraphToFlow per-node size override (drag-to-resize)", () => {
 	const overridden = makeGraph({
 		nodes: [

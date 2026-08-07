@@ -6,6 +6,7 @@ import {
 	ATTACHMENT_ROW_VISIBLE_MIN_NODE_PX,
 	CENTRAL_NODE_VERTICAL_CHROME_PX,
 	ESTIMATED_THUMBNAIL_SLOT_PX,
+	ESTIMATED_VIDEO_HERO_SLOT_PX,
 	NODE_VERTICAL_CHROME_PX,
 	PREVIEW_VISIBLE_MIN_NODE_PX,
 	THUMBNAIL_PREVIEW_TITLE_LINE_CLAMP,
@@ -36,6 +37,7 @@ const STYLESHEET = join(dirname(fileURLToPath(import.meta.url)), "graph-view.css
 // column 0, since every rule inside the block is indented.
 const CONTAINER_QUERY = /@container \(min-height:\s*(\d+)px\)\s*\{\n([\s\S]*?)\n\}/g;
 const REVEALS_THUMBNAIL = /\.vicinity-graph-node__thumbnail\s*\{[^}]*display:\s*block/;
+const REVEALS_VIDEO = /\.vicinity-graph-node__video\s*\{[^}]*display:\s*block/;
 const REVEALS_OUTLINE = /\.vicinity-graph-outline\s*\{[^}]*display:\s*block/;
 const REVEALS_ATTACHMENTS = /\.vicinity-graph-node__attachments\s*\{[^}]*display:\s*flex/;
 // The node root's OWN rule block (not `:hover`, not the `[data-tier]` variants).
@@ -53,6 +55,9 @@ const OBSIDIAN_SPACING_STEP_PX = 4;
 // The title budget the preview reveal threshold is sized against (see graph-view.css).
 const THUMBNAIL_PREVIEW_TITLE_CLAMP =
 	/\.vicinity-graph-node\[data-preview="thumbnail"\] \.vicinity-graph-node__title \{[^}]*-webkit-line-clamp:\s*(\d+)/;
+// The video hero is the OTHER media preview and shares the same two-line title budget.
+const VIDEO_PREVIEW_TITLE_CLAMP =
+	/\.vicinity-graph-node\[data-preview="video"\] \.vicinity-graph-node__title \{[^}]*-webkit-line-clamp:\s*(\d+)/;
 // The centrals' own border: BOTH tiers carry the accent ring, and the engine
 // models ONE central chrome, so a tier that drifted to a different width would
 // leave one of them unmodelled.
@@ -91,6 +96,9 @@ const RESIZE_BAND = /--vicinity-graph-resize-band-px:\s*(\d+)px;/;
 // Anchored to a line start: it is the rule's FIRST declaration, so there is no
 // preceding newline inside the captured body.
 const THUMBNAIL_SLOT_HEIGHT = /(?:^|\n)\t--vicinity-graph-thumbnail-height:\s*(\d+)px/;
+// The leading-video hero's fixed 16:9 slot height, declared as a custom property
+// on the node root next to the thumbnail's — guarded the same way.
+const VIDEO_SLOT_HEIGHT = /\n\t--vicinity-graph-video-height:\s*(\d+)px/;
 
 function stylesheet(): string {
 	return readFileSync(STYLESHEET, "utf8");
@@ -314,6 +322,22 @@ describe("node density thresholds", () => {
 	it("WHEN the thumbnail slot declares its fixed height THEN the engine's estimate of that region matches", () => {
 		const slot = THUMBNAIL_SLOT_HEIGHT.exec(nodeRootDeclarations())?.[1];
 		expect(Number(slot)).toBe(ESTIMATED_THUMBNAIL_SLOT_PX);
+	});
+
+	it("WHEN the leading-video hero shares the preview slot THEN it shares its reveal threshold too", () => {
+		// Same rule as the outline: the engine floors the video preview at the ONE
+		// preview threshold, so a split would size a node for a video the CSS hides.
+		expect(soleRevealMinHeightPx(REVEALS_VIDEO)).toBe(soleRevealMinHeightPx(REVEALS_THUMBNAIL));
+	});
+
+	it("WHEN the video slot declares its fixed 16:9 height THEN the engine's estimate of that region matches", () => {
+		const slot = VIDEO_SLOT_HEIGHT.exec(nodeRootDeclarations())?.[1];
+		expect(Number(slot)).toBe(ESTIMATED_VIDEO_HERO_SLOT_PX);
+	});
+
+	it("WHEN the stylesheet reveals the video hero THEN it caps the title at the same two lines the engine budgets for a media preview", () => {
+		const clamp = VIDEO_PREVIEW_TITLE_CLAMP.exec(revealBlocks(REVEALS_VIDEO)[0]?.body ?? "")?.[1];
+		expect(Number(clamp)).toBe(THUMBNAIL_PREVIEW_TITLE_LINE_CLAMP);
 	});
 
 	// The corner chip is NOT part of the ladder's reveal set (ticket

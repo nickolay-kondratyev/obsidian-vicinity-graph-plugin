@@ -1,12 +1,12 @@
 import { Handle, NodeResizeControl, Position, ResizeControlVariant } from "@xyflow/react";
 import type { Node, NodeProps, OnResizeEnd } from "@xyflow/react";
-import { memo, useCallback, useEffect, useMemo, useRef } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent, ReactElement } from "react";
 import { attachmentGroupLabel, attachmentIconId } from "./attachmentIcons";
 import type { AttachmentIconGroup } from "./attachmentIconStrip";
 import { extraImageCountText } from "./badgeText";
 import { useControlsActions } from "./ControlsActionsContext";
-import type { FlowNodeData } from "./flowMapping";
+import type { FlowNodeData, YoutubeVideoHeroUrls } from "./flowMapping";
 import { useGraphUi } from "./GraphUiContext";
 import { NodeOutline } from "./NodeOutline";
 import { currentNodeContentChoice, planNodeContentMenu } from "./nodePreviewChoice";
@@ -179,6 +179,13 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
 					<div className="vicinity-graph-node__title" title={data.title}>
 						{data.title}
 					</div>
+					{/* The leading-video hero takes the thumbnail's slot (owner decision
+					    option A): same place, below the title. Rendered on `videoHero`'s
+					    presence — the mapping only builds it when the video WON the slot
+					    AND external previews are ON, so this branch is inherently gated. */}
+					{data.preview === "video" && data.videoHero !== undefined && (
+						<VideoHero urls={data.videoHero} />
+					)}
 					{data.preview === "thumbnail" && thumbnailUrl !== null && (
 						<div className="vicinity-graph-node__thumbnail">
 							{/* alt="" — decorative; the adjacent title already names the note. */}
@@ -207,6 +214,81 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
 		</>
 	);
 });
+
+/** Lucide id of the facade's play affordance — the conventional media-play glyph. */
+const PLAY_ICON_ID = "play";
+/**
+ * Query appended to the no-cookie embed on play so the click that swapped in the
+ * iframe also STARTS the video — otherwise the viewer lands on YouTube's own
+ * poster and must click a second time (a "click-to-play" that does not play is a
+ * POLS break). Appended in the VIEW, not the seam: the seam owns the network HOST
+ * (its whole point), while "autoplay once the user asked" is a render decision.
+ */
+const EMBED_AUTOPLAY_QUERY = "?autoplay=1";
+
+/**
+ * The leading-video hero as a click-to-play FACADE (human decision 2026-08-07):
+ * a plain lazy poster `<img>` (cookieless static CDN, no player JS) with a play
+ * affordance; only on click does it swap in the real no-cookie iframe. WHY a
+ * facade and not a live iframe: fit-view mounts every visible node at once (up to
+ * the 100-node cap), so N live YouTube players would boot together — the facade
+ * keeps the render cost at today's lazy-thumbnail level, with at most one or two
+ * real players ever alive.
+ *
+ * Both the play button and the mounted iframe carry `nodrag nopan` (React Flow
+ * escape hatches) and the button `stopPropagation`s, so playing never doubles as
+ * a node drag / canvas pan / note-open — the same precedent the pin, gear and
+ * attachment chips follow.
+ */
+function VideoHero({ urls }: { readonly urls: YoutubeVideoHeroUrls }): ReactElement {
+	const ui = useGraphUi();
+	const [playing, setPlaying] = useState(false);
+	const iconRef = useRef<HTMLSpanElement>(null);
+	useEffect(() => {
+		if (!playing && iconRef.current !== null) {
+			ui.renderIcon(iconRef.current, PLAY_ICON_ID);
+		}
+	}, [ui, playing]);
+	const onPlay = useCallback((event: ReactMouseEvent<HTMLButtonElement>): void => {
+		// The play button must not double as a node click (which would open the note).
+		event.stopPropagation();
+		setPlaying(true);
+	}, []);
+	if (playing) {
+		return (
+			<div className="vicinity-graph-node__video nodrag nopan">
+				<iframe
+					className="vicinity-graph-node__video-frame"
+					src={`${urls.embedUrl}${EMBED_AUTOPLAY_QUERY}`}
+					title="YouTube video player"
+					allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+					allowFullScreen
+				/>
+			</div>
+		);
+	}
+	return (
+		<div className="vicinity-graph-node__video">
+			{/* alt="" — decorative; the adjacent title already names the note. */}
+			<img
+				className="vicinity-graph-node__video-poster"
+				src={urls.posterUrl}
+				alt=""
+				loading="lazy"
+				draggable={false}
+			/>
+			<button
+				type="button"
+				className="vicinity-graph-node__video-play nodrag nopan"
+				aria-label="Play video"
+				title="Play video"
+				onClick={onPlay}
+			>
+				<span ref={iconRef} className="vicinity-graph-node__video-play-glyph" aria-hidden="true" />
+			</button>
+		</div>
+	);
+}
 
 /**
  * Hover-reveal pin/unpin button (top-RIGHT of the node, sitting just LEFT of the

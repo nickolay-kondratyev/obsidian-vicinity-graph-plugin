@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-08-07T19:11:21Z
 id: nid_15r71ajjkbel5s704kmj6wszw_e
 title: Render leading YouTube hero video inside the graph node
-status: in_progress
+status: closed
 deps: [nid_ur7veu8yqx8x6q8j6vz2z2ioa_e, nid_21xio7iwxv742ze4qc4p4qbmq_e, nid_tvtm9gj5zaj4tbfbpti3v6sy2_e]
 links: [nid_mw1az1i1aznfoxqsgcwnfus07_e, nid_tvtm9gj5zaj4tbfbpti3v6sy2_e, nid_21xio7iwxv742ze4qc4p4qbmq_e]
 created_iso: '2026-08-07T15:49:50Z'
-status_updated_iso: '2026-08-07T19:01:21Z'
+status_updated_iso: 2026-08-07T19:11:21Z
 type: feature
 priority: 2
 assignee: nickolaykondratyev
@@ -87,3 +88,45 @@ nid_tvtm9gj5zaj4tbfbpti3v6sy2_e). The build-time source scan and this OFF-path e
 COMPLEMENTARY layers, not a replacement: the scan proves no module reaches a network host
 (covering unrendered files); the e2e proves the rendered DOM stays clean when OFF. Both
 stand. Everything else in this ticket is unchanged.
+
+**2026-08-07T19:11:18Z**
+
+RESOLUTION (2026-08-07) — DONE. Leading YouTube hero renders inside the note node as a
+click-to-play FACADE, gated on the master external-previews setting.
+
+WHAT SHIPPED
+- src/view/flowMapping.ts: new FlowNodeData.videoHero {posterUrl, embedUrl}, built ONLY
+  when preview === "video" (which already folds in the external-previews gate) via the
+  gated seam ExternalContentUrls.youTubePosterUrl / youTubeEmbedUrl (ViewSettings satisfies
+  the gate structurally). Both-or-neither: emitted only if the seam issues BOTH URLs.
+  leadingVideo identity is still REPORTED regardless (never deleted).
+- src/view/NoteNode.tsx: new <VideoHero> subcomponent rendered inside
+  .vicinity-graph-node__content (option A — takes the thumbnail's slot, below the title).
+  Facade = lazy cookieless poster <img> (i.ytimg.com/vi/<id>/hqdefault.jpg) + centred play
+  button; on click swaps to the www.youtube-nocookie.com/embed/<id> iframe (+?autoplay=1).
+  Play button + iframe carry nodrag/nopan; the button stopPropagation()s so play never
+  drags/pans/opens the node (pin/gear/chip precedent). Uses ui.renderIcon("play").
+- src/view/graph-view.css: .vicinity-graph-node__video slot (fixed 16:9 via
+  --vicinity-graph-video-height: 113px = engine ESTIMATED_VIDEO_HERO_SLOT_PX), poster
+  object-fit:cover (hqdefault is 4:3 letterboxed), play-button chrome, revealed at the SAME
+  104px rung as the thumbnail, and the 2-line title clamp for data-preview="video".
+
+OFF PATH (GOAL-1, unchanged requirement): with previews OFF, preview is never "video"
+(hero SELECTION in engine/nodePreviewKind.ts, already shipped by the data-model dep), so
+NO videoHero is built, NO poster <img>, NO iframe — the node falls back to its ordinary
+thumbnail/outline hero. Complements (does not replace) the source-scan tripwire.
+
+TESTS (all green)
+- src/view/flowMapping.test.ts: ON => preview "video" + id-derived poster/embed URLs;
+  OFF => preview not "video", videoHero undefined, leadingVideo still reported.
+- src/view/nodeDensityThresholds.test.ts: guards --vicinity-graph-video-height ==
+  ESTIMATED_VIDEO_HERO_SLOT_PX, the shared reveal threshold, and the video title clamp
+  (mirrors the thumbnail guards, per the constants.ts promise).
+- e2e/youtubeHeroVideo.e2e.ts (real Obsidian, 4 tests): ON => data-preview="video" +
+  i.ytimg.com poster present, click => youtube-nocookie iframe present; OFF => no poster,
+  no iframe, no .__video, fallback hero; back-ON => facade returns.
+- npm run check (tsc strict) OK; npm test 1802 pass; npm run test:e2e -- youtubeHeroVideo.e2e.ts 4 pass.
+
+NOTE vs original ticket text: hero placement is option A (thumbnail slot, below title) per
+the 2026-08-07T17:04 human decision, NOT a new region above the title; NODE_TYPES in
+VicinityGraphFlow.tsx needed no change (single "note" node type; the branch is inside NoteNode).

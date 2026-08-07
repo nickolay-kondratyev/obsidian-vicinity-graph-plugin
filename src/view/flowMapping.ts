@@ -12,6 +12,7 @@ import type {
 } from "../engine";
 import { nodePreviewKind } from "../engine";
 import { resolveNodePreviewPreference } from "./nodePreviewChoice";
+import { ExternalContentUrls } from "../shared/ExternalContentUrls";
 import { VaultPathFacts } from "../shared/VaultPathFacts";
 import { OUTLINE_RENDER_LIMIT } from "./constants";
 import type { AttachmentIconGroup } from "./attachmentIconStrip";
@@ -39,6 +40,21 @@ export interface XY {
  * from flag pairs.
  */
 export type NodeTier = "main" | "pinned-central" | "regular";
+
+/**
+ * The two network-bearing URLs a leading-video hero facade renders — both built
+ * through the gated {@link ExternalContentUrls} seam, so this shape only EVER
+ * exists when external previews are ON (the seam returns `null` otherwise, and
+ * the mapping then omits the whole hero). Carried pre-built so `NoteNode` names
+ * no host and touches no gate: it renders the poster, and swaps to the embed on
+ * a play click.
+ */
+export interface YoutubeVideoHeroUrls {
+	/** Static, cookieless poster CDN image (`i.ytimg.com/vi/<id>/hqdefault.jpg`). */
+	readonly posterUrl: string;
+	/** Privacy-enhanced (no-cookie) player embed — the click-to-play target. */
+	readonly embedUrl: string;
+}
 
 /**
  * Note-node payload the rich renderer needs (step-05).
@@ -91,6 +107,16 @@ export type FlowNodeData = {
 	 * the mapping reports, it never deletes data (same rule as {@link outline}).
 	 */
 	readonly leadingVideo?: YoutubeVideoIdentity;
+	/**
+	 * The pre-built, gated poster + embed URLs for the leading-video hero — present
+	 * ONLY when this node actually renders the video (`preview === "video"`, which
+	 * already implies external previews are ON) AND the seam issued both URLs. Absent
+	 * whenever the video is not the hero (previews OFF, a title-only preference, or no
+	 * leading video), so `NoteNode` renders the facade on exactly this field's
+	 * presence and never re-derives the OFF gate. Distinct from {@link leadingVideo},
+	 * which is REPORTED regardless: this is the RENDER-ready, network-bearing pair.
+	 */
+	readonly videoHero?: YoutubeVideoHeroUrls;
 	/**
 	 * The doc's stored per-node CONTENT override, or absent for "Inherit" — the
 	 * fact the hover gear's Content menu checks the current choice against.
@@ -395,6 +421,28 @@ function toFlowNodeData(node: GraphNode, mainPinned: boolean, view: ViewSettings
 	const outline = node.outline
 		.filter((entry) => entry.level <= view.outlineMaxDepth)
 		.slice(0, OUTLINE_RENDER_LIMIT);
+	// Decided from the RENDERABLE entry count, never the engine's raw outline:
+	// a note whose every heading is deeper than the cap must not claim the
+	// outline slot and render an empty box. The per-node CONTENT override wins
+	// over the global preference here (resolveNodePreviewPreference) — applied
+	// in the VIEW so a flip stays a data-only refresh (the sizer reads the
+	// global preference only, so sizePx does not move).
+	const preview = nodePreviewKind({
+		preference: resolveNodePreviewPreference(view.nodePreviewPreference, node.override?.content),
+		outlineEntryCount: outline.length,
+		hasImage: node.firstImagePath !== undefined,
+		imagePrecedesOutline: node.imagePrecedesOutline,
+		isCentral: node.isCentral,
+		hasLeadingVideo: node.leadingVideo !== undefined,
+		externalPreviews: view.externalPreviews,
+	});
+	// The gated hero URLs only when the video actually WINS the slot: `preview`
+	// already folded in the external-previews gate, so building them here (through
+	// the same gate again in the seam) keeps them absent on every OFF/non-video
+	// path — the renderer's OFF fallback is then simply "no `videoHero`".
+	const videoHero = preview === "video" && node.leadingVideo !== undefined
+		? youtubeVideoHeroUrls(node.leadingVideo, view)
+		: undefined;
 	return {
 		path: node.path,
 		title: node.title,
@@ -405,22 +453,9 @@ function toFlowNodeData(node: GraphNode, mainPinned: boolean, view: ViewSettings
 		hasSizeOverride: nodeSizeOverridePx(node) !== undefined,
 		folder: node.folder,
 		outline,
-		// Decided from the RENDERABLE entry count, never the engine's raw outline:
-		// a note whose every heading is deeper than the cap must not claim the
-		// outline slot and render an empty box. The per-node CONTENT override wins
-		// over the global preference here (resolveNodePreviewPreference) — applied
-		// in the VIEW so a flip stays a data-only refresh (the sizer reads the
-		// global preference only, so sizePx does not move).
-		preview: nodePreviewKind({
-			preference: resolveNodePreviewPreference(view.nodePreviewPreference, node.override?.content),
-			outlineEntryCount: outline.length,
-			hasImage: node.firstImagePath !== undefined,
-			imagePrecedesOutline: node.imagePrecedesOutline,
-			isCentral: node.isCentral,
-			hasLeadingVideo: node.leadingVideo !== undefined,
-			externalPreviews: view.externalPreviews,
-		}),
+		preview,
 		...(node.leadingVideo === undefined ? {} : { leadingVideo: node.leadingVideo }),
+		...(videoHero === undefined ? {} : { videoHero }),
 		...(node.override?.content === undefined ? {} : { contentOverride: node.override.content }),
 		...(node.firstImagePath === undefined ? {} : { firstImagePath: node.firstImagePath }),
 		imageCount: node.attachments.filter((attachment) => attachment.isImage).length,
@@ -433,6 +468,22 @@ function tierOf(node: GraphNode): NodeTier {
 		return "main";
 	}
 	return node.isCentral ? "pinned-central" : "regular";
+}
+
+/**
+ * The gated poster + embed pair for a leading-video hero, or `undefined` when the
+ * seam refuses EITHER URL (previews OFF, or an ill-formed id). `ViewSettings`
+ * satisfies {@link ExternalContentUrls}' narrow gate structurally, so it is passed
+ * straight in. Both-or-neither: a facade with a poster but no play target (or vice
+ * versa) is never emitted.
+ */
+function youtubeVideoHeroUrls(video: YoutubeVideoIdentity, view: ViewSettings): YoutubeVideoHeroUrls | undefined {
+	const posterUrl = ExternalContentUrls.youTubePosterUrl(video.videoId, view);
+	const embedUrl = ExternalContentUrls.youTubeEmbedUrl(video.videoId, view);
+	if (posterUrl === null || embedUrl === null) {
+		return undefined;
+	}
+	return { posterUrl, embedUrl };
 }
 
 /**
