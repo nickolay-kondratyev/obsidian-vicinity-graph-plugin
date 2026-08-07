@@ -1,6 +1,6 @@
 ---
 id: nid_jbsbfqqxyy1brm26ul7873v5h_e
-title: "Embed nesting P4: settings toggle + e2e coverage"
+title: "Embed nesting P4: e2e coverage + docs (nesting always on)"
 status: open
 deps: [nid_qy5rc7sq261z23bp79bk8wsem_e]
 links: [nid_e79vxubva52s9gq24idypb77x_e, nid_r3qiyd7xx3bund6f73wf5h0vd_e, nid_1moqnutin09drbiyxkd3l7r5k_e, nid_qy5rc7sq261z23bp79bk8wsem_e]
@@ -14,14 +14,15 @@ tags: [embed-nesting]
 
 Part 4 (final) of the embed-nesting feature (decisions: ticket nid_e79vxubva52s9gq24idypb77x_e). Builds on rendering from ticket nid_qy5rc7sq261z23bp79bk8wsem_e.
 
+DECISION Q9 (resolved 2026-08-07, ticket nid_e79vxubva52s9gq24idypb77x_e): NO settings toggle — embed nesting is ALWAYS ON. There are no users yet, and a toggle would double the testing surface; add one only if a real feature request arrives. Do NOT add a spec leaf, row, or accessor for this.
+
 SCOPE:
-1. Global toggle "Nest embedded notes" (default ON, decision Q9), following the repo settings conventions EXACTLY: spec leaf in src/engine/SettingsSpec.ts; literal default recorded ONLY in src/engine/settingsProductDefaults.test.ts; declared row in src/view/settingsRows.ts SETTINGS_GROUPS (both presenters — settings tab switch arm and src/view/SettingsRowView.tsx — via the existing toggle control kind if one exists, else close the new kind in both switches); accessor in src/view/settingsRowAccessors.ts; writes go through the ONE settings pipeline (src/view/settingsWritePipeline.ts) with a SettingsInteraction naming this ONE field. Coverage guards (settingsRowSpecCoverage.test.ts, settingsRowParity.test.ts, spec iteration suites) must pass without allowlist entries. Toggle OFF restores today's flat rendering (nesting module simply not applied in flowMapping).
-2. e2e specs (e2e/, Playwright vs real Obsidian, run via npm run test:e2e): dev-vault fixture notes exercising: nested rendering in embed order; edge from an outside note attaches to the outermost container and its link preview lists the true pair; central (active) note wins containment; pinned-vs-regular precedence; toggle OFF flattens. If a spec types into a settings field, settle via e2e/settingsWriteWindow.ts — never sleep.
-3. Update docs: docs-internal/plan/high-level-plan.md gains an embed-nesting section (rules + decisions summary); docs-internal/architecture-map.md mentions src/view/embedNesting.ts; README.md user-facing description of the toggle.
+1. e2e specs (e2e/, Playwright vs real Obsidian, run via npm run test:e2e): dev-vault fixture notes exercising: nested rendering in embed order; edge from an outside note attaches to the outermost container and its link preview lists the true pair (FlowEdge.notePairs); central (active, isMain) note wins containment; pinned-vs-regular precedence; embed cycle renders as a plain edge (decision Q3 demands explicit coverage — unit test lives in P2, this is the real-Obsidian proof); no edges rendered inside a nesting tree (decision Q5).
+2. Update docs: docs-internal/plan/high-level-plan.md gains an embed-nesting section (rules + resolved decisions Q1-Q9 summary, including the always-on decision and the future follow-ups: direct-sibling edges, cap priority for nested notes, resize workstream ticket nid_1av3d7fx1072oyp5lxyhjd451_e); docs-internal/architecture-map.md mentions src/view/embedNesting.ts; README.md describes the nesting behavior (as behavior, not a setting); docs-internal/vocab.md nesting terms stay in sync (ticket nid_1ht2a3rm0ng8wnlis259u5egg_e owns creating that file).
 
 npm run test:all green.
 
 ## Acceptance Criteria
 
-Toggle declared once and rendered by both presenters with guards green; e2e proves nesting order, edge collapse + preview truth, precedence, and toggle-off; docs updated; npm run test:all green.
+e2e proves nesting order, edge collapse + preview truth, precedence, cycle fallback, and no intra-tree edges; docs updated (no toggle anywhere); npm run test:all green.
 
