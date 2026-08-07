@@ -1,0 +1,20 @@
+---
+id: nid_0bvt1rkun36xtcmo5df9btm92_e
+title: "Embed nesting resize Phase C: children grow past natural (water-filling + global own-content cap)"
+status: open
+deps: [nid_wi1x92hhm65wemtcrqzbc33aw_e]
+links: [nid_1av3d7fx1072oyp5lxyhjd451_e, nid_rju51kn8sndg0v4dvxvwzdkap_e, nid_wi1x92hhm65wemtcrqzbc33aw_e]
+created_iso: 2026-08-07T03:19:07Z
+status_updated_iso: 2026-08-07T03:19:07Z
+type: feature
+priority: 3
+assignee: CC_WITH-nickolaykondratyev
+tags: [embed-nesting]
+---
+
+Phase C of the embed-nesting resize workstream (parent nid_1av3d7fx1072oyp5lxyhjd451_e). Design: docs-internal/plan/embed-nesting-resize-semantics.md (§9 water-filling model + §9.1 owner decisions). Depends on Phase B.\n\nREQUIREMENTS:\n- Nested nodes may grow PAST their natural size (previously capped at scale 1 in Phase A/B).\n- NEW GLOBAL setting: a "container own-content cap" in px, applied at EVERY nesting level (Q4). It is ONE new SETTINGS_SPEC leaf (a BoundedNumberSpec) wired through the single settings pipeline per CLAUDE.md — row (src/view/settingsRows.ts), accessor (src/view/settingsRowAccessors.ts), BOTH presenters (tab + in-graph panel), and it must satisfy the spec-coverage + productDefaults tripwires. It is NOT a per-node override field, so the workstream stays schema-clean.\n- Allocation (water-filling): each container\x27s own content grows only up to the cap; the OVERFLOW beyond the cap is distributed EVENLY across ALL UNSATURATED descendants of the whole subtree — one flat pool, NOT per-level, NOT proportional-by-size, NOT priority-ordered (Q6; greedy "most-use-first" + cap-driven redistribution are explicit later refinements).\n- Appetite by CONTENT KIND, BOTH axes (Q5): image / representative-image nodes have a large max and grow in width AND height up to the cap; title-only nodes and fully-shown outlines are SATURATED (max = natural) and take no surplus. Reuse the existing content-kind / representative-image signal the renderer already resolves.\n- Still DERIVED — no per-node persistence; only the global cap dial is persisted.\n\nKEY APPROACH:\n- Implement the water-filling allocation in the pure view module (src/view/graphIdentity.ts or a sibling); src/view/elkMapping.ts consumes the per-node allocated sizes; src/view/NoteNode.tsx renders them.\n- Add the cap setting following the settings conventions in CLAUDE.md (propose a sensible default px in src/engine/settingsProductDefaults.test.ts, the one place defaults live).\n\nTESTS: BDD unit for the allocation (own grows to cap; overflow splits evenly across unsaturated descendants; saturated nodes get nothing; image nodes grow both axes; derived / repaint-stable). Settings tripwires cover the new leaf. npm run test:e2e — a big container grows its image to the cap, then nested image nodes grow evenly while title-only nodes stay put.
+
+## Acceptance Criteria
+
+New GLOBAL px own-content cap setting is wired through the one settings pipeline and covered by the spec tripwires; a container\x27s own content grows only to the cap, then the overflow spreads EVENLY across all UNSATURATED descendants (image nodes grow both axes; title-only / fully-shown outline take nothing); allocation is derived (no per-node persistence); gates green (npm run test:all).
+

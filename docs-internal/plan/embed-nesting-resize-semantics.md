@@ -241,9 +241,11 @@ P1 (embedOrder) → P2 (nesting forest) → P3 (render nested + compound elk)
 - This workstream now carries `deps: [P3]` (`nid_qy5rc7sq261z23bp79bk8wsem_e`) — it
   cannot start until containers render.
 - Phases A, B, C touch the same view modules (`graphIdentity`, `elkMapping`, `nodeResize`,
-  and for C the settings pipeline); ship them as **ordered sub-tickets** (C `deps` B `deps`
-  A) rather than in parallel, so each rebases on the last instead of merge-conflicting.
-  Split into ordered tickets when V1 is close to landing (premature now — nothing can start).
+  and for C the settings pipeline); they are **ordered sub-tickets** (C `deps` B `deps` A
+  `deps` P3) so each rebases on the last instead of merge-conflicting. Created 2026-08-07:
+  - **Phase A** `nid_rju51kn8sndg0v4dvxvwzdkap_e` (#1+#2)
+  - **Phase B** `nid_wi1x92hhm65wemtcrqzbc33aw_e` (#3 downsize)
+  - **Phase C** `nid_0bvt1rkun36xtcmo5df9btm92_e` (children grow + cap, §9)
 
 ---
 

@@ -3,7 +3,7 @@ id: nid_1av3d7fx1072oyp5lxyhjd451_e
 title: 'Embed nesting: resize semantics for containers and nested children (workstream)'
 status: open
 deps: [nid_qy5rc7sq261z23bp79bk8wsem_e]
-links: [nid_e79vxubva52s9gq24idypb77x_e, nid_1ht2a3rm0ng8wnlis259u5egg_e]
+links: [nid_e79vxubva52s9gq24idypb77x_e, nid_1ht2a3rm0ng8wnlis259u5egg_e, nid_rju51kn8sndg0v4dvxvwzdkap_e, nid_wi1x92hhm65wemtcrqzbc33aw_e, nid_0bvt1rkun36xtcmo5df9btm92_e]
 created_iso: '2026-08-07T02:12:49Z'
 status_updated_iso: '2026-08-07T03:08:44Z'
 type: feature
@@ -73,7 +73,15 @@ standalone = the same outer box either way (drops V1's "ignore overrides while n
 override vs auto-grow minimum = one outer box floored at ownMin; child-scaling on downsize
 = derived, not persisted (Q2). Full detail in the design doc §3–§4, §9.
 
-**NEXT (blocking on V1):** once P1–P4 ship, implement Phase A → B → C per the design doc
-§6/§9. None add a per-node persisted field; Phase C adds one global settings dial (the
-cap). Split into ordered A/B/C tickets when V1 is close. Do NOT close until implemented +
-tested per the acceptance criteria.
+**DECOMPOSED into executable tickets (2026-08-07)** — this ticket is now the UMBRELLA;
+implementation lives in three ordered, self-contained phase tickets (each references the
+design doc and captures its own requirements + key approach):
+- **Phase A** `nid_rju51kn8sndg0v4dvxvwzdkap_e` — container + child drag-resize (#1 grow own
+  content, #2 auto-upsize chain). `deps: [P3]`.
+- **Phase B** `nid_wi1x92hhm65wemtcrqzbc33aw_e` — container downsize scales the nested stack
+  (#3, derived not persisted). `deps: [A]`.
+- **Phase C** `nid_0bvt1rkun36xtcmo5df9btm92_e` — children grow past natural (water-filling
+  + global own-content cap setting). `deps: [B]`.
+
+None add a per-node persisted field; only Phase C adds one global settings dial (the cap).
+**Close this umbrella when A + B + C are all done.** All still blocked on V1 (P1–P4).
