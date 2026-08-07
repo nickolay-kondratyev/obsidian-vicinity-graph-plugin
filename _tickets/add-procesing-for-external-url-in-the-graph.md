@@ -4,7 +4,7 @@ id: nid_mw1az1i1aznfoxqsgcwnfus07_e
 title: Add procesing for external URL in the graph
 status: closed
 deps: []
-links: [nid_21xio7iwxv742ze4qc4p4qbmq_e, nid_k7i845kkf64tb75bs854a29m9_e, nid_ur7veu8yqx8x6q8j6vz2z2ioa_e, nid_15r71ajjkbel5s704kmj6wszw_e]
+links: [nid_21xio7iwxv742ze4qc4p4qbmq_e, nid_k7i845kkf64tb75bs854a29m9_e, nid_ur7veu8yqx8x6q8j6vz2z2ioa_e, nid_15r71ajjkbel5s704kmj6wszw_e, nid_ty5dmswuu1uw4uh8l6i8cdc0s_e, nid_tvtm9gj5zaj4tbfbpti3v6sy2_e]
 created_iso: '2026-08-04T16:55:26Z'
 status_updated_iso: 2026-08-07T16:47:58Z
 type: task

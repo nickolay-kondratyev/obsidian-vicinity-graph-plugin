@@ -2,8 +2,8 @@
 id: nid_15r71ajjkbel5s704kmj6wszw_e
 title: "Render leading YouTube hero video inside the graph node"
 status: open
-deps: [nid_ur7veu8yqx8x6q8j6vz2z2ioa_e, nid_21xio7iwxv742ze4qc4p4qbmq_e]
-links: [nid_mw1az1i1aznfoxqsgcwnfus07_e]
+deps: [nid_ur7veu8yqx8x6q8j6vz2z2ioa_e, nid_21xio7iwxv742ze4qc4p4qbmq_e, nid_tvtm9gj5zaj4tbfbpti3v6sy2_e]
+links: [nid_mw1az1i1aznfoxqsgcwnfus07_e, nid_tvtm9gj5zaj4tbfbpti3v6sy2_e, nid_21xio7iwxv742ze4qc4p4qbmq_e]
 created_iso: 2026-08-07T15:49:50Z
 status_updated_iso: 2026-08-07T15:49:50Z
 type: feature
@@ -66,3 +66,7 @@ TICKET REVIEW (2026-08-07) — implementation gotchas verified against the view 
 1. LAYOUT: today's thumbnail renders BELOW the title inside .vicinity-graph-node__content (src/view/NoteNode.tsx:179-190). The hero "at the TOP of the node, ahead of the title" is therefore a NEW region above the title (likely a sibling of the content zone, like the outline is — see the sibling-not-child comment at NoteNode.tsx:193), not a reuse of the thumbnail slot position. Plan the CSS accordingly; prefer CSS over JS.
 2. INTERACTION: the play affordance and the live iframe sit inside a draggable/selectable React Flow node. They need the nodrag/nopan escape-hatch classes and a stopPropagation click handler so play does not also select/drag the node or trigger node-open — copy the existing precedent (src/view/NodeOutline.tsx:43, src/view/NoteNode.tsx:65, src/view/GraphToolbar.tsx:30 comment).
 3. SIZING: the fixed 16:9 hero height must be known to the engine NodeSizer via the new preview kind (see review note on nid_ur7veu8yqx8x6q8j6vz2z2ioa_e) — do not size the hero with a view-local constant.
+
+**2026-08-07T17:04:35Z**
+
+DECISION (human, 2026-08-07) — hero placement RESOLVED (option A, exclusive): when the video WINS the preview, it renders WITHIN the node in the SAME place the image/thumbnail renders today (inside .vicinity-graph-node__content, below the title) — it takes the thumbnail's slot, NOT a new region above the title. This SUPERSEDES point 1 of the earlier review note; points 2 (nodrag/nopan/stopPropagation) and 3 (NodeSizer owns the 16:9 height) stand. A video that does NOT win (not leading) is future URL-node scope (nid_ty5dmswuu1uw4uh8l6i8cdc0s_e), not this ticket. ALSO: build the poster/iframe URLs through the gated external-content seam (nid_tvtm9gj5zaj4tbfbpti3v6sy2_e, now a dep).

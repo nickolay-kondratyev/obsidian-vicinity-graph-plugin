@@ -3,7 +3,7 @@ id: nid_21xio7iwxv742ze4qc4p4qbmq_e
 title: "Add external-previews setting (single master toggle, default ON)"
 status: open
 deps: []
-links: [nid_mw1az1i1aznfoxqsgcwnfus07_e]
+links: [nid_mw1az1i1aznfoxqsgcwnfus07_e, nid_tvtm9gj5zaj4tbfbpti3v6sy2_e, nid_15r71ajjkbel5s704kmj6wszw_e]
 created_iso: 2026-08-07T15:49:26Z
 status_updated_iso: 2026-08-07T15:49:26Z
 type: feature
@@ -40,3 +40,7 @@ videos) load external content and therefore contact third-party servers (e.g.
 YouTube/Google), that this is ON by default, and how to turn it OFF via this
 setting. Keep it honest and user-facing — same message as the in-app setting help
 text, DRY the wording.
+
+**2026-08-07T17:04:36Z**
+
+ADD (2026-08-07): this toggle now also gates FUTURE actual network fetches (thumbnails/favicons for URL nodes), not just embed/poster URLs — the enforcement mechanism is the single external-content seam ticket (nid_tvtm9gj5zaj4tbfbpti3v6sy2_e), which deps this one. Keep the disclosure wording general enough to cover fetched preview data, not only YouTube.
