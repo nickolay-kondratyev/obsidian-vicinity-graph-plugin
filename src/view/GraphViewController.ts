@@ -207,6 +207,17 @@ export class GraphViewController {
 
 	readonly getSnapshot = (): FlowSnapshot => this.snapshot;
 
+	/**
+	 * The note the graph is currently built AROUND — the context a local pin/unpin is
+	 * scoped to ({@link ActiveMainProvider}). This is {@link mainPath}, the controller's
+	 * own authority on MAIN, not the workspace's raw active file: a clicked node
+	 * re-centres MAIN here BEFORE the resulting active-file event, so this never lags the
+	 * graph the pin will be applied to.
+	 */
+	activeMainPath(): string | null {
+		return this.mainPath;
+	}
+
 	// --- lifecycle ---------------------------------------------------------
 
 	/** Kick off the first rebuild from whatever file is active when the view opens. */

@@ -1,4 +1,4 @@
-import type { VaultPort } from "../adapters/obsidianPorts";
+import type { VaultFilePort, VaultPort } from "../adapters/obsidianPorts";
 import type { NodeContentOverride, NodeSizeOverridePx, ViewSettings } from "../engine";
 import type { PersistableIdentity } from "../persistence/DocPersistEligibility";
 import type { PersistenceServices } from "../persistence/PersistenceServices";
@@ -6,7 +6,7 @@ import type { SettingsResetScope } from "./settingsResetPlan";
 import type { NonSettingsWriteSubject } from "./settingsWriteFailureNotice";
 import type { GuardedWriteOutcome, SettingsWritePipeline } from "./settingsWritePipeline";
 import type { SettingsInteraction } from "./settingsWritePlan";
-import type { ControlsActionsPort, UserNoticePort } from "./viewPorts";
+import type { ActiveMainProvider, ControlsActionsPort, UserNoticePort } from "./viewPorts";
 
 /**
  * Obsidian executor for the controls surface (step-06 #6/#8). Thin glue with ONE
@@ -34,6 +34,12 @@ import type { ControlsActionsPort, UserNoticePort } from "./viewPorts";
  */
 
 const NOT_PINNABLE_NOTICE = "This note can't be pinned (no stable id).";
+/**
+ * Same refusal cause as {@link NOT_PINNABLE_NOTICE}, worded for a LOCAL pin: it needs a
+ * stable id for BOTH the target AND the current main, so the sentence names neither
+ * doc specifically (either one lacking an id blocks the pin) — the remedy is the same.
+ */
+const NOT_LOCALLY_PINNABLE_NOTICE = "This note can't be pinned for the current note (no stable id).";
 /** Same refusal cause as {@link NOT_PINNABLE_NOTICE} (the shared eligibility seam), worded for the resize gesture. */
 const NOT_RESIZABLE_NOTICE = "This note's size can't be saved (no stable id).";
 /** Same refusal cause again, worded for the per-node content override. */
@@ -55,6 +61,8 @@ export class ControlsActions implements ControlsActionsPort {
 		private readonly settingsWrites: SettingsWritePipeline,
 		/** The view layer's ONE user-message surface, shared with the write pipeline. */
 		private readonly notices: UserNoticePort,
+		/** Which note the graph is built around — the MAIN a local pin is scoped to. */
+		private readonly activeMain: ActiveMainProvider,
 	) {}
 
 	applySettings(interaction: SettingsInteraction): Promise<void> {
@@ -100,6 +108,60 @@ export class ControlsActions implements ControlsActionsPort {
 			await this.persistenceServices.unpinDoc(docid);
 			return "store-changed";
 		});
+	}
+
+	/**
+	 * Locally pin TARGET under the active MAIN — the pinned set's per-main sibling, so
+	 * it rides the SAME guarded seam and the SAME `pinned-set` failure subject as the
+	 * global pin. `localPinDoc` needs a persistable id for BOTH docs; a refusal (either
+	 * doc, or no main to scope under) wrote nothing and left the node exactly as drawn,
+	 * so it reports `store-unchanged` like a refused global pin.
+	 *
+	 * The MAIN is captured at CLICK time, before the guarded slot queues: the slot can
+	 * run behind earlier writes on the shared serial chain, and the pin must scope to
+	 * the main the user was LOOKING at, not whichever note the graph has re-centred on
+	 * since. (The slot's fresh-read rule is about merging GLOBALS, not about which doc
+	 * a gesture named.)
+	 */
+	localPinNode(path: string): Promise<void> {
+		const mainPath = this.activeMain.activeMainPath();
+		return this.settingsWrites.runGuarded(PIN_WRITE_SUBJECT, async () => {
+			const mainFile = this.mainFileAt(mainPath);
+			const targetFile = this.vault.getFileByPath(path);
+			if (mainFile === null || targetFile === null) {
+				return "store-unchanged";
+			}
+			const outcome = await this.persistenceServices.localPinDoc(mainFile, targetFile);
+			if (outcome.kind === "not-persistable") {
+				this.notices.show(NOT_LOCALLY_PINNABLE_NOTICE);
+				return "store-unchanged";
+			}
+			return "store-changed";
+		});
+	}
+
+	/**
+	 * Locally unpin TARGET from the active MAIN. Like {@link unpinNode} the removal
+	 * always lands (`localUnpinDoc` reads the main's existing id without minting and
+	 * reports no verdict), so it reports `store-changed` whenever a main is active. With
+	 * no main to scope under there is nothing keyed to remove, so it reports
+	 * `store-unchanged`. Like {@link localPinNode}, the MAIN is captured at CLICK time.
+	 */
+	localUnpinNode(docid: string): Promise<void> {
+		const mainPath = this.activeMain.activeMainPath();
+		return this.settingsWrites.runGuarded(PIN_WRITE_SUBJECT, async () => {
+			const mainFile = this.mainFileAt(mainPath);
+			if (mainFile === null) {
+				return "store-unchanged";
+			}
+			await this.persistenceServices.localUnpinDoc(mainFile, docid);
+			return "store-changed";
+		});
+	}
+
+	/** The click-time MAIN as a resolved file, or `null` when no main was set or its path is gone. */
+	private mainFileAt(mainPath: string | null): VaultFilePort | null {
+		return mainPath === null ? null : this.vault.getFileByPath(mainPath);
 	}
 
 	/**

@@ -53,6 +53,14 @@ export class RecordingControlsActions implements ControlsActionsPort {
 		return Promise.resolve();
 	}
 
+	localPinNode(_path: string): Promise<void> {
+		return Promise.resolve();
+	}
+
+	localUnpinNode(_docid: string): Promise<void> {
+		return Promise.resolve();
+	}
+
 	resizeNode(_path: string, _sizePx: NodeSizeOverridePx): Promise<void> {
 		return Promise.resolve();
 	}

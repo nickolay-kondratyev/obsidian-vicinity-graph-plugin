@@ -81,6 +81,21 @@ export interface ControlsActionsPort {
 	/** Unpin a pinned central by its docid — always lands — then rebuild every view. */
 	unpinNode(docid: string): Promise<void>;
 	/**
+	 * Locally pin a node (its vault path) UNDER the active MAIN — resolves + ensures a
+	 * docid for BOTH the target and the current main (the local-pin map is keyed by
+	 * main, valued by target); rebuilds every view if it landed. Refused (either doc
+	 * has no stable id, or no main is active) leaves the screen unchanged, exactly like
+	 * a refused global pin.
+	 */
+	localPinNode(path: string): Promise<void>;
+	/**
+	 * Locally UNPIN a target (its docid) from the active MAIN — always lands (removing
+	 * a pin needs only the main's existing id + the target docid), then rebuild every
+	 * view. The target docid is echoed on the node ({@link FlowNodeData.docid}); the
+	 * main comes from the active-main context.
+	 */
+	localUnpinNode(docid: string): Promise<void>;
+	/**
 	 * Persist a drag-resize as the doc's global size override (resolves + ensures a
 	 * docid, same write intent as a pin); rebuilds every view if it landed.
 	 */
@@ -95,6 +110,19 @@ export interface ControlsActionsPort {
 	setNodeContentOverride(path: string, content: NodeContentOverride): Promise<void>;
 	/** Clear the doc's content override ("Inherit" — never mints an id); then rebuild every view. */
 	clearNodeContentOverride(path: string): Promise<void>;
+}
+
+/**
+ * The vault path of the note the graph is currently built AROUND — the MAIN. A local
+ * pin is scoped to this note (it pins a target only while this main is active), so the
+ * controls executor reads the CONTEXT of a local pin/unpin from here rather than from
+ * the workspace's raw active file: {@link GraphViewController} owns which note the
+ * graph tracks (a clicked node re-centres MAIN before the active-file event lands), so
+ * it is the one authority that cannot disagree with the graph the pin is applied to.
+ */
+export interface ActiveMainProvider {
+	/** The MAIN note's vault path, or `null` when the graph is built around nothing. */
+	activeMainPath(): string | null;
 }
 
 /**

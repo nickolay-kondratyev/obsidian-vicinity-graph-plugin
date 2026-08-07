@@ -51,6 +51,16 @@ class RecordingResizeActions extends RecordingControlsActions {
 	readonly resetPaths: string[] = [];
 	readonly contentSet: { path: string; content: NodeContentOverride }[] = [];
 	readonly contentCleared: string[] = [];
+	readonly localPinnedPaths: string[] = [];
+	readonly localUnpinnedDocids: string[] = [];
+	override localPinNode(path: string): Promise<void> {
+		this.localPinnedPaths.push(path);
+		return Promise.resolve();
+	}
+	override localUnpinNode(docid: string): Promise<void> {
+		this.localUnpinnedDocids.push(docid);
+		return Promise.resolve();
+	}
 	override resizeNode(path: string, sizePx: NodeSizeOverridePx): Promise<void> {
 		this.resized.push({ path, sizePx });
 		return Promise.resolve();
@@ -162,13 +172,20 @@ describe("NoteNode context menu reset entry", () => {
 	it("WHEN a node WITHOUT a size override is right-clicked THEN the menu has no 'Reset size' entry", async () => {
 		const { ui, result } = renderNoteNode(nodeData());
 		fireEvent.contextMenu(await mountedNode(result.container));
-		expect(ui.nodeMenuRequests[0]?.entries.map((entry) => entry.title)).toEqual(["Pin to graph"]);
+		expect(ui.nodeMenuRequests[0]?.entries.map((entry) => entry.title)).toEqual([
+			"Pin to graph",
+			"Pin for this note",
+		]);
 	});
 
 	it("WHEN a node WITH a size override is right-clicked THEN the menu offers 'Reset size'", async () => {
 		const { ui, result } = renderNoteNode(nodeData({ hasSizeOverride: true }));
 		fireEvent.contextMenu(await mountedNode(result.container));
-		expect(ui.nodeMenuRequests[0]?.entries.map((entry) => entry.title)).toEqual(["Pin to graph", "Reset size"]);
+		expect(ui.nodeMenuRequests[0]?.entries.map((entry) => entry.title)).toEqual([
+			"Pin to graph",
+			"Pin for this note",
+			"Reset size",
+		]);
 	});
 
 	it("WHEN the 'Reset size' entry is activated THEN the node's path reaches resetNodeSize", async () => {
@@ -280,5 +297,86 @@ describe("NoteNode gear content menu", () => {
 		fireEvent.click(await mountedGear(result.container));
 		const reset = gearMenuEntries(ui).find((entry) => entry.title === "Reset size");
 		expect(reset?.description).not.toBe(undefined);
+	});
+});
+
+/** The local-pin chip (distinct class from the global pin), once the node has mounted. */
+function localPinButton(node: HTMLElement): HTMLElement | null {
+	return node.querySelector<HTMLElement>("button.vicinity-graph-local-pin-button");
+}
+
+describe("NoteNode local pin control", () => {
+	it("WHEN a regular node renders THEN it mounts BOTH the global and the local pin chip", async () => {
+		const { result } = renderNoteNode(nodeData());
+		const node = await mountedNode(result.container);
+		expect({
+			global: node.querySelectorAll("button.vicinity-graph-pin-button").length,
+			local: node.querySelectorAll("button.vicinity-graph-local-pin-button").length,
+		}).toEqual({ global: 1, local: 1 });
+	});
+
+	it("WHEN the MAIN node renders THEN it withholds the local pin chip (a note cannot be locally pinned under itself)", async () => {
+		const { result } = renderNoteNode(nodeData({ tier: "main" }));
+		const node = await mountedNode(result.container);
+		expect(localPinButton(node)).toBeNull();
+	});
+
+	it("WHEN a node is NOT locally pinned THEN its local chip offers to pin for this note", async () => {
+		const { result } = renderNoteNode(nodeData());
+		const node = await mountedNode(result.container);
+		expect(localPinButton(node)?.getAttribute("aria-label")).toBe("Pin for this note");
+	});
+
+	it("WHEN a node IS locally pinned THEN its local chip offers to unpin for this note", async () => {
+		const { result } = renderNoteNode(nodeData({ isLocallyPinned: true, docid: "docid_a_e" }));
+		const node = await mountedNode(result.container);
+		expect(localPinButton(node)?.getAttribute("aria-label")).toBe("Unpin for this note");
+	});
+
+	it("WHEN the local chip on an unpinned node is clicked THEN the node's PATH reaches localPinNode", async () => {
+		const { actions, result } = renderNoteNode(nodeData());
+		const node = await mountedNode(result.container);
+		fireEvent.click(localPinButton(node)!);
+		expect(actions.localPinnedPaths).toEqual([NODE_PATH]);
+	});
+
+	it("WHEN the local chip on a locally-pinned node is clicked THEN the node's DOCID reaches localUnpinNode", async () => {
+		const { actions, result } = renderNoteNode(nodeData({ isLocallyPinned: true, docid: "docid_a_e" }));
+		const node = await mountedNode(result.container);
+		fireEvent.click(localPinButton(node)!);
+		expect(actions.localUnpinnedDocids).toEqual(["docid_a_e"]);
+	});
+
+	it("WHEN a node is BOTH globally and locally pinned THEN both chips show their unpin state (both indicators)", async () => {
+		const { result } = renderNoteNode(
+			nodeData({ isGloballyPinned: true, isLocallyPinned: true, tier: "pinned-central", docid: "docid_a_e" }),
+		);
+		const node = await mountedNode(result.container);
+		expect({
+			global: node.querySelector("button.vicinity-graph-pin-button")?.getAttribute("aria-label"),
+			local: localPinButton(node)?.getAttribute("aria-label"),
+		}).toEqual({ global: "Unpin from graph", local: "Unpin for this note" });
+	});
+
+	it("WHEN a regular node is right-clicked THEN the menu carries the local pin entry after the global one", async () => {
+		const { ui, result } = renderNoteNode(nodeData());
+		fireEvent.contextMenu(await mountedNode(result.container));
+		expect(ui.nodeMenuRequests[0]?.entries.map((entry) => entry.title)).toEqual([
+			"Pin to graph",
+			"Pin for this note",
+		]);
+	});
+
+	it("WHEN the MAIN node is right-clicked THEN the menu omits the local pin entry", async () => {
+		const { ui, result } = renderNoteNode(nodeData({ tier: "main" }));
+		fireEvent.contextMenu(await mountedNode(result.container));
+		expect(ui.nodeMenuRequests[0]?.entries.map((entry) => entry.title)).toEqual(["Pin to graph"]);
+	});
+
+	it("WHEN the local pin menu entry is activated THEN it reaches localPinNode with the node's path", async () => {
+		const { ui, actions, result } = renderNoteNode(nodeData());
+		fireEvent.contextMenu(await mountedNode(result.container));
+		ui.nodeMenuRequests[0]?.entries.find((entry) => entry.title === "Pin for this note")?.onClick();
+		expect(actions.localPinnedPaths).toEqual([NODE_PATH]);
 	});
 });
