@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-08-07T02:27:01Z
 id: nid_1ht2a3rm0ng8wnlis259u5egg_e
 title: Create docs-internal/vocab.md capturing codebase vocabulary
-status: in_progress
+status: closed
 deps: []
 links: [nid_e79vxubva52s9gq24idypb77x_e, nid_1av3d7fx1072oyp5lxyhjd451_e]
 created_iso: '2026-08-07T02:12:49Z'
-status_updated_iso: '2026-08-07T02:23:44Z'
+status_updated_iso: 2026-08-07T02:27:01Z
 type: task
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
@@ -29,3 +30,9 @@ Also: add a one-line pointer to vocab.md from CLAUDE.md "Orient here first" list
 ## Acceptance Criteria
 
 docs-internal/vocab.md exists with the seed entries plus code-sweep terms, each 1-3 lines with owning file path; CLAUDE.md points to it.
+
+## Notes
+
+**2026-08-07T02:27:01Z**
+
+RESOLVED: Created docs-internal/vocab.md — a succinct glossary of load-bearing code vocabulary. Sections: Centrality & roots (MAIN vs Central vs Pinned vs TraversalRoot/vicinity), Embed-nesting rendering vocab (Nested/Container/Outermost container), Channels & depth (Channel, kind-pure channels, DepthTag, minDepth, ChannelDepths), Kinds (LinkKind vs EdgeKind), Reference vs link vs occurrence, Provider seams (LinkProvider, LinkOccurrenceProvider), Identity & keys (DocId, VaultPath, FolderPath, PathDocIdMap), Attachments/node-bearing, Truncation & node cap, Overrides (NodeOverride/NodeContentOverride), View mapping (FlowNode/FlowEdge/notePairs/folder group/NodeTier), Layout diff (relayout vs reuse-layout), plus other engine terms (CrossLinkSweep, nodePreviewKind, exclusion, VicinityEngine). Each entry 1-3 lines with owning file path; links to architecture-map.md rather than duplicating it. Added a one-line pointer to vocab.md in CLAUDE.md 'Orient here first' list. All seed entries included as decided.

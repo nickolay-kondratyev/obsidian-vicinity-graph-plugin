@@ -9,6 +9,7 @@ under KSAL-2.3 (`LICENSE.md`), **not** OSI open-source.
 
 - **[`docs-internal/architecture-map.md`](./docs-internal/architecture-map.md)** — directory → responsibility map + layering rules. **Read before changing structure.**
 - **[`docs-internal/plan/high-level-plan.md`](./docs-internal/plan/high-level-plan.md)** — design source of truth (traversal, sizing, truncation, pinning, persistence, canvas). Read before changing behavior.
+- **[`docs-internal/vocab.md`](./docs-internal/vocab.md)** — shared glossary of load-bearing code terms (MAIN vs central vs pinned, channels, EdgeKind, override, docid, …). Use these exact terms in tickets/design docs.
 - **[`README.md`](./README.md)** — user-facing settings model, pinning semantics, dev + e2e setup.
 - `docs-internal/tickets/` — active follow-ups. `docs-internal/RELEASE_CHECKLIST.md`.
 
