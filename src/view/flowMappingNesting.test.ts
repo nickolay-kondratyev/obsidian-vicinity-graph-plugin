@@ -166,6 +166,54 @@ describe("vicinityGraphToFlow nesting edge collapse (Q5/Q6)", () => {
 		expect(toFlow(graph).edges[0]?.notePairs).toEqual([{ source: "ext.md", target: "child.md" }]);
 	});
 
+	it("WHEN an intra-group edge touches a NESTED node THEN it attaches member-root to member-root (matches elk)", () => {
+		// notes/c1 + notes/c2 form the group; c1 embeds ext/x. ext/x → notes/c2
+		// projects both endpoints onto the SAME group, but the drawn edge must use
+		// the member roots (c1 → c2) — exactly what elkMapping hands elk — never
+		// the buried nested node.
+		const graph = makeGraph({
+			nodes: [
+				makeNode({ path: asVaultPath("notes/c1.md"), folder: asFolderPath("notes") }),
+				makeNode({ path: asVaultPath("notes/c2.md"), folder: asFolderPath("notes") }),
+				makeNode({ path: asVaultPath("ext/x.md"), folder: asFolderPath("ext") }),
+			],
+			edges: [makeEmbedEdge("notes/c1.md", "ext/x.md", 0), makeEdge("ext/x.md", "notes/c2.md")],
+		});
+		const edges = toFlow(graph).edges;
+		expect(edges).toHaveLength(1);
+		expect({ source: edges[0]?.source, target: edges[0]?.target }).toEqual({
+			source: "notes/c1.md",
+			target: "notes/c2.md",
+		});
+		expect(edges[0]?.notePairs).toEqual([{ source: "ext/x.md", target: "notes/c2.md" }]);
+	});
+
+	it("WHEN an intra-group edge joins PLAIN members (no nesting) THEN it stays member-to-member passthrough", () => {
+		// The pre-nesting intra-group rule is untouched: c1 → c2 keeps its raw
+		// endpoints and its passthrough identity.
+		const graph = makeGraph({
+			nodes: [
+				makeNode({ path: asVaultPath("notes/c1.md"), folder: asFolderPath("notes") }),
+				makeNode({ path: asVaultPath("notes/c2.md"), folder: asFolderPath("notes") }),
+			],
+			edges: [makeEdge("notes/c1.md", "notes/c2.md")],
+		});
+		const edges = toFlow(graph).edges;
+		expect(edges).toHaveLength(1);
+		expect({ source: edges[0]?.source, target: edges[0]?.target }).toEqual({
+			source: "notes/c1.md",
+			target: "notes/c2.md",
+		});
+	});
+
+	it("WHEN a self-loop sits on a NESTED node THEN it is dropped (wholly inside the tree, Q5)", () => {
+		const graph = makeGraph({
+			nodes: [makeNode({ path: asVaultPath("hub.md") }), makeNode({ path: asVaultPath("child.md") })],
+			edges: [makeEmbedEdge("hub.md", "child.md", 0), makeEdge("child.md", "child.md")],
+		});
+		expect(toFlow(graph).edges).toHaveLength(0);
+	});
+
 	it("WHEN a losing embedder is OUTSIDE the winner's tree THEN it keeps a collapsed edge to the winner (Q6)", () => {
 		// MAIN winner and a regular loser both embed child; child nests under MAIN
 		// (precedence). The loser's embed edge collapses onto the winner's tree root.

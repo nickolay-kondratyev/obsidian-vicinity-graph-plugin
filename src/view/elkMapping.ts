@@ -9,7 +9,7 @@ import {
 } from "./constants";
 import { deriveFolderGroups } from "./folderGrouping";
 import type { FolderGroupingResult } from "./folderGrouping";
-import { deriveNestingForest, nestedPaths, outermostContainerOf } from "./embedNesting";
+import { deriveNestingForest, isIntraTreeEdge, nestedPaths, outermostContainerOf } from "./embedNesting";
 import type { NestingForest } from "./embedNesting";
 import { edgeIdOf, folderGroupIdOf, nodeContentFitPx } from "./graphIdentity";
 import type { Dimensions, XY } from "./flowMapping";
@@ -77,7 +77,8 @@ export function vicinityGraphToElk(graph: VicinityGraph): ElkNode {
 		// Intra-tree edges are dropped (decision Q5) — they steer nothing (children
 		// stack by the ordering chain, not by real edges) and would reference a node
 		// buried inside a container that the root/group level cannot address.
-		if (edge.source !== edge.target && outermostContainerOf(nesting, edge.source) === outermostContainerOf(nesting, edge.target)) {
+		// isIntraTreeEdge is the ONE statement of the rule, shared with flowMapping.
+		if (isIntraTreeEdge(nesting, edge.source, edge.target)) {
 			continue;
 		}
 		const intraGroup = intraGroupContainerOf(edge, grouping.groupFolderByMemberPath, containerByFolder, nesting);

@@ -16,7 +16,7 @@ import { OUTLINE_RENDER_LIMIT } from "./constants";
 import type { AttachmentIconGroup } from "./attachmentIconStrip";
 import { attachmentIconStrip } from "./attachmentIconStrip";
 import { deriveFolderGroups } from "./folderGrouping";
-import { deriveNestingForest, nestedPaths, outermostContainerOf } from "./embedNesting";
+import { deriveNestingForest, isIntraTreeEdge, nestedPaths, outermostContainerOf } from "./embedNesting";
 import type { NestingForest } from "./embedNesting";
 import type { OrphanTruncation } from "./truncationBadges";
 import { deriveTruncationBadges } from "./truncationBadges";
@@ -376,15 +376,20 @@ function buildFlowEdges(
 	const passthrough: FlowEdge[] = [];
 	const collapsedByPair = new Map<string, CollapsedEdgeAccumulator>();
 	for (const edge of graph.edges) {
-		// Two distinct nodes sharing an outermost container are in the same nesting
-		// tree — drop the edge (Q5); it would collapse to a self-loop on the tree.
-		if (edge.source !== edge.target && outermost(edge.source) === outermost(edge.target)) {
+		// Edges wholly inside one nesting tree are dropped (Q5) — the ONE rule
+		// shared with elkMapping via isIntraTreeEdge.
+		if (isIntraTreeEdge(nesting, edge.source, edge.target)) {
 			continue;
 		}
+		const rootSource = outermost(edge.source);
+		const rootTarget = outermost(edge.target);
+		const nestingMoved = rootSource !== edge.source || rootTarget !== edge.target;
 		const projSource = projectId(edge.source);
 		const projTarget = projectId(edge.target);
 		const wasProjected = projSource !== edge.source || projTarget !== edge.target;
-		if (!wasProjected || projSource === projTarget) {
+		if (!wasProjected || (projSource === projTarget && !nestingMoved)) {
+			// Untouched by both projections, or intra-group between PLAIN members —
+			// member-to-member passthrough with curved-pair semantics, as ever.
 			passthrough.push({
 				id: edgeIdOf(edge),
 				source: edge.source,
@@ -395,6 +400,15 @@ function buildFlowEdges(
 				hasOpposite: renderedEdgeIds.has(edgeIdOf({ source: edge.target, target: edge.source })),
 				bidirectional: false,
 			});
+			continue;
+		}
+		if (projSource === projTarget) {
+			// Intra-group with a NESTED endpoint: the edge lives member-root to
+			// member-root — the exact refs elkMapping's intraGroupContainerOf hands
+			// elk — never the buried nested node, and never a group self-loop.
+			// Collapsed (not passthrough) because several true pairs can share one
+			// root pair once nesting projects them.
+			accumulateCollapsedEdge(collapsedByPair, rootSource, rootTarget, edge);
 			continue;
 		}
 		accumulateCollapsedEdge(collapsedByPair, projSource, projTarget, edge);

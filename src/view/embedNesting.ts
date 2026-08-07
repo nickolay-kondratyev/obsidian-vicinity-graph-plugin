@@ -72,6 +72,24 @@ export function outermostContainerOf(forest: NestingForest, path: string): strin
 	return forest.nestingByPath.get(path)?.outermostPath ?? path;
 }
 
+/**
+ * True when an edge lies entirely INSIDE one drawn nesting tree — the edges
+ * decision Q5 DROPS (V1 draws no edges inside a tree). Covers ancestor↔descendant,
+ * sibling, any relative pair (two distinct nodes sharing an outermost container),
+ * AND a self-loop on a nested node (wholly inside the tree too). A self-loop on a
+ * NON-nested node is not intra-tree — it renders on the node as before.
+ *
+ * The ONE statement of the drop rule: `flowMapping` (rendered edges) and
+ * `elkMapping` (layout edges) both call this, so they can never disagree on
+ * which edges exist.
+ */
+export function isIntraTreeEdge(forest: NestingForest, source: string, target: string): boolean {
+	if (source === target) {
+		return forest.nestingByPath.get(source)?.containerPath !== undefined;
+	}
+	return outermostContainerOf(forest, source) === outermostContainerOf(forest, target);
+}
+
 /** Container precedence rank — lower wins (decision Q1: central == isMain). */
 const RANK_MAIN = 0;
 const RANK_PINNED = 1;

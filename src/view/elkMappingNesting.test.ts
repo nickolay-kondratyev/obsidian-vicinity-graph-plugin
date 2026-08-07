@@ -87,6 +87,35 @@ describe("vicinityGraphToElk nesting structure", () => {
 		expect(edgeIds).not.toContain("hub.md->child.md");
 	});
 
+	it("WHEN an intra-group edge touches a NESTED node THEN the group container's edge references the member roots", () => {
+		// notes/c1 + notes/c2 group; c1 embeds ext/x. ext/x → notes/c2 lives inside
+		// the group container, referencing c1 (x's member root) and c2 — never the
+		// buried nested node.
+		const graph = makeGraph({
+			nodes: [
+				makeNode({ path: asVaultPath("notes/c1.md"), folder: asFolderPath("notes") }),
+				makeNode({ path: asVaultPath("notes/c2.md"), folder: asFolderPath("notes") }),
+				makeNode({ path: asVaultPath("ext/x.md"), folder: asFolderPath("ext") }),
+			],
+			edges: [makeEmbedEdge("notes/c1.md", "ext/x.md", 0), makeEdge("ext/x.md", "notes/c2.md")],
+		});
+		const group = findElk(vicinityGraphToElk(graph), "folder-group:notes");
+		expect(group?.edges).toEqual([
+			expect.objectContaining({ sources: ["notes/c1.md"], targets: ["notes/c2.md"] }),
+		]);
+	});
+
+	it("WHEN a self-loop sits on a NESTED node THEN it reaches elk nowhere (Q5)", () => {
+		const graph = makeGraph({
+			nodes: [makeNode({ path: asVaultPath("hub.md") }), makeNode({ path: asVaultPath("child.md") })],
+			edges: [makeEmbedEdge("hub.md", "child.md", 0), makeEdge("child.md", "child.md")],
+		});
+		const root = vicinityGraphToElk(graph);
+		const container = findElk(root, "hub.md");
+		const edgeIds = [...(root.edges ?? []), ...(container?.edges ?? [])].map((edge) => edge.id);
+		expect(edgeIds).not.toContain("child.md->child.md");
+	});
+
 	it("WHEN an outside note links a nested note THEN a projected root edge points at the container", () => {
 		const graph = makeGraph({
 			nodes: [
