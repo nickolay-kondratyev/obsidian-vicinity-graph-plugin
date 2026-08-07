@@ -361,55 +361,19 @@ async function renderTargetAsNeighbourBox(box: { widthPx: number; heightPx: numb
 	await expect
 		.poll(async () => (await harness.readNodeOverrides())[TARGET_DOCID]?.sizePx)
 		.toEqual(box);
-	// The SAME in-place fan-out the production write pipeline runs — the HAPPY path,
-	// so this helper keeps EXERCISING that fan-out (not always remounting past it).
-	// `onNodesChange` folds in only resize-GESTURE dimension changes now, so React
-	// Flow's ResizeObserver re-measuring the node's pre-reseed DOM no longer clobbers
-	// the publish through LOCAL state (ticket `nid_c78k90su87jrzigxvfjv5t95g_e`). That
-	// killed the common case but not the residual full-suite stall
-	// (ticket `nid_8vekpgg97n5x7ckxbwswr5uar_e`): under full-suite load the live view
-	// can still keep the PREVIOUS test's box on screen while the store already holds
-	// `box` — a lost REPAINT, and one a `refreshOpenViews` retry does NOT re-converge.
+	// The SAME in-place fan-out the production write pipeline runs — no remount
+	// fallback: this helper asserts the plain `refreshOpenViews()` repaint converges,
+	// which is the regression guard for the reseed-stranding root cause fixed in
+	// ticket `nid_1s77g4wx33uj8b380d1oph1d6_e`. VicinityGraphFlow now derives its RF
+	// nodes straight from the published snapshot (with only an active resize gesture
+	// overlaid), so React Flow's ResizeObserver re-measuring a node can no longer
+	// revert the box below the store — the earlier full-suite stall
+	// (tickets `nid_c78k90su87jrzigxvfjv5t95g_e`, `nid_8vekpgg97n5x7ckxbwswr5uar_e`)
+	// where the live view kept the PREVIOUS test's box while the store already held
+	// `box`. A residual stall would surface here as a repaint that never converges.
 	await harness.refreshOpenViews();
 	await expect(noteNode(HUB)).toHaveAttribute("data-tier", "main");
-	if (await renderedBoxConvergesTo(box, IN_PLACE_REPAINT_BUDGET_MS)) {
-		return;
-	}
-	// The fan-out did not repaint within the budget: recover deterministically by
-	// remounting, which the closed investigation proved always converges (it rebuilds
-	// the view's RF state straight from the store, so there is no stale local box to
-	// clobber). This is a bounded CONVERGENCE action, NOT a widened poll timeout — the
-	// happy path above still fails fast if the fan-out is broken beyond this stall, and
-	// the tests that call this helper assert PIN-CHIP behavior, not the fan-out itself
-	// (its own coverage lives in the drag-commit specs above and `nodeResize.test.ts`).
-	await harness.remountGraphView();
-	await expect(noteNode(HUB)).toHaveAttribute("data-tier", "main");
 	await expect.poll(() => renderedBoxPx(TARGET)).toEqual(box);
-}
-
-/**
- * How long the in-place fan-out is given to REPAINT the target's box before the
- * helper falls back to a remount. The production fan-out normally converges in
- * well under a second; a repaint still absent here is the residual full-suite
- * stall of ticket `nid_8vekpgg97n5x7ckxbwswr5uar_e`, not a slow-but-correct paint.
- */
-const IN_PLACE_REPAINT_BUDGET_MS = 3000;
-
-/**
- * Whether the target's RENDERED box settles on `box` within `budgetMs`. Resolves
- * `false` on timeout instead of throwing, so the caller can choose a recovery
- * (the remount above) rather than fail the pin-chip assertion that runs next.
- */
-async function renderedBoxConvergesTo(
-	box: { widthPx: number; heightPx: number },
-	budgetMs: number,
-): Promise<boolean> {
-	try {
-		await expect.poll(() => renderedBoxPx(TARGET), { timeout: budgetMs }).toEqual(box);
-		return true;
-	} catch {
-		return false;
-	}
 }
 
 /** One computed style value off the node's pin chip — the rung the CASCADE picked. */
