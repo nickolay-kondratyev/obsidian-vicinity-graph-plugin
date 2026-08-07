@@ -73,6 +73,16 @@ export interface FlowSnapshot {
 	 * after rebuilds nor survives Obsidian's pane-timing on mount.
 	 */
 	readonly layoutVersion: number;
+	/**
+	 * Only meaningful while `status === "building"`: `true` marks the ONE build
+	 * that pays the docid warm-up — the first build of this controller's life,
+	 * i.e. the graph coming up for the first time after Obsidian loaded (that
+	 * warm-up is what makes it visibly slow; every later build reads a warm map
+	 * and the placeholder barely shows). The render layer uses it to reassure the
+	 * user this wait is a one-off, not the graph's normal speed. A retry off the
+	 * failed state also builds, but it is NOT the first build, so it stays `false`.
+	 */
+	readonly isInitialBuild: boolean;
 }
 
 const EMPTY_CONTROLS: ControlsModel = {
@@ -90,10 +100,22 @@ const EMPTY_SNAPSHOT: FlowSnapshot = {
 	orphanTruncation: NO_ORPHAN_TRUNCATION,
 	controls: EMPTY_CONTROLS,
 	layoutVersion: 0,
+	isInitialBuild: false,
 };
 
-/** First build in flight: same void as {@link EMPTY_SNAPSHOT}, told honestly. */
+/**
+ * A rebuild that shows NO graph while it runs, but is NOT the first paint: the
+ * retry off the failed state ({@link GraphViewController.runRebuild}). "Building
+ * the vicinity graph…" with no first-load caveat, because a warm map makes it fast.
+ */
 const BUILDING_SNAPSHOT: FlowSnapshot = { ...EMPTY_SNAPSHOT, status: "building" };
+
+/**
+ * The FIRST build of this controller's life — the one that pays the docid warm-up
+ * ({@link GraphViewController.firstBuildPending}). Told apart from a plain rebuild
+ * so the render layer can say this one-off wait is expected right after Obsidian loads.
+ */
+const INITIAL_BUILDING_SNAPSHOT: FlowSnapshot = { ...EMPTY_SNAPSHOT, status: "building", isInitialBuild: true };
 
 /**
  * Every attempt of a rebuild failed ({@link REBUILD_ATTEMPTS}). Published over
@@ -142,8 +164,9 @@ export class GraphViewController {
 	 * or a failure). Only that first build awaits the docid warm-up, a content
 	 * scan that on a large vault takes seconds (ticket
 	 * nid_y081nezeucka9l0x3umebi5zo_e), so it is the only build that can visibly
-	 * wait and the only one allowed to publish {@link BUILDING_SNAPSHOT}. Every
-	 * later rebuild reads a warm map and returns fast; a placeholder there would
+	 * wait and the only one that publishes {@link INITIAL_BUILDING_SNAPSHOT} (the
+	 * retry off the failed state publishes the plain {@link BUILDING_SNAPSHOT}).
+	 * Every later rebuild reads a warm map and returns fast; a placeholder there would
 	 * only flicker the pane — over a rendered graph AND over the empty state,
 	 * which rebuilds on every metadata resolve (i.e. on every keystroke burst in
 	 * a note with no vicinity graph).
@@ -361,7 +384,9 @@ export class GraphViewController {
 		// leaving the failure copy up through the pass makes the button look dead, and
 		// there is no graph to flicker. Every other rebuild reads a warm map, returns
 		// fast, and keeps whatever is on screen.
-		if (this.firstBuildPending || this.snapshot.status === "failed") {
+		if (this.firstBuildPending) {
+			this.setSnapshot(INITIAL_BUILDING_SNAPSHOT);
+		} else if (this.snapshot.status === "failed") {
 			this.setSnapshot(BUILDING_SNAPSHOT);
 		}
 		try {
@@ -591,6 +616,7 @@ export class GraphViewController {
 			orphanTruncation: flow.orphanTruncation,
 			controls: this.controls,
 			layoutVersion: this.layoutVersion,
+			isInitialBuild: false,
 		});
 	}
 

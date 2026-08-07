@@ -111,6 +111,55 @@ async function renderFailedPane(): Promise<FailedPaneHarness> {
 	return { source };
 }
 
+/** A build that never settles — holds the pane in the `building` state to render. */
+class PendingGraphSource {
+	build(): Promise<GraphBuildResult | null> {
+		return new Promise(() => undefined);
+	}
+}
+
+/**
+ * Mounts the flow over a controller whose FIRST build is still in flight — the
+ * initial-load placeholder the user sees right after Obsidian opens. Uses the
+ * real controller so the `isInitialBuild` flag is set by the pipeline, not by a
+ * hand-built snapshot that would render even if the controller stopped setting it.
+ */
+function renderInitialBuildingPane(): void {
+	const source = new PendingGraphSource();
+	const linkPreview = new LinkPreviewOverlayStore();
+	const controller = new GraphViewController(
+		INERT_NAVIGATOR,
+		source,
+		INERT_LAYOUT,
+		INERT_ROUTER,
+		INERT_OCCURRENCES,
+		linkPreview,
+	);
+	controller.handleActiveFileChanged("a.md");
+	render(
+		<VicinityGraphFlow
+			controller={controller}
+			ui={INERT_GRAPH_UI}
+			actions={new RecordingControlsActions()}
+			linkPreview={linkPreview}
+		/>,
+	);
+}
+
+describe("VicinityGraphFlow initial building state", () => {
+	afterEach(() => {
+		cleanup();
+	});
+
+	it("WHEN the first build after load is in flight THEN the placeholder says the wait is a one-off", () => {
+		renderInitialBuildingPane();
+
+		expect(
+			screen.getByText("Building the vicinity graph for the first time — this is quicker afterwards…"),
+		).toBeTruthy();
+	});
+});
+
 describe("VicinityGraphFlow failed state", () => {
 	let consoleError: ReturnType<typeof vi.spyOn>;
 

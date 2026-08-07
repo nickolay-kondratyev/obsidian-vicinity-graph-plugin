@@ -168,7 +168,17 @@ export function VicinityGraphFlow({
 	// this file" would be a wrong answer to a question still open. Only that build
 	// publishes this status — see GraphViewController.firstBuildPending.
 	if (snapshot.status === "building") {
-		return <div className="vicinity-graph-building">Building the vicinity graph…</div>;
+		// The FIRST build after Obsidian loads pays the docid warm-up and can take
+		// a moment on a large vault (FlowSnapshot.isInitialBuild); say so, so the
+		// wait reads as a one-off rather than the graph's everyday speed. Every
+		// later build reads a warm map and is fast, so it gets the plain copy.
+		return (
+			<div className="vicinity-graph-building">
+				{snapshot.isInitialBuild
+					? "Building the vicinity graph for the first time — this is quicker afterwards…"
+					: "Building the vicinity graph…"}
+			</div>
+		);
 	}
 	if (snapshot.status === "empty") {
 		return <div className="vicinity-graph-empty">No vicinity graph for the active file.</div>;
