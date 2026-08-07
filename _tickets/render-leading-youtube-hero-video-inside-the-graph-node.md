@@ -70,3 +70,20 @@ TICKET REVIEW (2026-08-07) — implementation gotchas verified against the view 
 **2026-08-07T17:04:35Z**
 
 DECISION (human, 2026-08-07) — hero placement RESOLVED (option A, exclusive): when the video WINS the preview, it renders WITHIN the node in the SAME place the image/thumbnail renders today (inside .vicinity-graph-node__content, below the title) — it takes the thumbnail's slot, NOT a new region above the title. This SUPERSEDES point 1 of the earlier review note; points 2 (nodrag/nopan/stopPropagation) and 3 (NodeSizer owns the 16:9 height) stand. A video that does NOT win (not leading) is future URL-node scope (nid_ty5dmswuu1uw4uh8l6i8cdc0s_e), not this ticket. ALSO: build the poster/iframe URLs through the gated external-content seam (nid_tvtm9gj5zaj4tbfbpti3v6sy2_e, now a dep).
+
+**2026-08-07T18:47:18Z**
+
+GOAL-1 GUARANTEE (2026-08-07) — this ticket's OFF-path e2e assertion (OFF => NO
+i.ytimg.com poster <img>, NO youtube-nocookie iframe, normal hero fallback) is a REQUIRED
+behavioral cover for "external-previews OFF means zero network". It MUST ship and MUST NOT
+be dropped or weakened. The ON-path assertion (poster src present; click => nocookie iframe
+present) stays as specified.
+
+CORRECTION (same date) — an earlier draft of this note said the source-scan tripwire was
+removed and that this e2e "replaced" it. That is WRONG: the tripwire
+(externalContentSeam.test.ts) was only NARROWED (its over-broad generic-URL pattern
+dropped; owned-host + fetch + requestUrl scan retained — see seam ticket
+nid_tvtm9gj5zaj4tbfbpti3v6sy2_e). The build-time source scan and this OFF-path e2e are
+COMPLEMENTARY layers, not a replacement: the scan proves no module reaches a network host
+(covering unrendered files); the e2e proves the rendered DOM stays clean when OFF. Both
+stand. Everything else in this ticket is unchanged.
