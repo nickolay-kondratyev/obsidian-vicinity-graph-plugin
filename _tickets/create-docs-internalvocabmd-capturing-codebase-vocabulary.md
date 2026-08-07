@@ -1,17 +1,17 @@
 ---
 id: nid_1ht2a3rm0ng8wnlis259u5egg_e
-title: "Create docs-internal/vocab.md capturing codebase vocabulary"
-status: open
+title: Create docs-internal/vocab.md capturing codebase vocabulary
+status: in_progress
 deps: []
 links: [nid_e79vxubva52s9gq24idypb77x_e, nid_1av3d7fx1072oyp5lxyhjd451_e]
-created_iso: 2026-08-07T02:12:49Z
-status_updated_iso: 2026-08-07T02:12:49Z
+created_iso: '2026-08-07T02:12:49Z'
+status_updated_iso: '2026-08-07T02:23:44Z'
 type: task
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
 tags: [embed-nesting, docs]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 ---
-
 Follow-up from embed-nesting decision Q1 (ticket nid_e79vxubva52s9gq24idypb77x_e): tickets and code must share crisp vocabulary.
 
 GOAL: create docs-internal/vocab.md — a concise glossary of the vocabulary USED IN CODE so tickets/design docs use the exact terms.
@@ -29,4 +29,3 @@ Also: add a one-line pointer to vocab.md from CLAUDE.md "Orient here first" list
 ## Acceptance Criteria
 
 docs-internal/vocab.md exists with the seed entries plus code-sweep terms, each 1-3 lines with owning file path; CLAUDE.md points to it.
-
