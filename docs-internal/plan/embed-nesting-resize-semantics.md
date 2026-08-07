@@ -295,6 +295,17 @@ step; the persisted fact is still the container's outer box.
   of the whole subtree** (not proportional-by-size, not per-level, not priority-ordered).
   True "most-use-first" greedy ordering and cap-driven redistribution are later refinements.
 
+### 9.2 Per-axis note (plan review, 2026-08-06)
+
+The "even pool" is only area-conserving on the STACKING axis: children stack
+vertically, so height handed to a descendant costs the outer box ~1:1 (modulo
+padding). Container WIDTH is **max-based** (max over children ⊕ own content), so a
+flat width pool conserves nothing. Default for Phase C: water-fill the **height**
+surplus evenly across unsaturated descendants; for **width**, let each unsaturated
+(image-kind) node grow toward its container's available inner width, bounded by the
+same cap — no width pool. If implementation finds a cleaner per-axis rule, record it
+here; do not silently apply the height rule to width.
+
 **Sequencing.** This children-grow allocator is the natural **Phase C** — Phase A (#1+#2)
 and Phase B (#3 shrink) don't need it; ship them first, then layer the appetite model +
 the global cap setting on top. With Q4 = global setting, **Phase C adds no persistence
