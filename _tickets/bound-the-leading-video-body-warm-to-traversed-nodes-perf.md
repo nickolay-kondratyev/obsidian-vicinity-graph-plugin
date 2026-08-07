@@ -1,17 +1,17 @@
 ---
 id: nid_f3czh4cey22n7zc8prqadjlek_e
-title: "Bound the leading-video body warm to traversed nodes (perf)"
-status: open
+title: Bound the leading-video body warm to traversed nodes (perf)
+status: in_progress
 deps: []
 links: [nid_ur7veu8yqx8x6q8j6vz2z2ioa_e]
-created_iso: 2026-08-07T18:14:54Z
-status_updated_iso: 2026-08-07T18:14:54Z
+created_iso: '2026-08-07T18:14:54Z'
+status_updated_iso: '2026-08-07T18:45:16Z'
 type: task
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
 tags: [external-preview, youtube, performance, decide]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-2
 ---
-
 When external previews are ON, `src/adapters/ObsidianLinkProvider.create` warms the leading-YouTube-hero fact by reading EVERY markdown note body once (see `src/adapters/LeadingVideoCache.ts`, mirroring `CanvasParseCache`). The mtime-keyed cache makes steady state cheap (only changed notes re-read), and a cheap `body.includes("youtu")` prefilter keeps per-file CPU trivial, but the FIRST build after plugin load (and after a large vault change) is O(vault) `cachedRead` calls. Every other provider fact is bounded by the node cap; this one is not.
 
 WHY it is like this: `getFileMetadata` is synchronous by design (the LinkProvider contract), but the hero fact needs the note BODY (Obsidian discards external `![](url)` embeds), which is an async read — so it must be warmed up front, and `create` does not yet know which nodes the traversal will visit.
