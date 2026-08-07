@@ -39,3 +39,10 @@ PLAN REVIEW (2026-08-07): Added dep on the external-previews SETTING ticket (nid
 **2026-08-07T16:47:42Z**
 
 DECISION (human, 2026-08-07) — SCOPE = ALL NODES. The leading YouTube hero applies to EVERY node with a leading video, not just central/pinned. This is natural: body-derived content (attachments/outline/firstImage) is already computed for every discovered node in VicinityTraversal.ts:180-202, so the video hero is modeled the same way (a new hero candidate resolved in the engine alongside firstImage/outline in nodePreviewKind.ts), gated by the external-previews boolean. NOTE: the parent ticket's 'central+pinned only' limit was about the FUTURE separate url:-outbound-link nodes (D1-D3) — it does NOT constrain this hero-on-own-node slice.
+
+**2026-08-07T16:52:41Z**
+
+TICKET REVIEW (2026-08-07) — two seams the plan notes under-specify, verified against code:
+1. NodeSizer is the SECOND consumer of nodePreviewKind (src/engine/NodeSizer.ts; the doc comment in src/engine/nodePreviewKind.ts says both consumers MUST agree). Adding a "video" preview kind therefore includes teaching NodeSizer the fixed 16:9 hero height, or content-fit sizing will reserve space for a region the node does not show. Coordinate the exact height constant with the render ticket (nid_15r71ajjkbel5s704kmj6wszw_e) — one named constant, engine-side, since the sizer needs it.
+2. The hero FACT enters the engine via the LinkProvider metadata seam, exactly like imagePrecedesOutline: extend the FileMetadata shape in src/adapters/obsidianPorts.ts / the engine port, have ObsidianLinkProvider report it, and mirror it in src/engine/FakeLinkProvider.ts for fixture tests. "Thread engine -> adapters -> view" in the body reads backwards — the fact flows adapter -> engine -> view mapping.
+3. PIN: preference "title-only" continues to blank EVERYTHING including the video hero — it stays the one documented preference that empties the slot (nodePreviewKind.ts early-out). Only the external-previews boolean and title-only can suppress an existing leading video.

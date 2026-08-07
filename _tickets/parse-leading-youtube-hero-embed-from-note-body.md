@@ -32,3 +32,10 @@ Context: _tickets/add-procesing-for-external-url-in-the-graph.md.
 **2026-08-07T16:23:36Z**
 
 PLAN REVIEW (2026-08-07): Explicit OUT OF SCOPE for this first slice — youtube.com/shorts/, /embed/, /live/, and playlist-only URLs. IN scope: youtu.be/<id> and youtube.com/watch?v=<id> (with arbitrary extra query params like &t=). Normalize to a bare videoId + canonical URL; the renderer builds the nocookie embed URL from the videoId. Preserve a start-time (t/start param) ONLY if trivial, otherwise drop it — not worth blocking the slice.
+
+**2026-08-07T16:52:52Z**
+
+TICKET REVIEW (2026-08-07) — where the code lives, verified against the repo:
+- The parser itself belongs in src/shared/ next to MarkdownInlineLinks.ts (pure, covered by the same import guard), NOT src/engine/ — the adapter (ObsidianLinkProvider) calls it while building FileMetadata and reports a plain "leading video" fact to the engine, the same shape as the existing imagePrecedesOutline fact. The engine never sees markdown text.
+- Wiki-style embeds ![[...]] cannot carry an external URL, so only markdown-style ![](url) needs handling — no extra scope hiding there.
+- "Before any image" must consider BOTH local image embeds/attachments AND (future) external image URLs; for this slice, comparing against the existing first-image position that feeds imagePrecedesOutline is sufficient.

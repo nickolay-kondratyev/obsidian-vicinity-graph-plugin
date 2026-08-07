@@ -59,3 +59,10 @@ Facade spec:
 e2e (assert DOM, never real playback/network):
 - ON  => facade poster <img> present with the expected i.ytimg.com/vi/<id> src; after a click the youtube-nocookie embed iframe is present.
 - OFF => no poster img, no iframe, normal hero fallback.
+
+**2026-08-07T16:52:47Z**
+
+TICKET REVIEW (2026-08-07) — implementation gotchas verified against the view code:
+1. LAYOUT: today's thumbnail renders BELOW the title inside .vicinity-graph-node__content (src/view/NoteNode.tsx:179-190). The hero "at the TOP of the node, ahead of the title" is therefore a NEW region above the title (likely a sibling of the content zone, like the outline is — see the sibling-not-child comment at NoteNode.tsx:193), not a reuse of the thumbnail slot position. Plan the CSS accordingly; prefer CSS over JS.
+2. INTERACTION: the play affordance and the live iframe sit inside a draggable/selectable React Flow node. They need the nodrag/nopan escape-hatch classes and a stopPropagation click handler so play does not also select/drag the node or trigger node-open — copy the existing precedent (src/view/NodeOutline.tsx:43, src/view/NoteNode.tsx:65, src/view/GraphToolbar.tsx:30 comment).
+3. SIZING: the fixed 16:9 hero height must be known to the engine NodeSizer via the new preview kind (see review note on nid_ur7veu8yqx8x6q8j6vz2z2ioa_e) — do not size the hero with a view-local constant.
