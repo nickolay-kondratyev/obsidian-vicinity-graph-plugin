@@ -1,17 +1,17 @@
 ---
 id: nid_6eust4js4l85s163nezeq3v3g_e
-title: "Local pinning UI: second pin control, icons, wiring, e2e"
-status: open
+title: 'Local pinning UI: second pin control, icons, wiring, e2e'
+status: in_progress
 deps: [nid_2zm28ijiqp786yw6grwbvmffv_e, nid_56ggaa2iz70di7xc3h8objt8n_e]
 links: [nid_ndoy0bq50w1p1qzd2i9di2fxo_e, nid_2zm28ijiqp786yw6grwbvmffv_e, nid_56ggaa2iz70di7xc3h8objt8n_e]
-created_iso: 2026-08-07T19:30:55Z
-status_updated_iso: 2026-08-07T19:30:55Z
+created_iso: '2026-08-07T19:30:55Z'
+status_updated_iso: '2026-08-07T20:31:13Z'
 type: feature
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
 tags: []
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-2
 ---
-
 UI half of LOCAL PINNING (planned from nid_ndoy0bq50w1p1qzd2i9di2fxo_e; decisions in nid_2zm28ijiqp786yw6grwbvmffv_e; core persistence/adapter work in nid_56ggaa2iz70di7xc3h8objt8n_e — this ticket depends on both).
 
 FEATURE RECAP: a local pin pins a target ONLY in the context of the current MAIN note; global pinning unchanged; a node can carry both pin kinds and shows both indicators.
