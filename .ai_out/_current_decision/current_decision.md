@@ -1,48 +1,44 @@
-# Decision: edge-routing wrong-side wrap ticket (nid_izwyr4brgokbnw6equmyfe5xv_e)
+# Decisions — External URLs in the graph (planning ticket nid_mw1az1i1aznfoxqsgcwnfus07_e)
 
-## TL;DR
-The ticket's acceptance test passes now — but for a reason the ticket didn't
-anticipate, and the routing defect it's named after is **still unfixed**. I need
-you to pick how to close it. I've set it to `punted` and folded it into the parked
-research doc; that's reversible.
+Planning is done and split into 4 tickets (see map at bottom). I made reasonable
+defaults so the independent parts can start; these are the points where your call
+overrides my default. Each is tagged `decide` on its ticket. Reply inline.
 
-## What I did (safe, suite green)
-- Stripped `facing-near*` fixture bodies back to one line in
-  `scripts/setup-dev-vault.sh`, rebuilt `.dev-vault`.
-- `e2e/edgeRouting.e2e.ts` "crowded from one side" **passes** (terminals=12, zero
-  wrong-side), plus `npm run check` and the `edgeRouting.test.ts` unit suite green.
-- Removed the now-redundant heading padding; corrected the fixture comment.
-- Added a "concrete instance folded in" section to
-  `docs-internal/research/facing-side-edge-attachment.md`.
+## Background (facts found)
 
-## The catch (why this is a judgment call, not a clean win)
-1. **The acceptance premise is stale.** A one-line note no longer renders at
-   ~40px. Sizing refinement `b191c1d` (floor/fit against the node's own chrome),
-   landed *after* this ticket was filed, floors a title-only note to **~89x34** —
-   basically the ~93px the artificial padding used to force. So stripping the
-   padding keeps the guard at its tuned crowd geometry and it stays green **with
-   no routing change**. The test does NOT run at 40px.
-2. **The underlying wrap is still real at genuinely tiny (~40px) nodes.** A
-   real-wasm probe (one-sided 40px-square crowd above a 200×240 group box, shipped
-   clearance 11) reproduced a right-border terminal on a node whose centre is
-   above the box.
-3. **Cost tweaks can't fix it** — already measured (research §1: 0/818 moved at
-   cost 100 000). The only known robust fix is the **parked two-pass per-side-class
-   design** (research §2), gated behind revisit triggers and flagged as needing
-   full re-measurement before anyone builds it. Building it now is a large,
-   uncertain-ROI effort — not an 80/20 move, and against the documented park.
+- **No non-network way to enrich a URL.** Obsidian's only fetch API (`requestUrl`)
+  IS a flagged network call. There is no way to get a URL's title/favicon without
+  phoning out — so your alias-only instinct is the right constraint: we render ONLY
+  external URLs that already carry an author-written alias.
+- External URLs are dropped in 3 places today; adding them is genuinely new
+  plumbing (a new node kind end-to-end). Node identity is vault-path-keyed
+  everywhere, so URL nodes get their own id space (`url:<normalized-url>`).
 
-## Pick one
-- **A (recommended): keep `punted`.** Acceptance is met, padding removed, deeper
-  wrap folded into the parked research with a clear reopen trigger ("~40px wrap
-  becomes a real user-facing complaint"). No new routing risk.
-  - 
-- **B: `closed`.** Same as A but call it done — treat the sizing-floor change as
-  having resolved the reproducible case. (I avoided this unilaterally because the
-  title's defect isn't fixed.)
-- **C: invest now in the two-pass fix.** I'd first re-run the research sweep in
-  the shipped config (clearance 11, `setExclusive(false)`, total facing rule),
-  build two routers + per-side pin classes + keep-the-better (≤1.30×), and add a
-  grouped-dense perf fixture. Multi-session; needs your go-ahead.
+## Questions
 
-Reply with A / B / C (or adjust).
+**D1 — Do URL nodes count toward the node cap?**
+Default: NO — exempt from the cap and truncation (they come only from centrals, so
+already bounded). Alt: count them with lowest priority. → keep default?
+
+**D2 — Same URL linked by two centrals with DIFFERENT aliases: which alias?**
+Default: one node, first-seen alias wins (deterministic order), one edge per
+source. → OK?
+
+**D3 — Clicking a URL node.**
+Default: opens the URL in the OS browser (`window.open`). No modifier alternate, no
+in-Obsidian preview, no confirm dialog (it's an explicit click). → OK?
+
+**D4 — Which links count as "external + aliased"?**
+Default: body plain links + frontmatter property links. Embedded external URLs
+(`![x](http…)`) out of scope. → OK?
+
+**D5 — Node visual design.**
+Handled by the showcase ticket `nid_hyzwoqadcfyvisveczuet3e8c_e`: ~10 variants,
+you pick one. Nothing to decide yet — flagging where the look is chosen.
+
+## Ticket map
+
+- `nid_hyzwoqadcfyvisveczuet3e8c_e` — Design showcase (10 variants, you pick) [blocks view]
+- `nid_prsk9olcj9u2fpzqgv5gb6zhe_e` — Engine + adapter (alias-only data, headless, tested)
+- `nid_ccsw8o1rjcs2l7o1elgmlqx5i_e` — View rendering (new node kind) [needs design + engine]
+- `nid_uqgew1fuqgrdyvas6eum6vaf2_e` — Follow-up: Depth pill to toggle URL rendering
