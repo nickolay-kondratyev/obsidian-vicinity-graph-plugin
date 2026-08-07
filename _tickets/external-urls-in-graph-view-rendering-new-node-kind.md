@@ -65,9 +65,24 @@ Today there are exactly two node kinds, a discriminated `FlowNode` union keyed o
    already an external open).
 6. Edges central→url render as normal directed edges (existing edge machinery);
    confirm arrowhead/curvature reads correctly when a central fans out to several
-   url-nodes.
-7. Layout: url-nodes are ungrouped (no folder). Confirm elk places them sanely
+   url-nodes. **`×N` occurrence badge (D2):** when a central references the same URL
+   more than once, show the count on the edge, exactly like the existing internal
+   edge count badge (`getLinkCount` floor `Math.max(1,…)` pattern). The count comes
+   from the engine ticket's per-source occurrence count, NOT `getLinkCount` (external
+   URLs have no `resolvedLinks` entry).
+7. **Link fly-out preview for external URLs (D2).** The existing edge-click fly-out
+   (`LinkPreviewPort` / `LinkOccurrenceProvider` / `linkPreviewModel.ts` /
+   `LinkPreviewDrawer`, see `src/view/viewPorts.ts` and the architecture map) must
+   support previewing WHERE the central references the URL — the occurrence context
+   in the source note (the text around each `[x](url)` / `![x](url)`). This likely
+   needs `LinkOccurrenceProvider` / `LiveLinkOccurrenceProvider`
+   (`src/adapters/LiveLinkOccurrenceProvider.ts`) extended to answer external-URL
+   occurrences. Scope check at pickup: if this is large, SPLIT it into its own
+   ticket rather than bloating this one — but the `×N` badge itself stays here.
+8. Layout: url-nodes are ungrouped (no folder). Confirm elk places them sanely
    around their central; they are leaf nodes with a single incoming edge.
+9. **Link vs embed (D4).** Each url-node carries its `LinkKind` (`link` vs `embed`);
+   render the visual distinction the chosen showcase design specifies.
 
 ## Testing
 

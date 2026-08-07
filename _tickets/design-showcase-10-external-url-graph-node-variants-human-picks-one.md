@@ -51,6 +51,12 @@ Obsidian for the browser).
   glyph), not just a different label.
 - Must look sane at small sizes — a URL node carries little content, so it will be
   small. No thumbnail slot, no outline, no attachment strip.
+- **Show a link-vs-embed distinction (D4).** A URL can arrive as a plain hyperlink
+  (`[x](url)`) or an external EMBED (`![x](url)`, the main use case). At least some
+  variants should show how the two read differently (e.g. distinct glyph: hyperlink
+  vs embedded-resource) so the pick covers both — OR argue a single treatment is
+  better. The node also carries an `×N` count badge on its incoming edge when the
+  central references it multiple times; keep the design legible with that badge.
 
 ## Deliverable
 

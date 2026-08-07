@@ -90,18 +90,51 @@ threaded through note-only machinery (sizing, folder-grouping, truncation chain)
    (lowercase scheme+host, strip trailing slash on empty path, keep query/hash).
    Keep it minimal — identity only, not canonicalization.
 
-## Decisions to confirm (tagged `decide`)
+## Decisions (owner-confirmed 2026-08-06)
 
-- **D1 — node cap / truncation.** URL nodes come only from centrals, so their
-  count is bounded by central out-degree. PROPOSED: **exempt from the node cap**
-  and from the truncation priority chain entirely (like central attachments),
-  since they are already bounded and are the whole point of the feature. Alt: count
-  them toward the cap with lowest priority. Confirm which.
-- **D2 — dedup / alias-conflict:** one node per URL, first-seen alias wins (above).
-- **D4 — which reference arrays count.** PROPOSED: body plain links (`cache.links`)
-  AND frontmatter property links (`cache.frontmatterLinks`) that are external +
-  aliased. Embedded external URLs (`![text](http…)`) are unusual and out of scope
-  unless trivially free. Confirm.
+- **D1 — node cap / truncation: COUNT toward the cap, LOWEST priority.** URL nodes
+  eat screen space, so they count toward the node cap — but they sit BELOW every
+  note node in the truncation priority chain (`src/engine/GraphTruncator.ts` /
+  `NodePriorityChain.ts`): note nodes are kept first, URL nodes fill remaining cap
+  budget, dropped first when over cap. (This means URL nodes DO participate in
+  truncation, unlike the earlier "exempt" proposal.)
+- **D2 — dedup + occurrence COUNT.** One node per normalized URL; first-seen alias
+  wins (deterministic root+reference order). Each central→url edge carries an
+  **occurrence count** = how many times that central references that URL (our own
+  count from the parse below — external URLs have no `resolvedLinks` entry, so
+  `getLinkCount` does not apply). This drives an `×N` edge badge in the VIEW ticket
+  and the link fly-out preview. So the adapter/engine must RETAIN the per-source
+  occurrence count, not just presence.
+- **D4 — OPEN, needs owner sign-off before this ticket starts.** Owner wants
+  `![x](http…)` EMBEDS included (the main use case), which changes the shape — see
+  the D4 section below. Do not implement the collection rule until D4 is locked.
+
+## D4 — external reference forms (deeper alignment, IN PROGRESS)
+
+Owner input: embeds (`![x](http…)`) are the MAIN use case, so we include BOTH
+links and embeds — not links-only. Two things this forces:
+
+1. **We tag each URL ref with its `LinkKind` (`link` vs `embed`)** so the design can
+   differentiate hyperlink vs embedded-resource. Feed this to the showcase ticket.
+2. **The alias gate collides with embeds** (external image embeds are frequently
+   `![](https://…/pic.png)` with EMPTY alt). Since we NEVER fetch or render the
+   remote resource — only a node — we can always derive a label from the URL string
+   alone: **alias/alt → URL last path segment ("filename") → host.** Gate options:
+   - G1 strict: only refs with an explicit alias/alt (owner's original) — hides
+     no-alt embeds, i.e. most image embeds.
+   - G2 label-precedence: render every external ref, label falls back as above.
+   - G3 hybrid (RECOMMENDED): plain links require an alias; embeds always shown
+     (alias→filename→host), because embedding IS the intent to surface it.
+   Never a network call in any option — labels come from the URL string only.
+
+3. **Source of truth: PARSE the note body ourselves** via
+   `src/shared/MarkdownInlineLinks.ts` (`EXTERNAL_DESTINATION`) rather than trusting
+   Obsidian's `metadataCache` to index external links (version-dependent, unverified).
+   Consistent with the repo's "we own parsing" precedent for canvas. Frontmatter
+   external property links may still come from `cache.frontmatterLinks` — confirm as
+   part of D4.
+
+Once D4 is locked, fold the final rule into the collection pass + tests below.
 
 ## Testing (required)
 
