@@ -1,17 +1,17 @@
 ---
 id: nid_1av3d7fx1072oyp5lxyhjd451_e
-title: "Embed nesting: resize semantics for containers and nested children (workstream)"
-status: open
+title: 'Embed nesting: resize semantics for containers and nested children (workstream)'
+status: in_progress
 deps: []
 links: [nid_e79vxubva52s9gq24idypb77x_e, nid_1ht2a3rm0ng8wnlis259u5egg_e]
-created_iso: 2026-08-07T02:12:49Z
-status_updated_iso: 2026-08-07T02:12:49Z
+created_iso: '2026-08-07T02:12:49Z'
+status_updated_iso: '2026-08-07T02:24:12Z'
 type: feature
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
 tags: [embed-nesting]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin
 ---
-
 Follow-up workstream from embed-nesting decision Q8 (ticket nid_e79vxubva52s9gq24idypb77x_e). V1 (ticket nid_qy5rc7sq261z23bp79bk8wsem_e) ships containers that auto-grow to fit children, with drag-resize DISABLED on containers and nested children and size overrides ignored while nested. This ticket designs+implements real resize semantics. Owner flagged this will likely be its own workstream — start with a PLAN pass.
 
 DESIRED BEHAVIOR (owner vision, 2026-08-07):
@@ -26,4 +26,3 @@ OPEN QUESTIONS for the plan: what does a persisted size override MEAN for a node
 ## Acceptance Criteria
 
 Plan produced and approved; then containers and nested children are resizable per the owner vision with persisted-override semantics defined and tested.
-
