@@ -83,6 +83,8 @@ function nodeData(overrides: Partial<FlowNodeData> = {}): FlowNodeData {
 		preview: "none",
 		imageCount: 0,
 		attachmentGroups: [],
+		isContainer: false,
+		isNested: false,
 		...overrides,
 	};
 }
@@ -279,5 +281,44 @@ describe("NoteNode gear content menu", () => {
 		fireEvent.click(await mountedGear(result.container));
 		const reset = gearMenuEntries(ui).find((entry) => entry.title === "Reset size");
 		expect(reset?.description).not.toBe(undefined);
+	});
+});
+
+describe("NoteNode nesting (embed-nesting P3)", () => {
+	it("WHEN a node is a CONTAINER THEN it carries the container marker", async () => {
+		const { result } = renderNoteNode(nodeData({ isContainer: true }));
+		const node = await mountedNode(result.container);
+		expect(node.getAttribute("data-container")).toBe("true");
+	});
+
+	it("WHEN a node is NESTED THEN it carries the nested marker", async () => {
+		const { result } = renderNoteNode(nodeData({ isNested: true }));
+		const node = await mountedNode(result.container);
+		expect(node.getAttribute("data-nested")).toBe("true");
+	});
+
+	it("WHEN a node is a plain leaf THEN it carries NEITHER nesting marker", async () => {
+		const { result } = renderNoteNode(nodeData());
+		const node = await mountedNode(result.container);
+		expect(node.getAttribute("data-container")).toBe(null);
+		expect(node.getAttribute("data-nested")).toBe(null);
+	});
+
+	it("WHEN a node is a CONTAINER THEN it mounts NO resize controls (Q8: resize disabled)", async () => {
+		const { result } = renderNoteNode(nodeData({ isContainer: true }));
+		const wrapper = await mountedWrapper(result.container);
+		expect(wrapper.querySelectorAll(".react-flow__resize-control")).toHaveLength(0);
+	});
+
+	it("WHEN a node is NESTED THEN it mounts NO resize controls (Q8: resize disabled)", async () => {
+		const { result } = renderNoteNode(nodeData({ isNested: true }));
+		const wrapper = await mountedWrapper(result.container);
+		expect(wrapper.querySelectorAll(".react-flow__resize-control")).toHaveLength(0);
+	});
+
+	it("WHEN a NESTED node is right-clicked THEN pin still works (nesting does not disable it)", async () => {
+		const { ui, result } = renderNoteNode(nodeData({ isNested: true }));
+		fireEvent.contextMenu(await mountedNode(result.container));
+		expect(ui.nodeMenuRequests[0]?.entries.map((entry) => entry.title)).toEqual(["Pin to graph"]);
 	});
 });

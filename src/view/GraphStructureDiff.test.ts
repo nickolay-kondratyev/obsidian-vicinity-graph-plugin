@@ -5,7 +5,7 @@ import { SIZE_RELAYOUT_THRESHOLD } from "./constants";
 import { decideLayout } from "./GraphStructureDiff";
 import { NO_RENDERED_LAYOUT } from "./layoutFit";
 import type { RenderedLayout } from "./layoutFit";
-import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
+import { makeEdge, makeEmbedEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
 
 describe("decideLayout structural identity", () => {
 	// GIVEN a two-node, one-edge graph
@@ -288,6 +288,59 @@ describe("decideLayout per-node content override (hover gear)", () => {
 	it("WHEN a node CLEARS its content override (same sizePx) THEN it reuses layout", () => {
 		expect(decideLayout(graphWithContent("image"), graphWithContent(undefined), SIZE_RELAYOUT_THRESHOLD, NO_RENDERED_LAYOUT)).toBe(
 			"reuse-layout",
+		);
+	});
+});
+
+describe("decideLayout nesting change (embed-nesting P3)", () => {
+	// GIVEN two nodes and one a→b edge. Its kind decides nesting, but `edgeIdOf`
+	// ignores kind — so the node AND edge id sets are identical across a link↔embed
+	// flip, and only the nesting check can catch it.
+	const linked = makeGraph({
+		nodes: [makeNode({ path: asVaultPath("a.md") }), makeNode({ path: asVaultPath("b.md") })],
+		edges: [makeEdge("a.md", "b.md")],
+	});
+	const embedded = makeGraph({
+		nodes: [makeNode({ path: asVaultPath("a.md") }), makeNode({ path: asVaultPath("b.md") })],
+		edges: [makeEmbedEdge("a.md", "b.md", 0)],
+	});
+
+	it("WHEN an edge flips link→embed so b nests (same id sets) THEN it relayouts", () => {
+		expect(decideLayout(linked, embedded, SIZE_RELAYOUT_THRESHOLD, NO_RENDERED_LAYOUT)).toBe("relayout");
+	});
+
+	it("WHEN the nesting is UNCHANGED (embed both builds) THEN it still reuses layout", () => {
+		const embeddedAgain = makeGraph({
+			nodes: [makeNode({ path: asVaultPath("a.md") }), makeNode({ path: asVaultPath("b.md") })],
+			edges: [makeEmbedEdge("a.md", "b.md", 0)],
+		});
+		expect(decideLayout(embedded, embeddedAgain, SIZE_RELAYOUT_THRESHOLD, NO_RENDERED_LAYOUT)).toBe("reuse-layout");
+	});
+
+	// GIVEN a hub embedding two children whose ONLY difference across builds is their
+	// embed ORDER — which drives the nested vertical stack. `edgeIdOf` ignores
+	// `embedOrder`, so the node AND edge id sets are identical; only comparing the
+	// ordered childPaths can catch the flipped stack.
+	const hubFirstSecond = makeGraph({
+		nodes: [
+			makeNode({ path: asVaultPath("hub.md") }),
+			makeNode({ path: asVaultPath("first.md") }),
+			makeNode({ path: asVaultPath("second.md") }),
+		],
+		edges: [makeEmbedEdge("hub.md", "first.md", 0), makeEmbedEdge("hub.md", "second.md", 1)],
+	});
+	const hubSecondFirst = makeGraph({
+		nodes: [
+			makeNode({ path: asVaultPath("hub.md") }),
+			makeNode({ path: asVaultPath("first.md") }),
+			makeNode({ path: asVaultPath("second.md") }),
+		],
+		edges: [makeEmbedEdge("hub.md", "first.md", 1), makeEmbedEdge("hub.md", "second.md", 0)],
+	});
+
+	it("WHEN embeds are REORDERED so the nested stack flips (same id sets) THEN it relayouts", () => {
+		expect(decideLayout(hubFirstSecond, hubSecondFirst, SIZE_RELAYOUT_THRESHOLD, NO_RENDERED_LAYOUT)).toBe(
+			"relayout",
 		);
 	});
 });

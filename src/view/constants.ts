@@ -230,6 +230,58 @@ export const ELK_GROUP_PADDING =
 	`,bottom=${elkPaddingValue(GROUP_SIDE_PADDING_PX)},right=${elkPaddingValue(GROUP_SIDE_PADDING_PX)}]`;
 
 /**
+ * Gap between an embed-container's OWN content band (its title/thumbnail/outline,
+ * which occupy the top of the box) and its first nested child. The container's
+ * own content height is reserved as elk top padding; this is the breathing room
+ * below it before the nested stack begins.
+ */
+const NESTING_OWN_CONTENT_GAP_PX = 12;
+
+/** Inset of nested children from the container's left/bottom/right border. */
+export const NESTING_SIDE_PADDING_PX = 16;
+
+/** Vertical gap between stacked nested children (decision Q8: children stack vertically). */
+const NESTING_CHILD_SPACING_PX = 12;
+
+/**
+ * Inner padding of an embed-container, in elk's `ElkPadding` syntax: the TOP band
+ * reserves the container's own content height (so nested children never render
+ * under its title/thumbnail), the other three sides inset the child stack from the
+ * border. Auto-sized: the container's final box is elk's wrap of its stacked
+ * children plus this padding (mirrors {@link ELK_GROUP_PADDING} for folder groups).
+ */
+export function nestingContainerPadding(ownContentHeightPx: number): string {
+	const top = ownContentHeightPx + NESTING_OWN_CONTENT_GAP_PX;
+	return (
+		`[top=${elkPaddingValue(top)},left=${elkPaddingValue(NESTING_SIDE_PADDING_PX)}` +
+		`,bottom=${elkPaddingValue(NESTING_SIDE_PADDING_PX)},right=${elkPaddingValue(NESTING_SIDE_PADDING_PX)}]`
+	);
+}
+
+/**
+ * Layout of the INSIDE of an embed-container. Unlike a folder group (rectpacking,
+ * density-first), nested children stack in a single VERTICAL column in the forest's
+ * child order (decision Q8), so this uses `layered` DOWN over an ordering chain of
+ * synthetic edges (added in `elkMapping`). `elk.nodeSize.minimum` floors the box at
+ * the container's OWN content size, so a container with narrow children never
+ * shrinks below the width its own title/thumbnail needs.
+ */
+export function nestingContainerOptions(
+	ownContentWidthPx: number,
+	ownContentHeightPx: number,
+): Readonly<Record<string, string>> {
+	return {
+		"elk.algorithm": "layered",
+		"elk.direction": "DOWN",
+		"elk.padding": nestingContainerPadding(ownContentHeightPx),
+		"elk.spacing.nodeNode": String(NESTING_CHILD_SPACING_PX),
+		"elk.layered.spacing.nodeNodeBetweenLayers": String(NESTING_CHILD_SPACING_PX),
+		"elk.nodeSize.constraints": "MINIMUM_SIZE",
+		"elk.nodeSize.minimum": `(${ownContentWidthPx},${ownContentHeightPx})`,
+	};
+}
+
+/**
  * React Flow zoom floor. RF's default (0.5) clamps `fitView` on dense graphs in
  * a narrow sidebar pane — the whole vicinity then CANNOT be brought into view
  * (and, with viewport culling, boundary nodes flicker in and out of the DOM).

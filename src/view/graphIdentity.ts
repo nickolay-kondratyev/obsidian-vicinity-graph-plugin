@@ -104,6 +104,18 @@ export function nodeDimensionsPx(node: GraphNode): NodeDimensions {
 	if (overridePx !== undefined) {
 		return { width: overridePx.widthPx, height: overridePx.heightPx };
 	}
+	return nodeContentFitPx(node);
+}
+
+/**
+ * The node's CONTENT-FIT box, ignoring any per-node size override: engine
+ * content-fit `sizePx` height, snug label width floored at the square and capped
+ * at {@link NODE_MAX_LABEL_WIDTH_PX}. This is what {@link nodeDimensionsPx}
+ * returns absent an override — split out because a node that is NESTED (or is a
+ * container) ignores its override (decision Q8: resize is disabled while nested),
+ * so the nesting mapping sizes it from content alone.
+ */
+export function nodeContentFitPx(node: GraphNode): NodeDimensions {
 	return {
 		width: Math.max(node.sizePx, Math.min(NODE_MAX_LABEL_WIDTH_PX, estimateNodeLabelWidthPx(node.title))),
 		height: node.sizePx,

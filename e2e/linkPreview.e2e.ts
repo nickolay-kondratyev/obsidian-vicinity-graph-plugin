@@ -65,7 +65,14 @@ const EMBED_FIXTURES: Record<string, string> = {
 	"md-embed-target.md": "Plain target of the markdown-embed source.\n",
 	"md-embed-source.md": `${MD_EMBED_SOURCE_LINE}\n`,
 };
-const EMBED_SOURCE_PATH = "embed-source.md";
+/**
+ * Embed nesting (P3) makes a bare `source EMBEDS target` NEST the target inside
+ * the source and DROP their edge (decision Q5) — so to keep a clickable edge that
+ * carries the embed occurrence, the drawer test opens the TARGET as main: main is
+ * never nested, so `embed-source → embed-target` survives as a plain passthrough
+ * embed edge. The occurrence it previews is still the source's `![[embed-target]]`.
+ */
+const EMBED_TARGET_PATH = "embed-target.md";
 const EMBED_EDGE_ID = "embed-source.md->embed-target.md";
 const MD_EMBED_SOURCE_PATH = "md-embed-source.md";
 const MD_EMBED_EDGE_ID = "md-embed-source.md->md-embed-target.md";
@@ -174,8 +181,10 @@ test("clicking the close button dismisses the drawer", async () => {
 // --- an EMBED occurrence renders as raw text, not as the embedded note -------
 
 test("an embed occurrence shows its raw wikilink text and never the embedded note's body", async () => {
-	await harness.openFile(EMBED_SOURCE_PATH);
-	await expect(page.locator(`.vicinity-graph-node[data-path="${EMBED_SOURCE_PATH}"]`)).toHaveAttribute(
+	// Open the TARGET as main (main is never nested), so the source→target embed
+	// edge renders instead of nesting the target inside the source (see EMBED_TARGET_PATH).
+	await harness.openFile(EMBED_TARGET_PATH);
+	await expect(page.locator(`.vicinity-graph-node[data-path="${EMBED_TARGET_PATH}"]`)).toHaveAttribute(
 		"data-tier",
 		"main",
 	);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { asVaultPath } from "../engine";
-import { deriveNestingForest } from "./embedNesting";
+import { deriveNestingForest, isIntraTreeEdge, nestedPaths, outermostContainerOf } from "./embedNesting";
 import { makeEmbedEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
 
 /**
@@ -233,5 +233,57 @@ describe("deriveNestingForest determinism", () => {
 			edges: [makeEmbedEdge("m.md", "c1.md", 1), makeEmbedEdge("m.md", "c2.md", 0)],
 		});
 		expect(deriveNestingForest(graph)).toEqual(deriveNestingForest(graph));
+	});
+});
+
+describe("nestedPaths / outermostContainerOf (P3 consumer helpers)", () => {
+	// hub embeds mid, mid embeds leaf — a chain two deep.
+	const chain = makeGraph({
+		nodes: [makeNode({ path: asVaultPath("hub.md") }), makeNode({ path: asVaultPath("mid.md") }), makeNode({ path: asVaultPath("leaf.md") })],
+		edges: [makeEmbedEdge("hub.md", "mid.md", 0), makeEmbedEdge("mid.md", "leaf.md", 0)],
+	});
+
+	it("WHEN nodes nest THEN nestedPaths lists every node that has a container (roots excluded)", () => {
+		expect(nestedPaths(deriveNestingForest(chain))).toEqual(new Set(["mid.md", "leaf.md"]));
+	});
+
+	it("WHEN a node is deep in a tree THEN outermostContainerOf returns the tree root", () => {
+		expect(outermostContainerOf(deriveNestingForest(chain), "leaf.md")).toBe("hub.md");
+	});
+
+	it("WHEN a node is a root THEN outermostContainerOf returns itself", () => {
+		expect(outermostContainerOf(deriveNestingForest(chain), "hub.md")).toBe("hub.md");
+	});
+});
+
+describe("isIntraTreeEdge (the ONE Q5 drop rule, shared by flow + elk mapping)", () => {
+	// hub embeds mid, mid embeds leaf (chain two deep, from the suite above).
+	const forest = () =>
+		deriveNestingForest(
+			makeGraph({
+				nodes: [
+					makeNode({ path: asVaultPath("hub.md") }),
+					makeNode({ path: asVaultPath("mid.md") }),
+					makeNode({ path: asVaultPath("leaf.md") }),
+					makeNode({ path: asVaultPath("ext.md") }),
+				],
+				edges: [makeEmbedEdge("hub.md", "mid.md", 0), makeEmbedEdge("mid.md", "leaf.md", 0)],
+			}),
+		);
+
+	it("WHEN two distinct nodes share an outermost container THEN the edge is intra-tree", () => {
+		expect(isIntraTreeEdge(forest(), "mid.md", "leaf.md")).toBe(true);
+	});
+
+	it("WHEN an edge crosses tree boundaries THEN it is NOT intra-tree", () => {
+		expect(isIntraTreeEdge(forest(), "ext.md", "leaf.md")).toBe(false);
+	});
+
+	it("WHEN a self-loop sits on a NESTED node THEN it is intra-tree (dropped)", () => {
+		expect(isIntraTreeEdge(forest(), "leaf.md", "leaf.md")).toBe(true);
+	});
+
+	it("WHEN a self-loop sits on a ROOT node THEN it is NOT intra-tree (renders as before)", () => {
+		expect(isIntraTreeEdge(forest(), "hub.md", "hub.md")).toBe(false);
 	});
 });

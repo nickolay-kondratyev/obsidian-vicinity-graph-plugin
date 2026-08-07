@@ -142,6 +142,13 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
 			    reused on data-only rebuilds), so a moved origin would snap back on
 			    the commit rebuild. Anchored growth has no such lie.
 
+			    Omitted entirely while this node is a CONTAINER or is NESTED (embed
+			    nesting P3, decision Q8): a nested node's box is owned by its
+			    container's elk stack and a container auto-sizes from its children, so
+			    resize has no honest semantics yet (its own workstream — ticket
+			    nid_1av3d7fx1072oyp5lxyhjd451_e). data.hasSizeOverride is already
+			    forced false for these, so the menu's "Reset size" is gone in step.
+
 			    SIBLINGS of `.vicinity-graph-node`, not children of it: React Flow
 			    centres each grip ON the node's edge (`left/top: 100%` + a 50%
 			    translate), while `.vicinity-graph-node` is `overflow: hidden` (it
@@ -150,24 +157,33 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
 			    all but vanished and only a quarter of the corner chip survived.
 			    `.react-flow__node` is positioned and clips nothing, so the grips
 			    keep the geometry React Flow computes for them. */}
-			<NodeResizeControl
-				variant={ResizeControlVariant.Line}
-				position="right"
-				{...NODE_RESIZE_BOUNDS}
-				onResizeEnd={onResizeEnd}
-			/>
-			<NodeResizeControl
-				variant={ResizeControlVariant.Line}
-				position="bottom"
-				{...NODE_RESIZE_BOUNDS}
-				onResizeEnd={onResizeEnd}
-			/>
-			<NodeResizeControl position="bottom-right" {...NODE_RESIZE_BOUNDS} onResizeEnd={onResizeEnd} />
+			{!data.isContainer && !data.isNested && (
+				<>
+					<NodeResizeControl
+						variant={ResizeControlVariant.Line}
+						position="right"
+						{...NODE_RESIZE_BOUNDS}
+						onResizeEnd={onResizeEnd}
+					/>
+					<NodeResizeControl
+						variant={ResizeControlVariant.Line}
+						position="bottom"
+						{...NODE_RESIZE_BOUNDS}
+						onResizeEnd={onResizeEnd}
+					/>
+					<NodeResizeControl position="bottom-right" {...NODE_RESIZE_BOUNDS} onResizeEnd={onResizeEnd} />
+				</>
+			)}
 			<div
 				className="vicinity-graph-node"
 				data-tier={data.tier}
 				data-path={data.path}
 				data-preview={data.preview}
+				// Nesting role drives CSS: a container reserves its top band for its own
+				// content and tints the well its nested children sit in; a nested node
+				// gets the distinct-but-consistent inner styling.
+				data-container={data.isContainer ? "true" : undefined}
+				data-nested={data.isNested ? "true" : undefined}
 				onContextMenu={onContextMenu}
 			>
 				<PinButton action={pinAction} onActivate={runPinAction} />

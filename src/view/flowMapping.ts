@@ -16,9 +16,11 @@ import { OUTLINE_RENDER_LIMIT } from "./constants";
 import type { AttachmentIconGroup } from "./attachmentIconStrip";
 import { attachmentIconStrip } from "./attachmentIconStrip";
 import { deriveFolderGroups } from "./folderGrouping";
+import { deriveNestingForest, isIntraTreeEdge, nestedPaths, outermostContainerOf } from "./embedNesting";
+import type { NestingForest } from "./embedNesting";
 import type { OrphanTruncation } from "./truncationBadges";
 import { deriveTruncationBadges } from "./truncationBadges";
-import { edgeIdOf, folderGroupIdOf, nodeDimensionsPx, nodeSizeOverridePx } from "./graphIdentity";
+import { edgeIdOf, folderGroupIdOf, nodeContentFitPx, nodeDimensionsPx, nodeSizeOverridePx } from "./graphIdentity";
 import type { RoutedPoint } from "./edgeRouting";
 
 /**
@@ -95,6 +97,20 @@ export type FlowNodeData = {
 	readonly imageCount: number;
 	/** Icon strip entries (per-extension counts + dropdown paths). */
 	readonly attachmentGroups: readonly AttachmentIconGroup[];
+	/**
+	 * True when this note EMBEDS other rendered notes that nest inside it — it is
+	 * a container (embed-nesting P3). Its own content renders in the TOP band; its
+	 * nested children render below as React Flow subflow children. Drives the
+	 * container styling and disables its drag-resize (decision Q8).
+	 */
+	readonly isContainer: boolean;
+	/**
+	 * True when this note renders INSIDE a container (its `parentId` is a note id,
+	 * not a folder-group id). Nested nodes get the distinct nested styling, are
+	 * non-draggable (their position is owned by the container's stack), and have
+	 * their drag-resize disabled (decision Q8).
+	 */
+	readonly isNested: boolean;
 };
 
 /** Folder-group node payload (label + truncation badge). Type alias for the
@@ -203,12 +219,20 @@ const UNSIZED_GROUP_PX = 0;
  * (the engine skips main-as-pin, so this fact must be supplied by the caller).
  */
 export function vicinityGraphToFlow(graph: VicinityGraph, mainPinned: boolean): FlowGraph {
-	const grouping = deriveFolderGroups(graph.nodes);
+	// Nesting is derived FIRST: its nested set is excluded from folder grouping
+	// (decision Q4 — nesting wins), so the same forest steers both parentIds here
+	// and the elk container structure (elkMapping derives it independently — pure
+	// and deterministic, so the two agree).
+	const nesting = deriveNestingForest(graph);
+	const nested = nestedPaths(nesting);
+	const grouping = deriveFolderGroups(graph.nodes, nested);
 	const badges = deriveTruncationBadges(
 		graph.hiddenNodeCountsByFolder,
 		new Set(grouping.groups.map((group) => group.folder)),
 	);
-	// Parents must precede children in React Flow's nodes array.
+	// Parents must precede children in React Flow's nodes array: folder groups first
+	// (they parent containers and plain members), then note nodes ordered so a
+	// container always precedes its nested subtree (see {@link orderNotesParentFirst}).
 	const groupNodes = grouping.groups.map(
 		(group): GroupFlowNode => ({
 			id: folderGroupIdOf(group.folder),
@@ -223,24 +247,72 @@ export function vicinityGraphToFlow(graph: VicinityGraph, mainPinned: boolean): 
 			},
 		}),
 	);
-	const noteNodes = graph.nodes.map((node): NoteFlowNode => {
-		const groupFolder = grouping.groupFolderByMemberPath.get(node.path);
-		const { width, height } = nodeDimensionsPx(node);
-		return {
-			id: node.path,
-			kind: "note",
-			position: UNPLACED,
-			width,
-			height,
-			...(groupFolder === undefined ? {} : { parentId: folderGroupIdOf(groupFolder) }),
-			data: toFlowNodeData(node, mainPinned, graph.viewSettings),
-		};
-	});
+	const noteNodeByPath = new Map<string, NoteFlowNode>(
+		graph.nodes.map((node): [string, NoteFlowNode] => {
+			const assignment = nesting.nestingByPath.get(node.path);
+			const isNested = assignment?.containerPath !== undefined;
+			const isContainer = (assignment?.childPaths.length ?? 0) > 0;
+			const groupFolder = grouping.groupFolderByMemberPath.get(node.path);
+			// A nested node parents to its container note; a non-nested member parents
+			// to its folder group; a nested/container node ignores its size override
+			// (Q8), so its box is content-fit (elk resizes containers via
+			// withGroupDimensions afterward).
+			const parentId = isNested
+				? assignment?.containerPath
+				: groupFolder === undefined
+					? undefined
+					: folderGroupIdOf(groupFolder);
+			const { width, height } = isNested || isContainer ? nodeContentFitPx(node) : nodeDimensionsPx(node);
+			return [
+				node.path,
+				{
+					id: node.path,
+					kind: "note",
+					position: UNPLACED,
+					width,
+					height,
+					...(parentId === undefined ? {} : { parentId }),
+					data: toFlowNodeData(node, mainPinned, graph.viewSettings, { isContainer, isNested }),
+				},
+			];
+		}),
+	);
 	return {
-		nodes: [...groupNodes, ...noteNodes],
-		edges: buildFlowEdges(graph, grouping.groupFolderByMemberPath),
+		nodes: [...groupNodes, ...orderNotesParentFirst(graph.nodes, nesting, noteNodeByPath)],
+		edges: buildFlowEdges(graph, grouping.groupFolderByMemberPath, nesting),
 		orphanTruncation: badges.orphan,
 	};
+}
+
+/**
+ * Note flow nodes ordered so every container precedes its nested subtree — React
+ * Flow's hard constraint (a `parentId` node must appear AFTER its parent). Emits
+ * each nesting-tree ROOT in engine order, then its subtree pre-order (children in
+ * the forest's already-ordered {@link NodeNesting.childPaths}); nested nodes are
+ * reached only through their ancestor, never on their own. Deterministic.
+ */
+function orderNotesParentFirst(
+	nodes: readonly GraphNode[],
+	nesting: NestingForest,
+	noteNodeByPath: ReadonlyMap<string, NoteFlowNode>,
+): NoteFlowNode[] {
+	const ordered: NoteFlowNode[] = [];
+	const emit = (path: string): void => {
+		const flowNode = noteNodeByPath.get(path);
+		if (flowNode === undefined) {
+			return;
+		}
+		ordered.push(flowNode);
+		for (const childPath of nesting.nestingByPath.get(path)?.childPaths ?? []) {
+			emit(childPath);
+		}
+	};
+	for (const node of nodes) {
+		if (nesting.nestingByPath.get(node.path)?.containerPath === undefined) {
+			emit(node.path);
+		}
+	}
+	return ordered;
 }
 
 /**
@@ -262,6 +334,20 @@ interface CollapsedEdgeAccumulator {
 /** Separator that cannot occur in a vault path or folder-group id — a collision-proof delimiter. */
 const UNORDERED_PAIR_KEY_SEPARATOR = "\u0000";
 
+/** Direction-agnostic identity of a rendered endpoint pair. */
+function unorderedPairKey(a: string, b: string): string {
+	return [a, b].sort().join(UNORDERED_PAIR_KEY_SEPARATOR);
+}
+
+/** One engine edge resolved to the endpoints it RENDERS between (nesting + folder projection applied). */
+interface ResolvedFlowEdge {
+	readonly edge: GraphEdge;
+	readonly renderedSource: string;
+	readonly renderedTarget: string;
+	/** True when projection MOVED an endpoint — the pair must then render collapsed. */
+	readonly projected: boolean;
+}
+
 /**
  * Maps engine edges to rendered {@link FlowEdge}s, collapsing the fan of edges
  * crossing a folder-group boundary onto a single edge to the group box (mirrors
@@ -275,36 +361,92 @@ const UNORDERED_PAIR_KEY_SEPARATOR = "\u0000";
  *   onto its group. Collapsed edges union by unordered projected pair: both
  *   directions → one bidirectional edge (arrowhead each end); one direction →
  *   single arrowhead; `count` = sum of every contributing edge.
+ *
+ * Embed nesting (P3) layers TWO things on top:
+ * - projection composes nesting THEN folder: a nested endpoint projects to its
+ *   OUTERMOST container, and that container projects to its folder group if it is
+ *   a grouped member. So an edge to a nested note behaves exactly like an edge to
+ *   its outermost container — link previews keep the true note pairs in
+ *   {@link FlowEdge.notePairs} regardless.
+ * - INTRA-TREE edges are DROPPED entirely (decision Q5): any edge whose two
+ *   endpoints share an outermost container (ancestor↔descendant, sibling, or
+ *   relative) is removed — V1 draws no edges inside a drawn nesting tree. A losing
+ *   embedder that lands OUTSIDE the winner's tree still gets its collapsed edge to
+ *   the winner's outermost container (decision Q6) — that falls out of the one
+ *   projection rule with no special case.
+ * - a rendered pair that ANY projected edge lands on collapses WHOLLY: a raw
+ *   engine edge sharing that pair (e.g. a plain member↔member link beside a
+ *   projected edge onto the same member roots) folds into the SAME collapsed
+ *   edge. Without this, the raw edge would render as a second passthrough with
+ *   the IDENTICAL `source->target` id — React Flow keys edges by id, so one of
+ *   the two would silently vanish. Hence the two passes below: resolve every
+ *   edge's rendered endpoints first, THEN decide passthrough vs collapsed per
+ *   rendered pair.
  */
 function buildFlowEdges(
 	graph: VicinityGraph,
 	groupFolderByMemberPath: ReadonlyMap<string, FolderPath>,
+	nesting: NestingForest,
 ): FlowEdge[] {
+	const outermost = (path: string): string => outermostContainerOf(nesting, path);
 	const projectId = (path: string): string => {
-		const folder = groupFolderByMemberPath.get(path);
-		return folder === undefined ? path : folderGroupIdOf(folder);
+		const container = outermost(path);
+		const folder = groupFolderByMemberPath.get(container);
+		return folder === undefined ? container : folderGroupIdOf(folder);
 	};
 	const renderedEdgeIds = new Set(graph.edges.map(edgeIdOf));
-	const passthrough: FlowEdge[] = [];
-	const collapsedByPair = new Map<string, CollapsedEdgeAccumulator>();
+	// Pass 1: resolve each surviving engine edge to its RENDERED endpoints.
+	const resolved: ResolvedFlowEdge[] = [];
 	for (const edge of graph.edges) {
+		// Edges wholly inside one nesting tree are dropped (Q5) — the ONE rule
+		// shared with elkMapping via isIntraTreeEdge.
+		if (isIntraTreeEdge(nesting, edge.source, edge.target)) {
+			continue;
+		}
+		const rootSource = outermost(edge.source);
+		const rootTarget = outermost(edge.target);
+		const nestingMoved = rootSource !== edge.source || rootTarget !== edge.target;
 		const projSource = projectId(edge.source);
 		const projTarget = projectId(edge.target);
 		const wasProjected = projSource !== edge.source || projTarget !== edge.target;
-		if (!wasProjected || projSource === projTarget) {
-			passthrough.push({
-				id: edgeIdOf(edge),
-				source: edge.source,
-				target: edge.target,
-				notePairs: [{ source: edge.source, target: edge.target }],
-				count: edge.count,
-				kind: edge.kind,
-				hasOpposite: renderedEdgeIds.has(edgeIdOf({ source: edge.target, target: edge.source })),
-				bidirectional: false,
-			});
+		if (!wasProjected || (projSource === projTarget && !nestingMoved)) {
+			// Untouched by both projections, or intra-group between PLAIN members —
+			// renders member-to-member on its raw endpoints.
+			resolved.push({ edge, renderedSource: edge.source, renderedTarget: edge.target, projected: false });
+		} else if (projSource === projTarget) {
+			// Intra-group with a NESTED endpoint: the edge lives member-root to
+			// member-root — the exact refs elkMapping's intraGroupContainerOf hands
+			// elk — never the buried nested node, and never a group self-loop.
+			resolved.push({ edge, renderedSource: rootSource, renderedTarget: rootTarget, projected: true });
+		} else {
+			resolved.push({ edge, renderedSource: projSource, renderedTarget: projTarget, projected: true });
+		}
+	}
+	// Pass 2: any rendered pair a PROJECTED edge landed on collapses wholly (see
+	// the merged-pair rule in the doc above); everything else stays passthrough
+	// with the curved-pair semantics, as ever.
+	const collapsedPairKeys = new Set(
+		resolved
+			.filter((entry) => entry.projected)
+			.map((entry) => unorderedPairKey(entry.renderedSource, entry.renderedTarget)),
+	);
+	const passthrough: FlowEdge[] = [];
+	const collapsedByPair = new Map<string, CollapsedEdgeAccumulator>();
+	for (const { edge, renderedSource, renderedTarget } of resolved) {
+		if (collapsedPairKeys.has(unorderedPairKey(renderedSource, renderedTarget))) {
+			accumulateCollapsedEdge(collapsedByPair, renderedSource, renderedTarget, edge);
 			continue;
 		}
-		accumulateCollapsedEdge(collapsedByPair, projSource, projTarget, edge);
+		passthrough.push({
+			id: edgeIdOf(edge),
+			source: edge.source,
+			target: edge.target,
+			notePairs: [{ source: edge.source, target: edge.target }],
+			count: edge.count,
+			kind: edge.kind,
+			hasOpposite: renderedEdgeIds.has(edgeIdOf({ source: edge.target, target: edge.source })),
+			bidirectional: false,
+		});
 	}
 	const collapsed = [...collapsedByPair.values()].map(
 		(pair): FlowEdge => ({
@@ -336,7 +478,7 @@ function accumulateCollapsedEdge(
 	projTarget: string,
 	edge: GraphEdge,
 ): void {
-	const key = [projSource, projTarget].sort().join(UNORDERED_PAIR_KEY_SEPARATOR);
+	const key = unorderedPairKey(projSource, projTarget);
 	const existing = collapsedByPair.get(key);
 	if (existing === undefined) {
 		collapsedByPair.set(key, {
@@ -378,8 +520,16 @@ export function edgeKindClassName(kind: EdgeKind): string {
 /**
  * @param view the effective view settings — passed whole (not knob by knob) so
  * every settings-driven derivation below reads one object.
+ * @param nestingRole whether this node is a container and/or nested — decides its
+ * nesting styling and (since resize is disabled while nested, Q8) whether it
+ * advertises an EFFECTIVE size override at all.
  */
-function toFlowNodeData(node: GraphNode, mainPinned: boolean, view: ViewSettings): FlowNodeData {
+function toFlowNodeData(
+	node: GraphNode,
+	mainPinned: boolean,
+	view: ViewSettings,
+	nestingRole: { readonly isContainer: boolean; readonly isNested: boolean },
+): FlowNodeData {
 	// Filter THEN slice: a depth-2 view of a note with 60 deep headings must
 	// still find its shallow ones (slicing first could drop every survivor).
 	const outline = node.outline
@@ -392,7 +542,13 @@ function toFlowNodeData(node: GraphNode, mainPinned: boolean, view: ViewSettings
 		tier: tierOf(node),
 		// A non-MAIN central IS a pin by definition; MAIN's pinned-ness comes from the caller.
 		isPinned: node.isMain ? mainPinned : node.isCentral,
-		hasSizeOverride: nodeSizeOverridePx(node) !== undefined,
+		// A nested or container node ignores its override (Q8), so it advertises no
+		// EFFECTIVE override — the "Reset size" affordance would target a size the
+		// screen does not show. A plain node reports its stored override as usual.
+		hasSizeOverride:
+			!nestingRole.isContainer && !nestingRole.isNested && nodeSizeOverridePx(node) !== undefined,
+		isContainer: nestingRole.isContainer,
+		isNested: nestingRole.isNested,
 		folder: node.folder,
 		outline,
 		// Decided from the RENDERABLE entry count, never the engine's raw outline:
@@ -451,17 +607,20 @@ export interface Dimensions {
 }
 
 /**
- * Applies elk-computed container sizes to folder-group nodes. Note nodes keep
- * their mapping-time box (`nodeDimensionsPx`: engine-driven height, snug capped
- * label width) — elk echoes the input size for leaves anyway, so the mapping stays the
- * single note-sizing truth.
+ * Applies elk-computed container sizes to nodes that WRAP other nodes: folder
+ * groups AND embed-containers (a note whose `data.isContainer` is set — elk grew
+ * its box to hold its nested stack plus its own-content top band). Plain note
+ * nodes and nested LEAF children keep their mapping-time box (`nodeDimensionsPx` /
+ * `nodeContentFitPx`) — elk echoes a leaf's input size, so the mapping stays the
+ * single note-sizing truth for them.
  */
 export function withGroupDimensions(
 	nodes: readonly FlowNode[],
 	dimensions: ReadonlyMap<string, Dimensions>,
 ): readonly FlowNode[] {
 	return nodes.map((node) => {
-		if (node.kind !== "folder-group") {
+		const wraps = node.kind === "folder-group" || (node.kind === "note" && node.data.isContainer);
+		if (!wraps) {
 			return node;
 		}
 		const size = dimensions.get(node.id);
