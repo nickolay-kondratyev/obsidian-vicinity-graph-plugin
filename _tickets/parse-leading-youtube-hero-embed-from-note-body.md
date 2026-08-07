@@ -26,3 +26,9 @@ SCOPE: YouTube ONLY for now. Other providers / plain external images are later s
 
 Context: _tickets/add-procesing-for-external-url-in-the-graph.md.
 
+
+## Notes
+
+**2026-08-07T16:23:36Z**
+
+PLAN REVIEW (2026-08-07): Explicit OUT OF SCOPE for this first slice — youtube.com/shorts/, /embed/, /live/, and playlist-only URLs. IN scope: youtu.be/<id> and youtube.com/watch?v=<id> (with arbitrary extra query params like &t=). Normalize to a bare videoId + canonical URL; the renderer builds the nocookie embed URL from the videoId. Preserve a start-time (t/start param) ONLY if trivial, otherwise drop it — not worth blocking the slice.

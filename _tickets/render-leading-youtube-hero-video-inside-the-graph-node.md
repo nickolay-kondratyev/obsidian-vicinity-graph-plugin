@@ -38,3 +38,9 @@ OFF removes the video from hero consideration; it does not blank the hero slot.
 This likely means the ON/OFF branch lives where the hero is CHOSEN (data-model /
 hero-selection), not only in the final render — coordinate with
 nid_ur7veu8yqx8x6q8j6vz2z2ioa_e (data-model ticket).
+
+**2026-08-07T16:23:36Z**
+
+PLAN REVIEW (2026-08-07) — two decisions pinned to remove open forks:
+1. MECHANISM = a direct privacy-domain iframe (https://www.youtube-nocookie.com/embed/<videoId>), NOT MarkdownRenderer. Rationale: we already own the parse and hold the videoId (parse ticket output), so MarkdownRenderer would re-parse work we own AND yields a cookie-ful google iframe; a direct nocookie iframe gives us sizing control and the least third-party exposure consistent with 'still contacts YouTube'. This stays within the human's D4 sanction ('MarkdownRenderer OR a direct embed iframe').
+2. e2e = assert the DOM, not real playback. ON => an iframe element with the expected youtube-nocookie embed src for the videoId is present; OFF => NO iframe / no external request and the node falls back to its normal thumbnail/outline hero. Do NOT assert that YouTube actually loads (network-dependent => flaky). Sizing: give the hero a fixed 16:9 box at the top of the node (video aspect differs from the existing thumbnail); reuse the existing hero sizing seam where possible.
