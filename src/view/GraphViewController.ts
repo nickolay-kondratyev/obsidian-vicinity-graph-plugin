@@ -164,8 +164,9 @@ export class GraphViewController {
 	 * or a failure). Only that first build awaits the docid warm-up, a content
 	 * scan that on a large vault takes seconds (ticket
 	 * nid_y081nezeucka9l0x3umebi5zo_e), so it is the only build that can visibly
-	 * wait and the only one allowed to publish {@link BUILDING_SNAPSHOT}. Every
-	 * later rebuild reads a warm map and returns fast; a placeholder there would
+	 * wait and the only one that publishes {@link INITIAL_BUILDING_SNAPSHOT} (the
+	 * retry off the failed state publishes the plain {@link BUILDING_SNAPSHOT}).
+	 * Every later rebuild reads a warm map and returns fast; a placeholder there would
 	 * only flicker the pane — over a rendered graph AND over the empty state,
 	 * which rebuilds on every metadata resolve (i.e. on every keystroke burst in
 	 * a note with no vicinity graph).
