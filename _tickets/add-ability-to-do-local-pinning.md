@@ -12,6 +12,15 @@ assignee: nickolaykondratyev
 tags: []
 ---
 
+TASK: **PLAN**. Lets clarify any gaps that exist for this ticket
+  (if you need to explore code base use cheaper Explore-cheap sub-agent)
+  ask human any questions that come up that require human decision.
+  Finally create detailed plan with requirements of what we want to achieve
+  and steps of execution and put it into a new ticket 
+  (or multiple tickets if it warrants a split across multiple tickets).
+  Close this ticket after planning is complete.
+
+
 What is local pinning it's when a node is pinned ONLY in the context of the main node.
 
 We still retain global pinning functionality, and we will add another icon to represent LOCAL pinning.
