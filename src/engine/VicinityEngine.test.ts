@@ -191,7 +191,10 @@ describe("VicinityEngine end-to-end build", () => {
 				embeds: { "embedder.md": ["hub.md"] },
 			}),
 		).build(buildRequest({ pinned: [] }));
-		expect(graph.edges).toEqual([{ source: "embedder.md", target: "hub.md", count: 1, kind: "embed" }]);
+		// embedder.md embeds hub.md as its only (0th) embed — embed-nesting P1 stamps that order.
+		expect(graph.edges).toEqual([
+			{ source: "embedder.md", target: "hub.md", count: 1, kind: "embed", embedOrder: 0 },
+		]);
 	});
 });
 

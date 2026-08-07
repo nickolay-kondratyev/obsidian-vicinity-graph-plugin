@@ -32,6 +32,10 @@ const MIN_EMITTED_EDGE_LINK_COUNT = 1;
  * {@link import("./VicinityEngine").VicinityEngine}, and this stage treats both origins
  * IDENTICALLY: a cross link is counted, kinded and badged exactly like a walked one,
  * with no provenance flag for the view to style differently.
+ *
+ * The same source reference list also yields {@link GraphEdge.embedOrder} — the
+ * per-source embed position the view nests embedded children by (embed-nesting
+ * P1) — so ONE fetch per source serves count-neutral kind AND order.
  */
 export class EdgeAssembly {
 	static attach(input: EdgeAssemblyInput): readonly GraphEdge[] {
@@ -46,13 +50,32 @@ export class EdgeAssembly {
 			referencesBySource.set(source, fetched);
 			return fetched;
 		};
-		return input.visibleEdges.map(
-			(pair): GraphEdge => ({
+		return input.visibleEdges.map((pair): GraphEdge => {
+			const references = referencesOf(pair.source);
+			const embedOrder = EdgeAssembly.embedOrderOf(references, pair.target);
+			return {
 				...pair,
 				count: Math.max(MIN_EMITTED_EDGE_LINK_COUNT, input.provider.getLinkCount(pair.source, pair.target)),
-				kind: EdgeAssembly.kindOf(referencesOf(pair.source), pair.target),
-			}),
-		);
+				kind: EdgeAssembly.kindOf(references, pair.target),
+				// Present iff the pair carries an embed reference — i.e. kind embed|both.
+				...(embedOrder !== undefined ? { embedOrder } : {}),
+			};
+		});
+	}
+
+	/**
+	 * The 0-based position of the FIRST embed reference `source → target` within
+	 * `references`'s embed references, or `undefined` when the pair has none (a
+	 * plain-link or reference-less pair). The list is already deduped per
+	 * (target, kind), so the embed-kind slice holds each target once in reference
+	 * order — the index IS the embed order that survives dedup. Feeds
+	 * {@link GraphEdge.embedOrder}; the view nests embedded children by it.
+	 */
+	private static embedOrderOf(references: readonly OutgoingReference[], target: VaultPath): number | undefined {
+		const position = references
+			.filter((reference) => reference.kind === "embed")
+			.findIndex((reference) => reference.target === target);
+		return position >= 0 ? position : undefined;
 	}
 
 	/**
