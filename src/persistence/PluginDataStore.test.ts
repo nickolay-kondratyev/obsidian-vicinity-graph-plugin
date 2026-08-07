@@ -63,6 +63,60 @@ describe("PluginDataStore", () => {
 	});
 });
 
+describe("PluginDataStore local pins", () => {
+	it("WHEN a local pin is added THEN it round-trips under its MAIN key with its timestamp", async () => {
+		const port = new FakePluginDataPort();
+		await (await initializedStore(port)).addLocalPin("docid_main_e", "docid_target_e", 1234);
+		expect((await initializedStore(port)).localPins("docid_main_e")).toEqual([
+			{ docid: "docid_target_e", pinTimestamp: 1234 },
+		]);
+	});
+
+	it("WHEN a main has no local pins THEN the read is empty", async () => {
+		const store = await initializedStore();
+		expect(store.localPins("docid_main_e")).toEqual([]);
+	});
+
+	it("WHEN the same target is re-pinned under a main THEN the timestamp refreshes without duplicating", async () => {
+		const store = await initializedStore();
+		await store.addLocalPin("docid_main_e", "docid_target_e", 1);
+		await store.addLocalPin("docid_main_e", "docid_target_e", 99);
+		expect(store.localPins("docid_main_e")).toEqual([{ docid: "docid_target_e", pinTimestamp: 99 }]);
+	});
+
+	it("WHEN a target is locally pinned under two DIFFERENT mains THEN each main keeps its own entry", async () => {
+		const store = await initializedStore();
+		await store.addLocalPin("docid_main_a_e", "docid_target_e", 1);
+		await store.addLocalPin("docid_main_b_e", "docid_target_e", 2);
+		expect([store.localPins("docid_main_a_e"), store.localPins("docid_main_b_e")]).toEqual([
+			[{ docid: "docid_target_e", pinTimestamp: 1 }],
+			[{ docid: "docid_target_e", pinTimestamp: 2 }],
+		]);
+	});
+
+	it("WHEN some targets are removed from a main THEN only the named ones disappear", async () => {
+		const store = await initializedStore();
+		await store.addLocalPin("docid_main_e", "docid_x_e", 1);
+		await store.addLocalPin("docid_main_e", "docid_y_e", 2);
+		await store.removeLocalPins("docid_main_e", ["docid_x_e"]);
+		expect(store.localPins("docid_main_e")).toEqual([{ docid: "docid_y_e", pinTimestamp: 2 }]);
+	});
+
+	it("WHEN a main's LAST target is removed THEN the whole main key is dropped (no empty list persists)", async () => {
+		const port = new FakePluginDataPort();
+		const store = await initializedStore(port);
+		await store.addLocalPin("docid_main_e", "docid_x_e", 1);
+		await store.removeLocalPins("docid_main_e", ["docid_x_e"]);
+		expect((await initializedStore(port)).localPins("docid_main_e")).toEqual([]);
+	});
+
+	it("WHEN a target that was never pinned is removed THEN nothing is written at all", async () => {
+		const port = new FakePluginDataPort();
+		await (await initializedStore(port)).removeLocalPins("docid_main_e", ["docid_ghost_e"]);
+		expect(port.saved).toBeNull();
+	});
+});
+
 const SIZE_CHANGE = { field: "sizePx", value: { widthPx: 320, heightPx: 180 } } as const;
 const CONTENT_CHANGE = { field: "content", value: "outline" } as const;
 
@@ -182,6 +236,41 @@ describe("PluginDataStore.forgetDocs", () => {
 		await (await initializedStore(port)).forgetDocs(["docid_untracked_e"]);
 		expect(port.saved).toBeNull();
 	});
+
+	it("WHEN a doc that is a local-pin MAIN key is forgotten THEN its whole main entry disappears", async () => {
+		const store = await initializedStore();
+		await store.addLocalPin("docid_main_e", "docid_target_e", 1);
+		await store.forgetDocs(["docid_main_e"]);
+		expect(store.localPins("docid_main_e")).toEqual([]);
+	});
+
+	it("WHEN a doc that is a local-pin TARGET is forgotten THEN it is pruned from every main's list", async () => {
+		const store = await initializedStore();
+		await store.addLocalPin("docid_main_a_e", "docid_target_e", 1);
+		await store.addLocalPin("docid_main_b_e", "docid_target_e", 2);
+		await store.addLocalPin("docid_main_b_e", "docid_keep_e", 3);
+		await store.forgetDocs(["docid_target_e"]);
+		expect([store.localPins("docid_main_a_e"), store.localPins("docid_main_b_e")]).toEqual([
+			[],
+			[{ docid: "docid_keep_e", pinTimestamp: 3 }],
+		]);
+	});
+
+	it("WHEN a forgotten target was a main's ONLY local pin THEN that main key is dropped whole (no empty list)", async () => {
+		const port = new FakePluginDataPort();
+		const store = await initializedStore(port);
+		await store.addLocalPin("docid_main_e", "docid_target_e", 1);
+		await store.forgetDocs(["docid_target_e"]);
+		expect((await initializedStore(port)).localPins("docid_main_e")).toEqual([]);
+	});
+
+	it("WHEN a doc appears as BOTH a global pin and a local-pin target THEN forgetting it clears both", async () => {
+		const store = await initializedStore();
+		await store.addPin("docid_dual_e", 1);
+		await store.addLocalPin("docid_main_e", "docid_dual_e", 2);
+		await store.forgetDocs(["docid_dual_e"]);
+		expect([store.pins(), store.localPins("docid_main_e")]).toEqual([[], []]);
+	});
 });
 
 /**
@@ -203,5 +292,18 @@ describe("PluginDataStore.docIdKeyedDocids", () => {
 		await store.addPin("docid_a_e", 1);
 		await store.saveNodeOverrideField("docid_b_e", CONTENT_CHANGE);
 		expect(store.docIdKeyedDocids()).toEqual(["docid_a_e", "docid_b_e"]);
+	});
+
+	it("WHEN a local pin exists THEN BOTH its main KEY and its target docid are reported (both must resolve to render)", async () => {
+		const store = await initializedStore();
+		await store.addLocalPin("docid_main_e", "docid_target_e", 1);
+		expect([...store.docIdKeyedDocids()].sort()).toEqual(["docid_main_e", "docid_target_e"]);
+	});
+
+	it("WHEN a docid is a global pin AND a local-pin main key THEN it is reported once", async () => {
+		const store = await initializedStore();
+		await store.addPin("docid_shared_e", 1);
+		await store.addLocalPin("docid_shared_e", "docid_target_e", 2);
+		expect([...store.docIdKeyedDocids()].sort()).toEqual(["docid_shared_e", "docid_target_e"]);
 	});
 });

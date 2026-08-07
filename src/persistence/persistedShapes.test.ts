@@ -21,6 +21,7 @@ describe("PersistedShapes.parsePluginData", () => {
 			globalDepths: EngineDefaults.depthSettings(),
 			globalView: EngineDefaults.viewSettings(),
 			pins: [],
+			localPins: {},
 			nodeExclusion: EngineDefaults.nodeExclusionSettings(),
 			nodeOverrides: {},
 		});
@@ -41,6 +42,13 @@ describe("PersistedShapes.parsePluginData", () => {
 			},
 			globalView: { ...EngineDefaults.viewSettings(), nodeCap: 42 },
 			pins: [{ docid: "docid_a_e", pinTimestamp: 1000 }],
+			localPins: {
+				docid_main_e: [
+					{ docid: "docid_x_e", pinTimestamp: 2000 },
+					{ docid: "docid_y_e", pinTimestamp: 2001 },
+				],
+				docid_other_e: [{ docid: "docid_z_e", pinTimestamp: 2002 }],
+			},
 			nodeExclusion: { enabled: true, patterns: ["^rel/", "templates/"] },
 			nodeOverrides: {
 				docid_a_e: { sizePx: { widthPx: 320, heightPx: 180 }, content: "outline" },
@@ -119,6 +127,48 @@ describe("PersistedShapes.parsePluginData", () => {
 		const parsed = PersistedShapes.parsePluginData(raw).globalView;
 		expect(parsed).not.toHaveProperty("edgeRouting");
 		expect(parsed.nodeCap).toBe(7);
+	});
+});
+
+describe("PersistedShapes local-pins parsing", () => {
+	function parsedLocalPins(localPins: unknown) {
+		return PersistedShapes.parsePluginData({ version: PERSISTED_SHAPE_VERSION, localPins }).localPins;
+	}
+
+	it("WHEN localPins is absent THEN it defaults to an empty map (tolerates absence)", () => {
+		expect(PersistedShapes.parsePluginData({ version: PERSISTED_SHAPE_VERSION }).localPins).toEqual({});
+	});
+
+	it("WHEN a data.json persisted BEFORE localPins existed is read THEN its pins and settings survive", () => {
+		// The additive-field rule (same as nodeOverrides): an older file has no
+		// localPins key and gets the empty map, never a discarded settings block.
+		const persistedBeforeLocalPins = {
+			version: PERSISTED_SHAPE_VERSION,
+			pins: [{ docid: "docid_a_e", pinTimestamp: 1000 }],
+		};
+		expect(PersistedShapes.parsePluginData(persistedBeforeLocalPins)).toEqual({
+			...PersistedShapes.defaultPluginData(),
+			pins: [{ docid: "docid_a_e", pinTimestamp: 1000 }],
+		});
+	});
+
+	it("WHEN a valid localPins map round-trips through JSON THEN it parses back unchanged", () => {
+		const localPins = { docid_main_e: [{ docid: "docid_x_e", pinTimestamp: 5 }] };
+		expect(parsedLocalPins(JSON.parse(JSON.stringify(localPins)))).toEqual(localPins);
+	});
+
+	it("WHEN localPins is not an object THEN it degrades to an empty map", () => {
+		expect(parsedLocalPins("scrambled")).toEqual({});
+	});
+
+	it("WHEN a target entry is malformed THEN only that entry is dropped (per-target defensive parse)", () => {
+		const raw = { docid_main_e: [{ docid: "docid_ok_e", pinTimestamp: 5 }, { docid: 42 }, "garbage"] };
+		expect(parsedLocalPins(raw)).toEqual({ docid_main_e: [{ docid: "docid_ok_e", pinTimestamp: 5 }] });
+	});
+
+	it("WHEN a main's target list survives with NO usable entry THEN that main key is dropped whole (no empty list)", () => {
+		const raw = { docid_empty_e: ["garbage"], docid_main_e: [{ docid: "docid_x_e", pinTimestamp: 5 }] };
+		expect(parsedLocalPins(raw)).toEqual({ docid_main_e: [{ docid: "docid_x_e", pinTimestamp: 5 }] });
 	});
 });
 

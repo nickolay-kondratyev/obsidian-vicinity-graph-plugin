@@ -10,6 +10,7 @@ function inputs(partial: Partial<GraphRequestInputs> = {}): GraphRequestInputs {
 		mainPath: "folder/main.md",
 		mainDocId: "docid_main_e",
 		pins: [],
+		localPins: [],
 		nodeOverrides: {},
 		resolveDocPath: (docid) => PIN_PATHS[docid],
 		globalDepths: { ...EngineDefaults.depthSettings(), linkDepthOut: 2, embedDepthOut: 2, linkDepthIn: 1 },

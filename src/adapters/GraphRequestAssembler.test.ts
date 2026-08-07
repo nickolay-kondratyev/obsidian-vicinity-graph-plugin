@@ -10,6 +10,7 @@ function inputs(partial: Partial<GraphRequestInputs> = {}): GraphRequestInputs {
 		mainPath: "main.md",
 		mainDocId: "docid_main_e",
 		pins: [],
+		localPins: [],
 		nodeOverrides: {},
 		resolveDocPath: (docid) => PIN_PATHS[docid],
 		globalDepths: EngineDefaults.depthSettings(),
@@ -47,6 +48,55 @@ describe("GraphRequestAssembler pins", () => {
 	it("WHEN inputs carry node exclusion THEN it is threaded onto the request unchanged", () => {
 		const nodeExclusion = { enabled: true, patterns: ["^rel/"] };
 		expect(GraphRequestAssembler.assemble(inputs({ nodeExclusion })).nodeExclusion).toEqual(nodeExclusion);
+	});
+});
+
+describe("GraphRequestAssembler local-pin merge", () => {
+	it("WHEN the active main has a local pin THEN it becomes a pinned descriptor (merged before the engine)", () => {
+		const request = GraphRequestAssembler.assemble(
+			inputs({ localPins: [{ docid: "docid_pin_e", pinTimestamp: 7 }] }),
+		);
+		expect(request.pinned).toEqual([{ path: "pinned.md", docid: "docid_pin_e", pinTimestamp: 7 }]);
+	});
+
+	it("WHEN a local pin resolves to the MAIN doc THEN it is skipped (already central), like a global pin", () => {
+		const request = GraphRequestAssembler.assemble(
+			inputs({
+				localPins: [{ docid: "docid_main_e", pinTimestamp: 1 }],
+				resolveDocPath: () => "main.md",
+			}),
+		);
+		expect(request.pinned).toBeUndefined();
+	});
+
+	it("WHEN a doc is BOTH globally and locally pinned THEN one descriptor is emitted (deduped by docid)", () => {
+		const request = GraphRequestAssembler.assemble(
+			inputs({
+				pins: [{ docid: "docid_pin_e", pinTimestamp: 10 }],
+				localPins: [{ docid: "docid_pin_e", pinTimestamp: 20 }],
+			}),
+		);
+		expect(request.pinned).toHaveLength(1);
+	});
+
+	it("WHEN a doc is pinned both ways THEN the MOST RECENT pinTimestamp wins (recency stays honest)", () => {
+		const request = GraphRequestAssembler.assemble(
+			inputs({
+				pins: [{ docid: "docid_pin_e", pinTimestamp: 20 }],
+				localPins: [{ docid: "docid_pin_e", pinTimestamp: 10 }],
+			}),
+		);
+		expect(request.pinned?.[0]?.pinTimestamp).toBe(20);
+	});
+
+	it("WHEN the local pin of a dual-pinned doc is newer THEN its timestamp wins over the global one", () => {
+		const request = GraphRequestAssembler.assemble(
+			inputs({
+				pins: [{ docid: "docid_pin_e", pinTimestamp: 10 }],
+				localPins: [{ docid: "docid_pin_e", pinTimestamp: 30 }],
+			}),
+		);
+		expect(request.pinned?.[0]?.pinTimestamp).toBe(30);
 	});
 });
 

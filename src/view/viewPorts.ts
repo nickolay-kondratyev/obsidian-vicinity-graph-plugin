@@ -7,6 +7,7 @@ import type {
 	VicinityGraph,
 } from "../engine";
 import type { ControlsModel } from "./ControlsModel";
+import type { FlowPinFacts } from "./flowMapping";
 import type { EdgePreviewModel } from "./linkPreviewModel";
 import type { SettingsResetScope } from "./settingsResetPlan";
 import type { SettingsInteraction } from "./settingsWritePlan";
@@ -28,6 +29,13 @@ import type { SettingsInteraction } from "./settingsWritePlan";
 export interface GraphBuildResult {
 	readonly graph: VicinityGraph;
 	readonly controls: ControlsModel;
+	/**
+	 * The global/local pin docid sets for THIS build's active main — the fact
+	 * `vicinityGraphToFlow` needs to split the engine's merged root list back into
+	 * per-node global/local pin flags. Derived from the SAME loaded inputs as
+	 * {@link controls}, so it cannot disagree with the graph the engine built.
+	 */
+	readonly pinFacts: FlowPinFacts;
 }
 
 /** Builds the vicinity graph for a MAIN file path. `null` = path unresolved. */

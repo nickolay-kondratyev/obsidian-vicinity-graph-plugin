@@ -54,11 +54,20 @@ export type FlowNodeData = {
 	readonly docid?: string;
 	readonly tier: NodeTier;
 	/**
-	 * Whether this note's doc is in the persisted pinned set — the fact the
-	 * pin/unpin toggle switches on. Distinct from {@link tier}: a pinned MAIN
-	 * still styles as `main` but must offer "unpin".
+	 * Whether this note's doc is in the GLOBAL persisted pinned set — the fact the
+	 * global pin/unpin toggle switches on. Distinct from {@link tier}: a globally
+	 * pinned MAIN still styles as `main` but must offer "unpin". Split from
+	 * {@link isLocallyPinned} because a doc can hold BOTH pin kinds at once and each
+	 * has its own toggle (the second, local, control lands in the dependent UI ticket).
 	 */
-	readonly isPinned: boolean;
+	readonly isGloballyPinned: boolean;
+	/**
+	 * Whether this note's doc is locally pinned UNDER THE ACTIVE MAIN — pinned only
+	 * while this main is active (never carried across mains; see {@link FlowPinFacts}).
+	 * The engine sees local and global pins as one merged root list, so this flag is
+	 * the ONLY place the view recovers the local-vs-global distinction.
+	 */
+	readonly isLocallyPinned: boolean;
 	/**
 	 * Whether a persisted per-node size override shaped this node's box — the
 	 * fact the context menu's "Reset size" entry switches on.
@@ -199,10 +208,18 @@ const UNPLACED: XY = { x: 0, y: 0 };
 const UNSIZED_GROUP_PX = 0;
 
 /**
- * @param mainPinned whether the MAIN doc itself is in the persisted pinned set
- * (the engine skips main-as-pin, so this fact must be supplied by the caller).
+ * The docid sets that recover local-vs-global pinning after the engine has
+ * merged both into ONE root list. Supplied by the caller because the engine
+ * carries no such distinction (and skips main-as-pin, so a globally pinned
+ * MAIN's docid must be in {@link globalPinnedDocids} for its toggle to read right).
+ * {@link localPinnedDocids} is the ACTIVE main's local targets only.
  */
-export function vicinityGraphToFlow(graph: VicinityGraph, mainPinned: boolean): FlowGraph {
+export interface FlowPinFacts {
+	readonly globalPinnedDocids: ReadonlySet<string>;
+	readonly localPinnedDocids: ReadonlySet<string>;
+}
+
+export function vicinityGraphToFlow(graph: VicinityGraph, pinFacts: FlowPinFacts): FlowGraph {
 	const grouping = deriveFolderGroups(graph.nodes);
 	const badges = deriveTruncationBadges(
 		graph.hiddenNodeCountsByFolder,
@@ -233,7 +250,7 @@ export function vicinityGraphToFlow(graph: VicinityGraph, mainPinned: boolean): 
 			width,
 			height,
 			...(groupFolder === undefined ? {} : { parentId: folderGroupIdOf(groupFolder) }),
-			data: toFlowNodeData(node, mainPinned, graph.viewSettings),
+			data: toFlowNodeData(node, pinFacts, graph.viewSettings),
 		};
 	});
 	return {
@@ -379,7 +396,7 @@ export function edgeKindClassName(kind: EdgeKind): string {
  * @param view the effective view settings — passed whole (not knob by knob) so
  * every settings-driven derivation below reads one object.
  */
-function toFlowNodeData(node: GraphNode, mainPinned: boolean, view: ViewSettings): FlowNodeData {
+function toFlowNodeData(node: GraphNode, pinFacts: FlowPinFacts, view: ViewSettings): FlowNodeData {
 	// Filter THEN slice: a depth-2 view of a note with 60 deep headings must
 	// still find its shallow ones (slicing first could drop every survivor).
 	const outline = node.outline
@@ -390,8 +407,11 @@ function toFlowNodeData(node: GraphNode, mainPinned: boolean, view: ViewSettings
 		title: node.title,
 		...(node.docid === undefined ? {} : { docid: node.docid }),
 		tier: tierOf(node),
-		// A non-MAIN central IS a pin by definition; MAIN's pinned-ness comes from the caller.
-		isPinned: node.isMain ? mainPinned : node.isCentral,
+		// The two pin facts come from the caller's docid sets, not from isCentral: a
+		// central can be pinned globally, locally, or both, and only the sets know
+		// which. A node with no docid (an ordinary neighbor) is in neither set.
+		isGloballyPinned: node.docid !== undefined && pinFacts.globalPinnedDocids.has(node.docid),
+		isLocallyPinned: node.docid !== undefined && pinFacts.localPinnedDocids.has(node.docid),
 		hasSizeOverride: nodeSizeOverridePx(node) !== undefined,
 		folder: node.folder,
 		outline,

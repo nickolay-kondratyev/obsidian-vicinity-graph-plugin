@@ -59,12 +59,28 @@ export interface PinnedDocEntry {
 	readonly pinTimestamp: number;
 }
 
+/**
+ * Local pins, keyed by the MAIN (active) note's docid → the {@link PinnedDocEntry}
+ * list pinned ONLY while that main is active (owner decision, ticket
+ * nid_ndoy0bq50w1p1qzd2i9di2fxo_e). Both sides are docids, so renames on either
+ * end stay non-events — the same global-fact-about-a-doc rule as {@link PinnedDocEntry}.
+ * This is the FIRST sanctioned per-main-doc layer, superseding the 2026-07-29
+ * global-only rule for PINS ONLY; every other setting stays global.
+ */
+export type LocalPinsByMainDocid = Readonly<Record<string, readonly PinnedDocEntry[]>>;
+
 /** Shape of the plugin's `data.json` (via `saveData`/`loadData`). */
 export interface PluginData {
 	readonly version: number;
 	readonly globalDepths: DepthSettings;
 	readonly globalView: ViewSettings;
 	readonly pins: readonly PinnedDocEntry[];
+	/**
+	 * Local pins keyed by MAIN docid (see {@link LocalPinsByMainDocid}). Additive,
+	 * so it needs no version bump — a file written before it existed has no
+	 * `localPins` key and parses to the empty map.
+	 */
+	readonly localPins: LocalPinsByMainDocid;
 	/** Global node exclusion (vault-wide enable + regex-lite pattern list). */
 	readonly nodeExclusion: NodeExclusionSettings;
 	/**
@@ -82,6 +98,7 @@ export class PersistedShapes {
 			globalDepths: EngineDefaults.depthSettings(),
 			globalView: EngineDefaults.viewSettings(),
 			pins: [],
+			localPins: {},
 			nodeExclusion: EngineDefaults.nodeExclusionSettings(),
 			nodeOverrides: {},
 		};
@@ -101,6 +118,7 @@ export class PersistedShapes {
 			globalDepths: { ...defaults.globalDepths, ...parseDepthFields(raw["globalDepths"]) },
 			globalView: { ...defaults.globalView, ...parseViewFields(raw["globalView"]) },
 			pins: parsePins(raw["pins"]),
+			localPins: parseLocalPins(raw["localPins"]),
 			nodeExclusion: parseNodeExclusion(raw["nodeExclusion"], defaults.nodeExclusion),
 			nodeOverrides: parseNodeOverrides(raw["nodeOverrides"]),
 		};
@@ -278,6 +296,31 @@ function parsePins(raw: unknown): readonly PinnedDocEntry[] {
 		}
 	}
 	return pins;
+}
+
+/**
+ * Defensive local-pins parser: a non-object map degrades to empty; per key, the
+ * value is parsed exactly like the global {@link parsePins} list, and a main
+ * whose list survives with NO usable entry is dropped whole — an empty target
+ * list is a stored shape that must not exist (mirrors the node-override rule).
+ * Never throws — matches the file's malformed-content philosophy.
+ *
+ * Added WITHOUT a PERSISTED_SHAPE_VERSION bump (same call as `nodeOverrides`):
+ * the map is ADDITIVE, so a file written before it existed simply has no
+ * `localPins` key and gets the empty map here.
+ */
+function parseLocalPins(raw: unknown): LocalPinsByMainDocid {
+	if (!isRecord(raw)) {
+		return {};
+	}
+	const localPins: Record<string, readonly PinnedDocEntry[]> = {};
+	for (const [mainDocid, entries] of Object.entries(raw)) {
+		const targets = parsePins(entries);
+		if (targets.length > 0) {
+			localPins[mainDocid] = targets;
+		}
+	}
+	return localPins;
 }
 
 /**
