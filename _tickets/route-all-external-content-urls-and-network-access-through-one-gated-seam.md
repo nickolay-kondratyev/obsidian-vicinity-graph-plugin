@@ -1,12 +1,13 @@
 ---
+closed_iso: 2026-08-07T17:37:43Z
 id: nid_tvtm9gj5zaj4tbfbpti3v6sy2_e
 title: Route ALL external-content URLs and network access through ONE gated seam
-status: in_progress
+status: closed
 deps: [nid_21xio7iwxv742ze4qc4p4qbmq_e]
 links: [nid_15r71ajjkbel5s704kmj6wszw_e, nid_21xio7iwxv742ze4qc4p4qbmq_e, nid_ty5dmswuu1uw4uh8l6i8cdc0s_e,
   nid_mw1az1i1aznfoxqsgcwnfus07_e]
 created_iso: '2026-08-07T17:04:06Z'
-status_updated_iso: '2026-08-07T17:31:17Z'
+status_updated_iso: 2026-08-07T17:37:43Z
 type: feature
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
@@ -21,3 +22,23 @@ DECISION (human, 2026-08-07): network calls to third parties are now CONDITIONAL
 - NOTE the current slice's belt-and-suspenders: the YouTube hero is ALSO gated engine-side at hero selection (nid_ur7veu8yqx8x6q8j6vz2z2ioa_e), so when OFF the view never even receives a video hero. The seam is the second, structural layer.
 
 Deps: the master-toggle setting ticket. The render ticket (nid_15r71ajjkbel5s704kmj6wszw_e) should build its poster/iframe URLs through this seam.
+
+---
+
+## RESOLVED (2026-08-07, commit 27c5c62)
+
+The seam and its enforcing tripwire are in place. Pure `src/shared/` change; `npm run check` + `npm test` (1739 tests) green. No view/DOM surface, so no e2e needed.
+
+**The seam — `src/shared/ExternalContentUrls.ts`** (static class, repo idiom like `MarkdownEmbeds`/`Wikilinks`):
+- The ONE place external host URLs are constructed. First residents, exactly as specced: `youTubePosterUrl` → `https://i.ytimg.com/vi/<id>/hqdefault.jpg`, `youTubeEmbedUrl` → `https://www.youtube-nocookie.com/embed/<id>`. Hosts declared as `EXTERNAL_CONTENT_HOSTS` data so the tripwire can assert those literals appear nowhere else.
+- **Gate**: both builders route through one private `gatedVideoUrl` that (a) returns `null` when `externalPreviews` is OFF, and (b) validates the video id against `^[A-Za-z0-9_-]{11}$` before interpolation (an ill-formed id can't inject path/query segments into a request). The OFF guarantee and id check live in ONE place, so the gate can't be issued around.
+- **DIP, no cycle**: takes a narrow `ExternalPreviewsGate { externalPreviews: boolean }` rather than the engine's `ViewSettings` — keeps `src/shared/` a leaf (engine imports shared, so shared→engine would cycle). `ViewSettings` satisfies the gate structurally, so callers pass `settings` straight in.
+- Fetches deliberately NOT built (YAGNI, per the ticket's "when actual fetches arrive"). When thumbnail/favicon `requestUrl` lands it joins as one adapter behind an engine-defined port and is added to the tripwire's sanctioned list.
+
+**Both-states unit test — `src/shared/ExternalContentUrls.test.ts`**: ON issues the URL on the owned host; OFF issues `null` (the privacy guarantee as a test); ill-formed ids refused even with previews ON.
+
+**STRONG BLOCK tripwire — `src/shared/externalContentSeam.test.ts`**: scans every non-test, non-seam module under `src/` (comments stripped so prose like libavoid's `fetch(data:)` note isn't flagged) and fails if any names an `http(s)://` URL, `requestUrl(`, `fetch(`, or an owned host literal. Verified non-vacuous three ways: a planted `i.ytimg.com` literal in `engine/constants.ts` made it fail (then reverted); it asserts >10 modules were scanned; it asserts the same patterns DO fire on the sanctioned seam file. Sanctioned list is a single relative path today (`shared/ExternalContentUrls.ts`) — the future fetch adapter appends to it.
+
+**Docs updated**: `ViewSettings.externalPreviews` doc in `src/engine/types.ts` (was "seam lands with a later ticket" → now names the seam + tripwire), and a new key-seam entry in `docs-internal/architecture-map.md`.
+
+The render ticket (nid_15r71ajjkbel5s704kmj6wszw_e) now builds its poster/iframe URLs by calling `ExternalContentUrls.youTubePosterUrl` / `.youTubeEmbedUrl(videoId, settings)`.
