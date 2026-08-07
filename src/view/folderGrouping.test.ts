@@ -90,3 +90,20 @@ describe("deriveFolderGroups dense 1/2/many membership matrix", () => {
 		expect(deriveFolderGroups(denseMultiFolderNodes())).toEqual(deriveFolderGroups(denseMultiFolderNodes()));
 	});
 });
+
+describe("deriveFolderGroups excludedPaths (embed-nesting P3, Q4: nesting wins)", () => {
+	it("WHEN a member is excluded (nested elsewhere) THEN it neither joins nor counts toward the group", () => {
+		// notes/ has two nodes, but notes/b is nested → only notes/a remains, so the
+		// folder drops below the 2-member threshold and does not group.
+		const excluded = new Set([asVaultPath("notes/b.md") as string]);
+		expect(deriveFolderGroups(MIXED_NODES, excluded).groups).toEqual([]);
+	});
+
+	it("WHEN a container (not excluded) keeps 2+ members THEN the folder still groups", () => {
+		// Excluding an out-of-folder node does not disturb the notes/ group.
+		const excluded = new Set([asVaultPath("solo/only.md") as string]);
+		expect(deriveFolderGroups(MIXED_NODES, excluded).groups).toEqual([
+			{ folder: "notes", memberPaths: ["notes/a.md", "notes/b.md"] },
+		]);
+	});
+});

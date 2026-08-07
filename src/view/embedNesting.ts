@@ -47,6 +47,31 @@ export interface NestingForest {
 	readonly nestingByPath: ReadonlyMap<string, NodeNesting>;
 }
 
+/**
+ * The paths of every NESTED node (those with a container) — the set folder
+ * grouping excludes (decision Q4) and the render/layout treat as owned by their
+ * container's stack. A root (container or standalone) is NOT in this set.
+ */
+export function nestedPaths(forest: NestingForest): ReadonlySet<string> {
+	const nested = new Set<string>();
+	for (const nesting of forest.nestingByPath.values()) {
+		if (nesting.containerPath !== undefined) {
+			nested.add(nesting.path);
+		}
+	}
+	return nested;
+}
+
+/**
+ * The outermost container of `path`'s nesting tree — the node an edge touching
+ * `path` projects onto (the same role {@link import("./folderGrouping")} plays
+ * for folder members). Returns `path` itself when it is a root (standalone or a
+ * container that is not itself nested), or when it is not a rendered node.
+ */
+export function outermostContainerOf(forest: NestingForest, path: string): string {
+	return forest.nestingByPath.get(path)?.outermostPath ?? path;
+}
+
 /** Container precedence rank — lower wins (decision Q1: central == isMain). */
 const RANK_MAIN = 0;
 const RANK_PINNED = 1;

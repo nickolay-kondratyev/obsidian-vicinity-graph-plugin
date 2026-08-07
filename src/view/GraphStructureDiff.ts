@@ -1,5 +1,6 @@
 import type { ForceLayoutSettings, GraphNode, VicinityGraph } from "../engine";
 import { FORCE_LAYOUT_RANGES } from "../engine";
+import { deriveNestingForest } from "./embedNesting";
 import { edgeIdOf, nodeDimensionsPx, nodeSizeOverridePx, sameNodeSizeOverridePx } from "./graphIdentity";
 import { resizedNodesFitRenderedLayout } from "./layoutFit";
 import type { RenderedLayout } from "./layoutFit";
@@ -44,6 +45,14 @@ export function decideLayout(
 	if (!sameIds(edgeIdsOf(previous), edgeIdsOf(next))) {
 		return "relayout";
 	}
+	// A nesting change (a node gained, lost, or switched its container) restructures
+	// the React Flow parent chain and the elk compound tree even when the node and
+	// edge id SETS are unchanged — e.g. pinning flips `isCentral`, which can move
+	// container precedence (embed-nesting P3). Reusing positions would leave a node
+	// visually parented where it no longer belongs, so force a relayout.
+	if (!sameNesting(previous, next)) {
+		return "relayout";
+	}
 	const resized = resizedPaths(previous.nodes, next.nodes);
 	if (resized.size > 0 && !resizedNodesFitRenderedLayout(resized, next.nodes, renderedLayout)) {
 		return "relayout";
@@ -65,6 +74,28 @@ const FORCE_LAYOUT_FIELDS = Object.keys(FORCE_LAYOUT_RANGES) as readonly (keyof 
 /** Value equality over every force-layout field (each build resolves a fresh object, so identity cannot be used). */
 function sameForceLayout(a: ForceLayoutSettings, b: ForceLayoutSettings): boolean {
 	return FORCE_LAYOUT_FIELDS.every((field) => a[field] === b[field]);
+}
+
+/**
+ * Value equality of the two graphs' nesting FORESTS by each node's container
+ * assignment. Reached only when the node id sets already match, so a differing
+ * `containerPath` for any path is a genuine nesting change (a node re-parented, or
+ * a container gained/lost a child). Compared on `containerPath` — the direct
+ * parent, which is exactly what React Flow's parent chain and elk's compound tree
+ * key on; the outermost/child lists are derived from it. `deriveNestingForest` is
+ * pure, so this re-derivation is deterministic.
+ */
+function sameNesting(previous: VicinityGraph, next: VicinityGraph): boolean {
+	const previousForest = deriveNestingForest(previous);
+	const nextForest = deriveNestingForest(next);
+	for (const node of next.nodes) {
+		const previousContainer = previousForest.nestingByPath.get(node.path)?.containerPath;
+		const nextContainer = nextForest.nestingByPath.get(node.path)?.containerPath;
+		if (previousContainer !== nextContainer) {
+			return false;
+		}
+	}
+	return true;
 }
 
 function nodeIdsOf(graph: VicinityGraph): Set<string> {

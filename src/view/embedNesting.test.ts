@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { asVaultPath } from "../engine";
-import { deriveNestingForest } from "./embedNesting";
+import { deriveNestingForest, nestedPaths, outermostContainerOf } from "./embedNesting";
 import { makeEmbedEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
 
 /**
@@ -233,5 +233,25 @@ describe("deriveNestingForest determinism", () => {
 			edges: [makeEmbedEdge("m.md", "c1.md", 1), makeEmbedEdge("m.md", "c2.md", 0)],
 		});
 		expect(deriveNestingForest(graph)).toEqual(deriveNestingForest(graph));
+	});
+});
+
+describe("nestedPaths / outermostContainerOf (P3 consumer helpers)", () => {
+	// hub embeds mid, mid embeds leaf — a chain two deep.
+	const chain = makeGraph({
+		nodes: [makeNode({ path: asVaultPath("hub.md") }), makeNode({ path: asVaultPath("mid.md") }), makeNode({ path: asVaultPath("leaf.md") })],
+		edges: [makeEmbedEdge("hub.md", "mid.md", 0), makeEmbedEdge("mid.md", "leaf.md", 0)],
+	});
+
+	it("WHEN nodes nest THEN nestedPaths lists every node that has a container (roots excluded)", () => {
+		expect(nestedPaths(deriveNestingForest(chain))).toEqual(new Set(["mid.md", "leaf.md"]));
+	});
+
+	it("WHEN a node is deep in a tree THEN outermostContainerOf returns the tree root", () => {
+		expect(outermostContainerOf(deriveNestingForest(chain), "leaf.md")).toBe("hub.md");
+	});
+
+	it("WHEN a node is a root THEN outermostContainerOf returns itself", () => {
+		expect(outermostContainerOf(deriveNestingForest(chain), "hub.md")).toBe("hub.md");
 	});
 });
