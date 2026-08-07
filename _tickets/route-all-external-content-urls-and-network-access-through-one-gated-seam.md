@@ -42,3 +42,20 @@ The seam and its enforcing tripwire are in place. Pure `src/shared/` change; `np
 **Docs updated**: `ViewSettings.externalPreviews` doc in `src/engine/types.ts` (was "seam lands with a later ticket" → now names the seam + tripwire), and a new key-seam entry in `docs-internal/architecture-map.md`.
 
 The render ticket (nid_15r71ajjkbel5s704kmj6wszw_e) now builds its poster/iframe URLs by calling `ExternalContentUrls.youTubePosterUrl` / `.youTubeEmbedUrl(videoId, settings)`.
+
+## Notes
+
+**2026-08-07T18:47:18Z**
+
+UPDATE (2026-08-07) — the hard source-scan tripwire was REMOVED (commit on branch
+drop-external-content-source-scan-tripwire). `src/shared/externalContentSeam.test.ts`
+forbade any http(s):// literal outside the seam; it conflated network calls with
+harmless identity strings (YoutubeVideoIdentity.canonicalUrl, a watch link a user
+clicks — no automatic network) and produced a false build failure.
+
+The "OFF means zero network" guarantee is UNCHANGED but now rests on the RENDER
+BOUNDARY, behaviorally: the view only emits a poster <img> / embed <iframe> when
+externalPreviews is ON (flowMapping.previewOf; e2e ON/OFF DOM assertions in the
+render ticket nid_15r71ajjkbel5s704kmj6wszw_e). ExternalContentUrls remains the single
+gated builder for network URLs (returns null when OFF) as defense in depth. The seam
+class and EXTERNAL_CONTENT_HOSTS are intact; only the blanket source scan is gone.
