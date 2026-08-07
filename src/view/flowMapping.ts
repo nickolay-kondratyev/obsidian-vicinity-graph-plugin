@@ -8,6 +8,7 @@ import type {
 	OutlineEntry,
 	ViewSettings,
 	VicinityGraph,
+	YoutubeVideoIdentity,
 } from "../engine";
 import { nodePreviewKind } from "../engine";
 import { resolveNodePreviewPreference } from "./nodePreviewChoice";
@@ -81,6 +82,15 @@ export type FlowNodeData = {
 	 * `data-preview` can never advertise a region the node does not render.
 	 */
 	readonly preview: NodePreviewKind;
+	/**
+	 * The note's leading YouTube hero identity (videoId + canonical URL), when the
+	 * adapter reported one — carried so the renderer can build the poster/embed URLs
+	 * from the videoId. REPORTED, not gated: present whenever the note HAS a leading
+	 * video, even if {@link preview} is not `"video"` (external previews OFF, or the
+	 * title-only preference). The renderer shows it only when `preview === "video"`;
+	 * the mapping reports, it never deletes data (same rule as {@link outline}).
+	 */
+	readonly leadingVideo?: YoutubeVideoIdentity;
 	/**
 	 * The doc's stored per-node CONTENT override, or absent for "Inherit" — the
 	 * fact the hover gear's Content menu checks the current choice against.
@@ -407,7 +417,10 @@ function toFlowNodeData(node: GraphNode, mainPinned: boolean, view: ViewSettings
 			hasImage: node.firstImagePath !== undefined,
 			imagePrecedesOutline: node.imagePrecedesOutline,
 			isCentral: node.isCentral,
+			hasLeadingVideo: node.leadingVideo !== undefined,
+			externalPreviews: view.externalPreviews,
 		}),
+		...(node.leadingVideo === undefined ? {} : { leadingVideo: node.leadingVideo }),
 		...(node.override?.content === undefined ? {} : { contentOverride: node.override.content }),
 		...(node.firstImagePath === undefined ? {} : { firstImagePath: node.firstImagePath }),
 		imageCount: node.attachments.filter((attachment) => attachment.isImage).length,

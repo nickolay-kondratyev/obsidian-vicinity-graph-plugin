@@ -1,4 +1,5 @@
 import type { LinkKind } from "../shared/LinkKind";
+import type { YoutubeVideoIdentity } from "../shared/YoutubeHeroEmbed";
 import { VaultPathFacts } from "../shared/VaultPathFacts";
 import { EdgeAccumulator } from "./EdgeAccumulator";
 import type { LinkProvider } from "./LinkProvider";
@@ -42,6 +43,8 @@ export interface TraversedNode {
 	readonly firstImagePath?: VaultPath;
 	/** Provider-owned document-position fact (see `FileMetadata.imagePrecedesOutline`). */
 	readonly imagePrecedesOutline: boolean;
+	/** Provider-owned leading YouTube hero, when the note has one (see `FileMetadata.leadingVideo`). */
+	readonly leadingVideo?: YoutubeVideoIdentity;
 }
 
 export interface TraversalResult {
@@ -198,6 +201,7 @@ export class VicinityTraversal {
 				outline: metadata.outline,
 				firstImagePath: firstImage?.path,
 				imagePrecedesOutline: metadata.imagePrecedesOutline,
+				leadingVideo: metadata.leadingVideo,
 			});
 		}
 		return { nodes, edges: collector.edges(), excludedNodeCount: collector.excludedCount() };

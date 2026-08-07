@@ -5,6 +5,7 @@ import type { DocIdService } from "obsidian-id-lib";
 import { asVaultPath } from "./engine";
 import { BacklinksAdapter } from "./adapters/BacklinksAdapter";
 import { CanvasParseCache } from "./adapters/CanvasParseCache";
+import { LeadingVideoCache } from "./adapters/LeadingVideoCache";
 import { LiveLinkOccurrenceProvider } from "./adapters/LiveLinkOccurrenceProvider";
 import { VicinityGraphBuilder } from "./adapters/VicinityGraphBuilder";
 import { ObsidianLinkProvider } from "./adapters/ObsidianLinkProvider";
@@ -50,6 +51,8 @@ export default class VicinityGraphPlugin extends Plugin {
 	private docIdMapWarmer!: DocIdMapWarmer;
 	/** Plugin-lived on purpose: canvas parses survive across graph rebuilds (mtime-keyed). */
 	private readonly canvasParseCache = new CanvasParseCache();
+	/** Plugin-lived, mtime-keyed like {@link canvasParseCache}: leading-video body parses survive rebuilds. */
+	private readonly leadingVideoCache = new LeadingVideoCache();
 	private sweepTimer: number | null = null;
 	/**
 	 * {@link ViewsRefreshPort} over this plugin's own leaf walk, handed to every
@@ -83,6 +86,7 @@ export default class VicinityGraphPlugin extends Plugin {
 			this.app.metadataCache,
 			this.docIdService,
 			this.canvasParseCache,
+			this.leadingVideoCache,
 			this.pluginDataStore,
 			this.pathDocIdMap,
 			this.docIdMapWarmer,
@@ -169,6 +173,7 @@ export default class VicinityGraphPlugin extends Plugin {
 			this.app.vault.on("rename", (file, oldPath) => {
 				this.pathDocIdMap.handleRename(oldPath, file.path);
 				this.canvasParseCache.evict(oldPath);
+				this.leadingVideoCache.evict(oldPath);
 			}),
 		);
 		this.registerEvent(this.app.vault.on("delete", (file) => void this.handleVaultDelete(file.path)));
@@ -181,6 +186,7 @@ export default class VicinityGraphPlugin extends Plugin {
 	 */
 	private async handleVaultDelete(path: string): Promise<void> {
 		this.canvasParseCache.evict(path);
+		this.leadingVideoCache.evict(path);
 		const docid = this.pathDocIdMap.handleDelete(path);
 		if (docid !== undefined) {
 			await this.pluginDataStore.forgetDocs([docid]);

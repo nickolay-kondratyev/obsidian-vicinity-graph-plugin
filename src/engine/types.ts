@@ -8,6 +8,8 @@
  *   BEFORE it enters the engine.
  */
 
+import type { YoutubeVideoIdentity } from "../shared/YoutubeHeroEmbed";
+
 /** Vault-relative file path — the engine's traversal key. Covers notes AND attachments. */
 export type VaultPath = string & { readonly __brand: "VaultPath" };
 
@@ -140,6 +142,13 @@ export interface GraphNode {
 	 * it into "outline or thumbnail" (see `FileMetadata.imagePrecedesOutline`).
 	 */
 	readonly imagePrecedesOutline: boolean;
+	/**
+	 * Provider-reported leading YouTube hero, when the note has one — the resolved
+	 * positional FACT (see `FileMetadata.leadingVideo`), echoed through so the view
+	 * mapping can hand the videoId to the renderer. Whether it WINS the preview slot
+	 * is `nodePreviewKind`'s call, gated by `ViewSettings.externalPreviews`.
+	 */
+	readonly leadingVideo?: YoutubeVideoIdentity;
 	/**
 	 * Content-fit node height (px): the estimate of what this node SHOWS (title
 	 * lines, renderable outline entries or thumbnail), clamped into the
