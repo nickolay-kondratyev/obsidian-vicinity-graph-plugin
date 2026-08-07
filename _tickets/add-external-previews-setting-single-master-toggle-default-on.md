@@ -29,3 +29,14 @@ TESTS: e2e coverage for the toggle (settings tab has no npm-test coverage; per C
 
 Context / decisions: see _tickets/add-procesing-for-external-url-in-the-graph.md (D4 resolution).
 
+
+## Notes
+
+**2026-08-07T16:05:02Z**
+
+ADD (2026-08-07): README disclosure is part of THIS ticket.
+Update README.md to state that external previews (starting with YouTube hero
+videos) load external content and therefore contact third-party servers (e.g.
+YouTube/Google), that this is ON by default, and how to turn it OFF via this
+setting. Keep it honest and user-facing — same message as the in-app setting help
+text, DRY the wording.

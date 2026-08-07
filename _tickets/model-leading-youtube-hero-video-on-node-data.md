@@ -21,3 +21,13 @@ Carry the parsed leading YouTube hero video (from the parsing ticket) through th
 Depends on the YouTube parsing ticket.
 Context: _tickets/add-procesing-for-external-url-in-the-graph.md.
 
+
+## Notes
+
+**2026-08-07T16:05:02Z**
+
+ADD (2026-08-07): hero selection must be setting-aware. When external previews
+are OFF, the leading YouTube embed is NOT eligible as the node hero — the model
+falls through to the existing hero logic (next image after the link / outline) as
+if the video were a plain link. Model this so the ON/OFF choice is made at hero
+selection, not patched in the renderer. See nid_15r71ajjkbel5s704kmj6wszw_e.

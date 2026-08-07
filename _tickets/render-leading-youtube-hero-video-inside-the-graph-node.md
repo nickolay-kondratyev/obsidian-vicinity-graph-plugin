@@ -23,3 +23,18 @@ TESTS: view-layer DOM/CSS change => run npm run test:e2e (per CLAUDE.md) coverin
 Depends on: the YouTube data-model ticket AND the external-previews setting ticket.
 Context: _tickets/add-procesing-for-external-url-in-the-graph.md.
 
+
+## Notes
+
+**2026-08-07T16:05:02Z**
+
+ADD (2026-08-07) — OFF behavior is a hard requirement, not just "render nothing":
+When the external-previews setting is OFF, the leading `![](youtube-url)` must NOT
+get special hero treatment at all. It is treated as a REGULAR (non-embedded)
+external link, so the node's existing hero/outline logic runs unchanged — e.g.
+the normal "find the image after the link" thumbnail selection and the outline
+rendering take over exactly as if the video special-casing did not exist. I.e.
+OFF removes the video from hero consideration; it does not blank the hero slot.
+This likely means the ON/OFF branch lives where the hero is CHOSEN (data-model /
+hero-selection), not only in the final render — coordinate with
+nid_ur7veu8yqx8x6q8j6vz2z2ioa_e (data-model ticket).
