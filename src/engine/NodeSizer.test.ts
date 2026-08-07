@@ -8,6 +8,7 @@ import {
 	ESTIMATED_OUTLINE_ENTRY_PX,
 	ESTIMATED_THUMBNAIL_SLOT_PX,
 	ESTIMATED_TITLE_LINE_PX,
+	ESTIMATED_VIDEO_HERO_SLOT_PX,
 	NODE_REGION_GAP_PX,
 	NODE_VERTICAL_CHROME_PX,
 	PREVIEW_SLOT_REVEAL_CONTENT_BOX_PX,
@@ -39,6 +40,7 @@ function viewWith(overrides: Partial<NodeSizingView> = {}): NodeSizingView {
 		sizing: defaults.sizing,
 		outlineMaxDepth: defaults.outlineMaxDepth,
 		nodePreviewPreference: defaults.nodePreviewPreference,
+		externalPreviews: defaults.externalPreviews,
 		...overrides,
 	};
 }
@@ -364,6 +366,29 @@ describe("NodeSizer thumbnail sizing (preview-kind driven — preference-indepen
 			NODE_REGION_GAP_PX +
 			ESTIMATED_ATTACHMENT_ROW_PX;
 		expect(sizeOf(sizes, "a.md")).toBe(expected);
+	});
+});
+
+describe("NodeSizer leading-video hero sizing (the video takes the media slot at a fixed 16:9 height)", () => {
+	const VIDEO = { videoId: "dQw4w9WgXcQ", canonicalUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" };
+	const videoNote: FakeVaultSpec = {
+		files: [{ path: "m.md" }, { path: "a.md", leadingVideo: VIDEO }],
+		links: { "m.md": ["a.md"] },
+	};
+
+	it("WHEN a note's preview is its leading video THEN the node reserves the 16:9 hero slot", () => {
+		const sizes = sizeAll(videoNote, viewWith(), ["m.md"]);
+		expect(sizeOf(sizes, "a.md")).toBe(
+			NODE_VERTICAL_CHROME_PX + ESTIMATED_TITLE_LINE_PX + NODE_REGION_GAP_PX + ESTIMATED_VIDEO_HERO_SLOT_PX,
+		);
+	});
+
+	it("WHEN external previews are OFF THEN the video reserves no space and the node falls to its title-only floor", () => {
+		// OFF ⇒ the video is not the hero; with nothing else to show the node is
+		// title-only and clamps to minPx, well below the ON node's hero height.
+		const onSize = sizeOf(sizeAll(videoNote, viewWith({ externalPreviews: true }), ["m.md"]), "a.md");
+		const offSize = sizeOf(sizeAll(videoNote, viewWith({ externalPreviews: false }), ["m.md"]), "a.md");
+		expect(offSize).toBeLessThan(onSize);
 	});
 });
 

@@ -15,31 +15,55 @@ import { nodePreviewKind } from "./nodePreviewKind";
  * Unreachable by construction (and therefore not tabulated): `imagePrecedesOutline`
  * with no image (nothing to precede with) or with no outline (nothing to precede).
  */
-type PreviewFacts = Omit<NodePreviewInput, "preference" | "isCentral">;
+// externalPreviews is a SETTING, not a per-note fact, so it groups with
+// preference/isCentral at the helper level; the fact constants below tabulate
+// the video-ABSENT world (hasLeadingVideo: false) the suites already covered.
+type PreviewFacts = Omit<NodePreviewInput, "preference" | "isCentral" | "externalPreviews">;
 
 const OUTLINE_ENTRIES = 3;
 const BOTH_IMAGE_FIRST: PreviewFacts = {
 	outlineEntryCount: OUTLINE_ENTRIES,
 	hasImage: true,
 	imagePrecedesOutline: true,
+	hasLeadingVideo: false,
 };
 const BOTH_OUTLINE_FIRST: PreviewFacts = {
 	outlineEntryCount: OUTLINE_ENTRIES,
 	hasImage: true,
 	imagePrecedesOutline: false,
+	hasLeadingVideo: false,
 };
-const OUTLINE_ONLY: PreviewFacts = { outlineEntryCount: OUTLINE_ENTRIES, hasImage: false, imagePrecedesOutline: false };
-const IMAGE_ONLY: PreviewFacts = { outlineEntryCount: 0, hasImage: true, imagePrecedesOutline: false };
-const NEITHER: PreviewFacts = { outlineEntryCount: 0, hasImage: false, imagePrecedesOutline: false };
+const OUTLINE_ONLY: PreviewFacts = {
+	outlineEntryCount: OUTLINE_ENTRIES,
+	hasImage: false,
+	imagePrecedesOutline: false,
+	hasLeadingVideo: false,
+};
+const IMAGE_ONLY: PreviewFacts = {
+	outlineEntryCount: 0,
+	hasImage: true,
+	imagePrecedesOutline: false,
+	hasLeadingVideo: false,
+};
+const NEITHER: PreviewFacts = {
+	outlineEntryCount: 0,
+	hasImage: false,
+	imagePrecedesOutline: false,
+	hasLeadingVideo: false,
+};
 
-/** A central (MAIN or a pinned root) — the tier the Auto ladder is unabridged for. */
+/**
+ * A central (MAIN or a pinned root) — the tier the Auto ladder is unabridged for.
+ * External previews default ON: the suites that predate the video slice assert
+ * the video-absent world, where that gate is inert.
+ */
 function previewForCentral(preference: NodePreviewPreference, facts: PreviewFacts) {
-	return nodePreviewKind({ preference, isCentral: true, ...facts });
+	return nodePreviewKind({ preference, isCentral: true, externalPreviews: true, ...facts });
 }
 
 /** An ordinary neighbour in the vicinity — neither MAIN nor pinned. */
 function previewForNeighbour(preference: NodePreviewPreference, facts: PreviewFacts) {
-	return nodePreviewKind({ preference, isCentral: false, ...facts });
+	return nodePreviewKind({ preference, isCentral: false, externalPreviews: true, ...facts });
 }
 
 describe("nodePreviewKind under the Auto preference for a central", () => {
@@ -169,5 +193,69 @@ describe("nodePreviewKind under the Image preference", () => {
 
 	it("WHEN the note has neither THEN no preview region is claimed", () => {
 		expect(previewForCentral("image", NEITHER)).toBe("none");
+	});
+});
+
+/**
+ * The leading external video is the EXCLUSIVE winner of the preview slot when
+ * eligible (owner decision option A): resolved AHEAD of the thumbnail/outline
+ * ladder, gated ONLY by the external-previews privacy switch (OFF ⇒ fall through
+ * to the ordinary hero) and blanked ONLY by the title-only preference.
+ */
+type VideoFacts = PreviewFacts & { readonly hasLeadingVideo: true };
+const VIDEO_ONLY: VideoFacts = { ...NEITHER, hasLeadingVideo: true };
+const VIDEO_AND_IMAGE: VideoFacts = { ...IMAGE_ONLY, hasLeadingVideo: true };
+const VIDEO_AND_OUTLINE: VideoFacts = { ...OUTLINE_ONLY, hasLeadingVideo: true };
+const VIDEO_AND_BOTH_IMAGE_FIRST: VideoFacts = { ...BOTH_IMAGE_FIRST, hasLeadingVideo: true };
+
+/** A central with external previews ON — the tier that reaches every hero. */
+function previewWithVideoOn(preference: NodePreviewPreference, facts: VideoFacts) {
+	return nodePreviewKind({ preference, isCentral: true, externalPreviews: true, ...facts });
+}
+
+/** The same node with the external-previews privacy switch turned OFF. */
+function previewWithVideoOff(preference: NodePreviewPreference, facts: VideoFacts) {
+	return nodePreviewKind({ preference, isCentral: false, externalPreviews: false, ...facts });
+}
+
+describe("nodePreviewKind for a note carrying a leading video, external previews ON", () => {
+	it("WHEN the note has only the leading video THEN the video claims the slot", () => {
+		expect(previewWithVideoOn("auto", VIDEO_ONLY)).toBe("video");
+	});
+
+	it("WHEN the note also has an image THEN the video still claims the slot (it wins over the thumbnail)", () => {
+		expect(previewWithVideoOn("auto", VIDEO_AND_IMAGE)).toBe("video");
+	});
+
+	it("WHEN the note also has an outline THEN the video still claims the slot (it wins over the outline)", () => {
+		expect(previewWithVideoOn("auto", VIDEO_AND_OUTLINE)).toBe("video");
+	});
+
+	it("WHEN the preference is Outline THEN the video STILL claims the slot (option A: a leading hero is exclusive)", () => {
+		expect(previewWithVideoOn("outline", VIDEO_AND_OUTLINE)).toBe("video");
+	});
+
+	it("WHEN the preference is Image THEN the video still claims the slot", () => {
+		expect(previewWithVideoOn("image", VIDEO_AND_IMAGE)).toBe("video");
+	});
+
+	it("WHEN the preference is Title only THEN no region is claimed (title-only blanks even the video)", () => {
+		expect(previewWithVideoOn("title-only", VIDEO_AND_BOTH_IMAGE_FIRST)).toBe("none");
+	});
+});
+
+describe("nodePreviewKind for a note carrying a leading video, external previews OFF", () => {
+	// OFF removes the video from hero consideration entirely: the note falls
+	// through to the ordinary thumbnail/outline ladder exactly as if it had none.
+	it("WHEN the note also has an image THEN the thumbnail claims the slot (video ignored)", () => {
+		expect(previewWithVideoOff("auto", VIDEO_AND_IMAGE)).toBe("thumbnail");
+	});
+
+	it("WHEN the note has only the leading video THEN no region is claimed (video ignored, nothing else to show)", () => {
+		expect(previewWithVideoOff("auto", VIDEO_ONLY)).toBe("none");
+	});
+
+	it("WHEN the note also has an outline AND the preference is Outline THEN the outline claims the slot (video ignored)", () => {
+		expect(previewWithVideoOff("outline", VIDEO_AND_OUTLINE)).toBe("outline");
 	});
 });

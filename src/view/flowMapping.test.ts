@@ -716,6 +716,30 @@ describe("vicinityGraphToFlow preview decision", () => {
 	it("WHEN a node has NO content override THEN its data carries no contentOverride (Inherit is absence)", () => {
 		expect(mappedData(coverNode())?.contentOverride).toBeUndefined();
 	});
+
+	// The leading YouTube hero — the exclusive preview winner when external
+	// previews are ON, ignored (fall through) when OFF.
+	const VIDEO = { videoId: "dQw4w9WgXcQ", canonicalUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" };
+
+	it("WHEN a node has a leading video AND external previews are ON THEN the mapped preview is the video (over the image)", () => {
+		expect(previewOf({ ...coverNode(), leadingVideo: VIDEO }, { externalPreviews: true })).toBe("video");
+	});
+
+	it("WHEN a node has a leading video AND external previews are OFF THEN the preview falls through to the thumbnail", () => {
+		expect(
+			previewOf({ ...coverNode(), imagePrecedesOutline: false, leadingVideo: VIDEO }, { externalPreviews: false }),
+		).toBe("thumbnail");
+	});
+
+	it("WHEN a node has a leading video THEN its data carries the video identity even with previews OFF (reported, not gated)", () => {
+		expect(mappedData({ ...coverNode(), leadingVideo: VIDEO }, { externalPreviews: false })?.leadingVideo).toEqual(
+			VIDEO,
+		);
+	});
+
+	it("WHEN a node has no leading video THEN its data carries no leadingVideo", () => {
+		expect(mappedData(coverNode())?.leadingVideo).toBeUndefined();
+	});
 });
 
 /**
