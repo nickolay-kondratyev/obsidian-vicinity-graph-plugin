@@ -19,6 +19,8 @@ import {
 } from "./constants";
 import type { NodePreviewKind } from "./nodePreviewKind";
 import { nodePreviewKind } from "./nodePreviewKind";
+import type { TraversedNode } from "./VicinityTraversal";
+import type { VaultPath, ViewSettings } from "./types";
 
 /**
  * The two preview kinds that fill the node's MEDIA slot — the thumbnail and the
@@ -28,8 +30,6 @@ import { nodePreviewKind } from "./nodePreviewKind";
 function isMediaPreview(preview: NodePreviewKind): boolean {
 	return preview === "thumbnail" || preview === "video";
 }
-import type { TraversedNode } from "./VicinityTraversal";
-import type { VaultPath, ViewSettings } from "./types";
 
 /**
  * The view knobs the content-fit estimate depends on — a projection of
