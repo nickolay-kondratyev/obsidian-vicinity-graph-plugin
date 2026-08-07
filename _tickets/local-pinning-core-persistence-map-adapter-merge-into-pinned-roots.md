@@ -31,3 +31,9 @@ CONVENTIONS: see CLAUDE.md Persistence section (write intents name ONE field; ne
 
 localPins map persists and reloads; locally pinned targets of the active main traverse as pinned centrals (merged before engine); forgetDocs prunes both key and target positions; all new logic unit-tested; npm run check and npm test green; high-level-plan.md updated.
 
+
+## Notes
+
+**2026-08-07T19:47:45Z**
+
+REQUIREMENT ADDED (owner decision 6, nid_2zm28ijiqp786yw6grwbvmffv_e): a locally pinned note appears even with NO link from the main note — it is a pinned ROOT with its own vicinity, exactly like a global pin. This should fall out of merging local pins into the pinned-root list, but MUST be pinned by an explicit BDD test, e.g. in src/adapters/ (assembler/builder level): GIVEN doc B locally pinned under main A and NOT linked from A, WHEN the graph builds for A, THEN B is present as a pinned central (and its own vicinity traverses with the pinned trio). Also cover the converse: with a different main active, B does not appear (absent other reachability).

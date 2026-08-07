@@ -40,3 +40,8 @@ DECISIONS (owner, 2026-08-07) — all five recommendations CONFIRMED:
 5. Edit scope: local pins visible/toggleable ONLY while their main note is active; no separate management UI in V1.
 
 No implementation-ticket amendments needed — the tickets were written against these defaults. nid_56ggaa2iz70di7xc3h8objt8n_e (core) is now unblocked.
+
+**2026-08-07T19:47:45Z**
+
+ADDITIONAL DECISION (owner, 2026-08-07):
+6. Unlinked visibility: a locally pinned note SHOWS UP even when it has NO link from the main (active) note — identical to global pinned behavior (a pinned root keeps its own vicinity even when disconnected from MAIN). MUST be captured by an explicit BDD test (core ticket nid_56ggaa2iz70di7xc3h8objt8n_e).

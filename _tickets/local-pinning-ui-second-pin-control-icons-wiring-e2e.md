@@ -30,3 +30,9 @@ DOCS: README.md pinning semantics section gains local pinning; verify high-level
 
 User can locally pin/unpin a neighbor from the graph via button and context menu; distinct icon; both-pinned shows both; local pin only takes effect while its main note is active and survives restart; refusals reported once via the existing notice policy; unit + component + e2e green.
 
+
+## Notes
+
+**2026-08-07T19:47:45Z**
+
+NOTE (owner decision 6): e2e scenario should include the disconnected case — locally pin a neighbor, remove/lack the link from main, target still renders as central while that main is active.
