@@ -83,8 +83,8 @@ export const MAX_STEPPER_DEPTH = SETTINGS_SPEC.globalDepths.linkDepthOut.max;
  * only on a node small on BOTH axes, which a central never is), so the chip no
  * longer constrains this number. Owner-decided (ticket
  * `nid_s1474ljrdqneqhqt5zrkpwva2_e`) to KEEP 0.44 as the final shipped prominence:
- * at 40/160 an empty central reads at 93px — a touch more clearly the anchor than
- * 0.35's 82px — while still sitting well under the midpoint.
+ * at 40/180 an empty central reads at 102px — a touch more clearly the anchor than
+ * 0.35's 89px — while still sitting well under the midpoint.
  *
  * A FRACTION of the user's ramp, deliberately, so it can never exceed `maxPx`.
  */
