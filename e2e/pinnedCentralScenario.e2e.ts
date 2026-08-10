@@ -26,7 +26,7 @@ import { ObsidianHarness } from "./obsidianHarness";
 test.describe.configure({ mode: "serial" });
 
 /**
- * The MAIN hub and the pin target carry a seeded `id` (obsidian-id-lib's
+ * The MAIN hub and the pin target carry a seeded `id` (stable-ids-for-obsidian's
  * frontmatter key): a note can only be PINNED once it has a stable docid.
  * Seeding models the normal steady state (a note that already participates in
  * the graph), and avoids an id-minting frontmatter write on pin.

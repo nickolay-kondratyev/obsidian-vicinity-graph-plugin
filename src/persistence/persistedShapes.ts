@@ -21,7 +21,7 @@ import {
 /**
  * The versioned JSON shape of the plugin's `data.json` plus its defensive
  * parser: disk content is user-editable and sync-mangled in practice, so parsing
- * NEVER throws — unusable content degrades to defaults, matching obsidian-id-lib's
+ * NEVER throws — unusable content degrades to defaults, matching stable-ids-for-obsidian's
  * malformed-content philosophy.
  *
  * `data.json` is the home for the truly-GLOBAL config — the settings dials AND

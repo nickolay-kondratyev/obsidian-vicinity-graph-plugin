@@ -352,7 +352,7 @@ A node tall enough to have room shows **one** preview: either the note's
 Fresh clone → running dev build, following only these steps:
 
 ```bash
-npm install                   # pulls obsidian-id-lib from npm, among other deps
+npm install                   # pulls stable-ids-for-obsidian from npm, among other deps
 npm run setup:dev-vault       # build + create/copy the plugin into .dev-vault/
 npm run dev                   # esbuild watch; re-copies artifacts on every rebuild
 ```
@@ -372,7 +372,7 @@ re-running never clobbers local edits.
 | `npm run build` | `npm run check`, then production bundle to `main.js` + dev-vault copy |
 | `npm run check` | strict `tsc -noEmit` over `src/`, then `check:e2e` |
 | `npm run check:e2e` | `tsc -noEmit -p e2e/tsconfig.json` (type-checks the e2e specs) |
-| `npm test` | our vitest suite (`obsidian-id-lib` ships its own tested build from npm) |
+| `npm test` | our vitest suite (`stable-ids-for-obsidian` ships its own tested build from npm) |
 | `npm run setup:dev-vault` | build + create/copy the plugin into `.dev-vault/` |
 | `npm run test:e2e` | Playwright e2e: drives a REAL Obsidian on a copy of the dev vault (see below) |
 | `npm run test:e2e:floor` | the same e2e suite against the `minAppVersion` floor build (see below) |
@@ -517,15 +517,15 @@ everything above behaves exactly as before.
 indexing
 ([1.12 changelog](https://obsidian.md/changelog/2026-02-10-desktop-v1.12.0/)). It
 is a floor, never a ceiling: newer Obsidian versions must keep working. Note:
-canvas `metadata.frontmatter` (used by `obsidian-id-lib` for canvas doc ids) was
+canvas `metadata.frontmatter` (used by `stable-ids-for-obsidian` for canvas doc ids) was
 not introduced by any core release — it relies on the canvas format's documented
 arbitrary-key forward compatibility.
 
-### Dependency: `obsidian-id-lib`
+### Dependency: `stable-ids-for-obsidian`
 
-Consumed as a published npm package (`"obsidian-id-lib": "^0.1.0"`) and bundled
+Consumed as a published npm package (`"stable-ids-for-obsidian": "^0.1.3"`) and bundled
 into `main.js` by our esbuild (not external). `obsidian` itself is a types-only
-external and is never bundled. See the [package](https://www.npmjs.com/package/obsidian-id-lib)
+external and is never bundled. See the [package](https://www.npmjs.com/package/stable-ids-for-obsidian)
 for the id-scheme contracts.
 
 ## License

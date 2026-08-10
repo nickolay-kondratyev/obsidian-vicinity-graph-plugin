@@ -25,7 +25,7 @@ import { ObsidianHarness } from "./obsidianHarness";
  * SPARSE, so React Flow's mount `fitView` keeps every node large and clear of the
  * top-left controls panel — what makes the hover/pin gestures deterministic. Every note
  * that is ever PINNED (hub as the local-pin MAIN key, plus lp_a / lp_b as targets)
- * carries a seeded `id` (obsidian-id-lib's frontmatter key): a note can only be pinned
+ * carries a seeded `id` (stable-ids-for-obsidian's frontmatter key): a note can only be pinned
  * once it has a stable docid, and seeding models the normal steady state.
  *
  * Each also carries a DESCRIPTIVE frontmatter `title` — deliberately, not for show. Node

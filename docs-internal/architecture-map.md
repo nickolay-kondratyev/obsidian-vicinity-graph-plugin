@@ -13,7 +13,7 @@ view  ──▶  adapters  ──▶  engine  (pure core)
 ```
 
 - **`src/engine/`** — the pure vicinity-graph core. Synchronous, side-effect
-  free. **MUST NOT import `obsidian`, `obsidian-id-lib`, `react`, or
+  free. **MUST NOT import `obsidian`, `stable-ids-for-obsidian`, `react`, or
   `react-dom`.** Obsidian reaches it only through the `LinkProvider` seam.
   Enforced by `src/engine/importGuard.test.ts` (the repo has no ESLint yet).
   `src/shared/` is guarded by the same rule. Public API is re-exported from
@@ -195,5 +195,5 @@ view  ──▶  adapters  ──▶  engine  (pure core)
 `libavoid-js` ships a sidecar `dist/libavoid.wasm` that Obsidian's bundle can't
 fetch at runtime, so `esbuild.config.mjs` maps a virtual `libavoid-wasm` import
 to the on-disk wasm and inlines it as **base64** (`loader['.wasm'] = 'base64'`).
-`obsidian-id-lib` is **bundled** (not external); only `obsidian` is a types-only
+`stable-ids-for-obsidian` is **bundled** (not external); only `obsidian` is a types-only
 external. See `src/types/libavoidWasm.d.ts`.

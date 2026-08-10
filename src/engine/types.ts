@@ -12,7 +12,7 @@
 export type VaultPath = string & { readonly __brand: "VaultPath" };
 
 /**
- * Opaque persistence identity supplied by the adapter (obsidian-id-lib).
+ * Opaque persistence identity supplied by the adapter (stable-ids-for-obsidian).
  * NO format assumptions (foreign/legacy formats are honored as-is upstream).
  */
 export type DocId = string & { readonly __brand: "DocId" };
@@ -104,7 +104,7 @@ export interface CentralNodeDescriptor {
 
 /**
  * A pinned central. Carries a docid by contract: the step-03 adapter MUST
- * `await ensureDocId(...)` (obsidian-id-lib) BEFORE persisting a pin — a doc
+ * `await ensureDocId(...)` (stable-ids-for-obsidian) BEFORE persisting a pin — a doc
  * that cannot get a docid cannot be pinned.
  */
 export interface PinnedNodeDescriptor extends CentralNodeDescriptor {
