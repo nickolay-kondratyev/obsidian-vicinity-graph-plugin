@@ -1,7 +1,7 @@
 ---
 id: nid_s88z29iparzxrtxhh6ooqfvrz_e
 title: make it more clear how the note is pinned,
-status: open
+status: closed
 deps: []
 links: [nid_am38wsuka3mksh9atugg1e3x6_e]
 created_iso: '2026-08-07T21:21:27Z'
@@ -10,7 +10,6 @@ type: task
 priority: 3
 assignee: nickolaykondratyev
 tags:
-  - decide
   - ui
 pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin
 ---
@@ -77,3 +76,28 @@ follow-up ticket (see links). Remaining confirmation before implementing, in
   `[aria-pressed="true"]` selector; hover restores chrome. Below the 18px withhold
   band badges disappear with the chips (consistent with today).
 - e2e: view-layer CSS/DOM change ⇒ run `npm run test:e2e -- vicinityGraph.e2e.ts`.
+
+## 2026-08-10 — RESOLVED: Option A implemented (pressed-in pin chips on hover)
+
+Human confirmed (interactive session): hover-only is fine; the pressed-in/raised
+treatment shows on hover only. Implemented:
+
+- `src/view/nodePinAction.ts`: both action types gained `chipIconId` — the CHIP's
+  constant toggle glyph (`pin` / `map-pin`) — while `iconId` remains the context
+  MENU's action glyph (`pin-off` / `map-pin-off` when pinned). WHY documented at
+  the type.
+- `src/view/NoteNode.tsx` `PinButton`: now a toggle — renders `chipIconId` and
+  `aria-pressed` (from `isGloballyPinned` / `isLocallyPinned`).
+- `src/view/graph-view.css`: `.vicinity-graph-node-chip[aria-pressed="true"]` =
+  press-into-the-page treatment per part_6 (inset top shadow + faint lighter bottom
+  lip replacing the raised drop shadow) + accent icon + darker face (depth alone is
+  too subtle at 20px/14px). rgba neutrals, not theme vars — themes are arbitrary.
+- Tests (failing-first): `nodePinAction.test.ts` pins the constant-chip-glyph
+  contract; `NoteNode.component.test.tsx` pins `aria-pressed` per pin kind, the
+  rendered chip glyph staying `pin`/`map-pin` while pinned, and the menu keeping
+  the `*-off` action icons.
+- Gates: `npm run check` ✓, `npm test` (1830) ✓, e2e `vicinityGraph` +
+  `localPinScenario` + `pinnedCentralScenario` (32) ✓.
+
+Deferred idle-visibility half (visible without hover) tracked in linked ticket
+`nid_am38wsuka3mksh9atugg1e3x6_e`.

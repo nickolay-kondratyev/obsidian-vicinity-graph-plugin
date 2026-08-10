@@ -3,7 +3,12 @@ import { planNodeLocalPinAction, planNodePinAction } from "./nodePinAction";
 
 describe("planNodePinAction", () => {
 	it("WHEN the doc is not pinned THEN the action is a labelled pin (applies to regular nodes AND MAIN)", () => {
-		expect(planNodePinAction(false)).toEqual({ kind: "pin", title: "Pin to graph", iconId: "pin" });
+		expect(planNodePinAction(false)).toEqual({
+			kind: "pin",
+			title: "Pin to graph",
+			iconId: "pin",
+			chipIconId: "pin",
+		});
 	});
 
 	it("WHEN the doc is pinned THEN the action is a labelled unpin (pinned central OR pinned MAIN)", () => {
@@ -11,7 +16,12 @@ describe("planNodePinAction", () => {
 			kind: "unpin",
 			title: "Unpin from graph",
 			iconId: "pin-off",
+			chipIconId: "pin",
 		});
+	});
+
+	it("WHEN the pinned state flips THEN the CHIP glyph does not (state is the pressed treatment, not the icon)", () => {
+		expect(planNodePinAction(true).chipIconId).toBe(planNodePinAction(false).chipIconId);
 	});
 });
 
@@ -21,6 +31,7 @@ describe("planNodeLocalPinAction", () => {
 			kind: "local-pin",
 			title: "Pin for this note",
 			iconId: "map-pin",
+			chipIconId: "map-pin",
 		});
 	});
 
@@ -29,10 +40,15 @@ describe("planNodeLocalPinAction", () => {
 			kind: "local-unpin",
 			title: "Unpin for this note",
 			iconId: "map-pin-off",
+			chipIconId: "map-pin",
 		});
 	});
 
+	it("WHEN the locally-pinned state flips THEN the CHIP glyph does not (state is the pressed treatment, not the icon)", () => {
+		expect(planNodeLocalPinAction(true).chipIconId).toBe(planNodeLocalPinAction(false).chipIconId);
+	});
+
 	it("WHEN a doc is both globally and locally pinned THEN the two toggles carry DISTINCT icons (both indicators)", () => {
-		expect(planNodePinAction(true).iconId).not.toBe(planNodeLocalPinAction(true).iconId);
+		expect(planNodePinAction(true).chipIconId).not.toBe(planNodeLocalPinAction(true).chipIconId);
 	});
 });

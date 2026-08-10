@@ -11,13 +11,21 @@
  * becomes MAIN).
  */
 export type NodePinAction =
-	| { readonly kind: "pin"; readonly title: string; readonly iconId: string }
-	| { readonly kind: "unpin"; readonly title: string; readonly iconId: string };
+	| { readonly kind: "pin"; readonly title: string; readonly iconId: string; readonly chipIconId: string }
+	| { readonly kind: "unpin"; readonly title: string; readonly iconId: string; readonly chipIconId: string };
 
+/**
+ * `iconId` vs `chipIconId` (ticket nid_s88z29iparzxrtxhh6ooqfvrz_e): the context
+ * MENU entry is an ACTION, so its glyph flips with the state (`pin` ↔ `pin-off`).
+ * The hover CHIP is a TOGGLE, so its glyph stays constant and the pinned state is
+ * the pressed-in treatment instead (`aria-pressed`, styled in graph-view.css) — a
+ * `pin-off` glyph on a pressed chip would read as "not pinned", the opposite of
+ * the state it marks.
+ */
 export function planNodePinAction(isPinned: boolean): NodePinAction {
 	return isPinned
-		? { kind: "unpin", title: "Unpin from graph", iconId: "pin-off" }
-		: { kind: "pin", title: "Pin to graph", iconId: "pin" };
+		? { kind: "unpin", title: "Unpin from graph", iconId: "pin-off", chipIconId: "pin" }
+		: { kind: "pin", title: "Pin to graph", iconId: "pin", chipIconId: "pin" };
 }
 
 /**
@@ -34,11 +42,22 @@ export function planNodePinAction(isPinned: boolean): NodePinAction {
  * locally pinned under itself, so the caller withholds this control there.
  */
 export type NodeLocalPinAction =
-	| { readonly kind: "local-pin"; readonly title: string; readonly iconId: string }
-	| { readonly kind: "local-unpin"; readonly title: string; readonly iconId: string };
+	| {
+			readonly kind: "local-pin";
+			readonly title: string;
+			readonly iconId: string;
+			readonly chipIconId: string;
+	  }
+	| {
+			readonly kind: "local-unpin";
+			readonly title: string;
+			readonly iconId: string;
+			readonly chipIconId: string;
+	  };
 
+/** Same `iconId` (menu action) vs `chipIconId` (toggle) split as {@link planNodePinAction}. */
 export function planNodeLocalPinAction(isLocallyPinned: boolean): NodeLocalPinAction {
 	return isLocallyPinned
-		? { kind: "local-unpin", title: "Unpin for this note", iconId: "map-pin-off" }
-		: { kind: "local-pin", title: "Pin for this note", iconId: "map-pin" };
+		? { kind: "local-unpin", title: "Unpin for this note", iconId: "map-pin-off", chipIconId: "map-pin" }
+		: { kind: "local-pin", title: "Pin for this note", iconId: "map-pin", chipIconId: "map-pin" };
 }

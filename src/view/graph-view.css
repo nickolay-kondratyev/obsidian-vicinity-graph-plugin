@@ -539,6 +539,20 @@
 	opacity: 1;
 	pointer-events: auto;
 }
+/* A pinned pin chip is a PRESSED toggle (NoteNode sets `aria-pressed`): the raised
+ * chip's drop shadow is swapped for a press-into-the-page treatment — dark inset
+ * top shadow + faint lighter bottom lip — plus a darker face and accent icon,
+ * because at 20px/14px the depth cue alone is too subtle to carry the state.
+ * rgba blacks/whites rather than theme variables: Obsidian themes are arbitrary,
+ * so hand-picked same-hue shades (the part_6 ideal) are unavailable — low-alpha
+ * neutrals read as shading on any face color, light or dark. */
+.vicinity-graph-node .vicinity-graph-node-chip[aria-pressed="true"] {
+	color: var(--interactive-accent);
+	background: var(--background-modifier-hover);
+	box-shadow:
+		inset 0 1px 2px rgba(0, 0, 0, 0.35),
+		inset 0 -1px 0 rgba(255, 255, 255, 0.12);
+}
 .vicinity-graph-node .vicinity-graph-node-chip:hover {
 	color: var(--interactive-accent);
 	background: var(--background-modifier-hover);
