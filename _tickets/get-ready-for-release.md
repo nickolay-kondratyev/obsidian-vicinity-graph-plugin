@@ -1,17 +1,17 @@
 ---
 id: nid_2d67dgjxs5aq6i8hlasxp7tao_e
-title: "Get ready for release"
-status: open
+title: Get ready for release
+status: in_progress
 deps: []
 links: []
-created_iso: 2026-08-10T16:33:07Z
-status_updated_iso: 2026-08-10T16:33:07Z
+created_iso: '2026-08-10T16:33:07Z'
+status_updated_iso: '2026-08-10T16:35:42Z'
 type: task
 priority: 3
 assignee: nickolaykondratyev
 tags: []
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 ---
-
 TASK: **PLAN**. Lets clarify any gaps that exist for this ticket
   (if you need to explore code base use cheaper Explore-cheap sub-agent)
   ask human any questions that come up that require human decision.
