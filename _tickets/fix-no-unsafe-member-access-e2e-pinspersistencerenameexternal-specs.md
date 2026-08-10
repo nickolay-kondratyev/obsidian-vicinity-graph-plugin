@@ -1,4 +1,5 @@
 ---
+session_ids: [{a: claude, type: execution, id: b6f4c579-05be-4e86-8eab-0cdecf94dad8}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_d2ditwyebmdlyg3ktb3li0r3d_e
 title: "fix no-unsafe-member-access: e2e pins/persistence/rename/external specs"
