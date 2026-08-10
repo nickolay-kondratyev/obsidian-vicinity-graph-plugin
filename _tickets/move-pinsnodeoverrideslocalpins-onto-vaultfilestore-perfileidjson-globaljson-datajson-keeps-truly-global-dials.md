@@ -206,3 +206,13 @@ Run `npm run test:all` before calling this done.
   path or call-site try/catch (the primitive's quarantine notice is the only new user
   message, and it is read-side).
 - Then unblock `nid_rnghlzs0uejjlbd5a4bjkq7eg_e` (already deps this ticket).
+
+## Notes
+
+**2026-08-10T15:57:36Z**
+
+Owner rationale for keeping `pins` in data.json (WHY, 2026-08-10): global pins are plugin
+CONFIG. Users already expect that to make plugin settings travel they grab data.json along
+with the vault, so a git sync that excludes .obsidian leaving global pins behind is the
+familiar/acceptable behaviour. Per-note graph state (overrides, localPins) is vault content
+and rides along with .plugin_data automatically. Do not re-open this split without owner sign-off.
