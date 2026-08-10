@@ -7,9 +7,10 @@ graph") is planned for a later round, so store listing waits until after that.
 
 Release automation now exists: `./release_update_tag.sh` runs the green gates and,
 if they pass, bumps the version, tags, and pushes; the pushed tag fires
-`.github/workflows/release.yml`, which builds a **DRAFT** GitHub Release with the
-raw assets. §3 and §6 describe those two halves; the human still reviews and
-publishes the draft, and the manual re-verify below is not automated.
+`.github/workflows/release.yml`, which builds and **publishes** a GitHub Release
+with the raw assets — no manual publish click. §3 and §6 describe those two halves;
+the tag push IS the publish decision (the two-version e2e matrix ran locally first),
+and the manual re-verify below is not automated.
 
 ## 1. Green gates (must all pass)
 
@@ -92,27 +93,26 @@ Optional fields not set (fine for V1): `authorUrl`, `fundingUrl`.
       uses it to serve the right plugin build to older apps). Current:
       `{ "0.1.0": "1.12.4", "0.1.1": "1.12.4" }` — correct.
 
-## 6. GitHub Release (tag-triggered, DRAFT)
+## 6. GitHub Release (tag-triggered, PUBLISHED)
 
 `main.js` and `styles.css` are gitignored build outputs, so they only exist after
 `npm run build`. This is now **automated**: pushing a tag whose name is the raw
 version fires `.github/workflows/release.yml`, which builds the bundle in CI and
-cuts a DRAFT release with the raw assets. `./release_update_tag.sh` creates and
-pushes exactly that tag (§3), so the normal path is: run the driver, then review +
-publish the draft. The flow:
+cuts a **published** release with the raw assets. `./release_update_tag.sh` creates
+and pushes exactly that tag (§3), so the normal path is: run the driver — the tag
+push publishes the release, no manual step. The flow:
 
 - [ ] `./release_update_tag.sh` — on a green matrix it PATCH-bumps + commits +
       tags the raw version (no `v` prefix — Obsidian matches the raw string) and
       pushes the tag.
 - [ ] The tag workflow runs `npm ci` → `check` → `npm test` → `npm run build`, then
-      creates a **DRAFT** GitHub Release named for the tag, attaching
+      creates a **published** GitHub Release named for the tag, attaching
       **`manifest.json`, `main.js`, and `styles.css`** as **raw release assets**
       (not only inside the source zip — Obsidian/BRAT fetch the raw files).
-- [ ] Review the draft release and **publish it by hand** — nothing goes public on
-      the tag push alone.
+- [ ] Confirm the release went live at the tag with the three raw assets attached.
 
 To cut a release entirely by hand instead: `npm run build`, then
-`gh release create <version> --draft manifest.json main.js styles.css` (tag ==
+`gh release create <version> manifest.json main.js styles.css` (tag ==
 manifest `version`, no `v` prefix).
 
 ## 7. Release notes — stored-data breaks and behaviour shifts
@@ -185,5 +185,5 @@ they ship, then drop them.
 - Community-store submission PR to `obsidianmd/obsidian-releases`.
 - Plugin id/name rename ("vicinity graph") and repository move.
 
-(Release automation — the tag-triggered draft-release workflow + the
+(Release automation — the tag-triggered publish-release workflow + the
 `release_update_tag.sh` bump/tag driver — now EXISTS; see §3 and §6.)

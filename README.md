@@ -459,8 +459,8 @@ fails**, and prints a per-version pass/fail summary that NAMES which build broke
 so a floor-only red (usually version-dependent chrome, per the caveat above) is
 triaged with the version in hand. Only if the whole matrix is green does it go on
 to PATCH-bump the three release files, commit, tag the raw version, and push
-(firing `.github/workflows/release.yml`, which builds a DRAFT GitHub Release with
-the raw `manifest.json` / `main.js` / `styles.css` assets). `npm run test:all --
+(firing `.github/workflows/release.yml`, which builds and PUBLISHES a GitHub Release
+with the raw `manifest.json` / `main.js` / `styles.css` assets — no manual publish). `npm run test:all --
 --with-floor` still appends the floor run for a dev spot-check, but stops at the
 first red; `./release_update_tag.sh` is the one that reports the full matrix.
 
