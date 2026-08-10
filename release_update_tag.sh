@@ -5,7 +5,7 @@
 #
 # RUN THIS TO CUT A RELEASE. It is the ONE command that takes a clean `main` from
 # "green on both shipped Obsidian builds" to "tag pushed", so a release engineer
-# does not have to remember the gate, the three-file version bump, and the tag
+# does not have to remember the gate, the four-file version bump, and the tag
 # convention separately. What it does, in order:
 #
 #   1. Preflight (cheapest, fail first):
@@ -18,9 +18,10 @@
 #        both arms even if the first fails, with a per-version summary. A red matrix
 #        stops the release BEFORE anything is bumped or pushed.
 #   3. Version bump (only if green): scripts/bump-version.py revs the PATCH version
-#        and updates all three release files coherently (package.json, manifest.json,
-#        and a new versions.json entry). See docs-internal/RELEASE_CHECKLIST.md §3.
-#   4. Commit the three-file bump, then create an ANNOTATED tag equal to the new RAW
+#        and updates all four release files coherently (package.json, manifest.json,
+#        a new versions.json entry, and the two package-lock.json root versions so
+#        the tag build's `npm ci` stays happy). See docs-internal/RELEASE_CHECKLIST.md §3.
+#   4. Commit the four-file bump, then create an ANNOTATED tag equal to the new RAW
 #        version string (NO `v` prefix — Obsidian/BRAT match the raw version).
 #   5. Push the bump commit to origin/<default> and push the tag — printing exactly
 #        what will be pushed first. Pushing the tag is what fires the workflow.
@@ -161,15 +162,17 @@ echo "" >&2
 echo "release: MATRIX GREEN on both builds." >&2
 
 # --- Version bump: only reached when the whole matrix is green. --------------
-# scripts/bump-version.py revs the PATCH version across all three release files
-# (package.json, manifest.json, versions.json) preserving their tab indentation,
+# scripts/bump-version.py revs the PATCH version across all four release files
+# (package.json, manifest.json, versions.json, package-lock.json) preserving their tab indentation,
 # and prints ONLY the new version string on stdout.
 echo "" >&2
 echo "=== release: bumping PATCH version ===" >&2
 NEW_VERSION="$(python3 "${REPO_ROOT}/scripts/bump-version.py")"
 echo "release: new version = ${NEW_VERSION}" >&2
 
-git add package.json manifest.json versions.json
+# package-lock.json carries the SAME version in two spots; the bump keeps it in
+# sync so the tag build's `npm ci` does not refuse (what broke Release 0.1.2).
+git add package.json manifest.json versions.json package-lock.json
 git commit --quiet -m "Release ${NEW_VERSION}"
 # Annotated tag == the RAW version string (no `v` prefix), which is what
 # .github/workflows/release.yml triggers on and what Obsidian/BRAT match.

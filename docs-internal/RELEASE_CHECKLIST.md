@@ -47,19 +47,23 @@ reporting the full matrix.)
 
 ## 3. Version agreement
 
-The version must match in **three** files before tagging:
+The version must match in **four** files before tagging:
 
 - [ ] `package.json` → `version`
 - [ ] `manifest.json` → `version`
 - [ ] `versions.json` → contains a `"<version>": "<minAppVersion>"` entry
+- [ ] `package-lock.json` → `version` **and** `packages[""].version` (npm keeps it
+      in both; `npm ci` — the tag build's gate — refuses on any disagreement)
 
 Bump procedure: **`./release_update_tag.sh` does this for you** — once its gates are
 green it runs `scripts/bump-version.py`, which revs the PATCH version and updates
-all three files coherently (preserving their tab indentation: `package.json` +
-`manifest.json` `version`, and a new `versions.json` entry mapping the new version
-to `minAppVersion`), then commits and tags (see §6). To do it by hand, edit all
-three the same way, then commit and tag. Current state: all three agree at
-**0.1.1** with `minAppVersion` **1.12.4**.
+all four files coherently (preserving their tab indentation: `package.json` +
+`manifest.json` `version`, the two `package-lock.json` root versions, and a new
+`versions.json` entry mapping the new version to `minAppVersion`), then commits and
+tags (see §6). To do it by hand, edit all four the same way, then commit and tag.
+`src/releaseVersionConsistency.test.ts` (run in `npm test`) fails the gate if any
+of the four drift. Current state: all four agree at **0.1.2** with `minAppVersion`
+**1.12.4**.
 
 ## 4. `manifest.json` field correctness
 

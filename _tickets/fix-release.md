@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-08-10T19:38:47Z
 id: nid_q4ggdlsjn5wl41mpfv5zd583l_e
 title: Fix release
-status: in_progress
+status: closed
 deps: []
 links: []
 created_iso: '2026-08-10T19:28:23Z'
-status_updated_iso: '2026-08-10T19:31:42Z'
+status_updated_iso: 2026-08-10T19:38:47Z
 type: task
 priority: 3
 assignee: nickolaykondratyev
@@ -93,3 +94,43 @@ npm error Run "npm help ci" for more info
 npm error A complete log of this run can be found in: /home/runner/.npm/_logs/2026-08-10T19_15_43_836Z-debug-0.log
 Error: Process completed with exit code 1.
 ```
+
+## Notes
+
+**2026-08-10T19:38:47Z**
+
+RESOLVED (commit 54325af on branch CC_nid_q4ggdlsjn5wl41mpfv5zd583l_e__fix-release_claude-opus-4-8).
+
+Root cause: the "Release 0.1.2" bump moved package.json/manifest.json/versions.json
+to 0.1.2 but left package-lock.json's version at 0.1.1 (npm stores the package
+version in TWO spots: top-level `version` and `packages[""].version`). `npm ci`
+in .github/workflows/release.yml refuses when the lock's version disagrees with
+package.json — that is the "lock file out of sync" failure. scripts/bump-version.py
+never touched the lock, and release_update_tag.sh never staged it, so EVERY release
+would reproduce this.
+
+(The "Missing esbuild@0.28.2" lines in the log are npm's generic follow-on noise
+once it declares the lock out of sync; the primary, actionable error is the version
+mismatch. esbuild in this repo is 0.25.x and now fully in sync.)
+
+Fix:
+- scripts/bump-version.py: new update_lockfile_version() bumps BOTH root versions in
+  package-lock.json (byte-preserving; replaces exactly the first two occurrences,
+  refuses on any other count).
+- release_update_tag.sh: stages package-lock.json in the release commit; header/inline
+  docs updated three-file -> four-file.
+- package-lock.json: resynced to 0.1.2 (fixes the already-broken committed state).
+- src/releaseVersionConsistency.test.ts: NEW tripwire asserting package.json,
+  manifest.json, versions.json and BOTH package-lock.json versions agree. Runs in
+  `npm test` (the CI gate), so future drift fails BEFORE a tag is cut. Verified it
+  fails on the 0.1.1 lock and passes on 0.1.2.
+- docs-internal/RELEASE_CHECKLIST.md §3 updated to four files.
+
+Verification (all green): npm run check; npm test (1827 passed); npm run build;
+npm ci --dry-run EXIT=0; ran bump-version.py end-to-end (0.1.2 -> 0.1.3) and
+confirmed all four files coherent + npm ci --dry-run still passes, then restored.
+
+NOTE: the EBADENGINE warnings (jsdom/undici/etc. wanting Node >=22 on CI's Node 20)
+are pre-existing WARNINGS, not the failure, and are out of scope here. If desired,
+bumping actions/setup-node to node-version "22" in release.yml would silence them —
+worth a separate ticket rather than folding into this release-blocker fix.
