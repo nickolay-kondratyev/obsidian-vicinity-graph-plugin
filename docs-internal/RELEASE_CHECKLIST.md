@@ -105,11 +105,15 @@ push publishes the release, no manual step. The flow:
 - [ ] `./release_update_tag.sh` — on a green matrix it PATCH-bumps + commits +
       tags the raw version (no `v` prefix — Obsidian matches the raw string) and
       pushes the tag.
-- [ ] The tag workflow runs `npm ci` → `check` → `npm test` → `npm run build`, then
-      creates a **published** GitHub Release named for the tag, attaching
-      **`manifest.json`, `main.js`, and `styles.css`** as **raw release assets**
-      (not only inside the source zip — Obsidian/BRAT fetch the raw files).
+- [ ] The tag workflow runs `npm ci` → `check` → `npm test` → `npm run build`,
+      **attests build provenance** for `main.js` + `styles.css`
+      (`actions/attest-build-provenance`), then creates a **published** GitHub
+      Release named for the tag, attaching **`manifest.json`, `main.js`, and
+      `styles.css`** as **raw release assets** (not only inside the source zip —
+      Obsidian/BRAT fetch the raw files).
 - [ ] Confirm the release went live at the tag with the three raw assets attached.
+- [ ] Confirm the two built assets carry attestations — the run's summary lists
+      them, or `gh attestation verify main.js --repo <owner>/<repo>` succeeds.
 
 To cut a release entirely by hand instead: `npm run build`, then
 `gh release create <version> manifest.json main.js styles.css` (tag ==
