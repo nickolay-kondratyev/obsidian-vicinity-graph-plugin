@@ -65,3 +65,9 @@ seam, never disable the rule.
   **nid_p9omkaitzkvzvthv5f2vvou2y_e**.
 - Single-file lint command (prereq nid_zyv1x5w08difwfdopm50bt2lu_e): `npx eslint e2e/<file>.e2e.ts`.
 
+
+## Notes
+
+**2026-08-10T23:06:54Z**
+
+__READY_AS_IS__: type-only erasable e2e seam annotations; npm run check clean, zero no-unsafe warnings remain, behavior byte-identical.
