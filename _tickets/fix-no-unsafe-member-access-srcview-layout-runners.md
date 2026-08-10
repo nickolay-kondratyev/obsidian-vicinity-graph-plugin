@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-10T23:53:01Z
-session_ids: [{a: claude, type: execution, id: ab30b493-12f1-48aa-b94a-7e4702c22cb1}]
+session_ids: [{a: claude, type: execution, id: ab30b493-12f1-48aa-b94a-7e4702c22cb1}, {a: claude, type: review, id: eba3a9da-c310-44ce-91f9-806a89987523}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_ymugwkesjh70astiz9bffzu26_e
 title: "fix no-unsafe-member-access: src/view layout runners"
