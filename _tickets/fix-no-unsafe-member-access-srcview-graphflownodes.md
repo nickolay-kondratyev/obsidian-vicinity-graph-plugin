@@ -1,4 +1,5 @@
 ---
+session_ids: [{a: claude, type: execution, id: eba67cad-496b-48b0-af75-4a3661e1772e}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_dq0439hrj3lj7edst73p6a9ic_e
 title: "fix no-unsafe-member-access: src/view graph/flow/nodes"
