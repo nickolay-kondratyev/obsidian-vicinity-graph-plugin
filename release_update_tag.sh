@@ -183,8 +183,13 @@ echo "release: will push the following to origin:" >&2
 echo "release:   branch ${DEFAULT_BRANCH} -> origin/${DEFAULT_BRANCH}: commit ${COMMIT_SHA} (Release ${NEW_VERSION})" >&2
 echo "release:   annotated tag ${NEW_VERSION} (fires .github/workflows/release.yml)" >&2
 
-git push origin "${DEFAULT_BRANCH}"
-git push origin "refs/tags/${NEW_VERSION}"
+# --atomic: the branch commit and the tag land together or not at all. Pushing
+# them as two commands would let the bump commit reach origin while the tag push
+# fails (e.g. the branch moved under us, or a network drop between the two) —
+# leaving a released-looking commit on the default branch with NO tag and so NO
+# release fired, plus a stranded local tag. Both-or-neither keeps the remote
+# consistent; on failure nothing is pushed and the run can simply be retried.
+git push --atomic origin "${DEFAULT_BRANCH}" "refs/tags/${NEW_VERSION}"
 
 echo "" >&2
 echo "release: DONE — pushed Release ${NEW_VERSION} and its tag." >&2

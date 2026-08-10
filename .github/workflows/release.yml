@@ -33,6 +33,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # The trigger is any tag ("*"), but this workflow only makes sense for a tag
+      # whose name IS the raw manifest version (see the header comment). Enforce
+      # that invariant up front so a stray or mismatched tag fails fast instead of
+      # cutting a draft release whose asset `manifest.json` disagrees with its name
+      # — a mismatch Obsidian/BRAT would then serve.
+      - name: Verify tag matches manifest version
+        run: |
+          manifest_version="$(jq -r .version manifest.json)"
+          if [[ "${GITHUB_REF_NAME}" != "${manifest_version}" ]]; then
+            echo "::error::pushed tag [${GITHUB_REF_NAME}] does not equal manifest.json version [${manifest_version}] — refusing to build a mismatched release."
+            exit 1
+          fi
+          echo "tag ${GITHUB_REF_NAME} matches manifest.json version ${manifest_version}."
+
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
