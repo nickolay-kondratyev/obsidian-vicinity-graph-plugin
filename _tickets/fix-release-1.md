@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-08-10T21:16:02Z
 id: nid_shrhvp6kmzbqwc4chd1k7irzg_e
 title: fix release
-status: in_progress
+status: closed
 deps: []
 links: []
 created_iso: '2026-08-10T21:11:45Z'
-status_updated_iso: '2026-08-10T21:12:28Z'
+status_updated_iso: 2026-08-10T21:16:02Z
 type: task
 priority: 3
 assignee: nickolaykondratyev
@@ -95,3 +96,34 @@ npm error A complete log of this run can be found in: /home/runner/.npm/_logs/20
 Error: Process completed with exit code 1.
 ```
 root cause and fix.
+
+## Notes
+
+**2026-08-10T21:16:02Z**
+
+## Resolution
+
+**Root cause.** `.github/workflows/release.yml` pinned CI to `node-version: "20"`.
+Node 20 ships npm 10.8.2, whose resolver differs from the npm 11 that generated
+`package-lock.json`. vitest 4.x pulls in vite, which peer-requires
+`esbuild ^0.27.0 || ^0.28.0` (see package-lock.json:3129); the project's direct
+dep is `esbuild ^0.25.5`. npm 11 (local, node 24/26) treats the committed lock as
+consistent — `npm ci` passes — but npm 10 resolves vite's peer as a SEPARATE
+nested `esbuild@0.28.2` install that the lock does not contain, so `npm ci`
+aborts with "Missing: esbuild@0.28.2 from lock file". Node 20 also violates the
+dev toolchain's declared engines (jsdom@30 needs node ^22.22 || ^24.15 || >=26,
+undici >=22.19), which is the EBADENGINE noise in the log.
+
+**Fix.** Bumped CI to `node-version: "24"` (LTS) in `.github/workflows/release.yml`.
+Node 24 ships npm 11 (the resolver the lockfile was generated with) and satisfies
+every devDep engine requirement. Single-file change; the lockfile is already
+consistent under npm 11 and needed no regeneration.
+
+**Verification (local, npm 11 == node 24's npm):**
+- `npm ci` → exit 0 (clean install)
+- `npm run check` → exit 0
+- `npm test` → exit 0
+- `npm run build` → exit 0
+
+The npm-10-specific failure cannot be reproduced on this box (npm 11 only), but
+the mechanism is understood and the fix removes the version mismatch at its root.

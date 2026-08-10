@@ -49,10 +49,16 @@ jobs:
           fi
           echo "tag ${GITHUB_REF_NAME} matches manifest.json version ${manifest_version}."
 
+      # Node 24 (LTS), not 20: the dev toolchain's declared engines require it —
+      # jsdom@30 needs node ^22.22 || ^24.15 || >=26, undici >=22.19 — so node 20
+      # throws EBADENGINE. It also ships npm 11, the resolver `package-lock.json`
+      # is generated with; node 20's npm 10 resolves vite's `esbuild ^0.27||^0.28`
+      # peer as a nested install absent from the lock, which is what broke `npm ci`
+      # on the 0.1.6 tag push.
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           cache: "npm"
 
       - name: Install dependencies
