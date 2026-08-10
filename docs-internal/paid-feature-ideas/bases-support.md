@@ -1,0 +1,1 @@
+Add paid support for bases. (Query like support to show in the graph)
