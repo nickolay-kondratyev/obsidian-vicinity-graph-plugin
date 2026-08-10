@@ -1,11 +1,12 @@
 ---
+closed_iso: 2026-08-10T22:27:14Z
 id: nid_1iskliqzhf6k4euouhn44phiq_e
 title: fix warn pre release
-status: in_progress
+status: closed
 deps: []
-links: []
+links: [nid_zyv1x5w08difwfdopm50bt2lu_e]
 created_iso: '2026-08-10T22:22:50Z'
-status_updated_iso: '2026-08-10T22:24:02Z'
+status_updated_iso: 2026-08-10T22:27:14Z
 type: task
 priority: 3
 assignee: nickolaykondratyev
@@ -74,3 +75,55 @@ src/view/useOptimisticValue.ts
 
 Group up the files and create 1 ticket per group to fix this.
 We are grouping so that each ticket has reasonable context window.
+
+---
+
+## Resolution (2026-08-10)
+
+This was a **grouping/dispatch** task — split the file list into per-group fix
+tickets, not fix the warnings here. Done.
+
+### Finding: the rule cannot be reproduced locally today
+The repo has **no local ESLint** (no `node_modules/.bin/eslint`, no
+`typescript-eslint` dependency, no `eslint.config.*`). `@typescript-eslint/no-unsafe-member-access`
+is a **type-aware** rule, so it only surfaces in Obsidian's pre-publish check.
+An engineer cannot verify a fix without first wiring typed ESLint locally.
+So a shared **prerequisite** ticket was created and made a `dep` of every group
+ticket (see also existing `docs-internal/tickets/ticket-eslint-adoption.md`).
+
+### Prerequisite ticket (all groups depend on it)
+- `nid_zyv1x5w08difwfdopm50bt2lu_e` — eslint typed-lint reproduce
+  `no-unsafe-member-access` locally (wire ESLint 9 flat config + typed
+  `typescript-eslint`, add `npm run lint`, document single-file lint command).
+
+### Group tickets (each `dep` → prerequisite above; all `link`ed to each other)
+1. `nid_ez80034jh0f5mba3hgegc0lvq_e` — e2e core graph/canvas/editing specs
+   (canvasMarkdownLinkIndexing, canvasSpaceKey, coreEditingWhileGraphOpen,
+   controlsRestart, graphPlacement, vicinityGraph)
+2. `nid_1fzz9jrjbnaa3iky57nmmckfc_e` — e2e edge/node rendering specs
+   (edgeRouting, edgeRoutingEval, linkPreview, nodeContentOverride, nodeOutline,
+   nodeResize, nodeTitleWrap)
+3. `nid_weo2x5v4mks9ge9bf642u0hg4_e` — e2e settings specs
+   (settingsDependentRows, settingsResetReview, settingsResetVerify,
+   settingsTypedInput, settingsUxVisual)
+4. `nid_d2ditwyebmdlyg3ktb3li0r3d_e` — e2e pins/persistence/rename/external specs
+   (localPinScenario, pinnedCentralScenario, referenceProvenance,
+   perFileStorePersistence, noteRename, externalVault)
+5. `nid_6kz4747paujgvor7ftnav1xz6_e` — e2e shared harness/helpers
+   (buttonChrome, nodeContentBox, obsidianHarness, settingsTabPage,
+   settingsWriteWindow, vaultTarget)
+6. `nid_epspxsqa74z7vnpu7846ou5sl_e` — src/view settings & controls
+   (SettingsRowView, VicinityGraphSettingTab, ToggleSwitch, useOptimisticValue,
+   rowRenderingSource, ConfirmModal)
+7. `nid_dq0439hrj3lj7edst73p6a9ic_e` — src/view graph/flow/nodes
+   (VicinityGraphFlow, VicinityGraphView, NoteNode, FolderGroupNode, NodeOutline,
+   VicinityEdge, nodeResize, DrawerResizeHandle)
+8. `nid_ymugwkesjh70astiz9bffzu26_e` — src/view layout runners
+   (ElkLayoutRunner, GraphLayoutRunner, elkMapping, d3ForceRefinement,
+   libavoidLoader)
+9. `nid_cinizzkohsf4r3hn48qvdfvzt_e` — src/view link-preview + obsidian adapters
+   + main (LinkPreviewContent, LinkPreviewDrawer, GraphViewOpener, ObsidianGraphUi,
+   ObsidianNoteNavigator, src/main.ts)
+
+All 55 files from the list above are covered exactly once across groups 1–9.
+Grouped by directory + concern so each ticket fits a reasonable context window.
