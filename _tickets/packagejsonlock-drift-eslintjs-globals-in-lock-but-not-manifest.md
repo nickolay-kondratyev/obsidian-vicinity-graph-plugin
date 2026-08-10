@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-10T23:09:08Z
-session_ids: [{a: claude, type: execution, id: da36b6f3-99aa-41cd-9db2-b4eaa6d20a47}]
+session_ids: [{a: claude, type: execution, id: da36b6f3-99aa-41cd-9db2-b4eaa6d20a47}, {a: claude, type: review, id: 5615943b-cdb6-451e-bbba-87ff4e03d499}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_p9omkaitzkvzvthv5f2vvou2y_e
 title: "package.json/lock drift: @eslint/js + globals in lock but not manifest"
