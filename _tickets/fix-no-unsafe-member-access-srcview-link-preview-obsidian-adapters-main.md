@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-10T23:17:39Z
-session_ids: [{a: claude, type: execution, id: 1f319f44-f881-4c46-80d8-4f36669e276b}]
+session_ids: [{a: claude, type: execution, id: 1f319f44-f881-4c46-80d8-4f36669e276b}, {a: claude, type: review, id: 5a4ff594-198b-403b-ba6e-6f62f6f0a031}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_cinizzkohsf4r3hn48qvdfvzt_e
 title: "fix no-unsafe-member-access: src/view link-preview + obsidian adapters + main"
