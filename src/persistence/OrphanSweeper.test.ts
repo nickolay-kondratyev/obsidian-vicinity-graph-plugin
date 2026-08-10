@@ -3,9 +3,17 @@ import { FakeDocIdPort } from "../adapters/FakeDocIdPort";
 import { FakeObsidianPorts } from "../adapters/FakeObsidianPorts";
 import { DocIdMapWarmer } from "./DocIdMapWarmer";
 import { FakePluginDataPort } from "./FakePluginDataPort";
+import { FakeVaultFsPort } from "./FakeVaultFsPort";
 import { OrphanSweeper } from "./OrphanSweeper";
 import { PathDocIdMap } from "./PathDocIdMap";
+import { PerDocStore } from "./PerDocStore";
 import { PluginDataStore } from "./PluginDataStore";
+import { VaultFileStore } from "./VaultFileStore";
+
+/** A fresh per-file store over in-memory disk — the home of overrides + local pins in the sweep. */
+function newPerDocStore(): PerDocStore {
+	return new PerDocStore(new VaultFileStore(".plugin_data/vicinity_graph", new FakeVaultFsPort(), () => 0));
+}
 
 /** > the scanner's internal batch size of 20, so the warm phase must yield at least once. */
 const LIVE_NOTE_COUNT = 25;
@@ -25,15 +33,16 @@ async function sweptFixture() {
 	await pluginDataStore.init();
 	await pluginDataStore.addPin("docid_note1_e", 100);
 	await pluginDataStore.addPin("docid_stale_e", 200);
-	await pluginDataStore.saveNodeOverrideField("docid_note2_e", { field: "content", value: "image" });
-	await pluginDataStore.saveNodeOverrideField("docid_gone_e", {
+	const perDocStore = newPerDocStore();
+	await perDocStore.saveNodeOverrideField("docid_note2_e", { field: "content", value: "image" });
+	await perDocStore.saveNodeOverrideField("docid_gone_e", {
 		field: "sizePx",
 		value: { widthPx: 300, heightPx: 200 },
 	});
 	// A local pin under a LIVE main whose TARGET vanished, plus one whose MAIN key
 	// vanished — both are orphans the sweep must reach through forgetDocs.
-	await pluginDataStore.addLocalPin("docid_note3_e", "docid_localtargetgone_e", 300);
-	await pluginDataStore.addLocalPin("docid_localmaingone_e", "docid_note4_e", 400);
+	await perDocStore.addLocalPin("docid_note3_e", "docid_localtargetgone_e", 300);
+	await perDocStore.addLocalPin("docid_localmaingone_e", "docid_note4_e", 400);
 
 	const pathDocIdMap = new PathDocIdMap();
 	let yields = 0;
@@ -43,9 +52,10 @@ async function sweptFixture() {
 		}),
 		pathDocIdMap,
 		pluginDataStore,
+		perDocStore,
 	);
 	const summary = await sweeper.run();
-	return { docIdPort, pluginDataStore, pathDocIdMap, yieldCount: () => yields, summary };
+	return { docIdPort, pluginDataStore, perDocStore, pathDocIdMap, yieldCount: () => yields, summary };
 }
 
 describe("OrphanSweeper", () => {
@@ -55,8 +65,8 @@ describe("OrphanSweeper", () => {
 	});
 
 	it("WHEN an overridden doc vanished THEN exactly that override is removed", async () => {
-		const { pluginDataStore } = await sweptFixture();
-		expect(Object.keys(pluginDataStore.nodeOverrides())).toEqual(["docid_note2_e"]);
+		const { perDocStore } = await sweptFixture();
+		expect(Object.keys(perDocStore.nodeOverrides())).toEqual(["docid_note2_e"]);
 	});
 
 	it("WHEN the sweep warms up THEN the path→docid map answers for visited docs", async () => {
@@ -75,13 +85,13 @@ describe("OrphanSweeper", () => {
 	});
 
 	it("WHEN a local-pin TARGET vanished THEN it is pruned but the live main survives", async () => {
-		const { pluginDataStore } = await sweptFixture();
-		expect(pluginDataStore.localPins("docid_note3_e")).toEqual([]);
+		const { perDocStore } = await sweptFixture();
+		expect(perDocStore.localPins("docid_note3_e")).toEqual([]);
 	});
 
 	it("WHEN a local-pin MAIN key vanished THEN its whole entry is dropped", async () => {
-		const { pluginDataStore } = await sweptFixture();
-		expect(pluginDataStore.localPins("docid_localmaingone_e")).toEqual([]);
+		const { perDocStore } = await sweptFixture();
+		expect(perDocStore.localPins("docid_localmaingone_e")).toEqual([]);
 	});
 
 	it("WHEN the sweep completes THEN its summary counts exactly what was removed", async () => {
@@ -123,6 +133,7 @@ async function midSweepWriteFixture() {
 		new DocIdMapWarmer(ports.vault, docIdPort, pathDocIdMap, simulateWriteIntentOnFirstYield),
 		pathDocIdMap,
 		pluginDataStore,
+		newPerDocStore(),
 	);
 	await sweeper.run();
 	return { pluginDataStore };
@@ -166,6 +177,7 @@ async function hundredsOfFilesSweep() {
 		}),
 		pathDocIdMap,
 		pluginDataStore,
+		newPerDocStore(),
 	);
 	const summary = await sweeper.run();
 	return { yieldCount: () => yields, summary };
@@ -205,6 +217,7 @@ async function sweepWithUnreadableFileFixture() {
 		new DocIdMapWarmer(ports.vault, docIdPort, pathDocIdMap),
 		pathDocIdMap,
 		pluginDataStore,
+		newPerDocStore(),
 	);
 	const summary = await sweeper.run();
 	return { pluginDataStore, pathDocIdMap, summary };

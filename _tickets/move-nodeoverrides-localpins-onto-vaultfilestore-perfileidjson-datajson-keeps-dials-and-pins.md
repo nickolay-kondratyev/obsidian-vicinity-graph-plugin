@@ -1,12 +1,13 @@
 ---
+closed_iso: 2026-08-10T18:47:17Z
 id: nid_8f8ey41extajt08zphwwxhnwq_e
 title: Move nodeOverrides + localPins onto VaultFileStore (per_file/<id>.json); data.json
   keeps global dials AND the global pinned set
-status: in_progress
+status: closed
 deps: [nid_cdoymzgq5kjh5d10q1tkavnsy_e]
 links: [nid_vb246h5pr4609hid76ts1ufe5_e, nid_cdoymzgq5kjh5d10q1tkavnsy_e, nid_rnghlzs0uejjlbd5a4bjkq7eg_e]
 created_iso: '2026-08-10T03:20:59Z'
-status_updated_iso: '2026-08-10T17:53:36Z'
+status_updated_iso: 2026-08-10T18:47:17Z
 type: feature
 priority: 1
 assignee: nickolaykondratyev
@@ -217,3 +218,22 @@ CONFIG. Users already expect that to make plugin settings travel they grab data.
 with the vault, so a git sync that excludes .obsidian leaving global pins behind is the
 familiar/acceptable behaviour. Per-note graph state (overrides, localPins) is vault content
 and rides along with .plugin_data automatically. Do not re-open this split without owner sign-off.
+
+**2026-08-10T18:47:00Z**
+
+RESOLVED (2026-08-10). Two-tier storage implemented; all gates green (npm run test:all: check + 1823 unit + 163 e2e).
+
+WHAT SHIPPED
+- New src/persistence/perDocRecord.ts: PerDocRecord { override?, localPins?, localControls? } + defensive parser (reuses persistedShapes parsePins/parseNodeOverride) + isEmptyPerDocRecord.
+- New src/persistence/PerDocStore.ts: in-memory-authoritative, warm-once mirror of .plugin_data/vicinity_graph/per_file/<docid>.json over VaultFileStore. Owns nodeOverrides + localPins; target->mains reverse index for cheap delete prune; keyedDocids() read twin; forgetDocs() per-file half; merge-ONE-field-over-fresh preserved. localControls reserved (empty) for nid_rnghlzs0uejjlbd5a4bjkq7eg_e (additive there).
+- New src/persistence/RejectingVaultFsPort.ts: test double for the per-file write-failure policy (twin of RejectingPluginDataPort).
+- persistedShapes.ts: dropped localPins/nodeOverrides from PluginData (KEEP globalDepths/globalView/pins/nodeExclusion); exported parsePins/parseNodeOverride for reuse.
+- PluginDataStore.ts: pins-only forgetDocs; localPins/nodeOverride logic removed.
+- PersistenceServices/VicinityGraphBuilder/OrphanSweeper/main.ts: wired PerDocStore; builder warms it and unions keyedDocids with pin docids; delete handler + sweep call BOTH forgetDocs.
+- Tests: PerDocStore.test.ts, perDocRecord.test.ts (new); persistedShapes/PluginDataStore/PersistenceServices/OrphanSweeper/VicinityGraphBuilder/ControlsActions suites updated.
+- E2E: controlsRestart now round-trips a size+content override through a real restart; localPinScenario + pinnedCentralScenario cover local/global pin restart (now via per-file store). New e2e/perFileStorePersistence.e2e.ts: (1) delete prunes a doc's own record AND its local-pin-target slot under another main via the LIVE vault.on('delete') handler; (2) a conflict-markered per_file/<id>.json is quarantined on boot (doc reads defaults, bad bytes renamed to _malformed_, no crash).
+- Docs: CLAUDE.md Persistence bullet, architecture-map.md, high-level-plan.md (parked sync-friendliness note DISCHARGED), RELEASE_CHECKLIST.md clean-break note.
+
+DEVIATION (transparent, sanctioned by this ticket's Shapes section "implementer's call"): NO PERSISTED_SHAPE_VERSION bump. The two dropped data.json keys simply stop being read (field-allowlisting), so old data falls back to defaults for the moved facts while global dials AND global pins carry over UNCHANGED. This is strictly better than a bump (a bump would reset pins too). Called out in the release note. If the owner wants an explicit bump for hygiene, that is a one-line change.
+
+CLEAN BREAK: old data.json nodeOverrides/localPins are ignored (re-set once). pins NOT moved -> global pins keep working. Documented in RELEASE_CHECKLIST section 7.

@@ -7,9 +7,11 @@ import { ObsidianHarness } from "./obsidianHarness";
 /**
  * Step-06 RESTART round-trip (QA §1/§6/§11/§13) — the step's hard exit criterion
  * and the one thing the unit suite structurally cannot reach. Mutate the global
- * depth stepper, a pin, a sizing weight and the node cap through the real UI/store, do
- * ONE real Obsidian restart via {@link ObsidianHarness.relaunch}, then assert each
- * reloaded from `data.json`.
+ * depth stepper, a pin, a sizing weight, the node cap AND a per-node size + content
+ * override through the real UI/store, do ONE real Obsidian restart via
+ * {@link ObsidianHarness.relaunch}, then assert each reloaded — the globals + pinned
+ * set from `data.json`, the override from the vault-synced per-file store (ticket
+ * `nid_8f8ey41extajt08zphwwxhnwq_e` split persistence into those two tiers).
  *
  * Fixtures are e2e-only, ROOT-level (no folder groups to intercept pointer events)
  * and SPARSE — `rt_hub` has one outgoing neighbour and one incoming chain — so
@@ -42,12 +44,29 @@ const RESTART_FIXTURES: Record<string, string> = {
 };
 
 const HUB = "rt_hub.md";
+/** The hub's seeded docid — the key its per-file override record is stored under. */
+const HUB_DOCID = "docid_restarthub_e";
 const PIN_TARGET = "rt_x.md";
 const IN2 = "rt_in2.md";
 
 /** Non-default values so a stale default can never masquerade as "persisted". */
 const DISTINCTIVE_MIN_PX = 47;
 const DISTINCTIVE_NODE_CAP = 42;
+/**
+ * A distinctive per-node SIZE override — the ONE persisted slice that moved OUT of
+ * data.json onto the per-file `VaultFileStore` (ticket
+ * `nid_8f8ey41extajt08zphwwxhnwq_e`). Restart round-tripping it here is what proves
+ * the two-tier store reloads BOTH tiers: `data.json` globals AND a vault-synced
+ * per-file record. Off every default so a fallback can't masquerade as persisted.
+ */
+const DISTINCTIVE_OVERRIDE_PX = { widthPx: 321, heightPx: 187 };
+/**
+ * The override's CONTENT sibling, stored on the SAME doc so one `per_file/<docid>.json`
+ * carries both sections at once — the round-trip proves neither clobbers the other
+ * across a restart (the merge-over-fresh invariant, end to end).
+ */
+const DISTINCTIVE_OVERRIDE_CONTENT = "outline";
+const EXPECTED_HUB_OVERRIDE = { sizePx: DISTINCTIVE_OVERRIDE_PX, content: DISTINCTIVE_OVERRIDE_CONTENT };
 
 let harness: ObsidianHarness;
 let page: Page;
@@ -167,6 +186,15 @@ test("depth, pin, node cap and sizing all survive an Obsidian restart", async ()
 	await harness.setGlobalNodeCap(DISTINCTIVE_NODE_CAP);
 	await expect.poll(async () => (await harness.readGlobalView()).nodeCap).toBe(DISTINCTIVE_NODE_CAP);
 
+	// Per-file store: a per-node SIZE + CONTENT override, the slice that moved OFF
+	// data.json onto the vault-synced per-file store. Written through the same store
+	// calls the released drag-resize and the content menu commit — both sections in ONE
+	// record — then confirmed present BEFORE the restart so the post-restart assertion is
+	// a genuine reload, not a value that was never there.
+	await harness.saveNodeSizeOverride(HUB_DOCID, DISTINCTIVE_OVERRIDE_PX);
+	await harness.saveNodeContentOverride(HUB_DOCID, DISTINCTIVE_OVERRIDE_CONTENT);
+	expect((await harness.readNodeOverrides())[HUB_DOCID]).toEqual(EXPECTED_HUB_OVERRIDE);
+
 	// --- the restart -----------------------------------------------------------
 	harness = await harness.relaunch();
 	page = harness.page;
@@ -187,4 +215,8 @@ test("depth, pin, node cap and sizing all survive an Obsidian restart", async ()
 	// warms what it needs on demand (ticket nid_gbyqsuplz8b7pv0u5k34sdz1q_e), so
 	// this is a plain assertion: no polling, no waiting out the 15s orphan sweep.
 	await expect(noteNode(PIN_TARGET)).toHaveAttribute("data-tier", "pinned-central");
+
+	// Per-file store reloads too: the hub's size + content override survived on disk as a
+	// vault-synced `per_file/<docid>.json`, read back by the store's warm on this boot.
+	expect((await harness.readNodeOverrides())[HUB_DOCID]).toEqual(EXPECTED_HUB_OVERRIDE);
 });

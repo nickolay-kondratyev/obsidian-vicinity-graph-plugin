@@ -3,11 +3,15 @@ import { FakeDocIdPort } from "../adapters/FakeDocIdPort";
 import type { VaultFilePort, VaultPort } from "../adapters/obsidianPorts";
 import { EngineDefaults } from "../engine";
 import { FakePluginDataPort } from "../persistence/FakePluginDataPort";
+import { FakeVaultFsPort } from "../persistence/FakeVaultFsPort";
 import { PathDocIdMap } from "../persistence/PathDocIdMap";
+import { PerDocStore } from "../persistence/PerDocStore";
 import { PersistenceServices } from "../persistence/PersistenceServices";
 import { PluginDataStore } from "../persistence/PluginDataStore";
 import { RejectingPluginDataPort } from "../persistence/RejectingPluginDataPort";
+import { RejectingVaultFsPort } from "../persistence/RejectingVaultFsPort";
 import type { PluginDataPort } from "../persistence/storagePorts";
+import { VaultFileStore } from "../persistence/VaultFileStore";
 import { ControlsActions } from "./ControlsActions";
 import { FakeUserNotices } from "./FakeUserNotices";
 import { FakeViewsRefresh } from "./FakeViewsRefresh";
@@ -68,18 +72,27 @@ class FakeActiveMain implements ActiveMainProvider {
 	}
 }
 
-async function actionsUnderTest(dataPort: PluginDataPort = new FakePluginDataPort()) {
+async function actionsUnderTest(
+	dataPort: PluginDataPort = new FakePluginDataPort(),
+	// The per-file store's disk is a separate seam from `data.json`: local pins and
+	// node overrides now live there, so a suite pinning THEIR failure policy fails the
+	// vault write, not `saveData`.
+	perFileFs: FakeVaultFsPort = new FakeVaultFsPort(),
+) {
 	const pluginDataStore = new PluginDataStore(dataPort);
 	await pluginDataStore.init();
 	const docIdPort = new FakeDocIdPort({ [MAIN_PATH]: MAIN_DOCID, [TARGET_PATH]: TARGET_DOCID });
 	docIdPort.markUnidentifiable(ID_LESS_PATH);
-	const persistenceServices = new PersistenceServices(docIdPort, pluginDataStore, new PathDocIdMap());
+	const perDocStore = new PerDocStore(
+		new VaultFileStore(".plugin_data/vicinity_graph", perFileFs, () => 0),
+	);
+	const persistenceServices = new PersistenceServices(docIdPort, pluginDataStore, perDocStore, new PathDocIdMap());
 	const viewsRefresh = new FakeViewsRefresh([ORIGINATING_VIEW_ID, OTHER_VIEW_ID]);
 	const notices = new FakeUserNotices();
 	const settingsWrites = new SettingsWritePipeline(pluginDataStore, viewsRefresh, notices);
 	const activeMain = new FakeActiveMain();
 	const actions = new ControlsActions(persistenceServices, VAULT, settingsWrites, notices, activeMain);
-	return { actions, viewsRefresh, pluginDataStore, notices, activeMain };
+	return { actions, viewsRefresh, pluginDataStore, perDocStore, notices, activeMain };
 }
 
 describe("ControlsActions.applySettings", () => {
@@ -166,9 +179,9 @@ describe("ControlsActions pinning", () => {
 
 describe("ControlsActions local pinning", () => {
 	it("WHEN a neighbor is locally pinned THEN the pin is stored under the active MAIN", async () => {
-		const { actions, pluginDataStore } = await actionsUnderTest();
+		const { actions, perDocStore } = await actionsUnderTest();
 		await actions.localPinNode(TARGET_PATH);
-		expect(pluginDataStore.localPins(MAIN_DOCID).map((pin) => pin.docid)).toEqual([TARGET_DOCID]);
+		expect(perDocStore.localPins(MAIN_DOCID).map((pin) => pin.docid)).toEqual([TARGET_DOCID]);
 	});
 
 	it("WHEN a neighbor is locally pinned THEN EVERY open view is refreshed (the local-pin map is global state)", async () => {
@@ -219,11 +232,11 @@ describe("ControlsActions local pinning", () => {
 	});
 
 	it("WHEN a locally pinned target is unpinned THEN the pin is gone and EVERY open view is refreshed", async () => {
-		const { actions, viewsRefresh, pluginDataStore } = await actionsUnderTest();
-		await pluginDataStore.addLocalPin(MAIN_DOCID, TARGET_DOCID, 1);
+		const { actions, viewsRefresh, perDocStore } = await actionsUnderTest();
+		await perDocStore.addLocalPin(MAIN_DOCID, TARGET_DOCID, 1);
 		await actions.localUnpinNode(TARGET_DOCID);
 		expect({
-			pins: pluginDataStore.localPins(MAIN_DOCID),
+			pins: perDocStore.localPins(MAIN_DOCID),
 			refreshed: viewsRefresh.refreshedViewIds,
 		}).toEqual({ pins: [], refreshed: [ORIGINATING_VIEW_ID, OTHER_VIEW_ID] });
 	});
@@ -239,26 +252,30 @@ describe("ControlsActions local pinning", () => {
 		// The guarded slot queues on the shared serial chain, so it can run well after
 		// the click; the pin must scope to the main the user was LOOKING at, not
 		// whichever note the graph has re-centred on since.
-		const { actions, pluginDataStore, activeMain } = await actionsUnderTest();
+		const { actions, perDocStore, activeMain } = await actionsUnderTest();
 		const pinLanded = actions.localPinNode(TARGET_PATH);
 		activeMain.setMain(null);
 		await pinLanded;
-		expect(pluginDataStore.localPins(MAIN_DOCID).map((pin) => pin.docid)).toEqual([TARGET_DOCID]);
+		expect(perDocStore.localPins(MAIN_DOCID).map((pin) => pin.docid)).toEqual([TARGET_DOCID]);
 	});
 
 	it("WHEN the MAIN changes after the click but before the write slot runs THEN the unpin removes from the CLICK-time main", async () => {
-		const { actions, pluginDataStore, activeMain } = await actionsUnderTest();
-		await pluginDataStore.addLocalPin(MAIN_DOCID, TARGET_DOCID, 1);
+		const { actions, perDocStore, activeMain } = await actionsUnderTest();
+		await perDocStore.addLocalPin(MAIN_DOCID, TARGET_DOCID, 1);
 		const unpinLanded = actions.localUnpinNode(TARGET_DOCID);
 		activeMain.setMain(null);
 		await unpinLanded;
-		expect(pluginDataStore.localPins(MAIN_DOCID)).toEqual([]);
+		expect(perDocStore.localPins(MAIN_DOCID)).toEqual([]);
 	});
 
 	it("WHEN a local pin's persist rejects THEN the user is told once and every view is refreshed anyway", async () => {
 		// Same rule as a failed global pin: the store moved before the disk write, so the
-		// SCREEN is the stale copy — repaint it and let the notice be the news.
-		const { actions, viewsRefresh, notices } = await actionsUnderTest(new RejectingPluginDataPort());
+		// SCREEN is the stale copy — repaint it and let the notice be the news. Local pins
+		// live in the per-file store now, so it is the VAULT write that fails here.
+		const { actions, viewsRefresh, notices } = await actionsUnderTest(
+			new FakePluginDataPort(),
+			new RejectingVaultFsPort(),
+		);
 		await actions.localPinNode(TARGET_PATH);
 		expect({ messages: notices.messages, refreshed: viewsRefresh.refreshedViewIds }).toEqual({
 			messages: [SettingsWriteFailureNotice.forNonSettingsWrite("pinned-set")],
@@ -271,9 +288,9 @@ describe("ControlsActions node size override (drag-to-resize commit)", () => {
 	const SIZE = { widthPx: 320, heightPx: 180 };
 
 	it("WHEN a resize commits THEN the override is persisted under the doc's id", async () => {
-		const { actions, pluginDataStore } = await actionsUnderTest();
+		const { actions, perDocStore } = await actionsUnderTest();
 		await actions.resizeNode(MAIN_PATH, SIZE);
-		expect(pluginDataStore.nodeOverrides()[MAIN_DOCID]).toEqual({ sizePx: SIZE });
+		expect(perDocStore.nodeOverrides()[MAIN_DOCID]).toEqual({ sizePx: SIZE });
 	});
 
 	it("WHEN a resize commits THEN EVERY open view is refreshed (the ONE rebuild on release)", async () => {
@@ -305,19 +322,23 @@ describe("ControlsActions node size override (drag-to-resize commit)", () => {
 	});
 
 	it("WHEN a reset clears a stored override THEN the override is gone and every view is refreshed", async () => {
-		const { actions, viewsRefresh, pluginDataStore } = await actionsUnderTest();
+		const { actions, viewsRefresh, perDocStore } = await actionsUnderTest();
 		await actions.resizeNode(MAIN_PATH, SIZE);
 		await actions.resetNodeSize(MAIN_PATH);
 		expect({
-			override: pluginDataStore.nodeOverrides()[MAIN_DOCID],
+			override: perDocStore.nodeOverrides()[MAIN_DOCID],
 			refreshCount: viewsRefresh.refreshedViewIds.length,
 		}).toEqual({ override: undefined, refreshCount: 4 });
 	});
 
 	it("WHEN a resize's persist rejects THEN the user is told once and every view is refreshed anyway", async () => {
 		// Same rule as a failed pin: the store moved before the disk write, so the
-		// SCREEN is the stale copy — repaint it and let the notice be the news.
-		const { actions, viewsRefresh, notices } = await actionsUnderTest(new RejectingPluginDataPort());
+		// SCREEN is the stale copy — repaint it and let the notice be the news. Overrides
+		// live in the per-file store now, so it is the VAULT write that fails here.
+		const { actions, viewsRefresh, notices } = await actionsUnderTest(
+			new FakePluginDataPort(),
+			new RejectingVaultFsPort(),
+		);
 		await actions.resizeNode(MAIN_PATH, SIZE);
 		expect({ messages: notices.messages, refreshed: viewsRefresh.refreshedViewIds }).toEqual({
 			messages: [SettingsWriteFailureNotice.forNonSettingsWrite("node-size-override")],
@@ -330,9 +351,9 @@ describe("ControlsActions node content override (hover gear)", () => {
 	const NOT_CONTENT_OVERRIDABLE_MESSAGE = "This note's content choice can't be saved (no stable id).";
 
 	it("WHEN a content choice is set THEN the override is persisted under the doc's id", async () => {
-		const { actions, pluginDataStore } = await actionsUnderTest();
+		const { actions, perDocStore } = await actionsUnderTest();
 		await actions.setNodeContentOverride(MAIN_PATH, "outline");
-		expect(pluginDataStore.nodeOverrides()[MAIN_DOCID]).toEqual({ content: "outline" });
+		expect(perDocStore.nodeOverrides()[MAIN_DOCID]).toEqual({ content: "outline" });
 	});
 
 	it("WHEN a content choice is set THEN EVERY open view is refreshed (a data-only rebuild)", async () => {
@@ -356,17 +377,21 @@ describe("ControlsActions node content override (hover gear)", () => {
 	});
 
 	it("WHEN Inherit clears a stored override THEN the override is gone and every view is refreshed", async () => {
-		const { actions, viewsRefresh, pluginDataStore } = await actionsUnderTest();
+		const { actions, viewsRefresh, perDocStore } = await actionsUnderTest();
 		await actions.setNodeContentOverride(MAIN_PATH, "image");
 		await actions.clearNodeContentOverride(MAIN_PATH);
 		expect({
-			override: pluginDataStore.nodeOverrides()[MAIN_DOCID],
+			override: perDocStore.nodeOverrides()[MAIN_DOCID],
 			refreshCount: viewsRefresh.refreshedViewIds.length,
 		}).toEqual({ override: undefined, refreshCount: 4 });
 	});
 
 	it("WHEN a content set's persist rejects THEN the user is told once and every view is refreshed anyway", async () => {
-		const { actions, viewsRefresh, notices } = await actionsUnderTest(new RejectingPluginDataPort());
+		// Overrides live in the per-file store now, so it is the VAULT write that fails here.
+		const { actions, viewsRefresh, notices } = await actionsUnderTest(
+			new FakePluginDataPort(),
+			new RejectingVaultFsPort(),
+		);
 		await actions.setNodeContentOverride(MAIN_PATH, "outline");
 		expect({ messages: notices.messages, refreshed: viewsRefresh.refreshedViewIds }).toEqual({
 			messages: [SettingsWriteFailureNotice.forNonSettingsWrite("node-content-override")],

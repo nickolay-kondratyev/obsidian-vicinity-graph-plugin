@@ -102,6 +102,18 @@ they ship, then drop them.
       read or written and can be deleted by hand. Nothing else is lost: global
       settings and **pinned notes are kept** (they live in `data.json`).
       Ticket `nid_ez38gf1mrdgh5kxedzrdicwzl_e`.
+- [ ] **Per-note size/content overrides and local pins moved OUT of `data.json`
+      into the vault** — they now live as vault content under
+      `.plugin_data/vicinity_graph/per_file/<note-id>.json` (one file per note), so
+      they SYNC alongside your notes instead of only travelling with `.obsidian`.
+      Clean break: any per-note SIZE/CONTENT override or LOCAL pin stored by an
+      earlier build (in the old `data.json` `nodeOverrides` / `localPins` keys) is
+      **discarded** — re-set them once. **Nothing else is lost:** global settings AND
+      **globally pinned notes are kept** — the global pinned set stays in `data.json`
+      (a pin is treated as plugin config, so Obsidian manages it and it does NOT sync
+      when you exclude `.obsidian`). No version bump was needed: the two dropped keys
+      simply stop being read, so global settings and global pins carry over untouched.
+      Ticket `nid_8f8ey41extajt08zphwwxhnwq_e`.
 - [ ] **UX shift in the same change:** the graph controls panel's depth steppers now
       change a **GLOBAL** setting — a bump there affects every note's graph and
       every open view, where it used to affect only the active note. One depth pair

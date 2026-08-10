@@ -21,21 +21,31 @@ view  ──▶  adapters  ──▶  engine  (pure core)
 - **`src/adapters/`** — bridges Obsidian ↔ engine. `ObsidianLinkProvider`
   (resolvedLinks + backlinks), the canvas parser (run for EVERY canvas),
   `VicinityGraphBuilder` (per-rebuild orchestration), docid ↔ path translation.
-- **`src/persistence/`** — JSON storage, and `data.json` (`PluginDataStore`) is
-  the ONLY store: global settings + two docid-keyed maps, the pinned set and
-  per-node overrides (`nodeOverrides`). **Nothing is per-document** — an
-  override is a global fact about a doc, like a pin; the `doc-data/<docid>.json`
-  store was deleted with the per-doc settings layer (ticket
-  `nid_ez38gf1mrdgh5kxedzrdicwzl_e`); stale dirs from older builds are ignored,
-  never read. `DocIdMapWarmer` is THE path↔docid scanner (one instance, wired in
-  `main.ts`): the read path warms exactly the docids a build needs so pins and
-  overrides render on the FIRST build after a restart, and the delayed, chunked
-  `OrphanSweeper` reuses the same walk to prune entries in EVERY docid-keyed map
-  whose doc no longer resolves — through the one `PluginDataStore.forgetDocs`
-  call the live `vault.on('delete')` handler also uses (its read-side twin,
-  `docIdKeyedDocids()`, is what the warm-up asks for). Every persisted shape
-  carries a `version` field.
-  `VaultFileStore` (`VaultFileStore.ts`) is a SECOND, domain-agnostic store — a
+- **`src/persistence/`** — JSON storage, TWO-TIER (ticket
+  `nid_8f8ey41extajt08zphwwxhnwq_e`). `data.json` (`PluginDataStore`) holds the
+  truly-global CONFIG: the settings dials + ONE docid-keyed map, the global pinned
+  set (a pin is config, not vault content — Obsidian manages what is pinned). The
+  per-doc / per-main FACTS moved OFF `data.json` onto the per-file `VaultFileStore`,
+  owned by `PerDocStore` (`PerDocStore.ts`): `per_file/<docid>.json`, one file per
+  doc, each an optional SUBJECT override (`nodeOverrides`: `sizePx` / `content`) +
+  its MAIN-context `localPins`, syncing as vault content. **Nothing is
+  per-document as a SETTING** — an override is a global fact about a doc, like a
+  pin. `PerDocStore` is the in-memory-authoritative, warm-once mirror of that
+  directory (the per-file analogue of `PluginDataStore`), with a `target → mains`
+  reverse index for cheap target-side delete pruning; a `localControls` section is
+  reserved for a future per-main dials layer (ticket
+  `nid_rnghlzs0uejjlbd5a4bjkq7eg_e`). `DocIdMapWarmer` is THE path↔docid scanner
+  (one instance, wired in `main.ts`): the read path warms exactly the docids a
+  build needs — the pinned set's (from `PluginDataStore`) UNIONED with the per-file
+  store's (`PerDocStore.keyedDocids()`) — so pins, overrides and local pins render
+  on the FIRST build after a restart. The delayed, chunked `OrphanSweeper` reuses
+  the same walk to prune entries in EVERY docid-keyed map whose doc no longer
+  resolves, through TWO `forgetDocs` calls side by side — `PluginDataStore` (pins)
+  and `PerDocStore` (overrides + localPins, both MAIN-key and target positions) —
+  the ONE conceptual choke point spanning both tiers, which the live
+  `vault.on('delete')` handler also uses. Every persisted shape carries a
+  `version` field.
+  `VaultFileStore` (`VaultFileStore.ts`) is that SECOND, domain-agnostic store — a
   `<relPath> ↔ parsed payload` tree of versioned JSON files under the VAULT ROOT
   (`.plugin_data/vicinity_graph/`, NOT `.obsidian/`), so it syncs as vault
   content. It sits on `VaultFsPort` (`vaultFsPort.ts`; real `VaultAdapterFsPort`
@@ -49,8 +59,9 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   truncation, unknown version key) is QUARANTINED — renamed to
   `<base>_malformed_<ts><ext>` (injected `clock` → `quarantineTimestamp.ts`,
   collision-safe `_2`…), the user is told ONCE via `UserNoticePort`, and the
-  entry reads as ABSENT. Never deletes the user's bytes. Constructed inert in
-  `main.ts`; the domain data (per-doc facts) moves onto it in a dependent ticket.
+  entry reads as ABSENT. Never deletes the user's bytes. `PerDocStore` is its ONE
+  domain consumer today (the per-doc facts above); the primitive stays
+  domain-agnostic so a future consumer is a new caller, not an edit here.
 - **`src/view/`** — React 18 mounted in an Obsidian `ItemView`. Rendering,
   toolbar controls, layout. `GraphViewController.ts` owns the rebuild pipeline
   `events → engine → structural diff → layout → React Flow` and is the **only**

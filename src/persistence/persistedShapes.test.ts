@@ -1,12 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ViewSettings } from "../engine";
-import {
-	EngineDefaults,
-	NODE_OVERRIDE_HARD_MAX_PX,
-	NODE_OVERRIDE_HARD_MIN_PX,
-	SETTINGS_SPEC,
-	SIZING_RANGES,
-} from "../engine";
+import { EngineDefaults, SETTINGS_SPEC, SIZING_RANGES } from "../engine";
 import { PersistedShapes, PERSISTED_SHAPE_VERSION } from "./persistedShapes";
 
 /** The parsed `globalView` — the one surface every view field is stored on. */
@@ -21,9 +15,7 @@ describe("PersistedShapes.parsePluginData", () => {
 			globalDepths: EngineDefaults.depthSettings(),
 			globalView: EngineDefaults.viewSettings(),
 			pins: [],
-			localPins: {},
 			nodeExclusion: EngineDefaults.nodeExclusionSettings(),
-			nodeOverrides: {},
 		});
 	});
 
@@ -42,18 +34,7 @@ describe("PersistedShapes.parsePluginData", () => {
 			},
 			globalView: { ...EngineDefaults.viewSettings(), nodeCap: 42 },
 			pins: [{ docid: "docid_a_e", pinTimestamp: 1000 }],
-			localPins: {
-				docid_main_e: [
-					{ docid: "docid_x_e", pinTimestamp: 2000 },
-					{ docid: "docid_y_e", pinTimestamp: 2001 },
-				],
-				docid_other_e: [{ docid: "docid_z_e", pinTimestamp: 2002 }],
-			},
 			nodeExclusion: { enabled: true, patterns: ["^rel/", "templates/"] },
-			nodeOverrides: {
-				docid_a_e: { sizePx: { widthPx: 320, heightPx: 180 }, content: "outline" },
-				docid_b_e: { content: "image" },
-			},
 		};
 		expect(PersistedShapes.parsePluginData(JSON.parse(JSON.stringify(data)))).toEqual(data);
 	});
@@ -130,109 +111,41 @@ describe("PersistedShapes.parsePluginData", () => {
 	});
 });
 
-describe("PersistedShapes local-pins parsing", () => {
-	function parsedLocalPins(localPins: unknown) {
-		return PersistedShapes.parsePluginData({ version: PERSISTED_SHAPE_VERSION, localPins }).localPins;
-	}
+/**
+ * Clean break (ticket nid_8f8ey41extajt08zphwwxhnwq_e): `localPins` and
+ * `nodeOverrides` MOVED OUT of `data.json` onto the per-file store. The parser is
+ * field-allowlisting, so an old file still carrying them ignores them WITHOUT a
+ * version bump — exactly the call made for the removed `metrics`/`depthDecayK`
+ * keys — which is what keeps the dials AND the pinned set from resetting. The
+ * moved facts reset once because the plugin now reads them from the (empty)
+ * per-file store, not because of a bump.
+ */
+describe("PersistedShapes clean break — moved keys ignored, dials + pins preserved", () => {
+	const oldDataJson = {
+		version: PERSISTED_SHAPE_VERSION,
+		globalView: { nodeCap: 7 },
+		pins: [{ docid: "docid_a_e", pinTimestamp: 1000 }],
+		localPins: { docid_main_e: [{ docid: "docid_x_e", pinTimestamp: 5 }] },
+		nodeOverrides: { docid_a_e: { sizePx: { widthPx: 320, heightPx: 180 } } },
+	};
 
-	it("WHEN localPins is absent THEN it defaults to an empty map (tolerates absence)", () => {
-		expect(PersistedShapes.parsePluginData({ version: PERSISTED_SHAPE_VERSION }).localPins).toEqual({});
+	it("WHEN an old data.json still carries localPins/nodeOverrides THEN the parsed shape omits both", () => {
+		const parsed = PersistedShapes.parsePluginData(oldDataJson);
+		expect([parsed]).toEqual([
+			{
+				...PersistedShapes.defaultPluginData(),
+				globalView: { ...EngineDefaults.viewSettings(), nodeCap: 7 },
+				pins: [{ docid: "docid_a_e", pinTimestamp: 1000 }],
+			},
+		]);
 	});
 
-	it("WHEN a data.json persisted BEFORE localPins existed is read THEN its pins and settings survive", () => {
-		// The additive-field rule (same as nodeOverrides): an older file has no
-		// localPins key and gets the empty map, never a discarded settings block.
-		const persistedBeforeLocalPins = {
-			version: PERSISTED_SHAPE_VERSION,
-			pins: [{ docid: "docid_a_e", pinTimestamp: 1000 }],
-		};
-		expect(PersistedShapes.parsePluginData(persistedBeforeLocalPins)).toEqual({
-			...PersistedShapes.defaultPluginData(),
-			pins: [{ docid: "docid_a_e", pinTimestamp: 1000 }],
-		});
+	it("WHEN an old data.json still carries the moved keys THEN the global pinned set is preserved (no reset)", () => {
+		expect(PersistedShapes.parsePluginData(oldDataJson).pins).toEqual([{ docid: "docid_a_e", pinTimestamp: 1000 }]);
 	});
 
-	it("WHEN a valid localPins map round-trips through JSON THEN it parses back unchanged", () => {
-		const localPins = { docid_main_e: [{ docid: "docid_x_e", pinTimestamp: 5 }] };
-		expect(parsedLocalPins(JSON.parse(JSON.stringify(localPins)))).toEqual(localPins);
-	});
-
-	it("WHEN localPins is not an object THEN it degrades to an empty map", () => {
-		expect(parsedLocalPins("scrambled")).toEqual({});
-	});
-
-	it("WHEN a target entry is malformed THEN only that entry is dropped (per-target defensive parse)", () => {
-		const raw = { docid_main_e: [{ docid: "docid_ok_e", pinTimestamp: 5 }, { docid: 42 }, "garbage"] };
-		expect(parsedLocalPins(raw)).toEqual({ docid_main_e: [{ docid: "docid_ok_e", pinTimestamp: 5 }] });
-	});
-
-	it("WHEN a main's target list survives with NO usable entry THEN that main key is dropped whole (no empty list)", () => {
-		const raw = { docid_empty_e: ["garbage"], docid_main_e: [{ docid: "docid_x_e", pinTimestamp: 5 }] };
-		expect(parsedLocalPins(raw)).toEqual({ docid_main_e: [{ docid: "docid_x_e", pinTimestamp: 5 }] });
-	});
-});
-
-describe("PersistedShapes node-override parsing", () => {
-	function parsedOverrides(nodeOverrides: unknown) {
-		return PersistedShapes.parsePluginData({ version: PERSISTED_SHAPE_VERSION, nodeOverrides }).nodeOverrides;
-	}
-
-	it("WHEN nodeOverrides is absent THEN it defaults to an empty map", () => {
-		expect(PersistedShapes.parsePluginData({ version: PERSISTED_SHAPE_VERSION }).nodeOverrides).toEqual({});
-	});
-
-	it("WHEN a data.json persisted BEFORE the map existed is read THEN its settings and pins survive", () => {
-		// The explicit call behind adding `nodeOverrides` WITHOUT bumping
-		// PERSISTED_SHAPE_VERSION: the field is additive, so an older file needs no
-		// migration — whereas a bump would have discarded that file's settings AND
-		// its pins (parsePluginData returns defaults wholesale on a version mismatch).
-		const persistedBeforeTheMap = {
-			version: PERSISTED_SHAPE_VERSION,
-			globalView: { nodeCap: 7 },
-			pins: [{ docid: "docid_a_e", pinTimestamp: 1000 }],
-		};
-		expect(PersistedShapes.parsePluginData(persistedBeforeTheMap)).toEqual({
-			...PersistedShapes.defaultPluginData(),
-			globalView: { ...EngineDefaults.viewSettings(), nodeCap: 7 },
-			pins: [{ docid: "docid_a_e", pinTimestamp: 1000 }],
-		});
-	});
-
-	it("WHEN nodeOverrides is not an object THEN it degrades to an empty map", () => {
-		expect(parsedOverrides("scrambled")).toEqual({});
-	});
-
-	it("WHEN an entry has an unusable sizePx (missing a dimension) THEN only that field falls away", () => {
-		const raw = { docid_a_e: { sizePx: { widthPx: 300 }, content: "image" } };
-		expect(parsedOverrides(raw)).toEqual({ docid_a_e: { content: "image" } });
-	});
-
-	it("WHEN a sizePx dimension is non-finite THEN the whole sizePx falls away (never NaN geometry)", () => {
-		// 1e999 evaluates to Infinity — finite-only survives the parse.
-		const raw = { docid_a_e: { sizePx: { widthPx: 1e999, heightPx: 200 }, content: "outline" } };
-		expect(parsedOverrides(raw)).toEqual({ docid_a_e: { content: "outline" } });
-	});
-
-	it("WHEN an entry carries an unrecognized content THEN only that field falls away", () => {
-		const raw = { docid_a_e: { sizePx: { widthPx: 300, heightPx: 200 }, content: "collage" } };
-		expect(parsedOverrides(raw)).toEqual({ docid_a_e: { sizePx: { widthPx: 300, heightPx: 200 } } });
-	});
-
-	it("WHEN an entry ends up with neither field THEN the whole entry is dropped (no empty entries)", () => {
-		const raw = { docid_a_e: {}, docid_b_e: { content: "outline" } };
-		expect(parsedOverrides(raw)).toEqual({ docid_b_e: { content: "outline" } });
-	});
-
-	it("WHEN a non-object entry is stored THEN only that entry is dropped", () => {
-		const raw = { docid_a_e: "garbage", docid_b_e: { content: "image" } };
-		expect(parsedOverrides(raw)).toEqual({ docid_b_e: { content: "image" } });
-	});
-
-	it("WHEN a hand-edited sizePx exceeds the hard sanity bounds THEN it loads clamped into them", () => {
-		const raw = { docid_a_e: { sizePx: { widthPx: 999999, heightPx: 1 } } };
-		expect(parsedOverrides(raw)).toEqual({
-			docid_a_e: { sizePx: { widthPx: NODE_OVERRIDE_HARD_MAX_PX, heightPx: NODE_OVERRIDE_HARD_MIN_PX } },
-		});
+	it("WHEN an old data.json still carries the moved keys THEN the config dials are preserved (no reset)", () => {
+		expect(PersistedShapes.parsePluginData(oldDataJson).globalView.nodeCap).toBe(7);
 	});
 });
 

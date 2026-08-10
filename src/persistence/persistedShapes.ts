@@ -19,16 +19,22 @@ import {
 } from "../engine";
 
 /**
- * The versioned JSON shape persisted by step-03 (it carries `version` from day
- * one — step doc requirement) plus its defensive parser: disk content is
- * user-editable and sync-mangled in practice, so parsing NEVER throws —
- * unusable content degrades to defaults, matching obsidian-id-lib's
+ * The versioned JSON shape of the plugin's `data.json` plus its defensive
+ * parser: disk content is user-editable and sync-mangled in practice, so parsing
+ * NEVER throws — unusable content degrades to defaults, matching obsidian-id-lib's
  * malformed-content philosophy.
  *
- * There is exactly ONE persisted file: the plugin's `data.json`. Settings are
- * GLOBAL-only; the two docid-keyed maps (pins, per-node overrides) are global
- * facts about docs — renames are non-events — never a per-document settings
- * layer (owner decision 2026-07-29).
+ * `data.json` is the home for the truly-GLOBAL config — the settings dials AND
+ * the global pinned SET (`pins`), a global fact keyed by docid. The owner keeps
+ * the pinned set here (Obsidian-managed, one cheap in-memory read) even though
+ * the OTHER two docid-keyed maps moved out (owner decision 2026-08-10, ticket
+ * `nid_8f8ey41extajt08zphwwxhnwq_e`): the per-doc/per-main facts
+ * (`nodeOverrides`, `localPins`, future `localControls`) now live as VAULT
+ * CONTENT under `.plugin_data/vicinity_graph/per_file/<docid>.json` via
+ * {@link ./PerDocStore PerDocStore}, so they sync with the vault; a global pin
+ * is treated as CONFIG (like the dials), not as vault content, and does not
+ * travel when a user excludes `.obsidian` from sync. Settings themselves are
+ * GLOBAL-only (owner decision 2026-07-29).
  */
 
 /**
@@ -36,12 +42,23 @@ import {
  * always on): a mismatched version parses to defaults/null and the next write
  * rewrites at the current version, so stale v1 `edgeRouting` values are dropped.
  *
+ * WHY-NOT bumped to 3 when `localPins`/`nodeOverrides` MOVED OUT of `data.json`
+ * onto the per-file store (ticket `nid_8f8ey41extajt08zphwwxhnwq_e`): a bump
+ * DISCARDS every stored setting AND the pinned set, and we want to KEEP both.
+ * The two moved keys are simply never read again — this parser is
+ * field-allowlisting, so a `data.json` still carrying them ignores them and the
+ * next write drops them (EXACTLY the call made for the removed `metrics` /
+ * `depthDecayK` sizing keys below). The user's old localPins/overrides reset
+ * ONCE — not because of a bump, but because the plugin now reads them from the
+ * per-file store, which is empty for an existing install. The dials and the
+ * pinned set carry over untouched. Release note calls this out.
+ *
  * WHY-NOT bump per ADDED field: a version bump DISCARDS every stored setting
- * and both docid-keyed maps wholesale, so it is reserved for a REMOVED/renamed
- * key whose stale value would otherwise be read back wrong. An additive field
- * (`nodeOverrides`, `edgeRoutingClearancePx`, the pinned depth fields) needs
- * nothing: it is absent from an older file and defaults per field. Bumping for
- * one would be strictly worse — the standing call recorded in
+ * and the pinned set wholesale, so it is reserved for a REMOVED/renamed key
+ * whose stale value would otherwise be read back wrong. An additive field
+ * (`edgeRoutingClearancePx`, the pinned depth fields) needs nothing: it is
+ * absent from an older file and defaults per field. Bumping for one would be
+ * strictly worse — the standing call recorded in
  * `nid_8p0nn2g34d97finokwlz3u1dt_e` and re-affirmed (against a far stronger
  * case, a KEY RENAME) in `nid_fay1hu5sxcoygizopkkg0f0d7_e`.
  *
@@ -53,42 +70,26 @@ import {
  */
 export const PERSISTED_SHAPE_VERSION = 2;
 
-/** One pinned doc; `pinTimestamp` (epoch ms) feeds the recency tiebreaker. */
+/**
+ * One pinned doc; `pinTimestamp` (epoch ms) feeds the recency tiebreaker. Shared
+ * by the global pinned set here AND, per main, by a per-file record's `localPins`
+ * ({@link ./PerDocStore PerDocStore}) — both sides docids, so renames on either
+ * end stay non-events.
+ */
 export interface PinnedDocEntry {
 	readonly docid: string;
 	readonly pinTimestamp: number;
 }
-
-/**
- * Local pins, keyed by the MAIN (active) note's docid → the {@link PinnedDocEntry}
- * list pinned ONLY while that main is active (owner decision, ticket
- * nid_ndoy0bq50w1p1qzd2i9di2fxo_e). Both sides are docids, so renames on either
- * end stay non-events — the same global-fact-about-a-doc rule as {@link PinnedDocEntry}.
- * This is the FIRST sanctioned per-main-doc layer, superseding the 2026-07-29
- * global-only rule for PINS ONLY; every other setting stays global.
- */
-export type LocalPinsByMainDocid = Readonly<Record<string, readonly PinnedDocEntry[]>>;
 
 /** Shape of the plugin's `data.json` (via `saveData`/`loadData`). */
 export interface PluginData {
 	readonly version: number;
 	readonly globalDepths: DepthSettings;
 	readonly globalView: ViewSettings;
+	/** The GLOBAL pinned set (kept in `data.json`; local pins live in the per-file store). */
 	readonly pins: readonly PinnedDocEntry[];
-	/**
-	 * Local pins keyed by MAIN docid (see {@link LocalPinsByMainDocid}). Additive,
-	 * so it needs no version bump — a file written before it existed has no
-	 * `localPins` key and parses to the empty map.
-	 */
-	readonly localPins: LocalPinsByMainDocid;
 	/** Global node exclusion (vault-wide enable + regex-lite pattern list). */
 	readonly nodeExclusion: NodeExclusionSettings;
-	/**
-	 * Per-node user overrides, keyed by docid like {@link pins}. An entry with
-	 * neither field is never stored ({@link PluginDataStore} deletes it) and is
-	 * dropped by the parser if hand-edited in.
-	 */
-	readonly nodeOverrides: Readonly<Record<string, NodeOverride>>;
 }
 
 export class PersistedShapes {
@@ -98,9 +99,7 @@ export class PersistedShapes {
 			globalDepths: EngineDefaults.depthSettings(),
 			globalView: EngineDefaults.viewSettings(),
 			pins: [],
-			localPins: {},
 			nodeExclusion: EngineDefaults.nodeExclusionSettings(),
-			nodeOverrides: {},
 		};
 	}
 
@@ -118,9 +117,7 @@ export class PersistedShapes {
 			globalDepths: { ...defaults.globalDepths, ...parseDepthFields(raw["globalDepths"]) },
 			globalView: { ...defaults.globalView, ...parseViewFields(raw["globalView"]) },
 			pins: parsePins(raw["pins"]),
-			localPins: parseLocalPins(raw["localPins"]),
 			nodeExclusion: parseNodeExclusion(raw["nodeExclusion"], defaults.nodeExclusion),
-			nodeOverrides: parseNodeOverrides(raw["nodeOverrides"]),
 		};
 	}
 }
@@ -285,7 +282,13 @@ function parseNodeExclusion(raw: unknown, fallback: NodeExclusionSettings): Node
 	return { enabled, patterns };
 }
 
-function parsePins(raw: unknown): readonly PinnedDocEntry[] {
+/**
+ * Parses a JSON array into a {@link PinnedDocEntry} list, dropping any entry
+ * without a string `docid` + numeric `pinTimestamp`. Exported because the
+ * per-file store ({@link ./PerDocStore PerDocStore}) reuses it for a main's
+ * `localPins` list — one pin-list parse rule, wherever pins are stored.
+ */
+export function parsePins(raw: unknown): readonly PinnedDocEntry[] {
 	if (!Array.isArray(raw)) {
 		return [];
 	}
@@ -299,58 +302,14 @@ function parsePins(raw: unknown): readonly PinnedDocEntry[] {
 }
 
 /**
- * Defensive local-pins parser: a non-object map degrades to empty; per key, the
- * value is parsed exactly like the global {@link parsePins} list, and a main
- * whose list survives with NO usable entry is dropped whole — an empty target
- * list is a stored shape that must not exist (mirrors the node-override rule).
- * Never throws — matches the file's malformed-content philosophy.
- *
- * Added WITHOUT a PERSISTED_SHAPE_VERSION bump (same call as `nodeOverrides`):
- * the map is ADDITIVE, so a file written before it existed simply has no
- * `localPins` key and gets the empty map here.
+ * Defensive single-entry override parser: an unusable `sizePx` (missing/non-finite
+ * dimension) and an unrecognized `content` each fall away; an entry left with
+ * NEITHER field is `undefined` — "empty entry" is a stored shape that must not
+ * exist (see {@link NodeOverride}). Surviving pixel boxes are clamped with the
+ * SAME hard-sanity clamp the write path uses. Exported because the per-file store
+ * ({@link ./PerDocStore PerDocStore}) reuses it for a record's `override` section.
  */
-function parseLocalPins(raw: unknown): LocalPinsByMainDocid {
-	if (!isRecord(raw)) {
-		return {};
-	}
-	const localPins: Record<string, readonly PinnedDocEntry[]> = {};
-	for (const [mainDocid, entries] of Object.entries(raw)) {
-		const targets = parsePins(entries);
-		if (targets.length > 0) {
-			localPins[mainDocid] = targets;
-		}
-	}
-	return localPins;
-}
-
-/**
- * Defensive per-node override parser: a non-object map degrades to empty; per
- * entry, an unusable `sizePx` (missing/non-finite dimension) and an
- * unrecognized `content` each fall away; an entry left with NEITHER field is
- * dropped whole — "empty entry" is a stored shape that must not exist
- * (see {@link PluginData.nodeOverrides}). Surviving pixel boxes are clamped
- * with the SAME hard-sanity clamp the write path uses.
- *
- * Added WITHOUT a PERSISTED_SHAPE_VERSION bump (explicit call, same as
- * `edgeRoutingClearancePx`): the map is ADDITIVE, so a file written before it
- * existed simply has no `nodeOverrides` key and gets the empty map here, while
- * a bump would discard that file's settings AND its pins (see the version doc).
- */
-function parseNodeOverrides(raw: unknown): Readonly<Record<string, NodeOverride>> {
-	if (!isRecord(raw)) {
-		return {};
-	}
-	const overrides: Record<string, NodeOverride> = {};
-	for (const [docid, entry] of Object.entries(raw)) {
-		const override = parseNodeOverride(entry);
-		if (override !== undefined) {
-			overrides[docid] = override;
-		}
-	}
-	return overrides;
-}
-
-function parseNodeOverride(raw: unknown): NodeOverride | undefined {
+export function parseNodeOverride(raw: unknown): NodeOverride | undefined {
 	if (!isRecord(raw)) {
 		return undefined;
 	}

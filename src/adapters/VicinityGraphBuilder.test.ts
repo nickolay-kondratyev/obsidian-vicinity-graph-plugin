@@ -1,12 +1,20 @@
 import { describe, expect, it } from "vitest";
 import { DocIdMapWarmer } from "../persistence/DocIdMapWarmer";
 import { FakePluginDataPort } from "../persistence/FakePluginDataPort";
+import { FakeVaultFsPort } from "../persistence/FakeVaultFsPort";
 import { PathDocIdMap } from "../persistence/PathDocIdMap";
+import { PerDocStore } from "../persistence/PerDocStore";
 import { PluginDataStore } from "../persistence/PluginDataStore";
+import { VaultFileStore } from "../persistence/VaultFileStore";
 import { CanvasParseCache } from "./CanvasParseCache";
 import { FakeDocIdPort } from "./FakeDocIdPort";
 import { FakeObsidianPorts } from "./FakeObsidianPorts";
 import { VicinityGraphBuilder } from "./VicinityGraphBuilder";
+
+/** The per-doc/per-main facts store (overrides + local pins) over in-memory disk. */
+function newPerDocStore(): PerDocStore {
+	return new PerDocStore(new VaultFileStore(".plugin_data/vicinity_graph", new FakeVaultFsPort(), () => 0));
+}
 
 /**
  * End-to-end over fakes: persisted pins + live vault → engine graph. Vault:
@@ -30,6 +38,7 @@ async function builderFixture() {
 	const pluginDataStore = new PluginDataStore(new FakePluginDataPort());
 	await pluginDataStore.init();
 	await pluginDataStore.addPin("docid_pin_e", 5);
+	const perDocStore = newPerDocStore();
 	const pathDocIdMap = new PathDocIdMap();
 	pathDocIdMap.set("pinned.md", "docid_pin_e");
 	const builder = new VicinityGraphBuilder(
@@ -38,10 +47,11 @@ async function builderFixture() {
 		docIdPort,
 		new CanvasParseCache(),
 		pluginDataStore,
+		perDocStore,
 		pathDocIdMap,
 		new DocIdMapWarmer(ports.vault, docIdPort, pathDocIdMap),
 	);
-	return { builder, docIdPort, pathDocIdMap, pluginDataStore };
+	return { builder, docIdPort, pathDocIdMap, pluginDataStore, perDocStore };
 }
 
 describe("VicinityGraphBuilder", () => {
@@ -130,7 +140,8 @@ async function coldMapFixture(options: { readonly unreadablePath?: string } = {}
 	const pluginDataStore = new PluginDataStore(new FakePluginDataPort());
 	await pluginDataStore.init();
 	await pluginDataStore.addPin("docid_pin_e", 5);
-	await pluginDataStore.saveNodeOverrideField("docid_a_e", {
+	const perDocStore = newPerDocStore();
+	await perDocStore.saveNodeOverrideField("docid_a_e", {
 		field: "sizePx",
 		value: { widthPx: 320, heightPx: 180 },
 	});
@@ -141,6 +152,7 @@ async function coldMapFixture(options: { readonly unreadablePath?: string } = {}
 		docIdPort,
 		new CanvasParseCache(),
 		pluginDataStore,
+		perDocStore,
 		pathDocIdMap,
 		new DocIdMapWarmer(ports.vault, docIdPort, pathDocIdMap),
 	);
