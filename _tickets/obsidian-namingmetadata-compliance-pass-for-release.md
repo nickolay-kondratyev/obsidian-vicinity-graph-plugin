@@ -1,17 +1,17 @@
 ---
 id: nid_o9hmeo92x5dkmtz5lfzr5jk0s_e
-title: "Obsidian naming/metadata compliance pass for release"
-status: open
+title: Obsidian naming/metadata compliance pass for release
+status: in_progress
 deps: []
 links: [nid_ryf59psd6sj5rsj7pha7zc7yk_e]
-created_iso: 2026-08-10T16:38:49Z
-status_updated_iso: 2026-08-10T16:38:49Z
+created_iso: '2026-08-10T16:38:49Z'
+status_updated_iso: '2026-08-10T17:40:23Z'
 type: task
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
 tags: [release, decide]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-2
 ---
-
 Final Obsidian community-plugin metadata compliance pass before release. Split out of planning ticket nid_2d67dgjxs5aq6i8hlasxp7tao_e ("Get ready for release"). Small, mostly verification.
 
 OPEN DECISIONS in .out/current_decision.md (Q5 description wording, Q6 isDesktopOnly). Tagged `decide` — confirm with human.
@@ -33,4 +33,3 @@ Repo rename / community-store submission PR / any id rename (deferred per RELEAS
 - isDesktopOnly decision recorded and applied.
 - RELEASE_CHECKLIST.md §4 reflects final state.
 - change_log entry after completion.
-
