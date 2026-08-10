@@ -129,6 +129,18 @@ describe("VaultFileStore", () => {
 		expect(await fs.exists(`${ROOT}/per_file/a.json`)).toBe(true);
 	});
 
+	it("WHEN the SAME malformed key is read concurrently THEN it is quarantined once and neither read rejects", async () => {
+		const fs = new FakeVaultFsPort();
+		const notices = new FakeUserNotices();
+		fs.files.set(`${ROOT}/per_file/a.json`, "not json");
+		const store = makeStore(fs, notices);
+		// Both reads race on the SAME key: without per-key serialisation the second
+		// quarantine rename would hit an already-moved file and reject.
+		const [first, second] = await Promise.all([store.read("per_file/a.json"), store.read("per_file/a.json")]);
+		expect([first, second]).toEqual([null, null]);
+		expect(notices.messages).toHaveLength(1);
+	});
+
 	it("WHEN a quarantine target name already exists THEN a _2 suffix is used (no overwrite)", async () => {
 		const fs = new FakeVaultFsPort();
 		fs.files.set(`${ROOT}/per_file/a.json`, "not json");

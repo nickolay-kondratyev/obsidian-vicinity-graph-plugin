@@ -73,16 +73,26 @@ export class VaultFileStore {
 	 * between never-written and set-aside.
 	 */
 	async read(relPath: string): Promise<unknown | null> {
-		const fullPath = this.fullPath(relPath);
-		if (!(await this.fs.exists(fullPath))) {
-			return null;
-		}
-		const result = this.unwrap(await this.readText(fullPath));
-		if (!result.ok) {
-			await this.quarantine(fullPath);
-			return null;
-		}
-		return result.payload;
+		// Serialised on the SAME per-key chain as write/remove — a read must not run
+		// inside a same-key write's mid-rename window (where the target is briefly
+		// removed, so a bare `exists` would read as ABSENT and hand back a spurious
+		// null), and its own quarantine rename must not race a write or a second
+		// concurrent read (which would double-quarantine and reject). Different keys
+		// still read in parallel.
+		let payload: unknown = null;
+		await this.chainFor(relPath).run(async () => {
+			const fullPath = this.fullPath(relPath);
+			if (!(await this.fs.exists(fullPath))) {
+				return;
+			}
+			const result = this.unwrap(await this.readText(fullPath));
+			if (!result.ok) {
+				await this.quarantine(fullPath);
+				return;
+			}
+			payload = result.payload;
+		});
+		return payload;
 	}
 
 	/**
