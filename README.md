@@ -377,7 +377,7 @@ re-running never clobbers local edits.
 | `npm run test:e2e` | Playwright e2e: drives a REAL Obsidian on a copy of the dev vault (see below) |
 | `npm run test:e2e:floor` | the same e2e suite against the `minAppVersion` floor build (see below) |
 | `npm run test:all` | every gate in one command: `check` → `npm test` → `test:e2e`, fail-fast (`-- --with-floor` adds the floor e2e run) |
-| `./release.sh` | **pre-publish gate:** `check` → `npm test` → e2e on BOTH shipped builds (pinned + floor), reporting a per-version pass/fail matrix (see below) |
+| `./release_update_tag.sh` | **release driver:** the pre-publish gate (`check` → `npm test` → e2e on BOTH shipped builds, per-version matrix — see below) then, only if green, PATCH-bumps the three release files, commits, tags the raw version, and pushes (firing the tag build workflow) |
 
 ### e2e suite (`npm run test:e2e`)
 
@@ -447,19 +447,22 @@ hover tooltip to an inline element — see the caveat in
 `scripts/setup-obsidian-bin.sh`). A red there is likelier a locator miss than a
 plugin regression; confirm against the default run before treating it as one.
 
-##### Both versions at once — the release matrix (`./release.sh`)
+##### Both versions at once — the release matrix (`./release_update_tag.sh`)
 
 Running the floor and the pinned build is TWO commands, and neither `npm run
 test:e2e` nor `npm run test:all` runs both on the hot path — the floor build is a
 second ~200MB download plus a full second suite run, too costly to pay on every
 change. So the two-version matrix is a **release gate, not an every-change gate**:
-run `./release.sh` before publishing a release upwards. It runs `check` → `npm
-test` once, then the SAME e2e suite on both shipped builds, runs **both arms even
-if the first fails**, and prints a per-version pass/fail summary that NAMES which
-build broke — so a floor-only red (usually version-dependent chrome, per the
-caveat above) is triaged with the version in hand. `npm run test:all --
+run `./release_update_tag.sh` to cut a release. It runs `check` → `npm test` once,
+then the SAME e2e suite on both shipped builds, runs **both arms even if the first
+fails**, and prints a per-version pass/fail summary that NAMES which build broke —
+so a floor-only red (usually version-dependent chrome, per the caveat above) is
+triaged with the version in hand. Only if the whole matrix is green does it go on
+to PATCH-bump the three release files, commit, tag the raw version, and push
+(firing `.github/workflows/release.yml`, which builds a DRAFT GitHub Release with
+the raw `manifest.json` / `main.js` / `styles.css` assets). `npm run test:all --
 --with-floor` still appends the floor run for a dev spot-check, but stops at the
-first red; `./release.sh` is the one that reports the full matrix.
+first red; `./release_update_tag.sh` is the one that reports the full matrix.
 
 #### Driving your own vault (`VICINITY_E2E_VAULT`) — opt-in
 
