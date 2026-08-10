@@ -1,7 +1,7 @@
 ---
 id: nid_am38wsuka3mksh9atugg1e3x6_e
 title: "Idle-visible pin badges on nodes (deferred Option B/C)"
-status: open
+status: closed
 deps: [nid_s88z29iparzxrtxhh6ooqfvrz_e]
 links: [nid_s88z29iparzxrtxhh6ooqfvrz_e]
 created_iso: 2026-08-10T19:40:14Z
@@ -20,3 +20,5 @@ Key files: src/view/NoteNode.tsx (PinButton), src/view/graph-view.css (.vicinity
 
 Deps: the Option A implementation must land first — it defines the aria-pressed styling hook the idle-badge selector builds on.
 
+--------------------------------------------------------------------------------
+For now closing as lower priority and due to UX concerns (it would make the pin move around as we hover over the node or be placed oddly by itself when the node is not hovered)
