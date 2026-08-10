@@ -1,4 +1,5 @@
 ---
+session_ids: [{a: claude, type: execution, id: 2c4fa28a-b397-4aec-b72f-38d9c10f46c3}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_epspxsqa74z7vnpu7846ou5sl_e
 title: "fix no-unsafe-member-access: src/view settings & controls"
