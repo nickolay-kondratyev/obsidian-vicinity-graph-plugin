@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_db5s4uypdiesrk6oi8nms46wv_e
 title: "fix no-unsafe-call: e2e specs (group B)"
-status: open
+status: in_progress
 deps: [nid_khnm364awuizz6cmr2pxxjkpk_e]
 links: [nid_f7vkm00ahrak377r5dqpiyy9v_e, nid_khnm364awuizz6cmr2pxxjkpk_e, nid_wv95rkafrcxn9by7t5ng95dvn_e, nid_j1zgoruaddxyhykf2maxsnzqn_e]
 created_iso: 2026-08-10T22:23:31Z
-status_updated_iso: 2026-08-10T22:23:31Z
+status_updated_iso: 2026-08-10T23:54:51Z
 type: chore
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
