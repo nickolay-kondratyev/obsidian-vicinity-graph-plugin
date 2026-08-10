@@ -3,7 +3,7 @@
 
 Called by ``release_update_tag.sh`` once the test matrix is green. It reads the
 current version from ``package.json``, increments the patch component, and writes
-it back into the three files Obsidian's release process must keep in agreement
+it back into the four files the release process must keep in agreement
 (docs-internal/RELEASE_CHECKLIST.md §3):
 
   - package.json      -> ``version``
