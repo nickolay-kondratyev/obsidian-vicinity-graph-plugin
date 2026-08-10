@@ -1,12 +1,13 @@
 ---
+closed_iso: 2026-08-10T19:22:36Z
 id: nid_ghaeps3siekw0oe17mr4xpmad_e
 title: 'Restart-time stale controls: toolbar depth stepper stuck at defaults after
   an Obsidian restart'
-status: in_progress
+status: closed
 deps: []
 links: []
 created_iso: '2026-08-07T18:08:51Z'
-status_updated_iso: '2026-08-10T19:06:12Z'
+status_updated_iso: 2026-08-10T19:22:36Z
 type: bug
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
@@ -88,3 +89,57 @@ a build-time `console.log`), (c) `getLeavesOfType(VIEW_TYPE_VICINITY_GRAPH).leng
 distinguish write-loss (a=1) from a stale build (a=2, b=1) from a second/stale view (leaf>1).
 Instrumentation used here is in git history of this branch (all reverted); re-apply from the
 `VG-DIAG` markers if useful.
+
+---
+## RESOLUTION 2026-08-10 (CC_WITH-nickolaykondratyev) — ROOT CAUSE FOUND IN OBSIDIAN'S OWN LOAD PATH, FIX LANDED
+
+**Root cause (mechanism confirmed by reading the SHIPPED Obsidian bundles, both builds).**
+The prior investigation correctly refuted the ordering hypothesis — a view can never build
+before `main.ts` onload's `await pluginDataStore.init()`. The missed case is that the load
+itself can SILENTLY fail: `Plugin.loadData` → `Vault.readPluginData` → `Vault.readJson`,
+extracted from `.tmp/obsidian/obsidian-1.12.4/resources/obsidian.asar` (and 1.12.7 —
+byte-identical logic), is:
+
+```js
+try { return JSON.parse(await this.adapter.read(path)); }
+catch (e) { if (e.code === "ENOENT") return null;
+            console.error("failed to read JSON", path, e); }
+return undefined;   // <-- ANY non-ENOENT failure: transient fs error under load, torn read
+```
+
+So a transient `adapter.read` failure (e.g. resource exhaustion under full-suite load —
+`adapter.read` is `queue(() => fsPromises.readFile(...))`, whose throw propagates) or a
+parse failure yields **`undefined` with data.json left INTACT on disk**. Our
+`PluginDataStore.init()` fed that straight to `PersistedShapes.parsePluginData`, which
+treats it exactly like a first run → **defaults in memory, "2" on disk, ready graph,
+stepper stuck at "1", and no later event to reload** — the ONLY mechanism consistent with
+all three observed facts (disk=2, published controls=default, rendered graph), and one the
+6s-stall instrumentation could not have caught (ordering was never the problem). It also
+explains the flake's load-dependence and why floor-vs-pinned looked significant but isn't
+(the code is identical; the floor runs were the loaded ones). Honest caveat: the exact
+errno was not captured live (the flake never reproduced in this environment either — the
+prior 8/8 + this session's 4/4 full floor suites are all green), so the confirmation is of
+the MECHANISM in the shipped code, not a live capture. Obsidian logs
+`failed to read JSON <path> <err>` at the moment it fires, which is the marker to look for
+in any future capture.
+
+**Why it was silent AND dangerous:** beyond the stale session, memory-on-defaults means the
+NEXT settings write would persist defaults OVER the user's intact data.json (the store
+merges over memory) — a real data-loss path, not just a display bug.
+
+**Fix (failing-first at the seam, `src/persistence/PluginDataStore.test.ts`
+"PluginDataStore.init read-failure resilience"):** `init()` now distinguishes Obsidian's
+three answers. `null` (ENOENT — genuine first run) stays a definite answer, never retried;
+`undefined` or a port rejection is a TRANSIENT read failure, retried up to
+`INIT_LOAD_ATTEMPTS=3` total attempts with a 100ms injected-sleep pause; if every attempt
+fails it falls back to defaults, `console.error`s, and tells the user ONCE via the injected
+`UserNoticePort` (same optional-notice pattern as `VaultFileStore`), naming the consequence
+and the way back ("restart Obsidian to load it again"). `main.ts` passes `this.notices`.
+
+**Verification:** `npm run check` green; `npm test` 1830/1830 green (7 new seam tests);
+`controlsRestart.e2e.ts` green on pinned; **4/4 consecutive FULL floor suites green**
+(163 passed each, `OBSIDIAN_VERSION=1.12.4`). The e2e cannot deterministically inject a
+transient fs read failure into a real Obsidian boot, so the seam is unit-covered
+(scripted port) and the floor suite stands as the regression canary.
+
+Commit: 06da6ce on branch CC_nid_ghaeps3siekw0oe17mr4xpmad_e__restart-time-stale-controls-toolbar-depth-stepper-_fable.
