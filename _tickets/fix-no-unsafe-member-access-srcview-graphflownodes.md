@@ -43,3 +43,9 @@ type-aware ESLint config (`eslint.config.mjs`, wired by the prerequisite
 No `src/view` behavior changed, so no `test:e2e` spec run was warranted. The
 remaining 28 warnings belong to OTHER per-group fix tickets (the
 `.component.test.tsx` / `.test.ts` / `e2e` groups), not this one.
+
+## Notes
+
+**2026-08-10T23:28:40Z**
+
+__READY_AS_IS__: verified all 8 src/view files emit 0 no-unsafe-member-access (rule confirmed live via sibling with 1 warning); npm run check exit 0; no code change needed, resolution note accurate.
