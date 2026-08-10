@@ -14,6 +14,9 @@ import {
 import type { DevVaultCopyTarget, LaunchOptions, VaultTarget } from "./vaultTarget";
 // Type-only, so it is erased at transpile — the pure engine barrel never loads in the node-side test process.
 import type { DepthSettings, NodeExclusionSettings, NodeOverride, NodePreviewPreference, ViewSettings } from "../src/engine";
+// The narrow, type-only view of Obsidian's undocumented `window.app`, so every
+// `page.evaluate` below is checked instead of calling through `any`. See its module doc.
+import type { E2eObsidianApp, E2eWorkspaceLeaf } from "./obsidianInternals";
 
 /**
  * Launches a REAL Obsidian (Electron) on a throwaway copy of `.dev-vault`,
@@ -255,8 +258,8 @@ export class ObsidianHarness {
 	/** Opens a vault file in a MAIN-AREA leaf (mirrors ObsidianNoteNavigator's getLeaf(false)). */
 	async openFile(vaultPath: string): Promise<void> {
 		await this.page.evaluate(async (targetPath) => {
-			// Undocumented-but-stable app globals; typed as any on purpose.
-			const app = (window as unknown as { app: any }).app;
+			// Undocumented-but-stable app globals, narrowed through E2eObsidianApp (see obsidianInternals.ts).
+			const app = (window as unknown as { app: E2eObsidianApp }).app;
 			const file = app.vault.getAbstractFileByPath(targetPath);
 			if (!file) {
 				throw new Error(`e2e: vault file not found: path=[${targetPath}]`);
@@ -279,7 +282,7 @@ export class ObsidianHarness {
 	async renameFile(fromPath: string, toPath: string): Promise<void> {
 		await this.page.evaluate(
 			async ({ from, to }) => {
-				const app = (window as unknown as { app: any }).app;
+				const app = (window as unknown as { app: E2eObsidianApp }).app;
 				const file = app.vault.getAbstractFileByPath(from);
 				if (!file) {
 					throw new Error(`e2e: vault file not found: path=[${from}]`);
@@ -293,7 +296,7 @@ export class ObsidianHarness {
 	/** Runs a plugin command by id, failing loudly when Obsidian reports it unavailable. */
 	async executeCommand(commandId: string): Promise<void> {
 		const executed = await this.page.evaluate(
-			(id) => (window as unknown as { app: any }).app.commands.executeCommandById(id),
+			(id) => (window as unknown as { app: E2eObsidianApp }).app.commands.executeCommandById(id),
 			commandId,
 		);
 		if (!executed) {
@@ -304,8 +307,8 @@ export class ObsidianHarness {
 	/** The workspace region of every open graph view, in leaf order. */
 	async graphViewPlacements(): Promise<ObservedGraphPlacement[]> {
 		return this.page.evaluate((viewType) => {
-			const app = (window as unknown as { app: any }).app;
-			return app.workspace.getLeavesOfType(viewType).map((leaf: any) => {
+			const app = (window as unknown as { app: E2eObsidianApp }).app;
+			return app.workspace.getLeavesOfType(viewType).map((leaf) => {
 				const root = leaf.getRoot();
 				if (root === app.workspace.rightSplit) {
 					return "right-sidebar";
@@ -328,10 +331,10 @@ export class ObsidianHarness {
 		// failures. Detaching them gives the graph the whole sidebar.
 		await this.page.evaluate(
 			({ viewType, sidebarWidthPx }) => {
-				const app = (window as unknown as { app: any }).app;
+				const app = (window as unknown as { app: E2eObsidianApp }).app;
 				const graphLeaf = app.workspace.getLeavesOfType(viewType)[0];
-				const others: any[] = [];
-				app.workspace.iterateAllLeaves((leaf: any) => {
+				const others: E2eWorkspaceLeaf[] = [];
+				app.workspace.iterateAllLeaves((leaf) => {
 					if (leaf !== graphLeaf && leaf.getRoot() === app.workspace.rightSplit) {
 						others.push(leaf);
 					}
@@ -359,7 +362,7 @@ export class ObsidianHarness {
 	 */
 	async remountGraphView(): Promise<void> {
 		await this.page.evaluate((viewType) => {
-			const app = (window as unknown as { app: any }).app;
+			const app = (window as unknown as { app: E2eObsidianApp }).app;
 			for (const leaf of app.workspace.getLeavesOfType(viewType)) {
 				leaf.detach();
 			}
@@ -381,12 +384,12 @@ export class ObsidianHarness {
 	 */
 	async readGlobals(): Promise<PluginGlobalsSnapshot> {
 		return this.page.evaluate((pluginId) => {
-			const store = (window as unknown as { app: any }).app.plugins.plugins[pluginId].pluginDataStore;
+			const store = (window as unknown as { app: E2eObsidianApp }).app.plugins.plugins[pluginId]!.pluginDataStore;
 			return {
 				view: store.globalView(),
 				depths: store.globalDepths(),
 				exclusion: store.nodeExclusion(),
-			} as PluginGlobalsSnapshot;
+			};
 		}, PLUGIN_ID);
 	}
 
@@ -403,9 +406,9 @@ export class ObsidianHarness {
 	 */
 	async readNodeOverrides(): Promise<Readonly<Record<string, NodeOverride>>> {
 		return this.page.evaluate(async (pluginId) => {
-			const store = (window as unknown as { app: any }).app.plugins.plugins[pluginId].perDocStore;
+			const store = (window as unknown as { app: E2eObsidianApp }).app.plugins.plugins[pluginId]!.perDocStore;
 			await store.warm();
-			return store.nodeOverrides() as Readonly<Record<string, NodeOverride>>;
+			return store.nodeOverrides();
 		}, PLUGIN_ID);
 	}
 
@@ -417,9 +420,9 @@ export class ObsidianHarness {
 	async readLocalPins(mainDocid: string): Promise<readonly { docid: string; pinTimestamp: number }[]> {
 		return this.page.evaluate(
 			async ({ pluginId, main }) => {
-				const store = (window as unknown as { app: any }).app.plugins.plugins[pluginId].perDocStore;
+				const store = (window as unknown as { app: E2eObsidianApp }).app.plugins.plugins[pluginId]!.perDocStore;
 				await store.warm();
-				return store.localPins(main) as readonly { docid: string; pinTimestamp: number }[];
+				return store.localPins(main);
 			},
 			{ pluginId: PLUGIN_ID, main: mainDocid },
 		);
@@ -438,7 +441,7 @@ export class ObsidianHarness {
 	async saveNodeSizeOverride(docid: string, sizePx: { widthPx: number; heightPx: number }): Promise<void> {
 		await this.page.evaluate(
 			async ({ pluginId, targetDocid, value }) => {
-				const store = (window as unknown as { app: any }).app.plugins.plugins[pluginId].perDocStore;
+				const store = (window as unknown as { app: E2eObsidianApp }).app.plugins.plugins[pluginId]!.perDocStore;
 				await store.saveNodeOverrideField(targetDocid, { field: "sizePx", value });
 			},
 			{ pluginId: PLUGIN_ID, targetDocid: docid, value: sizePx },
@@ -455,7 +458,7 @@ export class ObsidianHarness {
 	async saveNodeContentOverride(docid: string, content: NodePreviewPreference): Promise<void> {
 		await this.page.evaluate(
 			async ({ pluginId, targetDocid, value }) => {
-				const store = (window as unknown as { app: any }).app.plugins.plugins[pluginId].perDocStore;
+				const store = (window as unknown as { app: E2eObsidianApp }).app.plugins.plugins[pluginId]!.perDocStore;
 				await store.saveNodeOverrideField(targetDocid, { field: "content", value });
 			},
 			{ pluginId: PLUGIN_ID, targetDocid: docid, value: content },
@@ -471,7 +474,7 @@ export class ObsidianHarness {
 	async saveLocalPin(mainDocid: string, targetDocid: string): Promise<void> {
 		await this.page.evaluate(
 			async ({ pluginId, main, target }) => {
-				const store = (window as unknown as { app: any }).app.plugins.plugins[pluginId].perDocStore;
+				const store = (window as unknown as { app: E2eObsidianApp }).app.plugins.plugins[pluginId]!.perDocStore;
 				await store.addLocalPin(main, target, 1);
 			},
 			{ pluginId: PLUGIN_ID, main: mainDocid, target: targetDocid },
@@ -486,7 +489,7 @@ export class ObsidianHarness {
 	 */
 	async deleteNote(vaultPath: string): Promise<void> {
 		await this.page.evaluate(async (targetPath) => {
-			const app = (window as unknown as { app: any }).app;
+			const app = (window as unknown as { app: E2eObsidianApp }).app;
 			const file = app.vault.getAbstractFileByPath(targetPath);
 			if (file === null) {
 				throw new Error(`deleteNote: no file at ${targetPath}`);
@@ -523,7 +526,7 @@ export class ObsidianHarness {
 	async saveGlobalView(patch: Partial<ViewSettings>): Promise<void> {
 		await this.page.evaluate(
 			async ({ pluginId, viewPatch }) => {
-				const store = (window as unknown as { app: any }).app.plugins.plugins[pluginId].pluginDataStore;
+				const store = (window as unknown as { app: E2eObsidianApp }).app.plugins.plugins[pluginId]!.pluginDataStore;
 				await store.saveGlobalView({ ...store.globalView(), ...viewPatch });
 			},
 			{ pluginId: PLUGIN_ID, viewPatch: patch },
@@ -534,7 +537,7 @@ export class ObsidianHarness {
 	async saveGlobalDepths(depths: DepthSettings): Promise<void> {
 		await this.page.evaluate(
 			async ({ pluginId, value }) => {
-				const store = (window as unknown as { app: any }).app.plugins.plugins[pluginId].pluginDataStore;
+				const store = (window as unknown as { app: E2eObsidianApp }).app.plugins.plugins[pluginId]!.pluginDataStore;
 				await store.saveGlobalDepths(value);
 			},
 			{ pluginId: PLUGIN_ID, value: depths },
@@ -545,7 +548,7 @@ export class ObsidianHarness {
 	async saveNodeExclusion(exclusion: NodeExclusionSettings): Promise<void> {
 		await this.page.evaluate(
 			async ({ pluginId, value }) => {
-				const store = (window as unknown as { app: any }).app.plugins.plugins[pluginId].pluginDataStore;
+				const store = (window as unknown as { app: E2eObsidianApp }).app.plugins.plugins[pluginId]!.pluginDataStore;
 				await store.saveNodeExclusion(value);
 			},
 			{ pluginId: PLUGIN_ID, value: exclusion },
@@ -563,7 +566,9 @@ export class ObsidianHarness {
 	 */
 	async refreshOpenViews(): Promise<void> {
 		await this.page.evaluate((pluginId) => {
-			(window as unknown as { app: any }).app.plugins.plugins[pluginId].refreshOpenViews();
+			// `!`: every caller of refreshOpenViews first awaits a build/open that requires the
+			// plugin to be loaded, the same precondition the `Boolean(plugins[pluginId])` polls enforce.
+			(window as unknown as { app: E2eObsidianApp }).app.plugins.plugins[pluginId]!.refreshOpenViews();
 		}, PLUGIN_ID);
 	}
 
@@ -577,12 +582,12 @@ export class ObsidianHarness {
 	 */
 	async reloadPlugin(): Promise<void> {
 		await this.page.evaluate(async (pluginId) => {
-			const app = (window as unknown as { app: any }).app;
+			const app = (window as unknown as { app: E2eObsidianApp }).app;
 			await app.plugins.disablePlugin(pluginId);
 			await app.plugins.enablePlugin(pluginId);
 		}, PLUGIN_ID);
 		await this.page.waitForFunction(
-			(pluginId) => Boolean((window as unknown as { app: any }).app.plugins.plugins[pluginId]),
+			(pluginId) => Boolean((window as unknown as { app: E2eObsidianApp }).app.plugins.plugins[pluginId]),
 			PLUGIN_ID,
 			{ timeout: PLUGIN_READY_TIMEOUT_MS },
 		);
@@ -769,7 +774,7 @@ export class ObsidianHarness {
 
 	private static async waitForWorkspaceReady(page: Page): Promise<void> {
 		await page.waitForFunction(
-			() => (window as unknown as { app?: any }).app?.workspace?.layoutReady === true,
+			() => (window as unknown as { app?: E2eObsidianApp }).app?.workspace?.layoutReady === true,
 			undefined,
 			{ timeout: WORKSPACE_READY_TIMEOUT_MS },
 		);
@@ -781,14 +786,14 @@ export class ObsidianHarness {
 		// modal's buttons, so this is best-effort cleanup, not a wait.
 		await page.keyboard.press("Escape");
 		await page.evaluate(async (pluginId) => {
-			const app = (window as unknown as { app: any }).app;
+			const app = (window as unknown as { app: E2eObsidianApp }).app;
 			// setEnable(true) = the "Turn on community plugins" switch: persists the
 			// flag and loads every plugin listed in community-plugins.json.
 			await app.plugins.setEnable(true);
 			await app.plugins.enablePlugin(pluginId);
 		}, PLUGIN_ID);
 		await page.waitForFunction(
-			(pluginId) => Boolean((window as unknown as { app: any }).app.plugins.plugins[pluginId]),
+			(pluginId) => Boolean((window as unknown as { app: E2eObsidianApp }).app.plugins.plugins[pluginId]),
 			PLUGIN_ID,
 			{ timeout: PLUGIN_READY_TIMEOUT_MS },
 		);
@@ -819,11 +824,11 @@ export class ObsidianHarness {
 		// release notes); Escape dismisses them (best-effort, same as above).
 		await page.keyboard.press("Escape");
 		await page.evaluate(async () => {
-			await (window as unknown as { app: any }).app.plugins.setEnable(true);
+			await (window as unknown as { app: E2eObsidianApp }).app.plugins.setEnable(true);
 		});
 		try {
 			await page.waitForFunction(
-				(pluginId) => Boolean((window as unknown as { app: any }).app.plugins.plugins[pluginId]),
+				(pluginId) => Boolean((window as unknown as { app: E2eObsidianApp }).app.plugins.plugins[pluginId]),
 				PLUGIN_ID,
 				{ timeout: PLUGIN_READY_TIMEOUT_MS },
 			);
