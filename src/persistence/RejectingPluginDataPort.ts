@@ -24,4 +24,13 @@ export class RejectingPluginDataPort implements PluginDataPort {
 		this.saveAttempts += 1;
 		return Promise.reject(this.failure);
 	}
+
+	/** `loadData` returns a definite `null` (first run), so the corruption probe is never reached. */
+	async readRawData(): Promise<string | null> {
+		return null;
+	}
+
+	async quarantineData(): Promise<string> {
+		throw new Error("RejectingPluginDataPort: quarantine not expected (loadData never fails)");
+	}
 }
