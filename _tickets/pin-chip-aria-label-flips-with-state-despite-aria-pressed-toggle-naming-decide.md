@@ -1,17 +1,17 @@
 ---
 id: nid_58tc5g45zwktin78593bi9jkr_e
-title: "Pin chip aria-label flips with state despite aria-pressed (toggle naming, decide)"
-status: open
+title: Pin chip aria-label flips with state despite aria-pressed (toggle naming, decide)
+status: in_progress
 deps: []
 links: [nid_s88z29iparzxrtxhh6ooqfvrz_e]
-created_iso: 2026-08-10T20:24:41Z
-status_updated_iso: 2026-08-10T20:24:41Z
+created_iso: '2026-08-10T20:24:41Z'
+status_updated_iso: '2026-08-10T22:32:33Z'
 type: task
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
 tags: [ui, a11y, decide]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin
 ---
-
 The pin chips became aria-pressed TOGGLES (ticket nid_s88z29iparzxrtxhh6ooqfvrz_e), but their accessible name still flips with state ("Pin to graph" <-> "Unpin from graph", src/view/nodePinAction.ts title -> PinButton aria-label in src/view/NoteNode.tsx). WAI-ARIA APG says a toggle using aria-pressed should keep a CONSTANT name — a pinned chip currently announces "Unpin from graph, pressed", which reads as the UNPIN action being engaged.
 
 DECIDE: keep action-copy names (drop aria-pressed semantics claim) OR give NodePinAction a constant chipLabel ("Pin to graph"/"Pin for this note") used for aria-label while title keeps the action tooltip copy.
