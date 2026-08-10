@@ -213,9 +213,13 @@ export default class VicinityGraphPlugin extends Plugin {
 	}
 
 	/**
-	 * Live cleanup for mapped docs — EVERY docid-keyed map at once
-	 * ({@link PluginDataStore.forgetDocs}), so a new map is never forgotten
-	 * here. Unmapped paths are the delayed sweep's job (backstop).
+	 * Live cleanup for mapped docs — drops the doc from BOTH storage tiers at once
+	 * ({@link PluginDataStore.forgetDocs} for the global pinned set,
+	 * {@link PerDocStore.forgetDocs} for the per-file record + its localPins-target
+	 * positions): the ONE conceptual choke point a delete spans, mirrored by the
+	 * orphan sweep. A docid-keyed map added to EITHER store is pruned by that store's
+	 * `forgetDocs`; a map added to a NEW store would need its `forgetDocs` wired in
+	 * here too. Unmapped paths are the delayed sweep's job (backstop).
 	 */
 	private async handleVaultDelete(path: string): Promise<void> {
 		this.canvasParseCache.evict(path);
