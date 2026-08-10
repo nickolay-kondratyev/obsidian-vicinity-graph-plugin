@@ -1,17 +1,18 @@
 ---
 id: nid_wv95rkafrcxn9by7t5ng95dvn_e
-title: "fix no-unsafe-call: src/view React components (.tsx)"
-status: open
+title: 'fix no-unsafe-call: src/view React components (.tsx)'
+status: in_progress
 deps: []
-links: [nid_f7vkm00ahrak377r5dqpiyy9v_e, nid_db5s4uypdiesrk6oi8nms46wv_e, nid_khnm364awuizz6cmr2pxxjkpk_e, nid_j1zgoruaddxyhykf2maxsnzqn_e]
-created_iso: 2026-08-10T22:23:32Z
-status_updated_iso: 2026-08-10T22:23:32Z
+links: [nid_f7vkm00ahrak377r5dqpiyy9v_e, nid_db5s4uypdiesrk6oi8nms46wv_e, nid_khnm364awuizz6cmr2pxxjkpk_e,
+  nid_j1zgoruaddxyhykf2maxsnzqn_e]
+created_iso: '2026-08-10T22:23:32Z'
+status_updated_iso: '2026-08-10T22:26:28Z'
 type: chore
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
 tags: [pre-release, eslint, no-unsafe-call]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-2
 ---
-
 ## Background
 
 A pre-release lint pass flagged `@typescript-eslint/no-unsafe-call` violations across the codebase. That rule fires when a value typed `any` (or an unsafely-typed expression) is invoked as a function — typically from untyped third-party APIs, `JSON.parse` results, dynamic `require`/loader boundaries, or Playwright `page.evaluate` return values crossing into test code.
@@ -40,4 +41,3 @@ src/view/VicinityGraphView.tsx
 src/view/testFixtures/settingsPanelHarness.tsx
 
 Scope: React component modules under src/view. Likely trips via @xyflow/react / Obsidian API values reaching JSX as `any`, and dynamic handlers. Respect the layering rules in CLAUDE.md; keep engine imports via src/engine/index.ts.
-
