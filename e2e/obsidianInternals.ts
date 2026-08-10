@@ -58,12 +58,22 @@ export interface E2eCachedMetadata {
 
 export interface E2eMetadataCache {
 	getFileCache(file: E2eAbstractFile): E2eCachedMetadata | null;
+	/**
+	 * Core's link index: source path → (resolved destination path → count). The
+	 * canvas-indexing spec probes whether a canvas landed here yet. Indexing at
+	 * `resolvedLinks[path]` yields `... | undefined` (a not-yet-indexed source).
+	 */
+	readonly resolvedLinks: Record<string, Record<string, number>>;
+	/** The resolver seam the link fallback rides — a linkpath + source path → the destination file, or null. */
+	getFirstLinkpathDest(linkpath: string, sourcePath: string): E2eAbstractFile | null;
 }
 
 export interface E2eVault {
 	getAbstractFileByPath(path: string): E2eAbstractFile | null;
 	rename(file: E2eAbstractFile, newPath: string): Promise<void>;
 	delete(file: E2eAbstractFile): Promise<void>;
+	read(file: E2eAbstractFile): Promise<string>;
+	modify(file: E2eAbstractFile, data: string): Promise<void>;
 }
 
 /** A split region (`rightSplit` / `rootSplit`) a leaf's root is compared against. */
@@ -81,10 +91,40 @@ export interface E2eOpenState {
 	readonly eState?: { readonly subpath?: string };
 }
 
+/** One node on an open canvas — opaque but for its `id`, which the deletion spec round-trips. */
+export interface E2eCanvasNode {
+	readonly id: string;
+}
+
+/** The `createTextNode` argument the canvas specs drive (matches the canvas view's own API). */
+export interface E2eCanvasTextNodeOptions {
+	readonly pos: { readonly x: number; readonly y: number };
+	readonly size: { readonly width: number; readonly height: number };
+	readonly text: string;
+	readonly focus: boolean;
+	readonly save: boolean;
+}
+
+/** The canvas controller (`leaf.view.canvas`) the editing specs create/select/delete nodes through. */
+export interface E2eCanvas {
+	readonly nodes: ReadonlyMap<string, E2eCanvasNode>;
+	/** The focusable canvas root — keyboard focus is moved here, OUT of any card iframe. */
+	readonly wrapperEl: { focus(): void };
+	createTextNode(options: E2eCanvasTextNodeOptions): E2eCanvasNode;
+	selectOnly(node: E2eCanvasNode): void;
+}
+
+/** The canvas view mounted in a `"canvas"` leaf — the only `leaf.view` shape the suite reaches. */
+export interface E2eCanvasLeafView {
+	readonly canvas: E2eCanvas;
+}
+
 export interface E2eWorkspaceLeaf {
 	getRoot(): E2eWorkspaceParent;
 	detach(): void;
 	openFile(file: E2eAbstractFile, openState?: E2eOpenState): Promise<void>;
+	/** Narrowed to the canvas view — the suite only reaches `.view` off `getLeavesOfType("canvas")`. */
+	readonly view: E2eCanvasLeafView;
 }
 
 export interface E2eWorkspace {

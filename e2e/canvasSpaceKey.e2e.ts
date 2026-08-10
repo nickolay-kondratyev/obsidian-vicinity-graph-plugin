@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import { ObsidianHarness } from "./obsidianHarness";
+import type { E2eObsidianApp } from "./obsidianInternals";
 
 /**
  * Repro spec for ticket `nid_156zg4bvhjc7nnl0gwut20bvs_e`: with the vicinity
@@ -58,9 +59,12 @@ test("WHEN typing into a canvas text node while the vicinity view is open THEN S
 	// gesture is what a user does, but it lands on zoom-dependent pixels; the
 	// API call is the same code path minus the pointer math).
 	await page.evaluate(() => {
-		const app = (window as unknown as { app: any }).app;
-		const canvasObj = app.workspace.getLeavesOfType("canvas")[0].view.canvas;
-		canvasObj.createTextNode({ pos: { x: 0, y: 0 }, size: { width: 250, height: 120 }, text: "", focus: true, save: true });
+		const app = (window as unknown as { app: E2eObsidianApp }).app;
+		const leaf = app.workspace.getLeavesOfType("canvas")[0];
+		if (leaf === undefined) {
+			throw new Error("e2e: no canvas leaf open");
+		}
+		leaf.view.canvas.createTextNode({ pos: { x: 0, y: 0 }, size: { width: 250, height: 120 }, text: "", focus: true, save: true });
 	});
 
 	// The card's markdown editor renders inside a CONTROLLED IFRAME — the very
