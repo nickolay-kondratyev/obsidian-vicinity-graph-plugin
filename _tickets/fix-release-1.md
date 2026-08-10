@@ -1,17 +1,17 @@
 ---
 id: nid_shrhvp6kmzbqwc4chd1k7irzg_e
-title: "fix release"
-status: open
+title: fix release
+status: in_progress
 deps: []
 links: []
-created_iso: 2026-08-10T21:11:45Z
-status_updated_iso: 2026-08-10T21:11:45Z
+created_iso: '2026-08-10T21:11:45Z'
+status_updated_iso: '2026-08-10T21:12:28Z'
 type: task
 priority: 3
 assignee: nickolaykondratyev
 tags: []
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin
 ---
-
 latest release failed on github when we pushed new tag.
 
 Errors below
