@@ -1,17 +1,17 @@
 ---
 id: nid_zyv1x5w08difwfdopm50bt2lu_e
-title: "eslint typed-lint reproduce no-unsafe-member-access locally"
-status: open
+title: eslint typed-lint reproduce no-unsafe-member-access locally
+status: in_progress
 deps: []
 links: [nid_1iskliqzhf6k4euouhn44phiq_e]
-created_iso: 2026-08-10T22:25:56Z
-status_updated_iso: 2026-08-10T22:25:56Z
+created_iso: '2026-08-10T22:25:56Z'
+status_updated_iso: '2026-08-10T22:41:34Z'
 type: chore
 priority: 2
 assignee: nickolaykondratyev
 tags: [lint, release, deps]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-4
 ---
-
 The Obsidian pre-publish check reports many `@typescript-eslint/no-unsafe-member-access` warnings (parent ticket nid_1iskliqzhf6k4euouhn44phiq_e split them into per-group fix tickets, all of which depend on THIS one).
 
 Problem: this repo currently has NO local ESLint (no `node_modules/.bin/eslint`, no `typescript-eslint` dependency, no `eslint.config.*`). So the warnings cannot be reproduced or verified locally — engineers picking up the per-group fix tickets have no way to confirm a fix. This ticket makes the rule reproducible so every downstream fix ticket can be verified.
@@ -22,4 +22,3 @@ Scope:
 3. Document in the PR the exact command to lint a single file (e.g. `npx eslint e2e/vicinityGraph.e2e.ts`) so downstream tickets can cite it as their verification step.
 
 Do NOT fix the warnings here — only make them reproducible/verifiable. The actual fixes are the per-group tickets. Respect repo layering guards; ESLint config lives at repo root, not inside src/engine.
-
