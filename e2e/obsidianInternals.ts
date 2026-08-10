@@ -26,11 +26,38 @@ export interface E2eObsidianApp {
 	readonly commands: E2eCommands;
 	readonly plugins: E2ePlugins;
 	readonly setting: E2eSettingManager;
+	readonly metadataCache: E2eMetadataCache;
 }
 
 /** A file/folder handle — opaque here; it only flows back into the vault methods that produced it. */
 export interface E2eAbstractFile {
 	readonly path: string;
+}
+
+/**
+ * One parsed reference the provenance spec reads out of a file cache — the NARROW slice
+ * of Obsidian's `Reference` the suite asserts on (its target `link` and the raw `original`
+ * text whose `!` prefix distinguishes an embed). `original` is documented "Not available on
+ * Publish", so it is optional here — the desktop spec measures whether it is populated.
+ */
+export interface E2eReference {
+	readonly link: string;
+	readonly original?: string;
+}
+
+/**
+ * The subset of Obsidian's `CachedMetadata` the provenance spec reads: the three
+ * reference arrays LinkKind routing depends on. Each is optional — core omits an array
+ * entirely when a file carries none of that reference shape.
+ */
+export interface E2eCachedMetadata {
+	readonly links?: readonly E2eReference[];
+	readonly embeds?: readonly E2eReference[];
+	readonly frontmatterLinks?: readonly E2eReference[];
+}
+
+export interface E2eMetadataCache {
+	getFileCache(file: E2eAbstractFile): E2eCachedMetadata | null;
 }
 
 export interface E2eVault {
