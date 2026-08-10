@@ -41,3 +41,9 @@ What was done:
 Net effect: `npm ci` now sees lock == manifest. Change is a single 2-line diff
 to package-lock.json (commit f6cc8c5).
 
+
+## Notes
+
+**2026-08-10T23:10:35Z**
+
+__READY_AS_IS__: lock-only sync removes stale direct devDeps (@eslint/js, globals); package.json never listed them, both remain as transitive deps, npm install --package-lock-only yields no drift.
