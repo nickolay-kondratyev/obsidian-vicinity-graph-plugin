@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import type { FrameLocator, Page } from "@playwright/test";
 import { ObsidianHarness } from "./obsidianHarness";
+import type { E2eObsidianApp } from "./obsidianInternals";
 
 /**
  * Broadens the single-case repro of `canvasSpaceKey.e2e.ts` (ticket
@@ -94,18 +95,25 @@ async function openCanvas(): Promise<void> {
  */
 async function createCanvasTextNode(options: { focus: boolean }): Promise<string> {
 	return page.evaluate((focus) => {
-		const app = (window as unknown as { app: any }).app;
-		const canvasObj = app.workspace.getLeavesOfType("canvas")[0].view.canvas;
-		const node = canvasObj.createTextNode({ pos: { x: 0, y: 0 }, size: { width: 250, height: 120 }, text: "", focus, save: true });
-		return node.id as string;
+		const app = (window as unknown as { app: E2eObsidianApp }).app;
+		const leaf = app.workspace.getLeavesOfType("canvas")[0];
+		if (leaf === undefined) {
+			throw new Error("e2e: no canvas leaf open");
+		}
+		const node = leaf.view.canvas.createTextNode({ pos: { x: 0, y: 0 }, size: { width: 250, height: 120 }, text: "", focus, save: true });
+		return node.id;
 	}, options.focus);
 }
 
 /** Current node count of the (single) open canvas. */
 async function canvasNodeCount(): Promise<number> {
 	return page.evaluate(() => {
-		const app = (window as unknown as { app: any }).app;
-		return app.workspace.getLeavesOfType("canvas")[0].view.canvas.nodes.size as number;
+		const app = (window as unknown as { app: E2eObsidianApp }).app;
+		const leaf = app.workspace.getLeavesOfType("canvas")[0];
+		if (leaf === undefined) {
+			throw new Error("e2e: no canvas leaf open");
+		}
+		return leaf.view.canvas.nodes.size;
 	});
 }
 
@@ -119,8 +127,12 @@ async function canvasNodeCount(): Promise<number> {
  */
 async function selectCanvasNodeForKeyboard(id: string): Promise<void> {
 	await page.evaluate((nodeId) => {
-		const app = (window as unknown as { app: any }).app;
-		const canvasObj = app.workspace.getLeavesOfType("canvas")[0].view.canvas;
+		const app = (window as unknown as { app: E2eObsidianApp }).app;
+		const leaf = app.workspace.getLeavesOfType("canvas")[0];
+		if (leaf === undefined) {
+			throw new Error("e2e: no canvas leaf open");
+		}
+		const canvasObj = leaf.view.canvas;
 		const node = canvasObj.nodes.get(nodeId);
 		if (!node) {
 			throw new Error(`e2e: canvas node not found: id=[${nodeId}]`);

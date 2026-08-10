@@ -5,6 +5,7 @@ import { buttonChromeVsDeclared } from "./buttonChrome";
 import { hiddenOverlayText, linkCountBadgeText, orphanBreakdownTitle, plusNText } from "../src/view/badgeText";
 import { attachmentGroupLabel } from "../src/view/attachmentIcons";
 import { ObsidianHarness } from "./obsidianHarness";
+import type { E2eObsidianApp } from "./obsidianInternals";
 
 /**
  * Release-time e2e: real Obsidian on a copy of `.dev-vault` (+ e2e-only
@@ -326,10 +327,10 @@ for (const theme of ["dark", "light"] as const) {
 // (ticket nid_tclb98q9hxhmcuonamvr4ig1f_e), not here.
 
 const activeFilePath = () =>
-	page.evaluate(() => (window as unknown as { app: any }).app.workspace.getActiveFile()?.path);
+	page.evaluate(() => (window as unknown as { app: E2eObsidianApp }).app.workspace.getActiveFile()?.path);
 
 const markdownLeafCount = () =>
-	page.evaluate(() => (window as unknown as { app: any }).app.workspace.getLeavesOfType("markdown").length);
+	page.evaluate(() => (window as unknown as { app: E2eObsidianApp }).app.workspace.getLeavesOfType("markdown").length);
 
 test("clicking a node makes it the graph's MAIN and shows its markdown in the current tab", async () => {
 	// Land on the alpha graph (big nodes) with alpha as the active/main note, so

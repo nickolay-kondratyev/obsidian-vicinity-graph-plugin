@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import { ObsidianHarness } from "./obsidianHarness";
+import type { E2eObsidianApp } from "./obsidianInternals";
 
 /**
  * OBSERVES what real Obsidian core itself puts in `metadataCache.resolvedLinks`
@@ -125,22 +126,28 @@ test.afterAll(async () => {
  */
 async function indexedCanvasLinks(): Promise<Record<string, number>> {
 	await page.evaluate(async (canvasPath) => {
-		const app = (window as unknown as { app: any }).app;
+		const app = (window as unknown as { app: E2eObsidianApp }).app;
 		if (app.metadataCache.resolvedLinks[canvasPath] !== undefined) {
 			return;
 		}
 		const file = app.vault.getAbstractFileByPath(canvasPath);
+		if (file === null) {
+			throw new Error(`e2e: canvas file not found: ${canvasPath}`);
+		}
 		await app.vault.modify(file, `${await app.vault.read(file)}\n`);
 	}, CANVAS_PATH);
 	await page.waitForFunction(
-		(canvasPath) => (window as unknown as { app: any }).app.metadataCache.resolvedLinks[canvasPath] !== undefined,
+		(canvasPath) => (window as unknown as { app: E2eObsidianApp }).app.metadataCache.resolvedLinks[canvasPath] !== undefined,
 		CANVAS_PATH,
 		{ timeout: CANVAS_INDEX_TIMEOUT_MS },
 	);
-	return page.evaluate(
-		(canvasPath) => (window as unknown as { app: any }).app.metadataCache.resolvedLinks[canvasPath],
-		CANVAS_PATH,
-	);
+	return page.evaluate((canvasPath) => {
+		const links = (window as unknown as { app: E2eObsidianApp }).app.metadataCache.resolvedLinks[canvasPath];
+		if (links === undefined) {
+			throw new Error(`e2e: resolvedLinks still missing after index wait: ${canvasPath}`);
+		}
+		return links;
+	}, CANVAS_PATH);
 }
 
 test("core indexes a canvas text node's markdown-style links, keyed by RESOLVED path", async () => {
@@ -211,7 +218,7 @@ test("core makes no link for an external URL", async () => {
 test("the resolver seam the fallback uses accepts relative destinations verbatim", async () => {
 	const resolved = await page.evaluate(
 		([canvasPath, ...destinations]) => {
-			const app = (window as unknown as { app: any }).app;
+			const app = (window as unknown as { app: E2eObsidianApp }).app;
 			return destinations.map(
 				(destination) => app.metadataCache.getFirstLinkpathDest(destination, canvasPath)?.path ?? null,
 			);
