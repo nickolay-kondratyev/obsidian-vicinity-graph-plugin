@@ -369,9 +369,11 @@ export class ObsidianHarness {
 
 	// --- persisted plugin state --------------------------------------------
 	//
-	// THE one place in the e2e suite that knows the `pluginDataStore` shape: every
+	// THE one place in the e2e suite that knows the persisted-store shapes: every
 	// spec goes through the typed methods below instead of hand-writing its own
-	// `app.plugins.plugins[id].pluginDataStore` evaluate block.
+	// `app.plugins.plugins[id].<store>` evaluate block. Global dials + the pinned set
+	// live in `pluginDataStore` (`data.json`); per-node overrides and local pins live
+	// in `perDocStore` (the per-file `VaultFileStore`, syncing as vault content).
 
 	/**
 	 * Reads all three persisted global slices in ONE round trip — the source of
@@ -393,12 +395,34 @@ export class ObsidianHarness {
 		return (await this.readGlobals()).view;
 	}
 
-	/** The persisted docid-keyed per-node override map (drag-to-resize / content overrides). */
+	/**
+	 * The docid-keyed per-node override map (drag-to-resize / content overrides),
+	 * which now lives in the per-file `VaultFileStore` (`perDocStore`), NOT `data.json`.
+	 * Warms the store first, so a spec that reads right after a restart (before any
+	 * graph build has warmed it) still sees what synced to disk.
+	 */
 	async readNodeOverrides(): Promise<Readonly<Record<string, NodeOverride>>> {
-		return this.page.evaluate((pluginId) => {
-			const store = (window as unknown as { app: any }).app.plugins.plugins[pluginId].pluginDataStore;
+		return this.page.evaluate(async (pluginId) => {
+			const store = (window as unknown as { app: any }).app.plugins.plugins[pluginId].perDocStore;
+			await store.warm();
 			return store.nodeOverrides() as Readonly<Record<string, NodeOverride>>;
 		}, PLUGIN_ID);
+	}
+
+	/**
+	 * The active main's locally-pinned targets, keyed under MAIN — also in the
+	 * per-file store now. Warms first, for the same restart-read reason as
+	 * {@link readNodeOverrides}.
+	 */
+	async readLocalPins(mainDocid: string): Promise<readonly { docid: string; pinTimestamp: number }[]> {
+		return this.page.evaluate(
+			async ({ pluginId, main }) => {
+				const store = (window as unknown as { app: any }).app.plugins.plugins[pluginId].perDocStore;
+				await store.warm();
+				return store.localPins(main) as readonly { docid: string; pinTimestamp: number }[];
+			},
+			{ pluginId: PLUGIN_ID, main: mainDocid },
+		);
 	}
 
 	/**
@@ -414,11 +438,77 @@ export class ObsidianHarness {
 	async saveNodeSizeOverride(docid: string, sizePx: { widthPx: number; heightPx: number }): Promise<void> {
 		await this.page.evaluate(
 			async ({ pluginId, targetDocid, value }) => {
-				const store = (window as unknown as { app: any }).app.plugins.plugins[pluginId].pluginDataStore;
+				const store = (window as unknown as { app: any }).app.plugins.plugins[pluginId].perDocStore;
 				await store.saveNodeOverrideField(targetDocid, { field: "sizePx", value });
 			},
 			{ pluginId: PLUGIN_ID, targetDocid: docid, value: sizePx },
 		);
+	}
+
+	/**
+	 * Stores a doc's CONTENT override — the same per-file store write the hover-gear
+	 * content menu commits, the twin of {@link saveNodeSizeOverride}. Both fields
+	 * share the one `saveNodeOverrideField` path, so a spec that round-trips content
+	 * proves the per-file store carries the OTHER override section too. Rebuild not
+	 * included (see {@link saveNodeSizeOverride}).
+	 */
+	async saveNodeContentOverride(docid: string, content: NodePreviewPreference): Promise<void> {
+		await this.page.evaluate(
+			async ({ pluginId, targetDocid, value }) => {
+				const store = (window as unknown as { app: any }).app.plugins.plugins[pluginId].perDocStore;
+				await store.saveNodeOverrideField(targetDocid, { field: "content", value });
+			},
+			{ pluginId: PLUGIN_ID, targetDocid: docid, value: content },
+		);
+	}
+
+	/**
+	 * Locally pins `targetDocid` under `mainDocid` in the per-file store — the SAME
+	 * write `PersistenceServices.localPinDoc` commits, by docid (the read half is
+	 * {@link readLocalPins}). Timestamp is fixed; a spec asserting order would pass
+	 * its own, but the prune/round-trip specs care only about membership.
+	 */
+	async saveLocalPin(mainDocid: string, targetDocid: string): Promise<void> {
+		await this.page.evaluate(
+			async ({ pluginId, main, target }) => {
+				const store = (window as unknown as { app: any }).app.plugins.plugins[pluginId].perDocStore;
+				await store.addLocalPin(main, target, 1);
+			},
+			{ pluginId: PLUGIN_ID, main: mainDocid, target: targetDocid },
+		);
+	}
+
+	/**
+	 * Deletes a note THROUGH Obsidian's own vault API, so the plugin's live
+	 * `vault.on('delete')` handler fires deterministically (a raw on-disk unlink is
+	 * detected only by Obsidian's watcher, on its own schedule). This is how a spec
+	 * drives the live per-file prune path.
+	 */
+	async deleteNote(vaultPath: string): Promise<void> {
+		await this.page.evaluate(async (targetPath) => {
+			const app = (window as unknown as { app: any }).app;
+			const file = app.vault.getAbstractFileByPath(targetPath);
+			if (file === null) {
+				throw new Error(`deleteNote: no file at ${targetPath}`);
+			}
+			await app.vault.delete(file);
+		}, vaultPath);
+	}
+
+	/**
+	 * The raw filenames sitting in the per-file store's directory on disk
+	 * (`.plugin_data/vicinity_graph/per_file/`), or `[]` if it does not exist yet.
+	 * This peeks at BYTES, below the plugin's in-memory cache — the only way a spec
+	 * can prove a malformed record was QUARANTINED (renamed to `<docid>_malformed_…`)
+	 * rather than merely read as absent. `readdirSync` is non-destructive (allowed by
+	 * the harness destructive-call scan); dev-vault-copy mode only.
+	 */
+	listPerFileStoreFilenames(): readonly string[] {
+		const perFileDir = path.join(VAULT_COPY_DIR, ".plugin_data", "vicinity_graph", "per_file");
+		if (!fs.existsSync(perFileDir)) {
+			return [];
+		}
+		return fs.readdirSync(perFileDir);
 	}
 
 	/**

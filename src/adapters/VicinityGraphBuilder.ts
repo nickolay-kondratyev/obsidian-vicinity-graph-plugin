@@ -1,6 +1,7 @@
 import { VicinityEngine } from "../engine";
 import type { DocIdMapWarmer } from "../persistence/DocIdMapWarmer";
 import type { PathDocIdMap } from "../persistence/PathDocIdMap";
+import type { PerDocStore } from "../persistence/PerDocStore";
 import type { PluginDataStore } from "../persistence/PluginDataStore";
 import { ControlsModelBuilder } from "../view/ControlsModel";
 import type { FlowPinFacts } from "../view/flowMapping";
@@ -27,6 +28,8 @@ export class VicinityGraphBuilder {
 		private readonly docIdPort: DocIdPort,
 		private readonly canvasParseCache: CanvasParseCache,
 		private readonly pluginDataStore: PluginDataStore,
+		/** The per-doc/per-main facts (overrides, local pins) — warmed lazily on the first build. */
+		private readonly perDocStore: PerDocStore,
 		private readonly pathDocIdMap: PathDocIdMap,
 		/** INJECTED, not built here: the sweep shares this exact instance (one scan discipline, one miss cache). */
 		private readonly docIdMapWarmer: DocIdMapWarmer,
@@ -45,20 +48,27 @@ export class VicinityGraphBuilder {
 			// delete-handling exact for docs seen before the sweep warm-up.
 			this.pathDocIdMap.set(mainPath, mainDocId);
 		}
+		// The per-file records (overrides + local pins) load ONCE, lazily, on the
+		// first build after a restart — this is where they enter memory (not at
+		// plugin init, and without reading every vault file). Idempotent after that.
+		await this.perDocStore.warm();
 		const pins = this.pluginDataStore.pins();
 		// The active main's local pins are keyed by ITS docid; a main with no docid
 		// (unpinnable) can own none, so it gets the empty list.
-		const localPins = mainDocId === null ? [] : this.pluginDataStore.localPins(mainDocId);
-		const nodeOverrides = this.pluginDataStore.nodeOverrides();
+		const localPins = mainDocId === null ? [] : this.perDocStore.localPins(mainDocId);
+		const nodeOverrides = this.perDocStore.nodeOverrides();
 		// Cold-map fix (ticket nid_gbyqsuplz8b7pv0u5k34sdz1q_e): resolve the
 		// docids this build actually needs on demand, so pins and per-node
 		// overrides render correctly on the FIRST build after a restart instead
 		// of waiting for the delayed sweep warm-up. Best-effort by contract — it
 		// never rejects, so a docid it could not resolve is simply skipped
-		// downstream, exactly as before the fix. The STORE names the docids (not
-		// a list assembled here), so a future docid-keyed map is warmed without
-		// this call having to learn about it.
-		await this.docIdMapWarmer.warmFor(this.pluginDataStore.docIdKeyedDocids());
+		// downstream, exactly as before the fix. Each STORE names its own
+		// docid-keyed docids (the global pinned set + the per-file positions), so a
+		// future docid-keyed map is warmed by extending its store, not this call.
+		await this.docIdMapWarmer.warmFor([
+			...pins.map((pin) => pin.docid),
+			...this.perDocStore.keyedDocids(),
+		]);
 		// ONE inputs object feeds BOTH the graph AND the toolbar model, so the value
 		// a control shows is structurally the value the graph used.
 		const inputs: GraphRequestInputs = {

@@ -1,5 +1,6 @@
 import type { DocIdMapWarmer } from "./DocIdMapWarmer";
 import type { PathDocIdMap } from "./PathDocIdMap";
+import type { PerDocStore } from "./PerDocStore";
 import type { PluginDataStore } from "./PluginDataStore";
 import type { SweepPlan } from "./SweepPlanner";
 import { SweepPlanner } from "./SweepPlanner";
@@ -26,8 +27,12 @@ export interface SweepSummary {
  * ({@link SweepPlanner}); what is left here is only the decision to DROP — and
  * that decision is skipped outright when the scan's evidence is incomplete.
  *
- * Pins, per-node overrides and local pins are the docid-keyed persisted state
- * (settings are global-only since 2026-07-29), so pruning them is the whole job.
+ * The docid-keyed persisted state now spans two stores: the GLOBAL pinned set in
+ * `data.json` ({@link PluginDataStore}) and the per-doc/per-main facts —
+ * overrides + local pins — as per-file vault content ({@link PerDocStore}).
+ * Reconciling BOTH is the whole job: the per-file store's cache is warmed here so
+ * the authoritative `per_file/` directory listing (an orphaned file whose doc is
+ * gone) and the loaded mains' localPins (an orphaned target) both come into view.
  *
  * This is also the deferred cleanup path for unpin/override-clear and for
  * deletes that the live `vault.on('delete')` handler could not map to a docid.
@@ -37,6 +42,7 @@ export class OrphanSweeper {
 		private readonly docIdMapWarmer: DocIdMapWarmer,
 		private readonly pathDocIdMap: PathDocIdMap,
 		private readonly pluginDataStore: PluginDataStore,
+		private readonly perDocStore: PerDocStore,
 	) {}
 
 	async run(): Promise<SweepSummary> {
@@ -49,11 +55,14 @@ export class OrphanSweeper {
 			// sweeps again.
 			return { pinsRemoved: 0, overridesRemoved: 0, localPinsRemoved: 0, everyFileRead: false };
 		}
+		// Loads the per-file records so the sweep sees every stored override / local
+		// pin (and, via the directory listing warm reads, every per-file file).
+		await this.perDocStore.warm();
 		const plan = SweepPlanner.plan({
 			liveDocids: scan.liveDocids,
 			pinnedDocids: this.pluginDataStore.pins().map((pin) => pin.docid),
-			overrideDocids: Object.keys(this.pluginDataStore.nodeOverrides()),
-			localPinDocids: this.pluginDataStore.localPinDocids(),
+			overrideDocids: this.perDocStore.overrideDocids(),
+			localPinDocids: this.perDocStore.localPinDocids(),
 		});
 		return this.apply(plan);
 	}
@@ -64,9 +73,11 @@ export class OrphanSweeper {
 		const localPins = plan.localPinsToRemove.filter((docid) => this.isConfirmedOrphan(docid));
 		const forgotten = new Set([...pins, ...overrides, ...localPins]);
 		if (forgotten.size > 0) {
-			// ONE data.json write for every stale docid — no reason to chunk a
-			// single call, and the same docid is usually stale in more than one map.
+			// The two stores' forgetDocs together are the ONE conceptual choke point a
+			// deleted doc spans (pinned set + per-file record + localPins targets); a
+			// docid absent from either store is a no-op there.
 			await this.pluginDataStore.forgetDocs([...forgotten]);
+			await this.perDocStore.forgetDocs([...forgotten]);
 		}
 		return {
 			pinsRemoved: pins.length,

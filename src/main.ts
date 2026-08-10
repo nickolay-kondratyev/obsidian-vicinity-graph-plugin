@@ -11,6 +11,7 @@ import { ObsidianLinkProvider } from "./adapters/ObsidianLinkProvider";
 import { DocIdMapWarmer } from "./persistence/DocIdMapWarmer";
 import { OrphanSweeper, SWEEP_DELAY_MS } from "./persistence/OrphanSweeper";
 import { PathDocIdMap } from "./persistence/PathDocIdMap";
+import { PerDocStore } from "./persistence/PerDocStore";
 import { PersistenceServices } from "./persistence/PersistenceServices";
 import { PluginDataStore } from "./persistence/PluginDataStore";
 import { VaultAdapterFsPort } from "./persistence/vaultFsPort";
@@ -45,10 +46,15 @@ export default class VicinityGraphPlugin extends Plugin {
 	/**
 	 * Versioned, conflict-resilient per-id JSON store under the vault-root
 	 * `.plugin_data/vicinity_graph/` tree (syncs as vault content, unlike
-	 * `data.json`). Constructed here but INERT until the dependent ticket moves
-	 * per-doc facts onto it — nothing writes to it yet.
+	 * `data.json`). Backs {@link perDocStore}.
 	 */
 	vaultFileStore!: VaultFileStore;
+	/**
+	 * The per-doc/per-main facts (node overrides + local pins) as vault content on
+	 * {@link vaultFileStore}. Exposed so the e2e harness can read/write them the
+	 * same way it reaches {@link pluginDataStore} for globals.
+	 */
+	perDocStore!: PerDocStore;
 	/**
 	 * THE settings write pipeline: ONE per plugin, shared by the settings tab and by
 	 * every open view's controls panel. Sharing it is what makes "one serialised
@@ -100,8 +106,14 @@ export default class VicinityGraphPlugin extends Plugin {
 			Date.now,
 			this.notices,
 		);
+		this.perDocStore = new PerDocStore(this.vaultFileStore);
 		this.settingsWrites = new SettingsWritePipeline(this.pluginDataStore, this.viewsRefresh, this.notices);
-		this.persistenceServices = new PersistenceServices(this.docIdService, this.pluginDataStore, this.pathDocIdMap);
+		this.persistenceServices = new PersistenceServices(
+			this.docIdService,
+			this.pluginDataStore,
+			this.perDocStore,
+			this.pathDocIdMap,
+		);
 		this.docIdMapWarmer = new DocIdMapWarmer(this.app.vault, this.docIdService, this.pathDocIdMap);
 		this.graphBuilder = new VicinityGraphBuilder(
 			this.app.vault,
@@ -109,6 +121,7 @@ export default class VicinityGraphPlugin extends Plugin {
 			this.docIdService,
 			this.canvasParseCache,
 			this.pluginDataStore,
+			this.perDocStore,
 			this.pathDocIdMap,
 			this.docIdMapWarmer,
 		);
@@ -196,31 +209,52 @@ export default class VicinityGraphPlugin extends Plugin {
 				this.canvasParseCache.evict(oldPath);
 			}),
 		);
-		this.registerEvent(this.app.vault.on("delete", (file) => void this.handleVaultDelete(file.path)));
+		// Caught, not rethrown: the handler now spans vault file I/O (the per-file
+		// store), whose failure would otherwise surface as an unhandled rejection.
+		// The delayed orphan sweep re-derives and retries any prune that failed here.
+		this.registerEvent(
+			this.app.vault.on("delete", (file) =>
+				void this.handleVaultDelete(file.path).catch((error: unknown) => {
+					console.error("vicinity-graph: delete cleanup failed", error);
+				}),
+			),
+		);
 	}
 
 	/**
-	 * Live cleanup for mapped docs — EVERY docid-keyed map at once
-	 * ({@link PluginDataStore.forgetDocs}), so a new map is never forgotten
-	 * here. Unmapped paths are the delayed sweep's job (backstop).
+	 * Live cleanup for mapped docs — drops the doc from BOTH storage tiers at once
+	 * ({@link PluginDataStore.forgetDocs} for the global pinned set,
+	 * {@link PerDocStore.forgetDocs} for the per-file record + its localPins-target
+	 * positions): the ONE conceptual choke point a delete spans, mirrored by the
+	 * orphan sweep. A docid-keyed map added to EITHER store is pruned by that store's
+	 * `forgetDocs`; a map added to a NEW store would need its `forgetDocs` wired in
+	 * here too. Unmapped paths are the delayed sweep's job (backstop).
 	 */
 	private async handleVaultDelete(path: string): Promise<void> {
 		this.canvasParseCache.evict(path);
 		const docid = this.pathDocIdMap.handleDelete(path);
 		if (docid !== undefined) {
+			// Both stores together are the ONE choke point a delete spans: the global
+			// pinned set (data.json) and the per-file record + its localPins-as-target.
 			await this.pluginDataStore.forgetDocs([docid]);
+			await this.perDocStore.forgetDocs([docid]);
 		}
 	}
 
 	private scheduleOrphanSweep(): void {
-		const sweeper = new OrphanSweeper(this.docIdMapWarmer, this.pathDocIdMap, this.pluginDataStore);
+		const sweeper = new OrphanSweeper(
+			this.docIdMapWarmer,
+			this.pathDocIdMap,
+			this.pluginDataStore,
+			this.perDocStore,
+		);
 		this.sweepTimer = window.setTimeout(
 			() =>
 				void sweeper
 					.run()
 					.then((summary) => {
 						console.log(
-							`vicinity-graph: orphan sweep complete pinsRemoved=[${summary.pinsRemoved}] overridesRemoved=[${summary.overridesRemoved}] everyFileRead=[${summary.everyFileRead}]`,
+							`vicinity-graph: orphan sweep complete pinsRemoved=[${summary.pinsRemoved}] overridesRemoved=[${summary.overridesRemoved}] localPinsRemoved=[${summary.localPinsRemoved}] everyFileRead=[${summary.everyFileRead}]`,
 						);
 					})
 					.catch((error: unknown) => {

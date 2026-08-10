@@ -13,7 +13,9 @@ import { ObsidianHarness } from "./obsidianHarness";
  *    even once the main no longer reaches it by any link — the pin alone keeps it in;
  * 3. switch MAIN away → the local pin does not apply, the target drops out;
  * 4. switch MAIN back → it is central again (the pin is scoped to this main, not lost);
- * 5. it survives a real Obsidian restart (the local-pin map is persisted in data.json).
+ * 5. it survives a real Obsidian restart (the local-pin map is persisted in the
+ *    per-file `VaultFileStore` — `.plugin_data/.../per_file/<main-docid>.json` — which
+ *    syncs as vault content, NOT in data.json).
  *
  * A sibling of `pinnedCentralScenario.e2e.ts` (which owns the GLOBAL pin lifecycle),
  * kept apart so each spec states ONE feature's claim. SERIAL and order-dependent by
@@ -128,9 +130,10 @@ test("a local pin survives a real Obsidian restart", async () => {
 	await harness.remountGraphView();
 	await expect(noteNode(HUB)).toHaveAttribute("data-tier", "main");
 
-	// The local-pin map is docid-KEYED (by main, valued by target), so its entry only
-	// resolves through a warmed path↔docid map; the first build after a restart warms
-	// what it needs on demand — a plain assertion, no polling out the orphan sweep.
+	// The local-pin map is docid-KEYED (by main, valued by target) and now lives in the
+	// per-file store, so a restart must warm THAT (its directory walk) as well as the
+	// path↔docid map; the first build after a restart warms both on demand — a plain
+	// assertion, no polling out the orphan sweep.
 	await expect(noteNode(B)).toHaveAttribute("data-tier", "pinned-central");
 	await expect(noteNode(B).locator(".vicinity-graph-local-pin-button")).toHaveAttribute(
 		"aria-label",

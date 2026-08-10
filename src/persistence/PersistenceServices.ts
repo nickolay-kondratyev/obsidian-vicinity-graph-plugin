@@ -2,7 +2,8 @@ import type { DocIdPort, VaultFilePort } from "../adapters/obsidianPorts";
 import type { NotPersistableReason, PersistableIdentity } from "./DocPersistEligibility";
 import { DocPersistEligibility } from "./DocPersistEligibility";
 import type { PathDocIdMap } from "./PathDocIdMap";
-import type { NodeOverrideChange, NodeOverrideField, PluginDataStore } from "./PluginDataStore";
+import type { NodeOverrideChange, NodeOverrideField, PerDocStore } from "./PerDocStore";
+import type { PluginDataStore } from "./PluginDataStore";
 
 /**
  * Verdict of a LOCAL pin: it needs TWO persistable docids (the map is keyed by
@@ -22,14 +23,17 @@ export type LocalPinPersistOutcome =
  * foreign docid) persists NOTHING and the typed reason feeds the node emblem.
  *
  * Settings have NO doc identity involved (they are global) — callers use
- * {@link PluginDataStore} directly. What is left doc-scoped is the pinned set
- * and the per-node override map, both stored globally in `data.json` but keyed
- * by docid.
+ * {@link PluginDataStore} directly. What is left doc-scoped: the GLOBAL pinned
+ * set (kept in `data.json`, so global pin/unpin go to {@link PluginDataStore}),
+ * and the per-doc/per-main facts — node overrides and local pins — which now live
+ * in the per-file store ({@link PerDocStore}). This facade is the seam that keeps
+ * both routings behind ONE `ensureDocId`/eligibility discipline.
  */
 export class PersistenceServices {
 	constructor(
 		private readonly docIdPort: DocIdPort,
 		private readonly pluginDataStore: PluginDataStore,
+		private readonly perDocStore: PerDocStore,
 		private readonly pathDocIdMap: PathDocIdMap,
 		private readonly clock: () => number = Date.now,
 	) {}
@@ -68,7 +72,7 @@ export class PersistenceServices {
 		}
 		this.pathDocIdMap.set(targetFile.path, targetIdentity.docid);
 		this.pathDocIdMap.set(mainFile.path, mainIdentity.docid);
-		await this.pluginDataStore.addLocalPin(mainIdentity.docid, targetIdentity.docid, this.clock());
+		await this.perDocStore.addLocalPin(mainIdentity.docid, targetIdentity.docid, this.clock());
 		return { kind: "persisted", mainDocid: mainIdentity.docid, targetDocid: targetIdentity.docid };
 	}
 
@@ -84,7 +88,7 @@ export class PersistenceServices {
 			return;
 		}
 		this.pathDocIdMap.set(mainFile.path, identity.docid);
-		await this.pluginDataStore.removeLocalPins(identity.docid, [targetDocid]);
+		await this.perDocStore.removeLocalPins(identity.docid, [targetDocid]);
 	}
 
 	/**
@@ -96,7 +100,7 @@ export class PersistenceServices {
 	 */
 	async saveNodeOverrideField(file: VaultFilePort, change: NodeOverrideChange): Promise<PersistableIdentity> {
 		return this.withPersistableIdentity(file, (docid) =>
-			this.pluginDataStore.saveNodeOverrideField(docid, change),
+			this.perDocStore.saveNodeOverrideField(docid, change),
 		);
 	}
 
@@ -113,7 +117,7 @@ export class PersistenceServices {
 			return;
 		}
 		this.pathDocIdMap.set(file.path, identity.docid);
-		await this.pluginDataStore.clearNodeOverrideField(identity.docid, field);
+		await this.perDocStore.clearNodeOverrideField(identity.docid, field);
 	}
 
 	/** ensureDocId (write intent!) → Q3 classification → persist only on a "persistable" verdict. */
