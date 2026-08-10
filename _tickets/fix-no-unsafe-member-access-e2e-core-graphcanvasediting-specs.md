@@ -1,4 +1,5 @@
 ---
+session_ids: [{a: claude, type: execution, id: 70ba9581-ea67-48d4-b80e-9e8e9535857c}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_ez80034jh0f5mba3hgegc0lvq_e
 title: "fix no-unsafe-member-access: e2e core graph/canvas/editing specs"
