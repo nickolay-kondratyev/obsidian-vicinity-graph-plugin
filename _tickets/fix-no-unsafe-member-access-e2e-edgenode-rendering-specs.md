@@ -1,4 +1,5 @@
 ---
+session_ids: [{a: claude, type: execution, id: 782308f6-3aaa-47cb-a0bb-2ac51571ba50}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_1fzz9jrjbnaa3iky57nmmckfc_e
 title: "fix no-unsafe-member-access: e2e edge/node rendering specs"
