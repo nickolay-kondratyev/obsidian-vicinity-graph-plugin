@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_p9omkaitzkvzvthv5f2vvou2y_e
 title: "package.json/lock drift: @eslint/js + globals in lock but not manifest"
-status: open
+status: in_progress
 deps: []
 links: []
 created_iso: 2026-08-10T23:03:56Z
-status_updated_iso: 2026-08-10T23:03:56Z
+status_updated_iso: 2026-08-10T23:07:24Z
 type: chore
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
