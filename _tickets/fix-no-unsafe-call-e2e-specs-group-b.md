@@ -1,4 +1,5 @@
 ---
+session_ids: [{a: claude, type: execution, id: 4572d435-d180-49f5-9141-ea22983999a5}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_db5s4uypdiesrk6oi8nms46wv_e
 title: "fix no-unsafe-call: e2e specs (group B)"
