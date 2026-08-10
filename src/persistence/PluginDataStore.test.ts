@@ -198,33 +198,34 @@ describe("PluginDataStore.init read-failure resilience", () => {
  * failure policy, so the user is told each time.
  */
 describe("PluginDataStore degraded-session write protection", () => {
-	async function exhaustedStore(port: ScriptedPluginDataPort): Promise<PluginDataStore> {
+	/** Whether the store comes up degraded or healthy is the PORT's script, not this helper's. */
+	async function initializedStoreOn(port: ScriptedPluginDataPort): Promise<PluginDataStore> {
 		const store = new PluginDataStore(port, undefined, IMMEDIATE_SLEEP);
 		await store.init();
 		return store;
 	}
 
 	it("WHEN init exhausted every read attempt THEN a settings write rejects instead of overwriting the unread file", async () => {
-		const store = await exhaustedStore(new ScriptedPluginDataPort([READ_FAILED]));
+		const store = await initializedStoreOn(new ScriptedPluginDataPort([READ_FAILED]));
 		await expect(store.saveGlobalDepths({ ...EngineDefaults.depthSettings(), linkDepthIn: 4 })).rejects.toThrow();
 	});
 
 	it("WHEN init exhausted every read attempt THEN no write ever reaches the port", async () => {
 		const port = new ScriptedPluginDataPort([READ_FAILED]);
-		const store = await exhaustedStore(port);
+		const store = await initializedStoreOn(port);
 		await store.addPin("docid-1", 1).catch(() => undefined);
 		expect(port.saveCalls).toBe(0);
 	});
 
 	it("WHEN init exhausted every read attempt THEN a refused write leaves memory on defaults (screen snaps back on the rebuild)", async () => {
-		const store = await exhaustedStore(new ScriptedPluginDataPort([READ_FAILED]));
+		const store = await initializedStoreOn(new ScriptedPluginDataPort([READ_FAILED]));
 		await store.saveGlobalDepths({ ...EngineDefaults.depthSettings(), linkDepthIn: 4 }).catch(() => undefined);
 		expect(store.globalDepths()).toEqual(EngineDefaults.depthSettings());
 	});
 
 	it("WHEN a retry recovered the read THEN later writes persist normally", async () => {
 		const port = new ScriptedPluginDataPort([READ_FAILED, storedDataWithDepthIn(2)]);
-		const store = await exhaustedStore(port);
+		const store = await initializedStoreOn(port);
 		await store.saveGlobalDepths({ ...EngineDefaults.depthSettings(), linkDepthIn: 4 });
 		expect(port.saveCalls).toBe(1);
 	});
