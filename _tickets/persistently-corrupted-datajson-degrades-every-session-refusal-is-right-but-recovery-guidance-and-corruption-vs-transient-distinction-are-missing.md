@@ -1,17 +1,18 @@
 ---
 id: nid_08ripmsxon0r9ncn42lp623g1_e
-title: "Persistently corrupted data.json degrades every session: refusal is right, but recovery guidance and corruption-vs-transient distinction are missing"
-status: open
+title: 'Persistently corrupted data.json degrades every session: refusal is right,
+  but recovery guidance and corruption-vs-transient distinction are missing'
+status: in_progress
 deps: []
 links: []
-created_iso: 2026-08-10T20:09:55Z
-status_updated_iso: 2026-08-10T20:09:55Z
+created_iso: '2026-08-10T20:09:55Z'
+status_updated_iso: '2026-08-10T22:30:21Z'
 type: bug
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
-tags:  [persistence]
+tags: [persistence]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 ---
-
 Follow-up from the review of ticket nid_ghaeps3siekw0oe17mr4xpmad_e (commits 06da6ce + eb6d428 on src/persistence/PluginDataStore.ts).
 
 Obsidian's Vault.readJson returns `undefined` for BOTH a transient fs read failure AND a persistent JSON.parse failure of a corrupted data.json (torn write, sync conflict). PluginDataStore.init cannot tell them apart, so a PERMANENTLY corrupted file now hits the same path every session: 3 retries exhaust, defaults are shown, all data.json writes are refused (protectingUnreadDataJson), and the one-time notice says "restart Obsidian to load it again" — advice that can never work for corruption. The only way out is manually deleting `.obsidian/plugins/vicinity-graph/data.json`, which nothing tells the user.
@@ -28,4 +29,3 @@ Either way the notice copy in INIT_LOAD_FAILED_NOTICE (src/persistence/PluginDat
 ## Acceptance Criteria
 
 A vault whose data.json is permanently unparseable either self-recovers with the original file preserved (option a) or tells the user exactly how to recover (option b); a unit test covers the chosen behavior at the ScriptedPluginDataPort seam in src/persistence/PluginDataStore.test.ts.
-
