@@ -89,3 +89,13 @@ Also wired: nid_rnghlzs0uejjlbd5a4bjkq7eg_e (local control overrides) now DEPEND
 migration ticket (it fills the reserved localControls slot).
 
 Decision record: .out/current_decision.md (git-ignored).
+
+**2026-08-10T15:51:22Z**
+
+REFINEMENT (2026-08-10, owner): drop global.json. Keep the global pinned SET (pins) in
+data.json under Obsidian's management (one cheap in-memory read, no per-file scanning).
+So only nodeOverrides + localPins (+ future localControls) move to
+.plugin_data/vicinity_graph/per_file/<docid>.json; `pins` does NOT move. Tradeoff accepted:
+global pins, like the config dials, don't sync when .obsidian is excluded.
+Ticket nid_8f8ey41extajt08zphwwxhnwq_e (and the global.json mention in
+nid_cdoymzgq5kjh5d10q1tkavnsy_e) updated accordingly.

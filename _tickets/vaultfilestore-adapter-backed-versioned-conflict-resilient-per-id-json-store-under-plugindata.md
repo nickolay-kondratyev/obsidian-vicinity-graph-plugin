@@ -143,10 +143,14 @@ Behaviours:
 
 ```
 ${VAULT_PATH}/.plugin_data/vicinity_graph/
-  global.json                 # (populated by ticket B: the global pinned set)
   per_file/<docid>.json       # (populated by ticket B: per-doc + per-main facts)
-  *_malformed_<ts>.json       # quarantined files (never read, never cleaned by us)
+  per_file/*_malformed_<ts>.json  # quarantined files (never read, never cleaned by us)
 ```
+
+(Note: the global pinned SET is NOT stored here — owner decision 2026-08-10 keeps it in
+`data.json` under Obsidian's management. The `global.json` mentioned in earlier drafts is
+gone. This primitive is domain-agnostic regardless; it just owns whatever keys ticket B
+writes, which today is only the `per_file/` subtree.)
 
 This ticket only creates the primitive and can create the root dir lazily on first write; it
 does not put domain data in it. A tiny smoke wiring in `main.ts` (construct the store) is
