@@ -12,6 +12,21 @@ assignee: nickolaykondratyev
 tags: []
 ---
 
+TASK: **PLAN**. Lets clarify any gaps that exist for this ticket
+  (if you need to explore code base use cheaper Explore-cheap sub-agent)
+  ask human any questions that come up that require human decision.
+  Finally create detailed plan with requirements of what we want to achieve
+  and steps of execution and put it into a new ticket 
+  (or multiple tickets if it warrants a split across multiple tickets).
+  Close this ticket after planning is complete.
+
+
 Right now we store the data into data.json (as far as I understand).
 
-However, as we expand what we store we will likely want to store the data into a separate hidden folder like the smart connections is doing. Or like visit history is doing since I think the hidden folders may not be synced yet still (https://forum.obsidian.md/t/obsidian-sync-sync-hidden-files-and-folders-as-well-start-with-a-dot/32123) and we would like this to sync across desktop so likely will want to put the special data into something like `${VAULT_PATH}/_plugin_data/vicinity_graph/` and then store the data with one JSON document per ID. 
+However, as we expand what we store we will likely want to store the data into a separate hidden folder. The path of folder will be `${VAULT_PATH}/.plugin_data/vicinity_graph/` and then store the data with one JSON document per ID. 
+
+The individual settings for a file will be stored in a id based file in path
+
+`${VAULT_PATH}/.plugin_data/vicinity_graph/per_file/<ID>.json`
+
+ID is the stable identifier that gets assigned to the file when we modify it.
