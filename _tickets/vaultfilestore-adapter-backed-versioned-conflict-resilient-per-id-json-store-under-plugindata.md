@@ -1,17 +1,18 @@
 ---
 id: nid_cdoymzgq5kjh5d10q1tkavnsy_e
-title: "VaultFileStore: adapter-backed, versioned, conflict-resilient per-id JSON store under .plugin_data/"
-status: open
+title: 'VaultFileStore: adapter-backed, versioned, conflict-resilient per-id JSON
+  store under .plugin_data/'
+status: in_progress
 deps: []
 links: [nid_vb246h5pr4609hid76ts1ufe5_e, nid_8f8ey41extajt08zphwwxhnwq_e]
-created_iso: 2026-08-10T03:20:52Z
-status_updated_iso: 2026-08-10T03:20:52Z
+created_iso: '2026-08-10T03:20:52Z'
+status_updated_iso: '2026-08-10T17:35:35Z'
 type: feature
 priority: 1
 assignee: nickolaykondratyev
 tags: [persistence, storage]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin
 ---
-
 # Goal
 
 Build the reusable, domain-agnostic file-store primitive that ticket
@@ -202,4 +203,3 @@ ticket B). Run `npm run check` (strict tsc) too.
 - Moving any real data (pins/overrides/localPins) onto the store.
 - The lazy per-file read path, the per-file record shape, the delete/orphan-sweep
   cross-file pruning, and the localPins reverse-index. All of that is ticket B.
-
