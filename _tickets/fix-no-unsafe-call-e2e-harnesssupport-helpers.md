@@ -1,17 +1,18 @@
 ---
 id: nid_khnm364awuizz6cmr2pxxjkpk_e
-title: "fix no-unsafe-call: e2e harness/support helpers"
-status: open
+title: 'fix no-unsafe-call: e2e harness/support helpers'
+status: in_progress
 deps: []
-links: [nid_f7vkm00ahrak377r5dqpiyy9v_e, nid_db5s4uypdiesrk6oi8nms46wv_e, nid_wv95rkafrcxn9by7t5ng95dvn_e, nid_j1zgoruaddxyhykf2maxsnzqn_e]
-created_iso: 2026-08-10T22:23:31Z
-status_updated_iso: 2026-08-10T22:23:31Z
+links: [nid_f7vkm00ahrak377r5dqpiyy9v_e, nid_db5s4uypdiesrk6oi8nms46wv_e, nid_wv95rkafrcxn9by7t5ng95dvn_e,
+  nid_j1zgoruaddxyhykf2maxsnzqn_e]
+created_iso: '2026-08-10T22:23:31Z'
+status_updated_iso: '2026-08-10T22:27:06Z'
 type: chore
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
 tags: [pre-release, eslint, no-unsafe-call]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-3
 ---
-
 ## Background
 
 A pre-release lint pass flagged `@typescript-eslint/no-unsafe-call` violations across the codebase. That rule fires when a value typed `any` (or an unsafely-typed expression) is invoked as a function — typically from untyped third-party APIs, `JSON.parse` results, dynamic `require`/loader boundaries, or Playwright `page.evaluate` return values crossing into test code.
@@ -36,4 +37,3 @@ e2e/vaultTarget.ts
 e2e/playwright.config.ts
 
 Scope: e2e shared harness/page-object/config helpers (non-spec). These are the seams where Obsidian `app` and `page.evaluate` results are typed once and reused, so fixing them well (typed wrappers) will remove many downstream unsafe-call sites in the spec groups A/B. Consider doing this group FIRST.
-
