@@ -1,7 +1,7 @@
 ---
 id: nid_jz0hbmh3qz74oza5bw4x0e0if_e
 title: "Figure out how to create UX to be able to resize elements for resize to only be applied within the main note"
-status: open
+status: punted
 deps: []
 links: []
 created_iso: 2026-08-07T21:24:04Z

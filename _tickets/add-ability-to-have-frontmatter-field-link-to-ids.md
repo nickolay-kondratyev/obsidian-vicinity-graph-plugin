@@ -1,7 +1,7 @@
 ---
 id: nid_zklwx8uxsk3bzvgcbnm3wvvj9_e
 title: "Add ability to have frontmatter field link to ids"
-status: open
+status: punted
 deps: []
 links: []
 created_iso: 2026-08-10T18:25:45Z
