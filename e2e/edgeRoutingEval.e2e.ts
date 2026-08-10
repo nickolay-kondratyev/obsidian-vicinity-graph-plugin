@@ -89,7 +89,7 @@ function onConsole(msg: ConsoleMessage): void {
 	pendingPerf.push(
 		arg
 			.jsonValue()
-			.then((data) => ({ kind, data }) as PerfEntry)
+			.then((data: PerfEntry["data"]) => ({ kind, data }))
 			.catch(() => null),
 	);
 }

@@ -44,16 +44,29 @@ export interface E2eWorkspaceParent {
 	setSize?(size: number): void;
 }
 
+/**
+ * The `openState` argument to `WorkspaceLeaf.openFile` — only the `eState.subpath`
+ * the outline-open path threads through is modelled (the `#heading` an outline
+ * click derives), which is exactly what distinguishes a heading-targeted open from
+ * a plain node-level one.
+ */
+export interface E2eOpenState {
+	readonly eState?: { readonly subpath?: string };
+}
+
 export interface E2eWorkspaceLeaf {
 	getRoot(): E2eWorkspaceParent;
 	detach(): void;
-	openFile(file: E2eAbstractFile): Promise<void>;
+	openFile(file: E2eAbstractFile, openState?: E2eOpenState): Promise<void>;
 }
 
 export interface E2eWorkspace {
 	readonly layoutReady: boolean;
 	readonly rightSplit: E2eWorkspaceParent;
 	readonly rootSplit: E2eWorkspaceParent;
+	getActiveFile(): E2eAbstractFile | null;
+	/** The heading-targeted open an outline entry makes; reassignable so tests can spy on it. */
+	openLinkText(linktext: string, sourcePath: string, newLeaf?: unknown): unknown;
 	getLeaf(newLeaf: boolean): E2eWorkspaceLeaf;
 	getLeavesOfType(viewType: string): readonly E2eWorkspaceLeaf[];
 	iterateAllLeaves(callback: (leaf: E2eWorkspaceLeaf) => void): void;

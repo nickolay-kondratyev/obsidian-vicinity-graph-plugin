@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import { EngineDefaults, NODE_OVERRIDE_HARD_MIN_PX } from "../src/engine";
 import { ObsidianHarness } from "./obsidianHarness";
+import type { E2eObsidianApp } from "./obsidianInternals";
 
 /**
  * Drag-to-resize e2e (ticket nid_qjsj5mth2phdqctbm0vfx9elw_e), driven through
@@ -420,7 +421,7 @@ function parsedComputedPx(value: string, subject: string): number {
 }
 
 const activeFilePath = () =>
-	page.evaluate(() => (window as unknown as { app: any }).app.workspace.getActiveFile()?.path);
+	page.evaluate(() => (window as unknown as { app: E2eObsidianApp }).app.workspace.getActiveFile()?.path);
 
 test("WHEN a node renders at the shipped minimum THEN it still carries the hover pin chip", async () => {
 	// The whole point of the ticket: content-fit sizing made this the COMMON node,
