@@ -47,3 +47,9 @@ Verification (branch HEAD 34fd4a1):
 
 Next reader: the remaining repo-wide `no-unsafe-member-access` warnings belong
 to OTHER per-group tickets under parent nid_1iskliqzhf6k4euouhn44phiq_e.
+
+## Notes
+
+**2026-08-10T23:15:25Z**
+
+__READY_AS_IS__: no-op closure verified — eslint on the 6 files shows 0 no-unsafe-member-access (14 unrelated style warnings), no inline suppressions, npm run check exit 0; resolution note claims all check out.
