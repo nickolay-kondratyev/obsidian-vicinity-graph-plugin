@@ -1,4 +1,5 @@
 ---
+session_ids: [{a: claude, type: execution, id: 1f319f44-f881-4c46-80d8-4f36669e276b}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_cinizzkohsf4r3hn48qvdfvzt_e
 title: "fix no-unsafe-member-access: src/view link-preview + obsidian adapters + main"
