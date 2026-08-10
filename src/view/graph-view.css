@@ -425,6 +425,12 @@
 	 * docs-internal/tickets/ticket-pin-offset-centre-clearance.md. */
 	--vicinity-graph-node-chip-gap: var(--size-2-1);
 	--vicinity-graph-node-chip-icon-size: 13px;
+	/* The pressed toggle's depth cue (dark inset top shadow + faint lighter bottom
+	 * lip), declared ONCE: the pressed rule uses it alone, and the focus-visible
+	 * variant composes it with the focus ring — two literal copies would drift. */
+	--vicinity-graph-node-chip-pressed-shadow:
+		inset 0 1px 2px rgba(0, 0, 0, 0.35),
+		inset 0 -1px 0 rgba(255, 255, 255, 0.12);
 	position: absolute;
 	/* Declared, not inherited from the app: the chip's REACH into the node
 	 * (`inset + size`) is what the centre-clearance rung below is computed from,
@@ -543,9 +549,34 @@
 	color: var(--interactive-accent);
 	background: var(--background-modifier-hover);
 }
+/* A pinned pin chip is a PRESSED toggle (NoteNode sets `aria-pressed`): the raised
+ * chip's drop shadow is swapped for a press-into-the-page treatment — the pressed
+ * shadow above — plus a darker face and accent icon, because at 20px/14px the
+ * depth cue alone is too subtle to carry the state. The face is
+ * `active-hover`, NOT the `hover` modifier the `:hover` rule uses: an unpressed
+ * chip under the cursor also turns accent + `hover`, so sharing that face would
+ * leave the shadow — the "too subtle" cue — as the only pinned/unpinned tell at
+ * the exact moment the user is deciding whether to click. Declared AFTER `:hover`
+ * (equal specificity) so a pressed chip keeps this face under the cursor.
+ * rgba blacks/whites in the shadow rather than theme variables: Obsidian themes
+ * are arbitrary, so hand-picked same-hue shades (the part_6 ideal) are
+ * unavailable — low-alpha neutrals read as shading on any face color. */
+.vicinity-graph-node .vicinity-graph-node-chip[aria-pressed="true"] {
+	color: var(--interactive-accent);
+	background: var(--background-modifier-active-hover);
+	box-shadow: var(--vicinity-graph-node-chip-pressed-shadow);
+}
 .vicinity-graph-node .vicinity-graph-node-chip:focus-visible {
 	outline: none;
 	box-shadow: 0 0 0 2px var(--interactive-accent);
+}
+/* A focused PRESSED chip keeps its depth cue alongside the ring — otherwise the
+ * focus rule above (later, equal-specificity `box-shadow`) would strip the
+ * pressed treatment exactly for keyboard users. */
+.vicinity-graph-node .vicinity-graph-node-chip[aria-pressed="true"]:focus-visible {
+	box-shadow:
+		0 0 0 2px var(--interactive-accent),
+		var(--vicinity-graph-node-chip-pressed-shadow);
 }
 /* Inherits the chip's icon size (the property is declared unconditionally on the
  * chip above, so NO fallback here — a fallback could only ever name one rung's

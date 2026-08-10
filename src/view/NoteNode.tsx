@@ -206,12 +206,14 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
 				{offersLocalPin && (
 					<PinButton
 						action={localPinAction}
+						pressed={data.isLocallyPinned}
 						onActivate={runLocalPinAction}
 						variantClassName="vicinity-graph-local-pin-button"
 					/>
 				)}
 				<PinButton
 					action={pinAction}
+					pressed={data.isGloballyPinned}
 					onActivate={runPinAction}
 					variantClassName="vicinity-graph-pin-button"
 				/>
@@ -261,13 +263,20 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
  * chrome, hover reveal, icon — is the shared chip. Hidden until the node is hovered
  * (CSS), a `nodrag nopan` escape hatch so the click never starts a node drag or canvas
  * pan. Its click carries the same shared pin decision as the matching context entry.
+ *
+ * A TOGGLE, not a plain button: the glyph is the action's constant `chipIconId` and
+ * the pinned state is `aria-pressed` — CSS renders a pressed chip as pushed INTO the
+ * node (see `.vicinity-graph-node-chip[aria-pressed="true"]`), so hovering shows at
+ * a glance which pin kinds are engaged. The tooltip still carries the action copy.
  */
 function PinButton({
 	action,
+	pressed,
 	onActivate,
 	variantClassName,
 }: {
-	readonly action: { readonly title: string; readonly iconId: string };
+	readonly action: { readonly title: string; readonly chipIconId: string };
+	readonly pressed: boolean;
 	readonly onActivate: () => void;
 	readonly variantClassName: string;
 }): ReactElement {
@@ -275,9 +284,9 @@ function PinButton({
 	const iconRef = useRef<HTMLSpanElement>(null);
 	useEffect(() => {
 		if (iconRef.current !== null) {
-			ui.renderIcon(iconRef.current, action.iconId);
+			ui.renderIcon(iconRef.current, action.chipIconId);
 		}
-	}, [ui, action.iconId]);
+	}, [ui, action.chipIconId]);
 	const onClick = (event: ReactMouseEvent<HTMLButtonElement>): void => {
 		// The button must not double as a node click (which would open the note).
 		event.stopPropagation();
@@ -288,6 +297,7 @@ function PinButton({
 			type="button"
 			className={`vicinity-graph-node-chip ${variantClassName} nodrag nopan`}
 			aria-label={action.title}
+			aria-pressed={pressed}
 			title={action.title}
 			onClick={onClick}
 		>

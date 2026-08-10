@@ -30,9 +30,10 @@ class ResizeObserverStub {
 }
 (globalThis as { ResizeObserver?: unknown }).ResizeObserver ??= ResizeObserverStub;
 
-/** Records every node-menu request; every other UI service is inert. */
+/** Records every node-menu request and icon render; every other UI service is inert. */
 class RecordingGraphUi implements GraphUiPort {
 	readonly nodeMenuRequests: NodeMenuRequest[] = [];
+	readonly renderedIcons: { el: HTMLElement; iconId: string }[] = [];
 	resourcePath(): string | null {
 		return null;
 	}
@@ -40,7 +41,9 @@ class RecordingGraphUi implements GraphUiPort {
 	showNodeMenu(request: NodeMenuRequest): void {
 		this.nodeMenuRequests.push(request);
 	}
-	renderIcon(): void {}
+	renderIcon(el: HTMLElement, iconId: string): void {
+		this.renderedIcons.push({ el, iconId });
+	}
 	renderMarkdown(): Promise<void> {
 		return Promise.resolve();
 	}
@@ -378,5 +381,75 @@ describe("NoteNode local pin control", () => {
 		fireEvent.contextMenu(await mountedNode(result.container));
 		ui.nodeMenuRequests[0]?.entries.find((entry) => entry.title === "Pin for this note")?.onClick();
 		expect(actions.localPinnedPaths).toEqual([NODE_PATH]);
+	});
+});
+
+/** The last icon the ui rendered INSIDE the given chip (re-renders replace content, so last wins). */
+function chipIconId(ui: RecordingGraphUi, chip: HTMLElement | null): string | undefined {
+	if (chip === null) {
+		return undefined;
+	}
+	const inChip = ui.renderedIcons.filter((rendered) => chip.contains(rendered.el));
+	return inChip[inChip.length - 1]?.iconId;
+}
+
+/**
+ * The pressed-in pin chips (ticket nid_s88z29iparzxrtxhh6ooqfvrz_e): the chip is a
+ * TOGGLE — a constant glyph whose pinned state is the pressed treatment
+ * (`aria-pressed`, styled in graph-view.css), not an icon swap. The `*-off` action
+ * glyphs live only in the context menu, where entries are actions.
+ */
+describe("NoteNode pin chip pressed state", () => {
+	it("WHEN a node is not pinned in any way THEN both chips read unpressed", async () => {
+		const { result } = renderNoteNode(nodeData());
+		const node = await mountedNode(result.container);
+		expect({
+			global: node.querySelector("button.vicinity-graph-pin-button")?.getAttribute("aria-pressed"),
+			local: localPinButton(node)?.getAttribute("aria-pressed"),
+		}).toEqual({ global: "false", local: "false" });
+	});
+
+	it("WHEN a node is globally pinned THEN ONLY the global chip reads pressed", async () => {
+		const { result } = renderNoteNode(
+			nodeData({ isGloballyPinned: true, tier: "pinned-central", docid: "docid_a_e" }),
+		);
+		const node = await mountedNode(result.container);
+		expect({
+			global: node.querySelector("button.vicinity-graph-pin-button")?.getAttribute("aria-pressed"),
+			local: localPinButton(node)?.getAttribute("aria-pressed"),
+		}).toEqual({ global: "true", local: "false" });
+	});
+
+	it("WHEN a node is BOTH globally and locally pinned THEN both chips read pressed", async () => {
+		const { result } = renderNoteNode(
+			nodeData({ isGloballyPinned: true, isLocallyPinned: true, tier: "pinned-central", docid: "docid_a_e" }),
+		);
+		const node = await mountedNode(result.container);
+		expect({
+			global: node.querySelector("button.vicinity-graph-pin-button")?.getAttribute("aria-pressed"),
+			local: localPinButton(node)?.getAttribute("aria-pressed"),
+		}).toEqual({ global: "true", local: "true" });
+	});
+
+	it("WHEN a node is pinned THEN its chip STILL renders the constant glyph, not the *-off action icon", async () => {
+		const { ui, result } = renderNoteNode(
+			nodeData({ isGloballyPinned: true, isLocallyPinned: true, tier: "pinned-central", docid: "docid_a_e" }),
+		);
+		const node = await mountedNode(result.container);
+		expect({
+			global: chipIconId(ui, node.querySelector<HTMLElement>("button.vicinity-graph-pin-button")),
+			local: chipIconId(ui, localPinButton(node)),
+		}).toEqual({ global: "pin", local: "map-pin" });
+	});
+
+	it("WHEN a pinned node is right-clicked THEN the MENU still carries the *-off action icons (menus are actions)", async () => {
+		const { ui, result } = renderNoteNode(
+			nodeData({ isGloballyPinned: true, isLocallyPinned: true, tier: "pinned-central", docid: "docid_a_e" }),
+		);
+		fireEvent.contextMenu(await mountedNode(result.container));
+		expect(ui.nodeMenuRequests[0]?.entries.map((entry) => entry.iconId)).toEqual([
+			"pin-off",
+			"map-pin-off",
+		]);
 	});
 });
