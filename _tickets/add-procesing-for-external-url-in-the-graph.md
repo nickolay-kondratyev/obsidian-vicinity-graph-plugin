@@ -1,7 +1,7 @@
 ---
 id: nid_mw1az1i1aznfoxqsgcwnfus07_e
 title: Add procesing for external URL in the graph
-status: open
+status: punted
 deps: []
 links: []
 created_iso: '2026-08-04T16:55:26Z'

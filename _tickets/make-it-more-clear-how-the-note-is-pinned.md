@@ -12,4 +12,8 @@ assignee: nickolaykondratyev
 tags: []
 ---
 
+TASK: lets discuss the depth idea and see if it aligns with UX principles and the overall design.
+
 Think through how to visualize this (maybe try multiple different ways). Possible have the type of the pinned pin be visible even without hovering next to the note.
+
+I am thinking about adding DEPTH to the icons in the nodes. By adding depth (See /Users/nkondrat/vintrin-env/config/claude/ai_input/deeper/ui/part_6_creating_depth.md as one of the resources). By adding depth to the design we will be able to show that the button is pressed in when we show the pinned icon. And the user would have the easy signifier of seeing what is pressed in on the note when they hover over the note.
