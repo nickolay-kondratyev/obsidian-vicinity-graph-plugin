@@ -75,10 +75,12 @@ test.describe("per-file store: deleting a doc prunes its records", () => {
 
 		// THEN its own override record is gone…
 		await expect.poll(async () => (await harness.readNodeOverrides())[PF_TARGET_DOCID]).toBeUndefined();
-		// …its file is removed from disk…
-		expect(harness.listPerFileStoreFilenames()).not.toContain(`${PF_TARGET_DOCID}.json`);
-		// …and it no longer sits as a local-pin target under the surviving main.
-		expect(await harness.readLocalPins(PF_MAIN_DOCID)).toEqual([]);
+		// …its file is removed from disk (polled: the cache clears BEFORE the chained
+		// disk remove completes, so the override poll above does not cover the bytes)…
+		await expect.poll(() => harness.listPerFileStoreFilenames()).not.toContain(`${PF_TARGET_DOCID}.json`);
+		// …and it no longer sits as a local-pin target under the surviving main (polled:
+		// the main's prune is a LATER step of the same fire-and-forget forgetDocs).
+		await expect.poll(async () => harness.readLocalPins(PF_MAIN_DOCID)).toEqual([]);
 	});
 });
 

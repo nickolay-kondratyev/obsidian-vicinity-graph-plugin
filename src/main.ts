@@ -209,7 +209,16 @@ export default class VicinityGraphPlugin extends Plugin {
 				this.canvasParseCache.evict(oldPath);
 			}),
 		);
-		this.registerEvent(this.app.vault.on("delete", (file) => void this.handleVaultDelete(file.path)));
+		// Caught, not rethrown: the handler now spans vault file I/O (the per-file
+		// store), whose failure would otherwise surface as an unhandled rejection.
+		// The delayed orphan sweep re-derives and retries any prune that failed here.
+		this.registerEvent(
+			this.app.vault.on("delete", (file) =>
+				void this.handleVaultDelete(file.path).catch((error: unknown) => {
+					console.error("vicinity-graph: delete cleanup failed", error);
+				}),
+			),
+		);
 	}
 
 	/**
