@@ -2,7 +2,7 @@
 // `obsidian` package (types-only, no runtime) into the node-side test process, and
 // the shapes are safe to reference INSIDE `page.evaluate` callbacks (types never
 // serialize into the browser).
-import type { DepthSettings, NodeExclusionSettings, NodeOverride, NodePreviewPreference, ViewSettings } from "../src/engine";
+import type { DepthSettings, NodeContentOverride, NodeExclusionSettings, NodeOverride, ViewSettings } from "../src/engine";
 
 /**
  * The undocumented-but-stable Obsidian `window.app` surface the e2e harness drives,
@@ -74,7 +74,7 @@ export interface E2ePlugins {
 /** Change one field of a doc's override — mirrors `NodeOverrideChange` at the two call sites that use it. */
 export type E2eNodeOverrideFieldChange =
 	| { readonly field: "sizePx"; readonly value: { readonly widthPx: number; readonly heightPx: number } }
-	| { readonly field: "content"; readonly value: NodePreviewPreference };
+	| { readonly field: "content"; readonly value: NodeContentOverride };
 
 /** The `data.json`-backed global store (`pluginDataStore`): dials + the global pinned set. */
 export interface E2ePluginDataStore {

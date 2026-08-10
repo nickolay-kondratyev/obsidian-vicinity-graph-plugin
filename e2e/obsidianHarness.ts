@@ -13,7 +13,7 @@ import {
 } from "./vaultTarget";
 import type { DevVaultCopyTarget, LaunchOptions, VaultTarget } from "./vaultTarget";
 // Type-only, so it is erased at transpile — the pure engine barrel never loads in the node-side test process.
-import type { DepthSettings, NodeExclusionSettings, NodeOverride, NodePreviewPreference, ViewSettings } from "../src/engine";
+import type { DepthSettings, NodeContentOverride, NodeExclusionSettings, NodeOverride, NodePreviewPreference, ViewSettings } from "../src/engine";
 // The narrow, type-only view of Obsidian's undocumented `window.app`, so every
 // `page.evaluate` below is checked instead of calling through `any`. See its module doc.
 import type { E2eObsidianApp, E2eWorkspaceLeaf } from "./obsidianInternals";
@@ -455,7 +455,7 @@ export class ObsidianHarness {
 	 * proves the per-file store carries the OTHER override section too. Rebuild not
 	 * included (see {@link saveNodeSizeOverride}).
 	 */
-	async saveNodeContentOverride(docid: string, content: NodePreviewPreference): Promise<void> {
+	async saveNodeContentOverride(docid: string, content: NodeContentOverride): Promise<void> {
 		await this.page.evaluate(
 			async ({ pluginId, targetDocid, value }) => {
 				const store = (window as unknown as { app: E2eObsidianApp }).app.plugins.plugins[pluginId]!.perDocStore;
