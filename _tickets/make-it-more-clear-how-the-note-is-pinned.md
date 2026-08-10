@@ -3,7 +3,7 @@ id: nid_s88z29iparzxrtxhh6ooqfvrz_e
 title: make it more clear how the note is pinned,
 status: open
 deps: []
-links: []
+links: [nid_am38wsuka3mksh9atugg1e3x6_e]
 created_iso: '2026-08-07T21:21:27Z'
 status_updated_iso: '2026-08-10T19:10:31Z'
 type: task
@@ -58,6 +58,15 @@ so it cannot by itself satisfy "visible without hovering".
   in the context menu, where entries are actions).
 - **D — encode pin type in border style**: REJECTED (unlearnable; both-pinned needs a
   third style; combinatorial).
+
+### 2026-08-10 (later) — HUMAN INPUT: hover-to-discover is acceptable for now
+
+Scope narrows to **Option A (depth only, on hover)**: pressed-in pinned chips with
+constant glyphs, `aria-pressed`, action copy in the tooltip. The idle-visibility half
+(Options B/C — pinned chip visible as an accent badge without hover) is DEFERRED to a
+follow-up ticket (see links). Remaining confirmation before implementing, in
+`.out/current_decision.md`: (1) Option A as scoped, (2) alignment to update the two
+`NoteNode.component.test.tsx` expectations that assert the `*-off` chip icons.
 
 ### Implementation notes for whoever picks this up (after the decision)
 
