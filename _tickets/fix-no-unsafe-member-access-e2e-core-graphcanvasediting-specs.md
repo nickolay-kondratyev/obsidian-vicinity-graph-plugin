@@ -39,3 +39,9 @@ Verification:
 - `npm run check` (tsc src + e2e): clean.
 - `npm run test:e2e` for the four affected specs: 42 passed.
 
+
+## Notes
+
+**2026-08-10T23:45:07Z**
+
+__READY_AS_IS__: Clean type-safety refactor; tsc check + e2e harness guards pass; target specs free of no-unsafe-member-access.
