@@ -51,7 +51,7 @@ The version must match in **three** files before tagging:
 
 Bump procedure: edit all three, ensure `versions.json` maps the new version to the
 correct `minAppVersion`, commit, then tag (see §6). Current state: all three agree
-at **0.1.0** with `minAppVersion` **1.12.4**.
+at **0.1.1** with `minAppVersion` **1.12.4**.
 
 ## 4. `manifest.json` field correctness
 
@@ -61,14 +61,16 @@ All seven required Obsidian fields are present and current:
       `obsidian-` prefix, so the prior `obsidian-`-prefixed id was dropped during
       the vicinity rename. Since the plugin has no released users yet, retiring the
       old id is safe.
-- [ ] `name` = `Vicinity Graph`
-- [ ] `version` = matches §3
-- [ ] `minAppVersion` = `1.12.4` (floor; rationale in README)
-- [ ] `description` present and accurate
-- [ ] `author` = `Nickolay Kondratyev`
-- [ ] `isDesktopOnly` = `false` — no Node-only APIs are used, but mobile is
-      **untested**. Either verify on mobile before claiming mobile support, or flip
-      to `true` if mobile is not a V1 target.
+- [x] `name` = `Vicinity Graph`
+- [x] `version` = matches §3
+- [x] `minAppVersion` = `1.12.4` (floor; rationale in README)
+- [x] `description` present and accurate — **DONE:** reworded to drop the word
+      "Obsidian" per review guidance (no "Obsidian"/"plugin" in metadata). Kept
+      matching in `package.json`.
+- [x] `author` = `Nickolay Kondratyev`
+- [x] `isDesktopOnly` = `true` — **DECIDED (V1):** no Node-only APIs are used, but
+      mobile is **untested**, so we claim desktop-only rather than assert unverified
+      mobile support. Revisit (flip to `false`) only after a real mobile smoke pass.
 
 Optional fields not set (fine for V1): `authorUrl`, `fundingUrl`.
 
@@ -76,7 +78,7 @@ Optional fields not set (fine for V1): `authorUrl`, `fundingUrl`.
 
 - [ ] Shape is a flat `{ "<pluginVersion>": "<minAppVersion>" }` map (Obsidian
       uses it to serve the right plugin build to older apps). Current:
-      `{ "0.1.0": "1.12.4" }` — correct.
+      `{ "0.1.0": "1.12.4", "0.1.1": "1.12.4" }` — correct.
 
 ## 6. GitHub Release (manual)
 
