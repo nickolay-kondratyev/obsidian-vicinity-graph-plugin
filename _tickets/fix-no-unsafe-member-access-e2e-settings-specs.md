@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-10T23:47:43Z
-session_ids: [{a: claude, type: execution, id: b59d6357-01b2-435a-a195-dfe7d759c4e6}]
+session_ids: [{a: claude, type: execution, id: b59d6357-01b2-435a-a195-dfe7d759c4e6}, {a: claude, type: review, id: f8ab9321-a710-4dd2-bcbc-6205407b5e31}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_weo2x5v4mks9ge9bf642u0hg4_e
 title: "fix no-unsafe-member-access: e2e settings specs"
