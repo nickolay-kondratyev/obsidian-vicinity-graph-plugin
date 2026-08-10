@@ -1,6 +1,19 @@
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import { ObsidianHarness } from "./obsidianHarness";
+import type { E2eObsidianApp, E2eOpenState, E2eWorkspace, E2eWorkspaceLeaf } from "./obsidianInternals";
+
+/**
+ * The `window`-scoped scratch space the navigation spies write to. Typed here (types
+ * erase, so referencing it inside a `page.evaluate` callback is legal) so the spy
+ * wrappers narrow the recorded originals back to real function types instead of `any`.
+ */
+interface NavigationSpyStore {
+	__vgLinktexts?: string[];
+	__vgLeafOpens?: string[];
+	__vgOriginalOpenLinkText?: E2eWorkspace["openLinkText"];
+	__vgOriginalLeafOpenFile?: E2eWorkspaceLeaf["openFile"];
+}
 
 /**
  * Release-time e2e for the in-node markdown outline. Everything here is DOM or
@@ -137,7 +150,7 @@ test("headings deeper than the default outline depth are not rendered", async ()
 // --- E2 / E3: clicking an entry opens the note AT that heading -----------------
 
 const activeFilePath = () =>
-	page.evaluate(() => (window as unknown as { app: any }).app.workspace.getActiveFile()?.path);
+	page.evaluate(() => (window as unknown as { app: E2eObsidianApp }).app.workspace.getActiveFile()?.path);
 
 /**
  * Records BOTH navigation paths the plugin can take, delegating to the real
@@ -157,13 +170,8 @@ const activeFilePath = () =>
  */
 async function recordNavigationFromNow(): Promise<void> {
 	await page.evaluate(() => {
-		const app = (window as unknown as { app: any }).app;
-		const store = window as unknown as {
-			__vgLinktexts?: string[];
-			__vgLeafOpens?: string[];
-			__vgOriginalOpenLinkText?: unknown;
-			__vgOriginalLeafOpenFile?: unknown;
-		};
+		const app = (window as unknown as { app: E2eObsidianApp }).app;
+		const store = window as unknown as NavigationSpyStore;
 		store.__vgLinktexts = [];
 		store.__vgLeafOpens = [];
 		if (store.__vgOriginalOpenLinkText === undefined) {
@@ -177,10 +185,10 @@ async function recordNavigationFromNow(): Promise<void> {
 		if (store.__vgOriginalLeafOpenFile === undefined) {
 			// Prototype-level: leaves are created per navigation, so wrapping one
 			// instance would miss the very call we are looking for.
-			const leafPrototype = Object.getPrototypeOf(app.workspace.getLeaf(false));
+			const leafPrototype = Object.getPrototypeOf(app.workspace.getLeaf(false)) as Pick<E2eWorkspaceLeaf, "openFile">;
 			const originalOpenFile = leafPrototype.openFile;
 			store.__vgOriginalLeafOpenFile = originalOpenFile;
-			leafPrototype.openFile = function (file: any, openState?: any) {
+			leafPrototype.openFile = function (this: E2eWorkspaceLeaf, file, openState?: E2eOpenState) {
 				// `#` + the subpath Obsidian derived, or nothing at all for a plain
 				// "open this note" — which is exactly what distinguishes the two paths.
 				store.__vgLeafOpens?.push(`${file?.path ?? "?"}${openState?.eState?.subpath ?? ""}`);
@@ -192,14 +200,15 @@ async function recordNavigationFromNow(): Promise<void> {
 
 async function restoreNavigationSpies(): Promise<void> {
 	await page.evaluate(() => {
-		const app = (window as unknown as { app: any }).app;
-		const store = window as unknown as { __vgOriginalOpenLinkText?: any; __vgOriginalLeafOpenFile?: any };
+		const app = (window as unknown as { app: E2eObsidianApp }).app;
+		const store = window as unknown as NavigationSpyStore;
 		if (store.__vgOriginalOpenLinkText !== undefined) {
 			app.workspace.openLinkText = store.__vgOriginalOpenLinkText;
 			store.__vgOriginalOpenLinkText = undefined;
 		}
 		if (store.__vgOriginalLeafOpenFile !== undefined) {
-			Object.getPrototypeOf(app.workspace.getLeaf(false)).openFile = store.__vgOriginalLeafOpenFile;
+			const leafPrototype = Object.getPrototypeOf(app.workspace.getLeaf(false)) as Pick<E2eWorkspaceLeaf, "openFile">;
+			leafPrototype.openFile = store.__vgOriginalLeafOpenFile;
 			store.__vgOriginalLeafOpenFile = undefined;
 		}
 	});
