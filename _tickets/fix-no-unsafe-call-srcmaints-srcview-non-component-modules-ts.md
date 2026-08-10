@@ -1,12 +1,13 @@
 ---
+closed_iso: 2026-08-10T22:32:01Z
 id: nid_j1zgoruaddxyhykf2maxsnzqn_e
 title: 'fix no-unsafe-call: src/main.ts + src/view non-component modules (.ts)'
-status: in_progress
+status: closed
 deps: []
 links: [nid_f7vkm00ahrak377r5dqpiyy9v_e, nid_db5s4uypdiesrk6oi8nms46wv_e, nid_khnm364awuizz6cmr2pxxjkpk_e,
   nid_wv95rkafrcxn9by7t5ng95dvn_e]
 created_iso: '2026-08-10T22:23:32Z'
-status_updated_iso: '2026-08-10T22:27:24Z'
+status_updated_iso: 2026-08-10T22:32:01Z
 type: chore
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
@@ -45,3 +46,52 @@ src/view/rowRenderingSource.ts
 src/view/useOptimisticValue.ts
 
 Scope: plugin entry (src/main.ts) + non-JSX src/view modules. Likely trips via dynamic loaders (libavoidLoader.ts, ElkLayoutRunner.ts / elkjs, d3-force), and Obsidian API bridges (Obsidian* adapters, SettingTab). Type the external module surfaces at the loader seam. Respect CLAUDE.md layering.
+
+## Resolution (2026-08-10) — no code changes required
+
+**Outcome: closed as already-clean.** With a reproducible, correctly-typed lint
+signal, all 15 files in this group have **zero** `@typescript-eslint/no-unsafe-call`
+violations. No source edits were made (working tree unchanged; `npm run check`
+green).
+
+### How the signal was reproduced (option (b) from the Background)
+No ESLint config is committed, so typescript-eslint was installed transiently
+(`npm install --no-save eslint@9 typescript-eslint@8`, node_modules is gitignored)
+and run against the group with a throwaway flat config in `.tmp/` (also gitignored):
+
+- Preset: `tseslint.configs.recommendedTypeChecked` (which enables `no-unsafe-call`),
+  `parserOptions.projectService: true` so real TS type info is engaged.
+- Also re-verified under `strictTypeChecked`.
+- Confirmed type info was genuinely active: other type-checked rules fired in the
+  same run (`no-misused-promises`, `no-unused-vars`), and `no-unsafe-call` requires
+  type info to report at all.
+
+### Findings
+- Group files (all 15): **0** `no-unsafe-call` under both `recommended-type-checked`
+  and `strict-type-checked`.
+- Whole-`src` scan surfaced only **2** `no-unsafe-call`, both in test files OUTSIDE
+  this group: `src/view/GraphViewController.test.ts` and
+  `src/view/VicinityGraphFlow.component.test.tsx` — belong to the sibling
+  test/component tickets, not this one.
+
+### Why the group is clean
+The "likely trips" all resolve to real types in this repo, so no invoked value is
+`any`:
+- `libavoidLoader.ts` — `libavoid-js` ships declarations; `AvoidLib.getInstance()`
+  is typed, then narrowed via `as unknown as Avoid`.
+- `ElkLayoutRunner.ts` / `elkMapping.ts` — `elkjs` default export + `ElkNode` typed.
+- `d3ForceRefinement.ts` — `d3-force` imports (`forceSimulation`, `forceManyBody`,
+  …) are typed.
+- Obsidian bridges + `VicinityGraphSettingTab.ts` — `obsidian` and
+  `stable-ids-for-obsidian` type declarations are installed and resolve, so API
+  calls are not `any`.
+
+The original out-of-repo finding was almost certainly produced against a state
+before external type declarations resolved (e.g. pre `obsidian-id-lib →
+stable-ids-for-obsidian` migration, commit 9e1ad51) or with types absent, which
+would degrade those seams to `any`. Against the current typed sources it does not
+reproduce.
+
+No `// eslint-disable` was added; nothing was silenced. If/when the ESLint-adoption
+ticket lands a committed flat config + `npm run lint`, this group should stay green
+with no per-file work.
