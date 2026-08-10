@@ -70,3 +70,15 @@ test("a short single-word title renders on one line, not broken onto a second", 
 
 	expect(await renderedTitleLineCount(title)).toBe(1);
 });
+
+test("the same short title stays on one line as the MAIN node's bolder rendering", async () => {
+	// The MAIN tier renders its title at `--font-semibold` (graph-view.css) —
+	// wider glyphs against the SAME char-count width estimate, so the ticket's
+	// wrap can recur there even when the regular-tier fit above holds.
+	await harness.openFile(SHORT_TARGET_PATH);
+	const title = titleOf(SHORT_TARGET_PATH);
+	await expect(noteNode(SHORT_TARGET_PATH)).toHaveAttribute("data-tier", "main");
+	await expect(title).toHaveText(SHORT_TARGET_TITLE);
+
+	expect(await renderedTitleLineCount(title)).toBe(1);
+});
