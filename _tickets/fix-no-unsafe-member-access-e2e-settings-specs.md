@@ -1,4 +1,5 @@
 ---
+session_ids: [{a: claude, type: execution, id: b59d6357-01b2-435a-a195-dfe7d759c4e6}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_weo2x5v4mks9ge9bf642u0hg4_e
 title: "fix no-unsafe-member-access: e2e settings specs"
