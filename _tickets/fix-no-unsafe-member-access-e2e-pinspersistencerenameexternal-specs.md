@@ -31,3 +31,9 @@ Fix — typed the seam rather than disabling the rule:
 Left in place: the pre-existing `no-console` error on the `[observed]` log line — a different rule, deliberately kept and out of this ticket's scope.
 
 Verification: `npx eslint` across all six files → 0 `no-unsafe-member-access`; `npm run check` (tsc strict, src + e2e) green; `npm run test:e2e -- referenceProvenance.e2e.ts` → 4/4 passing.
+
+## Notes
+
+**2026-08-10T23:23:52Z**
+
+__READY_AS_IS__: focused lint fix; 0 no-unsafe-member-access remain across all 6 files, npm run check green, seam typed via import type (erased), guards throw not weaken. No changes needed.
