@@ -41,3 +41,9 @@ The five files do still carry other, unrelated lint findings (no-console,
 prefer-create-el, no-unused-vars, unbound-method) that belong to their own
 per-rule fix tickets, not this `no-unsafe-member-access` group.
 
+
+## Notes
+
+**2026-08-10T23:49:11Z**
+
+__READY_AS_IS__: no source changes; verified the five e2e files carry 0 no-unsafe-member-access warnings with the rule confirmed enabled (2 out-of-scope hits remain in component.test.tsx). Resolution note is accurate.
