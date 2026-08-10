@@ -35,6 +35,22 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   call the live `vault.on('delete')` handler also uses (its read-side twin,
   `docIdKeyedDocids()`, is what the warm-up asks for). Every persisted shape
   carries a `version` field.
+  `VaultFileStore` (`VaultFileStore.ts`) is a SECOND, domain-agnostic store — a
+  `<relPath> ↔ parsed payload` tree of versioned JSON files under the VAULT ROOT
+  (`.plugin_data/vicinity_graph/`, NOT `.obsidian/`), so it syncs as vault
+  content. It sits on `VaultFsPort` (`vaultFsPort.ts`; real `VaultAdapterFsPort`
+  wraps `vault.adapter`, `FakeVaultFsPort` for tests) the way `PluginDataStore`
+  sits on `PluginDataPort`. Every file is a `{ "v1": <payload> }` envelope
+  (dispatch on WHICH `vN` key, so a future non-additive shape is TOLD APART, not
+  guessed); writes are atomic (`.tmp` sibling → rename over target) and
+  keys-sorted (diff-stable for hand merges); per-relPath write serialisation
+  (`Map<relPath, SerialPromiseChain>`) so same-key writes never interleave while
+  different keys write in parallel. An unreadable file (conflict markers,
+  truncation, unknown version key) is QUARANTINED — renamed to
+  `<base>_malformed_<ts><ext>` (injected `clock` → `quarantineTimestamp.ts`,
+  collision-safe `_2`…), the user is told ONCE via `UserNoticePort`, and the
+  entry reads as ABSENT. Never deletes the user's bytes. Constructed inert in
+  `main.ts`; the domain data (per-doc facts) moves onto it in a dependent ticket.
 - **`src/view/`** — React 18 mounted in an Obsidian `ItemView`. Rendering,
   toolbar controls, layout. `GraphViewController.ts` owns the rebuild pipeline
   `events → engine → structural diff → layout → React Flow` and is the **only**
@@ -145,8 +161,9 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   `engine/settingsProductDefaults.test.ts` is the ONE place literal defaults/ranges
   may be written — an id-keyed table over every spec leaf, so a moved default, a new
   leaf and a deleted leaf all fail there and nowhere else.
-- `persistence/storagePorts.ts`, `adapters/obsidianPorts.ts` — testable seams,
-  each with a `Fake*` implementation used by unit tests.
+- `persistence/storagePorts.ts`, `persistence/vaultFsPort.ts`,
+  `adapters/obsidianPorts.ts` — testable seams, each with a `Fake*`
+  implementation used by unit tests.
 
 ## Layout stack (`src/view/`)
 

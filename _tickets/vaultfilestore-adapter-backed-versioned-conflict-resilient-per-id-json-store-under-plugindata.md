@@ -1,12 +1,13 @@
 ---
+closed_iso: 2026-08-10T17:44:16Z
 id: nid_cdoymzgq5kjh5d10q1tkavnsy_e
 title: 'VaultFileStore: adapter-backed, versioned, conflict-resilient per-id JSON
   store under .plugin_data/'
-status: in_progress
+status: closed
 deps: []
 links: [nid_vb246h5pr4609hid76ts1ufe5_e, nid_8f8ey41extajt08zphwwxhnwq_e]
 created_iso: '2026-08-10T03:20:52Z'
-status_updated_iso: '2026-08-10T17:35:35Z'
+status_updated_iso: 2026-08-10T17:44:16Z
 type: feature
 priority: 1
 assignee: nickolaykondratyev
@@ -203,3 +204,54 @@ ticket B). Run `npm run check` (strict tsc) too.
 - Moving any real data (pins/overrides/localPins) onto the store.
 - The lazy per-file read path, the per-file record shape, the delete/orphan-sweep
   cross-file pruning, and the localPins reverse-index. All of that is ticket B.
+
+# Resolution (2026-08-10) — DONE
+
+Primitive + tests landed; nothing user-visible changes. All gates green:
+`npm run check` (strict tsc for src + e2e), `npm test` (1816 pass, incl. 23 new),
+`npm run build`. No e2e for this ticket (persistence only, no view/DOM surface) —
+as the ticket specified.
+
+## Files added (`src/persistence/`)
+
+- **`vaultFsPort.ts`** — `VaultFsPort` (the narrow FS seam: `exists/read/write/
+  remove/rename/mkdir/list`) + `VaultAdapterFsPort`, the real thin wrapper over a
+  structural `VaultDataAdapterSlice` (obsidian-free; the real `vault.adapter`
+  satisfies it bivariantly). `mkdir` is made idempotent there (guards on `exists`)
+  since Obsidian's adapter `mkdir` rejects on an existing dir on some platforms.
+- **`FakeVaultFsPort.ts`** — in-memory `path→string` map with matching semantics
+  (immediate-child `list`, absent-`read` rejects, `rename` moves the key, implicit
+  directories). The workhorse for unit tests (conflict-marker files, etc.).
+- **`quarantineTimestamp.ts`** — pure `formatQuarantineTimestamp(epochMs)` →
+  `YYYY-MM-DDTHH-mm-ss`, UTC (deterministic across timezones), no colons.
+- **`VaultFileStore.ts`** — the store: `read/write/remove/exists/listKeys`.
+  Envelope `{ "v1": payload }`, `CURRENT_VERSION_KEY`/`SUPPORTED_VERSION_KEYS`
+  constants; read dispatches on the present `vN` key, unknown/malformed →
+  quarantine + `null`. Atomic write (`.tmp` sibling → remove-if-exists → rename;
+  WHY-NOT direct overwrite documented: platform adapters disagree on rename
+  overwrite). Keys sorted on serialise for diff-stable merges. Per-relPath
+  `SerialPromiseChain` map (same-key writes ordered, different keys parallel).
+  Quarantine renames to `<base>_malformed_<ts><ext>` sibling, collision-safe
+  `_2/_3/…`, ONE `UserNoticePort` notice + `console.warn`, never deletes bytes.
+- Tests: **`VaultFileStore.test.ts`** (20 BDD cases incl. race/interleave probes
+  via a Recording port and cross-key parallelism via a Blockable port) and
+  **`quarantineTimestamp.test.ts`** (3 cases).
+
+## Wiring
+
+- `src/main.ts`: `VAULT_FILE_STORE_ROOT = ".plugin_data/vicinity_graph"` constant;
+  `this.vaultFileStore` constructed in `onload` next to `PluginDataStore` with
+  `new VaultAdapterFsPort(this.app.vault.adapter)`, `Date.now`, and the existing
+  `this.notices`. INERT — nothing writes to it yet (ticket B moves data on).
+- `docs-internal/architecture-map.md`: `src/persistence/` section + seams list
+  updated with the primitive, envelope, atomic-write, quarantine behaviour.
+
+## Notes for ticket B (the domain rewiring)
+
+- `.gitignore` needed NO change: the tree lives at the VAULT ROOT (outside the
+  plugin-dir checkout), and `.dev-vault/` is already fully ignored.
+- `VaultFileStore` imports `UserNoticePort` as a TYPE from `../view/viewPorts`
+  (per this ticket's guardrail to reuse that port) — type-only, no cycle, no
+  runtime coupling; the full suite's layering guards pass.
+- `listKeys(subDir)` returns relPath keys (e.g. `per_file/<id>.json`) ready to
+  hand back to `read`, excluding `*_malformed_*` and `*.tmp` siblings.
