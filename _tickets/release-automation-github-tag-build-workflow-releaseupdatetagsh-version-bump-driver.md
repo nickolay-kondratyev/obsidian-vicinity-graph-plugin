@@ -1,12 +1,13 @@
 ---
+closed_iso: 2026-08-10T18:55:53Z
 id: nid_ryf59psd6sj5rsj7pha7zc7yk_e
 title: 'Release automation: GitHub tag-build workflow + release_update_tag.sh version-bump
   driver'
-status: in_progress
+status: closed
 deps: []
 links: [nid_o9hmeo92x5dkmtz5lfzr5jk0s_e]
 created_iso: '2026-08-10T16:38:33Z'
-status_updated_iso: '2026-08-10T18:49:52Z'
+status_updated_iso: 2026-08-10T18:55:53Z
 type: task
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
@@ -43,3 +44,50 @@ Current /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity
 - `git grep -n "release.sh"` returns only intended historical references (ideally none in docs).
 - Version bump helper edits all three files atomically and keeps tab indentation.
 - Add a change_log entry after completion.
+
+== RESOLUTION (2026-08-10) — DONE ==
+Decisions Q1–Q4 implemented at their documented defaults (`.out/current_decision.md`):
+Q1 push, Q2 full floor+pinned matrix, Q3 DRAFT release, Q4 headless gates only in CI.
+Q5/Q6 (description wording, isDesktopOnly) were out of scope here and already
+resolved in `manifest.json` (`isDesktopOnly: true`, "Obsidian" dropped from description).
+
+PART A — `.github/workflows/release.yml` (new): triggers `on: push: tags: ["*"]`,
+`permissions: contents: write`, runs on ubuntu-latest with `actions/checkout@v4` +
+`actions/setup-node@v4` (Node 20, npm cache) → `npm ci` → `npm run check` →
+`npm test` → `npm run build`, then `softprops/action-gh-release@v2` with
+`draft: true`, `tag_name/name: ${{ github.ref_name }}`, and `files:` = raw
+`manifest.json`, `main.js`, `styles.css`. No e2e in CI (Q4). Header comment
+documents WHAT/WHY and the WHY-NOT-e2e rationale.
+
+PART B — `release.sh` → `release_update_tag.sh` (git mv, still executable) extended:
+  1. Preflight (cheapest first): resolve default branch via
+     `git symbolic-ref refs/remotes/origin/HEAD`; refuse unless on it; refuse on a
+     dirty tree (`git status --porcelain`); `git fetch` then refuse if ahead/behind
+     via `git rev-list --left-right --count HEAD...origin/<default>`. Actionable
+     POLS refusals.
+  2. Existing OBSIDIAN_PATH guard + the verbatim two-version e2e matrix (both arms,
+     per-version summary). A red matrix exits before any bump/commit/push.
+  3. On green: `scripts/bump-version.py` (new helper) revs the PATCH version.
+  4. Commit the three-file bump; annotated tag = raw version (no `v`).
+  5. Print exactly what will be pushed, then `git push origin <default>` +
+     `git push origin refs/tags/<version>` (fires PART A).
+Header comment rewritten to describe the driver's full responsibility.
+
+`scripts/bump-version.py` (new): reads package.json version, asserts manifest.json
+agrees (refuses on drift), computes patch+1, edits package.json + manifest.json via
+targeted regex (byte-preserving, tabs intact) and rebuilds versions.json from its
+parsed map with `json.dumps(indent="\t")` adding `"<new>": "<minAppVersion>"`.
+Prints ONLY the new version on stdout. Verified on throwaway copies: tabs preserved,
+diffs limited to the single version line + one new versions.json entry.
+
+Docs updated in agreement: CLAUDE.md two-version-matrix paragraph, README.md
+commands table + release-matrix section, RELEASE_CHECKLIST.md (intro,
+§1, §3 bump procedure, §6 rewritten to the tag-triggered DRAFT flow, out-of-scope
+bullet). e2e/obsidianVersionKnob.test.ts guard block renamed to
+`release_update_tag.sh`. `git grep release.sh` now hits only `_tickets/` +
+`_change_log/` history.
+
+Gates run: `npm run check` (exit 0), `npm test` (1817 passed), guard suite
+(10 passed), `bash -n`, `py_compile`. The e2e matrix + the live push path were NOT
+executed here (needs a display; script refuses off the default branch by design) —
+run `./release_update_tag.sh` from a clean, synced `main` to actually cut a release.

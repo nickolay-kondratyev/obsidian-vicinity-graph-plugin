@@ -75,13 +75,14 @@ describe("scripts/run-e2e-floor.sh", () => {
 	});
 });
 
-describe("release.sh", () => {
-	const releaseScript = readRepoFile("release.sh");
+describe("release_update_tag.sh", () => {
+	const releaseScript = readRepoFile("release_update_tag.sh");
 
 	/**
-	 * release.sh is the pre-publish gate that makes the floor+pinned pair a matrix.
-	 * Its whole reason to exist is running BOTH builds, so guard that it invokes each
-	 * arm — a silent drop of either would turn a "two-version gate" back into one.
+	 * release_update_tag.sh is the release driver whose test gate makes the
+	 * floor+pinned pair a matrix (before it bumps + tags). Running BOTH builds is
+	 * the whole point of that gate, so guard that it invokes each arm — a silent
+	 * drop of either would turn a "two-version gate" back into one.
 	 */
 	it("WHEN read THEN it runs the pinned-default e2e arm", () => {
 		// Match the pinned INVOCATION, not a bare `npm run test:e2e`: that bare

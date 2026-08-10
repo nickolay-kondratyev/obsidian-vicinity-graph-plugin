@@ -5,11 +5,15 @@ Obsidian community-plugin *artifact* requirements. **Actual community-store
 submission is OUT OF SCOPE** and deferred — a repo move + plugin rename ("vicinity
 graph") is planned for a later round, so store listing waits until after that.
 
-There is no release automation yet; every step below is **manual.**
+Release automation now exists: `./release_update_tag.sh` runs the green gates and,
+if they pass, bumps the version, tags, and pushes; the pushed tag fires
+`.github/workflows/release.yml`, which builds a **DRAFT** GitHub Release with the
+raw assets. §3 and §6 describe those two halves; the human still reviews and
+publishes the draft, and the manual re-verify below is not automated.
 
 ## 1. Green gates (must all pass)
 
-(`./release.sh` is the pre-publish gate: it runs `check` → `npm test` → the e2e
+(`./release_update_tag.sh` runs these gates as its first phase: `check` → `npm test` → the e2e
 suite on BOTH shipped Obsidian builds — the pinned default AND the manifest floor —
 running both e2e arms even if the first fails and printing a per-version pass/fail
 matrix. That is the two-version coverage a release needs, in one command. It covers
@@ -22,7 +26,7 @@ reporting the full matrix.)
 - [ ] `npm run check` — strict `tsc -noEmit`, EXIT 0.
 - [ ] `npm test` — vitest suite, 0 failures.
 - [ ] `npm run build` — production bundle to `main.js` + `styles.css`, EXIT 0.
-- [ ] `./release.sh` — real-Obsidian Playwright gate on BOTH shipped builds (pinned
+- [ ] `./release_update_tag.sh` — real-Obsidian Playwright gate on BOTH shipped builds (pinned
       + manifest floor). Run in a display-capable env before release (auto-provisions
       each Obsidian binary on Linux/CI). Both arms must be green — see the per-version
       summary it prints. A floor-only red that is version-dependent Obsidian chrome
@@ -49,9 +53,13 @@ The version must match in **three** files before tagging:
 - [ ] `manifest.json` → `version`
 - [ ] `versions.json` → contains a `"<version>": "<minAppVersion>"` entry
 
-Bump procedure: edit all three, ensure `versions.json` maps the new version to the
-correct `minAppVersion`, commit, then tag (see §6). Current state: all three agree
-at **0.1.1** with `minAppVersion` **1.12.4**.
+Bump procedure: **`./release_update_tag.sh` does this for you** — once its gates are
+green it runs `scripts/bump-version.py`, which revs the PATCH version and updates
+all three files coherently (preserving their tab indentation: `package.json` +
+`manifest.json` `version`, and a new `versions.json` entry mapping the new version
+to `minAppVersion`), then commits and tags (see §6). To do it by hand, edit all
+three the same way, then commit and tag. Current state: all three agree at
+**0.1.1** with `minAppVersion` **1.12.4**.
 
 ## 4. `manifest.json` field correctness
 
@@ -80,17 +88,28 @@ Optional fields not set (fine for V1): `authorUrl`, `fundingUrl`.
       uses it to serve the right plugin build to older apps). Current:
       `{ "0.1.0": "1.12.4", "0.1.1": "1.12.4" }` — correct.
 
-## 6. GitHub Release (manual)
+## 6. GitHub Release (tag-triggered, DRAFT)
 
 `main.js` and `styles.css` are gitignored build outputs, so they only exist after
-`npm run build`. There is **no `gh release create` automation** — do this by hand:
+`npm run build`. This is now **automated**: pushing a tag whose name is the raw
+version fires `.github/workflows/release.yml`, which builds the bundle in CI and
+cuts a DRAFT release with the raw assets. `./release_update_tag.sh` creates and
+pushes exactly that tag (§3), so the normal path is: run the driver, then review +
+publish the draft. The flow:
 
-- [ ] `npm run build` to regenerate `main.js` + `styles.css`.
-- [ ] Create a GitHub Release whose **tag exactly equals the manifest `version`**
-      (no `v` prefix — Obsidian matches the raw version string).
-- [ ] Attach **`manifest.json`, `main.js`, and `styles.css`** as **raw release
-      assets** (not only inside the source zip — Obsidian/BRAT fetch the raw
-      files).
+- [ ] `./release_update_tag.sh` — on a green matrix it PATCH-bumps + commits +
+      tags the raw version (no `v` prefix — Obsidian matches the raw string) and
+      pushes the tag.
+- [ ] The tag workflow runs `npm ci` → `check` → `npm test` → `npm run build`, then
+      creates a **DRAFT** GitHub Release named for the tag, attaching
+      **`manifest.json`, `main.js`, and `styles.css`** as **raw release assets**
+      (not only inside the source zip — Obsidian/BRAT fetch the raw files).
+- [ ] Review the draft release and **publish it by hand** — nothing goes public on
+      the tag push alone.
+
+To cut a release entirely by hand instead: `npm run build`, then
+`gh release create <version> --draft manifest.json main.js styles.css` (tag ==
+manifest `version`, no `v` prefix).
 
 ## 7. Release notes — stored-data breaks and behaviour shifts
 
@@ -149,4 +168,6 @@ they ship, then drop them.
 
 - Community-store submission PR to `obsidianmd/obsidian-releases`.
 - Plugin id/name rename ("vicinity graph") and repository move.
-- Release automation (a `gh release`-cutting script/CI).
+
+(Release automation — the tag-triggered draft-release workflow + the
+`release_update_tag.sh` bump/tag driver — now EXISTS; see §3 and §6.)

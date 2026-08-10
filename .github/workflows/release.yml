@@ -1,0 +1,63 @@
+# Tag-triggered release build for the Vicinity Graph plugin.
+#
+# WHAT fires it: pushing a tag whose name is the RAW plugin version (no `v`
+# prefix) — exactly what `release_update_tag.sh` creates. Obsidian/BRAT match that
+# raw string, so the tag name and `manifest.json` version must be identical.
+#
+# WHAT it does: fast, headless gates (`check` + `npm test`) → production build →
+# a DRAFT GitHub Release for the pushed tag with the THREE raw assets Obsidian
+# fetches directly (`manifest.json`, `main.js`, `styles.css`) — not just inside the
+# source zip. See docs-internal/RELEASE_CHECKLIST.md §6.
+#
+# WHY-NOT the Playwright e2e matrix here: it needs a real Obsidian download + a
+# display and is the LOCAL release gate (`release_update_tag.sh`, run before the
+# tag is ever pushed). CI is the build/publish step, not the e2e authority.
+#
+# WHY a DRAFT: a human reviews the assets and clicks publish — nothing goes public
+# on a tag push alone.
+name: Release
+
+on:
+  push:
+    tags:
+      - "*"
+
+# The draft-release step needs write access to create the release for the tag.
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check (src + e2e)
+        run: npm run check
+
+      - name: Unit + integration tests
+        run: npm test
+
+      - name: Production build (main.js + styles.css)
+        run: npm run build
+
+      - name: Create draft GitHub Release with raw assets
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          files: |
+            manifest.json
+            main.js
+            styles.css
