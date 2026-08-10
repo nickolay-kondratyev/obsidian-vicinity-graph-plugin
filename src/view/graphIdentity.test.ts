@@ -3,7 +3,7 @@ import { NODE_MAX_LABEL_WIDTH_PX, estimateNodeLabelWidthPx } from "../engine";
 import { nodeDimensionsPx, sameNodeSizeOverridePx } from "./graphIdentity";
 import { makeNode } from "./testFixtures/graphFixtures";
 
-// 15 chars: the snug single-line estimate (15*7 + 20 = 125px) lands strictly
+// 15 chars: the single-line estimate (15*8 + 20 = 140px) lands strictly
 // between the content-fit square floor (40px) and the cap — the "medium" case.
 const MEDIUM_TITLE = "medium-title-xx";
 // Long enough that the snug estimate blows past NODE_MAX_LABEL_WIDTH_PX, so the

@@ -173,15 +173,20 @@ export const ATTACHMENT_ROW_VISIBLE_MIN_NODE_PX = revealMinNodePx(ATTACHMENT_ROW
 // ---------------------------------------------------------------------------
 
 /**
- * Approximate average glyph advance (px) of the node-title font
- * (`--font-ui-smaller`, ~12–13px in Obsidian's default theme). Used to size a
- * node's width to fit its title on one line. Snug (not generous) because the
- * title CSS clamps to {@link NODE_TITLE_LINE_CLAMP} lines: when a title needs
- * more than {@link NODE_MAX_LABEL_WIDTH_PX} the width pins to that cap and the
- * overflow wraps onto the next lines — the wrap, not width overshoot, is the
- * safety net against ellipsis.
+ * Approximate glyph advance (px) of the node-title font (`--font-ui-smaller`,
+ * ~12–13px in Obsidian's default theme). Used to size a node's width to fit its
+ * title on one line.
+ *
+ * A slight OVER-estimate of the mean advance, deliberately: at a bare mean the
+ * box came out a hair too narrow for SHORT titles whose glyphs run wider than
+ * the mean (e.g. `money`, whose `m` alone is ~0.8em), and `overflow-wrap:
+ * anywhere` then broke the trailing letter onto a second line (`mone` / `y` —
+ * ticket nid_vtizb5sqefquytcnfe1r73ybe_e). The overshoot only widens sub-cap
+ * titles, which is exactly where the wrap must not happen; a title past
+ * {@link NODE_MAX_LABEL_WIDTH_PX} still pins to that cap and wraps onto the next
+ * lines by design (the wrap, not width, is the safety net against ellipsis there).
  */
-export const NODE_TITLE_CHAR_WIDTH_PX = 7;
+export const NODE_TITLE_CHAR_WIDTH_PX = 8;
 
 /** Horizontal chrome around the title text: node padding (both sides) + border. */
 export const NODE_LABEL_HORIZONTAL_PADDING_PX = 20;
