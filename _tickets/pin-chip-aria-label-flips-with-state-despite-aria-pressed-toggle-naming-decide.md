@@ -18,3 +18,5 @@ DECIDE: keep action-copy names (drop aria-pressed semantics claim) OR give NodeP
 
 BLOCKED on human alignment because the flipping labels are pinned by behavior-capturing tests: src/view/NoteNode.component.test.tsx (aria-label assertions) and e2e/pinnedCentralScenario.e2e.ts / e2e/localPinScenario.e2e.ts.
 
+--------------------------------------------------------------------------------
+HUMAN: help me understand why would we NOT want the hover to change, if the changing hover gives more info to the user?
