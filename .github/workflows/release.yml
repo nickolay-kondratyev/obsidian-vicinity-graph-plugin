@@ -24,9 +24,15 @@ on:
     tags:
       - "*"
 
-# The release step needs write access to create the release for the tag.
+# `contents: write` lets the release step create the release for the tag.
+# `id-token: write` + `attestations: write` let `actions/attest-build-provenance`
+# mint GitHub artifact attestations for the raw assets, so users can
+# cryptographically verify `main.js` / `styles.css` were built from this repo
+# (Obsidian cloud-check recommendation, ticket nid_jcl7f8gzco0c04clhv8omo2aj_e).
 permissions:
   contents: write
+  id-token: write
+  attestations: write
 
 jobs:
   release:
@@ -72,6 +78,17 @@ jobs:
 
       - name: Production build (main.js + styles.css)
         run: npm run build
+
+      # Cryptographic provenance for the two BUILT assets Obsidian fetches, proving
+      # they came from this repo + this workflow run. Must run AFTER the build (the
+      # files must exist) and BEFORE the release, so the release ships attested bytes.
+      # manifest.json is source-controlled, not built here, so it is not attested.
+      - name: Attest build provenance for release assets
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            main.js
+            styles.css
 
       - name: Create published GitHub Release with raw assets
         uses: softprops/action-gh-release@v2
