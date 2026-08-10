@@ -1,17 +1,18 @@
 ---
 id: nid_8f8ey41extajt08zphwwxhnwq_e
-title: "Move nodeOverrides + localPins onto VaultFileStore (per_file/<id>.json); data.json keeps global dials AND the global pinned set"
-status: open
+title: Move nodeOverrides + localPins onto VaultFileStore (per_file/<id>.json); data.json
+  keeps global dials AND the global pinned set
+status: in_progress
 deps: [nid_cdoymzgq5kjh5d10q1tkavnsy_e]
 links: [nid_vb246h5pr4609hid76ts1ufe5_e, nid_cdoymzgq5kjh5d10q1tkavnsy_e, nid_rnghlzs0uejjlbd5a4bjkq7eg_e]
-created_iso: 2026-08-10T03:20:59Z
-status_updated_iso: 2026-08-10T03:20:59Z
+created_iso: '2026-08-10T03:20:59Z'
+status_updated_iso: '2026-08-10T17:53:36Z'
 type: feature
 priority: 1
 assignee: nickolaykondratyev
 tags: [persistence, storage]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin
 ---
-
 # Goal
 
 Move the plugin's per-doc / per-main persisted state (`nodeOverrides`, `localPins`, and the
