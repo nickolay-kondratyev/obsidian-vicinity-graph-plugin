@@ -45,6 +45,10 @@ port for the raw filesystem seam and a `Fake*` for tests. Must stay consistent w
 existing persistence layering — it is a low-level seam that the domain store (ticket B) sits
 on top of, the same way `PluginDataStore` sits on `PluginDataPort` today.
 
+Docs: add the primitive (module, port, quarantine behaviour) to the `src/persistence/`
+section of `docs-internal/architecture-map.md` in THIS ticket — the domain-level doc
+rewrites (CLAUDE.md, high-level-plan) stay in ticket B, which is what changes the story.
+
 # Design
 
 ## 1. Filesystem port (new seam, with a Fake)
