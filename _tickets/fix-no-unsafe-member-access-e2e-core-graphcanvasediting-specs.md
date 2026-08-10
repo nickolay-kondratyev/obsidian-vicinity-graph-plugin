@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-10T23:42:06Z
-session_ids: [{a: claude, type: execution, id: 70ba9581-ea67-48d4-b80e-9e8e9535857c}]
+session_ids: [{a: claude, type: execution, id: 70ba9581-ea67-48d4-b80e-9e8e9535857c}, {a: claude, type: review, id: b646a443-b7cb-4bd2-819a-c32256e715b1}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_ez80034jh0f5mba3hgegc0lvq_e
 title: "fix no-unsafe-member-access: e2e core graph/canvas/editing specs"
