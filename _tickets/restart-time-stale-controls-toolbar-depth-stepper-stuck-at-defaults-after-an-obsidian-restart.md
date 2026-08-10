@@ -2,11 +2,11 @@
 id: nid_ghaeps3siekw0oe17mr4xpmad_e
 title: 'Restart-time stale controls: toolbar depth stepper stuck at defaults after
   an Obsidian restart'
-status: open
+status: in_progress
 deps: []
 links: []
 created_iso: '2026-08-07T18:08:51Z'
-status_updated_iso: 2026-08-07T20:47:14Z
+status_updated_iso: '2026-08-10T19:06:12Z'
 type: bug
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
