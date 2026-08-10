@@ -96,7 +96,7 @@ export default class VicinityGraphPlugin extends Plugin {
 
 	async onload(): Promise<void> {
 		this.docIdService = DocIdServices.createDefault(this.app.vault);
-		this.pluginDataStore = new PluginDataStore(this);
+		this.pluginDataStore = new PluginDataStore(this, this.notices);
 		await this.pluginDataStore.init();
 		// Vault-root tree (NOT under .obsidian/) so it syncs as vault content; raw
 		// adapter I/O — Plugin.loadData/saveData cannot reach outside the plugin folder.
