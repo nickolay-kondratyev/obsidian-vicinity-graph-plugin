@@ -1,17 +1,17 @@
 ---
 id: nid_vb246h5pr4609hid76ts1ufe5_e
-title: "Adjust how we store the data per main node"
-status: open
+title: Adjust how we store the data per main node
+status: in_progress
 deps: []
 links: []
-created_iso: 2026-08-07T21:28:00Z
-status_updated_iso: 2026-08-07T21:28:00Z
+created_iso: '2026-08-07T21:28:00Z'
+status_updated_iso: '2026-08-10T02:18:52Z'
 type: task
 priority: 1
 assignee: nickolaykondratyev
 tags: []
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin
 ---
-
 TASK: **PLAN**. Lets clarify any gaps that exist for this ticket
   (if you need to explore code base use cheaper Explore-cheap sub-agent)
   ask human any questions that come up that require human decision.
