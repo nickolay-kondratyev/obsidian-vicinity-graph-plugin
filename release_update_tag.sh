@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Release driver (`./release_update_tag.sh`): green-gate, bump the PATCH version,
 # tag it, and push — which fires the tag-triggered build workflow
-# (.github/workflows/release.yml → a DRAFT GitHub Release with the raw assets).
+# (.github/workflows/release.yml → a PUBLISHED GitHub Release with the raw assets).
 #
 # RUN THIS TO CUT A RELEASE. It is the ONE command that takes a clean `main` from
 # "green on both shipped Obsidian builds" to "tag pushed", so a release engineer
@@ -196,5 +196,5 @@ git push --atomic origin "${DEFAULT_BRANCH}" "refs/tags/${NEW_VERSION}"
 
 echo "" >&2
 echo "release: DONE — pushed Release ${NEW_VERSION} and its tag." >&2
-echo "release: the tag build workflow will produce a DRAFT GitHub Release with the raw" >&2
-echo "release: assets (manifest.json, main.js, styles.css). Review it and publish by hand." >&2
+echo "release: the tag build workflow will PUBLISH a GitHub Release with the raw" >&2
+echo "release: assets (manifest.json, main.js, styles.css) — no manual publish needed." >&2

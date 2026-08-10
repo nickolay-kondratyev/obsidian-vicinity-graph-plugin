@@ -5,7 +5,7 @@
 # raw string, so the tag name and `manifest.json` version must be identical.
 #
 # WHAT it does: fast, headless gates (`check` + `npm test`) → production build →
-# a DRAFT GitHub Release for the pushed tag with the THREE raw assets Obsidian
+# a PUBLISHED GitHub Release for the pushed tag with the THREE raw assets Obsidian
 # fetches directly (`manifest.json`, `main.js`, `styles.css`) — not just inside the
 # source zip. See docs-internal/RELEASE_CHECKLIST.md §6.
 #
@@ -13,8 +13,10 @@
 # display and is the LOCAL release gate (`release_update_tag.sh`, run before the
 # tag is ever pushed). CI is the build/publish step, not the e2e authority.
 #
-# WHY a DRAFT: a human reviews the assets and clicks publish — nothing goes public
-# on a tag push alone.
+# WHY published (not draft): the two-version e2e matrix + green gates already ran
+# LOCALLY in `release_update_tag.sh` before the tag was ever pushed, and CI re-runs
+# the fast gates here. The tag IS the human's deliberate publish decision, so a
+# tag push cuts the release live — no second manual "Publish" click.
 name: Release
 
 on:
@@ -22,7 +24,7 @@ on:
     tags:
       - "*"
 
-# The draft-release step needs write access to create the release for the tag.
+# The release step needs write access to create the release for the tag.
 permissions:
   contents: write
 
@@ -36,7 +38,7 @@ jobs:
       # The trigger is any tag ("*"), but this workflow only makes sense for a tag
       # whose name IS the raw manifest version (see the header comment). Enforce
       # that invariant up front so a stray or mismatched tag fails fast instead of
-      # cutting a draft release whose asset `manifest.json` disagrees with its name
+      # cutting a release whose asset `manifest.json` disagrees with its name
       # — a mismatch Obsidian/BRAT would then serve.
       - name: Verify tag matches manifest version
         run: |
@@ -65,10 +67,10 @@ jobs:
       - name: Production build (main.js + styles.css)
         run: npm run build
 
-      - name: Create draft GitHub Release with raw assets
+      - name: Create published GitHub Release with raw assets
         uses: softprops/action-gh-release@v2
         with:
-          draft: true
+          draft: false
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }}
           files: |
