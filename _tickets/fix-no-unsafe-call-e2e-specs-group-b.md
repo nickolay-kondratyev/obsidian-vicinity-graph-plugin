@@ -82,3 +82,9 @@ into a group B spec, re-run the scratch config pattern above and route the value
 `E2eObsidianApp` in `e2e/obsidianInternals.ts` (add the narrow member there rather than
 widening back to `any`) — same seam group A / the harness ticket use.
 
+
+## Notes
+
+**2026-08-10T23:59:31Z**
+
+__READY_AS_IS__: verified 0 no-unsafe-call in all 12 group B e2e files via committed eslint config (rule enabled as error); branch is doc-only closure, no code changes needed.
