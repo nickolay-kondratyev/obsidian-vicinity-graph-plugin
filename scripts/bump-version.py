@@ -1,15 +1,19 @@
 #!/usr/bin/env python3
-"""Bump the PATCH version coherently across the three release files.
+"""Bump the PATCH version coherently across the four release files.
 
 Called by ``release_update_tag.sh`` once the test matrix is green. It reads the
 current version from ``package.json``, increments the patch component, and writes
 it back into the three files Obsidian's release process must keep in agreement
 (docs-internal/RELEASE_CHECKLIST.md §3):
 
-  - package.json  -> ``version``
-  - manifest.json -> ``version``
-  - versions.json -> a new ``"<newVersion>": "<minAppVersion>"`` entry
-                     (minAppVersion read from manifest.json)
+  - package.json      -> ``version``
+  - manifest.json     -> ``version``
+  - versions.json     -> a new ``"<newVersion>": "<minAppVersion>"`` entry
+                         (minAppVersion read from manifest.json)
+  - package-lock.json -> ``version`` AND ``packages[""].version`` (npm keeps the
+                         package version in TWO places; `npm ci` — the CI release
+                         gate — REFUSES when the lock's version disagrees with
+                         package.json, which is what broke Release 0.1.2)
 
 It prints ONLY the new version string on stdout so the caller can tag with it;
 all human-facing narration goes to stderr.
@@ -34,6 +38,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 PACKAGE_JSON = REPO_ROOT / "package.json"
 MANIFEST_JSON = REPO_ROOT / "manifest.json"
 VERSIONS_JSON = REPO_ROOT / "versions.json"
+PACKAGE_LOCK_JSON = REPO_ROOT / "package-lock.json"
 
 
 def fail(message: str) -> "None":
@@ -61,6 +66,27 @@ def replace_version_field(path: Path, old_version: str, new_version: str) -> "No
     if count != 1:
         fail(f'could not find a "version": "{old_version}" field in {path.name}')
     path.write_text(updated, encoding="utf-8")
+
+
+def update_lockfile_version(old_version: str, new_version: str) -> "None":
+    """Bump the package version in package-lock.json, byte-preserving the rest.
+
+    npm records the package version in TWO places at the TOP of the lock file —
+    the top-level ``"version"`` and ``packages[""]."version"`` — and both precede
+    every dependency's own ``"version"`` in file order, so replacing the FIRST TWO
+    occurrences of the old version updates exactly the root fields and nothing else.
+    Refuse on any other count: fewer means the lock already drifted, more would
+    risk clobbering a dependency that happens to share the version.
+    """
+    text = PACKAGE_LOCK_JSON.read_text(encoding="utf-8")
+    pattern = re.compile(r'("version"\s*:\s*")' + re.escape(old_version) + r'(")')
+    updated, count = pattern.subn(rf"\g<1>{new_version}\g<2>", text, count=2)
+    if count != 2:
+        fail(
+            f"expected 2 root \"version\": \"{old_version}\" fields in "
+            f"package-lock.json, replaced {count} — refusing to leave it drifted"
+        )
+    PACKAGE_LOCK_JSON.write_text(updated, encoding="utf-8")
 
 
 def add_versions_entry(new_version: str, min_app_version: str) -> "None":
@@ -98,6 +124,7 @@ def main() -> "None":
 
     replace_version_field(PACKAGE_JSON, old_version, new_version)
     replace_version_field(MANIFEST_JSON, old_version, new_version)
+    update_lockfile_version(old_version, new_version)
     add_versions_entry(new_version, min_app_version)
 
     # stdout carries ONLY the new version, for the caller to tag with.
