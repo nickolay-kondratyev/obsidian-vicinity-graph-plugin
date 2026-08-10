@@ -26,6 +26,8 @@ under KSAL-2.3 (`LICENSE.md`), **not** OSI open-source.
 npm run dev              # esbuild watch; re-copies artifacts into .dev-vault/
 npm run setup:dev-vault  # idempotent: build + create/copy plugin into .dev-vault/
 npm test                 # vitest (src/**/*.test.{ts,tsx} + e2e/**/*.test.ts harness guards)
+npm run test:coverage    # same run + v8 coverage → coverage/ (text, html, lcov,
+                         # and machine-readable coverage-final.json / coverage-summary.json)
 npm run check            # tsc -noEmit (strict) for src/, then check:e2e for e2e/
 npm run build            # check + production bundle → main.js
 npm run test:e2e         # Playwright against a REAL Obsidian (not part of npm test)
