@@ -2,8 +2,8 @@
 id: nid_rnghlzs0uejjlbd5a4bjkq7eg_e
 title: "Add ability to add local overrides of graph controls"
 status: open
-deps: []
-links: []
+deps: [nid_8f8ey41extajt08zphwwxhnwq_e]
+links: [nid_8f8ey41extajt08zphwwxhnwq_e]
 created_iso: 2026-08-07T21:10:55Z
 status_updated_iso: 2026-08-07T21:10:55Z
 type: task
