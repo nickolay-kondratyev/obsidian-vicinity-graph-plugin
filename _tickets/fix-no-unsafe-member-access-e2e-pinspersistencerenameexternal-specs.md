@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-10T23:22:26Z
-session_ids: [{a: claude, type: execution, id: b6f4c579-05be-4e86-8eab-0cdecf94dad8}]
+session_ids: [{a: claude, type: execution, id: b6f4c579-05be-4e86-8eab-0cdecf94dad8}, {a: claude, type: review, id: d10acd16-8ae6-4bb1-a7fa-24c42906e8a7}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_d2ditwyebmdlyg3ktb3li0r3d_e
 title: "fix no-unsafe-member-access: e2e pins/persistence/rename/external specs"
