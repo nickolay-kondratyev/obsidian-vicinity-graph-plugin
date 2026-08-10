@@ -1,17 +1,17 @@
 ---
 id: nid_1iskliqzhf6k4euouhn44phiq_e
-title: "fix warn pre release"
-status: open
+title: fix warn pre release
+status: in_progress
 deps: []
 links: []
-created_iso: 2026-08-10T22:22:50Z
-status_updated_iso: 2026-08-10T22:22:50Z
+created_iso: '2026-08-10T22:22:50Z'
+status_updated_iso: '2026-08-10T22:24:02Z'
 type: task
 priority: 3
 assignee: nickolaykondratyev
 tags: []
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 ---
-
 The following files contain '@typescript-eslint/no-unsafe-member-access' issue which is showing up in obsidian pre publish check
 
 ```
