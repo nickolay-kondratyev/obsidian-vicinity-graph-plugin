@@ -85,6 +85,9 @@ export interface SerialSettingsWrites {
  * STORE, not about the disk, because that is what every open view renders from:
  * `PluginDataStore.persist()` moves its in-memory state before the disk write, so a
  * body whose save REJECTED still changed the store and still owes every view a repaint.
+ * (The one persist that refuses BEFORE memory moves — a session protecting an unread
+ * `data.json` — also rejects here; its repaint redraws the unchanged store, which is
+ * exactly what snaps an optimistic control back.)
  *
  * `store-unchanged` is for a body that decided not to write at all AND whose gesture
  * left the screen exactly as the store already describes it (a pin refused for want of
