@@ -51,3 +51,9 @@ change). Other `no-unsafe-member-access` warnings remain elsewhere in `src`
 (`VaultFileStore.ts`, `LinkPreviewDrawer.tsx`, `SettingsRowView.tsx`, several
 `*.test.ts(x)`) — those belong to the sibling fix tickets, not this group.
 
+
+## Notes
+
+**2026-08-10T23:54:27Z**
+
+__READY_AS_IS__: verified — all 5 files lint-clean under live no-unsafe-member-access rule (exit 0), npm run check passes; branch is docs-only no-op with accurate resolution note.
