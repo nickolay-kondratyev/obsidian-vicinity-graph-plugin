@@ -96,7 +96,7 @@ knows NOTHING about pins/overrides — it is `<key> ↔ <parsed payload>`.
 class VaultFileStore {
   constructor(rootDir: string, fs: VaultFsPort, clock: Clock, notice?: UserNoticePort);
 
-  // Read one file by relative key (e.g. "global.json" or "per_file/<id>.json").
+  // Read one file by relative key (e.g. "per_file/<id>.json").
   // Returns the unwrapped v1 payload as unknown, or null if absent OR quarantined.
   read(relPath: string): Promise<unknown | null>;
 
@@ -196,6 +196,6 @@ ticket B). Run `npm run check` (strict tsc) too.
 # Out of scope (belongs to the dependent ticket)
 
 - Moving any real data (pins/overrides/localPins) onto the store.
-- The lazy per-file read path, the pinned-set global.json shape, the delete/orphan-sweep
+- The lazy per-file read path, the per-file record shape, the delete/orphan-sweep
   cross-file pruning, and the localPins reverse-index. All of that is ticket B.
 
