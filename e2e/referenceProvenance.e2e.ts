@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import { ObsidianHarness } from "./obsidianHarness";
+import type { E2eObsidianApp } from "./obsidianInternals";
 
 /**
  * MEASURES the assumption `src/adapters/ReferenceOrder.ts` rests on: that real
@@ -86,7 +87,7 @@ test.beforeAll(async () => {
 	page = harness.page;
 	await page.waitForFunction(
 		(notePath) => {
-			const app = (window as unknown as { app: any }).app;
+			const app = (window as unknown as { app: E2eObsidianApp }).app;
 			const file = app.vault.getAbstractFileByPath(notePath);
 			return file !== null && app.metadataCache.getFileCache(file)?.links !== undefined;
 		},
@@ -94,15 +95,18 @@ test.beforeAll(async () => {
 		{ timeout: CACHE_INDEX_TIMEOUT_MS },
 	);
 	observed = await page.evaluate((notePath) => {
-		const app = (window as unknown as { app: any }).app;
-		const cache = app.metadataCache.getFileCache(app.vault.getAbstractFileByPath(notePath));
-		const slim = (refs: readonly any[] | undefined) =>
+		const app = (window as unknown as { app: E2eObsidianApp }).app;
+		const file = app.vault.getAbstractFileByPath(notePath);
+		if (file === null) throw new Error(`fixture note not in vault: ${notePath}`);
+		const cache = app.metadataCache.getFileCache(file);
+		if (cache === null) throw new Error(`no file cache for: ${notePath}`);
+		const slim = (refs: readonly { link: string; original?: string }[] | undefined): ObservedReference[] =>
 			(refs ?? []).map((ref) => ({ link: ref.link, original: ref.original }));
 		return {
 			links: slim(cache.links),
 			embeds: slim(cache.embeds),
 			frontmatterLinks: slim(cache.frontmatterLinks),
-		} as ObservedCacheArrays;
+		};
 	}, NOTE_PATH);
 	// Printed so a future reader sees the raw observation, not just the verdict.
 	console.log(`[observed] getFileCache(${NOTE_PATH})=${JSON.stringify(observed)}`);
