@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_6kz4747paujgvor7ftnav1xz6_e
 title: "fix no-unsafe-member-access: e2e shared harness/helpers"
-status: open
+status: in_progress
 deps: [nid_zyv1x5w08difwfdopm50bt2lu_e]
 links: [nid_ez80034jh0f5mba3hgegc0lvq_e, nid_1fzz9jrjbnaa3iky57nmmckfc_e, nid_weo2x5v4mks9ge9bf642u0hg4_e, nid_d2ditwyebmdlyg3ktb3li0r3d_e, nid_epspxsqa74z7vnpu7846ou5sl_e, nid_dq0439hrj3lj7edst73p6a9ic_e, nid_ymugwkesjh70astiz9bffzu26_e, nid_cinizzkohsf4r3hn48qvdfvzt_e]
 created_iso: 2026-08-10T22:26:30Z
-status_updated_iso: 2026-08-10T22:26:30Z
+status_updated_iso: 2026-08-10T23:11:10Z
 type: chore
 priority: 3
 assignee: nickolaykondratyev
