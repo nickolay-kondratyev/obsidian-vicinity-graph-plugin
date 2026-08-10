@@ -6,6 +6,7 @@ describe("planNodePinAction", () => {
 		expect(planNodePinAction(false)).toEqual({
 			kind: "pin",
 			title: "Pin to graph",
+			chipLabel: "Pin to graph",
 			iconId: "pin",
 			chipIconId: "pin",
 		});
@@ -15,6 +16,7 @@ describe("planNodePinAction", () => {
 		expect(planNodePinAction(true)).toEqual({
 			kind: "unpin",
 			title: "Unpin from graph",
+			chipLabel: "Pin to graph",
 			iconId: "pin-off",
 			chipIconId: "pin",
 		});
@@ -23,6 +25,10 @@ describe("planNodePinAction", () => {
 	it("WHEN the pinned state flips THEN the CHIP glyph does not (state is the pressed treatment, not the icon)", () => {
 		expect(planNodePinAction(true).chipIconId).toBe(planNodePinAction(false).chipIconId);
 	});
+
+	it("WHEN the pinned state flips THEN the CHIP toggle NAME does not (aria-pressed carries the state, WAI-ARIA APG)", () => {
+		expect(planNodePinAction(true).chipLabel).toBe(planNodePinAction(false).chipLabel);
+	});
 });
 
 describe("planNodeLocalPinAction", () => {
@@ -30,6 +36,7 @@ describe("planNodeLocalPinAction", () => {
 		expect(planNodeLocalPinAction(false)).toEqual({
 			kind: "local-pin",
 			title: "Pin for this note",
+			chipLabel: "Pin for this note",
 			iconId: "map-pin",
 			chipIconId: "map-pin",
 		});
@@ -39,6 +46,7 @@ describe("planNodeLocalPinAction", () => {
 		expect(planNodeLocalPinAction(true)).toEqual({
 			kind: "local-unpin",
 			title: "Unpin for this note",
+			chipLabel: "Pin for this note",
 			iconId: "map-pin-off",
 			chipIconId: "map-pin",
 		});
@@ -46,6 +54,10 @@ describe("planNodeLocalPinAction", () => {
 
 	it("WHEN the locally-pinned state flips THEN the CHIP glyph does not (state is the pressed treatment, not the icon)", () => {
 		expect(planNodeLocalPinAction(true).chipIconId).toBe(planNodeLocalPinAction(false).chipIconId);
+	});
+
+	it("WHEN the locally-pinned state flips THEN the CHIP toggle NAME does not (aria-pressed carries the state)", () => {
+		expect(planNodeLocalPinAction(true).chipLabel).toBe(planNodeLocalPinAction(false).chipLabel);
 	});
 
 	it("WHEN a doc is both globally and locally pinned THEN the two toggles carry DISTINCT icons (both indicators)", () => {

@@ -95,8 +95,15 @@ test("a locally pinned neighbor becomes central, stays central once disconnected
 	// now traverses at the pinned depth, pulling its own out-neighbor lp_b into view.
 	await clickLocalPin(A);
 	await expect(noteNode(A)).toHaveAttribute("data-tier", "pinned-central");
+	// The chip is an aria-pressed TOGGLE with a CONSTANT name; the pin state lives in
+	// aria-pressed and the flipping tooltip (title) is the visible hover hint.
 	await expect(noteNode(A).locator(".vicinity-graph-local-pin-button")).toHaveAttribute(
 		"aria-label",
+		"Pin for this note",
+	);
+	await expect(noteNode(A).locator(".vicinity-graph-local-pin-button")).toHaveAttribute("aria-pressed", "true");
+	await expect(noteNode(A).locator(".vicinity-graph-local-pin-button")).toHaveAttribute(
+		"title",
 		"Unpin for this note",
 	);
 	await expect(noteNode(B)).toHaveCount(1);
@@ -144,8 +151,14 @@ test("a local pin survives a real Obsidian restart", async () => {
 	// path↔docid map; the first build after a restart warms both on demand — a plain
 	// assertion, no polling out the orphan sweep.
 	await expect(noteNode(B)).toHaveAttribute("data-tier", "pinned-central");
+	// Constant toggle name survives the restart; the engaged state is aria-pressed.
 	await expect(noteNode(B).locator(".vicinity-graph-local-pin-button")).toHaveAttribute(
 		"aria-label",
+		"Pin for this note",
+	);
+	await expect(noteNode(B).locator(".vicinity-graph-local-pin-button")).toHaveAttribute("aria-pressed", "true");
+	await expect(noteNode(B).locator(".vicinity-graph-local-pin-button")).toHaveAttribute(
+		"title",
 		"Unpin for this note",
 	);
 });

@@ -11,8 +11,20 @@
  * becomes MAIN).
  */
 export type NodePinAction =
-	| { readonly kind: "pin"; readonly title: string; readonly iconId: string; readonly chipIconId: string }
-	| { readonly kind: "unpin"; readonly title: string; readonly iconId: string; readonly chipIconId: string };
+	| {
+			readonly kind: "pin";
+			readonly title: string;
+			readonly chipLabel: string;
+			readonly iconId: string;
+			readonly chipIconId: string;
+	  }
+	| {
+			readonly kind: "unpin";
+			readonly title: string;
+			readonly chipLabel: string;
+			readonly iconId: string;
+			readonly chipIconId: string;
+	  };
 
 /**
  * `iconId` vs `chipIconId` (ticket nid_s88z29iparzxrtxhh6ooqfvrz_e): the context
@@ -21,11 +33,21 @@ export type NodePinAction =
  * the pressed-in treatment instead (`aria-pressed`, styled in graph-view.css) — a
  * `pin-off` glyph on a pressed chip would read as "not pinned", the opposite of
  * the state it marks.
+ *
+ * `title` vs `chipLabel` (ticket nid_58tc5g45zwktin78593bi9jkr_e): same TOGGLE logic
+ * applied to the accessible NAME. WAI-ARIA APG says an `aria-pressed` toggle keeps a
+ * CONSTANT name (state lives in `aria-pressed`, not the name) — a pinned chip named
+ * "Unpin from graph" announces "Unpin from graph, pressed", which reads as the UNPIN
+ * action being engaged. So the chip's `aria-label` is the constant `chipLabel`
+ * ("Pin to graph"), announcing "Pin to graph, pressed" = pinned. The `title` tooltip
+ * still flips with the action ("Pin to graph" ↔ "Unpin from graph"): the visible hover
+ * hint predicts the click, which is more useful to a sighted user and is a description,
+ * not the name. The context MENU, being an action list, uses `title`, not `chipLabel`.
  */
 export function planNodePinAction(isPinned: boolean): NodePinAction {
 	return isPinned
-		? { kind: "unpin", title: "Unpin from graph", iconId: "pin-off", chipIconId: "pin" }
-		: { kind: "pin", title: "Pin to graph", iconId: "pin", chipIconId: "pin" };
+		? { kind: "unpin", title: "Unpin from graph", chipLabel: "Pin to graph", iconId: "pin-off", chipIconId: "pin" }
+		: { kind: "pin", title: "Pin to graph", chipLabel: "Pin to graph", iconId: "pin", chipIconId: "pin" };
 }
 
 /**
@@ -45,19 +67,37 @@ export type NodeLocalPinAction =
 	| {
 			readonly kind: "local-pin";
 			readonly title: string;
+			readonly chipLabel: string;
 			readonly iconId: string;
 			readonly chipIconId: string;
 	  }
 	| {
 			readonly kind: "local-unpin";
 			readonly title: string;
+			readonly chipLabel: string;
 			readonly iconId: string;
 			readonly chipIconId: string;
 	  };
 
-/** Same `iconId` (menu action) vs `chipIconId` (toggle) split as {@link planNodePinAction}. */
+/**
+ * Same `iconId` (menu action) vs `chipIconId` (toggle) split as {@link planNodePinAction},
+ * and the same `title` (flipping tooltip) vs `chipLabel` (constant `aria-pressed` name)
+ * split — here the constant name is "Pin for this note".
+ */
 export function planNodeLocalPinAction(isLocallyPinned: boolean): NodeLocalPinAction {
 	return isLocallyPinned
-		? { kind: "local-unpin", title: "Unpin for this note", iconId: "map-pin-off", chipIconId: "map-pin" }
-		: { kind: "local-pin", title: "Pin for this note", iconId: "map-pin", chipIconId: "map-pin" };
+		? {
+				kind: "local-unpin",
+				title: "Unpin for this note",
+				chipLabel: "Pin for this note",
+				iconId: "map-pin-off",
+				chipIconId: "map-pin",
+		  }
+		: {
+				kind: "local-pin",
+				title: "Pin for this note",
+				chipLabel: "Pin for this note",
+				iconId: "map-pin",
+				chipIconId: "map-pin",
+		  };
 }
