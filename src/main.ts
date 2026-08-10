@@ -13,6 +13,8 @@ import { OrphanSweeper, SWEEP_DELAY_MS } from "./persistence/OrphanSweeper";
 import { PathDocIdMap } from "./persistence/PathDocIdMap";
 import { PersistenceServices } from "./persistence/PersistenceServices";
 import { PluginDataStore } from "./persistence/PluginDataStore";
+import { VaultAdapterFsPort } from "./persistence/vaultFsPort";
+import { VaultFileStore } from "./persistence/VaultFileStore";
 import { GraphViewOpener } from "./view/GraphViewOpener";
 import { SettingsWritePipeline } from "./view/settingsWritePipeline";
 import { VicinityGraphSettingTab } from "./view/VicinityGraphSettingTab";
@@ -25,6 +27,14 @@ import type { UserNoticePort, ViewsRefreshPort } from "./view/viewPorts";
 // `metadata.frontmatter` (used by obsidian-id-lib) was NOT introduced by any core
 // version; it rides canvas's documented arbitrary-key forward compatibility.
 
+/**
+ * Vault-root-relative directory the {@link VaultFileStore} owns. Under the vault
+ * root (NOT `.obsidian/`) on purpose: users who exclude `.obsidian` from sync
+ * still get this tree, and it is versioned/quarantined for the merge conflicts
+ * vault-content sync brings.
+ */
+const VAULT_FILE_STORE_ROOT = ".plugin_data/vicinity_graph";
+
 export default class VicinityGraphPlugin extends Plugin {
 	/** Doc-scoped persistence entry points (pin / unpin). */
 	persistenceServices!: PersistenceServices;
@@ -32,6 +42,13 @@ export default class VicinityGraphPlugin extends Plugin {
 	graphBuilder!: VicinityGraphBuilder;
 	/** Global settings + pinned set (data.json) — step 06 reads/writes globals here. */
 	pluginDataStore!: PluginDataStore;
+	/**
+	 * Versioned, conflict-resilient per-id JSON store under the vault-root
+	 * `.plugin_data/vicinity_graph/` tree (syncs as vault content, unlike
+	 * `data.json`). Constructed here but INERT until the dependent ticket moves
+	 * per-doc facts onto it — nothing writes to it yet.
+	 */
+	vaultFileStore!: VaultFileStore;
 	/**
 	 * THE settings write pipeline: ONE per plugin, shared by the settings tab and by
 	 * every open view's controls panel. Sharing it is what makes "one serialised
@@ -75,6 +92,14 @@ export default class VicinityGraphPlugin extends Plugin {
 		this.docIdService = DocIdServices.createDefault(this.app.vault);
 		this.pluginDataStore = new PluginDataStore(this);
 		await this.pluginDataStore.init();
+		// Vault-root tree (NOT under .obsidian/) so it syncs as vault content; raw
+		// adapter I/O — Plugin.loadData/saveData cannot reach outside the plugin folder.
+		this.vaultFileStore = new VaultFileStore(
+			VAULT_FILE_STORE_ROOT,
+			new VaultAdapterFsPort(this.app.vault.adapter),
+			Date.now,
+			this.notices,
+		);
 		this.settingsWrites = new SettingsWritePipeline(this.pluginDataStore, this.viewsRefresh, this.notices);
 		this.persistenceServices = new PersistenceServices(this.docIdService, this.pluginDataStore, this.pathDocIdMap);
 		this.docIdMapWarmer = new DocIdMapWarmer(this.app.vault, this.docIdService, this.pathDocIdMap);
