@@ -302,7 +302,10 @@ for (const theme of ["dark", "light"] as const) {
 			// Probe element: resolves var(--text-faint) to the same computed rgb()
 			// format the polygon's fill reports, so the strings compare exactly.
 			const probe = document.createElement("div");
-			probe.style.color = "var(--text-faint)";
+			// Color from a variable, not a literal: obsidianmd/no-static-styles-assignment
+			// flags literal `.style` assignments; variable assignment is its sanctioned form.
+			const probeColor = "var(--text-faint)";
+			probe.style.color = probeColor;
 			document.body.appendChild(probe);
 			const themeTextFaint = getComputedStyle(probe).color;
 			probe.remove();

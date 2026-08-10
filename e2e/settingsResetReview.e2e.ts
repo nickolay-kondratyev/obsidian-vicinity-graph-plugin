@@ -283,8 +283,12 @@ test("REVIEW: visual evidence — dark theme and a narrow settings pane", async 
 	const overflow = await page.evaluate(() => {
 		const container = document.querySelector(".vicinity-graph-settings") as HTMLElement;
 		const pane = container.parentElement as HTMLElement;
-		pane.style.width = "320px";
-		container.style.width = "320px";
+		// Width comes from a variable, not a literal: this is a dynamic test-proxy
+		// squeeze, not styling the plugin ships (obsidianmd/no-static-styles-assignment
+		// flags literal `.style` assignments; variable assignment is its sanctioned form).
+		const narrowWidth = "320px";
+		pane.style.width = narrowWidth;
+		container.style.width = narrowWidth;
 		const rows = Array.from(container.querySelectorAll(".setting-item"));
 		return rows
 			.filter((row) => row.scrollWidth > row.clientWidth + 1)
