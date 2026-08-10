@@ -3,7 +3,7 @@ id: nid_s88z29iparzxrtxhh6ooqfvrz_e
 title: make it more clear how the note is pinned,
 status: closed
 deps: []
-links: [nid_am38wsuka3mksh9atugg1e3x6_e]
+links: [nid_am38wsuka3mksh9atugg1e3x6_e, nid_58tc5g45zwktin78593bi9jkr_e]
 created_iso: '2026-08-07T21:21:27Z'
 status_updated_iso: '2026-08-10T19:10:31Z'
 type: task
