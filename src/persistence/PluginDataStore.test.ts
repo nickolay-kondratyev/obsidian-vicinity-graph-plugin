@@ -121,6 +121,8 @@ class ScriptedPluginDataPort implements PluginDataPort {
 	quarantineCalls = 0;
 	/** The name a quarantine returns — asserted in the recovery notice. */
 	readonly quarantineName = "data.json.corrupt-2026-08-10T20-09-55";
+	/** When set, `quarantineData` rejects with this (a corrupt file that cannot be renamed aside). */
+	quarantineFailure: Error | undefined = undefined;
 
 	/**
 	 * @param outcomes each is one loadData outcome, in order; the LAST repeats forever.
@@ -150,6 +152,9 @@ class ScriptedPluginDataPort implements PluginDataPort {
 
 	async quarantineData(): Promise<string> {
 		this.quarantineCalls += 1;
+		if (this.quarantineFailure !== undefined) {
+			throw this.quarantineFailure;
+		}
 		return this.quarantineName;
 	}
 }
@@ -335,6 +340,29 @@ describe("PluginDataStore.init corruption recovery", () => {
 
 	it("WHEN the probe itself throws THEN writes stay REFUSED (transient protection)", async () => {
 		const port = new ScriptedPluginDataPort([READ_FAILED], PROBE_THROWS);
+		const store = await initializedStoreOn(port);
+		await store.saveGlobalDepths({ ...EngineDefaults.depthSettings(), linkDepthIn: 4 }).catch(() => undefined);
+		expect(port.saveCalls).toBe(0);
+	});
+
+	/**
+	 * The file is corrupt but the quarantine rename itself fails (a locked or read-only
+	 * file, a directory the process can't write). Recovery must DEGRADE, not crash: init
+	 * completes, and — since the damaged bytes could not be set aside — writes stay
+	 * REFUSED so a later save never overwrites the only recoverable copy with defaults.
+	 */
+	function corruptButUnquarantinable(): ScriptedPluginDataPort {
+		const port = new ScriptedPluginDataPort([READ_FAILED], PROBE_CORRUPT_BYTES);
+		port.quarantineFailure = new Error("EACCES: rename failed");
+		return port;
+	}
+
+	it("WHEN a corrupt file cannot be quarantined THEN init completes without throwing", async () => {
+		await expect(initializedStoreOn(corruptButUnquarantinable())).resolves.toBeDefined();
+	});
+
+	it("WHEN a corrupt file cannot be quarantined THEN writes stay REFUSED (damaged bytes still on disk)", async () => {
+		const port = corruptButUnquarantinable();
 		const store = await initializedStoreOn(port);
 		await store.saveGlobalDepths({ ...EngineDefaults.depthSettings(), linkDepthIn: 4 }).catch(() => undefined);
 		expect(port.saveCalls).toBe(0);

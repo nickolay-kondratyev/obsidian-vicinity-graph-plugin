@@ -137,22 +137,47 @@ export class PluginDataStore {
 	 *   or a sync conflict), and retrying every session can never fix it. Quarantine it
 	 *   (rename aside, never delete) and start FRESH with writes enabled — the one path
 	 *   that self-recovers instead of degrading forever behind a manual delete.
-	 * - No bytes, bytes that DO parse now, or the probe itself failed ⇒ a genuine
-	 *   TRANSIENT: keep the intact file unread and refuse writes so this session's
-	 *   defaults never overwrite the user's real settings (the write-protection this
-	 *   deliberately preserves).
+	 * - No bytes, bytes that DO parse now, the probe itself failed, OR the file is
+	 *   corrupt but the quarantine rename itself failed ⇒ fall back to TRANSIENT
+	 *   protection: keep the intact/damaged file on disk and refuse writes so this
+	 *   session's defaults never overwrite the user's bytes (the write-protection this
+	 *   deliberately preserves). A quarantine that cannot set the corrupt file aside
+	 *   MUST NOT enable writes — a later save would then clobber the only recoverable
+	 *   copy with defaults; the manual-delete guidance in {@link INIT_LOAD_FAILED_NOTICE}
+	 *   is the way back.
 	 *
-	 * Either way this returns `null` (defaults for the session) and never throws.
+	 * Either way this returns `null` (defaults for the session) and never throws — a
+	 * failure here must degrade the plugin, never crash `onload`.
 	 */
 	private async recoverAfterExhaustedReads(): Promise<unknown> {
-		if (await this.isCorruptOnDisk()) {
-			const quarantineName = await this.port.quarantineData();
-			console.warn(
-				`vicinity-graph: data.json was corrupt; set aside as [${quarantineName}], starting fresh with writes enabled`,
-			);
-			this.notice?.show(initCorruptQuarantinedNotice(quarantineName));
+		if (await this.isCorruptOnDisk() && (await this.quarantineAndStartFresh())) {
 			return null;
 		}
+		return this.protectAsTransient();
+	}
+
+	/**
+	 * Sets the corrupt file aside and enables fresh writes; returns `false` (never
+	 * throws) when the quarantine rename itself failed — a locked or read-only file —
+	 * so the caller falls back to transient protection instead of crashing `onload`.
+	 */
+	private async quarantineAndStartFresh(): Promise<boolean> {
+		let quarantineName: string;
+		try {
+			quarantineName = await this.port.quarantineData();
+		} catch (error: unknown) {
+			console.error("vicinity-graph: quarantining corrupt data.json failed; leaving it in place, writes refused", error);
+			return false;
+		}
+		console.warn(
+			`vicinity-graph: data.json was corrupt; set aside as [${quarantineName}], starting fresh with writes enabled`,
+		);
+		this.notice?.show(initCorruptQuarantinedNotice(quarantineName));
+		return true;
+	}
+
+	/** Runs the session on defaults with writes REFUSED, telling the user once (the way back). */
+	private protectAsTransient(): null {
 		console.error(
 			`vicinity-graph: data.json unreadable after attempts=[${INIT_LOAD_ATTEMPTS}]; running this session on defaults, writes refused`,
 		);
