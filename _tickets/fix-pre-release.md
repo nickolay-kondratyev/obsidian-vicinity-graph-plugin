@@ -1,0 +1,77 @@
+---
+id: nid_2uh0ep3s7hcz529hpq6pmcjlw_e
+title: "fix pre-release"
+status: open
+deps: []
+links: []
+created_iso: 2026-08-10T22:19:45Z
+status_updated_iso: 2026-08-10T22:19:45Z
+type: task
+priority: 3
+assignee: nickolaykondratyev
+tags: []
+---
+
+The following files contain `@typescript-eslint/no-unsafe-call` 
+
+e2e/buttonChrome.ts
+e2e/canvasMarkdownLinkIndexing.e2e.ts
+e2e/canvasSpaceKey.e2e.ts
+e2e/controlsRestart.e2e.ts
+e2e/coreEditingWhileGraphOpen.e2e.ts
+e2e/edgeRouting.e2e.ts
+e2e/edgeRoutingEval.e2e.ts
+e2e/externalVault.e2e.ts
+e2e/graphPlacement.e2e.ts
+e2e/linkPreview.e2e.ts
+e2e/localPinScenario.e2e.ts
+e2e/nodeContentBox.ts
+e2e/nodeContentOverride.e2e.ts
+e2e/nodeOutline.e2e.ts
+e2e/nodeResize.e2e.ts
+e2e/nodeTitleWrap.e2e.ts
+e2e/noteRename.e2e.ts
+e2e/obsidianHarness.ts
+e2e/perFileStorePersistence.e2e.ts
+e2e/pinnedCentralScenario.e2e.ts
+e2e/playwright.config.ts
+e2e/referenceProvenance.e2e.ts
+e2e/settingsDependentRows.e2e.ts
+e2e/settingsResetReview.e2e.ts
+e2e/settingsResetVerify.e2e.ts
+e2e/settingsTabPage.ts
+e2e/settingsTypedInput.e2e.ts
+e2e/settingsUxVisual.e2e.ts
+e2e/settingsWriteWindow.ts
+e2e/vaultTarget.ts
+e2e/vicinityGraph.e2e.ts
+src/main.ts
+src/view/ConfirmModal.ts
+src/view/ControlsActionsContext.ts
+src/view/DrawerResizeHandle.tsx
+src/view/ElkLayoutRunner.ts
+src/view/FolderGroupNode.tsx
+src/view/GraphUiContext.ts
+src/view/GraphViewOpener.ts
+src/view/LinkPreviewContent.tsx
+src/view/LinkPreviewDrawer.tsx
+src/view/NodeOutline.tsx
+src/view/NoteNode.tsx
+src/view/NoteOpenContext.ts
+src/view/ObsidianGraphUi.ts
+src/view/ObsidianNoteNavigator.ts
+src/view/SettingsRowView.tsx
+src/view/VicinityEdge.tsx
+src/view/VicinityGraphFlow.tsx
+src/view/VicinityGraphSettingTab.ts
+src/view/VicinityGraphView.tsx
+src/view/d3ForceRefinement.ts
+src/view/elkMapping.ts
+src/view/libavoidLoader.ts
+src/view/rowRenderingSource.ts
+src/view/testFixtures/settingsPanelHarness.tsx
+src/view/useOptimisticValue.ts
+
+
+Split these files into groups and create 1 ticket per group so that we can fix this issue in all the files.
+The goal of the split so we dont have to have 50+ separate tickets. While also trying to fix all of them in one ticket would blow up the agent context.
