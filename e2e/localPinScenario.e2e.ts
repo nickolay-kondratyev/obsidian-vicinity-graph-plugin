@@ -25,14 +25,23 @@ import { ObsidianHarness } from "./obsidianHarness";
  * that is ever PINNED (hub as the local-pin MAIN key, plus lp_a / lp_b as targets)
  * carries a seeded `id` (obsidian-id-lib's frontmatter key): a note can only be pinned
  * once it has a stable docid, and seeding models the normal steady state.
+ *
+ * Each also carries a DESCRIPTIVE frontmatter `title` — deliberately, not for show. Node
+ * WIDTH hugs the title, and the LOCAL-pin chip is the LEFTMOST of three hover chips, so it
+ * only sits INSIDE the node once the node is wide enough to hold all three (the narrow-node
+ * clipping edge in docs-internal/tickets/ticket-pin-offset-centre-clearance.md). A bare
+ * filename title like `lp_a` sizes the node so narrow that the chip's centre spills past the
+ * node's left edge onto the pane, where a real click cannot land. The `[[lp_a]]` wikilinks
+ * still resolve by FILENAME, so the titles change the rendered width only, never the graph.
  */
 
 test.describe.configure({ mode: "serial" });
 
 const SCENARIO_FIXTURES: Record<string, string> = {
-	"lp_hub.md": "---\nid: docid_lphub_e\n---\nLocal-pin MAIN — links out to [[lp_a]].\n",
-	"lp_a.md": "---\nid: docid_lpa_e\n---\nNeighbor + local-pin target — links out to [[lp_b]].\n",
-	"lp_b.md": "---\nid: docid_lpb_e\n---\nTwo hops from the hub — reachable only via lp_a.\n",
+	"lp_hub.md": "---\nid: docid_lphub_e\ntitle: Local pin hub\n---\nLocal-pin MAIN — links out to [[lp_a]].\n",
+	"lp_a.md":
+		"---\nid: docid_lpa_e\ntitle: Local pin target A\n---\nNeighbor + local-pin target — links out to [[lp_b]].\n",
+	"lp_b.md": "---\nid: docid_lpb_e\ntitle: Local pin target B\n---\nTwo hops from the hub — reachable only via lp_a.\n",
 	"lp_other.md": "Unrelated MAIN for the switch-away step (links nowhere near lp_a / lp_b).\n",
 };
 
