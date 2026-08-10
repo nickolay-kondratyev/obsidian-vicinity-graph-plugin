@@ -31,3 +31,9 @@ Verification on branch `nid_epspxsqa74z7vnpu7846ou5sl_e_fix-no-unsafe-member-acc
 Why already clean: these six files are presenters / thin view helpers that read values through the typed accessor + row seams. Those seams were given real types by the earlier merged view-layer sibling ticket `nid_dq0439hrj3lj7edst73p6a9ic_e` (merged into `main` at 1df767d), which this branch is based on — so the member-access warnings the parent ticket's snapshot attributed to this group were eliminated upstream before this ticket was picked up. The files themselves were last touched days before the ticket was created; no edits needed here.
 
 No `src/view` behavior changed, so no e2e run was warranted.
+
+## Notes
+
+**2026-08-10T23:36:34Z**
+
+__READY_AS_IS__: no-op branch; independently confirmed 0 no-unsafe-member-access in all 6 files while rule fires 28x repo-wide (active, not disabled). Resolution note accurate.
