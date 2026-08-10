@@ -267,7 +267,13 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
  * A TOGGLE, not a plain button: the glyph is the action's constant `chipIconId` and
  * the pinned state is `aria-pressed` — CSS renders a pressed chip as pushed INTO the
  * node (see `.vicinity-graph-node-chip[aria-pressed="true"]`), so hovering shows at
- * a glance which pin kinds are engaged. The tooltip still carries the action copy.
+ * a glance which pin kinds are engaged.
+ *
+ * `aria-label` is the action's CONSTANT `chipLabel`, not the flipping `title`: an
+ * `aria-pressed` toggle must keep a constant accessible name (WAI-ARIA APG), so a
+ * pinned chip announces "Pin to graph, pressed" — pressed = pinned. The `title`
+ * tooltip still carries the flipping action copy: a visible hint that predicts the
+ * click, a description rather than the name (ticket nid_58tc5g45zwktin78593bi9jkr_e).
  */
 function PinButton({
 	action,
@@ -275,7 +281,7 @@ function PinButton({
 	onActivate,
 	variantClassName,
 }: {
-	readonly action: { readonly title: string; readonly chipIconId: string };
+	readonly action: { readonly title: string; readonly chipLabel: string; readonly chipIconId: string };
 	readonly pressed: boolean;
 	readonly onActivate: () => void;
 	readonly variantClassName: string;
@@ -296,7 +302,7 @@ function PinButton({
 		<button
 			type="button"
 			className={`vicinity-graph-node-chip ${variantClassName} nodrag nopan`}
-			aria-label={action.title}
+			aria-label={action.chipLabel}
 			aria-pressed={pressed}
 			title={action.title}
 			onClick={onClick}

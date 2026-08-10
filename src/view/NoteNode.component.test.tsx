@@ -330,10 +330,16 @@ describe("NoteNode local pin control", () => {
 		expect(localPinButton(node)?.getAttribute("aria-label")).toBe("Pin for this note");
 	});
 
-	it("WHEN a node IS locally pinned THEN its local chip offers to unpin for this note", async () => {
+	it("WHEN a node IS locally pinned THEN its local chip KEEPS the constant toggle name (aria-pressed carries the state)", async () => {
 		const { result } = renderNoteNode(nodeData({ isLocallyPinned: true, docid: "docid_a_e" }));
 		const node = await mountedNode(result.container);
-		expect(localPinButton(node)?.getAttribute("aria-label")).toBe("Unpin for this note");
+		expect(localPinButton(node)?.getAttribute("aria-label")).toBe("Pin for this note");
+	});
+
+	it("WHEN a node IS locally pinned THEN its local chip TOOLTIP still flips to the unpin action (the hover hint predicts the click)", async () => {
+		const { result } = renderNoteNode(nodeData({ isLocallyPinned: true, docid: "docid_a_e" }));
+		const node = await mountedNode(result.container);
+		expect(localPinButton(node)?.getAttribute("title")).toBe("Unpin for this note");
 	});
 
 	it("WHEN the local chip on an unpinned node is clicked THEN the node's PATH reaches localPinNode", async () => {
@@ -350,7 +356,7 @@ describe("NoteNode local pin control", () => {
 		expect(actions.localUnpinnedDocids).toEqual(["docid_a_e"]);
 	});
 
-	it("WHEN a node is BOTH globally and locally pinned THEN both chips show their unpin state (both indicators)", async () => {
+	it("WHEN a node is BOTH globally and locally pinned THEN both chips KEEP their constant toggle names (state is in aria-pressed)", async () => {
 		const { result } = renderNoteNode(
 			nodeData({ isGloballyPinned: true, isLocallyPinned: true, tier: "pinned-central", docid: "docid_a_e" }),
 		);
@@ -358,6 +364,17 @@ describe("NoteNode local pin control", () => {
 		expect({
 			global: node.querySelector("button.vicinity-graph-pin-button")?.getAttribute("aria-label"),
 			local: localPinButton(node)?.getAttribute("aria-label"),
+		}).toEqual({ global: "Pin to graph", local: "Pin for this note" });
+	});
+
+	it("WHEN a node is BOTH globally and locally pinned THEN both chip TOOLTIPS flip to their unpin actions (both hover hints)", async () => {
+		const { result } = renderNoteNode(
+			nodeData({ isGloballyPinned: true, isLocallyPinned: true, tier: "pinned-central", docid: "docid_a_e" }),
+		);
+		const node = await mountedNode(result.container);
+		expect({
+			global: node.querySelector("button.vicinity-graph-pin-button")?.getAttribute("title"),
+			local: localPinButton(node)?.getAttribute("title"),
 		}).toEqual({ global: "Unpin from graph", local: "Unpin for this note" });
 	});
 
