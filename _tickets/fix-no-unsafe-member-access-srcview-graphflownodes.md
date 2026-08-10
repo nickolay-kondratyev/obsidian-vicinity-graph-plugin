@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-10T23:27:15Z
-session_ids: [{a: claude, type: execution, id: eba67cad-496b-48b0-af75-4a3661e1772e}]
+session_ids: [{a: claude, type: execution, id: eba67cad-496b-48b0-af75-4a3661e1772e}, {a: claude, type: review, id: 5ee8d6a8-3a18-49ab-bfc3-823ea3f66e16}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_dq0439hrj3lj7edst73p6a9ic_e
 title: "fix no-unsafe-member-access: src/view graph/flow/nodes"
