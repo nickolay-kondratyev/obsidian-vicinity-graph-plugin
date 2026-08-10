@@ -26,7 +26,7 @@ Two failure modes the owner called out:
    or smaller). Re-layout may be deferred until the resize gesture ends.
 3. **Per-node overrides stored globally by docid**: frontmatter `id` for
    markdown, `metadata.frontmatter.id` for canvas; assigned lazily via
-   obsidian-id-lib `ensureDocId` ONLY when an override actually needs saving.
+   stable-ids-for-obsidian `ensureDocId` ONLY when an override actually needs saving.
    Overrides apply regardless of which note is central.
 4. **Hover gear** at the node's bottom-right opens a per-node menu with
    `Content: [Inherit | Outline | Image]`, a per-docid override over the

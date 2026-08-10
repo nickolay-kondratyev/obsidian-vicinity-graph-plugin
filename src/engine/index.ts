@@ -2,7 +2,7 @@
  * PUBLIC API of the pure vicinity-graph engine.
  *
  * The engine is synchronous, side-effect free and NEVER imports `obsidian`,
- * `obsidian-id-lib` or React (enforced by `importGuard.test.ts`). Obsidian
+ * `stable-ids-for-obsidian` or React (enforced by `importGuard.test.ts`). Obsidian
  * reaches it exclusively through the {@link LinkProvider} seam.
  *
  * ## Typical consumption (steps 03/04)
@@ -20,7 +20,7 @@
  *
  * ## Adapter contract for pins (step-03, MUST honor)
  * A note that receives a pin MUST have a docid: the adapter `await`s
- * obsidian-id-lib's `ensureDocId` BEFORE persisting the pin.
+ * stable-ids-for-obsidian's `ensureDocId` BEFORE persisting the pin.
  * {@link PinnedNodeDescriptor} therefore requires `docid` (and
  * `pinTimestamp`). A doc whose `ensureDocId` returns null cannot be pinned. The
  * engine never interprets docids — it echoes them onto output nodes so

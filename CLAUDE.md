@@ -16,7 +16,7 @@ under KSAL-2.3 (`LICENSE.md`), **not** OSI open-source.
 
 `view → adapters → engine (pure)`; `persistence` implements engine-defined ports.
 
-- **`src/engine/`** is pure: **no `obsidian` / `obsidian-id-lib` / `react` imports** (guarded by `src/engine/importGuard.test.ts`; same rule for `src/shared/`). Obsidian reaches it only via the `LinkProvider` seam. Import engine symbols from `src/engine/index.ts`, not deep paths.
+- **`src/engine/`** is pure: **no `obsidian` / `stable-ids-for-obsidian` / `react` imports** (guarded by `src/engine/importGuard.test.ts`; same rule for `src/shared/`). Obsidian reaches it only via the `LinkProvider` seam. Import engine symbols from `src/engine/index.ts`, not deep paths.
 - **`src/adapters/`** bridge Obsidian ↔ engine. **`src/persistence/`** = JSON storage. **`src/view/`** = React in an Obsidian `ItemView`; `GraphViewController.ts` is the only view class touching Obsidian + the async engine.
 - Extend via new interface implementations (OCP), not by editing existing seams. Each port has a `Fake*` for tests.
 
@@ -59,7 +59,7 @@ Redirect verbose build/test output to `.tmp/` to conserve context.
 - **Not published yet ⇒ clean breaks on stored data.** No migrations, no dual-key read shims, no back-compat branches: rename/remove persisted keys outright and let old data fall back to spec defaults. There are no users to protect, so the cost is a re-set setting, not lost work. Say so in the PR/release note; never break stored data *silently*. **Revisit this line the moment the plugin ships** — after that, migrations are back on the table.
 - **Styling** pulls from Obsidian theme CSS variables (light/dark just work); prefer CSS over JS. `styles.css` is generated from `src/view/*.css` at build.
 - `main.js` and `styles.css` are **build artifacts** — never hand-edit.
-- `minAppVersion` `1.12.4` is a floor, never a ceiling (canvas core indexing). `obsidian-id-lib` is bundled; only `obsidian` is external.
+- `minAppVersion` `1.12.4` is a floor, never a ceiling (canvas core indexing). `stable-ids-for-obsidian` is bundled; only `obsidian` is external.
 
 ## Guardrails
 

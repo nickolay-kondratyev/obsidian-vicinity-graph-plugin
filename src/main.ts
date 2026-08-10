@@ -1,7 +1,7 @@
 import { Notice, Plugin } from "obsidian";
 import type { TFile } from "obsidian";
-import { DocIdServices } from "obsidian-id-lib";
-import type { DocIdService } from "obsidian-id-lib";
+import { DocIdServices } from "stable-ids-for-obsidian";
+import type { DocIdService } from "stable-ids-for-obsidian";
 import { asVaultPath } from "./engine";
 import { BacklinksAdapter } from "./adapters/BacklinksAdapter";
 import { CanvasParseCache } from "./adapters/CanvasParseCache";
@@ -25,7 +25,7 @@ import type { UserNoticePort, ViewsRefreshPort } from "./view/viewPorts";
 // manifest.json minAppVersion WHY: 1.12.4 is the first PUBLIC Obsidian release where
 // canvas backlinks are core-indexed (resolvedLinks/graph; EA 1.12.0, 2026-02). It is a
 // floor, never a ceiling — newer versions must keep working. Canvas
-// `metadata.frontmatter` (used by obsidian-id-lib) was NOT introduced by any core
+// `metadata.frontmatter` (used by stable-ids-for-obsidian) was NOT introduced by any core
 // version; it rides canvas's documented arbitrary-key forward compatibility.
 
 /**

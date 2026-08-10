@@ -15,7 +15,7 @@ export type PersistableIdentity =
 	| { readonly kind: "not-persistable"; readonly reason: NotPersistableReason };
 
 export type NotPersistableReason =
-	/** obsidian-id-lib could not read or create an id (unsupported format, occupied-unusable slot, ...). */
+	/** stable-ids-for-obsidian could not read or create an id (unsupported format, occupied-unusable slot, ...). */
 	| "no-docid"
 	/** The doc HAS an id, but a foreign-format one that is not filename-safe (README: ids pass through as-is). */
 	| "unsafe-docid";

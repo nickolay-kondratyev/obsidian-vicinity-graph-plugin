@@ -1,7 +1,7 @@
 /**
  * Structural ports over the slices of the Obsidian API the adapters consume
  * (DIP). Real `obsidian` objects (`Vault`, `MetadataCache`, `TFile`, `Plugin`,
- * `DataAdapter`, obsidian-id-lib's `DocIdService`) satisfy these structurally
+ * `DataAdapter`, stable-ids-for-obsidian's `DocIdService`) satisfy these structurally
  * — method parameters check bivariantly — so production code passes them in
  * unchanged while tests use plain fakes with NO obsidian runtime mock.
  */
@@ -73,7 +73,7 @@ export interface MetadataCachePort {
 	getFirstLinkpathDest(linkpath: string, sourcePath: string): VaultFilePort | null;
 }
 
-/** Structural slice of obsidian-id-lib's `DocIdService` (see its README for the contract). */
+/** Structural slice of stable-ids-for-obsidian's `DocIdService` (see its README for the contract). */
 export interface DocIdPort {
 	/** Lock-guarded read-or-create — ONLY on explicit write intent (pinning a doc). */
 	ensureDocId(file: VaultFilePort): Promise<string | null>;

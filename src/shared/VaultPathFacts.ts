@@ -2,7 +2,7 @@
  * Pure vault-path string facts, shared by the engine and the Obsidian adapters.
  *
  * PURE by contract: `src/shared/` is imported by the engine (import-guarded to
- * never touch `obsidian`/`obsidian-id-lib`/react), so nothing here may import
+ * never touch `obsidian`/`stable-ids-for-obsidian`/react), so nothing here may import
  * those either. Extracted when step-03 became the third path-parsing consumer
  * (step-02 iteration finding 4).
  */

@@ -22,7 +22,7 @@ import { Wikilinks } from "../shared/Wikilinks";
  * carries a literal vault PATH, a text node carries LINK TEXT needing
  * Obsidian's resolution — so both travel out as {@link CanvasReference}s and
  * the caller (which owns the metadata cache) resolves them. Malformed JSON
- * NEVER throws (matches obsidian-id-lib's philosophy): it logs `console.error`
+ * NEVER throws (matches stable-ids-for-obsidian's philosophy): it logs `console.error`
  * and yields no links.
  */
 export class CanvasFallbackParser {

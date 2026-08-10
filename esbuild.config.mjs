@@ -93,7 +93,7 @@ const context = await esbuild.context({
 	entryPoints: ["src/main.ts"],
 	bundle: true,
 	// `obsidian` (and friends) are provided by the Obsidian runtime — never bundled.
-	// obsidian-id-lib is deliberately NOT external: the published package is bundled into main.js.
+	// stable-ids-for-obsidian is deliberately NOT external: the published package is bundled into main.js.
 	external: [
 		"obsidian",
 		"electron",

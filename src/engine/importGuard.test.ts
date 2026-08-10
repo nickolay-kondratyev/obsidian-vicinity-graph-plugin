@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 /**
- * Step-02 exit criterion: ZERO `obsidian` / `obsidian-id-lib` / react imports
+ * Step-02 exit criterion: ZERO `obsidian` / `stable-ids-for-obsidian` / react imports
  * anywhere in the engine's import closure — the engine must stay pure.
  * Engine files import `../shared/` (step-03 DRY extraction), so src/shared/
  * is guarded by the same rule. Enforced as a test because the repo has no
@@ -14,7 +14,7 @@ import { describe, expect, it } from "vitest";
 const ENGINE_DIR = dirname(fileURLToPath(import.meta.url));
 const SHARED_DIR = join(ENGINE_DIR, "..", "shared");
 const GUARDED_DIRS = [ENGINE_DIR, SHARED_DIR];
-const FORBIDDEN_MODULE_PREFIXES = ["obsidian", "obsidian-id-lib", "react", "react-dom"];
+const FORBIDDEN_MODULE_PREFIXES = ["obsidian", "stable-ids-for-obsidian", "react", "react-dom"];
 
 // Static imports/re-exports, side-effect imports, dynamic import(...) and require(...).
 const MODULE_SPECIFIER_PATTERNS = [
@@ -63,7 +63,7 @@ describe("engine import guard", () => {
 		expect(tsFilesUnder(SHARED_DIR).length).toBeGreaterThan(0);
 	});
 
-	it("WHEN scanning every engine and shared file THEN no obsidian/obsidian-id-lib/react import exists", () => {
+	it("WHEN scanning every engine and shared file THEN no obsidian/stable-ids-for-obsidian/react import exists", () => {
 		const offenders = GUARDED_DIRS.flatMap((dir) => tsFilesUnder(dir))
 			.map((file) => ({ file, forbidden: forbiddenImportsIn(file) }))
 			.filter((entry) => entry.forbidden.length > 0);
@@ -119,7 +119,9 @@ describe("engine import guard matcher", () => {
 	});
 
 	it("WHEN a require call is scanned THEN its specifier is extracted", () => {
-		expect(moduleSpecifiersIn(`const mod = require(${q("obsidian-id-lib")});`)).toEqual(["obsidian-id-lib"]);
+		expect(moduleSpecifiersIn(`const mod = require(${q("stable-ids-for-obsidian")});`)).toEqual([
+			"stable-ids-for-obsidian",
+		]);
 	});
 
 	it("WHEN a relative import is scanned THEN it is extracted but NOT flagged as forbidden", () => {
