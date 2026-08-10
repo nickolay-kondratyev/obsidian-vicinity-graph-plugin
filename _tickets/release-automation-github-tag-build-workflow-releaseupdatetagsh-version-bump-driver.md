@@ -1,17 +1,18 @@
 ---
 id: nid_ryf59psd6sj5rsj7pha7zc7yk_e
-title: "Release automation: GitHub tag-build workflow + release_update_tag.sh version-bump driver"
-status: open
+title: 'Release automation: GitHub tag-build workflow + release_update_tag.sh version-bump
+  driver'
+status: in_progress
 deps: []
 links: [nid_o9hmeo92x5dkmtz5lfzr5jk0s_e]
-created_iso: 2026-08-10T16:38:33Z
-status_updated_iso: 2026-08-10T16:38:33Z
+created_iso: '2026-08-10T16:38:33Z'
+status_updated_iso: '2026-08-10T18:49:52Z'
 type: task
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
 tags: [release, ci, decide]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 ---
-
 Deliver release automation for the Vicinity Graph Obsidian plugin. Split out of planning ticket nid_2d67dgjxs5aq6i8hlasxp7tao_e ("Get ready for release").
 
 OPEN DECISIONS live in .out/current_decision.md (Q1-Q4). Defaults below are ASSUMED; confirm with human before implementing. Tagged `decide`.
@@ -42,4 +43,3 @@ Current /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity
 - `git grep -n "release.sh"` returns only intended historical references (ideally none in docs).
 - Version bump helper edits all three files atomically and keeps tab indentation.
 - Add a change_log entry after completion.
-
