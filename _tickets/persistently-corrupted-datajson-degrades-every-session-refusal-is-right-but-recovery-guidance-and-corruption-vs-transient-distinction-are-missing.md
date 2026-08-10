@@ -9,7 +9,7 @@ status_updated_iso: 2026-08-10T20:09:55Z
 type: bug
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
-tags: [decide, persistence]
+tags:  [persistence]
 ---
 
 Follow-up from the review of ticket nid_ghaeps3siekw0oe17mr4xpmad_e (commits 06da6ce + eb6d428 on src/persistence/PluginDataStore.ts).
@@ -20,6 +20,7 @@ The refusal itself is deliberate and correct (never overwrite a file that could 
 
 DECIDE (human): pick one —
 (a) Distinguish corruption from transient failure with a direct `vault.adapter.read` probe of the plugin's data.json path after retries exhaust: raw read succeeds but JSON.parse fails => file is corrupt, not transient => quarantine it (rename to data.json.corrupt-<ts>, same set-aside pattern as VaultFileStore) and start fresh with writes ENABLED. Adds a second read path — some complexity.
+    `HUMAN: YES lets try to read it to distinguish`
 (b) Keep the code as is and only fix the notice copy for honesty: mention that if the message repeats every restart, the settings file is damaged and deleting/renaming it resets settings. Zero risk, but leaves a permanently-degraded plugin behind one manual step.
 
 Either way the notice copy in INIT_LOAD_FAILED_NOTICE (src/persistence/PluginDataStore.ts) needs the repeated-failure story.
