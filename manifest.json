@@ -3,7 +3,7 @@
 	"name": "Vicinity Graph",
 	"version": "0.1.1",
 	"minAppVersion": "1.12.4",
-	"description": "A richer local graph that shows the nearby notes around your active note (an improved alternative to Obsidian's built-in local graph).",
+	"description": "A richer local graph of the notes near your active note — a folder-grouped alternative to the built-in local graph.",
 	"author": "Nickolay Kondratyev",
-	"isDesktopOnly": false
+	"isDesktopOnly": true
 }
