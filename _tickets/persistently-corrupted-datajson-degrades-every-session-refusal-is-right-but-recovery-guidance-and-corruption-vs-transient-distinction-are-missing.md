@@ -1,12 +1,13 @@
 ---
+closed_iso: 2026-08-10T22:40:40Z
 id: nid_08ripmsxon0r9ncn42lp623g1_e
 title: 'Persistently corrupted data.json degrades every session: refusal is right,
   but recovery guidance and corruption-vs-transient distinction are missing'
-status: in_progress
+status: closed
 deps: []
 links: []
 created_iso: '2026-08-10T20:09:55Z'
-status_updated_iso: '2026-08-10T22:30:21Z'
+status_updated_iso: 2026-08-10T22:40:40Z
 type: bug
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
@@ -29,3 +30,24 @@ Either way the notice copy in INIT_LOAD_FAILED_NOTICE (src/persistence/PluginDat
 ## Acceptance Criteria
 
 A vault whose data.json is permanently unparseable either self-recovers with the original file preserved (option a) or tells the user exactly how to recover (option b); a unit test covers the chosen behavior at the ScriptedPluginDataPort seam in src/persistence/PluginDataStore.test.ts.
+
+## Resolution — option (a), the human's pick ("YES lets try to read it to distinguish")
+
+A permanently corrupt `data.json` now SELF-RECOVERS on the first session, original bytes preserved.
+
+**How it distinguishes corrupt from transient.** After `PluginDataStore`'s `INIT_LOAD_ATTEMPTS` retries all come back `undefined`, `recoverAfterExhaustedReads()` runs a raw-bytes PROBE (`isCorruptOnDisk()`):
+- Bytes present but `JSON.parse` throws ⇒ CORRUPT ⇒ quarantine the file (rename aside, never delete) and start FRESH with writes ENABLED (`protectingUnreadDataJson` stays `false`).
+- No bytes / bytes that DO parse / the probe itself threw ⇒ TRANSIENT ⇒ unchanged pre-existing behavior: keep the intact file unread, refuse writes so this session's defaults never overwrite the user's real settings.
+
+**Files changed:**
+- `src/persistence/storagePorts.ts` — widened `PluginDataPort` with `readRawData()` (raw probe; `null` when absent or the fs read failed) and `quarantineData()` (rename to a `.corrupt-<ts>` sibling, returns the set-aside NAME). The bare `Plugin` can no longer satisfy the port (it only reads/writes parsed JSON inside its own folder), so the raw ops reach `vault.adapter`.
+- `src/persistence/PluginDataStore.ts` — `recoverAfterExhaustedReads()` + `isCorruptOnDisk()`; a NEW corruption notice (`initCorruptQuarantinedNotice`, names the set-aside file); `INIT_LOAD_FAILED_NOTICE` gained the repeated-failure story (transient clears on restart, so a message that returns every session points at a damaged file the probe still cannot read — e.g. a permissions error — deleting/renaming `data.json` resets settings).
+- `src/persistence/PluginDataAdapter.ts` (NEW) — the production `PluginDataPort`: delegates `loadData`/`saveData` to `Plugin`, and does the raw probe + collision-safe `.corrupt-<ts>` quarantine over a `VaultFsPort`. Thin obsidian-adjacent glue; classification lives in the store.
+- `src/main.ts` — wires `PluginDataAdapter` (over `this`, `VaultAdapterFsPort(this.app.vault.adapter)`, `<manifest.dir>/data.json`, `Date.now`) into `PluginDataStore`.
+- `src/persistence/FakePluginDataPort.ts`, `RejectingPluginDataPort.ts` — implement the two new port methods.
+
+**Tests (all green):**
+- `src/persistence/PluginDataStore.test.ts` — new `PluginDataStore.init corruption recovery` suite at the ScriptedPluginDataPort seam (probe returns unparseable bytes ⇒ quarantined once, writes enabled, defaults served, user told once naming the set-aside file; probe returns parseable bytes OR throws ⇒ NOT quarantined, writes stay refused).
+- `src/persistence/PluginDataAdapter.test.ts` (NEW) — raw read returns bytes / null-on-absent / null-on-read-throw; quarantine renames to `.corrupt-<ts>`, removes the original, returns the name, and uses a `_2` sibling on collision.
+
+`npm run check` ✓, `npm test` (1860) ✓, `npm run test:e2e -- controlsRestart.e2e.ts` (data.json persistence across a real Obsidian restart) ✓. Note: the dev env was missing `stable-ids-for-obsidian`; `npm install` restored it (pre-existing, unrelated to this change).

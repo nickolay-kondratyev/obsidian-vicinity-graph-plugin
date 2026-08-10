@@ -13,7 +13,10 @@ import type { PluginDataPort } from "./storagePorts";
  * parse threw for any reason OTHER than ENOENT, e.g. a resource-exhaustion error
  * under load — so a couple of short-spaced retries recover the user's real
  * settings instead of silently booting the session on defaults (ticket
- * nid_ghaeps3siekw0oe17mr4xpmad_e: restart-time stale controls).
+ * nid_ghaeps3siekw0oe17mr4xpmad_e: restart-time stale controls). When the retries
+ * exhaust, {@link PluginDataStore.recoverAfterExhaustedReads} runs the raw probe
+ * that tells a PERMANENTLY corrupt file (which no retry could ever fix) from a
+ * transient one (ticket nid_08ripmsxon0r9ncn42lp623g1_e).
  */
 export const INIT_LOAD_ATTEMPTS = 3;
 
@@ -21,14 +24,34 @@ export const INIT_LOAD_ATTEMPTS = 3;
 const INIT_RETRY_DELAY_MS = 100;
 
 /**
- * Shown ONCE when every read attempt failed: the session runs on defaults, but the
- * user's file was not touched — restarting reloads it. Plain language, states the
- * consequence and the way back (interface-design guardrail: no raw error codes).
+ * Shown ONCE when every read attempt failed AND the raw probe could NOT prove the
+ * file corrupt (no bytes on disk, bytes that DO parse, or a probe that itself
+ * failed — a genuine transient): the session runs on defaults, the user's file is
+ * left untouched, and restarting reloads it. The repeated-failure sentence is the
+ * honesty the corruption story earns — a transient clears on restart, so a message
+ * that keeps returning every session points at a file the probe still cannot read
+ * (e.g. a permissions error that also blocks the raw probe), whose one manual fix
+ * is to delete or rename it. Plain language, states the consequence and the way
+ * back (interface-design guardrail: no raw error codes).
  */
 const INIT_LOAD_FAILED_NOTICE =
 	"Vicinity Graph couldn't read its saved settings, so defaults are shown for this session. " +
 	"Your settings file was left untouched and changes made this session won't be saved over it — " +
-	"restart Obsidian to load it again.";
+	"restart Obsidian to load it again. If this message returns every time you restart, the settings " +
+	"file is damaged and can't be read; deleting or renaming " +
+	"“.obsidian/plugins/vicinity-graph/data.json” resets settings and clears it.";
+
+/**
+ * Shown ONCE when the raw probe proved `data.json` is CORRUPT (present but
+ * unparseable — a torn write or a sync conflict). The file was renamed aside
+ * (never deleted) and the session starts fresh with writes ENABLED, so recovery is
+ * automatic and the damaged bytes stay recoverable at `quarantineName`. Mirrors
+ * the tone of {@link ./VaultFileStore VaultFileStore}'s quarantine notice.
+ */
+const initCorruptQuarantinedNotice = (quarantineName: string): string =>
+	"Vicinity Graph's settings file was damaged and couldn't be read, so it was set aside as " +
+	`“${quarantineName}” and settings were reset to defaults for a fresh start. ` +
+	"Nothing was deleted — your old file is recoverable if you need it.";
 
 /** Real wall-clock pause; injectable so tests retry on the microtask queue instead of waiting. */
 const REAL_SLEEP = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
@@ -50,12 +73,14 @@ export class PluginDataStore {
 	private readonly writes = new SerialPromiseChain();
 
 	/**
-	 * True when {@link init} exhausted every read attempt: memory holds defaults
-	 * while the user's REAL `data.json` sits intact and unread on disk. Every
-	 * mutator persists the whole in-memory object, so any write let through now
-	 * would overwrite the user's settings and pins with defaults — {@link persist}
-	 * therefore refuses, and the rejection reaches the user through the settings
-	 * pipeline's / `runGuarded`'s one failure policy.
+	 * True when {@link init} exhausted every read attempt AND the file is a TRANSIENT
+	 * failure (not corruption): memory holds defaults while the user's REAL `data.json`
+	 * sits intact and unread on disk. Every mutator persists the whole in-memory object,
+	 * so any write let through now would overwrite the user's settings and pins with
+	 * defaults — {@link persist} therefore refuses, and the rejection reaches the user
+	 * through the settings pipeline's / `runGuarded`'s one failure policy. A CORRUPT file
+	 * takes the other branch — it is quarantined and this stays `false`, so the fresh
+	 * session writes normally.
 	 */
 	private protectingUnreadDataJson = false;
 
@@ -83,6 +108,8 @@ export class PluginDataStore {
 	 * the silent-defaults bug this guards against — and worse, a later settings
 	 * write would then persist those defaults OVER the user's intact file. A port
 	 * rejection (the real one never rejects; fakes may) counts as a failed read.
+	 * When every attempt fails, {@link recoverAfterExhaustedReads} decides corrupt
+	 * vs transient.
 	 */
 	private async loadRawResiliently(): Promise<unknown> {
 		for (let attempt = 1; attempt <= INIT_LOAD_ATTEMPTS; attempt += 1) {
@@ -99,12 +126,89 @@ export class PluginDataStore {
 				await this.sleep(INIT_RETRY_DELAY_MS);
 			}
 		}
+		return this.recoverAfterExhaustedReads();
+	}
+
+	/**
+	 * Every `loadData` attempt came back `undefined` — the read OR the parse failed,
+	 * indistinguishably. Probe the raw bytes to tell the two apart:
+	 *
+	 * - Bytes present but UNPARSEABLE ⇒ the file is permanently CORRUPT (a torn write
+	 *   or a sync conflict), and retrying every session can never fix it. Quarantine it
+	 *   (rename aside, never delete) and start FRESH with writes enabled — the one path
+	 *   that self-recovers instead of degrading forever behind a manual delete.
+	 * - No bytes, bytes that DO parse now, the probe itself failed, OR the file is
+	 *   corrupt but the quarantine rename itself failed ⇒ fall back to TRANSIENT
+	 *   protection: keep the intact/damaged file on disk and refuse writes so this
+	 *   session's defaults never overwrite the user's bytes (the write-protection this
+	 *   deliberately preserves). A quarantine that cannot set the corrupt file aside
+	 *   MUST NOT enable writes — a later save would then clobber the only recoverable
+	 *   copy with defaults; the manual-delete guidance in {@link INIT_LOAD_FAILED_NOTICE}
+	 *   is the way back.
+	 *
+	 * Either way this returns `null` (defaults for the session) and never throws — a
+	 * failure here must degrade the plugin, never crash `onload`.
+	 */
+	private async recoverAfterExhaustedReads(): Promise<unknown> {
+		if (await this.isCorruptOnDisk() && (await this.quarantineAndStartFresh())) {
+			return null;
+		}
+		return this.protectAsTransient();
+	}
+
+	/**
+	 * Sets the corrupt file aside and enables fresh writes; returns `false` (never
+	 * throws) when the quarantine rename itself failed — a locked or read-only file —
+	 * so the caller falls back to transient protection instead of crashing `onload`.
+	 */
+	private async quarantineAndStartFresh(): Promise<boolean> {
+		let quarantineName: string;
+		try {
+			quarantineName = await this.port.quarantineData();
+		} catch (error: unknown) {
+			console.error("vicinity-graph: quarantining corrupt data.json failed; leaving it in place, writes refused", error);
+			return false;
+		}
+		console.warn(
+			`vicinity-graph: data.json was corrupt; set aside as [${quarantineName}], starting fresh with writes enabled`,
+		);
+		this.notice?.show(initCorruptQuarantinedNotice(quarantineName));
+		return true;
+	}
+
+	/** Runs the session on defaults with writes REFUSED, telling the user once (the way back). */
+	private protectAsTransient(): null {
 		console.error(
 			`vicinity-graph: data.json unreadable after attempts=[${INIT_LOAD_ATTEMPTS}]; running this session on defaults, writes refused`,
 		);
 		this.notice?.show(INIT_LOAD_FAILED_NOTICE);
 		this.protectingUnreadDataJson = true;
 		return null;
+	}
+
+	/**
+	 * True only when the raw probe reads bytes that FAIL to parse as JSON — the
+	 * definite signature of corruption. Absent bytes (`null`), bytes that parse, or a
+	 * probe that itself threw all read as NOT-corrupt (transient), because none of
+	 * them prove the file is unrecoverably damaged.
+	 */
+	private async isCorruptOnDisk(): Promise<boolean> {
+		let raw: string | null;
+		try {
+			raw = await this.port.readRawData();
+		} catch (error: unknown) {
+			console.error("vicinity-graph: raw data.json probe threw", error);
+			return false;
+		}
+		if (raw === null) {
+			return false;
+		}
+		try {
+			JSON.parse(raw);
+			return false;
+		} catch {
+			return true;
+		}
 	}
 
 	globalDepths(): DepthSettings {

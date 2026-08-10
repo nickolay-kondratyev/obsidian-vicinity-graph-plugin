@@ -13,6 +13,7 @@ import { OrphanSweeper, SWEEP_DELAY_MS } from "./persistence/OrphanSweeper";
 import { PathDocIdMap } from "./persistence/PathDocIdMap";
 import { PerDocStore } from "./persistence/PerDocStore";
 import { PersistenceServices } from "./persistence/PersistenceServices";
+import { PluginDataAdapter } from "./persistence/PluginDataAdapter";
 import { PluginDataStore } from "./persistence/PluginDataStore";
 import { VaultAdapterFsPort } from "./persistence/vaultFsPort";
 import { VaultFileStore } from "./persistence/VaultFileStore";
@@ -96,7 +97,19 @@ export default class VicinityGraphPlugin extends Plugin {
 
 	async onload(): Promise<void> {
 		this.docIdService = DocIdServices.createDefault(this.app.vault);
-		this.pluginDataStore = new PluginDataStore(this, this.notices);
+		// data.json I/O: Plugin.loadData/saveData for the parsed path, plus a raw-bytes
+		// probe + quarantine (over vault.adapter) so a PERMANENTLY corrupt data.json is
+		// told from a transient failure and set aside instead of degrading every session
+		// (ticket nid_08ripmsxon0r9ncn42lp623g1_e).
+		this.pluginDataStore = new PluginDataStore(
+			new PluginDataAdapter(
+				this,
+				new VaultAdapterFsPort(this.app.vault.adapter),
+				`${this.manifest.dir ?? this.app.vault.configDir + "/plugins/" + this.manifest.id}/data.json`,
+				Date.now,
+			),
+			this.notices,
+		);
 		await this.pluginDataStore.init();
 		// Vault-root tree (NOT under .obsidian/) so it syncs as vault content; raw
 		// adapter I/O — Plugin.loadData/saveData cannot reach outside the plugin folder.
