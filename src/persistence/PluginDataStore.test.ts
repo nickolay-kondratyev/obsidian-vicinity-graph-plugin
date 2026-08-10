@@ -104,6 +104,7 @@ describe("PluginDataStore.forgetDocs", () => {
  */
 class ScriptedPluginDataPort implements PluginDataPort {
 	loadCalls = 0;
+	saveCalls = 0;
 
 	/** Each entry is one loadData outcome, in order; the LAST entry repeats forever. */
 	constructor(private readonly outcomes: readonly (() => Promise<unknown>)[]) {}
@@ -117,7 +118,9 @@ class ScriptedPluginDataPort implements PluginDataPort {
 		return outcome();
 	}
 
-	async saveData(): Promise<void> {}
+	async saveData(): Promise<void> {
+		this.saveCalls += 1;
+	}
 }
 
 const READ_FAILED = async (): Promise<unknown> => undefined;
@@ -182,5 +185,47 @@ describe("PluginDataStore.init read-failure resilience", () => {
 		const port = new ScriptedPluginDataPort([READ_FAILED, storedDataWithDepthIn(2)]);
 		await new PluginDataStore(port, notices, IMMEDIATE_SLEEP).init();
 		expect(notices.messages).toEqual([]);
+	});
+});
+
+/**
+ * A session whose init NEVER read data.json holds defaults in memory while the
+ * user's real file sits intact on disk. Every mutator persists the WHOLE
+ * in-memory object, so allowing any write through would overwrite the user's
+ * settings and pins with defaults — the data-loss half of ticket
+ * nid_ghaeps3siekw0oe17mr4xpmad_e. Such a session must therefore REFUSE writes;
+ * the rejection surfaces through the settings pipeline's / runGuarded's one
+ * failure policy, so the user is told each time.
+ */
+describe("PluginDataStore degraded-session write protection", () => {
+	async function exhaustedStore(port: ScriptedPluginDataPort): Promise<PluginDataStore> {
+		const store = new PluginDataStore(port, undefined, IMMEDIATE_SLEEP);
+		await store.init();
+		return store;
+	}
+
+	it("WHEN init exhausted every read attempt THEN a settings write rejects instead of overwriting the unread file", async () => {
+		const store = await exhaustedStore(new ScriptedPluginDataPort([READ_FAILED]));
+		await expect(store.saveGlobalDepths({ ...EngineDefaults.depthSettings(), linkDepthIn: 4 })).rejects.toThrow();
+	});
+
+	it("WHEN init exhausted every read attempt THEN no write ever reaches the port", async () => {
+		const port = new ScriptedPluginDataPort([READ_FAILED]);
+		const store = await exhaustedStore(port);
+		await store.addPin("docid-1", 1).catch(() => undefined);
+		expect(port.saveCalls).toBe(0);
+	});
+
+	it("WHEN init exhausted every read attempt THEN a refused write leaves memory on defaults (screen snaps back on the rebuild)", async () => {
+		const store = await exhaustedStore(new ScriptedPluginDataPort([READ_FAILED]));
+		await store.saveGlobalDepths({ ...EngineDefaults.depthSettings(), linkDepthIn: 4 }).catch(() => undefined);
+		expect(store.globalDepths()).toEqual(EngineDefaults.depthSettings());
+	});
+
+	it("WHEN a retry recovered the read THEN later writes persist normally", async () => {
+		const port = new ScriptedPluginDataPort([READ_FAILED, storedDataWithDepthIn(2)]);
+		const store = await exhaustedStore(port);
+		await store.saveGlobalDepths({ ...EngineDefaults.depthSettings(), linkDepthIn: 4 });
+		expect(port.saveCalls).toBe(1);
 	});
 });

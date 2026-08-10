@@ -27,7 +27,8 @@ const INIT_RETRY_DELAY_MS = 100;
  */
 const INIT_LOAD_FAILED_NOTICE =
 	"Vicinity Graph couldn't read its saved settings, so defaults are shown for this session. " +
-	"Your settings file was left untouched — restart Obsidian to load it again.";
+	"Your settings file was left untouched and changes made this session won't be saved over it — " +
+	"restart Obsidian to load it again.";
 
 /** Real wall-clock pause; injectable so tests retry on the microtask queue instead of waiting. */
 const REAL_SLEEP = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
@@ -47,6 +48,16 @@ const REAL_SLEEP = (ms: number): Promise<void> => new Promise((resolve) => setTi
 export class PluginDataStore {
 	private data: PluginData = PersistedShapes.defaultPluginData();
 	private readonly writes = new SerialPromiseChain();
+
+	/**
+	 * True when {@link init} exhausted every read attempt: memory holds defaults
+	 * while the user's REAL `data.json` sits intact and unread on disk. Every
+	 * mutator persists the whole in-memory object, so any write let through now
+	 * would overwrite the user's settings and pins with defaults — {@link persist}
+	 * therefore refuses, and the rejection reaches the user through the settings
+	 * pipeline's / `runGuarded`'s one failure policy.
+	 */
+	private protectingUnreadDataJson = false;
 
 	/**
 	 * @param notice optional: an init that exhausted its read retries says so ONCE here.
@@ -89,9 +100,10 @@ export class PluginDataStore {
 			}
 		}
 		console.error(
-			`vicinity-graph: data.json unreadable after attempts=[${INIT_LOAD_ATTEMPTS}]; running this session on defaults`,
+			`vicinity-graph: data.json unreadable after attempts=[${INIT_LOAD_ATTEMPTS}]; running this session on defaults, writes refused`,
 		);
 		this.notice?.show(INIT_LOAD_FAILED_NOTICE);
+		this.protectingUnreadDataJson = true;
 		return null;
 	}
 
@@ -154,8 +166,18 @@ export class PluginDataStore {
 	/**
 	 * In-memory state moves NOW, the disk write is serialised. The chain owns
 	 * rejection isolation and caller-visible failure (see {@link SerialPromiseChain}).
+	 *
+	 * EXCEPT in a session protecting an unread `data.json` (see
+	 * {@link protectingUnreadDataJson}): then the write is refused BEFORE memory
+	 * moves, so the rebuild the caller's failure policy triggers snaps the screen
+	 * back to the store rather than to a value that was never accepted.
 	 */
 	private persist(updated: PluginData): Promise<void> {
+		if (this.protectingUnreadDataJson) {
+			return Promise.reject(
+				new Error("vicinity-graph: data.json was never read this session; refusing to overwrite it with defaults"),
+			);
+		}
 		this.data = updated;
 		return this.writes.run(() => this.port.saveData(this.data));
 	}

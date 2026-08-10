@@ -143,3 +143,18 @@ transient fs read failure into a real Obsidian boot, so the seam is unit-covered
 (scripted port) and the floor suite stands as the regression canary.
 
 Commit: 06da6ce on branch CC_nid_ghaeps3siekw0oe17mr4xpmad_e__restart-time-stale-controls-toolbar-depth-stepper-_fable.
+
+---
+## REVIEW HARDENING 2026-08-10 (adversarial review pass)
+
+The retry fix left one residual data-loss path open: a session whose init EXHAUSTED
+all read attempts runs on defaults while the user's real data.json sits intact on
+disk, and every `PluginDataStore` mutator persists the WHOLE in-memory object — so
+the next settings/pin write would overwrite the user's file with defaults (the exact
+danger the resolution above names). Closed: such a session now sets
+`protectingUnreadDataJson` and `persist()` REFUSES (rejects before memory moves);
+the rejection surfaces through the existing one failure policy (pipeline `guarded()`
+/ `runGuarded`), so each refused write is reported to the user, and the init notice
+now says changes won't be saved this session. `forgetDocs` is unaffected (defaults
+hold an empty pinned set, so it early-returns). Covered by 4 new seam tests in
+`PluginDataStore.test.ts` ("degraded-session write protection").
