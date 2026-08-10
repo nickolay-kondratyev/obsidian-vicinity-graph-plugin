@@ -2,6 +2,9 @@ import { expect } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import { PLUGIN_ID } from "./obsidianHarness";
 import { SETTINGS_TAB_SECTIONS } from "./settingsBaseline";
+// Narrow, type-only view of Obsidian's undocumented `window.app` (see obsidianInternals.ts),
+// so the `page.evaluate` blocks below reach `app.setting` without calling through `any`.
+import type { E2eObsidianApp } from "./obsidianInternals";
 
 /**
  * Page object for the plugin's tab inside Obsidian's settings window: opening it,
@@ -31,7 +34,7 @@ export class SettingsTabPage {
 	 */
 	async open(): Promise<void> {
 		await this.page.evaluate((pluginId) => {
-			const app = (window as unknown as { app: any }).app;
+			const app = (window as unknown as { app: E2eObsidianApp }).app;
 			app.setting.open();
 			app.setting.openTabById(pluginId);
 		}, PLUGIN_ID);
@@ -40,7 +43,7 @@ export class SettingsTabPage {
 
 	/** Closes the whole settings window (e.g. to leave a single radiogroup in the document). */
 	async close(): Promise<void> {
-		await this.page.evaluate(() => (window as unknown as { app: any }).app.setting.close());
+		await this.page.evaluate(() => (window as unknown as { app: E2eObsidianApp }).app.setting.close());
 	}
 
 	/**
@@ -49,7 +52,7 @@ export class SettingsTabPage {
 	 * closed — then there is nothing to re-render and that is not an error.
 	 */
 	async redisplay(): Promise<void> {
-		await this.page.evaluate(() => (window as unknown as { app: any }).app.setting.activeTab?.display());
+		await this.page.evaluate(() => (window as unknown as { app: E2eObsidianApp }).app.setting.activeTab?.display());
 	}
 
 	/** The plugin's root element in the settings modal — also the tab's scroll container. */
