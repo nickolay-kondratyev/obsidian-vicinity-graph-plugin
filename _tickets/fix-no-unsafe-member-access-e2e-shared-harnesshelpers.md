@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-10T23:13:40Z
-session_ids: [{a: claude, type: execution, id: 24f9e97a-ecb2-4277-ad5b-2f8e12b66bea}]
+session_ids: [{a: claude, type: execution, id: 24f9e97a-ecb2-4277-ad5b-2f8e12b66bea}, {a: claude, type: review, id: 8132fe41-dc47-45a0-b9a4-a089f0b5d11b}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_6kz4747paujgvor7ftnav1xz6_e
 title: "fix no-unsafe-member-access: e2e shared harness/helpers"
