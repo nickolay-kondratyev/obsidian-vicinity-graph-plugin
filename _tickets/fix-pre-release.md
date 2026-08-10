@@ -1,17 +1,17 @@
 ---
 id: nid_2uh0ep3s7hcz529hpq6pmcjlw_e
-title: "fix pre-release"
-status: open
+title: fix pre-release
+status: in_progress
 deps: []
 links: []
-created_iso: 2026-08-10T22:19:45Z
-status_updated_iso: 2026-08-10T22:19:45Z
+created_iso: '2026-08-10T22:19:45Z'
+status_updated_iso: '2026-08-10T22:21:10Z'
 type: task
 priority: 3
 assignee: nickolaykondratyev
 tags: []
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin
 ---
-
 The following files contain `@typescript-eslint/no-unsafe-call` 
 
 e2e/buttonChrome.ts
