@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_tbqtxmq5gyjr9ehrpk87bcje6_e
 title: "obsidianmd: drop plugin id/name from command ids/names in src/main.ts"
-status: open
+status: in_progress
 deps: []
 links: [nid_qjuqgqfwentq2l59o5ya17vra_e, nid_6q26wh2r8ivgbeedpf17t31ry_e, nid_uyj3is3eyv9o3ctkv2meqcin7_e, nid_h2hs9s7uvugweohv076dvddpm_e, nid_l17hhil9b22jas1lwvyfgxp5w_e, nid_zs2aog8b2i9e3wutsorjm88ft_e, nid_icr9gp534nm6kgkbc8rgcpu68_e, nid_nioldkusdrwc7fqzr4bmq2bow_e]
 created_iso: 2026-08-11T21:26:40Z
-status_updated_iso: 2026-08-11T21:26:40Z
+status_updated_iso: 2026-08-11T22:43:36Z
 type: chore
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
