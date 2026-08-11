@@ -111,3 +111,9 @@ Per CLAUDE.md's clean-breaks rule (plugin unpublished): the data-URL loader path
 outright, no back-compat. Nothing persisted changed. Call this out in the release note when
 the plugin ships: "libavoid switched to its node build to drop false-positive network flags."
 
+
+## Notes
+
+**2026-08-11T19:02:03Z**
+
+__READY_AS_IS__: node-build switch verified — build/check/1870 unit tests/token-guard green, and edgeRouting.e2e.ts passes in real Obsidian (bent edges render = wasm instantiates from injected bytes); clean break, no dangling symbols, no bugs found.
