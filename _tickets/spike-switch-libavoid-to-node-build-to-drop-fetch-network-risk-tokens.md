@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-11T18:58:27Z
-session_ids: [{"a": "claude", "type": "execution", "id": "2e369365-1da4-4495-aaf3-2ca927aac5cc"}]
+session_ids: [{"a": "claude", "type": "execution", "id": "2e369365-1da4-4495-aaf3-2ca927aac5cc"}, {"a": "claude", "type": "review", "id": "97dec7ef-56af-4aa5-a98b-23897621f371"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_9sf1iftrf914ggxv3jv3r60sw_e
 title: "Spike: switch libavoid to node build to drop fetch network-risk tokens"
