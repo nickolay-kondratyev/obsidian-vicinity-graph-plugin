@@ -9,7 +9,8 @@ under KSAL-2.3 (`LICENSE.md`), **not** OSI open-source.
 
 - **[`docs-internal/architecture-map.md`](./docs-internal/architecture-map.md)** — directory → responsibility map + layering rules. **Read before changing structure.**
 - **[`docs-internal/plan/high-level-plan.md`](./docs-internal/plan/high-level-plan.md)** — design source of truth (traversal, sizing, truncation, pinning, persistence, canvas). Read before changing behavior.
-- **[`README.md`](./README.md)** — user-facing settings model, pinning semantics, dev + e2e setup.
+- **[`README.md`](./README.md)** — user-facing docs: install, settings model, pinning semantics.
+- **[`docs-internal/development.md`](./docs-internal/development.md)** — build/test/e2e setup, the release matrix, `minAppVersion`, `stable-ids-for-obsidian`.
 - `docs-internal/tickets/` — active follow-ups. `docs-internal/RELEASE_CHECKLIST.md`.
 
 ## Layering (enforced — do not violate)
