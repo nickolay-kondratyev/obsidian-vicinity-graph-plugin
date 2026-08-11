@@ -54,7 +54,7 @@ const initCorruptQuarantinedNotice = (quarantineName: string): string =>
 	"Nothing was deleted — your old file is recoverable if you need it.";
 
 /** Real wall-clock pause; injectable so tests retry on the microtask queue instead of waiting. */
-const REAL_SLEEP = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+const REAL_SLEEP = (ms: number): Promise<void> => new Promise((resolve) => window.setTimeout(resolve, ms));
 
 /**
  * Typed owner of the plugin's `data.json`: the truly-global config dials

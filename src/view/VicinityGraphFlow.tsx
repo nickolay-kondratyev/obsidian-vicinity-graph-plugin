@@ -352,8 +352,8 @@ function FitViewOnLayoutChange({ layoutVersion }: { readonly layoutVersion: numb
 		if (!paneReady) {
 			return;
 		}
-		const frame = requestAnimationFrame(() => void fitView());
-		return () => cancelAnimationFrame(frame);
+		const frame = window.requestAnimationFrame(() => void fitView());
+		return () => window.cancelAnimationFrame(frame);
 	}, [fitView, paneReady, layoutVersion]);
 	return null;
 }

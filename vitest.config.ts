@@ -7,6 +7,9 @@ export default defineConfig({
 		// `e2e/**/*.test.ts` = pure unit tests for e2e HELPERS (no Obsidian, no
 		// browser); Playwright only picks up `*.e2e.ts`, so the two never overlap.
 		include: ["src/**/*.test.{ts,tsx}", "e2e/**/*.test.ts"],
+		// Node-env suites have no `window`; shipped code schedules timers through it
+		// (obsidianmd/prefer-window-timers). See vitest.setup.ts for the single guard.
+		setupFiles: ["./vitest.setup.ts"],
 		coverage: {
 			// v8 matches the runtime we ship on; no separate instrumentation step.
 			provider: "v8",
