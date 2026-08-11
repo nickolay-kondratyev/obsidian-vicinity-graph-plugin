@@ -31,6 +31,6 @@ export class ChunkedWork {
 
 	/** `await sleep(0)` — a real macrotask hop, releasing the main thread. */
 	static sleepZero(): Promise<void> {
-		return new Promise((resolve) => setTimeout(resolve, 0));
+		return new Promise((resolve) => window.setTimeout(resolve, 0));
 	}
 }
