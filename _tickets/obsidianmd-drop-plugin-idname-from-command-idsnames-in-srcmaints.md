@@ -51,3 +51,9 @@ and `commands/no-plugin-name-in-command-name` findings are gone (the remaining 1
 No source outside `src/main.ts` referenced the old ids. e2e submodule untouched
 per ticket.
 
+
+## Notes
+
+**2026-08-11T22:47:14Z**
+
+__REVIEW_AGAIN__: command id rename broke e2e harness (OPEN_GRAPH_COMMAND_ID pointed at removed ids); fixed harness constants + bumped submodule, but e2e suite not run here — worth a confirming pass.
