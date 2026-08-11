@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_9sf1iftrf914ggxv3jv3r60sw_e
 title: "Spike: switch libavoid to node build to drop fetch network-risk tokens"
-status: open
+status: in_progress
 deps: []
 links: []
 created_iso: 2026-08-11T18:30:24Z
-status_updated_iso: 2026-08-11T18:30:24Z
+status_updated_iso: 2026-08-11T18:34:13Z
 type: task
 priority: 2
 assignee: nickolaykondratyev
