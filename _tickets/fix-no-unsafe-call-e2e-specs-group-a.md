@@ -84,3 +84,9 @@ into a group A spec, `npm run lint` will flag it; route the value through
 `E2eObsidianApp` in `e2e/obsidianInternals.ts` (add the narrow member there rather than
 widening back to `any`) — the same seam the harness ticket and group B use.
 
+
+## Notes
+
+**2026-08-11T00:03:16Z**
+
+__READY_AS_IS__: independently reproduced the resolution — eslint over all 12 group A files = 0 no-unsafe-call, sanity file fires 1; branch made no code changes and none were needed.
