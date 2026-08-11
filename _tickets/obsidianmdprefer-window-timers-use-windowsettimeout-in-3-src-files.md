@@ -71,3 +71,9 @@ diff-eyeball + lint-grep, and the one view-layer edit is a `window.`-prefix swap
 on rAF with zero rendered-behavior change (covered by the jsdom component
 suites). No 200MB Obsidian provision was warranted for a mechanical prefix.
 
+
+## Notes
+
+**2026-08-11T22:41:32Z**
+
+__READY_AS_IS__: mechanical window.* prefix swap; prefer-window-timers clean in src, check+1870 tests pass, no new lint problems (removed 3 warnings), e2e untouched per ticket.
