@@ -14,7 +14,7 @@ npm run dev                   # esbuild watch; re-copies artifacts on every rebu
 ```
 
 Then open `.dev-vault/` as a vault in Obsidian, enable community plugins, enable
-**Vicinity Graph**, and run the **Open vicinity graph in right sidebar** command.
+**Vicinity Graph**, and run the **Vicinity Graph: Open in right sidebar** command.
 
 `npm run setup:dev-vault` is idempotent: it creates `.dev-vault/` fixtures and a
 minimal `.obsidian/` config (which auto-enables the plugin) only when missing, so

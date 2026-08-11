@@ -167,18 +167,18 @@ export default class VicinityGraphPlugin extends Plugin {
 		// right"/"Split down"); the opener MOVES a graph that is open elsewhere.
 		const opener = new GraphViewOpener(this.app.workspace);
 		this.addCommand({
-			id: "open-vicinity-graph",
-			name: "Open vicinity graph in right sidebar",
+			id: "open-right-sidebar",
+			name: "Open in right sidebar",
 			callback: () => void opener.open("right-sidebar"),
 		});
 		this.addCommand({
-			id: "open-vicinity-graph-below",
-			name: "Open vicinity graph below active note",
+			id: "open-below",
+			name: "Open below active note",
 			callback: () => void opener.open("main-area"),
 		});
 		this.addCommand({
-			id: "debug-log-vicinity-graph",
-			name: "Debug: log vicinity graph for active file",
+			id: "debug-log",
+			name: "Debug: log graph for active file",
 			callback: () => void this.logVicinityGraph(),
 		});
 	}

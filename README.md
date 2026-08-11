@@ -37,7 +37,7 @@ Vicinity Graph is in the **Obsidian community plugin store.**
 1. In Obsidian: **Settings → Community plugins**, and turn on community plugins.
 2. **Browse**, search for **Vicinity Graph**, and click **Install**.
 3. Click **Enable**.
-4. Run the **Open vicinity graph in right sidebar** command (see
+4. Run the **Vicinity Graph: Open in right sidebar** command (see
    [Where the graph opens](#where-the-graph-opens)).
 
 ### BRAT (pre-release builds)
@@ -55,7 +55,7 @@ then enable **Vicinity Graph** as above.
    `.obsidian/plugins/vicinity-graph/` (create the folder if needed).
 3. In Obsidian: **Settings → Community plugins**, enable community plugins, then
    enable **Vicinity Graph**.
-4. Run the **Open vicinity graph in right sidebar** command (see
+4. Run the **Vicinity Graph: Open in right sidebar** command (see
    [Where the graph opens](#where-the-graph-opens)).
 
 Requires Obsidian **1.12.4** or newer.
@@ -66,8 +66,8 @@ Two commands, both bindable to a hotkey:
 
 | Command | Places the graph |
 |---|---|
-| **Open vicinity graph in right sidebar** | docked in the right sidebar |
-| **Open vicinity graph below active note** | in a main-area pane split **below** the current tab |
+| **Vicinity Graph: Open in right sidebar** | docked in the right sidebar |
+| **Vicinity Graph: Open below active note** | in a main-area pane split **below** the current tab |
 
 There is only ever **one** graph view: running either command while the graph is
 open somewhere else **moves** it there. Running the command for where it already
