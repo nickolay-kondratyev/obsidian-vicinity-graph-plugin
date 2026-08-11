@@ -354,6 +354,41 @@ A node tall enough to have room shows **one** preview: either the note's
 - User-assignable folder colors.
 - Manual node position persistence, if ever.
 
+## Bundled WebAssembly (edge-routing engine)
+
+The calm, orthogonal connectors between nodes are computed by
+[**libavoid-js**](https://github.com/Aksem/libavoid-js) `0.4.5`, a WebAssembly
+build of **libavoid** — the mature C++ orthogonal connector-routing library from
+the [Adaptagrams](https://github.com/mjwybrow/adaptagrams) project. It is
+compiled to WASM with Emscripten and licensed **LGPL-2.1-or-later**.
+
+The `.wasm` module (~474 KB) is embedded as raw bytes inside `main.js`; there is
+no `.wasm` sidecar file. It is loaded **lazily** from those embedded bytes on the
+first graph that needs routing, **entirely offline** — no network fetch, no disk
+read. (The plugin deliberately bundles libavoid-js's *node* build precisely so
+the shipped code carries no `fetch(` / `instantiateStreaming` network tokens; a
+CI test, `src/view/libavoidTokenGuard.test.ts`, fails the build if any reappear.)
+
+For anyone reviewing the module (these mirror the notes an automated WASM
+scanner will raise):
+
+- **WASI stdio imports (`fd_write`, `proc_exit`, …).** These are emitted by
+  Emscripten's C/C++ runtime for `abort`/panic handling, not because the plugin
+  does terminal or file I/O. In normal operation the module reads and writes no
+  files and no streams.
+- **The module exports its linear memory.** This is Emscripten's default and is
+  how the thin JS glue marshals data across the boundary: node rectangles are
+  written *in*, routed poly-lines are read *out*. The exported memory is the
+  module's own private heap — it is **not** a window into your vault, the
+  filesystem, or the Obsidian host; the WASM sandbox has no ambient access to any
+  of those.
+- **What actually crosses the boundary.** Only geometry: the bounding
+  rectangles of the nodes on screen go in, and the routed connector poly-lines
+  come back. No note contents, paths, or metadata are passed to the engine. The
+  binding surface the plugin uses is enumerated and typed in
+  [`src/view/libavoidLoader.ts`](./src/view/libavoidLoader.ts); the routing pass
+  that drives it is [`src/view/edgeRouting.ts`](./src/view/edgeRouting.ts).
+
 ## Development
 
 Building the plugin, running the test/e2e suites, and cutting releases are
