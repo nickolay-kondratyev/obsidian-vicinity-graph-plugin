@@ -55,7 +55,16 @@ Because the guard lives inside `check:e2e`, both `npm run check` AND `npm run bu
 `release_update_tag.sh` — where the submodule IS present — the full e2e type-check
 still runs.
 
+**Guard so the LOCAL release still runs e2e (never silently skips).** The self-skip
+is safe ONLY because it can never suppress e2e in a real release: `release_update_tag.sh`
+preflight now REFUSES if the e2e submodule is not checked out
+(`git submodule status e2e` prefixes `-` when uninitialised), telling the engineer to
+run `git submodule update --init e2e`. So the skip only ever fires in CI (which
+intentionally lacks the submodule); a release always runs the real Playwright matrix
+(`test:e2e` / `test:e2e:floor`) over actual specs.
+
 **Verified.** `npm run check:e2e` runs `tsc` with the submodule present (passes);
 the script prints the skip message + `exit=0` when run where the file is absent;
-full `npm run check` passes locally (exit 0). No test scans package.json scripts,
-so nothing else needed updating.
+full `npm run check` passes locally (exit 0). The release preflight guard PASSES with
+the submodule present and REFUSES on a simulated uninitialised (`-`) status line. No
+test scans package.json scripts, so nothing else needed updating.
