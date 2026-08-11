@@ -1,17 +1,17 @@
 ---
 id: nid_6foww1s1ekufrnha1t4j08wnn_e
-title: "we have moved the e2e into submodule and now github flow is failing"
-status: open
+title: we have moved the e2e into submodule and now github flow is failing
+status: in_progress
 deps: []
 links: []
-created_iso: 2026-08-11T13:40:52Z
-status_updated_iso: 2026-08-11T13:40:52Z
+created_iso: '2026-08-11T13:40:52Z'
+status_updated_iso: '2026-08-11T13:42:41Z'
 type: task
 priority: 3
 assignee: nickolaykondratyev
 tags: []
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin
 ---
-
 github workflow is failing lets make sure github workflow is not failing
 ```
 Run npm run check
