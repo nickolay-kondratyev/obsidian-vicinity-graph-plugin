@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-11T00:01:54Z
-session_ids: [{a: claude, type: execution, id: ff0a03c2-5d3a-4d0c-a4e4-7f7cd730e32c}]
+session_ids: [{a: claude, type: execution, id: ff0a03c2-5d3a-4d0c-a4e4-7f7cd730e32c}, {a: claude, type: review, id: 17fa6f46-cecb-46ad-b919-2909ff72564e}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_f7vkm00ahrak377r5dqpiyy9v_e
 title: "fix no-unsafe-call: e2e specs (group A)"
