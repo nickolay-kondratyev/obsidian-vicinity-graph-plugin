@@ -4,6 +4,9 @@ Ship-readiness checklist for cutting a Vicinity Graph release. Covers the
 Obsidian community-plugin *artifact* requirements. **Actual community-store
 submission is OUT OF SCOPE** and deferred — a repo move + plugin rename ("vicinity
 graph") is planned for a later round, so store listing waits until after that.
+When that submission happens, the WASM scorecard findings (libavoid-js) have
+ready-to-paste disclosure responses in
+[`wasm-disclosures.md`](./wasm-disclosures.md).
 
 Release automation now exists: `./release_update_tag.sh` runs the green gates and,
 if they pass, bumps the version, tags, and pushes; the pushed tag fires
