@@ -1,13 +1,21 @@
 import { AvoidLib } from "libavoid-js";
-import libavoidWasmBase64 from "libavoid-wasm";
+import libavoidWasmBinary from "libavoid-wasm";
 
 // Loader shim for the libavoid-js WASM routing engine.
 //
-// The plugin ships as a single `main.js` with the wasm embedded as base64 (see
-// esbuild.config.mjs). This module owns turning that base64 into a live `Avoid`
+// The plugin ships as a single `main.js` with the wasm embedded as raw bytes (see
+// esbuild.config.mjs). This module owns turning those bytes into a live `Avoid`
 // instance, OFFLINE (no network fetch), and hands Phase 1's edge-routing pass a
 // clean, lazy, singleton-cached entry point. Nothing loads at plugin startup;
 // the first `loadAvoid()` call initializes and every later call returns the cache.
+//
+// We resolve libavoid-js to its NODE build (esbuild.config.mjs) so the shipped
+// `main.js` carries none of the web glue's `fetch(` / `instantiateStreaming` tokens
+// that the Obsidian scanner flags as network calls. The node build normally reads
+// the wasm off disk via `readFileSync`, but a single-file plugin bundle has no
+// on-disk `libavoid.wasm`, so we hand it the embedded bytes as Emscripten's
+// `wasmBinary` — that byte injection is what keeps it fully offline AND stops it
+// ever reaching the disk path. See the node-build plugin in esbuild.config.mjs.
 
 /**
  * The libavoid WebIDL binding surface (`AvoidLib.getInstance()`), typed for the
@@ -97,15 +105,13 @@ export interface AvoidConnRef {
 }
 
 /**
- * How the wasm bytes reach the Emscripten module. PRIMARY (`data-url`) is what we
- * ship: `AvoidLib.load(dataUrl)` routes the data: URL through Emscripten's
- * `locateFile`, and Chromium/Electron `fetch()` accepts data: URLs — so the wasm
- * loads with zero network. The `wasm-binary` fallback exists as a documented
- * escape hatch only; see `loadAvoid`.
+ * The `globalThis` key the embedded wasm bytes are published on. esbuild's node-build
+ * plugin injects `wasmBinary: globalThis.__VICINITY_LIBAVOID_WASM_BINARY__` into the
+ * Emscripten module options, because the shipped `AvoidLib.load(filePath?)` wrapper
+ * exposes no other seam to hand bytes to the factory. Kept in lockstep with
+ * LIBAVOID_WASM_BINARY_GLOBAL in esbuild.config.mjs.
  */
-export type WasmLoadPath = "data-url" | "wasm-binary";
-
-const WASM_DATA_URL = `data:application/octet-stream;base64,${libavoidWasmBase64}`;
+const WASM_BINARY_GLOBAL = "__VICINITY_LIBAVOID_WASM_BINARY__";
 
 let cached: Promise<Avoid> | null = null;
 
@@ -143,13 +149,14 @@ export function loadAvoid(): Promise<Avoid> {
 }
 
 async function initAvoid(): Promise<Avoid> {
-	// PRIMARY path: hand the data: URL to AvoidLib.load → Emscripten locateFile →
-	// fetch(data:) inside Electron/Chromium. This is the path verified for the
-	// plugin runtime; the WEBIDL binder exposes no public factory hook to inject
-	// `wasmBinary` on the browser build, so if this throws we surface it (the
-	// routing pass logs once and renders straight edges) rather than silently
-	// pretending a fallback ran.
-	await AvoidLib.load(WASM_DATA_URL);
+	// Publish the embedded bytes where the injected `wasmBinary` option reads them
+	// (see WASM_BINARY_GLOBAL / esbuild.config.mjs), THEN load. The node build's
+	// `load()` ignores its `filePath` argument once `wasmBinary` is set, so we pass
+	// none: Emscripten instantiates from these bytes and never touches disk or the
+	// network. If instantiation throws we surface it (the routing pass logs once and
+	// renders straight edges) rather than pretending a fallback ran.
+	(globalThis as Record<string, unknown>)[WASM_BINARY_GLOBAL] = libavoidWasmBinary;
+	await AvoidLib.load();
 	// libavoid-js's own declaration exports a different (thinner) `Avoid` shape, so
 	// route through `unknown` — the binding really is the instance we narrow here.
 	return AvoidLib.getInstance() as unknown as Avoid;
