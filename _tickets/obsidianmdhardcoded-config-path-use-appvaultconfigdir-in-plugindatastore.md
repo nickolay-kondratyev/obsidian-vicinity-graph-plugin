@@ -1,4 +1,5 @@
 ---
+session_ids: [{"a": "claude", "type": "execution", "id": "e330c79b-64af-4f2e-8c02-a7a9ecc21e51"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_uyj3is3eyv9o3ctkv2meqcin7_e
 title: "obsidianmd/hardcoded-config-path: use app.vault.configDir in PluginDataStore"
