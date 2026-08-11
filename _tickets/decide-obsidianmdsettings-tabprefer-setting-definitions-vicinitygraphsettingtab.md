@@ -9,12 +9,17 @@ status_updated_iso: 2026-08-11T21:27:04Z
 type: task
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
-tags: [lint, release, decide]
+tags: [lint, release]
 ---
 
 `obsidianmd/settings-tab/prefer-setting-definitions` at src/view/VicinityGraphSettingTab.ts:77 — the rule prefers Obsidian's declarative setting-definition API over hand-built `Setting(...)` rows.
 
 This repo INTENTIONALLY uses a single declared row model (`src/view/settingsRows.ts`, `SETTINGS_GROUPS`) rendered by two presenters (tab + in-graph panel) — see CLAUDE.md "Settings rows". Adopting the plugin-native setting-definitions API would fight that architecture and the tab/panel parity guards.
 
-DECISION NEEDED: (a) leave as-is with a scoped eslint-disable + WHY comment referencing the settingsRows model, or (b) revisit if the score-card treats this as a hard blocker. Recommendation: (a). Verify current: `npx eslint src/view/VicinityGraphSettingTab.ts`.
+DECISION NEEDED: 
+- (a) leave as-is with a scoped eslint-disable + WHY comment referencing the settingsRows model, or (
+- (b) revisit if the score-card treats this as a hard blocker. Recommendation: 
+
+
+HUMAN DECISION -> (a). Verify current: `npx eslint src/view/VicinityGraphSettingTab.ts`., dont fight the architecture for now.
 
