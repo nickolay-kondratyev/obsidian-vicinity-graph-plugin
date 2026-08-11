@@ -1,12 +1,14 @@
 ---
+closed_iso: 2026-08-11T00:01:54Z
+session_ids: [{a: claude, type: execution, id: ff0a03c2-5d3a-4d0c-a4e4-7f7cd730e32c}, {a: claude, type: review, id: 17fa6f46-cecb-46ad-b919-2909ff72564e}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_f7vkm00ahrak377r5dqpiyy9v_e
 title: "fix no-unsafe-call: e2e specs (group A)"
-status: in_progress
+status: closed
 deps: [nid_khnm364awuizz6cmr2pxxjkpk_e]
 links: [nid_db5s4uypdiesrk6oi8nms46wv_e, nid_khnm364awuizz6cmr2pxxjkpk_e, nid_wv95rkafrcxn9by7t5ng95dvn_e, nid_j1zgoruaddxyhykf2maxsnzqn_e]
 created_iso: 2026-08-10T22:22:58Z
-status_updated_iso: 2026-08-11T00:00:00Z
+status_updated_iso: 2026-08-11T00:01:54Z
 type: chore
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
@@ -43,3 +45,48 @@ e2e/nodeOutline.e2e.ts
 
 Scope: e2e Playwright spec files, part A of 2. These likely trip the rule via `page.evaluate(...)` return values and Obsidian `app`/`window` globals accessed as `any` inside evaluated browser context.
 
+## Resolution (closed 2026-08-10)
+
+**Outcome: no code changes required — all 12 group A `no-unsafe-call` sites were already
+eliminated by upstream tickets before this one ran, exactly as happened for group B
+(`nid_db5s4uypdiesrk6oi8nms46wv_e`).**
+
+### Reproduction established (committed config, not scratch)
+Since the sibling tickets ran, the ESLint-adoption ticket LANDED: the repo now ships a
+committed `eslint.config.mjs` (flat config, `eslint-plugin-obsidianmd` recommended, which
+layers in `typescript-eslint`'s type-checked rules) and an `npm run lint` script
+(`eslint src e2e`). `projectService: true` auto-discovers `e2e/tsconfig.json`, so the
+type-aware `@typescript-eslint/no-unsafe-call` rule actually fires on the e2e surface.
+- **Rule-fires sanity check**: a temporary `e2e/__sanity_tmp.e2e.ts` containing
+  `const x: any = () => 1; x();` reported `error … @typescript-eslint/no-unsafe-call`,
+  so a zero count below is a real zero, not a mis-wired rule. File removed after.
+
+### Baseline over all 12 group A files: **0 `@typescript-eslint/no-unsafe-call`**
+`./node_modules/.bin/eslint <the 12 files>` → 0 `no-unsafe-call`. None of the files
+contains an `app: any` (or any `: any` / `as any`) cast anymore. The dependency
+`nid_khnm364awuizz6cmr2pxxjkpk_e` landed the type-only seam `e2e/obsidianInternals.ts`
+(`E2eObsidianApp`), and the `no-unsafe-member-access` e2e tickets swapped every
+`{ app: any }` cast in the spec files for `{ app: E2eObsidianApp }`. Because both rules
+fire on `any`, typing `app` to reach a member ALSO typed the call on that member — so the
+member-access sweep removed the call sites too.
+
+The remaining lint output on these files is unrelated rules that are OUT of this ticket's
+scope: `obsidianmd/rule-custom-message` (`no-console`) and `obsidianmd/prefer-window-timers`.
+
+### Verification
+- `eslint` over all 12 group A files: **0 `no-unsafe-call`**.
+- Rule-fires sanity check: passed.
+- `git status`: clean — no edits made (only git-ignored `.tmp/` scratch touched).
+
+### For the next reader
+If a future edit reintroduces an `app: any` (or any `any`-typed `page.evaluate` return)
+into a group A spec, `npm run lint` will flag it; route the value through
+`E2eObsidianApp` in `e2e/obsidianInternals.ts` (add the narrow member there rather than
+widening back to `any`) — the same seam the harness ticket and group B use.
+
+
+## Notes
+
+**2026-08-11T00:03:16Z**
+
+__READY_AS_IS__: independently reproduced the resolution — eslint over all 12 group A files = 0 no-unsafe-call, sanity file fires 1; branch made no code changes and none were needed.
