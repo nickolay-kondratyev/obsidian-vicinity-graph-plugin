@@ -1,18 +1,17 @@
 ---
-closed_iso: 2026-08-11T22:45:14Z
 session_ids: [{"a": "claude", "type": "execution", "id": "cb55d8bf-80e0-4fd5-bda7-54abd0447b85"}, {"a": "claude", "type": "review", "id": "31bee43c-c114-4de7-ba59-4f23d0c508d2"}, {"a": "claude", "type": "review", "id": "5647cf36-7ae8-42bc-9a88-f4759df898a8"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_tbqtxmq5gyjr9ehrpk87bcje6_e
 title: "obsidianmd: drop plugin id/name from command ids/names in src/main.ts"
-status: closed
+status: open
 deps: []
 links: [nid_qjuqgqfwentq2l59o5ya17vra_e, nid_6q26wh2r8ivgbeedpf17t31ry_e, nid_uyj3is3eyv9o3ctkv2meqcin7_e, nid_h2hs9s7uvugweohv076dvddpm_e, nid_l17hhil9b22jas1lwvyfgxp5w_e, nid_zs2aog8b2i9e3wutsorjm88ft_e, nid_icr9gp534nm6kgkbc8rgcpu68_e, nid_nioldkusdrwc7fqzr4bmq2bow_e]
 created_iso: 2026-08-11T21:26:40Z
-status_updated_iso: 2026-08-11T22:45:14Z
+status_updated_iso: 2026-08-11T22:49:49Z
 type: chore
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
-tags: [lint, release]
+tags: [lint, release, decide, need-human, failed-review-stage-2]
 ---
 
 `eslint-plugin-obsidianmd` flags 6 findings in `src/main.ts` (verify: `npx eslint src/main.ts`):
@@ -57,3 +56,17 @@ per ticket.
 **2026-08-11T22:47:14Z**
 
 __REVIEW_AGAIN__: command id rename broke e2e harness (OPEN_GRAPH_COMMAND_ID pointed at removed ids); fixed harness constants + bumped submodule, but e2e suite not run here — worth a confirming pass.
+
+## Review failed (stage 2)
+
+The final review round did not declare the branch ready, so nothing was merged.
+The branch [nid_tbqtxmq5gyjr9ehrpk87bcje6_e_obsidianmd-drop-plugin-id-name-from-comm] holds the work and every review fix, kept as a
+local record in the working copy that ran this.
+
+- Round 1: verdict [REVIEW_AGAIN], session id [31bee43c-c114-4de7-ba59-4f23d0c508d2] — its transcript shows what it found and fixed.
+- Round 2: verdict [none recorded], session id [5647cf36-7ae8-42bc-9a88-f4759df898a8] — its transcript shows what it found and fixed.
+
+What each round found, which fixes it made, and what it left unresolved are in
+its verdict note under `## Notes` above, the follow-up tickets it filed, and
+its session transcript. Decide whether to salvage the branch or retry fresh,
+then remove the tags and reopen or close as appropriate.
