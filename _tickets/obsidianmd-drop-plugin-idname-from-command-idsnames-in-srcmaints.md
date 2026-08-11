@@ -1,4 +1,5 @@
 ---
+session_ids: [{"a": "claude", "type": "execution", "id": "cb55d8bf-80e0-4fd5-bda7-54abd0447b85"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_tbqtxmq5gyjr9ehrpk87bcje6_e
 title: "obsidianmd: drop plugin id/name from command ids/names in src/main.ts"
