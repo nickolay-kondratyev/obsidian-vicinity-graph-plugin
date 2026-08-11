@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-11T22:39:05Z
-session_ids: [{"a": "claude", "type": "execution", "id": "8a688c43-3a94-4198-bf13-5a086dfe8329"}]
+session_ids: [{"a": "claude", "type": "execution", "id": "8a688c43-3a94-4198-bf13-5a086dfe8329"}, {"a": "claude", "type": "review", "id": "55953d28-0001-45c5-84ff-e8e625a66137"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_6q26wh2r8ivgbeedpf17t31ry_e
 title: "obsidianmd/prefer-window-timers: use window.setTimeout in 3 src files"
