@@ -1,17 +1,17 @@
 ---
 id: nid_zzw9tlrhewemtp1zx5yx05pp8_e
-title: "investigate if we can improve on these disclosures"
-status: open
+title: investigate if we can improve on these disclosures
+status: in_progress
 deps: []
 links: []
-created_iso: 2026-08-11T20:29:38Z
-status_updated_iso: 2026-08-11T20:29:38Z
+created_iso: '2026-08-11T20:29:38Z'
+status_updated_iso: '2026-08-11T20:47:43Z'
 type: task
 priority: 3
 assignee: nickolaykondratyev
 tags: []
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin
 ---
-
 We have the following disclosures pop up when submitting the obsidian plugin for publishing:
 ```
 Plugin references unrecognized WASM files
