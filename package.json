@@ -1,6 +1,6 @@
 {
 	"name": "vicinity-graph",
-	"version": "0.1.11",
+	"version": "0.1.12",
 	"private": true,
 	"description": "A richer local graph of the notes near your active note — a folder-grouped alternative to the built-in local graph.",
 	"type": "module",
