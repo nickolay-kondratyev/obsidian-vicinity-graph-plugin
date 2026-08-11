@@ -1,21 +1,22 @@
 ---
+closed_iso: 2026-08-11T23:35:04Z
 session_ids: [{a: claude, type: execution, id: cb55d8bf-80e0-4fd5-bda7-54abd0447b85},
   {a: claude, type: review, id: 31bee43c-c114-4de7-ba59-4f23d0c508d2}, {a: claude,
     type: review, id: 5647cf36-7ae8-42bc-9a88-f4759df898a8}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_tbqtxmq5gyjr9ehrpk87bcje6_e
 title: 'obsidianmd: drop plugin id/name from command ids/names in src/main.ts'
-status: in_progress
+status: closed
 deps: []
 links: [nid_qjuqgqfwentq2l59o5ya17vra_e, nid_6q26wh2r8ivgbeedpf17t31ry_e, nid_uyj3is3eyv9o3ctkv2meqcin7_e,
   nid_h2hs9s7uvugweohv076dvddpm_e, nid_l17hhil9b22jas1lwvyfgxp5w_e, nid_zs2aog8b2i9e3wutsorjm88ft_e,
   nid_icr9gp534nm6kgkbc8rgcpu68_e, nid_nioldkusdrwc7fqzr4bmq2bow_e]
 created_iso: '2026-08-11T21:26:40Z'
-status_updated_iso: '2026-08-11T23:34:06Z'
+status_updated_iso: 2026-08-11T23:35:04Z
 type: chore
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
-tags: [lint, release, failed-review-stage-2]
+tags: [lint, release]
 pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin
 ---
 `eslint-plugin-obsidianmd` flags 6 findings in `src/main.ts` (verify: `npx eslint src/main.ts`):
@@ -78,3 +79,15 @@ then remove the tags and reopen or close as appropriate.
 **2026-08-11T23:25:12Z**
 
 Review round 3 (adversarial review of 6c45574..HEAD): the prior round's open concern is resolved — full e2e suite RUN and GREEN on the pinned build (165 passed, 1 skipped), incl. graphPlacement specs exercising the renamed command ids. npm run check passes; npm test 1870/1870; npx eslint src/main.ts shows 0 no-plugin-* findings (13 no-console remain, tracked separately). Only fix this round: stale JSDoc in e2e/obsidianHarness.ts referencing the removed 'Open vicinity graph' command name. Verdict: READY_AS_IS.
+
+**2026-08-11 (final salvage pass)**
+
+The reviewed branch was merged to this working branch (merge commits 6f9f11e / af534c4);
+work is present in the working copy. Re-verified in-place: `src/main.ts:170-181`
+carries the short ids/names (`open-right-sidebar`, `open-below`, `debug-log`), and
+`npx eslint src/main.ts` reports 0 `no-plugin-id-in-command-id` /
+`no-plugin-name-in-command-name` findings (only the 13 out-of-scope `no-console`
+errors remain, tracked separately). Round 3 already ran the full e2e suite green on
+the pinned build. The stage-2 "review failed" state was procedural (round 2 recorded
+no verdict); round 3's READY_AS_IS supersedes it. Removed the
+`failed-review-stage-2` tag and closed the ticket.
