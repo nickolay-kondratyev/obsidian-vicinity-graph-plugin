@@ -1,4 +1,5 @@
 ---
+session_ids: [{"a": "claude", "type": "execution", "id": "8a688c43-3a94-4198-bf13-5a086dfe8329"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_6q26wh2r8ivgbeedpf17t31ry_e
 title: "obsidianmd/prefer-window-timers: use window.setTimeout in 3 src files"
