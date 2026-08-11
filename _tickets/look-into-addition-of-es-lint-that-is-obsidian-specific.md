@@ -4,7 +4,7 @@ id: nid_qjuqgqfwentq2l59o5ya17vra_e
 title: Look into addition of es lint that is obsidian specific
 status: closed
 deps: []
-links: []
+links: [nid_tbqtxmq5gyjr9ehrpk87bcje6_e, nid_6q26wh2r8ivgbeedpf17t31ry_e, nid_uyj3is3eyv9o3ctkv2meqcin7_e, nid_h2hs9s7uvugweohv076dvddpm_e, nid_l17hhil9b22jas1lwvyfgxp5w_e, nid_zs2aog8b2i9e3wutsorjm88ft_e, nid_icr9gp534nm6kgkbc8rgcpu68_e, nid_nioldkusdrwc7fqzr4bmq2bow_e]
 created_iso: '2026-08-11T20:48:36Z'
 status_updated_iso: 2026-08-11T20:55:08Z
 type: task
