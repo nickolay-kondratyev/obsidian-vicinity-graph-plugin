@@ -93,7 +93,19 @@ if [[ "${AHEAD}" != "0" || "${BEHIND}" != "0" ]]; then
 	fi
 	exit 1
 fi
-echo "release: preflight OK — on ${DEFAULT_BRANCH}, clean, in sync with origin." >&2
+# The e2e specs live in a PRIVATE submodule (see .gitmodules). This script IS the
+# e2e authority, so the submodule MUST be checked out — otherwise the matrix below
+# would run over ZERO specs. `check:e2e` self-skips a missing submodule (so GitHub
+# CI, which does not check it out, still passes), so refuse HERE rather than let a
+# release cut with the e2e type-check silently skipped and Playwright config-less.
+# `git submodule status` prefixes an uninitialised submodule with `-`.
+if git submodule status e2e 2>/dev/null | grep -q '^-'; then
+	echo "release: REFUSING — the e2e submodule is not checked out, so the e2e matrix" >&2
+	echo "release: would run over no specs. Run 'git submodule update --init e2e' and re-run." >&2
+	exit 1
+fi
+
+echo "release: preflight OK — on ${DEFAULT_BRANCH}, clean, in sync with origin, e2e submodule present." >&2
 
 # An OBSIDIAN_PATH set in the environment would make scripts/run-e2e.sh use that ONE
 # binary for BOTH arms, and run-e2e-floor.sh would REFUSE (its honesty guard) — so a
