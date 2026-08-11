@@ -11,7 +11,7 @@ status_updated_iso: 2026-08-11T22:49:49Z
 type: chore
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
-tags: [lint, release, decide, need-human, failed-review-stage-2]
+tags: [lint, release, failed-review-stage-2]
 ---
 
 `eslint-plugin-obsidianmd` flags 6 findings in `src/main.ts` (verify: `npx eslint src/main.ts`):
