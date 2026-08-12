@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-12T00:22:06Z
-session_ids: [{"a": "claude", "type": "execution", "id": "b0ebac4d-3a4a-4305-b7d4-eb19c75ff3d9"}]
+session_ids: [{"a": "claude", "type": "execution", "id": "b0ebac4d-3a4a-4305-b7d4-eb19c75ff3d9"}, {"a": "claude", "type": "review", "id": "94e7a41c-ebc9-45e7-808f-14aab719189e"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_zs2aog8b2i9e3wutsorjm88ft_e
 title: "DECIDE: obsidianmd/settings-tab/prefer-setting-definitions (VicinityGraphSettingTab)"
