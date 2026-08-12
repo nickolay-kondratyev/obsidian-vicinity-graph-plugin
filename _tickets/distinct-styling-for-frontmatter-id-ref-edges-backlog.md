@@ -1,5 +1,5 @@
 ---
-session_ids: [{"a": "claude", "type": "execution", "id": "37a92392-758c-4a75-bad6-ec5e8dbc3425"}]
+session_ids: [{"a": "claude", "type": "execution", "id": "37a92392-758c-4a75-bad6-ec5e8dbc3425"}, {"a": "claude", "type": "decision", "id": "30a84a04-6274-4b60-911d-c7b5d17f0192"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_uykmq7xpow597qs6bpgrhanlt_e
 title: "Distinct styling for frontmatter id-ref edges (backlog)"
