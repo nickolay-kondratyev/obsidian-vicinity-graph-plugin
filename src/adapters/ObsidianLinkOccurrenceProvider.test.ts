@@ -91,6 +91,31 @@ describe("ObsidianLinkOccurrenceProvider edge-scoped occurrences", () => {
 	});
 });
 
+// GIVEN referrer.md's `deps` frontmatter points at target.md's `id` and there is
+// NO body/wikilink between them — an id-ref-only edge. The drawer must still list
+// the occurrence (position-less) so it agrees with the edge badge count, not show
+// an empty drawer for an edge the graph draws.
+const ID_REF_SPEC: FakeObsidianSpec = {
+	files: [
+		{ path: "referrer.md" },
+		{ path: "target.md" },
+	],
+	fileCaches: {
+		"referrer.md": { frontmatter: { deps: ["target-id"] } },
+		"target.md": { frontmatter: { id: "target-id" } },
+	},
+	idRefFields: "deps",
+};
+
+describe("ObsidianLinkOccurrenceProvider frontmatter id-ref edges", () => {
+	it("WHEN a markdown source reaches the target ONLY through an id-ref THEN the drawer lists a position-less occurrence", async () => {
+		const provider = await providerOver(ID_REF_SPEC);
+		expect(await provider.occurrencesBetween(asVaultPath("referrer.md"), TARGET)).toEqual([
+			{ offset: null, context: null },
+		]);
+	});
+});
+
 // GIVEN a note whose body EMBEDS target.md — the snippet the drawer renders
 // (ticket nid_0dle910iia37t42t28dqndc5b_e): an embed must reach the renderer
 // ESCAPED, so it shows as its own raw text instead of Obsidian expanding the
