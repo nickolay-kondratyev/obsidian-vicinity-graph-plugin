@@ -1,4 +1,5 @@
 ---
+session_ids: [{"a": "claude", "type": "execution", "id": "d677cbc1-705f-43cc-88e6-c9b6d26b1a14"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_ik7imr6294wnbvj633ccgqi2e_e
 title: "update readme to be more customer focused and add screenshot example"
