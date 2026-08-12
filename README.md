@@ -1,64 +1,55 @@
 # Vicinity Graph
 
-An Obsidian plugin that renders the vicinity of your active note as a rich,
-grouped, React Flow graph — meant to be used in place of the native local graph.
+A richer replacement for Obsidian's native local graph. Instead of identical
+dots, Vicinity Graph shows the neighbourhood of your active note as informative,
+folder-grouped nodes — each one telling you what the note is before you open it.
 
-## What it is / Why
+![Vicinity Graph showing the neighbourhood of a note as folder-grouped, informative nodes with routed connectors](./assets/images/for_readme/vicinity-graph-example-2026-Aug-11.png)
 
-The native local graph has two core weaknesses: **every node looks the same, and
-there is no grouping.** Every note is an identical dot, and you cannot see any
-structure between them.
+## Why you'd want it
 
-Vicinity Graph fixes both:
+The native local graph makes every note look the same and shows no structure
+between them. Vicinity Graph fixes both:
 
-- **Informative nodes.** Each node carries its title, a first-image thumbnail,
-  an icon strip for its attachments (with counts), its folder identity, and a
-  size that reflects relevance. A node should tell you what the note is before
-  you open it.
-- **Folder grouping as visible structure.** Notes that share a folder render
-  inside a labelled group box (at 2+ members), so folder membership is part of
-  the picture instead of invisible metadata.
+- **Nodes that actually tell you something.** Each node carries its title, a
+  first-image thumbnail, an icon strip for its attachments, its folder, and a
+  size that reflects relevance.
+- **Folders you can see.** Notes that share a folder render inside a labelled
+  group box, so folder membership is part of the picture.
+- **Connectors that stay out of the way.** Links are drawn as calm, right-angled
+  connectors that route *around* your notes instead of cutting across them, so a
+  busy graph stays readable — and every connector is clickable (see below).
+- **Depth you control per relationship.** Outgoing links, embedded notes and
+  incoming links each get their own reach, adjustable right in the view.
+- **Pinning — globally or per note.** Hold one or more neighbourhoods on screen
+  while you browse elsewhere.
 
-On top of that it gives you **per-channel depth control** (plain outgoing links,
-embedded notes and incoming links each get their own reach) right in the view, and **pinned central
-notes** so you can
-hold one or more vicinities on screen while you browse elsewhere. The view
-lives in the right sidebar by default (matching native local-graph muscle
-memory) and can be dragged into the main area.
-
-> Screenshots: TBD.
+The view opens in the right sidebar by default (matching native local-graph
+muscle memory) and can be dragged into the main area.
 
 ## Install
 
-Vicinity Graph is in the **Obsidian community plugin store.**
+Vicinity Graph is in the **Obsidian community plugin store**. Requires Obsidian
+**1.12.4** or newer.
 
 ### Community plugins (recommended)
 
-1. In Obsidian: **Settings → Community plugins**, and turn on community plugins.
-2. **Browse**, search for **Vicinity Graph**, and click **Install**.
-3. Click **Enable**.
-4. Run the **Vicinity Graph: Open in right sidebar** command (see
-   [Where the graph opens](#where-the-graph-opens)).
+1. **Settings → Community plugins**, and turn on community plugins.
+2. **Browse**, search for **Vicinity Graph**, **Install**, then **Enable**.
+3. Run the **Vicinity Graph: Open in right sidebar** command.
 
 ### BRAT (pre-release builds)
 
-Use the [BRAT](https://github.com/TfTHacker/obsidian42-brat) plugin ("Beta
-Reviewers Auto-update Tool") to install directly from this repository and receive
-pre-release updates ahead of the store. Add this repo as a beta plugin in BRAT,
-then enable **Vicinity Graph** as above.
+Use the [BRAT](https://github.com/TfTHacker/obsidian42-brat) plugin to install
+directly from this repository and get pre-release updates ahead of the store.
+Add this repo as a beta plugin, then enable **Vicinity Graph**.
 
 ### Manual
 
-1. Download `manifest.json`, `main.js`, and `styles.css` from a
-   [GitHub Release](../../releases).
-2. Copy all three into your vault at
-   `.obsidian/plugins/vicinity-graph/` (create the folder if needed).
-3. In Obsidian: **Settings → Community plugins**, enable community plugins, then
-   enable **Vicinity Graph**.
-4. Run the **Vicinity Graph: Open in right sidebar** command (see
-   [Where the graph opens](#where-the-graph-opens)).
-
-Requires Obsidian **1.12.4** or newer.
+Download `manifest.json`, `main.js`, and `styles.css` from a
+[GitHub Release](../../releases), copy all three into
+`.obsidian/plugins/vicinity-graph/` in your vault, then enable the plugin under
+**Settings → Community plugins**.
 
 ## Where the graph opens
 
@@ -67,332 +58,106 @@ Two commands, both bindable to a hotkey:
 | Command | Places the graph |
 |---|---|
 | **Vicinity Graph: Open in right sidebar** | docked in the right sidebar |
-| **Vicinity Graph: Open below active note** | in a main-area pane split **below** the current tab |
+| **Vicinity Graph: Open below active note** | in a main-area pane below the current tab |
 
-There is only ever **one** graph view: running either command while the graph is
-open somewhere else **moves** it there. Running the command for where it already
-is just focuses it — no rebuild.
+There is only ever **one** graph view: running either command moves the graph
+there; running the command for where it already is just focuses it.
 
 ## Interacting with the graph
 
-- **Click a node** — the node becomes the graph's **central** note, and its
-  markdown opens in the **current tab** (the last-used main-area tab is reused —
-  never a new one).
-- **Ctrl/Cmd-click a node** — opens the note itself, in a **new tab**. (Same
-  modifier convention as outline entries and Obsidian links generally.)
-- **Click an edge** — opens the **link preview** drawer scoped to **that edge
-  only**: the occurrences of links from its source note to its target note,
-  each expandable to its surrounding context with a **GO** button that jumps
-  the editor to that exact line.
-- **Hover a node** — nothing pops up. The node already shows its own outline or
-  thumbnail, so the graph stays readable while the pointer crosses it.
-- **Drag a node's right edge, bottom edge or bottom-right corner** — resizes
-  that note's box (see *Node size*). The handles appear on hover.
-- **Right-click a node** — pin / unpin, plus *Reset size* on a note you have
-  resized (see *Pinning* and *Node size*).
+- **Click a node** — it becomes the graph's **central** note, and its markdown
+  opens in the current tab. **Ctrl/Cmd-click** opens the note in a new tab.
+- **Click a connector** — opens a preview of **that relationship**: every place
+  the source note links the target, each expandable to its surrounding context
+  with a **GO** button that jumps the editor to that exact line.
+- **Drag a node's right/bottom edge or corner** to resize it; the handles appear
+  on hover. The new size is remembered for that note in every graph.
+- **Right-click a node** — pin / unpin, plus *Reset size* on a note you resized.
 - Folder-group boxes are containers, not notes — clicking one does nothing.
 
-## Settings model
+## Pinning
 
-**Every setting is global — one value, used by every note and every open graph.**
-There are no per-note settings: the two things the plugin does remember per note
-— which notes are **pinned** and which you have **resized** — are not settings
-but facts about that note, recorded when you act on it and applied in every
-graph. Two surfaces edit the same values: the settings
-tab (**Settings → Vicinity Graph**) and the in-view **Graph controls** panel;
-changing either writes the one global value and refreshes every open graph.
+Pinning holds a note's neighbourhood on screen as an extra central node. There
+are **two kinds**, each with its own control (revealed on hover, top-right, and
+in the right-click menu):
 
-**Both surfaces show the same sections, in the same order, under the same names**
-— *Depth*, *Edges*, *Node sizing*, *Node contents*, *Force layout*,
-*Node exclusion*, *Performance*. Every setting appears on both. The panel is narrow, so
-it uses compact controls (steppers instead of sliders for depth) and moves the
-long descriptions into hover tooltips. One deliberate exception: exclusion
-**patterns** are *edited* in the settings tab and shown **read-only** in the
-panel, because a multi-line regex list needs the room.
+- **Global pin** — pins the note into **every** graph, whatever your active note
+  is. Use it to keep a hub or a note you're working from always in view.
+- **Per-note (local) pin** — pins the note **only while a particular note is
+  active** (*Pin for this note*). Switch away and it disappears; switch back and
+  it returns. The target shows even if the active note has no link to it. A note
+  can carry both kinds at once.
 
-Controls answer immediately: a stepper, slider, toggle or typed field moves as you
-use it, while the graph redraws behind it. Edits made in quick succession — even
-across the two surfaces at once — each keep their own field; nothing you just
-changed gets reverted by the next change.
+Both kinds survive restarts and are keyed to a stable note id, so renaming or
+moving a pinned note keeps it pinned. Pinned centrals traverse with their own
+depth budget (the *Pinned …* dials), separate from the active note's.
 
-### The settings
+> Just after an Obsidian restart, a pinned central can briefly render as a plain
+> node until the background cleanup sweep runs (~15s). The pin is not lost — only
+> its accent lags.
+
+## Settings
+
+**Every setting is global** — one value used by every note and every open graph.
+The only things remembered *per note* are the facts you set on it directly:
+which notes are **pinned** and which you've **resized**.
+
+Two surfaces edit the same values and stay in sync: the **settings tab**
+(**Settings → Vicinity Graph**) and the in-view **Graph controls** panel.
+Controls answer immediately — move a slider, toggle or field and the graph
+redraws behind it.
+
+The settings, grouped the same way on both surfaces:
 
 - **Depth** — how far traversal reaches from each central note, with a separate
-  budget per kind of relationship *and per role*: one trio of dials for the
-  **active note**, a second trio for **pinned notes**. Also on the controls
-  panel, as `−` / `+` steppers under the same heading.
-    - **Links out** — hops of plain outgoing links (`[[note]]`, `[note](note.md)`).
-    - **Embeds out** — hops of *embedded* notes (`![[note]]`, and canvas cards that
-      hold a note). Images and other attachments are unaffected: they are
-      attachments however you write them, and never become nodes.
-    - **Links in** — hops of incoming links. Kind-blind: a note that *embeds* the
-      central note arrives here like any other linker; there is no "embedded in"
-      budget.
-    - **Pinned links out / Pinned embeds out / Pinned links in** — the same three
-      budgets, applied to every *pinned* central instead. A pinned note that is
-      also the active note uses the active-note trio.
+  budget for outgoing links, embedded notes and incoming links — and a second
+  set of budgets for pinned notes.
+- **Edges** — *Show cross links* also draws links between two on-screen notes
+  that traversal never walked (which notes are shown never changes, only the
+  lines between them).
+- **Node sizing** — each node fits what it shows between a minimum and maximum
+  height, with an optional extra floor for image nodes. A size you set by
+  dragging always wins.
+- **Node contents** — a *Preview* pill choosing what a node shows: **Auto**
+  (outline for your roots, first image for neighbours), **Title only**,
+  **Outline** or **Image**, plus an *Outline depth* for how many heading levels
+  an outline shows. Clicking an outline entry opens the note at that heading.
+- **Force layout** — sliders named like Obsidian's native graph (center, repel,
+  link force, link distance) plus spacing and edge-clearance controls, each with
+  a *Restore defaults* button.
+- **Node exclusion** — keep whole classes of notes (index/MOC hubs, templates, a
+  `rel/` folder) out of every graph via a regex pattern list. Your central and
+  pinned notes always stay.
+- **Performance** — a node cap (default **100**, the readable ceiling); beyond it
+  the graph truncates and shows a hidden-node count.
 
-  **Global, per role — never per note:** each trio applies to every note in that
-  role, so nudging a dial changes every graph, not just the one in front of you.
-  There is still no per-note depth dial.
+Typed fields (sizing numbers, node cap, patterns) apply once you pause typing or
+leave the field, not per keystroke. Every section has its own *Restore defaults*
+row, and **Restore all Vicinity Graph settings** at the bottom resets everything
+— **your pinned notes are never touched by any of them**.
 
-  > Note on how the two outgoing budgets combine: each is walked independently,
-  > so a chain that changes kind partway (a note you *embed*, which then *links*
-  > something else) stops at the change. At the shipped defaults (1 hop each) you
-  > will never see this; it only shows up once you raise a budget above 1.
-- **Edges → Show cross links** (default **off**) — off, a line is drawn only where
-  traversal actually followed a link, which keeps the picture close to the path
-  from your central notes. On, the graph *also* draws every link between two notes
-  that are both on screen — including the ones traversal never walked, such as two
-  notes sitting at the edge of the depth budget that link each other. **Which
-  notes are shown never changes**, only the lines between them; a cross link looks
-  exactly like any other line, `xN` count included.
-- **Sizing** — each node sizes itself to fit what it shows (its title, outline or
-  image) between the **minimum** and **maximum node height** dials (both are
-  heights in px; a node's width follows its title). A node is never sized below
-  the height at which the region it shows becomes visible — 122px for a preview
-  (outline *or* thumbnail), 90px for the attachment chips — because a node just
-  short of that would show dead space instead. **Minimum height of image nodes**
-  is an extra floor applied only to nodes that show an image, so you can give
-  pictures room to read without enlarging every node; it never exceeds the maximum
-  above, and a value below an image's natural size does nothing. Your **maximum**
-  still caps everything, so an explicit maximum wins (set it below 122 and previews
-  stay hidden). Your central and pinned notes get a modest size floor of their own
-  so they stay easy to spot even when empty.
-- **Preview** — a four-way pill choosing what a node shows in its preview slot:
-  **Auto** (default), **Title only**, **Outline** or **Image**. See *Node
-  contents* below. The same pill is in the in-view graph controls, under *Node
-  contents* — both edit the one global value.
-- **Outline depth** — how many markdown heading levels a node's outline shows
-  (**1–6**, default **2**: sections plus subsections, which is what fits a node).
-  Also in the controls panel, under *Node contents* beside the *Preview* pill. See
-  *Node contents* below. The depth itself has no on/off switch — use the *Preview*
-  pill to choose outline vs image.
-- **Grouping** and the **node cap** (default **100** — above roughly a hundred
-  nodes a graph stops being readable, so the view truncates deterministically and
-  shows a hidden-node count). The cap is also in the controls panel, under
-  *Performance*.
-- **Force layout** — four sliders named like Obsidian's native graph (**Center
-  force**, **Repel force**, **Link force**, **Link distance**) plus an *Advanced
-  spacing* group (**Node spacing**, **Group member spacing** — the gap between
-  notes *inside* one folder group, nothing else, and **Edge clearance** — how far
-  a connecting line stays off the boxes it bends around). Changes
-  re-layout open graphs immediately; ranges are clamped so no combination can
-  degenerate the layout, and a **Restore defaults** button resets them all.
-- **Typed fields settle before they apply** — the numeric and text fields (sizing
-  numbers, node cap, exclusion patterns) wait for a short pause in typing, so
-  entering `160` re-builds open graphs once instead of once per digit. Leaving a
-  field, or closing the tab, applies it immediately — nothing you typed is lost. A
-  value the plugin cannot accept (a **maximum node size below the minimum**) stays
-  in the field with the reason beside it, rather than being silently saved, and a
-  sizing number outside its allowed range says what will be stored instead of it.
-- **Restoring defaults** — every section ends with its own restore row whose name
-  states exactly what it resets (*Restore node sizing defaults*, *Restore force
-  layout defaults*, …). Rows that only reset numeric knobs apply immediately;
-  *Restore node exclusion defaults* asks first and lists the patterns it is about
-  to delete, since those are hand-written and cannot be recovered. At the very
-  bottom, **Restore all Vicinity Graph settings** resets every setting on the tab
-  and asks for confirmation first. **Your pinned notes are never touched by any
-  of them.**
+## Scope & limits
 
-### Pinning
+- **Local graph only** — no global graph, and no unresolved (ghost) links.
+- **Layout is computed** — node positions aren't manually draggable-to-persist
+  (dragging resizes; it doesn't move).
+- **Outline entries jump to the first heading with that text**, so duplicate
+  headings are ambiguous. `*.excalidraw.md` and canvas files show no outline.
+- Heading labels strip common inline markdown but aren't a full renderer; the
+  raw heading text is always what opens the note.
 
-There are **two kinds of pin**, each with its own control on a node (both revealed
-on hover, top-right, and both mirrored in the right-click menu):
+## Third-party notice
 
-**Global pin** — pins a note into **every** graph, whatever your active note is.
-
-- **Pinning a note makes it an extra central node.** Its vicinity is
-  traversed and rendered alongside your active note's. You pin/unpin from a node's
-  hover button (the **pin** icon) or its right-click menu.
-- **The active (central) note is pinnable too** — pin it before navigating away
-  and it stays in the graph as a pinned central.
-- The **pinned set is global state and survives restarts** (stored in the
-  plugin's `data.json`). Pins are keyed by a stable note id, so renaming or moving
-  a pinned note keeps it pinned.
-- **Pinned centrals traverse with their own global depth trio** (the *Pinned
-  links out / Pinned embeds out / Pinned links in* dials) — shared by every
-  pinned note; there is still no per-pin depth dial. A pinned note that is also
-  the active note uses the active-note depths.
-
-**Local pin** — pins a note only **for the current note** (its *map-pin* icon,
-labelled *Pin for this note* / *Unpin for this note*).
-
-- **A local pin holds only while its main note is active.** The target renders as a
-  pinned central alongside your active note — even if your active note has **no link
-  to it** — and vanishes the moment you switch to a different note. Switch back and
-  it returns.
-- **Independent of the global pin.** A note can carry both at once and shows both
-  indicators; each toggle flips only its own kind.
-- The local-pin control is **not offered on the active note itself** — a note cannot
-  be locally pinned under itself.
-- **Local pins are global state and survive restarts**, keyed by stable note ids for
-  both the target and the note they are pinned under (so renames and moves keep them).
-  Locally pinned centrals traverse with the same *Pinned …* depth trio as global pins.
-
-> Known caveat: right after an Obsidian restart, a persisted pinned central can
-> briefly render as a regular node (no pinned accent) until the background cleanup
-> sweep runs (~15s). The pin is **not lost** — only its visual identity lags.
-> Tracked in
-> `docs-internal/tickets/ticket-pinned-central-status-lags-after-restart.md`.
-
-### Node size
-
-- **Drag any node bigger or smaller.** Hovering a node reveals a grab line on
-  its right and bottom edges and a handle at the bottom-right corner; the new
-  box is saved when you **release**, not while you drag.
-- **The graph only re-arranges itself if it has to.** If the new box still has
-  room where the note sits, everything stays exactly where it was. If it would
-  sit on top of a neighbour or hang out of its folder group, the graph re-lays
-  out around it on release. Nothing moves while you are still dragging.
-- **A resized note keeps that size everywhere** — it is remembered per note
-  (like a pin, keyed by a stable note id, so renames and moves keep it) and
-  applies in every graph the note appears in, across restarts.
-- **A size you set wins over the *Node sizing* dials** — including the min/max
-  range and the width the title would ask for. Only sanity bounds (24–1200 px)
-  still apply.
-- **"Reset size"** in the node's right-click menu puts the note back on the
-  computed size. The entry only appears on a note you have resized.
-- Only the right/bottom/corner grips exist: dragging a top or left edge would
-  move the node, and positions come from the layout, so it would snap back.
-
-> By design: when the release DOES re-run the layout, it also re-fits the
-> viewport — the graph re-zooms and re-pans so the re-arranged graph is fully in
-> frame. A resize that fits keeps both the layout and your framing, so this only
-> happens when the nodes moved anyway.
-
-### Node exclusion
-
-Keep whole classes of notes out of every graph — index/MOC hubs, templates, a
-`rel/` relationship folder — via a **global** exclusion pattern list.
-
-- **Pattern list** lives in Settings → Vicinity Graph (one pattern per line) and
-  is global, like every other setting. Its row is always on screen: while
-  *Exclude notes from the graph* is off the box is **disabled**, not hidden, so you
-  can still see what is stored — and switching exclusion back on brings those exact
-  patterns straight back.
-- **Controls panel** has the same *Exclude notes from the graph* switch, plus the
-  patterns read-only; when exclusion is on and the current graph actually dropped
-  notes, its section header shows an **excluded count** for that graph.
-- **Matching is regex-lite.** Each line is a JavaScript regex tested
-  **unanchored** and **case-sensitively** against the full vault-relative path
-  **including extension**. So `rel/` matches `rel/some-relationship.md` (and
-  `rel/` anywhere in the path), while `^rel/` anchors it to the vault root. A
-  line that is not a valid regex still never breaks the graph (it excludes
-  nothing) — and the settings tab now names it, with its line number, right under
-  the box, instead of ignoring it silently.
-- **Only discovered neighbors are excluded** — the active note and pinned
-  centrals stay even if they match a pattern. Excluded notes are pruned at the
-  data layer (during traversal, before rendering), so a note reachable *only*
-  through an excluded note is not discovered either.
-
-### Node contents
-
-A node tall enough to have room shows **one** preview: either the note's
-**heading outline** or its **first image**, never both.
-
-- **The *Preview* pill picks which one**, globally. It lives in **Settings →
-  Vicinity Graph → Node contents** *and* in the in-view graph controls under
-  *Node contents*; the two are one setting shown twice, so either writes both.
-  - **Auto** (the default) — **the outline is for your roots.** On the **active
-    note and your pinned notes**, document position decides: if the note's first
-    image sits **before** its first heading, the node shows the **image**;
-    otherwise it shows the **outline**. That is the escape hatch — move the image
-    above the first heading to say "show the picture for this note".
-    Every **other** note in the vicinity shows its **first image** if it has one
-    (anywhere in the note) and otherwise **just its title** — no outline. Reason:
-    nodes are sized to fit what they show, so letting every neighbour open an
-    outline made the whole graph a wall of same-sized big boxes; peripheral notes
-    now stay small, and a big box means "there is a picture here" or "this is a
-    root". To read a neighbour's headings, **pin it** — or set the pill to
-    *Outline*.
-  - **Title only** — every node shows **just its title**, no outline and no
-    image. The one preference that deliberately empties the preview slot, so
-    nodes stay compact regardless of what a note contains.
-  - **Outline** — prefer the outline for every note that has headings, whatever
-    document position says.
-  - **Image** — prefer the first image for every note that has one.
-- **An EXPLICIT preference ignores the root rule, and — except *Title only* —
-  never empties a node.** *Outline* shows headings on every note that has them,
-  peripheral or not; *Outline* on a note without headings still shows its image;
-  *Image* on a note without an image still shows its outline. Under one of those
-  two a node only goes preview-less when the note has neither; *Title only* goes
-  preview-less always, by design.
-- The outline is a **nested list** capped by the *Outline depth* setting. It
-  scrolls when it does not fit (the scrollbar appears on hover); an over-long
-  entry ellipsises on its own, and its full text is in the tooltip.
-- **Clicking an entry opens the note at that heading** (ctrl/cmd-click opens it
-  in a new tab).
-
-## V1 scope / limits
-
-- **LOCAL graph only.** No global graph.
-- **No unresolved (ghost) links.**
-- **Every setting is global**, including sizing. The one per-note exception is
-  the size you set by dragging a node (see *Node size*); per-view overrides come
-  later, if at all.
-- **No manual node dragging persistence; layout is computed.**
-- Default **node cap is 100** (the readable ceiling).
-- **Canvas text-node links count** — `[[wikilinks]]` and markdown-style
-  `[a](note.md)` alike — but a link written inside a **code span** in a canvas
-  text node may still produce an edge Obsidian itself would not draw.
-- **Outline entries jump to the FIRST heading with that text** — same as any
-  `[[Note#Heading]]` link in Obsidian, so duplicate headings are ambiguous.
-- **`*.excalidraw.md` drawings show no outline** (they stay graph nodes; their
-  body is a generated payload, not prose). Canvas files have no headings at all.
-- **Heading display strips common inline markdown** (`[[links]]`, `**bold**`,
-  `` `code` ``, `[md](links)`) but is not a markdown renderer — underscore
-  emphasis, escapes and exotic nesting can leave a stray character in the label.
-  The link never depends on it: the raw heading text is what opens the note.
-
-## V2 roadmap (deferred)
-
-- Per-view sizing overrides.
-- Position-seeded incremental layout.
-- Canvas text-node wikilink parsing.
-- Unresolved link ghost nodes (toggle, off by default).
-- User-assignable folder colors.
-- Manual node position persistence, if ever.
-
-## Bundled WebAssembly (edge-routing engine)
-
-The calm, orthogonal connectors between nodes are computed by
-[**libavoid-js**](https://github.com/Aksem/libavoid-js) `0.4.5`, a WebAssembly
-build of **libavoid** — the mature C++ orthogonal connector-routing library from
-the [Adaptagrams](https://github.com/mjwybrow/adaptagrams) project. It is
-compiled to WASM with Emscripten and licensed **LGPL-2.1-or-later**.
-
-The `.wasm` module (~474 KB) is embedded as raw bytes inside `main.js`; there is
-no `.wasm` sidecar file. It is loaded **lazily** from those embedded bytes on the
-first graph that needs routing, **entirely offline** — no network fetch, no disk
-read. (The plugin deliberately bundles libavoid-js's *node* build precisely so
-the shipped code carries no `fetch(` / `instantiateStreaming` network tokens; a
-CI test, `src/view/libavoidTokenGuard.test.ts`, fails the build if any reappear.)
-
-For anyone reviewing the module (these mirror the notes an automated WASM
-scanner will raise):
-
-- **WASI stdio imports (`fd_write`, `proc_exit`, …).** These are emitted by
-  Emscripten's C/C++ runtime for `abort`/panic handling, not because the plugin
-  does terminal or file I/O. In normal operation the module reads and writes no
-  files and no streams.
-- **The module exports its linear memory.** This is Emscripten's default and is
-  how the thin JS glue marshals data across the boundary: node rectangles are
-  written *in*, routed poly-lines are read *out*. The exported memory is the
-  module's own private heap — it is **not** a window into your vault, the
-  filesystem, or the Obsidian host; the WASM sandbox has no ambient access to any
-  of those.
-- **What actually crosses the boundary.** Only geometry: the bounding
-  rectangles of the nodes on screen go in, and the routed connector poly-lines
-  come back. No note contents, paths, or metadata are passed to the engine. The
-  binding surface the plugin uses is enumerated and typed in
-  [`src/view/libavoidLoader.ts`](./src/view/libavoidLoader.ts); the routing pass
-  that drives it is [`src/view/edgeRouting.ts`](./src/view/edgeRouting.ts).
+The right-angled connectors are routed by
+[libavoid-js](https://github.com/Aksem/libavoid-js), a WebAssembly build of the
+**libavoid** connector-routing library, licensed **LGPL-2.1-or-later**. It runs
+entirely offline (no network, no disk) and only ever receives on-screen node
+rectangles — never your note contents, paths, or metadata.
 
 ## Development
 
-Building the plugin, running the test/e2e suites, and cutting releases are
-covered in [`docs-internal/development.md`](./docs-internal/development.md).
+Building, testing, and cutting releases are covered in
+[`docs-internal/development.md`](./docs-internal/development.md).
 
 ## License
 
