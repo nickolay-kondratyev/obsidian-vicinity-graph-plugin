@@ -47,3 +47,8 @@ Assumptions made (non-interactive): documented all three install routes rather
 than guessing which the human meant, since the ticket's "from github tree …
 tested prior to being released" spans both a pre-release build and a raw source
 checkout. BRAT repo cited as `TfTHub/obsidian42-brat`.
+## Notes
+
+**2026-08-12T18:28:39Z**
+
+__READY_AS_IS__: docs-only branch; beta-install.md claims (repo slug, manifest version/floor, command name, release-tag/manifest guard, cross-refs) all verified against the repo; no code touched.
