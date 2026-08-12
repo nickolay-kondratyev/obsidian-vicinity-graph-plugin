@@ -1,17 +1,18 @@
 ---
+closed_iso: 2026-08-12T19:07:50Z
 session_ids: [{"a": "claude", "type": "execution", "id": "37a92392-758c-4a75-bad6-ec5e8dbc3425"}, {"a": "claude", "type": "decision", "id": "30a84a04-6274-4b60-911d-c7b5d17f0192"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_uykmq7xpow597qs6bpgrhanlt_e
 title: "Distinct styling for frontmatter id-ref edges (backlog)"
-status: open
+status: closed
 deps: [nid_phu0llxhfptse000j66ezrhh3_e]
 links: []
 created_iso: 2026-08-12T17:19:58Z
-status_updated_iso: 2026-08-12T19:05:30Z
+status_updated_iso: 2026-08-12T19:07:50Z
 type: feature
 priority: 4
 assignee: nickolaykondratyev
-tags: [decide]
+tags: []
 ---
 
 Backlog follow-up to the frontmatter-id links feature (plan: ticket nid_sjojyvd55emyry45qynphei7o_e). v1 deliberately renders id-ref edges as ordinary `kind: "link"` edges (KISS, human-approved 2026-08-12).
@@ -20,11 +21,48 @@ If/when distinct styling is wanted: introduce an id-ref provenance in the edge m
 
 ---
 
-## STOP — needs a human decision (reopened 2026-08-12, non-interactive execution)
+## DECISION (2026-08-12, decision session): CLOSE — wontfix, feature not earned yet
 
-An agent picked this ticket up for execution but it is gated on decisions only
-you can make. Nothing was implemented. Two things must be settled before any
-code is written; the ticket itself defers both.
+**Decision 1 answer: No — distinct styling has not earned its keep. Close wontfix.**
+
+Rationale:
+- The plugin is **not published yet** (CLAUDE.md). There are zero real users, so
+  there is zero evidence that id-ref edges rendering as ordinary link edges is
+  confusing anyone. The ticket's own guard — "Do not start without confirming
+  the feature earned it" — cannot be satisfied today, and nothing can change
+  that until the feature sees real use.
+- v1's KISS rendering (id-refs indistinguishable from wikilinks) was
+  **human-approved 2026-08-12** — the same day. Implementing distinct styling
+  now would reverse that approval on no new information.
+- The combined link count is already truthful (`getLinkCount` adds id-ref
+  occurrences), so no information is silently lost by the plain rendering.
+
+Rejected options:
+- **Implement now (Option A/B/C below):** speculative — adds an orthogonal
+  provenance axis to the edge model, view CSS, and e2e coverage for a visual no
+  user has asked for. Violates 80/20 and the ticket's own guard.
+- **Leave open as backlog:** with the `decide` tag removed and the dependency
+  (nid_phu0llxhfptse000j66ezrhh3_e) closed, an open ticket gets picked up and
+  implemented by the unattended loop — same as "implement now". Keeping the tag
+  just re-queues this decision forever. Closing is the only state that matches
+  "not now".
+- **Escalate to human:** the default here is clear (no users → no evidence →
+  no feature), and the human already chose KISS for v1 today. Nothing to ask.
+
+**Decision 2 pre-answered for any future revival: Option A — wikilink wins.**
+Only *id-ref-ONLY* pairs get the distinct (dashed) style; any pair carrying a
+syntactic wikilink renders normally. The distinct style then answers exactly one
+question: "does this connection exist only because of a frontmatter id?"
+Option B over-signals (a visibly wikilinked pair would look special); Option C
+(third combined visual) is the most noise and hardest to theme legibly.
+
+**If real use shows id-ref edges confuse people:** re-open (or re-file) with
+Option A decided, and follow the implementation sketch below — it is current as
+of 2026-08-12.
+
+---
+
+## Original escalation analysis (kept for the revival case)
 
 ### Background (current state, confirmed in code)
 
@@ -82,6 +120,4 @@ before implementation.
 3. Style in the view layer via `src/view/*.css` + an Obsidian theme CSS variable;
    prefer CSS over JS. Add e2e coverage (rendered-edge styling is view-layer, so
    `npm run test:e2e` is required, not just `npm test`).
-
-Set `tags` back to `[]` and answer inline, then re-dispatch.
 
