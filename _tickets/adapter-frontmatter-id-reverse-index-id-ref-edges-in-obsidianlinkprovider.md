@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_phu0llxhfptse000j66ezrhh3_e
 title: "Adapter: frontmatter-id reverse index + id-ref edges in ObsidianLinkProvider"
-status: open
+status: in_progress
 deps: [nid_dthnhlzp0wzxqhcozj3f8ih5h_e]
 links: []
 created_iso: 2026-08-12T17:19:54Z
-status_updated_iso: 2026-08-12T17:19:54Z
+status_updated_iso: 2026-08-12T18:30:57Z
 type: feature
 priority: 3
 assignee: nickolaykondratyev
