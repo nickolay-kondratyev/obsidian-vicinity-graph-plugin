@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_ik7imr6294wnbvj633ccgqi2e_e
 title: "update readme to be more customer focused and add screenshot example"
-status: open
+status: in_progress
 deps: []
 links: []
 created_iso: 2026-08-12T01:26:04Z
-status_updated_iso: 2026-08-12T01:26:04Z
+status_updated_iso: 2026-08-12T01:29:02Z
 type: task
 priority: 3
 assignee: nickolaykondratyev
