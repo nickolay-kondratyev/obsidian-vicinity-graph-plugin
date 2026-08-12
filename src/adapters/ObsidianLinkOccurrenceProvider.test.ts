@@ -4,6 +4,7 @@ import { asRendered } from "../shared/testFixtures/renderedMarkdown";
 import { CanvasParseCache } from "./CanvasParseCache";
 import { FakeObsidianPorts } from "./FakeObsidianPorts";
 import type { FakeObsidianSpec } from "./FakeObsidianPorts";
+import { FrontmatterIdIndex } from "./FrontmatterIdIndex";
 import { ObsidianLinkOccurrenceProvider } from "./ObsidianLinkOccurrenceProvider";
 import { ObsidianLinkProvider } from "./ObsidianLinkProvider";
 
@@ -41,7 +42,13 @@ const BASE_SPEC: FakeObsidianSpec = {
 
 async function providerOver(spec: FakeObsidianSpec): Promise<ObsidianLinkOccurrenceProvider> {
 	const ports = new FakeObsidianPorts(spec);
-	const linkProvider = await ObsidianLinkProvider.create(ports.vault, ports.metadataCache, new CanvasParseCache());
+	const idIndex = new FrontmatterIdIndex(ports.vault, ports.metadataCache, () => spec.idRefFields ?? "");
+	const linkProvider = await ObsidianLinkProvider.create(
+		ports.vault,
+		ports.metadataCache,
+		new CanvasParseCache(),
+		idIndex,
+	);
 	return new ObsidianLinkOccurrenceProvider(ports.vault, ports.metadataCache, linkProvider);
 }
 
@@ -81,6 +88,31 @@ describe("ObsidianLinkOccurrenceProvider edge-scoped occurrences", () => {
 	it("WHEN the source path is unknown to the vault THEN the result is empty, never a throw", async () => {
 		const provider = await providerOver(BASE_SPEC);
 		expect(await provider.occurrencesBetween(asVaultPath("missing.md"), TARGET)).toEqual([]);
+	});
+});
+
+// GIVEN referrer.md's `deps` frontmatter points at target.md's `id` and there is
+// NO body/wikilink between them — an id-ref-only edge. The drawer must still list
+// the occurrence (position-less) so it agrees with the edge badge count, not show
+// an empty drawer for an edge the graph draws.
+const ID_REF_SPEC: FakeObsidianSpec = {
+	files: [
+		{ path: "referrer.md" },
+		{ path: "target.md" },
+	],
+	fileCaches: {
+		"referrer.md": { frontmatter: { deps: ["target-id"] } },
+		"target.md": { frontmatter: { id: "target-id" } },
+	},
+	idRefFields: "deps",
+};
+
+describe("ObsidianLinkOccurrenceProvider frontmatter id-ref edges", () => {
+	it("WHEN a markdown source reaches the target ONLY through an id-ref THEN the drawer lists a position-less occurrence", async () => {
+		const provider = await providerOver(ID_REF_SPEC);
+		expect(await provider.occurrencesBetween(asVaultPath("referrer.md"), TARGET)).toEqual([
+			{ offset: null, context: null },
+		]);
 	});
 });
 

@@ -9,6 +9,7 @@ import { VaultFileStore } from "../persistence/VaultFileStore";
 import { CanvasParseCache } from "./CanvasParseCache";
 import { FakeDocIdPort } from "./FakeDocIdPort";
 import { FakeObsidianPorts } from "./FakeObsidianPorts";
+import { FrontmatterIdIndex } from "./FrontmatterIdIndex";
 import { VicinityGraphBuilder } from "./VicinityGraphBuilder";
 
 /** The per-doc/per-main facts store (overrides + local pins) over in-memory disk. */
@@ -50,6 +51,7 @@ async function builderFixture() {
 		perDocStore,
 		pathDocIdMap,
 		new DocIdMapWarmer(ports.vault, docIdPort, pathDocIdMap),
+		new FrontmatterIdIndex(ports.vault, ports.metadataCache, () => ""),
 	);
 	return { builder, docIdPort, pathDocIdMap, pluginDataStore, perDocStore };
 }
@@ -155,6 +157,7 @@ async function coldMapFixture(options: { readonly unreadablePath?: string } = {}
 		perDocStore,
 		pathDocIdMap,
 		new DocIdMapWarmer(ports.vault, docIdPort, pathDocIdMap),
+		new FrontmatterIdIndex(ports.vault, ports.metadataCache, () => ""),
 	);
 	return { builder, docIdPort };
 }

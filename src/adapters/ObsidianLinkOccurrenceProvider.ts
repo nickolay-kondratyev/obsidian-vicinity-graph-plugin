@@ -66,7 +66,29 @@ export class ObsidianLinkOccurrenceProvider implements LinkOccurrenceProvider {
 				...(reference.offset < 0 ? POSITIONLESS_OCCURRENCE : occurrenceAt(text, reference.offset)),
 			});
 		}
+		// Frontmatter id-ref edges (plain string ids, not wikilinks) are NOT in the
+		// cache's reference list, so the loop above never sees them — yet they DO ride
+		// the LinkProvider's outgoing links and count. Top each target up to the
+		// provider's authoritative multiplicity with position-less occurrences, so the
+		// drawer agrees with the rendered edge badge instead of under-reporting.
+		this.appendPositionlessDeficit(path, occurrences);
 		return occurrences;
+	}
+
+	/**
+	 * Append position-less occurrences for any target the LinkProvider counts MORE
+	 * times than the body-derived occurrences above found — the id-ref edges, which
+	 * have no body position. A non-negative deficit is a no-op, so wikilink/embed
+	 * targets (already fully enumerated) gain nothing.
+	 */
+	private appendPositionlessDeficit(source: VaultPath, occurrences: OutgoingLinkOccurrence[]): void {
+		for (const target of this.linkProvider.getOutgoingLinks(source)) {
+			const enumerated = occurrences.filter((occurrence) => occurrence.targetPath === target).length;
+			const deficit = this.linkProvider.getLinkCount(source, target) - enumerated;
+			for (let index = 0; index < deficit; index += 1) {
+				occurrences.push({ targetPath: target, ...POSITIONLESS_OCCURRENCE });
+			}
+		}
 	}
 
 	private positionlessOutgoingOccurrences(path: VaultPath): readonly OutgoingLinkOccurrence[] {

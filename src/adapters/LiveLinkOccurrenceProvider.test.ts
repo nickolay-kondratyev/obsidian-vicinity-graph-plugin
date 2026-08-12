@@ -3,6 +3,7 @@ import { asVaultPath } from "../engine";
 import { CanvasParseCache } from "./CanvasParseCache";
 import { FakeObsidianPorts } from "./FakeObsidianPorts";
 import type { FakeObsidianSpec } from "./FakeObsidianPorts";
+import { FrontmatterIdIndex } from "./FrontmatterIdIndex";
 import { LiveLinkOccurrenceProvider } from "./LiveLinkOccurrenceProvider";
 
 const NOTE = asVaultPath("note.md");
@@ -29,7 +30,8 @@ const SPEC: FakeObsidianSpec = {
 describe("LiveLinkOccurrenceProvider delegation", () => {
 	function provider(): LiveLinkOccurrenceProvider {
 		const ports = new FakeObsidianPorts(SPEC);
-		return new LiveLinkOccurrenceProvider(ports.vault, ports.metadataCache, new CanvasParseCache());
+		const idIndex = new FrontmatterIdIndex(ports.vault, ports.metadataCache, () => "");
+		return new LiveLinkOccurrenceProvider(ports.vault, ports.metadataCache, new CanvasParseCache(), idIndex);
 	}
 
 	it("WHEN edge-scoped occurrences are queried THEN the snapshot provider's answer comes back", async () => {
