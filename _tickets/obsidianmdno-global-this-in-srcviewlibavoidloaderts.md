@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-12T00:34:00Z
-session_ids: [{"a": "claude", "type": "execution", "id": "1bf93ea6-d7fe-4e24-a610-5dd3ac57ee40"}]
+session_ids: [{"a": "claude", "type": "execution", "id": "1bf93ea6-d7fe-4e24-a610-5dd3ac57ee40"}, {"a": "claude", "type": "review", "id": "b087c294-9b3c-40db-8d71-41271955d350"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_l17hhil9b22jas1lwvyfgxp5w_e
 title: "obsidianmd/no-global-this in src/view/libavoidLoader.ts"
