@@ -1,4 +1,5 @@
 ---
+session_ids: [{"a": "claude", "type": "execution", "id": "32dffa0b-3624-4b5b-9e62-26d75fe949ca"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_nioldkusdrwc7fqzr4bmq2bow_e
 title: "ESLint run-as-warnings rollout + gate npx eslint src in check/build"
