@@ -38,19 +38,6 @@ Vicinity Graph is in the **Obsidian community plugin store**. Requires Obsidian
 2. **Browse**, search for **Vicinity Graph**, **Install**, then **Enable**.
 3. Run the **Vicinity Graph: Open in right sidebar** command.
 
-### BRAT (pre-release builds)
-
-Use the [BRAT](https://github.com/TfTHacker/obsidian42-brat) plugin to install
-directly from this repository and get pre-release updates ahead of the store.
-Add this repo as a beta plugin, then enable **Vicinity Graph**.
-
-### Manual
-
-Download `manifest.json`, `main.js`, and `styles.css` from a
-[GitHub Release](../../releases), copy all three into
-`.obsidian/plugins/vicinity-graph/` in your vault, then enable the plugin under
-**Settings → Community plugins**.
-
 ## Where the graph opens
 
 Two commands, both bindable to a hotkey:
