@@ -47,18 +47,19 @@ import { EVERY_SETTINGS_SPEC_LEAF } from "./testFixtures/settingsSpecLeaves";
  * the number alone could not guess about its PRODUCT meaning.
  */
 const SHIPPED_SETTINGS_DEFAULTS: Readonly<Record<string, unknown>> = {
-	// The depths mirror Obsidian's own local graph: 1 hop each way. `embedDepthOut`
+	// Outgoing depths mirror Obsidian's own local graph: 1 hop. `embedDepthOut`
 	// MUST equal `linkDepthOut` at ship — that equality is what makes the outgoing
-	// channel split unobservable by default (see SETTINGS_SPEC).
+	// channel split unobservable by default (see SETTINGS_SPEC). INCOMING ships at
+	// 0 (owner decision): backlinks are opt-in, not part of the default vicinity.
 	"globalDepths.linkDepthOut": 1,
 	"globalDepths.embedDepthOut": 1,
-	"globalDepths.linkDepthIn": 1,
+	"globalDepths.linkDepthIn": 0,
 	// The pinned budgets MUST ship equal to the active-note budgets above: that
 	// equality is what makes the active/pinned split invisible until a dial moves
-	// (see SETTINGS_SPEC).
+	// (see SETTINGS_SPEC) — so `pinnedLinkDepthIn` is 0 too.
 	"globalDepths.pinnedLinkDepthOut": 1,
 	"globalDepths.pinnedEmbedDepthOut": 1,
-	"globalDepths.pinnedLinkDepthIn": 1,
+	"globalDepths.pinnedLinkDepthIn": 0,
 
 	"globalView.nodeCap": 100, // The shipped performance ceiling.
 	"globalView.outlineMaxDepth": 2, // Sections + subsections — what fits a 160px node.

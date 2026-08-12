@@ -189,7 +189,12 @@ const NODE_SIZE_PX_BOUNDS = { min: 1, max: 400, step: 4 } as const;
 
 export const SETTINGS_SPEC: SettingsSpec = {
 	globalDepths: {
-		/** Depth defaults mirror Obsidian's local-graph default of 1 hop each way. */
+		/**
+		 * Outgoing depth defaults mirror Obsidian's local-graph default of 1 hop.
+		 * INCOMING (`linkDepthIn`) ships at 0 by owner decision — a central note's
+		 * default vicinity is what it points at, not what points at it; backlinks
+		 * are an opt-in reach the "Links in" dial turns on.
+		 */
 		linkDepthOut: { default: 1, ...DEPTH_STEPPER_BOUNDS },
 		/**
 		 * DELIBERATELY EQUAL to `linkDepthOut`: at these ONE-HOP defaults the two
@@ -205,16 +210,18 @@ export const SETTINGS_SPEC: SettingsSpec = {
 		 * default therefore changes the default graph in TWO ways.
 		 */
 		embedDepthOut: { default: 1, ...DEPTH_STEPPER_BOUNDS },
-		linkDepthIn: { default: 1, ...DEPTH_STEPPER_BOUNDS },
+		/** OFF by default (owner decision): backlinks are opt-in — see `linkDepthOut`. */
+		linkDepthIn: { default: 0, ...DEPTH_STEPPER_BOUNDS },
 		/**
 		 * The pinned-note budgets DELIBERATELY EQUAL the active-note defaults above:
 		 * before pinned notes had their own dials, every root traversed with the one
 		 * global set — so at these defaults, pinning a note draws exactly the graph
 		 * it always drew, and the split is invisible until someone moves a dial.
+		 * `pinnedLinkDepthIn` therefore also ships at 0, matching `linkDepthIn`.
 		 */
 		pinnedLinkDepthOut: { default: 1, ...DEPTH_STEPPER_BOUNDS },
 		pinnedEmbedDepthOut: { default: 1, ...DEPTH_STEPPER_BOUNDS },
-		pinnedLinkDepthIn: { default: 1, ...DEPTH_STEPPER_BOUNDS },
+		pinnedLinkDepthIn: { default: 0, ...DEPTH_STEPPER_BOUNDS },
 	},
 	globalView: {
 		/**
