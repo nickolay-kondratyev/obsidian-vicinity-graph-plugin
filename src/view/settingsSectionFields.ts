@@ -1,4 +1,4 @@
-import type { DepthSettings, NodeExclusionSettings, ViewSettings } from "../engine";
+import type { DepthSettings, FrontmatterLinkSettings, NodeExclusionSettings, ViewSettings } from "../engine";
 
 /**
  * WHICH SETTINGS FIELDS BELONG TO WHICH SETTINGS SECTION — the one structural
@@ -24,6 +24,7 @@ import type { DepthSettings, NodeExclusionSettings, ViewSettings } from "../engi
 export const SETTINGS_SECTIONS = [
 	"depth-defaults",
 	"edges",
+	"frontmatter-links",
 	"node-sizing",
 	"node-contents",
 	"force-layout",
@@ -38,6 +39,7 @@ export interface SectionSettingsFields {
 	readonly view: readonly (keyof ViewSettings)[];
 	readonly depth: readonly (keyof DepthSettings)[];
 	readonly exclusion: readonly (keyof NodeExclusionSettings)[];
+	readonly frontmatterLinks: readonly (keyof FrontmatterLinkSettings)[];
 }
 
 /**
@@ -60,13 +62,20 @@ export const SECTION_SETTINGS_FIELDS = {
 			"pinnedLinkDepthIn",
 		],
 		exclusion: NO_FIELDS,
+		frontmatterLinks: NO_FIELDS,
 	},
-	edges: { view: ["showCrossLinks"], depth: NO_FIELDS, exclusion: NO_FIELDS },
-	"node-sizing": { view: ["sizing"], depth: NO_FIELDS, exclusion: NO_FIELDS },
-	"node-contents": { view: ["outlineMaxDepth", "nodePreviewPreference"], depth: NO_FIELDS, exclusion: NO_FIELDS },
-	"force-layout": { view: ["forceLayout"], depth: NO_FIELDS, exclusion: NO_FIELDS },
-	"node-exclusion": { view: NO_FIELDS, depth: NO_FIELDS, exclusion: ["enabled", "patterns"] },
-	performance: { view: ["nodeCap"], depth: NO_FIELDS, exclusion: NO_FIELDS },
+	edges: { view: ["showCrossLinks"], depth: NO_FIELDS, exclusion: NO_FIELDS, frontmatterLinks: NO_FIELDS },
+	"frontmatter-links": { view: NO_FIELDS, depth: NO_FIELDS, exclusion: NO_FIELDS, frontmatterLinks: ["idRefFields"] },
+	"node-sizing": { view: ["sizing"], depth: NO_FIELDS, exclusion: NO_FIELDS, frontmatterLinks: NO_FIELDS },
+	"node-contents": {
+		view: ["outlineMaxDepth", "nodePreviewPreference"],
+		depth: NO_FIELDS,
+		exclusion: NO_FIELDS,
+		frontmatterLinks: NO_FIELDS,
+	},
+	"force-layout": { view: ["forceLayout"], depth: NO_FIELDS, exclusion: NO_FIELDS, frontmatterLinks: NO_FIELDS },
+	"node-exclusion": { view: NO_FIELDS, depth: NO_FIELDS, exclusion: ["enabled", "patterns"], frontmatterLinks: NO_FIELDS },
+	performance: { view: ["nodeCap"], depth: NO_FIELDS, exclusion: NO_FIELDS, frontmatterLinks: NO_FIELDS },
 } as const satisfies Readonly<Record<SettingsSection, SectionSettingsFields>>;
 
 /**
@@ -98,3 +107,9 @@ export const _assertEveryExclusionFieldSectioned: Exclude<
 > extends never
 	? true
 	: Exclude<keyof NodeExclusionSettings, SectionedField<"exclusion">> = true;
+export const _assertEveryFrontmatterLinkFieldSectioned: Exclude<
+	keyof FrontmatterLinkSettings,
+	SectionedField<"frontmatterLinks">
+> extends never
+	? true
+	: Exclude<keyof FrontmatterLinkSettings, SectionedField<"frontmatterLinks">> = true;

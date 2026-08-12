@@ -80,6 +80,8 @@ export function SettingsRowView({
 			return <ExclusionPatternsRow row={row} state={state} />;
 		case "node-cap":
 			return <NodeCapRow row={row} state={state} />;
+		case "id-ref-fields":
+			return <IdRefFieldsRow row={row} state={state} />;
 		default:
 			return unhandledRowControl(row.control);
 	}
@@ -368,6 +370,42 @@ function SizingNumberRow({
 
 function NodeCapRow({ row, state }: { readonly row: SettingsRow; readonly state: SettingsRowState }): ReactElement {
 	return <NumberRow row={row} accessor={SettingsRowAccessors.nodeCap()} write={NO_CROSS_FIELD_RULE} state={state} />;
+}
+
+/**
+ * The comma-separated frontmatter id-ref field list — a free-form text field committed
+ * ON BLUR (never per keystroke), the same rule the typed number fields follow: an
+ * uncontrolled input reseeded from the store (`key`), so a rebuild carrying the stored
+ * value back replaces the box while the user's own typing is theirs alone until they
+ * leave. There is no clamp and nothing to refuse — the value is stored verbatim — so
+ * this needs none of {@link NumberRow}'s refusal machinery.
+ */
+function IdRefFieldsRow({
+	row,
+	state,
+}: {
+	readonly row: SettingsRow;
+	readonly state: SettingsRowState;
+}): ReactElement {
+	const [shown, request] = useSettingsValue<string>(SettingsRowAccessors.idRefFields(), state);
+	return (
+		<label className="vicinity-graph-number-row" title={row.description}>
+			<span>{row.label}</span>
+			<input
+				key={shown}
+				type="text"
+				aria-label={SettingsRowNames.sole(row)}
+				defaultValue={shown}
+				onBlur={(event) => request(event.target.value)}
+				// Enter COMMITS by blurring into the handler above, matching the typed number rows.
+				onKeyDown={(event) => {
+					if (event.key === "Enter") {
+						event.currentTarget.blur();
+					}
+				}}
+			/>
+		</label>
+	);
 }
 
 function OutlineDepthRow({

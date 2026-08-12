@@ -66,6 +66,7 @@ export const SETTINGS_ROW_CONTROL_KINDS = [
 	"exclusion-enabled",
 	"exclusion-patterns",
 	"node-cap",
+	"id-ref-fields",
 ] as const;
 
 export type SettingsRowControlKind = (typeof SETTINGS_ROW_CONTROL_KINDS)[number];
@@ -89,7 +90,9 @@ export type SettingsRowControl =
 	/** The exclusion pattern list (tab: editable textarea, panel: read-only). */
 	| { readonly kind: "exclusion-patterns" }
 	/** Maximum number of non-central nodes rendered. */
-	| { readonly kind: "node-cap" };
+	| { readonly kind: "node-cap" }
+	/** The comma-separated list of frontmatter fields read as note-id references (free-form text). */
+	| { readonly kind: "id-ref-fields" };
 
 /**
  * Compile-time completeness of {@link SETTINGS_ROW_CONTROL_KINDS}: a control arm
@@ -371,6 +374,25 @@ export const SETTINGS_GROUPS: Readonly<Record<SettingsSection, SettingsGroup>> =
 						description:
 							"Also draw links between notes that are both on screen but were never reached from a central note — the denser, complete picture of what the visible notes link to. Which notes are shown does not change.",
 						control: { kind: "show-cross-links" },
+					},
+				],
+			},
+		],
+	},
+	// Its own section: the one place a note's frontmatter (rather than its `[[wikilinks]]`)
+	// becomes graph edges. Sits after Edges because both answer "which links exist",
+	// and OFF by default (empty list) so the section is inert until a field is named.
+	"frontmatter-links": {
+		heading: "Frontmatter links",
+		panelClass: "vicinity-graph-frontmatter-links",
+		blocks: [
+			{
+				rows: [
+					{
+						label: "Id-reference fields",
+						description:
+							"Fields listed here are read as references to other notes' frontmatter id, and rendered as ordinary link edges in the graph. Example: deps, links",
+						control: { kind: "id-ref-fields" },
 					},
 				],
 			},

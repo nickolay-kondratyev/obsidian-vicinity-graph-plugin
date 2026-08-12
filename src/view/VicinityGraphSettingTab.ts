@@ -131,6 +131,7 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 			globalDepths: this.store.globalDepths(),
 			globalView: this.store.globalView(),
 			nodeExclusion: this.store.nodeExclusion(),
+			frontmatterLinks: this.store.frontmatterLinks(),
 		};
 	}
 
@@ -279,6 +280,9 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 				return;
 			case "node-cap":
 				this.addNodeCap(container, row, state);
+				return;
+			case "id-ref-fields":
+				this.addIdRefFields(container, row, state);
 				return;
 			default:
 				return unhandledRowControl(row.control);
@@ -625,6 +629,25 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 					return;
 				}
 				this.debounced.schedule(name, (writer) => writer.apply(accessor.interaction(value)));
+			});
+		});
+	}
+
+	/**
+	 * The frontmatter id-ref field list: one free-form single-line text field, debounced
+	 * like every other TYPED row (one persist + rebuild per burst, flushed on blur) and
+	 * stored VERBATIM — the comma-split into field names is a read-time concern
+	 * (`parseIdRefFields`), so there is nothing to parse, clamp or refuse here.
+	 */
+	private addIdRefFields(container: HTMLElement, row: SettingsRow, state: SettingsRowState): void {
+		const accessor = SettingsRowAccessors.idRefFields();
+		const name = SettingsRowNames.sole(row);
+		VicinityGraphSettingTab.row(container, row).addText((text) => {
+			text.setValue(accessor.read(state));
+			VicinityGraphSettingTab.nameControl(text.inputEl, name);
+			this.flushOnBlur(text.inputEl);
+			text.onChange((raw) => {
+				this.debounced.schedule(name, (writer) => writer.apply(accessor.interaction(raw)));
 			});
 		});
 	}

@@ -209,4 +209,17 @@ export class SettingsRowAccessors {
 			interaction: (patterns) => ({ kind: "global-exclusion-patterns", patterns }),
 		};
 	}
+
+	/**
+	 * The comma-separated frontmatter id-ref field-name string. A plain
+	 * {@link SettingsValueAccessor} (no bounds, no clamp): the value is FREE-FORM text
+	 * stored verbatim, so there is nothing to bound and nothing to settle — the
+	 * field-name list is a read-time projection (`parseIdRefFields`), not a write clamp.
+	 */
+	static idRefFields(): SettingsValueAccessor<string> {
+		return {
+			read: (state) => state.frontmatterLinks.idRefFields,
+			interaction: (idRefFields) => ({ kind: "global-id-ref-fields", idRefFields }),
+		};
+	}
 }

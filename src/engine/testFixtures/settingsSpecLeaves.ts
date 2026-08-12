@@ -1,6 +1,6 @@
 import { EngineDefaults } from "../constants";
 import { SETTINGS_SPEC } from "../SettingsSpec";
-import type { DepthSettings, NodeExclusionSettings, ViewSettings } from "../types";
+import type { DepthSettings, FrontmatterLinkSettings, NodeExclusionSettings, ViewSettings } from "../types";
 import { NODE_PREVIEW_PREFERENCES } from "../types";
 
 /**
@@ -53,6 +53,7 @@ export interface SettingsRootSnapshot {
 	readonly globalDepths: DepthSettings;
 	readonly globalView: ViewSettings;
 	readonly nodeExclusion: NodeExclusionSettings;
+	readonly frontmatterLinks: FrontmatterLinkSettings;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -120,6 +121,7 @@ export function defaultSettingsRoot(): SettingsRootSnapshot {
 		globalDepths: EngineDefaults.depthSettings(),
 		globalView: EngineDefaults.viewSettings(),
 		nodeExclusion: EngineDefaults.nodeExclusionSettings(),
+		frontmatterLinks: EngineDefaults.frontmatterLinkSettings(),
 	};
 }
 
@@ -178,8 +180,14 @@ export function withoutLeaf<T>(root: T, leaf: SettingsSpecLeaf): T {
 /** The alternate exclusion pattern list — arbitrary, only has to differ from the default `[]`. */
 const ALTERNATE_EXCLUSION_PATTERNS: readonly string[] = ["^Attachments/"];
 
-/** The ONE string-valued settings leaf {@link alternateLeafValue} knows a domain for. */
+/** The node-preview string leaf {@link alternateLeafValue} draws an alternate from its enum for. */
 const NODE_PREVIEW_LEAF_ID = "globalView.nodePreviewPreference";
+
+/** The id-ref-fields string leaf: a free-form comma-separated list, so its alternate is a literal. */
+const ID_REF_FIELDS_LEAF_ID = "frontmatterLinks.idRefFields";
+
+/** A non-default value for {@link ID_REF_FIELDS_LEAF_ID} — arbitrary, only has to differ from `""`. */
+const ALTERNATE_ID_REF_FIELDS = "deps, links";
 
 /**
  * A value for `leaf` that is VALID but NOT its default — what a round-trip, a
@@ -208,22 +216,40 @@ export function alternateLeafValue(leaf: SettingsSpecLeaf): unknown {
 		return !declared;
 	}
 	if (typeof declared === "string") {
-		// The only string-valued settings field is the node-preview preference; its
-		// domain is the one place that lists the accepted values. A SECOND string field
-		// would otherwise silently get a node-preview value and fail somewhere downstream
-		// (loud, but blaming the round-trip instead of this fixture), so name the cause here.
-		if (leaf.id !== NODE_PREVIEW_LEAF_ID) {
-			throw new Error(
-				`spec leaf id=[${leaf.id}] is string-valued but its domain is unknown here; ` +
-					`teach alternateLeafValue about it (only id=[${NODE_PREVIEW_LEAF_ID}] is modelled)`,
-			);
+		// Each string-valued leaf has its OWN domain, and a new one must teach this
+		// function about itself rather than silently borrow another's value and fail
+		// somewhere downstream (loud, but blaming the round-trip instead of this fixture).
+		if (leaf.id === NODE_PREVIEW_LEAF_ID) {
+			return NODE_PREVIEW_PREFERENCES.find((preference) => preference !== declared);
 		}
-		return NODE_PREVIEW_PREFERENCES.find((preference) => preference !== declared);
+		if (leaf.id === ID_REF_FIELDS_LEAF_ID) {
+			return ALTERNATE_ID_REF_FIELDS;
+		}
+		throw new Error(
+			`spec leaf id=[${leaf.id}] is string-valued but its domain is unknown here; ` +
+				`teach alternateLeafValue about it (modelled: [${NODE_PREVIEW_LEAF_ID}], [${ID_REF_FIELDS_LEAF_ID}])`,
+		);
 	}
 	if (Array.isArray(declared)) {
 		return [...ALTERNATE_EXCLUSION_PATTERNS];
 	}
 	return undefined;
+}
+
+/**
+ * A stored value `leaf`'s parser MUST reject, falling back to its declared default —
+ * what the "garbage in ⇒ default out" persistence claim needs, per leaf.
+ *
+ * For almost every leaf a non-enum STRING is unusable at once: not a number, not a
+ * boolean, not an array, and not a recognized `nodePreviewPreference`. The exception is
+ * a FREE-FORM string leaf (`idRefFields`), where any string is a legitimate value, so
+ * its garbage must be a NON-string instead. Kept beside {@link alternateLeafValue} so
+ * one place owns every leaf's type knowledge.
+ */
+const GARBAGE_STRING = "not-a-valid-setting-value";
+const GARBAGE_NON_STRING = 42;
+export function garbageLeafValue(leaf: SettingsSpecLeaf): unknown {
+	return leaf.id === ID_REF_FIELDS_LEAF_ID ? GARBAGE_NON_STRING : GARBAGE_STRING;
 }
 
 /**

@@ -1,4 +1,4 @@
-import type { DepthSettings, NodeExclusionSettings, ViewSettings } from "../engine";
+import type { DepthSettings, FrontmatterLinkSettings, NodeExclusionSettings, ViewSettings } from "../engine";
 import { SerialPromiseChain } from "../shared/SerialPromiseChain";
 import type { UserNoticePort } from "../view/viewPorts";
 import type { PinnedDocEntry, PluginData } from "./persistedShapes";
@@ -241,6 +241,10 @@ export class PluginDataStore {
 		return this.data.nodeExclusion;
 	}
 
+	frontmatterLinks(): FrontmatterLinkSettings {
+		return this.data.frontmatterLinks;
+	}
+
 	async saveGlobalDepths(globalDepths: DepthSettings): Promise<void> {
 		await this.persist({ ...this.data, globalDepths });
 	}
@@ -251,6 +255,10 @@ export class PluginDataStore {
 
 	async saveNodeExclusion(nodeExclusion: NodeExclusionSettings): Promise<void> {
 		await this.persist({ ...this.data, nodeExclusion });
+	}
+
+	async saveFrontmatterLinks(frontmatterLinks: FrontmatterLinkSettings): Promise<void> {
+		await this.persist({ ...this.data, frontmatterLinks });
 	}
 
 	/** Re-pinning refreshes the timestamp (recency tiebreaker follows the newest pin intent). */

@@ -16,6 +16,7 @@ function inputs(partial: Partial<GraphRequestInputs> = {}): GraphRequestInputs {
 		globalDepths: EngineDefaults.depthSettings(),
 		globalView: EngineDefaults.viewSettings(),
 		nodeExclusion: EngineDefaults.nodeExclusionSettings(),
+		frontmatterLinks: EngineDefaults.frontmatterLinkSettings(),
 		...partial,
 	};
 }

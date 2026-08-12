@@ -87,6 +87,9 @@ const SHIPPED_SETTINGS_DEFAULTS: Readonly<Record<string, unknown>> = {
 	// Exclusion is additive and opt-in: OFF, with nothing to match.
 	"nodeExclusion.enabled": false,
 	"nodeExclusion.patterns": [],
+
+	// Frontmatter-id links ship OFF: an empty field list reads no frontmatter as id-refs.
+	"frontmatterLinks.idRefFields": "",
 };
 
 describe("shipped settings defaults (the hand-pinned literal baseline)", () => {

@@ -33,6 +33,8 @@ function applyCommand(context: SettingsWriteContext, command: SettingsCommand): 
 			return { ...context, globalView: command.view };
 		case "node-exclusion":
 			return { ...context, nodeExclusion: command.nodeExclusion };
+		case "frontmatter-links":
+			return { ...context, frontmatterLinks: command.frontmatterLinks };
 	}
 }
 
@@ -56,7 +58,13 @@ function sectionsOwning(leaf: SettingsSpecLeaf): readonly SettingsSection[] {
 	return SETTINGS_SECTIONS.filter((section) => {
 		const fields = SECTION_SETTINGS_FIELDS[section];
 		const keys: readonly string[] =
-			family === "globalView" ? fields.view : family === "globalDepths" ? fields.depth : fields.exclusion;
+			family === "globalView"
+				? fields.view
+				: family === "globalDepths"
+					? fields.depth
+					: family === "nodeExclusion"
+						? fields.exclusion
+						: fields.frontmatterLinks;
 		return field !== undefined && keys.includes(field);
 	});
 }

@@ -74,6 +74,7 @@ describe("section resets together cover every settings field", () => {
 			forceLayout: { ...EngineDefaults.forceLayoutSettings(), repelStrength: 900 },
 		},
 		nodeExclusion: { enabled: true, patterns: ["^archive/"] },
+		frontmatterLinks: { idRefFields: "deps, links" },
 	};
 
 	/** Applies every section's reset in turn, feeding each write into the next section's context. */
@@ -90,6 +91,9 @@ describe("section resets together cover every settings field", () => {
 						break;
 					case "node-exclusion":
 						ctx = { ...ctx, nodeExclusion: command.nodeExclusion };
+						break;
+					case "frontmatter-links":
+						ctx = { ...ctx, frontmatterLinks: command.frontmatterLinks };
 						break;
 					// No default arm: every SettingsCommand kind is handled above, so a NEW
 					// kind is a compile error here rather than a runtime surprise.

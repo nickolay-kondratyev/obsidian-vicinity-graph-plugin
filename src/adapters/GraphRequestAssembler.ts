@@ -1,5 +1,6 @@
 import type {
 	DepthSettings,
+	FrontmatterLinkSettings,
 	GraphBuildRequest,
 	NodeExclusionSettings,
 	NodeOverride,
@@ -31,6 +32,13 @@ export interface GraphRequestInputs {
 	readonly globalView: ViewSettings;
 	/** Global node exclusion (vault-wide). Passed straight through to the engine. */
 	readonly nodeExclusion: NodeExclusionSettings;
+	/**
+	 * Frontmatter id-ref field config. Carried on the inputs so the controls panel's
+	 * {@link import("../view/ControlsModel").ControlsModel} can seed its settings row
+	 * from the SAME snapshot the graph used — NOT passed to the engine (the pure engine
+	 * does not read it; the dependent adapter ticket wires it into id-ref discovery).
+	 */
+	readonly frontmatterLinks: FrontmatterLinkSettings;
 }
 
 /**

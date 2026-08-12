@@ -90,6 +90,7 @@ const EMPTY_CONTROLS: ControlsModel = {
 	globalDepths: EngineDefaults.depthSettings(),
 	globalView: EngineDefaults.viewSettings(),
 	nodeExclusion: EngineDefaults.nodeExclusionSettings(),
+	frontmatterLinks: EngineDefaults.frontmatterLinkSettings(),
 	excludedNodeCount: 0,
 };
 

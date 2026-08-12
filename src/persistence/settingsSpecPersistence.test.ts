@@ -3,6 +3,7 @@ import {
 	SETTINGS_FIELD_LEAVES,
 	alternateSettingsRoot,
 	defaultSettingsRoot,
+	garbageLeafValue,
 	readLeaf,
 	withLeaf,
 	withoutLeaf,
@@ -36,15 +37,13 @@ function pluginDataFor(root: unknown): unknown {
 /** Load `raw` exactly as a plugin start-up does — through JSON, then through the parser. */
 function parsedRoot(raw: unknown): unknown {
 	const parsed = PersistedShapes.parsePluginData(JSON.parse(JSON.stringify(raw)));
-	return { globalDepths: parsed.globalDepths, globalView: parsed.globalView, nodeExclusion: parsed.nodeExclusion };
+	return {
+		globalDepths: parsed.globalDepths,
+		globalView: parsed.globalView,
+		nodeExclusion: parsed.nodeExclusion,
+		frontmatterLinks: parsed.frontmatterLinks,
+	};
 }
-
-/**
- * A value that is unusable for EVERY leaf type at once: not a number, not a boolean, not
- * an array, not a metric object, and not a recognized `nodePreviewPreference`. One
- * sentinel therefore exercises the fall-back-to-default path of every declared field.
- */
-const GARBAGE_VALUE = "not-a-valid-setting-value";
 
 function describeMismatch(leaf: SettingsSpecLeaf, expected: unknown, got: unknown): string {
 	return `${leaf.id}: expected=[${JSON.stringify(expected)}] got=[${JSON.stringify(got)}]`;
@@ -105,7 +104,7 @@ describe("every declared settings field survives data.json", () => {
 
 	it("WHEN a declared field holds garbage THEN it loads at its declared default", () => {
 		const wrong = SETTINGS_FIELD_LEAVES.flatMap((leaf) => {
-			const loaded = parsedRoot(pluginDataFor(withLeaf(alternates, leaf, GARBAGE_VALUE)));
+			const loaded = parsedRoot(pluginDataFor(withLeaf(alternates, leaf, garbageLeafValue(leaf))));
 			const got = readLeaf(loaded, leaf);
 			return JSON.stringify(got) === JSON.stringify(leaf.default)
 				? []
@@ -118,7 +117,7 @@ describe("every declared settings field survives data.json", () => {
 		// The rule one wholesale `?? defaults` too many would break: repairing one field
 		// must never reset the rest of its family.
 		const collateral = SETTINGS_FIELD_LEAVES.flatMap((leaf) => {
-			const loaded = parsedRoot(pluginDataFor(withLeaf(alternates, leaf, GARBAGE_VALUE)));
+			const loaded = parsedRoot(pluginDataFor(withLeaf(alternates, leaf, garbageLeafValue(leaf))));
 			return SETTINGS_FIELD_LEAVES.filter(
 				(sibling) =>
 					sibling.id !== leaf.id &&

@@ -7,6 +7,7 @@ const CTX: SettingsWriteContext = {
 	globalDepths: EngineDefaults.depthSettings(),
 	globalView: EngineDefaults.viewSettings(),
 	nodeExclusion: EngineDefaults.nodeExclusionSettings(),
+	frontmatterLinks: EngineDefaults.frontmatterLinkSettings(),
 };
 
 describe("planSettingsWrite global writes", () => {
