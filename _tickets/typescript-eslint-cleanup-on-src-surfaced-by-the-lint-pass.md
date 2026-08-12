@@ -35,3 +35,9 @@ Changes:
 
 Verified: `npx eslint src` (prod findings gone) · `npm run check` · `npm test` (1871 pass) · `npm run test:e2e -- settingsDependentRows.e2e.ts` (2 pass — the real-Obsidian check on the touched `setDisabled` dependent-row path, which `npm test` cannot reach). No behavior change: every edit is type-level or dead-import removal. No e2e submodule changes.
 
+
+## Notes
+
+**2026-08-12T00:17:00Z**
+
+__READY_AS_IS__: prod lint scope clean (all 29 named findings gone), check + 1871 tests pass; changes are type-level/dead-import only, no behavior change; remaining lint hits are in test files, explicitly out of ticket scope.
