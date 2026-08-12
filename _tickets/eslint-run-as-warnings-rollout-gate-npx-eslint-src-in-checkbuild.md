@@ -37,3 +37,9 @@ Done. `npm run check` exits 0 with lint folded in; `npx eslint src` reports 22 f
 
 Each rule is listed explicitly rather than blanket-downgrading (POLS): a genuinely NEW error class still hard-fails the gate, which is the non-regression signal we want. The rollout treats these known findings as warnings so day-to-day work is not blocked. Re-tighten any rule to `error` once its sites are cleaned up.
 
+
+## Notes
+
+**2026-08-12T00:42:47Z**
+
+__READY_AS_IS__: eslint-as-warnings rollout is sound; npm run check exits 0 (22 warnings, 0 errors), build gate covered, no guard tests broken.
