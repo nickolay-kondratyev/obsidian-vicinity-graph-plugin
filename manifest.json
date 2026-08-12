@@ -1,7 +1,7 @@
 {
 	"id": "vicinity-graph",
 	"name": "Vicinity Graph",
-	"version": "0.1.15",
+	"version": "0.1.16",
 	"minAppVersion": "1.12.4",
 	"description": "A richer local graph of the notes near your active note — a folder-grouped alternative to the built-in local graph.",
 	"author": "Nickolay Kondratyev",
