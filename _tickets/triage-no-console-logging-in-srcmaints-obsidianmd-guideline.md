@@ -35,3 +35,9 @@ Changes in `src/main.ts`:
 
 Verification: `npx eslint src/main.ts` clean, `npm run check` (tsc + check:e2e) passes, `npm test` 1871/1871 pass. e2e not touched (per ticket) and not needed — no rendered graph/panel/settings surface changed; the removed command had zero references in `src/` or `e2e/`. No behavior a user or test depended on was removed (the debug command was a manual-QA harness only).
 
+
+## Notes
+
+**2026-08-12T00:29:13Z**
+
+__READY_AS_IS__: Clean dev-harness removal; eslint no-console=0, tsc check passes, no dangling refs, kept console.error justified.
