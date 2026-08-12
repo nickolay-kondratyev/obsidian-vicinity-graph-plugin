@@ -73,6 +73,15 @@ interface DependentControl {
 	readonly setDisabled: (disabled: boolean) => void;
 }
 
+// WHY-NOT `getSettingDefinitions()` (the `obsidianmd/settings-tab/prefer-setting-definitions`
+// rule): this plugin renders ONE declared row model (`settingsRows.ts`,
+// `SETTINGS_GROUPS`) through TWO presenters — this tab and the in-graph React
+// panel — kept in lockstep by the parity guards (CLAUDE.md "Settings rows").
+// Obsidian's setting-definition API has no counterpart on the panel side, so
+// adopting it would fork the model and defeat that parity. The rule is scoped OFF
+// for this file in `eslint.config.mjs` (owner decision, ticket
+// nid_zs2aog8b2i9e3wutsorjm88ft_e); revisit if the panel is retired or the API
+// gains a shared surface.
 export class VicinityGraphSettingTab extends PluginSettingTab {
 	/**
 	 * Every TYPED field writes through here, so a multi-keystroke entry costs ONE
