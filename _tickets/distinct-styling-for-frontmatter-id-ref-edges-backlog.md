@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_uykmq7xpow597qs6bpgrhanlt_e
 title: "Distinct styling for frontmatter id-ref edges (backlog)"
-status: open
+status: in_progress
 deps: [nid_phu0llxhfptse000j66ezrhh3_e]
 links: []
 created_iso: 2026-08-12T17:19:58Z
-status_updated_iso: 2026-08-12T17:19:58Z
+status_updated_iso: 2026-08-12T19:03:30Z
 type: feature
 priority: 4
 assignee: nickolaykondratyev
