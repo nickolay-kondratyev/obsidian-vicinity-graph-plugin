@@ -33,13 +33,17 @@ const INIT_RETRY_DELAY_MS = 100;
  * (e.g. a permissions error that also blocks the raw probe), whose one manual fix
  * is to delete or rename it. Plain language, states the consequence and the way
  * back (interface-design guardrail: no raw error codes).
+ *
+ * `dataJsonPath` is the file's REAL vault-relative path (configurable config dir,
+ * NOT a hardcoded `.obsidian` — obsidianmd/hardcoded-config-path), passed in from
+ * {@link main.ts} where it is derived from `app.vault.configDir`.
  */
-const INIT_LOAD_FAILED_NOTICE =
+const initLoadFailedNotice = (dataJsonPath: string): string =>
 	"Vicinity Graph couldn't read its saved settings, so defaults are shown for this session. " +
 	"Your settings file was left untouched and changes made this session won't be saved over it — " +
 	"restart Obsidian to load it again. If this message returns every time you restart, the settings " +
 	"file is damaged and can't be read; deleting or renaming " +
-	"“.obsidian/plugins/vicinity-graph/data.json” resets settings and clears it.";
+	`“${dataJsonPath}” resets settings and clears it.`;
 
 /**
  * Shown ONCE when the raw probe proved `data.json` is CORRUPT (present but
@@ -55,6 +59,13 @@ const initCorruptQuarantinedNotice = (quarantineName: string): string =>
 
 /** Real wall-clock pause; injectable so tests retry on the microtask queue instead of waiting. */
 const REAL_SLEEP = (ms: number): Promise<void> => new Promise((resolve) => window.setTimeout(resolve, ms));
+
+/**
+ * Fallback used only by callers (tests) that don't inject the real path; production
+ * ({@link main.ts}) always passes the `app.vault.configDir`-derived `data.json` path.
+ * Deliberately NOT a `.obsidian`-prefixed literal — the config dir is user-configurable.
+ */
+const FALLBACK_DATA_JSON_DISPLAY_PATH = "the Vicinity Graph plugin's data.json";
 
 /**
  * Typed owner of the plugin's `data.json`: the truly-global config dials
@@ -87,11 +98,14 @@ export class PluginDataStore {
 	/**
 	 * @param notice optional: an init that exhausted its read retries says so ONCE here.
 	 * @param sleep injected pause between retries (tests pass an immediate resolve).
+	 * @param dataJsonPath the file's REAL vault-relative path (from `app.vault.configDir`,
+	 *   never a hardcoded `.obsidian`), shown in the exhausted-reads notice's recovery hint.
 	 */
 	constructor(
 		private readonly port: PluginDataPort,
 		private readonly notice?: UserNoticePort,
 		private readonly sleep: (ms: number) => Promise<void> = REAL_SLEEP,
+		private readonly dataJsonPath: string = FALLBACK_DATA_JSON_DISPLAY_PATH,
 	) {}
 
 	/** Loads and defensively parses data.json (first run / malformed → defaults). */
@@ -181,7 +195,7 @@ export class PluginDataStore {
 		console.error(
 			`vicinity-graph: data.json unreadable after attempts=[${INIT_LOAD_ATTEMPTS}]; running this session on defaults, writes refused`,
 		);
-		this.notice?.show(INIT_LOAD_FAILED_NOTICE);
+		this.notice?.show(initLoadFailedNotice(this.dataJsonPath));
 		this.protectingUnreadDataJson = true;
 		return null;
 	}

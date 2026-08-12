@@ -215,6 +215,14 @@ describe("PluginDataStore.init read-failure resilience", () => {
 		expect(notices.messages).toHaveLength(1);
 	});
 
+	it("WHEN every read attempt fails THEN the recovery notice names the injected data.json path (no hardcoded config dir)", async () => {
+		const notices = new FakeUserNotices();
+		const dataJsonPath = "my-config/plugins/vicinity-graph/data.json";
+		const store = new PluginDataStore(new ScriptedPluginDataPort([READ_FAILED]), notices, IMMEDIATE_SLEEP, dataJsonPath);
+		await store.init();
+		expect(notices.messages[0]).toContain(dataJsonPath);
+	});
+
 	it("WHEN every read attempt fails THEN exactly the declared attempt budget is spent", async () => {
 		const port = new ScriptedPluginDataPort([READ_FAILED]);
 		await new PluginDataStore(port, undefined, IMMEDIATE_SLEEP).init();
