@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-12T17:55:22Z
-session_ids: [{"a": "claude", "type": "execution", "id": "e083f924-c08d-4049-9e6f-b7bfa352751e"}]
+session_ids: [{"a": "claude", "type": "execution", "id": "e083f924-c08d-4049-9e6f-b7bfa352751e"}, {"a": "claude", "type": "review", "id": "5ddad2bd-1f6f-4270-bc12-db28404691f8"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_dthnhlzp0wzxqhcozj3f8ih5h_e
 title: "Settings: id-ref frontmatter field list (text row, default empty)"
