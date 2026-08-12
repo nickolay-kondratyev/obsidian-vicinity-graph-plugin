@@ -1,4 +1,5 @@
 ---
+session_ids: [{"a": "claude", "type": "execution", "id": "e083f924-c08d-4049-9e6f-b7bfa352751e"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_dthnhlzp0wzxqhcozj3f8ih5h_e
 title: "Settings: id-ref frontmatter field list (text row, default empty)"
