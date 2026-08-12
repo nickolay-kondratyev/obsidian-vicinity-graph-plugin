@@ -1,4 +1,5 @@
 ---
+session_ids: [{"a": "claude", "type": "execution", "id": "ce0c9147-cbb6-41de-ac4b-3699d126818c"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_phu0llxhfptse000j66ezrhh3_e
 title: "Adapter: frontmatter-id reverse index + id-ref edges in ObsidianLinkProvider"
