@@ -50,3 +50,8 @@ We shouldnt mention implementation libraries much in readme, we should mention t
 - The exhaustive per-setting reference and the WASM safety breakdown were
   collapsed into a scannable **Settings** summary and a short **Scope & limits**
   list. No behavior claims were changed; detail lives in `docs-internal/`.
+## Notes
+
+**2026-08-12T01:33:01Z**
+
+__READY_AS_IS__: README-only change; every concrete claim (commands, UI labels, node-cap 100, 15s sweep, minAppVersion 1.12.4, screenshot tracked) verified against source, no functionality removed.
