@@ -72,7 +72,7 @@ export class VaultFileStore {
 	 * return is "no data here, use your default" — indistinguishable, on purpose,
 	 * between never-written and set-aside.
 	 */
-	async read(relPath: string): Promise<unknown | null> {
+	async read(relPath: string): Promise<unknown> {
 		// Serialised on the SAME per-key chain as write/remove — a read must not run
 		// inside a same-key write's mid-rename window (where the target is briefly
 		// removed, so a bare `exists` would read as ABSENT and hand back a spurious
@@ -255,7 +255,7 @@ export class VaultFileStore {
 		}
 		if (value !== null && typeof value === "object") {
 			const sorted: Record<string, unknown> = {};
-			for (const key of Object.keys(value as Record<string, unknown>).sort()) {
+			for (const key of Object.keys(value).sort()) {
 				sorted[key] = VaultFileStore.withSortedKeys((value as Record<string, unknown>)[key]);
 			}
 			return sorted;

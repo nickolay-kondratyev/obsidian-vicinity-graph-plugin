@@ -162,7 +162,7 @@ function drawerSizeStyle(sizes: DrawerSizeSnapshot): CSSProperties {
 	if (sizes.width !== undefined) {
 		style["--vicinity-drawer-width"] = `${sizes.width}px`;
 	}
-	return style as CSSProperties;
+	return style;
 }
 
 function CloseButton({

@@ -109,22 +109,38 @@ export interface SettingsSpec {
  *
  * WHY-NOT a generic `assertTotal<A, B>()` helper for the idiom: it would make the
  * compiler report the helper's type parameters instead of the missing key name,
- * and naming the key IS the feature.
+ * and naming the key IS the feature. For the same reason each family is asserted
+ * ON ITS OWN rather than through one `Exclude<…> | Exclude<…> | Exclude<…>` union:
+ * in the healthy state every constituent is `never`, so the union collapses to a
+ * pile of duplicated `never`s (a typescript-eslint redundant/duplicate-constituent
+ * report) while a real miss in one family reads no clearer than three assertions do.
  */
-type UnspeccedSettingsField =
-	| Exclude<keyof ViewSettings, keyof ViewSpec>
-	| Exclude<keyof DepthSettings, keyof DepthSpec>
-	| Exclude<keyof NodeExclusionSettings, keyof NodeExclusionSpec>;
-export const _assertEverySettingsFieldSpecced: UnspeccedSettingsField extends never
+export const _assertEveryViewFieldSpecced: Exclude<keyof ViewSettings, keyof ViewSpec> extends never
 	? true
-	: UnspeccedSettingsField = true;
+	: Exclude<keyof ViewSettings, keyof ViewSpec> = true;
+export const _assertEveryDepthFieldSpecced: Exclude<keyof DepthSettings, keyof DepthSpec> extends never
+	? true
+	: Exclude<keyof DepthSettings, keyof DepthSpec> = true;
+export const _assertEveryExclusionFieldSpecced: Exclude<
+	keyof NodeExclusionSettings,
+	keyof NodeExclusionSpec
+> extends never
+	? true
+	: Exclude<keyof NodeExclusionSettings, keyof NodeExclusionSpec> = true;
 
 /** The reverse: a spec entry whose settings field was deleted (an orphan default). */
-type OrphanSpecField =
-	| Exclude<keyof ViewSpec, keyof ViewSettings>
-	| Exclude<keyof DepthSpec, keyof DepthSettings>
-	| Exclude<keyof NodeExclusionSpec, keyof NodeExclusionSettings>;
-export const _assertNoOrphanSpecField: OrphanSpecField extends never ? true : OrphanSpecField = true;
+export const _assertNoOrphanViewSpecField: Exclude<keyof ViewSpec, keyof ViewSettings> extends never
+	? true
+	: Exclude<keyof ViewSpec, keyof ViewSettings> = true;
+export const _assertNoOrphanDepthSpecField: Exclude<keyof DepthSpec, keyof DepthSettings> extends never
+	? true
+	: Exclude<keyof DepthSpec, keyof DepthSettings> = true;
+export const _assertNoOrphanExclusionSpecField: Exclude<
+	keyof NodeExclusionSpec,
+	keyof NodeExclusionSettings
+> extends never
+	? true
+	: Exclude<keyof NodeExclusionSpec, keyof NodeExclusionSettings> = true;
 
 // ---------------------------------------------------------------------------
 // Shared leaf building blocks (kept single-source to avoid duplicated literals)

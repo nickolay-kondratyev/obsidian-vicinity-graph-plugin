@@ -82,11 +82,19 @@ export const SECTION_SETTINGS_FIELDS = {
 type SectionedField<TFamily extends keyof SectionSettingsFields> =
 	(typeof SECTION_SETTINGS_FIELDS)[SettingsSection][TFamily][number];
 
-type UnsectionedSettingsField =
-	| Exclude<keyof ViewSettings, SectionedField<"view">>
-	| Exclude<keyof DepthSettings, SectionedField<"depth">>
-	| Exclude<keyof NodeExclusionSettings, SectionedField<"exclusion">>;
-
-export const _assertEverySettingsFieldSectioned: UnsectionedSettingsField extends never
+// Each family is asserted ON ITS OWN, not as one `Exclude<…> | Exclude<…> | …`
+// union: in the healthy state every constituent is `never`, so the union collapses
+// to duplicated `never`s (a typescript-eslint redundant/duplicate-constituent report)
+// while a real miss still surfaces the orphaned field name from its own assertion.
+export const _assertEveryViewFieldSectioned: Exclude<keyof ViewSettings, SectionedField<"view">> extends never
 	? true
-	: UnsectionedSettingsField = true;
+	: Exclude<keyof ViewSettings, SectionedField<"view">> = true;
+export const _assertEveryDepthFieldSectioned: Exclude<keyof DepthSettings, SectionedField<"depth">> extends never
+	? true
+	: Exclude<keyof DepthSettings, SectionedField<"depth">> = true;
+export const _assertEveryExclusionFieldSectioned: Exclude<
+	keyof NodeExclusionSettings,
+	SectionedField<"exclusion">
+> extends never
+	? true
+	: Exclude<keyof NodeExclusionSettings, SectionedField<"exclusion">> = true;

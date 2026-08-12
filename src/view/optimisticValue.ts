@@ -110,7 +110,7 @@ export class PendingEdits<T> {
 
 	private latestRequest(): RequestedEdit<T> | undefined {
 		const last = this.requested[this.requested.length - 1];
-		return this.requested.length === 0 ? undefined : (last as RequestedEdit<T>);
+		return this.requested.length === 0 ? undefined : last;
 	}
 
 	/** Gives authority back to the store — the requested write will never be confirmed. */

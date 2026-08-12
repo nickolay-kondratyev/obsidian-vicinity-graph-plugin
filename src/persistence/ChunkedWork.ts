@@ -29,8 +29,12 @@ export class ChunkedWork {
 		}
 	}
 
-	/** `await sleep(0)` — a real macrotask hop, releasing the main thread. */
-	static sleepZero(): Promise<void> {
+	/**
+	 * `await sleep(0)` — a real macrotask hop, releasing the main thread. Declared
+	 * `this: void` because it is passed unbound as the default `yieldBetweenBatches`
+	 * (it touches no instance state), which keeps that reference off the unbound-method lint.
+	 */
+	static sleepZero(this: void): Promise<void> {
 		return new Promise((resolve) => window.setTimeout(resolve, 0));
 	}
 }

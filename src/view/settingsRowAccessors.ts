@@ -66,8 +66,13 @@ export interface SettingsValueAccessor<T> {
  */
 export interface SettingsNumberAccessor extends SettingsValueAccessor<number> {
 	readonly bounds: SettingsRowBounds;
-	/** What the write path will actually STORE for a requested value; identity when nothing clamps it. */
-	settlesAt(value: number): number;
+	/**
+	 * What the write path will actually STORE for a requested value; identity when
+	 * nothing clamps it. A property function type (not a method) because surfaces
+	 * pass it around unbound — every implementation is a free function or arrow that
+	 * closes over its clamp, none reads `this`.
+	 */
+	readonly settlesAt: (value: number) => number;
 }
 
 /** A numeric control the user TYPES into — it must also say what counts as a typed value. */
