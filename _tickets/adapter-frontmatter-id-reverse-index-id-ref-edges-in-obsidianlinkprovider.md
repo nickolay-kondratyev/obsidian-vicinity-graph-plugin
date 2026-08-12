@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-12T18:50:04Z
-session_ids: [{"a": "claude", "type": "execution", "id": "ce0c9147-cbb6-41de-ac4b-3699d126818c"}, {"a": "claude", "type": "review", "id": "f0126744-06c4-4a2c-9cf7-2c5a8b9eac9d"}]
+session_ids: [{"a": "claude", "type": "execution", "id": "ce0c9147-cbb6-41de-ac4b-3699d126818c"}, {"a": "claude", "type": "review", "id": "f0126744-06c4-4a2c-9cf7-2c5a8b9eac9d"}, {"a": "claude", "type": "review", "id": "a621fc9a-18cd-4205-8eee-bb900b0efa7d"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_phu0llxhfptse000j66ezrhh3_e
 title: "Adapter: frontmatter-id reverse index + id-ref edges in ObsidianLinkProvider"
