@@ -56,4 +56,20 @@ export default tseslint.config(
 			"obsidianmd/settings-tab/prefer-setting-definitions": "off",
 		},
 	},
+	{
+		// `obsidianmd/no-global-this` pushes `globalThis` → `window`/`activeWindow` for
+		// popout compatibility. The libavoid WASM loader must do the OPPOSITE: it publishes
+		// the embedded wasm bytes on `globalThis.__VICINITY_LIBAVOID_WASM_BINARY__`, the
+		// EXACT token esbuild's node-build plugin injects as the Emscripten `wasmBinary`
+		// source (esbuild.config.mjs, LIBAVOID_WASM_BINARY_GLOBAL). Publish and read must
+		// share one object; the singleton load is cross-window and in a popout
+		// `activeWindow !== globalThis`, so a window scope would strand the bytes. Scoped OFF
+		// for this ONE file (NOT an inline directive, which obsidianmd recommended forbids via
+		// `eslint-comments/no-restricted-disable`). Ticket nid_l17hhil9b22jas1lwvyfgxp5w_e.
+		// See the WHY comment in initAvoid().
+		files: ["src/view/libavoidLoader.ts"],
+		rules: {
+			"obsidianmd/no-global-this": "off",
+		},
+	},
 );
