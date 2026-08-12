@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-12T00:14:58Z
-session_ids: [{"a": "claude", "type": "execution", "id": "e50393d9-e8b2-45a0-a324-795c4f183d88"}]
+session_ids: [{"a": "claude", "type": "execution", "id": "e50393d9-e8b2-45a0-a324-795c4f183d88"}, {"a": "claude", "type": "review", "id": "208a36bf-4f3f-473d-a322-ac6d4f4fca37"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_icr9gp534nm6kgkbc8rgcpu68_e
 title: "typescript-eslint cleanup on src/ (surfaced by the lint pass)"
