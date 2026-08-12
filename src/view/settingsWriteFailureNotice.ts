@@ -134,6 +134,8 @@ export class SettingsWriteFailureNotice {
 				return { kind: "exclusion-enabled" };
 			case "global-exclusion-patterns":
 				return { kind: "exclusion-patterns" };
+			case "global-id-ref-fields":
+				return { kind: "id-ref-fields" };
 		}
 	}
 
@@ -166,6 +168,7 @@ export class SettingsWriteFailureNotice {
 			case "exclusion-enabled":
 			case "exclusion-patterns":
 			case "node-cap":
+			case "id-ref-fields":
 				return control.kind;
 			default:
 				return unhandledRowControl(control);

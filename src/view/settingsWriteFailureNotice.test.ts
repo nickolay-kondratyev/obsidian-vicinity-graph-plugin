@@ -68,6 +68,7 @@ describe("SettingsWriteFailureNotice over every declared row", () => {
 			globalDepths: EngineDefaults.depthSettings(),
 			globalView: EngineDefaults.viewSettings(),
 			nodeExclusion: EngineDefaults.nodeExclusionSettings(),
+			frontmatterLinks: EngineDefaults.frontmatterLinkSettings(),
 		};
 	}
 
@@ -97,6 +98,8 @@ describe("SettingsWriteFailureNotice over every declared row", () => {
 				return [interactionOf(SettingsRowAccessors.exclusionPatterns())];
 			case "node-cap":
 				return [interactionOf(SettingsRowAccessors.nodeCap())];
+			case "id-ref-fields":
+				return [interactionOf(SettingsRowAccessors.idRefFields())];
 			default:
 				return unhandledRowControl(control);
 		}

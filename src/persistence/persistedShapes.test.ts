@@ -16,6 +16,7 @@ describe("PersistedShapes.parsePluginData", () => {
 			globalView: EngineDefaults.viewSettings(),
 			pins: [],
 			nodeExclusion: EngineDefaults.nodeExclusionSettings(),
+			frontmatterLinks: EngineDefaults.frontmatterLinkSettings(),
 		});
 	});
 
@@ -35,6 +36,7 @@ describe("PersistedShapes.parsePluginData", () => {
 			globalView: { ...EngineDefaults.viewSettings(), nodeCap: 42 },
 			pins: [{ docid: "docid_a_e", pinTimestamp: 1000 }],
 			nodeExclusion: { enabled: true, patterns: ["^rel/", "templates/"] },
+			frontmatterLinks: { idRefFields: "deps, links" },
 		};
 		expect(PersistedShapes.parsePluginData(JSON.parse(JSON.stringify(data)))).toEqual(data);
 	});

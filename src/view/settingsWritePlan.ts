@@ -1,6 +1,7 @@
 import type {
 	DepthSettings,
 	ForceLayoutSettings,
+	FrontmatterLinkSettings,
 	NodeExclusionSettings,
 	NodePreviewPreference,
 	SizingSettings,
@@ -52,7 +53,9 @@ export type SettingsInteraction =
 	/** Whether node exclusion applies at all (the pattern list is untouched). */
 	| { readonly kind: "global-exclusion-enabled"; readonly enabled: boolean }
 	/** The exclusion pattern list (the enable flag is untouched). */
-	| { readonly kind: "global-exclusion-patterns"; readonly patterns: readonly string[] };
+	| { readonly kind: "global-exclusion-patterns"; readonly patterns: readonly string[] }
+	/** The comma-separated frontmatter id-ref field-name string (stored verbatim). */
+	| { readonly kind: "global-id-ref-fields"; readonly idRefFields: string };
 
 /** The persistence call the executor must make. */
 export type SettingsCommand =
@@ -61,13 +64,16 @@ export type SettingsCommand =
 	/** → `saveGlobalView(view)` (whole object). */
 	| { readonly kind: "global-view"; readonly view: ViewSettings }
 	/** → `saveNodeExclusion(nodeExclusion)` (whole object). */
-	| { readonly kind: "node-exclusion"; readonly nodeExclusion: NodeExclusionSettings };
+	| { readonly kind: "node-exclusion"; readonly nodeExclusion: NodeExclusionSettings }
+	/** → `saveFrontmatterLinks(frontmatterLinks)` (whole object). */
+	| { readonly kind: "frontmatter-links"; readonly frontmatterLinks: FrontmatterLinkSettings };
 
 /** Current globals so whole-object commands can merge exactly one field. */
 export interface SettingsWriteContext {
 	readonly globalDepths: DepthSettings;
 	readonly globalView: ViewSettings;
 	readonly nodeExclusion: NodeExclusionSettings;
+	readonly frontmatterLinks: FrontmatterLinkSettings;
 }
 
 export function planSettingsWrite(interaction: SettingsInteraction, ctx: SettingsWriteContext): SettingsCommand {
@@ -96,6 +102,11 @@ export function planSettingsWrite(interaction: SettingsInteraction, ctx: Setting
 			return { kind: "node-exclusion", nodeExclusion: { ...ctx.nodeExclusion, enabled: interaction.enabled } };
 		case "global-exclusion-patterns":
 			return { kind: "node-exclusion", nodeExclusion: { ...ctx.nodeExclusion, patterns: interaction.patterns } };
+		case "global-id-ref-fields":
+			return {
+				kind: "frontmatter-links",
+				frontmatterLinks: { ...ctx.frontmatterLinks, idRefFields: interaction.idRefFields },
+			};
 	}
 }
 

@@ -44,6 +44,7 @@ export type {
 	EdgeKind,
 	FolderPath,
 	ForceLayoutSettings,
+	FrontmatterLinkSettings,
 	GraphEdge,
 	GraphNode,
 	NodeContentOverride,
@@ -67,6 +68,7 @@ export {
 	NODE_CONTENT_OVERRIDES,
 	NODE_PREVIEW_PREFERENCES,
 } from "./types";
+export { parseIdRefFields } from "./frontmatterLinkFields";
 
 export type { FileMetadata, LinkProvider, OutgoingReference } from "./LinkProvider";
 export { OutgoingReferences } from "./LinkProvider";
@@ -149,6 +151,7 @@ export type {
 	DefaultSpec,
 	DepthSpec,
 	ForceLayoutSpec,
+	FrontmatterLinkSpec,
 	NodeExclusionSpec,
 	SettingsSpec,
 	SizingSpec,

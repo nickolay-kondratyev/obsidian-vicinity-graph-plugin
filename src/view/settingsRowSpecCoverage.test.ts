@@ -55,6 +55,8 @@ function specLeafIdFor(control: SettingsRowControl): string {
 			return "nodeExclusion.patterns";
 		case "node-cap":
 			return "globalView.nodeCap";
+		case "id-ref-fields":
+			return "frontmatterLinks.idRefFields";
 		default:
 			return unhandledRowControl(control);
 	}

@@ -5,6 +5,7 @@ import type { SizingSpec } from "./SettingsSpec";
 import type {
 	DepthSettings,
 	ForceLayoutSettings,
+	FrontmatterLinkSettings,
 	NodeExclusionSettings,
 	NodeSizeOverridePx,
 	SizingSettings,
@@ -433,6 +434,10 @@ export class EngineDefaults {
 	static nodeExclusionSettings(): NodeExclusionSettings {
 		const exclusion = SETTINGS_SPEC.nodeExclusion;
 		return { enabled: exclusion.enabled.default, patterns: [...exclusion.patterns.default] };
+	}
+
+	static frontmatterLinkSettings(): FrontmatterLinkSettings {
+		return { idRefFields: SETTINGS_SPEC.frontmatterLinks.idRefFields.default };
 	}
 
 	static forceLayoutSettings(): ForceLayoutSettings {

@@ -35,6 +35,7 @@ function defaults(): SettingsRowState {
 		globalDepths: EngineDefaults.depthSettings(),
 		globalView: EngineDefaults.viewSettings(),
 		nodeExclusion: EngineDefaults.nodeExclusionSettings(),
+		frontmatterLinks: EngineDefaults.frontmatterLinkSettings(),
 	};
 }
 
@@ -48,6 +49,8 @@ function applied(state: SettingsRowState, interaction: SettingsInteraction): Set
 			return { ...state, globalView: command.view };
 		case "node-exclusion":
 			return { ...state, nodeExclusion: command.nodeExclusion };
+		case "frontmatter-links":
+			return { ...state, frontmatterLinks: command.frontmatterLinks };
 	}
 }
 
@@ -190,6 +193,8 @@ function probesFor(control: SettingsRowControl): readonly AccessorProbe[] {
 			return [valueProbe("exclusion patterns", SettingsRowAccessors.exclusionPatterns(), () => ["^probe/"])];
 		case "node-cap":
 			return [typedNumberProbe("node cap", SettingsRowAccessors.nodeCap())];
+		case "id-ref-fields":
+			return [valueProbe("id ref fields", SettingsRowAccessors.idRefFields(), (raw) => (raw === "deps" ? "links" : "deps"))];
 		default:
 			return unhandledRowControl(control);
 	}

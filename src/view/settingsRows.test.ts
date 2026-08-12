@@ -83,6 +83,7 @@ describe("settings row disabledWhen", () => {
 		globalDepths: EngineDefaults.depthSettings(),
 		globalView: EngineDefaults.viewSettings(),
 		nodeExclusion: { ...EngineDefaults.nodeExclusionSettings(), enabled: exclusionEnabled },
+		frontmatterLinks: EngineDefaults.frontmatterLinkSettings(),
 	});
 
 	const patternsRow = (): SettingsRow => {

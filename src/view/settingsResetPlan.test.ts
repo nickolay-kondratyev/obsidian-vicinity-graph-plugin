@@ -38,6 +38,7 @@ const TUNED_CTX: SettingsWriteContext = {
 	},
 	globalView: TUNED_VIEW,
 	nodeExclusion: { enabled: true, patterns: ["^archive/", "templates/"] },
+	frontmatterLinks: { idRefFields: "deps, links" },
 };
 
 /** The single `global-view` command a view-scoped reset must produce (fails loudly if 0 or 2). */
@@ -184,6 +185,7 @@ describe("planSettingsReset all scope", () => {
 
 	it("WHEN everything is reset THEN exactly one write per persisted store slice is emitted", () => {
 		expect(planSettingsReset("all", TUNED_CTX).map((command) => command.kind).sort()).toEqual([
+			"frontmatter-links",
 			"global-depths",
 			"global-view",
 			"node-exclusion",
@@ -195,6 +197,7 @@ describe("planSettingsReset all scope", () => {
 			globalDepths: EngineDefaults.depthSettings(),
 			globalView: EngineDefaults.viewSettings(),
 			nodeExclusion: EngineDefaults.nodeExclusionSettings(),
+			frontmatterLinks: EngineDefaults.frontmatterLinkSettings(),
 		};
 		expect(planSettingsReset("all", defaults)).toEqual(planSettingsReset("all", TUNED_CTX));
 	});
@@ -251,6 +254,7 @@ describe("planSettingsResetConfirmation other scopes", () => {
 			globalDepths: EngineDefaults.depthSettings(),
 			globalView: EngineDefaults.viewSettings(),
 			nodeExclusion: EngineDefaults.nodeExclusionSettings(),
+			frontmatterLinks: EngineDefaults.frontmatterLinkSettings(),
 		};
 		expect(planSettingsResetConfirmation("all", defaults)).not.toBeNull();
 	});

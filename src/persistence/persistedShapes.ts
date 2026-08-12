@@ -1,6 +1,7 @@
 import type {
 	DepthSettings,
 	ForceLayoutSettings,
+	FrontmatterLinkSettings,
 	NodeExclusionSettings,
 	NodeOverride,
 	NodeSizeOverridePx,
@@ -90,6 +91,8 @@ export interface PluginData {
 	readonly pins: readonly PinnedDocEntry[];
 	/** Global node exclusion (vault-wide enable + regex-lite pattern list). */
 	readonly nodeExclusion: NodeExclusionSettings;
+	/** Frontmatter-id link config (the comma-separated id-ref field-name string). */
+	readonly frontmatterLinks: FrontmatterLinkSettings;
 }
 
 export class PersistedShapes {
@@ -100,6 +103,7 @@ export class PersistedShapes {
 			globalView: EngineDefaults.viewSettings(),
 			pins: [],
 			nodeExclusion: EngineDefaults.nodeExclusionSettings(),
+			frontmatterLinks: EngineDefaults.frontmatterLinkSettings(),
 		};
 	}
 
@@ -118,6 +122,7 @@ export class PersistedShapes {
 			globalView: { ...defaults.globalView, ...parseViewFields(raw["globalView"]) },
 			pins: parsePins(raw["pins"]),
 			nodeExclusion: parseNodeExclusion(raw["nodeExclusion"], defaults.nodeExclusion),
+			frontmatterLinks: parseFrontmatterLinks(raw["frontmatterLinks"], defaults.frontmatterLinks),
 		};
 	}
 }
@@ -280,6 +285,19 @@ function parseNodeExclusion(raw: unknown, fallback: NodeExclusionSettings): Node
 		? raw["patterns"].filter((entry): entry is string => typeof entry === "string")
 		: fallback.patterns;
 	return { enabled, patterns };
+}
+
+/**
+ * Defensive frontmatter-links parser: the id-ref field string is stored VERBATIM (the
+ * settings text field must round-trip exactly), so it survives only when it is actually
+ * a string — a non-string (hand-edited `null`, a number) degrades to the default.
+ * The comma-split into field names happens at READ time (`parseIdRefFields`), never here.
+ */
+function parseFrontmatterLinks(raw: unknown, fallback: FrontmatterLinkSettings): FrontmatterLinkSettings {
+	if (!isRecord(raw)) {
+		return fallback;
+	}
+	return { idRefFields: typeof raw["idRefFields"] === "string" ? raw["idRefFields"] : fallback.idRefFields };
 }
 
 /**

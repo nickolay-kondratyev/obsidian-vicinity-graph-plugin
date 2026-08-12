@@ -70,7 +70,7 @@ const ALL_SCOPE_LABEL = "Restore all Vicinity Graph settings";
  * reads the label as "my pins are gone too".
  */
 const ALL_SCOPE_DESCRIPTION =
-	"Resets every Vicinity Graph setting — depth defaults, edges, node sizing, node contents, force layout, node exclusion and performance — to its shipped default. Pinned notes are kept.";
+	"Resets every Vicinity Graph setting — depth defaults, edges, frontmatter links, node sizing, node contents, force layout, node exclusion and performance — to its shipped default. Pinned notes are kept.";
 
 const EXCLUSION_SCOPE_LABEL = "Restore node exclusion defaults";
 
@@ -96,7 +96,7 @@ function restoreFields<T extends object>(current: T, defaults: T, keys: readonly
  * settings writes do (`planSettingsWrite`) — merging here keeps sibling sections
  * byte-identical across a reset.
  *
- * Emission order is view → depth → exclusion. It IS observable: `applyReset`
+ * Emission order is view → depth → exclusion → frontmatterLinks. It IS observable: `applyReset`
  * awaits each command in turn and each is a full `data.json` rewrite. Every
  * section today owns fields of exactly ONE family, so this order reproduces the
  * hand-written plans byte-for-byte; the order is pinned here for the day a
@@ -123,6 +123,16 @@ function planSectionReset(section: SettingsSection, ctx: SettingsWriteContext): 
 			nodeExclusion: restoreFields(ctx.nodeExclusion, EngineDefaults.nodeExclusionSettings(), fields.exclusion),
 		});
 	}
+	if (fields.frontmatterLinks.length > 0) {
+		commands.push({
+			kind: "frontmatter-links",
+			frontmatterLinks: restoreFields(
+				ctx.frontmatterLinks,
+				EngineDefaults.frontmatterLinkSettings(),
+				fields.frontmatterLinks,
+			),
+		});
+	}
 	return commands;
 }
 export const SETTINGS_RESET_SCOPES: Readonly<Record<SettingsResetScope, SettingsResetScopeSpec>> = {
@@ -137,6 +147,11 @@ export const SETTINGS_RESET_SCOPES: Readonly<Record<SettingsResetScope, Settings
 		// `SETTINGS_SPEC` alone, and a re-typed one here could outlive a retune.
 		description: "Resets whether cross links — links between visible notes the graph never walked — are drawn.",
 		plan: (ctx) => planSectionReset("edges", ctx),
+	},
+	"frontmatter-links": {
+		label: "Restore frontmatter links defaults",
+		description: "Clears the list of frontmatter fields read as note-id references (turns the feature off).",
+		plan: (ctx) => planSectionReset("frontmatter-links", ctx),
 	},
 	"node-sizing": {
 		label: "Restore node sizing defaults",
@@ -203,6 +218,7 @@ export const SETTINGS_RESET_SCOPES: Readonly<Record<SettingsResetScope, Settings
 			{ kind: "global-depths", depths: EngineDefaults.depthSettings() },
 			{ kind: "global-view", view: EngineDefaults.viewSettings() },
 			{ kind: "node-exclusion", nodeExclusion: EngineDefaults.nodeExclusionSettings() },
+			{ kind: "frontmatter-links", frontmatterLinks: EngineDefaults.frontmatterLinkSettings() },
 		],
 		// Always confirms: the blast radius is the whole plugin, so there is no
 		// "nothing to lose" state worth skipping the dialog for.

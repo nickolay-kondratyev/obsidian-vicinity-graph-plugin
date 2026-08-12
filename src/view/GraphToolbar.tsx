@@ -36,6 +36,7 @@ export function GraphToolbar({ controls }: { readonly controls: ControlsModel })
 		globalDepths: controls.globalDepths,
 		globalView: controls.globalView,
 		nodeExclusion: controls.nodeExclusion,
+		frontmatterLinks: controls.frontmatterLinks,
 	};
 	return (
 		<details className="vicinity-graph-toolbar nowheel nodrag nopan">

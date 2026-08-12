@@ -1,12 +1,14 @@
 ---
+closed_iso: 2026-08-12T17:55:22Z
+session_ids: [{"a": "claude", "type": "execution", "id": "e083f924-c08d-4049-9e6f-b7bfa352751e"}, {"a": "claude", "type": "review", "id": "5ddad2bd-1f6f-4270-bc12-db28404691f8"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_dthnhlzp0wzxqhcozj3f8ih5h_e
 title: "Settings: id-ref frontmatter field list (text row, default empty)"
-status: in_progress
+status: closed
 deps: [nid_sjojyvd55emyry45qynphei7o_e]
 links: []
 created_iso: 2026-08-12T17:19:34Z
-status_updated_iso: 2026-08-12T17:27:25Z
+status_updated_iso: 2026-08-12T17:55:22Z
 type: feature
 priority: 3
 assignee: nickolaykondratyev
@@ -25,3 +27,13 @@ Scope:
 
 Out of scope: the graph does NOT yet consume the value — that is the dependent adapter ticket.
 
+
+## Notes
+
+**2026-08-12T17:55:21Z**
+
+-
+
+**2026-08-12T17:58:42Z**
+
+__READY_AS_IS__: Part-1 id-ref frontmatter-fields settings row is complete and convention-clean; check + npm test (1881) + settingsTypedInput e2e (16) all green; no bugs found, no changes made.

@@ -19,6 +19,7 @@
 import type {
 	DepthSettings,
 	ForceLayoutSettings,
+	FrontmatterLinkSettings,
 	NodeExclusionSettings,
 	NodePreviewPreference,
 	ViewSettings,
@@ -82,10 +83,15 @@ export interface NodeExclusionSpec {
 	readonly patterns: DefaultSpec<readonly string[]>;
 }
 
+export interface FrontmatterLinkSpec {
+	readonly idRefFields: DefaultSpec<string>;
+}
+
 export interface SettingsSpec {
 	readonly globalDepths: DepthSpec;
 	readonly globalView: ViewSpec;
 	readonly nodeExclusion: NodeExclusionSpec;
+	readonly frontmatterLinks: FrontmatterLinkSpec;
 }
 
 // ---------------------------------------------------------------------------
@@ -127,6 +133,12 @@ export const _assertEveryExclusionFieldSpecced: Exclude<
 > extends never
 	? true
 	: Exclude<keyof NodeExclusionSettings, keyof NodeExclusionSpec> = true;
+export const _assertEveryFrontmatterLinkFieldSpecced: Exclude<
+	keyof FrontmatterLinkSettings,
+	keyof FrontmatterLinkSpec
+> extends never
+	? true
+	: Exclude<keyof FrontmatterLinkSettings, keyof FrontmatterLinkSpec> = true;
 
 /** The reverse: a spec entry whose settings field was deleted (an orphan default). */
 export const _assertNoOrphanViewSpecField: Exclude<keyof ViewSpec, keyof ViewSettings> extends never
@@ -141,6 +153,12 @@ export const _assertNoOrphanExclusionSpecField: Exclude<
 > extends never
 	? true
 	: Exclude<keyof NodeExclusionSpec, keyof NodeExclusionSettings> = true;
+export const _assertNoOrphanFrontmatterLinkSpecField: Exclude<
+	keyof FrontmatterLinkSpec,
+	keyof FrontmatterLinkSettings
+> extends never
+	? true
+	: Exclude<keyof FrontmatterLinkSpec, keyof FrontmatterLinkSettings> = true;
 
 // ---------------------------------------------------------------------------
 // Shared leaf building blocks (kept single-source to avoid duplicated literals)
@@ -389,5 +407,14 @@ export const SETTINGS_SPEC: SettingsSpec = {
 		/** Exclusion ships OFF with no patterns — an additive, opt-in feature. */
 		enabled: { default: false },
 		patterns: { default: [] },
+	},
+	frontmatterLinks: {
+		/**
+		 * DEFAULT EMPTY = frontmatter-id links OFF (locked human decision, ticket
+		 * `nid_dthnhlzp0wzxqhcozj3f8ih5h_e`): no field is read as an id-ref until the
+		 * user names one, so the feature costs nothing until opted into. A comma-separated
+		 * field-name string, parsed by `parseIdRefFields`.
+		 */
+		idRefFields: { default: "" },
 	},
 };

@@ -388,6 +388,24 @@ export interface NodeExclusionSettings {
 }
 
 /**
+ * Frontmatter-id link settings (feature part 1, ticket
+ * `nid_dthnhlzp0wzxqhcozj3f8ih5h_e`). {@link idRefFields} is a comma-separated list
+ * of frontmatter FIELD NAMES whose values are read as references to another note's
+ * frontmatter `id` (e.g. `deps: [note-id]`, `links: note-id`) and rendered as
+ * ordinary link edges. EMPTY (the default) = feature OFF.
+ *
+ * A raw STRING, stored verbatim as the user typed it (so the settings text field
+ * round-trips exactly); the field-name LIST is a read-time projection through the
+ * one canonical parser {@link import("./frontmatterLinkFields").parseIdRefFields}.
+ * The value is consumed by the ADAPTER (`ObsidianLinkProvider`, dependent ticket),
+ * never by the pure engine — a settings shape like {@link NodeExclusionSettings},
+ * persistence parses it, but no `VicinityEngine` stage reads it.
+ */
+export interface FrontmatterLinkSettings {
+	readonly idRefFields: string;
+}
+
+/**
  * Single source of truth mapping a {@link Channel} to the {@link ChannelDepths}
  * budget it spends. Read by the traversal only — a settings row names its FIELD
  * directly, so this stays the BFS's own table.
