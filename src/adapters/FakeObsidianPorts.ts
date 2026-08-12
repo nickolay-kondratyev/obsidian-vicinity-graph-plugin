@@ -81,10 +81,7 @@ export class FakeObsidianPorts {
 
 	private buildMetadataCachePort(): MetadataCachePort {
 		const cache: MetadataCachePort = {
-			resolvedLinks: structuredClone(this.spec.resolvedLinks ?? {}) as Record<
-				string,
-				Record<string, number>
-			>,
+			resolvedLinks: structuredClone(this.spec.resolvedLinks ?? {}),
 			getFileCache: (file) => this.spec.fileCaches?.[file.path] ?? null,
 			getFirstLinkpathDest: (linkpath, sourcePath) => {
 				// Source-scoped resolutions win, so a fixture can prove that the caller

@@ -1,6 +1,5 @@
 import { PluginSettingTab, Setting } from "obsidian";
-import type { App, TextAreaComponent, TextComponent, ToggleComponent } from "obsidian";
-import type { DepthSettings, ForceLayoutSettings } from "../engine";
+import type { App, TextAreaComponent, ToggleComponent } from "obsidian";
 import { NODE_PREVIEW_PREFERENCES } from "../engine";
 import type VicinityGraphPlugin from "../main";
 import type { PluginDataStore } from "../persistence/PluginDataStore";
@@ -27,7 +26,7 @@ import { SETTINGS_SECTIONS } from "./settingsSectionFields";
 import type { SettingsFeedback } from "./settingsValidation";
 import { describeInvalidExclusionPatterns, parseExclusionPatterns } from "./settingsValidation";
 import type { SettingsWritePipeline } from "./settingsWritePipeline";
-import type { SettingsInteraction, SizingNumberField } from "./settingsWritePlan";
+import type { SizingNumberField } from "./settingsWritePlan";
 import type { SizingRowVerdict } from "./sizingRowWrite";
 import { SizingRowWrite } from "./sizingRowWrite";
 
@@ -485,7 +484,14 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 			const initial = accessor.read(state).join("\n");
 			text.setValue(initial);
 			text.setDisabled(isSettingsRowDisabled(row, state));
-			this.dependents.push({ row, setDisabled: (disabled) => text.setDisabled(disabled) });
+			this.dependents.push({
+				row,
+				// Block body: `setDisabled` returns the component fluently, but the
+				// dependent's slot wants a `void` callback — discard the return.
+				setDisabled: (disabled) => {
+					text.setDisabled(disabled);
+				},
+			});
 			// Patterns already stored (or hand-edited into data.json) get the same
 			// verdict on open as a freshly typed one.
 			VicinityGraphSettingTab.showWarning(feedback, describeInvalidExclusionPatterns(initial));
