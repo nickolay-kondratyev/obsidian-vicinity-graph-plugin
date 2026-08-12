@@ -101,14 +101,12 @@ export default class VicinityGraphPlugin extends Plugin {
 		// probe + quarantine (over vault.adapter) so a PERMANENTLY corrupt data.json is
 		// told from a transient failure and set aside instead of degrading every session
 		// (ticket nid_08ripmsxon0r9ncn42lp623g1_e).
+		const dataJsonPath = `${this.manifest.dir ?? this.app.vault.configDir + "/plugins/" + this.manifest.id}/data.json`;
 		this.pluginDataStore = new PluginDataStore(
-			new PluginDataAdapter(
-				this,
-				new VaultAdapterFsPort(this.app.vault.adapter),
-				`${this.manifest.dir ?? this.app.vault.configDir + "/plugins/" + this.manifest.id}/data.json`,
-				Date.now,
-			),
+			new PluginDataAdapter(this, new VaultAdapterFsPort(this.app.vault.adapter), dataJsonPath, Date.now),
 			this.notices,
+			undefined,
+			dataJsonPath,
 		);
 		await this.pluginDataStore.init();
 		// Vault-root tree (NOT under .obsidian/) so it syncs as vault content; raw

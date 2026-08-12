@@ -4,7 +4,9 @@ import { PluginDataAdapter } from "./PluginDataAdapter";
 import type { PluginDataIo } from "./PluginDataAdapter";
 import { formatQuarantineTimestamp } from "./quarantineTimestamp";
 
-const DATA_JSON = ".obsidian/plugins/vicinity-graph/data.json";
+// A renamed (non-`.obsidian`) config dir on purpose: the adapter treats this path as
+// opaque, so the fixture doubles as proof it never assumes the default config folder.
+const DATA_JSON = "my-config/plugins/vicinity-graph/data.json";
 /** A fixed instant so the quarantine name is deterministic (never `Date.now()` in tests). */
 const CLOCK_MS = 1_700_000_000_000;
 const STAMP = formatQuarantineTimestamp(CLOCK_MS);
