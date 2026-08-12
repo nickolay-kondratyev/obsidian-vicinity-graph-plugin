@@ -36,6 +36,12 @@ export interface FakeObsidianSpec {
 	 * `getBacklinksForFile`. Omit to fake an install WITHOUT that API.
 	 */
 	readonly backlinks?: Readonly<Record<string, readonly string[]>>;
+	/**
+	 * The raw `idRefFields` setting string the {@link FrontmatterIdIndex} reads.
+	 * Default `""` (feature off — the index stays inert). Frontmatter `id`/field
+	 * values come from {@link fileCaches}' `frontmatter`.
+	 */
+	readonly idRefFields?: string;
 }
 
 /**

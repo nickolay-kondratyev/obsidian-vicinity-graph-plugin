@@ -2,6 +2,7 @@ import { Notice, Plugin } from "obsidian";
 import { DocIdServices } from "stable-ids-for-obsidian";
 import type { DocIdService } from "stable-ids-for-obsidian";
 import { CanvasParseCache } from "./adapters/CanvasParseCache";
+import { FrontmatterIdIndex } from "./adapters/FrontmatterIdIndex";
 import { LiveLinkOccurrenceProvider } from "./adapters/LiveLinkOccurrenceProvider";
 import { VicinityGraphBuilder } from "./adapters/VicinityGraphBuilder";
 import { DocIdMapWarmer } from "./persistence/DocIdMapWarmer";
@@ -70,6 +71,13 @@ export default class VicinityGraphPlugin extends Plugin {
 	private docIdMapWarmer!: DocIdMapWarmer;
 	/** Plugin-lived on purpose: canvas parses survive across graph rebuilds (mtime-keyed). */
 	private readonly canvasParseCache = new CanvasParseCache();
+	/**
+	 * Plugin-lived on purpose: the frontmatter-id reverse index warms once (lazily on
+	 * the first graph build) and survives across rebuilds, invalidated by metadata /
+	 * vault events rather than rebuilt every build. Assigned in {@link onload} once the
+	 * data store exists to supply the configured field list.
+	 */
+	private frontmatterIdIndex!: FrontmatterIdIndex;
 	private sweepTimer: number | null = null;
 	/**
 	 * {@link ViewsRefreshPort} over this plugin's own leaf walk, handed to every
@@ -122,6 +130,13 @@ export default class VicinityGraphPlugin extends Plugin {
 			this.pathDocIdMap,
 		);
 		this.docIdMapWarmer = new DocIdMapWarmer(this.app.vault, this.docIdService, this.pathDocIdMap);
+		// Reads the configured field list FRESH on each build, so a settings change is
+		// honoured on the next build without a bespoke settings subscription.
+		this.frontmatterIdIndex = new FrontmatterIdIndex(
+			this.app.vault,
+			this.app.metadataCache,
+			() => this.pluginDataStore.frontmatterLinks().idRefFields,
+		);
 		this.graphBuilder = new VicinityGraphBuilder(
 			this.app.vault,
 			this.app.metadataCache,
@@ -131,6 +146,7 @@ export default class VicinityGraphPlugin extends Plugin {
 			this.perDocStore,
 			this.pathDocIdMap,
 			this.docIdMapWarmer,
+			this.frontmatterIdIndex,
 		);
 
 		this.registerVaultLifecycleHandlers();
@@ -143,6 +159,7 @@ export default class VicinityGraphPlugin extends Plugin {
 			this.app.vault,
 			this.app.metadataCache,
 			this.canvasParseCache,
+			this.frontmatterIdIndex,
 		);
 		this.registerView(
 			VIEW_TYPE_VICINITY_GRAPH,
@@ -203,12 +220,20 @@ export default class VicinityGraphPlugin extends Plugin {
 	}
 
 	private registerVaultLifecycleHandlers(): void {
+		// The frontmatter-id index is a cache-derived reverse index: any metadata
+		// change (an edited `id:` or configured field, a new/removed note) can move an
+		// id-ref edge, so invalidate on `changed` and let the next graph build rebuild.
+		// Empty configured field list ⇒ the rebuild is a no-op (inert index).
+		this.registerEvent(this.app.metadataCache.on("changed", () => this.frontmatterIdIndex.markStale()));
 		// Renames are a persistence non-event (docid-keyed); only the map moves.
 		// Cache eviction is unconditional — non-canvas paths are no-ops.
 		this.registerEvent(
 			this.app.vault.on("rename", (file, oldPath) => {
 				this.pathDocIdMap.handleRename(oldPath, file.path);
 				this.canvasParseCache.evict(oldPath);
+				// A renamed note keeps its id but changes path — the reverse index maps by
+				// path, so it must rebuild.
+				this.frontmatterIdIndex.markStale();
 			}),
 		);
 		// Caught, not rethrown: the handler now spans vault file I/O (the per-file
@@ -234,6 +259,8 @@ export default class VicinityGraphPlugin extends Plugin {
 	 */
 	private async handleVaultDelete(path: string): Promise<void> {
 		this.canvasParseCache.evict(path);
+		// A deleted note may have owned an id or referenced others — rebuild the index.
+		this.frontmatterIdIndex.markStale();
 		const docid = this.pathDocIdMap.handleDelete(path);
 		if (docid !== undefined) {
 			// Both stores together are the ONE choke point a delete spans: the global

@@ -7,6 +7,7 @@ import { ControlsModelBuilder } from "../view/ControlsModel";
 import type { FlowPinFacts } from "../view/flowMapping";
 import type { GraphBuildResult } from "../view/viewPorts";
 import type { CanvasParseCache } from "./CanvasParseCache";
+import type { FrontmatterIdIndex } from "./FrontmatterIdIndex";
 import type { GraphRequestInputs } from "./GraphRequestAssembler";
 import { GraphRequestAssembler } from "./GraphRequestAssembler";
 import { ObsidianLinkProvider } from "./ObsidianLinkProvider";
@@ -33,6 +34,8 @@ export class VicinityGraphBuilder {
 		private readonly pathDocIdMap: PathDocIdMap,
 		/** INJECTED, not built here: the sweep shares this exact instance (one scan discipline, one miss cache). */
 		private readonly docIdMapWarmer: DocIdMapWarmer,
+		/** Plugin-lived frontmatter-id reverse index for id-ref edges — warmed lazily on the first build. */
+		private readonly frontmatterIdIndex: FrontmatterIdIndex,
 	) {}
 
 	/** `null` when `mainPath` does not resolve to a vault file. */
@@ -41,7 +44,12 @@ export class VicinityGraphBuilder {
 		if (mainFile === null) {
 			return null;
 		}
-		const provider = await ObsidianLinkProvider.create(this.vault, this.metadataCache, this.canvasParseCache);
+		const provider = await ObsidianLinkProvider.create(
+			this.vault,
+			this.metadataCache,
+			this.canvasParseCache,
+			this.frontmatterIdIndex,
+		);
 		const mainDocId = this.docIdPort.isEligible(mainFile) ? await this.docIdPort.getDocId(mainFile) : null;
 		if (mainDocId !== null) {
 			// Lazy map fill on visit (CLARIFICATION planning default) — keeps

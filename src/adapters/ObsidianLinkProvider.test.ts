@@ -3,6 +3,7 @@ import { asVaultPath } from "../engine";
 import { CanvasParseCache } from "./CanvasParseCache";
 import type { FakeObsidianSpec } from "./FakeObsidianPorts";
 import { FakeObsidianPorts } from "./FakeObsidianPorts";
+import { FrontmatterIdIndex } from "./FrontmatterIdIndex";
 import { ObsidianLinkProvider } from "./ObsidianLinkProvider";
 import type { HeadingPort, ReferencePort } from "./obsidianPorts";
 
@@ -16,7 +17,8 @@ function heading(text: string, level: number, offset: number): HeadingPort {
 
 async function providerOver(spec: FakeObsidianSpec): Promise<ObsidianLinkProvider> {
 	const ports = new FakeObsidianPorts(spec);
-	return ObsidianLinkProvider.create(ports.vault, ports.metadataCache, new CanvasParseCache());
+	const idIndex = new FrontmatterIdIndex(ports.vault, ports.metadataCache, () => spec.idRefFields ?? "");
+	return ObsidianLinkProvider.create(ports.vault, ports.metadataCache, new CanvasParseCache(), idIndex);
 }
 
 const CANVAS_JSON = '{"nodes": [{"type": "file", "file": "note-a.md"}, {"type": "file", "file": "pic.png"}]}';
@@ -1063,5 +1065,81 @@ describe("ObsidianLinkProvider outgoing reference kinds (canvas)", () => {
 				resolvedLinks: { "board.canvas": { "note-b.md": 1 } },
 			}),
 		).toEqual([{ target: "note-b.md", kind: "embed" }]);
+	});
+});
+
+/**
+ * Frontmatter-id links (ticket `nid_phu0llxhfptse000j66ezrhh3_e`): a note's
+ * configured `idRefFields` reference another note's `id`, and the provider merges
+ * those into the same link streams as wikilinks — both directions, riding the
+ * same counts.
+ */
+describe("ObsidianLinkProvider frontmatter id-ref edges", () => {
+	// GIVEN referrer.md's `deps` points at owner.md's `id`, and NO wikilink between them.
+	const idRefSpec: FakeObsidianSpec = {
+		files: [{ path: "owner.md" }, { path: "referrer.md" }],
+		fileCaches: {
+			"owner.md": { frontmatter: { id: "owner-id" } },
+			"referrer.md": { frontmatter: { id: "referrer-id", deps: ["owner-id"] } },
+		},
+		idRefFields: "deps, links",
+	};
+
+	it("WHEN a configured field references a note's id THEN it is an outgoing link edge", async () => {
+		const provider = await providerOver(idRefSpec);
+		expect(provider.getOutgoingReferences(asVaultPath("referrer.md"))).toEqual([
+			{ target: "owner.md", kind: "link" },
+		]);
+	});
+
+	it("WHEN a note's id is referenced elsewhere THEN the referrer is an incoming link", async () => {
+		const provider = await providerOver(idRefSpec);
+		expect(provider.getIncomingLinks(asVaultPath("owner.md"))).toEqual(["referrer.md"]);
+	});
+
+	it("WHEN a pair is joined only by an id-ref THEN its link count reports the occurrence", async () => {
+		const provider = await providerOver(idRefSpec);
+		expect(provider.getLinkCount(asVaultPath("referrer.md"), asVaultPath("owner.md"))).toBe(1);
+	});
+
+	it("WHEN a pair is BOTH wikilinked and id-referenced THEN the counts add up", async () => {
+		// GIVEN a wikilink referrer→owner AND a `deps` id-ref to the same note.
+		const provider = await providerOver({
+			files: [{ path: "owner.md" }, { path: "referrer.md" }],
+			fileCaches: {
+				"owner.md": { frontmatter: { id: "owner-id" } },
+				"referrer.md": {
+					frontmatter: { deps: ["owner-id"] },
+					links: [{ link: "owner", position: { start: { offset: 0 } } }],
+				},
+			},
+			resolutions: { owner: "owner.md" },
+			resolvedLinks: { "referrer.md": { "owner.md": 1 } },
+			idRefFields: "deps",
+		});
+		expect(provider.getLinkCount(asVaultPath("referrer.md"), asVaultPath("owner.md"))).toBe(2);
+	});
+
+	it("WHEN the same target is both wikilinked and id-referenced THEN the link edge is not duplicated", async () => {
+		const provider = await providerOver({
+			files: [{ path: "owner.md" }, { path: "referrer.md" }],
+			fileCaches: {
+				"owner.md": { frontmatter: { id: "owner-id" } },
+				"referrer.md": {
+					frontmatter: { deps: ["owner-id"] },
+					links: [{ link: "owner", position: { start: { offset: 0 } } }],
+				},
+			},
+			resolutions: { owner: "owner.md" },
+			idRefFields: "deps",
+		});
+		expect(provider.getOutgoingReferences(asVaultPath("referrer.md"))).toEqual([
+			{ target: "owner.md", kind: "link" },
+		]);
+	});
+
+	it("WHEN the feature is OFF (no configured fields) THEN id-refs add no edges", async () => {
+		const provider = await providerOver({ ...idRefSpec, idRefFields: "" });
+		expect(provider.getOutgoingReferences(asVaultPath("referrer.md"))).toEqual([]);
 	});
 });

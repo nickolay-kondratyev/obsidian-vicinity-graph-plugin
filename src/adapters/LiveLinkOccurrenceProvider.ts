@@ -1,5 +1,6 @@
 import type { LinkOccurrence, LinkOccurrenceProvider, VaultPath } from "../engine";
 import type { CanvasParseCache } from "./CanvasParseCache";
+import type { FrontmatterIdIndex } from "./FrontmatterIdIndex";
 import { ObsidianLinkOccurrenceProvider } from "./ObsidianLinkOccurrenceProvider";
 import { ObsidianLinkProvider } from "./ObsidianLinkProvider";
 import type { MetadataCachePort, VaultPort } from "./obsidianPorts";
@@ -18,6 +19,8 @@ export class LiveLinkOccurrenceProvider implements LinkOccurrenceProvider {
 		private readonly vault: VaultPort,
 		private readonly metadataCache: MetadataCachePort,
 		private readonly canvasParseCache: CanvasParseCache,
+		/** Shared plugin-lived index so id-ref edges appear in the occurrence drawer too. */
+		private readonly frontmatterIdIndex: FrontmatterIdIndex,
 	) {}
 
 	async occurrencesBetween(source: VaultPath, target: VaultPath): Promise<readonly LinkOccurrence[]> {
@@ -25,7 +28,12 @@ export class LiveLinkOccurrenceProvider implements LinkOccurrenceProvider {
 	}
 
 	private async snapshot(): Promise<ObsidianLinkOccurrenceProvider> {
-		const linkProvider = await ObsidianLinkProvider.create(this.vault, this.metadataCache, this.canvasParseCache);
+		const linkProvider = await ObsidianLinkProvider.create(
+			this.vault,
+			this.metadataCache,
+			this.canvasParseCache,
+			this.frontmatterIdIndex,
+		);
 		return new ObsidianLinkOccurrenceProvider(this.vault, this.metadataCache, linkProvider);
 	}
 }

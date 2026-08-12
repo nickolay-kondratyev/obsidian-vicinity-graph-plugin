@@ -2,6 +2,7 @@ import type { AttachmentRef, FileMetadata, LinkProvider, OutgoingReference, Outl
 import { asFolderPath, asVaultPath, OutgoingReferences } from "../engine";
 import { FileKinds } from "../shared/FileKinds";
 import { BacklinksAdapter } from "./BacklinksAdapter";
+import type { FrontmatterIdIndex } from "./FrontmatterIdIndex";
 import type { OrderedReference } from "./ReferenceOrder";
 import { ReferenceOrder } from "./ReferenceOrder";
 import type { CanvasReference } from "./CanvasFallbackParser";
@@ -66,6 +67,12 @@ export class ObsidianLinkProvider implements LinkProvider {
 		private readonly canvasOutgoingByPath: ReadonlyMap<string, readonly OutgoingReference[]>,
 		/** Target path → the canvases referencing it. */
 		private readonly canvasIncomingByPath: ReadonlyMap<string, readonly string[]>,
+		/**
+		 * Frontmatter-id reverse index: id-ref edges (both directions) ride the same
+		 * link channels/budgets as wikilinks by merging into the streams below. Plugin-
+		 * lived and warmed by {@link create}, so it survives across provider snapshots.
+		 */
+		private readonly frontmatterIdIndex: FrontmatterIdIndex,
 		backlinksAvailable: boolean,
 	) {
 		if (!backlinksAvailable) {
@@ -78,7 +85,12 @@ export class ObsidianLinkProvider implements LinkProvider {
 		vault: VaultPort,
 		metadataCache: MetadataCachePort,
 		canvasParseCache: CanvasParseCache,
+		frontmatterIdIndex: FrontmatterIdIndex,
 	): Promise<ObsidianLinkProvider> {
+		// Lazy warm (mirrors PerDocStore): builds on the first snapshot, a no-op
+		// afterwards until an event or a settings change invalidates it. Queries below
+		// are then synchronous reads.
+		frontmatterIdIndex.ensureBuilt();
 		const canvasOutgoing = new Map<string, readonly OutgoingReference[]>();
 		const canvasIncoming = new Map<string, string[]>();
 		for (const file of vault.getFiles()) {
@@ -104,6 +116,7 @@ export class ObsidianLinkProvider implements LinkProvider {
 			metadataCache,
 			canvasOutgoing,
 			canvasIncoming,
+			frontmatterIdIndex,
 			BacklinksAdapter.isAvailable(metadataCache),
 		);
 	}
@@ -123,7 +136,17 @@ export class ObsidianLinkProvider implements LinkProvider {
 			return [];
 		}
 		const references = orderedReferencesOf(file, this.metadataCache.getFileCache(file));
-		return this.outgoingReferencesOf(file, references);
+		const base = this.outgoingReferencesOf(file, references);
+		// Merge frontmatter id-refs as ordinary `link` edges (KISS: visually identical
+		// to wikilinks). `deduped` drops an id-ref already carried as a wikilink of the
+		// same target, and drops a target reached through several configured fields.
+		const idRefs = this.frontmatterIdIndex
+			.resolvedTargets(path)
+			.map((target): OutgoingReference => ({ target, kind: "link" }));
+		if (idRefs.length === 0) {
+			return base;
+		}
+		return OutgoingReferences.deduped([...base, ...idRefs]);
 	}
 
 	getOutgoingLinks(path: VaultPath): readonly VaultPath[] {
@@ -134,7 +157,10 @@ export class ObsidianLinkProvider implements LinkProvider {
 		const sources = this.backlinkSources(path);
 		// Parsed canvas links are the authority for canvas sources — merge them in.
 		const canvasSources = this.canvasIncomingByPath.get(path) ?? [];
-		return dedupe([...sources, ...canvasSources]).map(asVaultPath);
+		// Notes referencing THIS note's id through a configured field — the incoming
+		// half of the id-ref feature, riding the same channel as wikilink backlinks.
+		const idRefSources = this.frontmatterIdIndex.referrersOf(path);
+		return dedupe([...sources, ...canvasSources, ...idRefSources]).map(asVaultPath);
 	}
 
 	/**
@@ -150,6 +176,10 @@ export class ObsidianLinkProvider implements LinkProvider {
 	 * numbers genuinely differ.
 	 */
 	getLinkCount(source: VaultPath, target: VaultPath): number {
+		// Frontmatter id-refs add occurrences on TOP of the wikilink/canvas count so a
+		// pair that is both wikilinked and id-referenced badges the truthful total (and
+		// an id-ref-only pair badges 1+ rather than 0).
+		const idRefCount = this.frontmatterIdIndex.occurrenceCount(source, target);
 		const canvasReferences = this.canvasOutgoingByPath.get(source);
 		if (canvasReferences !== undefined) {
 			// Count occurrences. Kind-blind, exactly like the resolvedLinks number below.
@@ -159,10 +189,10 @@ export class ObsidianLinkProvider implements LinkProvider {
 					count += 1;
 				}
 			}
-			return count;
+			return count + idRefCount;
 		}
 		// resolvedLinks is Obsidian's own source → target → link-count map.
-		return this.metadataCache.resolvedLinks[source]?.[target] ?? 0;
+		return (this.metadataCache.resolvedLinks[source]?.[target] ?? 0) + idRefCount;
 	}
 
 	getFileMetadata(path: VaultPath): FileMetadata | undefined {
