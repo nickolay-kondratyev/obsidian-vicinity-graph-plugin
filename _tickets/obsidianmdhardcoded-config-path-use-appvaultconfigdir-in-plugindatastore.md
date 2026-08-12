@@ -45,3 +45,9 @@ Verification: `npx eslint src/persistence/PluginDataStore.ts` clean; a repo-wide
 lint errors in this file are unrelated and out of scope. No e2e touched (persistence +
 wiring only, fully covered by `npm test`).
 
+
+## Notes
+
+**2026-08-12T00:03:33Z**
+
+__READY_AS_IS__: focused config-dir path threaded into notice; check+test+eslint all green, no hardcoded .obsidian remains, test coverage matches.
