@@ -39,4 +39,21 @@ export default tseslint.config(
 			},
 		},
 	},
+	{
+		// `obsidianmd/settings-tab/prefer-setting-definitions` prefers a declarative
+		// `getSettingDefinitions()`. We intentionally keep the hand-built `Setting`
+		// rows in this ONE file: it is one of TWO presenters over a single declared
+		// row model (`src/view/settingsRows.ts`, `SETTINGS_GROUPS`), the other being
+		// the in-graph React panel, held in lockstep by the parity guards (CLAUDE.md
+		// "Settings rows"). The setting-definition API has no counterpart on the panel
+		// side, so adopting it would fork the model and defeat that parity. Scoped OFF
+		// here — NOT via an inline directive, which the obsidianmd recommended config
+		// forbids for `obsidianmd/*` rules (`eslint-comments/no-restricted-disable`).
+		// Owner decision, ticket nid_zs2aog8b2i9e3wutsorjm88ft_e. Revisit if the panel
+		// is retired or the API gains a shared surface. See the class doc comment.
+		files: ["src/view/VicinityGraphSettingTab.ts"],
+		rules: {
+			"obsidianmd/settings-tab/prefer-setting-definitions": "off",
+		},
+	},
 );
