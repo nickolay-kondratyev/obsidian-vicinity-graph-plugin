@@ -1,4 +1,5 @@
 ---
+session_ids: [{"a": "claude", "type": "execution", "id": "602fe4c6-25ef-4e46-915c-a94140e1918d"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_vj0hr144r96v38c9nl0vdufor_e
 title: "add documentation on how to install from github, beta installation add it in doc internal"
