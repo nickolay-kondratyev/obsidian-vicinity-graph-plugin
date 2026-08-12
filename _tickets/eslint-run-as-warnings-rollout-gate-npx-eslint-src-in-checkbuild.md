@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-12T00:40:52Z
-session_ids: [{"a": "claude", "type": "execution", "id": "32dffa0b-3624-4b5b-9e62-26d75fe949ca"}]
+session_ids: [{"a": "claude", "type": "execution", "id": "32dffa0b-3624-4b5b-9e62-26d75fe949ca"}, {"a": "claude", "type": "review", "id": "83df6229-a3f9-43d3-935b-b120dd7339dc"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_nioldkusdrwc7fqzr4bmq2bow_e
 title: "ESLint run-as-warnings rollout + gate npx eslint src in check/build"
