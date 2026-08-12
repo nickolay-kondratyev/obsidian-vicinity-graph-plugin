@@ -11,6 +11,7 @@ under KSAL-2.3 (`LICENSE.md`), **not** OSI open-source.
 - **[`docs-internal/plan/high-level-plan.md`](./docs-internal/plan/high-level-plan.md)** — design source of truth (traversal, sizing, truncation, pinning, persistence, canvas). Read before changing behavior.
 - **[`README.md`](./README.md)** — user-facing docs: install, settings model, pinning semantics.
 - **[`docs-internal/development.md`](./docs-internal/development.md)** — build/test/e2e setup, the release matrix, `minAppVersion`, `stable-ids-for-obsidian`.
+- **[`docs-internal/beta-install.md`](./docs-internal/beta-install.md)** — install a pre-release/branch build in a real vault (BRAT, manual, from-source) before the store.
 - `docs-internal/tickets/` — active follow-ups. `docs-internal/RELEASE_CHECKLIST.md`.
 
 ## Layering (enforced — do not violate)
