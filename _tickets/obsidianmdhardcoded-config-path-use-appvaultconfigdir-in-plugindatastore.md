@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-12T00:02:11Z
-session_ids: [{"a": "claude", "type": "execution", "id": "e330c79b-64af-4f2e-8c02-a7a9ecc21e51"}]
+session_ids: [{"a": "claude", "type": "execution", "id": "e330c79b-64af-4f2e-8c02-a7a9ecc21e51"}, {"a": "claude", "type": "review", "id": "1abe60b7-0b5b-496c-b616-ec1eb4626468"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_uyj3is3eyv9o3ctkv2meqcin7_e
 title: "obsidianmd/hardcoded-config-path: use app.vault.configDir in PluginDataStore"
