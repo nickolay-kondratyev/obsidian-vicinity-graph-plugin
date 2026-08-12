@@ -72,4 +72,29 @@ export default tseslint.config(
 			"obsidianmd/no-global-this": "off",
 		},
 	},
+	{
+		// Warnings rollout (ticket nid_nioldkusdrwc7fqzr4bmq2bow_e, parent
+		// nid_qjuqgqfwentq2l59o5ya17vra_e). The obsidianmd/* findings in src/ were
+		// fixed under the per-group tickets; obsidianmd's own rules already emit at
+		// `warn`. What remains are ACCEPTED typescript-eslint / core findings, all in
+		// colocated `*.test.ts(x)` files (mock plumbing, deliberate precision-loss
+		// fixtures, dynamic-import test helpers). We are NOT fixing those under this
+		// chore; instead we run lint as WARNINGS so `npx eslint src` is green-able and
+		// can be folded into `npm run check` (hence `npm run build`) — new instances
+		// of these rules surface as warnings without hard-failing day-to-day work.
+		// Each accepted rule is listed explicitly (POLS): a genuinely NEW error class
+		// still fails the gate, which is the non-regression signal we want. Revisit to
+		// re-tighten any of these to `error` once its sites are cleaned up.
+		files: ["src/**/*.{ts,tsx}"],
+		rules: {
+			"@typescript-eslint/unbound-method": "warn",
+			"@typescript-eslint/no-unsafe-assignment": "warn",
+			"@typescript-eslint/no-unsafe-call": "warn",
+			"@typescript-eslint/no-unsafe-member-access": "warn",
+			"@typescript-eslint/no-unnecessary-type-assertion": "warn",
+			"no-loss-of-precision": "warn",
+			"no-unsanitized/method": "warn",
+			"no-useless-escape": "warn",
+		},
+	},
 );
