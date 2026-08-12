@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-12T18:27:19Z
-session_ids: [{"a": "claude", "type": "execution", "id": "602fe4c6-25ef-4e46-915c-a94140e1918d"}]
+session_ids: [{"a": "claude", "type": "execution", "id": "602fe4c6-25ef-4e46-915c-a94140e1918d"}, {"a": "claude", "type": "review", "id": "4e4ea694-a23f-4448-b43b-509c07d93c1a"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_vj0hr144r96v38c9nl0vdufor_e
 title: "add documentation on how to install from github, beta installation add it in doc internal"
