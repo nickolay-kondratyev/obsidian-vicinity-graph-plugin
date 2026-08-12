@@ -105,3 +105,7 @@ Done and verified. All work stayed in `src/adapters/` (engine purity guard intac
 **2026-08-12T18:55:05Z**
 
 __REVIEW_AGAIN__: Fixed a real bug — occurrence drawer omitted id-ref edges for markdown sources (badge counted them, drawer showed 0); added a getLinkCount top-up in ObsidianLinkOccurrenceProvider + a test. New code path in a shipped provider warrants a fresh look.
+
+**2026-08-12T19:00:53Z**
+
+__READY_AS_IS__: Fresh review of the occurrence-drawer deficit path + full branch found no defects; check and 1904 unit tests pass, e2e submodule committed, nothing changed.
