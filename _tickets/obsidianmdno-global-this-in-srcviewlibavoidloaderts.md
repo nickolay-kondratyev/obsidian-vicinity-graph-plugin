@@ -46,3 +46,9 @@ sanctioned mechanism — already used for `VicinityGraphSettingTab.ts` in
 `npm run check` (tsc strict) → exit 0. No behavior change (comment + config
 only); e2e untouched.
 
+
+## Notes
+
+**2026-08-12T00:35:15Z**
+
+__READY_AS_IS__: config+comment-only scope-off of no-global-this; globalThis requirement verified against esbuild injection; eslint and check both green.
