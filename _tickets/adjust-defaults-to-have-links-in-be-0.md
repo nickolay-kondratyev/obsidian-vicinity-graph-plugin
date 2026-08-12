@@ -1,4 +1,5 @@
 ---
+session_ids: [{"a": "claude", "type": "execution", "id": "53cd9cb4-48e2-43ea-816f-fae4c973bc96"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_o5juhhozx219kvqjy5plz0weh_e
 title: "Adjust defaults to have links in be 0"
