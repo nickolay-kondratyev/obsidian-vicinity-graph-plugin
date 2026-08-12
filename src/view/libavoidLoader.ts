@@ -155,6 +155,15 @@ async function initAvoid(): Promise<Avoid> {
 	// none: Emscripten instantiates from these bytes and never touches disk or the
 	// network. If instantiation throws we surface it (the routing pass logs once and
 	// renders straight edges) rather than pretending a fallback ran.
+	//
+	// MUST stay `globalThis`, NOT `window`/`activeWindow` (what obsidianmd/no-global-this
+	// would push us to): esbuild's node-build plugin injects the LITERAL token
+	// `globalThis.__VICINITY_LIBAVOID_WASM_BINARY__` as the Emscripten `wasmBinary` source
+	// (esbuild.config.mjs, LIBAVOID_WASM_BINARY_GLOBAL). The publish must land on the EXACT
+	// object that injected read dereferences; a singleton wasm load shared across every
+	// popout wants the one cross-window global, and in a popout `activeWindow !== globalThis`,
+	// so scoping to a window would strand the bytes on the wrong object. The rule is scoped
+	// off for this ONE file in eslint.config.mjs (inline directives are banned for obsidianmd/*).
 	(globalThis as Record<string, unknown>)[WASM_BINARY_GLOBAL] = libavoidWasmBinary;
 	await AvoidLib.load();
 	// libavoid-js's own declaration exports a different (thinner) `Avoid` shape, so
