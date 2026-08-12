@@ -59,3 +59,9 @@ No runtime/DOM behavior change (comments + lint config only), so no e2e run.
 Note: repo-wide `npx eslint .` still reports pre-existing issues in OTHER files
 — those belong to the sibling per-group lint tickets this one links to, not here.
 
+
+## Notes
+
+**2026-08-12T00:23:23Z**
+
+__READY_AS_IS__: Lint-config + WHY-comment only; per-file rule override wins as last flat-config block, eslint on the file is clean and npm run check passes; no behavior change.
