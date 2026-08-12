@@ -33,3 +33,7 @@ Out of scope: the graph does NOT yet consume the value — that is the dependent
 **2026-08-12T17:55:21Z**
 
 -
+
+**2026-08-12T17:58:42Z**
+
+__READY_AS_IS__: Part-1 id-ref frontmatter-fields settings row is complete and convention-clean; check + npm test (1881) + settingsTypedInput e2e (16) all green; no bugs found, no changes made.
