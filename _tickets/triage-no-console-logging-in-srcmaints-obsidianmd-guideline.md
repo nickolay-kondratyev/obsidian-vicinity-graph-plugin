@@ -1,4 +1,5 @@
 ---
+session_ids: [{"a": "claude", "type": "execution", "id": "25b78d41-7244-41a8-919d-a742e9a08346"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_h2hs9s7uvugweohv076dvddpm_e
 title: "Triage no-console logging in src/main.ts (obsidianmd guideline)"
