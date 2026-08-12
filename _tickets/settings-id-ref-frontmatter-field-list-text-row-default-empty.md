@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_dthnhlzp0wzxqhcozj3f8ih5h_e
 title: "Settings: id-ref frontmatter field list (text row, default empty)"
-status: open
+status: in_progress
 deps: [nid_sjojyvd55emyry45qynphei7o_e]
 links: []
 created_iso: 2026-08-12T17:19:34Z
-status_updated_iso: 2026-08-12T17:19:34Z
+status_updated_iso: 2026-08-12T17:27:25Z
 type: feature
 priority: 3
 assignee: nickolaykondratyev
