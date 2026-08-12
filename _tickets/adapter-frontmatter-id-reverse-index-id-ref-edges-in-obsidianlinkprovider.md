@@ -99,3 +99,9 @@ Done and verified. All work stayed in `src/adapters/` (engine purity guard intac
 - Distinct styling for id-ref edges remains a separate backlog ticket (Q3, KISS: they
   render identical to wikilinks today).
 
+
+## Notes
+
+**2026-08-12T18:55:05Z**
+
+__REVIEW_AGAIN__: Fixed a real bug — occurrence drawer omitted id-ref edges for markdown sources (badge counted them, drawer showed 0); added a getLinkCount top-up in ObsidianLinkOccurrenceProvider + a test. New code path in a shipped provider warrants a fresh look.
