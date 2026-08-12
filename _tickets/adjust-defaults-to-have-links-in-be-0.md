@@ -68,3 +68,8 @@ there BEFORE committing this repo (per CLAUDE.md).
 
 Per the repo's "clean breaks on stored data" rule, no migration: a user who had
 the old default stored keeps their stored value; a fresh install gets incoming 0.
+## Notes
+
+**2026-08-12T18:23:13Z**
+
+__READY_AS_IS__: Focused default flip (linkDepthIn/pinnedLinkDepthIn 1→0) derived from single spec source; check + 1881 unit tests pass, e2e adapted/committed in submodule, no doc drift.
