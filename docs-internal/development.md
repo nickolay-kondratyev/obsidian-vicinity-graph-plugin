@@ -3,7 +3,9 @@
 Developer-facing setup, scripts, and the e2e matrix for Vicinity Graph. User-facing
 docs live in [`../README.md`](../README.md); the design source of truth is
 [`plan/high-level-plan.md`](./plan/high-level-plan.md) and the code map is
-[`architecture-map.md`](./architecture-map.md).
+[`architecture-map.md`](./architecture-map.md). To hand a build to a tester
+before it hits the store (BRAT or manual), see
+[`beta-install.md`](./beta-install.md).
 
 Fresh clone → running dev build, following only these steps:
 
