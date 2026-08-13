@@ -1,4 +1,5 @@
 ---
+session_ids: [{"a": "claude", "type": "execution", "id": "0f5a4792-957f-49ef-b393-1328d7a2f599"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_k4q36qb0nvmusoygl56trgtz2_e
 title: "Hierarchy 1b: truncation tie-break by relation kind (embeds > links > hierarchy)"
