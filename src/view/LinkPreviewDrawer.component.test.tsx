@@ -31,6 +31,7 @@ function edgeModel(bidirectional = false): EdgePreviewModel {
 				occurrences: [
 					{ offset: 30, context: { shortContext: "short@3", expandedContext: "expanded@3", line: 3 } },
 				],
+				hierarchy: false,
 			},
 		],
 	});

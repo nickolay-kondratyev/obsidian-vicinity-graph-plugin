@@ -4,7 +4,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { LinkOccurrence } from "../engine";
 import { asVaultPath } from "../engine";
 import type { LinkPreviewGoTarget } from "./LinkPreviewContent";
-import { GO_ICON_ID, LinkPreviewContent } from "./LinkPreviewContent";
+import { FOLDER_RELATION_SECTION_TITLE, GO_ICON_ID, LinkPreviewContent } from "./LinkPreviewContent";
+import type { EdgePairOccurrences } from "./linkPreviewModel";
 import { LinkPreviewModels } from "./linkPreviewModel";
 
 /**
@@ -82,11 +83,17 @@ function renderContent(model: Parameters<typeof LinkPreviewContent>[0]["model"])
 	return recorders;
 }
 
+/** A pair with `hierarchy` defaulted off — most tests exercise link-only pairs. */
+type PairInput = Omit<EdgePairOccurrences, "hierarchy"> & { readonly hierarchy?: boolean };
+
 /** Edge model with neutral endpoint names — pair grouping is what these tests exercise. */
-function edgeModel(
-	pairs: Parameters<typeof LinkPreviewModels.edge>[0]["pairs"],
-): ReturnType<typeof LinkPreviewModels.edge> {
-	return LinkPreviewModels.edge({ sourceName: "center", targetName: "target", bidirectional: false, pairs });
+function edgeModel(pairs: readonly PairInput[]): ReturnType<typeof LinkPreviewModels.edge> {
+	return LinkPreviewModels.edge({
+		sourceName: "center",
+		targetName: "target",
+		bidirectional: false,
+		pairs: pairs.map((pair) => ({ ...pair, hierarchy: pair.hierarchy ?? false })),
+	});
 }
 
 /** The default single-pair model: center.md → target.md with one row per given line. */
@@ -140,6 +147,29 @@ describe("LinkPreviewContent sections", () => {
 	it("WHEN the model has no occurrences THEN the section shows its empty state", () => {
 		renderContent(edgeModel([]));
 		expect(screen.getByText("No link occurrences.")).toBeTruthy();
+	});
+});
+
+describe("LinkPreviewContent folder relation section", () => {
+	const JON = asVaultPath("Jon.md");
+	const CHILD = asVaultPath("Jon/child-of-jon.md");
+
+	it("WHEN the edge carries no folder relation THEN only the occurrences section renders", () => {
+		renderContent(singlePairModel([3]));
+		const titles = screen.getAllByRole("region").map((section) => section.getAttribute("aria-label"));
+		expect(titles).toEqual(["Link occurrences"]);
+	});
+
+	it("WHEN the edge carries a folder relation THEN a Folder relation section renders too", () => {
+		renderContent(edgeModel([{ sourcePath: JON, targetPath: CHILD, occurrences: [], hierarchy: true }]));
+		const titles = screen.getAllByRole("region").map((section) => section.getAttribute("aria-label"));
+		expect(titles).toEqual(["Link occurrences", FOLDER_RELATION_SECTION_TITLE]);
+	});
+
+	it("WHEN a pure hierarchy edge renders THEN the section names the folder note, folder and child", () => {
+		renderContent(edgeModel([{ sourcePath: JON, targetPath: CHILD, occurrences: [], hierarchy: true }]));
+		const section = screen.getByRole("region", { name: FOLDER_RELATION_SECTION_TITLE });
+		expect(section.textContent).toContain("Jon.md is the folder note of Jon/; child-of-jon.md is inside that folder.");
 	});
 });
 

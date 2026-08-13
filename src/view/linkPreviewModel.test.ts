@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { LinkOccurrence } from "../engine";
 import { asVaultPath } from "../engine";
+import type { EdgePairOccurrences, EdgePreviewInputs } from "./linkPreviewModel";
 import { LinkPreviewModels, edgeEndpointDisplayName } from "./linkPreviewModel";
 
 const NOTE = asVaultPath("notes/x.md");
@@ -15,11 +16,17 @@ function occurrenceAt(offset: number | null): LinkOccurrence {
 	};
 }
 
+/** A pair with `hierarchy` defaulted off — most tests exercise link-only pairs. */
+type PairInput = Omit<EdgePairOccurrences, "hierarchy"> & { readonly hierarchy?: boolean };
+
 /** Edge inputs with one endpoint-name/direction default per test's GIVEN. */
-function edgeInputs(
-	pairs: Parameters<typeof LinkPreviewModels.edge>[0]["pairs"],
-): Parameters<typeof LinkPreviewModels.edge>[0] {
-	return { sourceName: "x", targetName: "notes", bidirectional: false, pairs };
+function edgeInputs(pairs: readonly PairInput[]): EdgePreviewInputs {
+	return {
+		sourceName: "x",
+		targetName: "notes",
+		bidirectional: false,
+		pairs: pairs.map((pair) => ({ ...pair, hierarchy: pair.hierarchy ?? false })),
+	};
 }
 
 describe("LinkPreviewModels.edge", () => {
@@ -80,6 +87,53 @@ describe("LinkPreviewModels.edge", () => {
 		expect(
 			LinkPreviewModels.edge(edgeInputs([{ sourcePath: NOTE, targetPath: TARGET_A, occurrences: [] }])).rowIds,
 		).toEqual([]);
+	});
+});
+
+describe("LinkPreviewModels.edge folder relations", () => {
+	const JON = asVaultPath("Jon.md");
+	const CHILD = asVaultPath("Jon/child-of-jon.md");
+
+	it("WHEN a pure hierarchy pair is given THEN it names the folder note, folder and child", () => {
+		const model = LinkPreviewModels.edge(
+			edgeInputs([{ sourcePath: JON, targetPath: CHILD, occurrences: [], hierarchy: true }]),
+		);
+		expect(model.folderRelations).toEqual([
+			{ folderNoteName: "Jon.md", folderName: "Jon", childName: "child-of-jon.md" },
+		]);
+	});
+
+	it("WHEN an inside-style folder note is the source THEN the child's own folder is named", () => {
+		const model = LinkPreviewModels.edge(
+			edgeInputs([
+				{
+					sourcePath: asVaultPath("Jon/Jon.md"),
+					targetPath: asVaultPath("Jon/child.md"),
+					occurrences: [],
+					hierarchy: true,
+				},
+			]),
+		);
+		expect(model.folderRelations).toEqual([
+			{ folderNoteName: "Jon.md", folderName: "Jon", childName: "child.md" },
+		]);
+	});
+
+	it("WHEN a merged pair also has occurrences THEN it appears in BOTH rows and folder relations", () => {
+		const model = LinkPreviewModels.edge(
+			edgeInputs([{ sourcePath: JON, targetPath: CHILD, occurrences: [occurrenceAt(3)], hierarchy: true }]),
+		);
+		expect({ rowCount: model.rowIds.length, relationCount: model.folderRelations.length }).toEqual({
+			rowCount: 1,
+			relationCount: 1,
+		});
+	});
+
+	it("WHEN a pair carries no hierarchy relation THEN it contributes no folder relation", () => {
+		const model = LinkPreviewModels.edge(
+			edgeInputs([{ sourcePath: NOTE, targetPath: TARGET_A, occurrences: [occurrenceAt(3)] }]),
+		);
+		expect(model.folderRelations).toEqual([]);
 	});
 });
 

@@ -261,6 +261,28 @@
 	color: var(--text-faint);
 }
 
+/* ===== folder relation ================================================= */
+
+/* The folder-note hierarchy explanation: prose, not interactive rows, so it
+ * reads as a plain sentence list. The inline `<code>` names lean on Obsidian's
+ * own code styling for the vault vocabulary. */
+.vicinity-graph-link-preview__folder-relations {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.vicinity-graph-link-preview__folder-relation {
+	font-size: var(--font-ui-small);
+	line-height: var(--line-height-tight);
+	color: var(--text-muted);
+}
+
+.vicinity-graph-link-preview__folder-relation
+	+ .vicinity-graph-link-preview__folder-relation {
+	margin-top: var(--size-2-1);
+}
+
 /* ===== edge pair groups ================================================ */
 
 .vicinity-graph-link-preview__group + .vicinity-graph-link-preview__group {
