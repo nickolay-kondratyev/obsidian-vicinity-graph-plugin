@@ -329,6 +329,18 @@ export const SETTINGS_GROUPS: Readonly<Record<SettingsSection, SettingsGroup>> =
 							"How many hops of incoming links (backlinks) to expand from the active note. A note that EMBEDS the active note arrives here too — incoming links are counted the same way whatever their kind.",
 						control: { kind: "depth", field: "linkDepthIn" },
 					},
+					{
+						label: "Descendants",
+						description:
+							"Folder-note children: `Jon.md` or `Jon/Jon.md` is the folder note of `Jon/`; notes inside that folder are its descendants. Depth is how many folder levels to expand DOWN from the active note. 0 = off.",
+						control: { kind: "depth", field: "descendantDepth" },
+					},
+					{
+						label: "Ancestors",
+						description:
+							"Folder-note parents: the folder note of the folder that CONTAINS the active note, then that folder's own folder note, and so on. Depth is how many folder levels to climb UP from the active note. 0 = off.",
+						control: { kind: "depth", field: "ancestorDepth" },
+					},
 				],
 			},
 			{
@@ -354,6 +366,18 @@ export const SETTINGS_GROUPS: Readonly<Record<SettingsSection, SettingsGroup>> =
 						description:
 							"How many hops of incoming links (backlinks) to expand from each pinned note. A pinned note that is also the active note uses the active-note depths.",
 						control: { kind: "depth", field: "pinnedLinkDepthIn" },
+					},
+					{
+						label: "Pinned descendants",
+						description:
+							"Folder-note children (see Descendants) expanded DOWN from each pinned note. Depth is folder levels. A pinned note that is also the active note uses the active-note depths. 0 = off.",
+						control: { kind: "depth", field: "pinnedDescendantDepth" },
+					},
+					{
+						label: "Pinned ancestors",
+						description:
+							"Folder-note parents (see Ancestors) climbed UP from each pinned note. Depth is folder levels. A pinned note that is also the active note uses the active-note depths. 0 = off.",
+						control: { kind: "depth", field: "pinnedAncestorDepth" },
 					},
 				],
 			},

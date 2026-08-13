@@ -74,18 +74,13 @@ const HOW_TO_SATISFY_THIS_GUARD =
 
 /**
  * The sanctioned escape hatch: a spec leaf deliberately reachable-later, keyed by id with
- * the reason. The folder-note hierarchy depths land their SPEC + engine in Hierarchy 1
- * (`nid_dit8h888p2ml3092b2zn4zy3u_e`); their settings ROWS land in Hierarchy 3
- * (`nid_i3cznjkcnelqzvhp0gqlis499_e`). Until then the leaves exist with no row, and this
- * entry (plus the two anti-rot tests below) is what keeps that a CONSCIOUS gap rather than
- * a silent one. Remove each entry the moment Hierarchy 3 gives its field a row.
+ * the reason. Empty today — the folder-note hierarchy depths (SPEC + engine in Hierarchy 1,
+ * `nid_dit8h888p2ml3092b2zn4zy3u_e`) got their settings ROWS in Hierarchy 3
+ * (`nid_i3cznjkcnelqzvhp0gqlis499_e`), so their entries were removed. Add an entry here
+ * only for a leaf whose row is deliberately deferred to a later ticket; the two anti-rot
+ * tests below keep such a gap conscious rather than silent.
  */
-const REACHABLE_LATER: Readonly<Record<string, string>> = {
-	"globalDepths.descendantDepth": "row lands in Hierarchy 3 (nid_i3cznjkcnelqzvhp0gqlis499_e)",
-	"globalDepths.ancestorDepth": "row lands in Hierarchy 3 (nid_i3cznjkcnelqzvhp0gqlis499_e)",
-	"globalDepths.pinnedDescendantDepth": "row lands in Hierarchy 3 (nid_i3cznjkcnelqzvhp0gqlis499_e)",
-	"globalDepths.pinnedAncestorDepth": "row lands in Hierarchy 3 (nid_i3cznjkcnelqzvhp0gqlis499_e)",
-};
+const REACHABLE_LATER: Readonly<Record<string, string>> = {};
 
 /** Every spec leaf id some declared row edits. */
 const FIELDS_WITH_A_ROW: ReadonlySet<string> = new Set(EVERY_SETTINGS_ROW.map((row) => specLeafIdFor(row.control)));
