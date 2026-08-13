@@ -98,3 +98,9 @@ authorities.
 - CLAUDE.md: no change needed — the "collapse, don't multiply" bullet already names
   "a link + folder-hierarchy relation share one edge", and the channel/edge bullets
   did not drift.
+
+## Notes
+
+**2026-08-13T17:57:57Z**
+
+__READY_AS_IS__: docs+e2e-only branch; verified defaults (1/1,0/0), flyout copy, and all e2e symbols match code; npm run check green.
