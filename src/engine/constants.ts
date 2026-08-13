@@ -416,9 +416,13 @@ export class EngineDefaults {
 			linkDepthOut: depths.linkDepthOut.default,
 			embedDepthOut: depths.embedDepthOut.default,
 			linkDepthIn: depths.linkDepthIn.default,
+			descendantDepth: depths.descendantDepth.default,
+			ancestorDepth: depths.ancestorDepth.default,
 			pinnedLinkDepthOut: depths.pinnedLinkDepthOut.default,
 			pinnedEmbedDepthOut: depths.pinnedEmbedDepthOut.default,
 			pinnedLinkDepthIn: depths.pinnedLinkDepthIn.default,
+			pinnedDescendantDepth: depths.pinnedDescendantDepth.default,
+			pinnedAncestorDepth: depths.pinnedAncestorDepth.default,
 		};
 	}
 

@@ -168,9 +168,13 @@ function parseDepthFields(raw: unknown): Partial<DepthSettings> {
 		// Added WITHOUT a PERSISTED_SHAPE_VERSION bump (same call as
 		// edgeRoutingClearancePx): a missing known field falls back to its spec
 		// default per field, so an existing data.json parses correctly.
+		descendantDepth: numberOrUndefined(raw["descendantDepth"]),
+		ancestorDepth: numberOrUndefined(raw["ancestorDepth"]),
 		pinnedLinkDepthOut: numberOrUndefined(raw["pinnedLinkDepthOut"]),
 		pinnedEmbedDepthOut: numberOrUndefined(raw["pinnedEmbedDepthOut"]),
 		pinnedLinkDepthIn: numberOrUndefined(raw["pinnedLinkDepthIn"]),
+		pinnedDescendantDepth: numberOrUndefined(raw["pinnedDescendantDepth"]),
+		pinnedAncestorDepth: numberOrUndefined(raw["pinnedAncestorDepth"]),
 	});
 }
 

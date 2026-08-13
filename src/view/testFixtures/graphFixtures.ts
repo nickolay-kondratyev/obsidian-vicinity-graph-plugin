@@ -33,8 +33,9 @@ export function makeEdge(
 	target: string,
 	count = DEFAULT_EDGE_LINK_COUNT,
 	kind: EdgeKind = "link",
+	hierarchy = false,
 ): GraphEdge {
-	return { source: asVaultPath(source), target: asVaultPath(target), count, kind };
+	return { source: asVaultPath(source), target: asVaultPath(target), count, kind, hierarchy };
 }
 
 /** Minimal effective view settings for view-layer tests (neutral, engine-decoupled). */

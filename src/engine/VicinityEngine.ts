@@ -95,6 +95,9 @@ export class VicinityEngine {
 			nodes,
 			edges: EdgeAssembly.attach({
 				visibleEdges: this.visibleEdges(viewSettings, truncation),
+				hierarchyPairKeys: traversal.hierarchyPairKeys,
+				linkPairKeys: traversal.linkPairKeys,
+				crossLinksOn: viewSettings.showCrossLinks,
 				provider: this.provider,
 			}),
 			hiddenNodeCountsByFolder: truncation.hiddenNodeCountsByFolder,

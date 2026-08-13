@@ -127,6 +127,21 @@ export interface LinkProvider {
 	getOutgoingLinks(path: VaultPath): readonly VaultPath[];
 	/** Paths of files linking TO `path`, deduplicated. */
 	getIncomingLinks(path: VaultPath): readonly VaultPath[];
+	/**
+	 * Folder-note CHILDREN of `path`: the node-bearing files sitting directly in the
+	 * folder `path` is the folder note of, minus `path` itself. Empty when `path`
+	 * owns no folder. A FACT (the folder-note convention lives in
+	 * {@link import("../shared/FolderNotes").FolderNotes}), not a traversal decision —
+	 * the `descendants` channel walks these, the depth budget bounds the reach.
+	 */
+	getChildNotes(path: VaultPath): readonly VaultPath[];
+	/**
+	 * Folder-note PARENT of `path`, one hop UP the hierarchy: the folder note of
+	 * `path`'s containing folder, or — when `path` IS that folder note — the folder
+	 * note of the parent folder. `undefined` at the first folder-note gap. A FACT,
+	 * like {@link getChildNotes}; the `ancestors` channel walks it.
+	 */
+	getParentNote(path: VaultPath): VaultPath | undefined;
 	/** Metadata for `path`, or `undefined` when the file is unknown to the vault. */
 	getFileMetadata(path: VaultPath): FileMetadata | undefined;
 	/**

@@ -54,12 +54,20 @@ const SHIPPED_SETTINGS_DEFAULTS: Readonly<Record<string, unknown>> = {
 	"globalDepths.linkDepthOut": 1,
 	"globalDepths.embedDepthOut": 1,
 	"globalDepths.linkDepthIn": 0,
+	// Folder-note hierarchy (plan nid_ri1d36t7hmhu0kr652wny1dmz_e): the ACTIVE note
+	// shows one hop of descendants/ancestors by default; `0` is each dial's off switch.
+	"globalDepths.descendantDepth": 1,
+	"globalDepths.ancestorDepth": 1,
 	// The pinned budgets MUST ship equal to the active-note budgets above: that
 	// equality is what makes the active/pinned split invisible until a dial moves
 	// (see SETTINGS_SPEC) — so `pinnedLinkDepthIn` is 0 too.
 	"globalDepths.pinnedLinkDepthOut": 1,
 	"globalDepths.pinnedEmbedDepthOut": 1,
 	"globalDepths.pinnedLinkDepthIn": 0,
+	// Pinned hierarchy ships OFF (0/0): a pinned note contributes its folder
+	// hierarchy only when the user dials it up (owner decision).
+	"globalDepths.pinnedDescendantDepth": 0,
+	"globalDepths.pinnedAncestorDepth": 0,
 
 	"globalView.nodeCap": 100, // The shipped performance ceiling.
 	"globalView.outlineMaxDepth": 2, // Sections + subsections — what fits a 160px node.

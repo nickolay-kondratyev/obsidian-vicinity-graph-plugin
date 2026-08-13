@@ -50,9 +50,13 @@ export interface DepthSpec {
 	readonly linkDepthOut: BoundedNumberSpec;
 	readonly embedDepthOut: BoundedNumberSpec;
 	readonly linkDepthIn: BoundedNumberSpec;
+	readonly descendantDepth: BoundedNumberSpec;
+	readonly ancestorDepth: BoundedNumberSpec;
 	readonly pinnedLinkDepthOut: BoundedNumberSpec;
 	readonly pinnedEmbedDepthOut: BoundedNumberSpec;
 	readonly pinnedLinkDepthIn: BoundedNumberSpec;
+	readonly pinnedDescendantDepth: BoundedNumberSpec;
+	readonly pinnedAncestorDepth: BoundedNumberSpec;
 }
 
 /**
@@ -213,6 +217,16 @@ export const SETTINGS_SPEC: SettingsSpec = {
 		/** OFF by default (owner decision): backlinks are opt-in — see `linkDepthOut`. */
 		linkDepthIn: { default: 0, ...DEPTH_STEPPER_BOUNDS },
 		/**
+		 * Folder-note DESCENDANTS budget for the active note. Default `1` (owner
+		 * decision, plan `nid_ri1d36t7hmhu0kr652wny1dmz_e`): a note that is a folder
+		 * note shows its immediate children by default; `0` turns the reach off (the
+		 * feature itself is always-on, the dial is the off switch). Same bounds family
+		 * as the link/embed depths.
+		 */
+		descendantDepth: { default: 1, ...DEPTH_STEPPER_BOUNDS },
+		/** Folder-note ANCESTORS budget for the active note. Default `1` — see `descendantDepth`. */
+		ancestorDepth: { default: 1, ...DEPTH_STEPPER_BOUNDS },
+		/**
 		 * The pinned-note budgets DELIBERATELY EQUAL the active-note defaults above:
 		 * before pinned notes had their own dials, every root traversed with the one
 		 * global set — so at these defaults, pinning a note draws exactly the graph
@@ -222,6 +236,14 @@ export const SETTINGS_SPEC: SettingsSpec = {
 		pinnedLinkDepthOut: { default: 1, ...DEPTH_STEPPER_BOUNDS },
 		pinnedEmbedDepthOut: { default: 1, ...DEPTH_STEPPER_BOUNDS },
 		pinnedLinkDepthIn: { default: 0, ...DEPTH_STEPPER_BOUNDS },
+		/**
+		 * Folder-note descendants/ancestors budgets for PINNED roots. Default `0/0`
+		 * (owner decision): a pinned note contributes its hierarchy only when the user
+		 * dials it up — unlike the active note, whose 1/1 default shows the vicinity
+		 * around what is on screen.
+		 */
+		pinnedDescendantDepth: { default: 0, ...DEPTH_STEPPER_BOUNDS },
+		pinnedAncestorDepth: { default: 0, ...DEPTH_STEPPER_BOUNDS },
 	},
 	globalView: {
 		/**

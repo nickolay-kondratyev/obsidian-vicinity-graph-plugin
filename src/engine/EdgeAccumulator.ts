@@ -1,3 +1,4 @@
+import { directedLinkKey } from "./types";
 import type { DirectedLink, VaultPath } from "./types";
 
 /**
@@ -11,8 +12,7 @@ export class EdgeAccumulator {
 	private readonly list: DirectedLink[] = [];
 
 	add(source: VaultPath, target: VaultPath): void {
-		// NUL separator: vault paths may contain spaces but never NUL - key stays unambiguous.
-		const key = `${source}\u0000${target}`;
+		const key = directedLinkKey(source, target);
 		if (!this.keys.has(key)) {
 			this.keys.add(key);
 			this.list.push({ source, target });

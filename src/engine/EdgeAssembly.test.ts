@@ -56,7 +56,7 @@ describe("EdgeAssembly link counts (step-05, CLARIFICATION Q1)", () => {
 				links: { "m.md": ["a.md", "a.md"] },
 			}),
 		});
-		expect(edges).toEqual([{ source: "m.md", target: "a.md", count: 2, kind: "link" }]);
+		expect(edges).toEqual([{ source: "m.md", target: "a.md", count: 2, kind: "link", hierarchy: false }]);
 	});
 
 	it("WHEN a single link resolves THEN its edge carries count 1", () => {

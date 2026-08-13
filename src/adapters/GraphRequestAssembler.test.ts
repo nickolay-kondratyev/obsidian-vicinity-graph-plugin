@@ -134,9 +134,13 @@ describe("GraphRequestAssembler global settings pass-through", () => {
 			linkDepthOut: 3,
 			embedDepthOut: 2,
 			linkDepthIn: 1,
+			descendantDepth: 2,
+			ancestorDepth: 1,
 			pinnedLinkDepthOut: 4,
 			pinnedEmbedDepthOut: 3,
 			pinnedLinkDepthIn: 2,
+			pinnedDescendantDepth: 3,
+			pinnedAncestorDepth: 2,
 		};
 		expect(GraphRequestAssembler.assemble(inputs({ globalDepths })).globalDepths).toEqual(globalDepths);
 	});

@@ -75,9 +75,13 @@ const BOUNDS_ENFORCED_OUTSIDE_THE_ENGINE: Readonly<Record<string, string>> = {
 		"depth (see SETTINGS_SPEC). Covered by src/view/settingsRowDepthClamp.test.ts.",
 	"globalDepths.embedDepthOut": "the depth accessor's own clamp — see linkDepthOut.",
 	"globalDepths.linkDepthIn": "the depth accessor's own clamp — see linkDepthOut.",
+	"globalDepths.descendantDepth": "the depth accessor's own clamp — see linkDepthOut.",
+	"globalDepths.ancestorDepth": "the depth accessor's own clamp — see linkDepthOut.",
 	"globalDepths.pinnedLinkDepthOut": "the depth accessor's own clamp — see linkDepthOut.",
 	"globalDepths.pinnedEmbedDepthOut": "the depth accessor's own clamp — see linkDepthOut.",
 	"globalDepths.pinnedLinkDepthIn": "the depth accessor's own clamp — see linkDepthOut.",
+	"globalDepths.pinnedDescendantDepth": "the depth accessor's own clamp — see linkDepthOut.",
+	"globalDepths.pinnedAncestorDepth": "the depth accessor's own clamp — see linkDepthOut.",
 };
 
 const BOUNDED_LEAVES: readonly SettingsSpecLeaf[] = EVERY_SETTINGS_SPEC_LEAF.filter(
