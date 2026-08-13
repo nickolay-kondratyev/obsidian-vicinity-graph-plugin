@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-13T16:59:05Z
-session_ids: [{"a": "claude", "type": "execution", "id": "fc4d6aba-0c8a-4719-af46-641f3033c3a6"}]
+session_ids: [{"a": "claude", "type": "execution", "id": "fc4d6aba-0c8a-4719-af46-641f3033c3a6"}, {"a": "claude", "type": "review", "id": "85085d85-bac6-4dae-990b-0b85420618fa"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_bw8hltfj3nsyas03mpfmqn7mg_e
 title: "Hierarchy 2: adapter FolderNoteIndex + ObsidianLinkProvider wiring"
