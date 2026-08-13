@@ -43,9 +43,9 @@ Design record: ticket `nid_ri1d36t7hmhu0kr652wny1dmz_e` (closed PLAN) — read i
    bounds family as existing depth leaves. Update the id-keyed table in
    `src/engine/settingsProductDefaults.test.ts` (the ONE sanctioned literal spot).
    `src/persistence/persistedShapes.ts` parse: clean break, no migration (pre-publish).
-7. **Truncation**: new tie-break level in the priority chain — discovering relation
-   kind, Embeds > Links > hierarchy (best across the node's depth tags), after
-   graph-distance-to-MAIN, before pin recency.
+7. **Truncation tie-break is NOT here** — split into Hierarchy 1b
+   (`nid_k4q36qb0nvmusoygl56trgtz2_e`); this ticket leaves the truncation chain
+   untouched (hierarchy-discovered nodes already participate via their depth tags).
 
 ## Required fixture tests (BDD, FakeLinkProvider)
 
@@ -56,7 +56,6 @@ Design record: ticket `nid_ri1d36t7hmhu0kr652wny1dmz_e` (closed PLAN) — read i
 - `Jon.md` + `Jon/Jon.md` both present: inside wins, sibling is an ordinary note.
 - `.canvas` folder note and `.canvas` child both participate; folder note is not
   its own child; kind-purity (a descendant's own wikilinks are NOT expanded).
-- Tie-break: embeds > links > hierarchy ordering exercised in the truncator suite.
 
 Note: `src/view/settingsRowSpecCoverage.test.ts` will fail on the 4 new spec leaves
 until Hierarchy 3 declares their rows — if landing this ticket standalone, use the

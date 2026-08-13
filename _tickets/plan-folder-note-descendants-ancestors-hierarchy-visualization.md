@@ -4,7 +4,7 @@ id: nid_ri1d36t7hmhu0kr652wny1dmz_e
 title: "PLAN: folder-note descendants-ancestors hierarchy visualization"
 status: closed
 deps: []
-links: [nid_dit8h888p2ml3092b2zn4zy3u_e, nid_bw8hltfj3nsyas03mpfmqn7mg_e, nid_i3cznjkcnelqzvhp0gqlis499_e, nid_f5bfjoymr2pt7odxieunkxasd_e, nid_eymj85m7qccbpkoo4qj6b1q6t_e, nid_uxugk82jeu4cfj5ujyk4l79e7_e]
+links: [nid_dit8h888p2ml3092b2zn4zy3u_e, nid_bw8hltfj3nsyas03mpfmqn7mg_e, nid_i3cznjkcnelqzvhp0gqlis499_e, nid_f5bfjoymr2pt7odxieunkxasd_e, nid_eymj85m7qccbpkoo4qj6b1q6t_e, nid_uxugk82jeu4cfj5ujyk4l79e7_e, nid_k4q36qb0nvmusoygl56trgtz2_e]
 created_iso: 2026-08-13T15:35:41Z
 status_updated_iso: 2026-08-13T15:37:27Z
 type: epic
@@ -95,7 +95,8 @@ Covered as engine fixture tests (Hierarchy 1) AND e2e (Hierarchy 5).
 ## Implementation tickets (in dependency order)
 
 1. `nid_dit8h888p2ml3092b2zn4zy3u_e` — engine channels + edge relation set + spec leaves
+1b. `nid_k4q36qb0nvmusoygl56trgtz2_e` — truncation tie-break embeds > links > hierarchy (deps: 1)
 2. `nid_bw8hltfj3nsyas03mpfmqn7mg_e` — adapter FolderNoteIndex + provider wiring (deps: 1)
 3. `nid_i3cznjkcnelqzvhp0gqlis499_e` — settings UI rows (deps: 1)
 4. `nid_f5bfjoymr2pt7odxieunkxasd_e` — view edge rendering + flyout (deps: 1, 2)
-5. `nid_eymj85m7qccbpkoo4qj6b1q6t_e` — e2e + docs (deps: 2, 3, 4)
+5. `nid_eymj85m7qccbpkoo4qj6b1q6t_e` — e2e + docs (deps: 1b, 2, 3, 4)
