@@ -21,6 +21,13 @@ view  ──▶  adapters  ──▶  engine  (pure core)
 - **`src/adapters/`** — bridges Obsidian ↔ engine. `ObsidianLinkProvider`
   (resolvedLinks + backlinks), the canvas parser (run for EVERY canvas),
   `VicinityGraphBuilder` (per-rebuild orchestration), docid ↔ path translation.
+  `FolderNoteIndex` (`FolderNoteIndex.ts`) is the folder-note hierarchy cache
+  (plan `nid_ri1d36t7hmhu0kr652wny1dmz_e`): built from `vault.getFiles()` PATHS
+  ONLY — never a file read — it holds ZERO resolution knowledge, delegating to
+  the shared `src/shared/FolderNotes.ts` rule, and answers `ObsidianLinkProvider`'s
+  `getChildNotes` / `getParentNote`. Plugin-lived, lazy-warmed on first build,
+  invalidated on vault create/delete/rename (PATH events only — the convention is
+  config-free), structurally mirroring `FrontmatterIdIndex`.
 - **`src/persistence/`** — JSON storage, TWO-TIER (ticket
   `nid_8f8ey41extajt08zphwwxhnwq_e`). `data.json` (`PluginDataStore`) holds the
   truly-global CONFIG: the settings dials + ONE docid-keyed map, the global pinned
@@ -79,7 +86,14 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   `FileMetadata.imagePrecedesOutline` says where the note's first image sits
   relative to its first heading, and `engine/nodePreviewKind.ts` alone owns the
   resulting outline-vs-image precedence (one pure function, honouring the global
-  `nodePreviewPreference`).
+  `nodePreviewPreference`). Its folder-note hierarchy facts are
+  `getChildNotes(path)` / `getParentNote(path)` (plan
+  `nid_ri1d36t7hmhu0kr652wny1dmz_e`) — the resolution rule (`X/X.md` inside beats
+  sibling `X.md`; `.md` beats `.canvas`; folder note is never its own child)
+  lives in ONE pure shared module, `src/shared/FolderNotes.ts`
+  (`folderNoteOf` / `childNotesOf` / `parentNoteOf`), used by the adapter
+  (`FolderNoteIndex`) and `FakeLinkProvider` alike so the tie-break knowledge is
+  never duplicated.
 - `view/viewPorts.ts` — `GraphSourcePort`, `GraphLayoutPort`, `NoteNavigatorPort`
   (opens a note, optionally at a `heading` — the RAW heading text; the adapter
   sanitises it into a link subpath), and `NoteOpenPort`, the one-method slice

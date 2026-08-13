@@ -83,6 +83,29 @@ depth budget (the *Pinned …* dials), separate from the active note's.
 > node until the background cleanup sweep runs (~15s). The pin is not lost — only
 > its accent lags.
 
+## Folder-note hierarchy
+
+If you keep **folder notes** (the *Folder Notes* community-plugin convention),
+Vicinity Graph draws that structure too — no setting to turn on. A folder note is
+recognised either way it's commonly written:
+
+- **Beside the folder** — `Jon.md` sitting next to a folder `Jon/`.
+- **Inside the folder** — `Jon/Jon.md`.
+
+Either way, that note is the folder note of `Jon/`, and the notes inside `Jon/`
+are its **descendants**; walking the other way, the folder note of the folder
+that contains your note (and its folder note, and so on) are its **ancestors**.
+The *Descendants* and *Ancestors* depth dials say how many folder levels to
+follow — set either to 0 to switch it off. Deeper hops only continue through
+sub-folders that have their own folder note.
+
+A pure hierarchy relationship is drawn as a **dashed** connector (no count
+badge), pointing from the folder note to the child. When the folder note *also*
+links its child, the two collapse into the usual solid, badged link
+connector — click it and the preview names both the link and the folder
+relationship. (When both `Jon.md` and `Jon/Jon.md` exist, the inside one wins and
+the sibling `Jon.md` is treated as an ordinary note.)
+
 ## Settings
 
 **Every setting is global** — one value used by every note and every open graph.
@@ -97,8 +120,11 @@ redraws behind it.
 The settings, grouped the same way on both surfaces:
 
 - **Depth** — how far traversal reaches from each central note, with a separate
-  budget for outgoing links, embedded notes and incoming links — and a second
-  set of budgets for pinned notes.
+  budget for outgoing links, embedded notes, incoming links, **descendants** and
+  **ancestors** (the last two are folder-note hierarchy — see below) — and a
+  second set of budgets for pinned notes. A depth of **0** turns that
+  relationship off; descendants and ancestors ship at **1** for the active note
+  and **0** for pinned notes.
 - **Edges** — *Show cross links* also draws links between two on-screen notes
   that traversal never walked (which notes are shown never changes, only the
   lines between them).
