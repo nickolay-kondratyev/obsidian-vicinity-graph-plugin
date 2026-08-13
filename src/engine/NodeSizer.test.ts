@@ -82,7 +82,7 @@ function sizeAll(
 	const provider = new FakeLinkProvider(spec);
 	const roots = (rootPaths ?? spec.files.map((f) => f.path)).map((path) => ({
 		descriptor: { path: asVaultPath(path) },
-		depths: { linkDepthOut: 1, embedDepthOut: 1, linkDepthIn: 1 },
+		depths: { linkDepthOut: 1, embedDepthOut: 1, linkDepthIn: 1, descendantDepth: 0, ancestorDepth: 0 },
 	}));
 	const traversal = new VicinityTraversal(provider).traverse(roots);
 	return NodeSizer.computeSizes(traversal.nodes, view);

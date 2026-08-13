@@ -17,7 +17,7 @@ import type {
 	OutlineEntry,
 	VaultPath,
 } from "./types";
-import { CHANNEL_DEPTH_FIELD, CHANNELS } from "./types";
+import { CHANNEL_DEPTH_FIELD, CHANNEL_RELATION, CHANNELS, directedLinkKey } from "./types";
 
 /** One traversal root with its (already resolved) per-root depth limits. */
 export interface TraversalRoot {
@@ -48,6 +48,19 @@ export interface TraversalResult {
 	readonly nodes: ReadonlyMap<VaultPath, TraversedNode>;
 	/** Walked (source, target) pairs — count-free; multiplicity and kind are attached by EdgeAssembly. */
 	readonly edges: readonly DirectedLink[];
+	/**
+	 * {@link directedLinkKey}s of the pairs that carry the folder-note HIERARCHY
+	 * relation (a subset of {@link edges}). EdgeAssembly reads this to mark an edge
+	 * `hierarchy`; a pair keyed here with NO link occurrences is a PURE hierarchy edge.
+	 */
+	readonly hierarchyPairKeys: ReadonlySet<string>;
+	/**
+	 * {@link directedLinkKey}s of the pairs walked over a LINK channel (a subset of
+	 * {@link edges}). EdgeAssembly reads this to decide a pair carries a LINK
+	 * relation — a pair keyed ONLY in {@link hierarchyPairKeys} is a pure hierarchy
+	 * edge even when the two notes independently link (that link was not walked).
+	 */
+	readonly linkPairKeys: ReadonlySet<string>;
 	/** Distinct non-root neighbor paths rejected by global exclusion during traversal. */
 	readonly excludedNodeCount: number;
 }
@@ -63,6 +76,11 @@ const CHANNEL_LINKER: Readonly<Record<Channel, "current" | "neighbor">> = {
 	"outgoing-link": "current",
 	"outgoing-embed": "current",
 	incoming: "neighbor",
+	// Hierarchy edges ALWAYS point parent → child (owner decision, both channels
+	// agree on orientation): descendants walk parent→child, so the parent is the
+	// current node; ancestors walk child→parent, so the parent is the neighbor.
+	descendants: "current",
+	ancestors: "neighbor",
 };
 
 /**
@@ -161,6 +179,12 @@ export class VicinityTraversal {
 				return this.outgoingTargetsOfKind(path, "embed");
 			case "incoming":
 				return this.provider.getIncomingLinks(path);
+			case "descendants":
+				return this.provider.getChildNotes(path);
+			case "ancestors": {
+				const parent = this.provider.getParentNote(path);
+				return parent === undefined ? [] : [parent];
+			}
 		}
 	}
 
@@ -200,7 +224,13 @@ export class VicinityTraversal {
 				imagePrecedesOutline: metadata.imagePrecedesOutline,
 			});
 		}
-		return { nodes, edges: collector.edges(), excludedNodeCount: collector.excludedCount() };
+		return {
+			nodes,
+			edges: collector.edges(),
+			hierarchyPairKeys: collector.hierarchyPairKeys(),
+			linkPairKeys: collector.linkPairKeys(),
+			excludedNodeCount: collector.excludedCount(),
+		};
 	}
 }
 
@@ -221,6 +251,16 @@ function dedupeRootsByPath(roots: readonly TraversalRoot[]): readonly TraversalR
 class TraversalCollector {
 	private readonly tags = new Map<VaultPath, DepthTag[]>();
 	private readonly edgeAccumulator = new EdgeAccumulator();
+	/** {@link directedLinkKey}s of pairs walked over a HIERARCHY channel (carry the folder relation). */
+	private readonly hierarchyPairs = new Set<string>();
+	/**
+	 * {@link directedLinkKey}s of pairs walked over a LINK channel (carry a link
+	 * occurrence). Tracked SEPARATELY from {@link hierarchyPairs} so EdgeAssembly can
+	 * tell a merged edge (walked BOTH) from a pure hierarchy edge (walked only as
+	 * hierarchy, even when the parent independently links the child — that link is
+	 * NOT walked at descendantDepth with the link dial off, so it is not a relation).
+	 */
+	private readonly linkPairs = new Set<string>();
 	/** Distinct neighbor paths rejected by exclusion (deduped across roots/directions). */
 	private readonly excluded = new Set<VaultPath>();
 
@@ -230,12 +270,23 @@ class TraversalCollector {
 		this.tags.set(path, tagsForPath);
 	}
 
-	/** Normalises a walked hop into linker → linked (see {@link CHANNEL_LINKER}). */
+	/**
+	 * Normalises a walked hop into source → target (see {@link CHANNEL_LINKER}) — for
+	 * a link channel the source is the linker, for a hierarchy channel it is the
+	 * parent. A hierarchy hop ALSO records the ordered pair as carrying the folder
+	 * relation, so EdgeAssembly can mark (or merge) it.
+	 */
 	recordEdge(current: VaultPath, neighbor: VaultPath, channel: Channel): void {
-		const currentIsLinker = CHANNEL_LINKER[channel] === "current";
-		const source = currentIsLinker ? current : neighbor;
-		const target = currentIsLinker ? neighbor : current;
+		const currentIsSource = CHANNEL_LINKER[channel] === "current";
+		const source = currentIsSource ? current : neighbor;
+		const target = currentIsSource ? neighbor : current;
 		this.edgeAccumulator.add(source, target);
+		const key = directedLinkKey(source, target);
+		if (CHANNEL_RELATION[channel] === "hierarchy") {
+			this.hierarchyPairs.add(key);
+		} else {
+			this.linkPairs.add(key);
+		}
 	}
 
 	/** Records a distinct excluded neighbor path (deduped; drives excludedNodeCount). */
@@ -249,6 +300,14 @@ class TraversalCollector {
 
 	edges(): readonly DirectedLink[] {
 		return this.edgeAccumulator.edges();
+	}
+
+	hierarchyPairKeys(): ReadonlySet<string> {
+		return this.hierarchyPairs;
+	}
+
+	linkPairKeys(): ReadonlySet<string> {
+		return this.linkPairs;
 	}
 
 	excludedCount(): number {

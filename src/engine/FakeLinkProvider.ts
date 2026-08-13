@@ -1,4 +1,5 @@
 import { FileKinds } from "../shared/FileKinds";
+import { FolderNotes } from "../shared/FolderNotes";
 import type { LinkKind } from "../shared/LinkKind";
 import { VaultPathFacts } from "../shared/VaultPathFacts";
 import type { FileMetadata, LinkProvider, OutgoingReference } from "./LinkProvider";
@@ -69,6 +70,8 @@ export class FakeLinkProvider implements LinkProvider {
 	/** Raw fixture references WITH duplicates — the multiplicity truth behind getLinkCount. */
 	private readonly rawOutgoing = new Map<VaultPath, readonly OutgoingReference[]>();
 	private readonly outgoingQueryCountsMutable = new Map<VaultPath, number>();
+	/** Folder-note hierarchy resolved from the declared file paths (mirrors the adapter's index). */
+	private readonly folderNotes: FolderNotes;
 
 	constructor(spec: FakeVaultSpec) {
 		for (const file of spec.files) {
@@ -81,6 +84,7 @@ export class FakeLinkProvider implements LinkProvider {
 			]);
 		}
 		this.attachAttachmentsToMetadata();
+		this.folderNotes = FolderNotes.fromPaths([...this.files.keys()]);
 	}
 
 	getOutgoingReferences(path: VaultPath): readonly OutgoingReference[] {
@@ -94,6 +98,15 @@ export class FakeLinkProvider implements LinkProvider {
 
 	getIncomingLinks(path: VaultPath): readonly VaultPath[] {
 		return this.incoming.get(path) ?? [];
+	}
+
+	getChildNotes(path: VaultPath): readonly VaultPath[] {
+		return this.folderNotes.childNotesOf(path).map(asVaultPath);
+	}
+
+	getParentNote(path: VaultPath): VaultPath | undefined {
+		const parent = this.folderNotes.parentNoteOf(path);
+		return parent === undefined ? undefined : asVaultPath(parent);
 	}
 
 	getFileMetadata(path: VaultPath): FileMetadata | undefined {

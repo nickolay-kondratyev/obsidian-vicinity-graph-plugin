@@ -164,6 +164,24 @@ export class ObsidianLinkProvider implements LinkProvider {
 	}
 
 	/**
+	 * Folder-note CHILDREN — NOT WIRED YET. The engine channel + the pure
+	 * {@link import("../shared/FolderNotes").FolderNotes} rule ship in Hierarchy 1
+	 * (`nid_dit8h888p2ml3092b2zn4zy3u_e`); the vault-path index that answers this in
+	 * a REAL vault (a lazy-warmed `FolderNoteIndex`, invalidated on create/delete/
+	 * rename) is Hierarchy 2 (`nid_bw8hltfj3nsyas03mpfmqn7mg_e`). Until it lands the
+	 * adapter reports no hierarchy, so the always-on channels find nothing here — a
+	 * deliberate, transparent gap, not a silent one.
+	 */
+	getChildNotes(_path: VaultPath): readonly VaultPath[] {
+		return [];
+	}
+
+	/** Folder-note PARENT — NOT WIRED YET; see {@link getChildNotes} (Hierarchy 2). */
+	getParentNote(_path: VaultPath): VaultPath | undefined {
+		return undefined;
+	}
+
+	/**
 	 * DECLARED BEHAVIOR CHANGE (option 3a, ticket `nid_fay1hu5sxcoygizopkkg0f0d7_e`):
 	 * for a CORE-INDEXED canvas this used to fall through to `resolvedLinks` —
 	 * core's number — because such a canvas had no entry here. Every canvas is

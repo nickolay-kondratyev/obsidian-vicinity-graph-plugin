@@ -1,13 +1,14 @@
 ---
+closed_iso: 2026-08-13T16:47:02Z
 session_ids: [{"a": "claude", "type": "execution", "id": "8c6796a8-d28f-4947-8cdb-de5bb28b6ee9"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_dit8h888p2ml3092b2zn4zy3u_e
 title: "Hierarchy 1: engine descendants-ancestors channels + hierarchy edge relation"
-status: in_progress
+status: closed
 deps: [nid_ri1d36t7hmhu0kr652wny1dmz_e]
 links: [nid_ri1d36t7hmhu0kr652wny1dmz_e, nid_bw8hltfj3nsyas03mpfmqn7mg_e, nid_i3cznjkcnelqzvhp0gqlis499_e, nid_f5bfjoymr2pt7odxieunkxasd_e, nid_eymj85m7qccbpkoo4qj6b1q6t_e, nid_uxugk82jeu4cfj5ujyk4l79e7_e]
 created_iso: 2026-08-13T15:35:42Z
-status_updated_iso: 2026-08-13T16:20:11Z
+status_updated_iso: 2026-08-13T16:47:02Z
 type: feature
 priority: 3
 assignee: nickolaykondratyev
@@ -62,3 +63,24 @@ Design record: ticket `nid_ri1d36t7hmhu0kr652wny1dmz_e` (closed PLAN) — read i
 Note: `src/view/settingsRowSpecCoverage.test.ts` will fail on the 4 new spec leaves
 until Hierarchy 3 declares their rows — if landing this ticket standalone, use the
 allowlist WITH a written reason pointing at `nid_i3cznjkcnelqzvhp0gqlis499_e`.
+
+## Notes
+
+**2026-08-13T16:47:02Z**
+
+RESOLVED — implemented & green (npm test: 1936 passed; npm run check: 0 errors).
+
+All 7 scope items done:
+1. src/shared/FolderNotes.ts (pure, + FolderNotes.test.ts): precedence inside X/X.md > X/X.canvas > X.md > X.canvas; folderNoteOf / childNotesOf / parentNoteOf.
+2. LinkProvider.getChildNotes / getParentNote; FakeLinkProvider delegates to FolderNotes.fromPaths(files). ObsidianLinkProvider STUBBED (returns empty/undefined) with docs pointing at Hierarchy 2 nid_bw8hltfj3nsyas03mpfmqn7mg_e — transparent documented gap, not silent.
+3. types.ts: Channel += descendants|ancestors; CHANNELS, CHANNEL_DEPTH_FIELD, ChannelDepths(descendantDepth/ancestorDepth), DepthSettings(pinnedDescendantDepth/pinnedAncestorDepth), DepthSettingsFacts updated. Added ChannelRelation + CHANNEL_RELATION Record, and directedLinkKey(source,target) (NUL-separated).
+4. VicinityTraversal: CHANNEL_LINKER += descendants:current, ancestors:neighbor; neighborsOf cases; parent ALWAYS edge source. TraversalResult exposes hierarchyPairKeys + linkPairKeys.
+5. EdgeAssembly: GraphEdge gained hierarchy:boolean (chose a boolean over growing EdgeKind union to avoid view churn). Pure-hierarchy = count 0; merged = ONE edge. Design fix: pure-vs-merged tracked via linkPairKeys (pairs a LINK channel walked), NOT getLinkCount — the Jon links-out=0/descendants=1 case has a real link but must render PURE. hasLink = walkedLink || (crossLinksOn && linkCount>0).
+6. SettingsSpec: 4 bounded leaves (default MAIN 1/1, pinned 0/0); settingsProductDefaults.test.ts id-table updated; persistedShapes parse (clean break). settingsRowSpecCoverage.test.ts allowlist REACHABLE_LATER with reason pointing at Hierarchy 3 nid_i3cznjkcnelqzvhp0gqlis499_e.
+7. Truncation chain untouched (1b nid_k4q36qb0nvmusoygl56trgtz2_e).
+
+Required fixture tests all present in src/engine/hierarchyChannels.test.ts (Jon 3 combos + crossLinks, grandchild via intermediate, ancestor gap, both-present inside-wins, canvas + kind-purity, hierarchy invisibility).
+
+Assumption/decision: childNotesOf = direct node-bearing files in the owned folder only. An inside-style subfolder folder note is thus NOT descendant-reachable from a grandparent (asymmetric with ancestors, which walks inside-style up). Matches all required tests; documented for Hierarchy follow-ups.
+
+Pure engine/shared/persistence change — stayed on npm test per CLAUDE.md (no rendered behavior; adapter stubs are inert).

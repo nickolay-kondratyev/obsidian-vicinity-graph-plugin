@@ -72,18 +72,45 @@ const HOW_TO_SATISFY_THIS_GUARD =
 	"anti-rot tests that pattern carries (see BOUNDS_ENFORCED_OUTSIDE_THE_ENGINE in " +
 	"src/engine/settingsSpecBounds.test.ts). Never weaken this assertion.";
 
+/**
+ * The sanctioned escape hatch: a spec leaf deliberately reachable-later, keyed by id with
+ * the reason. The folder-note hierarchy depths land their SPEC + engine in Hierarchy 1
+ * (`nid_dit8h888p2ml3092b2zn4zy3u_e`); their settings ROWS land in Hierarchy 3
+ * (`nid_i3cznjkcnelqzvhp0gqlis499_e`). Until then the leaves exist with no row, and this
+ * entry (plus the two anti-rot tests below) is what keeps that a CONSCIOUS gap rather than
+ * a silent one. Remove each entry the moment Hierarchy 3 gives its field a row.
+ */
+const REACHABLE_LATER: Readonly<Record<string, string>> = {
+	"globalDepths.descendantDepth": "row lands in Hierarchy 3 (nid_i3cznjkcnelqzvhp0gqlis499_e)",
+	"globalDepths.ancestorDepth": "row lands in Hierarchy 3 (nid_i3cznjkcnelqzvhp0gqlis499_e)",
+	"globalDepths.pinnedDescendantDepth": "row lands in Hierarchy 3 (nid_i3cznjkcnelqzvhp0gqlis499_e)",
+	"globalDepths.pinnedAncestorDepth": "row lands in Hierarchy 3 (nid_i3cznjkcnelqzvhp0gqlis499_e)",
+};
+
 /** Every spec leaf id some declared row edits. */
 const FIELDS_WITH_A_ROW: ReadonlySet<string> = new Set(EVERY_SETTINGS_ROW.map((row) => specLeafIdFor(row.control)));
 
 const DECLARED_FIELD_IDS: ReadonlySet<string> = new Set(SETTINGS_FIELD_LEAVES.map((leaf) => leaf.id));
 
 describe("settings rows cover every declared settings field", () => {
-	it("WHEN the spec declares a settings field THEN some declared row edits it", () => {
-		const unreachable = SETTINGS_FIELD_LEAVES.filter((leaf) => !FIELDS_WITH_A_ROW.has(leaf.id)).map(
+	it("WHEN the spec declares a settings field THEN some declared row edits it (unless allowlisted)", () => {
+		const unreachable = SETTINGS_FIELD_LEAVES.filter(
+			(leaf) => !FIELDS_WITH_A_ROW.has(leaf.id) && REACHABLE_LATER[leaf.id] === undefined,
+		).map(
 			(leaf) =>
 				`${leaf.id}: no row in SETTINGS_GROUPS edits it (no user can reach this setting) — ${HOW_TO_SATISFY_THIS_GUARD}`,
 		);
 		expect(unreachable).toEqual([]);
+	});
+
+	it("WHEN a leaf is allowlisted as reachable-later THEN it is a real, still-row-less field (no rot)", () => {
+		// Anti-rot, both directions: an allowlisted id must still be a declared leaf (else the
+		// spec moved and the reason is stale), and must still LACK a row (else Hierarchy 3
+		// shipped its row and the entry must be deleted, not left masking real coverage).
+		const rotted = Object.keys(REACHABLE_LATER)
+			.filter((id) => !DECLARED_FIELD_IDS.has(id) || FIELDS_WITH_A_ROW.has(id))
+			.map((id) => `${id}: allowlist entry is stale — remove it (the field now has a row, or no longer exists)`);
+		expect(rotted).toEqual([]);
 	});
 
 	it("WHEN a row's control is mapped to a spec leaf THEN the spec still declares that leaf (no stale mapping)", () => {

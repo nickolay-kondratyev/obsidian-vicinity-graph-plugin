@@ -50,6 +50,10 @@ function buildRequest(overrides: Partial<GraphBuildRequest> = {}): GraphBuildReq
 			pinnedLinkDepthOut: 2,
 			pinnedEmbedDepthOut: 2,
 			pinnedLinkDepthIn: 1,
+			descendantDepth: 0,
+			ancestorDepth: 0,
+			pinnedDescendantDepth: 0,
+			pinnedAncestorDepth: 0,
 		},
 		globalView: EngineDefaults.viewSettings(),
 		...overrides,
@@ -191,7 +195,7 @@ describe("VicinityEngine end-to-end build", () => {
 				embeds: { "embedder.md": ["hub.md"] },
 			}),
 		).build(buildRequest({ pinned: [] }));
-		expect(graph.edges).toEqual([{ source: "embedder.md", target: "hub.md", count: 1, kind: "embed" }]);
+		expect(graph.edges).toEqual([{ source: "embedder.md", target: "hub.md", count: 1, kind: "embed", hierarchy: false }]);
 	});
 });
 
@@ -341,6 +345,14 @@ describe("VicinityEngine cross links never drop a walked edge", () => {
 			return this.delegate.getIncomingLinks(path);
 		}
 
+		getChildNotes(path: VaultPath): readonly VaultPath[] {
+			return this.delegate.getChildNotes(path);
+		}
+
+		getParentNote(path: VaultPath): VaultPath | undefined {
+			return this.delegate.getParentNote(path);
+		}
+
 		getFileMetadata(path: VaultPath) {
 			return this.delegate.getFileMetadata(path);
 		}
@@ -464,9 +476,13 @@ describe("VicinityEngine pinned-central depth exploration", () => {
 				linkDepthOut: globalOutgoing,
 				embedDepthOut: globalOutgoing,
 				linkDepthIn: 0,
+				descendantDepth: 0,
+				ancestorDepth: 0,
 				pinnedLinkDepthOut: globalOutgoing,
 				pinnedEmbedDepthOut: globalOutgoing,
 				pinnedLinkDepthIn: 0,
+				pinnedDescendantDepth: 0,
+				pinnedAncestorDepth: 0,
 			},
 			globalView: { ...EngineDefaults.viewSettings(), nodeCap: 100 },
 		});
@@ -527,9 +543,13 @@ describe("VicinityEngine active-vs-pinned depth budgets", () => {
 				linkDepthOut: activeOutgoing,
 				embedDepthOut: 0,
 				linkDepthIn: 0,
+				descendantDepth: 0,
+				ancestorDepth: 0,
 				pinnedLinkDepthOut: pinnedOutgoing,
 				pinnedEmbedDepthOut: 0,
 				pinnedLinkDepthIn: 0,
+				pinnedDescendantDepth: 0,
+				pinnedAncestorDepth: 0,
 			},
 			globalView: EngineDefaults.viewSettings(),
 		});

@@ -43,14 +43,37 @@ export function asFolderPath(folder: string): FolderPath {
  * `Record<Channel, …>` in the repo turns into the compile error that names the
  * places it has to be taught (OCP).
  */
-export type Channel = "outgoing-link" | "outgoing-embed" | "incoming";
+export type Channel = "outgoing-link" | "outgoing-embed" | "incoming" | "descendants" | "ancestors";
 
 /**
  * THE value list of {@link Channel}, in traversal order. Single-sourced so the
  * traversal cannot walk fewer channels than the type declares — the guard below
  * is what makes that real.
  */
-export const CHANNELS = ["outgoing-link", "outgoing-embed", "incoming"] as const satisfies readonly Channel[];
+export const CHANNELS = [
+	"outgoing-link",
+	"outgoing-embed",
+	"incoming",
+	"descendants",
+	"ancestors",
+] as const satisfies readonly Channel[];
+
+/**
+ * Whether a walked hop is a plain LINK/embed reference or the folder-note
+ * HIERARCHY relation. A `Record<Channel, …>`, so a new channel must declare which
+ * it is: the two dimensions render differently (a link has a count badge; a pure
+ * hierarchy edge is dashed and badgeless) and only link relations are counted by
+ * {@link LinkProvider.getLinkCount} or widened by the cross-links sweep — the
+ * folder relation is invisible to both.
+ */
+export type ChannelRelation = "link" | "hierarchy";
+export const CHANNEL_RELATION: Readonly<Record<Channel, ChannelRelation>> = {
+	"outgoing-link": "link",
+	"outgoing-embed": "link",
+	incoming: "link",
+	descendants: "hierarchy",
+	ancestors: "hierarchy",
+};
 
 /**
  * Compile-time completeness: a channel missing from {@link CHANNELS} surfaces
@@ -172,25 +195,63 @@ export interface DirectedLink {
 }
 
 /**
- * HOW a rendered pair is related — the SUMMARY of the pair's outgoing reference
- * kinds ({@link import("../shared/LinkKind").LinkKind}), not a scalar copy of one
- * walked hop: a source can both embed AND plainly link the same target, and that
- * pair is deliberately `"both"` rather than whichever kind a walk saw first.
- * Derived once, from provider truth, in {@link import("./EdgeAssembly").EdgeAssembly}.
+ * Stable identity of an ordered pair, for set membership (edge dedup, the
+ * hierarchy-relation set). NUL separator: vault paths hold spaces but never NUL,
+ * so the key is unambiguous. Single-sourced so the accumulator and every
+ * consumer that keys pairs agree byte-for-byte.
+ */
+export function directedLinkKey(source: VaultPath, target: VaultPath): string {
+	return `${source}\u0000${target}`;
+}
+
+/**
+ * HOW a rendered pair's LINK occurrences are related — the SUMMARY of the pair's
+ * outgoing reference kinds ({@link import("../shared/LinkKind").LinkKind}), not a
+ * scalar copy of one walked hop: a source can both embed AND plainly link the same
+ * target, and that pair is deliberately `"both"` rather than whichever kind a walk
+ * saw first. Derived once, from provider truth, in
+ * {@link import("./EdgeAssembly").EdgeAssembly}. Describes the LINK half only —
+ * the folder relation is carried by {@link GraphEdge.hierarchy}, not by a kind
+ * value (a merged edge keeps its link kind AND sets the flag).
  */
 export type EdgeKind = "link" | "embed" | "both";
 
 /**
- * Final output edge. WHICH links become edges is the {@link ViewSettings.showCrossLinks}
- * toggle's answer: the links the BFS walked, or every link between two visible nodes.
- * Both origins are identical here — there is deliberately no walked-vs-swept
- * provenance flag ({@link kind} is the pair's relationship, not its discovery path).
+ * Final output edge. An ordered pair carries a RELATION SET: link occurrences
+ * ({@link count}/{@link kind}) AND/OR the folder-note hierarchy relation
+ * ({@link hierarchy}) — "collapse, don't multiply", a merged pair is ONE edge
+ * (CLAUDE.md 2026-08-13, plan `nid_ri1d36t7hmhu0kr652wny1dmz_e`). The three states
+ * a view distinguishes:
+ * - LINK-ONLY: `hierarchy === false`, `count >= 1` — solid, count badge.
+ * - PURE HIERARCHY: `hierarchy === true`, `count === 0` — dashed, no badge, drawn
+ *   parent → child.
+ * - MERGED (a folder note that also links its child): `hierarchy === true`,
+ *   `count >= 1` — solid + badge, with the folder relation discoverable in the flyout.
+ *
+ * WHICH links become edges is the {@link ViewSettings.showCrossLinks} toggle's
+ * answer: the links the BFS walked, or every link between two visible nodes. Both
+ * origins are identical here — no walked-vs-swept provenance flag. The hierarchy
+ * relation is invisible to that sweep and to {@link LinkProvider.getLinkCount}.
  */
 export interface GraphEdge extends DirectedLink {
-	/** Number of distinct links source→target (>= 1) — the UI's edge count badge. */
+	/**
+	 * Number of distinct links source→target — the UI's edge count badge. `>= 1`
+	 * whenever the pair carries a link relation; `0` for a PURE hierarchy edge (no
+	 * link occurrence to badge).
+	 */
 	readonly count: number;
-	/** The pair's relationship summary — drives the view's edge styling. */
+	/**
+	 * The LINK-occurrence relationship summary — drives the view's edge styling.
+	 * Meaningful only when the pair carries a link relation ({@link count} >= 1);
+	 * a pure hierarchy edge ({@link count} === 0) leaves it at the neutral `"link"`.
+	 */
 	readonly kind: EdgeKind;
+	/**
+	 * True iff this ordered pair ALSO carries the folder-note hierarchy relation
+	 * (parent → child). Orthogonal to {@link kind}: a merged edge sets this AND
+	 * keeps its link kind. See the type doc for the three rendered states.
+	 */
+	readonly hierarchy: boolean;
 }
 
 /**
@@ -325,6 +386,19 @@ export interface ChannelDepths {
 	 * is deliberately no "embedded in" budget.
 	 */
 	readonly linkDepthIn: number;
+	/**
+	 * Hops DOWN the folder-note hierarchy expanded from this root: the children of a
+	 * folder note (node-bearing files directly in the folder it owns), then their
+	 * children, one folder level per hop. KIND-PURE (owner decision D1): a
+	 * descendant's own wikilinks are NOT followed by this channel. `0` = off.
+	 */
+	readonly descendantDepth: number;
+	/**
+	 * Hops UP the folder-note hierarchy expanded from this root: the folder note of
+	 * the containing folder, then its parent, stopping at the first folder-note gap.
+	 * KIND-PURE like {@link descendantDepth}. `0` = off.
+	 */
+	readonly ancestorDepth: number;
 }
 
 /**
@@ -348,6 +422,10 @@ export interface DepthSettings extends ChannelDepths {
 	readonly pinnedEmbedDepthOut: number;
 	/** {@link ChannelDepths.linkDepthIn}, for pinned roots. */
 	readonly pinnedLinkDepthIn: number;
+	/** {@link ChannelDepths.descendantDepth}, for pinned roots. */
+	readonly pinnedDescendantDepth: number;
+	/** {@link ChannelDepths.ancestorDepth}, for pinned roots. */
+	readonly pinnedAncestorDepth: number;
 }
 
 /**
@@ -361,6 +439,8 @@ export class DepthSettingsFacts {
 			linkDepthOut: settings.linkDepthOut,
 			embedDepthOut: settings.embedDepthOut,
 			linkDepthIn: settings.linkDepthIn,
+			descendantDepth: settings.descendantDepth,
+			ancestorDepth: settings.ancestorDepth,
 		};
 	}
 
@@ -370,6 +450,8 @@ export class DepthSettingsFacts {
 			linkDepthOut: settings.pinnedLinkDepthOut,
 			embedDepthOut: settings.pinnedEmbedDepthOut,
 			linkDepthIn: settings.pinnedLinkDepthIn,
+			descendantDepth: settings.pinnedDescendantDepth,
+			ancestorDepth: settings.pinnedAncestorDepth,
 		};
 	}
 }
@@ -417,6 +499,8 @@ export const CHANNEL_DEPTH_FIELD: Readonly<Record<Channel, keyof ChannelDepths>>
 	"outgoing-link": "linkDepthOut",
 	"outgoing-embed": "embedDepthOut",
 	incoming: "linkDepthIn",
+	descendants: "descendantDepth",
+	ancestors: "ancestorDepth",
 };
 
 /**

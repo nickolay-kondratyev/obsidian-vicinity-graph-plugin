@@ -43,6 +43,9 @@ export function traverseFixture(
 			// Unstated embed budget mirrors the link budget (the shipped default relationship).
 			embedDepthOut: depths.embedDepthOut ?? depths.linkDepthOut ?? DEFAULT_TEST_DEPTH,
 			linkDepthIn: depths.linkDepthIn ?? DEFAULT_TEST_DEPTH,
+			// Hierarchy channels default OFF unless a fixture asks for them.
+			descendantDepth: depths.descendantDepth ?? 0,
+			ancestorDepth: depths.ancestorDepth ?? 0,
 		},
 	}));
 	const traversal = new VicinityTraversal(provider).traverse(roots);

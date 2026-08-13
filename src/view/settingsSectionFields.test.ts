@@ -61,9 +61,13 @@ describe("section resets together cover every settings field", () => {
 			linkDepthOut: 4,
 			embedDepthOut: 4,
 			linkDepthIn: 5,
+			descendantDepth: 3,
+			ancestorDepth: 4,
 			pinnedLinkDepthOut: 3,
 			pinnedEmbedDepthOut: 2,
 			pinnedLinkDepthIn: 5,
+			pinnedDescendantDepth: 2,
+			pinnedAncestorDepth: 1,
 		},
 		globalView: {
 			nodeCap: 17,
