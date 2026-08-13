@@ -1,17 +1,19 @@
 ---
+closed_iso: '2026-08-13T23:19:07Z'
 id: nid_794aqyj6ks4gtlu1cc6po5cut_e
-title: "e2e submodule drift: pinned commit 45880847 unpushed; 3 specs fail against current src"
-status: open
+title: 'e2e submodule drift: pinned commit 45880847 unpushed; 3 specs fail against
+  current src'
+status: closed
 deps: []
 links: []
-created_iso: 2026-08-13T20:19:13Z
-status_updated_iso: 2026-08-13T20:19:13Z
+created_iso: '2026-08-13T20:19:13Z'
+status_updated_iso: '2026-08-13T23:19:07Z'
 type: bug
 priority: 1
 assignee: CC_WITH-nickolaykondratyev
 tags: [e2e, infra]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 ---
-
 The e2e git submodule (at repo-root `e2e/`, its tests are the release gate) has TWO related problems, found 2026-08-13 while fixing ticket nid_ofacqul281sr71qrdacqy8jv3_e:
 
 1. **The parent repo pinned submodule commit `45880847`, which was never pushed to the submodule remote** ("not our ref" on fetch). Work had to proceed from the submodule `origin/main` tip (527bd3a) instead — so whatever spec updates lived in 45880847 are lost to anyone cloning fresh. The unpushed-commit problem repeated in this environment: the ticket-fix branch `CC_nid_ofacqul281sr71qrdacqy8jv3_e__rename-at-time-eats-the-visualization-of-the-node_fable` was committed in the submodule (e9bdc4a) but `git push` was refused (no access rights from this env), so the parent again points at a commit only present locally. **Someone with push access must push that submodule branch.**
@@ -33,4 +35,3 @@ Repro: `npm run test:e2e -- controlsRestart.e2e.ts pinnedCentralScenario.e2e.ts 
 - `pinnedCentralScenario.e2e.ts`: after unpinning the hub it VANISHED (pinned `sc_x` no longer pulls incoming neighbors at `pinnedLinkDepthIn` 0) instead of flipping to `regular`.
 
 Fixed in submodule commit `185b8ba` (specs raise the now-opt-in dials explicitly); full `npm run test:e2e` green (167 passed) plus `npm run check` and `npm test`. **Item 1 remains open**: the submodule has TWO local-only commits (`e9bdc4a`, `185b8ba`, merge `3574e75`) that a human with push access must push (`git -C e2e push origin main`); this environment's push is refused.
-
