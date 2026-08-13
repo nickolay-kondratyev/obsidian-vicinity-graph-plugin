@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_k4q36qb0nvmusoygl56trgtz2_e
 title: "Hierarchy 1b: truncation tie-break by relation kind (embeds > links > hierarchy)"
-status: open
+status: in_progress
 deps: [nid_dit8h888p2ml3092b2zn4zy3u_e]
 links: [nid_ri1d36t7hmhu0kr652wny1dmz_e]
 created_iso: 2026-08-13T16:11:45Z
-status_updated_iso: 2026-08-13T16:11:45Z
+status_updated_iso: 2026-08-13T17:30:25Z
 type: feature
 priority: 3
 assignee: nickolaykondratyev
