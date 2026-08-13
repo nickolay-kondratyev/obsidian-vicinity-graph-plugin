@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-13T17:26:21Z
-session_ids: [{"a": "claude", "type": "execution", "id": "feeb841b-870d-40b7-86f8-5163bec32a54"}]
+session_ids: [{"a": "claude", "type": "execution", "id": "feeb841b-870d-40b7-86f8-5163bec32a54"}, {"a": "claude", "type": "review", "id": "427ebe24-1cfc-4ba7-a7b0-9546ec65635d"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_i3cznjkcnelqzvhp0gqlis499_e
 title: "Hierarchy 3: settings UI - four depth rows with descriptive hovers"
