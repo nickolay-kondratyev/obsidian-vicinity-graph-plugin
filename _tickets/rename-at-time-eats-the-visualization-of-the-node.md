@@ -1,17 +1,17 @@
 ---
 id: nid_ofacqul281sr71qrdacqy8jv3_e
-title: "Rename at time eats the visualization of the node"
-status: open
+title: Rename at time eats the visualization of the node
+status: in_progress
 deps: []
 links: []
-created_iso: 2026-08-13T19:43:09Z
-status_updated_iso: 2026-08-13T19:43:09Z
+created_iso: '2026-08-13T19:43:09Z'
+status_updated_iso: '2026-08-13T19:48:40Z'
 type: bug
 priority: 3
 assignee: nickolaykondratyev
 tags: []
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 ---
-
 ROOT cause and fix.
 
 --------------------------------------------------------------------------------
