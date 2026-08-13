@@ -1,4 +1,5 @@
 ---
+session_ids: [{"a": "claude", "type": "execution", "id": "8c6796a8-d28f-4947-8cdb-de5bb28b6ee9"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_dit8h888p2ml3092b2zn4zy3u_e
 title: "Hierarchy 1: engine descendants-ancestors channels + hierarchy edge relation"
