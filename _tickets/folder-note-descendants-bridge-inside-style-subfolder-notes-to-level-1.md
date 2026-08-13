@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-13T19:55:12Z
-session_ids: [{"a": "claude", "type": "execution", "id": "4c8def1c-e587-4545-90ea-d0ecbe61cbc8"}]
+session_ids: [{"a": "claude", "type": "execution", "id": "4c8def1c-e587-4545-90ea-d0ecbe61cbc8"}, {"a": "claude", "type": "review", "id": "739b0e86-7ed9-4ad0-8aeb-4469752e3c44"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_025cydqct380d8ik9jhr9hhfn_e
 title: "Folder-note descendants: bridge inside-style subfolder notes to level 1"
