@@ -1,4 +1,5 @@
 ---
+session_ids: [{"a": "claude", "type": "execution", "id": "4c8def1c-e587-4545-90ea-d0ecbe61cbc8"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_025cydqct380d8ik9jhr9hhfn_e
 title: "Folder-note descendants: bridge inside-style subfolder notes to level 1"
