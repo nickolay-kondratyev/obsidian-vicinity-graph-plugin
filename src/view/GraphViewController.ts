@@ -367,6 +367,7 @@ export class GraphViewController {
 					sourcePath,
 					targetPath,
 					occurrences: await this.occurrences.occurrencesBetween(sourcePath, targetPath),
+					hierarchy: pair.hierarchy,
 				};
 			}),
 		);

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { GraphNode, NodeContentOverride, NodePreviewPreference, OutlineEntry, ViewSettings } from "../engine";
+import type { GraphEdge, GraphNode, NodeContentOverride, NodePreviewPreference, OutlineEntry, ViewSettings } from "../engine";
 import { asDocId, asFolderPath, asVaultPath, NODE_CONTENT_OVERRIDES, NODE_PREVIEW_PREFERENCES } from "../engine";
 import { OUTLINE_RENDER_LIMIT } from "./constants";
-import { edgeKindClassName, vicinityGraphToFlow, withGroupDimensions, withPositions } from "./flowMapping";
+import { edgeClassName, edgeKindClassName, vicinityGraphToFlow, withGroupDimensions, withPositions } from "./flowMapping";
 import type { FlowNode, FlowPinFacts, NoteFlowNode } from "./flowMapping";
 import { NO_ORPHAN_TRUNCATION } from "./truncationBadges";
 import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
@@ -368,9 +368,10 @@ describe("vicinityGraphToFlow group-collapsed edges", () => {
 				id: "notes/a.md->notes/b.md",
 				source: "notes/a.md",
 				target: "notes/b.md",
-				notePairs: [{ source: "notes/a.md", target: "notes/b.md" }],
+				notePairs: [{ source: "notes/a.md", target: "notes/b.md", hierarchy: false }],
 				count: 1,
 				kind: "link",
+				hierarchy: false,
 				hasOpposite: false,
 				bidirectional: false,
 			},
@@ -382,13 +383,13 @@ describe("vicinityGraphToFlow group-collapsed edges", () => {
 			nodes: [makeNode({ path: asVaultPath("a.md") }), makeNode({ path: asVaultPath("b.md") })],
 			edges: [makeEdge("a.md", "b.md")],
 		});
-		expect(toFlow(graph).edges[0]?.notePairs).toEqual([{ source: "a.md", target: "b.md" }]);
+		expect(toFlow(graph).edges[0]?.notePairs).toEqual([{ source: "a.md", target: "b.md", hierarchy: false }]);
 	});
 
 	it("WHEN member edges collapse THEN notePairs lists every contributing pair in first-seen order", () => {
 		expect(toFlow(collapsedGraph()).edges[0]?.notePairs).toEqual([
-			{ source: "hub.md", target: "notes/a.md" },
-			{ source: "hub.md", target: "notes/b.md" },
+			{ source: "hub.md", target: "notes/a.md", hierarchy: false },
+			{ source: "hub.md", target: "notes/b.md", hierarchy: false },
 		]);
 	});
 
@@ -398,8 +399,8 @@ describe("vicinityGraphToFlow group-collapsed edges", () => {
 			edges: [makeEdge("hub.md", "notes/a.md"), makeEdge("notes/b.md", "hub.md")],
 		});
 		expect(toFlow(graph).edges[0]?.notePairs).toEqual([
-			{ source: "hub.md", target: "notes/a.md" },
-			{ source: "notes/b.md", target: "hub.md" },
+			{ source: "hub.md", target: "notes/a.md", hierarchy: false },
+			{ source: "notes/b.md", target: "hub.md", hierarchy: false },
 		]);
 	});
 
@@ -445,6 +446,52 @@ describe("vicinityGraphToFlow edge kinds (stage-2 embed rendering)", () => {
 			"vicinity-graph-edge--kind-embed",
 			"vicinity-graph-edge--kind-both",
 		]);
+	});
+});
+
+describe("vicinityGraphToFlow folder-note hierarchy edges", () => {
+	function twoNodeGraph(edge: GraphEdge) {
+		return makeGraph({
+			nodes: [makeNode({ path: asVaultPath("Jon.md") }), makeNode({ path: asVaultPath("Jon/child.md") })],
+			edges: [edge],
+		});
+	}
+
+	it("WHEN a passthrough edge carries the hierarchy relation THEN the flow edge carries it too", () => {
+		const edge = makeEdge("Jon.md", "Jon/child.md", 0, "link", true);
+		expect(toFlow(twoNodeGraph(edge)).edges[0]?.hierarchy).toBe(true);
+	});
+
+	it("WHEN a passthrough edge carries the hierarchy relation THEN its note pair carries it", () => {
+		const edge = makeEdge("Jon.md", "Jon/child.md", 0, "link", true);
+		expect(toFlow(twoNodeGraph(edge)).edges[0]?.notePairs).toEqual([
+			{ source: "Jon.md", target: "Jon/child.md", hierarchy: true },
+		]);
+	});
+
+	it("WHEN a collapsed edge unions a hierarchy contributor THEN the collapsed edge is hierarchy", () => {
+		const graph = makeGraph({
+			nodes: collapsedGraph().nodes,
+			edges: [makeEdge("hub.md", "notes/a.md", 1, "link", false), makeEdge("hub.md", "notes/b.md", 0, "link", true)],
+		});
+		expect(toFlow(graph).edges[0]?.hierarchy).toBe(true);
+	});
+
+	it("WHEN a pure hierarchy edge (count 0) maps THEN edgeClassName adds the dashed hook", () => {
+		const edge = makeEdge("Jon.md", "Jon/child.md", 0, "link", true);
+		expect(edgeClassName(toFlow(twoNodeGraph(edge)).edges[0]!)).toBe(
+			"vicinity-graph-edge--kind-link vicinity-graph-edge--hierarchy",
+		);
+	});
+
+	it("WHEN a MERGED edge (hierarchy + count >= 1) maps THEN edgeClassName stays the plain kind class", () => {
+		const edge = makeEdge("Jon.md", "Jon/child.md", 2, "link", true);
+		expect(edgeClassName(toFlow(twoNodeGraph(edge)).edges[0]!)).toBe("vicinity-graph-edge--kind-link");
+	});
+
+	it("WHEN a plain link edge maps THEN edgeClassName is the kind class with no hierarchy hook", () => {
+		const edge = makeEdge("Jon.md", "Jon/child.md", 1, "link", false);
+		expect(edgeClassName(toFlow(twoNodeGraph(edge)).edges[0]!)).toBe("vicinity-graph-edge--kind-link");
 	});
 });
 

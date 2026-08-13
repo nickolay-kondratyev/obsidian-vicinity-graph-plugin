@@ -1390,6 +1390,36 @@ describe("GraphViewController link previews", () => {
 		expect(h.linkPreview.shown).toEqual([]);
 	});
 
+	/** GIVEN a rendered graph where Jon.md is the folder note of Jon/, reaching Jon/kid.md by hierarchy only. */
+	async function pureHierarchyHarness(): Promise<Harness> {
+		const h = setup(new FakeEdgeRouter(), new FakeLinkOccurrenceProvider({ outgoing: {} }));
+		h.controller.handleActiveFileChanged("Jon.md");
+		const nodes = [makeNode({ path: asVaultPath("Jon.md") }), makeNode({ path: asVaultPath("Jon/kid.md") })];
+		// Pure hierarchy edge: count 0, hierarchy true (no link occurrence to badge).
+		const edges = [makeEdge("Jon.md", "Jon/kid.md", 0, "link", true)];
+		h.source.resolveBuild(0, makeGraph({ nodes, edges }));
+		await flush();
+		return h;
+	}
+
+	it("WHEN a PURE hierarchy edge preview opens THEN the folder relation names folder note, folder and child", async () => {
+		const h = await pureHierarchyHarness();
+
+		await h.controller.openEdgePreview("Jon.md->Jon/kid.md");
+
+		expect(h.linkPreview.shown).toMatchObject([
+			{ folderRelations: [{ folderNoteName: "Jon.md", folderName: "Jon", childName: "kid.md" }] },
+		]);
+	});
+
+	it("WHEN a PURE hierarchy edge preview opens THEN it carries no link-occurrence rows", async () => {
+		const h = await pureHierarchyHarness();
+
+		await h.controller.openEdgePreview("Jon.md->Jon/kid.md");
+
+		expect(h.linkPreview.shown[0]?.rowIds).toEqual([]);
+	});
+
 	/**
 	 * GIVEN a rendered graph where hub.md fans into BOTH members of the 2-member
 	 * `notes` folder — the fan renders as ONE collapsed edge

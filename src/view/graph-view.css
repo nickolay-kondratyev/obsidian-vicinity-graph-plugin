@@ -56,7 +56,18 @@
  * currently render the same solid stroke: the dashed embed / dash-dot both
  * patterns read WEAKER than plain links (nid_zxnhehkpoj3q2peirauby6w4q_e), so
  * they were dropped. The classes stay as the seam for any future restyle.
+ *
+ * A PURE folder-note hierarchy edge (parent → child, no link occurrence) is the
+ * ONE kind that DOES restyle: dashed, so the folder relation reads as structure
+ * rather than a link ("collapse, don't multiply", plan
+ * nid_ri1d36t7hmhu0kr652wny1dmz_e). Stroke colour/width stay the theme's edge
+ * defaults — only the dash pattern differs. A MERGED edge keeps count >= 1 and so
+ * never gets this class: it stays solid, identical to a plain link edge. The dash
+ * rides the RF-drawn path element inside the wrapper the class sits on.
  */
+.vicinity-graph-flow .vicinity-graph-edge--hierarchy .react-flow__edge-path {
+	stroke-dasharray: 4 3;
+}
 
 .vicinity-graph-flow .react-flow__controls {
 	border-radius: var(--radius-s);

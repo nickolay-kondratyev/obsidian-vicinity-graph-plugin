@@ -146,6 +146,14 @@ export type FlowNode = NoteFlowNode | GroupFlowNode;
 export interface EdgeNotePair {
 	readonly source: string;
 	readonly target: string;
+	/**
+	 * True iff this ordered pair carries the folder-note HIERARCHY relation
+	 * (parent → child; {@link import("../engine").GraphEdge.hierarchy}). The
+	 * edge-click flyout reads it per pair to build its folder-relation section —
+	 * a collapsed group edge can union hierarchy and link pairs, so the flag rides
+	 * the pair, not just the {@link FlowEdge}.
+	 */
+	readonly hierarchy: boolean;
 }
 
 export interface FlowEdge {
@@ -168,6 +176,14 @@ export interface FlowEdge {
 	 * contributors' kinds: any link+embed mix reads `"both"`.
 	 */
 	readonly kind: EdgeKind;
+	/**
+	 * True iff this rendered edge carries the folder-note HIERARCHY relation —
+	 * the OR of its contributing pairs' {@link EdgeNotePair.hierarchy}. Drives the
+	 * PURE-hierarchy dashed styling (`hierarchy && count === 0`, see
+	 * {@link edgeClassName}); a merged pair (`hierarchy && count >= 1`) renders
+	 * solid + badge, visually identical to a plain link edge.
+	 */
+	readonly hierarchy: boolean;
 	/**
 	 * True when the reverse edge (target→source) is also rendered as a SEPARATE
 	 * FlowEdge. Both edges of such a pair curve away from the straight line on
@@ -272,6 +288,8 @@ interface CollapsedEdgeAccumulator {
 	backwardSeen: boolean;
 	count: number;
 	kind: EdgeKind;
+	/** The OR of every contributing pair's {@link EdgeNotePair.hierarchy}. */
+	hierarchy: boolean;
 	/** Contributing engine note→note pairs, in first-seen order. */
 	readonly notePairs: EdgeNotePair[];
 }
@@ -313,9 +331,10 @@ function buildFlowEdges(
 				id: edgeIdOf(edge),
 				source: edge.source,
 				target: edge.target,
-				notePairs: [{ source: edge.source, target: edge.target }],
+				notePairs: [{ source: edge.source, target: edge.target, hierarchy: edge.hierarchy }],
 				count: edge.count,
 				kind: edge.kind,
+				hierarchy: edge.hierarchy,
 				hasOpposite: renderedEdgeIds.has(edgeIdOf({ source: edge.target, target: edge.source })),
 				bidirectional: false,
 			});
@@ -331,6 +350,7 @@ function buildFlowEdges(
 			notePairs: pair.notePairs,
 			count: pair.count,
 			kind: pair.kind,
+			hierarchy: pair.hierarchy,
 			hasOpposite: false,
 			bidirectional: pair.forwardSeen && pair.backwardSeen,
 		}),
@@ -363,13 +383,15 @@ function accumulateCollapsedEdge(
 			backwardSeen: false,
 			count: edge.count,
 			kind: edge.kind,
-			notePairs: [{ source: edge.source, target: edge.target }],
+			hierarchy: edge.hierarchy,
+			notePairs: [{ source: edge.source, target: edge.target, hierarchy: edge.hierarchy }],
 		});
 		return;
 	}
 	existing.count += edge.count;
 	existing.kind = mergeEdgeKinds(existing.kind, edge.kind);
-	existing.notePairs.push({ source: edge.source, target: edge.target });
+	existing.hierarchy = existing.hierarchy || edge.hierarchy;
+	existing.notePairs.push({ source: edge.source, target: edge.target, hierarchy: edge.hierarchy });
 	if (projSource === existing.from && projTarget === existing.to) {
 		existing.forwardSeen = true;
 	} else {
@@ -390,6 +412,25 @@ const EDGE_KIND_CLASS: Readonly<Record<EdgeKind, string>> = {
 
 export function edgeKindClassName(kind: EdgeKind): string {
 	return EDGE_KIND_CLASS[kind];
+}
+
+/**
+ * Class hook for a PURE folder-note hierarchy edge — dashed, badgeless (the
+ * "collapse, don't multiply" treatment, plan `nid_ri1d36t7hmhu0kr652wny1dmz_e`).
+ * A merged edge (`hierarchy && count >= 1`) is DELIBERATELY excluded: it renders
+ * solid + count badge, visually identical to a plain link edge (owner pick D1-a);
+ * the folder relation is discoverable in the flyout, not glanceable.
+ */
+export const PURE_HIERARCHY_EDGE_CLASS = "vicinity-graph-edge--hierarchy";
+
+/**
+ * The full class string the React Flow edge WRAPPER carries: the per-{@link EdgeKind}
+ * hook, plus the pure-hierarchy dash hook when this edge is a PURE folder-note
+ * relation (no link occurrence — {@link FlowEdge.count} 0).
+ */
+export function edgeClassName(edge: FlowEdge): string {
+	const kindClass = edgeKindClassName(edge.kind);
+	return edge.hierarchy && edge.count === 0 ? `${kindClass} ${PURE_HIERARCHY_EDGE_CLASS}` : kindClass;
 }
 
 /**
