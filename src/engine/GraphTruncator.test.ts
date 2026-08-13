@@ -106,6 +106,40 @@ describe("GraphTruncator priority ordering", () => {
 	});
 });
 
+describe("GraphTruncator tie-break by discovering relation kind (embed > link > hierarchy)", () => {
+	// GIVEN sibling folder note topic.md that EMBEDS e.md, LINKS l.md, and owns
+	// hierarchy child topic/h.md — three neighbors all at minDepth 1 / distance 1,
+	// separable ONLY by discovering relation kind.
+	const kindSpec: FakeVaultSpec = {
+		files: [{ path: "topic.md" }, { path: "e.md" }, { path: "l.md" }, { path: "topic/h.md" }],
+		links: { "topic.md": ["l.md"] },
+		embeds: { "topic.md": ["e.md"] },
+	};
+
+	it("WHEN minDepth and distance tie THEN the embed-found node survives over the link-found one", () => {
+		const result = build(kindSpec, ["topic.md"], 1, { descendantDepth: 1 });
+		expect(visible(result)).toEqual(["e.md", "topic.md"]);
+	});
+
+	it("WHEN minDepth and distance tie THEN the link-found node survives over the hierarchy-only one", () => {
+		// Cap 2 keeps embed + link; the hierarchy-only child topic/h.md is the one hidden.
+		const result = build(kindSpec, ["topic.md"], 2, { descendantDepth: 1 });
+		expect(visible(result)).toEqual(["e.md", "l.md", "topic.md"]);
+	});
+
+	it("WHEN a node is found by BOTH hierarchy and link channels THEN it ranks as link (survives over hierarchy-only)", () => {
+		// topic/b.md is a hierarchy child of topic.md AND linked by it → best kind = link.
+		const bothSpec: FakeVaultSpec = {
+			files: [{ path: "topic.md" }, { path: "e.md" }, { path: "topic/b.md" }, { path: "topic/h.md" }],
+			embeds: { "topic.md": ["e.md"] },
+			links: { "topic.md": ["topic/b.md"] },
+		};
+		const result = build(bothSpec, ["topic.md"], 2, { descendantDepth: 1 });
+		// embed e.md and link-ranked topic/b.md survive; hierarchy-only topic/h.md hidden.
+		expect(visible(result)).toEqual(["e.md", "topic.md", "topic/b.md"]);
+	});
+});
+
 describe("GraphTruncator determinism", () => {
 	it("WHEN the same input is truncated twice THEN the outputs are identical", () => {
 		const first = build(fanOutSpec, ["m.md"], 2);
