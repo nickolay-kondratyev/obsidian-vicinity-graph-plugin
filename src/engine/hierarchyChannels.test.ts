@@ -110,29 +110,30 @@ describe("named Jon scenario: the three budget combinations", () => {
 });
 
 describe("descendants depth reaches grandchildren only through an intermediate folder note", () => {
-	// GIVEN top.md (folder note of top/), a sibling folder note top/mid.md (folder
-	// note of top/mid/), and a grandchild top/mid/leaf.md. `mid` is bridged; `plain`
+	// GIVEN top.md (folder note of top/) with NO direct files; top/mid/ is a direct
+	// subfolder whose INSIDE-style note top/mid/mid.md bridges UP to level 1 (the
+	// symmetric-descendants rule), and top/mid/leaf.md is its grandchild. `plain`
 	// (a folder with NO folder note) holds top/plain/hidden.md, never reached.
 	function nestedVault(): FakeLinkProvider {
 		return new FakeLinkProvider({
 			files: [
 				{ path: "top.md" },
-				{ path: "top/mid.md" },
+				{ path: "top/mid/mid.md" },
 				{ path: "top/mid/leaf.md" },
 				{ path: "top/plain/hidden.md" },
 			],
 		});
 	}
 
-	it("WHEN descendants=1 THEN only the direct children are reached (grandchild is out of reach)", () => {
-		expect(nodePaths(nestedVault(), "top.md", { descendantDepth: 1 })).toEqual(["top.md", "top/mid.md"]);
+	it("WHEN descendants=1 THEN the inside-style subfolder note is bridged to level 1 (grandchild still out of reach)", () => {
+		expect(nodePaths(nestedVault(), "top.md", { descendantDepth: 1 })).toEqual(["top.md", "top/mid/mid.md"]);
 	});
 
 	it("WHEN descendants=2 THEN the grandchild is reached THROUGH the intermediate folder note", () => {
 		expect(nodePaths(nestedVault(), "top.md", { descendantDepth: 2 })).toEqual([
 			"top.md",
-			"top/mid.md",
 			"top/mid/leaf.md",
+			"top/mid/mid.md",
 		]);
 	});
 
