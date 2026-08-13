@@ -84,3 +84,7 @@ Required fixture tests all present in src/engine/hierarchyChannels.test.ts (Jon 
 Assumption/decision: childNotesOf = direct node-bearing files in the owned folder only. An inside-style subfolder folder note is thus NOT descendant-reachable from a grandparent (asymmetric with ancestors, which walks inside-style up). Matches all required tests; documented for Hierarchy follow-ups.
 
 Pure engine/shared/persistence change — stayed on npm test per CLAUDE.md (no rendered behavior; adapter stubs are inert).
+
+**2026-08-13T16:50:49Z**
+
+__READY_AS_IS__: engine-only hierarchy channels; logic correct & well-tested (check clean, 1936 tests pass), adapter gap transparent, no fixes needed.
