@@ -1,4 +1,5 @@
 ---
+session_ids: [{"a": "claude", "type": "execution", "id": "feeb841b-870d-40b7-86f8-5163bec32a54"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_i3cznjkcnelqzvhp0gqlis499_e
 title: "Hierarchy 3: settings UI - four depth rows with descriptive hovers"
