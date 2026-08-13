@@ -113,3 +113,9 @@ RESOLVED — implemented & green. `npm run check` clean; `npm test` 1963 passed;
   when a relation is present; sentence text asserted. Same helper default.
 - `src/view/GraphViewController.test.ts`: a PURE hierarchy edge opens the preview
   with the folder relation and no rows.
+
+## Notes
+
+**2026-08-13T17:20:29Z**
+
+__READY_AS_IS__: hierarchy flag threads engine→flow→flyout correctly; folder-relation derivation robust across conventions; check + npm test + linkPreview e2e all green.
