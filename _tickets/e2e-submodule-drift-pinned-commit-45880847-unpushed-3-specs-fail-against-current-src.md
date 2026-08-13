@@ -24,3 +24,13 @@ The e2e git submodule (at repo-root `e2e/`, its tests are the release gate) has 
 
 Repro: `npm run test:e2e -- controlsRestart.e2e.ts pinnedCentralScenario.e2e.ts vicinityGraph.e2e.ts` (logs from the finding session: `.tmp/e2e-triage.log`, `.tmp/e2e-prefix-check.log`).
 
+---
+
+**Update 2026-08-13 (triage of item 2 — RESOLVED).** Root cause was NOT frontmatter-links: src shipped an owner decision making **backlinks opt-in** — `linkDepthIn` AND `pinnedLinkDepthIn` default to **0** (pinned in `src/engine/settingsProductDefaults.test.ts`), while the three specs still assumed incoming depth 1:
+
+- `vicinityGraph.e2e.ts`: the expected `beta->alpha` incoming edge no longer renders by default (2 edges, not 3).
+- `controlsRestart.e2e.ts`: one "Links in" bump lands on 1 (0→1), not the expected 2 (1→2).
+- `pinnedCentralScenario.e2e.ts`: after unpinning the hub it VANISHED (pinned `sc_x` no longer pulls incoming neighbors at `pinnedLinkDepthIn` 0) instead of flipping to `regular`.
+
+Fixed in submodule commit `185b8ba` (specs raise the now-opt-in dials explicitly); full `npm run test:e2e` green (167 passed) plus `npm run check` and `npm test`. **Item 1 remains open**: the submodule has TWO local-only commits (`e9bdc4a`, `185b8ba`, merge `3574e75`) that a human with push access must push (`git -C e2e push origin main`); this environment's push is refused.
+
