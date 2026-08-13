@@ -1,17 +1,17 @@
 ---
 id: nid_uxugk82jeu4cfj5ujyk4l79e7_e
-title: "Add ability to visualize children notes"
-status: open
+title: Add ability to visualize children notes
+status: in_progress
 deps: []
 links: []
-created_iso: 2026-08-13T14:41:16Z
-status_updated_iso: 2026-08-13T14:41:16Z
+created_iso: '2026-08-13T14:41:16Z'
+status_updated_iso: '2026-08-13T14:53:07Z'
 type: task
 priority: 3
 assignee: nickolaykondratyev
 tags: []
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin
 ---
-
 TASK: **PLAN**. Lets clarify any gaps that exist for this ticket
   (if you need to explore code base use cheaper Explore-cheap sub-agent)
   ask human any questions that come up that require human decision.
@@ -47,5 +47,4 @@ Jon/child-of-jon-2
 
 We also want to support the following extensions to be picked up as child notes `.canvas` `.base` as they are supported by 'Folder Notes'. 
 
-Implementation, I am thinking that for this to work we only need file paths, and if the file paths are already cached by obsidian we would favor getting them from the obsidian rather than reading the file paths ourselves. 
-
+Implementation, I am thinking that for this to work we only need file paths, and if the file paths are already cached by obsidian we would favor getting them from the obsidian rather than reading the file paths ourselves.
