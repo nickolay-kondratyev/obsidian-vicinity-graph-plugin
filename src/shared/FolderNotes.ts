@@ -22,9 +22,12 @@ import { VaultPathFacts } from "./VaultPathFacts";
  * ## The relation
  * - CHILDREN of a folder note = the node-bearing files sitting DIRECTLY in the
  *   folder it owns, minus the folder note itself ("the folder note is never its
- *   own child"). One hop = one folder level; a grandchild is reached only through
- *   an intermediate folder note that is itself a direct child (a sibling-style
- *   subfolder note), and a folder with no folder note is not bridged.
+ *   own child"), PLUS, for each DIRECT subfolder of that owned folder, that
+ *   subfolder's winning folder note WHEN it is inside-style (it lives one level
+ *   deeper, so it is not already a direct file). One hop = one folder level: a
+ *   sibling-style subfolder note is already a direct file; an inside-style one is
+ *   bridged UP to level 1 so descendants stay SYMMETRIC with the parent walk (a
+ *   folder with no folder note is still not bridged — no synthetic folder nodes).
  * - The PARENT of a note walks up ONE folder-note per hop: the folder note of the
  *   note's containing folder, or — when the note IS that folder note (inside
  *   style) — the folder note of the parent folder. The first folder-note gap
@@ -35,12 +38,22 @@ export class FolderNotes {
 	private readonly allPaths: ReadonlySet<string>;
 	/** Node-bearing files grouped by their containing folder, in input order (deterministic children). */
 	private readonly nodeBearingFilesByFolder: ReadonlyMap<string, readonly string[]>;
+	/**
+	 * DIRECT subfolders of each folder, derived from the folders that (transitively)
+	 * hold node-bearing files — the only folders whose folder notes can matter.
+	 */
+	private readonly directSubfoldersByFolder: ReadonlyMap<string, readonly string[]>;
 	/** Memoised folder-note resolution — one answer per folder across a build. */
 	private readonly folderNoteByFolder = new Map<string, string | undefined>();
 
-	private constructor(allPaths: ReadonlySet<string>, nodeBearingFilesByFolder: ReadonlyMap<string, readonly string[]>) {
+	private constructor(
+		allPaths: ReadonlySet<string>,
+		nodeBearingFilesByFolder: ReadonlyMap<string, readonly string[]>,
+		directSubfoldersByFolder: ReadonlyMap<string, readonly string[]>,
+	) {
 		this.allPaths = allPaths;
 		this.nodeBearingFilesByFolder = nodeBearingFilesByFolder;
+		this.directSubfoldersByFolder = directSubfoldersByFolder;
 	}
 
 	static fromPaths(paths: Iterable<string>): FolderNotes {
@@ -55,7 +68,7 @@ export class FolderNotes {
 				filesByFolder.set(folder, files);
 			}
 		}
-		return new FolderNotes(allPaths, filesByFolder);
+		return new FolderNotes(allPaths, filesByFolder, deriveDirectSubfolders(filesByFolder.keys()));
 	}
 
 	/** The winning folder note of `folder`, or `undefined` when none of the candidates exist. */
@@ -80,11 +93,23 @@ export class FolderNotes {
 		}
 		const children: string[] = [];
 		const seen = new Set<string>();
+		const addChild = (file: string): void => {
+			if (file !== notePath && !seen.has(file)) {
+				seen.add(file);
+				children.push(file);
+			}
+		};
 		for (const ownedFolder of this.foldersOwnedBy(notePath)) {
 			for (const file of this.nodeBearingFilesByFolder.get(ownedFolder) ?? []) {
-				if (file !== notePath && !seen.has(file)) {
-					seen.add(file);
-					children.push(file);
+				addChild(file);
+			}
+			// Bridge each DIRECT subfolder's INSIDE-style folder note up to level 1 (a
+			// sibling-style one is already a direct file above). This keeps descendants
+			// symmetric with parentNoteOf's inside-style ancestor hop.
+			for (const subfolder of this.directSubfoldersByFolder.get(ownedFolder) ?? []) {
+				const subfolderNote = this.folderNoteOf(subfolder);
+				if (subfolderNote !== undefined && VaultPathFacts.folderOf(subfolderNote) === subfolder) {
+					addChild(subfolderNote);
 				}
 			}
 		}
@@ -137,6 +162,32 @@ export class FolderNotes {
 		];
 		return candidates.find((candidate) => this.allPaths.has(candidate));
 	}
+}
+
+/**
+ * Direct parent→child folder edges, derived from the folders that directly hold
+ * node-bearing files by walking each up to the root. Only folders that
+ * transitively contain node-bearing files can carry a folder note that matters,
+ * so those keys are a sufficient basis; each parent lists each child once.
+ */
+function deriveDirectSubfolders(fileFolders: Iterable<string>): Map<string, string[]> {
+	const byFolder = new Map<string, string[]>();
+	const recorded = new Set<string>();
+	for (const folder of fileFolders) {
+		let current = folder;
+		while (current !== "") {
+			const parent = VaultPathFacts.folderOf(current);
+			const edge = `${parent}\n${current}`;
+			if (!recorded.has(edge)) {
+				recorded.add(edge);
+				const children = byFolder.get(parent) ?? [];
+				children.push(current);
+				byFolder.set(parent, children);
+			}
+			current = parent;
+		}
+	}
+	return byFolder;
 }
 
 /** Vault-path folder join: the root ("") prefixes nothing. */

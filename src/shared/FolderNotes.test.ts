@@ -69,6 +69,31 @@ describe("FolderNotes children", () => {
 		const notes = FolderNotes.fromPaths(["Jon.md", "Jon/note.md", "Jon/pic.png"]);
 		expect(notes.childNotesOf("Jon.md")).toEqual(["Jon/note.md"]);
 	});
+
+	it("WHEN a direct subfolder has an INSIDE-style folder note THEN it is bridged to level 1", () => {
+		// note1.md (sibling folder note of note1/) has NO direct files; note1/other/
+		// is a direct subfolder whose inside-style note lives one level deeper.
+		const notes = FolderNotes.fromPaths(["note1.md", "note1/other/other.md"]);
+		expect(notes.childNotesOf("note1.md")).toContain("note1/other/other.md");
+	});
+
+	it("WHEN a direct subfolder has a SIBLING-style folder note THEN it is not duplicated", () => {
+		// `Jon/sub.md` is the sibling folder note of `Jon/sub/` and already a direct
+		// file of `Jon/`; the bridge must not add it a second time.
+		const notes = FolderNotes.fromPaths(["Jon.md", "Jon/sub.md", "Jon/sub/leaf.md"]);
+		expect(notes.childNotesOf("Jon.md")).toEqual(["Jon/sub.md"]);
+	});
+
+	it("WHEN a direct subfolder has NO folder note THEN it is not bridged", () => {
+		const notes = FolderNotes.fromPaths(["Jon.md", "Jon/plain/hidden.md"]);
+		expect(notes.childNotesOf("Jon.md")).toEqual([]);
+	});
+
+	it("WHEN a subfolder's inside note is bridged THEN its own files stay one level deeper", () => {
+		const notes = FolderNotes.fromPaths(["note1.md", "note1/other/other.md", "note1/other/deep.md"]);
+		expect(notes.childNotesOf("note1.md")).toEqual(["note1/other/other.md"]);
+		expect(notes.childNotesOf("note1/other/other.md")).toEqual(["note1/other/deep.md"]);
+	});
 });
 
 describe("FolderNotes parent walk", () => {
@@ -92,6 +117,13 @@ describe("FolderNotes parent walk", () => {
 	it("WHEN an inside-style folder note is asked for its parent THEN it is the parent folder's note", () => {
 		const notes = FolderNotes.fromPaths(["A/A.md", "A/B/B.md", "A/B/leaf.md"]);
 		expect(notes.parentNoteOf("A/B/B.md")).toBe("A/A.md");
+	});
+
+	it("WHEN sibling-root + inside-leaf (the descendants scenario) THEN the ancestor hop already works", () => {
+		// The mirror of the descendants bridge: note1/other/other.md's parent is the
+		// sibling-root note1.md — proving parentNoteOf and childNotesOf are symmetric.
+		const notes = FolderNotes.fromPaths(["note1.md", "note1/other/other.md"]);
+		expect(notes.parentNoteOf("note1/other/other.md")).toBe("note1.md");
 	});
 
 	it("WHEN the folder above has no folder note THEN the ancestor walk stops at the gap", () => {
