@@ -2,6 +2,7 @@ import { Notice, Plugin } from "obsidian";
 import { DocIdServices } from "stable-ids-for-obsidian";
 import type { DocIdService } from "stable-ids-for-obsidian";
 import { CanvasParseCache } from "./adapters/CanvasParseCache";
+import { FolderNoteIndex } from "./adapters/FolderNoteIndex";
 import { FrontmatterIdIndex } from "./adapters/FrontmatterIdIndex";
 import { LiveLinkOccurrenceProvider } from "./adapters/LiveLinkOccurrenceProvider";
 import { VicinityGraphBuilder } from "./adapters/VicinityGraphBuilder";
@@ -78,6 +79,13 @@ export default class VicinityGraphPlugin extends Plugin {
 	 * data store exists to supply the configured field list.
 	 */
 	private frontmatterIdIndex!: FrontmatterIdIndex;
+	/**
+	 * Plugin-lived like {@link frontmatterIdIndex}: the folder-note index warms once
+	 * (lazily on the first graph build) and survives across rebuilds, invalidated by
+	 * vault PATH events (create/delete/rename) — a body edit can never move a
+	 * path-chosen folder note.
+	 */
+	private folderNoteIndex!: FolderNoteIndex;
 	private sweepTimer: number | null = null;
 	/**
 	 * {@link ViewsRefreshPort} over this plugin's own leaf walk, handed to every
@@ -137,6 +145,8 @@ export default class VicinityGraphPlugin extends Plugin {
 			this.app.metadataCache,
 			() => this.pluginDataStore.frontmatterLinks().idRefFields,
 		);
+		// Path-only folder-note index; carries no settings, so it needs no accessor.
+		this.folderNoteIndex = new FolderNoteIndex(this.app.vault);
 		this.graphBuilder = new VicinityGraphBuilder(
 			this.app.vault,
 			this.app.metadataCache,
@@ -147,6 +157,7 @@ export default class VicinityGraphPlugin extends Plugin {
 			this.pathDocIdMap,
 			this.docIdMapWarmer,
 			this.frontmatterIdIndex,
+			this.folderNoteIndex,
 		);
 
 		this.registerVaultLifecycleHandlers();
@@ -160,6 +171,7 @@ export default class VicinityGraphPlugin extends Plugin {
 			this.app.metadataCache,
 			this.canvasParseCache,
 			this.frontmatterIdIndex,
+			this.folderNoteIndex,
 		);
 		this.registerView(
 			VIEW_TYPE_VICINITY_GRAPH,
@@ -225,6 +237,11 @@ export default class VicinityGraphPlugin extends Plugin {
 		// id-ref edge, so invalidate on `changed` and let the next graph build rebuild.
 		// Empty configured field list ⇒ the rebuild is a no-op (inert index).
 		this.registerEvent(this.app.metadataCache.on("changed", () => this.frontmatterIdIndex.markStale()));
+		// The folder-note index is derived from the vault's PATH SET, so it invalidates
+		// on the path events (create/delete/rename) — never on `changed`, since a body
+		// edit cannot move a path-chosen folder note. A newly created file can BECOME a
+		// folder note (or a child of one), so a create alone must rebuild it.
+		this.registerEvent(this.app.vault.on("create", () => this.folderNoteIndex.markStale()));
 		// Renames are a persistence non-event (docid-keyed); only the map moves.
 		// Cache eviction is unconditional — non-canvas paths are no-ops.
 		this.registerEvent(
@@ -234,6 +251,9 @@ export default class VicinityGraphPlugin extends Plugin {
 				// A renamed note keeps its id but changes path — the reverse index maps by
 				// path, so it must rebuild.
 				this.frontmatterIdIndex.markStale();
+				// A rename of the folder note OR of the folder re-resolves the hierarchy —
+				// both are path moves the path-derived index must pick up.
+				this.folderNoteIndex.markStale();
 			}),
 		);
 		// Caught, not rethrown: the handler now spans vault file I/O (the per-file
@@ -261,6 +281,9 @@ export default class VicinityGraphPlugin extends Plugin {
 		this.canvasParseCache.evict(path);
 		// A deleted note may have owned an id or referenced others — rebuild the index.
 		this.frontmatterIdIndex.markStale();
+		// A deleted file may have been a folder note (or a folder note's child) — the
+		// path-derived hierarchy index must re-resolve without it.
+		this.folderNoteIndex.markStale();
 		const docid = this.pathDocIdMap.handleDelete(path);
 		if (docid !== undefined) {
 			// Both stores together are the ONE choke point a delete spans: the global

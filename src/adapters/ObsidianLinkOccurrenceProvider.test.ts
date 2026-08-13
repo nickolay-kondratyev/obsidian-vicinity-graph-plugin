@@ -4,6 +4,7 @@ import { asRendered } from "../shared/testFixtures/renderedMarkdown";
 import { CanvasParseCache } from "./CanvasParseCache";
 import { FakeObsidianPorts } from "./FakeObsidianPorts";
 import type { FakeObsidianSpec } from "./FakeObsidianPorts";
+import { FolderNoteIndex } from "./FolderNoteIndex";
 import { FrontmatterIdIndex } from "./FrontmatterIdIndex";
 import { ObsidianLinkOccurrenceProvider } from "./ObsidianLinkOccurrenceProvider";
 import { ObsidianLinkProvider } from "./ObsidianLinkProvider";
@@ -48,6 +49,7 @@ async function providerOver(spec: FakeObsidianSpec): Promise<ObsidianLinkOccurre
 		ports.metadataCache,
 		new CanvasParseCache(),
 		idIndex,
+		new FolderNoteIndex(ports.vault),
 	);
 	return new ObsidianLinkOccurrenceProvider(ports.vault, ports.metadataCache, linkProvider);
 }
