@@ -1,4 +1,5 @@
 ---
+session_ids: [{"a": "claude", "type": "execution", "id": "f9ac855a-dcef-4b66-bd4e-81df22c23473"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_f5bfjoymr2pt7odxieunkxasd_e
 title: "Hierarchy 4: view - hierarchy edge rendering + flyout folder-relation section"
