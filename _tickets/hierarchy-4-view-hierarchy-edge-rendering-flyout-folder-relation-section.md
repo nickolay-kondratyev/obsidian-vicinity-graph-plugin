@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-13T17:16:21Z
-session_ids: [{"a": "claude", "type": "execution", "id": "f9ac855a-dcef-4b66-bd4e-81df22c23473"}]
+session_ids: [{"a": "claude", "type": "execution", "id": "f9ac855a-dcef-4b66-bd4e-81df22c23473"}, {"a": "claude", "type": "review", "id": "254d26b6-1c02-49ce-b0b8-86135f46284a"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_f5bfjoymr2pt7odxieunkxasd_e
 title: "Hierarchy 4: view - hierarchy edge rendering + flyout folder-relation section"
