@@ -123,7 +123,7 @@ function renderNoteNode(data: FlowNodeData) {
 /** The mounted node root, once React Flow has rendered it. */
 async function mountedNode(container: HTMLElement): Promise<HTMLElement> {
 	return waitFor(() => {
-		const node = container.querySelector<HTMLElement>(`.vicinity-graph-node[data-path="${NODE_PATH}"]`);
+		const node = container.querySelector<HTMLElement>(`.vicinity-graph-node[data-vicinity-path="${NODE_PATH}"]`);
 		if (node === null) {
 			throw new Error("note node not mounted yet");
 		}
@@ -168,6 +168,21 @@ describe("NoteNode resize controls", () => {
 		const { result } = renderNoteNode(nodeData());
 		const node = await mountedNode(result.container);
 		expect(node.querySelectorAll(".react-flow__resize-control")).toHaveLength(0);
+	});
+});
+
+describe("NoteNode path attribute", () => {
+	it("WHEN a note node renders THEN its vault path rides data-vicinity-path, NEVER data-path", async () => {
+		// `data-path` is the attribute Obsidian's file explorer keys files by, and
+		// other plugins query it DOCUMENT-WIDE: Folder Notes runs
+		// `activeDocument.querySelectorAll("[data-path='…']")` and tags every match
+		// `is-folder-note`, which its `.hide-folder-note .is-folder-note
+		// { display: none }` rule then hides — eating this node's whole body after a
+		// folder-note rename (ticket nid_ofacqul281sr71qrdacqy8jv3_e). The
+		// plugin-scoped attribute name is the fix, so its absence is the behavior.
+		const { result } = renderNoteNode(nodeData());
+		const node = await mountedNode(result.container);
+		expect(node.getAttribute("data-path")).toBeNull();
 	});
 });
 
