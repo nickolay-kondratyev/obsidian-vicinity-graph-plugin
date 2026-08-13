@@ -199,7 +199,13 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
 			<div
 				className="vicinity-graph-node"
 				data-tier={data.tier}
-				data-path={data.path}
+				// Plugin-scoped attribute, NEVER `data-path`: that is the name Obsidian's
+				// file explorer keys files by, and other plugins query it DOCUMENT-WIDE —
+				// Folder Notes tags every `[data-path='<folder note>']` match
+				// `is-folder-note`, which its unscoped `.hide-folder-note .is-folder-note
+				// { display: none }` rule then hides, eating this node's whole body after
+				// a folder-note rename (ticket nid_ofacqul281sr71qrdacqy8jv3_e).
+				data-vicinity-path={data.path}
 				data-preview={data.preview}
 				onContextMenu={onContextMenu}
 			>
