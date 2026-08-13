@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-13T17:55:28Z
-session_ids: [{"a": "claude", "type": "execution", "id": "d351fa9a-c086-41ba-a0c1-71eaa979ca88"}]
+session_ids: [{"a": "claude", "type": "execution", "id": "d351fa9a-c086-41ba-a0c1-71eaa979ca88"}, {"a": "claude", "type": "review", "id": "ab16834e-9e37-4b29-b150-3a02daa01c79"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_eymj85m7qccbpkoo4qj6b1q6t_e
 title: "Hierarchy 5: e2e coverage + docs update for folder hierarchy"
