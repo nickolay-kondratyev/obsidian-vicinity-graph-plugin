@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_025cydqct380d8ik9jhr9hhfn_e
 title: "Folder-note descendants: bridge inside-style subfolder notes to level 1"
-status: open
+status: in_progress
 deps: []
 links: [nid_otmc0t1jlcuwy3g3a3iychvl0_e]
 created_iso: 2026-08-13T19:42:36Z
-status_updated_iso: 2026-08-13T19:42:36Z
+status_updated_iso: 2026-08-13T19:51:39Z
 type: task
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
