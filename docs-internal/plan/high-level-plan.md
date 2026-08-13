@@ -70,7 +70,7 @@ Every **outgoing** reference carries a `LinkKind` — `link` or `embed` — whic
 
 - Hard cap on visible nodes, **a setting, default 100**.
 - **All central nodes are exempt** from the cap. Folder group containers do not count toward it.
-- Deterministic truncation priority chain: lower minDepth wins, then graph distance to MAIN when connected, then pin recency (most recent wins), then docid as final tiebreaker. (The former "higher size score" level was removed with content-fit sizing — nid_cx5zoz7ptucg9nxalibv0mbjb_e: size no longer encodes relevance, so it no longer ranks survival.)
+- Deterministic truncation priority chain: lower minDepth wins, then graph distance to MAIN when connected, then discovering relation kind (embed-found > link-found > hierarchy-only — a node's rank is its BEST kind across all its depth tags; ticket `nid_k4q36qb0nvmusoygl56trgtz2_e`), then pin recency (most recent wins), then docid as final tiebreaker. (The former "higher size score" level was removed with content-fit sizing — nid_cx5zoz7ptucg9nxalibv0mbjb_e: size no longer encodes relevance, so it no longer ranks survival.)
 - Truncation is surfaced in the UI: hidden-node count, ideally per folder group.
 
 ### Sizing

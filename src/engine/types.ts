@@ -76,6 +76,62 @@ export const CHANNEL_RELATION: Readonly<Record<Channel, ChannelRelation>> = {
 };
 
 /**
+ * The relation kind a node was DISCOVERED by, ranked for truncation
+ * tie-breaking: an embed-found node outranks a link-found one, which outranks a
+ * hierarchy-only one (owner decision 2026-08-13, ticket
+ * `nid_k4q36qb0nvmusoygl56trgtz2_e`). Distinct from {@link ChannelRelation}
+ * (which splits edges into link-vs-hierarchy for STYLING): this splits the link
+ * side into embed vs plain link, because an embed is the stronger relevance
+ * signal — a note you inline matters more than one you merely link.
+ */
+export type DiscoveryKind = "embed" | "link" | "hierarchy";
+
+/**
+ * Which {@link DiscoveryKind} each channel discovers a node by. A
+ * `Record<Channel, …>`, so a new channel must declare its kind. Incoming links
+ * rank as plain `link` (kind-blind by scope — see {@link Channel}); both
+ * hierarchy channels rank as `hierarchy`.
+ */
+export const CHANNEL_DISCOVERY_KIND: Readonly<Record<Channel, DiscoveryKind>> = {
+	"outgoing-embed": "embed",
+	"outgoing-link": "link",
+	incoming: "link",
+	descendants: "hierarchy",
+	ancestors: "hierarchy",
+};
+
+/**
+ * Truncation rank of a {@link DiscoveryKind}: LOWER survives (embed 0 > link 1 >
+ * hierarchy 2). Fed to {@link import("./NodePriorityChain").NodePriorityChain}
+ * as `discoveryKindRank`.
+ */
+export const DISCOVERY_KIND_RANK: Readonly<Record<DiscoveryKind, number>> = {
+	embed: 0,
+	link: 1,
+	hierarchy: 2,
+};
+
+/** Read-time projections of a node's {@link DepthTag}s onto its discovery kind. */
+export class DiscoveryKindFacts {
+	/**
+	 * The BEST (lowest) {@link DISCOVERY_KIND_RANK} across a node's depth tags —
+	 * a node found by both the embed channel and the descendants channel ranks as
+	 * embed-found. `undefined` for a tag-less node (none exist post-traversal; the
+	 * settings-cascade rankables that skip this level pass `undefined` too).
+	 */
+	static bestRankOf(depthTags: readonly DepthTag[]): number | undefined {
+		let best: number | undefined;
+		for (const tag of depthTags) {
+			const rank = DISCOVERY_KIND_RANK[CHANNEL_DISCOVERY_KIND[tag.channel]];
+			if (best === undefined || rank < best) {
+				best = rank;
+			}
+		}
+		return best;
+	}
+}
+
+/**
  * Compile-time completeness: a channel missing from {@link CHANNELS} surfaces
  * here as a type error naming it, rather than silently shipping a depth budget
  * no BFS run ever honours.

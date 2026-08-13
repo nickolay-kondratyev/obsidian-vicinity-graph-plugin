@@ -1,5 +1,6 @@
 import type { TraversedNode } from "./VicinityTraversal";
 import { NodePriorityChain } from "./NodePriorityChain";
+import { DiscoveryKindFacts } from "./types";
 import type { DirectedLink, FolderPath, VaultPath } from "./types";
 
 export interface TruncationInput {
@@ -55,6 +56,9 @@ function toRankable(node: TraversedNode, distances: ReadonlyMap<VaultPath, numbe
 		path: node.path,
 		minDepth: node.minDepth,
 		distanceToMain: distances.get(node.path),
+		// Best discovering relation kind across this node's channels (embed >
+		// link > hierarchy) — tie-breaks after graph distance, before pin recency.
+		discoveryKindRank: DiscoveryKindFacts.bestRankOf(node.depthTags),
 		// Pinned nodes are centrals (cap-exempt), so recency never arbitrates here;
 		// the pin-recency level of the shared chain serves the settings cascade.
 		pinTimestamp: undefined,

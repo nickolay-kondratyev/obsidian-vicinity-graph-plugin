@@ -15,6 +15,7 @@ function rankable(
 		path: asVaultPath(overrides.path),
 		minDepth: overrides.minDepth ?? 1,
 		distanceToMain: overrides.distanceToMain,
+		discoveryKindRank: overrides.discoveryKindRank,
 		pinTimestamp: overrides.pinTimestamp,
 		docid: overrides.docid,
 	};
@@ -47,7 +48,24 @@ describe("NodePriorityChain level 2: graph distance to MAIN", () => {
 	});
 });
 
-describe("NodePriorityChain level 3: pin recency", () => {
+describe("NodePriorityChain level 3: discovering relation kind (embed > link > hierarchy)", () => {
+	it("WHEN distance ties THEN the lower discovery-kind rank (embed) ranks first", () => {
+		expect(
+			ranked(
+				rankable({ path: "link.md", discoveryKindRank: 1 }),
+				rankable({ path: "embed.md", discoveryKindRank: 0 }),
+			),
+		).toEqual(["embed.md", "link.md"]);
+	});
+
+	it("WHEN one node carries no discovery-kind rank THEN the ranked node ranks first", () => {
+		expect(ranked(rankable({ path: "unranked.md" }), rankable({ path: "hierarchy.md", discoveryKindRank: 2 }))).toEqual(
+			["hierarchy.md", "unranked.md"],
+		);
+	});
+});
+
+describe("NodePriorityChain level 4: pin recency", () => {
 	it("WHEN earlier levels tie THEN the most recently pinned ranks first", () => {
 		expect(ranked(rankable({ path: "old.md", pinTimestamp: 100 }), rankable({ path: "new.md", pinTimestamp: 200 }))).toEqual(
 			["new.md", "old.md"],
@@ -61,7 +79,7 @@ describe("NodePriorityChain level 3: pin recency", () => {
 	});
 });
 
-describe("NodePriorityChain level 4: docid", () => {
+describe("NodePriorityChain level 5: docid", () => {
 	it("WHEN everything else ties THEN the lexicographically smaller docid ranks first", () => {
 		expect(
 			ranked(
@@ -72,7 +90,7 @@ describe("NodePriorityChain level 4: docid", () => {
 	});
 });
 
-describe("NodePriorityChain level 5: path (determinism fallback)", () => {
+describe("NodePriorityChain level 6: path (determinism fallback)", () => {
 	// WHY: ordinary (non-pinned) nodes carry no docid; a total order still must exist.
 	it("WHEN no level up to docid discriminates THEN the lexicographically smaller path ranks first", () => {
 		expect(ranked(rankable({ path: "b.md" }), rankable({ path: "a.md" }))).toEqual(["a.md", "b.md"]);

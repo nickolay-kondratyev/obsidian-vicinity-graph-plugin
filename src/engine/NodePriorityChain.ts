@@ -11,6 +11,13 @@ export interface PriorityRankable {
 	readonly minDepth: number;
 	/** Undirected graph distance to MAIN; undefined when disconnected from MAIN. */
 	readonly distanceToMain?: number;
+	/**
+	 * Best (lowest) {@link import("./types").DISCOVERY_KIND_RANK} across the node's
+	 * depth tags — embed-found (0) outranks link-found (1) outranks hierarchy-only
+	 * (2). Undefined for entities that predate a build (settings-cascade pins),
+	 * which collapses this level for them.
+	 */
+	readonly discoveryKindRank?: number;
 	/** Epoch ms; present only on pinned entities. */
 	readonly pinTimestamp?: number;
 	readonly docid?: DocId;
@@ -22,6 +29,7 @@ export interface PriorityRankable {
  * resolution in the view-settings cascade:
  *
  *   lower minDepth → closer to MAIN (connected beats disconnected) →
+ *   discovering relation kind (embed-found > link-found > hierarchy-only) →
  *   pin recency (most recent wins; pinned beats unpinned) →
  *   docid (lexicographic; present beats absent) → path (lexicographic).
  *
@@ -39,6 +47,7 @@ export class NodePriorityChain {
 		return (
 			ascending(a.minDepth, b.minDepth) ||
 			presentFirst(a.distanceToMain, b.distanceToMain, ascending) ||
+			presentFirst(a.discoveryKindRank, b.discoveryKindRank, ascending) ||
 			presentFirst(a.pinTimestamp, b.pinTimestamp, descending) ||
 			presentFirst(a.docid, b.docid, lexicographic) ||
 			lexicographic(a.path, b.path)
