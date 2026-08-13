@@ -1,17 +1,17 @@
 ---
 id: nid_otmc0t1jlcuwy3g3a3iychvl0_e
-title: "Improve descendent and ancestor processing - add special case for folder notes"
-status: open
+title: Improve descendent and ancestor processing - add special case for folder notes
+status: in_progress
 deps: []
 links: []
-created_iso: 2026-08-13T19:31:34Z
-status_updated_iso: 2026-08-13T19:31:34Z
+created_iso: '2026-08-13T19:31:34Z'
+status_updated_iso: '2026-08-13T19:35:31Z'
 type: task
 priority: 3
 assignee: nickolaykondratyev
 tags: []
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin
 ---
-
 TASK: **PLAN**. Lets clarify any gaps that exist for this ticket
   (if you need to explore code base use cheaper Explore-cheap sub-agent)
   ask human any questions that come up that require human decision.
@@ -41,5 +41,4 @@ note1/other/other.md
 However, we should treat these as special case, we should recognize that 
 other/ is right under note1/ and note1/ is the folder tied to note.md and GIVEN that other/ has other.md HENCE they should be linked as parent child note - at level 1 of descendent 
 
-same thing with ancestor other.md should see that its tied to other/ folder and therefore can go up to note1.md - as level 1 ancestor. 
-
+same thing with ancestor other.md should see that its tied to other/ folder and therefore can go up to note1.md - as level 1 ancestor.
