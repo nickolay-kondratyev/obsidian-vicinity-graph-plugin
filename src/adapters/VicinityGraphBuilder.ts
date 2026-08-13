@@ -7,6 +7,7 @@ import { ControlsModelBuilder } from "../view/ControlsModel";
 import type { FlowPinFacts } from "../view/flowMapping";
 import type { GraphBuildResult } from "../view/viewPorts";
 import type { CanvasParseCache } from "./CanvasParseCache";
+import type { FolderNoteIndex } from "./FolderNoteIndex";
 import type { FrontmatterIdIndex } from "./FrontmatterIdIndex";
 import type { GraphRequestInputs } from "./GraphRequestAssembler";
 import { GraphRequestAssembler } from "./GraphRequestAssembler";
@@ -36,6 +37,8 @@ export class VicinityGraphBuilder {
 		private readonly docIdMapWarmer: DocIdMapWarmer,
 		/** Plugin-lived frontmatter-id reverse index for id-ref edges — warmed lazily on the first build. */
 		private readonly frontmatterIdIndex: FrontmatterIdIndex,
+		/** Plugin-lived folder-note index for the hierarchy channels — warmed lazily on the first build. */
+		private readonly folderNoteIndex: FolderNoteIndex,
 	) {}
 
 	/** `null` when `mainPath` does not resolve to a vault file. */
@@ -49,6 +52,7 @@ export class VicinityGraphBuilder {
 			this.metadataCache,
 			this.canvasParseCache,
 			this.frontmatterIdIndex,
+			this.folderNoteIndex,
 		);
 		const mainDocId = this.docIdPort.isEligible(mainFile) ? await this.docIdPort.getDocId(mainFile) : null;
 		if (mainDocId !== null) {

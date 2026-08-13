@@ -2,6 +2,7 @@ import type { AttachmentRef, FileMetadata, LinkProvider, OutgoingReference, Outl
 import { asFolderPath, asVaultPath, OutgoingReferences } from "../engine";
 import { FileKinds } from "../shared/FileKinds";
 import { BacklinksAdapter } from "./BacklinksAdapter";
+import type { FolderNoteIndex } from "./FolderNoteIndex";
 import type { FrontmatterIdIndex } from "./FrontmatterIdIndex";
 import type { OrderedReference } from "./ReferenceOrder";
 import { ReferenceOrder } from "./ReferenceOrder";
@@ -73,6 +74,12 @@ export class ObsidianLinkProvider implements LinkProvider {
 		 * lived and warmed by {@link create}, so it survives across provider snapshots.
 		 */
 		private readonly frontmatterIdIndex: FrontmatterIdIndex,
+		/**
+		 * Path-derived folder-note index: the folder-hierarchy channels
+		 * ({@link getChildNotes} / {@link getParentNote}) read it. Plugin-lived and
+		 * warmed by {@link create}, so it survives across provider snapshots.
+		 */
+		private readonly folderNoteIndex: FolderNoteIndex,
 		backlinksAvailable: boolean,
 	) {
 		if (!backlinksAvailable) {
@@ -86,11 +93,13 @@ export class ObsidianLinkProvider implements LinkProvider {
 		metadataCache: MetadataCachePort,
 		canvasParseCache: CanvasParseCache,
 		frontmatterIdIndex: FrontmatterIdIndex,
+		folderNoteIndex: FolderNoteIndex,
 	): Promise<ObsidianLinkProvider> {
 		// Lazy warm (mirrors PerDocStore): builds on the first snapshot, a no-op
 		// afterwards until an event or a settings change invalidates it. Queries below
 		// are then synchronous reads.
 		frontmatterIdIndex.ensureBuilt();
+		folderNoteIndex.ensureBuilt();
 		const canvasOutgoing = new Map<string, readonly OutgoingReference[]>();
 		const canvasIncoming = new Map<string, string[]>();
 		for (const file of vault.getFiles()) {
@@ -117,6 +126,7 @@ export class ObsidianLinkProvider implements LinkProvider {
 			canvasOutgoing,
 			canvasIncoming,
 			frontmatterIdIndex,
+			folderNoteIndex,
 			BacklinksAdapter.isAvailable(metadataCache),
 		);
 	}
@@ -164,21 +174,18 @@ export class ObsidianLinkProvider implements LinkProvider {
 	}
 
 	/**
-	 * Folder-note CHILDREN — NOT WIRED YET. The engine channel + the pure
-	 * {@link import("../shared/FolderNotes").FolderNotes} rule ship in Hierarchy 1
-	 * (`nid_dit8h888p2ml3092b2zn4zy3u_e`); the vault-path index that answers this in
-	 * a REAL vault (a lazy-warmed `FolderNoteIndex`, invalidated on create/delete/
-	 * rename) is Hierarchy 2 (`nid_bw8hltfj3nsyas03mpfmqn7mg_e`). Until it lands the
-	 * adapter reports no hierarchy, so the always-on channels find nothing here — a
-	 * deliberate, transparent gap, not a silent one.
+	 * Folder-note CHILDREN, read fresh from the lazy-warmed {@link FolderNoteIndex}
+	 * (Hierarchy 2). The convention itself lives in the shared
+	 * {@link import("../shared/FolderNotes").FolderNotes} rule (Hierarchy 1); this
+	 * adapter only supplies the vault-path snapshot it resolves against.
 	 */
-	getChildNotes(_path: VaultPath): readonly VaultPath[] {
-		return [];
+	getChildNotes(path: VaultPath): readonly VaultPath[] {
+		return this.folderNoteIndex.childNotesOf(path);
 	}
 
-	/** Folder-note PARENT — NOT WIRED YET; see {@link getChildNotes} (Hierarchy 2). */
-	getParentNote(_path: VaultPath): VaultPath | undefined {
-		return undefined;
+	/** Folder-note PARENT one hop up; see {@link getChildNotes} (Hierarchy 2). */
+	getParentNote(path: VaultPath): VaultPath | undefined {
+		return this.folderNoteIndex.parentNoteOf(path);
 	}
 
 	/**
