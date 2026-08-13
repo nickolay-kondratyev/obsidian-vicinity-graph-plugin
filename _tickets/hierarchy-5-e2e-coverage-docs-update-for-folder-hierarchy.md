@@ -1,4 +1,5 @@
 ---
+session_ids: [{"a": "claude", "type": "execution", "id": "d351fa9a-c086-41ba-a0c1-71eaa979ca88"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_eymj85m7qccbpkoo4qj6b1q6t_e
 title: "Hierarchy 5: e2e coverage + docs update for folder hierarchy"
