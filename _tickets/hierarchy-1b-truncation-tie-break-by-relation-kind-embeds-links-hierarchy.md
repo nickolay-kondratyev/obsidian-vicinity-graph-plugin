@@ -91,3 +91,9 @@ graph distance to MAIN, BEFORE pin recency, exactly as specified.
 
 **Gate**: pure-engine change → `npm test` is the correct gate (no view/settings/
 DOM surface touched); e2e not required per CLAUDE.md.
+
+## Notes
+
+**2026-08-13T17:36:47Z**
+
+__READY_AS_IS__: Focused pure-engine tie-break level; correct bestRankOf logic, spec-accurate chain slot, tests+docs consistent, check green (0 errors). No fixes needed.
