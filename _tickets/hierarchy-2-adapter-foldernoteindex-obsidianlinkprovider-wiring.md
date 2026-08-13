@@ -1,4 +1,5 @@
 ---
+session_ids: [{"a": "claude", "type": "execution", "id": "fc4d6aba-0c8a-4719-af46-641f3033c3a6"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_bw8hltfj3nsyas03mpfmqn7mg_e
 title: "Hierarchy 2: adapter FolderNoteIndex + ObsidianLinkProvider wiring"
