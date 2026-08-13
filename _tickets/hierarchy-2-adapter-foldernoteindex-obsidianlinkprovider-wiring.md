@@ -88,3 +88,9 @@ Hierarchy 5).
 **Next reader note:** the folder-hierarchy engine channels now find real folder
 notes in a live vault. The visible/rendered behaviour + its e2e coverage is
 Hierarchy 5's scope, not this ticket's.
+
+## Notes
+
+**2026-08-13T17:01:47Z**
+
+__READY_AS_IS__: Focused FolderNoteIndex adapter + provider/main.ts wiring; faithful delegation to shared FolderNotes rule, correct path-event invalidation, all call sites threaded, check clean + 1948 tests green.
