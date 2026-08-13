@@ -86,3 +86,9 @@ passed, including the settings-tab accessible-name walk that renders every input
 in real Obsidian.
 
 No CSS, no build-artifact, and no e2e-submodule changes were needed.
+
+## Notes
+
+**2026-08-13T17:27:55Z**
+
+__READY_AS_IS__: Purely declarative four-row addition; spec leaves exist, coverage/parity/defaults tripwires + npm check + 1963 tests all green, allowlist correctly emptied.
