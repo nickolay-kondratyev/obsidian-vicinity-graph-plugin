@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 id: nid_as3hdgn25pbxttimy643f46v7_e
 title: "Per-container layout plumbing: recursive GraphLayoutRunner seam"
-status: open
+status: in_progress
 deps: [nid_d44vbnq9o6rhuelfwclx2e34n_e]
 links: []
 created_iso: 2026-08-14T00:18:09Z
-status_updated_iso: 2026-08-14T00:18:09Z
+status_updated_iso: 2026-08-14T02:24:44Z
 type: feature
 priority: 3
 assignee: nickolaykondratyev
