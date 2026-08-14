@@ -20,11 +20,12 @@ const ELK_ALGORITHM_OPTION = "elk.algorithm";
  * elk contract, attached in `elkMapping.ts`), so {@link refineForceRootLayout}
  * — already generic over any {@link ElkNode} — can refine a group interior the
  * same way it refines the root. The decision is PER CONTAINER, keyed on that
- * container's own algorithm marker (mirroring the root check). Today only the
- * root is `force`; every folder container packs with `rectpacking`, so no
- * interior is refined and the output is byte-identical to the pre-recursion
- * runner (guarded in `GraphLayoutRunner.test.ts`). This is the seam the
- * edge-aware interior evaluation builds on — no default behavior change.
+ * container's own algorithm marker (mirroring the root check); WHICH interior
+ * folder containers carry is `GROUP_INTERIOR_LAYOUT` (`constants.ts`). Under
+ * the shipped `rectpacking` pick only the root is `force`, so no interior is
+ * refined and the output is byte-identical to the pre-recursion runner
+ * (guarded in `GraphLayoutRunner.test.ts`); under `force`, every container's
+ * interior is refined and its box refit (see `refineContainers`).
  *
  * `forceLayout` defaults to the ENGINE defaults (the shipped ticket-03
  * constants) so headless/test callers get exactly the default rendered

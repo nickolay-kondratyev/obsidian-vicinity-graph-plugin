@@ -11,9 +11,10 @@ import { GROUP_BOX_PADDING_PX } from "./constants";
  * padding-origin coordinates and recomputes the box, restoring the invariant
  * the rest of the pipeline assumes: every direct child lies inside its parent's
  * box, inset by exactly {@link GROUP_BOX_PADDING_PX} at the bounding-box
- * extremes. That side inset is also the edge-routing clearance ceiling
- * (`GROUP_SIDE_PADDING_PX` — see `edgeRouting.ts`): members stay routing
- * obstacles INSIDE the border, never poking clearance regions out of it.
+ * extremes. That side inset is also the ceiling of the user-facing "Edge
+ * clearance" range (`CLEARANCE_RANGE.max < GROUP_SIDE_PADDING_PX`, guarded in
+ * `edgeRouting.test.ts`): members stay routing obstacles INSIDE the border,
+ * never poking clearance regions out of it.
  *
  * Called bottom-up by `GraphLayoutRunner` (children refit before their parent
  * refines), so a parent's own refinement always arranges FINAL child boxes.
