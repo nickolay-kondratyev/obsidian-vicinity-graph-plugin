@@ -6,10 +6,15 @@
  * stops the graph repeating one picture across a cluster of notes that all embed
  * it — the second node with that image simply does not display it.
  *
- * WHY the view, not the engine: whether a node's single preview slot resolves to
- * a thumbnail is a VIEW decision (`nodePreviewKind`, the per-node content
- * override, the rendered outline-depth filter), so the set of "nodes that were
- * going to display the image" only exists here.
+ * TWO consumers agree on this ONE algorithm (why it lives in the pure engine, not
+ * the view where it began): the VIEW mapping decides which node actually paints the
+ * image (its candidacy honours the per-node content override), and the content-fit
+ * {@link import("./NodeSizer").NodeSizer} decides how tall a node must be for the
+ * region it shows — a loser must be sized WITHOUT the thumbnail slot or it renders a
+ * large empty box (ticket nid_psgov2t1d2s8d7rk2qvux02zb_e). The winner rule and the
+ * "who was going to render a thumbnail" grouping are identical for both; only the
+ * candidate `rendersThumbnail` basis differs (the sizer reads the GLOBAL preference,
+ * so `sizePx` stays independent of a per-node content flip — see `NodeSizer`).
  *
  * Winner rule (the ticket's tie-breaker): the note HIGHER UP the folder hierarchy
  * wins — fewer folder segments. Equal depth is broken by the vault path

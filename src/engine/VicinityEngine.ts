@@ -5,7 +5,7 @@ import type { TruncationResult } from "./GraphTruncator";
 import type { LinkProvider } from "./LinkProvider";
 import { PathExclusionMatcher } from "./PathExclusionMatcher";
 import { VicinityTraversal } from "./VicinityTraversal";
-import type { TraversalRoot } from "./VicinityTraversal";
+import type { TraversalRoot, TraversedNode } from "./VicinityTraversal";
 import { NodeSizer } from "./NodeSizer";
 import type {
 	CentralNodeDescriptor,
@@ -65,18 +65,26 @@ export class VicinityEngine {
 		const traversal = new VicinityTraversal(this.provider, this.exclusionMatcher(request)).traverse(
 			this.toRoots(request),
 		);
-		const sizes = NodeSizer.computeSizes(traversal.nodes, viewSettings);
 		const truncation = GraphTruncator.truncate({
 			nodes: traversal.nodes,
 			edges: traversal.edges,
 			mainPath: request.main.path,
 			nodeCap: viewSettings.nodeCap,
 		});
-		const nodes: GraphNode[] = [];
-		for (const node of traversal.nodes.values()) {
-			if (!truncation.visiblePaths.has(node.path)) {
-				continue;
+		// Size the VISIBLE nodes only, AFTER truncation (the truncator's ranking is
+		// size-independent, so this reorder is safe). The sizer's image de-dup then
+		// sees exactly the nodes the VIEW renders and de-dups against, so a suppressed
+		// node's box matches the region it paints — a winner truncated away would
+		// otherwise leave a surviving loser sized for an image it now shows.
+		const visibleNodes = new Map<VaultPath, TraversedNode>();
+		for (const [path, node] of traversal.nodes) {
+			if (truncation.visiblePaths.has(path)) {
+				visibleNodes.set(path, node);
 			}
+		}
+		const sizes = NodeSizer.computeSizes(visibleNodes, viewSettings);
+		const nodes: GraphNode[] = [];
+		for (const node of visibleNodes.values()) {
 			const sizePx = sizes.get(node.path);
 			if (sizePx === undefined) {
 				// The sizer sizes every traversed node; a gap is a pipeline bug.
