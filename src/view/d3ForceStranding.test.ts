@@ -41,7 +41,14 @@ const WIDE_MEMBER_TITLE = "a deliberately long note title that saturates the lab
 /** Crowd size of the faithful vault mirror (hub with 5 crowd links + 1 leaf). */
 const STRANDED_CROWD_COUNT = 5;
 const STRANDED_HUB_FOLDER = "p/ep";
-const STRANDED_BOOK_FOLDER = "p/ep/book";
+/**
+ * The degree-1 leaf's OWN singleton folder — deliberately NOT nested under the
+ * hub folder. Under recursive grouping a lone note inside `p/ep/**` would fall
+ * UP into the `p/ep` group (nearest qualifying ancestor), joining the container
+ * and destroying its 2-strip landscape geometry; a separate top-level folder
+ * keeps it the standalone external leaf this stranding fixture needs.
+ */
+const STRANDED_BOOK_FOLDER = "book";
 const crowdPath = (index: number): string => `crowd${index}.md`;
 
 /**
@@ -90,7 +97,7 @@ function strandedHubGraph(crowdCount: number, members: GroupMemberShape = SQUARE
 			}),
 			...crowd,
 			makeNode({
-				path: asVaultPath("p/ep/book/enchiridion.md"),
+				path: asVaultPath("book/enchiridion.md"),
 				folder: asFolderPath(STRANDED_BOOK_FOLDER),
 				minDepth: 2,
 				sizePx: NEIGHBOR_SIZE_PX,
@@ -100,7 +107,7 @@ function strandedHubGraph(crowdCount: number, members: GroupMemberShape = SQUARE
 			makeEdge("main.md", "p/ep/hub.md"),
 			makeEdge("p/ep/hub.md", "p/ep/sib.md"),
 			...crowd.map((node) => makeEdge("p/ep/hub.md", node.path)),
-			makeEdge("p/ep/hub.md", "p/ep/book/enchiridion.md"),
+			makeEdge("p/ep/hub.md", "book/enchiridion.md"),
 		],
 	});
 }

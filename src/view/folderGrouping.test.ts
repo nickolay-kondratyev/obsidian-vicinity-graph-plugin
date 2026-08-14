@@ -13,9 +13,13 @@ const MIXED_NODES = [
 
 describe("deriveFolderGroups 2+ membership rule", () => {
 	it("WHEN a folder holds two nodes THEN it becomes a group with both members", () => {
-		expect(deriveFolderGroups(MIXED_NODES).groups).toEqual([
-			{ folder: "notes", memberPaths: ["notes/a.md", "notes/b.md"] },
-		]);
+		const notes = deriveFolderGroups(MIXED_NODES).groups.find((group) => group.folder === "notes");
+		expect(notes?.memberPaths).toEqual(["notes/a.md", "notes/b.md"]);
+	});
+
+	it("WHEN a folder holds two nodes THEN its group is top-level (no parent, leaf label)", () => {
+		const notes = deriveFolderGroups(MIXED_NODES).groups.find((group) => group.folder === "notes");
+		expect(notes).toMatchObject({ parentFolder: null, leafName: "notes", chainPath: "notes" });
 	});
 
 	it("WHEN a folder holds a single node THEN no group is emitted for it", () => {
@@ -42,9 +46,149 @@ describe("deriveFolderGroups membership index", () => {
 	});
 });
 
+/**
+ * Descendant qualification: a folder qualifies on its DESCENDANTS, not just direct
+ * children — sql/ has two notes spread across sub-leaves that individually hold one.
+ */
+const DESCENDANT_NODES = [
+	makeNode({ path: asVaultPath("sql/joins/inner.md"), folder: asFolderPath("sql/joins") }),
+	makeNode({ path: asVaultPath("sql/windows/rank.md"), folder: asFolderPath("sql/windows") }),
+];
+
+describe("deriveFolderGroups descendant qualification", () => {
+	it("WHEN two notes are descendants across different subfolders THEN the ancestor folder qualifies", () => {
+		const folders = deriveFolderGroups(DESCENDANT_NODES).groups.map((group) => group.folder);
+		expect(folders).toEqual(["sql"]);
+	});
+
+	it("WHEN a lone note sits in a too-small subfolder THEN it is assigned up to the nearest qualifying ancestor", () => {
+		const index = deriveFolderGroups(DESCENDANT_NODES).groupFolderByMemberPath;
+		expect(index.get("sql/joins/inner.md")).toBe("sql");
+	});
+
+	it("WHEN a subfolder holds a single descendant THEN it does not become its own group", () => {
+		const folders = deriveFolderGroups(DESCENDANT_NODES).groups.map((group) => group.folder);
+		expect(folders).not.toContain("sql/joins");
+	});
+});
+
+/**
+ * Nesting: outer/ holds a direct note AND a qualifying inner/ subfolder, so both
+ * render — the inner group nests under the outer.
+ */
+const NESTED_NODES = [
+	makeNode({ path: asVaultPath("outer/top.md"), folder: asFolderPath("outer") }),
+	makeNode({ path: asVaultPath("outer/inner/a.md"), folder: asFolderPath("outer/inner") }),
+	makeNode({ path: asVaultPath("outer/inner/b.md"), folder: asFolderPath("outer/inner") }),
+];
+
+describe("deriveFolderGroups nesting", () => {
+	it("WHEN a qualifying subfolder sits inside a qualifying folder THEN both render as groups", () => {
+		const folders = deriveFolderGroups(NESTED_NODES).groups.map((group) => group.folder).sort();
+		expect(folders).toEqual(["outer", "outer/inner"]);
+	});
+
+	it("WHEN a group nests inside another THEN its parentFolder points at the ancestor group", () => {
+		const inner = deriveFolderGroups(NESTED_NODES).groups.find((group) => group.folder === "outer/inner");
+		expect(inner?.parentFolder).toBe("outer");
+	});
+
+	it("WHEN a group nests THEN its chainPath is the leaf name relative to its parent", () => {
+		const inner = deriveFolderGroups(NESTED_NODES).groups.find((group) => group.folder === "outer/inner");
+		expect(inner?.chainPath).toBe("inner");
+	});
+
+	it("WHEN a note sits directly in the outer folder THEN it is a member of the outer group only", () => {
+		const outer = deriveFolderGroups(NESTED_NODES).groups.find((group) => group.folder === "outer");
+		expect(outer?.memberPaths).toEqual(["outer/top.md"]);
+	});
+});
+
+/**
+ * Redundant-chain collapse: a/b/c holds two leaf notes; a and b each carry nothing
+ * but the single chain down to c, so both collapse into one group labelled a/b/c.
+ */
+const COLLAPSE_NODES = [
+	makeNode({ path: asVaultPath("a/b/c/x.md"), folder: asFolderPath("a/b/c") }),
+	makeNode({ path: asVaultPath("a/b/c/y.md"), folder: asFolderPath("a/b/c") }),
+];
+
+describe("deriveFolderGroups redundant-chain collapse", () => {
+	it("WHEN a single-child chain leads to one group THEN only the leaf group survives", () => {
+		const folders = deriveFolderGroups(COLLAPSE_NODES).groups.map((group) => group.folder);
+		expect(folders).toEqual(["a/b/c"]);
+	});
+
+	it("WHEN a chain collapses THEN the surviving group carries the collapsed path label", () => {
+		const [group] = deriveFolderGroups(COLLAPSE_NODES).groups;
+		expect(group?.chainPath).toBe("a/b/c");
+	});
+
+	it("WHEN a chain collapses THEN the surviving group still names its real leaf folder", () => {
+		const [group] = deriveFolderGroups(COLLAPSE_NODES).groups;
+		expect(group).toMatchObject({ folder: "a/b/c", leafName: "c", parentFolder: null });
+	});
+
+	it("WHEN only a mid-chain folder is redundant THEN the collapsed path is relative to the surviving parent", () => {
+		// x/ holds a direct note plus x/y/z (two notes); x/y is redundant, collapsing into z.
+		const nodes = [
+			makeNode({ path: asVaultPath("x/n1.md"), folder: asFolderPath("x") }),
+			makeNode({ path: asVaultPath("x/y/z/a.md"), folder: asFolderPath("x/y/z") }),
+			makeNode({ path: asVaultPath("x/y/z/b.md"), folder: asFolderPath("x/y/z") }),
+		];
+		const leaf = deriveFolderGroups(nodes).groups.find((group) => group.folder === "x/y/z");
+		expect(leaf).toMatchObject({ parentFolder: "x", chainPath: "y/z" });
+	});
+});
+
+describe("deriveFolderGroups nearestRenderedAncestorGroupOf seam", () => {
+	it("WHEN a folder is itself a rendered group THEN it returns that group", () => {
+		const result = deriveFolderGroups(NESTED_NODES);
+		expect(result.nearestRenderedAncestorGroupOf(asFolderPath("outer/inner"))?.folder).toBe("outer/inner");
+	});
+
+	it("WHEN a folder is a too-small descendant THEN it returns the nearest rendered ancestor", () => {
+		const result = deriveFolderGroups(DESCENDANT_NODES);
+		expect(result.nearestRenderedAncestorGroupOf(asFolderPath("sql/joins"))?.folder).toBe("sql");
+	});
+
+	it("WHEN a folder has no rendered ancestor THEN it returns null (top-level container)", () => {
+		const result = deriveFolderGroups(MIXED_NODES);
+		expect(result.nearestRenderedAncestorGroupOf(asFolderPath("solo"))).toBeNull();
+	});
+
+	it("WHEN a folder collapsed into its child THEN the lookup skips it to a surviving ancestor", () => {
+		const result = deriveFolderGroups(COLLAPSE_NODES);
+		expect(result.nearestRenderedAncestorGroupOf(asFolderPath("a/b"))).toBeNull();
+	});
+});
+
+describe("deriveFolderGroups lowestCommonAncestorContainerOf seam", () => {
+	it("WHEN both notes render in the same group THEN the LCA container is that group", () => {
+		const result = deriveFolderGroups(NESTED_NODES);
+		expect(result.lowestCommonAncestorContainerOf("outer/inner/a.md", "outer/inner/b.md")?.folder).toBe(
+			"outer/inner",
+		);
+	});
+
+	it("WHEN notes render in nested groups THEN the LCA container is the shared outer group", () => {
+		const result = deriveFolderGroups(NESTED_NODES);
+		expect(result.lowestCommonAncestorContainerOf("outer/top.md", "outer/inner/a.md")?.folder).toBe("outer");
+	});
+
+	it("WHEN one endpoint is ungrouped THEN the LCA container is the canvas pane (null)", () => {
+		const result = deriveFolderGroups(MIXED_NODES);
+		expect(result.lowestCommonAncestorContainerOf("solo/only.md", "notes/a.md")).toBeNull();
+	});
+});
+
 describe("deriveFolderGroups determinism", () => {
-	it("WHEN deriving twice from the same nodes THEN the results are identical", () => {
-		expect(deriveFolderGroups(MIXED_NODES)).toEqual(deriveFolderGroups(MIXED_NODES));
+	it("WHEN deriving twice from the same nodes THEN the group results are identical", () => {
+		expect(deriveFolderGroups(MIXED_NODES).groups).toEqual(deriveFolderGroups(MIXED_NODES).groups);
+	});
+
+	it("WHEN deriving a nested graph twice THEN the group order is identical (layout/flow sync)", () => {
+		expect(deriveFolderGroups(NESTED_NODES).groups).toEqual(deriveFolderGroups(NESTED_NODES).groups);
 	});
 });
 
@@ -87,6 +231,8 @@ describe("deriveFolderGroups dense 1/2/many membership matrix", () => {
 	});
 
 	it("WHEN deriving the dense graph twice THEN the results are identical (layout/flow sync)", () => {
-		expect(deriveFolderGroups(denseMultiFolderNodes())).toEqual(deriveFolderGroups(denseMultiFolderNodes()));
+		expect(deriveFolderGroups(denseMultiFolderNodes()).groups).toEqual(
+			deriveFolderGroups(denseMultiFolderNodes()).groups,
+		);
 	});
 });
