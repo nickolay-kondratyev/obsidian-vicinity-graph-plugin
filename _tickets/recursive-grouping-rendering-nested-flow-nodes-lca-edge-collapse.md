@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-14T01:34:43Z
-session_ids: [{"a": "claude", "type": "execution", "id": "3750bfb8-774a-471e-847f-fa3cca292528"}]
+session_ids: [{"a": "claude", "type": "execution", "id": "3750bfb8-774a-471e-847f-fa3cca292528"}, {"a": "claude", "type": "review", "id": "77f9415a-1d55-4f2f-b491-7b9cfd6109a0"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 id: nid_9uh2twn8whoqtplbxk0ywzpx7_e
 title: "Recursive grouping rendering: nested flow nodes + LCA edge collapse"
