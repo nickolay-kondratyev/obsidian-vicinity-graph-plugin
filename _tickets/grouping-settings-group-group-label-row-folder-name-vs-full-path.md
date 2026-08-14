@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-14T01:46:54Z
-session_ids: [{"a": "claude", "type": "execution", "id": "311ed0cc-419b-4c30-af2c-462145bac30f"}]
+session_ids: [{"a": "claude", "type": "execution", "id": "311ed0cc-419b-4c30-af2c-462145bac30f"}, {"a": "claude", "type": "review", "id": "64026cf1-79a8-4715-843e-7c0f152f7678"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 id: nid_0nmhmv03071derz5ok30cisaa_e
 title: "Grouping settings group: group-label row (folder name vs full path)"
