@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-14T01:53:32Z
-session_ids: [{"a": "claude", "type": "execution", "id": "e4462a62-6ca9-41a7-926e-5305525b582f"}]
+session_ids: [{"a": "claude", "type": "execution", "id": "e4462a62-6ca9-41a7-926e-5305525b582f"}, {"a": "claude", "type": "review", "id": "d94be3d3-1c76-4e14-8cc7-a4fadd54bbf2"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 id: nid_3wnxsfexabjnx1uj9js2o1c43_e
 title: "Recursive grouping truncation badges: nearest rendered ancestor"
