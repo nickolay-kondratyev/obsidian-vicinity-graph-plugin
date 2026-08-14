@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 id: nid_5hnmpwtzakhd3le95jzigsvs0_e
 title: "Recursive grouping: e2e scenarios + docs update"
-status: open
+status: in_progress
 deps: [nid_3wnxsfexabjnx1uj9js2o1c43_e, nid_0nmhmv03071derz5ok30cisaa_e]
 links: []
 created_iso: 2026-08-14T00:18:09Z
-status_updated_iso: 2026-08-14T00:18:09Z
+status_updated_iso: 2026-08-14T02:00:59Z
 type: task
 priority: 3
 assignee: nickolaykondratyev
