@@ -16,7 +16,7 @@ tags: []
 HIGH-LEVEL PLAN for ticket nid_g1iavmz653xxsnpdj6wzf5h98_e ("Allow edge to go through boxes"). This ticket is the design record; it is CLOSED on creation. Implementation happens in the two focused tickets that depend on it.
 
 # Feature
-A "Edge depth into groups" slider (Grouping settings section) lets rendered edges reach INTO folder-group boxes instead of always collapsing onto the outermost group box. Slider value N = PER-ENDPOINT DEPTH ALLOWANCE: each edge endpoint may stay up to N group-boundary levels below the pair's lowest-common-ancestor container instead of being projected onto the LCA's direct child. N=0 (default) = exactly today's behavior.
+A "Edge depth into groups" slider (Grouping settings section) lets rendered edges reach INTO folder-group boxes instead of always collapsing onto the outermost group box. Slider value N = PER-ENDPOINT DEPTH ALLOWANCE, counted from today's collapse target: today every endpoint projects onto the LCA container's DIRECT CHILD group on its chain; with allowance N the endpoint instead projects onto its ancestor group N levels BELOW that direct child (equivalently: depth N+1 below the LCA container), or stays the true note when its chain is shallower than that. N=0 (default) = exactly today's behavior (the direct child itself).
 
 # Human-signed decisions (2026-08-14, .out/current_decision.md of the feasibility session)
 - D1: per-endpoint depth allowance semantics (NOT a per-edge crossing budget).
@@ -30,7 +30,7 @@ A "Edge depth into groups" slider (Grouping settings section) lets rendered edge
 - React Flow already renders edges to subflow children (intra-group passthrough edges exist) - no RF blocker; verify z-order/legibility in e2e.
 - Routing: src/view/edgeRouting.ts LibavoidEdgeRouter. All flow nodes (incl. group children) are obstacles today; group boxes carry 12 boundary pins (PIN_CLASS 1), notes a centre pin.
 
-# Measured libavoid facts (spikes .tmp/libavoid-through-box-spike.mjs, .tmp/libavoid-composition-spike.mjs, real wasm, node)
+# Measured libavoid facts (spikes .tmp/libavoid-through-box-spike.mjs, .tmp/libavoid-composition-spike.mjs, real wasm, node; .tmp/ is ephemeral — the facts below ARE the record, re-spike if in doubt)
 1. Endpoint inside a group-box obstacle: connector still detours around obstacles OUTSIDE the box, but runs STRAIGHT once inside (ignores inner shapes incl. anything that would be a title strip). Root behavior: shapes containing/touching an endpoint are excluded from that connector's avoidance.
 2. Point ConnEnd (new avoid.ConnEnd(new avoid.Point(x,y))) + flat obstacle set (container NOT registered as a shape): full normal avoidance. This validates per-container routing passes.
 3. Multiple pin CLASSES per shape work: ConnEnd(shape, 2) attaches only to class-2 pins. Validates a separate "pierce entry" pin class.
