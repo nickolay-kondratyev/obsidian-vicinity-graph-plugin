@@ -67,3 +67,9 @@ centroid-at-origin frame — that container-local coordinate frame is the thing
 that ticket must reconcile (elk expects child coords relative to the
 container's top-left). Not a problem today because no container refines.
 
+
+## Notes
+
+**2026-08-14T02:29:52Z**
+
+__READY_AS_IS__: Pure recursive seam; byte-identity verified (test reconstructs old root-only algorithm), check clean, 2024 tests pass. No bugs found.
