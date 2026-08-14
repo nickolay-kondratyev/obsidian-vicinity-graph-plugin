@@ -1,17 +1,17 @@
 ---
 id: nid_g1iavmz653xxsnpdj6wzf5h98_e
-title: "Allow edge to go through boxes"
-status: open
+title: Allow edge to go through boxes
+status: in_progress
 deps: []
 links: []
-created_iso: 2026-08-14T22:48:45Z
-status_updated_iso: 2026-08-14T22:48:45Z
+created_iso: '2026-08-14T22:48:45Z'
+status_updated_iso: '2026-08-14T22:51:52Z'
 type: task
 priority: 3
 assignee: nickolaykondratyev
 tags: []
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 ---
-
 FIRST: This task is to first consider feasability without OVER COMPLICATING code.
 
 IF its straightforward into current flow of rendering to add and doesnt explode our testing, then we can proceed to planning
