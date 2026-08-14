@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 id: nid_9uh2twn8whoqtplbxk0ywzpx7_e
 title: "Recursive grouping rendering: nested flow nodes + LCA edge collapse"
-status: open
+status: in_progress
 deps: [nid_d44vbnq9o6rhuelfwclx2e34n_e]
 links: []
 created_iso: 2026-08-14T00:18:09Z
-status_updated_iso: 2026-08-14T00:18:09Z
+status_updated_iso: 2026-08-14T01:27:41Z
 type: feature
 priority: 3
 assignee: nickolaykondratyev
