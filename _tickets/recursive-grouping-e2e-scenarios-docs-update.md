@@ -1,4 +1,5 @@
 ---
+session_ids: [{"a": "claude", "type": "execution", "id": "af622dcd-c40e-4a17-98d3-6b747ed0c155"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 id: nid_5hnmpwtzakhd3le95jzigsvs0_e
 title: "Recursive grouping: e2e scenarios + docs update"
