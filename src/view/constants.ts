@@ -186,10 +186,10 @@ const GROUP_PACKING_ASPECT_RATIO = 0.75;
  * interior got its space back.
  *
  * WHY-NOT keep any edge awareness inside a group: rectpacking ignores intra-group
- * edges, so members no longer read top-to-bottom along their links. Originally
- * accepted outright; an edge-aware interior now EXISTS as the measured sibling
- * {@link elkGroupMemberForceOptions}, and {@link GROUP_INTERIOR_LAYOUT} (an
- * owner visual pick, see its WHY) is what decides between them.
+ * edges, so members no longer read top-to-bottom along their links. Accepted —
+ * TWICE: first as a measured density call, then re-affirmed by the owner's
+ * real-vault visual pick over the built force alternative (numbers and the
+ * decision record live on {@link GROUP_INTERIOR_LAYOUT}).
  *
  * `orderBySize` packs the largest members first; without it rectpacking keeps
  * input order and leaves measurably more ragged white space.
@@ -238,15 +238,19 @@ export function elkGroupMemberForceOptions(nodeSpacingPx: number): Readonly<Reco
 }
 
 /**
- * WHICH interior layout folder groups ship with. `rectpacking` is the
- * incumbent (densest, link-shape-independent); `force` is the edge-aware
- * candidate built and measured under ticket nid_7abfje1vus15rx9hzmpel9jin_e
- * (−76% intra-group crossings at +9% box area on the 40-graph sweep). The
- * owner's reserved visual pick (plan D5) decides this value; flipping it is
- * the ONE-CONSTANT switch between the two.
+ * WHICH interior layout folder groups ship with — an OWNER visual pick
+ * (DECIDED 2026-08-14, ticket nid_7abfje1vus15rx9hzmpel9jin_e): `rectpacking`
+ * KEPT after a real-vault try-out of `force`. The edge-aware alternative
+ * stays built, measured and selectable ({@link elkGroupMemberForceOptions}):
+ * on the 40-graph nested+edged sweep it cuts intra-group crossings −76% and
+ * edge length −39%, at +9.4% box area and looser, rounder boxes — that
+ * density/tidiness loss is what the owner rejected on a real graph. Flipping
+ * this constant is the WHOLE switch (the box refit and every guard are
+ * default-agnostic); `interiorLayoutEval.test.ts` regenerates the numbers and
+ * `interiorLayoutShots.e2e.ts` the screenshot pair on either side.
  */
 export type GroupInteriorLayout = "rectpacking" | "force";
-export const GROUP_INTERIOR_LAYOUT: GroupInteriorLayout = "force";
+export const GROUP_INTERIOR_LAYOUT: GroupInteriorLayout = "rectpacking";
 
 /** Layout of the INSIDE of a folder-group container, per {@link GROUP_INTERIOR_LAYOUT}. */
 export function elkGroupMemberOptions(nodeSpacingPx: number): Readonly<Record<string, string>> {

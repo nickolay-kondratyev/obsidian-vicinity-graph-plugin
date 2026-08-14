@@ -1,17 +1,18 @@
 ---
+closed_iso: 2026-08-14T18:28:37Z
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 session_ids: [{"a": "claude", "type": "decision", "id": "97349e1d-ccbf-4091-97c2-891f31979512"}, {"a": "claude", "type": "execution", "id": "3b9654a5-98f2-4aad-a98e-eb088fa294a8"}]
 id: nid_7abfje1vus15rx9hzmpel9jin_e
 title: "Edge-aware intra-group layout: evaluate force/stress interiors + tune"
-status: open
+status: closed
 deps: [nid_as3hdgn25pbxttimy643f46v7_e, nid_9uh2twn8whoqtplbxk0ywzpx7_e]
 links: []
 created_iso: 2026-08-14T00:18:09Z
-status_updated_iso: 2026-08-14T02:40:10Z
+status_updated_iso: 2026-08-14T18:28:37Z
 type: feature
 priority: 3
 assignee: nickolaykondratyev
-tags: [decide, need-human]
+tags: []
 ---
 
 Follow-up from recursive-grouping plan nid_xko67wo2z4awg5gdrm1xx1chz_e (signed-off D5: owner wants a FIRST-CLASS interior layout, evaluated after recursive grouping ships visually). Depends on the per-container layout plumbing ticket AND the nested flow-rendering ticket (step 3's screenshots need nested groups rendering; "ships visually" is the signed-off gate). Requires OWNER visual sign-off at the end (decide tag).
@@ -217,3 +218,19 @@ Try it live: this branch IS the force build — install per
   table, close.
 - **Want force-rectseed instead** → small follow-up: wire a rect-seed marker
   path in `GraphLayoutRunner` (the harness walk is the spec).
+
+## OWNER PICK (2026-08-14) — RECTPACKING STAYS. CLOSED.
+
+The owner tried the force build on a real graph and judged **rectpacking looks
+better**; the call was to keep rectpacking and document the alternative
+concisely at the constant. Done:
+
+- `GROUP_INTERIOR_LAYOUT` flipped back to `"rectpacking"`; its doc comment now
+  carries the decision record (date, ticket, the force numbers: −76%
+  crossings / −39% edge length at +9.4% area, rejected on real-vault look).
+- The force machinery stays BUILT and selectable — `elkGroupMemberForceOptions`,
+  the box refit, the default-agnostic guards, the eval harness and the
+  screenshot e2e — so re-opening this later is a one-constant flip plus a
+  re-shoot, not a rebuild.
+- D5's reserved visual sign-off is thereby DISCHARGED; nothing here awaits a
+  human anymore.
