@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { ElkNode } from "elkjs";
 import { EngineDefaults, asFolderPath, asVaultPath } from "../engine";
-import { ELK_FORCE_ALGORITHM, GROUP_BOX_PADDING_PX } from "./constants";
+import { GROUP_BOX_PADDING_PX, elkGroupMemberForceOptions } from "./constants";
 import { ElkLayoutRunner } from "./ElkLayoutRunner";
 import { GraphLayoutRunner } from "./GraphLayoutRunner";
 import { refineForceRootLayout } from "./d3ForceRefinement";
 import { extractElkDimensionsById, extractElkPositions, vicinityGraphToElk } from "./elkMapping";
 import { isFolderGroupId } from "./graphIdentity";
-import { withContainerAlgorithm } from "./testFixtures/elkContainerAlgorithm";
+import { withContainerOptions } from "./testFixtures/elkContainerAlgorithm";
 import { countOverlappingAabbPairs } from "./testFixtures/aabbOverlap";
 import type { Aabb } from "./testFixtures/aabbOverlap";
 import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
@@ -136,7 +136,10 @@ interface LaidOutRects {
 }
 
 async function layoutWithForceInteriors(): Promise<LaidOutRects> {
-	const elkRoot = withContainerAlgorithm(vicinityGraphToElk(nestedEdgedGraph()), ELK_FORCE_ALGORITHM);
+	// The PRODUCTION force-interior configuration, applied over the mapped tree.
+	const graph = nestedEdgedGraph();
+	const forceInteriorOptions = elkGroupMemberForceOptions(graph.viewSettings.forceLayout.elkNodeSpacingPx);
+	const elkRoot = withContainerOptions(vicinityGraphToElk(graph), forceInteriorOptions);
 	const laidOutRoot = await new GraphLayoutRunner().layout(elkRoot);
 	const positions = extractElkPositions(laidOutRoot);
 	const dims = extractElkDimensionsById(laidOutRoot);

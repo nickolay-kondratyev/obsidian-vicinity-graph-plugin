@@ -3,21 +3,27 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import type { ElkNode } from "elkjs";
 import { asFolderPath, asVaultPath } from "../engine";
 import type { GraphEdge, GraphNode, VicinityGraph } from "../engine";
+import { ElkLayoutRunner } from "./ElkLayoutRunner";
 import { GraphLayoutRunner } from "./GraphLayoutRunner";
-import { ELK_FORCE_ALGORITHM, GROUP_SIDE_PADDING_PX } from "./constants";
+import { ELK_FORCE_ALGORITHM, GROUP_SIDE_PADDING_PX, elkGroupMemberForceOptions } from "./constants";
+import { refitContainerBox } from "./containerBoxRefit";
+import { refineForceRootLayout } from "./d3ForceRefinement";
 import { extractElkDimensionsById, extractElkPositions, vicinityGraphToElk } from "./elkMapping";
-import { withContainerAlgorithm } from "./testFixtures/elkContainerAlgorithm";
+import { withContainerOptions } from "./testFixtures/elkContainerAlgorithm";
 import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
 
 /**
  * Reproducible evaluation harness for the edge-aware interior-layout question
  * (ticket nid_7abfje1vus15rx9hzmpel9jin_e). Mirrors the rectpacking density
  * sweep in `groupPacking.test.ts`, but adds INTRA-GROUP EDGES and NESTED
- * containers and measures three candidates — rectpacking (baseline), elk force
- * seed + per-container d3 refinement, elk stress — on density, edge length,
- * edge crossings and layout time. The measured record it writes to
- * `.out/interior-eval.md` is the evidence behind the WHY-NOT comment in
- * `constants.ts` and the owner's reserved visual sign-off.
+ * containers and measures the candidates — rectpacking (baseline), the
+ * PRODUCTION force configuration (`elkGroupMemberForceOptions`: capped force
+ * seed + per-container d3 refinement + box refit), the rect-seeded d3 variant,
+ * and elk stress — on density, edge length, edge crossings and layout time.
+ * The measured record it writes to `.out/interior-eval.md` is the evidence
+ * behind the interior-layout comments in `constants.ts` and the owner's
+ * reserved visual sign-off; the TUNING sweeps behind the chosen seed-iteration
+ * cap are recorded in the ticket.
  *
  * GATED OFF by default (heavy: 120 layouts, ~4s, and it writes to `.out/`), so
  * `npm test` skips it. Re-run the record with:
@@ -29,24 +35,25 @@ import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
  * The density metric below still computes each group's box from its members'
  * bounding box rather than reading the container dims, ON PURPOSE: stress is
  * not the d3-refined candidate, so it gets no refit and its stored box is
- * stale — the members-bbox definition measures all three candidates on equal
+ * stale — the members-bbox definition measures every candidate on equal
  * footing (for rectpacking and force it matches the real box up to the fixed
  * label padding).
  */
 const RUN_EVAL = process.env.VICINITY_INTERIOR_EVAL === "1";
 
-type Candidate = "rectpacking" | "force" | "stress";
+type Candidate = "rectpacking" | "force" | "force-rectseed" | "stress";
 
-/** The candidate's elk tree: folder-group interiors rewritten to its algorithm. */
+/** The candidate's elk tree: folder-group interiors rewritten to its options. */
 function candidateElk(graph: VicinityGraph, candidate: Candidate): ElkNode {
 	const mapped = vicinityGraphToElk(graph);
-	if (candidate === "rectpacking") {
+	if (candidate === "rectpacking" || candidate === "force-rectseed") {
 		return mapped; // as mapped (rectpacking + orderBySize + spacing)
 	}
 	if (candidate === "force") {
-		return withContainerAlgorithm(mapped, ELK_FORCE_ALGORITHM);
+		// The PRODUCTION edge-aware configuration (capped force seed + d3 + refit).
+		return withContainerOptions(mapped, elkGroupMemberForceOptions(graph.viewSettings.forceLayout.elkNodeSpacingPx));
 	}
-	return withContainerAlgorithm(mapped, "stress", { "elk.stress.desiredEdgeLength": "120" });
+	return withContainerOptions(mapped, { "elk.algorithm": "stress", "elk.stress.desiredEdgeLength": "120" });
 }
 
 interface Rect {
@@ -80,11 +87,40 @@ function segmentsCross(a1: { x: number; y: number }, a2: { x: number; y: number 
 	return ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0));
 }
 
+type ForceLayoutOf = VicinityGraph["viewSettings"]["forceLayout"];
+
+/**
+ * Measurement scaffold for the `force-rectseed` alternative, which the runner
+ * deliberately does NOT express (rect-packed elk interiors, then the d3
+ * refinement + box refit): replicates the runner's private bottom-up walk.
+ * Kept in the record because it is the densest edge-aware variant (see the
+ * ticket) — if the owner's visual pick ever wants it, this is its spec.
+ */
+function rectseedRefineWalk(node: ElkNode, settings: ForceLayoutOf, isRoot: boolean): ElkNode {
+	const children = node.children;
+	if (children === undefined) return node;
+	const withRefined: ElkNode = {
+		...node,
+		children: children.map((c) => rectseedRefineWalk(c, settings, false)),
+	};
+	if (node.layoutOptions?.["elk.algorithm"] !== ELK_FORCE_ALGORITHM) return withRefined;
+	const refined = refineForceRootLayout(withRefined, settings);
+	return isRoot ? refined : refitContainerBox(refined);
+}
+
 async function measure(graph: VicinityGraph, candidate: Candidate): Promise<Metrics> {
 	const runner = new GraphLayoutRunner();
 	const elk = candidateElk(graph, candidate);
+	const settings = graph.viewSettings.forceLayout;
 	const started = performance.now();
-	const laidOut = await runner.layout(elk, graph.viewSettings.forceLayout);
+	const laidOut =
+		candidate === "force-rectseed"
+			? rectseedRefineWalk(
+					withContainerOptions(await new ElkLayoutRunner().layout(elk), { "elk.algorithm": ELK_FORCE_ALGORITHM }),
+					settings,
+					true,
+				)
+			: await runner.layout(elk, settings);
 	const timeMs = performance.now() - started;
 	const positions = extractElkPositions(laidOut);
 	const dims = extractElkDimensionsById(laidOut);
@@ -221,7 +257,7 @@ function nestedFixture(count: number, shape: LinkShape): VicinityGraph {
 
 const COUNTS = [4, 8, 12, 16, 20];
 const SHAPES: LinkShape[] = ["none", "hub", "chain", "dense"];
-const CANDIDATES: Candidate[] = ["rectpacking", "force", "stress"];
+const CANDIDATES: Candidate[] = ["rectpacking", "force", "force-rectseed", "stress"];
 
 describe.runIf(RUN_EVAL)("interior-layout evaluation", () => {
 	it("sweeps candidates over nested + edged fixtures and writes .out/interior-eval.md", async () => {
