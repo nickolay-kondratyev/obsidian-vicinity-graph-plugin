@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-14T01:02:34Z
-session_ids: [{"a": "claude", "type": "execution", "id": "0ce1bb94-737d-4af0-93c5-8c49e250a75d"}]
+session_ids: [{"a": "claude", "type": "execution", "id": "0ce1bb94-737d-4af0-93c5-8c49e250a75d"}, {"a": "claude", "type": "review", "id": "3a54711d-37ea-4587-ad2d-4c10b1db4acf"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 id: nid_unqqausmhnujjixitr6kieflq_e
 title: "Recursive grouping core: derive folder-group TREE (folderGrouping.ts)"
