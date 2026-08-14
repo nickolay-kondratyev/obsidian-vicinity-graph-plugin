@@ -741,13 +741,24 @@
  * lives in its TAIL (`…/some/child-path`), so an overflow must eat the head, not
  * the leaf. `direction: rtl` moves the ellipsis to the start; the full path stays
  * in the DOM (tooltip + e2e rely on that), only the VISUAL cut flips. `text-align:
- * left` keeps a fitting label left-aligned like before. Latin paths keep
- * left-to-right glyph order under an rtl base direction. Scoped to the full-path
+ * left` keeps a fitting label left-aligned like before. Scoped to the full-path
  * mode: a DEFAULT leaf-name label keeps conventional trailing truncation, since a
  * single folder name has no more-important tail to protect. */
 .vicinity-graph-group__label--fullpath {
 	direction: rtl;
 	text-align: left;
+}
+
+/* Bidi guards: under an rtl base direction the Unicode bidi algorithm reorders
+ * digit-leading and neutral-edged paths — `2024/notes` renders as `notes/2024`
+ * (leading digits resolve as EN against the RTL paragraph, flipping the segment
+ * order) and a trailing `)` jumps to the far left. An invisible LRM (U+200E,
+ * strong LTR) on each side pins every edge character to LTR resolution, so the
+ * path keeps its logical glyph order. Generated content stays out of
+ * textContent, so the tooltip and e2e text assertions are untouched. */
+.vicinity-graph-group__label--fullpath::before,
+.vicinity-graph-group__label--fullpath::after {
+	content: "\200E";
 }
 
 /*
