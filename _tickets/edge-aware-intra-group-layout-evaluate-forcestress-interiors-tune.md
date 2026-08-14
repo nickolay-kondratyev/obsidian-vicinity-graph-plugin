@@ -1,17 +1,17 @@
 ---
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
-session_ids: [{"a": "claude", "type": "decision", "id": "97349e1d-ccbf-4091-97c2-891f31979512"}]
+session_ids: [{"a": "claude", "type": "decision", "id": "97349e1d-ccbf-4091-97c2-891f31979512"}, {"a": "claude", "type": "execution", "id": "3b9654a5-98f2-4aad-a98e-eb088fa294a8"}]
 id: nid_7abfje1vus15rx9hzmpel9jin_e
 title: "Edge-aware intra-group layout: evaluate force/stress interiors + tune"
-status: in_progress
+status: open
 deps: [nid_as3hdgn25pbxttimy643f46v7_e, nid_9uh2twn8whoqtplbxk0ywzpx7_e]
 links: []
 created_iso: 2026-08-14T00:18:09Z
-status_updated_iso: 2026-08-14T02:32:13Z
+status_updated_iso: 2026-08-14T02:40:10Z
 type: feature
 priority: 3
 assignee: nickolaykondratyev
-tags: []
+tags: [decide, need-human]
 ---
 
 Follow-up from recursive-grouping plan nid_xko67wo2z4awg5gdrm1xx1chz_e (signed-off D5: owner wants a FIRST-CLASS interior layout, evaluated after recursive grouping ships visually). Depends on the per-container layout plumbing ticket AND the nested flow-rendering ticket (step 3's screenshots need nested groups rendering; "ships visually" is the signed-off gate). Requires OWNER visual sign-off at the end (decide tag).
@@ -41,3 +41,104 @@ Approach (mirror the rectpacking decision process):
 - *Drop the owner sign-off entirely and let the working session pick by the metrics* — rejected: D5 explicitly reserves the final visual call for the owner; overriding a signed-off reservation is not this session's to make. The envelope above only filters what is worth showing, it does not substitute for the pick.
 - *Pre-pick a winner (e.g. "stress") now* — rejected: the whole point of mirroring the rectpacking process is that the 120-fixture sweep, not intuition, made that call last time; nested + edged inputs are exactly the regime where intuition failed before.
 
+## EVALUATION RESULTS (2026-08-13, execution session) — needs OWNER visual call
+
+Steps 1–2 are done. Harness: `src/view/interiorLayoutEval.test.ts` (gated behind
+`VICINITY_INTERIOR_EVAL=1`, skipped by `npm test`). Reproduce the record with:
+
+```
+VICINITY_INTERIOR_EVAL=1 npx vitest run src/view/interiorLayoutEval.test.ts
+```
+
+It writes `.out/interior-eval.md` (git-ignored). Sweep = {flat, nested} ×
+member counts {4,8,12,16,20} × link shapes {none, hub, chain, dense} = 40 graphs
+per candidate, each run through the real `GraphLayoutRunner` (elk + the
+per-container d3 seam from the plumbing ticket).
+
+### Aggregate (means over the 40-graph sweep)
+
+| candidate | mean box area | vs baseline | mean fill | mean edge len (edged) | total crossings (edged) | mean time/graph | max time |
+|---|---|---|---|---|---|---|---|
+| rectpacking (baseline) | 475 289 | +0.0% | 0.433 | 291 | 1077 | 7.6 ms | 41 ms |
+| **elk force + d3 refine** | 518 685 | **+9.1%** | 0.412 | **183** | **399** | 39 ms | 128 ms |
+| elk stress | 598 494 | +25.9% | 0.466 | 131 | 48 | 43 ms | 193 ms |
+
+### Per-shape edge quality (edged shapes, summed over counts+nesting)
+
+| shape | candidate | mean edge len | crossings |
+|---|---|---|---|
+| chain | rectpacking | 289 | 300 |
+| chain | force | 173 | 42 |
+| chain | stress | 120 | 0 |
+| dense | rectpacking | 270 | 777 |
+| dense | force | 205 | 357 |
+| dense | stress | 132 | 48 |
+| hub | rectpacking | 316 | 0 |
+| hub | force | 172 | 0 |
+| hub | stress | 140 | 0 |
+
+### Verdict against the declared envelope (DECISION §2)
+
+- **stress — DISQUALIFIED on correctness.** On hub shapes its fill ratio exceeds
+  1.0 (up to 1.096 at 20 members): members no longer fit their own bounding box,
+  i.e. **stress OVERLAPS group members** (it has no node-overlap removal). It also
+  busts density (+25.9% mean, +78% on the chain/20 nested case). Out.
+- **force — CLEARS density and edge quality, MISSES time.**
+  - Density: **+9.1%** mean box area ≤ the ~15% envelope. ✓
+  - Edge quality: crossings **1077 → 399 (−63%)** overall; dense −54%, chain −86%;
+    mean intra-group edge length **291 → 183 (−37%)**. Both far past the ≥20%
+    crossing-reduction bar. ✓
+  - Time: at the LARGEST fixture (nested, 20+20 = 40 nodes) force takes ~126 ms vs
+    baseline ~9 ms — **+~116 ms**, over the "~50 ms of baseline" guideline (the d3
+    interior refinement runs to convergence synchronously, per container). The
+    envelope calls time "tunable with recorded reasoning, not a hard gate", and
+    layout is off the render hot path (async rebuild), but this is a real cost. ✗
+    on the letter of the guideline.
+
+### Why this is escalated NOW rather than tuned-then-shown (a cost the ticket did not foresee)
+
+The ticket assumed a clearing candidate = "swap a container algorithm string + run
+the d3 seam", then screenshot + owner sign-off. The sweep surfaced a gap: the
+`GraphLayoutRunner` seam refines a container's INTERIOR but **does not refit the
+container's elk-computed box** afterward. The force/stress numbers above were only
+obtained because the harness recomputes each box as the bounding box of the
+refined children. On the real render path elk's stored container box would be
+stale, so members would poke outside their group border. **Shipping force interiors
+therefore needs a new box-refit step** (recompute container width/height + re-pad
+after `refineForceRootLayout`, then let the parent re-place the resized box — likely
+a second bottom-up pass in `GraphLayoutRunner`). That is genuine engineering, plus
+edge re-routing interplay (`edgeRouting.ts` uses `GROUP_SIDE_PADDING_PX` as a
+clearance ceiling), and only after it exists can real screenshots be produced.
+
+Producing that shippable build + screenshots speculatively is exactly the work the
+STOP protocol says not to sink before the owner authorizes it, because the owner may
+prefer to keep rectpacking.
+
+### DECISION NEEDED (owner)
+
+Given force buys a large, consistent edge-readability win (−63% crossings, −37%
+edge length, indistinguishable on the common hub shape) at +9% density and a
+real-but-off-hot-path +~116 ms at 40 nodes, **AND** requires new interior box-refit
+engineering before it can ship or be screenshotted:
+
+- **Option A — Invest in force interiors.** Authorize the box-refit work; the
+  execution agent builds it, tunes force (density/time), produces `.out/`
+  screenshots on the nested+edged fixtures, and returns for your final visual pick
+  (the D5-reserved call). Best edge readability; most work; some layout-time cost.
+- **Option B — Keep rectpacking, close the question.** Update the WHY-NOT comment in
+  `src/view/constants.ts` with these nested+edged numbers (edge-awareness was
+  measured and the density/time/engineering cost was judged not worth it) and close.
+  Zero shipped change; keeps the interior link-shape-independent.
+- **Option C — Force WITHOUT the density envelope pressure** (e.g. only when a group
+  has many intra-group edges) — a scoped middle ground; more complexity, deferrable.
+
+**Recommendation: Option A**, but conditionally. The edge-quality win is real and is
+the entire point of this line of work; +9% density is within budget and the hub
+case (the commonest note-vault shape) is a wash. The two hesitations are the
+box-refit engineering and the +116 ms — both surmountable and both off the render
+hot path. If the owner does not want to spend the box-refit engineering now, Option B
+is a clean, honest close (the numbers here become the WHY-NOT record) with no shipped
+regression.
+
+Deferred to owner because D5 explicitly reserved the final visual pick, and the
+box-refit investment is a scope/taste tradeoff the ticket did not settle.
