@@ -980,6 +980,60 @@ describe("vicinityGraphToFlow preview decision", () => {
 	});
 });
 
+describe("vicinityGraphToFlow duplicate-image de-dup (nid_ivt836nuelyse1c0epp86d36z_e)", () => {
+	const IMAGE = asVaultPath("img/shared.png");
+
+	/** A note that (alone) would render IMAGE as its thumbnail — Auto, no outline. */
+	function imageNode(path: string, folder: string): GraphNode {
+		return makeNode({
+			path: asVaultPath(path),
+			folder: asFolderPath(folder),
+			attachments: [{ path: IMAGE, isImage: true }],
+			firstImagePath: IMAGE,
+		});
+	}
+
+	function previewOf(nodes: readonly GraphNode[], id: string) {
+		return noteNode(toFlow(makeGraph({ nodes })).nodes, id)?.data.preview;
+	}
+
+	it("WHEN two nodes would render the SAME image THEN the one higher in the folder hierarchy keeps the thumbnail", () => {
+		const nodes = [imageNode("deep/loser.md", "deep"), imageNode("winner.md", "")];
+		expect(previewOf(nodes, "winner.md")).toBe("thumbnail");
+	});
+
+	it("WHEN two nodes would render the SAME image THEN the lower one does NOT display the image", () => {
+		const nodes = [imageNode("deep/loser.md", "deep"), imageNode("winner.md", "")];
+		expect(previewOf(nodes, "deep/loser.md")).toBe("none");
+	});
+
+	it("WHEN the loser has its OWN outline THEN it falls back to that outline rather than the shared image", () => {
+		// Global preference Image: BOTH nodes would show the thumbnail; suppression
+		// hands the loser back to its outline (the preview ladder without the image).
+		const outline = [{ rawText: "Intro", level: 1 }];
+		const nodes = [
+			{ ...imageNode("deep/loser.md", "deep"), outline },
+			{ ...imageNode("winner.md", ""), outline },
+		];
+		const graph = makeGraph({ nodes, viewSettings: { ...makeGraph().viewSettings, nodePreviewPreference: "image" } });
+		expect(noteNode(toFlow(graph).nodes, "deep/loser.md")?.data.preview).toBe("outline");
+		expect(noteNode(toFlow(graph).nodes, "winner.md")?.data.preview).toBe("thumbnail");
+	});
+
+	it("WHEN two nodes render DIFFERENT images THEN both keep their thumbnails", () => {
+		const other = asVaultPath("img/other.png");
+		const second = { ...imageNode("b.md", ""), attachments: [{ path: other, isImage: true }], firstImagePath: other };
+		const nodes = [imageNode("a.md", ""), second];
+		expect(previewOf(nodes, "a.md")).toBe("thumbnail");
+		expect(previewOf(nodes, "b.md")).toBe("thumbnail");
+	});
+
+	it("WHEN the suppressed node still carries the image path THEN the mapping reported it (a decision never deletes data)", () => {
+		const nodes = [imageNode("deep/loser.md", "deep"), imageNode("winner.md", "")];
+		expect(noteNode(toFlow(makeGraph({ nodes })).nodes, "deep/loser.md")?.data.firstImagePath).toBe(IMAGE);
+	});
+});
+
 /**
  * The view-layer half of the invariant pinned engine-side in `NodeSizer.test.ts`
  * / `VicinityEngine.test.ts`: flipping the Preview pill must stay a data-only
