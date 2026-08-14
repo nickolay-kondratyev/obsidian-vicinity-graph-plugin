@@ -417,6 +417,41 @@ describe("NodeSizer thumbnail sizing (preview-kind driven — preference-indepen
 	});
 });
 
+describe("NodeSizer duplicate-image de-dup sizing (ticket nid_psgov2t1d2s8d7rk2qvux02zb_e)", () => {
+	// Two neighbours embed the SAME cover image; under the shipped Auto ladder each
+	// would render it as its thumbnail. The de-dup hands the image to the note higher
+	// in the folder hierarchy ("a.md", vault root) and withholds it from the other
+	// ("sub/b.md"). The sizer must size the loser for what it will ACTUALLY show —
+	// never reserve the thumbnail slot / image floor for a picture it no longer paints.
+	const sharedCover: FakeVaultSpec = {
+		files: [{ path: "m.md" }, { path: "a.md" }, { path: "sub/b.md" }, { path: "pic.png" }],
+		links: { "m.md": ["a.md", "sub/b.md"], "a.md": ["pic.png"], "sub/b.md": ["pic.png"] },
+	};
+
+	it("WHEN a duplicate image is suppressed THEN the loser is NOT floored for the thumbnail it no longer shows", () => {
+		const sizes = sizeAll(sharedCover, viewWith(), ["m.md"]);
+		// The loser falls back to its image-less ladder (here: title + the image's own
+		// attachment chip), so it sits BELOW the image floor (minImageHeightPx, 180) —
+		// the "large empty box" floored for a picture it no longer paints is exactly
+		// what this ticket kills.
+		expect(sizeOf(sizes, "sub/b.md")).toBeLessThan(DEFAULTS.minImageHeightPx);
+	});
+
+	it("WHEN a duplicate image is suppressed THEN the surviving owner still gets the image floor", () => {
+		const sizes = sizeAll(sharedCover, viewWith(), ["m.md"]);
+		expect(sizeOf(sizes, "a.md")).toBeGreaterThanOrEqual(DEFAULTS.minImageHeightPx);
+	});
+
+	it("WHEN only ONE node embeds the image THEN it is sized for its thumbnail (no de-dup)", () => {
+		const soleImage: FakeVaultSpec = {
+			files: [{ path: "m.md" }, { path: "sub/b.md" }, { path: "pic.png" }],
+			links: { "m.md": ["sub/b.md"], "sub/b.md": ["pic.png"] },
+		};
+		const sizes = sizeAll(soleImage, viewWith(), ["m.md"]);
+		expect(sizeOf(sizes, "sub/b.md")).toBeGreaterThanOrEqual(DEFAULTS.minImageHeightPx);
+	});
+});
+
 describe("NodeSizer totality under hostile settings", () => {
 	it("WHEN minPx and maxPx are inverted THEN maxPx is raised and every size stays finite", () => {
 		const sizes = sizeAll(

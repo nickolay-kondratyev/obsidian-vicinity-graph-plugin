@@ -8,9 +8,8 @@ import type {
 	ViewSettings,
 	VicinityGraph,
 } from "../engine";
-import { nodePreviewKind } from "../engine";
+import { nodePreviewKind, suppressedDuplicateThumbnails } from "../engine";
 import { resolveNodePreviewPreference } from "./nodePreviewChoice";
-import { suppressedDuplicateThumbnails } from "./duplicateImageThumbnails";
 import { OUTLINE_RENDER_LIMIT } from "./constants";
 import type { AttachmentIconGroup } from "./attachmentIconStrip";
 import { attachmentIconStrip } from "./attachmentIconStrip";

@@ -98,6 +98,8 @@ export { VicinityTraversal } from "./VicinityTraversal";
 export type { TraversalResult, TraversalRoot, TraversedNode } from "./VicinityTraversal";
 export { NodeSizer } from "./NodeSizer";
 export type { NodeSizingView } from "./NodeSizer";
+export { suppressedDuplicateThumbnails } from "./duplicateImageThumbnails";
+export type { ThumbnailCandidate } from "./duplicateImageThumbnails";
 export { nodePreviewKind } from "./nodePreviewKind";
 export type { NodePreviewInput, NodePreviewKind } from "./nodePreviewKind";
 export { GraphTruncator } from "./GraphTruncator";

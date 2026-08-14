@@ -18,6 +18,7 @@ import {
 } from "./constants";
 import type { NodePreviewKind } from "./nodePreviewKind";
 import { nodePreviewKind } from "./nodePreviewKind";
+import { suppressedDuplicateThumbnails } from "./duplicateImageThumbnails";
 import type { TraversedNode } from "./VicinityTraversal";
 import type { VaultPath, ViewSettings } from "./types";
 
@@ -75,9 +76,23 @@ export class NodeSizer {
 		// uses — never with a bespoke guard that could drift from it.
 		const { minPx, maxPx, minImageHeightPx } = clampSizingSettings(rawView.sizing);
 		const centralFloorPx = Math.round(minPx + CENTRAL_PROMINENCE_FLOOR_SCORE * (maxPx - minPx));
+		// A node whose image the de-dup handed to another node (see
+		// {@link suppressedDuplicateThumbnails}) must be sized for what it WILL show,
+		// not the thumbnail it no longer paints — else it reserves the slot / image
+		// floor for a picture that never appears (a large empty box, ticket
+		// nid_psgov2t1d2s8d7rk2qvux02zb_e). The candidacy is judged on the GLOBAL
+		// preference (the same basis this sizer reads throughout), so `sizePx` stays
+		// independent of a per-node CONTENT flip: the VIEW's own de-dup, which honours
+		// that override, drives the render and matches this size except where an
+		// override is set — the same deliberate sizer/override divergence documented
+		// on {@link resolvePreview}. De-dup over the SAME node set the caller passes
+		// (the engine passes the VISIBLE, post-truncation nodes), so winner and losers
+		// match the view's.
+		const suppressedImagePaths = NodeSizer.suppressedThumbnails(nodes, rawView);
 		const sizes = new Map<VaultPath, number>();
 		for (const [path, node] of nodes) {
-			const preview = NodeSizer.resolvePreview(node, rawView);
+			const hasImage = node.firstImagePath !== undefined && !suppressedImagePaths.has(path);
+			const preview = NodeSizer.resolvePreview(node, rawView, hasImage);
 			const fit = NodeSizer.contentFitPx(node, preview);
 			// An IMAGE node (its preview slot resolves to the thumbnail) is floored at
 			// `minImageHeightPx` so a picture is legible even on an otherwise sparse
@@ -104,16 +119,38 @@ export class NodeSizer {
 	private static resolvePreview(
 		node: TraversedNode,
 		view: Pick<NodeSizingView, "outlineMaxDepth" | "nodePreviewPreference">,
+		hasImage: boolean,
 	): ResolvedPreview {
 		const renderableOutlineEntries = node.outline.filter((entry) => entry.level <= view.outlineMaxDepth).length;
 		const kind = nodePreviewKind({
 			preference: view.nodePreviewPreference,
 			outlineEntryCount: renderableOutlineEntries,
-			hasImage: node.firstImagePath !== undefined,
+			hasImage,
 			imagePrecedesOutline: node.imagePrecedesOutline,
 			isCentral: node.isCentral,
 		});
 		return { kind, renderableOutlineEntries };
+	}
+
+	/**
+	 * The paths whose first image the cross-node de-dup withholds — the losers of each
+	 * duplicate-thumbnail group. Candidacy uses the GLOBAL-preference preview kind (the
+	 * only basis this sizer knows), NEVER a per-node content override, so `sizePx`
+	 * cannot move on a content flip. In the common case (no overrides) this is exactly
+	 * the view's suppressed set, so the sized box matches the rendered region.
+	 */
+	private static suppressedThumbnails(
+		nodes: ReadonlyMap<VaultPath, TraversedNode>,
+		view: NodeSizingView,
+	): ReadonlySet<string> {
+		return suppressedDuplicateThumbnails(
+			[...nodes.values()].map((node) => ({
+				path: node.path,
+				folder: node.folder,
+				firstImagePath: node.firstImagePath,
+				rendersThumbnail: NodeSizer.resolvePreview(node, view, node.firstImagePath !== undefined).kind === "thumbnail",
+			})),
+		);
 	}
 
 	/**
