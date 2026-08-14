@@ -1,7 +1,7 @@
 import type { ElkNode } from "elkjs";
 import { describe, expect, it } from "vitest";
 import { asFolderPath, asVaultPath } from "../engine";
-import { ELK_GROUP_PADDING, ELK_ROOT_ID } from "./constants";
+import { ELK_GROUP_PADDING, ELK_ROOT_ID, elkGroupMemberOptions } from "./constants";
 import { extractElkDimensionsById, extractElkPositions, vicinityGraphToElk } from "./elkMapping";
 import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
 
@@ -184,10 +184,13 @@ describe("vicinityGraphToElk cross-boundary projection (force SEPARATE_CHILDREN 
 		expect(vicinityGraphToElk(graph).layoutOptions?.["elk.hierarchyHandling"]).toBeUndefined();
 	});
 
-	it("WHEN mapping THEN containers pack their members internally", () => {
+	it("WHEN mapping THEN containers carry the DECLARED interior options plus the group padding", () => {
+		// Locked against `elkGroupMemberOptions` — whichever interior
+		// GROUP_INTERIOR_LAYOUT selects — so the lock is "the mapping applies the
+		// declared interior wholesale", not a freeze of the flip itself.
 		const container = vicinityGraphToElk(graph).children?.find((child) => child.id === "folder-group:notes");
-		expect(container?.layoutOptions).toMatchObject({
-			"elk.algorithm": "rectpacking",
+		expect(container?.layoutOptions).toEqual({
+			...elkGroupMemberOptions(graph.viewSettings.forceLayout.elkNodeSpacingPx),
 			"elk.padding": ELK_GROUP_PADDING,
 		});
 	});

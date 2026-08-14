@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
+import type { ElkNode } from "elkjs";
 import { EngineDefaults, asFolderPath, asVaultPath } from "../engine";
 import type { GraphEdge, GraphNode, VicinityGraph } from "../engine";
 import { ElkLayoutRunner } from "./ElkLayoutRunner";
-import { GROUP_SIDE_PADDING_PX } from "./constants";
+import { GROUP_SIDE_PADDING_PX, elkGroupMemberRectpackingOptions } from "./constants";
 import { extractElkDimensionsById, extractElkPositions, vicinityGraphToElk } from "./elkMapping";
 import { folderGroupIdOf, nodeDimensionsPx } from "./graphIdentity";
+import { withContainerOptions } from "./testFixtures/elkContainerAlgorithm";
 import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
 
 /**
@@ -140,8 +142,20 @@ function requireGroupBox(dimensions: ReadonlyMap<string, { width: number; height
 	return box;
 }
 
+/**
+ * Interiors pinned to the RECTPACKING variant explicitly: this file guards the
+ * rect packer's own density properties (which stay selectable behind
+ * `GROUP_INTERIOR_LAYOUT`), so the mapped default must not leak in.
+ */
+function rectPackedElk(graph: VicinityGraph): ElkNode {
+	return withContainerOptions(
+		vicinityGraphToElk(graph),
+		elkGroupMemberRectpackingOptions(graph.viewSettings.forceLayout.elkNodeSpacingPx),
+	);
+}
+
 async function layOutGroup(graph: VicinityGraph): Promise<GroupGeometry> {
-	const laidOut = await new ElkLayoutRunner().layout(vicinityGraphToElk(graph));
+	const laidOut = await new ElkLayoutRunner().layout(rectPackedElk(graph));
 	const positions = extractElkPositions(laidOut);
 	const box = requireGroupBox(extractElkDimensionsById(laidOut));
 	const members = graph.nodes.filter((node) => node.folder === GROUP_FOLDER);
@@ -297,7 +311,7 @@ describe("nested folder-group containers", () => {
 	}
 
 	async function layOut(): Promise<{ boxOf: (id: string) => Box }> {
-		const laidOut = await new ElkLayoutRunner().layout(vicinityGraphToElk(nestedGraph()));
+		const laidOut = await new ElkLayoutRunner().layout(rectPackedElk(nestedGraph()));
 		const positions = extractElkPositions(laidOut);
 		const dimensions = extractElkDimensionsById(laidOut);
 		return {

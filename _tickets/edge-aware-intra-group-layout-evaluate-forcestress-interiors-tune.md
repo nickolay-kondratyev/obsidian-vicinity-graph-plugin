@@ -1,13 +1,14 @@
 ---
+closed_iso: 2026-08-14T18:28:37Z
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 session_ids: [{"a": "claude", "type": "decision", "id": "97349e1d-ccbf-4091-97c2-891f31979512"}, {"a": "claude", "type": "execution", "id": "3b9654a5-98f2-4aad-a98e-eb088fa294a8"}]
 id: nid_7abfje1vus15rx9hzmpel9jin_e
 title: "Edge-aware intra-group layout: evaluate force/stress interiors + tune"
-status: open
+status: closed
 deps: [nid_as3hdgn25pbxttimy643f46v7_e, nid_9uh2twn8whoqtplbxk0ywzpx7_e]
 links: []
 created_iso: 2026-08-14T00:18:09Z
-status_updated_iso: 2026-08-14T02:40:10Z
+status_updated_iso: 2026-08-14T18:28:37Z
 type: feature
 priority: 3
 assignee: nickolaykondratyev
@@ -142,3 +143,94 @@ regression.
 
 Deferred to owner because D5 explicitly reserved the final visual pick, and the
 box-refit investment is a scope/taste tradeoff the ticket did not settle.
+
+## AUTHORIZATION (2026-08-14, owner)
+
+**Owner picked Option A**: "Yes I authorize the full design work on this to be
+performed GREAT. Go forward with design work." The build phase is therefore
+unblocked: box-refit engineering, force-interior tuning (density/time), honest
+re-measurement through the REAL layout path, and `.out/` screenshots on the
+nested+edged fixtures. `decide`/`need-human` tags come OFF for the build and
+will be RE-ADDED when the screenshots exist — the final visual pick (D5) remains
+the owner's and is NOT decided by the build phase.
+
+## BUILD PHASE COMPLETE (2026-08-14, execution) — awaiting OWNER visual pick (D5)
+
+Everything Option A authorized is built, measured and green. The branch now
+renders FORCE interiors (flip commit `a074b1e` — reverting that ONE commit
+restores rectpacking); every gate passed on the flipped build: `npm run check`,
+`npm test` (2030), full `npm run test:e2e` (175).
+
+### What was built
+
+1. **Box refit** (`src/view/containerBoxRefit.ts` + `GraphLayoutRunner`): after
+   the d3 refinement moves a force container's members, the container box is
+   re-wrapped around them with the declared `GROUP_BOX_PADDING_PX`, bottom-up,
+   so parents always arrange final boxes. Invariants (members inside the box,
+   exact padding, no sibling overlap at any level) are unit-guarded in
+   `GraphLayoutRunner.test.ts` and proven on screen by the e2e smoke.
+2. **Tuning** (the decisive finding): the escalated +116ms was elk's
+   300-iteration force SEED, not d3 (~19ms). Capping the seed at
+   `elk.force.iterations: 30` (`GROUP_FORCE_SEED_ITERATIONS`) is BETTER on
+   every axis — the 5..60 band is quality-flat (crossings 198..315, another
+   chaotic-input regime like the root seed spacing). Reusing the member-spacing
+   knob as interior collide padding was measured and REJECTED (+29% area).
+3. **Production wiring**: `elkGroupMemberForceOptions` (constants.ts) is the
+   edge-aware interior; `GROUP_INTERIOR_LAYOUT` is the one-constant switch.
+
+### Final measured comparison (40-graph sweep, real pipeline; `.out/interior-eval.md`)
+
+| candidate | box area vs base | crossings (−%) | mean edge len | mean / max time |
+|---|---|---|---|---|
+| rectpacking (incumbent) | +0.0% | 1077 | 291 | 7.2 / 37.8 ms |
+| **force (SHIPPED ON BRANCH)** | **+9.4%** | **258 (−76%)** | **178 (−39%)** | **12.0 / 32.3 ms** |
+| force-rectseed (not wired) | −1.4% | 600 (−44%) | 202 | 9.5 / 17.0 ms |
+| stress | +25.9% | 48 | 131 | disqualified (overlaps members) |
+
+Every DECISION §2 envelope line clears, time included (max is BELOW the
+baseline's own max). `force-rectseed` (rect seed + d3, denser but ~2.3x the
+crossings) stays measured-but-unwired; its spec is the harness's
+`rectseedRefineWalk` if the visual pick ever wants it.
+
+### Disclosed tradeoff (not a blocker, judge with the screenshots)
+
+Under force interiors the LANDSCAPE stranding fixture's worst root boundary gap
+reads **117px** (rectpacking 73px, budget 100px) — the documented chaotic-input
+regime of the root pass reacting to different container shapes. The
+`d3ForceStranding` guards are pinned to rect-packed premises (mechanism
+unchanged); this shipped-config reading is recorded HERE instead.
+
+### The visual pick (what `decide` now asks)
+
+Compare, then choose the value of `GROUP_INTERIOR_LAYOUT`:
+
+- `.out/interior-rectpacking-nested-edged.png` — baseline (dense box visibly tangled)
+- `.out/interior-force-nested-edged.png` — force (hub = true star, chain = clean
+  crossing-free arc, dense untangled; boxes modestly larger/rounder)
+
+Try it live: this branch IS the force build — install per
+`docs-internal/beta-install.md` (BRAT/from-source). Re-shoot either side with
+`npm run test:e2e -- interiorLayoutShots.e2e.ts` after flipping the constant.
+
+- **Keep force** → ticket closes after folding these numbers into the
+  constants.ts comments (already largely done) — no further code.
+- **Back to rectpacking** → `git revert a074b1e`, update the WHY-NOT with this
+  table, close.
+- **Want force-rectseed instead** → small follow-up: wire a rect-seed marker
+  path in `GraphLayoutRunner` (the harness walk is the spec).
+
+## OWNER PICK (2026-08-14) — RECTPACKING STAYS. CLOSED.
+
+The owner tried the force build on a real graph and judged **rectpacking looks
+better**; the call was to keep rectpacking and document the alternative
+concisely at the constant. Done:
+
+- `GROUP_INTERIOR_LAYOUT` flipped back to `"rectpacking"`; its doc comment now
+  carries the decision record (date, ticket, the force numbers: −76%
+  crossings / −39% edge length at +9.4% area, rejected on real-vault look).
+- The force machinery stays BUILT and selectable — `elkGroupMemberForceOptions`,
+  the box refit, the default-agnostic guards, the eval harness and the
+  screenshot e2e — so re-opening this later is a one-constant flip plus a
+  re-shoot, not a rebuild.
+- D5's reserved visual sign-off is thereby DISCHARGED; nothing here awaits a
+  human anymore.

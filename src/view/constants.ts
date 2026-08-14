@@ -155,11 +155,11 @@ export const D3_FORCE_COLLIDE_ITERATIONS = 2;
 const GROUP_PACKING_ASPECT_RATIO = 0.75;
 
 /**
- * Layout of the INSIDE of a folder-group container. The force root runs
- * `SEPARATE_CHILDREN`, laying out every container independently: members are
- * packed here, then the container is placed as a fixed-size box by the root
- * force/d3 pass. `nodeSpacingPx` is the "Group member spacing" knob
- * (`ViewSettings.forceLayout.elkNodeSpacingPx`).
+ * The DENSITY-FIRST group interior (the {@link GROUP_INTERIOR_LAYOUT}
+ * incumbent). The force root runs `SEPARATE_CHILDREN`, laying out every
+ * container independently: members are packed here, then the container is
+ * placed as a fixed-size box by the root force/d3 pass. `nodeSpacingPx` is the
+ * "Group member spacing" knob (`ViewSettings.forceLayout.elkNodeSpacingPx`).
  *
  * WHY `rectpacking` and not `layered`: layered optimizes edge FLOW, not density,
  * and its edge routing is discarded anyway (edges are re-routed by
@@ -187,18 +187,76 @@ const GROUP_PACKING_ASPECT_RATIO = 0.75;
  *
  * WHY-NOT keep any edge awareness inside a group: rectpacking ignores intra-group
  * edges, so members no longer read top-to-bottom along their links. Accepted —
- * those edges render as routed curves, never as clean layered orthogonals.
+ * TWICE: first as a measured density call, then re-affirmed by the owner's
+ * real-vault visual pick over the built force alternative (numbers and the
+ * decision record live on {@link GROUP_INTERIOR_LAYOUT}).
  *
  * `orderBySize` packs the largest members first; without it rectpacking keeps
  * input order and leaves measurably more ragged white space.
  */
-export function elkGroupMemberOptions(nodeSpacingPx: number): Readonly<Record<string, string>> {
+export function elkGroupMemberRectpackingOptions(nodeSpacingPx: number): Readonly<Record<string, string>> {
 	return {
 		"elk.algorithm": "rectpacking",
 		"elk.aspectRatio": String(GROUP_PACKING_ASPECT_RATIO),
 		"elk.rectpacking.orderBySize": "true",
 		"elk.spacing.nodeNode": String(nodeSpacingPx),
 	};
+}
+
+/**
+ * Iterations of the elk `force` pass that SEEDS an edge-aware group interior
+ * (elk's default is 300). The seed only needs to break the initial coincidence
+ * and roughly untangle — the per-container d3 refinement
+ * (`d3ForceRefinement.ts`) is the finisher — and, MEASURED over the 40-graph
+ * interior sweep (`interiorLayoutEval.test.ts`, ticket
+ * nid_7abfje1vus15rx9hzmpel9jin_e): the flat band 5..60 iterations is
+ * quality-EQUIVALENT (intra-group crossings 198..315, box area +7.6..+13.9% vs
+ * rectpacking, no trend — a chaotic input, like the root seed spacing above),
+ * while elk's own 300 is strictly WORSE on both quality (399 crossings) and
+ * time (~121ms vs ~27ms max at the largest fixture; the elk force pass, not
+ * d3, is where the time goes). 30 sits mid-band with margin above degenerate
+ * seeds, at 10% of elk's default cost.
+ */
+const GROUP_FORCE_SEED_ITERATIONS = 30;
+
+/**
+ * The EDGE-AWARE group interior: elk `force` (capped at
+ * {@link GROUP_FORCE_SEED_ITERATIONS}) seeds the members, then
+ * `GraphLayoutRunner` — keyed on this algorithm marker, exactly as at the root
+ * — runs the d3 refinement on the container's interior and refits the
+ * container box (`containerBoxRefit.ts`). `nodeSpacingPx` (the "Group member
+ * spacing" knob) feeds the SEED's separation; the refinement's member gap is
+ * the d3 collide padding ("Node spacing"), which — measured, same sweep —
+ * beats reusing the member-spacing value there (+9% vs +29% box area).
+ */
+export function elkGroupMemberForceOptions(nodeSpacingPx: number): Readonly<Record<string, string>> {
+	return {
+		"elk.algorithm": ELK_FORCE_ALGORITHM,
+		"elk.force.iterations": String(GROUP_FORCE_SEED_ITERATIONS),
+		"elk.spacing.nodeNode": String(nodeSpacingPx),
+	};
+}
+
+/**
+ * WHICH interior layout folder groups ship with — an OWNER visual pick
+ * (DECIDED 2026-08-14, ticket nid_7abfje1vus15rx9hzmpel9jin_e): `rectpacking`
+ * KEPT after a real-vault try-out of `force`. The edge-aware alternative
+ * stays built, measured and selectable ({@link elkGroupMemberForceOptions}):
+ * on the 40-graph nested+edged sweep it cuts intra-group crossings −76% and
+ * edge length −39%, at +9.4% box area and looser, rounder boxes — that
+ * density/tidiness loss is what the owner rejected on a real graph. Flipping
+ * this constant is the WHOLE switch (the box refit and every guard are
+ * default-agnostic); `interiorLayoutEval.test.ts` regenerates the numbers and
+ * `interiorLayoutShots.e2e.ts` the screenshot pair on either side.
+ */
+export type GroupInteriorLayout = "rectpacking" | "force";
+export const GROUP_INTERIOR_LAYOUT: GroupInteriorLayout = "rectpacking";
+
+/** Layout of the INSIDE of a folder-group container, per {@link GROUP_INTERIOR_LAYOUT}. */
+export function elkGroupMemberOptions(nodeSpacingPx: number): Readonly<Record<string, string>> {
+	return GROUP_INTERIOR_LAYOUT === "force"
+		? elkGroupMemberForceOptions(nodeSpacingPx)
+		: elkGroupMemberRectpackingOptions(nodeSpacingPx);
 }
 
 /**
@@ -218,6 +276,20 @@ export const GROUP_SIDE_PADDING_PX = 16;
  */
 const GROUP_TOP_PADDING_PX = 36;
 
+/**
+ * Inner padding of a folder-group container, structured. ONE source for both
+ * consumers of the group inset: the elk padding string ({@link ELK_GROUP_PADDING},
+ * what elk-laid interiors honour) and the box refit (`containerBoxRefit.ts`,
+ * which re-imposes the same inset after a d3 interior refinement moves the
+ * members) — so the two can never drift apart.
+ */
+export const GROUP_BOX_PADDING_PX = {
+	top: GROUP_TOP_PADDING_PX,
+	left: GROUP_SIDE_PADDING_PX,
+	bottom: GROUP_SIDE_PADDING_PX,
+	right: GROUP_SIDE_PADDING_PX,
+} as const;
+
 /** [elk `ElkPadding` syntax]: values must be written as float literals (`16.0`, not `16`). */
 function elkPaddingValue(px: number): string {
 	const ELK_PADDING_DECIMALS = 1;
@@ -226,8 +298,8 @@ function elkPaddingValue(px: number): string {
 
 /** Inner padding of folder-group containers, in elk's `ElkPadding` syntax. */
 export const ELK_GROUP_PADDING =
-	`[top=${elkPaddingValue(GROUP_TOP_PADDING_PX)},left=${elkPaddingValue(GROUP_SIDE_PADDING_PX)}` +
-	`,bottom=${elkPaddingValue(GROUP_SIDE_PADDING_PX)},right=${elkPaddingValue(GROUP_SIDE_PADDING_PX)}]`;
+	`[top=${elkPaddingValue(GROUP_BOX_PADDING_PX.top)},left=${elkPaddingValue(GROUP_BOX_PADDING_PX.left)}` +
+	`,bottom=${elkPaddingValue(GROUP_BOX_PADDING_PX.bottom)},right=${elkPaddingValue(GROUP_BOX_PADDING_PX.right)}]`;
 
 /**
  * React Flow zoom floor. RF's default (0.5) clamps `fitView` on dense graphs in
