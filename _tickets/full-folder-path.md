@@ -78,3 +78,8 @@ future refinement if a measured/segment-aware label is ever wanted.
 
 **Verification:** `npm run build` (green) + `npm run test:e2e -- nestedGrouping.e2e.ts`
 (7/7 passing — full-path label text and tooltip still assert correctly).
+## Notes
+
+**2026-08-14T19:35:23Z**
+
+__REVIEW_AGAIN__: scoped the front-ellipsis to full-path mode only (default leaf-name labels were regressed to front-truncation); added FlowGroupData.fullPathLabel flag + tests; check/npm test/nestedGrouping e2e all green
