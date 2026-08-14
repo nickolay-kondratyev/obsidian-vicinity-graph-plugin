@@ -261,3 +261,85 @@ describe("folder-group interior packing", () => {
 		expect([second.widthPx, second.heightPx]).toEqual([first.widthPx, first.heightPx]);
 	});
 });
+
+/**
+ * Nested containers under real elkjs (recursive grouping): a parent group whose
+ * members live entirely in two qualifying subgroups. The properties that must
+ * hold once containers nest — every child box sits inside its parent's box, and
+ * every member sits inside its own child box — are what a broken nesting (a
+ * child laid out at the root, or a member escaping its container) violates.
+ */
+describe("nested folder-group containers", () => {
+	const PARENT_FOLDER = asFolderPath("sql");
+	const JOINS_FOLDER = asFolderPath("sql/joins");
+	const WINDOWS_FOLDER = asFolderPath("sql/windows");
+
+	function nestedGraph(): VicinityGraph {
+		const sub = (folder: string, tag: string): GraphNode[] =>
+			Array.from({ length: 3 }, (_, index) =>
+				makeNode({ path: asVaultPath(`${folder}/${tag}${index}.md`), folder: asFolderPath(folder), sizePx: 80 + index * 20 }),
+			);
+		return makeGraph({
+			nodes: [
+				makeNode({ path: asVaultPath("root.md"), folder: asFolderPath(""), isCentral: true, isMain: true }),
+				...sub("sql/joins", "j"),
+				...sub("sql/windows", "w"),
+			],
+			edges: [makeEdge("sql/joins/j0.md", "sql/windows/w0.md")],
+		});
+	}
+
+	interface Box {
+		readonly x: number;
+		readonly y: number;
+		readonly width: number;
+		readonly height: number;
+	}
+
+	async function layOut(): Promise<{ boxOf: (id: string) => Box }> {
+		const laidOut = await new ElkLayoutRunner().layout(vicinityGraphToElk(nestedGraph()));
+		const positions = extractElkPositions(laidOut);
+		const dimensions = extractElkDimensionsById(laidOut);
+		return {
+			boxOf: (id) => {
+				const pos = positions.get(id);
+				const dim = dimensions.get(id);
+				if (pos === undefined || dim === undefined) {
+					throw new Error(`missing laid-out box for [${id}]`);
+				}
+				return { x: pos.x, y: pos.y, width: dim.width, height: dim.height };
+			},
+		};
+	}
+
+	function contains(outer: Box, inner: Box): boolean {
+		const EPSILON_PX = 0.5;
+		return (
+			inner.x >= outer.x - EPSILON_PX &&
+			inner.y >= outer.y - EPSILON_PX &&
+			inner.x + inner.width <= outer.x + outer.width + EPSILON_PX &&
+			inner.y + inner.height <= outer.y + outer.height + EPSILON_PX
+		);
+	}
+
+	it("WHEN a parent group nests two subgroups THEN each child container sits inside the parent box", async () => {
+		const { boxOf } = await layOut();
+		const parent = boxOf(folderGroupIdOf(PARENT_FOLDER));
+		expect([
+			contains(parent, boxOf(folderGroupIdOf(JOINS_FOLDER))),
+			contains(parent, boxOf(folderGroupIdOf(WINDOWS_FOLDER))),
+		]).toEqual([true, true]);
+	});
+
+	it("WHEN members nest two levels deep THEN each member sits inside its own child container", async () => {
+		const { boxOf } = await layOut();
+		const joins = boxOf(folderGroupIdOf(JOINS_FOLDER));
+		const insideJoins = ["sql/joins/j0.md", "sql/joins/j1.md", "sql/joins/j2.md"].map((id) => contains(joins, boxOf(id)));
+		expect(insideJoins).toEqual([true, true, true]);
+	});
+
+	it("WHEN a parent group holds only subgroups THEN it is still a laid-out root child", async () => {
+		const { boxOf } = await layOut();
+		expect(boxOf(folderGroupIdOf(PARENT_FOLDER)).width).toBeGreaterThan(0);
+	});
+});

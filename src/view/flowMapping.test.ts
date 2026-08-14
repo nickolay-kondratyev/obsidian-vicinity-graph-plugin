@@ -270,6 +270,59 @@ describe("vicinityGraphToFlow folder groups", () => {
 	});
 });
 
+/**
+ * GIVEN a nesting parent `sql` with NO direct notes, whose visible notes all
+ * live in two qualifying subgroups. This is the empty-nesting-parent regression
+ * (ticket nid_d44vbnq9o6rhuelfwclx2e34n_e): the flat consumer shipped a phantom
+ * EMPTY `sql` box; nesting must render it as a NON-EMPTY container holding its
+ * two child group boxes.
+ */
+function nestedGroupGraph() {
+	return makeGraph({
+		nodes: [
+			makeNode({ path: asVaultPath("sql/joins/a.md"), folder: asFolderPath("sql/joins") }),
+			makeNode({ path: asVaultPath("sql/joins/b.md"), folder: asFolderPath("sql/joins") }),
+			makeNode({ path: asVaultPath("sql/windows/c.md"), folder: asFolderPath("sql/windows") }),
+			makeNode({ path: asVaultPath("sql/windows/d.md"), folder: asFolderPath("sql/windows") }),
+		],
+		edges: [makeEdge("sql/joins/a.md", "sql/windows/c.md")],
+	});
+}
+
+describe("vicinityGraphToFlow nested folder groups", () => {
+	function groupNode(nodes: readonly FlowNode[], id: string) {
+		const found = nodes.find((node) => node.id === id);
+		return found?.kind === "folder-group" ? found : undefined;
+	}
+
+	it("WHEN a group nests THEN it carries its parent group's parentId", () => {
+		expect(groupNode(toFlow(nestedGroupGraph()).nodes, "folder-group:sql/joins")?.parentId).toBe("folder-group:sql");
+	});
+
+	it("WHEN a group is top-level THEN it has no parentId", () => {
+		expect(groupNode(toFlow(nestedGroupGraph()).nodes, "folder-group:sql")?.parentId).toBeUndefined();
+	});
+
+	it("WHEN a nesting parent has no direct notes THEN its box is NOT empty — the child groups render inside it", () => {
+		const nodes = toFlow(nestedGroupGraph()).nodes;
+		const nestedUnderSql = nodes.filter((node) => node.parentId === "folder-group:sql").map((node) => node.id);
+		expect(nestedUnderSql).toEqual(["folder-group:sql/joins", "folder-group:sql/windows"]);
+	});
+
+	it("WHEN a parent group is emitted THEN it precedes its child groups (React Flow parent-first rule)", () => {
+		const ids = toFlow(nestedGroupGraph()).nodes.map((node) => node.id);
+		expect(ids.indexOf("folder-group:sql")).toBeLessThan(ids.indexOf("folder-group:sql/joins"));
+	});
+
+	it("WHEN an edge crosses two sibling subgroups THEN it collapses onto their group boxes", () => {
+		const [edge] = toFlow(nestedGroupGraph()).edges;
+		expect({ source: edge?.source, target: edge?.target }).toEqual({
+			source: "folder-group:sql/joins",
+			target: "folder-group:sql/windows",
+		});
+	});
+});
+
 describe("vicinityGraphToFlow edges", () => {
 	const graph = makeGraph({
 		nodes: [makeNode({ path: asVaultPath("a.md") }), makeNode({ path: asVaultPath("b.md") })],

@@ -18,9 +18,10 @@ import { VaultPathFacts } from "../shared/VaultPathFacts";
  *   surviving group carries the collapsed chain on {@link FolderGroup.chainPath}
  *   (e.g. `A/B/C`), while `folder`/`leafName` name its real leaf folder.
  *
- * LCA and nearest-rendered-ancestor lookups live ONCE here
- * ({@link FolderGroupingResult.nearestRenderedAncestorGroupOf},
- * {@link FolderGroupingResult.lowestCommonAncestorContainerOf}); consumers
+ * LCA, nearest-rendered-ancestor and container-child projection lookups live
+ * ONCE here ({@link FolderGroupingResult.nearestRenderedAncestorGroupOf},
+ * {@link FolderGroupingResult.lowestCommonAncestorContainerOf},
+ * {@link FolderGroupingResult.projectOntoContainerChildOf}); consumers
  * (`elkMapping`, `flowMapping`, `truncationBadges`) MUST use these seams and
  * never re-derive the tree (DRY).
  */
@@ -72,6 +73,19 @@ export interface FolderGroupingResult {
 	 * of the group strictly inside this container.
 	 */
 	readonly lowestCommonAncestorContainerOf: (pathA: string, pathB: string) => FolderGroup | null;
+	/**
+	 * Projects `notePath` onto the DIRECT CHILD of `container` (null = canvas
+	 * pane) that renders it: the group strictly inside `container` that is an
+	 * ancestor-or-self of the note, or `null` when the note is a direct leaf
+	 * member of `container` with no intervening group. Precondition: `container`
+	 * is on the note's rendered chain (i.e. `container` is a
+	 * {@link lowestCommonAncestorContainerOf} result for that note, or `null`).
+	 * The ONE projection seam BOTH edge consumers (`elkMapping`, `flowMapping`)
+	 * use to attach a cross-boundary edge to the closest common ancestor while
+	 * naming that container's own children — never a nested descendant elk cannot
+	 * reference under `SEPARATE_CHILDREN`.
+	 */
+	readonly projectOntoContainerChildOf: (notePath: string, container: FolderGroup | null) => FolderGroup | null;
 }
 
 /** Groups render only at 2+ descendant notes (plan D2); smaller folders fall up to an ancestor. */
@@ -227,10 +241,19 @@ export function deriveFolderGroups(nodes: readonly GraphNode[]): FolderGroupingR
 		return renderedGroupChainOf(pathB).find((group) => foldersA.has(group.folder)) ?? null;
 	};
 
+	// The direct child of `container` on the note's chain is the ONE group whose
+	// effective parent IS the container (parentFolder === container.folder, or
+	// null for the canvas pane); none exists when the note is a direct leaf member.
+	const projectOntoContainerChildOf = (notePath: string, container: FolderGroup | null): FolderGroup | null => {
+		const containerFolder = container === null ? null : container.folder;
+		return renderedGroupChainOf(notePath).find((group) => group.parentFolder === containerFolder) ?? null;
+	};
+
 	return {
 		groups,
 		groupFolderByMemberPath,
 		nearestRenderedAncestorGroupOf,
 		lowestCommonAncestorContainerOf,
+		projectOntoContainerChildOf,
 	};
 }
