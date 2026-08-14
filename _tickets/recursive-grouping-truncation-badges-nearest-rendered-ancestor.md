@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 id: nid_3wnxsfexabjnx1uj9js2o1c43_e
 title: "Recursive grouping truncation badges: nearest rendered ancestor"
-status: open
+status: in_progress
 deps: [nid_9uh2twn8whoqtplbxk0ywzpx7_e]
 links: []
 created_iso: 2026-08-14T00:18:09Z
-status_updated_iso: 2026-08-14T00:18:09Z
+status_updated_iso: 2026-08-14T01:50:52Z
 type: feature
 priority: 3
 assignee: nickolaykondratyev
