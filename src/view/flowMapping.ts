@@ -250,7 +250,7 @@ export function vicinityGraphToFlow(graph: VicinityGraph, pinFacts: FlowPinFacts
 	const grouping = deriveFolderGroups(graph.nodes);
 	const badges = deriveTruncationBadges(
 		graph.hiddenNodeCountsByFolder,
-		new Set(grouping.groups.map((group) => group.folder)),
+		grouping.nearestRenderedAncestorGroupOf,
 	);
 	// Parents must precede children in React Flow's nodes array. `grouping.groups`
 	// is in first-seen (nearest-ancestor-first) order, which can place a nesting
