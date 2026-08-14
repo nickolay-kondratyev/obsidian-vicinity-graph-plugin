@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 id: nid_0nmhmv03071derz5ok30cisaa_e
 title: "Grouping settings group: group-label row (folder name vs full path)"
-status: open
+status: in_progress
 deps: [nid_9uh2twn8whoqtplbxk0ywzpx7_e]
 links: []
 created_iso: 2026-08-14T00:18:09Z
-status_updated_iso: 2026-08-14T00:18:09Z
+status_updated_iso: 2026-08-14T01:39:04Z
 type: feature
 priority: 3
 assignee: nickolaykondratyev
