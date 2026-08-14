@@ -212,6 +212,79 @@ describe("vicinityGraphToElk cross-boundary projection (force SEPARATE_CHILDREN 
 	});
 });
 
+describe("vicinityGraphToElk nested folder-group containers (recursive grouping)", () => {
+	// GIVEN a nesting parent `sql` with NO direct notes of its own, whose visible
+	// notes all live in two qualifying subgroups `sql/joins` and `sql/windows`.
+	// Repro of the empty-nesting-parent regression: before nesting, `sql` shipped
+	// an EMPTY container; nesting makes it hold its two child containers instead.
+	const graph = makeGraph({
+		nodes: [
+			makeNode({ path: asVaultPath("sql/joins/a.md"), folder: asFolderPath("sql/joins"), minDepth: 1 }),
+			makeNode({ path: asVaultPath("sql/joins/b.md"), folder: asFolderPath("sql/joins"), minDepth: 2 }),
+			makeNode({ path: asVaultPath("sql/windows/c.md"), folder: asFolderPath("sql/windows"), minDepth: 1 }),
+			makeNode({ path: asVaultPath("sql/windows/d.md"), folder: asFolderPath("sql/windows"), minDepth: 2 }),
+		],
+		edges: [
+			makeEdge("sql/joins/a.md", "sql/joins/b.md"),
+			makeEdge("sql/joins/a.md", "sql/windows/c.md"),
+		],
+	});
+
+	function child(node: ElkNode | undefined, id: string): ElkNode | undefined {
+		return node?.children?.find((candidate) => candidate.id === id);
+	}
+
+	it("WHEN a nesting parent has no direct notes THEN its container nests its child group containers (not empty)", () => {
+		const sql = child(vicinityGraphToElk(graph), "folder-group:sql");
+		expect(sql?.children?.map((c) => c.id)).toEqual(["folder-group:sql/joins", "folder-group:sql/windows"]);
+	});
+
+	it("WHEN groups nest THEN the child containers hold their own note members", () => {
+		const joins = child(child(vicinityGraphToElk(graph), "folder-group:sql"), "folder-group:sql/joins");
+		expect(joins?.children?.map((c) => c.id)).toEqual(["sql/joins/a.md", "sql/joins/b.md"]);
+	});
+
+	it("WHEN a group nests THEN only the top-level container is a root child", () => {
+		expect(vicinityGraphToElk(graph).children?.map((c) => c.id)).toEqual(["folder-group:sql"]);
+	});
+
+	it("WHEN an intra-subgroup edge maps THEN it lives on the child container member-to-member", () => {
+		const joins = child(child(vicinityGraphToElk(graph), "folder-group:sql"), "folder-group:sql/joins");
+		expect(joins?.edges?.map((e) => e.id)).toEqual(["sql/joins/a.md->sql/joins/b.md"]);
+	});
+
+	it("WHEN an edge crosses two sibling subgroups THEN it attaches to their LCA container, projected onto its children", () => {
+		const sql = child(vicinityGraphToElk(graph), "folder-group:sql");
+		expect(sql?.edges).toEqual([
+			{
+				id: "sql/joins/a.md->sql/windows/c.md",
+				sources: ["folder-group:sql/joins"],
+				targets: ["folder-group:sql/windows"],
+			},
+		]);
+	});
+
+	it("WHEN every edge lives on an inner container THEN the root carries no edges", () => {
+		expect(vicinityGraphToElk(graph).edges).toEqual([]);
+	});
+
+	it("WHEN a nesting parent has a direct member linking into a subgroup THEN the edge projects the leaf and the child group", () => {
+		// GIVEN `sql` now ALSO holds a direct note `sql/root.md`; the LCA of it and a
+		// subgroup note is `sql`, so the leaf stays itself and the subgroup projects.
+		const withDirect = makeGraph({
+			...graph,
+			nodes: [...graph.nodes, makeNode({ path: asVaultPath("sql/root.md"), folder: asFolderPath("sql"), minDepth: 0 })],
+			edges: [...graph.edges, makeEdge("sql/root.md", "sql/joins/a.md")],
+		});
+		const sql = child(vicinityGraphToElk(withDirect), "folder-group:sql");
+		expect(sql?.edges).toContainEqual({
+			id: "sql/root.md->sql/joins/a.md",
+			sources: ["sql/root.md"],
+			targets: ["folder-group:sql/joins"],
+		});
+	});
+});
+
 describe("extractElkDimensionsById", () => {
 	it("WHEN a laid-out container reports a size THEN it is extracted by id", () => {
 		const laidOut: ElkNode = {

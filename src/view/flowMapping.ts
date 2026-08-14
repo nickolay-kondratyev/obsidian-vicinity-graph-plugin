@@ -1,6 +1,5 @@
 import type {
 	EdgeKind,
-	FolderPath,
 	GraphEdge,
 	GraphNode,
 	NodeContentOverride,
@@ -16,6 +15,7 @@ import { OUTLINE_RENDER_LIMIT } from "./constants";
 import type { AttachmentIconGroup } from "./attachmentIconStrip";
 import { attachmentIconStrip } from "./attachmentIconStrip";
 import { deriveFolderGroups } from "./folderGrouping";
+import type { FolderGroup, FolderGroupingResult } from "./folderGrouping";
 import type { OrphanTruncation } from "./truncationBadges";
 import { deriveTruncationBadges } from "./truncationBadges";
 import { edgeIdOf, folderGroupIdOf, nodeDimensionsPx, nodeSizeOverridePx } from "./graphIdentity";
@@ -217,6 +217,18 @@ export interface FlowGraph {
 /** Position every node gets before layout runs (elk overwrites it). */
 const UNPLACED: XY = { x: 0, y: 0 };
 
+const FOLDER_SEPARATOR = "/";
+
+/**
+ * Nesting depth of a folder path (segment count): an ancestor folder always has
+ * a strictly smaller depth than its descendants. Used only to order group nodes
+ * ancestor-first for React Flow's parent-before-child rule — group folders are
+ * never the vault root, so the empty-string edge case does not arise.
+ */
+function folderDepthOf(folder: string): number {
+	return folder.split(FOLDER_SEPARATOR).length;
+}
+
 /**
  * Group nodes are sized by elk (container wraps its children); before layout
  * they carry this placeholder, replaced via {@link withGroupDimensions}.
@@ -241,14 +253,25 @@ export function vicinityGraphToFlow(graph: VicinityGraph, pinFacts: FlowPinFacts
 		graph.hiddenNodeCountsByFolder,
 		new Set(grouping.groups.map((group) => group.folder)),
 	);
-	// Parents must precede children in React Flow's nodes array.
-	const groupNodes = grouping.groups.map(
+	// Parents must precede children in React Flow's nodes array. `grouping.groups`
+	// is in first-seen (nearest-ancestor-first) order, which can place a nesting
+	// parent AFTER its child, so order the group nodes by folder DEPTH — an
+	// ancestor folder always has fewer segments than its descendants. A stable
+	// sort keeps first-seen order among siblings (determinism unchanged). Note
+	// nodes are appended after every group node, so a note always follows its group.
+	const groupNodes = [...grouping.groups]
+		.sort((a, b) => folderDepthOf(a.folder) - folderDepthOf(b.folder))
+		.map(
 		(group): GroupFlowNode => ({
 			id: folderGroupIdOf(group.folder),
 			kind: "folder-group",
 			position: UNPLACED,
 			width: UNSIZED_GROUP_PX,
 			height: UNSIZED_GROUP_PX,
+			// A nested group renders inside its parent group's subflow; a top-level
+			// group's container is the canvas pane (no parentId). Mirrors the elk
+			// container nesting so RF subflows and the layout tree agree.
+			...(group.parentFolder === null ? {} : { parentId: folderGroupIdOf(group.parentFolder) }),
 			data: {
 				folder: group.folder,
 				folderName: VaultPathFacts.folderNameOf(group.folder),
@@ -271,7 +294,7 @@ export function vicinityGraphToFlow(graph: VicinityGraph, pinFacts: FlowPinFacts
 	});
 	return {
 		nodes: [...groupNodes, ...noteNodes],
-		edges: buildFlowEdges(graph, grouping.groupFolderByMemberPath),
+		edges: buildFlowEdges(graph, grouping),
 		orphanTruncation: badges.orphan,
 	};
 }
@@ -299,34 +322,34 @@ const UNORDERED_PAIR_KEY_SEPARATOR = "\u0000";
 
 /**
  * Maps engine edges to rendered {@link FlowEdge}s, collapsing the fan of edges
- * crossing a folder-group boundary onto a single edge to the group box (mirrors
- * `projectedRootEdges` in elkMapping, so layout and rendering agree). An engine
- * edge is:
- * - PASSTHROUGH when neither endpoint is projected (both ungrouped) or both
- *   endpoints project to the SAME group (intra-group — kept member-to-member so
- *   the container's internal links stay visible, never a group self-loop). These
- *   keep the curved-pair `hasOpposite` semantics unchanged.
- * - COLLAPSED when its projected endpoints differ and at least one was projected
- *   onto its group. Collapsed edges union by unordered projected pair: both
- *   directions → one bidirectional edge (arrowhead each end); one direction →
- *   single arrowhead; `count` = sum of every contributing edge.
+ * crossing a folder-group boundary onto a single edge between the closest-common-
+ * ancestor container's direct children (mirrors `attachEdgesToContainers` in
+ * elkMapping via the SAME grouping-tree projection seam, so layout and rendering
+ * agree). An engine edge is:
+ * - PASSTHROUGH when neither endpoint is projected — both are direct leaf members
+ *   of their LCA container (an intra-group edge, or two ungrouped notes at the
+ *   root). Kept member-to-member so the container's internal links stay visible,
+ *   never a group self-loop; keeps the curved-pair `hasOpposite` semantics.
+ * - COLLAPSED when at least one endpoint projects onto a child GROUP of the LCA.
+ *   Collapsed edges union by unordered projected pair: both directions → one
+ *   bidirectional edge (arrowhead each end); one direction → single arrowhead;
+ *   `count` = sum of every contributing edge. The projected endpoints always
+ *   differ (both landing on the same child would make that child the LCA).
  */
-function buildFlowEdges(
-	graph: VicinityGraph,
-	groupFolderByMemberPath: ReadonlyMap<string, FolderPath>,
-): FlowEdge[] {
-	const projectId = (path: string): string => {
-		const folder = groupFolderByMemberPath.get(path);
-		return folder === undefined ? path : folderGroupIdOf(folder);
+function buildFlowEdges(graph: VicinityGraph, grouping: FolderGroupingResult): FlowEdge[] {
+	const projectId = (path: string, container: FolderGroup | null): string => {
+		const child = grouping.projectOntoContainerChildOf(path, container);
+		return child === null ? path : folderGroupIdOf(child.folder);
 	};
 	const renderedEdgeIds = new Set(graph.edges.map(edgeIdOf));
 	const passthrough: FlowEdge[] = [];
 	const collapsedByPair = new Map<string, CollapsedEdgeAccumulator>();
 	for (const edge of graph.edges) {
-		const projSource = projectId(edge.source);
-		const projTarget = projectId(edge.target);
+		const lca = grouping.lowestCommonAncestorContainerOf(edge.source, edge.target);
+		const projSource = projectId(edge.source, lca);
+		const projTarget = projectId(edge.target, lca);
 		const wasProjected = projSource !== edge.source || projTarget !== edge.target;
-		if (!wasProjected || projSource === projTarget) {
+		if (!wasProjected) {
 			passthrough.push({
 				id: edgeIdOf(edge),
 				source: edge.source,

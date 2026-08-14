@@ -1,8 +1,8 @@
 import type { ElkNode } from "elkjs";
-import type { FolderPath, GraphEdge, GraphNode, VicinityGraph } from "../engine";
+import type { FolderPath, VicinityGraph } from "../engine";
 import { ELK_GROUP_PADDING, ELK_ROOT_ID, elkForceRootOptions, elkGroupMemberOptions } from "./constants";
 import { deriveFolderGroups } from "./folderGrouping";
-import type { FolderGroupingResult } from "./folderGrouping";
+import type { FolderGroup, FolderGroupingResult } from "./folderGrouping";
 import { edgeIdOf, folderGroupIdOf, nodeDimensionsPx } from "./graphIdentity";
 import type { Dimensions, XY } from "./flowMapping";
 
@@ -12,19 +12,25 @@ import type { Dimensions, XY } from "./flowMapping";
  * dependency and stays node-testable; the actual elk engine is invoked by
  * {@link ElkLayoutRunner}.
  *
- * Compound layout (step-05 folder groups): members of a rendered group nest
- * under a folder container child; elk's JSON contract requires every edge to
- * live on the closest common ancestor of its endpoints, so intra-group edges
- * move onto their container while every other edge stays on the root.
+ * Compound layout (recursive folder groups): a rendered group becomes a folder
+ * container nested inside its PARENT group's container (a top-level group nests
+ * under the root), so the elk tree mirrors the grouping tree to arbitrary depth.
+ * Each container holds its direct note members AND its child group containers.
  *
- * The root runs elk's `force` algorithm ({@link elkForceRootOptions}), which
- * does not support `INCLUDE_CHILDREN`, so elk's default `SEPARATE_CHILDREN`
- * applies: each container packs its members internally
- * ({@link elkGroupMemberOptions}), then the root arranges containers and
- * ungrouped leaves as fixed boxes. Cross-boundary edges are PROJECTED onto
- * containers (see {@link projectedRootEdges}). The elk root pass is only a seed —
- * `GraphLayoutRunner` then refines the root boxes with d3-force
- * (`d3ForceRefinement.ts`).
+ * elk's JSON contract requires every edge to live on the CLOSEST COMMON ANCESTOR
+ * container of its endpoints ({@link FolderGroupingResult.lowestCommonAncestorContainerOf}
+ * — never re-derived here). Because the root force pass and the rectpacking
+ * interiors both run `SEPARATE_CHILDREN` (neither supports `INCLUDE_CHILDREN`),
+ * an edge cannot reference a node nested BELOW its host container's direct
+ * children; so each endpoint is PROJECTED onto the direct child of the LCA that
+ * renders it ({@link FolderGroupingResult.projectOntoContainerChildOf}) — a
+ * sibling note leaf or a sibling group container. Intra-group edges (LCA = that
+ * group, both endpoints direct members) stay member-to-member.
+ *
+ * The root runs elk's `force` algorithm ({@link elkForceRootOptions}); each
+ * container packs its members with `rectpacking` ({@link elkGroupMemberOptions}).
+ * The elk root pass is only a seed — `GraphLayoutRunner` then refines the
+ * top-level boxes with d3-force (`d3ForceRefinement.ts`).
  */
 
 export function vicinityGraphToElk(graph: VicinityGraph): ElkNode {
@@ -38,94 +44,92 @@ export function vicinityGraphToElk(graph: VicinityGraph): ElkNode {
 			return [node.path, { id: node.path, width, height }];
 		}),
 	);
-	const containers: ElkNode[] = [];
+	// Build every container first (with its direct note-member leaves), then nest
+	// each under its parent group — parents and children both come from
+	// `grouping.groups`, so a second pass wires the tree once all exist.
 	const containerByFolder = new Map<FolderPath, ElkNode>();
 	for (const group of grouping.groups) {
-		const children = group.memberPaths
+		const memberLeaves = group.memberPaths
 			.map((path) => leafById.get(path))
 			.filter((child): child is ElkNode => child !== undefined);
-		const container: ElkNode = {
+		containerByFolder.set(group.folder, {
 			id: folderGroupIdOf(group.folder),
-			children,
+			children: memberLeaves,
 			edges: [],
 			layoutOptions: { ...elkGroupMemberOptions(nodeSpacingPx), "elk.padding": ELK_GROUP_PADDING },
-		};
-		containers.push(container);
-		containerByFolder.set(group.folder, container);
+		});
+	}
+	const topLevelContainers: ElkNode[] = [];
+	for (const group of grouping.groups) {
+		const container = containerByFolder.get(group.folder);
+		if (container === undefined) {
+			continue;
+		}
+		if (group.parentFolder === null) {
+			topLevelContainers.push(container);
+		} else {
+			containerByFolder.get(group.parentFolder)?.children?.push(container);
+		}
 	}
 	const ungroupedLeaves = graph.nodes
 		.filter((node) => !grouping.groupFolderByMemberPath.has(node.path))
 		.map((node) => leafById.get(node.path))
 		.filter((leaf): leaf is ElkNode => leaf !== undefined);
-	const crossBoundaryEdges: GraphEdge[] = [];
-	for (const edge of graph.edges) {
-		const container = intraGroupContainerOf(edge, grouping.groupFolderByMemberPath, containerByFolder);
-		if (container?.edges !== undefined) {
-			container.edges.push({ id: edgeIdOf(edge), sources: [edge.source], targets: [edge.target] });
-		} else {
-			crossBoundaryEdges.push(edge);
-		}
-	}
-	const rootEdges = projectedRootEdges(crossBoundaryEdges, grouping, graph.nodes);
+	// Attach each edge to its LCA container, projecting both endpoints onto that
+	// container's direct children. Root-bound edges (LCA null) are deduped +
+	// reoriented centre-outward; interior edges keep their id (rectpacking ignores
+	// them, they exist only to satisfy elk's common-ancestor contract).
+	const rootEdges = attachEdgesToContainers(graph, grouping, containerByFolder);
 	return {
 		id: ELK_ROOT_ID,
 		layoutOptions: { ...elkForceRootOptions() },
-		children: [...containers, ...ungroupedLeaves],
+		children: [...topLevelContainers, ...ungroupedLeaves],
 		edges: rootEdges,
 	};
 }
 
 /**
- * Root-level edges for the `SEPARATE_CHILDREN` force root. Elk cannot reference a
- * node nested inside a container from the root level, so each grouped endpoint is
- * projected onto its folder container. Positions are all the pipeline consumes
- * (React Flow draws its own edges from node positions), so these edges exist
- * purely to steer the layout:
- * - edges collapsing onto the same projected pair are deduped;
- * - every edge is oriented centre-outward (lower `minDepth` endpoint first), a
- *   stable tree-like hint that keeps the hub centred regardless of link
- *   direction (incoming links). Harmless for the force seed.
+ * Distributes every edge onto its closest-common-ancestor container (mutating
+ * each container's `edges`) and returns the root-level edge list. Endpoints are
+ * projected onto the LCA's direct children so no edge references a node elk
+ * cannot see under `SEPARATE_CHILDREN`.
+ *
+ * Root-bound edges (LCA null) are the force seed: positions are all the pipeline
+ * consumes (React Flow draws its own edges), so they are deduped by projected
+ * pair and oriented centre-outward (lower `minDepth` endpoint first) — a stable
+ * tree-like hint that keeps the hub centred regardless of link direction.
  */
-function projectedRootEdges(
-	crossBoundaryEdges: readonly GraphEdge[],
+function attachEdgesToContainers(
+	graph: VicinityGraph,
 	grouping: FolderGroupingResult,
-	nodes: readonly GraphNode[],
+	containerByFolder: ReadonlyMap<FolderPath, ElkNode>,
 ): NonNullable<ElkNode["edges"]> {
-	const projectedIdOf = (path: string): string => {
-		const folder = grouping.groupFolderByMemberPath.get(path);
-		return folder === undefined ? path : folderGroupIdOf(folder);
+	const projectedIdOf = (path: string, container: FolderGroup | null): string => {
+		const child = grouping.projectOntoContainerChildOf(path, container);
+		return child === null ? path : folderGroupIdOf(child.folder);
 	};
 	const minDepthById = new Map<string, number>();
-	for (const node of nodes) {
-		const id = projectedIdOf(node.path);
+	for (const node of graph.nodes) {
+		const id = projectedIdOf(node.path, null);
 		minDepthById.set(id, Math.min(minDepthById.get(id) ?? Number.POSITIVE_INFINITY, node.minDepth));
 	}
-	const edgesById = new Map<string, NonNullable<ElkNode["edges"]>[number]>();
-	for (const edge of crossBoundaryEdges) {
-		const sourceId = projectedIdOf(edge.source);
-		const targetId = projectedIdOf(edge.target);
-		const outward = (minDepthById.get(targetId) ?? 0) < (minDepthById.get(sourceId) ?? 0);
-		const [from, to] = outward ? [targetId, sourceId] : [sourceId, targetId];
-		const id = `${from}->${to}`;
-		if (!edgesById.has(id)) {
-			edgesById.set(id, { id, sources: [from], targets: [to] });
+	const rootEdgesById = new Map<string, NonNullable<ElkNode["edges"]>[number]>();
+	for (const edge of graph.edges) {
+		const lca = grouping.lowestCommonAncestorContainerOf(edge.source, edge.target);
+		const sourceId = projectedIdOf(edge.source, lca);
+		const targetId = projectedIdOf(edge.target, lca);
+		if (lca === null) {
+			const outward = (minDepthById.get(targetId) ?? 0) < (minDepthById.get(sourceId) ?? 0);
+			const [from, to] = outward ? [targetId, sourceId] : [sourceId, targetId];
+			const id = `${from}->${to}`;
+			if (!rootEdgesById.has(id)) {
+				rootEdgesById.set(id, { id, sources: [from], targets: [to] });
+			}
+			continue;
 		}
+		containerByFolder.get(lca.folder)?.edges?.push({ id: edgeIdOf(edge), sources: [sourceId], targets: [targetId] });
 	}
-	return [...edgesById.values()];
-}
-
-/** The container owning BOTH endpoints, or undefined when the edge belongs on the root. */
-function intraGroupContainerOf(
-	edge: GraphEdge,
-	groupFolderByMemberPath: ReadonlyMap<string, FolderPath>,
-	containerByFolder: ReadonlyMap<FolderPath, ElkNode>,
-): ElkNode | undefined {
-	const sourceFolder = groupFolderByMemberPath.get(edge.source);
-	const targetFolder = groupFolderByMemberPath.get(edge.target);
-	if (sourceFolder === undefined || sourceFolder !== targetFolder) {
-		return undefined;
-	}
-	return containerByFolder.get(sourceFolder);
+	return [...rootEdgesById.values()];
 }
 
 /**
