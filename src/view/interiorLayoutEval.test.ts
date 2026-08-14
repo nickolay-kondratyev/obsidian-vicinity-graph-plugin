@@ -4,9 +4,9 @@ import type { ElkNode } from "elkjs";
 import { asFolderPath, asVaultPath } from "../engine";
 import type { GraphEdge, GraphNode, VicinityGraph } from "../engine";
 import { GraphLayoutRunner } from "./GraphLayoutRunner";
-import { GROUP_SIDE_PADDING_PX } from "./constants";
+import { ELK_FORCE_ALGORITHM, GROUP_SIDE_PADDING_PX } from "./constants";
 import { extractElkDimensionsById, extractElkPositions, vicinityGraphToElk } from "./elkMapping";
-import { isFolderGroupId } from "./graphIdentity";
+import { withContainerAlgorithm } from "./testFixtures/elkContainerAlgorithm";
 import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
 
 /**
@@ -23,40 +23,30 @@ import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
  * `npm test` skips it. Re-run the record with:
  *   VICINITY_INTERIOR_EVAL=1 npx vitest run src/view/interiorLayoutEval.test.ts
  *
- * Candidate box for force/stress is recomputed here from the refined children's
- * bounding box: the current `GraphLayoutRunner` seam refines a container's
- * INTERIOR but does NOT refit the container's elk-computed box afterwards, so
- * for those candidates elk's stored box is stale. Shipping an edge-aware
- * interior therefore needs a box-refit step this harness stands in for — a real
- * cost captured in the ticket.
+ * The FORCE candidate runs entirely on the real path: `GraphLayoutRunner`
+ * refines each force container's interior AND refits its box
+ * (`containerBoxRefit.ts`), so its numbers are the shippable pipeline's own.
+ * The density metric below still computes each group's box from its members'
+ * bounding box rather than reading the container dims, ON PURPOSE: stress is
+ * not the d3-refined candidate, so it gets no refit and its stored box is
+ * stale — the members-bbox definition measures all three candidates on equal
+ * footing (for rectpacking and force it matches the real box up to the fixed
+ * label padding).
  */
 const RUN_EVAL = process.env.VICINITY_INTERIOR_EVAL === "1";
 
-const ELK_ALGORITHM_OPTION = "elk.algorithm";
-
 type Candidate = "rectpacking" | "force" | "stress";
 
-/** Rewrite every folder-group CONTAINER's interior algorithm to the candidate. */
-function withContainerAlgorithm(node: ElkNode, candidate: Candidate): ElkNode {
-	const children = node.children;
-	if (children === undefined) {
-		return node;
-	}
-	const rewritten = children.map((child) => withContainerAlgorithm(child, candidate));
-	const isContainer = isFolderGroupId(node.id);
-	if (!isContainer) {
-		return { ...node, children: rewritten };
-	}
-	const options = { ...node.layoutOptions };
+/** The candidate's elk tree: folder-group interiors rewritten to its algorithm. */
+function candidateElk(graph: VicinityGraph, candidate: Candidate): ElkNode {
+	const mapped = vicinityGraphToElk(graph);
 	if (candidate === "rectpacking") {
-		// leave as mapped (rectpacking + orderBySize + spacing)
-	} else if (candidate === "force") {
-		options[ELK_ALGORITHM_OPTION] = "force";
-	} else {
-		options[ELK_ALGORITHM_OPTION] = "stress";
-		options["elk.stress.desiredEdgeLength"] = "120";
+		return mapped; // as mapped (rectpacking + orderBySize + spacing)
 	}
-	return { ...node, children: rewritten, layoutOptions: options };
+	if (candidate === "force") {
+		return withContainerAlgorithm(mapped, ELK_FORCE_ALGORITHM);
+	}
+	return withContainerAlgorithm(mapped, "stress", { "elk.stress.desiredEdgeLength": "120" });
 }
 
 interface Rect {
@@ -92,7 +82,7 @@ function segmentsCross(a1: { x: number; y: number }, a2: { x: number; y: number 
 
 async function measure(graph: VicinityGraph, candidate: Candidate): Promise<Metrics> {
 	const runner = new GraphLayoutRunner();
-	const elk = withContainerAlgorithm(vicinityGraphToElk(graph), candidate);
+	const elk = candidateElk(graph, candidate);
 	const started = performance.now();
 	const laidOut = await runner.layout(elk, graph.viewSettings.forceLayout);
 	const timeMs = performance.now() - started;

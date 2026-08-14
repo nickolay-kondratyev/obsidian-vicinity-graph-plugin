@@ -218,6 +218,20 @@ export const GROUP_SIDE_PADDING_PX = 16;
  */
 const GROUP_TOP_PADDING_PX = 36;
 
+/**
+ * Inner padding of a folder-group container, structured. ONE source for both
+ * consumers of the group inset: the elk padding string ({@link ELK_GROUP_PADDING},
+ * what elk-laid interiors honour) and the box refit (`containerBoxRefit.ts`,
+ * which re-imposes the same inset after a d3 interior refinement moves the
+ * members) — so the two can never drift apart.
+ */
+export const GROUP_BOX_PADDING_PX = {
+	top: GROUP_TOP_PADDING_PX,
+	left: GROUP_SIDE_PADDING_PX,
+	bottom: GROUP_SIDE_PADDING_PX,
+	right: GROUP_SIDE_PADDING_PX,
+} as const;
+
 /** [elk `ElkPadding` syntax]: values must be written as float literals (`16.0`, not `16`). */
 function elkPaddingValue(px: number): string {
 	const ELK_PADDING_DECIMALS = 1;
@@ -226,8 +240,8 @@ function elkPaddingValue(px: number): string {
 
 /** Inner padding of folder-group containers, in elk's `ElkPadding` syntax. */
 export const ELK_GROUP_PADDING =
-	`[top=${elkPaddingValue(GROUP_TOP_PADDING_PX)},left=${elkPaddingValue(GROUP_SIDE_PADDING_PX)}` +
-	`,bottom=${elkPaddingValue(GROUP_SIDE_PADDING_PX)},right=${elkPaddingValue(GROUP_SIDE_PADDING_PX)}]`;
+	`[top=${elkPaddingValue(GROUP_BOX_PADDING_PX.top)},left=${elkPaddingValue(GROUP_BOX_PADDING_PX.left)}` +
+	`,bottom=${elkPaddingValue(GROUP_BOX_PADDING_PX.bottom)},right=${elkPaddingValue(GROUP_BOX_PADDING_PX.right)}]`;
 
 /**
  * React Flow zoom floor. RF's default (0.5) clamps `fitView` on dense graphs in

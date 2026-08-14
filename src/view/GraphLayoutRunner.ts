@@ -3,6 +3,7 @@ import type { ForceLayoutSettings } from "../engine";
 import { EngineDefaults } from "../engine";
 import { ELK_FORCE_ALGORITHM } from "./constants";
 import { ElkLayoutRunner } from "./ElkLayoutRunner";
+import { refitContainerBox } from "./containerBoxRefit";
 import { refineForceRootLayout } from "./d3ForceRefinement";
 
 const ELK_ALGORITHM_OPTION = "elk.algorithm";
@@ -37,7 +38,7 @@ export class GraphLayoutRunner {
 		graph: ElkNode,
 		forceLayout: ForceLayoutSettings = EngineDefaults.forceLayoutSettings(),
 	): Promise<ElkNode> {
-		return this.refineContainers(await this.elk.layout(graph), forceLayout);
+		return this.refineContainers(await this.elk.layout(graph), forceLayout, true);
 	}
 
 	/**
@@ -45,17 +46,29 @@ export class GraphLayoutRunner {
 	 * before its parent places it as a fixed-size box), then, iff THIS container
 	 * runs `force`, refine its direct children. A leaf (no `children`) is
 	 * returned untouched.
+	 *
+	 * A refined NON-ROOT container is then box-REFIT ({@link refitContainerBox}):
+	 * the refinement moved its children, so its elk-computed box is stale — the
+	 * refit re-wraps it before the parent (visited after, this being bottom-up)
+	 * arranges it as a fixed-size box. The root is exempt: no rendered border,
+	 * and its origin-centred coordinates feed the viewport fit directly.
+	 * Rectpacking containers keep elk's box untouched, preserving the byte-exact
+	 * default-path guarantee (guarded in `GraphLayoutRunner.test.ts`).
 	 */
-	private refineContainers(node: ElkNode, forceLayout: ForceLayoutSettings): ElkNode {
+	private refineContainers(node: ElkNode, forceLayout: ForceLayoutSettings, isRoot: boolean): ElkNode {
 		const children = node.children;
 		if (children === undefined) {
 			return node;
 		}
 		const withRefinedChildren: ElkNode = {
 			...node,
-			children: children.map((child) => this.refineContainers(child, forceLayout)),
+			children: children.map((child) => this.refineContainers(child, forceLayout, false)),
 		};
 		const isForce = node.layoutOptions?.[ELK_ALGORITHM_OPTION] === ELK_FORCE_ALGORITHM;
-		return isForce ? refineForceRootLayout(withRefinedChildren, forceLayout) : withRefinedChildren;
+		if (!isForce) {
+			return withRefinedChildren;
+		}
+		const refined = refineForceRootLayout(withRefinedChildren, forceLayout);
+		return isRoot ? refined : refitContainerBox(refined);
 	}
 }
