@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 id: nid_d44vbnq9o6rhuelfwclx2e34n_e
 title: "Recursive grouping layout: nested elk containers + LCA edge attachment"
-status: open
+status: in_progress
 deps: [nid_unqqausmhnujjixitr6kieflq_e]
 links: []
 created_iso: 2026-08-14T00:18:08Z
-status_updated_iso: 2026-08-14T00:18:08Z
+status_updated_iso: 2026-08-14T01:11:47Z
 type: feature
 priority: 3
 assignee: nickolaykondratyev
