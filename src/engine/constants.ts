@@ -464,6 +464,7 @@ export class EngineDefaults {
 			outlineMaxDepth: view.outlineMaxDepth.default,
 			nodePreviewPreference: view.nodePreviewPreference.default,
 			showCrossLinks: view.showCrossLinks.default,
+			groupLabelFullPath: view.groupLabelFullPath.default,
 			sizing: EngineDefaults.sizingSettings(),
 			forceLayout: EngineDefaults.forceLayoutSettings(),
 		};

@@ -45,6 +45,7 @@ function makeViewSettings(): ViewSettings {
 		outlineMaxDepth: 2,
 		nodePreviewPreference: "auto",
 		showCrossLinks: false,
+		groupLabelFullPath: false,
 		sizing: {
 			minPx: 40,
 			maxPx: 160,

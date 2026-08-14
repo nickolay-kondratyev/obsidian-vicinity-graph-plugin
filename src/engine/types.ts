@@ -647,6 +647,13 @@ export interface ViewSettings {
 	 * which nodes are visible is decided before this is read.
 	 */
 	readonly showCrossLinks: boolean;
+	/**
+	 * Label a COLLAPSED folder chain (single-child folders rendered as one group)
+	 * with its full path (`A/B/C`) instead of the leaf folder name alone (`C`). A
+	 * non-collapsed group always shows its folder name regardless. View-layer knob:
+	 * the engine carries it, the flow mapping applies it.
+	 */
+	readonly groupLabelFullPath: boolean;
 	readonly sizing: SizingSettings;
 	readonly forceLayout: ForceLayoutSettings;
 }

@@ -183,6 +183,8 @@ function probesFor(control: SettingsRowControl): readonly AccessorProbe[] {
 			return [valueProbe("node preview", SettingsRowAccessors.nodePreview(), otherPreference)];
 		case "show-cross-links":
 			return [valueProbe("show cross links", SettingsRowAccessors.showCrossLinks(), (on) => !on)];
+		case "group-label-full-path":
+			return [valueProbe("group label full path", SettingsRowAccessors.groupLabelFullPath(), (on) => !on)];
 		case "outline-depth":
 			return [numberProbe("outline depth", SettingsRowAccessors.outlineDepth())];
 		case "force-layout":

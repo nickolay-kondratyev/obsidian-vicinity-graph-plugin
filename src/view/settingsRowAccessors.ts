@@ -194,6 +194,14 @@ export class SettingsRowAccessors {
 		};
 	}
 
+	/** Whether a collapsed folder chain is labelled with its full path instead of the leaf name. */
+	static groupLabelFullPath(): SettingsValueAccessor<boolean> {
+		return {
+			read: (state) => state.globalView.groupLabelFullPath,
+			interaction: (groupLabelFullPath) => ({ kind: "global-group-label-full-path", groupLabelFullPath }),
+		};
+	}
+
 	/** Whether node exclusion applies at all (the pattern list is untouched). */
 	static exclusionEnabled(): SettingsValueAccessor<boolean> {
 		return {

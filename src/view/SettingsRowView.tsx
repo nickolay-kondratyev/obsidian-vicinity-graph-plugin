@@ -70,6 +70,8 @@ export function SettingsRowView({
 			return <NodePreviewRow row={row} state={state} />;
 		case "show-cross-links":
 			return <ShowCrossLinksRow row={row} state={state} />;
+		case "group-label-full-path":
+			return <GroupLabelFullPathRow row={row} state={state} />;
 		case "outline-depth":
 			return <OutlineDepthRow row={row} state={state} />;
 		case "force-layout":
@@ -523,6 +525,16 @@ function ShowCrossLinksRow({
 	readonly state: SettingsRowState;
 }): ReactElement {
 	return <ToggleRow row={row} accessor={SettingsRowAccessors.showCrossLinks()} state={state} />;
+}
+
+function GroupLabelFullPathRow({
+	row,
+	state,
+}: {
+	readonly row: SettingsRow;
+	readonly state: SettingsRowState;
+}): ReactElement {
+	return <ToggleRow row={row} accessor={SettingsRowAccessors.groupLabelFullPath()} state={state} />;
 }
 
 /**
