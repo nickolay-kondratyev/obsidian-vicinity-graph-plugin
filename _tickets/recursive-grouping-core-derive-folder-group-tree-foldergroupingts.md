@@ -1,4 +1,5 @@
 ---
+session_ids: [{"a": "claude", "type": "execution", "id": "0ce1bb94-737d-4af0-93c5-8c49e250a75d"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 id: nid_unqqausmhnujjixitr6kieflq_e
 title: "Recursive grouping core: derive folder-group TREE (folderGrouping.ts)"
