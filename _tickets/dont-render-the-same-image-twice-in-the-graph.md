@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-14T19:32:54Z
-session_ids: [{"a": "claude", "type": "execution", "id": "e05618bf-16a9-41fc-affc-6c5d9b5d31b8"}, {"a": "claude", "type": "review", "id": "5ee4a298-6f6a-46ac-a3a5-18a104b87e08"}]
+session_ids: [{"a": "claude", "type": "execution", "id": "e05618bf-16a9-41fc-affc-6c5d9b5d31b8"}, {"a": "claude", "type": "review", "id": "5ee4a298-6f6a-46ac-a3a5-18a104b87e08"}, {"a": "claude", "type": "test-fix", "id": "73280422-d0b6-4f22-8ce3-c951a0fb8549"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-2
 id: nid_ivt836nuelyse1c0epp86d36z_e
 title: "Dont render the same image twice in the graph"
