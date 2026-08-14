@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 id: nid_unqqausmhnujjixitr6kieflq_e
 title: "Recursive grouping core: derive folder-group TREE (folderGrouping.ts)"
-status: open
+status: in_progress
 deps: [nid_xko67wo2z4awg5gdrm1xx1chz_e]
 links: []
 created_iso: 2026-08-14T00:18:08Z
-status_updated_iso: 2026-08-14T00:18:08Z
+status_updated_iso: 2026-08-14T00:53:12Z
 type: feature
 priority: 3
 assignee: nickolaykondratyev
