@@ -61,3 +61,7 @@ Implemented. All gates green: `npm run check` (0 errors), `npm test` (2009 pass)
 - `src/view/groupPacking.test.ts`: new "nested folder-group containers" describe runs REAL elkjs over a 2-level nested graph and asserts each child container sits inside its parent's box and each member inside its own child container (plus the parent-with-only-subgroups is still a laid-out box).
 
 The interim empty-group guard mentioned above was never needed / not added — nesting resolves it by construction.
+
+**2026-08-14T01:25:16Z**
+
+__READY_AS_IS__: Reviewed nested-elk/LCA-projection logic end-to-end; nesting wiring, edge attachment, depth-sort parent ordering, and passthrough simplification all verified sound; check + 2009 unit tests + 27 e2e green; no fixes needed.
