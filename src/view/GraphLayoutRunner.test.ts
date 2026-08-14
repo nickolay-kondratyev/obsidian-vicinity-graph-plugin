@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ElkNode } from "elkjs";
 import { EngineDefaults, asFolderPath, asVaultPath } from "../engine";
-import { GROUP_BOX_PADDING_PX, elkGroupMemberForceOptions } from "./constants";
+import { GROUP_BOX_PADDING_PX, elkGroupMemberForceOptions, elkGroupMemberRectpackingOptions } from "./constants";
 import { ElkLayoutRunner } from "./ElkLayoutRunner";
 import { GraphLayoutRunner } from "./GraphLayoutRunner";
 import { refineForceRootLayout } from "./d3ForceRefinement";
@@ -88,11 +88,18 @@ function twoFolderGraph(): VicinityGraph {
 }
 
 describe("GraphLayoutRunner per-container refinement seam (rectpacking interiors untouched)", () => {
-	it("WHEN a grouped graph lays out THEN every position equals the root-only refinement (recursion is a no-op on rectpacking containers)", async () => {
-		const elkRoot = vicinityGraphToElk(twoFolderGraph());
-		const actual = extractElkPositions(await new GraphLayoutRunner().layout(elkRoot));
+	it("WHEN a grouped graph lays out with rectpacking interiors THEN every position equals the root-only refinement (recursion is a no-op on rectpacking containers)", async () => {
+		// Interiors pinned to the rectpacking variant EXPLICITLY: this guards the
+		// seam's no-op property on rect containers, which must hold whichever
+		// interior GROUP_INTERIOR_LAYOUT ships.
+		const rectInteriors = (): ElkNode =>
+			withContainerOptions(
+				vicinityGraphToElk(twoFolderGraph()),
+				elkGroupMemberRectpackingOptions(EngineDefaults.forceLayoutSettings().elkNodeSpacingPx),
+			);
+		const actual = extractElkPositions(await new GraphLayoutRunner().layout(rectInteriors()));
 		const rootOnly = refineForceRootLayout(
-			await new ElkLayoutRunner().layout(vicinityGraphToElk(twoFolderGraph())),
+			await new ElkLayoutRunner().layout(rectInteriors()),
 			EngineDefaults.forceLayoutSettings(),
 		);
 		expect(actual).toEqual(extractElkPositions(rootOnly));

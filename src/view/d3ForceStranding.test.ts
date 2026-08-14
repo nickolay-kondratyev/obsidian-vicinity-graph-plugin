@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { asFolderPath, asVaultPath } from "../engine";
 import { GraphLayoutRunner } from "./GraphLayoutRunner";
+import { elkGroupMemberRectpackingOptions } from "./constants";
 import { extractElkDimensionsById, extractElkPositions, vicinityGraphToElk } from "./elkMapping";
 import { rectExtentAlong } from "./forceRectLink";
 import { folderGroupIdOf } from "./graphIdentity";
 import { countOverlappingAabbPairs } from "./testFixtures/aabbOverlap";
+import { withContainerOptions } from "./testFixtures/elkContainerAlgorithm";
 import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
 import type { ElkNode } from "elkjs";
 import type { VicinityGraph } from "../engine";
@@ -121,7 +123,16 @@ interface StrandedLayout {
 }
 
 async function layoutStranded(graph: VicinityGraph): Promise<StrandedLayout> {
-	const elkRoot = vicinityGraphToElk(graph);
+	// Interiors pinned to RECTPACKING: every fixture's premise is a rect-packed
+	// container of a specific aspect (LANDSCAPE/portrait), and the mechanism
+	// under guard is the ROOT d3 pass around that shape — an interior flipped by
+	// GROUP_INTERIOR_LAYOUT would change the premise, not the guarded mechanism.
+	// (The force-interior flip's own shipped-config gap reading is recorded in
+	// ticket nid_7abfje1vus15rx9hzmpel9jin_e, not silently absorbed here.)
+	const elkRoot = withContainerOptions(
+		vicinityGraphToElk(graph),
+		elkGroupMemberRectpackingOptions(graph.viewSettings.forceLayout.elkNodeSpacingPx),
+	);
 	const laidOut = await new GraphLayoutRunner().layout(elkRoot);
 	return {
 		positions: extractElkPositions(laidOut),
