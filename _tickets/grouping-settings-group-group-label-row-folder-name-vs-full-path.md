@@ -1,4 +1,5 @@
 ---
+session_ids: [{"a": "claude", "type": "execution", "id": "311ed0cc-419b-4c30-af2c-462145bac30f"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 id: nid_0nmhmv03071derz5ok30cisaa_e
 title: "Grouping settings group: group-label row (folder name vs full path)"
