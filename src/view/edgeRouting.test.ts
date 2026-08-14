@@ -36,6 +36,59 @@ const CLEARANCE_RANGE = FORCE_LAYOUT_RANGES.edgeRoutingClearancePx;
 /** No pins — these scenes exercise edge routing, not the global/local pin split. */
 const NO_PINS: FlowPinFacts = { globalPinnedDocids: new Set(), localPinnedDocids: new Set() };
 
+describe("extractEdgeRoutingInput under multi-level nesting", () => {
+	/**
+	 * GIVEN a two-deep tree `A ⊃ A/B` (A holds two direct notes so it does not
+	 * collapse; A/B holds two more). Positions arrive ABSOLUTE (extractElkPositions
+	 * accumulates parent offsets), so an inner box and a note two parents deep must
+	 * become obstacles at those absolute coords VERBATIM — extraction adds no
+	 * per-level offset of its own regardless of how deep the parentId chain runs.
+	 */
+	function nestedObstacles(): readonly RoutingObstacle[] {
+		const graph = makeGraph({
+			nodes: [
+				makeNode({ path: asVaultPath("A/a1.md"), folder: asFolderPath("A") }),
+				makeNode({ path: asVaultPath("A/a2.md"), folder: asFolderPath("A") }),
+				makeNode({ path: asVaultPath("A/B/b1.md"), folder: asFolderPath("A/B") }),
+				makeNode({ path: asVaultPath("A/B/b2.md"), folder: asFolderPath("A/B") }),
+			],
+		});
+		const flow = vicinityGraphToFlow(graph, NO_PINS);
+		const positions = new Map<string, XY>([
+			["folder-group:A", { x: 100, y: 100 }],
+			["folder-group:A/B", { x: 150, y: 170 }],
+			["A/B/b1.md", { x: 160, y: 180 }],
+		]);
+		const groupDimensions = new Map<string, Dimensions>([
+			["folder-group:A", { width: 400, height: 400 }],
+			["folder-group:A/B", { width: 200, height: 200 }],
+		]);
+		return extractEdgeRoutingInput({
+			nodes: flow.nodes,
+			edges: flow.edges,
+			positions,
+			groupDimensions,
+			shapeBufferPx: SHIPPED_CLEARANCE_PX,
+		}).obstacles;
+	}
+
+	it("WHEN an inner group box is two parents deep THEN its obstacle sits at its ABSOLUTE coords", () => {
+		expect(nestedObstacles().find((o) => o.id === "folder-group:A/B")).toEqual({
+			id: "folder-group:A/B",
+			x: 150,
+			y: 170,
+			widthPx: 200,
+			heightPx: 200,
+			kind: "folder-group",
+		});
+	});
+
+	it("WHEN a note is two groups deep THEN its obstacle sits at its ABSOLUTE coords (no parent offset re-added)", () => {
+		const note = nestedObstacles().find((o) => o.id === "A/B/b1.md");
+		expect({ x: note?.x, y: note?.y, kind: note?.kind }).toEqual({ x: 160, y: 180, kind: "note" });
+	});
+});
+
 describe("extractEdgeRoutingInput", () => {
 	/**
 	 * GIVEN a folder group `notes/` with two members (a, b), an ungrouped root
