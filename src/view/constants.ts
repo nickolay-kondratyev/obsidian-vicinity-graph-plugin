@@ -246,7 +246,7 @@ export function elkGroupMemberForceOptions(nodeSpacingPx: number): Readonly<Reco
  * the ONE-CONSTANT switch between the two.
  */
 export type GroupInteriorLayout = "rectpacking" | "force";
-export const GROUP_INTERIOR_LAYOUT: GroupInteriorLayout = "rectpacking";
+export const GROUP_INTERIOR_LAYOUT: GroupInteriorLayout = "force";
 
 /** Layout of the INSIDE of a folder-group container, per {@link GROUP_INTERIOR_LAYOUT}. */
 export function elkGroupMemberOptions(nodeSpacingPx: number): Readonly<Record<string, string>> {
