@@ -90,3 +90,9 @@ the recursive TREE per plan D2. Pure/deterministic contract preserved.
 - `docs-internal/plan/high-level-plan.md` update → ticket 6 (final docs gate).
 - Consumer rewrites for real nesting → tickets 2 (elk), 3 (flow), 4 (badges).
 
+
+## Notes
+
+**2026-08-14T01:09:14Z**
+
+__READY_AS_IS__: Core recursive derivation is correct + well-tested (check clean, 1994 unit tests pass); the one review finding (pure nesting-parent groups get EMPTY memberPaths -> flat consumers render a phantom empty box, a regression until nesting-aware consumers land) is fixed-by-construction by dependent tickets nid_d44vbnq9o6rhuelfwclx2e34n_e (elk) and nid_9uh2twn8whoqtplbxk0ywzpx7_e (flow), where I recorded a self-contained repro + test-to-add. No branch code change warranted.

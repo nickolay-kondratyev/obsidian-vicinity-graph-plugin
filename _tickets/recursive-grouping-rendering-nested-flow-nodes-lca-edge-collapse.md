@@ -23,3 +23,18 @@ src/view/flowMapping.ts:
 
 Tests: flowMapping.test.ts (nesting order, parentId chains, LCA collapse incl. cross-link parity), edgeRouting.test.ts (absolute coords under nesting). Run e2e specs covering the graph surface (npm run test:e2e -- vicinityGraph.e2e.ts at minimum) before calling rendering done.
 
+
+## Notes
+
+**2026-08-14T01:08:59Z**
+
+REGRESSION WINDOW surfaced by review of nid_unqqausmhnujjixitr6kieflq_e (recursive grouping CORE).
+
+After that ticket, src/view/folderGrouping.ts deriveFolderGroups emits a "pure nesting-parent" group with EMPTY memberPaths: a qualifying folder whose visible notes all live in >=2 qualifying SUBFOLDERS and has no direct notes of its own (not collapsed, because it has >=2 child groups). Repro: notes sql/joins/a.md, sql/joins/b.md, sql/windows/c.md, sql/windows/d.md -> groups = [sql (memberPaths []), sql/joins, sql/windows].
+
+Because the consumers are still FLAT until this ticket lands, this ships a phantom EMPTY group box for such vaults:
+- src/view/flowMapping.ts (~L245 vicinityGraphToFlow) emits a GroupFlowNode for `sql` with NO note children referencing it (parentId only set on note nodes) -> empty labeled box rendered as a top-level sibling of the two real group boxes.
+- src/view/elkMapping.ts (~L43) emits an elk container with children: [].
+Before the core branch, `sql` was never a group, so no such box existed.
+
+The nesting rewrite in THIS ticket resolves it by construction (the parent group contains its child group nodes/containers, so it is no longer empty). ACTION: ensure the nested-flow/elk rewrite covers the zero-direct-member nesting parent and add a flowMapping.test.ts case asserting a pure nesting-parent renders as a non-empty container (its child groups nested), NOT an empty box. If any release is cut before this lands, an interim guard is trivial: skip groups whose memberPaths is empty in the flat consumer.
