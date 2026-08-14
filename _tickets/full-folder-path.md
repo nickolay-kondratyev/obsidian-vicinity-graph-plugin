@@ -83,3 +83,7 @@ future refinement if a measured/segment-aware label is ever wanted.
 **2026-08-14T19:35:23Z**
 
 __REVIEW_AGAIN__: scoped the front-ellipsis to full-path mode only (default leaf-name labels were regressed to front-truncation); added FlowGroupData.fullPathLabel flag + tests; check/npm test/nestedGrouping e2e all green
+
+**2026-08-14T19:40:15Z**
+
+__READY_AS_IS__: review found one bug (rtl front-ellipsis bidi-reordered digit-leading/neutral-edged paths, e.g. 2024/notes -> notes/2024); fixed with CSS-only LRM (U+200E) pseudo-element bidi guards — strictly non-regressive for paths that were already fine — check + npm test + nestedGrouping e2e all green
