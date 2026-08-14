@@ -9,9 +9,21 @@ const ELK_ALGORITHM_OPTION = "elk.algorithm";
 
 /**
  * The view's layout engine (`GraphLayoutPort`): elk for everything, plus the
- * d3-force root refinement when the root runs the `force` algorithm — elk's
- * force pass there is only the seed ({@link ELK_FORCE_ALGORITHM}).
- * Composition keeps {@link ElkLayoutRunner} a pure elk wrapper.
+ * d3-force refinement of ANY container (root or folder group) whose elk
+ * algorithm is `force` — elk's force pass there is only the seed
+ * ({@link ELK_FORCE_ALGORITHM}). Composition keeps {@link ElkLayoutRunner} a
+ * pure elk wrapper.
+ *
+ * The refinement recurses into every container: after elk lays the whole tree
+ * out, each container carries its children AND its intra-group edges (per the
+ * elk contract, attached in `elkMapping.ts`), so {@link refineForceRootLayout}
+ * — already generic over any {@link ElkNode} — can refine a group interior the
+ * same way it refines the root. The decision is PER CONTAINER, keyed on that
+ * container's own algorithm marker (mirroring the root check). Today only the
+ * root is `force`; every folder container packs with `rectpacking`, so no
+ * interior is refined and the output is byte-identical to the pre-recursion
+ * runner (guarded in `GraphLayoutRunner.test.ts`). This is the seam the
+ * edge-aware interior evaluation builds on — no default behavior change.
  *
  * `forceLayout` defaults to the ENGINE defaults (the shipped ticket-03
  * constants) so headless/test callers get exactly the default rendered
@@ -25,8 +37,25 @@ export class GraphLayoutRunner {
 		graph: ElkNode,
 		forceLayout: ForceLayoutSettings = EngineDefaults.forceLayoutSettings(),
 	): Promise<ElkNode> {
-		const laidOut = await this.elk.layout(graph);
-		const isForceRoot = graph.layoutOptions?.[ELK_ALGORITHM_OPTION] === ELK_FORCE_ALGORITHM;
-		return isForceRoot ? refineForceRootLayout(laidOut, forceLayout) : laidOut;
+		return this.refineContainers(await this.elk.layout(graph), forceLayout);
+	}
+
+	/**
+	 * Bottom-up walk: refine each child container first (its interior settles
+	 * before its parent places it as a fixed-size box), then, iff THIS container
+	 * runs `force`, refine its direct children. A leaf (no `children`) is
+	 * returned untouched.
+	 */
+	private refineContainers(node: ElkNode, forceLayout: ForceLayoutSettings): ElkNode {
+		const children = node.children;
+		if (children === undefined) {
+			return node;
+		}
+		const withRefinedChildren: ElkNode = {
+			...node,
+			children: children.map((child) => this.refineContainers(child, forceLayout)),
+		};
+		const isForce = node.layoutOptions?.[ELK_ALGORITHM_OPTION] === ELK_FORCE_ALGORITHM;
+		return isForce ? refineForceRootLayout(withRefinedChildren, forceLayout) : withRefinedChildren;
 	}
 }
