@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-14T22:59:10Z
-session_ids: [{"a": "claude", "type": "execution", "id": "7840c348-f59a-4384-a943-5ee2e8e22899"}]
+session_ids: [{"a": "claude", "type": "execution", "id": "7840c348-f59a-4384-a943-5ee2e8e22899"}, {"a": "claude", "type": "review", "id": "c6ed06c5-f512-47cf-b020-5e9c8355a453"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_psgov2t1d2s8d7rk2qvux02zb_e
 title: "De-dup'd image node is still sized for a thumbnail it no longer shows"
