@@ -68,3 +68,9 @@ Grouping toggle, since a closed `<details>` hides its content from a role locato
 - `docs-internal/plan/high-level-plan.md`: Goal 2 now says "RECURSIVELY", the grouping-rendering bullet describes ≥2-descendants + nesting + fall-up, and a new **Folder grouping (recursive)** subsection records D1–D5 + A1 (the flat-grouping description was the ~line 8 / ~line 151 the ticket named).
 - `README.md`: the "Folders you can see" bullet now describes nested boxes + fall-up. The Settings → Grouping entry already documented the collapsed-chain label.
 
+
+## Notes
+
+**2026-08-14T02:22:12Z**
+
+__READY_AS_IS__: Focused label-wiring change; check + 2023 unit tests green, e2e spec typechecks and matches FolderGroupNode DOM; chainPath vs leafName behavior matches signed-off A1.
