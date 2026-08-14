@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-2
 id: nid_ivt836nuelyse1c0epp86d36z_e
 title: "Dont render the same image twice in the graph"
-status: open
+status: in_progress
 deps: []
 links: []
 created_iso: 2026-08-14T19:23:31Z
-status_updated_iso: 2026-08-14T19:23:31Z
+status_updated_iso: 2026-08-14T19:26:35Z
 type: task
 priority: 3
 assignee: nickolaykondratyev
