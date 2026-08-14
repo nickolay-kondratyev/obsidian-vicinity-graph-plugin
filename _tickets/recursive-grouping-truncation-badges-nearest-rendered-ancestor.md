@@ -53,3 +53,9 @@ including `flowMapping.test.ts` which asserts the integrated `data.hiddenCount`
 and `orphanTruncation` shapes. No DOM/CSS/settings surface changed (badge
 components are untouched), so no e2e gate applies here.
 
+
+## Notes
+
+**2026-08-14T01:58:22Z**
+
+__READY_AS_IS__: focused view-only attribution change; keys always land on rendered groups, accumulation safe, check+2019 tests green, no DOM/CSS surface so e2e N/A.
