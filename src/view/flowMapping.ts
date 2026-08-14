@@ -10,6 +10,7 @@ import type {
 } from "../engine";
 import { nodePreviewKind } from "../engine";
 import { resolveNodePreviewPreference } from "./nodePreviewChoice";
+import { suppressedDuplicateThumbnails } from "./duplicateImageThumbnails";
 import { OUTLINE_RENDER_LIMIT } from "./constants";
 import type { AttachmentIconGroup } from "./attachmentIconStrip";
 import { attachmentIconStrip } from "./attachmentIconStrip";
@@ -291,6 +292,19 @@ export function vicinityGraphToFlow(graph: VicinityGraph, pinFacts: FlowPinFacts
 			},
 		}),
 	);
+	// De-dup the in-node image: when several nodes would render the SAME image as
+	// their thumbnail, only the one highest in the folder hierarchy keeps it (the
+	// rest fall back through their preview ladder without the image). Resolved here,
+	// once, over the full node list — the per-node `preview` decision below reads the
+	// result and never re-derives it.
+	const suppressedThumbnails = suppressedDuplicateThumbnails(
+		graph.nodes.map((node) => ({
+			path: node.path,
+			folder: node.folder,
+			firstImagePath: node.firstImagePath,
+			rendersThumbnail: resolveNodePreview(node, graph.viewSettings, node.firstImagePath !== undefined) === "thumbnail",
+		})),
+	);
 	const noteNodes = graph.nodes.map((node): NoteFlowNode => {
 		const groupFolder = grouping.groupFolderByMemberPath.get(node.path);
 		const { width, height } = nodeDimensionsPx(node);
@@ -301,7 +315,7 @@ export function vicinityGraphToFlow(graph: VicinityGraph, pinFacts: FlowPinFacts
 			width,
 			height,
 			...(groupFolder === undefined ? {} : { parentId: folderGroupIdOf(groupFolder) }),
-			data: toFlowNodeData(node, pinFacts, graph.viewSettings),
+			data: toFlowNodeData(node, pinFacts, graph.viewSettings, suppressedThumbnails.has(node.path)),
 		};
 	});
 	return {
@@ -469,15 +483,45 @@ export function edgeClassName(edge: FlowEdge): string {
 }
 
 /**
+ * The heading entries this node actually RENDERS: filter THEN slice, so a depth-2
+ * view of a note with 60 deep headings still finds its shallow ones (slicing first
+ * could drop every survivor).
+ */
+function renderedOutline(node: GraphNode, view: ViewSettings): readonly OutlineEntry[] {
+	return node.outline.filter((entry) => entry.level <= view.outlineMaxDepth).slice(0, OUTLINE_RENDER_LIMIT);
+}
+
+/**
+ * The region this node's single preview slot resolves to. `hasImage` is a
+ * PARAMETER, not `node.firstImagePath !== undefined`, because image de-dup can
+ * withhold the image from every node but the one that owns it (see
+ * {@link suppressedDuplicateThumbnails}) — the same note is then asked "what would
+ * you show WITHOUT the image?". The per-node CONTENT override wins over the global
+ * preference here (`resolveNodePreviewPreference`) — applied in the VIEW so a flip
+ * stays a data-only refresh (the sizer reads the global preference only, so sizePx
+ * does not move).
+ */
+function resolveNodePreview(node: GraphNode, view: ViewSettings, hasImage: boolean): NodePreviewKind {
+	return nodePreviewKind({
+		preference: resolveNodePreviewPreference(view.nodePreviewPreference, node.override?.content),
+		// Decided from the RENDERABLE entry count, never the engine's raw outline: a
+		// note whose every heading is deeper than the cap must not claim the outline
+		// slot and render an empty box.
+		outlineEntryCount: renderedOutline(node, view).length,
+		hasImage,
+		imagePrecedesOutline: node.imagePrecedesOutline,
+		isCentral: node.isCentral,
+	});
+}
+
+/**
  * @param view the effective view settings — passed whole (not knob by knob) so
  * every settings-driven derivation below reads one object.
+ * @param suppressImage true when image de-dup handed this node's image to another
+ * node higher in the folder hierarchy — the node then previews as if it had none.
  */
-function toFlowNodeData(node: GraphNode, pinFacts: FlowPinFacts, view: ViewSettings): FlowNodeData {
-	// Filter THEN slice: a depth-2 view of a note with 60 deep headings must
-	// still find its shallow ones (slicing first could drop every survivor).
-	const outline = node.outline
-		.filter((entry) => entry.level <= view.outlineMaxDepth)
-		.slice(0, OUTLINE_RENDER_LIMIT);
+function toFlowNodeData(node: GraphNode, pinFacts: FlowPinFacts, view: ViewSettings, suppressImage: boolean): FlowNodeData {
+	const outline = renderedOutline(node, view);
 	return {
 		path: node.path,
 		title: node.title,
@@ -491,19 +535,7 @@ function toFlowNodeData(node: GraphNode, pinFacts: FlowPinFacts, view: ViewSetti
 		hasSizeOverride: nodeSizeOverridePx(node) !== undefined,
 		folder: node.folder,
 		outline,
-		// Decided from the RENDERABLE entry count, never the engine's raw outline:
-		// a note whose every heading is deeper than the cap must not claim the
-		// outline slot and render an empty box. The per-node CONTENT override wins
-		// over the global preference here (resolveNodePreviewPreference) — applied
-		// in the VIEW so a flip stays a data-only refresh (the sizer reads the
-		// global preference only, so sizePx does not move).
-		preview: nodePreviewKind({
-			preference: resolveNodePreviewPreference(view.nodePreviewPreference, node.override?.content),
-			outlineEntryCount: outline.length,
-			hasImage: node.firstImagePath !== undefined,
-			imagePrecedesOutline: node.imagePrecedesOutline,
-			isCentral: node.isCentral,
-		}),
+		preview: resolveNodePreview(node, view, node.firstImagePath !== undefined && !suppressImage),
 		...(node.override?.content === undefined ? {} : { contentOverride: node.override.content }),
 		...(node.firstImagePath === undefined ? {} : { firstImagePath: node.firstImagePath }),
 		imageCount: node.attachments.filter((attachment) => attachment.isImage).length,
