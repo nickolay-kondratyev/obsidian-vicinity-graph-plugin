@@ -1,4 +1,5 @@
 ---
+session_ids: [{"a": "claude", "type": "execution", "id": "e4462a62-6ca9-41a7-926e-5305525b582f"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 id: nid_3wnxsfexabjnx1uj9js2o1c43_e
 title: "Recursive grouping truncation badges: nearest rendered ancestor"
