@@ -11,7 +11,7 @@ status_updated_iso: 2026-08-14T02:40:10Z
 type: feature
 priority: 3
 assignee: nickolaykondratyev
-tags: [decide, need-human]
+tags: []
 ---
 
 Follow-up from recursive-grouping plan nid_xko67wo2z4awg5gdrm1xx1chz_e (signed-off D5: owner wants a FIRST-CLASS interior layout, evaluated after recursive grouping ships visually). Depends on the per-container layout plumbing ticket AND the nested flow-rendering ticket (step 3's screenshots need nested groups rendering; "ships visually" is the signed-off gate). Requires OWNER visual sign-off at the end (decide tag).
@@ -142,3 +142,13 @@ regression.
 
 Deferred to owner because D5 explicitly reserved the final visual pick, and the
 box-refit investment is a scope/taste tradeoff the ticket did not settle.
+
+## AUTHORIZATION (2026-08-14, owner)
+
+**Owner picked Option A**: "Yes I authorize the full design work on this to be
+performed GREAT. Go forward with design work." The build phase is therefore
+unblocked: box-refit engineering, force-interior tuning (density/time), honest
+re-measurement through the REAL layout path, and `.out/` screenshots on the
+nested+edged fixtures. `decide`/`need-human` tags come OFF for the build and
+will be RE-ADDED when the screenshots exist — the final visual pick (D5) remains
+the owner's and is NOT decided by the build phase.
