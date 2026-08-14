@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-14T02:27:54Z
-session_ids: [{"a": "claude", "type": "execution", "id": "26616337-7afa-430e-b450-ed0debea7131"}]
+session_ids: [{"a": "claude", "type": "execution", "id": "26616337-7afa-430e-b450-ed0debea7131"}, {"a": "claude", "type": "review", "id": "125c5471-5249-445f-a6f5-f5cba8d95e89"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 id: nid_as3hdgn25pbxttimy643f46v7_e
 title: "Per-container layout plumbing: recursive GraphLayoutRunner seam"
