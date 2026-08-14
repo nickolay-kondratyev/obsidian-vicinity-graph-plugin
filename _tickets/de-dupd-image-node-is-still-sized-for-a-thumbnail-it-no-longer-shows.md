@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_psgov2t1d2s8d7rk2qvux02zb_e
 title: "De-dup'd image node is still sized for a thumbnail it no longer shows"
-status: open
+status: in_progress
 deps: []
 links: [nid_ivt836nuelyse1c0epp86d36z_e]
 created_iso: 2026-08-14T19:35:53Z
-status_updated_iso: 2026-08-14T19:35:53Z
+status_updated_iso: 2026-08-14T22:47:46Z
 type: bug
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
