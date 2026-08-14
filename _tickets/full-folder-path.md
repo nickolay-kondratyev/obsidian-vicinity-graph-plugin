@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-14T19:29:22Z
-session_ids: [{"a": "claude", "type": "execution", "id": "c457b216-e70b-44ab-901d-ebff8d89bd27"}]
+session_ids: [{"a": "claude", "type": "execution", "id": "c457b216-e70b-44ab-901d-ebff8d89bd27"}, {"a": "claude", "type": "review", "id": "556f514a-8216-4a10-bb36-fe161f2df3bc"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 id: nid_oebzyb9a3tjtdwrwkvxiuj5wl_e
 title: "Full folder path"
