@@ -1,4 +1,5 @@
 ---
+session_ids: [{"a": "claude", "type": "execution", "id": "3750bfb8-774a-471e-847f-fa3cca292528"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 id: nid_9uh2twn8whoqtplbxk0ywzpx7_e
 title: "Recursive grouping rendering: nested flow nodes + LCA edge collapse"
