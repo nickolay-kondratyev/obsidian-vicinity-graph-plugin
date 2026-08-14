@@ -392,6 +392,55 @@ describe("vicinityGraphToFlow deeply nested folder groups", () => {
 	});
 });
 
+/**
+ * GIVEN two notes in `A/B/C` and nothing else visible: `A` and `A/B` each hold
+ * exactly one qualifying child group, so the redundant chain collapses (D2.4)
+ * onto ONE surviving group whose folder is `A/B/C` — leaf name `C`, chain path
+ * `A/B/C`. The "Full folder path" label setting (A1) chooses between the two.
+ */
+function collapsedChainGraph() {
+	return makeGraph({
+		nodes: [
+			makeNode({ path: asVaultPath("A/B/C/x.md"), folder: asFolderPath("A/B/C") }),
+			makeNode({ path: asVaultPath("A/B/C/y.md"), folder: asFolderPath("A/B/C") }),
+		],
+	});
+}
+
+function collapsedChainGroup(graph: Parameters<typeof vicinityGraphToFlow>[0]) {
+	return toFlow(graph).nodes.find((node) => node.kind === "folder-group");
+}
+
+describe("vicinityGraphToFlow collapsed-chain group label (groupLabelFullPath)", () => {
+	it("WHEN the label setting is OFF (default) THEN a collapsed chain shows its LEAF folder name", () => {
+		expect(collapsedChainGroup(collapsedChainGraph())?.data.folderName).toBe("C");
+	});
+
+	it("WHEN the label setting is ON THEN a collapsed chain shows its FULL path", () => {
+		const graph = makeGraph({
+			nodes: collapsedChainGraph().nodes,
+			viewSettings: { ...makeGraph().viewSettings, groupLabelFullPath: true },
+		});
+		expect(collapsedChainGroup(graph)?.data.folderName).toBe("A/B/C");
+	});
+
+	it("WHEN the label setting is ON THEN the tooltip folder path is unchanged (full vault path)", () => {
+		const graph = makeGraph({
+			nodes: collapsedChainGraph().nodes,
+			viewSettings: { ...makeGraph().viewSettings, groupLabelFullPath: true },
+		});
+		expect(collapsedChainGroup(graph)?.data.folder).toBe("A/B/C");
+	});
+
+	it("WHEN the label setting is ON THEN a NON-collapsed group is unaffected (leaf === chain)", () => {
+		const graph = makeGraph({
+			nodes: groupedGraph().nodes,
+			viewSettings: { ...makeGraph().viewSettings, groupLabelFullPath: true },
+		});
+		expect(collapsedChainGroup(graph)?.data.folderName).toBe("notes");
+	});
+});
+
 describe("vicinityGraphToFlow edges", () => {
 	const graph = makeGraph({
 		nodes: [makeNode({ path: asVaultPath("a.md") }), makeNode({ path: asVaultPath("b.md") })],

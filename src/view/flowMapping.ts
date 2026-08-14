@@ -274,11 +274,12 @@ export function vicinityGraphToFlow(graph: VicinityGraph, pinFacts: FlowPinFacts
 			data: {
 				folder: group.folder,
 				// Label text comes from the group MODEL (signed-off A1): the leaf folder
-				// name by default. The full folder path rides `folder` for FolderGroupNode's
-				// tooltip. The collapsed-chain label the label setting switches to lives on the
-				// model too (chainPath); wiring that presenter is a separate ticket, so nothing
-				// here recomputes the name from the path.
-				folderName: group.leafName,
+				// name by DEFAULT, or the collapsed-chain path (`A/B/C`) when the global
+				// "Full folder path" label setting is on. For a group that is NOT a collapsed
+				// chain `chainPath === leafName`, so the setting only ever adds segments for a
+				// redundant single-child chain. The full folder path rides `folder` for
+				// FolderGroupNode's tooltip regardless of the setting.
+				folderName: graph.viewSettings.groupLabelFullPath ? group.chainPath : group.leafName,
 				hiddenCount: badges.hiddenCountByGroupFolder.get(group.folder) ?? 0,
 			},
 		}),

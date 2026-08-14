@@ -14,8 +14,10 @@ between them. Vicinity Graph fixes both:
 - **Nodes that actually tell you something.** Each node carries its title, a
   first-image thumbnail, an icon strip for its attachments, its folder, and a
   size that reflects relevance.
-- **Folders you can see.** Notes that share a folder render inside a labelled
-  group box, so folder membership is part of the picture.
+- **Folders you can see — nested.** Notes that share a folder render inside a
+  labelled group box, and sub-folders draw as boxes **within** their parent's box,
+  so folder membership (at every level) is part of the picture. A note whose own
+  folder is too small to draw falls into the nearest folder that is.
 - **Connectors that stay out of the way.** Links are drawn as calm, right-angled
   connectors that route *around* your notes instead of cutting across them, so a
   busy graph stays readable — and every connector is clickable (see below).
