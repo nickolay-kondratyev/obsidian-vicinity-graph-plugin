@@ -242,7 +242,12 @@ function groupedGraph() {
 describe("vicinityGraphToFlow folder groups", () => {
 	it("WHEN a folder has 2+ members THEN a folder-group node is emitted with label data", () => {
 		const group = toFlow(groupedGraph()).nodes.find((node) => node.kind === "folder-group");
-		expect(group?.data).toEqual({ folder: "notes", folderName: "notes", hiddenCount: 0 });
+		expect(group?.data).toEqual({
+			folder: "notes",
+			folderName: "notes",
+			hiddenCount: 0,
+			fullPathLabel: false,
+		});
 	});
 
 	it("WHEN groups are emitted THEN they precede their children (React Flow parent-first rule)", () => {
@@ -438,6 +443,18 @@ describe("vicinityGraphToFlow collapsed-chain group label (groupLabelFullPath)",
 			viewSettings: { ...makeGraph().viewSettings, groupLabelFullPath: true },
 		});
 		expect(collapsedChainGroup(graph)?.data.folderName).toBe("notes");
+	});
+
+	it("WHEN the label setting is OFF (default) THEN fullPathLabel is false (leaf keeps trailing truncation)", () => {
+		expect(collapsedChainGroup(collapsedChainGraph())?.data.fullPathLabel).toBe(false);
+	});
+
+	it("WHEN the label setting is ON THEN fullPathLabel is true (path front-truncates)", () => {
+		const graph = makeGraph({
+			nodes: collapsedChainGraph().nodes,
+			viewSettings: { ...makeGraph().viewSettings, groupLabelFullPath: true },
+		});
+		expect(collapsedChainGroup(graph)?.data.fullPathLabel).toBe(true);
 	});
 });
 

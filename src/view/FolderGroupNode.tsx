@@ -30,7 +30,14 @@ export const FolderGroupNode = memo(function FolderGroupNode({
 				isConnectable={false}
 			/>
 			<div className="vicinity-graph-group__header">
-				<span className="vicinity-graph-group__label" title={data.folder}>
+				<span
+					className={
+						data.fullPathLabel
+							? "vicinity-graph-group__label vicinity-graph-group__label--fullpath"
+							: "vicinity-graph-group__label"
+					}
+					title={data.folder}
+				>
 					{data.folderName}
 				</span>
 				{data.hiddenCount > 0 && (

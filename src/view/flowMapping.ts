@@ -113,6 +113,12 @@ export type FlowGroupData = {
 	readonly folderName: string;
 	/** Truncated-away nodes of this folder — the group's "+N" badge; 0 = no badge. */
 	readonly hiddenCount: number;
+	/**
+	 * True when `folderName` is a full chain path (the "Full folder path" setting),
+	 * so the label front-truncates (`…/some/leaf`) to keep the meaningful tail.
+	 * A leaf-name label (the default) keeps conventional trailing truncation.
+	 */
+	readonly fullPathLabel: boolean;
 };
 
 interface FlowNodeBase {
@@ -281,6 +287,7 @@ export function vicinityGraphToFlow(graph: VicinityGraph, pinFacts: FlowPinFacts
 				// FolderGroupNode's tooltip regardless of the setting.
 				folderName: graph.viewSettings.groupLabelFullPath ? group.chainPath : group.leafName,
 				hiddenCount: badges.hiddenCountByGroupFolder.get(group.folder) ?? 0,
+				fullPathLabel: graph.viewSettings.groupLabelFullPath,
 			},
 		}),
 	);
