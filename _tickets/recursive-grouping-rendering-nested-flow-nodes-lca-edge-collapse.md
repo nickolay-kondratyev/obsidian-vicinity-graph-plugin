@@ -98,3 +98,7 @@ collapse tests cover the shape.
 **Verification:** `npm run check` ✓; `npm test` ✓ (2016 tests, +7 new); `npm run
 test:e2e -- vicinityGraph.e2e.ts` ✓ (27 passed, incl. group-render and
 cross-boundary-collapse specs). No e2e submodule changes (no e2e specs touched).
+
+**2026-08-14T01:36:42Z**
+
+__READY_AS_IS__: behavior-preserving leafName refactor + accurate lock tests; check + affected suites green, no findings.
