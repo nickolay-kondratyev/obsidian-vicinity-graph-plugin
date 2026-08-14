@@ -1,12 +1,14 @@
 ---
+closed_iso: 2026-08-14T01:34:43Z
+session_ids: [{"a": "claude", "type": "execution", "id": "3750bfb8-774a-471e-847f-fa3cca292528"}, {"a": "claude", "type": "review", "id": "77f9415a-1d55-4f2f-b491-7b9cfd6109a0"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 id: nid_9uh2twn8whoqtplbxk0ywzpx7_e
 title: "Recursive grouping rendering: nested flow nodes + LCA edge collapse"
-status: in_progress
+status: closed
 deps: [nid_d44vbnq9o6rhuelfwclx2e34n_e]
 links: []
 created_iso: 2026-08-14T00:18:09Z
-status_updated_iso: 2026-08-14T01:27:41Z
+status_updated_iso: 2026-08-14T01:34:43Z
 type: feature
 priority: 3
 assignee: nickolaykondratyev
@@ -39,3 +41,64 @@ Because the consumers are still FLAT until this ticket lands, this ships a phant
 Before the core branch, `sql` was never a group, so no such box existed.
 
 The nesting rewrite in THIS ticket resolves it by construction (the parent group contains its child group nodes/containers, so it is no longer empty). ACTION: ensure the nested-flow/elk rewrite covers the zero-direct-member nesting parent and add a flowMapping.test.ts case asserting a pure nesting-parent renders as a non-empty container (its child groups nested), NOT an empty box. If any release is cut before this lands, an interim guard is trivial: skip groups whose memberPaths is empty in the flat consumer.
+
+
+## Resolution — 2026-08-14
+
+**Key finding:** the substantive rendering work this ticket describes had ALREADY
+landed with the dependency commit `86a442d` ("Recursive grouping layout: nested
+elk containers + LCA edge attachment"). Because the elk layout tree and the React
+Flow parentId tree MUST agree on the same grouping seam, that commit necessarily
+rewrote `flowMapping.ts` alongside `elkMapping.ts`. So when this ticket started,
+`src/view/flowMapping.ts` already emitted nested group nodes with multi-level
+parentId chains, ordered ancestor-first by folder depth, used the LCA projection
+seam (`lowestCommonAncestorContainerOf` + `projectOntoContainerChildOf`) in
+`buildFlowEdges`, and `withPositions` already converted absolute→parent-relative
+correctly for any depth. The empty-nesting-parent regression was likewise resolved
+by construction and already covered (flowMapping.test.ts "a nesting parent has no
+direct notes THEN its box is NOT empty").
+
+Multi-level correctness holds because coordinates stay ABSOLUTE end to end:
+`elkMapping.collectPositions` accumulates parent offsets recursively (arbitrary
+depth), `extractEdgeRoutingInput` reads that absolute positions map verbatim (no
+per-level offset math of its own), and `withPositions` subtracts only the
+IMMEDIATE parent's absolute origin. Nothing was one-level-limited.
+
+**What this ticket added (the genuine deltas):**
+
+1. `src/view/flowMapping.ts` — group label now sources from the group MODEL
+   (`group.leafName`) instead of recomputing `VaultPathFacts.folderNameOf(folder)`
+   (DRY; behaviour identical since they compute the same string). Comment records
+   the signed-off A1 intent: leaf name by default, full folder path in the
+   FolderGroupNode tooltip (`data.folder`, already wired), and that the
+   collapsed-chain label (`chainPath`, already on the model) is switched on by a
+   SEPARATE settings ticket — so `chainPath` is deliberately NOT carried onto
+   `FlowGroupData` yet (OCP / no-unused-code: added with its consumer). Removed the
+   now-unused `VaultPathFacts` import.
+
+2. `src/view/flowMapping.test.ts` — new "deeply nested folder groups" describe
+   (three-deep `A ⊃ A/B ⊃ A/B/C` + sibling top-level `P`): asserts the multi-hop
+   parentId chain, ancestor-before-descendant ordering across two hops, innermost
+   membership for a 3-deep note, LCA projection onto the OUTERMOST groups when two
+   notes share only the canvas pane (edge `A/B/C/c1 → P/p1` collapses to
+   `folder-group:A ↔ folder-group:P`, NOT the inner boxes), and a multi-hop
+   `withPositions` case proving each node lands relative to its IMMEDIATE parent only.
+
+3. `src/view/edgeRouting.test.ts` — new "extractEdgeRoutingInput under multi-level
+   nesting" describe: a two-deep tree confirms an inner group box and a 2-deep note
+   become obstacles at their ABSOLUTE coords verbatim (no parent offset re-added),
+   locking the contract the ticket flagged.
+
+**Cross-link parity (showCrossLinks / CrossLinkSweep):** confirmed by inspection —
+by the time `flowMapping` runs, cross links are ordinary entries in `graph.edges`
+with no distinguishing field, so `buildFlowEdges` collapses them through the exact
+same LCA path with no extra branch. Nothing to special-case; existing + new
+collapse tests cover the shape.
+
+**Verification:** `npm run check` ✓; `npm test` ✓ (2016 tests, +7 new); `npm run
+test:e2e -- vicinityGraph.e2e.ts` ✓ (27 passed, incl. group-render and
+cross-boundary-collapse specs). No e2e submodule changes (no e2e specs touched).
+
+**2026-08-14T01:36:42Z**
+
+__READY_AS_IS__: behavior-preserving leafName refactor + accurate lock tests; check + affected suites green, no findings.

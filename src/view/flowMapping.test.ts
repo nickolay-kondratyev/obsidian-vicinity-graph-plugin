@@ -3,7 +3,7 @@ import type { GraphEdge, GraphNode, NodeContentOverride, NodePreviewPreference, 
 import { asDocId, asFolderPath, asVaultPath, NODE_CONTENT_OVERRIDES, NODE_PREVIEW_PREFERENCES } from "../engine";
 import { OUTLINE_RENDER_LIMIT } from "./constants";
 import { edgeClassName, edgeKindClassName, vicinityGraphToFlow, withGroupDimensions, withPositions } from "./flowMapping";
-import type { FlowNode, FlowPinFacts, NoteFlowNode } from "./flowMapping";
+import type { FlowNode, FlowPinFacts, NoteFlowNode, XY } from "./flowMapping";
 import { NO_ORPHAN_TRUNCATION } from "./truncationBadges";
 import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
 
@@ -320,6 +320,75 @@ describe("vicinityGraphToFlow nested folder groups", () => {
 			source: "folder-group:sql/joins",
 			target: "folder-group:sql/windows",
 		});
+	});
+});
+
+/**
+ * GIVEN a THREE-deep grouping tree `A ⊃ A/B ⊃ A/B/C`, each level holding two of
+ * its OWN direct notes (so no level collapses) plus a sibling top-level group `P`.
+ * Exercises the multi-level parentId chain, absolute↔relative conversion across
+ * more than one parent hop, and LCA projection onto the OUTERMOST groups when two
+ * notes' only common container is the canvas pane.
+ */
+function deeplyNestedGraph() {
+	return makeGraph({
+		nodes: [
+			makeNode({ path: asVaultPath("A/a1.md"), folder: asFolderPath("A") }),
+			makeNode({ path: asVaultPath("A/a2.md"), folder: asFolderPath("A") }),
+			makeNode({ path: asVaultPath("A/B/b1.md"), folder: asFolderPath("A/B") }),
+			makeNode({ path: asVaultPath("A/B/b2.md"), folder: asFolderPath("A/B") }),
+			makeNode({ path: asVaultPath("A/B/C/c1.md"), folder: asFolderPath("A/B/C") }),
+			makeNode({ path: asVaultPath("A/B/C/c2.md"), folder: asFolderPath("A/B/C") }),
+			makeNode({ path: asVaultPath("P/p1.md"), folder: asFolderPath("P") }),
+			makeNode({ path: asVaultPath("P/p2.md"), folder: asFolderPath("P") }),
+		],
+		edges: [makeEdge("A/B/C/c1.md", "P/p1.md")],
+	});
+}
+
+describe("vicinityGraphToFlow deeply nested folder groups", () => {
+	it("WHEN groups nest three deep THEN each carries its immediate parent group's parentId", () => {
+		const nodes = toFlow(deeplyNestedGraph()).nodes;
+		const parentOf = (id: string) => nodes.find((node) => node.id === id)?.parentId;
+		expect([parentOf("folder-group:A"), parentOf("folder-group:A/B"), parentOf("folder-group:A/B/C")]).toEqual([
+			undefined,
+			"folder-group:A",
+			"folder-group:A/B",
+		]);
+	});
+
+	it("WHEN groups nest three deep THEN every ancestor group precedes its descendant (parent-first rule)", () => {
+		const ids = toFlow(deeplyNestedGraph()).nodes.map((node) => node.id);
+		expect(ids.indexOf("folder-group:A")).toBeLessThan(ids.indexOf("folder-group:A/B"));
+		expect(ids.indexOf("folder-group:A/B")).toBeLessThan(ids.indexOf("folder-group:A/B/C"));
+	});
+
+	it("WHEN a note is three groups deep THEN it renders in its nearest (innermost) group", () => {
+		expect(noteNode(toFlow(deeplyNestedGraph()).nodes, "A/B/C/c1.md")?.parentId).toBe("folder-group:A/B/C");
+	});
+
+	it("WHEN an edge's endpoints share only the canvas pane THEN it collapses onto the OUTERMOST groups, not the inner ones", () => {
+		const [edge] = toFlow(deeplyNestedGraph()).edges;
+		expect({ source: edge?.source, target: edge?.target }).toEqual({
+			source: "folder-group:A",
+			target: "folder-group:P",
+		});
+	});
+
+	it("WHEN positions are applied across a multi-hop chain THEN each node is relative to its IMMEDIATE parent only", () => {
+		const flow = toFlow(deeplyNestedGraph());
+		// Absolute layout coords (extractElkPositions space); each nested box offset from the last.
+		const positions = new Map<string, XY>([
+			["folder-group:A", { x: 100, y: 100 }],
+			["folder-group:A/B", { x: 130, y: 140 }],
+			["folder-group:A/B/C", { x: 170, y: 190 }],
+			["A/B/C/c1.md", { x: 200, y: 230 }],
+		]);
+		const positionOf = (id: string) => withPositions(flow.nodes, positions).find((node) => node.id === id)?.position;
+		// A/B relative to A; A/B/C relative to A/B; the deep note relative to A/B/C.
+		expect(positionOf("folder-group:A/B")).toEqual({ x: 30, y: 40 });
+		expect(positionOf("folder-group:A/B/C")).toEqual({ x: 40, y: 50 });
+		expect(positionOf("A/B/C/c1.md")).toEqual({ x: 30, y: 40 });
 	});
 });
 

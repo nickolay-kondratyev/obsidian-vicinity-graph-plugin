@@ -10,7 +10,6 @@ import type {
 } from "../engine";
 import { nodePreviewKind } from "../engine";
 import { resolveNodePreviewPreference } from "./nodePreviewChoice";
-import { VaultPathFacts } from "../shared/VaultPathFacts";
 import { OUTLINE_RENDER_LIMIT } from "./constants";
 import type { AttachmentIconGroup } from "./attachmentIconStrip";
 import { attachmentIconStrip } from "./attachmentIconStrip";
@@ -274,7 +273,12 @@ export function vicinityGraphToFlow(graph: VicinityGraph, pinFacts: FlowPinFacts
 			...(group.parentFolder === null ? {} : { parentId: folderGroupIdOf(group.parentFolder) }),
 			data: {
 				folder: group.folder,
-				folderName: VaultPathFacts.folderNameOf(group.folder),
+				// Label text comes from the group MODEL (signed-off A1): the leaf folder
+				// name by default. The full folder path rides `folder` for FolderGroupNode's
+				// tooltip. The collapsed-chain label the label setting switches to lives on the
+				// model too (chainPath); wiring that presenter is a separate ticket, so nothing
+				// here recomputes the name from the path.
+				folderName: group.leafName,
 				hiddenCount: badges.hiddenCountByGroupFolder.get(group.folder) ?? 0,
 			},
 		}),
