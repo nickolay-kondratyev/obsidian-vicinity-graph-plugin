@@ -1,4 +1,5 @@
 ---
+session_ids: [{"a": "claude", "type": "execution", "id": "e05618bf-16a9-41fc-affc-6c5d9b5d31b8"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-2
 id: nid_ivt836nuelyse1c0epp86d36z_e
 title: "Dont render the same image twice in the graph"
