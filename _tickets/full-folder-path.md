@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 id: nid_oebzyb9a3tjtdwrwkvxiuj5wl_e
 title: "Full folder path"
-status: open
+status: in_progress
 deps: []
 links: []
 created_iso: 2026-08-14T19:18:42Z
-status_updated_iso: 2026-08-14T19:18:42Z
+status_updated_iso: 2026-08-14T19:21:21Z
 type: task
 priority: 3
 assignee: nickolaykondratyev
