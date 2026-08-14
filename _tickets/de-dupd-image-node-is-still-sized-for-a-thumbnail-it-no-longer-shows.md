@@ -47,3 +47,9 @@ This is a PURE engine sizing change (the box height is engine `sizePx`, consumed
 ### Known residual (documented, accepted, rarer than the bug fixed)
 Where a per-node CONTENT override is set on a node in a duplicate-image cluster, the sizer's (override-blind) suppressed set can differ from the view's (override-aware) one, yielding a mild MIS-size (never the empty box). This is the same pre-existing sizer-vs-content-override divergence already documented on `NodeSizer` / `nodePreviewChoice`, and is the price of keeping the no-relayout-on-content-flip invariant.
 
+
+## Notes
+
+**2026-08-14T23:01:33Z**
+
+__READY_AS_IS__: Engine-side de-dup sizing fix is correct, layering-clean, truncate-then-size reorder is safe (truncator size-independent); check + 2046 tests green; documented residual is a ticket-settled design call.
