@@ -6,7 +6,7 @@ id: nid_ivt836nuelyse1c0epp86d36z_e
 title: "Dont render the same image twice in the graph"
 status: closed
 deps: []
-links: []
+links: [nid_psgov2t1d2s8d7rk2qvux02zb_e]
 created_iso: 2026-08-14T19:23:31Z
 status_updated_iso: 2026-08-14T19:32:54Z
 type: task
@@ -74,3 +74,9 @@ ICON in the icon strip (that is an icon, not the picture) and, if it wins nothin
 falls to title-only. If the product later wants the loser to show a DIFFERENT
 image it has (its second image), that is a follow-up — today `firstImagePath` is
 the only thumbnail candidate the engine surfaces.
+
+## Notes
+
+**2026-08-14T19:36:12Z**
+
+__READY_AS_IS__: De-dup logic correct & tested (tsc clean, 1983 tests green). One real but cross-layer follow-up filed & linked: nid_psgov2t1d2s8d7rk2qvux02zb_e (suppressed image node still sized/floored as a thumbnail by the pure engine sizer -> oversized/empty box).
