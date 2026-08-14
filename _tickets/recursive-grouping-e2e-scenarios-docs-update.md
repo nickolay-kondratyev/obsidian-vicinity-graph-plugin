@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-14T02:19:36Z
-session_ids: [{"a": "claude", "type": "execution", "id": "af622dcd-c40e-4a17-98d3-6b747ed0c155"}]
+session_ids: [{"a": "claude", "type": "execution", "id": "af622dcd-c40e-4a17-98d3-6b747ed0c155"}, {"a": "claude", "type": "review", "id": "5869c3bb-d0b6-48aa-9519-b806d1502289"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 id: nid_5hnmpwtzakhd3le95jzigsvs0_e
 title: "Recursive grouping: e2e scenarios + docs update"
