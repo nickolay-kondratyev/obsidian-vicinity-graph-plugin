@@ -1,4 +1,5 @@
 ---
+session_ids: [{"a": "claude", "type": "decision", "id": "97349e1d-ccbf-4091-97c2-891f31979512"}]
 id: nid_7abfje1vus15rx9hzmpel9jin_e
 title: "Edge-aware intra-group layout: evaluate force/stress interiors + tune"
 status: open
