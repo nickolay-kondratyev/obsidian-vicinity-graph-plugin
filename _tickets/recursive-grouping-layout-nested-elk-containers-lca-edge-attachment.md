@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-14T01:21:37Z
-session_ids: [{"a": "claude", "type": "execution", "id": "932f53db-5065-4d1e-b970-6b20586a99b6"}]
+session_ids: [{"a": "claude", "type": "execution", "id": "932f53db-5065-4d1e-b970-6b20586a99b6"}, {"a": "claude", "type": "review", "id": "563c6acd-7587-462f-b0a2-122d46709001"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 id: nid_d44vbnq9o6rhuelfwclx2e34n_e
 title: "Recursive grouping layout: nested elk containers + LCA edge attachment"
