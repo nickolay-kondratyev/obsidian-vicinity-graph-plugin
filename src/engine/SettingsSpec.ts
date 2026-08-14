@@ -78,6 +78,7 @@ export interface ViewSpec {
 	readonly outlineMaxDepth: BoundedNumberSpec;
 	readonly nodePreviewPreference: DefaultSpec<NodePreviewPreference>;
 	readonly showCrossLinks: DefaultSpec<boolean>;
+	readonly groupLabelFullPath: DefaultSpec<boolean>;
 	readonly sizing: SizingSpec;
 	readonly forceLayout: ForceLayoutSpec;
 }
@@ -289,6 +290,16 @@ export const SETTINGS_SPEC: SettingsSpec = {
 		 * into a hairball the moment it is switched on.
 		 */
 		showCrossLinks: { default: false },
+		/**
+		 * How a COLLAPSED folder chain (a run of single-child folders rendered as one
+		 * group) is labelled. OFF (DEFAULT, signed-off decision A1 of plan
+		 * `nid_xko67wo2z4awg5gdrm1xx1chz_e`): the leaf folder name alone (`C`) — the
+		 * least chrome, matching a non-collapsed group, which always shows its folder
+		 * name. ON: the full collapsed path (`A/B/C`), for when the intermediate
+		 * folders carry meaning worth reading. A non-collapsed group is unaffected
+		 * either way; this only changes what a COLLAPSED chain reads as.
+		 */
+		groupLabelFullPath: { default: false },
 		/**
 		 * The content-fit clamps (the only sizing dials — the metric dials were
 		 * removed, node-sizing rethink 2026-08-03).

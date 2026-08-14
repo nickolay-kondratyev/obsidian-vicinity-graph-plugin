@@ -140,6 +140,10 @@ The settings, grouped the same way on both surfaces:
   (outline for your roots, first image for neighbours), **Title only**,
   **Outline** or **Image**, plus an *Outline depth* for how many heading levels
   an outline shows. Clicking an outline entry opens the note at that heading.
+- **Grouping** — *Full folder path* labels a collapsed folder chain (a run of
+  single-child folders drawn as one group) with its full path (`A/B/C`) instead
+  of just the innermost folder name. Off by default; groups that are not
+  collapsed always show their folder name.
 - **Force layout** — sliders named like Obsidian's native graph (center, repel,
   link force, link distance) plus spacing and edge-clearance controls, each with
   a *Restore defaults* button.

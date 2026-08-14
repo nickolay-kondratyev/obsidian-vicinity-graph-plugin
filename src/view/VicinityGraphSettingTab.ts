@@ -266,6 +266,9 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 			case "show-cross-links":
 				this.addToggleRow(container, row, SettingsRowAccessors.showCrossLinks(), state);
 				return;
+			case "group-label-full-path":
+				this.addToggleRow(container, row, SettingsRowAccessors.groupLabelFullPath(), state);
+				return;
 			case "outline-depth":
 				this.addSlider(container, row, SettingsRowAccessors.outlineDepth(), state);
 				return;

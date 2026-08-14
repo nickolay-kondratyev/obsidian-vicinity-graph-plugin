@@ -74,6 +74,9 @@ const SHIPPED_SETTINGS_DEFAULTS: Readonly<Record<string, unknown>> = {
 	"globalView.nodePreviewPreference": "auto", // The documented document-position rule.
 	// OFF ships the walked-only graph; ON is the opt-in denser induced subgraph.
 	"globalView.showCrossLinks": false,
+	// Collapsed folder chains show the leaf folder name by default (signed-off
+	// decision A1); ON labels them with the full A/B/C path.
+	"globalView.groupLabelFullPath": false,
 
 	// Content-fit sizing (nid_cx5zoz7ptucg9nxalibv0mbjb_e): the metric dials are
 	// GONE — a node fits what it shows, and these two clamps are the only dials.

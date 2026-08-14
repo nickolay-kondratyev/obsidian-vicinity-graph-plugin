@@ -70,7 +70,7 @@ const ALL_SCOPE_LABEL = "Restore all Vicinity Graph settings";
  * reads the label as "my pins are gone too".
  */
 const ALL_SCOPE_DESCRIPTION =
-	"Resets every Vicinity Graph setting — depth defaults, edges, frontmatter links, node sizing, node contents, force layout, node exclusion and performance — to its shipped default. Pinned notes are kept.";
+	"Resets every Vicinity Graph setting — depth defaults, edges, frontmatter links, node sizing, node contents, grouping, force layout, node exclusion and performance — to its shipped default. Pinned notes are kept.";
 
 const EXCLUSION_SCOPE_LABEL = "Restore node exclusion defaults";
 
@@ -167,6 +167,13 @@ export const SETTINGS_RESET_SCOPES: Readonly<Record<SettingsResetScope, Settings
 			`Resets the outline depth to ${SETTINGS_SPEC.globalView.outlineMaxDepth.default} heading levels ` +
 			`and the node preview to ${NODE_PREVIEW_OPTION_META[SETTINGS_SPEC.globalView.nodePreviewPreference.default].label}.`,
 		plan: (ctx) => planSectionReset("node-contents", ctx),
+	},
+	grouping: {
+		label: "Restore grouping defaults",
+		// Does not state WHICH way the toggle lands: that literal lives in
+		// `SETTINGS_SPEC` alone (see the edges scope).
+		description: "Resets whether collapsed folder chains are labelled with their full path.",
+		plan: (ctx) => planSectionReset("grouping", ctx),
 	},
 	"force-layout": {
 		label: "Restore force layout defaults",

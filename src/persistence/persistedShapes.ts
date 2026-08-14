@@ -211,6 +211,10 @@ function parseViewFields(raw: unknown): Partial<ViewSettings> {
 		// A non-boolean (hand-edited `"true"`, a null) falls through as absent, so the
 		// spec default applies — never a truthiness coercion.
 		showCrossLinks: typeof raw["showCrossLinks"] === "boolean" ? raw["showCrossLinks"] : undefined,
+		// Added WITHOUT a PERSISTED_SHAPE_VERSION bump (a missing known field falls
+		// back to its spec default): an existing data.json parses correctly. A
+		// non-boolean falls through as absent — never a truthiness coercion.
+		groupLabelFullPath: typeof raw["groupLabelFullPath"] === "boolean" ? raw["groupLabelFullPath"] : undefined,
 		sizing: parseSizing(raw["sizing"]),
 		forceLayout: parseForceLayout(raw["forceLayout"]),
 	};

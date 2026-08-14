@@ -61,6 +61,7 @@ export const SETTINGS_ROW_CONTROL_KINDS = [
 	"sizing-number",
 	"node-preview",
 	"show-cross-links",
+	"group-label-full-path",
 	"outline-depth",
 	"force-layout",
 	"exclusion-enabled",
@@ -81,6 +82,8 @@ export type SettingsRowControl =
 	| { readonly kind: "node-preview" }
 	/** Whether links between two visible nodes are drawn even when the walk never took them. */
 	| { readonly kind: "show-cross-links" }
+	/** Whether a collapsed folder chain is labelled with its full path instead of the leaf name. */
+	| { readonly kind: "group-label-full-path" }
 	/** Deepest heading level a node's outline renders. */
 	| { readonly kind: "outline-depth" }
 	/** One force-layout tuning value. */
@@ -476,6 +479,24 @@ export const SETTINGS_GROUPS: Readonly<Record<SettingsSection, SettingsGroup>> =
 						label: "Outline depth",
 						description: "How many heading levels a note's outline shows inside its node.",
 						control: { kind: "outline-depth" },
+					},
+				],
+			},
+		],
+	},
+	// Its own section: the only setting about how folder GROUPS (not the nodes inside
+	// them) present. One row today — the collapsed-chain label style — with room to
+	// grow as recursive grouping gains dials.
+	grouping: {
+		heading: "Grouping",
+		blocks: [
+			{
+				rows: [
+					{
+						label: "Full folder path",
+						description:
+							"Label a collapsed folder chain — a run of single-child folders drawn as one group — with its full path (A/B/C) instead of just the innermost folder name. Groups that are not collapsed always show their folder name.",
+						control: { kind: "group-label-full-path" },
 					},
 				],
 			},
