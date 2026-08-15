@@ -46,10 +46,12 @@ export interface FolderGroup {
 	 */
 	readonly chainPath: string;
 	/**
-	 * Notes assigned directly to THIS group (their nearest qualifying ancestor is
-	 * this folder), in graph-node order. Always >= {@link MIN_GROUP_MEMBER_COUNT}
-	 * across the group's whole subtree, though a nesting parent may hold fewer
-	 * direct members than that once descendants sink into child groups.
+	 * Notes assigned directly to THIS group (their nearest RENDERED group is this
+	 * folder — the nearest qualifying ancestor uncapped, or the depth-cap
+	 * survivor a deeper group merged into), in graph-node order. Always >=
+	 * {@link MIN_GROUP_MEMBER_COUNT} across the group's whole subtree, though a
+	 * nesting parent may hold fewer direct members than that once descendants
+	 * sink into child groups.
 	 */
 	readonly memberPaths: readonly string[];
 }
@@ -57,7 +59,7 @@ export interface FolderGroup {
 export interface FolderGroupingResult {
 	/** Groups in first-seen folder order (deterministic across rebuilds of the same graph). */
 	readonly groups: readonly FolderGroup[];
-	/** Reverse index: member node path → the folder of the group it renders in (its nearest qualifying ancestor). */
+	/** Reverse index: member node path → the folder of the group it RENDERS in (nearest qualifying ancestor, capped to the depth-cap survivor). */
 	readonly groupFolderByMemberPath: ReadonlyMap<string, FolderPath>;
 	/**
 	 * Nearest rendered (surviving) group that is an ancestor-or-self of `folderPath`,
