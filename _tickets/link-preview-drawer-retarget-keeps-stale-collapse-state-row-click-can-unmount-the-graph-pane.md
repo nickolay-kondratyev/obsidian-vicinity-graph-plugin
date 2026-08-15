@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_dma49vci6uxv0w1qlc66y3kgc_e
 title: "Link-preview drawer retarget keeps stale collapse state; row click can unmount the graph pane"
-status: open
+status: in_progress
 deps: []
 links: []
 created_iso: 2026-08-15T00:41:30Z
-status_updated_iso: 2026-08-15T00:41:30Z
+status_updated_iso: 2026-08-15T01:40:38Z
 type: bug
 priority: 1
 assignee: CC_WITH-nickolaykondratyev
