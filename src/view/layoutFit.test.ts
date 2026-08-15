@@ -120,37 +120,43 @@ describe("resizedNodesFitRenderedLayout against folder-group borders", () => {
 	});
 });
 
-describe("resizedNodesFitRenderedLayout with NESTED folder groups (KNOWN BUG, ticket nid_vjezt4ewmn50r0mbwjdfn70i2_e)", () => {
-	// KNOWN BUG — the foreign-group overlap loop treats the resized node's own
-	// ANCESTOR groups as foreign boxes (`otherFolder !== folder`), and a nested
-	// group's member always sits inside every ancestor's box, so the fit answer
-	// is unconditionally `false` for nested-group members — every such resize
-	// forces the whole-graph relayout ticket nid_9ep12hkmk4zjv2p28emmrhieq_e
-	// removed. Unskip (flip `it.skip` to `it`) when fixing.
-	it.skip("WHEN a nested group's member resizes with room to spare THEN it fits", () => {
-		// GIVEN group A (members a1,a2) containing group A/B (members b1,b2), boxes
-		// nested with generous clearance, and b1 resized to 50x50 well inside A/B.
-		const nodes = [
+describe("resizedNodesFitRenderedLayout with NESTED folder groups (ticket nid_vjezt4ewmn50r0mbwjdfn70i2_e)", () => {
+	// GIVEN group A (members a1,a2) containing group A/B (members b1,b2), boxes
+	// nested with generous clearance. A nested member sits inside EVERY ancestor
+	// group's box by construction — strict ancestors are containers to stay
+	// inside, never colliders.
+	function nestedNodes(b1WidthPx: number, b1HeightPx: number): GraphNode[] {
+		return [
 			sizedNode("A/a1.md", 20, 20, "A"),
 			sizedNode("A/a2.md", 20, 20, "A"),
-			sizedNode("A/B/b1.md", 50, 50, "A/B"),
+			sizedNode("A/B/b1.md", b1WidthPx, b1HeightPx, "A/B"),
 			sizedNode("A/B/b2.md", 40, 40, "A/B"),
 		];
-		const layout = layoutOf(
-			{
-				[folderGroupIdOf(asFolderPath("A"))]: { x: 0, y: 0 },
-				[folderGroupIdOf(asFolderPath("A/B"))]: { x: 50, y: 50 },
-				"A/a1.md": { x: 360, y: 10 },
-				"A/a2.md": { x: 360, y: 360 },
-				"A/B/b1.md": { x: 60, y: 60 },
-				"A/B/b2.md": { x: 60, y: 300 },
-			},
-			{
-				[folderGroupIdOf(asFolderPath("A"))]: { width: 400, height: 400 },
-				[folderGroupIdOf(asFolderPath("A/B"))]: { width: 300, height: 300 },
-			},
-		);
-		expect(resizedNodesFitRenderedLayout(new Set(["A/B/b1.md"]), nodes, layout)).toBe(true);
+	}
+	const nestedLayout = layoutOf(
+		{
+			[folderGroupIdOf(asFolderPath("A"))]: { x: 0, y: 0 },
+			[folderGroupIdOf(asFolderPath("A/B"))]: { x: 50, y: 50 },
+			"A/a1.md": { x: 360, y: 10 },
+			"A/a2.md": { x: 360, y: 360 },
+			"A/B/b1.md": { x: 60, y: 60 },
+			"A/B/b2.md": { x: 60, y: 300 },
+		},
+		{
+			[folderGroupIdOf(asFolderPath("A"))]: { width: 400, height: 400 },
+			[folderGroupIdOf(asFolderPath("A/B"))]: { width: 300, height: 300 },
+		},
+	);
+
+	it("WHEN a nested group's member resizes with room to spare THEN it fits", () => {
+		// b1 at 50x50, well inside A/B and clear of b2.
+		expect(resizedNodesFitRenderedLayout(new Set(["A/B/b1.md"]), nestedNodes(50, 50), nestedLayout)).toBe(true);
+	});
+
+	it("WHEN a nested group's member spills outside its OWN group but stays inside the ancestor THEN it does not fit", () => {
+		// b1 at (60,60) grown to 300 wide: 60 + 300 > 350 (A/B's right edge) but
+		// still inside A's 400 — the OWN border is the binding one.
+		expect(resizedNodesFitRenderedLayout(new Set(["A/B/b1.md"]), nestedNodes(300, 50), nestedLayout)).toBe(false);
 	});
 });
 
