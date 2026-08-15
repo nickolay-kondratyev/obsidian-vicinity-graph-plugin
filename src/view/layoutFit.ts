@@ -1,5 +1,6 @@
 import type { FolderPath, GraphNode } from "../engine";
 import type { Dimensions, XY } from "./flowMapping";
+import type { FolderGroupingResult } from "./folderGrouping";
 import { deriveFolderGroups } from "./folderGrouping";
 import { folderGroupIdOf, nodeDimensionsPx } from "./graphIdentity";
 
@@ -57,8 +58,9 @@ interface Rect {
 /**
  * True when every node in `resizedPaths`, drawn at its EXISTING position with
  * its NEW box, still clears everything around it — no overlap with another
- * node or with a folder-group box it does not belong to, and (when it is a
- * group member) no spilling outside its own group's border.
+ * node or with a folder-group box it does not sit inside, and (when it is a
+ * group member) no spilling outside its own group's border nor any ancestor
+ * group's — those nesting boxes are containers to stay within, not colliders.
  *
  * Anchored at the existing position because the only resize grips are
  * right / bottom / bottom-right (see `NoteNode`): a resize grows a node's
@@ -107,9 +109,16 @@ export function resizedNodesFitRenderedLayout(
 		if (rect === undefined) {
 			return false;
 		}
-		const folder = grouping.groupFolderByMemberPath.get(path);
-		if (folder !== undefined && !containsRect(groupRects.get(folder), rect)) {
-			return false;
+		// Groups nest (folderGrouping, plan D2): the node's own group AND every
+		// ancestor group are CONTAINERS the rect must stay inside, never colliders
+		// — a nested member always sits inside each ancestor's box, so an overlap
+		// test against them would answer "no fit" unconditionally (ticket
+		// `nid_vjezt4ewmn50r0mbwjdfn70i2_e`).
+		const containerFolders = containerGroupFoldersOf(grouping, path);
+		for (const containerFolder of containerFolders) {
+			if (!containsRect(groupRects.get(containerFolder), rect)) {
+				return false;
+			}
 		}
 		for (const [otherPath, otherRect] of nodeRects) {
 			if (otherPath !== path && overlaps(rect, otherRect)) {
@@ -117,12 +126,28 @@ export function resizedNodesFitRenderedLayout(
 			}
 		}
 		for (const [otherFolder, groupRect] of groupRects) {
-			if (otherFolder !== folder && overlaps(rect, groupRect)) {
+			if (!containerFolders.has(otherFolder) && overlaps(rect, groupRect)) {
 				return false;
 			}
 		}
 	}
 	return true;
+}
+
+/**
+ * Folders of the groups CONTAINING a member node: its own group plus each
+ * ancestor group, walking the rendered `parentFolder` chain. Empty for an
+ * ungrouped node — every group box is then foreign to it.
+ */
+function containerGroupFoldersOf(grouping: FolderGroupingResult, memberPath: string): ReadonlySet<FolderPath> {
+	const folders = new Set<FolderPath>();
+	const ownFolder = grouping.groupFolderByMemberPath.get(memberPath);
+	let group = ownFolder === undefined ? null : grouping.nearestRenderedAncestorGroupOf(ownFolder);
+	while (group !== null) {
+		folders.add(group.folder);
+		group = group.parentFolder === null ? null : grouping.nearestRenderedAncestorGroupOf(group.parentFolder);
+	}
+	return folders;
 }
 
 /** Overlap = a positive-area intersection; boxes that merely touch are not overlapping. */
