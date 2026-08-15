@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-15T01:56:39Z
-session_ids: [{"a": "claude", "type": "execution", "id": "dd918f48-e948-421c-8397-5a65b2302ba6"}]
+session_ids: [{"a": "claude", "type": "execution", "id": "dd918f48-e948-421c-8397-5a65b2302ba6"}, {"a": "claude", "type": "review", "id": "259a2919-0c5d-42af-aad0-fc5b454ce0da"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_vjezt4ewmn50r0mbwjdfn70i2_e
 title: "Nested folder-group member resize always forces a whole-graph relayout"
