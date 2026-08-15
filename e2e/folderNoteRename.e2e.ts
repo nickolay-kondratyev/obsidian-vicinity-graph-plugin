@@ -44,15 +44,29 @@ test.beforeAll(async () => {
 	await harness.openGraphView();
 	await harness.openFile(MAIN_PATH);
 	await expect(noteNode(MAIN_PATH)).toHaveAttribute("data-tier", "main");
-	// The Folder Notes plugin's "hide folder note" setting, verbatim: the body
-	// class it toggles plus the unscoped hide rule from its styles.css. Installed
-	// once for the whole spec — exactly what a vault running that plugin has.
+	// The Folder Notes plugin's "hide folder note" setting: the body class it
+	// toggles plus the unscoped hide rule from its styles.css. Installed once for
+	// the whole spec — exactly what a vault running that plugin has. Injected via
+	// adoptedStyleSheets (same document-wide effect as that plugin's styles.css)
+	// because Obsidian's publish review rejects any `style`-element creation in
+	// the repo, even in this test-only stand-in for ANOTHER plugin's CSS.
 	await page.evaluate(() => {
 		document.body.classList.add("hide-folder-note");
-		const style = document.createElement("style");
-		style.textContent = ".hide-folder-note .is-folder-note { display: none; }";
-		document.head.appendChild(style);
+		const sheet = new CSSStyleSheet();
+		sheet.replaceSync(".hide-folder-note .is-folder-note { display: none; }");
+		document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
 	});
+	// Sanity: the adopted rule must actually hide tagged elements, or every
+	// assertion below passes vacuously and the ghost regression goes unguarded.
+	const hideRuleApplies = await page.evaluate(() => {
+		const probe = document.createElement("div");
+		probe.classList.add("is-folder-note");
+		document.body.appendChild(probe);
+		const display = getComputedStyle(probe).display;
+		probe.remove();
+		return display === "none";
+	});
+	expect(hideRuleApplies).toBe(true);
 });
 
 test.afterAll(async () => {
