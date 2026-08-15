@@ -38,3 +38,9 @@ Deliberate tradeoff, captured in tests: a MISSED rename (`set` at a new path wit
 
 Acceptance test unskipped and passing in `src/persistence/PathDocIdMap.test.ts` (fix landed in the map, so the test stayed put), plus three new tests: deleting the OTHER twin, rename-does-not-poison, and the missed-rename deferral. Verified: `npm test` (2088 passed) + `npm run check` green; pure persistence change, so no e2e per repo convention.
 
+
+## Notes
+
+**2026-08-15T01:27:57Z**
+
+__READY_AS_IS__: Map-level twin-delete fix verified end to end (flag semantics, sweep backstop via warmAll liveDocids, rename path); check + 2088 tests green; no changes made.
