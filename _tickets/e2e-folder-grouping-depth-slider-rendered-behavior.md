@@ -1,5 +1,5 @@
 ---
-session_ids: [{"a": "claude", "type": "execution", "id": "06afc08b-96ac-48b5-a289-8d693defe76e"}]
+session_ids: [{"a": "claude", "type": "execution", "id": "06afc08b-96ac-48b5-a289-8d693defe76e"}, {"a": "claude", "type": "review", "id": "ade619ba-0990-41c8-89b1-3305b7f79d4d"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_ovayqcmi0vlmzyju40tdxw3sd_e
 title: "e2e: folder grouping depth slider rendered behavior"
