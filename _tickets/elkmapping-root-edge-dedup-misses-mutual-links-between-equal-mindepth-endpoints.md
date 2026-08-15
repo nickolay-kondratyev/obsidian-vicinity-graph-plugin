@@ -32,3 +32,9 @@ INTENDED SIDE EFFECT worth knowing: the step-05 fixture (all nodes at the defaul
 
 Verified: `npm test` (2108 passed), `npm run check`, and `npm run test:e2e -- vicinityGraph.e2e.ts` (27 passed) all green.
 
+
+## Notes
+
+**2026-08-15T02:16:26Z**
+
+__READY_AS_IS__: tie-break fix is correct and consistent with the projection keying; acceptance test unskipped; check + 2108 vitest tests green; nothing changed in review.
