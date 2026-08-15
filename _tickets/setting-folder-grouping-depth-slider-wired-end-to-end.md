@@ -86,3 +86,9 @@ Follow-ups already ticketed: dependent-row disabling at 0
 (nid_dqu2jc1kln9ltwzy3lxxocdw7_e), rendered-behavior e2e
 (nid_ovayqcmi0vlmzyju40tdxw3sd_e).
 
+
+## Notes
+
+**2026-08-15T06:42:54Z**
+
+__READY_AS_IS__: review found only a stranded comment in persistedShapes.ts (fixed, a762ddf); wiring matches the edgeDepthIntoGroups template at every seam, all three deriveFolderGroups call sites threaded, check + npm test green (2175 passed).
