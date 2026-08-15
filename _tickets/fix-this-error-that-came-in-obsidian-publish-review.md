@@ -37,3 +37,8 @@ nobody "simplifies" it back. Verified: `npm run check`,
 `npm test` (2183 passed), and `npm run test:e2e -- folderNoteRename.e2e.ts`
 (both specs pass — the injected rule still hides tagged nodes, so the
 regression is still exercised).
+## Notes
+
+**2026-08-15T07:23:19Z**
+
+__READY_AS_IS__: adoptedStyleSheets swap is correct; only addition was a small sanity assertion that the adopted hide rule applies (guards against a vacuously-passing regression test); check, npm test (2183 passed), and the touched e2e spec all pass.
