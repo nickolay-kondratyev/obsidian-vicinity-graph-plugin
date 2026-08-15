@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_gpgudw7pfdy02wcqbs73si21x_e
 title: "Adjust front matter settings"
-status: open
+status: in_progress
 deps: []
 links: []
 created_iso: 2026-08-15T05:35:16Z
-status_updated_iso: 2026-08-15T05:35:16Z
+status_updated_iso: 2026-08-15T05:41:11Z
 type: task
 priority: 3
 assignee: nickolaykondratyev
