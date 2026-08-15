@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-15T06:23:20Z
-session_ids: [{"a": "claude", "type": "execution", "id": "966b27a2-ee76-4dde-942c-6c4d7db592f4"}]
+session_ids: [{"a": "claude", "type": "execution", "id": "966b27a2-ee76-4dde-942c-6c4d7db592f4"}, {"a": "claude", "type": "review", "id": "2dcc3156-f3af-402e-8606-796fefbd9f39"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_rkdlhkcsvi2hrri4209tumzrr_e
 title: "Improve the rendering of the settings when we look at them in the graph view under graph controls"
