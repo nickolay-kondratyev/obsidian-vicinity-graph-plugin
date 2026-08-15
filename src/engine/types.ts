@@ -654,6 +654,18 @@ export interface ViewSettings {
 	 * the engine carries it, the flow mapping applies it.
 	 */
 	readonly groupLabelFullPath: boolean;
+	/**
+	 * How many levels of nested folder groups a rendered edge endpoint may reach
+	 * INTO before collapsing onto the group box — a PER-ENDPOINT depth allowance
+	 * counted from today's collapse target (the LCA container's direct child group).
+	 * `0` (default) reproduces today's behavior exactly: every group-crossing edge
+	 * collapses onto the outermost group box. With `N` an endpoint projects onto its
+	 * ancestor group `N` levels deeper (= depth `N+1` below the LCA container), or
+	 * stays the true note when its chain is shallower. RENDER-ONLY (plan D2): the elk
+	 * layout keeps consuming the depth-0 projection; only `flowMapping` reads this.
+	 * View-layer knob: the engine carries it, the flow mapping applies it.
+	 */
+	readonly edgeDepthIntoGroups: number;
 	readonly sizing: SizingSettings;
 	readonly forceLayout: ForceLayoutSettings;
 }

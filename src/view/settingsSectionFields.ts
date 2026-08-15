@@ -78,7 +78,12 @@ export const SECTION_SETTINGS_FIELDS = {
 		exclusion: NO_FIELDS,
 		frontmatterLinks: NO_FIELDS,
 	},
-	grouping: { view: ["groupLabelFullPath"], depth: NO_FIELDS, exclusion: NO_FIELDS, frontmatterLinks: NO_FIELDS },
+	grouping: {
+		view: ["groupLabelFullPath", "edgeDepthIntoGroups"],
+		depth: NO_FIELDS,
+		exclusion: NO_FIELDS,
+		frontmatterLinks: NO_FIELDS,
+	},
 	"force-layout": { view: ["forceLayout"], depth: NO_FIELDS, exclusion: NO_FIELDS, frontmatterLinks: NO_FIELDS },
 	"node-exclusion": { view: NO_FIELDS, depth: NO_FIELDS, exclusion: ["enabled", "patterns"], frontmatterLinks: NO_FIELDS },
 	performance: { view: ["nodeCap"], depth: NO_FIELDS, exclusion: NO_FIELDS, frontmatterLinks: NO_FIELDS },

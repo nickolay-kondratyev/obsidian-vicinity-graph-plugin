@@ -77,6 +77,9 @@ const SHIPPED_SETTINGS_DEFAULTS: Readonly<Record<string, unknown>> = {
 	// Collapsed folder chains show the leaf folder name by default (signed-off
 	// decision A1); ON labels them with the full A/B/C path.
 	"globalView.groupLabelFullPath": false,
+	// Edges collapse onto the outermost group box by default (0 = today's behavior);
+	// raising it lets an edge reach N nested-group levels deeper (plan D4).
+	"globalView.edgeDepthIntoGroups": 0,
 
 	// Content-fit sizing (nid_cx5zoz7ptucg9nxalibv0mbjb_e): the metric dials are
 	// GONE — a node fits what it shows, and these two clamps are the only dials.

@@ -62,6 +62,7 @@ export const SETTINGS_ROW_CONTROL_KINDS = [
 	"node-preview",
 	"show-cross-links",
 	"group-label-full-path",
+	"edge-depth-into-groups",
 	"outline-depth",
 	"force-layout",
 	"exclusion-enabled",
@@ -84,6 +85,8 @@ export type SettingsRowControl =
 	| { readonly kind: "show-cross-links" }
 	/** Whether a collapsed folder chain is labelled with its full path instead of the leaf name. */
 	| { readonly kind: "group-label-full-path" }
+	/** How many nested-group levels an edge may reach into before collapsing onto the group box. */
+	| { readonly kind: "edge-depth-into-groups" }
 	/** Deepest heading level a node's outline renders. */
 	| { readonly kind: "outline-depth" }
 	/** One force-layout tuning value. */
@@ -497,6 +500,12 @@ export const SETTINGS_GROUPS: Readonly<Record<SettingsSection, SettingsGroup>> =
 						description:
 							"Label a collapsed folder chain — a run of single-child folders drawn as one group — with its full path (A/B/C) instead of just the innermost folder name. Groups that are not collapsed always show their folder name.",
 						control: { kind: "group-label-full-path" },
+					},
+					{
+						label: "Edge depth into groups",
+						description:
+							"How many levels of nested groups an edge may reach into before collapsing onto the group box. 0 keeps every group edge collapsed.",
+						control: { kind: "edge-depth-into-groups" },
 					},
 				],
 			},

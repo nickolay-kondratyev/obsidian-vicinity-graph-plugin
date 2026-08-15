@@ -74,18 +74,32 @@ export interface FolderGroupingResult {
 	 */
 	readonly lowestCommonAncestorContainerOf: (pathA: string, pathB: string) => FolderGroup | null;
 	/**
-	 * Projects `notePath` onto the DIRECT CHILD of `container` (null = canvas
-	 * pane) that renders it: the group strictly inside `container` that is an
-	 * ancestor-or-self of the note, or `null` when the note is a direct leaf
-	 * member of `container` with no intervening group. Precondition: `container`
-	 * is on the note's rendered chain (i.e. `container` is a
-	 * {@link lowestCommonAncestorContainerOf} result for that note, or `null`).
-	 * The ONE projection seam BOTH edge consumers (`elkMapping`, `flowMapping`)
-	 * use to attach a cross-boundary edge to the closest common ancestor while
-	 * naming that container's own children — never a nested descendant elk cannot
-	 * reference under `SEPARATE_CHILDREN`.
+	 * Projects `notePath` onto the group strictly inside `container` (null = canvas
+	 * pane) the edge should terminate at, given a per-endpoint depth `allowance`.
+	 *
+	 * At `allowance === 0` (the default, and the ONLY value the layout path uses)
+	 * this is the DIRECT CHILD of `container` that renders the note: the group
+	 * strictly inside `container` that is an ancestor-or-self of the note, or `null`
+	 * when the note is a direct leaf member of `container` with no intervening group.
+	 *
+	 * With `allowance === N` the endpoint reaches `N` levels DEEPER — onto the
+	 * ancestor group `N` below that direct child (= depth `N+1` below `container`) —
+	 * or `null` (the true note) when the note's chain is shallower than that. `N` is
+	 * the "Edge depth into groups" setting (plan `nid_6fkhyw97hjs84xb62z6tommhi_e`,
+	 * D1/D4); only `flowMapping` passes a non-zero value (RENDER-ONLY, D2).
+	 *
+	 * Precondition: `container` is on the note's rendered chain (i.e. `container` is
+	 * a {@link lowestCommonAncestorContainerOf} result for that note, or `null`).
+	 * The ONE projection seam BOTH edge consumers (`elkMapping`, `flowMapping`) use
+	 * to attach a cross-boundary edge while naming a group `container` actually
+	 * contains — never a nested descendant elk cannot reference under
+	 * `SEPARATE_CHILDREN` (which is why the layout path stays at `allowance` 0).
 	 */
-	readonly projectOntoContainerChildOf: (notePath: string, container: FolderGroup | null) => FolderGroup | null;
+	readonly projectOntoContainerChildOf: (
+		notePath: string,
+		container: FolderGroup | null,
+		allowance?: number,
+	) => FolderGroup | null;
 }
 
 /** Groups render only at 2+ descendant notes (plan D2); smaller folders fall up to an ancestor. */
@@ -242,11 +256,25 @@ export function deriveFolderGroups(nodes: readonly GraphNode[]): FolderGroupingR
 	};
 
 	// The direct child of `container` on the note's chain is the ONE group whose
-	// effective parent IS the container (parentFolder === container.folder, or
-	// null for the canvas pane); none exists when the note is a direct leaf member.
-	const projectOntoContainerChildOf = (notePath: string, container: FolderGroup | null): FolderGroup | null => {
+	// effective parent IS the container (parentFolder === container.folder, or null
+	// for the canvas pane); none exists when the note is a direct leaf member. The
+	// chain is DEEPEST-FIRST, so the note's own group is index 0 and the direct child
+	// sits farthest out — a depth `allowance` of N steps N indices back TOWARD the
+	// note (a deeper group). Stepping past the note's own group (index < 0) means the
+	// chain is shallower than the reach, so the endpoint stays the true note (null).
+	const projectOntoContainerChildOf = (
+		notePath: string,
+		container: FolderGroup | null,
+		allowance = 0,
+	): FolderGroup | null => {
 		const containerFolder = container === null ? null : container.folder;
-		return renderedGroupChainOf(notePath).find((group) => group.parentFolder === containerFolder) ?? null;
+		const chain = renderedGroupChainOf(notePath);
+		const directChildIndex = chain.findIndex((group) => group.parentFolder === containerFolder);
+		if (directChildIndex < 0) {
+			return null; // The note is a direct leaf member of `container` — no group to reach.
+		}
+		const targetIndex = directChildIndex - allowance;
+		return targetIndex < 0 ? null : chain[targetIndex] ?? null;
 	};
 
 	return {

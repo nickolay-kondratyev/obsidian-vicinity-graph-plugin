@@ -46,6 +46,7 @@ function makeViewSettings(): ViewSettings {
 		nodePreviewPreference: "auto",
 		showCrossLinks: false,
 		groupLabelFullPath: false,
+		edgeDepthIntoGroups: 0,
 		sizing: {
 			minPx: 40,
 			maxPx: 160,

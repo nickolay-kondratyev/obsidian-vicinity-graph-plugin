@@ -362,8 +362,12 @@ const UNORDERED_PAIR_KEY_SEPARATOR = "\u0000";
  *   differ (both landing on the same child would make that child the LCA).
  */
 function buildFlowEdges(graph: VicinityGraph, grouping: FolderGroupingResult): FlowEdge[] {
+	// Per-endpoint depth allowance (the "Edge depth into groups" setting). RENDER-ONLY
+	// (plan D2): the layout path (`elkMapping.attachEdgesToContainers`) keeps the
+	// depth-0 projection, so only this — the rendered-edge builder — reads it.
+	const edgeDepthIntoGroups = graph.viewSettings.edgeDepthIntoGroups;
 	const projectId = (path: string, container: FolderGroup | null): string => {
-		const child = grouping.projectOntoContainerChildOf(path, container);
+		const child = grouping.projectOntoContainerChildOf(path, container, edgeDepthIntoGroups);
 		return child === null ? path : folderGroupIdOf(child.folder);
 	};
 	const renderedEdgeIds = new Set(graph.edges.map(edgeIdOf));
