@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-15T01:04:56Z
-session_ids: [{"a": "claude", "type": "execution", "id": "68df7592-d8a7-4133-85eb-e3369fa4b458"}]
+session_ids: [{"a": "claude", "type": "execution", "id": "68df7592-d8a7-4133-85eb-e3369fa4b458"}, {"a": "claude", "type": "review", "id": "e9b89d05-72eb-47aa-8213-5598da88ad05"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_dwoixmdm1h59cw3bc2f6noejv_e
 title: "Hierarchical routing for piercing edges (avoid inner nodes + group titles)"
