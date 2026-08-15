@@ -58,3 +58,8 @@ presenters and the derived e2e disclosure-order check read.
 green. Targeted e2e green: `folderGroupingDepth.e2e.ts` (9),
 `settingsDependentRows.e2e.ts` + `settingsUxVisual.e2e.ts` (24) — the
 view-layer/settings-row gate CLAUDE.md requires.
+## Notes
+
+**2026-08-15T16:04:20Z**
+
+__READY_AS_IS__: Infinity encode/decode centralized in the one persist choke point, clamp+deriveFolderGroups handle ∞ safely, slider mapping round-trip-tested; check + 2200 unit + 9 folderGroupingDepth e2e all green. No changes made.
