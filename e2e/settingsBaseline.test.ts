@@ -23,10 +23,10 @@ describe("settings-tab baseline", () => {
 	it("WHEN the section reset names are derived from the plugin THEN they are the shipped restore-row copy", () => {
 		expect(SECTION_RESET_NAMES).toEqual([
 			"Restore depth defaults",
-			"Restore edges defaults",
+			"Restore grouping defaults",
 			"Restore node sizing defaults",
 			"Restore node contents defaults",
-			"Restore grouping defaults",
+			"Restore edges defaults",
 			"Restore force layout defaults",
 			"Restore node exclusion defaults",
 			"Restore frontmatter links defaults",

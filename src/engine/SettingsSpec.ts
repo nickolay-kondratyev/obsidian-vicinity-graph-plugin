@@ -305,12 +305,18 @@ export const SETTINGS_SPEC: SettingsSpec = {
 		/**
 		 * Maximum RENDERED folder-group nesting levels (plan
 		 * `nid_yyugpoh3gv8ip24cizvgrs4w4_e`, signed-off Q2). `0` turns folder
-		 * grouping off entirely; the DEFAULT `20` is effectively unlimited — no
-		 * sentinel value, because no sane vault nests 20 rendered group levels
-		 * (a collapsed single-child chain counts as ONE level). Whole levels, so
-		 * `step 1`.
+		 * grouping off entirely; the DEFAULT is genuine {@link Number.POSITIVE_INFINITY}
+		 * — unlimited nesting, expressed as infinity itself rather than a large-number
+		 * sentinel (ticket `nid_rndi5sulwrsx1aq0x4xqcskrb_e`). It is exactly the
+		 * `deriveFolderGroups` "no cap" value (`UNLIMITED_GROUP_NESTING_DEPTH`), so the
+		 * default graph groups to whatever depth a vault actually nests.
+		 *
+		 * `max 10` bounds only the FINITE portion of the slider: its track runs 0..10
+		 * and then one ∞ stop past it (see `FolderGroupingDepthSlider`). A finite value
+		 * beyond 10 (hand-edited JSON) clamps to 10; the distinct ∞ selection is what
+		 * carries "unlimited". Whole levels, so `step 1`.
 		 */
-		folderGroupingDepth: { default: 20, min: 0, max: 20, step: 1 },
+		folderGroupingDepth: { default: Number.POSITIVE_INFINITY, min: 0, max: 10, step: 1 },
 		/**
 		 * PER-ENDPOINT depth allowance for edges reaching INTO folder groups
 		 * (plan `nid_6fkhyw97hjs84xb62z6tommhi_e`, human decision D4). `0` (DEFAULT)

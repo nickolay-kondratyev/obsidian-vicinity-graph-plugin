@@ -197,7 +197,7 @@ function parseViewFields(raw: unknown): Partial<ViewSettings> {
 	const outlineMaxDepth = numberOrUndefined(raw["outlineMaxDepth"]);
 	const nodeCap = numberOrUndefined(raw["nodeCap"]);
 	const edgeDepthIntoGroups = numberOrUndefined(raw["edgeDepthIntoGroups"]);
-	const folderGroupingDepth = numberOrUndefined(raw["folderGroupingDepth"]);
+	const folderGroupingDepth = decodeFolderGroupingDepth(raw["folderGroupingDepth"]);
 	const parsed: ParsedViewFields = {
 		// Clamped with the SAME function the accessor settles with (owner decision
 		// 2026-07-29, superseding the loaded-verbatim rule): a stored out-of-range
@@ -219,11 +219,10 @@ function parseViewFields(raw: unknown): Partial<ViewSettings> {
 		// back to its spec default): an existing data.json parses correctly. A
 		// non-boolean falls through as absent — never a truthiness coercion.
 		groupLabelFullPath: typeof raw["groupLabelFullPath"] === "boolean" ? raw["groupLabelFullPath"] : undefined,
-		// Added WITHOUT a PERSISTED_SHAPE_VERSION bump (a missing known field falls
-		// back to its spec default 20 — effectively-unlimited grouping, today's
-		// behavior): an existing data.json parses correctly. Clamped with the SAME
-		// function the slider settles with, so hand-edited JSON cannot reach a
-		// negative depth or one past the ceiling.
+		// Decoded by {@link decodeFolderGroupingDepth} (a missing known field falls
+		// back to its spec default ∞ — unlimited grouping): an existing data.json
+		// parses correctly. Clamped with the SAME function the slider settles with, so
+		// hand-edited JSON cannot reach a negative depth or one past the finite ceiling.
 		folderGroupingDepth:
 			folderGroupingDepth === undefined ? undefined : clampFolderGroupingDepth(folderGroupingDepth),
 		// Added WITHOUT a PERSISTED_SHAPE_VERSION bump (a missing known field falls
@@ -381,5 +380,53 @@ function parseNodeSizeOverride(raw: unknown): NodeSizeOverridePx | undefined {
 
 function numberOrUndefined(value: unknown): number | undefined {
 	return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+/**
+ * The `data.json` token for an INFINITE folder-grouping depth. JSON has no literal for
+ * {@link Number.POSITIVE_INFINITY} (`JSON.stringify` emits `null`), so the unlimited
+ * selection is stored as this explicit string — the value is expressed IN FULL on disk
+ * rather than smuggled through a `null`/absent coincidence or a large-number sentinel
+ * (ticket `nid_rndi5sulwrsx1aq0x4xqcskrb_e`).
+ */
+const INFINITE_FOLDER_GROUPING_DEPTH_TOKEN = "Infinity";
+
+/**
+ * Reads a stored `folderGroupingDepth`: the {@link INFINITE_FOLDER_GROUPING_DEPTH_TOKEN}
+ * decodes to ∞, a finite number is taken as-is (the caller clamps it), and anything else
+ * (`null`, garbage, or the field omitted) is `undefined` so the spec default (∞) applies.
+ * The symmetric counterpart of {@link encodeFolderGroupingDepth}.
+ */
+function decodeFolderGroupingDepth(raw: unknown): number | undefined {
+	if (raw === INFINITE_FOLDER_GROUPING_DEPTH_TOKEN) {
+		return Number.POSITIVE_INFINITY;
+	}
+	return numberOrUndefined(raw);
+}
+
+/**
+ * The on-disk form of a `folderGroupingDepth`: an ∞ depth becomes the explicit
+ * {@link INFINITE_FOLDER_GROUPING_DEPTH_TOKEN}, every finite depth stays a number.
+ */
+function encodeFolderGroupingDepth(value: number): number | string {
+	return value === Number.POSITIVE_INFINITY ? INFINITE_FOLDER_GROUPING_DEPTH_TOKEN : value;
+}
+
+/**
+ * The `data.json` payload for a {@link PluginData}: structurally the in-memory shape,
+ * with the one field that can hold a non-finite value
+ * ({@link import("../engine").ViewSettings.folderGroupingDepth}) encoded to a
+ * JSON-expressible form. `JSON.stringify` would otherwise turn an ∞ depth into `null`
+ * and lose it; this is the ONE seam where the encode happens, mirrored by
+ * {@link PersistedShapes.parsePluginData}'s decode.
+ */
+export function serializePluginData(data: PluginData): unknown {
+	return {
+		...data,
+		globalView: {
+			...data.globalView,
+			folderGroupingDepth: encodeFolderGroupingDepth(data.globalView.folderGroupingDepth),
+		},
+	};
 }
 

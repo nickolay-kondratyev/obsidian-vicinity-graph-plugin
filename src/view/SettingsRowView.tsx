@@ -10,10 +10,11 @@ import type { NumberRowJudge } from "./numberRowCommit";
 import { NO_CROSS_FIELD_RULE, NumberFieldRefusal, NumberRowCommitPolicy } from "./numberRowCommit";
 import type {
 	SettingsNumberAccessor,
+	SettingsRowBounds,
 	SettingsTypedNumberAccessor,
 	SettingsValueAccessor,
 } from "./settingsRowAccessors";
-import { SettingsRowAccessors } from "./settingsRowAccessors";
+import { FolderGroupingDepthSlider, SettingsRowAccessors } from "./settingsRowAccessors";
 import type { SettingsRow, SettingsRowState } from "./settingsRows";
 import { SettingsRowNames, isSettingsRowDisabled, unhandledRowControl } from "./settingsRows";
 import type { SizingNumberField } from "./settingsWritePlan";
@@ -132,12 +133,46 @@ function useSettingsNumber(
 }
 
 /**
+ * How a slider's stored VALUE maps onto its integer track and reads out. Almost every
+ * slider stores exactly the number the track carries — {@link IDENTITY_SLIDER_SCALE},
+ * driven by the accessor's own bounds. The folder-grouping-depth slider is the exception:
+ * its top stop is ∞, so it maps through {@link FolderGroupingDepthSlider} instead. Kept as
+ * data threaded into the ONE {@link SliderRow} so both cases share the same markup.
+ */
+interface SliderScale {
+	readonly track: SettingsRowBounds;
+	/** The track position that shows a stored value. */
+	positionOf(value: number): number;
+	/** The stored value a track position selects. */
+	valueAt(position: number): number;
+	/** What the inline readout shows for a stored value. */
+	readout(value: number): string;
+}
+
+/** The plain 1:1 scale: the track IS the value range, and the readout is the number. */
+function identitySliderScale(bounds: SettingsRowBounds): SliderScale {
+	return { track: bounds, positionOf: (value) => value, valueAt: (position) => position, readout: (value) => String(value) };
+}
+
+/** The ∞-terminated scale for the folder-grouping-depth slider. */
+const FOLDER_GROUPING_SLIDER_SCALE: SliderScale = {
+	track: FolderGroupingDepthSlider.track,
+	positionOf: (value) => FolderGroupingDepthSlider.positionOf(value),
+	valueAt: (position) => FolderGroupingDepthSlider.depthAt(position),
+	readout: (value) => FolderGroupingDepthSlider.readout(value),
+};
+
+/**
  * A stacked label + value readout above a full-width native range input. The
  * inline readout replaces the settings tab's hover tooltip: a drag needs feedback
  * without a hover.
  *
  * The accessor's bounds always carry a ceiling ({@link SettingsRowBounds} requires
  * `max`): a native range input whose `max` is absent silently defaults to 100.
+ *
+ * The optional {@link SliderScale} lets a slider whose track is not its value range (the
+ * ∞-topped folder-grouping-depth slider) reuse this exact markup; without one the track
+ * is the accessor's bounds and the readout is the number itself.
  *
  * Honours the row's declared `disabledWhen` on the native input — rendered always,
  * merely inert — which is what makes every slider kind dependency-aware on this
@@ -148,32 +183,35 @@ function SliderRow({
 	row,
 	accessor,
 	state,
+	scale,
 }: {
 	readonly row: SettingsRow;
 	readonly accessor: SettingsNumberAccessor;
 	readonly state: SettingsRowState;
+	readonly scale?: SliderScale;
 }): ReactElement {
-	const range = accessor.bounds;
 	const [shown, request] = useSettingsNumber(accessor, state);
+	const sliderScale = scale ?? identitySliderScale(accessor.bounds);
+	const { track } = sliderScale;
 	return (
 		<label className="vicinity-graph-slider-row" title={row.description}>
 			<span className="vicinity-graph-slider-row__head">
 				<span className="vicinity-graph-slider-row__label">{row.label}</span>
-				<span className="vicinity-graph-slider-row__value">{shown}</span>
+				<span className="vicinity-graph-slider-row__value">{sliderScale.readout(shown)}</span>
 			</span>
 			{/* `slider` is Obsidian's own class for range inputs — inherits the native themed track/thumb. */}
 			<input
 				type="range"
 				className="slider"
 				aria-label={SettingsRowNames.sole(row)}
-				min={range.min}
-				max={range.max}
-				step={range.step}
-				value={shown}
+				min={track.min}
+				max={track.max}
+				step={track.step}
+				value={sliderScale.positionOf(shown)}
 				disabled={isSettingsRowDisabled(row, state)}
 				onChange={(event) => {
 					if (!Number.isNaN(event.target.valueAsNumber)) {
-						request(event.target.valueAsNumber);
+						request(sliderScale.valueAt(event.target.valueAsNumber));
 					}
 				}}
 			/>
@@ -464,7 +502,14 @@ function FolderGroupingDepthRow({
 	readonly row: SettingsRow;
 	readonly state: SettingsRowState;
 }): ReactElement {
-	return <SliderRow row={row} accessor={SettingsRowAccessors.folderGroupingDepth()} state={state} />;
+	return (
+		<SliderRow
+			row={row}
+			accessor={SettingsRowAccessors.folderGroupingDepth()}
+			state={state}
+			scale={FOLDER_GROUPING_SLIDER_SCALE}
+		/>
+	);
 }
 
 function EdgeDepthIntoGroupsRow({

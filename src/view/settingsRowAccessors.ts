@@ -88,6 +88,55 @@ function unclamped(value: number): number {
 	return value;
 }
 
+/** The glyph the folder-grouping-depth slider shows at its unlimited (∞) stop. */
+export const FOLDER_GROUPING_UNLIMITED_LABEL = "∞";
+
+/**
+ * The folder-grouping-depth slider is the one settings slider whose top stop is not a
+ * number but ∞ (unlimited nesting, ticket `nid_rndi5sulwrsx1aq0x4xqcskrb_e`). A native
+ * range input can only carry an integer track, so the slider runs over POSITIONS
+ * `0..maxFiniteDepth + 1`: a position at or below the finite max IS that depth verbatim,
+ * and the one position past it selects {@link Number.POSITIVE_INFINITY}. The stored VALUE
+ * is still a depth (0..max or ∞) — this only maps that value onto the integer track and
+ * back, and names what the readout shows.
+ *
+ * Lives beside the accessors (the value half) rather than in a presenter because BOTH
+ * surfaces need the identical mapping and readout; a presenter is then markup plus these
+ * calls, exactly like every other row.
+ */
+export class FolderGroupingDepthSlider {
+	/** The deepest FINITE nesting the slider offers — the spec's finite max. */
+	static readonly maxFiniteDepth = SETTINGS_SPEC.globalView.folderGroupingDepth.max;
+
+	/** The one slider position past the finite range — the ∞ (unlimited) stop. */
+	static readonly unlimitedPosition = FolderGroupingDepthSlider.maxFiniteDepth + 1;
+
+	/** The integer track a native range input renders (finite stops plus the ∞ stop). */
+	static readonly track: SettingsRowBounds = {
+		min: 0,
+		max: FolderGroupingDepthSlider.unlimitedPosition,
+		step: 1,
+	};
+
+	/** The stored depth a slider position selects. */
+	static depthAt(position: number): number {
+		return position >= FolderGroupingDepthSlider.unlimitedPosition ? Number.POSITIVE_INFINITY : position;
+	}
+
+	/** The slider position that shows a stored depth (∞ lands on the terminal stop). */
+	static positionOf(depth: number): number {
+		if (!Number.isFinite(depth)) {
+			return FolderGroupingDepthSlider.unlimitedPosition;
+		}
+		return Math.min(FolderGroupingDepthSlider.maxFiniteDepth, Math.max(0, Math.round(depth)));
+	}
+
+	/** What the readout beside the slider shows for a stored depth. */
+	static readout(depth: number): string {
+		return Number.isFinite(depth) ? String(depth) : FOLDER_GROUPING_UNLIMITED_LABEL;
+	}
+}
+
 /** Projects a bounded spec leaf onto the bounds a control renders. */
 function boundsOf(spec: SettingsRowBounds): SettingsRowBounds {
 	return { min: spec.min, max: spec.max, step: spec.step };
@@ -148,7 +197,12 @@ export class SettingsRowAccessors {
 		};
 	}
 
-	/** Maximum rendered folder-group nesting levels (0 turns grouping off entirely). */
+	/**
+	 * Maximum rendered folder-group nesting levels (0 turns grouping off entirely, ∞ =
+	 * unlimited — the default). Reads/writes in DEPTH space (∞ flows through
+	 * `clampFolderGroupingDepth`); {@link FolderGroupingDepthSlider} owns how a slider
+	 * maps that depth onto its integer track and shows the ∞ stop.
+	 */
 	static folderGroupingDepth(): SettingsNumberAccessor {
 		return {
 			bounds: boundsOf(SETTINGS_SPEC.globalView.folderGroupingDepth),

@@ -31,6 +31,18 @@ import {
  * The few defaults that carry product meaning (and so SHOULD fail loudly when they
  * move) are pinned as literals in exactly one place: `settingsProductDefaults.test.ts`.
  */
+/**
+ * Leaves whose default is deliberately OUTSIDE their finite bounds because it is a
+ * non-finite value the control reaches through a stop past the finite range.
+ *
+ * `globalView.folderGroupingDepth` (ticket `nid_rndi5sulwrsx1aq0x4xqcskrb_e`): its slider
+ * runs 0..max and then one ∞ stop; the default is ∞ (unlimited nesting), which is a REAL
+ * reachable selection, not a number inside `[min, max]`. Listed rather than tolerated so a
+ * SECOND such leaf must be added here on purpose, and so the invariant still bites every
+ * other bounded field.
+ */
+const DEFAULT_OUTSIDE_FINITE_BOUNDS_LEAF_IDS: readonly string[] = ["globalView.folderGroupingDepth"];
+
 describe("SETTINGS_SPEC structure (every leaf, no hand-enumerated values)", () => {
 	it("WHEN the spec is walked THEN every declared section contributes leaves (the walk is not vacuous)", () => {
 		const sectionsWithoutLeaves = Object.keys(SETTINGS_SPEC).filter(
@@ -47,6 +59,11 @@ describe("SETTINGS_SPEC structure (every leaf, no hand-enumerated values)", () =
 		const outside = EVERY_SETTINGS_SPEC_LEAF.filter((leaf) => {
 			const { bounds } = leaf;
 			if (bounds === undefined || typeof leaf.default !== "number") {
+				return false;
+			}
+			if (DEFAULT_OUTSIDE_FINITE_BOUNDS_LEAF_IDS.includes(leaf.id)) {
+				// The declared exception: this leaf's default is a non-finite value that
+				// the control reaches through a stop BEYOND the finite bounds (see below).
 				return false;
 			}
 			return leaf.default < bounds.min || (bounds.max !== undefined && leaf.default > bounds.max);

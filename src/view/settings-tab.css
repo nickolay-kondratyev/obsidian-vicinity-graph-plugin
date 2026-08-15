@@ -130,3 +130,15 @@
 .vicinity-graph-settings .vicinity-graph-chips {
 	justify-content: flex-end;
 }
+
+/* Persistent value readout beside the folder-grouping-depth slider (the one slider
+ * whose top stop is ∞, so Obsidian's numeric hover tooltip cannot render it). Sits
+ * to the RIGHT of the native slider in the control column; the monospace tabular
+ * width keeps single digits and the ∞ glyph from shifting the slider as it moves. */
+.vicinity-graph-settings .vicinity-graph-settings-slider-readout {
+	min-width: 2ch;
+	margin-left: var(--size-4-2);
+	color: var(--text-muted);
+	font-variant-numeric: tabular-nums;
+	text-align: right;
+}

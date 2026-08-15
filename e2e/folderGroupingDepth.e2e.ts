@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import { EngineDefaults } from "../src/engine";
 import { SETTINGS_SPEC } from "../src/engine";
+import { FolderGroupingDepthSlider } from "../src/view/settingsRowAccessors";
 import { SettingsRowNames, settingsRowsFor } from "../src/view/settingsRows";
 import { ObsidianHarness } from "./obsidianHarness";
 import { SettingsTabPage } from "./settingsTabPage";
@@ -149,8 +150,12 @@ async function expectRenderedInside(inner: Locator, outer: Locator): Promise<voi
  * `nestedGrouping.e2e.ts`'s `setEdgeDepthIntoGroups`. A slider write is NOT
  * debounced, so settling is the store poll below plus the rebuilt canvas the
  * caller asserts on — never a sleep.
+ *
+ * `depth` is the stored VALUE (a finite level or ∞); the slider itself moves in
+ * POSITION space (its top stop is ∞), so the gesture drives {@link
+ * FolderGroupingDepthSlider.positionOf} and the store must settle back on `depth`.
  */
-async function setFolderGroupingDepth(value: number): Promise<void> {
+async function setFolderGroupingDepth(depth: number): Promise<void> {
 	const toolbar = page.locator(".vicinity-graph-toolbar");
 	await toolbar.evaluate((root) => {
 		(root as HTMLDetailsElement).open = true;
@@ -158,20 +163,21 @@ async function setFolderGroupingDepth(value: number): Promise<void> {
 			(section as HTMLDetailsElement).open = true;
 		});
 	});
+	const position = FolderGroupingDepthSlider.positionOf(depth);
 	const slider = page.getByRole("slider", { name: DEPTH_ROW.name, exact: true });
 	await slider.evaluate((el, next) => {
 		const input = el as HTMLInputElement;
 		const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
 		setter?.call(input, String(next));
 		input.dispatchEvent(new Event("input", { bubbles: true }));
-	}, value);
-	await expect(slider).toHaveValue(String(value));
+	}, position);
+	await expect(slider).toHaveValue(String(position));
 	// The write must land in the STORE, not just repaint — polled, never slept.
 	await expect
 		.poll(async () => (await harness.readGlobalView()).folderGroupingDepth, {
 			message: "the folder grouping depth slider must persist, not just repaint",
 		})
-		.toBe(value);
+		.toBe(depth);
 	await toolbar.evaluate((root) => {
 		(root as HTMLDetailsElement).open = false;
 	});

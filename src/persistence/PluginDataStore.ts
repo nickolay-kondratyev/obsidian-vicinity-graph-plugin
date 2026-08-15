@@ -2,7 +2,7 @@ import type { DepthSettings, FrontmatterLinkSettings, NodeExclusionSettings, Vie
 import { SerialPromiseChain } from "../shared/SerialPromiseChain";
 import type { UserNoticePort } from "../view/viewPorts";
 import type { PinnedDocEntry, PluginData } from "./persistedShapes";
-import { PersistedShapes } from "./persistedShapes";
+import { PersistedShapes, serializePluginData } from "./persistedShapes";
 import type { PluginDataPort } from "./storagePorts";
 
 /**
@@ -305,6 +305,8 @@ export class PluginDataStore {
 			);
 		}
 		this.data = updated;
-		return this.writes.run(() => this.port.saveData(this.data));
+		// `serializePluginData` encodes the one non-finite field (an ∞ folder-grouping
+		// depth) so `saveData`'s JSON.stringify does not silently drop it to `null`.
+		return this.writes.run(() => this.port.saveData(serializePluginData(this.data)));
 	}
 }

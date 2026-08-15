@@ -154,8 +154,8 @@ const FOLDER_GROUPING_OFF_DEPTH = 0;
 
 /**
  * The control kinds whose presenters ACTUALLY honour a declared dependency — the
- * exclusion pattern list, plus the two Grouping rows that are moot while their
- * master dial (folder grouping depth) sits at 0.
+ * exclusion pattern list, plus the two rows moot while the folder-grouping master dial
+ * sits at 0: "Full folder path" (Grouping) and "Edge depth into groups" (Edges).
  *
  * This allowlist exists so the facility cannot over-promise: {@link SettingsRow} only
  * ACCEPTS `disabledWhen` on these kinds, so declaring it on, say, a slider row is a
@@ -410,12 +410,14 @@ export const SETTINGS_GROUPS: Readonly<Record<SettingsSection, SettingsGroup>> =
 			},
 		],
 	},
-	// Its own section rather than a row tucked under Depth or Node contents: this is
-	// the only setting about what is drawn BETWEEN nodes, and both of those headings
-	// would misname it.
+	// Its own section rather than a row tucked under Depth or Node contents: everything
+	// here is about what is drawn BETWEEN nodes, and both of those headings would misname
+	// it. "Edge depth into groups" lives here (moved off Grouping, ticket
+	// `nid_rndi5sulwrsx1aq0x4xqcskrb_e`): it is an EDGE property — how far an edge reaches
+	// into a group before collapsing — not a property of the groups themselves.
 	edges: {
-		// No `panelClass`: the row is one shared toggle row, so the section needs no
-		// scoping of its own (like `performance`).
+		// No `panelClass`: the rows are plain shared rows, so the section needs no scoping
+		// of its own (like `performance`).
 		heading: "Edges",
 		blocks: [
 			{
@@ -425,6 +427,14 @@ export const SETTINGS_GROUPS: Readonly<Record<SettingsSection, SettingsGroup>> =
 						description:
 							"Also draw links between notes that are both on screen but were never reached from a central note — the denser, complete picture of what the visible notes link to. Which notes are shown does not change.",
 						control: { kind: "show-cross-links" },
+					},
+					{
+						label: "Edge depth into groups",
+						description:
+							"How many levels of nested groups an edge may reach into before collapsing onto the group box. 0 keeps every group edge collapsed.",
+						control: { kind: "edge-depth-into-groups" },
+						// Moot while folder grouping is off — there are no groups to reach into.
+						disabledWhen: "folder-grouping-on",
 					},
 				],
 			},
@@ -489,21 +499,23 @@ export const SETTINGS_GROUPS: Readonly<Record<SettingsSection, SettingsGroup>> =
 			},
 		],
 	},
-	// Its own section: the only setting about how folder GROUPS (not the nodes inside
-	// them) present. One row today — the collapsed-chain label style — with room to
-	// grow as recursive grouping gains dials.
+	// Its own section: how folder GROUPS (not the nodes inside them) present. Sits
+	// directly after Depth (ticket `nid_rndi5sulwrsx1aq0x4xqcskrb_e`): grouping shapes
+	// the whole layout, so it reads as part of the primary "what does my graph look like"
+	// run rather than a trailing dial. The edge-reach dial moved to Edges — it is an edge
+	// property, not a grouping one.
 	grouping: {
 		heading: "Grouping",
 		blocks: [
 			{
 				rows: [
 					// First row deliberately (general → specific): this is the master dial —
-					// at 0 the rows below it are moot, which is what their declared
+					// at 0 the row below it is moot, which is what its declared
 					// `disabledWhen` renders.
 					{
 						label: "Folder grouping depth",
 						description:
-							"Maximum levels of nested folder groups. 0 turns folder grouping off entirely; 20 is effectively unlimited.",
+							"Maximum levels of nested folder groups. 0 turns folder grouping off entirely; ∞ is unlimited.",
 						control: { kind: "folder-grouping-depth" },
 					},
 					{
@@ -511,13 +523,6 @@ export const SETTINGS_GROUPS: Readonly<Record<SettingsSection, SettingsGroup>> =
 						description:
 							"Label a collapsed folder chain — a run of single-child folders drawn as one group — with its full path (A/B/C) instead of just the innermost folder name. Groups that are not collapsed always show their folder name.",
 						control: { kind: "group-label-full-path" },
-						disabledWhen: "folder-grouping-on",
-					},
-					{
-						label: "Edge depth into groups",
-						description:
-							"How many levels of nested groups an edge may reach into before collapsing onto the group box. 0 keeps every group edge collapsed.",
-						control: { kind: "edge-depth-into-groups" },
 						disabledWhen: "folder-grouping-on",
 					},
 				],

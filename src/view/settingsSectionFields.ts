@@ -17,19 +17,21 @@ import type { DepthSettings, FrontmatterLinkSettings, NodeExclusionSettings, Vie
  */
 
 /**
- * The settings sections, in settings-tab render order. `edges` sits directly after
- * `depth-defaults`: both answer "how much of the vicinity do I see", depth by REACH
- * and edges by which of the reached links are drawn. `frontmatter-links` sits
- * between `node-exclusion` and `performance` (owner decision, ticket
- * `nid_gpgudw7pfdy02wcqbs73si21x_e`): it is off by default, so it reads as one of
- * the trailing opt-in dials rather than part of the everyday reach/appearance run.
+ * The settings sections, in settings-tab render order. `grouping` sits directly after
+ * `depth-defaults` (ticket `nid_rndi5sulwrsx1aq0x4xqcskrb_e`): depth and grouping
+ * together decide the graph's coarse shape, so they lead. `edges` follows the
+ * appearance sections — it and grouping swapped places, and the edge-reach dial moved
+ * onto `edges` with it. `frontmatter-links` sits between `node-exclusion` and
+ * `performance` (owner decision, ticket `nid_gpgudw7pfdy02wcqbs73si21x_e`): it is off by
+ * default, so it reads as one of the trailing opt-in dials rather than part of the
+ * everyday reach/appearance run.
  */
 export const SETTINGS_SECTIONS = [
 	"depth-defaults",
-	"edges",
+	"grouping",
 	"node-sizing",
 	"node-contents",
-	"grouping",
+	"edges",
 	"force-layout",
 	"node-exclusion",
 	"frontmatter-links",
@@ -72,7 +74,12 @@ export const SECTION_SETTINGS_FIELDS = {
 		exclusion: NO_FIELDS,
 		frontmatterLinks: NO_FIELDS,
 	},
-	edges: { view: ["showCrossLinks"], depth: NO_FIELDS, exclusion: NO_FIELDS, frontmatterLinks: NO_FIELDS },
+	edges: {
+		view: ["showCrossLinks", "edgeDepthIntoGroups"],
+		depth: NO_FIELDS,
+		exclusion: NO_FIELDS,
+		frontmatterLinks: NO_FIELDS,
+	},
 	"node-sizing": { view: ["sizing"], depth: NO_FIELDS, exclusion: NO_FIELDS, frontmatterLinks: NO_FIELDS },
 	"node-contents": {
 		view: ["outlineMaxDepth", "nodePreviewPreference"],
@@ -81,7 +88,7 @@ export const SECTION_SETTINGS_FIELDS = {
 		frontmatterLinks: NO_FIELDS,
 	},
 	grouping: {
-		view: ["folderGroupingDepth", "groupLabelFullPath", "edgeDepthIntoGroups"],
+		view: ["folderGroupingDepth", "groupLabelFullPath"],
 		depth: NO_FIELDS,
 		exclusion: NO_FIELDS,
 		frontmatterLinks: NO_FIELDS,

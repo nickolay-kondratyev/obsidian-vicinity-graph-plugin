@@ -77,9 +77,10 @@ const SHIPPED_SETTINGS_DEFAULTS: Readonly<Record<string, unknown>> = {
 	// Collapsed folder chains show the leaf folder name by default (signed-off
 	// decision A1); ON labels them with the full A/B/C path.
 	"globalView.groupLabelFullPath": false,
-	// 20 rendered group-nesting levels = effectively unlimited (signed-off Q2):
-	// grouping ships exactly as before the dial existed; 0 turns it off entirely.
-	"globalView.folderGroupingDepth": 20,
+	// ∞ = unlimited nesting, the genuine value not a large-number sentinel (ticket
+	// nid_rndi5sulwrsx1aq0x4xqcskrb_e): grouping ships nesting to whatever depth a vault
+	// has; 0 turns it off entirely, and the slider's finite stops run 1..10.
+	"globalView.folderGroupingDepth": Number.POSITIVE_INFINITY,
 	// Edges collapse onto the outermost group box by default (0 = today's behavior);
 	// raising it lets an edge reach N nested-group levels deeper (plan D4).
 	"globalView.edgeDepthIntoGroups": 0,

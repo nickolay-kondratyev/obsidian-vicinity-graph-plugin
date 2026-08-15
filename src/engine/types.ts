@@ -657,9 +657,10 @@ export interface ViewSettings {
 	/**
 	 * Maximum RENDERED folder-group nesting levels (a collapsed single-child chain
 	 * counts as ONE level — one box). A group deeper than this merges up into its
-	 * depth-cap ancestor; `0` disables folder grouping entirely and the max (20)
-	 * is effectively unlimited. View-layer knob: the engine carries it, the
-	 * grouping derivation (`deriveFolderGroups`) applies it.
+	 * depth-cap ancestor; `0` disables folder grouping entirely and
+	 * {@link Number.POSITIVE_INFINITY} (the default) is unlimited nesting — exactly
+	 * `deriveFolderGroups`' `UNLIMITED_GROUP_NESTING_DEPTH`. View-layer knob: the engine
+	 * carries it, the grouping derivation (`deriveFolderGroups`) applies it.
 	 */
 	readonly folderGroupingDepth: number;
 	/**

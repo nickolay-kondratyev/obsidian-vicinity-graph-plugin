@@ -127,9 +127,12 @@ The settings, grouped the same way on both surfaces:
   second set of budgets for pinned notes. A depth of **0** turns that
   relationship off; descendants and ancestors ship at **1** for the active note
   and **0** for pinned notes.
-- **Edges** — *Show cross links* also draws links between two on-screen notes
-  that traversal never walked (which notes are shown never changes, only the
-  lines between them).
+- **Grouping** — *Folder grouping depth* sets how many levels of nested folder
+  groups render: **0** turns grouping off entirely, and the slider runs `1`–`10`
+  and then **∞** (unlimited, the default). *Full folder path* labels a collapsed
+  folder chain (a run of single-child folders drawn as one group) with its full
+  path (`A/B/C`) instead of just the innermost folder name (off by default;
+  groups that are not collapsed always show their folder name).
 - **Node sizing** — each node fits what it shows between a minimum and maximum
   height, with an optional extra floor for image nodes. A size you set by
   dragging always wins.
@@ -137,10 +140,11 @@ The settings, grouped the same way on both surfaces:
   (outline for your roots, first image for neighbours), **Title only**,
   **Outline** or **Image**, plus an *Outline depth* for how many heading levels
   an outline shows. Clicking an outline entry opens the note at that heading.
-- **Grouping** — *Full folder path* labels a collapsed folder chain (a run of
-  single-child folders drawn as one group) with its full path (`A/B/C`) instead
-  of just the innermost folder name. Off by default; groups that are not
-  collapsed always show their folder name.
+- **Edges** — *Show cross links* also draws links between two on-screen notes
+  that traversal never walked (which notes are shown never changes, only the
+  lines between them). *Edge depth into groups* sets how many nested-group levels
+  an edge may reach into before collapsing onto the group box (**0** keeps every
+  group edge collapsed).
 - **Force layout** — sliders named like Obsidian's native graph (center, repel,
   link force, link distance) plus spacing and edge-clearance controls, each with
   a *Restore defaults* button.

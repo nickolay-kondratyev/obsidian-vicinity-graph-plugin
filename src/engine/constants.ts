@@ -53,19 +53,27 @@ export function clampOutlineMaxDepth(value: number): number {
 	return Math.round(clampIntoRange(value, spec, spec.default));
 }
 
-/** @see SETTINGS_SPEC — `globalView.folderGroupingDepth.{min,max}`. */
+/** @see SETTINGS_SPEC — `globalView.folderGroupingDepth.{min,max}` (the FINITE slider range). */
 export const MIN_FOLDER_GROUPING_DEPTH = SETTINGS_SPEC.globalView.folderGroupingDepth.min;
 export const MAX_FOLDER_GROUPING_DEPTH = SETTINGS_SPEC.globalView.folderGroupingDepth.max;
 
 /**
  * THE folder-grouping-depth clamp, shared by the settings slider and the
  * persistence parser, so a hand-edited `data.json` cannot reach a negative depth
- * or a level past the effectively-unlimited ceiling. Rounds: the cap is a whole
- * number of rendered group-nesting levels. Goes through {@link clampIntoRange} so
- * `NaN` resolves to the spec default like every other bounded field.
+ * or a level past the router's finite ceiling.
+ *
+ * The value domain is {0..max} ∪ {∞}: a finite depth clamps into the slider's
+ * finite range, and the distinct {@link Number.POSITIVE_INFINITY} selection —
+ * "unlimited nesting", the spec default — passes THROUGH untouched (it is a real
+ * value, not an over-max finite number). Rounds finite input: the cap is a whole
+ * number of rendered group-nesting levels. `NaN` resolves to the spec default
+ * (∞) via {@link clampIntoRange}, like every other bounded field.
  */
 export function clampFolderGroupingDepth(value: number): number {
 	const spec = SETTINGS_SPEC.globalView.folderGroupingDepth;
+	if (value === Number.POSITIVE_INFINITY) {
+		return Number.POSITIVE_INFINITY;
+	}
 	return Math.round(clampIntoRange(value, spec, spec.default));
 }
 

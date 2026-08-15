@@ -13,7 +13,7 @@ import { ALL_SETTINGS_RESET_SCOPE, SETTINGS_RESET_SCOPES } from "./settingsReset
 import type { SettingsResetTarget } from "./settingsResetSequence";
 import { SettingsResetSequence } from "./settingsResetSequence";
 import type { SettingsNumberAccessor, SettingsRowBounds, SettingsValueAccessor } from "./settingsRowAccessors";
-import { SettingsRowAccessors } from "./settingsRowAccessors";
+import { FolderGroupingDepthSlider, SettingsRowAccessors } from "./settingsRowAccessors";
 import type { SettingsGroup, SettingsRow, SettingsRowBlock, SettingsRowState } from "./settingsRows";
 import {
 	SETTINGS_GROUPS,
@@ -271,7 +271,7 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 				this.addToggleRow(container, row, SettingsRowAccessors.groupLabelFullPath(), state);
 				return;
 			case "folder-grouping-depth":
-				this.addSlider(container, row, SettingsRowAccessors.folderGroupingDepth(), state);
+				this.addGroupingDepthSlider(container, row, state);
 				return;
 			case "edge-depth-into-groups":
 				this.addSlider(container, row, SettingsRowAccessors.edgeDepthIntoGroups(), state);
@@ -821,6 +821,40 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 					this.applyRowDependencies(this.rowState());
 				}),
 		);
+	}
+
+	/**
+	 * The folder-grouping-depth slider — the one slider whose top stop is ∞ rather than a
+	 * number ({@link FolderGroupingDepthSlider}, ticket `nid_rndi5sulwrsx1aq0x4xqcskrb_e`).
+	 * It runs over the mapper's integer TRACK (finite stops plus the ∞ stop), and carries a
+	 * persistent inline readout instead of the shared {@link addSlider}'s hover tooltip:
+	 * the tooltip only ever shows the raw track number, so it could not render "∞". The
+	 * readout is updated on every change and shows the DEPTH the position selects.
+	 */
+	private addGroupingDepthSlider(container: HTMLElement, row: SettingsRow, state: SettingsRowState): void {
+		const accessor = SettingsRowAccessors.folderGroupingDepth();
+		const { track } = FolderGroupingDepthSlider;
+		const name = SettingsRowNames.sole(row);
+		const setting = VicinityGraphSettingTab.row(container, row);
+		// The readout renders to the RIGHT of the slider (created after it); the closure
+		// below only reads it once the user drags, by which point it is assigned.
+		let readout: HTMLElement;
+		setting.addSlider((slider) =>
+			slider
+				.setLimits(track.min, track.max, track.step)
+				.setValue(FolderGroupingDepthSlider.positionOf(accessor.read(state)))
+				.then(() => VicinityGraphSettingTab.nameControl(slider.sliderEl, name))
+				.onChange(async (position) => {
+					const depth = FolderGroupingDepthSlider.depthAt(position);
+					readout.setText(FolderGroupingDepthSlider.readout(depth));
+					await this.writes.apply(accessor.interaction(depth));
+					// The grouping-depth dial is a MASTER for the dependent "Full folder path"
+					// row: re-apply every verdict from the store as it landed.
+					this.applyRowDependencies(this.rowState());
+				}),
+		);
+		readout = setting.controlEl.createSpan({ cls: "vicinity-graph-settings-slider-readout" });
+		readout.setText(FolderGroupingDepthSlider.readout(accessor.read(state)));
 	}
 
 	/** Mirrors declared {@link SettingsRowBounds} onto a number input's stepper attributes. */
