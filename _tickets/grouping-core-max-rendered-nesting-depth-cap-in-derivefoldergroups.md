@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_5086tzts48n7pnc4q77g7bk9e_e
 title: "Grouping core: max rendered-nesting-depth cap in deriveFolderGroups"
-status: open
+status: in_progress
 deps: [nid_yyugpoh3gv8ip24cizvgrs4w4_e]
 links: [nid_yyugpoh3gv8ip24cizvgrs4w4_e, nid_5vz7mtm2rn6n7nj9cp5mfbslx_e, nid_dqu2jc1kln9ltwzy3lxxocdw7_e, nid_ovayqcmi0vlmzyju40tdxw3sd_e]
 created_iso: 2026-08-15T05:28:15Z
-status_updated_iso: 2026-08-15T05:28:15Z
+status_updated_iso: 2026-08-15T05:31:53Z
 type: feature
 priority: 3
 assignee: nickolaykondratyev
