@@ -1,4 +1,5 @@
 ---
+session_ids: [{"a": "claude", "type": "execution", "id": "6a22ae2b-83bf-4a05-baa5-96948d39a65d"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_ea12b9v9fpfvg7n1ssmeyw58u_e
 title: "Arrowhead inset floor overshoots edges shorter than 14px"
