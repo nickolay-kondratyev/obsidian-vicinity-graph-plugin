@@ -68,3 +68,9 @@ rebuild repaint that follows the master write (state prop refresh), not
 optimistically; the tab re-enables via the dependents pass after the slider's
 write lands.
 
+
+## Notes
+
+**2026-08-15T06:58:59Z**
+
+__READY_AS_IS__: review found no defects; disabledWhen wiring is declarative on both surfaces, native inputs carry the disabled flag, and check + npm test (2183 passed) + settingsDependentRows e2e (4 passed) are green with no fixes needed.
