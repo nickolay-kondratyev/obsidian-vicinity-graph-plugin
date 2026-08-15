@@ -35,3 +35,9 @@ Deliberate behavior change vs. the previous ticket's constraint: N=0 rendering o
 
 Tests: `src/view/hierarchicalEdgeRouting.test.ts` — classification (sibling notes / top-level / different boxes / member-to-own-box), fake-leaf composition (pass count, interior obstacles, normal-pin endpoints, batching, failure degradation), and two real-wasm assertions (no waypoint inside a straddling sibling; no waypoint inside the title band when the shortest detour is over it). Gates run green: `npm run check`, `npm test` (2107 passed), `npm run test:e2e -- edgeRouting.e2e.ts nestedGrouping.e2e.ts` (11 passed, including the pierced-edge routing spec).
 
+
+## Notes
+
+**2026-08-15T02:10:20Z**
+
+__READY_AS_IS__: Review found no defects; classification, interior-pass composition, failure degradation and per-pass wasm router statelessness all verified; check + 2107 unit tests + 11 targeted e2e (edgeRouting, nestedGrouping) pass with zero changes.
