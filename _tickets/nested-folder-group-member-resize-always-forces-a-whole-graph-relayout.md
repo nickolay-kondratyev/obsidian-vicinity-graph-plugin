@@ -1,13 +1,14 @@
 ---
+closed_iso: 2026-08-15T01:56:39Z
 session_ids: [{"a": "claude", "type": "execution", "id": "dd918f48-e948-421c-8397-5a65b2302ba6"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_vjezt4ewmn50r0mbwjdfn70i2_e
 title: "Nested folder-group member resize always forces a whole-graph relayout"
-status: in_progress
+status: closed
 deps: []
 links: []
 created_iso: 2026-08-15T00:42:11Z
-status_updated_iso: 2026-08-15T01:53:52Z
+status_updated_iso: 2026-08-15T01:56:39Z
 type: bug
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
@@ -20,4 +21,15 @@ ROOT CAUSE: src/view/layoutFit.ts:119-123 — resizedNodesFitRenderedLayout's fo
 FAILING TEST (committed as it.skip — UNSKIP as acceptance): src/view/layoutFit.test.ts, describe "resizedNodesFitRenderedLayout with NESTED folder groups", test "WHEN a nested group's member resizes with room to spare THEN it fits".
 
 FIX SHAPE: skip ANCESTOR groups of the node's own group in the foreign-box loop (walk parentFolder chain from FolderGroup, or use nearestRenderedAncestorGroupOf); an ancestor's CONTAINMENT is already what the containsRect check should assert — consider requiring the rect to stay inside its own group only, and treating strict ancestors as containers, not colliders.
+
+## RESOLUTION (2026-08-15, commit 3921383)
+
+Fixed in `src/view/layoutFit.ts`. New private helper `containerGroupFoldersOf(grouping, memberPath)` walks the rendered `parentFolder` chain (via `nearestRenderedAncestorGroupOf`, per folderGrouping's DRY seam) and returns the folders of the node's own group plus every ancestor group; empty for an ungrouped node. `resizedNodesFitRenderedLayout` now:
+
+- requires `containsRect` against EVERY container in that chain (own group first) — strict ancestors became containers, subsuming the old single own-group containment check;
+- skips the whole chain in the foreign-group overlap loop, so ancestor boxes no longer answer "no fit" unconditionally.
+
+Note: sibling/child group boxes (e.g. `A/B` for a member of `A`) are NOT in the chain and still collide — intended.
+
+Acceptance test unskipped in `src/view/layoutFit.test.ts` (nested `A` ⊃ `A/B` fixture), plus a new test pinning that a nested member spilling outside its OWN group (while inside the ancestor) still refuses the fit. Verified: `npm run check`, full `npm test` (2094 passing), and e2e `nodeResize.e2e.ts` + `nestedGrouping.e2e.ts` (25 passed) on the pinned build.
 
