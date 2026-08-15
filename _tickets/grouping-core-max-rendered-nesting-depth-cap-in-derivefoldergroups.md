@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-15T05:36:36Z
-session_ids: [{"a": "claude", "type": "execution", "id": "c787a3d8-b091-4967-80ff-d8d644d46858"}]
+session_ids: [{"a": "claude", "type": "execution", "id": "c787a3d8-b091-4967-80ff-d8d644d46858"}, {"a": "claude", "type": "review", "id": "0896ef6a-f1fe-413a-9c27-4d803f0f9120"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_5086tzts48n7pnc4q77g7bk9e_e
 title: "Grouping core: max rendered-nesting-depth cap in deriveFolderGroups"
