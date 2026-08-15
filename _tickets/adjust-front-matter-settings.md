@@ -1,4 +1,5 @@
 ---
+session_ids: [{"a": "claude", "type": "execution", "id": "cb05f91a-1d3c-4ae4-ae59-0a6ccc5f7067"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_gpgudw7pfdy02wcqbs73si21x_e
 title: "Adjust front matter settings"
