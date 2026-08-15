@@ -1,13 +1,14 @@
 ---
+closed_iso: 2026-08-15T02:25:09Z
 session_ids: [{"a": "claude", "type": "execution", "id": "684cd48a-a1c1-433f-b3bd-8ec9b75688c1"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_b7k6gymkwum7pozwnf28vgecb_e
 title: "CRLF line endings break fence-closer detection in MarkdownCodeRegions"
-status: in_progress
+status: closed
 deps: []
 links: []
 created_iso: 2026-08-15T00:42:11Z
-status_updated_iso: 2026-08-15T02:23:52Z
+status_updated_iso: 2026-08-15T02:25:09Z
 type: bug
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
@@ -20,4 +21,6 @@ ROOT CAUSE: src/shared/MarkdownCodeRegions.ts:35 — with \r\n line endings, spl
 FAILING TEST (committed as it.skip — UNSKIP as acceptance): src/shared/MarkdownCodeRegions.test.ts, "WHEN the text uses CRLF line endings THEN a closing fence still closes the block".
 
 FIX SHAPE: allow \r in FENCE_CLOSER's trailing-whitespace class (e.g. `[ \t\r]*$`), or strip a single trailing \r per line before matching (offsets must stay preserved — masking is same-length).
+
+RESOLUTION (2026-08-15): Fixed by allowing one optional trailing `\r` in FENCE_CLOSER — `/^ {0,3}(`{3,}|~{3,})[ \t]*\r?$/` in src/shared/MarkdownCodeRegions.ts — matching how the sibling matchers tolerate CRLF. Chose `\r?$` over `[ \t\r]*$` for precision (only the CRLF residue position accepts it). No offset concerns: matching only, masking still same-length. FENCE_OPENER needed no change (a `\r` info string already opens fine, and a backtick-run followed by `\r` contains no backtick so the info-string rule is unaffected). The committed failing test in src/shared/MarkdownCodeRegions.test.ts was unskipped and passes; full `npm run check` + `npm test` green (2110 passed). Pure shared/ change — no e2e needed.
 

@@ -30,9 +30,11 @@ const FENCE_OPENER = /^ {0,3}(`{3,}|~{3,})/;
 /**
  * Closes a fenced block: same shape as an opener but with NOTHING after the run
  * except trailing whitespace — CommonMark gives a CLOSING fence no info string,
- * so a "```ts" line inside an open fence is content, not a closer.
+ * so a "```ts" line inside an open fence is content, not a closer. The optional
+ * trailing \r is the CRLF residue `split("\n")` leaves on every line; the
+ * sibling matchers (PARAGRAPH_BREAK, DESTINATION_TERMINATOR) tolerate it too.
  */
-const FENCE_CLOSER = /^ {0,3}(`{3,}|~{3,})[ \t]*$/;
+const FENCE_CLOSER = /^ {0,3}(`{3,}|~{3,})[ \t]*\r?$/;
 
 const BACKTICK = "`";
 
