@@ -37,3 +37,9 @@ same loop.
 - Verified: `npm test` (2109 passed, 0 failed) and `npm run check` both green.
   Pure engine change — e2e not required per CLAUDE.md.
 
+
+## Notes
+
+**2026-08-15T02:21:24Z**
+
+__READY_AS_IS__: self-neighbor guard in VicinityTraversal.bfs is correct and covers all channels; acceptance test unskipped; check + npm test (2109 passed) verified green, no fixes needed
