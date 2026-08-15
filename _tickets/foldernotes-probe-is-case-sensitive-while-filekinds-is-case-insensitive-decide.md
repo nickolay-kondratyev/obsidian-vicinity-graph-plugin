@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_cw2uksuzzotjb53yix9xiz7a2_e
 title: "FolderNotes probe is case-sensitive while FileKinds is case-insensitive (decide)"
-status: open
+status: in_progress
 deps: []
 links: []
 created_iso: 2026-08-15T00:42:38Z
-status_updated_iso: 2026-08-15T00:42:38Z
+status_updated_iso: 2026-08-15T02:34:48Z
 type: task
 priority: 4
 assignee: CC_WITH-nickolaykondratyev
