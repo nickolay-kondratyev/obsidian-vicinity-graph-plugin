@@ -138,6 +138,11 @@ function useSettingsNumber(
  *
  * The accessor's bounds always carry a ceiling ({@link SettingsRowBounds} requires
  * `max`): a native range input whose `max` is absent silently defaults to 100.
+ *
+ * Honours the row's declared `disabledWhen` on the native input — rendered always,
+ * merely inert — which is what makes every slider kind dependency-aware on this
+ * surface. Enabled-ness comes from `state`, so it goes live with the same rebuild
+ * repaint that refreshes every other row.
  */
 function SliderRow({
 	row,
@@ -165,6 +170,7 @@ function SliderRow({
 				max={range.max}
 				step={range.step}
 				value={shown}
+				disabled={isSettingsRowDisabled(row, state)}
 				onChange={(event) => {
 					if (!Number.isNaN(event.target.valueAsNumber)) {
 						request(event.target.valueAsNumber);
@@ -538,7 +544,8 @@ function NodePreviewRow({
 /**
  * ONE label beside ONE switch — the shape EVERY boolean row in the panel takes.
  * Shared so a second toggle cannot arrive with its own spacing or its own idea of
- * where the accessible name comes from.
+ * where the accessible name comes from. Honours the row's declared `disabledWhen`
+ * (see {@link SliderRow} for the liveness contract).
  */
 function ToggleRow({
 	row,
@@ -553,7 +560,12 @@ function ToggleRow({
 	return (
 		<label className="vicinity-graph-toggle-row" title={row.description}>
 			<span>{row.label}</span>
-			<ToggleSwitch checked={enabled} onChange={request} ariaLabel={SettingsRowNames.sole(row)} />
+			<ToggleSwitch
+				checked={enabled}
+				onChange={request}
+				ariaLabel={SettingsRowNames.sole(row)}
+				disabled={isSettingsRowDisabled(row, state)}
+			/>
 		</label>
 	);
 }

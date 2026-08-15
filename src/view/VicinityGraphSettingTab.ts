@@ -1,5 +1,5 @@
 import { PluginSettingTab, Setting } from "obsidian";
-import type { App, TextAreaComponent, ToggleComponent } from "obsidian";
+import type { App, SliderComponent, TextAreaComponent, ToggleComponent } from "obsidian";
 import { NODE_PREVIEW_PREFERENCES } from "../engine";
 import type VicinityGraphPlugin from "../main";
 import type { PluginDataStore } from "../persistence/PluginDataStore";
@@ -300,6 +300,42 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	}
 
 	/**
+	 * Registers ONE rendered control of a row that declares `disabledWhen`: applies
+	 * the verdict for the rendering snapshot now, and enrols it so
+	 * {@link applyRowDependencies} re-applies it after writes. A row without a
+	 * declared dependency is left alone — the dependents list stays exactly the
+	 * declared dependent rows.
+	 */
+	private wireRowDependency(row: SettingsRow, setDisabled: (disabled: boolean) => void, state: SettingsRowState): void {
+		if (row.disabledWhen === undefined) {
+			return;
+		}
+		setDisabled(isSettingsRowDisabled(row, state));
+		this.dependents.push({ row, setDisabled });
+	}
+
+	/**
+	 * Disabling a toggle, like naming one ({@link nameToggle}), must reach the NATIVE
+	 * checkbox inside `toggleEl`: `ToggleComponent.setDisabled`'s contract only
+	 * promises the component's own flag, and the checkbox's `disabled` attribute is
+	 * what keyboard activation and the accessibility tree read. Both are set, so the
+	 * component's internal state and the DOM cannot disagree.
+	 */
+	private static setToggleDisabled(toggle: ToggleComponent, disabled: boolean): void {
+		toggle.setDisabled(disabled);
+		const checkbox = toggle.toggleEl.querySelector("input");
+		if (checkbox !== null) {
+			checkbox.disabled = disabled;
+		}
+	}
+
+	/** The same rule for a slider — `sliderEl` IS the native range input. */
+	private static setSliderDisabled(slider: SliderComponent, disabled: boolean): void {
+		slider.setDisabled(disabled);
+		slider.sliderEl.disabled = disabled;
+	}
+
+	/**
 	 * Re-applies every declared `disabledWhen` verdict.
 	 *
 	 * Called TWICE around a write that a dependent row reads: once synchronously with
@@ -506,15 +542,15 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 			VicinityGraphSettingTab.nameControl(text.inputEl, name);
 			const initial = accessor.read(state).join("\n");
 			text.setValue(initial);
-			text.setDisabled(isSettingsRowDisabled(row, state));
-			this.dependents.push({
+			// Block body: `setDisabled` returns the component fluently, but the
+			// dependent's slot wants a `void` callback — discard the return.
+			this.wireRowDependency(
 				row,
-				// Block body: `setDisabled` returns the component fluently, but the
-				// dependent's slot wants a `void` callback — discard the return.
-				setDisabled: (disabled) => {
+				(disabled) => {
 					text.setDisabled(disabled);
 				},
-			});
+				state,
+			);
 			// Patterns already stored (or hand-edited into data.json) get the same
 			// verdict on open as a freshly typed one.
 			VicinityGraphSettingTab.showWarning(feedback, describeInvalidExclusionPatterns(initial));
@@ -733,6 +769,7 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 		VicinityGraphSettingTab.row(container, row).addToggle((toggle) => {
 			// The row's only control, so the row name alone identifies it.
 			VicinityGraphSettingTab.nameToggle(toggle, SettingsRowNames.sole(row));
+			this.wireRowDependency(row, (disabled) => VicinityGraphSettingTab.setToggleDisabled(toggle, disabled), state);
 			toggle.setValue(accessor.read(state)).onChange((enabled) => {
 				// No queue of its own: the pipeline plans from a FRESH read inside its
 				// serialised slot, so two fast clicks cannot plan from the same state.
@@ -770,8 +807,18 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 				.setValue(accessor.read(state))
 				.setDynamicTooltip()
 				.then(() => VicinityGraphSettingTab.nameControl(slider.sliderEl, name))
-				.onChange((value) => {
-					void this.writes.apply(accessor.interaction(value));
+				.then(() =>
+					this.wireRowDependency(
+						row,
+						(disabled) => VicinityGraphSettingTab.setSliderDisabled(slider, disabled),
+						state,
+					),
+				)
+				.onChange(async (value) => {
+					await this.writes.apply(accessor.interaction(value));
+					// A slider can be a dependency's MASTER dial (folder grouping depth):
+					// authoritative pass over every dependent, from the store as it landed.
+					this.applyRowDependencies(this.rowState());
 				}),
 		);
 	}

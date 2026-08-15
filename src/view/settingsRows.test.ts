@@ -107,6 +107,37 @@ describe("settings row disabledWhen", () => {
 		expect(isSettingsRowDisabled(patternsRow(), state(true))).toBe(false);
 	});
 
+	const groupingState = (folderGroupingDepth: number): SettingsRowState => ({
+		globalDepths: EngineDefaults.depthSettings(),
+		globalView: { ...EngineDefaults.viewSettings(), folderGroupingDepth },
+		nodeExclusion: EngineDefaults.nodeExclusionSettings(),
+		frontmatterLinks: EngineDefaults.frontmatterLinkSettings(),
+	});
+
+	const soleRowOf = (kind: "group-label-full-path" | "edge-depth-into-groups"): SettingsRow => {
+		const [row] = settingsRowsFor(kind);
+		if (row === undefined) {
+			throw new Error(`the ${kind} row is not declared`);
+		}
+		return row;
+	};
+
+	it("WHEN folder grouping depth is 0 THEN the group-label full-path row is disabled", () => {
+		expect(isSettingsRowDisabled(soleRowOf("group-label-full-path"), groupingState(0))).toBe(true);
+	});
+
+	it("WHEN folder grouping depth is 0 THEN the edge-depth-into-groups row is disabled", () => {
+		expect(isSettingsRowDisabled(soleRowOf("edge-depth-into-groups"), groupingState(0))).toBe(true);
+	});
+
+	it("WHEN folder grouping depth is 1 THEN the group-label full-path row is enabled", () => {
+		expect(isSettingsRowDisabled(soleRowOf("group-label-full-path"), groupingState(1))).toBe(false);
+	});
+
+	it("WHEN folder grouping depth is 1 THEN the edge-depth-into-groups row is enabled", () => {
+		expect(isSettingsRowDisabled(soleRowOf("edge-depth-into-groups"), groupingState(1))).toBe(false);
+	});
+
 	it("WHEN a row declares a dependency THEN its control kind is one both presenters honour", () => {
 		// The TYPE already refuses `disabledWhen` elsewhere; this states the same limit
 		// at runtime, because rows are also built by `.map()` from other tables where a

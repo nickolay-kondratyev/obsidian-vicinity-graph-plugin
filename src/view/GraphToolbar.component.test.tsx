@@ -93,6 +93,42 @@ describe("GraphToolbar (rendered): every declared row produces its declared cont
 	});
 });
 
+describe("GraphToolbar (rendered): the grouping rows dependent on folder grouping depth", () => {
+	/** The named native control of one dependent grouping row (checkbox or range input). */
+	function groupingControl(kind: "group-label-full-path" | "edge-depth-into-groups"): HTMLInputElement {
+		const row = settingsRowsFor(kind)[0];
+		if (row === undefined) {
+			throw new Error(`the declared model no longer has a ${kind} row`);
+		}
+		return screen.getByLabelText(SettingsRowNames.sole(row)) as HTMLInputElement;
+	}
+
+	function renderAtGroupingDepth(folderGroupingDepth: number): void {
+		const base = stateRenderingEveryControl();
+		renderToolbar({ ...base, globalView: { ...base.globalView, folderGroupingDepth } });
+	}
+
+	it("WHEN folder grouping depth is 0 THEN the full-path toggle renders its declared disabledWhen verdict", () => {
+		renderAtGroupingDepth(0);
+		expect(groupingControl("group-label-full-path").disabled).toBe(true);
+	});
+
+	it("WHEN folder grouping depth is 0 THEN the edge-depth slider renders its declared disabledWhen verdict", () => {
+		renderAtGroupingDepth(0);
+		expect(groupingControl("edge-depth-into-groups").disabled).toBe(true);
+	});
+
+	it("WHEN folder grouping depth is 1 THEN the full-path toggle is enabled", () => {
+		renderAtGroupingDepth(1);
+		expect(groupingControl("group-label-full-path").disabled).toBe(false);
+	});
+
+	it("WHEN folder grouping depth is 1 THEN the edge-depth slider is enabled", () => {
+		renderAtGroupingDepth(1);
+		expect(groupingControl("edge-depth-into-groups").disabled).toBe(false);
+	});
+});
+
 describe("GraphToolbar (rendered): a declared block subheading groups its own rows", () => {
 	/** The blocks that name a group, in declared render order. */
 	const namedBlocks = EVERY_SETTINGS_BLOCK.filter(

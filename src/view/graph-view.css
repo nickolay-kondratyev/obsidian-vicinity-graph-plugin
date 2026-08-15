@@ -1138,6 +1138,13 @@
 	font-variant-numeric: tabular-nums;
 	color: var(--text-normal);
 }
+/* Inert, not gone (same rule as the exclusion patterns row): a row whose declared
+ * `disabledWhen` verdict landed on its native control dims as a whole, label included. */
+.vicinity-graph-slider-row:has(input:disabled),
+.vicinity-graph-toggle-row:has(input:disabled) {
+	opacity: 0.55;
+	cursor: default;
+}
 /*
  * The id-ref-fields CHIP row, on BOTH surfaces (deliberately unscoped, like the
  * shared row shapes above): one pill per stored field, its remove button inside
