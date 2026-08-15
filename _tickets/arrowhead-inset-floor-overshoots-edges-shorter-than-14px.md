@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-15T02:31:06Z
-session_ids: [{"a": "claude", "type": "execution", "id": "6a22ae2b-83bf-4a05-baa5-96948d39a65d"}]
+session_ids: [{"a": "claude", "type": "execution", "id": "6a22ae2b-83bf-4a05-baa5-96948d39a65d"}, {"a": "claude", "type": "review", "id": "ea38e5e7-739e-4c0a-8cd1-3ead941f35e8"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_ea12b9v9fpfvg7n1ssmeyw58u_e
 title: "Arrowhead inset floor overshoots edges shorter than 14px"
