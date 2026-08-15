@@ -1,4 +1,5 @@
 ---
+session_ids: [{"a": "claude", "type": "decision", "id": "c1d4e7bf-953b-43e5-991d-b47f862b9a45"}]
 id: nid_my99vi73iouq1y9hkomoedqgd_e
 title: "Consider layout awareness of piercing edges (pull linked inner nodes together)"
 status: open
