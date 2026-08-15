@@ -31,3 +31,9 @@ Fixed via the LAZY-count option from the fix note — the BFS hot path is untouc
 
 Decision taken (per the ticket's own lean, stated as assumption): exclusion is about NODES — an excluded attachment keeps rendering as the linking note's chip/thumbnail. Verified with `npm run check` + full `npm test` (2092 passed); pure engine change, so no e2e per CLAUDE.md.
 
+
+## Notes
+
+**2026-08-15T01:51:30Z**
+
+__READY_AS_IS__: Lazy node-bearing filter at assemble is correct (BFS hot path untouched, roots exempt, unknown paths consistently uncounted); acceptance test unskipped + attachment-rendering decision pinned; check + full npm test (2092 passed) green; no fixes needed.
