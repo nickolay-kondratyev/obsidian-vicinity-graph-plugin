@@ -1,4 +1,5 @@
 ---
+session_ids: [{"a": "claude", "type": "execution", "id": "e3a7190a-5780-45d5-ba00-aef7a5fbdc0f"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_cw2uksuzzotjb53yix9xiz7a2_e
 title: "FolderNotes probe is case-sensitive while FileKinds is case-insensitive (decide)"
