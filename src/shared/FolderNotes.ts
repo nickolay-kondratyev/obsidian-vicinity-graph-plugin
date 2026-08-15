@@ -17,7 +17,9 @@ import { VaultPathFacts } from "./VaultPathFacts";
  * where `<name>` is the folder's own last segment. LOCATION dominates EXTENSION:
  * an inside note wins over any sibling, and `.md` breaks the tie only WITHIN a
  * location ("inside `X/X.md` beats sibling `X.md`; `.md` beats `.canvas`"). Only
- * `.md` + `.canvas` participate — no `.base` in v1.
+ * `.md` + `.canvas` participate — no `.base` in v1. {@link folderNoteCandidatesOf}
+ * lists EVERY existing candidate (navigation-only); the relation below always
+ * follows the single winner.
  *
  * ## The relation
  * - CHILDREN of a folder note = the node-bearing files sitting DIRECTLY in the
@@ -45,6 +47,8 @@ export class FolderNotes {
 	private readonly directSubfoldersByFolder: ReadonlyMap<string, readonly string[]>;
 	/** Memoised folder-note resolution — one answer per folder across a build. */
 	private readonly folderNoteByFolder = new Map<string, string | undefined>();
+	/** Memoised existing-candidate lists — one answer per folder across a build (like {@link folderNoteByFolder}). */
+	private readonly candidatesByFolder = new Map<string, readonly string[]>();
 
 	private constructor(
 		allPaths: ReadonlySet<string>,
@@ -80,6 +84,23 @@ export class FolderNotes {
 		const resolved = this.resolveFolderNote(folder);
 		this.folderNoteByFolder.set(folder, resolved);
 		return resolved;
+	}
+
+	/**
+	 * EVERY existing folder-note candidate of `folder`, in DESCENDING precedence
+	 * order (max 4; index 0 is always {@link folderNoteOf}'s winner). A
+	 * NAVIGATION-only concept (ticket `nid_2pobjyfp5zgspx283bfukaugn_e`): the
+	 * traversal relation keeps its owner-locked single winner; this lists the
+	 * losing candidates too, so a folder-group label can offer them all.
+	 */
+	folderNoteCandidatesOf(folder: string): readonly string[] {
+		const cached = this.candidatesByFolder.get(folder);
+		if (cached !== undefined) {
+			return cached;
+		}
+		const existing = this.candidatePathsOf(folder).filter((candidate) => this.allPaths.has(candidate));
+		this.candidatesByFolder.set(folder, existing);
+		return existing;
 	}
 
 	/**
@@ -148,8 +169,17 @@ export class FolderNotes {
 	}
 
 	private resolveFolderNote(folder: string): string | undefined {
+		return this.candidatePathsOf(folder).find((candidate) => this.allPaths.has(candidate));
+	}
+
+	/**
+	 * The candidate PATHS of `folder` (existing or not), in descending precedence —
+	 * the ONE candidate table the winner ({@link resolveFolderNote}) and the
+	 * navigation list ({@link folderNoteCandidatesOf}) share.
+	 */
+	private candidatePathsOf(folder: string): readonly string[] {
 		if (folder === "") {
-			return undefined; // The vault root owns no folder note (there is no `<root>.md`).
+			return []; // The vault root owns no folder note (there is no `<root>.md`).
 		}
 		const name = VaultPathFacts.folderNameOf(folder);
 		const parent = VaultPathFacts.folderOf(folder);
@@ -160,13 +190,12 @@ export class FolderNotes {
 		// case-insensitive probing isn't worth the complexity; exact-name matching
 		// also mirrors the Folder Notes plugin convention.
 		// Precedence: inside beats sibling; within a location, `.md` beats `.canvas`.
-		const candidates = [
+		return [
 			`${folder}/${name}.md`,
 			`${folder}/${name}.canvas`,
 			`${joinFolder(parent, name)}.md`,
 			`${joinFolder(parent, name)}.canvas`,
 		];
-		return candidates.find((candidate) => this.allPaths.has(candidate));
 	}
 }
 

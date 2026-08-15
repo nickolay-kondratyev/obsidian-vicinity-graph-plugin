@@ -1,5 +1,6 @@
 import type {
 	EdgeKind,
+	FolderPath,
 	GraphEdge,
 	GraphNode,
 	NodeContentOverride,
@@ -119,7 +120,25 @@ export type FlowGroupData = {
 	 * A leaf-name label (the default) keeps conventional trailing truncation.
 	 */
 	readonly fullPathLabel: boolean;
+	/**
+	 * Existing folder-note candidates of {@link folder} — the group's DEEPEST folder
+	 * only, so a collapsed chain's ancestors are deliberately ineligible (ticket
+	 * `nid_2pobjyfp5zgspx283bfukaugn_e`, R4) — in descending precedence. Drives the
+	 * label's navigation: empty = inert, one = opens directly, 2+ = candidate menu.
+	 */
+	readonly folderNoteCandidates: readonly string[];
 };
+
+/**
+ * Folder → existing folder-note candidates (descending precedence), read from
+ * the SAME vault snapshot the graph was built from so a label can never offer a
+ * note the traversal's folder-note rule would not see. Carried per build on
+ * `GraphBuildResult`; implemented by the builder over the adapters'
+ * `FolderNoteIndex`.
+ */
+export interface FolderNoteCandidatesLookup {
+	folderNoteCandidatesOf(folder: FolderPath): readonly string[];
+}
 
 interface FlowNodeBase {
 	/** React Flow / elk node id — the vault path (notes) or folderGroupIdOf (groups). */
@@ -252,7 +271,11 @@ export interface FlowPinFacts {
 	readonly localPinnedDocids: ReadonlySet<string>;
 }
 
-export function vicinityGraphToFlow(graph: VicinityGraph, pinFacts: FlowPinFacts): FlowGraph {
+export function vicinityGraphToFlow(
+	graph: VicinityGraph,
+	pinFacts: FlowPinFacts,
+	folderNoteCandidates: FolderNoteCandidatesLookup,
+): FlowGraph {
 	const grouping = deriveFolderGroups(graph.nodes);
 	const badges = deriveTruncationBadges(
 		graph.hiddenNodeCountsByFolder,
@@ -288,6 +311,9 @@ export function vicinityGraphToFlow(graph: VicinityGraph, pinFacts: FlowPinFacts
 				folderName: graph.viewSettings.groupLabelFullPath ? group.chainPath : group.leafName,
 				hiddenCount: badges.hiddenCountByGroupFolder.get(group.folder) ?? 0,
 				fullPathLabel: graph.viewSettings.groupLabelFullPath,
+				// The DEEPEST folder only (`group.folder`, never a collapsed ancestor):
+				// a chain group `A/B/C` navigates to C's folder note, not A's or B's (R4).
+				folderNoteCandidates: folderNoteCandidates.folderNoteCandidatesOf(group.folder),
 			},
 		}),
 	);
