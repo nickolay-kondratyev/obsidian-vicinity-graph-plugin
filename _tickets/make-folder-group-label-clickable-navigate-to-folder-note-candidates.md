@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 id: nid_2pobjyfp5zgspx283bfukaugn_e
 title: "Make folder-group label clickable: navigate to folder-note candidates"
-status: open
+status: in_progress
 deps: []
 links: [nid_s28ucpwyu62674ndvbzst8nct_e]
 created_iso: 2026-08-15T03:08:44Z
-status_updated_iso: 2026-08-15T03:08:44Z
+status_updated_iso: 2026-08-15T03:13:37Z
 type: feature
 priority: 3
 assignee: nickolaykondratyev
