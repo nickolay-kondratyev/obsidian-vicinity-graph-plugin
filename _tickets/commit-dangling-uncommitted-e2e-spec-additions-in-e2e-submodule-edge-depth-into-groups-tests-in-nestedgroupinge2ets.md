@@ -1,7 +1,7 @@
 ---
 id: nid_4uaakunhzxq4ur9l1qxe04zb7_e
 title: "Commit dangling uncommitted e2e spec additions in e2e submodule (Edge depth into groups tests in nestedGrouping.e2e.ts)"
-status: open
+status: closed
 deps: []
 links: []
 created_iso: 2026-08-15T03:26:05Z
