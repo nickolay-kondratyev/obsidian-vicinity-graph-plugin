@@ -28,3 +28,9 @@ Fixed in `src/view/edgeGeometry.ts` `arrowFromApproach`: `edgeLength` was added 
 
 Acceptance: the committed `it.skip` in `src/view/edgeGeometry.test.ts` was unskipped (fails before the fix, `arrowX = -4`) plus a new source-side sibling test. Verified: `npm test` (2112 passed), `npm run check`, and `npm run test:e2e -- vicinityGraph.e2e.ts` (27 passed) all green.
 
+
+## Notes
+
+**2026-08-15T02:32:21Z**
+
+__READY_AS_IS__: fix verified — inset clamp covers all three arrowFromApproach call paths (straight, curved, routed segment), degenerate lengths still guarded, both new tests assert the right bound; npm run check and npm test (2112 passed) green, nothing changed.
