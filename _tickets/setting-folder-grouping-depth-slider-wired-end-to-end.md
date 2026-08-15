@@ -1,4 +1,5 @@
 ---
+session_ids: [{"a": "claude", "type": "execution", "id": "7592d8f2-1628-4786-9cac-b5c014191636"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_5vz7mtm2rn6n7nj9cp5mfbslx_e
 title: "Setting: Folder grouping depth slider wired end-to-end"
