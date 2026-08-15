@@ -278,6 +278,20 @@ describe("vicinityGraphToFlow folder groups", () => {
 		expect(noteNode(toFlow(groupedGraph()).nodes, "solo/only.md")?.parentId).toBeUndefined();
 	});
 
+	it("WHEN folderGroupingDepth is 0 THEN no folder-group node is emitted and every note renders flat", () => {
+		// The setting-threading tripwire (ticket nid_5vz7mtm2rn6n7nj9cp5mfbslx_e): the
+		// mapping must derive its grouping from the STORED dial, not a constant.
+		const graph = makeGraph({
+			nodes: groupedGraph().nodes,
+			viewSettings: { ...groupedGraph().viewSettings, folderGroupingDepth: 0 },
+		});
+		const flow = toFlow(graph);
+		expect({
+			groupNodes: flow.nodes.filter((node) => node.kind === "folder-group"),
+			memberParentId: noteNode(flow.nodes, "notes/a.md")?.parentId,
+		}).toEqual({ groupNodes: [], memberParentId: undefined });
+	});
+
 	it("WHEN a rendered group's folder has hidden nodes THEN the group carries the +N badge count", () => {
 		const graph = makeGraph({
 			nodes: groupedGraph().nodes,

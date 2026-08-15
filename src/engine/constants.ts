@@ -53,6 +53,22 @@ export function clampOutlineMaxDepth(value: number): number {
 	return Math.round(clampIntoRange(value, spec, spec.default));
 }
 
+/** @see SETTINGS_SPEC — `globalView.folderGroupingDepth.{min,max}`. */
+export const MIN_FOLDER_GROUPING_DEPTH = SETTINGS_SPEC.globalView.folderGroupingDepth.min;
+export const MAX_FOLDER_GROUPING_DEPTH = SETTINGS_SPEC.globalView.folderGroupingDepth.max;
+
+/**
+ * THE folder-grouping-depth clamp, shared by the settings slider and the
+ * persistence parser, so a hand-edited `data.json` cannot reach a negative depth
+ * or a level past the effectively-unlimited ceiling. Rounds: the cap is a whole
+ * number of rendered group-nesting levels. Goes through {@link clampIntoRange} so
+ * `NaN` resolves to the spec default like every other bounded field.
+ */
+export function clampFolderGroupingDepth(value: number): number {
+	const spec = SETTINGS_SPEC.globalView.folderGroupingDepth;
+	return Math.round(clampIntoRange(value, spec, spec.default));
+}
+
 /** @see SETTINGS_SPEC — `globalView.edgeDepthIntoGroups.{min,max}`. */
 export const MIN_EDGE_DEPTH_INTO_GROUPS = SETTINGS_SPEC.globalView.edgeDepthIntoGroups.min;
 export const MAX_EDGE_DEPTH_INTO_GROUPS = SETTINGS_SPEC.globalView.edgeDepthIntoGroups.max;
@@ -481,6 +497,7 @@ export class EngineDefaults {
 			nodePreviewPreference: view.nodePreviewPreference.default,
 			showCrossLinks: view.showCrossLinks.default,
 			groupLabelFullPath: view.groupLabelFullPath.default,
+			folderGroupingDepth: view.folderGroupingDepth.default,
 			edgeDepthIntoGroups: view.edgeDepthIntoGroups.default,
 			sizing: EngineDefaults.sizingSettings(),
 			forceLayout: EngineDefaults.forceLayoutSettings(),

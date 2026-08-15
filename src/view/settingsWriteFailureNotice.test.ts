@@ -90,6 +90,8 @@ describe("SettingsWriteFailureNotice over every declared row", () => {
 				return [interactionOf(SettingsRowAccessors.showCrossLinks())];
 			case "group-label-full-path":
 				return [interactionOf(SettingsRowAccessors.groupLabelFullPath())];
+			case "folder-grouping-depth":
+				return [interactionOf(SettingsRowAccessors.folderGroupingDepth())];
 			case "edge-depth-into-groups":
 				return [interactionOf(SettingsRowAccessors.edgeDepthIntoGroups())];
 			case "outline-depth":

@@ -13,6 +13,7 @@ import {
 	NODE_CONTENT_OVERRIDES,
 	NODE_PREVIEW_PREFERENCES,
 	clampEdgeDepthIntoGroups,
+	clampFolderGroupingDepth,
 	clampForceLayoutSettings,
 	clampNodeCap,
 	clampNodeSizeOverridePx,
@@ -196,6 +197,7 @@ function parseViewFields(raw: unknown): Partial<ViewSettings> {
 	const outlineMaxDepth = numberOrUndefined(raw["outlineMaxDepth"]);
 	const nodeCap = numberOrUndefined(raw["nodeCap"]);
 	const edgeDepthIntoGroups = numberOrUndefined(raw["edgeDepthIntoGroups"]);
+	const folderGroupingDepth = numberOrUndefined(raw["folderGroupingDepth"]);
 	const parsed: ParsedViewFields = {
 		// Clamped with the SAME function the accessor settles with (owner decision
 		// 2026-07-29, superseding the loaded-verbatim rule): a stored out-of-range
@@ -221,6 +223,13 @@ function parseViewFields(raw: unknown): Partial<ViewSettings> {
 		// back to its spec default): an existing data.json parses correctly. Clamped
 		// with the SAME function the slider settles with, so hand-edited JSON cannot
 		// reach a negative or over-max reach.
+		// Added WITHOUT a PERSISTED_SHAPE_VERSION bump (a missing known field falls
+		// back to its spec default 20 — effectively-unlimited grouping, today's
+		// behavior): an existing data.json parses correctly. Clamped with the SAME
+		// function the slider settles with, so hand-edited JSON cannot reach a
+		// negative depth or one past the ceiling.
+		folderGroupingDepth:
+			folderGroupingDepth === undefined ? undefined : clampFolderGroupingDepth(folderGroupingDepth),
 		edgeDepthIntoGroups:
 			edgeDepthIntoGroups === undefined ? undefined : clampEdgeDepthIntoGroups(edgeDepthIntoGroups),
 		sizing: parseSizing(raw["sizing"]),

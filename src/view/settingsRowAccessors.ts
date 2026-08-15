@@ -4,6 +4,7 @@ import {
 	SETTINGS_SPEC,
 	SIZING_RANGES,
 	clampEdgeDepthIntoGroups,
+	clampFolderGroupingDepth,
 	clampNodeCap,
 	clampOutlineMaxDepth,
 	clampSizingNumber,
@@ -144,6 +145,16 @@ export class SettingsRowAccessors {
 			read: (state) => state.globalView.outlineMaxDepth,
 			settlesAt: clampOutlineMaxDepth,
 			interaction: (value) => ({ kind: "global-outline-depth", value: clampOutlineMaxDepth(value) }),
+		};
+	}
+
+	/** Maximum rendered folder-group nesting levels (0 turns grouping off entirely). */
+	static folderGroupingDepth(): SettingsNumberAccessor {
+		return {
+			bounds: boundsOf(SETTINGS_SPEC.globalView.folderGroupingDepth),
+			read: (state) => state.globalView.folderGroupingDepth,
+			settlesAt: clampFolderGroupingDepth,
+			interaction: (value) => ({ kind: "global-folder-grouping-depth", value: clampFolderGroupingDepth(value) }),
 		};
 	}
 

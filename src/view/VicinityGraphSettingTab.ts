@@ -270,6 +270,9 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 			case "group-label-full-path":
 				this.addToggleRow(container, row, SettingsRowAccessors.groupLabelFullPath(), state);
 				return;
+			case "folder-grouping-depth":
+				this.addSlider(container, row, SettingsRowAccessors.folderGroupingDepth(), state);
+				return;
 			case "edge-depth-into-groups":
 				this.addSlider(container, row, SettingsRowAccessors.edgeDepthIntoGroups(), state);
 				return;

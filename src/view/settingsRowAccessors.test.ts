@@ -185,6 +185,8 @@ function probesFor(control: SettingsRowControl): readonly AccessorProbe[] {
 			return [valueProbe("show cross links", SettingsRowAccessors.showCrossLinks(), (on) => !on)];
 		case "group-label-full-path":
 			return [valueProbe("group label full path", SettingsRowAccessors.groupLabelFullPath(), (on) => !on)];
+		case "folder-grouping-depth":
+			return [numberProbe("folder grouping depth", SettingsRowAccessors.folderGroupingDepth())];
 		case "edge-depth-into-groups":
 			return [numberProbe("edge depth into groups", SettingsRowAccessors.edgeDepthIntoGroups())];
 		case "outline-depth":

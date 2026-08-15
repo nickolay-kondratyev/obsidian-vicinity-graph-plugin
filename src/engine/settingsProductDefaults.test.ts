@@ -77,6 +77,9 @@ const SHIPPED_SETTINGS_DEFAULTS: Readonly<Record<string, unknown>> = {
 	// Collapsed folder chains show the leaf folder name by default (signed-off
 	// decision A1); ON labels them with the full A/B/C path.
 	"globalView.groupLabelFullPath": false,
+	// 20 rendered group-nesting levels = effectively unlimited (signed-off Q2):
+	// grouping ships exactly as before the dial existed; 0 turns it off entirely.
+	"globalView.folderGroupingDepth": 20,
 	// Edges collapse onto the outermost group box by default (0 = today's behavior);
 	// raising it lets an edge reach N nested-group levels deeper (plan D4).
 	"globalView.edgeDepthIntoGroups": 0,

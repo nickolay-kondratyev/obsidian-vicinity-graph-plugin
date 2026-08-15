@@ -170,6 +170,17 @@ describe("vicinityGraphToElk folder-group compounds (step-05)", () => {
 		expect(rootEdgeIds).toEqual(["folder-group:notes->solo/only.md", "folder-group:notes->root.md"]);
 	});
 
+	it("WHEN folderGroupingDepth is 0 THEN no container is built and every note is a root child", () => {
+		// The setting-threading tripwire (ticket nid_5vz7mtm2rn6n7nj9cp5mfbslx_e): the
+		// elk tree must derive its grouping from the STORED dial, not a constant.
+		const flat = makeGraph({
+			...graph,
+			viewSettings: { ...graph.viewSettings, folderGroupingDepth: 0 },
+		});
+		const rootIds = vicinityGraphToElk(flat).children?.map((child) => child.id);
+		expect(rootIds).toEqual(["notes/a.md", "notes/b.md", "solo/only.md", "root.md"]);
+	});
+
 });
 
 describe("vicinityGraphToElk cross-boundary projection (force SEPARATE_CHILDREN root)", () => {
