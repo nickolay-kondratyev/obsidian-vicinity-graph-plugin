@@ -11,6 +11,7 @@ import {
 	clampSizingNumber,
 } from "./constants";
 import type { SizingRangeField } from "./constants";
+import { SETTINGS_SPEC } from "./SettingsSpec";
 import type { ForceLayoutSettings } from "./types";
 import { EVERY_SETTINGS_SPEC_LEAF } from "./testFixtures/settingsSpecLeaves";
 import type { SettingsSpecLeaf } from "./testFixtures/settingsSpecLeaves";
@@ -154,6 +155,27 @@ describe("settings bounds enforcement (derived from each leaf's own declaration)
 			.filter(({ leaf, got }) => got !== leaf.default)
 			.map(({ leaf, got }) => `${leaf.id}: expected default=[${String(leaf.default)}] got=[${got}]`);
 		expect(wrong).toEqual([]);
+	});
+});
+
+/**
+ * Folder grouping depth carries an ∞ value the generic bounds walk cannot state: its
+ * domain is {0..max} ∪ {∞}, so the distinct unlimited selection must pass THROUGH the
+ * clamp untouched even though it is above the finite max — while a merely large FINITE
+ * value still clamps to that max (ticket `nid_rndi5sulwrsx1aq0x4xqcskrb_e`).
+ */
+describe("folder grouping depth clamp specifics", () => {
+	it("WHEN ∞ is clamped THEN it stays ∞ (unlimited is a real value, not an over-max number)", () => {
+		expect(clampFolderGroupingDepth(Number.POSITIVE_INFINITY)).toBe(Number.POSITIVE_INFINITY);
+	});
+
+	it("WHEN a large FINITE depth is clamped THEN it lands on the finite max, not ∞", () => {
+		const { max } = SETTINGS_SPEC.globalView.folderGroupingDepth;
+		expect(clampFolderGroupingDepth(max + 1000)).toBe(max);
+	});
+
+	it("WHEN NaN is clamped THEN the ∞ default comes back", () => {
+		expect(clampFolderGroupingDepth(Number.NaN)).toBe(SETTINGS_SPEC.globalView.folderGroupingDepth.default);
 	});
 });
 

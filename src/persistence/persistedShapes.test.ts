@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ViewSettings } from "../engine";
 import { EngineDefaults, SETTINGS_SPEC, SIZING_RANGES } from "../engine";
-import { PersistedShapes, PERSISTED_SHAPE_VERSION } from "./persistedShapes";
+import { PersistedShapes, PERSISTED_SHAPE_VERSION, serializePluginData } from "./persistedShapes";
 
 /** The parsed `globalView` — the one surface every view field is stored on. */
 function parsedGlobalView(globalView: unknown): ViewSettings {
@@ -372,10 +372,40 @@ describe("PersistedShapes folder grouping depth parsing", () => {
 		);
 	});
 
-	it("WHEN a persisted view omits folderGroupingDepth THEN it takes the spec default (effectively unlimited)", () => {
-		// The pre-publish clean break: an older data.json without the key parses to 20,
-		// i.e. grouping renders exactly as before the dial existed.
+	it("WHEN a persisted view omits folderGroupingDepth THEN it takes the spec default (unlimited, ∞)", () => {
 		expect(parsedGlobalView({}).folderGroupingDepth).toBe(SETTINGS_SPEC.globalView.folderGroupingDepth.default);
+	});
+
+	it('WHEN a stored folderGroupingDepth is the "Infinity" token THEN it decodes to ∞ (unlimited)', () => {
+		expect(parsedGlobalView({ folderGroupingDepth: "Infinity" }).folderGroupingDepth).toBe(Number.POSITIVE_INFINITY);
+	});
+
+	it("WHEN a stored folderGroupingDepth is a non-Infinity string THEN it falls back to the ∞ default", () => {
+		expect(parsedGlobalView({ folderGroupingDepth: "lots" }).folderGroupingDepth).toBe(
+			SETTINGS_SPEC.globalView.folderGroupingDepth.default,
+		);
+	});
+
+	it("WHEN an ∞ depth is serialized for storage THEN it is written as the explicit Infinity token, not null", () => {
+		// JSON.stringify(Infinity) is `null`, so the encode must intervene: the value is
+		// expressed in full on disk (ticket nid_rndi5sulwrsx1aq0x4xqcskrb_e), never smuggled
+		// through a null the parser would only rescue because the default happens to be ∞.
+		const data = { ...PersistedShapes.defaultPluginData() };
+		const disk = JSON.parse(JSON.stringify(serializePluginData(data))) as { globalView: { folderGroupingDepth: unknown } };
+		expect(disk.globalView.folderGroupingDepth).toBe("Infinity");
+	});
+
+	it("WHEN an ∞ depth round-trips through serialize + parse THEN it comes back as ∞", () => {
+		const data = { ...PersistedShapes.defaultPluginData() };
+		const disk = JSON.parse(JSON.stringify(serializePluginData(data)));
+		expect(PersistedShapes.parsePluginData(disk).globalView.folderGroupingDepth).toBe(Number.POSITIVE_INFINITY);
+	});
+
+	it("WHEN a FINITE depth is serialized for storage THEN it stays a plain number", () => {
+		const data = { ...PersistedShapes.defaultPluginData() };
+		data.globalView = { ...data.globalView, folderGroupingDepth: 3 };
+		const disk = JSON.parse(JSON.stringify(serializePluginData(data))) as { globalView: { folderGroupingDepth: unknown } };
+		expect(disk.globalView.folderGroupingDepth).toBe(3);
 	});
 });
 
