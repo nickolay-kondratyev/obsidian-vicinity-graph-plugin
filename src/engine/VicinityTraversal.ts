@@ -61,7 +61,11 @@ export interface TraversalResult {
 	 * edge even when the two notes independently link (that link was not walked).
 	 */
 	readonly linkPairKeys: ReadonlySet<string>;
-	/** Distinct non-root neighbor paths rejected by global exclusion during traversal. */
+	/**
+	 * Distinct non-root NODE-BEARING neighbor paths rejected by global exclusion
+	 * during traversal. Excluded attachments are not counted — they were never
+	 * node candidates (and still render via `FileMetadata.attachments`).
+	 */
 	readonly excludedNodeCount: number;
 }
 
@@ -229,7 +233,13 @@ export class VicinityTraversal {
 			edges: collector.edges(),
 			hierarchyPairKeys: collector.hierarchyPairKeys(),
 			linkPairKeys: collector.linkPairKeys(),
-			excludedNodeCount: collector.excludedCount(),
+			// Counted LAZILY here (one metadata read per distinct excluded path) so an
+			// excluded ATTACHMENT — never a node candidate — does not inflate the
+			// toolbar's "N node(s) excluded" badge, while the BFS hot path keeps
+			// skipping the metadata read for excluded neighbors.
+			excludedNodeCount: collector
+				.excludedPaths()
+				.filter((path) => this.eligibility.isNodeBearing(path)).length,
 		};
 	}
 }
@@ -289,7 +299,7 @@ class TraversalCollector {
 		}
 	}
 
-	/** Records a distinct excluded neighbor path (deduped; drives excludedNodeCount). */
+	/** Records a distinct excluded neighbor path (deduped; feeds excludedNodeCount). */
 	recordExcluded(path: VaultPath): void {
 		this.excluded.add(path);
 	}
@@ -310,7 +320,8 @@ class TraversalCollector {
 		return this.linkPairs;
 	}
 
-	excludedCount(): number {
-		return this.excluded.size;
+	/** Distinct excluded paths, attachments included — the caller filters to node-bearing. */
+	excludedPaths(): readonly VaultPath[] {
+		return [...this.excluded];
 	}
 }
