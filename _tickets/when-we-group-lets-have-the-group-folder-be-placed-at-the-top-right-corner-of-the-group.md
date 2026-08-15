@@ -12,6 +12,17 @@ assignee: nickolaykondratyev
 tags: []
 ---
 
+TASK: **PLAN**. Lets clarify any gaps that exist for this ticket
+  (if you need to explore code base use cheaper Explore-cheap sub-agent)
+  ask human any questions that come up that require human decision.
+  Finally create detailed plan with requirements of what we want to achieve.
+  IF there are multiple tickets that we want to create 
+    THEN put the high level plan into a new ticket and `close` it 
+         AND create focused implementation tickets that reference the closed plan.
+    ELSE put the plan into a new `open` ticket
+  After we are done close this ticket.
+  DONT RUSH and make sure the decisions that need to be made are fully signed off one by one by the HUMAN.
+--------------------------------------------------------------------------------
 Let's have the node that matches the group be placed at the top right corner of the group. - WHEN its visible.
 
 IF the node is visible by means of discovery it should appear the top of right corner of the group. 
