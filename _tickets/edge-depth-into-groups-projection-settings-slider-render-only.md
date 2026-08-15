@@ -1,4 +1,5 @@
 ---
+session_ids: [{"a": "claude", "type": "execution", "id": "bb610e1a-75aa-4dc6-9050-96512674490a"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_39fjevyqyfv0ge849rc77stn5_e
 title: "Edge depth into groups: projection + settings slider (render-only)"
