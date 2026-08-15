@@ -1,4 +1,5 @@
 ---
+session_ids: [{"a": "claude", "type": "execution", "id": "3c279c5f-1da1-4216-a2dc-2db9c2a01f84"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_6ujh4ol7un9etab1vqwfe9nye_e
 title: "Self-link records a degenerate source==target edge that nothing filters"
