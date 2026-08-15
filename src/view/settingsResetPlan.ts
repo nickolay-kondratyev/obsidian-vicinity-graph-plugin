@@ -172,7 +172,8 @@ export const SETTINGS_RESET_SCOPES: Readonly<Record<SettingsResetScope, Settings
 		label: "Restore grouping defaults",
 		// Does not state WHICH way the toggle lands: that literal lives in
 		// `SETTINGS_SPEC` alone (see the edges scope).
-		description: "Resets whether collapsed folder chains are labelled with their full path.",
+		description:
+			"Resets whether collapsed folder chains are labelled with their full path, and how far edges reach into nested groups.",
 		plan: (ctx) => planSectionReset("grouping", ctx),
 	},
 	"force-layout": {

@@ -182,6 +182,62 @@ describe("deriveFolderGroups lowestCommonAncestorContainerOf seam", () => {
 	});
 });
 
+/**
+ * GIVEN a THREE-deep grouping tree `A ⊃ A/B ⊃ A/B/C`, each level holding two of its
+ * OWN direct notes (so no level collapses). Exercises the "Edge depth into groups"
+ * allowance on {@link deriveFolderGroups.projectOntoContainerChildOf}: from a given
+ * container the endpoint projects one group deeper per allowance level, or stays the
+ * true note once the chain runs out.
+ */
+const THREE_DEEP_NODES = [
+	makeNode({ path: asVaultPath("A/a1.md"), folder: asFolderPath("A") }),
+	makeNode({ path: asVaultPath("A/a2.md"), folder: asFolderPath("A") }),
+	makeNode({ path: asVaultPath("A/B/b1.md"), folder: asFolderPath("A/B") }),
+	makeNode({ path: asVaultPath("A/B/b2.md"), folder: asFolderPath("A/B") }),
+	makeNode({ path: asVaultPath("A/B/C/c1.md"), folder: asFolderPath("A/B/C") }),
+	makeNode({ path: asVaultPath("A/B/C/c2.md"), folder: asFolderPath("A/B/C") }),
+];
+
+describe("deriveFolderGroups projectOntoContainerChildOf depth allowance", () => {
+	const result = deriveFolderGroups(THREE_DEEP_NODES);
+	const groupA = result.groups.find((group) => group.folder === "A") ?? null;
+	const groupABC = result.groups.find((group) => group.folder === "A/B/C") ?? null;
+
+	it("WHEN the allowance is 0 (default) THEN a deep note projects onto the container's DIRECT CHILD", () => {
+		// From the canvas pane, that direct child is the outermost group A — today's collapse target.
+		expect(result.projectOntoContainerChildOf("A/B/C/c1.md", null)?.folder).toBe("A");
+	});
+
+	it("WHEN the allowance is 1 THEN the endpoint reaches ONE group deeper than the direct child", () => {
+		expect(result.projectOntoContainerChildOf("A/B/C/c1.md", null, 1)?.folder).toBe("A/B");
+	});
+
+	it("WHEN the allowance reaches the note's own innermost group THEN it projects onto that group box", () => {
+		expect(result.projectOntoContainerChildOf("A/B/C/c1.md", null, 2)?.folder).toBe("A/B/C");
+	});
+
+	it("WHEN the allowance exceeds the chain depth THEN the endpoint stays the true note (null)", () => {
+		expect(result.projectOntoContainerChildOf("A/B/C/c1.md", null, 3)).toBeNull();
+	});
+
+	it("WHEN the allowance is huge THEN the endpoint still just stays the true note (clamped by the chain)", () => {
+		expect(result.projectOntoContainerChildOf("A/B/C/c1.md", null, 99)).toBeNull();
+	});
+
+	it("WHEN the container is an inner group THEN the allowance counts DEPTH BELOW that container", () => {
+		// Container A: its direct child on c1's chain is A/B; allowance 1 reaches A/B/C.
+		expect(result.projectOntoContainerChildOf("A/B/C/c1.md", groupA)?.folder).toBe("A/B");
+		expect(result.projectOntoContainerChildOf("A/B/C/c1.md", groupA, 1)?.folder).toBe("A/B/C");
+		expect(result.projectOntoContainerChildOf("A/B/C/c1.md", groupA, 2)).toBeNull();
+	});
+
+	it("WHEN the note is a direct leaf member of the container THEN no allowance finds a group", () => {
+		// c1 renders directly in A/B/C, so from A/B/C there is no group between them at any depth.
+		expect(result.projectOntoContainerChildOf("A/B/C/c1.md", groupABC)).toBeNull();
+		expect(result.projectOntoContainerChildOf("A/B/C/c1.md", groupABC, 5)).toBeNull();
+	});
+});
+
 describe("deriveFolderGroups determinism", () => {
 	it("WHEN deriving twice from the same nodes THEN the group results are identical", () => {
 		expect(deriveFolderGroups(MIXED_NODES).groups).toEqual(deriveFolderGroups(MIXED_NODES).groups);

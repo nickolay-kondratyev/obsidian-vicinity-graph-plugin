@@ -53,6 +53,22 @@ export function clampOutlineMaxDepth(value: number): number {
 	return Math.round(clampIntoRange(value, spec, spec.default));
 }
 
+/** @see SETTINGS_SPEC — `globalView.edgeDepthIntoGroups.{min,max}`. */
+export const MIN_EDGE_DEPTH_INTO_GROUPS = SETTINGS_SPEC.globalView.edgeDepthIntoGroups.min;
+export const MAX_EDGE_DEPTH_INTO_GROUPS = SETTINGS_SPEC.globalView.edgeDepthIntoGroups.max;
+
+/**
+ * THE edge-depth-into-groups clamp, shared by the settings slider and the
+ * persistence parser, so a hand-edited `data.json` cannot reach a negative reach
+ * or a level past the router's cap. Rounds: the allowance is a whole number of
+ * nested-group levels. Goes through {@link clampIntoRange} so `NaN` resolves to
+ * the spec default like every other bounded field.
+ */
+export function clampEdgeDepthIntoGroups(value: number): number {
+	const spec = SETTINGS_SPEC.globalView.edgeDepthIntoGroups;
+	return Math.round(clampIntoRange(value, spec, spec.default));
+}
+
 /**
  * Depth-stepper input bounds (CLARIFICATION Q2) — an AFFORDANCE limit on the
  * toolbar/settings steppers, not an engine limit. @see SETTINGS_SPEC —
@@ -465,6 +481,7 @@ export class EngineDefaults {
 			nodePreviewPreference: view.nodePreviewPreference.default,
 			showCrossLinks: view.showCrossLinks.default,
 			groupLabelFullPath: view.groupLabelFullPath.default,
+			edgeDepthIntoGroups: view.edgeDepthIntoGroups.default,
 			sizing: EngineDefaults.sizingSettings(),
 			forceLayout: EngineDefaults.forceLayoutSettings(),
 		};

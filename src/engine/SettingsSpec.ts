@@ -79,6 +79,7 @@ export interface ViewSpec {
 	readonly nodePreviewPreference: DefaultSpec<NodePreviewPreference>;
 	readonly showCrossLinks: DefaultSpec<boolean>;
 	readonly groupLabelFullPath: DefaultSpec<boolean>;
+	readonly edgeDepthIntoGroups: BoundedNumberSpec;
 	readonly sizing: SizingSpec;
 	readonly forceLayout: ForceLayoutSpec;
 }
@@ -300,6 +301,18 @@ export const SETTINGS_SPEC: SettingsSpec = {
 		 * either way; this only changes what a COLLAPSED chain reads as.
 		 */
 		groupLabelFullPath: { default: false },
+		/**
+		 * PER-ENDPOINT depth allowance for edges reaching INTO folder groups
+		 * (plan `nid_6fkhyw97hjs84xb62z6tommhi_e`, human decision D4). `0` (DEFAULT)
+		 * reproduces today's behavior — every group-crossing edge collapses onto the
+		 * outermost group box — so the feature ships inert. `max 6`: folder nesting a
+		 * legible vicinity ever shows deeper than a handful of levels is vanishingly
+		 * rare, and each extra level the router must pierce is more interior geometry
+		 * (the deep-edge routing lands in the dependent ticket); 6 is comfortably past
+		 * any realistic reach while keeping the slider's range meaningful. Whole
+		 * levels, so `step 1`.
+		 */
+		edgeDepthIntoGroups: { default: 0, min: 0, max: 6, step: 1 },
 		/**
 		 * The content-fit clamps (the only sizing dials — the metric dials were
 		 * removed, node-sizing rethink 2026-08-03).

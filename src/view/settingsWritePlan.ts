@@ -44,6 +44,8 @@ export type SettingsInteraction =
 	| { readonly kind: "global-show-cross-links"; readonly showCrossLinks: boolean }
 	/** Whether a collapsed folder chain is labelled with its full path instead of the leaf name. */
 	| { readonly kind: "global-group-label-full-path"; readonly groupLabelFullPath: boolean }
+	/** How many nested-group levels an edge may reach into before collapsing onto the group box. */
+	| { readonly kind: "global-edge-depth-into-groups"; readonly value: number }
 	/** One sizing clamp (min/max node px). */
 	| { readonly kind: "global-sizing-number"; readonly field: SizingNumberField; readonly value: number }
 	/** One force-layout tuning value. */
@@ -98,6 +100,8 @@ export function planSettingsWrite(interaction: SettingsInteraction, ctx: Setting
 				kind: "global-view",
 				view: { ...ctx.globalView, groupLabelFullPath: interaction.groupLabelFullPath },
 			};
+		case "global-edge-depth-into-groups":
+			return { kind: "global-view", view: { ...ctx.globalView, edgeDepthIntoGroups: interaction.value } };
 		case "global-sizing-number":
 			return sizingCommand(ctx, { ...ctx.globalView.sizing, [interaction.field]: interaction.value });
 		case "global-force-layout-field":

@@ -398,6 +398,99 @@ describe("vicinityGraphToFlow deeply nested folder groups", () => {
 });
 
 /**
+ * The graph with its "Edge depth into groups" allowance set — the ONE setting these
+ * render-only tests vary. Everything else in `viewSettings` stays at the fixture default.
+ */
+function withEdgeDepth(graph: ReturnType<typeof makeGraph>, edgeDepthIntoGroups: number) {
+	return { ...graph, viewSettings: { ...graph.viewSettings, edgeDepthIntoGroups } };
+}
+
+describe("vicinityGraphToFlow edge depth into groups (render-only pierce projection)", () => {
+	// deeplyNestedGraph()'s single edge runs A/B/C/c1.md → P/p1.md, sharing only the canvas pane.
+	function endpointsAt(edgeDepthIntoGroups: number) {
+		const [edge] = toFlow(withEdgeDepth(deeplyNestedGraph(), edgeDepthIntoGroups)).edges;
+		return { source: edge?.source, target: edge?.target };
+	}
+
+	it("WHEN the allowance is 0 THEN edges are byte-identical to today (outermost group boxes)", () => {
+		// The exact expectation the depth-less test above asserts — pinned here at the default.
+		expect(endpointsAt(0)).toEqual({ source: "folder-group:A", target: "folder-group:P" });
+	});
+
+	it("WHEN the allowance is 1 THEN the deep endpoint terminates one nested group box in", () => {
+		// Source reaches A/B (one level past A); P's chain is only one deep, so it stays the true note.
+		expect(endpointsAt(1)).toEqual({ source: "folder-group:A/B", target: "P/p1.md" });
+	});
+
+	it("WHEN the allowance reaches the innermost group THEN the edge terminates at that group box", () => {
+		expect(endpointsAt(2)).toEqual({ source: "folder-group:A/B/C", target: "P/p1.md" });
+	});
+
+	it("WHEN the allowance exceeds every chain THEN the edge terminates at the true notes on both ends", () => {
+		expect(endpointsAt(3)).toEqual({ source: "A/B/C/c1.md", target: "P/p1.md" });
+	});
+
+	it("WHEN a note is the true endpoint THEN the collapsed edge's flyout still names the real note pair", () => {
+		const [edge] = toFlow(withEdgeDepth(deeplyNestedGraph(), 1)).edges;
+		expect(edge?.notePairs).toEqual([{ source: "A/B/C/c1.md", target: "P/p1.md", hierarchy: false }]);
+	});
+});
+
+/**
+ * GIVEN two 2-deep branches under a shared root `A` (`A/L/LL` and `A/R/RR`), each level
+ * carrying its own direct notes so nothing collapses. An edge between the two innermost
+ * notes has `A` as its LCA container, so BOTH endpoints project — the both-endpoints-deep
+ * case — and a reverse edge exercises the bidirectional/count merge at the deeper level.
+ */
+function bothDeepGraph(edges: readonly GraphEdge[]) {
+	return makeGraph({
+		nodes: [
+			makeNode({ path: asVaultPath("A/a1.md"), folder: asFolderPath("A") }),
+			makeNode({ path: asVaultPath("A/a2.md"), folder: asFolderPath("A") }),
+			makeNode({ path: asVaultPath("A/L/l1.md"), folder: asFolderPath("A/L") }),
+			makeNode({ path: asVaultPath("A/L/l2.md"), folder: asFolderPath("A/L") }),
+			makeNode({ path: asVaultPath("A/L/LL/ll1.md"), folder: asFolderPath("A/L/LL") }),
+			makeNode({ path: asVaultPath("A/L/LL/ll2.md"), folder: asFolderPath("A/L/LL") }),
+			makeNode({ path: asVaultPath("A/R/r1.md"), folder: asFolderPath("A/R") }),
+			makeNode({ path: asVaultPath("A/R/r2.md"), folder: asFolderPath("A/R") }),
+			makeNode({ path: asVaultPath("A/R/RR/rr1.md"), folder: asFolderPath("A/R/RR") }),
+			makeNode({ path: asVaultPath("A/R/RR/rr2.md"), folder: asFolderPath("A/R/RR") }),
+		],
+		edges,
+	});
+}
+
+describe("vicinityGraphToFlow edge depth into groups (both endpoints deep)", () => {
+	it("WHEN the allowance is 0 THEN both endpoints collapse onto the LCA's direct child groups", () => {
+		const graph = bothDeepGraph([makeEdge("A/L/LL/ll1.md", "A/R/RR/rr1.md")]);
+		const [edge] = toFlow(withEdgeDepth(graph, 0)).edges;
+		expect({ source: edge?.source, target: edge?.target }).toEqual({
+			source: "folder-group:A/L",
+			target: "folder-group:A/R",
+		});
+	});
+
+	it("WHEN the allowance is 1 THEN BOTH endpoints terminate one group box deeper", () => {
+		const graph = bothDeepGraph([makeEdge("A/L/LL/ll1.md", "A/R/RR/rr1.md")]);
+		const [edge] = toFlow(withEdgeDepth(graph, 1)).edges;
+		expect({ source: edge?.source, target: edge?.target }).toEqual({
+			source: "folder-group:A/L/LL",
+			target: "folder-group:A/R/RR",
+		});
+	});
+
+	it("WHEN opposing edges collapse onto a deeper projected pair THEN they still merge (count + bidirectional)", () => {
+		const graph = bothDeepGraph([
+			makeEdge("A/L/LL/ll1.md", "A/R/RR/rr1.md", 2),
+			makeEdge("A/R/RR/rr1.md", "A/L/LL/ll1.md", 3),
+		]);
+		const edges = toFlow(withEdgeDepth(graph, 1)).edges;
+		expect(edges).toHaveLength(1);
+		expect(edges[0]).toMatchObject({ count: 5, bidirectional: true });
+	});
+});
+
+/**
  * GIVEN two notes in `A/B/C` and nothing else visible: `A` and `A/B` each hold
  * exactly one qualifying child group, so the redundant chain collapses (D2.4)
  * onto ONE surviving group whose folder is `A/B/C` — leaf name `C`, chain path

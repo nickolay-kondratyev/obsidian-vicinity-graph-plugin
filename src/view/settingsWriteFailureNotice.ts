@@ -128,6 +128,8 @@ export class SettingsWriteFailureNotice {
 				return { kind: "show-cross-links" };
 			case "global-group-label-full-path":
 				return { kind: "group-label-full-path" };
+			case "global-edge-depth-into-groups":
+				return { kind: "edge-depth-into-groups" };
 			case "global-sizing-number":
 				return { kind: "sizing-number", field: interaction.field };
 			case "global-force-layout-field":
@@ -167,6 +169,7 @@ export class SettingsWriteFailureNotice {
 			case "node-preview":
 			case "show-cross-links":
 			case "group-label-full-path":
+			case "edge-depth-into-groups":
 			case "outline-depth":
 			case "exclusion-enabled":
 			case "exclusion-patterns":

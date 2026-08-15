@@ -3,6 +3,7 @@ import {
 	FORCE_LAYOUT_RANGES,
 	SETTINGS_SPEC,
 	SIZING_RANGES,
+	clampEdgeDepthIntoGroups,
 	clampNodeCap,
 	clampOutlineMaxDepth,
 	clampSizingNumber,
@@ -143,6 +144,16 @@ export class SettingsRowAccessors {
 			read: (state) => state.globalView.outlineMaxDepth,
 			settlesAt: clampOutlineMaxDepth,
 			interaction: (value) => ({ kind: "global-outline-depth", value: clampOutlineMaxDepth(value) }),
+		};
+	}
+
+	/** How many nested-group levels an edge may reach into before collapsing onto the group box. */
+	static edgeDepthIntoGroups(): SettingsNumberAccessor {
+		return {
+			bounds: boundsOf(SETTINGS_SPEC.globalView.edgeDepthIntoGroups),
+			read: (state) => state.globalView.edgeDepthIntoGroups,
+			settlesAt: clampEdgeDepthIntoGroups,
+			interaction: (value) => ({ kind: "global-edge-depth-into-groups", value: clampEdgeDepthIntoGroups(value) }),
 		};
 	}
 

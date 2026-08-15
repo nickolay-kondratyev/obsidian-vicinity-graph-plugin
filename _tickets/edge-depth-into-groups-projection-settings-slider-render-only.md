@@ -1,12 +1,14 @@
 ---
+closed_iso: 2026-08-15T00:35:07Z
+session_ids: [{"a": "claude", "type": "execution", "id": "bb610e1a-75aa-4dc6-9050-96512674490a"}, {"a": "claude", "type": "review", "id": "ed412812-b54b-4fbb-9677-f46aac89d971"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_39fjevyqyfv0ge849rc77stn5_e
 title: "Edge depth into groups: projection + settings slider (render-only)"
-status: in_progress
+status: closed
 deps: [nid_6fkhyw97hjs84xb62z6tommhi_e]
 links: []
 created_iso: 2026-08-14T23:38:31Z
-status_updated_iso: 2026-08-15T00:14:56Z
+status_updated_iso: 2026-08-15T00:35:07Z
 type: feature
 priority: 3
 assignee: nickolaykondratyev
@@ -36,3 +38,23 @@ EXPLICIT interim caveat (from plan): with N>0 the libavoid router still runs tod
 - docs-internal/plan/high-level-plan.md notes the render-only decision + future layout pull-in consideration.
 - npm run check, npm test, npm run test:e2e green.
 
+## Resolution (2026-08-14)
+
+Done — shipped as phase 1, render-only. Superproject commit `7e49f3b`; e2e submodule commit `949ba82` (branch `nid_39fjevyqyfv0ge849rc77stn5_e_edge-depth-into-groups`, on top of `origin/main` fa363d8).
+
+What was built, where it lives:
+- **Engine** — `ViewSettings.edgeDepthIntoGroups` (`src/engine/types.ts`); `BoundedNumberSpec` leaf `globalView.edgeDepthIntoGroups` (min 0, max 6, step 1, default 0) in `src/engine/SettingsSpec.ts`; `clampEdgeDepthIntoGroups` + MIN/MAX constants in `src/engine/constants.ts`, exported from `src/engine/index.ts`; `EngineDefaults.viewSettings()` seeds it.
+- **Projection** — `projectOntoContainerChildOf(notePath, container, allowance=0)` in `src/view/folderGrouping.ts`: walks the deepest-first rendered chain, `targetIndex = directChildIndex - allowance`, `<0` ⇒ true note. `buildFlowEdges` (`src/view/flowMapping.ts`) passes `viewSettings.edgeDepthIntoGroups`; aggregation/count-badge/bidirectional-merge/notePairs unchanged. **RENDER-ONLY**: `elkMapping.ts attachEdgesToContainers` still calls with the default (0), so layout input is untouched and N=0 is byte-identical.
+- **Settings machinery** — row in `src/view/settingsRows.ts` (Grouping heading, ticket's exact label/desc); accessor `SettingsRowAccessors.edgeDepthIntoGroups()`; write-plan arm `global-edge-depth-into-groups` (`settingsWritePlan.ts`); rendered by BOTH presenters (`VicinityGraphSettingTab.ts` + `SettingsRowView.tsx` via `EdgeDepthIntoGroupsRow`); failure-notice mapping; reset-plan copy; section-fields ordering. Spec-coverage tripwire green with no allowlist.
+- **Tests** — `folderGrouping.test.ts` (7 depth-allowance cases, THREE_DEEP fixture); `flowMapping.test.ts` (deeplyNestedGraph N=0..3 + bothDeepGraph + count/bidirectional merge); defaults (`settingsProductDefaults.test.ts`) + bounds (`settingsSpecBounds.test.ts`) tripwires; structural spec-walk suites auto-picked up the leaf. `npm test`: 2061 passed | 1 skipped.
+- **e2e** — `e2e/nestedGrouping.e2e.ts`: `setEdgeDepthIntoGroups` helper + test that a crossing edge collapses at 0 and terminates at inner note `db/sql/s1.md` (rendered inside the `db/sql` box) at depth 1. `npm run test:e2e -- nestedGrouping.e2e.ts`: 8 passed.
+- **Doc** — `docs-internal/plan/high-level-plan.md` D3a records the render-only decision + the future layout pull-in consideration (ticket `nid_my99vi73iouq1y9hkomoedqgd_e`).
+
+Gates: `npm run check` EXIT 0, `npm test` green, `npm run test:e2e` (touched spec) green. The plan's D3 routing caveat (interior leg still straight, may cross inner squares) stands — the follow-up routing ticket, not this one, satisfies it; default 0 ships identical behavior.
+
+
+## Notes
+
+**2026-08-15T00:38:15Z**
+
+__READY_AS_IS__: Render-only edge-depth projection is correct (deepest-first index math, projected-pair invariant holds under allowance>0), fully wired through the settings pipeline, and covered at unit/structural/e2e layers; check + npm test green. Reviewed, no changes needed.
