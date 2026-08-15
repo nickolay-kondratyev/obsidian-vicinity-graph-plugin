@@ -264,6 +264,72 @@ test("force layout: 7 sliders, live write, restore defaults", async () => {
 	await expect(repel).toHaveValue(defaultRepel);
 });
 
+/*
+ * Obsidian's `.slider` input box is only the 3px TRACK; the 18px thumb overflows
+ * it vertically. Without the clearance margin in graph-view.css the thumb paints
+ * over the label above and, when the slider is a section's last row, is clipped
+ * by the disclosure's `overflow: hidden` — with every locator still "visible".
+ * So the guard is geometric: the thumb's vertical reach (track centre ± half the
+ * thumb) must stay inside its own row's box, for EVERY slider row in the panel.
+ */
+test("panel: WHEN a slider row renders THEN its thumb's vertical reach stays inside the row", async () => {
+	await setOpen(toolbar(), true);
+	const sections = topLevelPanelDisclosures();
+	const sectionCount = await sections.count();
+	for (let index = 0; index < sectionCount; index += 1) {
+		await setOpen(sections.nth(index), true);
+	}
+	await setOpen(page.locator("details.vicinity-graph-forcelayout__advanced"), true);
+
+	const escapes = await page.locator(".vicinity-graph-slider-row").evaluateAll((rows) =>
+		rows
+			.map((row) => {
+				const slider = row.querySelector("input[type=range]") as HTMLElement;
+				const rowBox = row.getBoundingClientRect();
+				const trackBox = slider.getBoundingClientRect();
+				const thumbPx = parseFloat(getComputedStyle(slider).getPropertyValue("--slider-thumb-height")) || 18;
+				const trackCenter = trackBox.top + trackBox.height / 2;
+				return {
+					label: row.querySelector(".vicinity-graph-slider-row__label")?.textContent ?? "?",
+					escapesTopPx: rowBox.top - (trackCenter - thumbPx / 2),
+					escapesBottomPx: trackCenter + thumbPx / 2 - rowBox.bottom,
+				};
+			})
+			// Sub-pixel rounding tolerance, same rationale as SECTION_CLIP_TOLERANCE_PX.
+			.filter((row) => row.escapesTopPx > 1 || row.escapesBottomPx > 1),
+	);
+
+	expect(
+		escapes,
+		"slider rows whose thumb sticks out of the row box — it overlaps the neighbouring label " +
+			"or gets clipped by the section's overflow:hidden",
+	).toEqual([]);
+	// Hand the panel back in its declared default state.
+	for (const [index, { startsOpen }] of CONTROLS_PANEL_DISCLOSURES.entries()) {
+		await setOpen(topLevelPanelDisclosures().nth(index), startsOpen);
+	}
+});
+
+/*
+ * The panel is 260px wide and the Preview pill offers four options; an equal-width
+ * split ellipsized three of the four labels ("Titl…", "Out…", "Im…"). The shared
+ * `__text` span is ALLOWED to ellipsize as a last resort (huge UI fonts), so the
+ * guard asserts the default-font case: no segment label may actually be truncated.
+ */
+test("panel: WHEN the Preview pill renders THEN no segment label is ellipsized", async () => {
+	await setOpen(toolbar(), true);
+	const nodeContents = disclosure("Node contents");
+	await setOpen(nodeContents, true);
+	const texts = nodeContents.locator(".vicinity-graph-segmented__text");
+	await expect(texts).toHaveCount(4);
+	const truncated = await texts.evaluateAll((labels) =>
+		labels
+			.filter((label) => label.scrollWidth > label.clientWidth)
+			.map((label) => label.textContent ?? "?"),
+	);
+	expect(truncated, "Preview segments whose visible label is cut off with an ellipsis").toEqual([]);
+});
+
 test("settings tab renders one framed card per section, headed and with plugin CSS applied", async () => {
 	await settingsTab.open();
 	const sections = page.locator(".vicinity-graph-settings-section");
