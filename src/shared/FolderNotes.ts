@@ -153,6 +153,12 @@ export class FolderNotes {
 		}
 		const name = VaultPathFacts.folderNameOf(folder);
 		const parent = VaultPathFacts.folderOf(folder);
+		// WHY-NOT case-insensitive: candidates are probed as EXACT-case literals even
+		// though FileKinds lowercases extensions, so `Jon/Jon.MD` is a graph node yet
+		// never Jon's folder note. Owner decision (ticket
+		// nid_cw2uksuzzotjb53yix9xiz7a2_e): `.md` is the expected user format and
+		// case-insensitive probing isn't worth the complexity; exact-name matching
+		// also mirrors the Folder Notes plugin convention.
 		// Precedence: inside beats sibling; within a location, `.md` beats `.canvas`.
 		const candidates = [
 			`${folder}/${name}.md`,
