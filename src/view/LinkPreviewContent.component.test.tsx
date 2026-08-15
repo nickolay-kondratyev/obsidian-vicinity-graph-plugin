@@ -309,13 +309,13 @@ describe("LinkPreviewContent snippet markdown rendering", () => {
 	});
 });
 
-describe("LinkPreviewContent drawer retarget (KNOWN BUG, ticket nid_dma49vci6uxv0w1qlc66y3kgc_e)", () => {
+describe("LinkPreviewContent drawer retarget (ticket nid_dma49vci6uxv0w1qlc66y3kgc_e)", () => {
 	// A second edge click retargets the drawer IN PLACE (LinkPreviewOverlayStore
 	// replaces the model; VicinityGraphFlow renders the drawer without a key), so
-	// LinkPreviewContent must serve a NEW model's rows after a re-render. Its
-	// collapse state is currently initialised once from the FIRST model's rowIds
-	// and never re-derived, so a row unique to the second model throws
-	// `Unknown context row id` out of the state updater.
+	// LinkPreviewContent must serve a NEW model's rows after a re-render: its
+	// collapse state resets to all-collapsed whenever the model changes. Row ids
+	// are minted per model, so serving the first model's state against the second
+	// would throw (unknown id) or leak the first edge's expansions.
 	const retargetProps = {
 		renderIcon: () => undefined,
 		renderMarkdown: (el: HTMLElement, markdown: string) => {
@@ -326,14 +326,20 @@ describe("LinkPreviewContent drawer retarget (KNOWN BUG, ticket nid_dma49vci6uxv
 		onGo: () => undefined,
 	};
 
-	// KNOWN BUG — asserts the CORRECT behavior and currently fails (throws
-	// `Unknown context row id: [edge:0:2]` from contextRowCollapse.ts). Flip
-	// Unskipping it is the fixing ticket's acceptance test.
-	it.skip("WHEN the drawer is retargeted to an edge with more rows THEN the extra row still toggles", () => {
+	it("WHEN the drawer is retargeted to an edge with more rows THEN the extra row still toggles", () => {
 		const { rerender } = render(<LinkPreviewContent model={singlePairModel([3, 5])} {...retargetProps} />);
 		rerender(<LinkPreviewContent model={singlePairModel([3, 5, 9])} {...retargetProps} />);
 		fireEvent.click(screen.getByText("short@9"));
 		expect(screen.getByText("expanded@9")).toBeTruthy();
+	});
+
+	it("WHEN the drawer is retargeted after expanding a row THEN the new model's rows all render collapsed", () => {
+		const { rerender } = render(<LinkPreviewContent model={singlePairModel([3, 5])} {...retargetProps} />);
+		fireEvent.click(screen.getByText("short@3"));
+		// Same row ids by construction (edge:0:0, edge:0:1) — the collision case
+		// where the first edge's expansions would otherwise leak onto the second.
+		rerender(<LinkPreviewContent model={singlePairModel([4, 6])} {...retargetProps} />);
+		expect(rowToggles().every((toggle) => toggle.getAttribute("aria-expanded") === "false")).toBe(true);
 	});
 });
 
