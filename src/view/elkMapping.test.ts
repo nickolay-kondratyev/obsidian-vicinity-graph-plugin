@@ -70,6 +70,21 @@ describe("vicinityGraphToElk", () => {
 	});
 });
 
+describe("vicinityGraphToElk root-edge dedup on equal depths (KNOWN BUG, ticket nid_4i09w45k625h4ltdscishx6x3_e)", () => {
+	// KNOWN BUG — the centre-outward flip uses a STRICT less-than on minDepth, so
+	// mutual links between two equal-depth root nodes keep both orders ("a->b"
+	// AND "b->a"), contradicting the documented "deduped by projected pair" and
+	// doubling that pair's spring in the d3 refinement. Unskip (flip `it.skip` to `it`)
+	// when fixing.
+	it.skip("WHEN two equal-depth nodes link BOTH ways THEN the root keeps ONE edge for the pair", () => {
+		const graph = makeGraph({
+			nodes: [makeNode({ path: asVaultPath("a.md") }), makeNode({ path: asVaultPath("b.md") })],
+			edges: [makeEdge("a.md", "b.md"), makeEdge("b.md", "a.md")],
+		});
+		expect(vicinityGraphToElk(graph).edges).toHaveLength(1);
+	});
+});
+
 describe("extractElkPositions", () => {
 	it("WHEN reading a laid-out flat graph THEN it returns each child's absolute position", () => {
 		const laidOut: ElkNode = {

@@ -91,6 +91,17 @@ describe("edgePathFor arrowhead placement (inset back from the target)", () => {
 		const { arrowX, arrowY, arrowAngleDeg } = edgePathFor(10, 10, 10, 10, false);
 		expect({ arrowX, arrowY, arrowAngleDeg }).toEqual({ arrowX: 10, arrowY: 10, arrowAngleDeg: 0 });
 	});
+
+	// KNOWN BUG (ticket nid_ea12b9v9fpfvg7n1ssmeyw58u_e) — the inset floor
+	// (EDGE_ARROWHEAD_INSET_MIN_PX = 14) is never
+	// clamped to the edge length, so an edge shorter than 14px places the tip
+	// PAST the far endpoint (here x = 10 - 14 = -4, beyond the source). Short
+	// edges are reachable: facing-side anchors of two adjacent boxes can sit a
+	// few px apart. Unskip (flip `it.skip` to `it`) when fixing.
+	it.skip("WHEN the edge is shorter than the inset floor THEN the tip stays between the endpoints", () => {
+		const { arrowX } = edgePathFor(0, 0, 10, 0, false);
+		expect(arrowX).toBeGreaterThanOrEqual(0);
+	});
 });
 
 describe("edgePathFor source-side arrow anchor (drawn only for bidirectional edges)", () => {

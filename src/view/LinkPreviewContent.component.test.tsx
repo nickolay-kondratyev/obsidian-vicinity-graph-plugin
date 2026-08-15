@@ -309,6 +309,34 @@ describe("LinkPreviewContent snippet markdown rendering", () => {
 	});
 });
 
+describe("LinkPreviewContent drawer retarget (KNOWN BUG, ticket nid_dma49vci6uxv0w1qlc66y3kgc_e)", () => {
+	// A second edge click retargets the drawer IN PLACE (LinkPreviewOverlayStore
+	// replaces the model; VicinityGraphFlow renders the drawer without a key), so
+	// LinkPreviewContent must serve a NEW model's rows after a re-render. Its
+	// collapse state is currently initialised once from the FIRST model's rowIds
+	// and never re-derived, so a row unique to the second model throws
+	// `Unknown context row id` out of the state updater.
+	const retargetProps = {
+		renderIcon: () => undefined,
+		renderMarkdown: (el: HTMLElement, markdown: string) => {
+			el.textContent = markdown;
+			return Promise.resolve();
+		},
+		onOpenLink: () => undefined,
+		onGo: () => undefined,
+	};
+
+	// KNOWN BUG — asserts the CORRECT behavior and currently fails (throws
+	// `Unknown context row id: [edge:0:2]` from contextRowCollapse.ts). Flip
+	// Unskipping it is the fixing ticket's acceptance test.
+	it.skip("WHEN the drawer is retargeted to an edge with more rows THEN the extra row still toggles", () => {
+		const { rerender } = render(<LinkPreviewContent model={singlePairModel([3, 5])} {...retargetProps} />);
+		rerender(<LinkPreviewContent model={singlePairModel([3, 5, 9])} {...retargetProps} />);
+		fireEvent.click(screen.getByText("short@9"));
+		expect(screen.getByText("expanded@9")).toBeTruthy();
+	});
+});
+
 describe("LinkPreviewContent fallback occurrences (no position)", () => {
 	it("WHEN an occurrence has no context THEN its row shows the fallback copy without a GO button", () => {
 		renderContent(singlePairModel([null]));

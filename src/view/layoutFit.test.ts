@@ -120,6 +120,40 @@ describe("resizedNodesFitRenderedLayout against folder-group borders", () => {
 	});
 });
 
+describe("resizedNodesFitRenderedLayout with NESTED folder groups (KNOWN BUG, ticket nid_vjezt4ewmn50r0mbwjdfn70i2_e)", () => {
+	// KNOWN BUG — the foreign-group overlap loop treats the resized node's own
+	// ANCESTOR groups as foreign boxes (`otherFolder !== folder`), and a nested
+	// group's member always sits inside every ancestor's box, so the fit answer
+	// is unconditionally `false` for nested-group members — every such resize
+	// forces the whole-graph relayout ticket nid_9ep12hkmk4zjv2p28emmrhieq_e
+	// removed. Unskip (flip `it.skip` to `it`) when fixing.
+	it.skip("WHEN a nested group's member resizes with room to spare THEN it fits", () => {
+		// GIVEN group A (members a1,a2) containing group A/B (members b1,b2), boxes
+		// nested with generous clearance, and b1 resized to 50x50 well inside A/B.
+		const nodes = [
+			sizedNode("A/a1.md", 20, 20, "A"),
+			sizedNode("A/a2.md", 20, 20, "A"),
+			sizedNode("A/B/b1.md", 50, 50, "A/B"),
+			sizedNode("A/B/b2.md", 40, 40, "A/B"),
+		];
+		const layout = layoutOf(
+			{
+				[folderGroupIdOf(asFolderPath("A"))]: { x: 0, y: 0 },
+				[folderGroupIdOf(asFolderPath("A/B"))]: { x: 50, y: 50 },
+				"A/a1.md": { x: 360, y: 10 },
+				"A/a2.md": { x: 360, y: 360 },
+				"A/B/b1.md": { x: 60, y: 60 },
+				"A/B/b2.md": { x: 60, y: 300 },
+			},
+			{
+				[folderGroupIdOf(asFolderPath("A"))]: { width: 400, height: 400 },
+				[folderGroupIdOf(asFolderPath("A/B"))]: { width: 300, height: 300 },
+			},
+		);
+		expect(resizedNodesFitRenderedLayout(new Set(["A/B/b1.md"]), nodes, layout)).toBe(true);
+	});
+});
+
 describe("resizedNodesFitRenderedLayout with geometry it cannot see", () => {
 	it("WHEN no layout has been rendered yet THEN it does not fit", () => {
 		expect(resizedNodesFitRenderedLayout(new Set(["a.md"]), [sizedNode("a.md", 100, 100)], NO_RENDERED_LAYOUT)).toBe(

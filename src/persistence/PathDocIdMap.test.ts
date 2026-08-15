@@ -46,6 +46,23 @@ describe("PathDocIdMap", () => {
 		expect(new PathDocIdMap().handleDelete("ghost.md")).toBeUndefined();
 	});
 
+	// KNOWN BUG (ticket nid_buurw8hp0yg2v1bwdhdyu7yrs_e) — docids live in
+	// user-visible frontmatter, so "Make a copy"
+	// creates a SECOND live file carrying the same docid (the id library honours
+	// existing ids as-is). set() then re-points the docid at the copy (last
+	// writer wins), and deleting the COPY surrenders the docid as a cleanup key
+	// even though the ORIGINAL still carries it — main.ts handleVaultDelete then
+	// destroys the survivor's pin + per-file record across BOTH tiers, and
+	// nothing resurrects them. The map must withhold the key for a docid it saw
+	// at more than one live path (or the delete handler must re-verify — if the
+	// fix lands there, move this test with it). Unskip (flip `it.skip` to `it`) on fix.
+	it.skip("WHEN a docid was seen at TWO live paths THEN deleting one twin yields no cleanup key", () => {
+		const map = new PathDocIdMap();
+		map.set("original.md", "docid_a_e");
+		map.set("copy.md", "docid_a_e");
+		expect(map.handleDelete("copy.md")).toBeUndefined();
+	});
+
 	it("WHEN a docid re-appears at a different path (missed rename) THEN the stale path forgets it", () => {
 		const map = new PathDocIdMap();
 		map.set("old.md", "docid_a_e");

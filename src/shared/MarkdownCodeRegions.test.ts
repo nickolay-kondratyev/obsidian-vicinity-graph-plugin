@@ -89,6 +89,17 @@ describe("MarkdownCodeRegions.withCodeMasked", () => {
 		expect(MarkdownCodeRegions.withCodeMasked(["    ```", "[[b]]"].join("\n"))).toBe(["    ```", "[[b]]"].join("\n"));
 	});
 
+	// KNOWN BUG (ticket nid_b7k6gymkwum7pozwnf28vgecb_e) — with CRLF line
+	// endings, split("\n") leaves a trailing \r on
+	// every line; FENCE_OPENER still opens (the \r reads as an info string) but
+	// FENCE_CLOSER's `[ \t]*$` rejects "```\r", so the fence never closes and
+	// every line after the first code block is blanked — links after it vanish
+	// from canvas fallback harvesting. Unskip (flip `it.skip` to `it`) when fixing.
+	it.skip("WHEN the text uses CRLF line endings THEN a closing fence still closes the block", () => {
+		const masked = MarkdownCodeRegions.withCodeMasked(["```\r", "code\r", "```\r", "[[kept]]"].join("\n"));
+		expect(masked).toContain("[[kept]]");
+	});
+
 	it("WHEN an unpaired backtick opens a line THEN following lines still get masked on their own (per-line scanning)", () => {
 		// KNOWN 80/20 residual: CommonMark lets a code span cross a newline; this
 		// scanner is per-line, so line two is treated as prose.
