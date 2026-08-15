@@ -1,13 +1,14 @@
 ---
+closed_iso: 2026-08-15T02:31:06Z
 session_ids: [{"a": "claude", "type": "execution", "id": "6a22ae2b-83bf-4a05-baa5-96948d39a65d"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_ea12b9v9fpfvg7n1ssmeyw58u_e
 title: "Arrowhead inset floor overshoots edges shorter than 14px"
-status: in_progress
+status: closed
 deps: []
 links: []
 created_iso: 2026-08-15T00:42:38Z
-status_updated_iso: 2026-08-15T02:29:00Z
+status_updated_iso: 2026-08-15T02:31:06Z
 type: bug
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
@@ -20,4 +21,10 @@ ROOT CAUSE: src/view/edgeGeometry.ts arrowFromApproach — the inset is clamp(mi
 FAILING TEST (committed as it.skip — UNSKIP as acceptance): src/view/edgeGeometry.test.ts, "WHEN the edge is shorter than the inset floor THEN the tip stays between the endpoints".
 
 FIX SHAPE: clamp inset to min(inset, edgeLength) (or a fraction of it) in arrowFromApproach; check the source-side arrow anchor for the mirror-image overshoot too.
+
+## Resolution (2026-08-15, commit 0b6162f)
+
+Fixed in `src/view/edgeGeometry.ts` `arrowFromApproach`: `edgeLength` was added as a third term to the inset `Math.min`, so the inset can never exceed the edge length. Clamping to the FULL length (not a fraction) was chosen as the minimal change: for any `edgeLength >= EDGE_ARROWHEAD_INSET_MIN_PX` the old clamp already yields `<= edgeLength`, so behavior changes ONLY for the buggy sub-14px edges — the tip now lands at worst ON the far endpoint. The source-side anchor needed no separate fix: it flows through the same `arrowFromApproach` (mirrored direction), so the one clamp covers both ends; a mirror-image test pins that.
+
+Acceptance: the committed `it.skip` in `src/view/edgeGeometry.test.ts` was unskipped (fails before the fix, `arrowX = -4`) plus a new source-side sibling test. Verified: `npm test` (2112 passed), `npm run check`, and `npm run test:e2e -- vicinityGraph.e2e.ts` (27 passed) all green.
 
