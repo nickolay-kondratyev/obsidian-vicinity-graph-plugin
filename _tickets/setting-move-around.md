@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-15T16:00:35Z
-session_ids: [{"a": "claude", "type": "execution", "id": "b20e2a83-d78c-442d-8eb9-f8abb37dc4f7"}]
+session_ids: [{"a": "claude", "type": "execution", "id": "b20e2a83-d78c-442d-8eb9-f8abb37dc4f7"}, {"a": "claude", "type": "review", "id": "3ea74d3d-a5bd-4b5d-8afc-cf4afb4ff529"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_rndi5sulwrsx1aq0x4xqcskrb_e
 title: "setting move around"
