@@ -30,3 +30,9 @@ Use existing e2e patterns: settle any settings write through e2e/settingsWriteWi
 - No sleeps; writes settled via SettingsWriteWindow.
 - e2e submodule committed before this repo.
 
+
+## Notes
+
+**2026-08-15T07:16:09Z**
+
+__READY_AS_IS__: review found no defects; check, npm test, and the new folderGroupingDepth e2e spec (9/9) all pass; no changes made
