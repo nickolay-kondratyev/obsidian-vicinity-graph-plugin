@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-15T06:40:03Z
-session_ids: [{"a": "claude", "type": "execution", "id": "7592d8f2-1628-4786-9cac-b5c014191636"}]
+session_ids: [{"a": "claude", "type": "execution", "id": "7592d8f2-1628-4786-9cac-b5c014191636"}, {"a": "claude", "type": "review", "id": "781f048c-3a42-4793-bbe2-178fe7d11963"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_5vz7mtm2rn6n7nj9cp5mfbslx_e
 title: "Setting: Folder grouping depth slider wired end-to-end"
