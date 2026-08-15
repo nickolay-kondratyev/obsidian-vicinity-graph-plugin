@@ -32,8 +32,21 @@ export interface RoutingObstacle {
 	 * pin (the pre-edge-routing__04 behaviour) — many pins × the many ungrouped spokes of
 	 * a dense hub blew the routing perf budget, and the roundabout pathology the
 	 * boundary pins fix is specific to group boxes distorted by their own children.
+	 *
+	 * `"title-strip"` is a pins-LESS solid blocker synthesised by the hierarchical
+	 * composer for an inner pass (the top band a group's title occupies) — never
+	 * produced by {@link extractEdgeRoutingInput}, so the controller-facing pass never
+	 * sees one.
 	 */
-	readonly kind: "note" | "folder-group";
+	readonly kind: "note" | "folder-group" | "title-strip";
+	/**
+	 * When set on a folder-group obstacle, ALSO register the {@link PIERCE_ENTRY_PIN_SPECS}
+	 * (class {@link PIERCE_PIN_CLASS}) so a piercing edge can attach WITHOUT entering
+	 * through the top/title side. Set only by the hierarchical composer on the boxes a
+	 * piercing edge terminates at or descends through; unset on the controller-facing
+	 * pass, keeping N=0 routing byte-identical (no extra pins registered).
+	 */
+	readonly registerPierceEntryPins?: boolean;
 }
 
 /** An edge to route: endpoints reference {@link RoutingObstacle.id}s (note squares or group boxes). */
@@ -41,6 +54,46 @@ export interface RoutingEdge {
 	readonly id: string;
 	readonly sourceId: string;
 	readonly targetId: string;
+}
+
+/**
+ * One end of a {@link RichRoutingEdge}. Either attaches to a registered obstacle's
+ * pin class ({@link PIN_CLASS} for a normal facing-side/centre attachment, or
+ * {@link PIERCE_PIN_CLASS} for a top-excluded pierce entry), or is pinned to a fixed
+ * POINT in absolute layout coordinates (the border hand-off between hierarchical
+ * passes — spike fact 2: a point `ConnEnd` gets full obstacle avoidance).
+ */
+export type RoutingEndpoint =
+	| { readonly kind: "shape"; readonly obstacleId: string; readonly pinClass: number }
+	| { readonly kind: "point"; readonly x: number; readonly y: number };
+
+/**
+ * The general edge the low-level {@link PassRouter} routes: each end is a
+ * {@link RoutingEndpoint}. The controller-facing {@link RoutingEdge} is the special
+ * case of two shape ends both on {@link PIN_CLASS} — {@link LibavoidEdgeRouter.route}
+ * lifts it into this shape.
+ */
+export interface RichRoutingEdge {
+	readonly id: string;
+	readonly source: RoutingEndpoint;
+	readonly target: RoutingEndpoint;
+}
+
+/** Input for one {@link PassRouter} pass — obstacles + {@link RichRoutingEdge}s + clearance. */
+export interface RoutingPassInput {
+	readonly obstacles: readonly RoutingObstacle[];
+	readonly edges: readonly RichRoutingEdge[];
+	readonly shapeBufferPx: number;
+}
+
+/**
+ * The low-level routing seam a single libavoid pass exposes (DIP): endpoints may be
+ * shapes (any pin class) or bare points. The hierarchical composer
+ * ({@link ../view/hierarchicalEdgeRouting}) drives its per-level passes through this,
+ * while the controller keeps talking to the simpler {@link EdgeRouter}.
+ */
+export interface PassRouter {
+	routePass(input: RoutingPassInput): Promise<EdgeRouteMap>;
 }
 
 export interface EdgeRoutingInput {
@@ -202,7 +255,17 @@ function hasFiniteGeometry(obstacle: RoutingObstacle): boolean {
  * for that connector, so registering several boundary pins per shape (below) lets
  * each edge pick the side facing its counterpart.
  */
-const PIN_CLASS = 1;
+export const PIN_CLASS = 1;
+
+/**
+ * Second pin class for a folder-group box's PIERCE ENTRY pins ({@link PIERCE_ENTRY_PIN_SPECS}).
+ * A piercing edge's outer `ConnEnd` targets this class instead of {@link PIN_CLASS} so it
+ * attaches only to a NON-TOP side — never entering the box through its title band (plan
+ * D3). Registered only when {@link RoutingObstacle.registerPierceEntryPins} is set, so a
+ * pass with no piercing edges carries none of these pins (N=0 stays byte-identical). Spike
+ * fact 3: multiple pin classes per shape resolve independently.
+ */
+export const PIERCE_PIN_CLASS = 2;
 
 /**
  * Proportional pin offsets along a side: 0 = left/top border, 1 = right/bottom border
@@ -264,6 +327,17 @@ export const BOUNDARY_PIN_SPECS: readonly BoundaryPinSpec[] = [
 ];
 
 /**
+ * The PIERCE ENTRY pins (class {@link PIERCE_PIN_CLASS}) for a folder-group box: the
+ * {@link BOUNDARY_PIN_SPECS} MINUS the three top (up-facing) pins, so a piercing edge
+ * attaches on a left/right/bottom face and never crosses the title band that occupies
+ * the box's top `GROUP_BOX_PADDING_PX.top` (plan D3). Every surviving pin still faces
+ * OUTWARD perpendicular to its own side, exactly like {@link BOUNDARY_PIN_SPECS}.
+ */
+export const PIERCE_ENTRY_PIN_SPECS: readonly BoundaryPinSpec[] = BOUNDARY_PIN_SPECS.filter(
+	(spec) => spec.dir !== "up",
+);
+
+/**
  * The single centre pin registered on a NOTE-SQUARE obstacle (the pre-edge-routing__04
  * behaviour): one pin at the shape centre accepting any approach direction. One pin
  * per note keeps the dense-fixture routing pass within its perf budget; the interior
@@ -295,12 +369,24 @@ function visDirsFor(avoid: Avoid, dir: PinDir): number {
  * ticket edge-routing__04 Phase A). Pins are owned by their shape (and thus the
  * router) — never destroyed by us.
  */
-function registerPinsForShape(avoid: Avoid, shape: AvoidShapeRef, kind: RoutingObstacle["kind"]): void {
-	const specs = kind === "folder-group" ? BOUNDARY_PIN_SPECS : [CENTRE_PIN_SPEC];
+function registerPinsForShape(avoid: Avoid, shape: AvoidShapeRef, obstacle: RoutingObstacle): void {
+	if (obstacle.kind === "title-strip") {
+		return; // a pure solid blocker (the title band) — nothing attaches to it.
+	}
+	// Class-1 pins: folder-group boxes get facing-side boundary pins, note squares one centre pin.
+	registerPinClass(avoid, shape, obstacle.kind === "folder-group" ? BOUNDARY_PIN_SPECS : [CENTRE_PIN_SPEC], PIN_CLASS);
+	// Class-2 pierce-entry pins (no top), only where the composer asked for them.
+	if (obstacle.kind === "folder-group" && obstacle.registerPierceEntryPins === true) {
+		registerPinClass(avoid, shape, PIERCE_ENTRY_PIN_SPECS, PIERCE_PIN_CLASS);
+	}
+}
+
+/** Registers one class of connection pins (all {@link BoundaryPinSpec}s) on a shape. */
+function registerPinClass(avoid: Avoid, shape: AvoidShapeRef, specs: readonly BoundaryPinSpec[], classId: number): void {
 	for (const spec of specs) {
 		const pin = new avoid.ShapeConnectionPin(
 			shape,
-			PIN_CLASS,
+			classId,
 			spec.xFrac,
 			spec.yFrac,
 			true,
@@ -382,6 +468,17 @@ class AvoidArena {
 		return end;
 	}
 
+	/**
+	 * A `ConnEnd` pinned to a fixed POINT (the border hand-off between hierarchical
+	 * passes). libavoid's `ConnEnd(Point)` COPIES the point value, so both the Point
+	 * and the ConnEnd are leaf objects we own and free (never router-owned — no pins).
+	 */
+	connEndPoint(x: number, y: number): AvoidConnEnd {
+		const end = new this.avoid.ConnEnd(this.point(x, y));
+		this.owned.push(end);
+		return end;
+	}
+
 	/** Registers an obstacle rectangle shape (router-owned — not tracked for free). */
 	shape(router: AvoidRouter, rect: AvoidRect): AvoidShapeRef {
 		const topLeft = this.point(rect.x1, rect.y1);
@@ -451,8 +548,26 @@ function readRoute(conn: AvoidConnRef): RoutedPoint[] {
  * facing side), a single `processTransaction()`, then `displayRoute()` per connector.
  * All allocation/cleanup is owned by an internal {@link AvoidArena}.
  */
-export class LibavoidEdgeRouter implements EdgeRouter {
+export class LibavoidEdgeRouter implements EdgeRouter, PassRouter {
+	/**
+	 * The controller-facing pass: every edge is two SHAPE ends on {@link PIN_CLASS}, so
+	 * this lifts {@link EdgeRoutingInput} into the general {@link RoutingPassInput} and
+	 * defers to {@link routePass}. With no pierce pins and no point ends, the lifted pass
+	 * is identical to the historical single pass (N=0 byte-identical).
+	 */
 	async route(input: EdgeRoutingInput): Promise<EdgeRouteMap> {
+		return this.routePass({
+			obstacles: input.obstacles,
+			edges: input.edges.map((edge) => ({
+				id: edge.id,
+				source: { kind: "shape", obstacleId: edge.sourceId, pinClass: PIN_CLASS },
+				target: { kind: "shape", obstacleId: edge.targetId, pinClass: PIN_CLASS },
+			})),
+			shapeBufferPx: input.shapeBufferPx,
+		});
+	}
+
+	async routePass(input: RoutingPassInput): Promise<EdgeRouteMap> {
 		// Lazy import so merely importing this module (for extraction/types) never
 		// pulls the `libavoid-wasm` virtual module — it only resolves under esbuild,
 		// not vitest. loadAvoid stays a singleton; the wasm loads on first route only.
@@ -467,23 +582,16 @@ export class LibavoidEdgeRouter implements EdgeRouter {
 			const shapeById = new Map<string, AvoidShapeRef>();
 			for (const obstacle of input.obstacles) {
 				const shape = arena.shape(router, rectOf(obstacle));
-				// A shape-attached endpoint needs pins (all PIN_CLASS): folder-group boxes
-				// get boundary pins for facing-side attachment, note squares a single centre
-				// pin (perf fallback). See registerPinsForShape.
-				registerPinsForShape(avoid, shape, obstacle.kind);
+				// A shape-attached endpoint needs pins: folder-group boxes get boundary pins
+				// (+ optional pierce-entry pins), note squares a single centre pin, title
+				// strips none. See registerPinsForShape.
+				registerPinsForShape(avoid, shape, obstacle);
 				shapeById.set(obstacle.id, shape);
 			}
 			const connectors: Array<{ readonly id: string; readonly conn: AvoidConnRef }> = [];
 			for (const edge of input.edges) {
-				const sourceShape = shapeById.get(edge.sourceId);
-				const targetShape = shapeById.get(edge.targetId);
-				if (sourceShape === undefined || targetShape === undefined) {
-					// Contract violation: extraction guarantees an obstacle per endpoint.
-					// Throwing surfaces the single pass-level fallback (no silent per-edge skip).
-					throw new Error(`edge ${edge.id} references an obstacle with no registered shape`);
-				}
-				const src = arena.connEnd(sourceShape, PIN_CLASS);
-				const dst = arena.connEnd(targetShape, PIN_CLASS);
+				const src = this.connEndFor(arena, shapeById, edge.id, edge.source);
+				const dst = this.connEndFor(arena, shapeById, edge.id, edge.target);
 				const conn = new avoid.ConnRef(router, src, dst); // router-owned
 				connectors.push({ id: edge.id, conn });
 			}
@@ -496,6 +604,25 @@ export class LibavoidEdgeRouter implements EdgeRouter {
 		} finally {
 			arena.dispose();
 		}
+	}
+
+	/** Resolves one {@link RoutingEndpoint} to a `ConnEnd` (shape pin or bare point). */
+	private connEndFor(
+		arena: AvoidArena,
+		shapeById: ReadonlyMap<string, AvoidShapeRef>,
+		edgeId: string,
+		endpoint: RoutingEndpoint,
+	): AvoidConnEnd {
+		if (endpoint.kind === "point") {
+			return arena.connEndPoint(endpoint.x, endpoint.y);
+		}
+		const shape = shapeById.get(endpoint.obstacleId);
+		if (shape === undefined) {
+			// Contract violation: the composer guarantees an obstacle per shape endpoint.
+			// Throwing surfaces the single pass-level fallback (no silent per-edge skip).
+			throw new Error(`edge ${edgeId} references an obstacle with no registered shape`);
+		}
+		return arena.connEnd(shape, endpoint.pinClass);
 	}
 }
 
