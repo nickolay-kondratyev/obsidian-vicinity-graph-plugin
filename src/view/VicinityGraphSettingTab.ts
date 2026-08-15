@@ -662,18 +662,36 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 		const input = chips.createEl("input", { type: "text", cls: "vicinity-graph-chips__entry" });
 		VicinityGraphSettingTab.nameControl(input, name);
 		let stored = accessor.read(state);
+		const buildChip = (field: string): HTMLElement => {
+			const chip = chipList.createSpan({ cls: "vicinity-graph-chips__chip" });
+			chip.createSpan({ cls: "vicinity-graph-chips__text", text: field });
+			const remove = chip.createEl("button", {
+				cls: "vicinity-graph-chips__remove",
+				text: "×",
+				attr: { type: "button" },
+			});
+			VicinityGraphSettingTab.nameControl(remove, IdRefFieldChips.removeName(field));
+			remove.addEventListener("click", () => write(IdRefFieldChips.remove(stored, field)));
+			return chip;
+		};
+		// RECONCILES per field instead of empty()+rebuild (what React gives the panel
+		// for free): a repaint must keep a surviving chip's DOM node alive, because the
+		// entry field's blur-commit repaints MID-CLICK on a chip's remove button —
+		// destroying that button then swallows the click, and the remove is lost.
+		// Appending only NEW fields keeps DOM order = stored order (adds always append).
+		const chipEls = new Map<string, HTMLElement>();
 		const renderChips = (): void => {
-			chipList.empty();
-			for (const field of IdRefFieldChips.list(stored)) {
-				const chip = chipList.createSpan({ cls: "vicinity-graph-chips__chip" });
-				chip.createSpan({ cls: "vicinity-graph-chips__text", text: field });
-				const remove = chip.createEl("button", {
-					cls: "vicinity-graph-chips__remove",
-					text: "×",
-					attr: { type: "button" },
-				});
-				VicinityGraphSettingTab.nameControl(remove, IdRefFieldChips.removeName(field));
-				remove.addEventListener("click", () => write(IdRefFieldChips.remove(stored, field)));
+			const fields = IdRefFieldChips.list(stored);
+			for (const [field, chip] of chipEls) {
+				if (!fields.includes(field)) {
+					chip.remove();
+					chipEls.delete(field);
+				}
+			}
+			for (const field of fields) {
+				if (!chipEls.has(field)) {
+					chipEls.set(field, buildChip(field));
+				}
 			}
 		};
 		const write = (next: string): void => {

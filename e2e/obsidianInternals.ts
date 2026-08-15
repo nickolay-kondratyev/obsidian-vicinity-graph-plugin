@@ -2,7 +2,14 @@
 // `obsidian` package (types-only, no runtime) into the node-side test process, and
 // the shapes are safe to reference INSIDE `page.evaluate` callbacks (types never
 // serialize into the browser).
-import type { DepthSettings, NodeContentOverride, NodeExclusionSettings, NodeOverride, ViewSettings } from "../src/engine";
+import type {
+	DepthSettings,
+	FrontmatterLinkSettings,
+	NodeContentOverride,
+	NodeExclusionSettings,
+	NodeOverride,
+	ViewSettings,
+} from "../src/engine";
 
 /**
  * The undocumented-but-stable Obsidian `window.app` surface the e2e harness drives,
@@ -161,9 +168,11 @@ export interface E2ePluginDataStore {
 	globalView(): ViewSettings;
 	globalDepths(): DepthSettings;
 	nodeExclusion(): NodeExclusionSettings;
+	frontmatterLinks(): FrontmatterLinkSettings;
 	saveGlobalView(view: ViewSettings): Promise<void>;
 	saveGlobalDepths(depths: DepthSettings): Promise<void>;
 	saveNodeExclusion(exclusion: NodeExclusionSettings): Promise<void>;
+	saveFrontmatterLinks(frontmatterLinks: FrontmatterLinkSettings): Promise<void>;
 }
 
 /** The per-file `VaultFileStore` (`perDocStore`): per-node overrides + local pins. */
