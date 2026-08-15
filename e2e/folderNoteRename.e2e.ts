@@ -56,6 +56,17 @@ test.beforeAll(async () => {
 		sheet.replaceSync(".hide-folder-note .is-folder-note { display: none; }");
 		document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
 	});
+	// Sanity: the adopted rule must actually hide tagged elements, or every
+	// assertion below passes vacuously and the ghost regression goes unguarded.
+	const hideRuleApplies = await page.evaluate(() => {
+		const probe = document.createElement("div");
+		probe.classList.add("is-folder-note");
+		document.body.appendChild(probe);
+		const display = getComputedStyle(probe).display;
+		probe.remove();
+		return display === "none";
+	});
+	expect(hideRuleApplies).toBe(true);
 });
 
 test.afterAll(async () => {
