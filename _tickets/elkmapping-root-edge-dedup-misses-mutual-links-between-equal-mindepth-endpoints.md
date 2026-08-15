@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-15T02:15:15Z
-session_ids: [{"a": "claude", "type": "execution", "id": "b69bf4a5-1d35-49e7-b02e-849570144190"}]
+session_ids: [{"a": "claude", "type": "execution", "id": "b69bf4a5-1d35-49e7-b02e-849570144190"}, {"a": "claude", "type": "review", "id": "debff41c-5fbc-44fe-b87f-d614606b651d"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_4i09w45k625h4ltdscishx6x3_e
 title: "elkMapping root-edge dedup misses mutual links between equal-minDepth endpoints"
