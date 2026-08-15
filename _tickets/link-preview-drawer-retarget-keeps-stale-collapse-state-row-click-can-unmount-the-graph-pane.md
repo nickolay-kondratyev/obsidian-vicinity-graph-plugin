@@ -35,3 +35,9 @@ Fixed via the prop-derived-state option (reconcile during render), NOT the key-r
 
 Verified: `npm run check` clean, full `npm test` (2090 passed), and `npm run test:e2e -- linkPreview.e2e.ts` (7 passed on the pinned real-Obsidian build).
 
+
+## Notes
+
+**2026-08-15T01:45:31Z**
+
+__READY_AS_IS__: Fix verified — render-time model reconcile is the sanctioned React pattern, model reference only changes on genuine retarget (GraphViewController edge click via LinkPreviewOverlayStore), acceptance test unskipped + collision-case test added; npm run check, full npm test (2090 passed), and linkPreview.e2e.ts (7 passed) all green with no changes needed.
