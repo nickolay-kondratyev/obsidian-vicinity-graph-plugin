@@ -1,4 +1,5 @@
 ---
+session_ids: [{"a": "claude", "type": "execution", "id": "614aba45-d46d-4ce4-b3bc-798cbf0c3031"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_dma49vci6uxv0w1qlc66y3kgc_e
 title: "Link-preview drawer retarget keeps stale collapse state; row click can unmount the graph pane"
