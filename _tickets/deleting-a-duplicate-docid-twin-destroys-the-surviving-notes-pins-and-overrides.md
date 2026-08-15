@@ -1,4 +1,5 @@
 ---
+session_ids: [{"a": "claude", "type": "execution", "id": "9490ddd6-599b-4e25-abe1-5f696936fe72"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_buurw8hp0yg2v1bwdhdyu7yrs_e
 title: "Deleting a duplicate-docid twin destroys the surviving note's pins and overrides"
