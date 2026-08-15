@@ -46,21 +46,41 @@ describe("PathDocIdMap", () => {
 		expect(new PathDocIdMap().handleDelete("ghost.md")).toBeUndefined();
 	});
 
-	// KNOWN BUG (ticket nid_buurw8hp0yg2v1bwdhdyu7yrs_e) — docids live in
-	// user-visible frontmatter, so "Make a copy"
-	// creates a SECOND live file carrying the same docid (the id library honours
-	// existing ids as-is). set() then re-points the docid at the copy (last
-	// writer wins), and deleting the COPY surrenders the docid as a cleanup key
-	// even though the ORIGINAL still carries it — main.ts handleVaultDelete then
-	// destroys the survivor's pin + per-file record across BOTH tiers, and
-	// nothing resurrects them. The map must withhold the key for a docid it saw
-	// at more than one live path (or the delete handler must re-verify — if the
-	// fix lands there, move this test with it). Unskip (flip `it.skip` to `it`) on fix.
-	it.skip("WHEN a docid was seen at TWO live paths THEN deleting one twin yields no cleanup key", () => {
+	// Docids live in user-visible frontmatter, so "Make a copy" creates a SECOND
+	// live file carrying the same docid (the id library honours existing ids
+	// as-is). Surrendering the docid as a cleanup key when ONE twin is deleted
+	// would let main.ts handleVaultDelete destroy the SURVIVOR's pin + per-file
+	// record across both tiers (ticket nid_buurw8hp0yg2v1bwdhdyu7yrs_e) — so the
+	// map withholds the key and leaves the ambiguity to the orphan sweep.
+	it("WHEN a docid was seen at TWO live paths THEN deleting one twin yields no cleanup key", () => {
 		const map = new PathDocIdMap();
 		map.set("original.md", "docid_a_e");
 		map.set("copy.md", "docid_a_e");
 		expect(map.handleDelete("copy.md")).toBeUndefined();
+	});
+
+	it("WHEN a docid was seen at TWO live paths THEN deleting the OTHER twin also yields no cleanup key", () => {
+		const map = new PathDocIdMap();
+		map.set("original.md", "docid_a_e");
+		map.set("copy.md", "docid_a_e");
+		expect(map.handleDelete("original.md")).toBeUndefined();
+	});
+
+	it("WHEN a doc is renamed via handleRename THEN deleting it at the new path still yields the cleanup key", () => {
+		const map = new PathDocIdMap();
+		map.set("old.md", "docid_a_e");
+		map.handleRename("old.md", "new.md");
+		expect(map.handleDelete("new.md")).toBe("docid_a_e");
+	});
+
+	// A missed rename (set at a new path, no handleRename) is indistinguishable
+	// from a duplicate twin at map level, so the key is withheld there too —
+	// deliberate: the cost is a deferred cleanup (orphan sweep), never data loss.
+	it("WHEN a docid re-appears at a different path via set THEN deleting it yields no cleanup key (sweep cleans up)", () => {
+		const map = new PathDocIdMap();
+		map.set("old.md", "docid_a_e");
+		map.set("new.md", "docid_a_e");
+		expect(map.handleDelete("new.md")).toBeUndefined();
 	});
 
 	it("WHEN a docid re-appears at a different path (missed rename) THEN the stale path forgets it", () => {

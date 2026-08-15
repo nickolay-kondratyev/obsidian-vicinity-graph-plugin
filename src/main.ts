@@ -275,7 +275,8 @@ export default class VicinityGraphPlugin extends Plugin {
 	 * positions): the ONE conceptual choke point a delete spans, mirrored by the
 	 * orphan sweep. A docid-keyed map added to EITHER store is pruned by that store's
 	 * `forgetDocs`; a map added to a NEW store would need its `forgetDocs` wired in
-	 * here too. Unmapped paths are the delayed sweep's job (backstop).
+	 * here too. Unmapped paths — and docids the map saw at more than one live path
+	 * (a frontmatter-duplicate twin may survive) — are the delayed sweep's job (backstop).
 	 */
 	private async handleVaultDelete(path: string): Promise<void> {
 		this.canvasParseCache.evict(path);

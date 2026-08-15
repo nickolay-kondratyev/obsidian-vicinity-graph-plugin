@@ -1,13 +1,14 @@
 ---
+closed_iso: 2026-08-15T01:26:00Z
 session_ids: [{"a": "claude", "type": "execution", "id": "9490ddd6-599b-4e25-abe1-5f696936fe72"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_buurw8hp0yg2v1bwdhdyu7yrs_e
 title: "Deleting a duplicate-docid twin destroys the surviving note's pins and overrides"
-status: in_progress
+status: closed
 deps: []
 links: []
 created_iso: 2026-08-15T00:41:49Z
-status_updated_iso: 2026-08-15T01:23:42Z
+status_updated_iso: 2026-08-15T01:26:00Z
 type: bug
 priority: 1
 assignee: CC_WITH-nickolaykondratyev
@@ -24,4 +25,16 @@ FIX SHAPES (pick one): (a) defer ambiguous deletes to the orphan sweep — handl
 ## Acceptance Criteria
 
 The committed it.skip test (or its relocated equivalent) is unskipped and passes; deleting a copied note never erases the surviving original's pins/overrides.
+
+## Resolution (2026-08-15)
+
+Implemented **fix shape (a)** — the map defers ambiguous deletes to the orphan sweep. The fix lives entirely in `src/persistence/PathDocIdMap.ts`:
+
+- `set(path, docid)` now records the docid in a private `docidsSeenAtMultiplePaths` set whenever the docid was already mapped at a DIFFERENT path (a frontmatter-duplicate twin sighting). The flag is session-sticky.
+- `handleDelete(path)` still unmaps the path, but WITHHOLDS the cleanup key (returns `undefined`) for a flagged docid — so `main.ts handleVaultDelete` never calls `forgetDocs` on either tier for it. The `OrphanSweeper`'s full-scan re-derivation (`warmAll` → `SweepPlanner` → drop-time `isConfirmedOrphan` re-check) then sees the surviving twin in `liveDocids` and keeps its state; if BOTH twins are truly gone, the sweep drops the state correctly.
+- `handleRename` unmaps the old path BEFORE calling `set`, so a legitimate rename (one live file) never trips the flag.
+
+Deliberate tradeoff, captured in tests: a MISSED rename (`set` at a new path without `handleRename`) is indistinguishable from a twin at map level, so its later delete also defers to the sweep — cost is a delayed cleanup, never data loss. Why session-sticky (never un-flagged): after one twin is deleted the map holds no history of which paths were involved, so un-flagging would re-open the destructive window; the sweep makes the conservative choice free.
+
+Acceptance test unskipped and passing in `src/persistence/PathDocIdMap.test.ts` (fix landed in the map, so the test stayed put), plus three new tests: deleting the OTHER twin, rename-does-not-poison, and the missed-rename deferral. Verified: `npm test` (2088 passed) + `npm run check` green; pure persistence change, so no e2e per repo convention.
 
