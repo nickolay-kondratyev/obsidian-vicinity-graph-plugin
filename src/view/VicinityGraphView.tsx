@@ -8,6 +8,7 @@ import type { LinkOccurrenceProvider } from "../engine";
 import type { PersistenceServices } from "../persistence/PersistenceServices";
 import { ControlsActions } from "./ControlsActions";
 import { LibavoidEdgeRouter } from "./edgeRouting";
+import { HierarchicalEdgeRouter } from "./hierarchicalEdgeRouting";
 import { GraphLayoutRunner } from "./GraphLayoutRunner";
 import { GraphViewController } from "./GraphViewController";
 import { VicinityGraphFlow } from "./VicinityGraphFlow";
@@ -70,7 +71,7 @@ export class VicinityGraphView extends ItemView {
 			navigator,
 			this.graphBuilder,
 			new GraphLayoutRunner(),
-			new LibavoidEdgeRouter(),
+			new HierarchicalEdgeRouter(new LibavoidEdgeRouter()),
 			this.occurrenceProvider,
 			linkPreview,
 		);
