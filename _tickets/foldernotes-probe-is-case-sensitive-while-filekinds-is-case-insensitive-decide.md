@@ -37,3 +37,9 @@ point is the `candidates` array in `resolveFolderNote` — and the failing test
 to start from is the one this ticket originally sketched (a `Jon/Jon.MD`
 candidate resolving).
 
+
+## Notes
+
+**2026-08-15T02:36:42Z**
+
+__READY_AS_IS__: doc-only WHY-NOT comment matching the ticket's decided 'no' branch; check + 22 FolderNotes tests pass, no behavior change.
