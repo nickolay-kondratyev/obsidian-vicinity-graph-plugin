@@ -655,9 +655,15 @@ function arrowFromApproach(
 	approachY: number,
 	edgeLength: number,
 ): ArrowAnchor {
+	// The MIN floor is itself clamped to the edge length: facing-side anchors of
+	// two adjacent boxes can sit closer than the 14px floor, and an unclamped
+	// floor would push the tip PAST the far endpoint (ticket
+	// nid_ea12b9v9fpfvg7n1ssmeyw58u_e). Only edges shorter than the floor are
+	// affected — for edgeLength >= MIN the old clamp is already <= edgeLength.
 	const inset = Math.min(
 		EDGE_ARROWHEAD_INSET_MAX_PX,
 		Math.max(EDGE_ARROWHEAD_INSET_MIN_PX, edgeLength * EDGE_ARROWHEAD_INSET_FRACTION),
+		edgeLength,
 	);
 	const approachLength = Math.hypot(approachX, approachY);
 	if (approachLength === 0) {
