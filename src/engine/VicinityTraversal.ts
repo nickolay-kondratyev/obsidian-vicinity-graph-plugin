@@ -148,6 +148,12 @@ export class VicinityTraversal {
 				continue; // Depth budget exhausted — do not expand further.
 			}
 			for (const neighbor of this.neighborsOf(current, channel)) {
+				if (neighbor === current) {
+					// Self-reference ([[Note#Section]] inside Note.md resolves Note→Note):
+					// dropping it here keeps every downstream stage free of degenerate
+					// source===target edges. The native local graph draws no self-loops.
+					continue;
+				}
 				// Exclusion FIRST (before the isNodeBearing metadata read): an excluded
 				// neighbor is never enqueued, never expanded through, and never fetches
 				// metadata — the performance win. Roots are exempt (checked above).

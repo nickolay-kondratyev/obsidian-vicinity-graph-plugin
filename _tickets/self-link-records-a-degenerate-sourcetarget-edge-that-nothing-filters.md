@@ -1,12 +1,14 @@
 ---
+closed_iso: 2026-08-15T02:20:11Z
+session_ids: [{"a": "claude", "type": "execution", "id": "3c279c5f-1da1-4216-a2dc-2db9c2a01f84"}, {"a": "claude", "type": "review", "id": "e9db8133-ffc9-4411-a47b-680565156e0c"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_6ujh4ol7un9etab1vqwfe9nye_e
 title: "Self-link records a degenerate source==target edge that nothing filters"
-status: in_progress
+status: closed
 deps: []
 links: []
 created_iso: 2026-08-15T00:42:11Z
-status_updated_iso: 2026-08-15T02:18:47Z
+status_updated_iso: 2026-08-15T02:20:11Z
 type: bug
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
@@ -20,3 +22,24 @@ FAILING TEST (committed as it.skip — UNSKIP as acceptance): src/engine/Vicinit
 
 FIX SHAPE: skip neighbor === current in bfs (cheapest, keeps every downstream stage clean).
 
+## Resolution (2026-08-15)
+
+Fixed as specified: `VicinityTraversal.bfs` now skips `neighbor === current` at the
+top of the neighbor loop (before exclusion/eligibility/recordEdge), so no downstream
+stage ever sees a source===target edge. This covers ALL channels (outgoing-link,
+outgoing-embed, incoming, descendants, ancestors) since they all flow through the
+same loop.
+
+- Fix: `src/engine/VicinityTraversal.ts` (self-neighbor `continue` with WHY comment).
+- Acceptance: the committed `it.skip` in `src/engine/VicinityTraversal.test.ts`
+  ("WHEN a note links to itself THEN no self-loop edge reaches the graph") was
+  unskipped and its KNOWN-BUG comment rewritten to describe the invariant.
+- Verified: `npm test` (2109 passed, 0 failed) and `npm run check` both green.
+  Pure engine change — e2e not required per CLAUDE.md.
+
+
+## Notes
+
+**2026-08-15T02:21:24Z**
+
+__READY_AS_IS__: self-neighbor guard in VicinityTraversal.bfs is correct and covers all channels; acceptance test unskipped; check + npm test (2109 passed) verified green, no fixes needed
