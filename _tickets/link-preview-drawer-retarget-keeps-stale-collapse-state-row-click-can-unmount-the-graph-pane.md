@@ -1,12 +1,14 @@
 ---
+closed_iso: 2026-08-15T01:43:23Z
+session_ids: [{"a": "claude", "type": "execution", "id": "614aba45-d46d-4ce4-b3bc-798cbf0c3031"}, {"a": "claude", "type": "review", "id": "626096b7-f2b9-46ab-af7e-b9b66f9f7ebc"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_dma49vci6uxv0w1qlc66y3kgc_e
 title: "Link-preview drawer retarget keeps stale collapse state; row click can unmount the graph pane"
-status: in_progress
+status: closed
 deps: []
 links: []
 created_iso: 2026-08-15T00:41:30Z
-status_updated_iso: 2026-08-15T01:40:38Z
+status_updated_iso: 2026-08-15T01:43:23Z
 type: bug
 priority: 1
 assignee: CC_WITH-nickolaykondratyev
@@ -24,3 +26,18 @@ FIX SHAPE: either key the content by model identity (key on LinkPreviewDrawer/Li
 
 The committed it.skip test is unskipped and passes; clicking a second edge while the drawer is open serves the new model with all rows collapsed and working.
 
+## Resolution (2026-08-15)
+
+Fixed via the prop-derived-state option (reconcile during render), NOT the key-remount option — the committed acceptance test rerenders `LinkPreviewContent` in place with a new model, so only the in-component reconcile satisfies it, and it matches the sanctioned pattern `useOptimisticValue` already documents (render-time adjust, no stale-frame effect).
+
+- `src/view/LinkPreviewContent.tsx`: alongside the `collapse` state, a second `seenModel` state tracks the model identity. When the incoming `model` prop differs, the render uses (and stores) `ContextRowCollapseState.allCollapsed(model.rowIds)` — so a retarget always serves the new model with every row collapsed, covering both the throw (row unique to the new model) and the id-collision leak (old expansions rendering on the new edge). Bulk-button enablement derives from the reconciled state.
+- `src/view/LinkPreviewContent.component.test.tsx`: the acceptance test is unskipped and the describe's KNOWN-BUG framing removed; a second test pins the collision case (same row ids by construction, expanded row on edge A renders collapsed after retarget to edge B).
+
+Verified: `npm run check` clean, full `npm test` (2090 passed), and `npm run test:e2e -- linkPreview.e2e.ts` (7 passed on the pinned real-Obsidian build).
+
+
+## Notes
+
+**2026-08-15T01:45:31Z**
+
+__READY_AS_IS__: Fix verified — render-time model reconcile is the sanctioned React pattern, model reference only changes on genuine retarget (GraphViewController edge click via LinkPreviewOverlayStore), acceptance test unskipped + collision-case test added; npm run check, full npm test (2090 passed), and linkPreview.e2e.ts (7 passed) all green with no changes needed.
