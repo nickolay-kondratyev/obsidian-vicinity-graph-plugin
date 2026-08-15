@@ -25,6 +25,13 @@ export type NotPersistableReason =
  * (no dots ⇒ no `..`, no path separators, no Windows-reserved characters) and
  * bounded length. Generated `docid_{24 base36}_e` ids always pass; foreign ids
  * must earn it.
+ *
+ * WHY-NOT case-collision handling (owner decision, ticket
+ * nid_ij7rct3ysp6aqg18fwfw2ett3_e): mixed case is allowed even though two
+ * foreign docids differing ONLY by case would share one `per_file/<docid>.json`
+ * on a case-insensitive filesystem (macOS/Windows defaults) and clobber each
+ * other. Accepted risk — docids are expected to be unique well beyond
+ * case-only variation, and generated ids are lowercase base36 (immune).
  */
 const FILENAME_SAFE_DOCID_PATTERN = /^[A-Za-z0-9_-]{1,120}$/;
 /**
