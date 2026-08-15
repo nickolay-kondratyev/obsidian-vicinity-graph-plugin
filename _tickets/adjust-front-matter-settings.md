@@ -17,3 +17,8 @@ tags: []
 Adjust how "Frontmatter links" settings are visualized:
 1) move them the settings down below "Node Exclusion" above "Performance"
 2) Make it so when the frontmatter fields are added they are not entered with comma separation but each added individually and each appears as tag like [link x] with and [x] to remove it.
+## Notes
+
+**2026-08-15T05:58:30Z**
+
+__REVIEW_AGAIN__: fixed a real tab bug (chip-list rebuild on blur-commit swallowed an in-flight remove click; now reconciles per field) and added the missing tab-side e2e coverage (settingsIdRefChips.e2e.ts, verified red pre-fix); all gates green but the behavioral fix deserves a fresh pass
