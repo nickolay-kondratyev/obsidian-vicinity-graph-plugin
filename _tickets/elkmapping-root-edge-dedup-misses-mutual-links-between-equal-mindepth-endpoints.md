@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_4i09w45k625h4ltdscishx6x3_e
 title: "elkMapping root-edge dedup misses mutual links between equal-minDepth endpoints"
-status: open
+status: in_progress
 deps: []
 links: []
 created_iso: 2026-08-15T00:42:38Z
-status_updated_iso: 2026-08-15T00:42:38Z
+status_updated_iso: 2026-08-15T02:12:45Z
 type: bug
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
