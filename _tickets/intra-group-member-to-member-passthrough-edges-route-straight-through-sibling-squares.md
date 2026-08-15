@@ -1,4 +1,5 @@
 ---
+session_ids: [{"a": "claude", "type": "execution", "id": "87d0fa99-7bdd-4908-b28c-bd4d209cd78c"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_6qk78tgfvwzhgb5xru63hu7n3_e
 title: "Intra-group member-to-member passthrough edges route straight through sibling squares"
