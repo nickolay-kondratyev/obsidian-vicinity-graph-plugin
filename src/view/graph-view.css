@@ -1128,6 +1128,57 @@
 	font-variant-numeric: tabular-nums;
 	color: var(--text-normal);
 }
+/*
+ * The id-ref-fields CHIP row, on BOTH surfaces (deliberately unscoped, like the
+ * shared row shapes above): one pill per stored field, its remove button inside
+ * the pill, and the entry field riding the same wrapping flex line. The tab only
+ * overrides alignment (settings-tab.css) — the chrome is stated once here.
+ */
+.vicinity-graph-chips-row {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-2-1);
+	color: var(--text-muted);
+}
+.vicinity-graph-chips {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--size-2-1);
+}
+/* Layout-transparent: the chips wrap on the SAME flex line as the entry field,
+ * while the wrapper stays a repaintable unit for the settings tab's DOM. */
+.vicinity-graph-chips__list {
+	display: contents;
+}
+.vicinity-graph-chips__chip {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--size-2-1);
+	padding: 0 var(--size-2-2);
+	border-radius: var(--radius-s);
+	background-color: var(--background-modifier-hover);
+	color: var(--text-normal);
+	font-size: var(--font-ui-smaller);
+}
+.vicinity-graph-chips__remove {
+	background: none;
+	border: none;
+	box-shadow: none;
+	padding: 0;
+	line-height: 1;
+	cursor: var(--cursor, pointer);
+	color: var(--text-muted);
+}
+.vicinity-graph-chips__remove:hover {
+	color: var(--text-normal);
+	background: none;
+	box-shadow: none;
+}
+.vicinity-graph-chips__entry {
+	width: 7em;
+	flex-shrink: 0;
+}
 
 /* --- Node-exclusion disclosure (toolbar) -------------------------------- */
 

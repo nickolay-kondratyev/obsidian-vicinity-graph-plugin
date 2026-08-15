@@ -5,6 +5,7 @@ import type VicinityGraphPlugin from "../main";
 import type { PluginDataStore } from "../persistence/PluginDataStore";
 import { ConfirmModal } from "./ConfirmModal";
 import { SETTINGS_WRITE_DEBOUNCE_MS } from "./constants";
+import { IdRefFieldChips } from "./idRefFieldChips";
 import { NODE_PREVIEW_OPTION_META } from "./nodePreviewPreferenceMeta";
 import { DebouncedSettingsWrites } from "./settingsDebounce";
 import type { SettingsResetScope } from "./settingsResetPlan";
@@ -640,22 +641,61 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 	}
 
 	/**
-	 * The frontmatter id-ref field list: one free-form single-line text field, debounced
-	 * like every other TYPED row (one persist + rebuild per burst, flushed on blur) and
-	 * stored VERBATIM — the comma-split into field names is a read-time concern
-	 * (`parseIdRefFields`), so there is nothing to parse, clamp or refuse here.
+	 * The frontmatter id-ref field list, edited as CHIPS: the text field adds ONE entry
+	 * per commit (Enter, or leaving the field), and each stored field renders as a chip
+	 * with its own remove button. Every edit goes through {@link IdRefFieldChips} —
+	 * shared with the panel — and each add/remove is a whole deliberate change, so it
+	 * writes immediately like a toggle rather than through the typing debounce.
+	 *
+	 * The chip list tracks its own optimistic copy of the stored string (like every
+	 * other tab control, seeded once from `state` at display time): a write's pipeline
+	 * fan-out never re-renders this tab, so the DOM is repainted here after each edit.
 	 */
 	private addIdRefFields(container: HTMLElement, row: SettingsRow, state: SettingsRowState): void {
 		const accessor = SettingsRowAccessors.idRefFields();
 		const name = SettingsRowNames.sole(row);
-		VicinityGraphSettingTab.row(container, row).addText((text) => {
-			text.setValue(accessor.read(state));
-			VicinityGraphSettingTab.nameControl(text.inputEl, name);
-			this.flushOnBlur(text.inputEl);
-			text.onChange((raw) => {
-				this.debounced.schedule(name, (writer) => writer.apply(accessor.interaction(raw)));
-			});
+		const setting = VicinityGraphSettingTab.row(container, row);
+		// Same DOM shape as the panel's IdRefFieldsRow: chips in a repaintable list
+		// wrapper, the entry field OUTSIDE it so a repaint never steals its focus.
+		const chips = setting.controlEl.createDiv({ cls: "vicinity-graph-chips" });
+		const chipList = chips.createSpan({ cls: "vicinity-graph-chips__list" });
+		const input = chips.createEl("input", { type: "text", cls: "vicinity-graph-chips__entry" });
+		VicinityGraphSettingTab.nameControl(input, name);
+		let stored = accessor.read(state);
+		const renderChips = (): void => {
+			chipList.empty();
+			for (const field of IdRefFieldChips.list(stored)) {
+				const chip = chipList.createSpan({ cls: "vicinity-graph-chips__chip" });
+				chip.createSpan({ cls: "vicinity-graph-chips__text", text: field });
+				const remove = chip.createEl("button", {
+					cls: "vicinity-graph-chips__remove",
+					text: "×",
+					attr: { type: "button" },
+				});
+				VicinityGraphSettingTab.nameControl(remove, IdRefFieldChips.removeName(field));
+				remove.addEventListener("click", () => write(IdRefFieldChips.remove(stored, field)));
+			}
+		};
+		const write = (next: string): void => {
+			stored = next;
+			void this.writes.apply(accessor.interaction(next));
+			renderChips();
+		};
+		const commit = (): void => {
+			const next = IdRefFieldChips.add(stored, input.value);
+			input.value = "";
+			if (next !== undefined) {
+				write(next);
+			}
+		};
+		input.addEventListener("keydown", (event) => {
+			if (event.key === "Enter") {
+				event.preventDefault();
+				commit();
+			}
 		});
+		input.addEventListener("blur", commit);
+		renderChips();
 	}
 
 	/**

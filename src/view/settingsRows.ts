@@ -97,7 +97,11 @@ export type SettingsRowControl =
 	| { readonly kind: "exclusion-patterns" }
 	/** Maximum number of non-central nodes rendered. */
 	| { readonly kind: "node-cap" }
-	/** The comma-separated list of frontmatter fields read as note-id references (free-form text). */
+	/**
+	 * The frontmatter fields read as note-id references, edited as CHIPS: one field
+	 * added per entry, each chip carrying its own remove button. Stored unchanged as
+	 * the one comma-separated string (`IdRefFieldChips` owns the projection).
+	 */
 	| { readonly kind: "id-ref-fields" };
 
 /**
@@ -409,25 +413,6 @@ export const SETTINGS_GROUPS: Readonly<Record<SettingsSection, SettingsGroup>> =
 			},
 		],
 	},
-	// Its own section: the one place a note's frontmatter (rather than its `[[wikilinks]]`)
-	// becomes graph edges. Sits after Edges because both answer "which links exist",
-	// and OFF by default (empty list) so the section is inert until a field is named.
-	"frontmatter-links": {
-		heading: "Frontmatter links",
-		panelClass: "vicinity-graph-frontmatter-links",
-		blocks: [
-			{
-				rows: [
-					{
-						label: "Id-reference fields",
-						description:
-							"Fields listed here are read as references to other notes' frontmatter id, and rendered as ordinary link edges in the graph. Example: deps, links",
-						control: { kind: "id-ref-fields" },
-					},
-				],
-			},
-		],
-	},
 	// The metric rows (five toggles + weights, depth decay k) were REMOVED with
 	// the metric dials (node-sizing rethink, 2026-08-03): a node now sizes to
 	// fit what it shows, and these two clamps bound that fit.
@@ -542,6 +527,28 @@ export const SETTINGS_GROUPS: Readonly<Record<SettingsSection, SettingsGroup>> =
 							"One regular expression per line, tested (case-sensitively, unanchored) against each note's vault path including extension. E.g. `^archive/` matches the archive folder at the vault root; `templates/` matches anywhere. Invalid patterns are ignored.",
 						control: { kind: "exclusion-patterns" },
 						disabledWhen: "exclusion-enabled",
+					},
+				],
+			},
+		],
+	},
+	// Its own section: the one place a note's frontmatter (rather than its `[[wikilinks]]`)
+	// becomes graph edges. Sits after Node exclusion, before Performance (owner
+	// decision, ticket `nid_gpgudw7pfdy02wcqbs73si21x_e`): OFF by default (empty
+	// list), so it belongs with the trailing opt-in dials rather than the everyday
+	// reach/appearance sections.
+	"frontmatter-links": {
+		heading: "Frontmatter links",
+		panelClass: "vicinity-graph-frontmatter-links",
+		blocks: [
+			{
+				rows: [
+					{
+						label: "Id-reference fields",
+						description:
+							"Fields listed here are read as references to other notes' frontmatter id, and rendered as ordinary link edges in the graph. " +
+							"Type a field name (e.g. deps) and press Enter to add it; remove one with its × button.",
+						control: { kind: "id-ref-fields" },
 					},
 				],
 			},

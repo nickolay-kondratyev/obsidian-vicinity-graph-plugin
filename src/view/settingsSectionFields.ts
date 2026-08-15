@@ -19,17 +19,20 @@ import type { DepthSettings, FrontmatterLinkSettings, NodeExclusionSettings, Vie
 /**
  * The settings sections, in settings-tab render order. `edges` sits directly after
  * `depth-defaults`: both answer "how much of the vicinity do I see", depth by REACH
- * and edges by which of the reached links are drawn.
+ * and edges by which of the reached links are drawn. `frontmatter-links` sits
+ * between `node-exclusion` and `performance` (owner decision, ticket
+ * `nid_gpgudw7pfdy02wcqbs73si21x_e`): it is off by default, so it reads as one of
+ * the trailing opt-in dials rather than part of the everyday reach/appearance run.
  */
 export const SETTINGS_SECTIONS = [
 	"depth-defaults",
 	"edges",
-	"frontmatter-links",
 	"node-sizing",
 	"node-contents",
 	"grouping",
 	"force-layout",
 	"node-exclusion",
+	"frontmatter-links",
 	"performance",
 ] as const;
 
@@ -70,7 +73,6 @@ export const SECTION_SETTINGS_FIELDS = {
 		frontmatterLinks: NO_FIELDS,
 	},
 	edges: { view: ["showCrossLinks"], depth: NO_FIELDS, exclusion: NO_FIELDS, frontmatterLinks: NO_FIELDS },
-	"frontmatter-links": { view: NO_FIELDS, depth: NO_FIELDS, exclusion: NO_FIELDS, frontmatterLinks: ["idRefFields"] },
 	"node-sizing": { view: ["sizing"], depth: NO_FIELDS, exclusion: NO_FIELDS, frontmatterLinks: NO_FIELDS },
 	"node-contents": {
 		view: ["outlineMaxDepth", "nodePreviewPreference"],
@@ -86,6 +88,7 @@ export const SECTION_SETTINGS_FIELDS = {
 	},
 	"force-layout": { view: ["forceLayout"], depth: NO_FIELDS, exclusion: NO_FIELDS, frontmatterLinks: NO_FIELDS },
 	"node-exclusion": { view: NO_FIELDS, depth: NO_FIELDS, exclusion: ["enabled", "patterns"], frontmatterLinks: NO_FIELDS },
+	"frontmatter-links": { view: NO_FIELDS, depth: NO_FIELDS, exclusion: NO_FIELDS, frontmatterLinks: ["idRefFields"] },
 	performance: { view: ["nodeCap"], depth: NO_FIELDS, exclusion: NO_FIELDS, frontmatterLinks: NO_FIELDS },
 } as const satisfies Readonly<Record<SettingsSection, SectionSettingsFields>>;
 

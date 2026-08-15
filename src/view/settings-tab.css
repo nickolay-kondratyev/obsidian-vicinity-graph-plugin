@@ -123,3 +123,10 @@
 .vicinity-graph-settings .vicinity-graph-settings-error:empty {
 	display: none;
 }
+
+/* The id-ref-fields chip row in the TAB: the chrome is shared (graph-view.css,
+ * "chips" block); here only the alignment differs — the control column is
+ * right-aligned, so chips wrap toward the entry field at the row's right edge. */
+.vicinity-graph-settings .vicinity-graph-chips {
+	justify-content: flex-end;
+}

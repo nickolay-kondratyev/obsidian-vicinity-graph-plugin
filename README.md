@@ -130,11 +130,6 @@ The settings, grouped the same way on both surfaces:
 - **Edges** — *Show cross links* also draws links between two on-screen notes
   that traversal never walked (which notes are shown never changes, only the
   lines between them).
-- **Frontmatter links** — *Id-reference fields* lists frontmatter field names
-  (e.g. `deps, links`) whose values are read as references to another note's
-  frontmatter `id`, and drawn as ordinary link edges — in **both** directions,
-  so the referenced note also shows who points at it. Empty by default (the
-  feature is off); it rides the same depth budgets as `[[wikilinks]]`.
 - **Node sizing** — each node fits what it shows between a minimum and maximum
   height, with an optional extra floor for image nodes. A size you set by
   dragging always wins.
@@ -152,6 +147,13 @@ The settings, grouped the same way on both surfaces:
 - **Node exclusion** — keep whole classes of notes (index/MOC hubs, templates, a
   `rel/` folder) out of every graph via a regex pattern list. Your central and
   pinned notes always stay.
+- **Frontmatter links** — *Id-reference fields* names the frontmatter fields
+  (e.g. `deps`) whose values are read as references to another note's
+  frontmatter `id`, and drawn as ordinary link edges — in **both** directions,
+  so the referenced note also shows who points at it. Type a field name and
+  press <kbd>Enter</kbd> to add it; each added field shows as a chip with its
+  own **×** to remove it. Empty by default (the feature is off); it rides the
+  same depth budgets as `[[wikilinks]]`.
 - **Performance** — a node cap (default **100**, the readable ceiling); beyond it
   the graph truncates and shows a hidden-node count.
 

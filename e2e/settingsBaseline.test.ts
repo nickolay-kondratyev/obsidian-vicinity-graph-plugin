@@ -24,12 +24,12 @@ describe("settings-tab baseline", () => {
 		expect(SECTION_RESET_NAMES).toEqual([
 			"Restore depth defaults",
 			"Restore edges defaults",
-			"Restore frontmatter links defaults",
 			"Restore node sizing defaults",
 			"Restore node contents defaults",
 			"Restore grouping defaults",
 			"Restore force layout defaults",
 			"Restore node exclusion defaults",
+			"Restore frontmatter links defaults",
 			"Restore performance defaults",
 		]);
 	});
