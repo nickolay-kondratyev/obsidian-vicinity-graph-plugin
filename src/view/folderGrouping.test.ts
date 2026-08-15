@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { asFolderPath, asVaultPath } from "../engine";
-import { deriveFolderGroups } from "./folderGrouping";
+import { deriveFolderGroups, UNLIMITED_GROUP_NESTING_DEPTH } from "./folderGrouping";
 import { makeNode } from "./testFixtures/graphFixtures";
 
 /** GIVEN a mixed graph: two notes in notes/, a singleton in solo/, one root file. */
@@ -13,17 +13,17 @@ const MIXED_NODES = [
 
 describe("deriveFolderGroups 2+ membership rule", () => {
 	it("WHEN a folder holds two nodes THEN it becomes a group with both members", () => {
-		const notes = deriveFolderGroups(MIXED_NODES).groups.find((group) => group.folder === "notes");
+		const notes = deriveFolderGroups(MIXED_NODES, UNLIMITED_GROUP_NESTING_DEPTH).groups.find((group) => group.folder === "notes");
 		expect(notes?.memberPaths).toEqual(["notes/a.md", "notes/b.md"]);
 	});
 
 	it("WHEN a folder holds two nodes THEN its group is top-level (no parent, leaf label)", () => {
-		const notes = deriveFolderGroups(MIXED_NODES).groups.find((group) => group.folder === "notes");
+		const notes = deriveFolderGroups(MIXED_NODES, UNLIMITED_GROUP_NESTING_DEPTH).groups.find((group) => group.folder === "notes");
 		expect(notes).toMatchObject({ parentFolder: null, leafName: "notes", chainPath: "notes" });
 	});
 
 	it("WHEN a folder holds a single node THEN no group is emitted for it", () => {
-		const folders = deriveFolderGroups(MIXED_NODES).groups.map((group) => group.folder);
+		const folders = deriveFolderGroups(MIXED_NODES, UNLIMITED_GROUP_NESTING_DEPTH).groups.map((group) => group.folder);
 		expect(folders).not.toContain("solo");
 	});
 
@@ -32,17 +32,17 @@ describe("deriveFolderGroups 2+ membership rule", () => {
 			makeNode({ path: asVaultPath("a.md"), folder: asFolderPath("") }),
 			makeNode({ path: asVaultPath("b.md"), folder: asFolderPath("") }),
 		];
-		expect(deriveFolderGroups(rootPair).groups).toEqual([]);
+		expect(deriveFolderGroups(rootPair, UNLIMITED_GROUP_NESTING_DEPTH).groups).toEqual([]);
 	});
 });
 
 describe("deriveFolderGroups membership index", () => {
 	it("WHEN a node is in a rendered group THEN the reverse index maps its path to the folder", () => {
-		expect(deriveFolderGroups(MIXED_NODES).groupFolderByMemberPath.get("notes/a.md")).toBe("notes");
+		expect(deriveFolderGroups(MIXED_NODES, UNLIMITED_GROUP_NESTING_DEPTH).groupFolderByMemberPath.get("notes/a.md")).toBe("notes");
 	});
 
 	it("WHEN a node is a folder singleton THEN the reverse index does not contain it", () => {
-		expect(deriveFolderGroups(MIXED_NODES).groupFolderByMemberPath.has("solo/only.md")).toBe(false);
+		expect(deriveFolderGroups(MIXED_NODES, UNLIMITED_GROUP_NESTING_DEPTH).groupFolderByMemberPath.has("solo/only.md")).toBe(false);
 	});
 });
 
@@ -57,17 +57,17 @@ const DESCENDANT_NODES = [
 
 describe("deriveFolderGroups descendant qualification", () => {
 	it("WHEN two notes are descendants across different subfolders THEN the ancestor folder qualifies", () => {
-		const folders = deriveFolderGroups(DESCENDANT_NODES).groups.map((group) => group.folder);
+		const folders = deriveFolderGroups(DESCENDANT_NODES, UNLIMITED_GROUP_NESTING_DEPTH).groups.map((group) => group.folder);
 		expect(folders).toEqual(["sql"]);
 	});
 
 	it("WHEN a lone note sits in a too-small subfolder THEN it is assigned up to the nearest qualifying ancestor", () => {
-		const index = deriveFolderGroups(DESCENDANT_NODES).groupFolderByMemberPath;
+		const index = deriveFolderGroups(DESCENDANT_NODES, UNLIMITED_GROUP_NESTING_DEPTH).groupFolderByMemberPath;
 		expect(index.get("sql/joins/inner.md")).toBe("sql");
 	});
 
 	it("WHEN a subfolder holds a single descendant THEN it does not become its own group", () => {
-		const folders = deriveFolderGroups(DESCENDANT_NODES).groups.map((group) => group.folder);
+		const folders = deriveFolderGroups(DESCENDANT_NODES, UNLIMITED_GROUP_NESTING_DEPTH).groups.map((group) => group.folder);
 		expect(folders).not.toContain("sql/joins");
 	});
 });
@@ -84,22 +84,22 @@ const NESTED_NODES = [
 
 describe("deriveFolderGroups nesting", () => {
 	it("WHEN a qualifying subfolder sits inside a qualifying folder THEN both render as groups", () => {
-		const folders = deriveFolderGroups(NESTED_NODES).groups.map((group) => group.folder).sort();
+		const folders = deriveFolderGroups(NESTED_NODES, UNLIMITED_GROUP_NESTING_DEPTH).groups.map((group) => group.folder).sort();
 		expect(folders).toEqual(["outer", "outer/inner"]);
 	});
 
 	it("WHEN a group nests inside another THEN its parentFolder points at the ancestor group", () => {
-		const inner = deriveFolderGroups(NESTED_NODES).groups.find((group) => group.folder === "outer/inner");
+		const inner = deriveFolderGroups(NESTED_NODES, UNLIMITED_GROUP_NESTING_DEPTH).groups.find((group) => group.folder === "outer/inner");
 		expect(inner?.parentFolder).toBe("outer");
 	});
 
 	it("WHEN a group nests THEN its chainPath is the leaf name relative to its parent", () => {
-		const inner = deriveFolderGroups(NESTED_NODES).groups.find((group) => group.folder === "outer/inner");
+		const inner = deriveFolderGroups(NESTED_NODES, UNLIMITED_GROUP_NESTING_DEPTH).groups.find((group) => group.folder === "outer/inner");
 		expect(inner?.chainPath).toBe("inner");
 	});
 
 	it("WHEN a note sits directly in the outer folder THEN it is a member of the outer group only", () => {
-		const outer = deriveFolderGroups(NESTED_NODES).groups.find((group) => group.folder === "outer");
+		const outer = deriveFolderGroups(NESTED_NODES, UNLIMITED_GROUP_NESTING_DEPTH).groups.find((group) => group.folder === "outer");
 		expect(outer?.memberPaths).toEqual(["outer/top.md"]);
 	});
 });
@@ -115,17 +115,17 @@ const COLLAPSE_NODES = [
 
 describe("deriveFolderGroups redundant-chain collapse", () => {
 	it("WHEN a single-child chain leads to one group THEN only the leaf group survives", () => {
-		const folders = deriveFolderGroups(COLLAPSE_NODES).groups.map((group) => group.folder);
+		const folders = deriveFolderGroups(COLLAPSE_NODES, UNLIMITED_GROUP_NESTING_DEPTH).groups.map((group) => group.folder);
 		expect(folders).toEqual(["a/b/c"]);
 	});
 
 	it("WHEN a chain collapses THEN the surviving group carries the collapsed path label", () => {
-		const [group] = deriveFolderGroups(COLLAPSE_NODES).groups;
+		const [group] = deriveFolderGroups(COLLAPSE_NODES, UNLIMITED_GROUP_NESTING_DEPTH).groups;
 		expect(group?.chainPath).toBe("a/b/c");
 	});
 
 	it("WHEN a chain collapses THEN the surviving group still names its real leaf folder", () => {
-		const [group] = deriveFolderGroups(COLLAPSE_NODES).groups;
+		const [group] = deriveFolderGroups(COLLAPSE_NODES, UNLIMITED_GROUP_NESTING_DEPTH).groups;
 		expect(group).toMatchObject({ folder: "a/b/c", leafName: "c", parentFolder: null });
 	});
 
@@ -136,48 +136,48 @@ describe("deriveFolderGroups redundant-chain collapse", () => {
 			makeNode({ path: asVaultPath("x/y/z/a.md"), folder: asFolderPath("x/y/z") }),
 			makeNode({ path: asVaultPath("x/y/z/b.md"), folder: asFolderPath("x/y/z") }),
 		];
-		const leaf = deriveFolderGroups(nodes).groups.find((group) => group.folder === "x/y/z");
+		const leaf = deriveFolderGroups(nodes, UNLIMITED_GROUP_NESTING_DEPTH).groups.find((group) => group.folder === "x/y/z");
 		expect(leaf).toMatchObject({ parentFolder: "x", chainPath: "y/z" });
 	});
 });
 
 describe("deriveFolderGroups nearestRenderedAncestorGroupOf seam", () => {
 	it("WHEN a folder is itself a rendered group THEN it returns that group", () => {
-		const result = deriveFolderGroups(NESTED_NODES);
+		const result = deriveFolderGroups(NESTED_NODES, UNLIMITED_GROUP_NESTING_DEPTH);
 		expect(result.nearestRenderedAncestorGroupOf(asFolderPath("outer/inner"))?.folder).toBe("outer/inner");
 	});
 
 	it("WHEN a folder is a too-small descendant THEN it returns the nearest rendered ancestor", () => {
-		const result = deriveFolderGroups(DESCENDANT_NODES);
+		const result = deriveFolderGroups(DESCENDANT_NODES, UNLIMITED_GROUP_NESTING_DEPTH);
 		expect(result.nearestRenderedAncestorGroupOf(asFolderPath("sql/joins"))?.folder).toBe("sql");
 	});
 
 	it("WHEN a folder has no rendered ancestor THEN it returns null (top-level container)", () => {
-		const result = deriveFolderGroups(MIXED_NODES);
+		const result = deriveFolderGroups(MIXED_NODES, UNLIMITED_GROUP_NESTING_DEPTH);
 		expect(result.nearestRenderedAncestorGroupOf(asFolderPath("solo"))).toBeNull();
 	});
 
 	it("WHEN a folder collapsed into its child THEN the lookup skips it to a surviving ancestor", () => {
-		const result = deriveFolderGroups(COLLAPSE_NODES);
+		const result = deriveFolderGroups(COLLAPSE_NODES, UNLIMITED_GROUP_NESTING_DEPTH);
 		expect(result.nearestRenderedAncestorGroupOf(asFolderPath("a/b"))).toBeNull();
 	});
 });
 
 describe("deriveFolderGroups lowestCommonAncestorContainerOf seam", () => {
 	it("WHEN both notes render in the same group THEN the LCA container is that group", () => {
-		const result = deriveFolderGroups(NESTED_NODES);
+		const result = deriveFolderGroups(NESTED_NODES, UNLIMITED_GROUP_NESTING_DEPTH);
 		expect(result.lowestCommonAncestorContainerOf("outer/inner/a.md", "outer/inner/b.md")?.folder).toBe(
 			"outer/inner",
 		);
 	});
 
 	it("WHEN notes render in nested groups THEN the LCA container is the shared outer group", () => {
-		const result = deriveFolderGroups(NESTED_NODES);
+		const result = deriveFolderGroups(NESTED_NODES, UNLIMITED_GROUP_NESTING_DEPTH);
 		expect(result.lowestCommonAncestorContainerOf("outer/top.md", "outer/inner/a.md")?.folder).toBe("outer");
 	});
 
 	it("WHEN one endpoint is ungrouped THEN the LCA container is the canvas pane (null)", () => {
-		const result = deriveFolderGroups(MIXED_NODES);
+		const result = deriveFolderGroups(MIXED_NODES, UNLIMITED_GROUP_NESTING_DEPTH);
 		expect(result.lowestCommonAncestorContainerOf("solo/only.md", "notes/a.md")).toBeNull();
 	});
 });
@@ -199,7 +199,7 @@ const THREE_DEEP_NODES = [
 ];
 
 describe("deriveFolderGroups projectOntoContainerChildOf depth allowance", () => {
-	const result = deriveFolderGroups(THREE_DEEP_NODES);
+	const result = deriveFolderGroups(THREE_DEEP_NODES, UNLIMITED_GROUP_NESTING_DEPTH);
 	const groupA = result.groups.find((group) => group.folder === "A") ?? null;
 	const groupABC = result.groups.find((group) => group.folder === "A/B/C") ?? null;
 
@@ -240,11 +240,11 @@ describe("deriveFolderGroups projectOntoContainerChildOf depth allowance", () =>
 
 describe("deriveFolderGroups determinism", () => {
 	it("WHEN deriving twice from the same nodes THEN the group results are identical", () => {
-		expect(deriveFolderGroups(MIXED_NODES).groups).toEqual(deriveFolderGroups(MIXED_NODES).groups);
+		expect(deriveFolderGroups(MIXED_NODES, UNLIMITED_GROUP_NESTING_DEPTH).groups).toEqual(deriveFolderGroups(MIXED_NODES, UNLIMITED_GROUP_NESTING_DEPTH).groups);
 	});
 
 	it("WHEN deriving a nested graph twice THEN the group order is identical (layout/flow sync)", () => {
-		expect(deriveFolderGroups(NESTED_NODES).groups).toEqual(deriveFolderGroups(NESTED_NODES).groups);
+		expect(deriveFolderGroups(NESTED_NODES, UNLIMITED_GROUP_NESTING_DEPTH).groups).toEqual(deriveFolderGroups(NESTED_NODES, UNLIMITED_GROUP_NESTING_DEPTH).groups);
 	});
 });
 
@@ -272,23 +272,147 @@ function denseMultiFolderNodes() {
 
 describe("deriveFolderGroups dense 1/2/many membership matrix", () => {
 	it("WHEN folders of size 1, 2 and many coexist THEN only the 2+ folders become groups", () => {
-		const folders = deriveFolderGroups(denseMultiFolderNodes()).groups.map((group) => group.folder).sort();
+		const folders = deriveFolderGroups(denseMultiFolderNodes(), UNLIMITED_GROUP_NESTING_DEPTH).groups.map((group) => group.folder).sort();
 		expect(folders).toEqual(["duo", "many"]);
 	});
 
 	it("WHEN a folder holds dozens of members THEN the group lists every one of them", () => {
-		const many = deriveFolderGroups(denseMultiFolderNodes()).groups.find((group) => group.folder === "many");
+		const many = deriveFolderGroups(denseMultiFolderNodes(), UNLIMITED_GROUP_NESTING_DEPTH).groups.find((group) => group.folder === "many");
 		expect(many?.memberPaths).toHaveLength(MANY_MEMBER_COUNT);
 	});
 
 	it("WHEN the single-member and root folders are present THEN neither is grouped", () => {
-		const folders = deriveFolderGroups(denseMultiFolderNodes()).groups.map((group) => group.folder as string);
+		const folders = deriveFolderGroups(denseMultiFolderNodes(), UNLIMITED_GROUP_NESTING_DEPTH).groups.map((group) => group.folder as string);
 		expect(folders.includes("single") || folders.includes("")).toBe(false);
 	});
 
 	it("WHEN deriving the dense graph twice THEN the results are identical (layout/flow sync)", () => {
-		expect(deriveFolderGroups(denseMultiFolderNodes()).groups).toEqual(
-			deriveFolderGroups(denseMultiFolderNodes()).groups,
+		expect(deriveFolderGroups(denseMultiFolderNodes(), UNLIMITED_GROUP_NESTING_DEPTH).groups).toEqual(
+			deriveFolderGroups(denseMultiFolderNodes(), UNLIMITED_GROUP_NESTING_DEPTH).groups,
 		);
+	});
+});
+
+/**
+ * Max rendered-nesting-depth cap (plan `nid_yyugpoh3gv8ip24cizvgrs4w4_e`, Q1):
+ * groups deeper than the cap merge into their depth-cap ancestor, members fall
+ * up, and every lookup seam reflects the merged tree — so relationships that
+ * collapsed into a deep group's boundary resurface at the shallower level.
+ */
+describe("deriveFolderGroups depth cap of 0", () => {
+	it("WHEN the cap is 0 THEN no groups render at all", () => {
+		expect(deriveFolderGroups(THREE_DEEP_NODES, 0).groups).toEqual([]);
+	});
+
+	it("WHEN the cap is 0 THEN the member index is empty (every note renders flat)", () => {
+		expect(deriveFolderGroups(THREE_DEEP_NODES, 0).groupFolderByMemberPath.size).toBe(0);
+	});
+
+	it("WHEN the cap is 0 THEN nearestRenderedAncestorGroupOf finds nothing", () => {
+		const result = deriveFolderGroups(THREE_DEEP_NODES, 0);
+		expect(result.nearestRenderedAncestorGroupOf(asFolderPath("A/B/C"))).toBeNull();
+	});
+
+	it("WHEN the cap is 0 THEN two same-folder notes share only the canvas pane (edges resurface note-to-note)", () => {
+		const result = deriveFolderGroups(THREE_DEEP_NODES, 0);
+		expect(result.lowestCommonAncestorContainerOf("A/B/C/c1.md", "A/B/C/c2.md")).toBeNull();
+	});
+
+	it("WHEN the cap is 0 THEN projection from the canvas pane reaches no group (true note endpoint)", () => {
+		const result = deriveFolderGroups(THREE_DEEP_NODES, 0);
+		expect(result.projectOntoContainerChildOf("A/B/C/c1.md", null)).toBeNull();
+	});
+});
+
+describe("deriveFolderGroups depth cap of 1", () => {
+	const capped = deriveFolderGroups(THREE_DEEP_NODES, 1);
+
+	it("WHEN the cap is 1 THEN only the top-level group survives", () => {
+		expect(capped.groups.map((group) => group.folder)).toEqual(["A"]);
+	});
+
+	it("WHEN deep groups merge away THEN their members fall up into the surviving ancestor in graph-node order", () => {
+		const groupA = capped.groups.find((group) => group.folder === "A");
+		expect(groupA?.memberPaths).toEqual([
+			"A/a1.md",
+			"A/a2.md",
+			"A/B/b1.md",
+			"A/B/b2.md",
+			"A/B/C/c1.md",
+			"A/B/C/c2.md",
+		]);
+	});
+
+	it("WHEN a deep group merges away THEN the member index maps its notes to the surviving ancestor", () => {
+		expect(capped.groupFolderByMemberPath.get("A/B/C/c1.md")).toBe("A");
+	});
+
+	it("WHEN a merged-away group's folder is looked up THEN the nearest rendered ancestor is the survivor", () => {
+		expect(capped.nearestRenderedAncestorGroupOf(asFolderPath("A/B/C"))?.folder).toBe("A");
+	});
+
+	it("WHEN two notes' old LCA group merged away THEN the LCA is the shallower surviving container", () => {
+		// Uncapped their LCA is A/B/C; with only A surviving, the edge collapses no further than A.
+		expect(capped.lowestCommonAncestorContainerOf("A/B/C/c1.md", "A/B/C/c2.md")?.folder).toBe("A");
+	});
+
+	it("WHEN a note's chain lost its deep groups THEN projection inside the survivor reaches the true note", () => {
+		// Uncapped this reached A/B; with the deep groups gone, c1 is a direct leaf member of A.
+		const groupA = capped.groups.find((group) => group.folder === "A") ?? null;
+		expect(capped.projectOntoContainerChildOf("A/B/C/c1.md", groupA)).toBeNull();
+	});
+});
+
+describe("deriveFolderGroups depth cap counts RENDERED levels", () => {
+	it("WHEN a single-child chain collapsed into one box THEN that box counts as ONE level", () => {
+		// a/b/c renders as one box labelled a/b/c, so a cap of 1 keeps it.
+		expect(deriveFolderGroups(COLLAPSE_NODES, 1).groups.map((group) => group.folder)).toEqual(["a/b/c"]);
+	});
+
+	it("WHEN a mid-chain collapse puts a group at rendered depth 2 THEN a cap of 1 merges it up", () => {
+		// x ⊃ x/y/z (x/y collapsed): x/y/z is rendered depth 2 despite folder depth 3.
+		const nodes = [
+			makeNode({ path: asVaultPath("x/n1.md"), folder: asFolderPath("x") }),
+			makeNode({ path: asVaultPath("x/y/z/a.md"), folder: asFolderPath("x/y/z") }),
+			makeNode({ path: asVaultPath("x/y/z/b.md"), folder: asFolderPath("x/y/z") }),
+		];
+		const capped = deriveFolderGroups(nodes, 1);
+		expect(capped.groups.map((group) => group.folder)).toEqual(["x"]);
+	});
+
+	it("WHEN a mid-chain collapse puts a group at rendered depth 2 THEN a cap of 2 keeps it", () => {
+		const nodes = [
+			makeNode({ path: asVaultPath("x/n1.md"), folder: asFolderPath("x") }),
+			makeNode({ path: asVaultPath("x/y/z/a.md"), folder: asFolderPath("x/y/z") }),
+			makeNode({ path: asVaultPath("x/y/z/b.md"), folder: asFolderPath("x/y/z") }),
+		];
+		const capped = deriveFolderGroups(nodes, 2);
+		expect(capped.groups.map((group) => group.folder).sort()).toEqual(["x", "x/y/z"]);
+	});
+});
+
+describe("deriveFolderGroups depth cap at or above the tree depth", () => {
+	it("WHEN the cap equals the rendered tree depth THEN the result matches the unlimited one", () => {
+		expect(deriveFolderGroups(THREE_DEEP_NODES, 3).groups).toEqual(
+			deriveFolderGroups(THREE_DEEP_NODES, UNLIMITED_GROUP_NESTING_DEPTH).groups,
+		);
+	});
+
+	it("WHEN the cap exceeds the rendered tree depth THEN the result matches the unlimited one", () => {
+		expect(deriveFolderGroups(THREE_DEEP_NODES, 20).groups).toEqual(
+			deriveFolderGroups(THREE_DEEP_NODES, UNLIMITED_GROUP_NESTING_DEPTH).groups,
+		);
+	});
+
+	it("WHEN a cap keeps part of the tree THEN surviving inner groups keep their own members only", () => {
+		// Cap 2 on the three-deep tree: A/B survives and absorbs A/B/C's members; A keeps its own.
+		const capped = deriveFolderGroups(THREE_DEEP_NODES, 2);
+		const groupAB = capped.groups.find((group) => group.folder === "A/B");
+		expect(groupAB?.memberPaths).toEqual(["A/B/b1.md", "A/B/b2.md", "A/B/C/c1.md", "A/B/C/c2.md"]);
+	});
+
+	it("WHEN a cap keeps part of the tree THEN the old deep LCA moves to the deepest survivor", () => {
+		const capped = deriveFolderGroups(THREE_DEEP_NODES, 2);
+		expect(capped.lowestCommonAncestorContainerOf("A/B/C/c1.md", "A/B/C/c2.md")?.folder).toBe("A/B");
 	});
 });
