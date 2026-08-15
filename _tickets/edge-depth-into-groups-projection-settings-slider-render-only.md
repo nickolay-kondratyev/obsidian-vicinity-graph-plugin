@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_39fjevyqyfv0ge849rc77stn5_e
 title: "Edge depth into groups: projection + settings slider (render-only)"
-status: open
+status: in_progress
 deps: [nid_6fkhyw97hjs84xb62z6tommhi_e]
 links: []
 created_iso: 2026-08-14T23:38:31Z
-status_updated_iso: 2026-08-14T23:38:31Z
+status_updated_iso: 2026-08-15T00:14:56Z
 type: feature
 priority: 3
 assignee: nickolaykondratyev
