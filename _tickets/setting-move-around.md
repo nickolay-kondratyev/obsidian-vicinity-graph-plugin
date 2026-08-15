@@ -1,4 +1,5 @@
 ---
+session_ids: [{"a": "claude", "type": "execution", "id": "b20e2a83-d78c-442d-8eb9-f8abb37dc4f7"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_rndi5sulwrsx1aq0x4xqcskrb_e
 title: "setting move around"
