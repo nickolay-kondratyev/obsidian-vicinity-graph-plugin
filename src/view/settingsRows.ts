@@ -143,11 +143,19 @@ export function unhandledRowControl(control: never): never {
  * disable it (owner decision 2026-07-29, ticket `nid_qp56jugz8en8wkgjirwcb269p_e`) — so there is no
  * hide/reveal repaint that can go stale and nothing drops out of settings search.
  */
-export type SettingsRowDependency = "exclusion-enabled";
+export type SettingsRowDependency = "exclusion-enabled" | "folder-grouping-on";
 
 /**
- * The control kinds whose presenters ACTUALLY honour a declared dependency — today
- * exactly one, the exclusion pattern list.
+ * The "Folder grouping depth" value that turns folder grouping off entirely (the
+ * spec's declared minimum; `deriveFolderGroups` renders no groups at 0) — the
+ * condition the `folder-grouping-on` dependency tests.
+ */
+const FOLDER_GROUPING_OFF_DEPTH = 0;
+
+/**
+ * The control kinds whose presenters ACTUALLY honour a declared dependency — the
+ * exclusion pattern list, plus the two Grouping rows that are moot while their
+ * master dial (folder grouping depth) sits at 0.
  *
  * This allowlist exists so the facility cannot over-promise: {@link SettingsRow} only
  * ACCEPTS `disabledWhen` on these kinds, so declaring it on, say, a slider row is a
@@ -158,7 +166,11 @@ export type SettingsRowDependency = "exclusion-enabled";
  * {@link isSettingsRowDisabled} — the tab additionally registering a `DependentControl`
  * so the verdict is re-applied after a write — and then add the kind here.
  */
-export const DEPENDENCY_AWARE_CONTROL_KINDS = ["exclusion-patterns"] as const satisfies readonly SettingsRowControlKind[];
+export const DEPENDENCY_AWARE_CONTROL_KINDS = [
+	"exclusion-patterns",
+	"group-label-full-path",
+	"edge-depth-into-groups",
+] as const satisfies readonly SettingsRowControlKind[];
 
 type DependencyAwareControlKind = (typeof DEPENDENCY_AWARE_CONTROL_KINDS)[number];
 
@@ -183,6 +195,8 @@ export function isSettingsRowDisabled(row: SettingsRow, state: SettingsRowState)
 	switch (row.disabledWhen) {
 		case "exclusion-enabled":
 			return !state.nodeExclusion.enabled;
+		case "folder-grouping-on":
+			return state.globalView.folderGroupingDepth === FOLDER_GROUPING_OFF_DEPTH;
 	}
 }
 
@@ -484,8 +498,8 @@ export const SETTINGS_GROUPS: Readonly<Record<SettingsSection, SettingsGroup>> =
 			{
 				rows: [
 					// First row deliberately (general → specific): this is the master dial —
-					// at 0 the rows below it are moot (their disabledWhen wiring is ticket
-					// nid_dqu2jc1kln9ltwzy3lxxocdw7_e).
+					// at 0 the rows below it are moot, which is what their declared
+					// `disabledWhen` renders.
 					{
 						label: "Folder grouping depth",
 						description:
@@ -497,12 +511,14 @@ export const SETTINGS_GROUPS: Readonly<Record<SettingsSection, SettingsGroup>> =
 						description:
 							"Label a collapsed folder chain — a run of single-child folders drawn as one group — with its full path (A/B/C) instead of just the innermost folder name. Groups that are not collapsed always show their folder name.",
 						control: { kind: "group-label-full-path" },
+						disabledWhen: "folder-grouping-on",
 					},
 					{
 						label: "Edge depth into groups",
 						description:
 							"How many levels of nested groups an edge may reach into before collapsing onto the group box. 0 keeps every group edge collapsed.",
 						control: { kind: "edge-depth-into-groups" },
+						disabledWhen: "folder-grouping-on",
 					},
 				],
 			},

@@ -14,10 +14,13 @@ export function ToggleSwitch({
 	checked,
 	onChange,
 	ariaLabel,
+	disabled,
 }: {
 	readonly checked: boolean;
 	readonly onChange: (checked: boolean) => void;
 	readonly ariaLabel: string;
+	/** Renders the switch inert — on the NATIVE checkbox, so keyboard and the a11y tree agree. */
+	readonly disabled?: boolean;
 }): ReactElement {
 	return (
 		<div className={checked ? "checkbox-container mod-small is-enabled" : "checkbox-container mod-small"}>
@@ -25,6 +28,7 @@ export function ToggleSwitch({
 				type="checkbox"
 				checked={checked}
 				aria-label={ariaLabel}
+				disabled={disabled}
 				onChange={(event) => onChange(event.target.checked)}
 			/>
 		</div>
