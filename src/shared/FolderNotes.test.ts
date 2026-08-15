@@ -39,6 +39,38 @@ describe("FolderNotes folder-note resolution", () => {
 	});
 });
 
+describe("FolderNotes folder-note candidates (navigation-only, ticket nid_2pobjyfp5zgspx283bfukaugn_e)", () => {
+	it("WHEN all four candidate paths exist THEN all come back in descending precedence order", () => {
+		const notes = FolderNotes.fromPaths(["Jon/Jon.md", "Jon/Jon.canvas", "Jon.md", "Jon.canvas", "Jon/child.md"]);
+		expect(notes.folderNoteCandidatesOf("Jon")).toEqual(["Jon/Jon.md", "Jon/Jon.canvas", "Jon.md", "Jon.canvas"]);
+	});
+
+	it("WHEN only some candidates exist THEN only those come back, precedence order kept", () => {
+		const notes = FolderNotes.fromPaths(["Jon/Jon.canvas", "Jon.md", "Jon/child.md"]);
+		expect(notes.folderNoteCandidatesOf("Jon")).toEqual(["Jon/Jon.canvas", "Jon.md"]);
+	});
+
+	it("WHEN no candidate exists THEN the list is empty", () => {
+		const notes = FolderNotes.fromPaths(["Jon/child.md"]);
+		expect(notes.folderNoteCandidatesOf("Jon")).toEqual([]);
+	});
+
+	it("WHEN the vault root is asked THEN the list is empty (the root owns no folder note)", () => {
+		const notes = FolderNotes.fromPaths(["Jon.md"]);
+		expect(notes.folderNoteCandidatesOf("")).toEqual([]);
+	});
+
+	it("WHEN candidates exist THEN the first candidate IS the traversal winner (one shared table)", () => {
+		const notes = FolderNotes.fromPaths(["Jon.md", "Jon/Jon.canvas", "Jon/child.md"]);
+		expect(notes.folderNoteCandidatesOf("Jon")[0]).toBe(notes.folderNoteOf("Jon"));
+	});
+
+	it("WHEN a nested folder is asked THEN sibling candidates resolve against its PARENT folder", () => {
+		const notes = FolderNotes.fromPaths(["wiki/lang.md", "wiki/lang/child.md"]);
+		expect(notes.folderNoteCandidatesOf("wiki/lang")).toEqual(["wiki/lang.md"]);
+	});
+});
+
 describe("FolderNotes children", () => {
 	it("WHEN a sibling folder note is asked for its children THEN it is the direct node-bearing files", () => {
 		const notes = FolderNotes.fromPaths(["Jon.md", "Jon/a.md", "Jon/b.md"]);

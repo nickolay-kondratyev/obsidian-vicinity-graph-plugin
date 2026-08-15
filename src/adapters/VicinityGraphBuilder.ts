@@ -103,7 +103,14 @@ export class VicinityGraphBuilder {
 			localPinnedDocids: new Set(localPins.map((pin) => pin.docid)),
 		};
 		// The exclusion COUNT is a graph output (not an input), so it is threaded from
-		// the built graph into the toolbar model alongside the shared inputs.
-		return { graph, controls: ControlsModelBuilder.build(inputs, graph.excludedNodeCount), pinFacts };
+		// the built graph into the toolbar model alongside the shared inputs. The
+		// candidate lookup is the SAME warmed index the provider read — the labels'
+		// navigation targets come from this build's vault snapshot, not a later one.
+		return {
+			graph,
+			controls: ControlsModelBuilder.build(inputs, graph.excludedNodeCount),
+			pinFacts,
+			folderNoteCandidates: this.folderNoteIndex,
+		};
 	}
 }

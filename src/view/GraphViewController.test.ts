@@ -5,7 +5,7 @@ import { asFolderPath, asVaultPath, EngineDefaults, FakeLinkOccurrenceProvider }
 import { REBUILD_DEBOUNCE_MS } from "./constants";
 import { GraphViewController } from "./GraphViewController";
 import type { FlowSnapshot } from "./GraphViewController";
-import type { FlowNode, FlowPinFacts, NoteFlowNode } from "./flowMapping";
+import type { FlowNode, FlowPinFacts, FolderNoteCandidatesLookup, NoteFlowNode } from "./flowMapping";
 import type { ControlsModel } from "./ControlsModel";
 import type { EdgePreviewModel } from "./linkPreviewModel";
 import type {
@@ -31,6 +31,9 @@ const EMPTY_CONTROLS: ControlsModel = {
 
 /** No pins — these tests exercise concurrency, not the global/local pin split. */
 const NO_PINS: FlowPinFacts = { globalPinnedDocids: new Set(), localPinnedDocids: new Set() };
+
+/** No folder notes — these tests exercise concurrency, not label navigation. */
+const NO_FOLDER_NOTES: FolderNoteCandidatesLookup = { folderNoteCandidatesOf: () => [] };
 
 /**
  * Controller orchestration tests: latest-wins concurrency, null/empty handling,
@@ -78,7 +81,11 @@ class FakeGraphSource implements GraphSourcePort {
 
 	/** Tests supply just the graph; the empty controls model and no-pins facts are attached here. */
 	resolveBuild(index: number, graph: VicinityGraph | null): void {
-		this.pendingAt(index).resolve(graph === null ? null : { graph, controls: EMPTY_CONTROLS, pinFacts: NO_PINS });
+		this.pendingAt(index).resolve(
+			graph === null
+				? null
+				: { graph, controls: EMPTY_CONTROLS, pinFacts: NO_PINS, folderNoteCandidates: NO_FOLDER_NOTES },
+		);
 	}
 
 	/** The real builder reads the vault and can reject (e.g. a file deleted mid-read). */

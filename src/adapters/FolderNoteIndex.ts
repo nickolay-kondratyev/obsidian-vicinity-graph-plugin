@@ -1,4 +1,4 @@
-import type { VaultPath } from "../engine";
+import type { FolderPath, VaultPath } from "../engine";
 import { asVaultPath } from "../engine";
 import { FolderNotes } from "../shared/FolderNotes";
 import type { VaultPort } from "./obsidianPorts";
@@ -55,6 +55,16 @@ export class FolderNoteIndex {
 	 */
 	childNotesOf(path: VaultPath): readonly VaultPath[] {
 		return this.snapshot().childNotesOf(path).map(asVaultPath);
+	}
+
+	/**
+	 * EVERY existing folder-note candidate of `folder`, descending precedence (max
+	 * 4; index 0 is the traversal winner) — the navigation targets behind a
+	 * clickable folder-group label (ticket `nid_2pobjyfp5zgspx283bfukaugn_e`).
+	 * Structurally satisfies the view's `FolderNoteCandidatesLookup`.
+	 */
+	folderNoteCandidatesOf(folder: FolderPath): readonly VaultPath[] {
+		return this.snapshot().folderNoteCandidatesOf(folder).map(asVaultPath);
 	}
 
 	/** Folder-note PARENT one hop UP from `path`, or `undefined` at the first folder-note gap. */

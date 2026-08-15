@@ -7,7 +7,7 @@ import type {
 	VicinityGraph,
 } from "../engine";
 import type { ControlsModel } from "./ControlsModel";
-import type { FlowPinFacts } from "./flowMapping";
+import type { FlowPinFacts, FolderNoteCandidatesLookup } from "./flowMapping";
 import type { EdgePreviewModel } from "./linkPreviewModel";
 import type { SettingsResetScope } from "./settingsResetPlan";
 import type { SettingsInteraction } from "./settingsWritePlan";
@@ -36,6 +36,13 @@ export interface GraphBuildResult {
 	 * {@link controls}, so it cannot disagree with the graph the engine built.
 	 */
 	readonly pinFacts: FlowPinFacts;
+	/**
+	 * Folder-note candidate lookup over THIS build's vault snapshot — what makes a
+	 * folder-group label navigable (ticket `nid_2pobjyfp5zgspx283bfukaugn_e`). The
+	 * builder hands out the SAME warmed `FolderNoteIndex` the engine's hierarchy
+	 * channels read, so a label's targets cannot disagree with the traversal.
+	 */
+	readonly folderNoteCandidates: FolderNoteCandidatesLookup;
 }
 
 /** Builds the vicinity graph for a MAIN file path. `null` = path unresolved. */

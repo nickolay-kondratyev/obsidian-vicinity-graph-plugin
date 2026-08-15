@@ -3,7 +3,7 @@ import type { GraphEdge, GraphNode, NodeContentOverride, NodePreviewPreference, 
 import { asDocId, asFolderPath, asVaultPath, NODE_CONTENT_OVERRIDES, NODE_PREVIEW_PREFERENCES } from "../engine";
 import { OUTLINE_RENDER_LIMIT } from "./constants";
 import { edgeClassName, edgeKindClassName, vicinityGraphToFlow, withGroupDimensions, withPositions } from "./flowMapping";
-import type { FlowNode, FlowPinFacts, NoteFlowNode, XY } from "./flowMapping";
+import type { FlowNode, FlowPinFacts, FolderNoteCandidatesLookup, NoteFlowNode, XY } from "./flowMapping";
 import { NO_ORPHAN_TRUNCATION } from "./truncationBadges";
 import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
 
@@ -15,9 +15,12 @@ function noteNode(nodes: readonly FlowNode[], id: string): NoteFlowNode | undefi
 /** No pins at all — the default context for tests that do not exercise pinning. */
 const NO_PINS: FlowPinFacts = { globalPinnedDocids: new Set(), localPinnedDocids: new Set() };
 
-/** Default mapping call: nothing pinned. The pinned cases have their own describe. */
+/** No folder notes anywhere — the default context for tests that do not exercise label navigation. */
+const NO_FOLDER_NOTES: FolderNoteCandidatesLookup = { folderNoteCandidatesOf: () => [] };
+
+/** Default mapping call: nothing pinned, no folder notes. Those cases have their own describes. */
 function toFlow(graph: Parameters<typeof vicinityGraphToFlow>[0]) {
-	return vicinityGraphToFlow(graph, NO_PINS);
+	return vicinityGraphToFlow(graph, NO_PINS, NO_FOLDER_NOTES);
 }
 
 describe("vicinityGraphToFlow nodes", () => {
@@ -150,7 +153,7 @@ describe("vicinityGraphToFlow pin flags (global vs local split)", () => {
 				}),
 			],
 		});
-		const data = noteNode(vicinityGraphToFlow(graph, pinFacts).nodes, "n.md")?.data;
+		const data = noteNode(vicinityGraphToFlow(graph, pinFacts, NO_FOLDER_NOTES).nodes, "n.md")?.data;
 		return data === undefined
 			? undefined
 			: { isGloballyPinned: data.isGloballyPinned, isLocallyPinned: data.isLocallyPinned };
@@ -247,7 +250,17 @@ describe("vicinityGraphToFlow folder groups", () => {
 			folderName: "notes",
 			hiddenCount: 0,
 			fullPathLabel: false,
+			folderNoteCandidates: [],
 		});
+	});
+
+	it("WHEN the lookup knows the group's folder THEN its candidates ride the group data (label navigation)", () => {
+		const candidatesByFolder = new Map([["notes", ["notes/notes.md", "notes.md"]]]);
+		const flow = vicinityGraphToFlow(groupedGraph(), NO_PINS, {
+			folderNoteCandidatesOf: (folder) => candidatesByFolder.get(folder) ?? [],
+		});
+		const group = flow.nodes.find((node) => node.kind === "folder-group");
+		expect(group?.data.folderNoteCandidates).toEqual(["notes/notes.md", "notes.md"]);
 	});
 
 	it("WHEN groups are emitted THEN they precede their children (React Flow parent-first rule)", () => {
@@ -293,6 +306,25 @@ function nestedGroupGraph() {
 		edges: [makeEdge("sql/joins/a.md", "sql/windows/c.md")],
 	});
 }
+
+describe("vicinityGraphToFlow folder-note candidates on a collapsed chain (R4)", () => {
+	it("WHEN a chain `wiki/lang/en` collapses onto its leaf THEN only the DEEPEST folder's candidates are asked for", () => {
+		const chainGraph = makeGraph({
+			nodes: [
+				makeNode({ path: asVaultPath("wiki/lang/en/a.md"), folder: asFolderPath("wiki/lang/en") }),
+				makeNode({ path: asVaultPath("wiki/lang/en/b.md"), folder: asFolderPath("wiki/lang/en") }),
+			],
+		});
+		const queriedFolders: string[] = [];
+		vicinityGraphToFlow(chainGraph, NO_PINS, {
+			folderNoteCandidatesOf: (folder) => {
+				queriedFolders.push(folder);
+				return [];
+			},
+		});
+		expect(queriedFolders).toEqual(["wiki/lang/en"]);
+	});
+});
 
 describe("vicinityGraphToFlow nested folder groups", () => {
 	function groupNode(nodes: readonly FlowNode[], id: string) {

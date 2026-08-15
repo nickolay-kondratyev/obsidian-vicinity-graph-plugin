@@ -737,6 +737,18 @@
 	text-overflow: ellipsis;
 }
 
+/* A label with folder-note candidates NAVIGATES on click (ticket
+ * nid_2pobjyfp5zgspx283bfukaugn_e): pointer cursor + theme accent on hover say
+ * so, CSS-only. A candidate-less label never carries this modifier and keeps
+ * the inert muted styling above. */
+.vicinity-graph-group__label--navigable {
+	cursor: pointer;
+}
+
+.vicinity-graph-group__label--navigable:hover {
+	color: var(--text-accent);
+}
+
 /* Front-ellipsis for the "Full folder path" label ONLY: a folder path's meaning
  * lives in its TAIL (`…/some/child-path`), so an overflow must eat the head, not
  * the leaf. `direction: rtl` moves the ellipsis to the start; the full path stays

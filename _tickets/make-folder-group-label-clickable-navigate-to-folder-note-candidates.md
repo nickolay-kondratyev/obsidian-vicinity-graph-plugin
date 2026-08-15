@@ -1,12 +1,14 @@
 ---
+closed_iso: 2026-08-15T03:26:51Z
+session_ids: [{"a": "claude", "type": "execution", "id": "9bc8f156-56c0-4736-abe7-3ddae6c697fb"}, {"a": "claude", "type": "review", "id": "8b783439-2802-49ae-b85f-1ee4655c2c97"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 id: nid_2pobjyfp5zgspx283bfukaugn_e
 title: "Make folder-group label clickable: navigate to folder-note candidates"
-status: in_progress
+status: closed
 deps: []
 links: [nid_s28ucpwyu62674ndvbzst8nct_e]
 created_iso: 2026-08-15T03:08:44Z
-status_updated_iso: 2026-08-15T03:13:37Z
+status_updated_iso: 2026-08-15T03:26:51Z
 type: feature
 priority: 3
 assignee: nickolaykondratyev
@@ -49,3 +51,27 @@ APPROVED PLAN (owner sign-off 2026-08-15, see closed ticket nid_s28ucpwyu62674nd
 - No change to traversal/folder-note-winner semantics; src/engine/ untouched; importGuard tests green.
 - npm run test:all green (including e2e vicinityGraph surface).
 
+## Resolution (2026-08-15)
+
+Implemented as planned, with one deliberate deviation from the design sketch (noted below).
+
+**What was built, where:**
+- `src/shared/FolderNotes.ts` — `folderNoteCandidatesOf(folder)`: every EXISTING candidate in precedence order, memoised; the candidate table was extracted into one private `candidatePathsOf()` shared with `resolveFolderNote` (winner = index 0, DRY). Traversal rule untouched.
+- `src/adapters/FolderNoteIndex.ts` — `folderNoteCandidatesOf(folder: FolderPath): readonly VaultPath[]`, same warmed snapshot + `markStale` invalidation as the other reads.
+- `src/view/flowMapping.ts` — new `FolderNoteCandidatesLookup` interface; `vicinityGraphToFlow` takes it as a required 3rd param; `FlowGroupData.folderNoteCandidates` carries the DEEPEST folder's candidates only (`group.folder`, R4).
+- `src/view/viewPorts.ts` — `GraphBuildResult.folderNoteCandidates` carries the lookup per build; `src/adapters/VicinityGraphBuilder.ts` hands out its own `FolderNoteIndex` (same snapshot the engine's hierarchy channels read). `GraphViewController` threads it through.
+- `src/view/FolderGroupNode.tsx` — label click handler: stopPropagation; 1 candidate → `NoteOpenPort.openNote` with `opensInNewTab(event)` (R5); 2+ → native menu; 0 → NO handler attached and no modifier class (R6). Modifier class: `vicinity-graph-group__label--navigable`.
+- `src/view/graph-view.css` — `--navigable` modifier: `cursor: pointer` + `--text-accent` on hover, CSS-only.
+
+**Deviation (sketch, not requirements):** the sketch proposed a NEW port for the multi-candidate menu. The existing `GraphUiPort.showNodeMenu` (native `Menu.showAtMouseEvent`, already context-delivered to node components, already faked in tests) is exactly that seam, so it was reused instead of minting a duplicate menu port (DRY; entries are title-only, labelled by vault path, precedence order). Menu selections open current-tab (sanctioned v1 — the `NodeMenuEntry.onClick` seam carries no modifier state).
+
+**Tests:** BDD units in `FolderNotes.test.ts` (candidates describe) + `FolderNoteIndex.test.ts`; `flowMapping.test.ts` (group data carries candidates; collapsed chain queries ONLY `wiki/lang/en`); new jsdom `src/view/FolderGroupNode.component.test.tsx` (affordance/inert, plain vs ctrl click, menu dispatch through fakes); e2e `e2e/folderGroupLabelNav.e2e.ts` (inert label; single-candidate click navigates to an UNDISCOVERED sibling folder note and re-centres MAIN — R3). Verified: `npm run check`, `npm test` (2131 passed), `npm run test:e2e -- folderGroupLabelNav.e2e.ts` (2 passed) and `-- nestedGrouping.e2e.ts` (9 passed) on the pinned Obsidian 1.12.7 headless.
+
+**Found while working (out of scope, filed):** the e2e submodule working tree held an uncommitted +148-line "Edge depth into groups" addition to `nestedGrouping.e2e.ts` from an earlier feature — left untouched; follow-up ticket `nid_4uaakunhzxq4ur9l1qxe04zb7_e` (tagged `decide`).
+
+
+## Notes
+
+**2026-08-15T03:31:17Z**
+
+__READY_AS_IS__: review found one bug (navigable label missing nodrag/nopan — pan released over label fired navigation), fixed in b32078d matching the NoteNode-chip pattern, covered by 2 new component tests; check + npm test (2133) + folderGroupLabelNav e2e all green.

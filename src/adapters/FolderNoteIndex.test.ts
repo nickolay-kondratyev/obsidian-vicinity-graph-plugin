@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { asVaultPath } from "../engine";
+import { asFolderPath, asVaultPath } from "../engine";
 import { VaultPathFacts } from "../shared/VaultPathFacts";
 import { FolderNoteIndex } from "./FolderNoteIndex";
 import type { VaultFilePort, VaultPort } from "./obsidianPorts";
@@ -76,6 +76,27 @@ describe("FolderNoteIndex children", () => {
 	it("WHEN a location holds both extensions THEN `.md` beats `.canvas` and the canvas owns nothing", () => {
 		const index = indexOver(["Jon/Jon.md", "Jon/Jon.canvas", "Jon/a.md"]);
 		expect(index.childNotesOf(asVaultPath("Jon/Jon.canvas"))).toEqual([]);
+	});
+});
+
+describe("FolderNoteIndex folder-note candidates", () => {
+	it("WHEN a folder holds several existing candidates THEN they come back branded, in precedence order", () => {
+		const index = indexOver(["Jon/Jon.canvas", "Jon.md", "Jon/a.md"]);
+		expect(index.folderNoteCandidatesOf(asFolderPath("Jon"))).toEqual([
+			asVaultPath("Jon/Jon.canvas"),
+			asVaultPath("Jon.md"),
+		]);
+	});
+
+	it("WHEN a candidate is CREATED and the index is marked stale THEN the list re-resolves", () => {
+		const vault = new MutableFakeVault(["Jon/a.md"]);
+		const index = new FolderNoteIndex(vault);
+		expect(index.folderNoteCandidatesOf(asFolderPath("Jon"))).toEqual([]);
+
+		vault.setPaths(["Jon.md", "Jon/a.md"]);
+		index.markStale();
+
+		expect(index.folderNoteCandidatesOf(asFolderPath("Jon"))).toEqual([asVaultPath("Jon.md")]);
 	});
 });
 
