@@ -67,3 +67,9 @@ Implemented exactly per the signed-off Q1 shape:
   `npm run test:e2e -- vicinityGraph.e2e.ts` green (27 passed) confirming no
   rendered-behavior change with the unlimited value threaded through.
 
+
+## Notes
+
+**2026-08-15T05:38:45Z**
+
+__READY_AS_IS__: implementation and 22 new BDD tests verified correct; only fix was stale interface docs (memberPaths/groupFolderByMemberPath said 'nearest qualifying ancestor', wrong under a cap); check + npm test green (2151 passed).
