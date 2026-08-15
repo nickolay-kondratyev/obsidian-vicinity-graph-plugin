@@ -314,6 +314,37 @@ describe("VicinityTraversal global neighbor exclusion", () => {
 	});
 });
 
+describe("VicinityTraversal excluded-attachment counting (KNOWN BUG, ticket nid_9evsq3tz9oy6zk41i1qak6w3x_e)", () => {
+	// KNOWN BUG — the exclusion gate runs BEFORE the isNodeBearing check, so an
+	// excluded ATTACHMENT (never a node candidate; it still renders via
+	// FileMetadata.attachments) inflates excludedNodeCount and the toolbar's
+	// "N node(s) excluded" badge lies. Flip `it.fails` to `it` when fixing.
+	it.fails("WHEN an exclusion pattern matches only an attachment THEN the excluded-node count stays zero", () => {
+		const provider = new FakeLinkProvider({
+			files: [{ path: "a.md" }, { path: "assets/pic.png" }],
+			links: { "a.md": ["assets/pic.png"] },
+		});
+		const result = traverseExcluding(provider, [root("a.md")], ["^assets/"]);
+		expect(result.excludedNodeCount).toBe(0);
+	});
+});
+
+describe("VicinityTraversal self-links (KNOWN BUG, ticket nid_6ujh4ol7un9etab1vqwfe9nye_e)", () => {
+	// KNOWN BUG — a note referencing itself (e.g. [[Note#Section]] inside
+	// Note.md resolves Note→Note in Obsidian's resolvedLinks) records
+	// recordEdge(current, current) before the visited check, and no downstream
+	// stage filters source === target, so the view receives a degenerate
+	// self-loop edge. Flip `it.fails` to `it` when fixing.
+	it.fails("WHEN a note links to itself THEN no self-loop edge reaches the graph", () => {
+		const provider = new FakeLinkProvider({
+			files: [{ path: "a.md" }],
+			links: { "a.md": ["a.md"] },
+		});
+		const result = traverse(provider, [root("a.md")]);
+		expect(edgePairs(result)).toEqual([]);
+	});
+});
+
 describe("VicinityTraversal degenerate roots", () => {
 	it("WHEN a root path is unknown to the provider THEN it is skipped gracefully", () => {
 		const result = traverse(chainVault(), [root("ghost.md")]);
