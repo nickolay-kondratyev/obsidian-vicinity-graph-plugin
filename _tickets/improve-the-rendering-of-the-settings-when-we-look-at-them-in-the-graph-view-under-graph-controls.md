@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_rkdlhkcsvi2hrri4209tumzrr_e
 title: "Improve the rendering of the settings when we look at them in the graph view under graph controls"
-status: open
+status: in_progress
 deps: []
 links: []
 created_iso: 2026-08-15T05:32:25Z
-status_updated_iso: 2026-08-15T05:32:25Z
+status_updated_iso: 2026-08-15T06:04:42Z
 type: task
 priority: 3
 assignee: nickolaykondratyev
