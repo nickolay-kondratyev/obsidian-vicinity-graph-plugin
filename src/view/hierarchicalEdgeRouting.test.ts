@@ -163,7 +163,7 @@ describe("planHierarchicalRouting classification", () => {
 
 	it("WHEN two notes share a group box (intra-group) THEN neither endpoint pierces it", () => {
 		// Both notes are direct children of G, so the edge is a passthrough, NOT piercing —
-		// N=0 rendering (and today's straight-through-siblings behaviour) is unchanged.
+		// it is routed by G's own INTERIOR pass instead (ticket nid_6qk78tgfvwzhgb5xru63hu7n3_e).
 		const plan = planHierarchicalRouting(
 			inputOf(
 				[group("G", 0, 0, 300, 300), note("a", 40, 60, 20, 20), note("b", 240, 240, 20, 20)],
@@ -171,6 +171,54 @@ describe("planHierarchicalRouting classification", () => {
 			),
 		);
 		expect(plan.hasPiercing).toBe(false);
+	});
+
+	it("WHEN two notes share their immediate parent box THEN the edge is planned as intra-group for that box", () => {
+		const plan = planHierarchicalRouting(
+			inputOf(
+				[group("G", 0, 0, 300, 300), note("a", 40, 60, 20, 20), note("b", 240, 240, 20, 20)],
+				[{ id: "a->b", sourceId: "a", targetId: "b" }],
+			),
+		);
+		expect(plan.intraGroupEdges).toEqual([{ id: "a->b", containerId: "G", sourceId: "a", targetId: "b" }]);
+	});
+
+	it("WHEN an edge is intra-group THEN it is kept OUT of the outer pass", () => {
+		const plan = planHierarchicalRouting(
+			inputOf(
+				[group("G", 0, 0, 300, 300), note("a", 40, 60, 20, 20), note("b", 240, 240, 20, 20)],
+				[{ id: "a->b", sourceId: "a", targetId: "b" }],
+			),
+		);
+		expect(plan.outerPass.edges).toHaveLength(0);
+	});
+
+	it("WHEN both endpoints are top-level THEN the edge is NOT intra-group", () => {
+		const plan = planHierarchicalRouting(
+			inputOf([note("A", 0, 0, 20, 20), note("B", 200, 0, 20, 20)], [{ id: "A->B", sourceId: "A", targetId: "B" }]),
+		);
+		expect(plan.intraGroupEdges).toEqual([]);
+	});
+
+	it("WHEN the endpoints sit in DIFFERENT boxes THEN the edge is NOT intra-group", () => {
+		// a lives in G, b in H — different immediate parents, so this is a piercing edge.
+		const plan = planHierarchicalRouting(
+			inputOf(
+				[group("G", 0, 0, 200, 200), group("H", 400, 0, 200, 200), note("a", 40, 60, 20, 20), note("b", 440, 60, 20, 20)],
+				[{ id: "a->b", sourceId: "a", targetId: "b" }],
+			),
+		);
+		expect(plan.intraGroupEdges).toEqual([]);
+	});
+
+	it("WHEN an edge points from a member to its OWN group box THEN it is NOT intra-group", () => {
+		const plan = planHierarchicalRouting(
+			inputOf(
+				[group("G", 0, 0, 300, 300), note("a", 40, 60, 20, 20)],
+				[{ id: "a->G", sourceId: "a", targetId: "G" }],
+			),
+		);
+		expect(plan.intraGroupEdges).toEqual([]);
 	});
 });
 
@@ -240,6 +288,75 @@ describe("HierarchicalEdgeRouter pass composition (fake leaf)", () => {
 			{ x: 250, y: 200 },
 			{ x: 325, y: 250 },
 			{ x: 380, y: 240 },
+		]);
+	});
+
+	// Intra-group scene: a and b are both direct members of G; s straddles between them.
+	const intraScene: EdgeRoutingInput = inputOf(
+		[group("G", 0, 0, 300, 300), note("a", 40, 60, 20, 20), note("s", 140, 140, 20, 20), note("b", 240, 240, 20, 20)],
+		[{ id: "a->b", sourceId: "a", targetId: "b" }],
+	);
+
+	it("WHEN an edge is intra-group THEN exactly TWO passes run (outer + the shared container's interior pass)", async () => {
+		const leaf = new RecordingPassRouter();
+		await new HierarchicalEdgeRouter(leaf).route(intraScene);
+		expect(leaf.passes).toHaveLength(2);
+	});
+
+	it("WHEN the interior pass runs THEN its obstacles are the container's direct children plus its title strip", async () => {
+		const leaf = new RecordingPassRouter();
+		await new HierarchicalEdgeRouter(leaf).route(intraScene);
+		expect([...(leaf.passes[1]?.obstacles ?? [])].map((o) => o.id).sort()).toEqual(["G::title-strip", "a", "b", "s"]);
+	});
+
+	it("WHEN the interior pass routes a member-to-member edge THEN both ends attach to the member notes on the normal pin class", async () => {
+		const leaf = new RecordingPassRouter();
+		await new HierarchicalEdgeRouter(leaf).route(intraScene);
+		expect(leaf.passes[1]?.edges[0]).toEqual({
+			id: "a->b",
+			source: { kind: "shape", obstacleId: "a", pinClass: PIN_CLASS },
+			target: { kind: "shape", obstacleId: "b", pinClass: PIN_CLASS },
+		});
+	});
+
+	it("WHEN an intra-group edge is routed THEN the returned map carries the interior pass's route under the edge's own id", async () => {
+		const leaf = new RecordingPassRouter();
+		const routes = await new HierarchicalEdgeRouter(leaf).route(intraScene);
+		// The fake routes a's centre (50,70) → b's centre (250,250).
+		expect(routes.get("a->b")).toEqual([
+			{ x: 50, y: 70 },
+			{ x: 250, y: 250 },
+		]);
+	});
+
+	it("WHEN two intra-group edges share their container THEN both ride ONE interior pass", async () => {
+		const leaf = new RecordingPassRouter();
+		await new HierarchicalEdgeRouter(leaf).route(
+			inputOf(
+				[group("G", 0, 0, 300, 300), note("a", 40, 60, 20, 20), note("s", 140, 140, 20, 20), note("b", 240, 240, 20, 20)],
+				[
+					{ id: "a->b", sourceId: "a", targetId: "b" },
+					{ id: "a->s", sourceId: "a", targetId: "s" },
+				],
+			),
+		);
+		expect(leaf.passes).toHaveLength(2);
+	});
+
+	it("WHEN the interior pass FAILS THEN the intra-group edge degrades to a straight centre-to-centre leg (not gone)", async () => {
+		const leaf = new (class extends RecordingPassRouter {
+			override async routePass(input: RoutingPassInput): Promise<EdgeRouteMap> {
+				const isInterior = input.obstacles.some((o) => o.kind === "title-strip");
+				if (isInterior) {
+					throw new Error("interior pass failure");
+				}
+				return super.routePass(input);
+			}
+		})();
+		const routes = await new HierarchicalEdgeRouter(leaf).route(intraScene);
+		expect(routes.get("a->b")).toEqual([
+			{ x: 50, y: 70 },
+			{ x: 250, y: 250 },
 		]);
 	});
 });
@@ -323,6 +440,29 @@ describe("HierarchicalEdgeRouter with real wasm", () => {
 			(p) => p.x > T.x + 1 && p.x < T.x + T.widthPx - 1 && p.y < T.y + GROUP_BOX_PADDING_PX.top && p.y > T.y - 1,
 		);
 		expect(crossedTopBand).toBe(false);
+	});
+
+	it("WHEN an intra-group edge crosses a sibling note THEN no routed waypoint falls inside that sibling", async (ctx) => {
+		requireWasm(ctx);
+		// a (top-left) → b (bottom-right) inside T; sibling s1 straddles the straight diagonal.
+		const a = note("a", 30, 60, 40, 40);
+		const s1 = note("s1", 170, 130, 40, 40);
+		const b = note("b", 320, 220, 40, 40);
+		const scene = inputOf([T, a, s1, b], [{ id: "a->b", sourceId: "a", targetId: "b" }]);
+		const route = await routePierced(scene, "a->b");
+		expect(route.some((p) => isStrictlyInside(p, s1))).toBe(false);
+	});
+
+	it("WHEN an intra-group edge would cut the title band THEN no routed waypoint falls inside it", async (ctx) => {
+		requireWasm(ctx);
+		// Both members hug T's top edge just below the title band, with a sibling between
+		// them: the shortest detour around s1 is UP through the band, which must be blocked.
+		const a = note("a", 20, 40, 40, 40);
+		const s1 = note("s1", 170, 40, 40, 40);
+		const b = note("b", 330, 40, 40, 40);
+		const scene = inputOf([T, a, s1, b], [{ id: "a->b", sourceId: "a", targetId: "b" }]);
+		const route = await routePierced(scene, "a->b");
+		expect(route.some((p) => isStrictlyInside(p, titleStrip))).toBe(false);
 	});
 
 	it("WHEN nothing pierces THEN the hierarchical router reproduces the leaf's own route byte-for-byte", async (ctx) => {

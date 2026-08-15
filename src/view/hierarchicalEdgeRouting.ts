@@ -37,6 +37,13 @@ import { PIERCE_PIN_CLASS, PIN_CLASS } from "./edgeRouting";
  * - STITCH: the outer segment and the inner descent segment(s) are joined at the shared
  *   border points into one polyline per edge; the controller clips it to the true
  *   endpoint rects exactly as before.
+ * - INTRA-GROUP passes (ticket nid_6qk78tgfvwzhgb5xru63hu7n3_e): an edge whose two
+ *   endpoints share their IMMEDIATE parent box pierces nothing, yet the single outer
+ *   pass would run it STRAIGHT through its siblings (same spike fact 1 — both ends sit
+ *   inside the box obstacle, so libavoid excludes it). Such an edge is kept OUT of the
+ *   outer pass and routed whole by one interior pass of its shared container — the same
+ *   direct-children + title-strip obstacle set as an inner descent pass, both ends on
+ *   the member notes' normal pins. No stitching: the interior route IS the edge.
  *
  * The planning half ({@link planHierarchicalRouting}, {@link stitchPiercingRoute}) is a
  * PURE function of the flat {@link EdgeRoutingInput} — containment is derived from the
@@ -150,12 +157,25 @@ interface EdgePlan {
 	readonly targetId: string;
 }
 
-/** The full plan: the outer pass to run first, plus per-edge descent metadata. */
+/**
+ * An edge whose BOTH endpoints are direct members of the SAME container box. Routed
+ * entirely by that container's interior pass — never part of the outer pass.
+ */
+export interface IntraGroupEdge {
+	readonly id: string;
+	readonly containerId: string;
+	readonly sourceId: string;
+	readonly targetId: string;
+}
+
+/** The full plan: the outer pass to run first, plus per-edge descent/intra metadata. */
 export interface HierarchicalPlan {
 	readonly outerPass: RoutingPassInput;
 	readonly edgePlans: readonly EdgePlan[];
-	/** `true` when at least one edge pierces — otherwise the outer pass IS the whole result. */
+	/** `true` when at least one edge pierces (intra-group edges do NOT set this). */
 	readonly hasPiercing: boolean;
+	/** Member-to-member edges routed by their shared container's interior pass. */
+	readonly intraGroupEdges: readonly IntraGroupEdge[];
 	readonly containment: ObstacleContainment;
 	readonly shapeBufferPx: number;
 }
@@ -171,6 +191,29 @@ function pierceEndpoint(obstacleId: string): RoutingEndpoint {
 }
 
 /**
+ * The container box BOTH endpoints are direct members of, or `undefined` when they are
+ * not siblings (different parents, top-level, a self-edge, or one endpoint being the
+ * other's own box). Shared parent ⇒ identical ancestor chains ⇒ pierced chains empty,
+ * so intra-group and piercing are mutually exclusive classifications.
+ */
+function sharedImmediateParentOf(
+	sourceId: string,
+	targetId: string,
+	containment: ObstacleContainment,
+): string | undefined {
+	if (sourceId === targetId) {
+		return undefined;
+	}
+	const sourceAncestors = containment.ancestorsOf(sourceId);
+	const parent = sourceAncestors[sourceAncestors.length - 1];
+	if (parent === undefined) {
+		return undefined;
+	}
+	const targetAncestors = containment.ancestorsOf(targetId);
+	return targetAncestors[targetAncestors.length - 1] === parent ? parent : undefined;
+}
+
+/**
  * Plans the whole composition from the flat {@link EdgeRoutingInput}: classifies every
  * edge, builds the OUTER pass (piercing edges retargeted onto their outermost pierced
  * container's pierce pins, those containers flagged to register those pins), and records
@@ -181,7 +224,15 @@ export function planHierarchicalRouting(input: EdgeRoutingInput): HierarchicalPl
 	const edgePlans: EdgePlan[] = [];
 	const pierceEntryContainers = new Set<string>();
 	const outerEdges: RichRoutingEdge[] = [];
+	const intraGroupEdges: IntraGroupEdge[] = [];
 	for (const edge of input.edges) {
+		const sharedContainer = sharedImmediateParentOf(edge.sourceId, edge.targetId, containment);
+		if (sharedContainer !== undefined) {
+			// Routed whole by the shared container's interior pass — kept out of the outer
+			// pass, where libavoid would run it straight through the sibling squares.
+			intraGroupEdges.push({ id: edge.id, containerId: sharedContainer, sourceId: edge.sourceId, targetId: edge.targetId });
+			continue;
+		}
 		const piercedSource = piercedContainersOf(edge.sourceId, edge.targetId, containment);
 		const piercedTarget = piercedContainersOf(edge.targetId, edge.sourceId, containment);
 		edgePlans.push({
@@ -212,6 +263,7 @@ export function planHierarchicalRouting(input: EdgeRoutingInput): HierarchicalPl
 		outerPass: { obstacles: outerObstacles, edges: outerEdges, shapeBufferPx: input.shapeBufferPx },
 		edgePlans,
 		hasPiercing: pierceEntryContainers.size > 0,
+		intraGroupEdges,
 		containment,
 		shapeBufferPx: input.shapeBufferPx,
 	};
@@ -241,7 +293,8 @@ function descentConnectorId(edgeId: string, side: "source" | "target"): string {
 /**
  * The libavoid-backed {@link EdgeRouter} the controller uses. Delegates to a
  * {@link PassRouter} leaf (the wasm router) for every pass and composes piercing edges
- * hierarchically. With no piercing edges it runs EXACTLY one pass — the leaf's own —
+ * hierarchically, plus one interior pass per container owning intra-group edges. With
+ * neither piercing nor intra-group edges it runs EXACTLY one pass — the leaf's own —
  * so its output is byte-identical to the pre-hierarchy behaviour.
  */
 export class HierarchicalEdgeRouter implements EdgeRouter {
@@ -250,12 +303,63 @@ export class HierarchicalEdgeRouter implements EdgeRouter {
 	async route(input: EdgeRoutingInput): Promise<EdgeRouteMap> {
 		const plan = planHierarchicalRouting(input);
 		const outerRoutes = await this.leaf.routePass(plan.outerPass);
-		if (!plan.hasPiercing) {
+		if (!plan.hasPiercing && plan.intraGroupEdges.length === 0) {
 			return outerRoutes;
 		}
 		const jobs = this.startDescents(plan, outerRoutes);
+		// Interior passes touch disjoint obstacle sets from the descents — run alongside.
+		const intraRoutesPromise = this.routeIntraGroupEdges(plan);
 		await this.runDescents(plan, jobs);
-		return this.stitchAll(plan, outerRoutes, jobs);
+		const stitched = this.stitchAll(plan, outerRoutes, jobs);
+		for (const [edgeId, route] of await intraRoutesPromise) {
+			stitched.set(edgeId, route);
+		}
+		return stitched;
+	}
+
+	/** Routes every intra-group edge via ONE interior pass per shared container. */
+	private async routeIntraGroupEdges(plan: HierarchicalPlan): Promise<EdgeRouteMap> {
+		const byContainer = new Map<string, IntraGroupEdge[]>();
+		for (const edge of plan.intraGroupEdges) {
+			const bucket = byContainer.get(edge.containerId) ?? [];
+			bucket.push(edge);
+			byContainer.set(edge.containerId, bucket);
+		}
+		const routes = new Map<string, readonly RoutedPoint[]>();
+		await Promise.all(
+			[...byContainer.entries()].map(async ([containerId, containerEdges]) => {
+				const pass: RoutingPassInput = {
+					obstacles: interiorObstaclesOf(plan, containerId, new Set()),
+					edges: containerEdges.map((edge) => ({
+						id: edge.id,
+						source: normalEndpoint(edge.sourceId),
+						target: normalEndpoint(edge.targetId),
+					})),
+					shapeBufferPx: plan.shapeBufferPx,
+				};
+				let passRoutes: EdgeRouteMap;
+				try {
+					passRoutes = await this.leaf.routePass(pass);
+				} catch {
+					// Same policy as a failed descent pass: degrade to a straight leg, never
+					// sink the rebuild or drop the edge.
+					passRoutes = new Map();
+				}
+				for (const edge of containerEdges) {
+					const route = passRoutes.get(edge.id);
+					routes.set(
+						edge.id,
+						route !== undefined && route.length >= 2
+							? route
+							: [
+									rectCentreOf(plan.containment.byId.get(edge.sourceId)),
+									rectCentreOf(plan.containment.byId.get(edge.targetId)),
+								],
+					);
+				}
+			}),
+		);
+		return routes;
 	}
 
 	/** One descent job per pierced side of each piercing edge, seeded from the outer route ends. */
@@ -352,21 +456,7 @@ export class HierarchicalEdgeRouter implements EdgeRouter {
 				target: targetEndpoint,
 			});
 		}
-		const obstacles: RoutingObstacle[] = [];
-		for (const childId of plan.containment.directChildrenOf(containerId)) {
-			const child = plan.containment.byId.get(childId);
-			if (child === undefined) {
-				continue;
-			}
-			obstacles.push(
-				pierceChildren.has(childId) ? { ...child, registerPierceEntryPins: true } : child,
-			);
-		}
-		const container = plan.containment.byId.get(containerId);
-		if (container !== undefined) {
-			obstacles.push(titleStripOf(container));
-		}
-		return { obstacles, edges, shapeBufferPx: plan.shapeBufferPx };
+		return { obstacles: interiorObstaclesOf(plan, containerId, pierceChildren), edges, shapeBufferPx: plan.shapeBufferPx };
 	}
 
 	/** Appends an inner leg to a job and moves it to the next level (or a straight fallback). */
@@ -389,7 +479,11 @@ export class HierarchicalEdgeRouter implements EdgeRouter {
 	}
 
 	/** Stitches each edge's outer segment with its per-side descents; passes others through. */
-	private stitchAll(plan: HierarchicalPlan, outerRoutes: EdgeRouteMap, jobs: readonly DescentJob[]): EdgeRouteMap {
+	private stitchAll(
+		plan: HierarchicalPlan,
+		outerRoutes: EdgeRouteMap,
+		jobs: readonly DescentJob[],
+	): Map<string, readonly RoutedPoint[]> {
 		const jobsByEdge = new Map<string, DescentJob[]>();
 		for (const job of jobs) {
 			const bucket = jobsByEdge.get(job.edgeId) ?? [];
@@ -425,6 +519,32 @@ export function stitchPiercingRoute(outerRoute: readonly RoutedPoint[], jobs: re
 		appendPolyline(result, targetJob.segments);
 	}
 	return result;
+}
+
+/**
+ * The obstacle set of ONE container's interior pass: its direct children (those a
+ * descent enters flagged for pierce pins) plus its title-strip blocker. Shared by the
+ * descent passes and the intra-group passes so "what a container's interior looks like
+ * to the router" is defined once.
+ */
+function interiorObstaclesOf(
+	plan: HierarchicalPlan,
+	containerId: string,
+	pierceChildren: ReadonlySet<string>,
+): readonly RoutingObstacle[] {
+	const obstacles: RoutingObstacle[] = [];
+	for (const childId of plan.containment.directChildrenOf(containerId)) {
+		const child = plan.containment.byId.get(childId);
+		if (child === undefined) {
+			continue;
+		}
+		obstacles.push(pierceChildren.has(childId) ? { ...child, registerPierceEntryPins: true } : child);
+	}
+	const container = plan.containment.byId.get(containerId);
+	if (container !== undefined) {
+		obstacles.push(titleStripOf(container));
+	}
+	return obstacles;
 }
 
 /** The title-band blocker of a container: its top strip, height {@link GROUP_BOX_PADDING_PX.top}. */
