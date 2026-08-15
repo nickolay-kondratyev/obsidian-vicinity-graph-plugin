@@ -339,13 +339,11 @@ describe("VicinityTraversal global neighbor exclusion", () => {
 	});
 });
 
-describe("VicinityTraversal self-links (KNOWN BUG, ticket nid_6ujh4ol7un9etab1vqwfe9nye_e)", () => {
-	// KNOWN BUG — a note referencing itself (e.g. [[Note#Section]] inside
-	// Note.md resolves Note→Note in Obsidian's resolvedLinks) records
-	// recordEdge(current, current) before the visited check, and no downstream
-	// stage filters source === target, so the view receives a degenerate
-	// self-loop edge. Unskip (flip `it.skip` to `it`) when fixing.
-	it.skip("WHEN a note links to itself THEN no self-loop edge reaches the graph", () => {
+describe("VicinityTraversal self-links", () => {
+	// A note referencing itself (e.g. [[Note#Section]] inside Note.md resolves
+	// Note→Note in Obsidian's resolvedLinks) must not produce a degenerate
+	// source===target edge; bfs drops self-neighbors at the source.
+	it("WHEN a note links to itself THEN no self-loop edge reaches the graph", () => {
 		const provider = new FakeLinkProvider({
 			files: [{ path: "a.md" }],
 			links: { "a.md": ["a.md"] },
