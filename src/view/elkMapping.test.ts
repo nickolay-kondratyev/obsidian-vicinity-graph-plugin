@@ -70,13 +70,11 @@ describe("vicinityGraphToElk", () => {
 	});
 });
 
-describe("vicinityGraphToElk root-edge dedup on equal depths (KNOWN BUG, ticket nid_4i09w45k625h4ltdscishx6x3_e)", () => {
-	// KNOWN BUG — the centre-outward flip uses a STRICT less-than on minDepth, so
-	// mutual links between two equal-depth root nodes keep both orders ("a->b"
-	// AND "b->a"), contradicting the documented "deduped by projected pair" and
-	// doubling that pair's spring in the d3 refinement. Unskip (flip `it.skip` to `it`)
-	// when fixing.
-	it.skip("WHEN two equal-depth nodes link BOTH ways THEN the root keeps ONE edge for the pair", () => {
+describe("vicinityGraphToElk root-edge dedup on equal depths (ticket nid_4i09w45k625h4ltdscishx6x3_e)", () => {
+	// A minDepth TIE breaks lexicographically by projected id, so mutual links
+	// between equal-depth root nodes mint ONE dedup key instead of both orders
+	// (which doubled that pair's spring in the d3 refinement).
+	it("WHEN two equal-depth nodes link BOTH ways THEN the root keeps ONE edge for the pair", () => {
 		const graph = makeGraph({
 			nodes: [makeNode({ path: asVaultPath("a.md") }), makeNode({ path: asVaultPath("b.md") })],
 			edges: [makeEdge("a.md", "b.md"), makeEdge("b.md", "a.md")],
@@ -167,7 +165,9 @@ describe("vicinityGraphToElk folder-group compounds (step-05)", () => {
 
 	it("WHEN an edge crosses the group boundary THEN it is projected onto the container and stays on the root", () => {
 		const rootEdgeIds = vicinityGraphToElk(graph).edges?.map((edge) => edge.id);
-		expect(rootEdgeIds).toEqual(["folder-group:notes->solo/only.md", "root.md->folder-group:notes"]);
+		// All fixture nodes share the default minDepth, so root-edge orientation is
+		// the lexicographic tie-break, not the edges' own direction.
+		expect(rootEdgeIds).toEqual(["folder-group:notes->solo/only.md", "folder-group:notes->root.md"]);
 	});
 
 });
