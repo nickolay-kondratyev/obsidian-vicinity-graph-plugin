@@ -96,7 +96,8 @@ export function vicinityGraphToElk(graph: VicinityGraph): ElkNode {
  *
  * Root-bound edges (LCA null) are the force seed: positions are all the pipeline
  * consumes (React Flow draws its own edges), so they are deduped by projected
- * pair and oriented centre-outward (lower `minDepth` endpoint first) — a stable
+ * pair and oriented centre-outward (lower `minDepth` endpoint first, ties
+ * broken lexicographically so the pair keys identically both ways) — a stable
  * tree-like hint that keeps the hub centred regardless of link direction.
  */
 function attachEdgesToContainers(
@@ -119,7 +120,11 @@ function attachEdgesToContainers(
 		const sourceId = projectedIdOf(edge.source, lca);
 		const targetId = projectedIdOf(edge.target, lca);
 		if (lca === null) {
-			const outward = (minDepthById.get(targetId) ?? 0) < (minDepthById.get(sourceId) ?? 0);
+			const sourceDepth = minDepthById.get(sourceId) ?? 0;
+			const targetDepth = minDepthById.get(targetId) ?? 0;
+			// On a depth tie, order lexicographically so mutual links A<->B mint ONE key.
+			const outward =
+				targetDepth < sourceDepth || (targetDepth === sourceDepth && targetId < sourceId);
 			const [from, to] = outward ? [targetId, sourceId] : [sourceId, targetId];
 			const id = `${from}->${to}`;
 			if (!rootEdgesById.has(id)) {
