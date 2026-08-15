@@ -4,6 +4,7 @@ import type { DepthSettings, ForceLayoutSettings, NodePreviewPreference } from "
 import { NODE_PREVIEW_PREFERENCES } from "../engine";
 import { useControlsActions } from "./ControlsActionsContext";
 import { DepthStepper } from "./DepthStepper";
+import { IdRefFieldChips } from "./idRefFieldChips";
 import { NODE_PREVIEW_OPTION_META } from "./nodePreviewPreferenceMeta";
 import type { NumberRowJudge } from "./numberRowCommit";
 import { NO_CROSS_FIELD_RULE, NumberFieldRefusal, NumberRowCommitPolicy } from "./numberRowCommit";
@@ -377,12 +378,15 @@ function NodeCapRow({ row, state }: { readonly row: SettingsRow; readonly state:
 }
 
 /**
- * The comma-separated frontmatter id-ref field list — a free-form text field committed
- * ON BLUR (never per keystroke), the same rule the typed number fields follow: an
- * uncontrolled input reseeded from the store (`key`), so a rebuild carrying the stored
- * value back replaces the box while the user's own typing is theirs alone until they
- * leave. There is no clamp and nothing to refuse — the value is stored verbatim — so
- * this needs none of {@link NumberRow}'s refusal machinery.
+ * The frontmatter id-ref field list, edited as CHIPS: the text field adds ONE entry
+ * per commit (Enter, or leaving the field — a typed name must not be lost silently),
+ * and each stored field renders as a chip with its own remove button. The chip
+ * projection and every edit live in {@link IdRefFieldChips}, shared with the settings
+ * tab, so the two surfaces cannot disagree on what an add or a remove stores.
+ *
+ * The entry field stays UNCONTROLLED (the typed-field rule): its text is the user's
+ * until they commit, and a commit always clears it — an accepted entry is now a chip,
+ * and a no-op entry (duplicate/empty) writes nothing so there is nothing to keep.
  */
 function IdRefFieldsRow({
 	row,
@@ -392,23 +396,46 @@ function IdRefFieldsRow({
 	readonly state: SettingsRowState;
 }): ReactElement {
 	const [shown, request] = useSettingsValue<string>(SettingsRowAccessors.idRefFields(), state);
+	const commit = (input: HTMLInputElement): void => {
+		const next = IdRefFieldChips.add(shown, input.value);
+		input.value = "";
+		if (next !== undefined) {
+			request(next);
+		}
+	};
 	return (
-		<label className="vicinity-graph-number-row" title={row.description}>
+		<div className="vicinity-graph-chips-row" title={row.description}>
 			<span>{row.label}</span>
-			<input
-				key={shown}
-				type="text"
-				aria-label={SettingsRowNames.sole(row)}
-				defaultValue={shown}
-				onBlur={(event) => request(event.target.value)}
-				// Enter COMMITS by blurring into the handler above, matching the typed number rows.
-				onKeyDown={(event) => {
-					if (event.key === "Enter") {
-						event.currentTarget.blur();
-					}
-				}}
-			/>
-		</label>
+			<div className="vicinity-graph-chips">
+				<span className="vicinity-graph-chips__list">
+					{IdRefFieldChips.list(shown).map((field) => (
+						<span key={field} className="vicinity-graph-chips__chip">
+							<span className="vicinity-graph-chips__text">{field}</span>
+							<button
+								type="button"
+								className="vicinity-graph-chips__remove"
+								aria-label={IdRefFieldChips.removeName(field)}
+								onClick={() => request(IdRefFieldChips.remove(shown, field))}
+							>
+								×
+							</button>
+						</span>
+					))}
+				</span>
+				<input
+					type="text"
+					className="vicinity-graph-chips__entry"
+					aria-label={SettingsRowNames.sole(row)}
+					onBlur={(event) => commit(event.target)}
+					onKeyDown={(event) => {
+						if (event.key === "Enter") {
+							event.preventDefault();
+							commit(event.currentTarget);
+						}
+					}}
+				/>
+			</div>
+		</div>
 	);
 }
 

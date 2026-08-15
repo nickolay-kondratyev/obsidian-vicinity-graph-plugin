@@ -13,7 +13,7 @@ import {
 } from "./vaultTarget";
 import type { DevVaultCopyTarget, LaunchOptions, VaultTarget } from "./vaultTarget";
 // Type-only, so it is erased at transpile — the pure engine barrel never loads in the node-side test process.
-import type { DepthSettings, NodeContentOverride, NodeExclusionSettings, NodeOverride, NodePreviewPreference, ViewSettings } from "../src/engine";
+import type { DepthSettings, FrontmatterLinkSettings, NodeContentOverride, NodeExclusionSettings, NodeOverride, NodePreviewPreference, ViewSettings } from "../src/engine";
 // The narrow, type-only view of Obsidian's undocumented `window.app`, so every
 // `page.evaluate` below is checked instead of calling through `any`. See its module doc.
 import type { E2eObsidianApp, E2eWorkspaceLeaf } from "./obsidianInternals";
@@ -60,6 +60,7 @@ export interface PluginGlobalsSnapshot {
 	readonly view: ViewSettings;
 	readonly depths: DepthSettings;
 	readonly exclusion: NodeExclusionSettings;
+	readonly frontmatterLinks: FrontmatterLinkSettings;
 }
 
 export const PLUGIN_ID = "vicinity-graph";
@@ -389,6 +390,7 @@ export class ObsidianHarness {
 				view: store.globalView(),
 				depths: store.globalDepths(),
 				exclusion: store.nodeExclusion(),
+				frontmatterLinks: store.frontmatterLinks(),
 			};
 		}, PLUGIN_ID);
 	}
@@ -541,6 +543,17 @@ export class ObsidianHarness {
 				await store.saveGlobalDepths(value);
 			},
 			{ pluginId: PLUGIN_ID, value: depths },
+		);
+	}
+
+	/** Replaces the persisted frontmatter-links slice (the id-ref field-name string). */
+	async saveFrontmatterLinks(frontmatterLinks: FrontmatterLinkSettings): Promise<void> {
+		await this.page.evaluate(
+			async ({ pluginId, value }) => {
+				const store = (window as unknown as { app: E2eObsidianApp }).app.plugins.plugins[pluginId]!.pluginDataStore;
+				await store.saveFrontmatterLinks(value);
+			},
+			{ pluginId: PLUGIN_ID, value: frontmatterLinks },
 		);
 	}
 
