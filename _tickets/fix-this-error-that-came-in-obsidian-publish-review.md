@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-15T07:20:46Z
-session_ids: [{"a": "claude", "type": "execution", "id": "d6aeca0c-8a09-4f67-ad78-90f5910be0ed"}]
+session_ids: [{"a": "claude", "type": "execution", "id": "d6aeca0c-8a09-4f67-ad78-90f5910be0ed"}, {"a": "claude", "type": "review", "id": "3b37e4f2-d2ff-4085-a430-c985809fc35d"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_3lwh7nfhvevy0y4mg0ylyxaoy_e
 title: "Fix this error that came in obsidian publish review"
