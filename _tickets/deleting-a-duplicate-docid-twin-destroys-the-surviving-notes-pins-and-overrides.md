@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_buurw8hp0yg2v1bwdhdyu7yrs_e
 title: "Deleting a duplicate-docid twin destroys the surviving note's pins and overrides"
-status: open
+status: in_progress
 deps: []
 links: []
 created_iso: 2026-08-15T00:41:49Z
-status_updated_iso: 2026-08-15T00:41:49Z
+status_updated_iso: 2026-08-15T01:23:42Z
 type: bug
 priority: 1
 assignee: CC_WITH-nickolaykondratyev
