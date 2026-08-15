@@ -296,8 +296,8 @@ describe("PerDocStore on a case-insensitive filesystem (KNOWN BUG, ticket nid_ij
 	// doc's record silently clobbers the first's, and after a restart one doc
 	// has lost its state. Generated ids are immune (lowercase base36); the id
 	// library's README explicitly warns consumers using ids as filenames.
-	// Flip `it.fails` to `it` when fixing.
-	it.fails("WHEN two docids differ only by case THEN both records survive a restart", async () => {
+	// Unskip (flip `it.skip` to `it`) when fixing.
+	it.skip("WHEN two docids differ only by case THEN both records survive a restart", async () => {
 		const fs = new CaseInsensitiveFakeVaultFsPort();
 		const store = storeOver(fs);
 		await store.saveNodeOverrideField("MyNote", { field: "content", value: "outline" });

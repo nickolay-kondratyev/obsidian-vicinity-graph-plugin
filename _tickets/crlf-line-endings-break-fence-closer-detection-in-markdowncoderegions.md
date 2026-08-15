@@ -15,7 +15,7 @@ tags: [shared, canvas]
 
 ROOT CAUSE: src/shared/MarkdownCodeRegions.ts:35 — with \r\n line endings, split("\n") leaves a trailing \r on every line. FENCE_OPENER still matches ("```\r" reads the \r as an info string) but FENCE_CLOSER's `[ \t]*$` rejects "```\r", so the fence never closes and EVERY remaining line of the text is blanked — all wikilinks/inline links after the first code block are silently dropped from canvas fallback harvesting (missing edges where core would index them). The sibling matchers (PARAGRAPH_BREAK, DESTINATION_TERMINATOR) already handle \r; this module is the odd one out. REACHABILITY: low — only call site is src/adapters/CanvasFallbackParser.ts (canvas text nodes); Obsidian-authored canvas JSON uses \n, so CRLF needs externally edited/synced canvas files.
 
-FAILING TEST (committed, it.fails — flip to it as acceptance): src/shared/MarkdownCodeRegions.test.ts, "WHEN the text uses CRLF line endings THEN a closing fence still closes the block".
+FAILING TEST (committed as it.skip — UNSKIP as acceptance): src/shared/MarkdownCodeRegions.test.ts, "WHEN the text uses CRLF line endings THEN a closing fence still closes the block".
 
 FIX SHAPE: allow \r in FENCE_CLOSER's trailing-whitespace class (e.g. `[ \t\r]*$`), or strip a single trailing \r per line before matching (offsets must stay preserved — masking is same-length).
 

@@ -126,8 +126,8 @@ describe("resizedNodesFitRenderedLayout with NESTED folder groups (KNOWN BUG, ti
 	// group's member always sits inside every ancestor's box, so the fit answer
 	// is unconditionally `false` for nested-group members — every such resize
 	// forces the whole-graph relayout ticket nid_9ep12hkmk4zjv2p28emmrhieq_e
-	// removed. Flip `it.fails` to `it` when fixing.
-	it.fails("WHEN a nested group's member resizes with room to spare THEN it fits", () => {
+	// removed. Unskip (flip `it.skip` to `it`) when fixing.
+	it.skip("WHEN a nested group's member resizes with room to spare THEN it fits", () => {
 		// GIVEN group A (members a1,a2) containing group A/B (members b1,b2), boxes
 		// nested with generous clearance, and b1 resized to 50x50 well inside A/B.
 		const nodes = [

@@ -15,7 +15,7 @@ tags: [engine]
 
 ROOT CAUSE: src/engine/VicinityTraversal.ts:157 — when a note references itself (Obsidian's resolvedLinks records [[Note#Section]] written inside Note.md as Note→Note; adapters do not filter self, only FrontmatterIdIndex skips self-references), bfs records recordEdge(current, current) BEFORE the visited check, and no downstream stage (EdgeAccumulator, GraphTruncator, EdgeAssembly, view mapping) filters source === target — grep for `source === target` finds no filter. React Flow / edge routing receive a zero-length self-loop on the MAIN node. The native local graph draws no self-loops.
 
-FAILING TEST (committed, it.fails — flip to it as acceptance): src/engine/VicinityTraversal.test.ts, "WHEN a note links to itself THEN no self-loop edge reaches the graph".
+FAILING TEST (committed as it.skip — UNSKIP as acceptance): src/engine/VicinityTraversal.test.ts, "WHEN a note links to itself THEN no self-loop edge reaches the graph".
 
 FIX SHAPE: skip neighbor === current in bfs (cheapest, keeps every downstream stage clean).
 

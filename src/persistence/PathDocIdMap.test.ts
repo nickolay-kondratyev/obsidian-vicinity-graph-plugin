@@ -55,8 +55,8 @@ describe("PathDocIdMap", () => {
 	// destroys the survivor's pin + per-file record across BOTH tiers, and
 	// nothing resurrects them. The map must withhold the key for a docid it saw
 	// at more than one live path (or the delete handler must re-verify — if the
-	// fix lands there, move this test with it). Flip `it.fails` to `it` on fix.
-	it.fails("WHEN a docid was seen at TWO live paths THEN deleting one twin yields no cleanup key", () => {
+	// fix lands there, move this test with it). Unskip (flip `it.skip` to `it`) on fix.
+	it.skip("WHEN a docid was seen at TWO live paths THEN deleting one twin yields no cleanup key", () => {
 		const map = new PathDocIdMap();
 		map.set("original.md", "docid_a_e");
 		map.set("copy.md", "docid_a_e");

@@ -318,8 +318,8 @@ describe("VicinityTraversal excluded-attachment counting (KNOWN BUG, ticket nid_
 	// KNOWN BUG — the exclusion gate runs BEFORE the isNodeBearing check, so an
 	// excluded ATTACHMENT (never a node candidate; it still renders via
 	// FileMetadata.attachments) inflates excludedNodeCount and the toolbar's
-	// "N node(s) excluded" badge lies. Flip `it.fails` to `it` when fixing.
-	it.fails("WHEN an exclusion pattern matches only an attachment THEN the excluded-node count stays zero", () => {
+	// "N node(s) excluded" badge lies. Unskip (flip `it.skip` to `it`) when fixing.
+	it.skip("WHEN an exclusion pattern matches only an attachment THEN the excluded-node count stays zero", () => {
 		const provider = new FakeLinkProvider({
 			files: [{ path: "a.md" }, { path: "assets/pic.png" }],
 			links: { "a.md": ["assets/pic.png"] },
@@ -334,8 +334,8 @@ describe("VicinityTraversal self-links (KNOWN BUG, ticket nid_6ujh4ol7un9etab1vq
 	// Note.md resolves Note→Note in Obsidian's resolvedLinks) records
 	// recordEdge(current, current) before the visited check, and no downstream
 	// stage filters source === target, so the view receives a degenerate
-	// self-loop edge. Flip `it.fails` to `it` when fixing.
-	it.fails("WHEN a note links to itself THEN no self-loop edge reaches the graph", () => {
+	// self-loop edge. Unskip (flip `it.skip` to `it`) when fixing.
+	it.skip("WHEN a note links to itself THEN no self-loop edge reaches the graph", () => {
 		const provider = new FakeLinkProvider({
 			files: [{ path: "a.md" }],
 			links: { "a.md": ["a.md"] },

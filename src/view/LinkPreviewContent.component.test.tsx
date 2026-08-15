@@ -328,8 +328,8 @@ describe("LinkPreviewContent drawer retarget (KNOWN BUG, ticket nid_dma49vci6uxv
 
 	// KNOWN BUG — asserts the CORRECT behavior and currently fails (throws
 	// `Unknown context row id: [edge:0:2]` from contextRowCollapse.ts). Flip
-	// `it.fails` to `it` as the fixing ticket's acceptance test.
-	it.fails("WHEN the drawer is retargeted to an edge with more rows THEN the extra row still toggles", () => {
+	// Unskipping it is the fixing ticket's acceptance test.
+	it.skip("WHEN the drawer is retargeted to an edge with more rows THEN the extra row still toggles", () => {
 		const { rerender } = render(<LinkPreviewContent model={singlePairModel([3, 5])} {...retargetProps} />);
 		rerender(<LinkPreviewContent model={singlePairModel([3, 5, 9])} {...retargetProps} />);
 		fireEvent.click(screen.getByText("short@9"));

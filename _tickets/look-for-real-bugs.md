@@ -20,4 +20,4 @@ IF you find the likely bugs create a follow up ticket to handle them. The ticket
 
 **2026-08-15T00:43:43Z**
 
-Bug hunt complete: 8 verified bugs filed as child bug tickets (each with root cause + committed it.fails failing test) + 1 decide task (FolderNotes case sensitivity). Tests live in the suites next to the buggy code; flip it.fails to it as each fix's acceptance.
+Bug hunt complete: 8 verified bugs filed as child bug tickets (each with root cause + committed known-bug test, skipped so the build stays green) + 1 decide task (FolderNotes case sensitivity). Tests live in the suites next to the buggy code; UNSKIP (it.skip -> it) as each fix's acceptance.

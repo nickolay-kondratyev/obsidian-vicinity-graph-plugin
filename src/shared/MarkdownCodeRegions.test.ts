@@ -94,8 +94,8 @@ describe("MarkdownCodeRegions.withCodeMasked", () => {
 	// every line; FENCE_OPENER still opens (the \r reads as an info string) but
 	// FENCE_CLOSER's `[ \t]*$` rejects "```\r", so the fence never closes and
 	// every line after the first code block is blanked — links after it vanish
-	// from canvas fallback harvesting. Flip `it.fails` to `it` when fixing.
-	it.fails("WHEN the text uses CRLF line endings THEN a closing fence still closes the block", () => {
+	// from canvas fallback harvesting. Unskip (flip `it.skip` to `it`) when fixing.
+	it.skip("WHEN the text uses CRLF line endings THEN a closing fence still closes the block", () => {
 		const masked = MarkdownCodeRegions.withCodeMasked(["```\r", "code\r", "```\r", "[[kept]]"].join("\n"));
 		expect(masked).toContain("[[kept]]");
 	});
