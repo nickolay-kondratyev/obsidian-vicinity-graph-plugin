@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_ea12b9v9fpfvg7n1ssmeyw58u_e
 title: "Arrowhead inset floor overshoots edges shorter than 14px"
-status: open
+status: in_progress
 deps: []
 links: []
 created_iso: 2026-08-15T00:42:38Z
-status_updated_iso: 2026-08-15T00:42:38Z
+status_updated_iso: 2026-08-15T02:29:00Z
 type: bug
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
