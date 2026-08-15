@@ -33,3 +33,9 @@ Note: sibling/child group boxes (e.g. `A/B` for a member of `A`) are NOT in the 
 
 Acceptance test unskipped in `src/view/layoutFit.test.ts` (nested `A` ⊃ `A/B` fixture), plus a new test pinning that a nested member spilling outside its OWN group (while inside the ancestor) still refuses the fit. Verified: `npm run check`, full `npm test` (2094 passing), and e2e `nodeResize.e2e.ts` + `nestedGrouping.e2e.ts` (25 passed) on the pinned build.
 
+
+## Notes
+
+**2026-08-15T01:59:31Z**
+
+__READY_AS_IS__: Verified fix logic (parentFolder chain of a surviving group is always a surviving group, positions are absolute per extractElkPositions, test fixtures genuinely discriminate container-vs-collider); nothing to fix. npm run check + 2094 unit tests + targeted e2e (nodeResize, nestedGrouping: 25 passed) all green.
