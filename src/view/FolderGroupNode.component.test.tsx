@@ -108,6 +108,18 @@ describe("FolderGroupNode label affordance", () => {
 		expect(label.classList.contains("vicinity-graph-group__label--navigable")).toBe(true);
 	});
 
+	it("WHEN the folder has candidates THEN the label carries the nodrag/nopan escape hatches (a pan released over it must not navigate)", async () => {
+		const { result } = renderGroupNode(groupData({ folderNoteCandidates: ["notes.md"] }));
+		const label = await mountedLabel(result.container);
+		expect([label.classList.contains("nodrag"), label.classList.contains("nopan")]).toEqual([true, true]);
+	});
+
+	it("WHEN the folder has NO candidates THEN the label keeps the node body's pan behaviour (no escape hatches)", async () => {
+		const { result } = renderGroupNode(groupData());
+		const label = await mountedLabel(result.container);
+		expect([label.classList.contains("nodrag"), label.classList.contains("nopan")]).toEqual([false, false]);
+	});
+
 	it("WHEN the folder has NO candidates THEN the label stays inert (no navigable class)", async () => {
 		const { result } = renderGroupNode(groupData());
 		const label = await mountedLabel(result.container);

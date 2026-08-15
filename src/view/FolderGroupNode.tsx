@@ -103,7 +103,10 @@ function labelClassName(data: FlowGroupData): string {
 		classes.push("vicinity-graph-group__label--fullpath");
 	}
 	if (data.folderNoteCandidates.length > 0) {
-		classes.push("vicinity-graph-group__label--navigable");
+		// "nodrag nopan" are React Flow escape hatches (same as the NoteNode chips):
+		// a click on a NAVIGABLE label must never start a node drag or a canvas pan —
+		// otherwise a pan gesture released over the label also fires its onClick.
+		classes.push("vicinity-graph-group__label--navigable", "nodrag", "nopan");
 	}
 	return classes.join(" ");
 }
