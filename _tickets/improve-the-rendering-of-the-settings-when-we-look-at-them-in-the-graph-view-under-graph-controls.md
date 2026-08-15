@@ -51,3 +51,9 @@ verified red on the old CSS then green): a geometric thumb-in-row assertion over
 EVERY panel slider row, and a no-ellipsis assertion over the panel's Preview
 segments. Gates run: `npm run check`, `npm test`, full `npm run test:e2e`
 (184 passed, 1 skipped) — all green.
+
+## Notes
+
+**2026-08-15T06:25:56Z**
+
+__READY_AS_IS__: CSS-only fixes verified panel-scoped (slider-row/nodecontents classes exist only in the panel presenter, tab untouched); pill selected state changes only color so flex-basis:auto cannot shift widths on selection; check + npm test + settingsUxVisual e2e all green in review; nothing changed.
