@@ -1,7 +1,7 @@
 import type { FolderPath, GraphNode } from "../engine";
 import type { Dimensions, XY } from "./flowMapping";
 import type { FolderGroupingResult } from "./folderGrouping";
-import { deriveFolderGroups } from "./folderGrouping";
+import { deriveFolderGroups, UNLIMITED_GROUP_NESTING_DEPTH } from "./folderGrouping";
 import { folderGroupIdOf, nodeDimensionsPx } from "./graphIdentity";
 
 /**
@@ -85,7 +85,7 @@ export function resizedNodesFitRenderedLayout(
 	nodes: readonly GraphNode[],
 	layout: RenderedLayout,
 ): boolean {
-	const grouping = deriveFolderGroups(nodes);
+	const grouping = deriveFolderGroups(nodes, UNLIMITED_GROUP_NESTING_DEPTH);
 	const nodeRects = new Map<string, Rect>();
 	for (const node of nodes) {
 		const position = layout.positions.get(node.path);

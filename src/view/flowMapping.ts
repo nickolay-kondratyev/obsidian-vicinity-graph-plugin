@@ -14,7 +14,7 @@ import { resolveNodePreviewPreference } from "./nodePreviewChoice";
 import { OUTLINE_RENDER_LIMIT } from "./constants";
 import type { AttachmentIconGroup } from "./attachmentIconStrip";
 import { attachmentIconStrip } from "./attachmentIconStrip";
-import { deriveFolderGroups } from "./folderGrouping";
+import { deriveFolderGroups, UNLIMITED_GROUP_NESTING_DEPTH } from "./folderGrouping";
 import type { FolderGroup, FolderGroupingResult } from "./folderGrouping";
 import type { OrphanTruncation } from "./truncationBadges";
 import { deriveTruncationBadges } from "./truncationBadges";
@@ -276,7 +276,7 @@ export function vicinityGraphToFlow(
 	pinFacts: FlowPinFacts,
 	folderNoteCandidates: FolderNoteCandidatesLookup,
 ): FlowGraph {
-	const grouping = deriveFolderGroups(graph.nodes);
+	const grouping = deriveFolderGroups(graph.nodes, UNLIMITED_GROUP_NESTING_DEPTH);
 	const badges = deriveTruncationBadges(
 		graph.hiddenNodeCountsByFolder,
 		grouping.nearestRenderedAncestorGroupOf,

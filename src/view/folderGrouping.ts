@@ -105,6 +105,13 @@ export interface FolderGroupingResult {
 /** Groups render only at 2+ descendant notes (plan D2); smaller folders fall up to an ancestor. */
 export const MIN_GROUP_MEMBER_COUNT = 2;
 
+/**
+ * `maxGroupNestingDepth` value imposing no cap: every rendered nesting level
+ * survives. Callers pass this until the "Folder grouping depth" setting lands
+ * (plan `nid_yyugpoh3gv8ip24cizvgrs4w4_e`, ticket `nid_5vz7mtm2rn6n7nj9cp5mfbslx_e`).
+ */
+export const UNLIMITED_GROUP_NESTING_DEPTH = Number.POSITIVE_INFINITY;
+
 const VAULT_ROOT_FOLDER = "";
 const FOLDER_SEPARATOR = "/";
 
@@ -137,11 +144,23 @@ function relativeFolderPath(base: FolderPath | null, folder: FolderPath): string
 /**
  * CONTRACT: called independently by BOTH `elkMapping` (container structure)
  * and `flowMapping` (group nodes + parentIds) for the same graph, so it MUST
- * stay a pure, deterministic function of `nodes` — any call-site-dependent
- * behavior (randomness, mutation, per-call sorting) would silently
- * desynchronize React Flow parentIds from the elk layout.
+ * stay a pure, deterministic function of `(nodes, maxGroupNestingDepth)` — any
+ * call-site-dependent behavior (randomness, mutation, per-call sorting) would
+ * silently desynchronize React Flow parentIds from the elk layout.
+ *
+ * `maxGroupNestingDepth` caps RENDERED group-nesting levels — visible boxes,
+ * so a collapsed single-child chain (one box labelled `A/B/C`) counts as ONE
+ * level (plan `nid_yyugpoh3gv8ip24cizvgrs4w4_e`, Q1). The tree is built
+ * exactly as without a cap, then every group whose rendered depth exceeds the
+ * cap merges into its depth-cap ancestor: its members fall up into that box
+ * and every lookup seam reflects the merged tree. `0` disables grouping
+ * entirely (no groups; every note renders flat). Pass a non-negative integer
+ * or {@link UNLIMITED_GROUP_NESTING_DEPTH}.
  */
-export function deriveFolderGroups(nodes: readonly GraphNode[]): FolderGroupingResult {
+export function deriveFolderGroups(
+	nodes: readonly GraphNode[],
+	maxGroupNestingDepth: number,
+): FolderGroupingResult {
 	// Descendant count + first-seen order per folder, walking each note's ancestor chain.
 	const descendantCountByFolder = new Map<FolderPath, number>();
 	const firstSeenIndexByFolder = new Map<FolderPath, number>();
@@ -162,6 +181,7 @@ export function deriveFolderGroups(nodes: readonly GraphNode[]): FolderGroupingR
 
 	// Assign each note to its nearest qualifying ancestor folder (self-first).
 	const membersByQualifyingFolder = new Map<FolderPath, string[]>();
+	const assignedFolderByNotePath = new Map<string, FolderPath>();
 	for (const node of nodes) {
 		if (node.folder === VAULT_ROOT_FOLDER) {
 			continue;
@@ -170,6 +190,7 @@ export function deriveFolderGroups(nodes: readonly GraphNode[]): FolderGroupingR
 		if (assigned === undefined) {
 			continue;
 		}
+		assignedFolderByNotePath.set(node.path, assigned);
 		const members = membersByQualifyingFolder.get(assigned) ?? [];
 		members.push(node.path);
 		membersByQualifyingFolder.set(assigned, members);
@@ -207,7 +228,7 @@ export function deriveFolderGroups(nodes: readonly GraphNode[]): FolderGroupingR
 		return current === VAULT_ROOT_FOLDER ? null : current;
 	};
 
-	const groups: FolderGroup[] = survivingLeaves.map((folder) => {
+	const fullTreeGroups: FolderGroup[] = survivingLeaves.map((folder) => {
 		const parentFolder = effectiveParentOf(folder);
 		return {
 			folder,
@@ -217,6 +238,52 @@ export function deriveFolderGroups(nodes: readonly GraphNode[]): FolderGroupingR
 			memberPaths: membersByQualifyingFolder.get(folder) ?? [],
 		};
 	});
+
+	// Depth-cap post-pass (plan Q1): rendered depth counts VISIBLE boxes, so it
+	// walks `parentFolder` tree edges (a collapsed chain is one edge = one level).
+	const fullTreeGroupByFolder = new Map<FolderPath, FolderGroup>(
+		fullTreeGroups.map((group) => [group.folder, group]),
+	);
+	const renderedDepthByFolder = new Map<FolderPath, number>();
+	const renderedDepthOf = (group: FolderGroup): number => {
+		const memoized = renderedDepthByFolder.get(group.folder);
+		if (memoized !== undefined) {
+			return memoized;
+		}
+		const parent = group.parentFolder === null ? undefined : fullTreeGroupByFolder.get(group.parentFolder);
+		const depth = parent === undefined ? 1 : renderedDepthOf(parent) + 1;
+		renderedDepthByFolder.set(group.folder, depth);
+		return depth;
+	};
+
+	// A too-deep group's members fall up into its ancestor AT the cap depth;
+	// `null` only at cap 0, where every note renders flat on the canvas pane.
+	const cappedAncestorFolderOf = (group: FolderGroup): FolderPath | null => {
+		let current: FolderGroup | undefined = group;
+		while (current !== undefined && renderedDepthOf(current) > maxGroupNestingDepth) {
+			current = current.parentFolder === null ? undefined : fullTreeGroupByFolder.get(current.parentFolder);
+		}
+		return current?.folder ?? null;
+	};
+
+	// Rebuilt in graph-node order so merged member lists stay deterministic; a
+	// surviving group's parent always survives too (parent depth = depth - 1).
+	const cappedMemberPathsByFolder = new Map<FolderPath, string[]>();
+	for (const node of nodes) {
+		const assigned = assignedFolderByNotePath.get(node.path);
+		const assignedGroup = assigned === undefined ? undefined : fullTreeGroupByFolder.get(assigned);
+		const cappedFolder = assignedGroup === undefined ? null : cappedAncestorFolderOf(assignedGroup);
+		if (cappedFolder === null) {
+			continue;
+		}
+		const members = cappedMemberPathsByFolder.get(cappedFolder) ?? [];
+		members.push(node.path);
+		cappedMemberPathsByFolder.set(cappedFolder, members);
+	}
+
+	const groups: FolderGroup[] = fullTreeGroups
+		.filter((group) => renderedDepthOf(group) <= maxGroupNestingDepth)
+		.map((group) => ({ ...group, memberPaths: cappedMemberPathsByFolder.get(group.folder) ?? [] }));
 
 	const groupByFolder = new Map<FolderPath, FolderGroup>(groups.map((group) => [group.folder, group]));
 	const groupFolderByMemberPath = new Map<string, FolderPath>();
