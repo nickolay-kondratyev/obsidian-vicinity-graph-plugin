@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-15T02:25:09Z
-session_ids: [{"a": "claude", "type": "execution", "id": "684cd48a-a1c1-433f-b3bd-8ec9b75688c1"}]
+session_ids: [{"a": "claude", "type": "execution", "id": "684cd48a-a1c1-433f-b3bd-8ec9b75688c1"}, {"a": "claude", "type": "review", "id": "6a2848a3-c966-4e27-bdfd-3700ee943102"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_b7k6gymkwum7pozwnf28vgecb_e
 title: "CRLF line endings break fence-closer detection in MarkdownCodeRegions"
