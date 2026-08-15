@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-15T01:50:08Z
-session_ids: [{"a": "claude", "type": "execution", "id": "b934a2b0-d8e3-4a99-a36a-cecb821ff7c9"}]
+session_ids: [{"a": "claude", "type": "execution", "id": "b934a2b0-d8e3-4a99-a36a-cecb821ff7c9"}, {"a": "claude", "type": "review", "id": "bb94bf5b-12c7-4bbf-af95-eb66c36a7e10"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_9evsq3tz9oy6zk41i1qak6w3x_e
 title: "excludedNodeCount counts excluded attachments that were never node candidates"
