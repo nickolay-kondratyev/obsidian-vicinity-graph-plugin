@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_b7k6gymkwum7pozwnf28vgecb_e
 title: "CRLF line endings break fence-closer detection in MarkdownCodeRegions"
-status: open
+status: in_progress
 deps: []
 links: []
 created_iso: 2026-08-15T00:42:11Z
-status_updated_iso: 2026-08-15T00:42:11Z
+status_updated_iso: 2026-08-15T02:23:52Z
 type: bug
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
