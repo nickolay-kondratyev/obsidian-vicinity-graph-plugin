@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-15T00:35:07Z
-session_ids: [{"a": "claude", "type": "execution", "id": "bb610e1a-75aa-4dc6-9050-96512674490a"}]
+session_ids: [{"a": "claude", "type": "execution", "id": "bb610e1a-75aa-4dc6-9050-96512674490a"}, {"a": "claude", "type": "review", "id": "ed412812-b54b-4fbb-9677-f46aac89d971"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_39fjevyqyfv0ge849rc77stn5_e
 title: "Edge depth into groups: projection + settings slider (render-only)"
