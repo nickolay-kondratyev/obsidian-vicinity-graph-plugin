@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_6ujh4ol7un9etab1vqwfe9nye_e
 title: "Self-link records a degenerate source==target edge that nothing filters"
-status: open
+status: in_progress
 deps: []
 links: []
 created_iso: 2026-08-15T00:42:11Z
-status_updated_iso: 2026-08-15T00:42:11Z
+status_updated_iso: 2026-08-15T02:18:47Z
 type: bug
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
