@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_6qk78tgfvwzhgb5xru63hu7n3_e
 title: "Intra-group member-to-member passthrough edges route straight through sibling squares"
-status: open
+status: in_progress
 deps: []
 links: []
 created_iso: 2026-08-15T01:04:50Z
-status_updated_iso: 2026-08-15T01:04:50Z
+status_updated_iso: 2026-08-15T02:01:50Z
 type: feature
 priority: 3
 assignee: CC_WITH-nickolaykondratyev
