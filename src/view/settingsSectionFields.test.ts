@@ -75,6 +75,7 @@ describe("section resets together cover every settings field", () => {
 			nodePreviewPreference: "image",
 			showCrossLinks: true,
 			groupLabelFullPath: true,
+			folderGroupingDepth: 2,
 			edgeDepthIntoGroups: 4,
 			sizing: { ...EngineDefaults.sizingSettings(), minPx: 11, maxPx: 999 },
 			forceLayout: { ...EngineDefaults.forceLayoutSettings(), repelStrength: 900 },

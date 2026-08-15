@@ -38,6 +38,12 @@ export function decideLayout(
 	if (!sameForceLayout(previous.viewSettings.forceLayout, next.viewSettings.forceLayout)) {
 		return "relayout";
 	}
+	// The folder-grouping depth cap changes which GROUP BOXES exist for the same
+	// node/edge id sets, so reusing positions would leave new boxes unplaced (and
+	// removed ones haunting the pane) — the slider must re-run the layout live.
+	if (previous.viewSettings.folderGroupingDepth !== next.viewSettings.folderGroupingDepth) {
+		return "relayout";
+	}
 	if (!sameIds(nodeIdsOf(previous), nodeIdsOf(next))) {
 		return "relayout";
 	}
@@ -45,7 +51,10 @@ export function decideLayout(
 		return "relayout";
 	}
 	const resized = resizedPaths(previous.nodes, next.nodes);
-	if (resized.size > 0 && !resizedNodesFitRenderedLayout(resized, next.nodes, renderedLayout)) {
+	if (
+		resized.size > 0 &&
+		!resizedNodesFitRenderedLayout(resized, next.nodes, renderedLayout, next.viewSettings.folderGroupingDepth)
+	) {
 		return "relayout";
 	}
 	if (anyNodeGrewBeyond(previous.nodes, next.nodes, sizeGrowthThreshold, resized)) {

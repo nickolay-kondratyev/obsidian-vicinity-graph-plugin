@@ -1,7 +1,7 @@
 import type { ElkNode } from "elkjs";
 import type { FolderPath, VicinityGraph } from "../engine";
 import { ELK_GROUP_PADDING, ELK_ROOT_ID, elkForceRootOptions, elkGroupMemberOptions } from "./constants";
-import { deriveFolderGroups, UNLIMITED_GROUP_NESTING_DEPTH } from "./folderGrouping";
+import { deriveFolderGroups } from "./folderGrouping";
 import type { FolderGroup, FolderGroupingResult } from "./folderGrouping";
 import { edgeIdOf, folderGroupIdOf, nodeDimensionsPx } from "./graphIdentity";
 import type { Dimensions, XY } from "./flowMapping";
@@ -34,7 +34,7 @@ import type { Dimensions, XY } from "./flowMapping";
  */
 
 export function vicinityGraphToElk(graph: VicinityGraph): ElkNode {
-	const grouping = deriveFolderGroups(graph.nodes, UNLIMITED_GROUP_NESTING_DEPTH);
+	const grouping = deriveFolderGroups(graph.nodes, graph.viewSettings.folderGroupingDepth);
 	// The "Group member spacing" knob drives the group INTERIORS only; the root
 	// force seed keeps its own internal separation (see `elkForceRootOptions`).
 	const nodeSpacingPx = graph.viewSettings.forceLayout.elkNodeSpacingPx;

@@ -47,6 +47,8 @@ function specLeafIdFor(control: SettingsRowControl): string {
 			return "globalView.showCrossLinks";
 		case "group-label-full-path":
 			return "globalView.groupLabelFullPath";
+		case "folder-grouping-depth":
+			return "globalView.folderGroupingDepth";
 		case "edge-depth-into-groups":
 			return "globalView.edgeDepthIntoGroups";
 		case "outline-depth":

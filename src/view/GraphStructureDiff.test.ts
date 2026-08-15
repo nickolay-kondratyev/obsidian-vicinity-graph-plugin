@@ -61,6 +61,18 @@ describe("decideLayout structural identity", () => {
 		});
 		expect(decideLayout(base, next, SIZE_RELAYOUT_THRESHOLD, NO_RENDERED_LAYOUT)).toBe("reuse-layout");
 	});
+
+	it("WHEN two builds differ ONLY in folderGroupingDepth THEN it relayouts", () => {
+		// The depth cap changes which group BOXES exist for identical node/edge id
+		// sets, so reusing positions would leave the new group structure unplaced —
+		// the slider must re-run the layout live.
+		const next = makeGraph({
+			nodes: [makeNode({ path: asVaultPath("a.md") }), makeNode({ path: asVaultPath("b.md") })],
+			edges: [makeEdge("a.md", "b.md")],
+			viewSettings: { ...base.viewSettings, folderGroupingDepth: 0 },
+		});
+		expect(decideLayout(base, next, SIZE_RELAYOUT_THRESHOLD, NO_RENDERED_LAYOUT)).toBe("relayout");
+	});
 });
 
 describe("decideLayout size-growth exception", () => {

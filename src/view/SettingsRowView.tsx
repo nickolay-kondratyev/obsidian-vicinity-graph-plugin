@@ -73,6 +73,8 @@ export function SettingsRowView({
 			return <ShowCrossLinksRow row={row} state={state} />;
 		case "group-label-full-path":
 			return <GroupLabelFullPathRow row={row} state={state} />;
+		case "folder-grouping-depth":
+			return <FolderGroupingDepthRow row={row} state={state} />;
 		case "edge-depth-into-groups":
 			return <EdgeDepthIntoGroupsRow row={row} state={state} />;
 		case "outline-depth":
@@ -447,6 +449,16 @@ function OutlineDepthRow({
 	readonly state: SettingsRowState;
 }): ReactElement {
 	return <SliderRow row={row} accessor={SettingsRowAccessors.outlineDepth()} state={state} />;
+}
+
+function FolderGroupingDepthRow({
+	row,
+	state,
+}: {
+	readonly row: SettingsRow;
+	readonly state: SettingsRowState;
+}): ReactElement {
+	return <SliderRow row={row} accessor={SettingsRowAccessors.folderGroupingDepth()} state={state} />;
 }
 
 function EdgeDepthIntoGroupsRow({

@@ -62,6 +62,7 @@ export const SETTINGS_ROW_CONTROL_KINDS = [
 	"node-preview",
 	"show-cross-links",
 	"group-label-full-path",
+	"folder-grouping-depth",
 	"edge-depth-into-groups",
 	"outline-depth",
 	"force-layout",
@@ -85,6 +86,8 @@ export type SettingsRowControl =
 	| { readonly kind: "show-cross-links" }
 	/** Whether a collapsed folder chain is labelled with its full path instead of the leaf name. */
 	| { readonly kind: "group-label-full-path" }
+	/** Maximum rendered folder-group nesting levels (0 turns grouping off entirely). */
+	| { readonly kind: "folder-grouping-depth" }
 	/** How many nested-group levels an edge may reach into before collapsing onto the group box. */
 	| { readonly kind: "edge-depth-into-groups" }
 	/** Deepest heading level a node's outline renders. */
@@ -480,6 +483,15 @@ export const SETTINGS_GROUPS: Readonly<Record<SettingsSection, SettingsGroup>> =
 		blocks: [
 			{
 				rows: [
+					// First row deliberately (general → specific): this is the master dial —
+					// at 0 the rows below it are moot (their disabledWhen wiring is ticket
+					// nid_dqu2jc1kln9ltwzy3lxxocdw7_e).
+					{
+						label: "Folder grouping depth",
+						description:
+							"Maximum levels of nested folder groups. 0 turns folder grouping off entirely; 20 is effectively unlimited.",
+						control: { kind: "folder-grouping-depth" },
+					},
 					{
 						label: "Full folder path",
 						description:

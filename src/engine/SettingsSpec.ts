@@ -79,6 +79,7 @@ export interface ViewSpec {
 	readonly nodePreviewPreference: DefaultSpec<NodePreviewPreference>;
 	readonly showCrossLinks: DefaultSpec<boolean>;
 	readonly groupLabelFullPath: DefaultSpec<boolean>;
+	readonly folderGroupingDepth: BoundedNumberSpec;
 	readonly edgeDepthIntoGroups: BoundedNumberSpec;
 	readonly sizing: SizingSpec;
 	readonly forceLayout: ForceLayoutSpec;
@@ -301,6 +302,15 @@ export const SETTINGS_SPEC: SettingsSpec = {
 		 * either way; this only changes what a COLLAPSED chain reads as.
 		 */
 		groupLabelFullPath: { default: false },
+		/**
+		 * Maximum RENDERED folder-group nesting levels (plan
+		 * `nid_yyugpoh3gv8ip24cizvgrs4w4_e`, signed-off Q2). `0` turns folder
+		 * grouping off entirely; the DEFAULT `20` is effectively unlimited — no
+		 * sentinel value, because no sane vault nests 20 rendered group levels
+		 * (a collapsed single-child chain counts as ONE level). Whole levels, so
+		 * `step 1`.
+		 */
+		folderGroupingDepth: { default: 20, min: 0, max: 20, step: 1 },
 		/**
 		 * PER-ENDPOINT depth allowance for edges reaching INTO folder groups
 		 * (plan `nid_6fkhyw97hjs84xb62z6tommhi_e`, human decision D4). `0` (DEFAULT)

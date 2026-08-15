@@ -4,6 +4,7 @@ import {
 	MAX_OUTLINE_DEPTH,
 	MIN_OUTLINE_DEPTH,
 	clampEdgeDepthIntoGroups,
+	clampFolderGroupingDepth,
 	clampForceLayoutSettings,
 	clampNodeCap,
 	clampOutlineMaxDepth,
@@ -52,6 +53,7 @@ function forceLayoutEnforcer(field: keyof ForceLayoutSettings): BoundsEnforcer {
 const BOUNDS_ENFORCERS: Readonly<Record<string, BoundsEnforcer>> = {
 	"globalView.nodeCap": clampNodeCap,
 	"globalView.outlineMaxDepth": clampOutlineMaxDepth,
+	"globalView.folderGroupingDepth": clampFolderGroupingDepth,
 	"globalView.edgeDepthIntoGroups": clampEdgeDepthIntoGroups,
 	"globalView.sizing.minPx": sizingEnforcer("minPx"),
 	"globalView.sizing.maxPx": sizingEnforcer("maxPx"),

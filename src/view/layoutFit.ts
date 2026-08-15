@@ -1,7 +1,7 @@
 import type { FolderPath, GraphNode } from "../engine";
 import type { Dimensions, XY } from "./flowMapping";
 import type { FolderGroupingResult } from "./folderGrouping";
-import { deriveFolderGroups, UNLIMITED_GROUP_NESTING_DEPTH } from "./folderGrouping";
+import { deriveFolderGroups } from "./folderGrouping";
 import { folderGroupIdOf, nodeDimensionsPx } from "./graphIdentity";
 
 /**
@@ -84,8 +84,12 @@ export function resizedNodesFitRenderedLayout(
 	resizedPaths: ReadonlySet<string>,
 	nodes: readonly GraphNode[],
 	layout: RenderedLayout,
+	maxGroupNestingDepth: number,
 ): boolean {
-	const grouping = deriveFolderGroups(nodes, UNLIMITED_GROUP_NESTING_DEPTH);
+	// The SAME depth cap the rendered layout was built under (the caller only asks
+	// this question when the cap did not change): a different cap would derive
+	// groups the layout never placed and answer "relayout" for every resize.
+	const grouping = deriveFolderGroups(nodes, maxGroupNestingDepth);
 	const nodeRects = new Map<string, Rect>();
 	for (const node of nodes) {
 		const position = layout.positions.get(node.path);

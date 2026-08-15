@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { asFolderPath, asVaultPath } from "../engine";
 import type { GraphNode } from "../engine";
 import type { Dimensions, XY } from "./flowMapping";
+import { UNLIMITED_GROUP_NESTING_DEPTH } from "./folderGrouping";
 import { folderGroupIdOf } from "./graphIdentity";
 import { NO_RENDERED_LAYOUT, resizedNodesFitRenderedLayout } from "./layoutFit";
 import type { RenderedLayout } from "./layoutFit";
@@ -39,7 +40,7 @@ describe("resizedNodesFitRenderedLayout against neighbouring nodes", () => {
 			"a.md": { x: 0, y: 0 },
 			"b.md": { x: 200, y: 0 },
 		});
-		expect(resizedNodesFitRenderedLayout(resized, nodes, layout)).toBe(true);
+		expect(resizedNodesFitRenderedLayout(resized, nodes, layout, UNLIMITED_GROUP_NESTING_DEPTH)).toBe(true);
 	});
 
 	it("WHEN the new box overlaps its neighbour THEN it does not fit", () => {
@@ -47,7 +48,7 @@ describe("resizedNodesFitRenderedLayout against neighbouring nodes", () => {
 			"a.md": { x: 0, y: 0 },
 			"b.md": { x: 90, y: 0 },
 		});
-		expect(resizedNodesFitRenderedLayout(resized, nodes, layout)).toBe(false);
+		expect(resizedNodesFitRenderedLayout(resized, nodes, layout, UNLIMITED_GROUP_NESTING_DEPTH)).toBe(false);
 	});
 
 	it("WHEN the new box only TOUCHES its neighbour's edge THEN it fits", () => {
@@ -56,12 +57,12 @@ describe("resizedNodesFitRenderedLayout against neighbouring nodes", () => {
 			"a.md": { x: 0, y: 0 },
 			"b.md": { x: 100, y: 0 },
 		});
-		expect(resizedNodesFitRenderedLayout(resized, nodes, layout)).toBe(true);
+		expect(resizedNodesFitRenderedLayout(resized, nodes, layout, UNLIMITED_GROUP_NESTING_DEPTH)).toBe(true);
 	});
 
 	it("WHEN the resized node is the ONLY node THEN it fits", () => {
 		const layout = layoutOf({ "a.md": { x: 0, y: 0 } });
-		expect(resizedNodesFitRenderedLayout(resized, [sizedNode("a.md", 400, 400)], layout)).toBe(true);
+		expect(resizedNodesFitRenderedLayout(resized, [sizedNode("a.md", 400, 400)], layout, UNLIMITED_GROUP_NESTING_DEPTH)).toBe(true);
 	});
 });
 
@@ -84,19 +85,19 @@ describe("resizedNodesFitRenderedLayout against folder-group borders", () => {
 
 	it("WHEN the new box stays inside its group border THEN it fits", () => {
 		const layout = layoutOf(positionsInGroup, groupBox);
-		expect(resizedNodesFitRenderedLayout(resized, groupedNodes(200, 200), layout)).toBe(true);
+		expect(resizedNodesFitRenderedLayout(resized, groupedNodes(200, 200), layout, UNLIMITED_GROUP_NESTING_DEPTH)).toBe(true);
 	});
 
 	it("WHEN the new box spills outside its group border THEN it does not fit", () => {
 		// 10 + 295 > 300: the node would hang out of the folder box the layout drew.
 		const layout = layoutOf(positionsInGroup, groupBox);
-		expect(resizedNodesFitRenderedLayout(resized, groupedNodes(295, 200), layout)).toBe(false);
+		expect(resizedNodesFitRenderedLayout(resized, groupedNodes(295, 200), layout, UNLIMITED_GROUP_NESTING_DEPTH)).toBe(false);
 	});
 
 	it("WHEN the new box swallows a fellow member THEN it does not fit", () => {
 		// Still inside the group border, but now sitting on top of "b.md" at y=250.
 		const layout = layoutOf(positionsInGroup, groupBox);
-		expect(resizedNodesFitRenderedLayout(resized, groupedNodes(200, 280), layout)).toBe(false);
+		expect(resizedNodesFitRenderedLayout(resized, groupedNodes(200, 280), layout, UNLIMITED_GROUP_NESTING_DEPTH)).toBe(false);
 	});
 
 	it("WHEN a group member SHRINKS THEN it fits, leaving the group box oversized", () => {
@@ -104,7 +105,7 @@ describe("resizedNodesFitRenderedLayout against folder-group borders", () => {
 		// a smaller box always fits, so the layout (and with it the now-roomy 300x300
 		// folder border) is reused until the next structural relayout. See `layoutFit.ts`.
 		const layout = layoutOf(positionsInGroup, groupBox);
-		expect(resizedNodesFitRenderedLayout(resized, groupedNodes(20, 20), layout)).toBe(true);
+		expect(resizedNodesFitRenderedLayout(resized, groupedNodes(20, 20), layout, UNLIMITED_GROUP_NESTING_DEPTH)).toBe(true);
 	});
 
 	it("WHEN an ungrouped node's new box overlaps ANOTHER folder's group box THEN it does not fit", () => {
@@ -116,7 +117,7 @@ describe("resizedNodesFitRenderedLayout against folder-group borders", () => {
 			sizedNode("b.md", 40, 40, folder),
 		];
 		const layout = layoutOf({ ...positionsInGroup, "loose.md": { x: -100, y: 150 } }, groupBox);
-		expect(resizedNodesFitRenderedLayout(new Set(["loose.md"]), nodes, layout)).toBe(false);
+		expect(resizedNodesFitRenderedLayout(new Set(["loose.md"]), nodes, layout, UNLIMITED_GROUP_NESTING_DEPTH)).toBe(false);
 	});
 });
 
@@ -150,19 +151,19 @@ describe("resizedNodesFitRenderedLayout with NESTED folder groups (ticket nid_vj
 
 	it("WHEN a nested group's member resizes with room to spare THEN it fits", () => {
 		// b1 at 50x50, well inside A/B and clear of b2.
-		expect(resizedNodesFitRenderedLayout(new Set(["A/B/b1.md"]), nestedNodes(50, 50), nestedLayout)).toBe(true);
+		expect(resizedNodesFitRenderedLayout(new Set(["A/B/b1.md"]), nestedNodes(50, 50), nestedLayout, UNLIMITED_GROUP_NESTING_DEPTH)).toBe(true);
 	});
 
 	it("WHEN a nested group's member spills outside its OWN group but stays inside the ancestor THEN it does not fit", () => {
 		// b1 at (60,60) grown to 300 wide: 60 + 300 > 350 (A/B's right edge) but
 		// still inside A's 400 — the OWN border is the binding one.
-		expect(resizedNodesFitRenderedLayout(new Set(["A/B/b1.md"]), nestedNodes(300, 50), nestedLayout)).toBe(false);
+		expect(resizedNodesFitRenderedLayout(new Set(["A/B/b1.md"]), nestedNodes(300, 50), nestedLayout, UNLIMITED_GROUP_NESTING_DEPTH)).toBe(false);
 	});
 });
 
 describe("resizedNodesFitRenderedLayout with geometry it cannot see", () => {
 	it("WHEN no layout has been rendered yet THEN it does not fit", () => {
-		expect(resizedNodesFitRenderedLayout(new Set(["a.md"]), [sizedNode("a.md", 100, 100)], NO_RENDERED_LAYOUT)).toBe(
+		expect(resizedNodesFitRenderedLayout(new Set(["a.md"]), [sizedNode("a.md", 100, 100)], NO_RENDERED_LAYOUT, UNLIMITED_GROUP_NESTING_DEPTH)).toBe(
 			false,
 		);
 	});
@@ -171,7 +172,7 @@ describe("resizedNodesFitRenderedLayout with geometry it cannot see", () => {
 		// An unplaced neighbour could be anywhere — no fit can be promised.
 		const nodes = [sizedNode("a.md", 100, 100), sizedNode("b.md", 100, 100)];
 		const layout = layoutOf({ "a.md": { x: 0, y: 0 } });
-		expect(resizedNodesFitRenderedLayout(new Set(["a.md"]), nodes, layout)).toBe(false);
+		expect(resizedNodesFitRenderedLayout(new Set(["a.md"]), nodes, layout, UNLIMITED_GROUP_NESTING_DEPTH)).toBe(false);
 	});
 
 	it("WHEN a rendered group has no cached box THEN it does not fit", () => {
@@ -182,6 +183,6 @@ describe("resizedNodesFitRenderedLayout with geometry it cannot see", () => {
 			"a.md": { x: 10, y: 10 },
 			"b.md": { x: 10, y: 200 },
 		});
-		expect(resizedNodesFitRenderedLayout(new Set(["a.md"]), nodes, layout)).toBe(false);
+		expect(resizedNodesFitRenderedLayout(new Set(["a.md"]), nodes, layout, UNLIMITED_GROUP_NESTING_DEPTH)).toBe(false);
 	});
 });

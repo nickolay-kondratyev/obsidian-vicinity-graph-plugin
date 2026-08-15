@@ -320,6 +320,7 @@ describe("PersistedShapes view field presence semantics", () => {
 		nodePreviewPreference: "image",
 		showCrossLinks: true,
 		groupLabelFullPath: true,
+		folderGroupingDepth: 2,
 		edgeDepthIntoGroups: 3,
 		sizing: { ...EngineDefaults.viewSettings().sizing, minPx: 30 },
 		forceLayout: { ...EngineDefaults.forceLayoutSettings(), linkGapPx: 60 },
@@ -353,6 +354,28 @@ describe("PersistedShapes view field presence semantics", () => {
 
 	it("WHEN a persisted view omits a field THEN that field takes the spec default", () => {
 		expect(parsedGlobalView({ nodeCap: 10 }).outlineMaxDepth).toBe(SETTINGS_SPEC.globalView.outlineMaxDepth.default);
+	});
+});
+
+describe("PersistedShapes folder grouping depth parsing", () => {
+	it("WHEN globalView carries a valid folderGroupingDepth THEN it round-trips", () => {
+		expect(parsedGlobalView({ folderGroupingDepth: 2 }).folderGroupingDepth).toBe(2);
+	});
+
+	it("WHEN a stored folderGroupingDepth is 0 THEN zero survives parsing (grouping off is a real value)", () => {
+		expect(parsedGlobalView({ folderGroupingDepth: 0 }).folderGroupingDepth).toBe(0);
+	});
+
+	it("WHEN a hand-edited folderGroupingDepth exceeds the ceiling THEN parsing clamps it to the spec max", () => {
+		expect(parsedGlobalView({ folderGroupingDepth: 999 }).folderGroupingDepth).toBe(
+			SETTINGS_SPEC.globalView.folderGroupingDepth.max,
+		);
+	});
+
+	it("WHEN a persisted view omits folderGroupingDepth THEN it takes the spec default (effectively unlimited)", () => {
+		// The pre-publish clean break: an older data.json without the key parses to 20,
+		// i.e. grouping renders exactly as before the dial existed.
+		expect(parsedGlobalView({}).folderGroupingDepth).toBe(SETTINGS_SPEC.globalView.folderGroupingDepth.default);
 	});
 });
 
