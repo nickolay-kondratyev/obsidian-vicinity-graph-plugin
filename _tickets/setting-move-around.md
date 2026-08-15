@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_rndi5sulwrsx1aq0x4xqcskrb_e
 title: "setting move around"
-status: open
+status: in_progress
 deps: []
 links: []
 created_iso: 2026-08-15T15:33:20Z
-status_updated_iso: 2026-08-15T15:33:20Z
+status_updated_iso: 2026-08-15T15:37:05Z
 type: task
 priority: 3
 assignee: nickolaykondratyev
