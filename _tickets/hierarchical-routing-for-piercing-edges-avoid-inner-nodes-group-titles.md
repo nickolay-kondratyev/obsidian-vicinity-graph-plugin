@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_dwoixmdm1h59cw3bc2f6noejv_e
 title: "Hierarchical routing for piercing edges (avoid inner nodes + group titles)"
-status: open
+status: in_progress
 deps: [nid_39fjevyqyfv0ge849rc77stn5_e]
 links: []
 created_iso: 2026-08-14T23:39:17Z
-status_updated_iso: 2026-08-14T23:39:17Z
+status_updated_iso: 2026-08-15T00:40:48Z
 type: feature
 priority: 3
 assignee: nickolaykondratyev
