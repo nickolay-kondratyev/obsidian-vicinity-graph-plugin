@@ -220,16 +220,16 @@ function parseViewFields(raw: unknown): Partial<ViewSettings> {
 		// non-boolean falls through as absent — never a truthiness coercion.
 		groupLabelFullPath: typeof raw["groupLabelFullPath"] === "boolean" ? raw["groupLabelFullPath"] : undefined,
 		// Added WITHOUT a PERSISTED_SHAPE_VERSION bump (a missing known field falls
-		// back to its spec default): an existing data.json parses correctly. Clamped
-		// with the SAME function the slider settles with, so hand-edited JSON cannot
-		// reach a negative or over-max reach.
-		// Added WITHOUT a PERSISTED_SHAPE_VERSION bump (a missing known field falls
 		// back to its spec default 20 — effectively-unlimited grouping, today's
 		// behavior): an existing data.json parses correctly. Clamped with the SAME
 		// function the slider settles with, so hand-edited JSON cannot reach a
 		// negative depth or one past the ceiling.
 		folderGroupingDepth:
 			folderGroupingDepth === undefined ? undefined : clampFolderGroupingDepth(folderGroupingDepth),
+		// Added WITHOUT a PERSISTED_SHAPE_VERSION bump (a missing known field falls
+		// back to its spec default): an existing data.json parses correctly. Clamped
+		// with the SAME function the slider settles with, so hand-edited JSON cannot
+		// reach a negative or over-max reach.
 		edgeDepthIntoGroups:
 			edgeDepthIntoGroups === undefined ? undefined : clampEdgeDepthIntoGroups(edgeDepthIntoGroups),
 		sizing: parseSizing(raw["sizing"]),
