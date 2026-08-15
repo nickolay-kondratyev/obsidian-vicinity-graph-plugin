@@ -1,4 +1,5 @@
 ---
+session_ids: [{"a": "claude", "type": "execution", "id": "d6aeca0c-8a09-4f67-ad78-90f5910be0ed"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_3lwh7nfhvevy0y4mg0ylyxaoy_e
 title: "Fix this error that came in obsidian publish review"
