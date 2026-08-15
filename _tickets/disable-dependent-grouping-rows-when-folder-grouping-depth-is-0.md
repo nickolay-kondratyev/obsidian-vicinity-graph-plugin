@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-15T06:55:32Z
-session_ids: [{"a": "claude", "type": "execution", "id": "c14fb02b-fdb0-46b5-9f1c-99aff25ac186"}]
+session_ids: [{"a": "claude", "type": "execution", "id": "c14fb02b-fdb0-46b5-9f1c-99aff25ac186"}, {"a": "claude", "type": "review", "id": "56267bfb-f3fc-4336-a20f-bab92a29e0b4"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_dqu2jc1kln9ltwzy3lxxocdw7_e
 title: "Disable dependent grouping rows when folder grouping depth is 0"
