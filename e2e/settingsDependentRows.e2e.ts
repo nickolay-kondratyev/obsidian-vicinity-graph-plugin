@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import * as fs from "node:fs";
+import { SettingsRowNames, settingsRowsFor } from "../src/view/settingsRows";
+import type { SettingsRowControlKind } from "../src/view/settingsRows";
 import { ObsidianHarness } from "./obsidianHarness";
 import { SettingsTabPage } from "./settingsTabPage";
 
@@ -13,12 +15,14 @@ import { SettingsTabPage } from "./settingsTabPage";
  *
  * Since `nid_qp56jugz8en8wkgjirwcb269p_e` the shape is: the dependent control is
  * always rendered and merely toggles `disabled` (declared as `disabledWhen` in
- * `src/view/settingsRows.ts`), so both tests below assert node IDENTITY across
+ * `src/view/settingsRows.ts`), so the tests below assert node IDENTITY across
  * the flip. (The sizing-metric weight rows this spec also covered were REMOVED
- * with the content-fit sizing rework, nid_cx5zoz7ptucg9nxalibv0mbjb_e —
- * exclusion patterns is now the only `disabledWhen` row.)
+ * with the content-fit sizing rework, nid_cx5zoz7ptucg9nxalibv0mbjb_e.) The
+ * `disabledWhen` rows today: the exclusion patterns list (master: the exclusion
+ * toggle) and the two dependent Grouping rows (master: the "Folder grouping
+ * depth" slider — ticket nid_dqu2jc1kln9ltwzy3lxxocdw7_e).
  *
- * So each test here asserts the same three things across ONE toggle, and they are
+ * So each test here asserts the same three things across ONE master flip, and they are
  * the only assertions that can tell a targeted update from a rebuild:
  *  1. `document.activeElement` is still the control it was;
  *  2. the tab's scroll offset is unchanged;
@@ -227,4 +231,107 @@ test("settings tab: WHEN the exclusion toggle is switched back on THEN the patte
 	await expectExclusionPersisted(true);
 	await expectTabUndisturbed(offset);
 	await page.screenshot({ path: `${OUT_DIR}/02-exclusion-on-scroll-kept.png` });
+});
+
+/* ========================================================================== *
+ * The Grouping card's dependent rows (master: the Folder grouping depth slider)
+ * ========================================================================== */
+
+/** The declared accessible name of a Grouping-card row — the model's copy, never retyped. */
+function declaredName(kind: SettingsRowControlKind): string {
+	const [row] = settingsRowsFor(kind);
+	if (row === undefined) {
+		throw new Error(`the declared model has no ${kind} row`);
+	}
+	return SettingsRowNames.sole(row);
+}
+
+/** A depth with grouping ON — any value ≥ 1 re-enables the dependent rows. */
+const GROUPING_ON_DEPTH = 2;
+
+/**
+ * Drives the tab's "Folder grouping depth" SLIDER — the real master gesture, so the
+ * dependent verdicts flow through the tab's own onChange (write, then the
+ * authoritative `applyRowDependencies` pass). Set through the native value setter,
+ * then BOTH `input` and `change` events: Obsidian's `SliderComponent` decides which
+ * of the two fires `onChange` (`setInstant`), and dispatching both keeps this helper
+ * agnostic to that choice. Programmatic on purpose — a pointer drag would move
+ * focus, destroying what {@link expectTabUndisturbed} measures.
+ */
+async function setFolderGroupingDepthSlider(value: number): Promise<void> {
+	const slider = control(declaredName("folder-grouping-depth"));
+	await slider.evaluate((el, next) => {
+		const input = el as HTMLInputElement;
+		const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+		setter?.call(input, String(next));
+		input.dispatchEvent(new Event("input", { bubbles: true }));
+		input.dispatchEvent(new Event("change", { bubbles: true }));
+	}, value);
+	await expect(slider).toHaveValue(String(value));
+}
+
+/** Like {@link expectExclusionPersisted}: the slider write must land in the store, not just paint. */
+async function expectGroupingDepthPersisted(depth: number): Promise<void> {
+	await expect
+		.poll(async () => (await harness.readGlobalView()).folderGroupingDepth, {
+			message: "the folder grouping depth slider must persist, not just repaint its dependents",
+		})
+		.toBe(depth);
+}
+
+test("settings tab: WHEN Folder grouping depth is set to 0 THEN both dependent grouping rows are disabled in place, keeping scroll and focus", async () => {
+	await settingsTab.open();
+	await harness.saveGlobalView({ folderGroupingDepth: GROUPING_ON_DEPTH });
+	await settingsTab.redisplay();
+	const fullPathToggle = control(declaredName("group-label-full-path"));
+	const edgeDepthSlider = control(declaredName("edge-depth-into-groups"));
+	await expect(fullPathToggle).toBeEnabled();
+	await expect(edgeDepthSlider).toBeEnabled();
+	await markIdentity(fullPathToggle);
+	await markIdentity(edgeDepthSlider);
+	const offset = await givenTabScrolledAndFocusedElsewhere();
+
+	await setFolderGroupingDepthSlider(0);
+
+	await expect(fullPathToggle).toBeDisabled();
+	await expect(edgeDepthSlider).toBeDisabled();
+	expect(await isSameNodeAsMarked(fullPathToggle), "the full-path toggle was rebuilt instead of disabled in place").toBe(
+		true,
+	);
+	expect(
+		await isSameNodeAsMarked(edgeDepthSlider),
+		"the edge-depth slider was rebuilt instead of disabled in place",
+	).toBe(true);
+	await expectGroupingDepthPersisted(0);
+	await expectTabUndisturbed(offset);
+	await page.screenshot({ path: `${OUT_DIR}/03-grouping-off-rows-disabled.png` });
+});
+
+test("settings tab: WHEN Folder grouping depth leaves 0 THEN both dependent grouping rows are re-enabled in place", async () => {
+	await settingsTab.open();
+	await harness.saveGlobalView({ folderGroupingDepth: 0 });
+	await settingsTab.redisplay();
+	const fullPathToggle = control(declaredName("group-label-full-path"));
+	const edgeDepthSlider = control(declaredName("edge-depth-into-groups"));
+	await expect(fullPathToggle).toBeDisabled();
+	await expect(edgeDepthSlider).toBeDisabled();
+	await markIdentity(fullPathToggle);
+	await markIdentity(edgeDepthSlider);
+	const offset = await givenTabScrolledAndFocusedElsewhere();
+
+	await setFolderGroupingDepthSlider(GROUPING_ON_DEPTH);
+
+	await expect(fullPathToggle).toBeEnabled();
+	await expect(edgeDepthSlider).toBeEnabled();
+	expect(
+		await isSameNodeAsMarked(fullPathToggle),
+		"the full-path toggle was rebuilt instead of re-enabled in place",
+	).toBe(true);
+	expect(
+		await isSameNodeAsMarked(edgeDepthSlider),
+		"the edge-depth slider was rebuilt instead of re-enabled in place",
+	).toBe(true);
+	await expectGroupingDepthPersisted(GROUPING_ON_DEPTH);
+	await expectTabUndisturbed(offset);
+	await page.screenshot({ path: `${OUT_DIR}/04-grouping-on-rows-enabled.png` });
 });
