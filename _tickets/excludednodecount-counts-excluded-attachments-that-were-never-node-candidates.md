@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_9evsq3tz9oy6zk41i1qak6w3x_e
 title: "excludedNodeCount counts excluded attachments that were never node candidates"
-status: open
+status: in_progress
 deps: []
 links: []
 created_iso: 2026-08-15T00:41:50Z
-status_updated_iso: 2026-08-15T00:41:50Z
+status_updated_iso: 2026-08-15T01:47:53Z
 type: bug
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
