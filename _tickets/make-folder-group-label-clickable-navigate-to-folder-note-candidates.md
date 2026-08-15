@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-15T03:26:51Z
-session_ids: [{"a": "claude", "type": "execution", "id": "9bc8f156-56c0-4736-abe7-3ddae6c697fb"}]
+session_ids: [{"a": "claude", "type": "execution", "id": "9bc8f156-56c0-4736-abe7-3ddae6c697fb"}, {"a": "claude", "type": "review", "id": "8b783439-2802-49ae-b85f-1ee4655c2c97"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 id: nid_2pobjyfp5zgspx283bfukaugn_e
 title: "Make folder-group label clickable: navigate to folder-note candidates"
