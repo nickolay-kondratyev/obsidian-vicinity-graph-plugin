@@ -1051,13 +1051,13 @@
  * with the metric dials themselves (node-sizing rethink, 2026-08-03): nothing
  * emits those classes any more. */
 
+/* No top separator: since the metric dials went, this is the section's ONLY
+ * block, so the old margin/padding/border-top divided it from nothing and read
+ * as dead space under the summary. */
 .vicinity-graph-sizing__ranges {
 	display: flex;
 	flex-direction: column;
 	gap: var(--size-4-1);
-	margin-top: var(--size-4-2);
-	padding-top: var(--size-4-2);
-	border-top: 1px solid var(--background-modifier-border);
 }
 /* --- Shared panel row shapes (toolbar) ---------------------------------- */
 
@@ -1107,7 +1107,17 @@
 }
 .vicinity-graph-slider-row .slider {
 	width: 100%;
-	margin: 0;
+	/*
+	 * Obsidian's `.slider` box is only the 3px TRACK; its 18px thumb overflows the
+	 * box vertically. In the tab the row's own padding absorbs that, but at the
+	 * panel's tight gaps the thumb painted over the label above and was clipped by
+	 * the disclosure's `overflow: hidden` when the slider was a section's last row.
+	 * This margin is exactly the thumb's overflow past the track on each side, so
+	 * the thumb stays inside the row. Fallbacks mirror Obsidian 1.12's values for
+	 * a theme that unsets the vars. Guarded by the thumb-clearance assertion in
+	 * e2e/settingsUxVisual.e2e.ts.
+	 */
+	margin: calc((var(--slider-thumb-height, 18px) - var(--slider-track-height, 3px)) / 2) 0;
 }
 .vicinity-graph-slider-row__head {
 	display: flex;
@@ -1268,10 +1278,26 @@
 .vicinity-graph-nodecontents .vicinity-graph-segmented {
 	display: flex;
 }
-/* Equal thirds, so the selected fill never resizes the segments as it moves. */
+/*
+ * Content-sized segments sharing the leftover space — NOT equal fractions: at
+ * 260px an equal split gave every one of the four segments ~40px of text room
+ * and ellipsized all but "Auto" ("Titl…", "Out…", "Im…"), an unreadable pill.
+ * `flex-basis: auto` gives each label its own width first and `flex-grow`
+ * spreads only the remainder, so widths still never move with the selection.
+ * The tighter inline padding is panel-only (the tab keeps the shared 8px);
+ * with it the four labels fit the panel unabridged. Guarded by the
+ * no-ellipsis assertion in e2e/settingsUxVisual.e2e.ts.
+ */
 .vicinity-graph-nodecontents .vicinity-graph-segmented__option {
-	flex: 1 1 0;
+	flex: 1 1 auto;
 	justify-content: center;
+	min-width: 0;
+	padding-inline: var(--size-2-2);
+	/* One step below the shared --font-ui-small: with four labels ("Title only"
+	 * is the long one) the panel needs both the tighter padding and the smaller
+	 * size to fit them unabridged. Matches the panel's row-label size, so the
+	 * pill does not read louder than the rows around it. */
+	font-size: var(--font-ui-smaller);
 }
 
 /* --- Force-layout section (toolbar) ------------------------------------- */
