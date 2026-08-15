@@ -52,3 +52,9 @@ What was built, where it lives:
 
 Gates: `npm run check` EXIT 0, `npm test` green, `npm run test:e2e` (touched spec) green. The plan's D3 routing caveat (interior leg still straight, may cross inner squares) stands — the follow-up routing ticket, not this one, satisfies it; default 0 ships identical behavior.
 
+
+## Notes
+
+**2026-08-15T00:38:15Z**
+
+__READY_AS_IS__: Render-only edge-depth projection is correct (deepest-first index math, projected-pair invariant holds under allowance>0), fully wired through the settings pipeline, and covered at unit/structural/e2e layers; check + npm test green. Reviewed, no changes needed.
