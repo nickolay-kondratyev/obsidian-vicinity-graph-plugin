@@ -69,3 +69,9 @@ Implemented as planned, with one deliberate deviation from the design sketch (no
 
 **Found while working (out of scope, filed):** the e2e submodule working tree held an uncommitted +148-line "Edge depth into groups" addition to `nestedGrouping.e2e.ts` from an earlier feature — left untouched; follow-up ticket `nid_4uaakunhzxq4ur9l1qxe04zb7_e` (tagged `decide`).
 
+
+## Notes
+
+**2026-08-15T03:31:17Z**
+
+__READY_AS_IS__: review found one bug (navigable label missing nodrag/nopan — pan released over label fired navigation), fixed in b32078d matching the NoteNode-chip pattern, covered by 2 new component tests; check + npm test (2133) + folderGroupLabelNav e2e all green.
