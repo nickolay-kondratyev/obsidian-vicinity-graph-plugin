@@ -113,3 +113,9 @@ composer only adds passes when an edge actually pierces, and the eval fixtures r
   knowing the inner target position, so a wide group can get a longer inner leg.
 - e2e tests live in the `e2e/` submodule — commit them there before committing this repo.
 
+
+## Notes
+
+**2026-08-15T01:10:20Z**
+
+__READY_AS_IS__: check green, 60 routing unit+wasm tests pass (incl. avoidance & N=0 byte-identical assertions); logic, clipping-to-true-endpoints, and graceful failure verified; no bugs found.
