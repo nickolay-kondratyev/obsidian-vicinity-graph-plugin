@@ -312,20 +312,30 @@ describe("VicinityTraversal global neighbor exclusion", () => {
 			count: 0,
 		});
 	});
-});
 
-describe("VicinityTraversal excluded-attachment counting (KNOWN BUG, ticket nid_9evsq3tz9oy6zk41i1qak6w3x_e)", () => {
-	// KNOWN BUG — the exclusion gate runs BEFORE the isNodeBearing check, so an
-	// excluded ATTACHMENT (never a node candidate; it still renders via
-	// FileMetadata.attachments) inflates excludedNodeCount and the toolbar's
-	// "N node(s) excluded" badge lies. Unskip (flip `it.skip` to `it`) when fixing.
-	it.skip("WHEN an exclusion pattern matches only an attachment THEN the excluded-node count stays zero", () => {
+	// Regression (ticket nid_9evsq3tz9oy6zk41i1qak6w3x_e): an excluded ATTACHMENT was
+	// never a node candidate (and still renders via FileMetadata.attachments), so it
+	// must not inflate the toolbar's "N node(s) excluded" badge.
+	it("WHEN an exclusion pattern matches only an attachment THEN the excluded-node count stays zero", () => {
 		const provider = new FakeLinkProvider({
 			files: [{ path: "a.md" }, { path: "assets/pic.png" }],
 			links: { "a.md": ["assets/pic.png"] },
 		});
 		const result = traverseExcluding(provider, [root("a.md")], ["^assets/"]);
 		expect(result.excludedNodeCount).toBe(0);
+	});
+
+	// Owner decision (same ticket): exclusion is about NODES — a matching attachment
+	// keeps rendering as the linking note's chip/thumbnail.
+	it("WHEN an attachment matches an exclusion pattern THEN it still surfaces via the linking note's attachments", () => {
+		const provider = new FakeLinkProvider({
+			files: [{ path: "a.md" }, { path: "assets/pic.png" }],
+			links: { "a.md": ["assets/pic.png"] },
+		});
+		const result = traverseExcluding(provider, [root("a.md")], ["^assets/"]);
+		expect(result.nodes.get(asVaultPath("a.md"))?.attachments.map((ref) => ref.path)).toEqual([
+			"assets/pic.png",
+		]);
 	});
 });
 
