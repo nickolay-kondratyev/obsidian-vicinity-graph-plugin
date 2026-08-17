@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-17T18:14:02Z
-session_ids: [{"a": "claude", "type": "execution", "id": "80371a35-bf27-42b5-8f88-6e3967486a83"}]
+session_ids: [{"a": "claude", "type": "execution", "id": "80371a35-bf27-42b5-8f88-6e3967486a83"}, {"a": "claude", "type": "review", "id": "9f742a4d-3a2d-4f3f-80cd-eb3a6b7cf708"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 id: nid_rt0dyx6chv7fxae4k7q85f53l_e
 title: "Implement: create-child-note hover chip on main folder note"
