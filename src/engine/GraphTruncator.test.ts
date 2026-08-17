@@ -81,8 +81,8 @@ describe("GraphTruncator priority ordering", () => {
 		};
 		const provider = new FakeLinkProvider(spec);
 		const roots: TraversalRoot[] = [
-			{ descriptor: { path: asVaultPath("m.md") }, depths: { linkDepthOut: 2, embedDepthOut: 2, linkDepthIn: 0, descendantDepth: 0, ancestorDepth: 0 } },
-			{ descriptor: { path: asVaultPath("p.md") }, depths: { linkDepthOut: 1, embedDepthOut: 1, linkDepthIn: 0, descendantDepth: 0, ancestorDepth: 0 } },
+			{ descriptor: { path: asVaultPath("m.md") }, depths: { linkDepthOut: 2, embedDepthOut: 2, linkDepthIn: 0, namedDepthOut: 0, namedDepthIn: 0, descendantDepth: 0, ancestorDepth: 0 } },
+			{ descriptor: { path: asVaultPath("p.md") }, depths: { linkDepthOut: 1, embedDepthOut: 1, linkDepthIn: 0, namedDepthOut: 0, namedDepthIn: 0, descendantDepth: 0, ancestorDepth: 0 } },
 		];
 		const traversal = new VicinityTraversal(provider).traverse(roots);
 		const result = GraphTruncator.truncate({

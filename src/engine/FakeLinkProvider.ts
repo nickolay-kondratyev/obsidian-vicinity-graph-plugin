@@ -4,7 +4,7 @@ import type { LinkKind } from "../shared/LinkKind";
 import { VaultPathFacts } from "../shared/VaultPathFacts";
 import type { FileMetadata, LinkProvider, OutgoingReference } from "./LinkProvider";
 import { OutgoingReferences } from "./LinkProvider";
-import type { AttachmentRef, OutlineEntry, VaultPath } from "./types";
+import type { AttachmentRef, OutlineEntry, RelationLabel, VaultPath } from "./types";
 import { asFolderPath, asVaultPath } from "./types";
 
 /** One file in a fixture vault. Defaults keep fixtures terse. */
@@ -33,6 +33,30 @@ export interface FakeFileSpec {
 	readonly imagePrecedesOutline?: boolean;
 }
 
+/**
+ * One declared NAMED RELATIONSHIP out of a source (feature `named-relationships`).
+ * Models the adapter's merge: a named link is STILL a physical link occurrence
+ * (counted, incoming-indexed) that ALSO carries a label — so declaring one here adds
+ * the underlying reference AND its {@link RelationLabel}. For the REL-NOTE form, it
+ * ALSO adds the physical `[[relNote]]` NAME-link occurrence Obsidian would index, so
+ * the folding path has something to subtract (pair this with
+ * {@link import("./FakeRelationProvider").FakeRelationProvider} declaring the fold).
+ */
+export interface FakeNamedRelation {
+	/** The statement's target (`supports::[[target]]`). Must be a declared file. */
+	readonly target: string;
+	/** Plain-text name (bare/bracketed forms). Provide this OR {@link relNote}, not both. */
+	readonly name?: string;
+	/** Wrapped-form qualifier (`[supports:: [[x]] but not strongly]`). Default: none. */
+	readonly qualifier?: string;
+	/** Rel-note form: the note the NAME links to (`[[relNote]]::[[target]]`). Must be a declared file. */
+	readonly relNote?: string;
+	/** Alias the rel-note name shows; default = the rel note's basename. */
+	readonly relNoteAlias?: string;
+	/** Named EMBED (`rel::![[x]]`); default false (a named link). */
+	readonly embed?: boolean;
+}
+
 /** Fixture vault: files + ordered outgoing references (incoming derived by inversion). */
 export interface FakeVaultSpec {
 	readonly files: readonly FakeFileSpec[];
@@ -45,12 +69,25 @@ export interface FakeVaultSpec {
 	 * references order as "its links, then its embeds", which no fixture depends on.
 	 */
 	readonly embeds?: Readonly<Record<string, readonly string[]>>;
+	/**
+	 * Per source path: NAMED relationships (feature `named-relationships`). Each rides
+	 * the plain link/embed stream with a label attached (either-budget union); a
+	 * rel-note form also mints the physical `[[relNote]]` name-link occurrence.
+	 */
+	readonly named?: Readonly<Record<string, readonly FakeNamedRelation[]>>;
 }
 
 interface FakeFile {
 	readonly metadata: FileMetadata;
 	readonly nodeBearing: boolean;
 	readonly image: boolean;
+}
+
+/** An undeclared-path reference the constructor resolves and dedups into {@link OutgoingReference}s. */
+interface DeclaredReference {
+	readonly target: string;
+	readonly kind: LinkKind;
+	readonly relations?: readonly RelationLabel[];
 }
 
 /**
@@ -81,6 +118,7 @@ export class FakeLinkProvider implements LinkProvider {
 			this.declareReferences(from, [
 				...FakeLinkProvider.referencesOfKind(spec.links?.[from], "link"),
 				...FakeLinkProvider.referencesOfKind(spec.embeds?.[from], "embed"),
+				...FakeLinkProvider.namedReferencesOf(spec.named?.[from]),
 			]);
 		}
 		this.attachAttachmentsToMetadata();
@@ -129,13 +167,56 @@ export class FakeLinkProvider implements LinkProvider {
 		return this.outgoingQueryCountsMutable.get(path) ?? 0;
 	}
 
-	/** Every source declaring references of EITHER kind, each once. */
+	/** Every source declaring references of ANY kind (plain link, embed, named), each once. */
 	private static referenceSourcesOf(spec: FakeVaultSpec): readonly string[] {
-		return [...new Set([...Object.keys(spec.links ?? {}), ...Object.keys(spec.embeds ?? {})])];
+		return [
+			...new Set([
+				...Object.keys(spec.links ?? {}),
+				...Object.keys(spec.embeds ?? {}),
+				...Object.keys(spec.named ?? {}),
+			]),
+		];
 	}
 
-	private static referencesOfKind(targets: readonly string[] | undefined, kind: LinkKind) {
+	private static referencesOfKind(targets: readonly string[] | undefined, kind: LinkKind): readonly DeclaredReference[] {
 		return (targets ?? []).map((target) => ({ target, kind }));
+	}
+
+	/**
+	 * The physical references a source's NAMED relationships produce: the labeled
+	 * link/embed to each statement target (either-budget union), plus — for a rel-note
+	 * form — the plain `[[relNote]]` name-link occurrence that folding later subtracts.
+	 */
+	private static namedReferencesOf(named: readonly FakeNamedRelation[] | undefined): readonly DeclaredReference[] {
+		const references: DeclaredReference[] = [];
+		for (const relation of named ?? []) {
+			references.push({
+				target: relation.target,
+				kind: relation.embed === true ? "embed" : "link",
+				relations: [FakeLinkProvider.labelOf(relation)],
+			});
+			if (relation.relNote !== undefined) {
+				// The rel-note NAME is itself a `[[relNote]]` link Obsidian indexes — mint it
+				// so getLinkCount/incoming see it and the folding path has an occurrence to remove.
+				references.push({ target: relation.relNote, kind: "link" });
+			}
+		}
+		return references;
+	}
+
+	private static labelOf(relation: FakeNamedRelation): RelationLabel {
+		const qualifier = relation.qualifier !== undefined ? { qualifier: relation.qualifier } : {};
+		if (relation.relNote !== undefined) {
+			return {
+				name: relation.relNoteAlias ?? VaultPathFacts.titleOf(relation.relNote),
+				relNoteTarget: asVaultPath(relation.relNote),
+				...qualifier,
+			};
+		}
+		if (relation.name === undefined) {
+			throw new Error("FakeLinkProvider fixture bug: a named relation needs either a name or a relNote");
+		}
+		return { name: relation.name, ...qualifier };
 	}
 
 	private declareFile(file: FakeFileSpec): void {
@@ -156,12 +237,13 @@ export class FakeLinkProvider implements LinkProvider {
 		});
 	}
 
-	private declareReferences(from: string, declared: readonly { target: string; kind: LinkKind }[]): void {
+	private declareReferences(from: string, declared: readonly DeclaredReference[]): void {
 		const fromPath = this.requireDeclared(from, "link source");
 		const references = declared.map(
 			(reference): OutgoingReference => ({
 				target: this.requireDeclared(reference.target, `link target of [${from}]`),
 				kind: reference.kind,
+				...(reference.relations !== undefined ? { relations: reference.relations } : {}),
 			}),
 		);
 		this.rawOutgoing.set(fromPath, references);

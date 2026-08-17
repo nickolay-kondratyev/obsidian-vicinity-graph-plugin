@@ -80,6 +80,11 @@ const CHANNEL_LINKER: Readonly<Record<Channel, "current" | "neighbor">> = {
 	"outgoing-link": "current",
 	"outgoing-embed": "current",
 	incoming: "neighbor",
+	// Named relationships point linker → named, same orientation as plain links:
+	// named-outgoing walks source→named (current is the linker), named-incoming walks
+	// from the named target back to the linker (the neighbor is the linker).
+	"named-outgoing": "current",
+	"named-incoming": "neighbor",
 	// Hierarchy edges ALWAYS point parent → child (owner decision, both channels
 	// agree on orientation): descendants walk parent→child, so the parent is the
 	// current node; ancestors walk child→parent, so the parent is the neighbor.
@@ -189,6 +194,14 @@ export class VicinityTraversal {
 				return this.outgoingTargetsOfKind(path, "embed");
 			case "incoming":
 				return this.provider.getIncomingLinks(path);
+			case "named-outgoing":
+				// Every target this note NAMES (a reference carrying relation labels),
+				// kind-blind: a named link and a named embed both ride this channel. The
+				// SAME reference is also seen by the outgoing link/embed channel above —
+				// the either-budget union — but the edge is deduped to one pair.
+				return OutgoingReferences.namedTargetsOf(this.provider.getOutgoingReferences(path));
+			case "named-incoming":
+				return this.namedIncomingOf(path);
 			case "descendants":
 				return this.provider.getChildNotes(path);
 			case "ancestors": {
@@ -200,6 +213,30 @@ export class VicinityTraversal {
 
 	private outgoingTargetsOfKind(path: VaultPath, kind: LinkKind): readonly VaultPath[] {
 		return OutgoingReferences.targetsOfKind(this.provider.getOutgoingReferences(path), kind);
+	}
+
+	/**
+	 * The notes that NAME `path` — the incoming side of the named channel. A relation
+	 * label rides the source's outgoing reference (either-budget union), so the linkers
+	 * of `path` filtered to those whose reference to `path` carries labels ARE the named
+	 * linkers; no separate reverse index is needed. KIND-BLIND like the plain incoming
+	 * channel. Reuses `getIncomingLinks` (already the deduped linker list, rel-note folds
+	 * applied by the folding provider), so a rel note's folded name occurrence can never
+	 * appear as a named linker.
+	 */
+	private namedIncomingOf(path: VaultPath): readonly VaultPath[] {
+		return this.provider
+			.getIncomingLinks(path)
+			.filter((source) =>
+				this.provider
+					.getOutgoingReferences(source)
+					.some(
+						(reference) =>
+							reference.target === path &&
+							reference.relations !== undefined &&
+							reference.relations.length > 0,
+					),
+			);
 	}
 
 	private assemble(roots: readonly TraversalRoot[], collector: TraversalCollector): TraversalResult {

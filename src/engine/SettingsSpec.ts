@@ -50,11 +50,15 @@ export interface DepthSpec {
 	readonly linkDepthOut: BoundedNumberSpec;
 	readonly embedDepthOut: BoundedNumberSpec;
 	readonly linkDepthIn: BoundedNumberSpec;
+	readonly namedDepthOut: BoundedNumberSpec;
+	readonly namedDepthIn: BoundedNumberSpec;
 	readonly descendantDepth: BoundedNumberSpec;
 	readonly ancestorDepth: BoundedNumberSpec;
 	readonly pinnedLinkDepthOut: BoundedNumberSpec;
 	readonly pinnedEmbedDepthOut: BoundedNumberSpec;
 	readonly pinnedLinkDepthIn: BoundedNumberSpec;
+	readonly pinnedNamedDepthOut: BoundedNumberSpec;
+	readonly pinnedNamedDepthIn: BoundedNumberSpec;
 	readonly pinnedDescendantDepth: BoundedNumberSpec;
 	readonly pinnedAncestorDepth: BoundedNumberSpec;
 }
@@ -220,6 +224,18 @@ export const SETTINGS_SPEC: SettingsSpec = {
 		/** OFF by default (owner decision): backlinks are opt-in — see `linkDepthOut`. */
 		linkDepthIn: { default: 0, ...DEPTH_STEPPER_BOUNDS },
 		/**
+		 * Outgoing NAMED-relationship depth for the active note. Default `2` (human
+		 * sign-off 2026-08-17): deeper than the plain 1-hop link default, because a
+		 * system diagram drawn purely in named links must traverse several hops to be
+		 * legible — the whole point of giving named relations their OWN budget (feature
+		 * `named-relationships`, plan `nid_fg66tanwkoyq3cqs1wdxagn21_e`). A named link
+		 * ALSO rides the plain channels (either-budget union); this budget only governs
+		 * how far the NAMED walk reaches. `0` = off. Same bounds family as the other depths.
+		 */
+		namedDepthOut: { default: 2, ...DEPTH_STEPPER_BOUNDS },
+		/** Incoming NAMED-relationship depth for the active note. Default `1` (human sign-off 2026-08-17). */
+		namedDepthIn: { default: 1, ...DEPTH_STEPPER_BOUNDS },
+		/**
 		 * Folder-note DESCENDANTS budget for the active note. Default `1` (owner
 		 * decision, plan `nid_ri1d36t7hmhu0kr652wny1dmz_e`): a note that is a folder
 		 * note shows its immediate children by default; `0` turns the reach off (the
@@ -239,6 +255,17 @@ export const SETTINGS_SPEC: SettingsSpec = {
 		pinnedLinkDepthOut: { default: 1, ...DEPTH_STEPPER_BOUNDS },
 		pinnedEmbedDepthOut: { default: 1, ...DEPTH_STEPPER_BOUNDS },
 		pinnedLinkDepthIn: { default: 0, ...DEPTH_STEPPER_BOUNDS },
+		/**
+		 * The pinned NAMED budgets follow the LINK-channel convention (pinned == active),
+		 * NOT the hierarchy convention (pinned off): a named relationship IS a link
+		 * relation ({@link import("./types").CHANNEL_RELATION}), so a pinned root spreads
+		 * its named diagram exactly as far as the active note does (2/1). Engineering
+		 * call for a signed-off-but-unspecified pinned default (ticket
+		 * `nid_ufbtmywzbsyn2gwrx7bi0ww08_e`); a low-stakes value the named-depth rows
+		 * ticket (`nid_fqdc55oifopcxxs4eb0w8q876_e`) can retune when it surfaces the dials.
+		 */
+		pinnedNamedDepthOut: { default: 2, ...DEPTH_STEPPER_BOUNDS },
+		pinnedNamedDepthIn: { default: 1, ...DEPTH_STEPPER_BOUNDS },
 		/**
 		 * Folder-note descendants/ancestors budgets for PINNED roots. Default `0/0`
 		 * (owner decision): a pinned note contributes its hierarchy only when the user

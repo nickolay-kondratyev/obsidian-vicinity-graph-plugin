@@ -17,7 +17,9 @@ function root(path: string, depths: Partial<DepthSettings> = {}): TraversalRoot 
 			// channel still means what it meant.
 			embedDepthOut: depths.embedDepthOut ?? depths.linkDepthOut ?? 1,
 			linkDepthIn: depths.linkDepthIn ?? 1,
-			// Hierarchy channels default OFF so the pre-hierarchy fixtures are unchanged.
+			// Named + hierarchy channels default OFF so the pre-feature fixtures are unchanged.
+			namedDepthOut: depths.namedDepthOut ?? 0,
+			namedDepthIn: depths.namedDepthIn ?? 0,
 			descendantDepth: depths.descendantDepth ?? 0,
 			ancestorDepth: depths.ancestorDepth ?? 0,
 		},
@@ -372,7 +374,7 @@ describe("VicinityTraversal node assembly", () => {
 		const roots: TraversalRoot[] = [
 			{
 				descriptor: { path: asVaultPath("a.md"), docid: asDocId("docid_abc_e") },
-				depths: { linkDepthOut: 1, embedDepthOut: 1, linkDepthIn: 1, descendantDepth: 0, ancestorDepth: 0 },
+				depths: { linkDepthOut: 1, embedDepthOut: 1, linkDepthIn: 1, namedDepthOut: 0, namedDepthIn: 0, descendantDepth: 0, ancestorDepth: 0 },
 			},
 		];
 		const result = traverse(provider, roots);
@@ -402,7 +404,7 @@ describe("VicinityTraversal display title (step-05 human decision)", () => {
 			links: { "notes/root.md": ["notes/plain.md"] },
 		});
 		return new VicinityTraversal(provider).traverse([
-			{ descriptor: { path: asVaultPath("notes/root.md") }, depths: { linkDepthOut: 1, embedDepthOut: 1, linkDepthIn: 1, descendantDepth: 0, ancestorDepth: 0 } },
+			{ descriptor: { path: asVaultPath("notes/root.md") }, depths: { linkDepthOut: 1, embedDepthOut: 1, linkDepthIn: 1, namedDepthOut: 0, namedDepthIn: 0, descendantDepth: 0, ancestorDepth: 0 } },
 		]);
 	}
 

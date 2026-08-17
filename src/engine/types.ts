@@ -43,7 +43,14 @@ export function asFolderPath(folder: string): FolderPath {
  * `Record<Channel, …>` in the repo turns into the compile error that names the
  * places it has to be taught (OCP).
  */
-export type Channel = "outgoing-link" | "outgoing-embed" | "incoming" | "descendants" | "ancestors";
+export type Channel =
+	| "outgoing-link"
+	| "outgoing-embed"
+	| "incoming"
+	| "named-outgoing"
+	| "named-incoming"
+	| "descendants"
+	| "ancestors";
 
 /**
  * THE value list of {@link Channel}, in traversal order. Single-sourced so the
@@ -54,6 +61,8 @@ export const CHANNELS = [
 	"outgoing-link",
 	"outgoing-embed",
 	"incoming",
+	"named-outgoing",
+	"named-incoming",
 	"descendants",
 	"ancestors",
 ] as const satisfies readonly Channel[];
@@ -71,6 +80,12 @@ export const CHANNEL_RELATION: Readonly<Record<Channel, ChannelRelation>> = {
 	"outgoing-link": "link",
 	"outgoing-embed": "link",
 	incoming: "link",
+	// A named relationship is a LINK relation (a labeled directed link/embed): it
+	// gets a count badge and is widened by the cross-links sweep, exactly like a
+	// plain link. The NAME rides on the edge (see {@link RelationLabel}), not on
+	// this axis, which only splits link-vs-hierarchy for STYLING.
+	"named-outgoing": "link",
+	"named-incoming": "link",
 	descendants: "hierarchy",
 	ancestors: "hierarchy",
 };
@@ -96,6 +111,12 @@ export const CHANNEL_DISCOVERY_KIND: Readonly<Record<Channel, DiscoveryKind>> = 
 	"outgoing-embed": "embed",
 	"outgoing-link": "link",
 	incoming: "link",
+	// A named relationship ranks as a plain `link` for truncation: it is the same
+	// relevance signal as a link (a note you deliberately relate to). A named EMBED
+	// still ranks `link` here (kind-blind by channel) — the stronger embed signal is
+	// already carried by the outgoing-embed channel it ALSO rides (either-budget union).
+	"named-outgoing": "link",
+	"named-incoming": "link",
 	descendants: "hierarchy",
 	ancestors: "hierarchy",
 };
@@ -273,6 +294,27 @@ export function directedLinkKey(source: VaultPath, target: VaultPath): string {
 export type EdgeKind = "link" | "embed" | "both";
 
 /**
+ * The label a NAMED RELATIONSHIP shows on its edge (feature `named-relationships`,
+ * plan `nid_fg66tanwkoyq3cqs1wdxagn21_e`): a NAME plus, for the wrapped forms, an
+ * optional QUALIFIER. A relation with a qualifier reads as `supports [X] but not
+ * strongly` — literal `[X]` marks the TARGET position (the edge already points at
+ * the target), never the note title; the view builds that display string.
+ *
+ * For the REL-NOTE form (`[[he supports]]::[[x]]`) the name IS a note: {@link name}
+ * is its alias-else-basename and {@link relNoteTarget} is the resolved note the
+ * flyout links to. Absent {@link relNoteTarget} ⇒ a plain text name (bare/bracketed
+ * forms). Carried on {@link OutgoingReference} and aggregated onto {@link GraphEdge}.
+ */
+export interface RelationLabel {
+	/** What the edge shows: a text name, or the rel note's alias-else-basename. */
+	readonly name: string;
+	/** The wrapped forms' trailing qualifier (plain text); absent when none. */
+	readonly qualifier?: string;
+	/** Resolved rel note the name links to (rel-note form only) — the flyout's link. */
+	readonly relNoteTarget?: VaultPath;
+}
+
+/**
  * Final output edge. An ordered pair carries a RELATION SET: link occurrences
  * ({@link count}/{@link kind}) AND/OR the folder-note hierarchy relation
  * ({@link hierarchy}) — "collapse, don't multiply", a merged pair is ONE edge
@@ -308,6 +350,15 @@ export interface GraphEdge extends DirectedLink {
 	 * keeps its link kind. See the type doc for the three rendered states.
 	 */
 	readonly hierarchy: boolean;
+	/**
+	 * Every distinct NAMED-RELATIONSHIP label this ordered pair carries, aggregated
+	 * from the source's occurrences at edge assembly (feature `named-relationships`).
+	 * ABSENT ⇒ an unnamed edge (a plain link/embed or a pure hierarchy edge). The
+	 * count badge is unchanged by names: ONE physical occurrence served through both
+	 * a plain and a named channel is still ONE occurrence here (its label appears
+	 * once). "Collapse, don't multiply": one edge per pair carries ALL its names.
+	 */
+	readonly relations?: readonly RelationLabel[];
 }
 
 /**
@@ -443,6 +494,23 @@ export interface ChannelDepths {
 	 */
 	readonly linkDepthIn: number;
 	/**
+	 * Hops of OUTGOING NAMED relationships (`supports::[[x]]`, `[[he supports]]::[[x]]`)
+	 * expanded from this root — the named-outgoing channel's OWN budget, independent of
+	 * the plain link/embed depths (feature `named-relationships`, plan
+	 * `nid_fg66tanwkoyq3cqs1wdxagn21_e`). WHY its own dial: a system diagram drawn purely
+	 * in named links must traverse DEEP without dragging plain links along. A named link
+	 * ALSO rides the plain link/embed channels (either-budget union), so a node is reached
+	 * under whichever budget reaches it. `0` = off.
+	 */
+	readonly namedDepthOut: number;
+	/**
+	 * Hops of INCOMING NAMED relationships expanded from this root: notes that NAME this
+	 * one (a named relation pointing here). Its own budget, like {@link namedDepthOut};
+	 * KIND-BLIND like {@link linkDepthIn} (a named embed pointing here arrives like any
+	 * named linker). `0` = off.
+	 */
+	readonly namedDepthIn: number;
+	/**
 	 * Hops DOWN the folder-note hierarchy expanded from this root: the children of a
 	 * folder note (node-bearing files directly in the folder it owns), then their
 	 * children, one folder level per hop. KIND-PURE (owner decision D1): a
@@ -478,6 +546,10 @@ export interface DepthSettings extends ChannelDepths {
 	readonly pinnedEmbedDepthOut: number;
 	/** {@link ChannelDepths.linkDepthIn}, for pinned roots. */
 	readonly pinnedLinkDepthIn: number;
+	/** {@link ChannelDepths.namedDepthOut}, for pinned roots. */
+	readonly pinnedNamedDepthOut: number;
+	/** {@link ChannelDepths.namedDepthIn}, for pinned roots. */
+	readonly pinnedNamedDepthIn: number;
 	/** {@link ChannelDepths.descendantDepth}, for pinned roots. */
 	readonly pinnedDescendantDepth: number;
 	/** {@link ChannelDepths.ancestorDepth}, for pinned roots. */
@@ -495,6 +567,8 @@ export class DepthSettingsFacts {
 			linkDepthOut: settings.linkDepthOut,
 			embedDepthOut: settings.embedDepthOut,
 			linkDepthIn: settings.linkDepthIn,
+			namedDepthOut: settings.namedDepthOut,
+			namedDepthIn: settings.namedDepthIn,
 			descendantDepth: settings.descendantDepth,
 			ancestorDepth: settings.ancestorDepth,
 		};
@@ -506,6 +580,8 @@ export class DepthSettingsFacts {
 			linkDepthOut: settings.pinnedLinkDepthOut,
 			embedDepthOut: settings.pinnedEmbedDepthOut,
 			linkDepthIn: settings.pinnedLinkDepthIn,
+			namedDepthOut: settings.pinnedNamedDepthOut,
+			namedDepthIn: settings.pinnedNamedDepthIn,
 			descendantDepth: settings.pinnedDescendantDepth,
 			ancestorDepth: settings.pinnedAncestorDepth,
 		};
@@ -555,6 +631,8 @@ export const CHANNEL_DEPTH_FIELD: Readonly<Record<Channel, keyof ChannelDepths>>
 	"outgoing-link": "linkDepthOut",
 	"outgoing-embed": "embedDepthOut",
 	incoming: "linkDepthIn",
+	"named-outgoing": "namedDepthOut",
+	"named-incoming": "namedDepthIn",
 	descendants: "descendantDepth",
 	ancestors: "ancestorDepth",
 };

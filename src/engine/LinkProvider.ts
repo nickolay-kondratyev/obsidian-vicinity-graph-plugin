@@ -1,5 +1,5 @@
 import type { LinkKind } from "../shared/LinkKind";
-import type { AttachmentRef, FolderPath, OutlineEntry, VaultPath } from "./types";
+import type { AttachmentRef, FolderPath, OutlineEntry, RelationLabel, VaultPath } from "./types";
 
 /**
  * One resolved outgoing reference: WHERE it points and HOW it points there.
@@ -11,6 +11,16 @@ import type { AttachmentRef, FolderPath, OutlineEntry, VaultPath } from "./types
 export interface OutgoingReference {
 	readonly target: VaultPath;
 	readonly kind: LinkKind;
+	/**
+	 * NAMED-RELATIONSHIP labels carried by this reference (feature
+	 * `named-relationships`). A named link is STILL a link — the adapter merges the
+	 * relation label onto the very same reference the plain link produces, so the
+	 * one occurrence is served to BOTH the plain link/embed channel (by {@link kind})
+	 * AND the named channel (by carrying labels) — the EITHER-BUDGET union. ABSENT
+	 * (or empty) ⇒ a plain, unnamed reference. Multiple statements naming the same
+	 * (target, kind) aggregate here — the deduped reference carries them all.
+	 */
+	readonly relations?: readonly RelationLabel[];
 }
 
 /** Views over a reference list. The kind-blind collapse lives HERE, once. */
@@ -35,20 +45,49 @@ export class OutgoingReferences {
 	}
 
 	/**
-	 * `references` with the first occurrence of each (target, kind) pair kept — the
-	 * deduplication every {@link LinkProvider} owes its callers, so a target that is
-	 * both embedded and plainly linked keeps ONE reference per kind.
+	 * `references` collapsed to ONE reference per (target, kind) pair, first-occurrence
+	 * order — the deduplication every {@link LinkProvider} owes its callers, so a target
+	 * both embedded and plainly linked keeps ONE reference per kind. Any
+	 * {@link OutgoingReference.relations} on the collapsed duplicates are MERGED onto the
+	 * survivor (a named link and a plain link to the same target are one reference that
+	 * carries the name), so a dedup never drops a relation label.
 	 */
 	static deduped(references: readonly OutgoingReference[]): readonly OutgoingReference[] {
-		const seen = new Set<string>();
-		return references.filter((reference) => {
+		const order: string[] = [];
+		const byIdentity = new Map<string, { target: VaultPath; kind: LinkKind; relations: RelationLabel[] }>();
+		for (const reference of references) {
 			const identity = `${reference.kind}:${reference.target}`;
-			if (seen.has(identity)) {
-				return false;
+			let entry = byIdentity.get(identity);
+			if (entry === undefined) {
+				entry = { target: reference.target, kind: reference.kind, relations: [] };
+				byIdentity.set(identity, entry);
+				order.push(identity);
 			}
-			seen.add(identity);
-			return true;
+			if (reference.relations !== undefined) {
+				entry.relations.push(...reference.relations);
+			}
+		}
+		return order.map((identity) => {
+			// Non-null: every identity in `order` was just set in `byIdentity`.
+			const entry = byIdentity.get(identity) as { target: VaultPath; kind: LinkKind; relations: RelationLabel[] };
+			return entry.relations.length === 0
+				? { target: entry.target, kind: entry.kind }
+				: { target: entry.target, kind: entry.kind, relations: entry.relations };
 		});
+	}
+
+	/**
+	 * The distinct targets `references` NAMES — reached by at least one named
+	 * relationship (a reference carrying {@link OutgoingReference.relations}), first
+	 * occurrence first. ONE named channel's outgoing neighbor list, kind-blind: a named
+	 * link and a named embed both qualify (the displayed kind is still decided at edge
+	 * assembly). A target both named and plainly linked appears here AND in
+	 * {@link targetsOfKind} — the either-budget union.
+	 */
+	static namedTargetsOf(references: readonly OutgoingReference[]): readonly VaultPath[] {
+		return OutgoingReferences.targetsOf(
+			references.filter((reference) => reference.relations !== undefined && reference.relations.length > 0),
+		);
 	}
 }
 
