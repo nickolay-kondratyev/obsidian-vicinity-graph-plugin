@@ -357,6 +357,18 @@ export const SETTINGS_GROUPS: Readonly<Record<SettingsSection, SettingsGroup>> =
 						control: { kind: "depth", field: "linkDepthIn" },
 					},
 					{
+						label: "Named links out",
+						description:
+							"How many hops of outgoing NAMED relationships (`supports::[[note]]`) to expand from the active note. Named links also ride the plain link/embed channels, so this is a SEPARATE, usually deeper reach for system diagrams and argument maps drawn purely in named links. 0 = off.",
+						control: { kind: "depth", field: "namedDepthOut" },
+					},
+					{
+						label: "Named links in",
+						description:
+							"How many hops of incoming named relationships to expand from the active note — notes that name the active note as the target of a `rel::[[…]]` statement. 0 = off.",
+						control: { kind: "depth", field: "namedDepthIn" },
+					},
+					{
 						label: "Descendants",
 						description:
 							"Folder-note children: `Jon.md` or `Jon/Jon.md` is the folder note of `Jon/`; notes inside that folder are its descendants. Depth is how many folder levels to expand DOWN from the active note. 0 = off.",
@@ -393,6 +405,18 @@ export const SETTINGS_GROUPS: Readonly<Record<SettingsSection, SettingsGroup>> =
 						description:
 							"How many hops of incoming links (backlinks) to expand from each pinned note. A pinned note that is also the active note uses the active-note depths.",
 						control: { kind: "depth", field: "pinnedLinkDepthIn" },
+					},
+					{
+						label: "Pinned named links out",
+						description:
+							"How many hops of outgoing NAMED relationships (see Named links out) to expand from each pinned note. A pinned note that is also the active note uses the active-note depths. 0 = off.",
+						control: { kind: "depth", field: "pinnedNamedDepthOut" },
+					},
+					{
+						label: "Pinned named links in",
+						description:
+							"How many hops of incoming named relationships (see Named links in) to expand from each pinned note. A pinned note that is also the active note uses the active-note depths. 0 = off.",
+						control: { kind: "depth", field: "pinnedNamedDepthIn" },
 					},
 					{
 						label: "Pinned descendants",

@@ -94,7 +94,7 @@ function depthSection(): Locator {
 function linksInDepthValue(): Locator {
 	return depthSection()
 		.locator(".vicinity-graph-stepper")
-		.filter({ hasText: "Links in" })
+		.filter({ has: page.getByText("Links in", { exact: true }) })
 		.locator(".vicinity-graph-stepper__value");
 }
 

@@ -83,7 +83,7 @@ async function raiseLinksInDepthToOne(): Promise<void> {
 	await expect(
 		depthSection
 			.locator(".vicinity-graph-stepper")
-			.filter({ hasText: "Links in" })
+			.filter({ has: page.getByText("Links in", { exact: true }) })
 			.locator(".vicinity-graph-stepper__value"),
 	).toHaveText("1");
 	await toolbar.evaluate((el) => {
