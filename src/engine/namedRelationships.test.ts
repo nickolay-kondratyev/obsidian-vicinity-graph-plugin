@@ -137,6 +137,25 @@ describe("edge label carriage", () => {
 		expect(ab?.relations).toEqual([{ name: "supports", qualifier: "loosely" }]);
 	});
 
+	it("WHEN two labels differ only in where a space falls (name-vs-qualifier boundary) THEN both survive dedup", () => {
+		// `supports strongly` (one name) and `supports` + qualifier `strongly` are DISTINCT
+		// labels that a naive space-joined identity would collapse into one — a real label loss.
+		const spec: FakeVaultSpec = {
+			files: [{ path: "a.md" }, { path: "b.md" }],
+			named: {
+				"a.md": [
+					{ target: "b.md", name: "supports strongly" },
+					{ target: "b.md", name: "supports", qualifier: "strongly" },
+				],
+			},
+		};
+		const ab = edge(graphOf(spec, {}, { namedDepthOut: 1 }), "a.md", "b.md");
+		expect(ab?.relations).toEqual([
+			{ name: "supports strongly" },
+			{ name: "supports", qualifier: "strongly" },
+		]);
+	});
+
 	it("WHEN the relation is a REL-NOTE form THEN the label carries the resolved rel-note target", () => {
 		const spec: FakeVaultSpec = {
 			files: [{ path: "a.md" }, { path: "b.md" }, { path: "he supports.md" }],
