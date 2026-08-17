@@ -43,7 +43,9 @@ export function traverseFixture(
 			// Unstated embed budget mirrors the link budget (the shipped default relationship).
 			embedDepthOut: depths.embedDepthOut ?? depths.linkDepthOut ?? DEFAULT_TEST_DEPTH,
 			linkDepthIn: depths.linkDepthIn ?? DEFAULT_TEST_DEPTH,
-			// Hierarchy channels default OFF unless a fixture asks for them.
+			// Named + hierarchy channels default OFF unless a fixture asks for them.
+			namedDepthOut: depths.namedDepthOut ?? 0,
+			namedDepthIn: depths.namedDepthIn ?? 0,
 			descendantDepth: depths.descendantDepth ?? 0,
 			ancestorDepth: depths.ancestorDepth ?? 0,
 		},

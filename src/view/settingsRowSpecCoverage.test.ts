@@ -86,7 +86,17 @@ const HOW_TO_SATISFY_THIS_GUARD =
  * only for a leaf whose row is deliberately deferred to a later ticket; the two anti-rot
  * tests below keep such a gap conscious rather than silent.
  */
-const REACHABLE_LATER: Readonly<Record<string, string>> = {};
+const REACHABLE_LATER: Readonly<Record<string, string>> = {
+	// Named-relationship depths: SPEC + engine landed in the engine ticket
+	// (nid_ufbtmywzbsyn2gwrx7bi0ww08_e); their settings ROWS are deferred to the
+	// named-depth-rows ticket (nid_fqdc55oifopcxxs4eb0w8q876_e) — exactly the
+	// Hierarchy 1 → Hierarchy 3 sequence this allowlist's doc describes. Remove
+	// these four entries when that ticket ships their rows.
+	"globalDepths.namedDepthOut": "row deferred to named-depth-rows ticket nid_fqdc55oifopcxxs4eb0w8q876_e",
+	"globalDepths.namedDepthIn": "row deferred to named-depth-rows ticket nid_fqdc55oifopcxxs4eb0w8q876_e",
+	"globalDepths.pinnedNamedDepthOut": "row deferred to named-depth-rows ticket nid_fqdc55oifopcxxs4eb0w8q876_e",
+	"globalDepths.pinnedNamedDepthIn": "row deferred to named-depth-rows ticket nid_fqdc55oifopcxxs4eb0w8q876_e",
+};
 
 /** Every spec leaf id some declared row edits. */
 const FIELDS_WITH_A_ROW: ReadonlySet<string> = new Set(EVERY_SETTINGS_ROW.map((row) => specLeafIdFor(row.control)));

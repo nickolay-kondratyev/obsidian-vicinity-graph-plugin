@@ -172,9 +172,15 @@ function parseDepthFields(raw: unknown): Partial<DepthSettings> {
 		// default per field, so an existing data.json parses correctly.
 		descendantDepth: numberOrUndefined(raw["descendantDepth"]),
 		ancestorDepth: numberOrUndefined(raw["ancestorDepth"]),
+		// Named-relationship depths (feature `named-relationships`) — added additively,
+		// same no-bump call: absent from an older data.json ⇒ spec default per field.
+		namedDepthOut: numberOrUndefined(raw["namedDepthOut"]),
+		namedDepthIn: numberOrUndefined(raw["namedDepthIn"]),
 		pinnedLinkDepthOut: numberOrUndefined(raw["pinnedLinkDepthOut"]),
 		pinnedEmbedDepthOut: numberOrUndefined(raw["pinnedEmbedDepthOut"]),
 		pinnedLinkDepthIn: numberOrUndefined(raw["pinnedLinkDepthIn"]),
+		pinnedNamedDepthOut: numberOrUndefined(raw["pinnedNamedDepthOut"]),
+		pinnedNamedDepthIn: numberOrUndefined(raw["pinnedNamedDepthIn"]),
 		pinnedDescendantDepth: numberOrUndefined(raw["pinnedDescendantDepth"]),
 		pinnedAncestorDepth: numberOrUndefined(raw["pinnedAncestorDepth"]),
 	});
