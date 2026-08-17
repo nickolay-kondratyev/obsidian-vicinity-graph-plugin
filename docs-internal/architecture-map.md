@@ -33,8 +33,10 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   derived-index machinery: metadataCache carries no content-derived facts a
   plugin invents (e.g. named-relationship `::` prefixes), so raw markdown must be
   parsed. It owns the LIFECYCLE — a bounded-concurrency (`DEFAULT_SCAN_CONCURRENCY`)
-  initial scan that reads + parses ONLY files metadataCache reports links OR
-  embeds for (`vault.cachedRead`; link-less files never read a byte), then
+  initial scan that reads + parses ONLY files the consumer's injected
+  `VaultScanGate` admits (link-derived consumers pass `linksOrEmbedsScanGate`:
+  metadataCache reports links OR embeds; gated-out files never read a byte;
+  `vault.cachedRead`), then
   REPLACE-WHOLE-ENTRY freshness via three handlers `main.ts` wires beside the
   existing vault handlers (`handleFileChanged` from `metadataCache.on('changed')`
   — content is handed to the callback, zero extra reads; `handleFileDeleted` from
@@ -42,9 +44,12 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   `vault.on('rename')`, REKEYS old→new since the renamed file's own content may be
   untouched). Never blocks load: `ensureReady()` is idempotent and graph builds
   `await` it (precedent: async `ObsidianLinkProvider.create`, lazy `PerDocStore`
-  warm). Events beat the concurrent scan (a `settledDuringScan` guard drops the
-  scan's stale late write). Session-held, NEVER persisted. A consumer supplies
-  ONLY a `VaultFileEntryParser<TEntry>` (`(path, content) => TEntry | null`) and
+  warm); a REJECTED scan is not memoised — the next build retries. Events beat
+  the concurrent scan (a `settledDuringScan` guard drops the scan's stale late
+  write; on rename, settledness follows the FILE through the rekey, never the
+  path name). Session-held, NEVER persisted. A consumer supplies ONLY its gate
+  and a `VaultFileEntryParser<TEntry>` (`(path, content) => TEntry | null`; a
+  throw is absorbed as "no entry", same policy as an unreadable file) and
   reads entries back (`entryFor` / `allEntries`, with an optional `onChanged`
   invalidation hook) to build its own query structure; the first consumer is the
   named-relationships index (ticket `nid_wldz7yfjecf9fuwtlezlbde9s_e`), so a

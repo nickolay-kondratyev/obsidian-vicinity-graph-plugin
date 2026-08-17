@@ -5,16 +5,42 @@ import type { MetadataCachePort, VaultFilePort, VaultPort } from "./obsidianPort
 /**
  * Turns ONE file's raw content into its index entry, or `null` when the file
  * contributes nothing (so no entry is held for it). Supplied by the consumer —
- * this is the ONLY per-consumer knowledge in the whole machinery.
+ * together with the {@link VaultScanGate} it is ALL the per-consumer knowledge
+ * in the machinery.
  *
  * Pure by contract: given the same `(path, content)` it must return the same
  * entry, because {@link IncrementalVaultIndex} re-invokes it on every change and
- * relies on REPLACE-WHOLE-ENTRY semantics (no diffing) for correctness. The first
+ * relies on REPLACE-WHOLE-ENTRY semantics (no diffing) for correctness. A throw
+ * is absorbed as "no entry" (logged), same policy as an unreadable file. The first
  * consumer is the named-relationships index (`RelationshipStatements.parse` under
  * a thin adapter); the type is generic so future vault-wide content-derived
  * indexes reuse the build/maintain machinery below rather than re-growing it.
  */
 export type VaultFileEntryParser<TEntry> = (path: VaultPath, content: string) => TEntry | null;
+
+/**
+ * Decides whether the initial scan READS a file at all — the read gate, supplied
+ * by the consumer alongside the parser. It must admit every file the consumer's
+ * parser could derive an entry from: a false negative silently loses the file for
+ * the whole session, a false positive only costs one read. Freshness events are
+ * NOT gated (their content is already in hand), so the gate is purely a scan
+ * optimisation, never a correctness input.
+ */
+export type VaultScanGate = (file: VaultFilePort) => boolean;
+
+/**
+ * The scan gate for LINK-DERIVED indexes: admit files metadataCache reports any
+ * link OR embed for. A parseable named-relationship statement's target run always
+ * contains `[[x]]`/`![[x]]`, and `rel::![[x]]` lands in `embeds`, NOT `links`, so
+ * gating on links alone would silently skip embed-only files. Files with neither
+ * are skipped WITHOUT a byte read.
+ */
+export function linksOrEmbedsScanGate(metadataCache: MetadataCachePort): VaultScanGate {
+	return (file) => {
+		const cache = metadataCache.getFileCache(file);
+		return (cache?.links?.length ?? 0) > 0 || (cache?.embeds?.length ?? 0) > 0;
+	};
+}
 
 /** ~8-16 was the signed-off band; 12 sits mid-range. Overridable for tests. */
 export const DEFAULT_SCAN_CONCURRENCY = 12;
@@ -34,11 +60,10 @@ export const DEFAULT_SCAN_CONCURRENCY = 12;
  * ## Lifecycle
  *  - **Initial scan** ({@link ensureReady}, idempotent): a bounded-concurrency
  *    ({@link DEFAULT_SCAN_CONCURRENCY}) sweep that reads + parses ONLY the files
- *    metadataCache says carry links OR embeds — a parseable statement's target
- *    run always contains `[[x]]`/`![[x]]`, and `rel::![[x]]` lands in `embeds`,
- *    NOT `links`, so gating on links alone would silently skip embed-only files.
- *    Files with neither are skipped WITHOUT a byte read. Content via
- *    `vault.cachedRead`.
+ *    the consumer's {@link VaultScanGate} admits (link-derived consumers pass
+ *    {@link linksOrEmbedsScanGate}). Content via `vault.cachedRead`. A rejected
+ *    scan is NOT memoised — the next {@link ensureReady} retries, so one
+ *    transient failure never bricks the index for the session.
  *  - **Never blocks plugin load**: nothing here is awaited in `onload`; graph
  *    builds AWAIT {@link ensureReady} (precedent: async `ObsidianLinkProvider.create`
  *    and the lazy `PerDocStore` warm-up). Firing `void index.ensureReady()` in
@@ -80,7 +105,7 @@ export class IncrementalVaultIndex<TEntry> {
 	 */
 	constructor(
 		private readonly vault: VaultPort,
-		private readonly metadataCache: MetadataCachePort,
+		private readonly scanGate: VaultScanGate,
 		private readonly parseEntry: VaultFileEntryParser<TEntry>,
 		private readonly onChanged: () => void = () => {},
 		private readonly concurrency: number = DEFAULT_SCAN_CONCURRENCY,
@@ -89,11 +114,16 @@ export class IncrementalVaultIndex<TEntry> {
 	/**
 	 * Resolve once the initial scan has populated the index. Idempotent: the first
 	 * call starts the scan, every later call (and the builder's `await`) joins the
-	 * same promise, so the vault is swept exactly once per session.
+	 * same promise, so the vault is swept exactly once per session — unless the
+	 * scan REJECTED, in which case the memo is dropped and the next call retries
+	 * (replace-whole-entry makes a re-sweep safe under any interleaving).
 	 */
 	ensureReady(): Promise<void> {
 		if (this.scan === null) {
-			this.scan = this.runInitialScan();
+			this.scan = this.runInitialScan().catch((error: unknown) => {
+				this.scan = null;
+				throw error;
+			});
 		}
 		return this.scan;
 	}
@@ -121,7 +151,7 @@ export class IncrementalVaultIndex<TEntry> {
 	handleFileChanged(rawPath: string, content: string): void {
 		const path = asVaultPath(rawPath);
 		this.markSettledIfScanning(path);
-		this.store(path, this.parseEntry(path, content));
+		this.store(path, this.parseSafely(path, content));
 		this.onChanged();
 	}
 
@@ -138,24 +168,33 @@ export class IncrementalVaultIndex<TEntry> {
 	 * Content is unchanged by a rename, so the entry stays valid under the new key;
 	 * no re-parse. A file with no entry (never indexed) rekeys to nothing.
 	 *
-	 * Against a racing scan, SETTLEDNESS FOLLOWS THE REKEY. Obsidian mutates
-	 * `TFile.path` to the new path BEFORE firing 'rename', so the scan's read lands
-	 * under the NEW path; whether it may store there depends on what the rekey moved:
+	 * Against a racing scan, SETTLEDNESS FOLLOWS THE FILE, not the path name.
+	 * Obsidian mutates `TFile.path` to the new path BEFORE firing 'rename', so the
+	 * scan's read of this file lands under the NEW path; the new path therefore
+	 * takes the INCOMING file's settled state:
 	 *  - Old path NOT already settled (no event finalized this file yet): the scan's
 	 *    read is as fresh as the rekeyed entry (a rename changes no content), so the
-	 *    new path stays unsettled — settling it would make the scan SKIP a
-	 *    never-indexed file, losing it for the session.
+	 *    new path becomes UNSETTLED — even a stale mark left by a PREVIOUS occupant
+	 *    (deleted or renamed away mid-scan) is cleared, or the scan would skip a
+	 *    never-indexed file renamed onto that path, losing it for the session.
 	 *  - Old path ALREADY settled (a {@link handleFileChanged}/delete beat the scan):
 	 *    the rekey carries that newer event truth, so the new path is settled too —
 	 *    otherwise the scan's stale late read would clobber it under the new key.
+	 * The VACATED old path is unsettled either way: its mark described this file,
+	 * which no longer answers to that name, and a different file renamed onto it
+	 * next deserves its own fresh scan write.
 	 */
 	handleFileRenamed(rawOldPath: string, rawNewPath: string): void {
 		const oldPath = asVaultPath(rawOldPath);
 		const newPath = asVaultPath(rawNewPath);
-		if (this.settledDuringScan.has(oldPath)) {
-			this.markSettledIfScanning(newPath);
+		if (this.scanning) {
+			if (this.settledDuringScan.has(oldPath)) {
+				this.settledDuringScan.add(newPath);
+			} else {
+				this.settledDuringScan.delete(newPath);
+			}
+			this.settledDuringScan.delete(oldPath);
 		}
-		this.markSettledIfScanning(oldPath);
 		const entry = this.entries.get(oldPath);
 		this.entries.delete(oldPath);
 		if (entry !== undefined) {
@@ -167,7 +206,7 @@ export class IncrementalVaultIndex<TEntry> {
 	private async runInitialScan(): Promise<void> {
 		this.scanning = true;
 		try {
-			const gated = this.vault.getFiles().filter((file) => this.hasLinksOrEmbeds(file));
+			const gated = this.vault.getFiles().filter((file) => this.scanGate(file));
 			await this.forEachBounded(gated, async (file) => {
 				const content = await this.readContent(file);
 				if (content === null) {
@@ -178,19 +217,13 @@ export class IncrementalVaultIndex<TEntry> {
 				if (this.settledDuringScan.has(path)) {
 					return;
 				}
-				this.store(path, this.parseEntry(path, content));
+				this.store(path, this.parseSafely(path, content));
 			});
 		} finally {
 			this.scanning = false;
 			this.settledDuringScan.clear();
 			this.onChanged();
 		}
-	}
-
-	/** Whether metadataCache reports any link OR embed for this file — the read gate. */
-	private hasLinksOrEmbeds(file: VaultFilePort): boolean {
-		const cache = this.metadataCache.getFileCache(file);
-		return (cache?.links?.length ?? 0) > 0 || (cache?.embeds?.length ?? 0) > 0;
 	}
 
 	private async readContent(file: VaultFilePort): Promise<string | null> {
@@ -200,6 +233,20 @@ export class IncrementalVaultIndex<TEntry> {
 			// One unreadable file must not sink the whole scan (background work, no
 			// user-facing action to report against).
 			console.error("vicinity-graph: index scan could not read file", file.path, error);
+			return null;
+		}
+	}
+
+	/**
+	 * Invoke the consumer's parser, absorbing a throw as "no entry" — same policy
+	 * as an unreadable file: one file the parser chokes on must neither sink the
+	 * whole scan nor escape into Obsidian's event dispatcher.
+	 */
+	private parseSafely(path: VaultPath, content: string): TEntry | null {
+		try {
+			return this.parseEntry(path, content);
+		} catch (error: unknown) {
+			console.error("vicinity-graph: index could not parse file", path, error);
 			return null;
 		}
 	}
