@@ -1,4 +1,5 @@
 ---
+session_ids: [{"a": "claude", "type": "execution", "id": "18e57125-cfe7-4248-82b3-4e1bb920fb75"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_0bhqajvtdq3joblfdzgqogw0x_e
 title: "Named relationships: pure statement parser"
