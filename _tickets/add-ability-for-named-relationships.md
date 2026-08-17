@@ -88,6 +88,13 @@ Shared rules:
   lists `up:: [[a]], [[b]]`; trailing prose ignored).
 - Unrecognized text degrades gracefully: its links stay plain unlabeled cache
   edges — nothing ever disappears, it just gets no name.
+- Statements inside CODE REGIONS (fenced blocks, inline code) or the leading
+  frontmatter block are NOT statements (review fix 2026-08-17, not separately
+  signed off): Obsidian core indexes no links there, so a code-fence statement
+  would mint an edge to a node the rest of the graph cannot see, and Dataview
+  ignores code regions too; frontmatter is excluded from the INLINE scan
+  because frontmatter fields have their own dedicated source below. Reuses
+  `src/shared/MarkdownCodeRegions.ts` masking (same-length, offsets preserved).
 - **Frontmatter** link-valued fields (`up: "[[parent]]"`) are named
   relationships too — via metadataCache `frontmatterLinks` (key + target, zero
   file reading). Own focused ticket.
@@ -145,6 +152,7 @@ Shared rules:
 | nid_wnagjm2j144u0jsgixpcmmpar_e | View: edge labels + flyout breakdown | adapter |
 | nid_1ycy9aszptp9fih76equxtcqa_e | GREAT UI for multi-name edges | view |
 | nid_adesjb4clls56623vdu773ubg_e | Idea: per-name edge styling (deferred, p4) | view |
+| nid_onhd5y7uqnbz8fl1hweryjuk4_e | Docs: README syntax + high-level-plan traversal (added at review 2026-08-17) | view, frontmatter, settings |
 
 ## Resolution (this ticket)
 
