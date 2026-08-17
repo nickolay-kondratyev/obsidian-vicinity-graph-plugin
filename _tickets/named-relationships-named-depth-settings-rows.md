@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-17T18:57:02Z
-session_ids: [{"a": "claude", "type": "execution", "id": "b449310a-2a4f-4579-a8e2-dfe484ced109"}]
+session_ids: [{"a": "claude", "type": "execution", "id": "b449310a-2a4f-4579-a8e2-dfe484ced109"}, {"a": "claude", "type": "review", "id": "a80b9fd9-af7b-4a79-8a05-66452633ce11"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_fqdc55oifopcxxs4eb0w8q876_e
 title: "Named relationships: named-depth settings rows"
