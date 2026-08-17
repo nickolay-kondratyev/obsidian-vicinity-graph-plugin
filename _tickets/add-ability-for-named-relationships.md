@@ -78,8 +78,11 @@ Shared rules:
   2026-08-17; rule 2's "trimmed" means the LEADING space after the opener
   only); optional whitespace after (existing vaults write `key:: [[x]]`).
 - Qualifiers exist ONLY in wrapped forms — the closing bracket is the
-  terminator. Bare and rel-note forms have no terminator, so their trailing
-  prose stays ignored (no qualifier), per the graceful-degradation rule.
+  terminator. Bare and rel-note forms have no terminator, and greedy
+  matching without brackets is exactly Dataview's most-complained-about
+  behavior (its full-line keying) — we deliberately refuse to repeat it
+  (signed off 2026-08-17). Their trailing prose stays ignored (no
+  qualifier), per the graceful-degradation rule.
 - Targets = greedy comma-separated RUN of `[[link]]` / `![[embed]]` tokens,
   stopping at the first non-link/non-comma token (reads Breadcrumbs/ExcaliBrain
   lists `up:: [[a]], [[b]]`; trailing prose ignored).
