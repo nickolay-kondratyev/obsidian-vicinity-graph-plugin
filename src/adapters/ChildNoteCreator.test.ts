@@ -141,4 +141,15 @@ describe("ChildNoteCreator", () => {
 		await h.creator.createChildNote(MAIN);
 		expect(h.open.opened).toEqual([]);
 	});
+
+	it("WHEN the OPEN throws after a successful create THEN no 'couldn't create' notice lies about it", async () => {
+		// The failure notice guards the create alone — the note exists at this point,
+		// so the open (a programming bug if it ever throws) surfaces loudly instead.
+		const h = harness();
+		vi.spyOn(h.open, "openNote").mockImplementation(() => {
+			throw new Error("open exploded");
+		});
+		await expect(h.creator.createChildNote(MAIN)).rejects.toThrow("open exploded");
+		expect(h.notices.messages).toEqual([]);
+	});
 });

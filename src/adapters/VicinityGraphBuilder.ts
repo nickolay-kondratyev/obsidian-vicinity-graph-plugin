@@ -1,4 +1,4 @@
-import { VicinityEngine } from "../engine";
+import { VicinityEngine, asVaultPath } from "../engine";
 import type { DocIdMapWarmer } from "../persistence/DocIdMapWarmer";
 import type { PathDocIdMap } from "../persistence/PathDocIdMap";
 import type { PerDocStore } from "../persistence/PerDocStore";
@@ -13,7 +13,6 @@ import type { GraphRequestInputs } from "./GraphRequestAssembler";
 import { GraphRequestAssembler } from "./GraphRequestAssembler";
 import { ObsidianLinkProvider } from "./ObsidianLinkProvider";
 import type { DocIdPort, MetadataCachePort, NoteCreationPort, VaultPort } from "./obsidianPorts";
-import { asVaultPath } from "../engine";
 
 /**
  * The one async orchestration per rebuild: live Obsidian state → provider,

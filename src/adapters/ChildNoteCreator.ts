@@ -52,15 +52,20 @@ export class ChildNoteCreator {
 			folder,
 			(candidate) => this.vault.getFileByPath(candidate) !== null,
 		);
+		// The failure notice guards the CREATE alone: once the write succeeded the
+		// notice's copy would be a lie, so the open below stays outside the try —
+		// unguarded, like every other openNote call in the view layer.
+		let created;
 		try {
-			const created = await this.noteCreation.create(childPath, "");
-			// Opening it makes it the active file → the graph re-centres on it as MAIN
-			// (the vault `create` event already staled FolderNoteIndex). Current tab, not
-			// a new one — the same as a plain node click.
-			this.open.openNote(created.path, { newTab: false });
+			created = await this.noteCreation.create(childPath, "");
 		} catch (error: unknown) {
 			console.error("vicinity-graph: create child note failed", { childPath }, error);
 			this.notices.show(CHILD_NOTE_CREATE_FAILED_NOTICE);
+			return;
 		}
+		// Opening it makes it the active file → the graph re-centres on it as MAIN
+		// (the vault `create` event already staled FolderNoteIndex). Current tab, not
+		// a new one — the same as a plain node click.
+		this.open.openNote(created.path, { newTab: false });
 	}
 }
