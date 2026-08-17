@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_82g9goy92k9ciyy64m1r6jofe_e
 title: "Reusable incremental vault index infrastructure"
-status: open
+status: in_progress
 deps: []
 links: []
 created_iso: 2026-08-17T16:44:24Z
-status_updated_iso: 2026-08-17T16:44:24Z
+status_updated_iso: 2026-08-17T17:56:27Z
 type: feature
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
