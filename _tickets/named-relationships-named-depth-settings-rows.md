@@ -57,3 +57,9 @@ Verified: `npm run check` (0 errors), `npm test` (2296 pass), and
 `npm run test:e2e -- settingsUxVisual.e2e.ts settingsDependentRows.e2e.ts`
 (24 pass — the accessible-name and subheading checks render the new rows).
 
+
+## Notes
+
+**2026-08-17T18:59:00Z**
+
+__READY_AS_IS__: purely-declarative four depth rows over data-driven machinery; check + npm test (2296) + settings e2e (24) all green, no defects found.
