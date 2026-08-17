@@ -131,6 +131,14 @@ describe("RelationshipStatements rel-note form", () => {
 	it("WHEN a plain rel-note has trailing prose THEN there is no qualifier", () => {
 		expect(onlyStatement("[[he supports]]::[[x]] strongly").qualifier).toBeNull();
 	});
+
+	it("WHEN the rel-note name is a pure-subpath link THEN nothing parses", () => {
+		expect(RelationshipStatements.parse("[[#heading]]::[[x]]")).toEqual([]);
+	});
+
+	it("WHEN the rel-note name is an alias-only link THEN nothing parses", () => {
+		expect(RelationshipStatements.parse("[[|alias]]::[[x]]")).toEqual([]);
+	});
 });
 
 describe("RelationshipStatements wrapped rel-note", () => {

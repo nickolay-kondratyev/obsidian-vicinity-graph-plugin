@@ -170,11 +170,16 @@ export class RelationshipStatements {
 		markerIndex: number,
 		link: WikilinkToken,
 	): RelationshipStatement | null {
+		const parts = Wikilinks.partsOf(text.slice(link.innerStart, link.innerEnd));
+		// A pure-subpath / alias-only link (`[[#h]]`, `[[|a]]`) names no note, so it
+		// heads no rel-note statement — matching relNoteLinkEndingAt's contract.
+		if (parts.target === "") {
+			return null;
+		}
 		const run = RelationshipStatements.targetRun(text, masked, markerIndex + FIELD_MARKER.length);
 		if (run.targets.length === 0) {
 			return null;
 		}
-		const parts = Wikilinks.partsOf(text.slice(link.innerStart, link.innerEnd));
 		const name: RelationshipName = {
 			kind: "rel-note",
 			linkText: parts.target,
