@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_fqdc55oifopcxxs4eb0w8q876_e
 title: "Named relationships: named-depth settings rows"
-status: open
+status: in_progress
 deps: [nid_ufbtmywzbsyn2gwrx7bi0ww08_e]
 links: []
 created_iso: 2026-08-17T16:44:24Z
-status_updated_iso: 2026-08-17T16:44:24Z
+status_updated_iso: 2026-08-17T18:53:38Z
 type: feature
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
