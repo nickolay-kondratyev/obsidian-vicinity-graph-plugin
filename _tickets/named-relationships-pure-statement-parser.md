@@ -85,3 +85,9 @@ opener and link.
 import guard green. Pure engine change ⇒ no e2e gate per CLAUDE.md. Not consumed
 yet — the adapter/engine tickets in the set wire it in.
 
+
+## Notes
+
+**2026-08-17T17:53:51Z**
+
+__READY_AS_IS__: Fixed one real bug (rel-note with note-less link [[#h]]::/[[|a]]:: minted a nameless edge, contradicting the method's own contract); small confident fix, npm check + full test suite green.
