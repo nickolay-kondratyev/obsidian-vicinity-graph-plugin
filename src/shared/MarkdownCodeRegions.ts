@@ -7,11 +7,12 @@
  * {@link MarkdownInlineLinks}: those matchers are also used to strip markup for
  * DISPLAY (`view/outlineEntryLabel`), where a `` `[[x]]` `` in a heading must
  * still render its label. Keeping the masking outside them preserves their
- * "small honest matcher" contract and confines the blast radius to the one call
- * site that wants it — canvas text-node harvesting
- * (`adapters/CanvasFallbackParser`), whose whole job is to agree with what
- * Obsidian core indexes. Core skips code regions (measured by
- * `e2e/canvasMarkdownLinkIndexing.e2e.ts`); now so does the fallback.
+ * "small honest matcher" contract and confines the blast radius to the callers
+ * that want it. TWO ask for it, both to agree with what Obsidian core indexes:
+ * canvas text-node harvesting (`adapters/CanvasFallbackParser`), and the
+ * named-relationship parser (`engine/RelationshipStatements`), whose `::`
+ * statements must not fire inside code. Core skips code regions (measured by
+ * `e2e/canvasMarkdownLinkIndexing.e2e.ts`); now so do both.
  *
  * Masking to SPACES, never deletion: offsets are preserved so no text on either
  * side of a span can fuse into a pseudo-link it never was.

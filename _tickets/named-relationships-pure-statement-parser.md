@@ -1,12 +1,14 @@
 ---
+closed_iso: 2026-08-17T17:49:55Z
+session_ids: [{"a": "claude", "type": "execution", "id": "18e57125-cfe7-4248-82b3-4e1bb920fb75"}, {"a": "claude", "type": "review", "id": "ae7869e7-c9df-413a-956d-ab6d96cc73e7"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_0bhqajvtdq3joblfdzgqogw0x_e
 title: "Named relationships: pure statement parser"
-status: in_progress
+status: closed
 deps: []
 links: []
 created_iso: 2026-08-17T16:44:23Z
-status_updated_iso: 2026-08-17T17:40:59Z
+status_updated_iso: 2026-08-17T17:49:55Z
 type: feature
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
@@ -32,3 +34,60 @@ Output per statement: name (text or rel-note link ref), ordered targets, optiona
 
 BDD fixture tests (WHEN/THEN, one behavior per test) covering every form, precedence collisions, punctuation boundaries, comma-run termination, embeds, qualifiers (present/empty/containing links), wrapped rel-note (whitespace-only opener gap → qualifier captured + closer consumed; prose before the rel-note link → plain rel-note, brackets stay prose), code-region + frontmatter masking (statement in a fence / inline code / frontmatter yields nothing; offsets after a masked region stay file offsets), and degenerate inputs.
 
+--------------------------------------------------------------------------------
+
+## Resolution (2026-08-17)
+
+Built the pure parser as **`src/engine/RelationshipStatements.ts`** — class
+`RelationshipStatements` with a single static `parse(text): readonly
+RelationshipStatement[]`. Tests: **`src/engine/RelationshipStatements.test.ts`**
+(65 BDD cases). Public API re-exported from `src/engine/index.ts`
+(`RelationshipStatements` + types `RelationshipStatement`, `RelationshipName`,
+`RelationshipTarget`, `TextSpan`).
+
+### Output shape
+- `RelationshipStatement` = `{ name, targets, qualifier, span }`.
+- `name` is a discriminated union: `{ kind: "text", text }` (bare/bracketed) or
+  `{ kind: "rel-note", linkText, label, occurrence }` where `label` = alias else
+  basename of the link target, and `occurrence` is the `[[…]]` span (folds out of
+  the graph later).
+- `targets`: ordered `{ linkText, isEmbed }[]` (link text is target only —
+  alias/subpath stripped via `Wikilinks.partsOf`). A statement needs ≥1 target.
+- `qualifier`: `string | null` — the trimmed trailing text in WRAPPED forms
+  (possibly `""`); `null` for unwrapped forms (they have no terminator).
+- `span` / `occurrence`: half-open `[start, end)` FILE offsets.
+
+### How it works
+Scans every `::` in a MASKED copy of the text (structure decisions read the
+mask; all extracted TEXT is sliced from the original, so a link inside a
+qualifier survives its own inline-code masking). Masking = `frontmatterMasked`
+(leading `---`…`---`/`...` block blanked to same-length spaces) then
+`MarkdownCodeRegions.withCodeMasked` — both same-length so offsets stay file
+offsets. Per `::`: reject whitespace-before, then precedence rel-note (link ends
+at `::`) → bracketed (innermost unclosed `[`/`(` left of `::`) → bare (longest
+`[A-Za-z0-9_-]` run). Wrapper closers matched by bracket-type depth count so a
+nested `[[x]]` balances; wrapped rel-note gated on a whitespace-only gap between
+opener and link.
+
+### Decisions made autonomously (ticket left them open)
+- **Empty/pure-subpath target** (`rel::[[#h]]`) terminates the target run and, if
+  it leaves zero targets, yields no statement.
+- **Bracketed opener with no closer on the line** degrades to no qualifier, span
+  = target-run extent (no terminator ⇒ no greedy swallow of the rest of the line).
+- **Frontmatter without a closing fence** is not treated as frontmatter (matches
+  Obsidian) and is left scannable.
+- Frontmatter masking lives as a private helper in the parser (parser-specific
+  YAML concern, SRP) rather than in `MarkdownCodeRegions`; that module's doc
+  comment was updated to name this second call site as the ticket required.
+
+### Verification
+`npm run check` (0 errors), `npm test` (2251 passed / 1 pre-existing skip),
+import guard green. Pure engine change ⇒ no e2e gate per CLAUDE.md. Not consumed
+yet — the adapter/engine tickets in the set wire it in.
+
+
+## Notes
+
+**2026-08-17T17:53:51Z**
+
+__READY_AS_IS__: Fixed one real bug (rel-note with note-less link [[#h]]::/[[|a]]:: minted a nameless edge, contradicting the method's own contract); small confident fix, npm check + full test suite green.
