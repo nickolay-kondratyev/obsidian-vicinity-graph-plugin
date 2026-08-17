@@ -80,23 +80,14 @@ const HOW_TO_SATISFY_THIS_GUARD =
 
 /**
  * The sanctioned escape hatch: a spec leaf deliberately reachable-later, keyed by id with
- * the reason. Empty today — the folder-note hierarchy depths (SPEC + engine in Hierarchy 1,
- * `nid_dit8h888p2ml3092b2zn4zy3u_e`) got their settings ROWS in Hierarchy 3
- * (`nid_i3cznjkcnelqzvhp0gqlis499_e`), so their entries were removed. Add an entry here
+ * the reason. Empty today — the named-relationship depths (SPEC + engine in the engine
+ * ticket `nid_ufbtmywzbsyn2gwrx7bi0ww08_e`) got their settings ROWS in the named-depth-rows
+ * ticket (`nid_fqdc55oifopcxxs4eb0w8q876_e`), so their entries were removed — exactly the
+ * Hierarchy 1 → Hierarchy 3 sequence this allowlist's doc describes. Add an entry here
  * only for a leaf whose row is deliberately deferred to a later ticket; the two anti-rot
  * tests below keep such a gap conscious rather than silent.
  */
-const REACHABLE_LATER: Readonly<Record<string, string>> = {
-	// Named-relationship depths: SPEC + engine landed in the engine ticket
-	// (nid_ufbtmywzbsyn2gwrx7bi0ww08_e); their settings ROWS are deferred to the
-	// named-depth-rows ticket (nid_fqdc55oifopcxxs4eb0w8q876_e) — exactly the
-	// Hierarchy 1 → Hierarchy 3 sequence this allowlist's doc describes. Remove
-	// these four entries when that ticket ships their rows.
-	"globalDepths.namedDepthOut": "row deferred to named-depth-rows ticket nid_fqdc55oifopcxxs4eb0w8q876_e",
-	"globalDepths.namedDepthIn": "row deferred to named-depth-rows ticket nid_fqdc55oifopcxxs4eb0w8q876_e",
-	"globalDepths.pinnedNamedDepthOut": "row deferred to named-depth-rows ticket nid_fqdc55oifopcxxs4eb0w8q876_e",
-	"globalDepths.pinnedNamedDepthIn": "row deferred to named-depth-rows ticket nid_fqdc55oifopcxxs4eb0w8q876_e",
-};
+const REACHABLE_LATER: Readonly<Record<string, string>> = {};
 
 /** Every spec leaf id some declared row edits. */
 const FIELDS_WITH_A_ROW: ReadonlySet<string> = new Set(EVERY_SETTINGS_ROW.map((row) => specLeafIdFor(row.control)));
