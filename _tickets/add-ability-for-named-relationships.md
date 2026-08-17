@@ -1,17 +1,17 @@
 ---
 id: nid_fg66tanwkoyq3cqs1wdxagn21_e
-title: "Add ability for named relationships"
-status: open
+title: Add ability for named relationships
+status: in_progress
 deps: []
 links: []
-created_iso: 2026-08-17T15:20:34Z
-status_updated_iso: 2026-08-17T15:20:34Z
+created_iso: '2026-08-17T15:20:34Z'
+status_updated_iso: '2026-08-17T15:39:25Z'
 type: task
 priority: 3
 assignee: nickolaykondratyev
 tags: []
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin
 ---
-
 TASK: **PLAN**. Lets clarify any gaps that exist for this ticket
   (if you need to explore code base use cheaper Explore-cheap sub-agent)
   ask human any questions that come up that require human decision.
@@ -55,4 +55,4 @@ And we would NOT render the relationhips of note1 to note2 and NOT rendering not
 
 --------------------------------------------------------------------------------
 
-NOTES: we will want to grab the context of the links efficiently, and "parallelize" the file fetch where needed with bounded concurrency. so that we are able to gather the context to understand these relationships rapidly. 
+NOTES: we will want to grab the context of the links efficiently, and "parallelize" the file fetch where needed with bounded concurrency. so that we are able to gather the context to understand these relationships rapidly.
