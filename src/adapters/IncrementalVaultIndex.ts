@@ -138,17 +138,23 @@ export class IncrementalVaultIndex<TEntry> {
 	 * Content is unchanged by a rename, so the entry stays valid under the new key;
 	 * no re-parse. A file with no entry (never indexed) rekeys to nothing.
 	 *
-	 * Only the OLD path is settled against a racing scan: a rename does not change
-	 * content, so if the scan later stores the file under its NEW path it stores the
-	 * SAME entry the rekey would produce — harmless. Settling the new path instead
-	 * would make the scan SKIP it, and since Obsidian mutates `TFile.path` to the new
-	 * path BEFORE firing 'rename', the scan's read lands under the new path; with no
-	 * entry yet to rekey, the file would then be lost for the session. A genuine
-	 * content change to the new path settles it via {@link handleFileChanged}.
+	 * Against a racing scan, SETTLEDNESS FOLLOWS THE REKEY. Obsidian mutates
+	 * `TFile.path` to the new path BEFORE firing 'rename', so the scan's read lands
+	 * under the NEW path; whether it may store there depends on what the rekey moved:
+	 *  - Old path NOT already settled (no event finalized this file yet): the scan's
+	 *    read is as fresh as the rekeyed entry (a rename changes no content), so the
+	 *    new path stays unsettled — settling it would make the scan SKIP a
+	 *    never-indexed file, losing it for the session.
+	 *  - Old path ALREADY settled (a {@link handleFileChanged}/delete beat the scan):
+	 *    the rekey carries that newer event truth, so the new path is settled too —
+	 *    otherwise the scan's stale late read would clobber it under the new key.
 	 */
 	handleFileRenamed(rawOldPath: string, rawNewPath: string): void {
 		const oldPath = asVaultPath(rawOldPath);
 		const newPath = asVaultPath(rawNewPath);
+		if (this.settledDuringScan.has(oldPath)) {
+			this.markSettledIfScanning(newPath);
+		}
 		this.markSettledIfScanning(oldPath);
 		const entry = this.entries.get(oldPath);
 		this.entries.delete(oldPath);

@@ -273,6 +273,24 @@ describe("IncrementalVaultIndex — events racing the initial scan", () => {
 		expect(index.entryFor(asVaultPath("b.md"))).toBe("b::x");
 	});
 
+	it("WHEN a change then a rename land mid-scan THEN the scan's stale read does not clobber the rekeyed fresh entry", async () => {
+		// The changed event settles the OLD path and stores fresh content; the rename
+		// rekeys that fresh entry to the new path. The scan's still-parked read resolves
+		// under the NEW path (Obsidian mutated TFile.path before firing 'rename'), so the
+		// settled mark must follow the rekey or the stale read overwrites the event truth.
+		const files = [{ path: "b.md", content: "b::stale", links: 1 }];
+		const vault = new TestVault(files, { gate: true });
+		const index = new IncrementalVaultIndex(vault, metadataFor(files), parseField);
+
+		const ready = index.ensureReady(); // worker parks on the gated read (file now at b.md)
+		index.handleFileChanged("a.md", "a::fresh"); // event truth under the old path
+		index.handleFileRenamed("a.md", "b.md"); // rekeys the fresh entry to b.md
+		vault.releaseAll(); // scan's read resolves with the stale content under b.md
+		await ready;
+
+		expect(index.entryFor(asVaultPath("b.md"))).toBe("a::fresh");
+	});
+
 	it("WHEN a delete lands mid-scan THEN the scan does not resurrect the entry", async () => {
 		const files = [{ path: "a.md", content: "a::x", links: 1 }];
 		const vault = new TestVault(files, { gate: true });
