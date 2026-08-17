@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_ufbtmywzbsyn2gwrx7bi0ww08_e
 title: "Named relationships: engine channels, edge labels, rel-note folding"
-status: open
+status: in_progress
 deps: [nid_0bhqajvtdq3joblfdzgqogw0x_e]
 links: []
 created_iso: 2026-08-17T16:44:23Z
-status_updated_iso: 2026-08-17T16:44:23Z
+status_updated_iso: 2026-08-17T18:12:04Z
 type: feature
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
