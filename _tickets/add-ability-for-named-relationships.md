@@ -57,6 +57,16 @@ Precedence at each `::`, by left context:
    flyout links to the rel note. The rel-note OCCURRENCE folds into the edge
    (per-occurrence accounting): never a node/edge of its own; the rel note
    renders as a normal node only where it has other, non-relationship usages.
+   **Wrapped rel-note** (signed off 2026-08-17): when the statement sits
+   inside a `[...]` / `(...)` wrapper whose opener is separated from the
+   rel-note link by WHITESPACE ONLY — `[ [[he supports]]:: [[x]] but not
+   strongly ]` — the name stays the rel note, but the statement takes the
+   bracketed form's EXTENT: it runs to the wrapper's closing bracket,
+   consumes it, and text between the target run and the closer is the
+   qualifier (`but not strongly`). Prose between the opener and the rel-note
+   link (`[because [[he supports]]:: [[x]] q]`) disqualifies the wrapper —
+   never guess what that prose means — so it parses as a PLAIN rel-note
+   statement (brackets stay prose, trailing text ignored, no qualifier).
 2. Inside a `[...]` / `(...)` wrapper → **bracketed form**:
    `[he supports:: [[x]]]` — name = text between opener and `::` (spaces
    allowed, trimmed); the statement extends to the wrapper's closing
@@ -78,7 +88,8 @@ Shared rules:
   2026-08-17; rule 2's "trimmed" means the LEADING space after the opener
   only); optional whitespace after (existing vaults write `key:: [[x]]`).
 - Qualifiers exist ONLY in wrapped forms — the closing bracket is the
-  terminator. Bare and rel-note forms have no terminator, and greedy
+  terminator; the wrapped rel-note variant above IS a wrapped form, so it
+  qualifies. Bare and unwrapped rel-note forms have no terminator, and greedy
   matching without brackets is exactly Dataview's most-complained-about
   behavior (its full-line keying) — we deliberately refuse to repeat it
   (signed off 2026-08-17). Their trailing prose stays ignored (no
