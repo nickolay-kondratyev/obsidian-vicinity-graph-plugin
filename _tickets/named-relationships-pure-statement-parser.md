@@ -18,14 +18,14 @@ Build a PURE parser (src/engine/, no obsidian/react imports — guarded by src/e
 
 Forms, decided precedence at each `::` (check left context):
 1. ends with `]]` → REL-NOTE form: `[[he supports]]::[[target]]` — the name IS a note link (label = alias else basename).
-2. inside `[...]` or `(...)` wrapper → BRACKETED form: `[he supports:: [[x]]]` — name = text between opener and `::` (spaces allowed, trimmed); statement consumes the closing bracket.
+2. inside `[...]` or `(...)` wrapper → BRACKETED form: `[he supports:: [[x]]]` — name = text between opener and `::` (spaces allowed, trimmed); statement extends to the wrapper's closing bracket and consumes it. Text between the target run and the closer is the statement's QUALIFIER (trimmed, may be empty): `[supports:: [[x]] but not strongly]` → name `supports`, qualifier `but not strongly`. Qualifier is plain text — links inside it stay plain cache edges. Qualifiers exist ONLY in wrapped forms (the closer is the terminator); bare/rel-note trailing prose stays ignored.
 3. else → BARE form: name = LONGEST run of `[A-Za-z0-9_-]` immediately before `::` (stops at punctuation: `prose.he-supports::[[x]]` → `he-supports`). Mid-sentence OK; surrounding prose ignored.
 
 Precedence note: `(he-supports::[[x]])` is inside a `(...)` wrapper, so it parses via form 2 (name = `he-supports`, same by coincidence since the wrapped text is one token) — NOT form 3. Form 3 only fires when no unclosed `[`/`(` wrapper encloses the `::`.
 
-Rules: NO whitespace before `::`; optional whitespace after. Targets = greedy comma-separated RUN of `[[link]]` / `![[embed]]` tokens after `::`, stopping at first non-link/non-comma token (reads Breadcrumbs/ExcaliBrain lists `up:: [[a]], [[b]]`). Embed targets keep an isEmbed flag. Unrecognized text yields NOTHING (links degrade to plain cache edges elsewhere — never guess).
+Rules: NO whitespace immediately before `::` in EVERY form, bracketed included (`[he supports :: [[x]]]` rejects — stricter than Dataview, signed off; "trimmed" covers the leading space after the opener only); optional whitespace after. Targets = greedy comma-separated RUN of `[[link]]` / `![[embed]]` tokens after `::`, stopping at first non-link/non-comma token (reads Breadcrumbs/ExcaliBrain lists `up:: [[a]], [[b]]`). Embed targets keep an isEmbed flag. Unrecognized text yields NOTHING (links degrade to plain cache edges elsewhere — never guess).
 
-Output per statement: name (text or rel-note link ref), ordered targets, and OFFSETS/positions of the whole statement and of the rel-note occurrence (needed later for flyout snippets and rel-note folding).
+Output per statement: name (text or rel-note link ref), ordered targets, optional qualifier (wrapped forms only), and OFFSETS/positions of the whole statement and of the rel-note occurrence (needed later for flyout snippets and rel-note folding).
 
-BDD fixture tests (WHEN/THEN, one behavior per test) covering every form, precedence collisions, punctuation boundaries, comma-run termination, embeds, and degenerate inputs.
+BDD fixture tests (WHEN/THEN, one behavior per test) covering every form, precedence collisions, punctuation boundaries, comma-run termination, embeds, qualifiers (present/empty/containing links), and degenerate inputs.
 

@@ -59,8 +59,13 @@ Precedence at each `::`, by left context:
    renders as a normal node only where it has other, non-relationship usages.
 2. Inside a `[...]` / `(...)` wrapper → **bracketed form**:
    `[he supports:: [[x]]]` — name = text between opener and `::` (spaces
-   allowed, trimmed); the statement consumes the closing bracket. Clean
-   Dataview field; the paren variant rides along.
+   allowed, trimmed); the statement extends to the wrapper's closing
+   bracket and consumes it. Text between the target run and the closer is
+   the statement's **qualifier** (signed off 2026-08-17):
+   `[supports:: [[x]] but not strongly]` → name `supports`, qualifier
+   `but not strongly` — never lost in parsing. The qualifier is plain
+   text; links inside it stay plain unlabeled cache edges. Clean Dataview
+   field; the paren variant rides along.
 3. Else → **bare form**: name = LONGEST run of `[A-Za-z0-9_-]` immediately
    before `::` (stops at punctuation: `prose.he-supports::[[x]]` →
    `he-supports`). Note `(he-supports::[[x]])` parses via form 2 (unclosed
@@ -68,8 +73,13 @@ Precedence at each `::`, by left context:
 
 Shared rules:
 
-- NO whitespace before `::`; optional whitespace after (existing vaults write
-  `key:: [[x]]`).
+- NO whitespace immediately before `::` in EVERY form, bracketed included
+  (`[he supports :: [[x]]]` is rejected — stricter than Dataview, signed off
+  2026-08-17; rule 2's "trimmed" means the LEADING space after the opener
+  only); optional whitespace after (existing vaults write `key:: [[x]]`).
+- Qualifiers exist ONLY in wrapped forms — the closing bracket is the
+  terminator. Bare and rel-note forms have no terminator, so their trailing
+  prose stays ignored (no qualifier), per the graceful-degradation rule.
 - Targets = greedy comma-separated RUN of `[[link]]` / `![[embed]]` tokens,
   stopping at the first non-link/non-comma token (reads Breadcrumbs/ExcaliBrain
   lists `up:: [[a]], [[b]]`; trailing prose ignored).
@@ -98,7 +108,8 @@ Shared rules:
   indexes.
 - **Traversal: NEW channels** `named-outgoing` / `named-incoming` with their
   OWN depth budgets (+ pinned variants), so named-link system diagrams
-  traverse deep independently of plain-link depth. EITHER-BUDGET union: a
+  traverse deep independently of plain-link depth. Defaults (signed off
+  2026-08-17): named-outgoing 2, named-incoming 1. EITHER-BUDGET union: a
   named link also rides the plain link channels (and a named embed the embed
   channel) — reachable under whichever budget reaches it, per-path.
 - **Edge model**: one edge per ordered pair (collapse, don't multiply);
@@ -106,8 +117,10 @@ Shared rules:
   occurrences at edge assembly.
 - **Rendering**: the edge shows ALL its relation names (dedicated GREAT-UI
   ticket for the multi-name presentation); count badge coexists; flyout holds
-  the full breakdown (names, context snippets, rel-note links). No per-name
-  styling in V1 (idea ticket).
+  the full breakdown (names, qualifiers, context snippets, rel-note links).
+  A relation WITH a qualifier labels as `supports [X] but not strongly` —
+  literal `[X]` marks the target position (never the note title; the edge
+  already points at the target). No per-name styling in V1 (idea ticket).
 
 ## Scope cuts (signed off)
 
