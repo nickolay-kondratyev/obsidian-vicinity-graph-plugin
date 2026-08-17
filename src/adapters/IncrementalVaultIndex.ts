@@ -137,12 +137,19 @@ export class IncrementalVaultIndex<TEntry> {
 	 * REKEY the renamed file's entry old path → new path (`vault.on('rename')`).
 	 * Content is unchanged by a rename, so the entry stays valid under the new key;
 	 * no re-parse. A file with no entry (never indexed) rekeys to nothing.
+	 *
+	 * Only the OLD path is settled against a racing scan: a rename does not change
+	 * content, so if the scan later stores the file under its NEW path it stores the
+	 * SAME entry the rekey would produce — harmless. Settling the new path instead
+	 * would make the scan SKIP it, and since Obsidian mutates `TFile.path` to the new
+	 * path BEFORE firing 'rename', the scan's read lands under the new path; with no
+	 * entry yet to rekey, the file would then be lost for the session. A genuine
+	 * content change to the new path settles it via {@link handleFileChanged}.
 	 */
 	handleFileRenamed(rawOldPath: string, rawNewPath: string): void {
 		const oldPath = asVaultPath(rawOldPath);
 		const newPath = asVaultPath(rawNewPath);
 		this.markSettledIfScanning(oldPath);
-		this.markSettledIfScanning(newPath);
 		const entry = this.entries.get(oldPath);
 		this.entries.delete(oldPath);
 		if (entry !== undefined) {
