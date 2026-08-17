@@ -1,15 +1,16 @@
 ---
 id: nid_mgp572ljuxzajfrb64gkiyreq_e
-title: "Add ability to add child to a folder note"
-status: open
+title: Add ability to add child to a folder note
+status: in_progress
 deps: []
 links: []
-created_iso: 2026-08-17T16:45:25Z
-status_updated_iso: 2026-08-17T16:45:25Z
+created_iso: '2026-08-17T16:45:25Z'
+status_updated_iso: '2026-08-17T16:50:12Z'
 type: task
 priority: 3
 assignee: nickolaykondratyev
 tags: []
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 ---
 TASK: **PLAN**. Lets clarify any gaps that exist for this ticket
   (if you need to explore code base use cheaper Explore-cheap sub-agent)
