@@ -28,6 +28,39 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   `getChildNotes` / `getParentNote`. Plugin-lived, lazy-warmed on first build,
   invalidated on vault create/delete/rename (PATH events only — the convention is
   config-free), structurally mirroring `FrontmatterIdIndex`.
+  `IncrementalVaultIndex<TEntry>` (`IncrementalVaultIndex.ts`, infra ticket
+  `nid_82g9goy92k9ciyy64m1r6jofe_e`) is the REUSABLE session-held vault-wide
+  derived-index machinery: metadataCache carries no content-derived facts a
+  plugin invents (e.g. named-relationship `::` prefixes), so raw markdown must be
+  parsed. It owns the LIFECYCLE — a bounded-concurrency (`DEFAULT_SCAN_CONCURRENCY`)
+  initial scan that reads + parses ONLY files the consumer's injected
+  `VaultScanGate` admits (link-derived consumers pass `linksOrEmbedsScanGate`:
+  metadataCache reports links OR embeds; gated-out files never read a byte;
+  a gate throw is absorbed as ADMIT — the safe direction;
+  `vault.cachedRead`), then
+  REPLACE-WHOLE-ENTRY freshness via three handlers `main.ts` wires beside the
+  existing vault handlers (`handleFileChanged` from `metadataCache.on('changed')`
+  — content is handed to the callback, zero extra reads; `handleFileDeleted` from
+  `vault.on('delete')`, beside `forgetDocs`; `handleFileRenamed` from
+  `vault.on('rename')`, REKEYS old→new since the renamed file's own content may be
+  untouched; file CREATION arrives through 'changed', no fourth handler). Never
+  blocks load: `startEagerly()` fires the scan in `onload` (a failed scan logs,
+  never an unhandled rejection), `ensureReady()` is idempotent and graph builds
+  `await` it (precedent: async `ObsidianLinkProvider.create`, lazy `PerDocStore`
+  warm); a REJECTED scan is not memoised — the next build retries. Events beat
+  the concurrent scan (a `settledDuringScan` guard drops the scan's stale late
+  write; on rename, settledness follows the FILE through the rekey, never the
+  path name; a read whose file no longer answers to its path — deleted or
+  displaced mid-scan — is dropped by an identity check against the vault's
+  current occupant). Session-held, NEVER persisted. A consumer supplies ONLY its gate
+  and a `VaultFileEntryParser<TEntry>` (`(path, content) => TEntry | null`; the
+  entry must be derivable from content ALONE — renames rekey without re-parsing,
+  so `path` is diagnostics-only; a
+  throw is absorbed as "no entry", same policy as an unreadable file) and
+  reads entries back (`entryFor` / `allEntries`, with an optional `onChanged`
+  invalidation hook) to build its own query structure; the first consumer is the
+  named-relationships index (ticket `nid_wldz7yfjecf9fuwtlezlbde9s_e`), so a
+  second is a new caller, not an edit here.
 - **`src/persistence/`** — JSON storage, TWO-TIER (ticket
   `nid_8f8ey41extajt08zphwwxhnwq_e`). `data.json` (`PluginDataStore`) holds the
   truly-global CONFIG: the settings dials + ONE docid-keyed map, the global pinned
