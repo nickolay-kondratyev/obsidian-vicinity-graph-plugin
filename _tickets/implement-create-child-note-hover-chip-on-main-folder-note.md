@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 id: nid_rt0dyx6chv7fxae4k7q85f53l_e
 title: "Implement: create-child-note hover chip on main folder note"
-status: open
+status: in_progress
 deps: []
 links: [nid_mgp572ljuxzajfrb64gkiyreq_e]
 created_iso: 2026-08-17T17:06:10Z
-status_updated_iso: 2026-08-17T17:06:10Z
+status_updated_iso: 2026-08-17T17:41:24Z
 type: feature
 priority: 3
 assignee: nickolaykondratyev
