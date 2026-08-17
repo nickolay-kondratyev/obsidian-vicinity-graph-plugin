@@ -61,10 +61,15 @@ class Deferred<T> {
 	});
 }
 
+/** Test port with a MUTABLE path — Obsidian mutates `TFile.path` in place on rename. */
+type MutableFilePort = Omit<VaultFilePort, "path"> & { path: string };
+
 /**
  * A {@link VaultPort} that records reads, tracks peak concurrent reads, and can
  * GATE each `cachedRead` on a per-path barrier so a test controls when a read
- * resolves (for the concurrency bound and the event-beats-scan race).
+ * resolves (for the concurrency bound and the event-beats-scan races). Content
+ * is keyed by port IDENTITY, not path, mirroring the real vault: a rename moves
+ * the path, a delete leaves a parked read able to resolve its stale snapshot.
  */
 class TestVault implements VaultPort {
 	readonly reads: string[] = [];
@@ -72,8 +77,8 @@ class TestVault implements VaultPort {
 	peakInFlight = 0;
 	private inFlight = 0;
 	private readonly gates = new Map<string, Deferred<void>>();
-	private readonly ports: VaultFilePort[];
-	private readonly contentByPath: Map<string, string>;
+	private readonly ports: MutableFilePort[] = [];
+	private readonly contentByFile = new Map<VaultFilePort, string>();
 
 	constructor(
 		files: readonly TestFile[],
@@ -84,13 +89,16 @@ class TestVault implements VaultPort {
 			readonly failFirstGetFiles?: boolean;
 		} = {},
 	) {
-		this.ports = files.map((file) => ({
-			path: file.path,
-			extension: "md",
-			stat: { mtime: 0, size: 0 },
-			parent: { path: "/" },
-		}));
-		this.contentByPath = new Map(files.map((file) => [file.path, file.content]));
+		for (const file of files) {
+			const port: MutableFilePort = {
+				path: file.path,
+				extension: "md",
+				stat: { mtime: 0, size: 0 },
+				parent: { path: "/" },
+			};
+			this.ports.push(port);
+			this.contentByFile.set(port, file.content);
+		}
 	}
 
 	getFileByPath(path: string): VaultFilePort | null {
@@ -118,10 +126,31 @@ class TestVault implements VaultPort {
 			if (this.opts.failPaths?.has(file.path)) {
 				throw new Error(`read failed: ${file.path}`);
 			}
-			return this.contentByPath.get(file.path) ?? "";
+			return this.contentByFile.get(file) ?? "";
 		} finally {
 			this.inFlight -= 1;
 		}
+	}
+
+	/** Remove the file from the vault; a parked read of it still resolves its old content. */
+	deleteFile(path: string): void {
+		const index = this.ports.findIndex((file) => file.path === path);
+		if (index >= 0) {
+			this.ports.splice(index, 1);
+		}
+	}
+
+	/** Mutate the port's path in place, as Obsidian does BEFORE firing 'rename'. */
+	renameFile(oldPath: string, newPath: string): void {
+		const port = this.ports.find((file) => file.path === oldPath);
+		if (port !== undefined) {
+			port.path = newPath;
+		}
+	}
+
+	/** Resolve the ONE parked read that started under `pathAtReadTime`. */
+	release(pathAtReadTime: string): void {
+		this.gates.get(pathAtReadTime)?.resolve();
 	}
 
 	releaseAll(): void {
@@ -374,9 +403,51 @@ describe("IncrementalVaultIndex — events racing the initial scan", () => {
 
 		expect(index.entryFor(asVaultPath("p.md"))).toBe("y::fresh");
 	});
+
+	it("WHEN a deleted file's parked read resolves after another file takes its path THEN the stale read does not clobber the newcomer", async () => {
+		// X at p.md and Y at r.md both park mid-scan. X is deleted (settling p.md), Y is
+		// renamed r.md → p.md (unsettling p.md so Y's own read is not skipped). X's parked
+		// read is STILL keyed p.md — a deleted TFile keeps its path — and resolves LAST,
+		// after Y's read stored fresh content. Settledness can't catch it (the rename had
+		// to clear the mark), so the file-identity check must: X no longer answers to p.md.
+		const files = [
+			{ path: "p.md", content: "x::stale", links: 1 },
+			{ path: "r.md", content: "y::fresh", links: 1 },
+		];
+		const vault = new TestVault(files, { gate: true });
+		const index = new IncrementalVaultIndex(vault, () => true, parseField);
+
+		const ready = index.ensureReady(); // both reads park (X at p.md, Y at r.md)
+		vault.deleteFile("p.md");
+		index.handleFileDeleted("p.md"); // X, the occupant of p.md, is deleted
+		vault.renameFile("r.md", "p.md");
+		index.handleFileRenamed("r.md", "p.md"); // Y takes p.md
+		vault.release("r.md"); // Y's read resolves first, under its NEW path p.md
+		await settle();
+		vault.release("p.md"); // X's stale read resolves last, still keyed p.md
+		await settle();
+		await ready;
+
+		expect(index.entryFor(asVaultPath("p.md"))).toBe("y::fresh");
+	});
 });
 
 describe("IncrementalVaultIndex — robustness and observation", () => {
+	it("WHEN the scan gate throws on a file THEN the file is admitted and indexed (the safe direction)", async () => {
+		// A refused file is lost for the whole session, an admitted one costs a read —
+		// so a gate throw is absorbed as ADMIT, never as a scan-sinking rejection.
+		const files = [{ path: "a.md", content: "a::x", links: 1 }];
+		const vault = new TestVault(files);
+		const throwingGate: VaultScanGate = () => {
+			throw new Error("gate exploded");
+		};
+		const index = new IncrementalVaultIndex(vault, throwingGate, parseField);
+
+		await index.ensureReady();
+
+		expect(index.entryFor(asVaultPath("a.md"))).toBe("a::x");
+	});
+
 	it("WHEN one file cannot be read THEN the rest of the scan still completes", async () => {
 		const files = [
 			{ path: "ok1.md", content: "ok1::x", links: 1 },
@@ -444,6 +515,31 @@ describe("IncrementalVaultIndex — robustness and observation", () => {
 		await index.ensureReady();
 
 		expect(index.entryFor(asVaultPath("a.md"))).toBe("a::x");
+	});
+
+	it("WHEN startEagerly's scan fails THEN the failure is absorbed and the next ensureReady retries", async () => {
+		// The eager fire-and-forget start must not surface an unhandled rejection: the
+		// retry design drops the memo on failure, so NOBODY else observes that promise.
+		const files = [{ path: "a.md", content: "a::x", links: 1 }];
+		const vault = new TestVault(files, { failFirstGetFiles: true });
+		const index = new IncrementalVaultIndex(vault, gateFor(files), parseField);
+
+		index.startEagerly();
+		await settle(); // let the absorbed rejection drop the memo
+		await index.ensureReady();
+
+		expect(index.entryFor(asVaultPath("a.md"))).toBe("a::x");
+	});
+
+	it("WHEN startEagerly succeeds THEN a later ensureReady joins the same scan (swept once)", async () => {
+		const files = [{ path: "a.md", content: "a::x", links: 1 }];
+		const vault = new TestVault(files);
+		const index = new IncrementalVaultIndex(vault, gateFor(files), parseField);
+
+		index.startEagerly();
+		await index.ensureReady();
+
+		expect(vault.getFilesCalls).toBe(1);
 	});
 
 	it("WHEN the scan completes THEN the onChanged observer has fired", async () => {

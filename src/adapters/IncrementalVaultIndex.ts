@@ -24,7 +24,10 @@ export type VaultFileEntryParser<TEntry> = (path: VaultPath, content: string) =>
  * parser could derive an entry from: a false negative silently loses the file for
  * the whole session, a false positive only costs one read. Freshness events are
  * NOT gated (their content is already in hand), so the gate is purely a scan
- * optimisation, never a correctness input.
+ * optimisation, never a correctness input. A throw is absorbed as ADMIT (logged)
+ * — the safe direction, and unlike the parser's per-file absorption it must never
+ * reject the scan: the gate runs before any file is read, so a deterministic
+ * throw would re-reject every retry and brick the index for the session.
  */
 export type VaultScanGate = (file: VaultFilePort) => boolean;
 
@@ -34,6 +37,12 @@ export type VaultScanGate = (file: VaultFilePort) => boolean;
  * contains `[[x]]`/`![[x]]`, and `rel::![[x]]` lands in `embeds`, NOT `links`, so
  * gating on links alone would silently skip embed-only files. Files with neither
  * are skipped WITHOUT a byte read.
+ *
+ * Trusts metadataCache AS OF scan time: a file whose cache is stale or not yet
+ * indexed at plugin load is skipped, which is safe only because the freshness
+ * path is ungated — when Obsidian (re)indexes the file it fires
+ * `metadataCache.on('changed')`, and {@link IncrementalVaultIndex.handleFileChanged}
+ * re-parses it then.
  */
 export function linksOrEmbedsScanGate(metadataCache: MetadataCachePort): VaultScanGate {
 	return (file) => {
@@ -66,12 +75,14 @@ export const DEFAULT_SCAN_CONCURRENCY = 12;
  *    transient failure never bricks the index for the session.
  *  - **Never blocks plugin load**: nothing here is awaited in `onload`; graph
  *    builds AWAIT {@link ensureReady} (precedent: async `ObsidianLinkProvider.create`
- *    and the lazy `PerDocStore` warm-up). Firing `void index.ensureReady()` in
- *    `onload` starts the scan eagerly without blocking; the builder's `await`
- *    joins the SAME promise, so the scan runs exactly once.
+ *    and the lazy `PerDocStore` warm-up). Calling {@link startEagerly} in `onload`
+ *    starts the scan eagerly without blocking; the builder's `await` joins the
+ *    SAME promise, so the scan runs exactly once.
  *  - **Freshness** (wired in `main.ts`, beside the existing vault handlers):
  *    {@link handleFileChanged} (Obsidian's `metadataCache.on('changed')` hands the
- *    file's CONTENT to the callback — zero extra reads, just re-parse),
+ *    file's CONTENT to the callback — zero extra reads, just re-parse; file
+ *    CREATION needs no fourth handler, metadataCache indexes the new file and
+ *    fires 'changed' for it),
  *    {@link handleFileDeleted} (`vault.on('delete')`, sits beside `forgetDocs`),
  *    {@link handleFileRenamed} (`vault.on('rename')` REKEYS old path → new path —
  *    Obsidian rewriting links only fires `changed` on the WRITER files, so the
@@ -79,7 +90,8 @@ export const DEFAULT_SCAN_CONCURRENCY = 12;
  *    stay stale under the old path).
  *  - **Replace-whole-entry, no diffing**: every update re-parses the whole file
  *    and swaps the entry wholesale — trivially correct under any event ordering,
- *    including events racing the initial scan (see {@link settledDuringScan}).
+ *    including events racing the initial scan (see {@link settledDuringScan} and
+ *    the scan's file-identity guard).
  *  - **Session-held, NEVER persisted**: derived data, same stance as folder
  *    relations — rebuilt from the vault every launch.
  */
@@ -126,6 +138,18 @@ export class IncrementalVaultIndex<TEntry> {
 			});
 		}
 		return this.scan;
+	}
+
+	/**
+	 * Fire-and-forget eager start for `onload`: kicks off the initial scan without
+	 * blocking AND without an unhandled rejection when the scan fails — a failure
+	 * only logs here, because {@link ensureReady} already dropped the memo, so the
+	 * next build's `await` retries; nobody else ever observes this promise.
+	 */
+	startEagerly(): void {
+		this.ensureReady().catch((error: unknown) => {
+			console.error("vicinity-graph: eager index scan failed; will retry on next build", error);
+		});
 	}
 
 	/** The parsed entry held for `path`, or `undefined` when the file contributes none. */
@@ -206,7 +230,7 @@ export class IncrementalVaultIndex<TEntry> {
 	private async runInitialScan(): Promise<void> {
 		this.scanning = true;
 		try {
-			const gated = this.vault.getFiles().filter((file) => this.scanGate(file));
+			const gated = this.vault.getFiles().filter((file) => this.admittedByGate(file));
 			await this.forEachBounded(gated, async (file) => {
 				const content = await this.readContent(file);
 				if (content === null) {
@@ -217,12 +241,37 @@ export class IncrementalVaultIndex<TEntry> {
 				if (this.settledDuringScan.has(path)) {
 					return;
 				}
+				// The file no longer answers to this path (deleted mid-scan — a deleted
+				// TFile keeps its path — or displaced by a rename): this read is a previous
+				// occupant's stale snapshot. Settledness cannot catch it: a file renamed
+				// onto the path rightly CLEARED the old occupant's mark so its own read is
+				// not skipped. Obsidian holds ONE stable TFile instance per file (mutated
+				// in place), so an identity check against the vault's current occupant is
+				// exact; the path's truth is covered by events + that occupant's own read.
+				if (this.vault.getFileByPath(path) !== file) {
+					return;
+				}
 				this.store(path, this.parseSafely(path, content));
 			});
 		} finally {
 			this.scanning = false;
 			this.settledDuringScan.clear();
 			this.onChanged();
+		}
+	}
+
+	/**
+	 * Invoke the consumer's scan gate, absorbing a throw as ADMIT (see
+	 * {@link VaultScanGate}): a refused file is lost for the session, an admitted
+	 * one costs a read — and the gate runs before any file is read, so letting the
+	 * throw reject the scan would deterministically re-reject every retry.
+	 */
+	private admittedByGate(file: VaultFilePort): boolean {
+		try {
+			return this.scanGate(file);
+		} catch (error: unknown) {
+			console.error("vicinity-graph: index scan gate threw; admitting file", file.path, error);
+			return true;
 		}
 	}
 

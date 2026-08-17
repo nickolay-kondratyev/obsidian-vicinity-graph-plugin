@@ -36,18 +36,23 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   initial scan that reads + parses ONLY files the consumer's injected
   `VaultScanGate` admits (link-derived consumers pass `linksOrEmbedsScanGate`:
   metadataCache reports links OR embeds; gated-out files never read a byte;
+  a gate throw is absorbed as ADMIT — the safe direction;
   `vault.cachedRead`), then
   REPLACE-WHOLE-ENTRY freshness via three handlers `main.ts` wires beside the
   existing vault handlers (`handleFileChanged` from `metadataCache.on('changed')`
   — content is handed to the callback, zero extra reads; `handleFileDeleted` from
   `vault.on('delete')`, beside `forgetDocs`; `handleFileRenamed` from
   `vault.on('rename')`, REKEYS old→new since the renamed file's own content may be
-  untouched). Never blocks load: `ensureReady()` is idempotent and graph builds
+  untouched; file CREATION arrives through 'changed', no fourth handler). Never
+  blocks load: `startEagerly()` fires the scan in `onload` (a failed scan logs,
+  never an unhandled rejection), `ensureReady()` is idempotent and graph builds
   `await` it (precedent: async `ObsidianLinkProvider.create`, lazy `PerDocStore`
   warm); a REJECTED scan is not memoised — the next build retries. Events beat
   the concurrent scan (a `settledDuringScan` guard drops the scan's stale late
   write; on rename, settledness follows the FILE through the rekey, never the
-  path name). Session-held, NEVER persisted. A consumer supplies ONLY its gate
+  path name; a read whose file no longer answers to its path — deleted or
+  displaced mid-scan — is dropped by an identity check against the vault's
+  current occupant). Session-held, NEVER persisted. A consumer supplies ONLY its gate
   and a `VaultFileEntryParser<TEntry>` (`(path, content) => TEntry | null`; a
   throw is absorbed as "no entry", same policy as an unreadable file) and
   reads entries back (`entryFor` / `allEntries`, with an optional `onChanged`
