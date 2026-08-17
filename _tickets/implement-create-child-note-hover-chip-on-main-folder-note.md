@@ -1,12 +1,14 @@
 ---
+closed_iso: 2026-08-17T18:14:02Z
+session_ids: [{"a": "claude", "type": "execution", "id": "80371a35-bf27-42b5-8f88-6e3967486a83"}, {"a": "claude", "type": "review", "id": "9f742a4d-3a2d-4f3f-80cd-eb3a6b7cf708"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 id: nid_rt0dyx6chv7fxae4k7q85f53l_e
 title: "Implement: create-child-note hover chip on main folder note"
-status: in_progress
+status: closed
 deps: []
 links: [nid_mgp572ljuxzajfrb64gkiyreq_e]
 created_iso: 2026-08-17T17:06:10Z
-status_updated_iso: 2026-08-17T17:41:24Z
+status_updated_iso: 2026-08-17T18:14:02Z
 type: feature
 priority: 3
 assignee: nickolaykondratyev
@@ -50,3 +52,77 @@ Review amendments (signed off by human 2026-08-17, second `.out/current_decision
 - Failure to create shows one user notice and leaves the graph usable.
 - All gates green incl. the e2e spec covering this surface.
 
+---
+
+## RESOLUTION (2026-08-17)
+
+Implemented as specified. All gates green: `npm run check`, `npm test` (2228 passed),
+and `npm run test:e2e -- createChildNote.e2e.ts`.
+
+### What was built, where it lives
+
+Pure logic (`src/shared/`, import-guarded):
+- `FolderNotes.ownedFolderOf(notePath)` — promotes the private `foldersOwnedBy`; returns
+  the INSIDE-owned folder on dual ownership (Decision 2). NOTE: because the folder-note
+  rule is path-only, EVERY plain note `X.md` sibling-owns its namesake folder `X/` even
+  when `X/` does not exist — that is exactly why the chip predicate needs a live folder
+  existence gate (see below). This surprised the first test draft; the corrected test in
+  `FolderNotes.test.ts` documents it.
+- `ChildNoteNaming.untitledChildPath(folder, exists)` — Obsidian's `Untitled` /
+  `Untitled 1` / … dedupe against a caller-supplied existence predicate.
+
+Adapters (`src/adapters/`):
+- `NoteCreationPort` (in `obsidianPorts.ts`) — the plugin's FIRST vault-WRITE seam
+  (`create` + `folderExists`), separate from the read-only `VaultPort` (OCP).
+- `ObsidianNoteCreation` — adapts `Vault.create` + `Vault.getFolderByPath` (both present
+  on the pinned 1.12.3 typings). Real `Vault` does NOT satisfy the port structurally
+  (`getFolderByPath` returns a folder, not a boolean), hence the hand-written adapter.
+- `FolderNoteIndex.ownedFolderOf` — delegates to `FolderNotes` (branded `FolderPath`).
+- `ChildNoteCreator` — the whole action: resolve owned folder → dedupe against the vault
+  READ FRESH at click time → `create("")` → open in the current tab. Its own one-notice
+  failure policy lives here (a vault-content write; NOT on the settings/`runGuarded` chain).
+  Unit-tested with fakes in `ChildNoteCreator.test.ts`.
+- `VicinityGraphBuilder` — gains the `NoteCreationPort` and computes
+  `GraphBuildResult.mainIsFolderNote = ownedFolderOf(main) exists && folderExists(...)`.
+
+View (`src/view/`):
+- `FlowNodeData.offersChildNoteCreation` (set in `flowMapping.ts`, true only on the MAIN
+  when `mainIsFolderNote`); `GraphViewController` threads `result.mainIsFolderNote` into
+  `vicinityGraphToFlow`.
+- `ControlsActionsPort.createChildNote(mainPath)` + `ChildNoteCreatorPort` (in
+  `viewPorts.ts`); `ControlsActions.createChildNote` delegates to the `ChildNoteCreator`.
+- `NoteNode.tsx` — `ChildNoteButton` (lucide `file-plus-2`, aria-label/title "Create child
+  note"), rendered bottom-right, gated on `data.offersChildNoteCreation`.
+- `graph-view.css` — `.vicinity-graph-child-note-button` reuses the shared
+  `.vicinity-graph-node-chip` chrome / size-ladder / withhold rungs, overriding only the
+  vertical anchor to bottom-right (mirrors the gear's top inset, clears the bottom/right
+  resize grip bands + corner handle).
+
+Wiring: `main.ts` builds one plugin-lived `ObsidianNoteCreation`, passes it to the builder
+AND to each `VicinityGraphView` (alongside `folderNoteIndex`); the view builds the
+`ChildNoteCreator` in `onOpen` (the navigator's `openNote` satisfies `NoteOpenPort`).
+
+### Tests
+- Unit: `FolderNotes.test.ts` (ownedFolderOf + the "sibling-owns-namesake" surprise),
+  `ChildNoteNaming.test.ts`, `ChildNoteCreator.test.ts`, `VicinityGraphBuilder.test.ts`
+  (mainIsFolderNote predicate incl. empty-folder edge + would-be-folder-absent),
+  `flowMapping.test.ts` (flag only on MAIN), `ControlsActions.test.ts` (delegation + no
+  settings fan-out).
+- Component: `NoteNode.component.test.tsx` (chip only on main+folder-note, aria-label,
+  click routes path, coexists with an attachment strip, `file-plus-2` glyph).
+- e2e: `e2e/createChildNote.e2e.ts` — hover the MAIN folder note, click the chip, assert
+  `Jon/Untitled.md` created + active + new MAIN.
+
+### Notes for the next reader
+- The e2e spec lives in the `e2e/` submodule; per CLAUDE.md it must be committed there
+  before the parent repo commit. This session did NOT run `git commit` (harness policy:
+  commit only when asked). The working tree carries all edits + rebuilt `main.js`/
+  `styles.css` artifacts; the e2e submodule already had UNRELATED pre-existing
+  modifications from other work — stage only `e2e/createChildNote.e2e.ts` there.
+
+
+## Notes
+
+**2026-08-17T18:18:51Z**
+
+__READY_AS_IS__: reviewed full diff; logic/layering/tests sound, all gates green (check, npm test 2228, createChildNote e2e), no fixes needed.
