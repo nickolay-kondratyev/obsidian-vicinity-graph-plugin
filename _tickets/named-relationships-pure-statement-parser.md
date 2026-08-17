@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_0bhqajvtdq3joblfdzgqogw0x_e
 title: "Named relationships: pure statement parser"
-status: open
+status: in_progress
 deps: []
 links: []
 created_iso: 2026-08-17T16:44:23Z
-status_updated_iso: 2026-08-17T16:44:23Z
+status_updated_iso: 2026-08-17T17:40:59Z
 type: feature
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
