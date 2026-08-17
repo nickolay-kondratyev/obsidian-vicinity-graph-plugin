@@ -50,3 +50,7 @@ ENGINEERING CALLS (non-interactive; no product decision needed)
 FOLLOW-UP FOR THE ROWS TICKET (nid_fqdc55oifopcxxs4eb0w8q876_e): it MUST remove the 4 REACHABLE_LATER allowlist entries in src/view/settingsRowSpecCoverage.test.ts (namedDepthOut/namedDepthIn/pinnedNamedDepthOut/pinnedNamedDepthIn) when it wires the actual settings rows.
 
 STILL OPEN UPSTREAM: the real adapter that implements RelationProvider + merges labels onto OutgoingReference (nid_wldz7yfjecf9fuwtlezlbde9s_e) — until then the engine is fully functional but fed only by Fake* in tests.
+
+**2026-08-17T18:51:07Z**
+
+__READY_AS_IS__: Engine logic (channels, either-budget union, rel-note folding, label carriage) is correct and well-tested; only fix was replacing raw 0x00 bytes in EdgeAssembly.ts source with \0 escape (behavior-preserving) + a regression test. check + 2267 tests green.
