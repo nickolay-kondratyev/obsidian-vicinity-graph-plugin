@@ -73,6 +73,14 @@ export type FlowNodeData = {
 	 * fact the context menu's "Reset size" entry switches on.
 	 */
 	readonly hasSizeOverride: boolean;
+	/**
+	 * Whether this node offers the create-child-note hover chip (ticket
+	 * `nid_rt0dyx6chv7fxae4k7q85f53l_e`): true ONLY on the MAIN when it is a folder note
+	 * whose owned folder exists ({@link GraphBuildResult.mainIsFolderNote}). Decided
+	 * upstream (adapter + this mapping) so the node component renders on a boolean and
+	 * never re-derives the folder-note rule.
+	 */
+	readonly offersChildNoteCreation: boolean;
 	/** Engine folder path ("" = vault root). */
 	readonly folder: string;
 	/**
@@ -275,6 +283,8 @@ export function vicinityGraphToFlow(
 	graph: VicinityGraph,
 	pinFacts: FlowPinFacts,
 	folderNoteCandidates: FolderNoteCandidatesLookup,
+	/** Whether the MAIN is a folder note whose owned folder exists — the create-child-note chip predicate. */
+	mainIsFolderNote: boolean,
 ): FlowGraph {
 	const grouping = deriveFolderGroups(graph.nodes, graph.viewSettings.folderGroupingDepth);
 	const badges = deriveTruncationBadges(
@@ -340,7 +350,7 @@ export function vicinityGraphToFlow(
 			width,
 			height,
 			...(groupFolder === undefined ? {} : { parentId: folderGroupIdOf(groupFolder) }),
-			data: toFlowNodeData(node, pinFacts, graph.viewSettings, suppressedThumbnails.has(node.path)),
+			data: toFlowNodeData(node, pinFacts, graph.viewSettings, suppressedThumbnails.has(node.path), mainIsFolderNote),
 		};
 	});
 	return {
@@ -549,13 +559,22 @@ function resolveNodePreview(node: GraphNode, view: ViewSettings, hasImage: boole
  * @param suppressImage true when image de-dup handed this node's image to another
  * node higher in the folder hierarchy — the node then previews as if it had none.
  */
-function toFlowNodeData(node: GraphNode, pinFacts: FlowPinFacts, view: ViewSettings, suppressImage: boolean): FlowNodeData {
+function toFlowNodeData(
+	node: GraphNode,
+	pinFacts: FlowPinFacts,
+	view: ViewSettings,
+	suppressImage: boolean,
+	mainIsFolderNote: boolean,
+): FlowNodeData {
 	const outline = renderedOutline(node, view);
 	return {
 		path: node.path,
 		title: node.title,
 		...(node.docid === undefined ? {} : { docid: node.docid }),
 		tier: tierOf(node),
+		// ONLY the MAIN carries the create-child-note chip, and only when this build
+		// found it a folder note with an existing owned folder.
+		offersChildNoteCreation: node.isMain && mainIsFolderNote,
 		// The two pin facts come from the caller's docid sets, not from isCentral: a
 		// central can be pinned globally, locally, or both, and only the sets know
 		// which. A node with no docid (an ordinary neighbor) is in neither set.

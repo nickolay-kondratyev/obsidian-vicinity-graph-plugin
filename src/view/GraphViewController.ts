@@ -465,7 +465,7 @@ export class GraphViewController {
 					positions: this.positions,
 					groupDimensions: this.groupDimensions,
 				});
-		const flow = vicinityGraphToFlow(graph, result.pinFacts, result.folderNoteCandidates);
+		const flow = vicinityGraphToFlow(graph, result.pinFacts, result.folderNoteCandidates, result.mainIsFolderNote);
 		let positions: ReadonlyMap<string, XY>;
 		let groupDimensions: ReadonlyMap<string, Dimensions>;
 		if (decision === "reuse-layout") {

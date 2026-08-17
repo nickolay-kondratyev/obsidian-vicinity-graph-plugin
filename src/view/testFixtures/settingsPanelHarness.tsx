@@ -76,6 +76,10 @@ export class RecordingControlsActions implements ControlsActionsPort {
 	clearNodeContentOverride(_path: string): Promise<void> {
 		return Promise.resolve();
 	}
+
+	createChildNote(_mainPath: string): Promise<void> {
+		return Promise.resolve();
+	}
 }
 
 /** The three global slices at their shipped defaults, any of them overridable. */

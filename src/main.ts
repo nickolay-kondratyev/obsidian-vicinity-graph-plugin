@@ -5,6 +5,7 @@ import { CanvasParseCache } from "./adapters/CanvasParseCache";
 import { FolderNoteIndex } from "./adapters/FolderNoteIndex";
 import { FrontmatterIdIndex } from "./adapters/FrontmatterIdIndex";
 import { LiveLinkOccurrenceProvider } from "./adapters/LiveLinkOccurrenceProvider";
+import { ObsidianNoteCreation } from "./adapters/ObsidianNoteCreation";
 import { VicinityGraphBuilder } from "./adapters/VicinityGraphBuilder";
 import { DocIdMapWarmer } from "./persistence/DocIdMapWarmer";
 import { OrphanSweeper, SWEEP_DELAY_MS } from "./persistence/OrphanSweeper";
@@ -86,6 +87,12 @@ export default class VicinityGraphPlugin extends Plugin {
 	 * path-chosen folder note.
 	 */
 	private folderNoteIndex!: FolderNoteIndex;
+	/**
+	 * The plugin's ONE vault-WRITE seam (`Vault.create` + a `folderExists` read). Shared
+	 * by the builder (folder-existence half of the create-child-note chip predicate) and
+	 * every view's `ChildNoteCreator` (the write + open). Plugin-lived and stateless.
+	 */
+	private noteCreation!: ObsidianNoteCreation;
 	private sweepTimer: number | null = null;
 	/**
 	 * {@link ViewsRefreshPort} over this plugin's own leaf walk, handed to every
@@ -147,6 +154,9 @@ export default class VicinityGraphPlugin extends Plugin {
 		);
 		// Path-only folder-note index; carries no settings, so it needs no accessor.
 		this.folderNoteIndex = new FolderNoteIndex(this.app.vault);
+		// The plugin's ONE vault-WRITE seam (create-child-note); its folderExists half is
+		// also the read the builder's chip predicate needs.
+		this.noteCreation = new ObsidianNoteCreation(this.app.vault);
 		this.graphBuilder = new VicinityGraphBuilder(
 			this.app.vault,
 			this.app.metadataCache,
@@ -158,6 +168,7 @@ export default class VicinityGraphPlugin extends Plugin {
 			this.docIdMapWarmer,
 			this.frontmatterIdIndex,
 			this.folderNoteIndex,
+			this.noteCreation,
 		);
 
 		this.registerVaultLifecycleHandlers();
@@ -184,6 +195,8 @@ export default class VicinityGraphPlugin extends Plugin {
 					this.settingsWrites,
 					this.notices,
 					occurrenceProvider,
+					this.folderNoteIndex,
+					this.noteCreation,
 				),
 		);
 		// Two placements, two hotkey-bindable commands (mirrors core's "Split
