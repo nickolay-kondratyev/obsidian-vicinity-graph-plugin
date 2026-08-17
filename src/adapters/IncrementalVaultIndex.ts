@@ -8,9 +8,14 @@ import type { MetadataCachePort, VaultFilePort, VaultPort } from "./obsidianPort
  * together with the {@link VaultScanGate} it is ALL the per-consumer knowledge
  * in the machinery.
  *
- * Pure by contract: given the same `(path, content)` it must return the same
- * entry, because {@link IncrementalVaultIndex} re-invokes it on every change and
- * relies on REPLACE-WHOLE-ENTRY semantics (no diffing) for correctness. A throw
+ * Pure by contract, and the entry must be derivable from `content` ALONE —
+ * `path` is context for diagnostics/logging, never entry data — because
+ * {@link IncrementalVaultIndex} re-invokes the parser on every change, relies on
+ * REPLACE-WHOLE-ENTRY semantics (no diffing) for correctness, and REKEYS a
+ * renamed file's entry without re-parsing ({@link IncrementalVaultIndex.handleFileRenamed}),
+ * so a path-dependent entry would go silently stale on rename. (The path a
+ * consumer's derived structure needs is the entry's KEY in {@link IncrementalVaultIndex.allEntries},
+ * which the rekey does keep fresh.) A throw
  * is absorbed as "no entry" (logged), same policy as an unreadable file. The first
  * consumer is the named-relationships index (`RelationshipStatements.parse` under
  * a thin adapter); the type is generic so future vault-wide content-derived
@@ -189,8 +194,9 @@ export class IncrementalVaultIndex<TEntry> {
 
 	/**
 	 * REKEY the renamed file's entry old path → new path (`vault.on('rename')`).
-	 * Content is unchanged by a rename, so the entry stays valid under the new key;
-	 * no re-parse. A file with no entry (never indexed) rekeys to nothing.
+	 * Content is unchanged by a rename and an entry is content-derived by the
+	 * {@link VaultFileEntryParser} contract, so the entry stays valid under the new
+	 * key; no re-parse. A file with no entry (never indexed) rekeys to nothing.
 	 *
 	 * Against a racing scan, SETTLEDNESS FOLLOWS THE FILE, not the path name.
 	 * Obsidian mutates `TFile.path` to the new path BEFORE firing 'rename', so the

@@ -53,7 +53,9 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   path name; a read whose file no longer answers to its path — deleted or
   displaced mid-scan — is dropped by an identity check against the vault's
   current occupant). Session-held, NEVER persisted. A consumer supplies ONLY its gate
-  and a `VaultFileEntryParser<TEntry>` (`(path, content) => TEntry | null`; a
+  and a `VaultFileEntryParser<TEntry>` (`(path, content) => TEntry | null`; the
+  entry must be derivable from content ALONE — renames rekey without re-parsing,
+  so `path` is diagnostics-only; a
   throw is absorbed as "no entry", same policy as an unreadable file) and
   reads entries back (`entryFor` / `allEntries`, with an optional `onChanged`
   invalidation hook) to build its own query structure; the first consumer is the
