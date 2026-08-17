@@ -1,4 +1,5 @@
 ---
+session_ids: [{"a": "claude", "type": "execution", "id": "b449310a-2a4f-4579-a8e2-dfe484ced109"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_fqdc55oifopcxxs4eb0w8q876_e
 title: "Named relationships: named-depth settings rows"
