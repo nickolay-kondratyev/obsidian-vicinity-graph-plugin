@@ -62,7 +62,9 @@ Precedence at each `::`, by left context:
    allowed, trimmed); the statement consumes the closing bracket. Clean
    Dataview field; the paren variant rides along.
 3. Else → **bare form**: name = LONGEST run of `[A-Za-z0-9_-]` immediately
-   before `::` (stops at punctuation: `(he-supports::[[x]])` → `he-supports`).
+   before `::` (stops at punctuation: `prose.he-supports::[[x]]` →
+   `he-supports`). Note `(he-supports::[[x]])` parses via form 2 (unclosed
+   `(` wrapper wins by precedence) — same name by coincidence there.
 
 Shared rules:
 
@@ -86,7 +88,9 @@ Shared rules:
 
 - **Discovery: eager incremental index** (metadataCache carries no `::`
   prefixes, so raw markdown must be parsed). Bounded-concurrency initial scan
-  over ONLY files that have links (a statement always contains `[[x]]`);
+  over ONLY files that have links OR embeds per metadataCache (a statement's
+  target run always contains `[[x]]`/`![[x]]`, and `rel::![[x]]` lands in
+  `embeds`, not `links`);
   freshness via `metadataCache.on('changed')` (callback provides content — no
   extra reads) + delete/rename; replace-whole-entry semantics; session-held,
   never persisted; never blocks plugin load — graph builds await readiness.
