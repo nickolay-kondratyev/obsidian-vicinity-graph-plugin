@@ -1,4 +1,5 @@
 ---
+session_ids: [{"a": "claude", "type": "execution", "id": "8a8c49a9-20e8-4a46-8463-cb6882bf9e76"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_ufbtmywzbsyn2gwrx7bi0ww08_e
 title: "Named relationships: engine channels, edge labels, rel-note folding"
