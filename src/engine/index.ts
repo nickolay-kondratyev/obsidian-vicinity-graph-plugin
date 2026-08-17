@@ -69,6 +69,13 @@ export {
 	NODE_PREVIEW_PREFERENCES,
 } from "./types";
 export { parseIdRefFields } from "./frontmatterLinkFields";
+export { RelationshipStatements } from "./RelationshipStatements";
+export type {
+	RelationshipName,
+	RelationshipStatement,
+	RelationshipTarget,
+	TextSpan,
+} from "./RelationshipStatements";
 
 export type { FileMetadata, LinkProvider, OutgoingReference } from "./LinkProvider";
 export { OutgoingReferences } from "./LinkProvider";
