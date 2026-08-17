@@ -1,4 +1,5 @@
 ---
+session_ids: [{"a": "claude", "type": "execution", "id": "80371a35-bf27-42b5-8f88-6e3967486a83"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin-mirror-1
 id: nid_rt0dyx6chv7fxae4k7q85f53l_e
 title: "Implement: create-child-note hover chip on main folder note"
