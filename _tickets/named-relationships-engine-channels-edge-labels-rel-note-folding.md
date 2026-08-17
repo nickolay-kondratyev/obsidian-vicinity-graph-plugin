@@ -1,0 +1,24 @@
+---
+id: nid_ufbtmywzbsyn2gwrx7bi0ww08_e
+title: "Named relationships: engine channels, edge labels, rel-note folding"
+status: open
+deps: [nid_0bhqajvtdq3joblfdzgqogw0x_e]
+links: []
+created_iso: 2026-08-17T16:44:23Z
+status_updated_iso: 2026-08-17T16:44:23Z
+type: feature
+priority: 2
+assignee: CC_WITH-nickolaykondratyev
+tags: [named-relationships]
+---
+
+Part of the named-relationships set. Read the PLAN first: `_tickets/add-ability-for-named-relationships.md` (closed plan ticket nid_fg66tanwkoyq3cqs1wdxagn21_e) — full syntax spec, signed-off decisions, architecture. Repo conventions: `CLAUDE.md` (layering view→adapters→engine, BDD tests, settings machinery).
+
+Engine-side integration (pure, fixture-tested via Fake* providers):
+
+1. NEW channels `named-outgoing` / `named-incoming` in the `Channel` union (src/engine/types.ts) with their own depth budgets — extend CHANNEL_RELATION, CHANNEL_DISCOVERY_KIND, CHANNEL_DEPTH_FIELD, ChannelDepths/DepthSettings (+ pinned-root variants); every Record<Channel,…> turns the addition into guided compile errors. WHY: system diagrams drawn purely in named links must traverse DEEP (high named depth) without dragging plain links along.
+2. EITHER-BUDGET union: a named link is still a link — served to BOTH plain link channels and named channels; a named EMBED is served to embed channel AND named channels. Node reachable under whichever budget reaches it (per-path union). Displayed kind still derives from occurrences at edge assembly (named embed stays `embed`).
+3. Engine port (new interface, OCP — do not fatten LinkProvider casually; follow the LinkProvider seam pattern in src/engine/LinkProvider.ts) supplying per-file parsed statements from the parser ticket.
+4. Label carriage: OutgoingReference/GraphEdge grow relation-name data through VicinityTraversal (src/engine/VicinityTraversal.ts) and EdgeAssembly (src/engine/EdgeAssembly.ts). One edge per ordered pair; edge carries ALL its relation names; count badge data unchanged.
+5. REL-NOTE folding (per-occurrence accounting): the rel-note occurrence in `[[he supports]]::[[x]]` is subtracted during edge assembly — never a node/edge of its own; the rel note renders as a normal node only where it has OTHER, non-relationship usages.
+

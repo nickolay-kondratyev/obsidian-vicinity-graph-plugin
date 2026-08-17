@@ -1,58 +1,151 @@
 ---
+closed_iso: 2026-08-17T16:45:09Z
 id: nid_fg66tanwkoyq3cqs1wdxagn21_e
 title: Add ability for named relationships
-status: in_progress
+status: closed
 deps: []
 links: []
 created_iso: '2026-08-17T15:20:34Z'
-status_updated_iso: '2026-08-17T15:39:25Z'
+status_updated_iso: 2026-08-17T16:45:09Z
 type: task
 priority: 3
 assignee: nickolaykondratyev
-tags: []
+tags:
+  - named-relationships
+  - plan
 pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin
 ---
-TASK: **PLAN**. Lets clarify any gaps that exist for this ticket
-  (if you need to explore code base use cheaper Explore-cheap sub-agent)
-  ask human any questions that come up that require human decision.
-  Finally create detailed plan with requirements of what we want to achieve.
-  IF there are multiple tickets that we want to create 
-    THEN put the high level plan into a new ticket and `close` it 
-         AND create focused implementation tickets that reference the closed plan.
-    ELSE put the plan into a new `open` ticket
-  After we are done close this ticket.
-  DONT RUSH and make sure the decisions that need to be made are fully signed off one by one by the HUMAN.
+# PLAN (closed): Named relationships
+
+This is the CLOSED PLAN ticket for the `named-relationships` feature set. It
+holds the shared context every implementation ticket in the set relies on. All
+decisions below were signed off one by one by the human owner (2026-08-17).
+
+## What we are building
+
+A named relationship is a labeled directed edge between notes, written with
+Dataview-style inline-field syntax:
+
+```
+supports::[[note2]]        →  THIS_NOTE --supports--> note2
+```
+
+Today the graph knows only unlabeled links/embeds; named relationships add the
+label — turning the vicinity graph into something that can render system
+diagrams and argument maps drawn purely in named links.
+
+## Why `::` (syntax-family decision)
+
+Link-valued Dataview inline fields are the de facto typed-link convention in
+the Obsidian ecosystem — Breadcrumbs (`up:: [[parent]]`), ExcaliBrain
+(`parent::/child::/friend::`), Juggl (`- type:: [[note]]`). Adopting the same
+shape means existing typed vaults work with zero rewriting, statements stay
+Dataview-queryable, and live preview renders them. Scalar fields
+(`rating:: 8`) are attributes, ignored by construction (a statement's value
+must be a link run).
+
+## Syntax spec (signed off)
+
+A statement is `name::targets`, token-anchored, ANYWHERE in a line
+(mid-sentence OK; surrounding prose ignored — deliberately NOT Dataview's
+greedy full-line keying, its most-complained-about behavior).
+
+Precedence at each `::`, by left context:
+
+1. Ends with `]]` → **rel-note form**: `[[he supports]]::[[target]]` — the
+   relationship name IS a note. Label = alias if given, else basename; the
+   flyout links to the rel note. The rel-note OCCURRENCE folds into the edge
+   (per-occurrence accounting): never a node/edge of its own; the rel note
+   renders as a normal node only where it has other, non-relationship usages.
+2. Inside a `[...]` / `(...)` wrapper → **bracketed form**:
+   `[he supports:: [[x]]]` — name = text between opener and `::` (spaces
+   allowed, trimmed); the statement consumes the closing bracket. Clean
+   Dataview field; the paren variant rides along.
+3. Else → **bare form**: name = LONGEST run of `[A-Za-z0-9_-]` immediately
+   before `::` (stops at punctuation: `(he-supports::[[x]])` → `he-supports`).
+
+Shared rules:
+
+- NO whitespace before `::`; optional whitespace after (existing vaults write
+  `key:: [[x]]`).
+- Targets = greedy comma-separated RUN of `[[link]]` / `![[embed]]` tokens,
+  stopping at the first non-link/non-comma token (reads Breadcrumbs/ExcaliBrain
+  lists `up:: [[a]], [[b]]`; trailing prose ignored).
+- Unrecognized text degrades gracefully: its links stay plain unlabeled cache
+  edges — nothing ever disappears, it just gets no name.
+- **Frontmatter** link-valued fields (`up: "[[parent]]"`) are named
+  relationships too — via metadataCache `frontmatterLinks` (key + target, zero
+  file reading). Own focused ticket.
+- **Embeds**: `rel::![[x]]` allowed; displayed kind stays `embed`.
+- DV-cleanliness tradeoff ACCEPTED (opt-in per occurrence): own-line/bullet/
+  bracketed forms are clean DV fields; bare mid-sentence creates junk greedy
+  DV fields; rel-note form is ours alone. Users wanting clean DV just avoid
+  the bare form.
+
+## Architecture (signed off)
+
+- **Discovery: eager incremental index** (metadataCache carries no `::`
+  prefixes, so raw markdown must be parsed). Bounded-concurrency initial scan
+  over ONLY files that have links (a statement always contains `[[x]]`);
+  freshness via `metadataCache.on('changed')` (callback provides content — no
+  extra reads) + delete/rename; replace-whole-entry semantics; session-held,
+  never persisted; never blocks plugin load — graph builds await readiness.
+  Built as REUSABLE index infrastructure for future vault-wide derived
+  indexes.
+- **Traversal: NEW channels** `named-outgoing` / `named-incoming` with their
+  OWN depth budgets (+ pinned variants), so named-link system diagrams
+  traverse deep independently of plain-link depth. EITHER-BUDGET union: a
+  named link also rides the plain link channels (and a named embed the embed
+  channel) — reachable under whichever budget reaches it, per-path.
+- **Edge model**: one edge per ordered pair (collapse, don't multiply);
+  `OutgoingReference`/`GraphEdge` carry relation names; kind derives from
+  occurrences at edge assembly.
+- **Rendering**: the edge shows ALL its relation names (dedicated GREAT-UI
+  ticket for the multi-name presentation); count badge coexists; flyout holds
+  the full breakdown (names, context snippets, rel-note links). No per-name
+  styling in V1 (idea ticket).
+
+## Scope cuts (signed off)
+
+- **Third-party triples `[[a]]::rel::[[b]]` (from the original ask below):
+  DROPPED ENTIRELY** — no deferred ticket. Not expressible as a Dataview
+  field; Dataview compatibility was prioritized. Recorded here so the original
+  ask's history is preserved.
+
+## Ticket map (all tagged `named-relationships`)
+
+| Ticket | Scope | Deps |
+|---|---|---|
+| nid_0bhqajvtdq3joblfdzgqogw0x_e | Pure statement parser (engine) | — |
+| nid_ufbtmywzbsyn2gwrx7bi0ww08_e | Engine: named channels, labels, rel-note folding | parser |
+| nid_82g9goy92k9ciyy64m1r6jofe_e | Reusable incremental vault index infrastructure | — |
+| nid_wldz7yfjecf9fuwtlezlbde9s_e | Adapter: index + LinkProvider merge | parser, engine, infra |
+| nid_ibx7hmt6cvmjh5rydi2aiyab9_e | Frontmatter relations (`frontmatterLinks`) | adapter |
+| nid_fqdc55oifopcxxs4eb0w8q876_e | Named-depth settings rows | engine |
+| nid_wnagjm2j144u0jsgixpcmmpar_e | View: edge labels + flyout breakdown | adapter |
+| nid_1ycy9aszptp9fih76equxtcqa_e | GREAT UI for multi-name edges | view |
+| nid_adesjb4clls56623vdu773ubg_e | Idea: per-name edge styling (deferred, p4) | view |
+
+## Resolution (this ticket)
+
+PLAN task completed 2026-08-17: codebase explored, every decision signed off
+one by one by the human (decision log lived in `.out/current_decision.md`
+during the session), the 9 tickets above created with deps + tags, and this
+ticket rewritten to be the closed plan they all reference.
 
 --------------------------------------------------------------------------------
+
+## Original ask (kept for history)
 
 The typical relationship is just a wiki link or an embed. - These are NOT named.
 A named relationship will have some prefixed to it.
-The syntax that I am thinking of is this 
-```
-<rel-name>::<dest-note>
-```
+Syntax: `<rel-name>::<dest-note>`, e.g. `supports::[[note2]]` in note1.md means
+note1 --supports--> note2.
 
-#### example 1:
+Also wanted: third-party statements `[[note2]]::supports::[[note3]]` (note1
+describing note2--supports-->note3 without own edges) — DROPPED per scope
+decision above.
 
-note1.md:
-```
-supports::[[note2]]
-```
-
-This means note1 --supports--> note2
-
---------------------------------------------------------------------------------
-
-Also we want to be able to express that relationships between notes that are not originating from the note that we are writing from. So if we write:
-
-note1.md:
-```
-[[note2]]::supports::[[note3]]
-```
-This would mean note2--supports-->note3
-
-And we would NOT render the relationhips of note1 to note2 and NOT rendering note1 to note3. note1 in this case just describes relationships between other notes. 
-
---------------------------------------------------------------------------------
-
-NOTES: we will want to grab the context of the links efficiently, and "parallelize" the file fetch where needed with bounded concurrency. so that we are able to gather the context to understand these relationships rapidly.
+NOTES: we will want to grab the context of the links efficiently, and
+"parallelize" the file fetch where needed with bounded concurrency, so that we
+are able to gather the context to understand these relationships rapidly.
