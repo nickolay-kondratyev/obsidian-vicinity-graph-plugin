@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-17T18:45:37Z
-session_ids: [{"a": "claude", "type": "execution", "id": "8a8c49a9-20e8-4a46-8463-cb6882bf9e76"}]
+session_ids: [{"a": "claude", "type": "execution", "id": "8a8c49a9-20e8-4a46-8463-cb6882bf9e76"}, {"a": "claude", "type": "review", "id": "2ca0eb14-e453-4c96-9cc6-9fafe5dbd95a"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_ufbtmywzbsyn2gwrx7bi0ww08_e
 title: "Named relationships: engine channels, edge labels, rel-note folding"
