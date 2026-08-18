@@ -108,6 +108,61 @@ connector — click it and the preview names both the link and the folder
 relationship. (When both `Jon.md` and `Jon/Jon.md` exist, the inside one wins and
 the sibling `Jon.md` is treated as an ordinary note.)
 
+## Named relationships
+
+An ordinary link is unlabelled — it just says *these two notes are connected*. A
+**named relationship** adds the *kind* of connection, turning the graph into
+something that can draw system diagrams and argument maps. Write the name before
+a link with a `::`, exactly the way Breadcrumbs, ExcaliBrain and Juggl already
+do, so a vault that already uses typed links works with no rewriting:
+
+```
+supports::[[Second law]]
+```
+
+In `First law.md` that reads *First law --supports--> Second law*, and the edge
+in the graph is labelled **supports**. The name attaches to a link you already
+have — it never hides or removes an edge, it only labels it — and the statement
+can sit anywhere in a line; the surrounding prose is ignored. You can point at
+several notes at once with a comma list (`up:: [[A]], [[B]]`) and name an
+embed too (`shows::![[chart]]`).
+
+There are three ways to write the name:
+
+- **Bare** — `supports::[[note]]`. Simplest; the name is the word right before
+  the `::`.
+- **Bracketed, with an optional note** — `[supports:: [[note]] but not
+  strongly]`. Wrapping the statement in `[…]` (or `(…)`) lets the name contain
+  spaces, and any text after the target — here *but not strongly* — becomes a
+  **qualifier** that rides along on the edge label. On the edge this reads
+  `supports [X] but not strongly`, where `[X]` marks where the target note sits
+  (the edge already points at it, so its title isn't repeated).
+- **Relationship note** — `[[he supports]]::[[note]]`. When the name is itself a
+  `[[wikilink]]`, that note *is* the relationship: the label is its title (or
+  alias), and in the connector preview the name is a clickable link to it. The
+  relationship note doesn't become its own dot on the graph just for being used
+  this way — it only appears as a node where it's linked normally elsewhere.
+
+**Frontmatter counts too.** A link-valued frontmatter property is a named
+relationship whose name is the property key — `up: "[[parent]]"` draws an edge
+labelled **up**. Lists (`up: ["[[a]]", "[[b]]"]`) name every entry. (This is the
+built-in reading of link properties and is always on; it's separate from the
+*Frontmatter links* setting below, which is about `id`-reference fields.)
+
+On the graph the connector shows every name it carries; a small **+N** chip
+appears if there are more names than fit, and clicking the connector opens a
+preview listing them all — each with its qualifier, its surrounding context, and
+a link to the relationship note where there is one.
+
+Named relationships get **their own reach** — see the *Named links out* / *Named
+links in* depth dials below — so you can follow a chain of `supports::` links
+several hops deep without dragging every ordinary link along with it.
+
+Statements inside **code** (fenced blocks or inline code) are ignored, so a `::`
+in an example never mints a stray edge. Inline `::` statements in the leading
+frontmatter block are ignored too — frontmatter is read through its properties
+instead, as above.
+
 ## Settings
 
 **Every setting is global** — one value used by every note and every open graph.
@@ -122,11 +177,13 @@ redraws behind it.
 The settings, grouped the same way on both surfaces:
 
 - **Depth** — how far traversal reaches from each central note, with a separate
-  budget for outgoing links, embedded notes, incoming links, **descendants** and
-  **ancestors** (the last two are folder-note hierarchy — see below) — and a
-  second set of budgets for pinned notes. A depth of **0** turns that
-  relationship off; descendants and ancestors ship at **1** for the active note
-  and **0** for pinned notes.
+  budget for outgoing links, embedded notes, incoming links, **named links out**
+  and **named links in** (named relationships — see above), and **descendants**
+  and **ancestors** (folder-note hierarchy — see below) — and a second set of
+  budgets for pinned notes. A depth of **0** turns that relationship off. Named
+  links reach **2** hops out and **1** in by default (deeper than ordinary links,
+  since named-link diagrams are the point); descendants and ancestors ship at
+  **1** for the active note and **0** for pinned notes.
 - **Grouping** — *Folder grouping depth* sets how many levels of nested folder
   groups render: **0** turns grouping off entirely, and the slider runs `1`–`10`
   and then **∞** (unlimited, the default). *Full folder path* labels a collapsed
