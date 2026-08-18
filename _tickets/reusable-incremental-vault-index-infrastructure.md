@@ -97,3 +97,7 @@ What each round found, which fixes it made, and what it left unresolved are in
 its verdict note under `## Notes` above, the follow-up tickets it filed, and
 its session transcript. Decide whether to salvage the branch or retry fresh,
 then remove the tags and reopen or close as appropriate.
+
+**2026-08-18T01:07:52Z**
+
+STATE CORRECTION (2026-08-18): the 'nothing was merged' line below is stale — branch nid_82g9goy92k9ciyy64m1r6jofe_e_reusable-incremental-vault-index-infrast WAS merged into main (commit cf14e92) with every review-round fix included. The first real consumer now exists and is wired into production: NamedRelationshipsIndex (ticket nid_wldz7yfjecf9fuwtlezlbde9s_e, closed, done while fixing bug nid_3s47jew297bthxajy1v288hiu_e) exercises the scan gate, ensureReady sequencing and all three freshness handlers; npm test (2338), npm run check, and npm run test:e2e (196) are green on top of it. Remaining human call: the stage-2 review never issued READY, so close vs. re-review is still the decide-tagged decision — recommendation: close.
