@@ -864,22 +864,27 @@
 }
 
 /*
- * One relation name as a distinct pill: an accent-tinted border + weight sets it
- * apart from the quiet count badge, and a solid --background-primary fill occludes
- * the edge line behind the text for legibility. Screen-space (EdgeLabelRenderer),
- * so it stays this size at every zoom; long names ellipsis rather than sprawl.
+ * One relation name as a quiet pill, sized and coloured to sit in the same visual
+ * family as the count badge rather than shouting over the graph (ticket
+ * nid_xxdr52j98pjgli834qx2d2lsq_e). WHY muted, not accent: the label is context, not
+ * a call to action — de-emphasise it (read the graph, glance the name) instead of
+ * painting the TEXT in a saturated accent hue, which read as a "standout blue" that
+ * competed with the node titles. The per-name hue survives as a subtle left accent
+ * (see the --color-N rules below), not as loud body text. A solid --background-primary
+ * fill still occludes the edge line behind the text for legibility; tight padding and
+ * no shadow keep a stack of these from reading as clutter. Screen-space
+ * (EdgeLabelRenderer), so it stays this size at every zoom; long names ellipsis.
  */
 .vicinity-graph-edge__relation {
 	max-width: 100%;
-	padding: 1px var(--size-4-2);
+	padding: 0 var(--size-4-1);
 	font-size: var(--font-smallest);
 	font-weight: var(--font-medium);
-	line-height: 1.4;
-	color: var(--text-accent);
+	line-height: 1.5;
+	color: var(--text-muted);
 	background: var(--background-primary);
 	border: 1px solid var(--background-modifier-border);
 	border-radius: var(--radius-s);
-	box-shadow: var(--shadow-s);
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -897,27 +902,29 @@
 }
 
 /*
- * Per-relation-name COLOUR (ticket nid_adesjb4clls56623vdu773ubg_e). Two hooks per
- * slot, computed by relationColor.ts:
- *   - the chip class `--color-N` tints ONE name's pill (border + text) — always drawn,
- *     so a multi-hue collapsed edge stays legible name-by-name even when its line can't
- *     pick a single colour;
+ * Per-relation-name COLOUR (ticket nid_adesjb4clls56623vdu773ubg_e, quieted in
+ * nid_xxdr52j98pjgli834qx2d2lsq_e). Two hooks per slot, computed by relationColor.ts:
+ *   - the chip class `--color-N` marks ONE name's pill with a thin left ACCENT bar in
+ *     the hue — always drawn, so a multi-hue collapsed edge stays distinguishable
+ *     name-by-name even when its line can't pick a single colour. WHY a left bar, not
+ *     coloured text/border: the accent keeps the hue glanceable while the name itself
+ *     stays quiet --text-muted, so the palette de-emphasises rather than shouts;
  *   - the edge-wrapper class `--relation-color-N` recolours the LINE and its self-drawn
  *     arrowhead, applied only when every name on the edge shares this hue (see
  *     relationEdgeColorClassName), so `supports` vs `contradicts` read at a glance
  *     WITHOUT reading the labels — the idea ticket's core goal.
- * The chip rules override the neutral --text-accent/border set just above; the line
+ * The chip rules override the left edge of the neutral border set just above; the line
  * rules ride `.vicinity-graph-flow` for specificity over React Flow's own edge stroke.
- * The overflow chip deliberately keeps its muted colour (it is not a real name).
+ * The overflow chip carries no hue (it is not a real name), so it keeps the plain border.
  */
-.vicinity-graph-edge__relation--color-0 { color: var(--vicinity-rel-color-0); border-color: var(--vicinity-rel-color-0); }
-.vicinity-graph-edge__relation--color-1 { color: var(--vicinity-rel-color-1); border-color: var(--vicinity-rel-color-1); }
-.vicinity-graph-edge__relation--color-2 { color: var(--vicinity-rel-color-2); border-color: var(--vicinity-rel-color-2); }
-.vicinity-graph-edge__relation--color-3 { color: var(--vicinity-rel-color-3); border-color: var(--vicinity-rel-color-3); }
-.vicinity-graph-edge__relation--color-4 { color: var(--vicinity-rel-color-4); border-color: var(--vicinity-rel-color-4); }
-.vicinity-graph-edge__relation--color-5 { color: var(--vicinity-rel-color-5); border-color: var(--vicinity-rel-color-5); }
-.vicinity-graph-edge__relation--color-6 { color: var(--vicinity-rel-color-6); border-color: var(--vicinity-rel-color-6); }
-.vicinity-graph-edge__relation--color-7 { color: var(--vicinity-rel-color-7); border-color: var(--vicinity-rel-color-7); }
+.vicinity-graph-edge__relation--color-0 { border-left: 2px solid var(--vicinity-rel-color-0); }
+.vicinity-graph-edge__relation--color-1 { border-left: 2px solid var(--vicinity-rel-color-1); }
+.vicinity-graph-edge__relation--color-2 { border-left: 2px solid var(--vicinity-rel-color-2); }
+.vicinity-graph-edge__relation--color-3 { border-left: 2px solid var(--vicinity-rel-color-3); }
+.vicinity-graph-edge__relation--color-4 { border-left: 2px solid var(--vicinity-rel-color-4); }
+.vicinity-graph-edge__relation--color-5 { border-left: 2px solid var(--vicinity-rel-color-5); }
+.vicinity-graph-edge__relation--color-6 { border-left: 2px solid var(--vicinity-rel-color-6); }
+.vicinity-graph-edge__relation--color-7 { border-left: 2px solid var(--vicinity-rel-color-7); }
 
 .vicinity-graph-flow .vicinity-graph-edge--relation-color-0 .react-flow__edge-path,
 .vicinity-graph-flow .vicinity-graph-edge--relation-color-0 .vicinity-graph-edge__arrowhead { stroke: var(--vicinity-rel-color-0); fill: var(--vicinity-rel-color-0); }
