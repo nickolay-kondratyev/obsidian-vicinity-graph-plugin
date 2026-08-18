@@ -2,6 +2,7 @@ import type { AttachmentRef, FileMetadata, LinkProvider, OutgoingReference, Outl
 import { asFolderPath, asVaultPath, OutgoingReferences } from "../engine";
 import { FileKinds } from "../shared/FileKinds";
 import { BacklinksAdapter } from "./BacklinksAdapter";
+import { FrontmatterRelationships } from "./FrontmatterRelationships";
 import type { FolderNoteIndex } from "./FolderNoteIndex";
 import type { FrontmatterIdIndex } from "./FrontmatterIdIndex";
 import type { NamedRelationshipsIndex } from "./NamedRelationshipsIndex";
@@ -157,7 +158,8 @@ export class ObsidianLinkProvider implements LinkProvider {
 		if (file === null) {
 			return [];
 		}
-		const references = orderedReferencesOf(file, this.metadataCache.getFileCache(file));
+		const cache = this.metadataCache.getFileCache(file);
+		const references = orderedReferencesOf(file, cache);
 		const base = this.outgoingReferencesOf(file, references);
 		// Merge frontmatter id-refs as ordinary `link` edges (KISS: visually identical
 		// to wikilinks). `deduped` drops an id-ref already carried as a wikilink of the
@@ -170,10 +172,18 @@ export class ObsidianLinkProvider implements LinkProvider {
 		// ONE physical occurrence serves both the plain and the named channel
 		// (either-budget union) and the flyout's label rides the same edge.
 		const named = this.namedRelations.namedReferences(path);
-		if (idRefs.length === 0 && named.length === 0) {
+		// Frontmatter link fields are named relationships too (`up: "[[parent]]"` →
+		// --up-->): the SAME either-budget merge as inline statements, but sourced from
+		// metadataCache's `frontmatterLinks` (field key = relation name) — no `::` parse.
+		// The plain frontmatter link is already in `base` (via `ReferenceOrder`), so
+		// `deduped` folds the field-key label onto it.
+		const frontmatterNamed = FrontmatterRelationships.namedReferences(cache?.frontmatterLinks, (link) =>
+			this.resolveVaultPath(link, path),
+		);
+		if (idRefs.length === 0 && named.length === 0 && frontmatterNamed.length === 0) {
 			return base;
 		}
-		return OutgoingReferences.deduped([...base, ...idRefs, ...named]);
+		return OutgoingReferences.deduped([...base, ...idRefs, ...named, ...frontmatterNamed]);
 	}
 
 	getOutgoingLinks(path: VaultPath): readonly VaultPath[] {
@@ -320,6 +330,12 @@ export class ObsidianLinkProvider implements LinkProvider {
 	/** The vault path a link text resolves to from `fromPath`, or `undefined` when it dangles. */
 	private resolveReference(link: string, fromPath: string): string | undefined {
 		return this.metadataCache.getFirstLinkpathDest(link, fromPath)?.path;
+	}
+
+	/** {@link resolveReference} as a branded {@link VaultPath} — the frontmatter-relation resolver. */
+	private resolveVaultPath(link: string, fromPath: string): VaultPath | undefined {
+		const target = this.resolveReference(link, fromPath);
+		return target === undefined ? undefined : asVaultPath(target);
 	}
 
 	/**

@@ -61,6 +61,15 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   invalidation hook) to build its own query structure; the first consumer is the
   named-relationships index (ticket `nid_wldz7yfjecf9fuwtlezlbde9s_e`), so a
   second is a new caller, not an edit here.
+  `FrontmatterRelationships` (`FrontmatterRelationships.ts`, ticket
+  `nid_ibx7hmt6cvmjh5rydi2aiyab9_e`) is the OTHER named-relationship source —
+  frontmatter link-valued fields (`up: "[[parent]]"`): metadataCache's
+  `frontmatterLinks` already carries field key + target, so it needs NO scan/parse
+  (a pure helper, not an index). `ObsidianLinkProvider.getOutgoingReferences` merges
+  its label-bearing references beside `NamedRelationshipsIndex.namedReferences` — the
+  field key is the relation name (list fields' `key.N` suffix stripped), and
+  `OutgoingReferences.deduped` folds the label onto the plain frontmatter link the
+  same either-budget way as an inline `::` statement.
 - **`src/persistence/`** — JSON storage, TWO-TIER (ticket
   `nid_8f8ey41extajt08zphwwxhnwq_e`). `data.json` (`PluginDataStore`) holds the
   truly-global CONFIG: the settings dials + ONE docid-keyed map, the global pinned
