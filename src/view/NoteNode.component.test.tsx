@@ -80,6 +80,11 @@ class RecordingResizeActions extends RecordingControlsActions {
 		this.contentCleared.push(path);
 		return Promise.resolve();
 	}
+	readonly childNotesCreatedFor: string[] = [];
+	override createChildNote(mainPath: string): Promise<void> {
+		this.childNotesCreatedFor.push(mainPath);
+		return Promise.resolve();
+	}
 }
 
 const NODE_PATH = "a.md";
@@ -92,6 +97,7 @@ function nodeData(overrides: Partial<FlowNodeData> = {}): FlowNodeData {
 		isGloballyPinned: false,
 		isLocallyPinned: false,
 		hasSizeOverride: false,
+		offersChildNoteCreation: false,
 		folder: "",
 		outline: [],
 		preview: "none",
@@ -413,6 +419,53 @@ describe("NoteNode local pin control", () => {
 		fireEvent.contextMenu(await mountedNode(result.container));
 		ui.nodeMenuRequests[0]?.entries.find((entry) => entry.title === "Pin for this note")?.onClick();
 		expect(actions.localPinnedPaths).toEqual([NODE_PATH]);
+	});
+});
+
+/** The create-child-note chip, once the node has mounted. */
+function childNoteButton(node: HTMLElement): HTMLElement | null {
+	return node.querySelector<HTMLElement>("button.vicinity-graph-child-note-button");
+}
+
+describe("NoteNode create-child-note chip", () => {
+	it("WHEN a node does NOT offer child-note creation THEN no chip is mounted", async () => {
+		const { result } = renderNoteNode(nodeData());
+		expect(childNoteButton(await mountedNode(result.container))).toBeNull();
+	});
+
+	it("WHEN a MAIN folder note offers child-note creation THEN it mounts a chip labelled 'Create child note'", async () => {
+		const { result } = renderNoteNode(nodeData({ tier: "main", offersChildNoteCreation: true }));
+		const chip = childNoteButton(await mountedNode(result.container));
+		expect(chip?.getAttribute("aria-label")).toBe("Create child note");
+	});
+
+	it("WHEN the chip is clicked THEN the node's PATH reaches createChildNote", async () => {
+		const { actions, result } = renderNoteNode(nodeData({ tier: "main", offersChildNoteCreation: true }));
+		fireEvent.click(childNoteButton(await mountedNode(result.container))!);
+		expect(actions.childNotesCreatedFor).toEqual([NODE_PATH]);
+	});
+
+	it("WHEN the offering node ALSO shows an attachment strip THEN the chip still mounts (crowded bottom-right)", async () => {
+		// The bottom-right corner is shared with the attachment strip and the corner
+		// resize grip; the chip is a distinct button, so it coexists with them.
+		const { result } = renderNoteNode(
+			nodeData({
+				tier: "main",
+				offersChildNoteCreation: true,
+				attachmentGroups: [{ extension: "pdf", count: 1, paths: ["a.pdf"] }],
+			}),
+		);
+		const node = await mountedNode(result.container);
+		expect({
+			chip: childNoteButton(node) !== null,
+			strip: node.querySelectorAll(".vicinity-graph-attachment").length,
+		}).toEqual({ chip: true, strip: 1 });
+	});
+
+	it("WHEN the chip renders THEN it carries the signed-off file-plus-2 glyph", async () => {
+		const { ui, result } = renderNoteNode(nodeData({ tier: "main", offersChildNoteCreation: true }));
+		const node = await mountedNode(result.container);
+		expect(chipIconId(ui, childNoteButton(node))).toBe("file-plus-2");
 	});
 });
 

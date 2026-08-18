@@ -497,6 +497,20 @@
 .vicinity-graph-node .vicinity-graph-gear-button {
 	right: var(--vicinity-graph-node-chip-inset);
 }
+/* The create-child-note chip (MAIN folder note only — see NoteNode): the BOTTOM-right
+ * corner, the one corner the top chips (pin/gear) and their trio leave free. It shares
+ * the base chip's chrome, size ladder and withhold rungs (same `.vicinity-graph-node-chip`
+ * class), overriding only the vertical anchor: `top: auto` + `bottom` mirrors the gear's
+ * top inset so it clears the bottom AND right resize grip bands by the same margin the
+ * top chips clear theirs (band reaches 4px in; chip outer edge sits border + inset in).
+ * The bottom-right corner resize HANDLE overhangs the very corner, so the chip is inset
+ * from it exactly as the gear is inset from the right edge. z-index (from the base) keeps
+ * it above the attachment strip it may overlap on a tall node — it only shows on hover. */
+.vicinity-graph-node .vicinity-graph-child-note-button {
+	top: auto;
+	bottom: var(--vicinity-graph-node-chip-inset);
+	right: var(--vicinity-graph-node-chip-inset);
+}
 /* The chip's size ladder, stated as centre-clearance rungs: ONE rule per step,
  * each firing exactly where the chip ABOVE it would cover the node's centre point
  * — where a click means OPEN THE NOTE.

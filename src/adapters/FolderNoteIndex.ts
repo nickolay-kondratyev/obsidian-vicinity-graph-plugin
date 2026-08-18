@@ -1,5 +1,5 @@
 import type { FolderPath, VaultPath } from "../engine";
-import { asVaultPath } from "../engine";
+import { asFolderPath, asVaultPath } from "../engine";
 import { FolderNotes } from "../shared/FolderNotes";
 import type { VaultPort } from "./obsidianPorts";
 
@@ -65,6 +65,18 @@ export class FolderNoteIndex {
 	 */
 	folderNoteCandidatesOf(folder: FolderPath): readonly VaultPath[] {
 		return this.snapshot().folderNoteCandidatesOf(folder).map(asVaultPath);
+	}
+
+	/**
+	 * The folder `path` is the winning folder note of — where a NEW CHILD would be
+	 * created (ticket `nid_rt0dyx6chv7fxae4k7q85f53l_e`), or `undefined` when `path`
+	 * owns none. PATH truth only: this proves ownership, NOT that the folder exists as
+	 * a vault directory (an empty owned folder is invisible to the path set); the chip
+	 * predicate pairs it with a live `NoteCreationPort.folderExists` check.
+	 */
+	ownedFolderOf(path: VaultPath): FolderPath | undefined {
+		const owned = this.snapshot().ownedFolderOf(path);
+		return owned === undefined ? undefined : asFolderPath(owned);
 	}
 
 	/** Folder-note PARENT one hop UP from `path`, or `undefined` at the first folder-note gap. */
