@@ -1,17 +1,18 @@
 ---
+closed_iso: 2026-08-18T01:28:21Z
 session_ids: [{"a": "claude", "type": "execution", "id": "74c2cd96-a67a-40b8-b721-6fe410f5b210"}, {"a": "claude", "type": "review", "id": "08f3c9e0-e4b8-42be-b11b-7b317b736e89"}, {"a": "claude", "type": "review", "id": "f060e691-225c-40d7-a96d-7ea4affede23"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_82g9goy92k9ciyy64m1r6jofe_e
 title: "Reusable incremental vault index infrastructure"
-status: open
+status: closed
 deps: []
 links: []
 created_iso: 2026-08-17T16:44:24Z
-status_updated_iso: 2026-08-17T18:11:57Z
+status_updated_iso: 2026-08-18T01:28:21Z
 type: feature
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
-tags: [named-relationships, decide, need-human, failed-review-stage-2]
+tags: [named-relationships]
 ---
 
 Part of the named-relationships set. Read the PLAN first: `_tickets/add-ability-for-named-relationships.md` (closed plan ticket nid_fg66tanwkoyq3cqs1wdxagn21_e) — full syntax spec, signed-off decisions, architecture. Repo conventions: `CLAUDE.md` (layering view→adapters→engine, BDD tests, settings machinery).
@@ -97,3 +98,11 @@ What each round found, which fixes it made, and what it left unresolved are in
 its verdict note under `## Notes` above, the follow-up tickets it filed, and
 its session transcript. Decide whether to salvage the branch or retry fresh,
 then remove the tags and reopen or close as appropriate.
+
+**2026-08-18T01:07:52Z**
+
+STATE CORRECTION (2026-08-18): the 'nothing was merged' line below is stale — branch nid_82g9goy92k9ciyy64m1r6jofe_e_reusable-incremental-vault-index-infrast WAS merged into main (commit cf14e92) with every review-round fix included. The first real consumer now exists and is wired into production: NamedRelationshipsIndex (ticket nid_wldz7yfjecf9fuwtlezlbde9s_e, closed, done while fixing bug nid_3s47jew297bthxajy1v288hiu_e) exercises the scan gate, ensureReady sequencing and all three freshness handlers; npm test (2338), npm run check, and npm run test:e2e (196) are green on top of it. Remaining human call: the stage-2 review never issued READY, so close vs. re-review is still the decide-tagged decision — recommendation: close.
+
+**2026-08-18T01:28:39Z**
+
+CLOSED by human decision (2026-08-18): branch was already merged (cf14e92) with all review fixes; machinery is now proven under its first production consumer (NamedRelationshipsIndex) with npm test / check / e2e green. decide/need-human/failed-review-stage-2 tags removed.
