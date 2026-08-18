@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_ibx7hmt6cvmjh5rydi2aiyab9_e
 title: "Named relationships from frontmatter fields"
-status: open
+status: in_progress
 deps: [nid_wldz7yfjecf9fuwtlezlbde9s_e]
 links: []
 created_iso: 2026-08-17T16:44:24Z
-status_updated_iso: 2026-08-17T16:44:24Z
+status_updated_iso: 2026-08-18T01:40:54Z
 type: feature
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
