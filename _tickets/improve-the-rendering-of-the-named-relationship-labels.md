@@ -1,4 +1,5 @@
 ---
+session_ids: [{"a": "claude", "type": "execution", "id": "9c5530f7-1970-4c8d-b622-547ad3101230"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_xxdr52j98pjgli834qx2d2lsq_e
 title: "Improve the rendering of the named relationship labels"
