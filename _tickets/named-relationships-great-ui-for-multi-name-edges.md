@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_1ycy9aszptp9fih76equxtcqa_e
 title: "Named relationships: GREAT UI for multi-name edges"
-status: open
+status: in_progress
 deps: [nid_wnagjm2j144u0jsgixpcmmpar_e]
 links: []
 created_iso: 2026-08-17T16:44:24Z
-status_updated_iso: 2026-08-17T16:44:24Z
+status_updated_iso: 2026-08-18T02:18:37Z
 type: feature
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
