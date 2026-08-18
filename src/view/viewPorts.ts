@@ -43,17 +43,6 @@ export interface GraphBuildResult {
 	 * channels read, so a label's targets cannot disagree with the traversal.
 	 */
 	readonly folderNoteCandidates: FolderNoteCandidatesLookup;
-	/**
-	 * Whether THIS build's MAIN is a folder note whose owned folder EXISTS in the vault
-	 * — the create-child-note chip predicate (ticket `nid_rt0dyx6chv7fxae4k7q85f53l_e`).
-	 * Both halves are required: folder-note OWNERSHIP alone would put the chip on every
-	 * plain note `X.md` (whose would-be folder `X/` need not exist), and clicking would
-	 * mint that folder — the out-of-scope conversion. The existence half is a live
-	 * `NoteCreationPort.folderExists` check (an empty owned folder is invisible to the
-	 * path-set `FolderNoteIndex`), so it is decided in the adapter and carried here as a
-	 * flag `flowMapping` sets on the MAIN node without importing obsidian.
-	 */
-	readonly mainIsFolderNote: boolean;
 }
 
 /** Builds the vicinity graph for a MAIN file path. `null` = path unresolved. */
@@ -128,26 +117,6 @@ export interface ControlsActionsPort {
 	setNodeContentOverride(path: string, content: NodeContentOverride): Promise<void>;
 	/** Clear the doc's content override ("Inherit" — never mints an id); then rebuild every view. */
 	clearNodeContentOverride(path: string): Promise<void>;
-	/**
-	 * Create an empty child note inside the folder the MAIN folder note owns, then open
-	 * it (the create-child-note chip; ticket `nid_rt0dyx6chv7fxae4k7q85f53l_e`). UNLIKE
-	 * every other action here this is a VAULT-CONTENT write, not a `data.json` write: it
-	 * does NOT go through the settings write pipeline, and its own one-notice failure
-	 * policy lives in {@link ChildNoteCreatorPort}'s implementation. No explicit rebuild —
-	 * opening the new note makes it active and the graph re-centres via the active-file path.
-	 */
-	createChildNote(mainPath: string): Promise<void>;
-}
-
-/**
- * The create-child-note action ({@link ControlsActionsPort.createChildNote}
- * delegates here). Implemented by the adapter-layer `ChildNoteCreator`, which
- * owns the whole flow (resolve owned folder, dedupe, create empty, open) and its
- * one-notice failure policy — kept a separate seam because a vault-content write
- * shares nothing with the settings/pin write path `ControlsActions` otherwise owns.
- */
-export interface ChildNoteCreatorPort {
-	createChildNote(mainPath: string): Promise<void>;
 }
 
 /**

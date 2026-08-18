@@ -5,7 +5,6 @@ import { OUTLINE_RENDER_LIMIT } from "./constants";
 import { edgeClassName, edgeKindClassName, vicinityGraphToFlow, withGroupDimensions, withPositions } from "./flowMapping";
 import type { FlowNode, FlowPinFacts, FolderNoteCandidatesLookup, NoteFlowNode, XY } from "./flowMapping";
 import { NO_ORPHAN_TRUNCATION } from "./truncationBadges";
-import { relationColorSlot } from "./relationColor";
 import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
 
 function noteNode(nodes: readonly FlowNode[], id: string): NoteFlowNode | undefined {
@@ -21,7 +20,7 @@ const NO_FOLDER_NOTES: FolderNoteCandidatesLookup = { folderNoteCandidatesOf: ()
 
 /** Default mapping call: nothing pinned, no folder notes. Those cases have their own describes. */
 function toFlow(graph: Parameters<typeof vicinityGraphToFlow>[0]) {
-	return vicinityGraphToFlow(graph, NO_PINS, NO_FOLDER_NOTES, false);
+	return vicinityGraphToFlow(graph, NO_PINS, NO_FOLDER_NOTES);
 }
 
 describe("vicinityGraphToFlow nodes", () => {
@@ -63,35 +62,12 @@ describe("vicinityGraphToFlow nodes", () => {
 			isGloballyPinned: false,
 			isLocallyPinned: false,
 			hasSizeOverride: false,
-			offersChildNoteCreation: false,
 			folder: "",
 			outline: [],
 			preview: "none",
 			imageCount: 0,
 			attachmentGroups: [],
 		});
-	});
-});
-
-describe("vicinityGraphToFlow create-child-note flag (ticket nid_rt0dyx6chv7fxae4k7q85f53l_e)", () => {
-	const graph = makeGraph({
-		nodes: [
-			makeNode({ path: asVaultPath("Jon/Jon.md"), title: "Jon", isMain: true, isCentral: true }),
-			makeNode({ path: asVaultPath("Jon/child.md"), title: "child" }),
-		],
-	});
-
-	it("WHEN the main is a folder note with an existing folder THEN only the MAIN offers child-note creation", () => {
-		const flow = vicinityGraphToFlow(graph, NO_PINS, NO_FOLDER_NOTES, true);
-		expect({
-			main: noteNode(flow.nodes, "Jon/Jon.md")?.data.offersChildNoteCreation,
-			child: noteNode(flow.nodes, "Jon/child.md")?.data.offersChildNoteCreation,
-		}).toEqual({ main: true, child: false });
-	});
-
-	it("WHEN the main is NOT a folder note THEN no node offers child-note creation", () => {
-		const flow = vicinityGraphToFlow(graph, NO_PINS, NO_FOLDER_NOTES, false);
-		expect(noteNode(flow.nodes, "Jon/Jon.md")?.data.offersChildNoteCreation).toBe(false);
 	});
 });
 
@@ -177,7 +153,7 @@ describe("vicinityGraphToFlow pin flags (global vs local split)", () => {
 				}),
 			],
 		});
-		const data = noteNode(vicinityGraphToFlow(graph, pinFacts, NO_FOLDER_NOTES, false).nodes, "n.md")?.data;
+		const data = noteNode(vicinityGraphToFlow(graph, pinFacts, NO_FOLDER_NOTES).nodes, "n.md")?.data;
 		return data === undefined
 			? undefined
 			: { isGloballyPinned: data.isGloballyPinned, isLocallyPinned: data.isLocallyPinned };
@@ -282,7 +258,7 @@ describe("vicinityGraphToFlow folder groups", () => {
 		const candidatesByFolder = new Map([["notes", ["notes/notes.md", "notes.md"]]]);
 		const flow = vicinityGraphToFlow(groupedGraph(), NO_PINS, {
 			folderNoteCandidatesOf: (folder) => candidatesByFolder.get(folder) ?? [],
-		}, false);
+		});
 		const group = flow.nodes.find((node) => node.kind === "folder-group");
 		expect(group?.data.folderNoteCandidates).toEqual(["notes/notes.md", "notes.md"]);
 	});
@@ -359,7 +335,7 @@ describe("vicinityGraphToFlow folder-note candidates on a collapsed chain (R4)",
 				queriedFolders.push(folder);
 				return [];
 			},
-		}, false);
+		});
 		expect(queriedFolders).toEqual(["wiki/lang/en"]);
 	});
 });
@@ -878,7 +854,6 @@ describe("withPositions", () => {
 				isGloballyPinned: false,
 				isLocallyPinned: false,
 				hasSizeOverride: false,
-				offersChildNoteCreation: false,
 				folder: "",
 				outline: [],
 				preview: "none",
@@ -1287,117 +1262,5 @@ describe("vicinityGraphToFlow node geometry ignores the per-node content overrid
 		const choices: (NodeContentOverride | undefined)[] = [undefined, ...NODE_CONTENT_OVERRIDES];
 		const actual = Object.fromEntries(choices.map((c) => [String(c), boxesUnderOverride(c)]));
 		expect(actual).toEqual(Object.fromEntries(choices.map((c) => [String(c), baseline])));
-	});
-});
-
-describe("vicinityGraphToFlow named-relationship labels (ticket nid_wnagjm2j144u0jsgixpcmmpar_e)", () => {
-	function twoNodes() {
-		return [makeNode({ path: asVaultPath("a.md") }), makeNode({ path: asVaultPath("b.md") })];
-	}
-
-	it("WHEN a passthrough edge carries relation labels THEN the flow edge carries the same union", () => {
-		const graph = makeGraph({
-			nodes: twoNodes(),
-			edges: [{ ...makeEdge("a.md", "b.md"), relations: [{ name: "supports" }, { name: "refutes", qualifier: "weakly" }] }],
-		});
-		expect(toFlow(graph).edges[0]?.relations).toEqual([
-			{ label: { name: "supports" }, direction: "forward" },
-			{ label: { name: "refutes", qualifier: "weakly" }, direction: "forward" },
-		]);
-	});
-
-	it("WHEN a passthrough edge carries relation labels THEN its note pair carries them for the flyout", () => {
-		const graph = makeGraph({
-			nodes: twoNodes(),
-			edges: [{ ...makeEdge("a.md", "b.md"), relations: [{ name: "supports" }] }],
-		});
-		expect(toFlow(graph).edges[0]?.notePairs).toEqual([
-			{ source: "a.md", target: "b.md", hierarchy: false, relations: [{ name: "supports" }] },
-		]);
-	});
-
-	it("WHEN an edge carries no relation labels THEN the flow edge has no relations key", () => {
-		const graph = makeGraph({ nodes: twoNodes(), edges: [makeEdge("a.md", "b.md")] });
-		expect(toFlow(graph).edges[0]?.relations).toBeUndefined();
-	});
-
-	it("WHEN a rel-note label maps THEN its rel-note target survives to the flow edge", () => {
-		const graph = makeGraph({
-			nodes: twoNodes(),
-			edges: [{ ...makeEdge("a.md", "b.md"), relations: [{ name: "he supports", relNoteTarget: asVaultPath("rel/he-supports.md") }] }],
-		});
-		expect(toFlow(graph).edges[0]?.relations).toEqual([
-			{ label: { name: "he supports", relNoteTarget: "rel/he-supports.md" }, direction: "forward" },
-		]);
-	});
-
-	it("WHEN collapsed edges carry relations THEN the flow edge unions them deduped in first-seen order", () => {
-		const graph = makeGraph({
-			nodes: collapsedGraph().nodes,
-			edges: [
-				{ ...makeEdge("hub.md", "notes/a.md"), relations: [{ name: "supports" }] },
-				{ ...makeEdge("hub.md", "notes/b.md"), relations: [{ name: "supports" }, { name: "cites" }] },
-			],
-		});
-		// "supports" appears on both contributors — deduped to one; "cites" follows it.
-		// Both point hub → group, so both are forward.
-		expect(toFlow(graph).edges[0]?.relations).toEqual([
-			{ label: { name: "supports" }, direction: "forward" },
-			{ label: { name: "cites" }, direction: "forward" },
-		]);
-	});
-
-	it("WHEN collapsed edges carry relations THEN each note pair keeps only its OWN labels", () => {
-		const graph = makeGraph({
-			nodes: collapsedGraph().nodes,
-			edges: [
-				{ ...makeEdge("hub.md", "notes/a.md"), relations: [{ name: "supports" }] },
-				{ ...makeEdge("hub.md", "notes/b.md"), relations: [{ name: "cites" }] },
-			],
-		});
-		expect(toFlow(graph).edges[0]?.notePairs).toEqual([
-			{ source: "hub.md", target: "notes/a.md", hierarchy: false, relations: [{ name: "supports" }] },
-			{ source: "hub.md", target: "notes/b.md", hierarchy: false, relations: [{ name: "cites" }] },
-		]);
-	});
-
-	it("WHEN a collapsed edge unions OPPOSING named pairs THEN each label keeps its own direction", () => {
-		// hub → group fixes the forward orientation; the group → hub pair is backward.
-		const graph = makeGraph({
-			nodes: collapsedGraph().nodes,
-			edges: [
-				{ ...makeEdge("hub.md", "notes/a.md"), relations: [{ name: "supports" }] },
-				{ ...makeEdge("notes/b.md", "hub.md"), relations: [{ name: "cites" }] },
-			],
-		});
-		const edge = toFlow(graph).edges[0];
-		expect(edge?.bidirectional).toBe(true);
-		expect(edge?.relations).toEqual([
-			{ label: { name: "supports" }, direction: "forward" },
-			{ label: { name: "cites" }, direction: "backward" },
-		]);
-	});
-
-	it("WHEN an edge's names all share one hue THEN edgeClassName adds that colour hook (ticket nid_adesjb4clls56623vdu773ubg_e)", () => {
-		const graph = makeGraph({
-			nodes: twoNodes(),
-			edges: [{ ...makeEdge("a.md", "b.md"), relations: [{ name: "supports" }, { name: "supports", qualifier: "weakly" }] }],
-		});
-		expect(edgeClassName(toFlow(graph).edges[0]!)).toBe(
-			`vicinity-graph-edge--kind-link vicinity-graph-edge--relation-color-${relationColorSlot("supports")}`,
-		);
-	});
-
-	it("WHEN an edge mixes relation hues THEN edgeClassName omits the colour hook (line stays neutral)", () => {
-		const graph = makeGraph({
-			nodes: twoNodes(),
-			edges: [{ ...makeEdge("a.md", "b.md"), relations: [{ name: "supports" }, { name: "contradicts" }] }],
-		});
-		expect(edgeClassName(toFlow(graph).edges[0]!)).toBe("vicinity-graph-edge--kind-link");
-	});
-
-	it("WHEN an edge carries no relations THEN edgeClassName has no colour hook", () => {
-		const graph = makeGraph({ nodes: twoNodes(), edges: [makeEdge("a.md", "b.md")] });
-		expect(edgeClassName(toFlow(graph).edges[0]!)).toBe("vicinity-graph-edge--kind-link");
 	});
 });

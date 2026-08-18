@@ -54,11 +54,6 @@ const SHIPPED_SETTINGS_DEFAULTS: Readonly<Record<string, unknown>> = {
 	"globalDepths.linkDepthOut": 1,
 	"globalDepths.embedDepthOut": 1,
 	"globalDepths.linkDepthIn": 0,
-	// Named-relationship depths (feature `named-relationships`, human sign-off
-	// 2026-08-17): outgoing 2 (deeper than plain links — named diagrams traverse
-	// deep), incoming 1. Pinned variants follow the LINK convention (== active).
-	"globalDepths.namedDepthOut": 2,
-	"globalDepths.namedDepthIn": 1,
 	// Folder-note hierarchy (plan nid_ri1d36t7hmhu0kr652wny1dmz_e): the ACTIVE note
 	// shows one hop of descendants/ancestors by default; `0` is each dial's off switch.
 	"globalDepths.descendantDepth": 1,
@@ -69,11 +64,6 @@ const SHIPPED_SETTINGS_DEFAULTS: Readonly<Record<string, unknown>> = {
 	"globalDepths.pinnedLinkDepthOut": 1,
 	"globalDepths.pinnedEmbedDepthOut": 1,
 	"globalDepths.pinnedLinkDepthIn": 0,
-	// Pinned named depths follow the LINK convention (pinned == active): a named
-	// relation is a link relation, so a pinned root spreads its diagram as far as
-	// the active note (see SETTINGS_SPEC).
-	"globalDepths.pinnedNamedDepthOut": 2,
-	"globalDepths.pinnedNamedDepthIn": 1,
 	// Pinned hierarchy ships OFF (0/0): a pinned note contributes its folder
 	// hierarchy only when the user dials it up (owner decision).
 	"globalDepths.pinnedDescendantDepth": 0,

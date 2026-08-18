@@ -11,21 +11,11 @@ import { FakeDocIdPort } from "./FakeDocIdPort";
 import { FakeObsidianPorts } from "./FakeObsidianPorts";
 import { FolderNoteIndex } from "./FolderNoteIndex";
 import { FrontmatterIdIndex } from "./FrontmatterIdIndex";
-import { NamedRelationshipsIndex } from "./NamedRelationshipsIndex";
-import type { NoteCreationPort } from "./obsidianPorts";
 import { VicinityGraphBuilder } from "./VicinityGraphBuilder";
 
 /** The per-doc/per-main facts store (overrides + local pins) over in-memory disk. */
 function newPerDocStore(): PerDocStore {
 	return new PerDocStore(new VaultFileStore(".plugin_data/vicinity_graph", new FakeVaultFsPort(), () => 0));
-}
-
-/** A vault-write seam whose `folderExists` reports membership in a fixed set; `create` is unused here. */
-function fakeNoteCreation(existingFolders: readonly string[] = []): NoteCreationPort {
-	return {
-		create: () => Promise.reject(new Error("create not exercised in builder tests")),
-		folderExists: (folder) => existingFolders.includes(folder),
-	};
 }
 
 /**
@@ -64,8 +54,6 @@ async function builderFixture() {
 		new DocIdMapWarmer(ports.vault, docIdPort, pathDocIdMap),
 		new FrontmatterIdIndex(ports.vault, ports.metadataCache, () => ""),
 		new FolderNoteIndex(ports.vault),
-		new NamedRelationshipsIndex(ports.vault, ports.metadataCache),
-		fakeNoteCreation(),
 	);
 	return { builder, docIdPort, pathDocIdMap, pluginDataStore, perDocStore };
 }
@@ -127,54 +115,6 @@ describe("VicinityGraphBuilder", () => {
 });
 
 /**
- * The create-child-note chip predicate (ticket nid_rt0dyx6chv7fxae4k7q85f53l_e):
- * main is a folder note (path-set rule) AND its owned folder EXISTS (live check).
- */
-describe("VicinityGraphBuilder create-child-note predicate (mainIsFolderNote)", () => {
-	async function build(mainPath: string, files: readonly string[], existingFolders: readonly string[]) {
-		const ports = new FakeObsidianPorts({ files: files.map((path) => ({ path })) });
-		const docIdPort = new FakeDocIdPort({});
-		const pluginDataStore = new PluginDataStore(new FakePluginDataPort());
-		await pluginDataStore.init();
-		const pathDocIdMap = new PathDocIdMap();
-		const builder = new VicinityGraphBuilder(
-			ports.vault,
-			ports.metadataCache,
-			docIdPort,
-			new CanvasParseCache(),
-			pluginDataStore,
-			newPerDocStore(),
-			pathDocIdMap,
-			new DocIdMapWarmer(ports.vault, docIdPort, pathDocIdMap),
-			new FrontmatterIdIndex(ports.vault, ports.metadataCache, () => ""),
-			new FolderNoteIndex(ports.vault),
-			new NamedRelationshipsIndex(ports.vault, ports.metadataCache),
-			fakeNoteCreation(existingFolders),
-		);
-		return builder.build(mainPath);
-	}
-
-	it("WHEN the main is a folder note whose owned folder exists THEN the flag is set", async () => {
-		const result = await build("Jon/Jon.md", ["Jon/Jon.md", "Jon/child.md"], ["Jon"]);
-		expect(result?.mainIsFolderNote).toBe(true);
-	});
-
-	it("WHEN the main's would-be folder does NOT exist THEN the flag is clear (never mint a folder)", async () => {
-		// A plain note `Note.md` is FolderNotes' candidate owner of `Note/`, but `Note/`
-		// has no files AND folderExists says it is absent — so no chip.
-		const result = await build("Note.md", ["Note.md"], []);
-		expect(result?.mainIsFolderNote).toBe(false);
-	});
-
-	it("WHEN a sibling folder note owns an EMPTY but existing folder THEN the flag is set", async () => {
-		// `Jon.md` sibling-owns `Jon/`, which holds no node-bearing files (invisible to the
-		// path-set index) yet exists as a directory — the empty-folder edge (Decision 1).
-		const result = await build("Jon.md", ["Jon.md"], ["Jon"]);
-		expect(result?.mainIsFolderNote).toBe(true);
-	});
-});
-
-/**
  * Restart shape: data.json carries a pin AND a per-node override, but the
  * in-memory path↔docid map is COLD (nothing pre-warmed). The first build must
  * resolve both on demand instead of waiting for the delayed sweep
@@ -221,8 +161,6 @@ async function coldMapFixture(options: { readonly unreadablePath?: string } = {}
 		new DocIdMapWarmer(ports.vault, docIdPort, pathDocIdMap),
 		new FrontmatterIdIndex(ports.vault, ports.metadataCache, () => ""),
 		new FolderNoteIndex(ports.vault),
-		new NamedRelationshipsIndex(ports.vault, ports.metadataCache),
-		fakeNoteCreation(),
 	);
 	return { builder, docIdPort };
 }

@@ -3,8 +3,6 @@ import { EdgeAssembly } from "./EdgeAssembly";
 import { GraphTruncator } from "./GraphTruncator";
 import type { TruncationResult } from "./GraphTruncator";
 import type { LinkProvider } from "./LinkProvider";
-import { RelationFoldingLinkProvider } from "./RelationFoldingLinkProvider";
-import type { RelationProvider } from "./RelationProvider";
 import { PathExclusionMatcher } from "./PathExclusionMatcher";
 import { VicinityTraversal } from "./VicinityTraversal";
 import type { TraversalRoot, TraversedNode } from "./VicinityTraversal";
@@ -60,20 +58,7 @@ export interface GraphBuildRequest {
  * synchronous; Obsidian reaches it only through {@link LinkProvider}.
  */
 export class VicinityEngine {
-	private readonly provider: LinkProvider;
-
-	/**
-	 * @param provider the base link truth (Obsidian's resolvedLinks/backlinks + canvas).
-	 * @param relationProvider the NAMED-RELATIONSHIP seam (feature `named-relationships`).
-	 *   When present, the base provider is wrapped in the {@link RelationFoldingLinkProvider}
-	 *   choke point so rel-note name occurrences fold out of BOTH traversal discovery and
-	 *   edge assembly. Absent ⇒ the plain link graph (no named channels reach anything,
-	 *   since references carry no relation labels).
-	 */
-	constructor(provider: LinkProvider, relationProvider?: RelationProvider) {
-		this.provider =
-			relationProvider === undefined ? provider : new RelationFoldingLinkProvider(provider, relationProvider);
-	}
+	constructor(private readonly provider: LinkProvider) {}
 
 	build(request: GraphBuildRequest): VicinityGraph {
 		const viewSettings = request.globalView;

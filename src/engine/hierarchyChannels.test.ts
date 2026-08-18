@@ -209,7 +209,7 @@ describe("hierarchy relations are invisible to the cross-links sweep and getLink
 		const result = new VicinityTraversal(provider).traverse([
 			{
 				descriptor: { path: asVaultPath("Home.md") },
-				depths: { linkDepthOut: 0, embedDepthOut: 0, linkDepthIn: 0, namedDepthOut: 0, namedDepthIn: 0, descendantDepth: 1, ancestorDepth: 0 },
+				depths: { linkDepthOut: 0, embedDepthOut: 0, linkDepthIn: 0, descendantDepth: 1, ancestorDepth: 0 },
 			},
 		]);
 		const key = [...result.hierarchyPairKeys][0];

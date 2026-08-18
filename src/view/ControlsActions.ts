@@ -6,12 +6,7 @@ import type { SettingsResetScope } from "./settingsResetPlan";
 import type { NonSettingsWriteSubject } from "./settingsWriteFailureNotice";
 import type { GuardedWriteOutcome, SettingsWritePipeline } from "./settingsWritePipeline";
 import type { SettingsInteraction } from "./settingsWritePlan";
-import type {
-	ActiveMainProvider,
-	ChildNoteCreatorPort,
-	ControlsActionsPort,
-	UserNoticePort,
-} from "./viewPorts";
+import type { ActiveMainProvider, ControlsActionsPort, UserNoticePort } from "./viewPorts";
 
 /**
  * Obsidian executor for the controls surface (step-06 #6/#8). Thin glue with ONE
@@ -68,12 +63,6 @@ export class ControlsActions implements ControlsActionsPort {
 		private readonly notices: UserNoticePort,
 		/** Which note the graph is built around — the MAIN a local pin is scoped to. */
 		private readonly activeMain: ActiveMainProvider,
-		/**
-		 * The create-child-note action. Its own seam because it is a vault-content write,
-		 * not a `data.json` write — it carries its own one-notice failure policy and never
-		 * touches the pipeline's guarded chain (see {@link ChildNoteCreatorPort}).
-		 */
-		private readonly childNoteCreator: ChildNoteCreatorPort,
 	) {}
 
 	applySettings(interaction: SettingsInteraction): Promise<void> {
@@ -251,16 +240,6 @@ export class ControlsActions implements ControlsActionsPort {
 			await this.persistenceServices.clearNodeOverrideField(file, "content");
 			return "store-changed";
 		});
-	}
-
-	/**
-	 * A VAULT-CONTENT write, so it deliberately does NOT touch the guarded settings
-	 * chain the pin/size/content actions above run on: it mints no docid, changes no
-	 * `data.json`, and carries its own one-notice failure policy inside the creator.
-	 * Delegation only — this class stays the settings/pin executor.
-	 */
-	createChildNote(mainPath: string): Promise<void> {
-		return this.childNoteCreator.createChildNote(mainPath);
 	}
 
 	/**

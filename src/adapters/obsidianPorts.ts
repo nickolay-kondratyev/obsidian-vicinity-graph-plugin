@@ -31,41 +31,15 @@ export interface VaultPort {
 	cachedRead(file: VaultFilePort): Promise<string>;
 }
 
-/**
- * The plugin's ONE vault-WRITE seam — deliberately separate from the read-only
- * {@link VaultPort} (OCP: a new interface, not a widening) so the read path can
- * never accidentally mint vault content. Backs the create-child-note chip
- * (ticket `nid_rt0dyx6chv7fxae4k7q85f53l_e`): {@link create} over `Vault.create`,
- * and {@link folderExists} over `Vault.getFolderByPath` — the folder-existence
- * half of the chip predicate, which can NOT come from the path-set-derived
- * `FolderNoteIndex` (an empty owned folder is invisible to it). Real `Vault`
- * does not satisfy this structurally (its `getFolderByPath` returns a folder
- * object, not a boolean), so `ObsidianNoteCreation` adapts it.
- */
-export interface NoteCreationPort {
-	/** Create a note at `path` with `content`, resolving to the created file. */
-	create(path: string, content: string): Promise<VaultFilePort>;
-	/** True when a FOLDER exists at `folder` in the vault — an EMPTY folder counts. */
-	folderExists(folder: string): boolean;
-}
-
 /** Structural slice of a `ReferenceCache` (LinkCache / EmbedCache). */
 export interface ReferencePort {
 	readonly link: string;
 	readonly position: { readonly start: { readonly offset: number } };
 }
 
-/**
- * Structural slice of a `FrontmatterLinkCache` (property links carry no body offset).
- * {@link key} is the frontmatter FIELD the link sits under — the named-relationship
- * name (`up: "[[parent]]"` ⇒ key `up`). Obsidian flattens a list-valued field into
- * one cache entry per element, suffixing the key with a numeric index (`up.0`,
- * `up.1`); {@link import("./FrontmatterRelationships").FrontmatterRelationships}
- * strips that suffix.
- */
+/** Structural slice of a `FrontmatterLinkCache` (property links carry no body offset). */
 export interface FrontmatterLinkPort {
 	readonly link: string;
-	readonly key: string;
 }
 
 /**

@@ -3,9 +3,6 @@ import type { ViewStateResult, WorkspaceLeaf } from "obsidian";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import type { Root } from "react-dom/client";
-import type { FolderNoteIndex } from "../adapters/FolderNoteIndex";
-import { ChildNoteCreator } from "../adapters/ChildNoteCreator";
-import type { NoteCreationPort } from "../adapters/obsidianPorts";
 import type { VicinityGraphBuilder } from "../adapters/VicinityGraphBuilder";
 import type { LinkOccurrenceProvider } from "../engine";
 import type { PersistenceServices } from "../persistence/PersistenceServices";
@@ -47,10 +44,6 @@ export class VicinityGraphView extends ItemView {
 		private readonly notices: UserNoticePort,
 		/** Per-query occurrence snapshots for the link-preview drawer; owned by the plugin. */
 		private readonly occurrenceProvider: LinkOccurrenceProvider,
-		/** Plugin-lived folder-note index — the owned-folder half of the create-child-note action. */
-		private readonly folderNoteIndex: FolderNoteIndex,
-		/** Plugin-lived vault-write seam — the create + folderExists half of the child-note action. */
-		private readonly noteCreation: NoteCreationPort,
 	) {
 		super(leaf);
 	}
@@ -83,16 +76,6 @@ export class VicinityGraphView extends ItemView {
 			linkPreview,
 		);
 		this.controller = controller;
-		// The create-child-note action (vault-content write + open): resolves the owned
-		// folder through the plugin-lived index, writes/checks folders through the write
-		// seam, opens through the navigator (its openNote satisfies NoteOpenPort).
-		const childNoteCreator = new ChildNoteCreator(
-			this.folderNoteIndex,
-			this.noteCreation,
-			this.app.vault,
-			navigator,
-			this.notices,
-		);
 		const controlsActions = new ControlsActions(
 			this.persistenceServices,
 			this.app.vault,
@@ -101,7 +84,6 @@ export class VicinityGraphView extends ItemView {
 			// The controller owns which note the graph is built around — the MAIN a local
 			// pin is scoped to (a clicked node re-centres it before the active-file event).
 			controller,
-			childNoteCreator,
 		);
 		this.controlsActions = controlsActions;
 		this.registerGraphEvents(controller, navigator);

@@ -1,4 +1,3 @@
-import type { RelationLabel } from "../engine";
 import type { FolderHiddenCount } from "./truncationBadges";
 
 /**
@@ -37,40 +36,6 @@ export function groupHiddenTitleText(hiddenCount: number): string {
 /** Edge multi-link badge; `null` = no badge (single link). */
 export function linkCountBadgeText(count: number): string | null {
 	return count > 1 ? `×${count}` : null;
-}
-
-/**
- * Literal marker for the TARGET position in a qualified relation label — the
- * edge already points at the target, so the label never repeats the note title
- * (plan `nid_fg66tanwkoyq3cqs1wdxagn21_e`): `supports [X] but not strongly`.
- * Shared by the edge label and the flyout breakdown so the marker lives once.
- */
-export const RELATION_TARGET_MARKER = "[X]";
-
-/**
- * One named relation's display text: the bare name, or — when the wrapped form
- * carried a qualifier — `name [X] qualifier`, the target's position marked by
- * {@link RELATION_TARGET_MARKER}. The rel-note vs plain-text distinction is
- * already folded into `name` (alias-else-basename), so it does not surface here.
- */
-export function relationLabelText(relation: RelationLabel): string {
-	return relation.qualifier === undefined
-		? relation.name
-		: `${relation.name} ${RELATION_TARGET_MARKER} ${relation.qualifier}`;
-}
-
-/**
- * Overflow chip shown when an edge carries more relation names than fit on the
- * canvas: `+N`. The names it hides are named in {@link relationOverflowTitle},
- * and the full breakdown lives one click away in the edge flyout.
- */
-export function relationOverflowBadgeText(hiddenCount: number): string {
-	return plusNText(hiddenCount);
-}
-
-/** Tooltip on the relation-overflow chip: the hidden names, then where to see all. */
-export function relationOverflowTitle(hiddenNames: readonly string[]): string {
-	return `${hiddenNames.join(", ")} — click the edge for the full breakdown`;
 }
 
 /** Multiline tooltip body for the corner overlay: one "folder — N hidden" line per folder. */

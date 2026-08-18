@@ -55,7 +55,7 @@ describe("extractEdgeRoutingInput under multi-level nesting", () => {
 				makeNode({ path: asVaultPath("A/B/b2.md"), folder: asFolderPath("A/B") }),
 			],
 		});
-		const flow = vicinityGraphToFlow(graph, NO_PINS, NO_FOLDER_NOTES, false);
+		const flow = vicinityGraphToFlow(graph, NO_PINS, NO_FOLDER_NOTES);
 		const positions = new Map<string, XY>([
 			["folder-group:A", { x: 100, y: 100 }],
 			["folder-group:A/B", { x: 150, y: 170 }],
@@ -106,7 +106,7 @@ describe("extractEdgeRoutingInput", () => {
 			],
 			edges: [makeEdge("notes/a.md", "notes/b.md"), makeEdge("notes/a.md", "root.md")],
 		});
-		const flow = vicinityGraphToFlow(graph, NO_PINS, NO_FOLDER_NOTES, false);
+		const flow = vicinityGraphToFlow(graph, NO_PINS, NO_FOLDER_NOTES);
 		const positions = new Map<string, XY>([
 			["folder-group:notes", { x: 100, y: 100 }],
 			["notes/a.md", { x: 110, y: 140 }],
@@ -169,7 +169,7 @@ describe("extractEdgeRoutingInput", () => {
 
 	it("WHEN a node lacks a position THEN it is skipped as an obstacle", () => {
 		const graph = makeGraph({ nodes: [makeNode({ path: asVaultPath("lonely.md") })], edges: [] });
-		const flow = vicinityGraphToFlow(graph, NO_PINS, NO_FOLDER_NOTES, false);
+		const flow = vicinityGraphToFlow(graph, NO_PINS, NO_FOLDER_NOTES);
 		const input = extractEdgeRoutingInput({
 			nodes: flow.nodes,
 			edges: flow.edges,
@@ -197,7 +197,7 @@ describe("extractEdgeRoutingInput", () => {
 			],
 			edges: [makeEdge("broken.md", "ok.md")],
 		});
-		const flow = vicinityGraphToFlow(graph, NO_PINS, NO_FOLDER_NOTES, false);
+		const flow = vicinityGraphToFlow(graph, NO_PINS, NO_FOLDER_NOTES);
 		return extractEdgeRoutingInput({
 			nodes: flow.nodes,
 			edges: flow.edges,
@@ -244,7 +244,7 @@ describe("extractEdgeRoutingInput", () => {
 			],
 			edges: [],
 		});
-		const flow = vicinityGraphToFlow(graph, NO_PINS, NO_FOLDER_NOTES, false);
+		const flow = vicinityGraphToFlow(graph, NO_PINS, NO_FOLDER_NOTES);
 		const input = extractEdgeRoutingInput({
 			nodes: flow.nodes,
 			edges: flow.edges,

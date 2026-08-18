@@ -2,10 +2,8 @@ import type { AttachmentRef, FileMetadata, LinkProvider, OutgoingReference, Outl
 import { asFolderPath, asVaultPath, OutgoingReferences } from "../engine";
 import { FileKinds } from "../shared/FileKinds";
 import { BacklinksAdapter } from "./BacklinksAdapter";
-import { FrontmatterRelationships } from "./FrontmatterRelationships";
 import type { FolderNoteIndex } from "./FolderNoteIndex";
 import type { FrontmatterIdIndex } from "./FrontmatterIdIndex";
-import type { NamedRelationshipsIndex } from "./NamedRelationshipsIndex";
 import type { OrderedReference } from "./ReferenceOrder";
 import { ReferenceOrder } from "./ReferenceOrder";
 import type { CanvasReference } from "./CanvasFallbackParser";
@@ -82,12 +80,6 @@ export class ObsidianLinkProvider implements LinkProvider {
 		 * warmed by {@link create}, so it survives across provider snapshots.
 		 */
 		private readonly folderNoteIndex: FolderNoteIndex,
-		/**
-		 * Plugin-lived named-relationships index: relation LABELS merge into the
-		 * outgoing stream below (a named link is still a link — either-budget union),
-		 * exactly like the id-ref merge. Warmed by {@link create}, so queries are sync.
-		 */
-		private readonly namedRelations: NamedRelationshipsIndex,
 		backlinksAvailable: boolean,
 	) {
 		if (!backlinksAvailable) {
@@ -102,16 +94,12 @@ export class ObsidianLinkProvider implements LinkProvider {
 		canvasParseCache: CanvasParseCache,
 		frontmatterIdIndex: FrontmatterIdIndex,
 		folderNoteIndex: FolderNoteIndex,
-		namedRelations: NamedRelationshipsIndex,
 	): Promise<ObsidianLinkProvider> {
 		// Lazy warm (mirrors PerDocStore): builds on the first snapshot, a no-op
 		// afterwards until an event or a settings change invalidates it. Queries below
 		// are then synchronous reads.
 		frontmatterIdIndex.ensureBuilt();
 		folderNoteIndex.ensureBuilt();
-		// The named-relationships scan is usually already done (started eagerly at
-		// plugin load); awaiting it here keeps the sync-query contract on first build.
-		await namedRelations.ensureReady();
 		const canvasOutgoing = new Map<string, readonly OutgoingReference[]>();
 		const canvasIncoming = new Map<string, string[]>();
 		for (const file of vault.getFiles()) {
@@ -139,7 +127,6 @@ export class ObsidianLinkProvider implements LinkProvider {
 			canvasIncoming,
 			frontmatterIdIndex,
 			folderNoteIndex,
-			namedRelations,
 			BacklinksAdapter.isAvailable(metadataCache),
 		);
 	}
@@ -158,8 +145,7 @@ export class ObsidianLinkProvider implements LinkProvider {
 		if (file === null) {
 			return [];
 		}
-		const cache = this.metadataCache.getFileCache(file);
-		const references = orderedReferencesOf(file, cache);
+		const references = orderedReferencesOf(file, this.metadataCache.getFileCache(file));
 		const base = this.outgoingReferencesOf(file, references);
 		// Merge frontmatter id-refs as ordinary `link` edges (KISS: visually identical
 		// to wikilinks). `deduped` drops an id-ref already carried as a wikilink of the
@@ -167,23 +153,10 @@ export class ObsidianLinkProvider implements LinkProvider {
 		const idRefs = this.frontmatterIdIndex
 			.resolvedTargets(path)
 			.map((target): OutgoingReference => ({ target, kind: "link" }));
-		// Merge named-relationship labels: `deduped` folds each label onto the very
-		// reference the plain cache link already produced for that (target, kind), so
-		// ONE physical occurrence serves both the plain and the named channel
-		// (either-budget union) and the flyout's label rides the same edge.
-		const named = this.namedRelations.namedReferences(path);
-		// Frontmatter link fields are named relationships too (`up: "[[parent]]"` →
-		// --up-->): the SAME either-budget merge as inline statements, but sourced from
-		// metadataCache's `frontmatterLinks` (field key = relation name) — no `::` parse.
-		// The plain frontmatter link is already in `base` (via `ReferenceOrder`), so
-		// `deduped` folds the field-key label onto it.
-		const frontmatterNamed = FrontmatterRelationships.namedReferences(cache?.frontmatterLinks, (link) =>
-			this.resolveVaultPath(link, path),
-		);
-		if (idRefs.length === 0 && named.length === 0 && frontmatterNamed.length === 0) {
+		if (idRefs.length === 0) {
 			return base;
 		}
-		return OutgoingReferences.deduped([...base, ...idRefs, ...named, ...frontmatterNamed]);
+		return OutgoingReferences.deduped([...base, ...idRefs]);
 	}
 
 	getOutgoingLinks(path: VaultPath): readonly VaultPath[] {
@@ -330,12 +303,6 @@ export class ObsidianLinkProvider implements LinkProvider {
 	/** The vault path a link text resolves to from `fromPath`, or `undefined` when it dangles. */
 	private resolveReference(link: string, fromPath: string): string | undefined {
 		return this.metadataCache.getFirstLinkpathDest(link, fromPath)?.path;
-	}
-
-	/** {@link resolveReference} as a branded {@link VaultPath} — the frontmatter-relation resolver. */
-	private resolveVaultPath(link: string, fromPath: string): VaultPath | undefined {
-		const target = this.resolveReference(link, fromPath);
-		return target === undefined ? undefined : asVaultPath(target);
 	}
 
 	/**

@@ -31,8 +31,6 @@ export type NoteNodeType = Node<FlowNodeData, "note">;
 
 /** Lucide id of the hover gear (per-node content menu) — the conventional settings glyph. */
 const GEAR_ICON_ID = "settings";
-/** Lucide id of the create-child-note chip (signed-off), a "new file in a place" glyph. */
-const CHILD_NOTE_ICON_ID = "file-plus-2";
 /**
  * Native-menu section ids for the gear menu, kept apart so a separator is drawn
  * between the Content choices and "Reset size" (see {@link NodeMenuEntry.section}).
@@ -115,12 +113,6 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
 			data.path,
 		],
 	);
-	// The create-child-note chip's click (MAIN folder note only — gated in the markup
-	// by data.offersChildNoteCreation). The adapter resolves the owned folder and
-	// dedupes the untitled name FRESH at click time, so only the main's path is needed.
-	const runCreateChildNote = useCallback(() => {
-		void actions.createChildNote(data.path);
-	}, [actions, data.path]);
 	// Commit-on-release (the drag itself only moves the local React Flow box —
 	// see VicinityGraphFlow's onNodesChange): persist the released box as the
 	// doc's global size override, then the pipeline's fan-out runs the ONE
@@ -232,11 +224,6 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
 					variantClassName="vicinity-graph-pin-button"
 				/>
 				<GearButton onActivate={onGearClick} />
-				{/* The create-child-note chip: bottom-right, present ONLY on a MAIN folder
-				    note whose owned folder exists (data.offersChildNoteCreation). Its own
-				    corner (pin/gear own the top), so it never fights their clicks; CSS
-				    clears the bottom/right resize grips and the attachment strip. */}
-				{data.offersChildNoteCreation && <ChildNoteButton onActivate={runCreateChildNote} />}
 				{/* Read-only graph: handles exist only as edge anchors (top target /
 				    bottom source matches the elk DOWN direction) and are hidden in CSS. */}
 				<Handle type="target" position={Position.Top} className="vicinity-graph-node__handle" />
@@ -357,41 +344,6 @@ function GearButton({
 			aria-label="Node settings"
 			title="Node settings"
 			onClick={onActivate}
-		>
-			<span ref={iconRef} className="vicinity-graph-node-chip__icon" aria-hidden="true" />
-		</button>
-	);
-}
-
-/**
- * Hover-reveal create-child-note chip — the BOTTOM-right corner (its own corner: the
- * pin/gear own the top-right, the resize grips own the bottom/right edges, so nothing
- * here fights for the same clicks). Present only on a MAIN folder note whose owned
- * folder exists (gated by the caller). Hidden until the node is hovered (CSS), a
- * `nodrag nopan` escape hatch so the click never starts a node drag or canvas pan.
- * A plain button, not a toggle: one action, no pressed state. Its click creates an
- * empty child inside the owned folder and opens it.
- */
-function ChildNoteButton({ onActivate }: { readonly onActivate: () => void }): ReactElement {
-	const ui = useGraphUi();
-	const iconRef = useRef<HTMLSpanElement>(null);
-	useEffect(() => {
-		if (iconRef.current !== null) {
-			ui.renderIcon(iconRef.current, CHILD_NOTE_ICON_ID);
-		}
-	}, [ui]);
-	const onClick = (event: ReactMouseEvent<HTMLButtonElement>): void => {
-		// The button must not double as a node click (which would open the note).
-		event.stopPropagation();
-		onActivate();
-	};
-	return (
-		<button
-			type="button"
-			className="vicinity-graph-node-chip vicinity-graph-child-note-button nodrag nopan"
-			aria-label="Create child note"
-			title="Create child note"
-			onClick={onClick}
 		>
 			<span ref={iconRef} className="vicinity-graph-node-chip__icon" aria-hidden="true" />
 		</button>

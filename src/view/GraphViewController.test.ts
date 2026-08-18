@@ -84,7 +84,7 @@ class FakeGraphSource implements GraphSourcePort {
 		this.pendingAt(index).resolve(
 			graph === null
 				? null
-				: { graph, controls: EMPTY_CONTROLS, pinFacts: NO_PINS, folderNoteCandidates: NO_FOLDER_NOTES, mainIsFolderNote: false },
+				: { graph, controls: EMPTY_CONTROLS, pinFacts: NO_PINS, folderNoteCandidates: NO_FOLDER_NOTES },
 		);
 	}
 

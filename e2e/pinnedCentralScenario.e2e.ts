@@ -95,7 +95,7 @@ function pinnedDepthSection(): Locator {
 function linksOutDepthValue(): Locator {
 	return depthSection()
 		.locator(".vicinity-graph-stepper")
-		.filter({ has: page.getByText("Links out", { exact: true }) })
+		.filter({ hasText: "Links out" })
 		.locator(".vicinity-graph-stepper__value");
 }
 

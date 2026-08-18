@@ -137,55 +137,6 @@ describe("LinkPreviewModels.edge folder relations", () => {
 	});
 });
 
-describe("LinkPreviewModels.edge named relations", () => {
-	it("WHEN a pair carries relation labels THEN each becomes a relation row keyed to the pair's source", () => {
-		const model = LinkPreviewModels.edge(
-			edgeInputs([
-				{
-					sourcePath: NOTE,
-					targetPath: TARGET_A,
-					occurrences: [],
-					relations: [{ name: "supports" }, { name: "refutes", qualifier: "weakly" }],
-				},
-			]),
-		);
-		expect(model.relations).toEqual([
-			{ name: "supports", sourcePath: NOTE },
-			{ name: "refutes", qualifier: "weakly", sourcePath: NOTE },
-		]);
-	});
-
-	it("WHEN a rel-note label maps THEN its rel-note target carries through for the flyout link", () => {
-		const REL = asVaultPath("rel/he-supports.md");
-		const model = LinkPreviewModels.edge(
-			edgeInputs([
-				{ sourcePath: NOTE, targetPath: TARGET_A, occurrences: [], relations: [{ name: "he supports", relNoteTarget: REL }] },
-			]),
-		);
-		expect(model.relations).toEqual([{ name: "he supports", relNoteTarget: REL, sourcePath: NOTE }]);
-	});
-
-	it("WHEN several pairs carry relations THEN they flatten in the same sorted (source, target) order", () => {
-		const model = LinkPreviewModels.edge(
-			edgeInputs([
-				{ sourcePath: NOTE, targetPath: TARGET_B, occurrences: [], relations: [{ name: "cites" }] },
-				{ sourcePath: NOTE, targetPath: TARGET_A, occurrences: [], relations: [{ name: "supports" }] },
-			]),
-		);
-		expect(model.relations).toEqual([
-			{ name: "supports", sourcePath: NOTE },
-			{ name: "cites", sourcePath: NOTE },
-		]);
-	});
-
-	it("WHEN no pair carries a relation label THEN the model's relations are empty", () => {
-		const model = LinkPreviewModels.edge(
-			edgeInputs([{ sourcePath: NOTE, targetPath: TARGET_A, occurrences: [occurrenceAt(3)] }]),
-		);
-		expect(model.relations).toEqual([]);
-	});
-});
-
 describe("edgeEndpointDisplayName", () => {
 	it("WHEN the endpoint is a note path THEN the note title is used", () => {
 		expect(edgeEndpointDisplayName("notes/x.md")).toBe("x");

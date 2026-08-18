@@ -53,7 +53,6 @@ export type {
 	NodePreviewPreference,
 	NodeSizeOverridePx,
 	OutlineEntry,
-	RelationLabel,
 	VicinityGraph,
 	PinnedNodeDescriptor,
 	SizingSettings,
@@ -70,13 +69,6 @@ export {
 	NODE_PREVIEW_PREFERENCES,
 } from "./types";
 export { parseIdRefFields } from "./frontmatterLinkFields";
-export { RelationshipStatements } from "./RelationshipStatements";
-export type {
-	RelationshipName,
-	RelationshipStatement,
-	RelationshipTarget,
-	TextSpan,
-} from "./RelationshipStatements";
 
 export type { FileMetadata, LinkProvider, OutgoingReference } from "./LinkProvider";
 export { OutgoingReferences } from "./LinkProvider";
@@ -95,14 +87,7 @@ export type { FakeOccurrenceSpec } from "./FakeLinkOccurrenceProvider";
 export { NodeEligibility } from "./NodeEligibility";
 export { PathExclusionMatcher } from "./PathExclusionMatcher";
 export { FakeLinkProvider } from "./FakeLinkProvider";
-export type { FakeFileSpec, FakeNamedRelation, FakeVaultSpec } from "./FakeLinkProvider";
-
-// Named relationships (feature `named-relationships`): the rel-note fold seam + its
-// folding LinkProvider choke point, plus the fixture provider.
-export type { RelationProvider } from "./RelationProvider";
-export { RelationFoldingLinkProvider } from "./RelationFoldingLinkProvider";
-export { FakeRelationProvider } from "./FakeRelationProvider";
-export type { FakeRelationSpec } from "./FakeRelationProvider";
+export type { FakeFileSpec, FakeVaultSpec } from "./FakeLinkProvider";
 
 export { VicinityEngine } from "./VicinityEngine";
 export type { GraphBuildRequest } from "./VicinityEngine";

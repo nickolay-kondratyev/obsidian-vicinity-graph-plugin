@@ -1,4 +1,4 @@
-import { VicinityEngine, asVaultPath } from "../engine";
+import { VicinityEngine } from "../engine";
 import type { DocIdMapWarmer } from "../persistence/DocIdMapWarmer";
 import type { PathDocIdMap } from "../persistence/PathDocIdMap";
 import type { PerDocStore } from "../persistence/PerDocStore";
@@ -11,9 +11,8 @@ import type { FolderNoteIndex } from "./FolderNoteIndex";
 import type { FrontmatterIdIndex } from "./FrontmatterIdIndex";
 import type { GraphRequestInputs } from "./GraphRequestAssembler";
 import { GraphRequestAssembler } from "./GraphRequestAssembler";
-import type { NamedRelationshipsIndex } from "./NamedRelationshipsIndex";
 import { ObsidianLinkProvider } from "./ObsidianLinkProvider";
-import type { DocIdPort, MetadataCachePort, NoteCreationPort, VaultPort } from "./obsidianPorts";
+import type { DocIdPort, MetadataCachePort, VaultPort } from "./obsidianPorts";
 
 /**
  * The one async orchestration per rebuild: live Obsidian state → provider,
@@ -40,18 +39,6 @@ export class VicinityGraphBuilder {
 		private readonly frontmatterIdIndex: FrontmatterIdIndex,
 		/** Plugin-lived folder-note index for the hierarchy channels — warmed lazily on the first build. */
 		private readonly folderNoteIndex: FolderNoteIndex,
-		/**
-		 * Plugin-lived named-relationships index: labels ride the provider's outgoing
-		 * references, and this SAME instance is the engine's `RelationProvider` (the
-		 * rel-note folding seam) — one truth for both halves of the feature.
-		 */
-		private readonly namedRelations: NamedRelationshipsIndex,
-		/**
-		 * The vault-existence half of the create-child-note chip predicate: an owned folder
-		 * that is EMPTY is invisible to the path-set {@link FolderNoteIndex}, so its existence
-		 * comes from a live `getFolderByPath`-shaped check here (READ-ONLY use of this write seam).
-		 */
-		private readonly noteCreation: NoteCreationPort,
 	) {}
 
 	/** `null` when `mainPath` does not resolve to a vault file. */
@@ -66,7 +53,6 @@ export class VicinityGraphBuilder {
 			this.canvasParseCache,
 			this.frontmatterIdIndex,
 			this.folderNoteIndex,
-			this.namedRelations,
 		);
 		const mainDocId = this.docIdPort.isEligible(mainFile) ? await this.docIdPort.getDocId(mainFile) : null;
 		if (mainDocId !== null) {
@@ -109,7 +95,7 @@ export class VicinityGraphBuilder {
 			nodeExclusion: this.pluginDataStore.nodeExclusion(),
 			frontmatterLinks: this.pluginDataStore.frontmatterLinks(),
 		};
-		const graph = new VicinityEngine(provider, this.namedRelations).build(GraphRequestAssembler.assemble(inputs));
+		const graph = new VicinityEngine(provider).build(GraphRequestAssembler.assemble(inputs));
 		// The two pin docid sets are derived from the SAME inputs the graph used, so
 		// the per-node global/local flags cannot disagree with the merged root list.
 		const pinFacts: FlowPinFacts = {
@@ -125,16 +111,6 @@ export class VicinityGraphBuilder {
 			controls: ControlsModelBuilder.build(inputs, graph.excludedNodeCount),
 			pinFacts,
 			folderNoteCandidates: this.folderNoteIndex,
-			// The create-child-note chip predicate: main is a folder note (path-set rule)
-			// AND its owned folder EXISTS (live check — an empty owned folder is invisible
-			// to the index). Read from the SAME warmed index the provider used this build.
-			mainIsFolderNote: this.mainIsFolderNote(mainPath),
 		};
-	}
-
-	/** Main is a folder note whose owned folder EXISTS in the vault (empty folder counts). */
-	private mainIsFolderNote(mainPath: string): boolean {
-		const ownedFolder = this.folderNoteIndex.ownedFolderOf(asVaultPath(mainPath));
-		return ownedFolder !== undefined && this.noteCreation.folderExists(ownedFolder);
 	}
 }

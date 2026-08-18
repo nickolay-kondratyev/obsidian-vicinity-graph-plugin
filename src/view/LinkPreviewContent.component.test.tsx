@@ -4,12 +4,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { LinkOccurrence } from "../engine";
 import { asVaultPath } from "../engine";
 import type { LinkPreviewGoTarget } from "./LinkPreviewContent";
-import {
-	FOLDER_RELATION_SECTION_TITLE,
-	GO_ICON_ID,
-	LinkPreviewContent,
-	NAMED_RELATION_SECTION_TITLE,
-} from "./LinkPreviewContent";
+import { FOLDER_RELATION_SECTION_TITLE, GO_ICON_ID, LinkPreviewContent } from "./LinkPreviewContent";
 import type { EdgePairOccurrences } from "./linkPreviewModel";
 import { LinkPreviewModels } from "./linkPreviewModel";
 
@@ -175,71 +170,6 @@ describe("LinkPreviewContent folder relation section", () => {
 		renderContent(edgeModel([{ sourcePath: JON, targetPath: CHILD, occurrences: [], hierarchy: true }]));
 		const section = screen.getByRole("region", { name: FOLDER_RELATION_SECTION_TITLE });
 		expect(section.textContent).toContain("Jon.md is the folder note of Jon/; child-of-jon.md is inside that folder.");
-	});
-});
-
-describe("LinkPreviewContent named-relationships section (ticket nid_wnagjm2j144u0jsgixpcmmpar_e)", () => {
-	const REL_NOTE = asVaultPath("rel/he-supports.md");
-
-	it("WHEN the edge carries no named relation THEN no Relationships section renders", () => {
-		renderContent(singlePairModel([3]));
-		const titles = screen.getAllByRole("region").map((section) => section.getAttribute("aria-label"));
-		expect(titles).not.toContain(NAMED_RELATION_SECTION_TITLE);
-	});
-
-	it("WHEN the edge carries a named relation THEN a Relationships section leads the occurrences", () => {
-		renderContent(
-			edgeModel([{ sourcePath: NOTE, targetPath: TARGET, occurrences: [occurrenceAt(3)], relations: [{ name: "supports" }] }]),
-		);
-		const titles = screen.getAllByRole("region").map((section) => section.getAttribute("aria-label"));
-		expect(titles).toEqual([NAMED_RELATION_SECTION_TITLE, "Link occurrences"]);
-	});
-
-	it("WHEN a plain-name relation renders THEN its name shows as text, not a link", () => {
-		renderContent(edgeModel([{ sourcePath: NOTE, targetPath: TARGET, occurrences: [], relations: [{ name: "supports" }] }]));
-		const section = screen.getByRole("region", { name: NAMED_RELATION_SECTION_TITLE });
-		expect(section.querySelector("a")).toBeNull();
-		expect(section.textContent).toContain("supports");
-	});
-
-	it("WHEN a relation carries a qualifier THEN the target position is marked and the qualifier trails", () => {
-		renderContent(
-			edgeModel([
-				{ sourcePath: NOTE, targetPath: TARGET, occurrences: [], relations: [{ name: "supports", qualifier: "but not strongly" }] },
-			]),
-		);
-		const section = screen.getByRole("region", { name: NAMED_RELATION_SECTION_TITLE });
-		expect(section.textContent).toContain("supports [X] but not strongly");
-	});
-
-	it("WHEN a rel-note relation renders THEN its name is an internal link to the rel note", () => {
-		renderContent(
-			edgeModel([
-				{ sourcePath: NOTE, targetPath: TARGET, occurrences: [], relations: [{ name: "he supports", relNoteTarget: REL_NOTE }] },
-			]),
-		);
-		const link = screen.getByRole("button", { name: "he supports" });
-		expect(link.getAttribute("data-href")).toBe(REL_NOTE);
-	});
-
-	it("WHEN a rel-note link is clicked THEN onOpenLink gets the rel-note target and the asserting note", () => {
-		const { openedLinks } = renderContent(
-			edgeModel([
-				{ sourcePath: NOTE, targetPath: TARGET, occurrences: [], relations: [{ name: "he supports", relNoteTarget: REL_NOTE }] },
-			]),
-		);
-		fireEvent.click(screen.getByRole("button", { name: "he supports" }));
-		expect(openedLinks).toEqual([{ linktext: REL_NOTE, sourcePath: NOTE }]);
-	});
-
-	it("WHEN several relations render THEN the section count matches", () => {
-		renderContent(
-			edgeModel([
-				{ sourcePath: NOTE, targetPath: TARGET, occurrences: [], relations: [{ name: "supports" }, { name: "cites" }] },
-			]),
-		);
-		const section = screen.getByRole("region", { name: NAMED_RELATION_SECTION_TITLE });
-		expect(section.querySelector(".vicinity-graph-link-preview__count")?.textContent).toBe("2");
 	});
 });
 

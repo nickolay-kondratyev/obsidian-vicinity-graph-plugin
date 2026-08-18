@@ -165,35 +165,3 @@ describe("FolderNotes parent walk", () => {
 		expect(notes.parentNoteOf("A/B.md")).toBeUndefined();
 	});
 });
-
-describe("FolderNotes ownedFolderOf (child-note target, ticket nid_rt0dyx6chv7fxae4k7q85f53l_e)", () => {
-	it("WHEN an inside-style folder note is asked THEN its owned folder is the containing folder", () => {
-		const notes = FolderNotes.fromPaths(["Jon/Jon.md", "Jon/child.md"]);
-		expect(notes.ownedFolderOf("Jon/Jon.md")).toBe("Jon");
-	});
-
-	it("WHEN a sibling-style folder note is asked THEN its owned folder is the sibling folder", () => {
-		const notes = FolderNotes.fromPaths(["Jon.md", "Jon/child.md"]);
-		expect(notes.ownedFolderOf("Jon.md")).toBe("Jon");
-	});
-
-	it("WHEN a note wins TWO folders (inside + sibling) THEN the INSIDE-owned folder is chosen (Decision 2)", () => {
-		// `Jon/Jon.md` owns `Jon/` inside-style AND `Jon/Jon/` sibling-style; the child
-		// goes in the inside-owned `Jon/`, consistent with location-dominates precedence.
-		const notes = FolderNotes.fromPaths(["Jon/Jon.md", "Jon/Jon/leaf.md"]);
-		expect(notes.ownedFolderOf("Jon/Jon.md")).toBe("Jon");
-	});
-
-	it("WHEN an ordinary note is asked THEN it sibling-owns its namesake folder (path rule; existence is a SEPARATE gate)", () => {
-		// PATH truth: `Jon/child.md` is the sibling folder-note candidate of `Jon/child/`,
-		// so ownership resolves even though that folder need not exist — which is exactly
-		// why the chip predicate pairs this with a live folderExists check (Review amendment).
-		const notes = FolderNotes.fromPaths(["Jon/Jon.md", "Jon/child.md"]);
-		expect(notes.ownedFolderOf("Jon/child.md")).toBe("Jon/child");
-	});
-
-	it("WHEN a sibling LOSES the folder to an inside note THEN it owns no folder", () => {
-		const notes = FolderNotes.fromPaths(["Jon.md", "Jon/Jon.md", "Jon/child.md"]);
-		expect(notes.ownedFolderOf("Jon.md")).toBeUndefined();
-	});
-});

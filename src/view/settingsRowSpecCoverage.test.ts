@@ -80,10 +80,9 @@ const HOW_TO_SATISFY_THIS_GUARD =
 
 /**
  * The sanctioned escape hatch: a spec leaf deliberately reachable-later, keyed by id with
- * the reason. Empty today — the named-relationship depths (SPEC + engine in the engine
- * ticket `nid_ufbtmywzbsyn2gwrx7bi0ww08_e`) got their settings ROWS in the named-depth-rows
- * ticket (`nid_fqdc55oifopcxxs4eb0w8q876_e`), so their entries were removed — exactly the
- * Hierarchy 1 → Hierarchy 3 sequence this allowlist's doc describes. Add an entry here
+ * the reason. Empty today — the folder-note hierarchy depths (SPEC + engine in Hierarchy 1,
+ * `nid_dit8h888p2ml3092b2zn4zy3u_e`) got their settings ROWS in Hierarchy 3
+ * (`nid_i3cznjkcnelqzvhp0gqlis499_e`), so their entries were removed. Add an entry here
  * only for a leaf whose row is deliberately deferred to a later ticket; the two anti-rot
  * tests below keep such a gap conscious rather than silent.
  */

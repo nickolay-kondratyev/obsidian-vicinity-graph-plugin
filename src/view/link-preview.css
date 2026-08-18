@@ -283,34 +283,6 @@
 	margin-top: var(--size-2-1);
 }
 
-/* The named-relationships breakdown (ticket nid_wnagjm2j144u0jsgixpcmmpar_e):
- * one row per relation the edge carries. A rel-note name is a real
- * `.internal-link` (Obsidian styles it), a plain name reads as normal text, and
- * the `[X] qualifier` tail stays muted. All theme vars — zero own colours. */
-.vicinity-graph-link-preview__relations {
-	margin: 0;
-	padding: 0;
-	list-style: none;
-}
-
-.vicinity-graph-link-preview__relation {
-	font-size: var(--font-ui-small);
-	line-height: var(--line-height-tight);
-	color: var(--text-normal);
-}
-
-.vicinity-graph-link-preview__relation + .vicinity-graph-link-preview__relation {
-	margin-top: var(--size-2-1);
-}
-
-.vicinity-graph-link-preview__relation-name {
-	font-weight: var(--font-semibold);
-}
-
-.vicinity-graph-link-preview__relation-qualifier {
-	color: var(--text-muted);
-}
-
 /* ===== edge pair groups ================================================ */
 
 .vicinity-graph-link-preview__group + .vicinity-graph-link-preview__group {

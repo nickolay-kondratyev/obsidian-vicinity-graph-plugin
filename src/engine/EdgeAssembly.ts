@@ -1,6 +1,6 @@
 import type { LinkProvider, OutgoingReference } from "./LinkProvider";
 import { directedLinkKey } from "./types";
-import type { DirectedLink, EdgeKind, GraphEdge, RelationLabel, VaultPath } from "./types";
+import type { DirectedLink, EdgeKind, GraphEdge, VaultPath } from "./types";
 
 export interface EdgeAssemblyInput {
 	/**
@@ -95,46 +95,13 @@ export class EdgeAssembly {
 			if (!hasLink) {
 				return { ...pair, count: 0, kind: "link", hierarchy: true };
 			}
-			// Names ride the source's outgoing references (either-budget union), so they
-			// are read from the SAME reference list the kind is — one physical occurrence
-			// contributes ONE label here regardless of how many channels walked it.
-			const relations = EdgeAssembly.relationsOf(referencesOf(pair.source), pair.target);
 			return {
 				...pair,
 				count: Math.max(MIN_EMITTED_EDGE_LINK_COUNT, linkCount),
 				kind: EdgeAssembly.kindOf(referencesOf(pair.source), pair.target),
 				hierarchy,
-				...(relations.length > 0 ? { relations } : {}),
 			};
 		});
-	}
-
-	/**
-	 * Every DISTINCT named-relationship label the pair carries, in first-seen order,
-	 * aggregated across the source's references to `target` (its link AND embed
-	 * references may each carry names). Distinctness is by (name, qualifier, rel note),
-	 * so a name written once as a link and once as an embed of the same target reads as
-	 * ONE label — "collapse, don't multiply".
-	 */
-	private static relationsOf(references: readonly OutgoingReference[], target: VaultPath): readonly RelationLabel[] {
-		const labels: RelationLabel[] = [];
-		const seen = new Set<string>();
-		for (const reference of references) {
-			if (reference.target !== target || reference.relations === undefined) {
-				continue;
-			}
-			for (const label of reference.relations) {
-				// NUL-joined: a separator that cannot occur in a name, qualifier or path, so two
-				// labels that merely shift a space across the name/qualifier boundary (e.g.
-				// `supports strongly` vs `supports` + qualifier `strongly`) stay distinct.
-				const identity = `${label.name}\0${label.qualifier ?? ""}\0${label.relNoteTarget ?? ""}`;
-				if (!seen.has(identity)) {
-					seen.add(identity);
-					labels.push(label);
-				}
-			}
-		}
-		return labels;
 	}
 
 	/**

@@ -10,10 +10,6 @@ import {
 	routedGeometryFor,
 } from "./edgeGeometry";
 import type { ClipRect } from "./edgeGeometry";
-import { planRelationLabelStacks } from "./edgeRelationLabels";
-import type { RelationLabelStack } from "./edgeRelationLabels";
-import { relationChipColorClassName } from "./relationColor";
-import type { DirectedRelationLabel } from "./flowMapping";
 import type { RoutedPoint } from "./edgeRouting";
 
 /**
@@ -35,14 +31,6 @@ export type VicinityEdgeData = {
 	readonly hasOpposite: boolean;
 	/** Group-collapsed edge unioning both directions: draw a second arrowhead at the source. */
 	readonly bidirectional: boolean;
-	/**
-	 * Named-relationship labels this edge draws, each tagged with the direction it
-	 * travels ({@link import("./flowMapping").FlowEdge.relations}). `planRelationLabelStacks`
-	 * turns them into the drawn stacks: one midpoint stack for a one-directional
-	 * edge, or two arrowhead-anchored stacks when a collapsed bidirectional edge
-	 * carries names both ways. ABSENT/empty ⇒ an unnamed edge.
-	 */
-	readonly relations?: readonly DirectedRelationLabel[];
 	/**
 	 * Obstacle-avoiding polyline in ABSOLUTE flow-space (no transform needed — RF
 	 * edge endpoints are absolute too). Present only when edge routing is on and
@@ -109,7 +97,6 @@ export function VicinityEdge({
 					data?.hasOpposite ?? false,
 				);
 	const badge = linkCountBadgeText(data?.count ?? 1);
-	const relationStacks = planRelationLabelStacks(data?.relations ?? [], geometry);
 	// Triangle authored tip-at-origin pointing +x, then translated to the tip
 	// and rotated to the edge's arrival angle.
 	const arrowPoints = `0,0 ${-ARROWHEAD_LENGTH_PX},${-ARROWHEAD_HALF_WIDTH_PX} ${-ARROWHEAD_LENGTH_PX},${ARROWHEAD_HALF_WIDTH_PX}`;
@@ -141,52 +128,6 @@ export function VicinityEdge({
 					</span>
 				</EdgeLabelRenderer>
 			)}
-			{relationStacks.length > 0 && (
-				<EdgeLabelRenderer>
-					{relationStacks.map((stack) => (
-						<RelationLabelColumn key={stack.direction} stack={stack} />
-					))}
-				</EdgeLabelRenderer>
-			)}
 		</>
 	);
 }
-
-/**
- * One direction's relation-name chips, stacked ABOVE the line (so the count badge
- * keeps the midpoint) at the anchor {@link planRelationLabelStacks} chose. The
- * `data-direction` drives no styling — it's the seam tests and a two-way edge's
- * two columns read to tell the directions apart.
- */
-function RelationLabelColumn({ stack }: { readonly stack: RelationLabelStack }): ReactElement {
-	return (
-		<div
-			className="vicinity-graph-edge__relations"
-			data-direction={stack.direction}
-			style={{
-				transform: `translate(-50%, -100%) translate(${stack.x}px, ${stack.y - EDGE_RELATION_LABEL_GAP_PX}px)`,
-			}}
-		>
-			{stack.names.map((chip, index) => (
-				// Index key: two distinct rel notes can share a display name, and the
-				// list is a stable, display-only projection of the deduped labels.
-				// The colour class keys off the bare NAME (not the qualified text), so a
-				// qualifier never shifts the hue — see relationChipColorClassName.
-				<span key={index} className={`vicinity-graph-edge__relation ${relationChipColorClassName(chip.name)}`}>
-					{chip.text}
-				</span>
-			))}
-			{stack.overflow !== undefined && (
-				<span
-					className="vicinity-graph-edge__relation vicinity-graph-edge__relation--overflow"
-					title={stack.overflow.title}
-				>
-					{stack.overflow.badgeText}
-				</span>
-			)}
-		</div>
-	);
-}
-
-/** Gap (px) between the stacked relation labels and the edge line beneath them. */
-const EDGE_RELATION_LABEL_GAP_PX = 6;

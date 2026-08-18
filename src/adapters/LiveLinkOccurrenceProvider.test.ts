@@ -6,7 +6,6 @@ import type { FakeObsidianSpec } from "./FakeObsidianPorts";
 import { FolderNoteIndex } from "./FolderNoteIndex";
 import { FrontmatterIdIndex } from "./FrontmatterIdIndex";
 import { LiveLinkOccurrenceProvider } from "./LiveLinkOccurrenceProvider";
-import { NamedRelationshipsIndex } from "./NamedRelationshipsIndex";
 
 const NOTE = asVaultPath("note.md");
 const TARGET = asVaultPath("target.md");
@@ -39,7 +38,6 @@ describe("LiveLinkOccurrenceProvider delegation", () => {
 			new CanvasParseCache(),
 			idIndex,
 			new FolderNoteIndex(ports.vault),
-			new NamedRelationshipsIndex(ports.vault, ports.metadataCache),
 		);
 	}
 

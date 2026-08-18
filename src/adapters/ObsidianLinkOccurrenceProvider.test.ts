@@ -6,7 +6,6 @@ import { FakeObsidianPorts } from "./FakeObsidianPorts";
 import type { FakeObsidianSpec } from "./FakeObsidianPorts";
 import { FolderNoteIndex } from "./FolderNoteIndex";
 import { FrontmatterIdIndex } from "./FrontmatterIdIndex";
-import { NamedRelationshipsIndex } from "./NamedRelationshipsIndex";
 import { ObsidianLinkOccurrenceProvider } from "./ObsidianLinkOccurrenceProvider";
 import { ObsidianLinkProvider } from "./ObsidianLinkProvider";
 
@@ -51,7 +50,6 @@ async function providerOver(spec: FakeObsidianSpec): Promise<ObsidianLinkOccurre
 		new CanvasParseCache(),
 		idIndex,
 		new FolderNoteIndex(ports.vault),
-		new NamedRelationshipsIndex(ports.vault, ports.metadataCache),
 	);
 	return new ObsidianLinkOccurrenceProvider(ports.vault, ports.metadataCache, linkProvider);
 }
@@ -83,7 +81,7 @@ describe("ObsidianLinkOccurrenceProvider edge-scoped occurrences", () => {
 	it("WHEN a link is a frontmatter (property) link THEN its occurrence is position-less", async () => {
 		const provider = await providerOver({
 			...BASE_SPEC,
-			fileCaches: { "note.md": { frontmatterLinks: [{ link: "Target", key: "up" }] } },
+			fileCaches: { "note.md": { frontmatterLinks: [{ link: "Target" }] } },
 			resolvedLinks: { "note.md": { "target.md": 1 } },
 		});
 		expect(await provider.occurrencesBetween(NOTE, TARGET)).toEqual([{ offset: null, context: null }]);

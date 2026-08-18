@@ -77,7 +77,6 @@ export interface E2eMetadataCache {
 
 export interface E2eVault {
 	getAbstractFileByPath(path: string): E2eAbstractFile | null;
-	create(path: string, data: string): Promise<E2eAbstractFile>;
 	rename(file: E2eAbstractFile, newPath: string): Promise<void>;
 	delete(file: E2eAbstractFile): Promise<void>;
 	read(file: E2eAbstractFile): Promise<string>;

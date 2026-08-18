@@ -6,7 +6,6 @@ import type {
 	NodeContentOverride,
 	NodePreviewKind,
 	OutlineEntry,
-	RelationLabel,
 	ViewSettings,
 	VicinityGraph,
 } from "../engine";
@@ -21,7 +20,6 @@ import type { OrphanTruncation } from "./truncationBadges";
 import { deriveTruncationBadges } from "./truncationBadges";
 import { edgeIdOf, folderGroupIdOf, nodeDimensionsPx, nodeSizeOverridePx } from "./graphIdentity";
 import type { RoutedPoint } from "./edgeRouting";
-import { relationEdgeColorClassName } from "./relationColor";
 
 /**
  * Pure engine → React Flow shape mapping. Emits plain objects only (no React,
@@ -75,14 +73,6 @@ export type FlowNodeData = {
 	 * fact the context menu's "Reset size" entry switches on.
 	 */
 	readonly hasSizeOverride: boolean;
-	/**
-	 * Whether this node offers the create-child-note hover chip (ticket
-	 * `nid_rt0dyx6chv7fxae4k7q85f53l_e`): true ONLY on the MAIN when it is a folder note
-	 * whose owned folder exists ({@link GraphBuildResult.mainIsFolderNote}). Decided
-	 * upstream (adapter + this mapping) so the node component renders on a boolean and
-	 * never re-derives the folder-note rule.
-	 */
-	readonly offersChildNoteCreation: boolean;
 	/** Engine folder path ("" = vault root). */
 	readonly folder: string;
 	/**
@@ -188,30 +178,6 @@ export interface EdgeNotePair {
 	 * the pair, not just the {@link FlowEdge}.
 	 */
 	readonly hierarchy: boolean;
-	/**
-	 * Every NAMED-RELATIONSHIP label this ordered pair carries
-	 * ({@link import("../engine").GraphEdge.relations}) — names, qualifiers, and
-	 * rel-note link targets. The edge-click flyout reads them PER PAIR so a
-	 * collapsed group edge attributes each relation to the note that asserts it;
-	 * the {@link FlowEdge}'s glance-level union rides {@link FlowEdge.relations}.
-	 * ABSENT ⇒ an unnamed pair.
-	 */
-	readonly relations?: readonly RelationLabel[];
-}
-
-/** Which way a relation label points relative to an edge's drawn `source → target`. */
-export type RelationDirection = "forward" | "backward";
-
-/**
- * A relation label plus the direction it travels relative to the edge's DRAWN
- * orientation ({@link FlowEdge.source} → {@link FlowEdge.target} is `"forward"`).
- * A plain unidirectional edge's labels are ALL forward; only a collapsed
- * {@link FlowEdge.bidirectional} edge unions labels going both ways, and this
- * tag is what lets the canvas UI attribute each name to its true direction.
- */
-export interface DirectedRelationLabel {
-	readonly label: RelationLabel;
-	readonly direction: RelationDirection;
 }
 
 export interface FlowEdge {
@@ -242,22 +208,6 @@ export interface FlowEdge {
 	 * solid + badge, visually identical to a plain link edge.
 	 */
 	readonly hierarchy: boolean;
-	/**
-	 * Glance-level UNION of every NAMED-RELATIONSHIP label across this rendered
-	 * edge's contributing pairs, deduped by (name, qualifier, rel-note target) in
-	 * first-seen order — what the edge draws on the canvas ("the edge shows ALL
-	 * its relation names"). A collapsed group edge unions its pairs; a passthrough
-	 * edge carries its single pair's labels. ABSENT ⇒ an unnamed edge. Per-pair
-	 * attribution for the flyout rides {@link EdgeNotePair.relations}.
-	 *
-	 * Each label is tagged with the DIRECTION it points relative to this edge's
-	 * DRAWN orientation ({@link source} → {@link target} = `"forward"`). Only a
-	 * collapsed {@link bidirectional} edge ever mixes both directions — every
-	 * other edge's labels are all `"forward"` (its single arrowhead already tells
-	 * the direction), so the multi-name canvas UI can anchor each direction's
-	 * names beside the arrowhead they point INTO (see `edgeRelationLabels`).
-	 */
-	readonly relations?: readonly DirectedRelationLabel[];
 	/**
 	 * True when the reverse edge (target→source) is also rendered as a SEPARATE
 	 * FlowEdge. Both edges of such a pair curve away from the straight line on
@@ -325,8 +275,6 @@ export function vicinityGraphToFlow(
 	graph: VicinityGraph,
 	pinFacts: FlowPinFacts,
 	folderNoteCandidates: FolderNoteCandidatesLookup,
-	/** Whether the MAIN is a folder note whose owned folder exists — the create-child-note chip predicate. */
-	mainIsFolderNote: boolean,
 ): FlowGraph {
 	const grouping = deriveFolderGroups(graph.nodes, graph.viewSettings.folderGroupingDepth);
 	const badges = deriveTruncationBadges(
@@ -392,7 +340,7 @@ export function vicinityGraphToFlow(
 			width,
 			height,
 			...(groupFolder === undefined ? {} : { parentId: folderGroupIdOf(groupFolder) }),
-			data: toFlowNodeData(node, pinFacts, graph.viewSettings, suppressedThumbnails.has(node.path), mainIsFolderNote),
+			data: toFlowNodeData(node, pinFacts, graph.viewSettings, suppressedThumbnails.has(node.path)),
 		};
 	});
 	return {
@@ -416,18 +364,6 @@ interface CollapsedEdgeAccumulator {
 	kind: EdgeKind;
 	/** The OR of every contributing pair's {@link EdgeNotePair.hierarchy}. */
 	hierarchy: boolean;
-	/**
-	 * Deduped relation labels split by the direction they travel relative to the
-	 * accumulator's fixed `from → to` orientation, each in first-seen order
-	 * (identity = {@link relationLabelKey}). Kept apart so the canvas UI can
-	 * anchor each direction's names beside its own arrowhead; `keys` are the
-	 * per-direction dedup guards. A collapsed edge unions BOTH buckets; a
-	 * one-directional edge fills only `forward`.
-	 */
-	readonly forwardRelations: RelationLabel[];
-	readonly forwardKeys: Set<string>;
-	readonly backwardRelations: RelationLabel[];
-	readonly backwardKeys: Set<string>;
 	/** Contributing engine note→note pairs, in first-seen order. */
 	readonly notePairs: EdgeNotePair[];
 }
@@ -473,15 +409,10 @@ function buildFlowEdges(graph: VicinityGraph, grouping: FolderGroupingResult): F
 				id: edgeIdOf(edge),
 				source: edge.source,
 				target: edge.target,
-				notePairs: [notePairOf(edge)],
+				notePairs: [{ source: edge.source, target: edge.target, hierarchy: edge.hierarchy }],
 				count: edge.count,
 				kind: edge.kind,
 				hierarchy: edge.hierarchy,
-				// A passthrough edge is its single pair drawn source → target, so every
-				// one of its already-deduped per-pair labels is a FORWARD label.
-				...(edge.relations !== undefined && edge.relations.length > 0
-					? { relations: forwardDirectedLabels(edge.relations) }
-					: {}),
 				hasOpposite: renderedEdgeIds.has(edgeIdOf({ source: edge.target, target: edge.source })),
 				bidirectional: false,
 			});
@@ -498,7 +429,6 @@ function buildFlowEdges(graph: VicinityGraph, grouping: FolderGroupingResult): F
 			count: pair.count,
 			kind: pair.kind,
 			hierarchy: pair.hierarchy,
-			...directedRelationsProp(pair.forwardRelations, pair.backwardRelations),
 			hasOpposite: false,
 			bidirectional: pair.forwardSeen && pair.backwardSeen,
 		}),
@@ -515,72 +445,6 @@ function mergeEdgeKinds(a: EdgeKind, b: EdgeKind): EdgeKind {
 	return a === b ? a : "both";
 }
 
-/**
- * Dedup identity of a relation label — (name, qualifier, rel-note target),
- * NUL-joined. Mirrors the engine's per-pair identity in `EdgeAssembly` so
- * unioning a collapsed edge's contributors never doubles a label two pairs share.
- */
-function relationLabelKey(label: RelationLabel): string {
-	const separator = UNORDERED_PAIR_KEY_SEPARATOR;
-	return `${label.name}${separator}${label.qualifier ?? ""}${separator}${label.relNoteTarget ?? ""}`;
-}
-
-/**
- * The rendered pair behind one engine edge, carrying its relation labels only
- * when non-empty (ABSENT ⇒ unnamed) — the shape both build paths emit.
- */
-function notePairOf(edge: GraphEdge): EdgeNotePair {
-	return {
-		source: edge.source,
-		target: edge.target,
-		hierarchy: edge.hierarchy,
-		...(edge.relations !== undefined && edge.relations.length > 0 ? { relations: edge.relations } : {}),
-	};
-}
-
-/**
- * Folds an edge's relation labels into a first-seen-ordered accumulator (dedup
- * via `keys`) — the union rule for a collapsed edge's glance-level names.
- */
-function addRelationLabels(
-	into: RelationLabel[],
-	keys: Set<string>,
-	labels: readonly RelationLabel[] | undefined,
-): void {
-	for (const label of labels ?? []) {
-		const key = relationLabelKey(label);
-		if (!keys.has(key)) {
-			keys.add(key);
-			into.push(label);
-		}
-	}
-}
-
-/** Tags every label FORWARD — a one-directional edge draws all its names along its arrowhead. */
-function forwardDirectedLabels(labels: readonly RelationLabel[]): DirectedRelationLabel[] {
-	return labels.map((label) => ({ label, direction: "forward" as const }));
-}
-
-/**
- * The `relations` prop for a collapsed edge: forward labels first, then backward,
- * each carrying its {@link RelationDirection}. Omitted entirely when the edge
- * carries no names (ABSENT ⇒ unnamed), matching the passthrough emit.
- */
-function directedRelationsProp(
-	forward: readonly RelationLabel[],
-	backward: readonly RelationLabel[],
-): { relations?: readonly DirectedRelationLabel[] } {
-	if (forward.length === 0 && backward.length === 0) {
-		return {};
-	}
-	return {
-		relations: [
-			...forwardDirectedLabels(forward),
-			...backward.map((label) => ({ label, direction: "backward" as const })),
-		],
-	};
-}
-
 function accumulateCollapsedEdge(
 	collapsedByPair: Map<string, CollapsedEdgeAccumulator>,
 	projSource: string,
@@ -590,10 +454,6 @@ function accumulateCollapsedEdge(
 	const key = [projSource, projTarget].sort().join(UNORDERED_PAIR_KEY_SEPARATOR);
 	const existing = collapsedByPair.get(key);
 	if (existing === undefined) {
-		// First contributor FIXES the from → to orientation, so its labels are forward.
-		const forwardRelations: RelationLabel[] = [];
-		const forwardKeys = new Set<string>();
-		addRelationLabels(forwardRelations, forwardKeys, edge.relations);
 		collapsedByPair.set(key, {
 			from: projSource,
 			to: projTarget,
@@ -602,27 +462,18 @@ function accumulateCollapsedEdge(
 			count: edge.count,
 			kind: edge.kind,
 			hierarchy: edge.hierarchy,
-			forwardRelations,
-			forwardKeys,
-			backwardRelations: [],
-			backwardKeys: new Set<string>(),
-			notePairs: [notePairOf(edge)],
+			notePairs: [{ source: edge.source, target: edge.target, hierarchy: edge.hierarchy }],
 		});
 		return;
 	}
 	existing.count += edge.count;
 	existing.kind = mergeEdgeKinds(existing.kind, edge.kind);
 	existing.hierarchy = existing.hierarchy || edge.hierarchy;
-	existing.notePairs.push(notePairOf(edge));
-	// A contributor matching the fixed orientation is forward; the reverse pair is
-	// backward. Its labels join the matching bucket so each direction stays deduped
-	// on its own (a name asserted BOTH ways is a real fact per direction, not a dup).
+	existing.notePairs.push({ source: edge.source, target: edge.target, hierarchy: edge.hierarchy });
 	if (projSource === existing.from && projTarget === existing.to) {
 		existing.forwardSeen = true;
-		addRelationLabels(existing.forwardRelations, existing.forwardKeys, edge.relations);
 	} else {
 		existing.backwardSeen = true;
-		addRelationLabels(existing.backwardRelations, existing.backwardKeys, edge.relations);
 	}
 }
 
@@ -653,22 +504,11 @@ export const PURE_HIERARCHY_EDGE_CLASS = "vicinity-graph-edge--hierarchy";
 /**
  * The full class string the React Flow edge WRAPPER carries: the per-{@link EdgeKind}
  * hook, plus the pure-hierarchy dash hook when this edge is a PURE folder-note
- * relation (no link occurrence — {@link FlowEdge.count} 0), plus the per-relation-name
- * COLOUR hook when every named relation on the edge shares one hue (ticket
- * nid_adesjb4clls56623vdu773ubg_e — see {@link relationEdgeColorClassName}). A pure
- * hierarchy edge carries no relations, so the colour and dash hooks never collide.
+ * relation (no link occurrence — {@link FlowEdge.count} 0).
  */
 export function edgeClassName(edge: FlowEdge): string {
 	const kindClass = edgeKindClassName(edge.kind);
-	const classes = [kindClass];
-	if (edge.hierarchy && edge.count === 0) {
-		classes.push(PURE_HIERARCHY_EDGE_CLASS);
-	}
-	const colorClass = relationEdgeColorClassName((edge.relations ?? []).map((relation) => relation.label.name));
-	if (colorClass !== undefined) {
-		classes.push(colorClass);
-	}
-	return classes.join(" ");
+	return edge.hierarchy && edge.count === 0 ? `${kindClass} ${PURE_HIERARCHY_EDGE_CLASS}` : kindClass;
 }
 
 /**
@@ -709,22 +549,13 @@ function resolveNodePreview(node: GraphNode, view: ViewSettings, hasImage: boole
  * @param suppressImage true when image de-dup handed this node's image to another
  * node higher in the folder hierarchy — the node then previews as if it had none.
  */
-function toFlowNodeData(
-	node: GraphNode,
-	pinFacts: FlowPinFacts,
-	view: ViewSettings,
-	suppressImage: boolean,
-	mainIsFolderNote: boolean,
-): FlowNodeData {
+function toFlowNodeData(node: GraphNode, pinFacts: FlowPinFacts, view: ViewSettings, suppressImage: boolean): FlowNodeData {
 	const outline = renderedOutline(node, view);
 	return {
 		path: node.path,
 		title: node.title,
 		...(node.docid === undefined ? {} : { docid: node.docid }),
 		tier: tierOf(node),
-		// ONLY the MAIN carries the create-child-note chip, and only when this build
-		// found it a folder note with an existing owned folder.
-		offersChildNoteCreation: node.isMain && mainIsFolderNote,
 		// The two pin facts come from the caller's docid sets, not from isCentral: a
 		// central can be pinned globally, locally, or both, and only the sets know
 		// which. A node with no docid (an ordinary neighbor) is in neither set.

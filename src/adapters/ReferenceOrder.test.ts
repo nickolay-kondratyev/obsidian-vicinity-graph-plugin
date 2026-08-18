@@ -23,7 +23,7 @@ describe("ReferenceOrder.orderedReferences (link order)", () => {
 	it("WHEN frontmatter links exist THEN they come first (top of the file, no body offset)", () => {
 		const ordered = linksOf({
 			links: [ref("body-link", 0)],
-			frontmatterLinks: [{ link: "property-link", key: "up" }],
+			frontmatterLinks: [{ link: "property-link" }],
 		});
 		expect(ordered).toEqual(["property-link", "body-link"]);
 	});
@@ -37,7 +37,7 @@ describe("ReferenceOrder.orderedReferences (document offsets)", () => {
 	it("WHEN frontmatter and body links exist THEN frontmatter comes first at FRONTMATTER_REFERENCE_OFFSET", () => {
 		const ordered = ReferenceOrder.orderedReferences({
 			links: [ref("body-link", 0)],
-			frontmatterLinks: [{ link: "property-link", key: "up" }],
+			frontmatterLinks: [{ link: "property-link" }],
 		});
 		expect(ordered).toEqual([
 			{ link: "property-link", offset: FRONTMATTER_REFERENCE_OFFSET, kind: "link" },
@@ -79,7 +79,7 @@ describe("ReferenceOrder.orderedReferences (link kinds by provenance)", () => {
 	});
 
 	it("WHEN a frontmatter property link exists THEN its kind is a plain link (property links are never embeds)", () => {
-		expect(kindsByLinkOf({ frontmatterLinks: [{ link: "property-link", key: "up" }] })).toEqual({
+		expect(kindsByLinkOf({ frontmatterLinks: [{ link: "property-link" }] })).toEqual({
 			"property-link": "link",
 		});
 	});

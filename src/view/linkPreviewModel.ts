@@ -1,4 +1,4 @@
-import type { LinkOccurrence, RelationLabel, VaultPath } from "../engine";
+import type { LinkOccurrence, VaultPath } from "../engine";
 import { VaultPathFacts } from "../shared/VaultPathFacts";
 import { folderOfGroupId, isFolderGroupId } from "./graphIdentity";
 
@@ -47,24 +47,6 @@ export interface FolderRelationModel {
 }
 
 /**
- * One NAMED relationship the clicked edge carries — the FLYOUT's full breakdown
- * of a labeled edge (plan `nid_fg66tanwkoyq3cqs1wdxagn21_e`): the relation name,
- * its optional qualifier, and, for the rel-note form, the note the name LINKS to.
- * Attributed per contributing pair, so a collapsed group edge names the note that
- * asserts each relation.
- */
-export interface NamedRelationModel {
-	/** Text name, or the rel note's alias-else-basename — what the row displays. */
-	readonly name: string;
-	/** Wrapped-form trailing qualifier (`but not strongly`); absent when none. */
-	readonly qualifier?: string;
-	/** Rel-note the name links to (rel-note form only) — the row renders it as a link. */
-	readonly relNoteTarget?: VaultPath;
-	/** The note asserting the relation — link-resolution context for {@link relNoteTarget}. */
-	readonly sourcePath: VaultPath;
-}
-
-/**
  * What the edge-click preview renders: occurrence groups per contributing
  * note→note pair. ONE group for a plain note→note edge; several when the
  * clicked visual is a group-collapsed edge unioning many pairs (and possibly
@@ -86,13 +68,6 @@ export interface EdgePreviewModel {
 	 * both.
 	 */
 	readonly folderRelations: readonly FolderRelationModel[];
-	/**
-	 * The named relationships this edge carries (plan `nid_fg66tanwkoyq3cqs1wdxagn21_e`),
-	 * flattened across pairs in the same (sourcePath, targetPath) order as
-	 * {@link pairs}, each pair's labels in engine (first-seen) order. Empty for an
-	 * unnamed edge.
-	 */
-	readonly relations: readonly NamedRelationModel[];
 	/** Every context row id, in display order — the collapse state's row universe. */
 	readonly rowIds: readonly string[];
 }
@@ -110,13 +85,6 @@ export interface EdgePairOccurrences {
 	 * pair has both).
 	 */
 	readonly hierarchy: boolean;
-	/**
-	 * The pair's NAMED-RELATIONSHIP labels
-	 * ({@link import("./flowMapping").EdgeNotePair.relations}) — names, qualifiers,
-	 * rel-note link targets — for the flyout's relationships breakdown. Absent/empty
-	 * ⇒ an unnamed pair.
-	 */
-	readonly relations?: readonly RelationLabel[];
 }
 
 export interface EdgePreviewInputs {
@@ -183,18 +151,6 @@ export class LinkPreviewModels {
 			// Same sorted order as `pairs`; only the hierarchy-carrying pairs explain
 			// a folder relation (a link-only pair contributes none).
 			folderRelations: sortedPairs.filter((pair) => pair.hierarchy).map(folderRelationOf),
-			// Flattened in the same pair order; each label keeps its pair's source path
-			// for rel-note link resolution. A pair's labels are already engine-deduped.
-			relations: sortedPairs.flatMap((pair) =>
-				(pair.relations ?? []).map(
-					(label): NamedRelationModel => ({
-						name: label.name,
-						...(label.qualifier === undefined ? {} : { qualifier: label.qualifier }),
-						...(label.relNoteTarget === undefined ? {} : { relNoteTarget: label.relNoteTarget }),
-						sourcePath: pair.sourcePath,
-					}),
-				),
-			),
 			rowIds: groups.flatMap((group) => group.rows).map((row) => row.rowId),
 		};
 	}
