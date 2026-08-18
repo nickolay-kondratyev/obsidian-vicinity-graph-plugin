@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_adesjb4clls56623vdu773ubg_e
 title: "Idea: per-relation-name edge styling (color/dash)"
-status: open
+status: in_progress
 deps: [nid_wnagjm2j144u0jsgixpcmmpar_e]
 links: []
 created_iso: 2026-08-17T16:44:24Z
-status_updated_iso: 2026-08-17T16:44:24Z
+status_updated_iso: 2026-08-18T02:49:35Z
 type: feature
 priority: 4
 assignee: CC_WITH-nickolaykondratyev
