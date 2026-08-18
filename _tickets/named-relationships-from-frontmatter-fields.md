@@ -89,3 +89,9 @@ only. `up.0`/`up.1` collapse to `up`; a genuinely nested object key like
 `related.parent` is left intact. This matches Obsidian's list-flattening format and
 avoids guessing at nested-object semantics.
 
+
+## Notes
+
+**2026-08-18T01:51:28Z**
+
+__READY_AS_IS__: Frontmatter named-relations merge is correct (same resolver as base ⇒ deduped always folds the field-key label onto the plain link, no dup edges); dangling-drop, list-suffix strip, and inline-parity all covered by passing tests; check + npm test (2349) green. Reviewed, no changes needed.
