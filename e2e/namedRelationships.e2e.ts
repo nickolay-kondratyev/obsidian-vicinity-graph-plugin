@@ -29,6 +29,7 @@ test.describe.configure({ mode: "serial" });
 
 const REL_SRC_PATH = "rel-src.md";
 const REL_NOTE_SRC_PATH = "relnote-src.md";
+const MANY_SRC_PATH = "many-src.md";
 const NAMED_EDGE_ID = "rel-src.md->rel-dst.md";
 const REL_NOTE_EDGE_ID = "relnote-src.md->relnote-dst.md";
 
@@ -41,6 +42,11 @@ const NAMED_FIXTURES: Record<string, string> = {
 	"relnote-src.md": "Beta [[approves]]:: [[relnote-dst]] here.\n",
 	"relnote-dst.md": "The approved target.\n",
 	"approves.md": "The approval relationship note.\n",
+	// FIVE named relations onto ONE target (clean own-line DV fields) — more than
+	// the per-stack cap, so the canvas truncates to the first three plus a "+2" chip.
+	"many-src.md":
+		"- supports:: [[many-dst]]\n- refutes:: [[many-dst]]\n- cites:: [[many-dst]]\n- mentions:: [[many-dst]]\n- questions:: [[many-dst]]\n",
+	"many-dst.md": "The heavily-annotated target.\n",
 };
 
 let harness: ObsidianHarness;
@@ -100,6 +106,14 @@ test("the multiplicity count badge coexists with the relation labels", async () 
 	await expect(page.locator(".vicinity-graph-edge__count-badge")).toHaveText(["×2"]);
 });
 
+test("a one-directional named edge draws a SINGLE forward-tagged label stack", async () => {
+	// Both names travel rel-src → rel-dst, so they share one midpoint stack tagged
+	// forward — the arrowhead conveys the direction, no per-name marker needed.
+	const stacks = page.locator(".vicinity-graph-edge__relations");
+	await expect(stacks).toHaveCount(1);
+	await expect(stacks).toHaveAttribute("data-direction", "forward");
+});
+
 test("clicking a named edge opens the flyout with a Relationships breakdown", async () => {
 	await clickEdgePath(NAMED_EDGE_ID);
 
@@ -126,4 +140,20 @@ test("a rel-note relation renders a flyout link to its rel note", async () => {
 	// The rel-note name is a real internal link resolving to the rel note file.
 	const relNoteLink = drawer().locator("a.vicinity-graph-link-preview__relation-name", { hasText: "approves" });
 	await expect(relNoteLink).toHaveAttribute("data-href", "approves.md");
+});
+
+test("an edge with many names truncates to the cap plus a +N overflow chip", async () => {
+	await harness.openFile(MANY_SRC_PATH);
+	await expect(page.locator(`.vicinity-graph-node[data-vicinity-path="${MANY_SRC_PATH}"]`)).toHaveAttribute(
+		"data-tier",
+		"main",
+	);
+
+	// Five named relations onto one target: only the first three names show, then
+	// a "+2" chip stands in for the rest (the flyout still lists all five).
+	const names = page.locator(
+		".vicinity-graph-edge__relation:not(.vicinity-graph-edge__relation--overflow)",
+	);
+	await expect(names).toHaveText(["supports", "refutes", "cites"]);
+	await expect(page.locator(".vicinity-graph-edge__relation--overflow")).toHaveText(["+2"]);
 });

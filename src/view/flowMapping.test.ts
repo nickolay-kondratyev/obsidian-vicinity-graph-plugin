@@ -1299,7 +1299,10 @@ describe("vicinityGraphToFlow named-relationship labels (ticket nid_wnagjm2j144u
 			nodes: twoNodes(),
 			edges: [{ ...makeEdge("a.md", "b.md"), relations: [{ name: "supports" }, { name: "refutes", qualifier: "weakly" }] }],
 		});
-		expect(toFlow(graph).edges[0]?.relations).toEqual([{ name: "supports" }, { name: "refutes", qualifier: "weakly" }]);
+		expect(toFlow(graph).edges[0]?.relations).toEqual([
+			{ label: { name: "supports" }, direction: "forward" },
+			{ label: { name: "refutes", qualifier: "weakly" }, direction: "forward" },
+		]);
 	});
 
 	it("WHEN a passthrough edge carries relation labels THEN its note pair carries them for the flyout", () => {
@@ -1323,7 +1326,7 @@ describe("vicinityGraphToFlow named-relationship labels (ticket nid_wnagjm2j144u
 			edges: [{ ...makeEdge("a.md", "b.md"), relations: [{ name: "he supports", relNoteTarget: asVaultPath("rel/he-supports.md") }] }],
 		});
 		expect(toFlow(graph).edges[0]?.relations).toEqual([
-			{ name: "he supports", relNoteTarget: "rel/he-supports.md" },
+			{ label: { name: "he supports", relNoteTarget: "rel/he-supports.md" }, direction: "forward" },
 		]);
 	});
 
@@ -1336,7 +1339,11 @@ describe("vicinityGraphToFlow named-relationship labels (ticket nid_wnagjm2j144u
 			],
 		});
 		// "supports" appears on both contributors — deduped to one; "cites" follows it.
-		expect(toFlow(graph).edges[0]?.relations).toEqual([{ name: "supports" }, { name: "cites" }]);
+		// Both point hub → group, so both are forward.
+		expect(toFlow(graph).edges[0]?.relations).toEqual([
+			{ label: { name: "supports" }, direction: "forward" },
+			{ label: { name: "cites" }, direction: "forward" },
+		]);
 	});
 
 	it("WHEN collapsed edges carry relations THEN each note pair keeps only its OWN labels", () => {
@@ -1350,6 +1357,23 @@ describe("vicinityGraphToFlow named-relationship labels (ticket nid_wnagjm2j144u
 		expect(toFlow(graph).edges[0]?.notePairs).toEqual([
 			{ source: "hub.md", target: "notes/a.md", hierarchy: false, relations: [{ name: "supports" }] },
 			{ source: "hub.md", target: "notes/b.md", hierarchy: false, relations: [{ name: "cites" }] },
+		]);
+	});
+
+	it("WHEN a collapsed edge unions OPPOSING named pairs THEN each label keeps its own direction", () => {
+		// hub → group fixes the forward orientation; the group → hub pair is backward.
+		const graph = makeGraph({
+			nodes: collapsedGraph().nodes,
+			edges: [
+				{ ...makeEdge("hub.md", "notes/a.md"), relations: [{ name: "supports" }] },
+				{ ...makeEdge("notes/b.md", "hub.md"), relations: [{ name: "cites" }] },
+			],
+		});
+		const edge = toFlow(graph).edges[0];
+		expect(edge?.bidirectional).toBe(true);
+		expect(edge?.relations).toEqual([
+			{ label: { name: "supports" }, direction: "forward" },
+			{ label: { name: "cites" }, direction: "backward" },
 		]);
 	});
 });

@@ -1,8 +1,7 @@
 import { BaseEdge, EdgeLabelRenderer, useInternalNode } from "@xyflow/react";
 import type { Edge, EdgeProps, InternalNode, Node } from "@xyflow/react";
 import type { ReactElement } from "react";
-import type { RelationLabel } from "../engine";
-import { linkCountBadgeText, relationLabelText } from "./badgeText";
+import { linkCountBadgeText } from "./badgeText";
 import {
 	ARROWHEAD_HALF_WIDTH_PX,
 	ARROWHEAD_LENGTH_PX,
@@ -11,6 +10,9 @@ import {
 	routedGeometryFor,
 } from "./edgeGeometry";
 import type { ClipRect } from "./edgeGeometry";
+import { planRelationLabelStacks } from "./edgeRelationLabels";
+import type { RelationLabelStack } from "./edgeRelationLabels";
+import type { DirectedRelationLabel } from "./flowMapping";
 import type { RoutedPoint } from "./edgeRouting";
 
 /**
@@ -33,11 +35,13 @@ export type VicinityEdgeData = {
 	/** Group-collapsed edge unioning both directions: draw a second arrowhead at the source. */
 	readonly bidirectional: boolean;
 	/**
-	 * Named-relationship labels this edge draws (glance-level union;
-	 * {@link import("./flowMapping").FlowEdge.relations}) — stacked above the line,
-	 * a qualifier rendered as `name [X] qualifier`. ABSENT/empty ⇒ an unnamed edge.
+	 * Named-relationship labels this edge draws, each tagged with the direction it
+	 * travels ({@link import("./flowMapping").FlowEdge.relations}). `planRelationLabelStacks`
+	 * turns them into the drawn stacks: one midpoint stack for a one-directional
+	 * edge, or two arrowhead-anchored stacks when a collapsed bidirectional edge
+	 * carries names both ways. ABSENT/empty ⇒ an unnamed edge.
 	 */
-	readonly relations?: readonly RelationLabel[];
+	readonly relations?: readonly DirectedRelationLabel[];
 	/**
 	 * Obstacle-avoiding polyline in ABSOLUTE flow-space (no transform needed — RF
 	 * edge endpoints are absolute too). Present only when edge routing is on and
@@ -104,7 +108,7 @@ export function VicinityEdge({
 					data?.hasOpposite ?? false,
 				);
 	const badge = linkCountBadgeText(data?.count ?? 1);
-	const relationLabels = (data?.relations ?? []).map(relationLabelText);
+	const relationStacks = planRelationLabelStacks(data?.relations ?? [], geometry);
 	// Triangle authored tip-at-origin pointing +x, then translated to the tip
 	// and rotated to the edge's arrival angle.
 	const arrowPoints = `0,0 ${-ARROWHEAD_LENGTH_PX},${-ARROWHEAD_HALF_WIDTH_PX} ${-ARROWHEAD_LENGTH_PX},${ARROWHEAD_HALF_WIDTH_PX}`;
@@ -136,27 +140,48 @@ export function VicinityEdge({
 					</span>
 				</EdgeLabelRenderer>
 			)}
-			{relationLabels.length > 0 && (
+			{relationStacks.length > 0 && (
 				<EdgeLabelRenderer>
-					{/* Stacked ABOVE the line so the count badge keeps the midpoint; the
-					    dedicated GREAT-UI ticket iterates the multi-name presentation. */}
-					<div
-						className="vicinity-graph-edge__relations"
-						style={{
-							transform: `translate(-50%, -100%) translate(${geometry.labelX}px, ${geometry.labelY - EDGE_RELATION_LABEL_GAP_PX}px)`,
-						}}
-					>
-						{relationLabels.map((text, index) => (
-							// Index key: two distinct rel notes can share a display name, and the
-							// list is a stable, display-only projection of the deduped labels.
-							<span key={index} className="vicinity-graph-edge__relation">
-								{text}
-							</span>
-						))}
-					</div>
+					{relationStacks.map((stack) => (
+						<RelationLabelColumn key={stack.direction} stack={stack} />
+					))}
 				</EdgeLabelRenderer>
 			)}
 		</>
+	);
+}
+
+/**
+ * One direction's relation-name chips, stacked ABOVE the line (so the count badge
+ * keeps the midpoint) at the anchor {@link planRelationLabelStacks} chose. The
+ * `data-direction` drives no styling — it's the seam tests and a two-way edge's
+ * two columns read to tell the directions apart.
+ */
+function RelationLabelColumn({ stack }: { readonly stack: RelationLabelStack }): ReactElement {
+	return (
+		<div
+			className="vicinity-graph-edge__relations"
+			data-direction={stack.direction}
+			style={{
+				transform: `translate(-50%, -100%) translate(${stack.x}px, ${stack.y - EDGE_RELATION_LABEL_GAP_PX}px)`,
+			}}
+		>
+			{stack.names.map((text, index) => (
+				// Index key: two distinct rel notes can share a display name, and the
+				// list is a stable, display-only projection of the deduped labels.
+				<span key={index} className="vicinity-graph-edge__relation">
+					{text}
+				</span>
+			))}
+			{stack.overflow !== undefined && (
+				<span
+					className="vicinity-graph-edge__relation vicinity-graph-edge__relation--overflow"
+					title={stack.overflow.title}
+				>
+					{stack.overflow.badgeText}
+				</span>
+			)}
+		</div>
 	);
 }
 
