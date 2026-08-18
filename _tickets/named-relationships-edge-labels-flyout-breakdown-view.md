@@ -1,4 +1,5 @@
 ---
+session_ids: [{"a": "claude", "type": "execution", "id": "ff565023-b599-4bc4-bc56-35a569bedc33"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_wnagjm2j144u0jsgixpcmmpar_e
 title: "Named relationships: edge labels + flyout breakdown (view)"
