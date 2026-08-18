@@ -83,7 +83,7 @@ describe("ObsidianLinkOccurrenceProvider edge-scoped occurrences", () => {
 	it("WHEN a link is a frontmatter (property) link THEN its occurrence is position-less", async () => {
 		const provider = await providerOver({
 			...BASE_SPEC,
-			fileCaches: { "note.md": { frontmatterLinks: [{ link: "Target" }] } },
+			fileCaches: { "note.md": { frontmatterLinks: [{ link: "Target", key: "up" }] } },
 			resolvedLinks: { "note.md": { "target.md": 1 } },
 		});
 		expect(await provider.occurrencesBetween(NOTE, TARGET)).toEqual([{ offset: null, context: null }]);

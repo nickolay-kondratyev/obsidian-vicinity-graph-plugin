@@ -42,7 +42,7 @@ describe("ObsidianLinkProvider outgoing links (markdown)", () => {
 			"source.md": {
 				links: [ref("target", 40), ref("ghost", 50), ref("target", 60)],
 				embeds: [ref("pic.png", 20)],
-				frontmatterLinks: [{ link: "prop" }],
+				frontmatterLinks: [{ link: "prop", key: "up" }],
 			},
 		},
 		resolutions: { target: "target.md", "pic.png": "pic.png", prop: "prop.md" },
@@ -761,7 +761,7 @@ describe("ObsidianLinkProvider note outline", () => {
 			{
 				files: [{ path: "note.md" }, { path: "pic.png" }],
 				fileCaches: {
-					"note.md": { headings: [heading("Intro", 1, 0)], frontmatterLinks: [{ link: "pic.png" }] },
+					"note.md": { headings: [heading("Intro", 1, 0)], frontmatterLinks: [{ link: "pic.png", key: "cover" }] },
 				},
 				resolutions: { "pic.png": "pic.png" },
 			},
@@ -865,7 +865,7 @@ describe("ObsidianLinkProvider imagePrecedesOutline", () => {
 			{
 				files: [{ path: "note.md" }, { path: "pic.png" }],
 				fileCaches: {
-					"note.md": { headings: [heading("Intro", 1, 0)], frontmatterLinks: [{ link: "pic.png" }] },
+					"note.md": { headings: [heading("Intro", 1, 0)], frontmatterLinks: [{ link: "pic.png", key: "cover" }] },
 				},
 				resolutions: { "pic.png": "pic.png" },
 			},
@@ -958,7 +958,7 @@ describe("ObsidianLinkProvider outgoing reference kinds (markdown)", () => {
 			"source.md": {
 				links: [ref("target", 40)],
 				embeds: [ref("pic.png", 20)],
-				frontmatterLinks: [{ link: "prop" }],
+				frontmatterLinks: [{ link: "prop", key: "up" }],
 			},
 		},
 		resolutions: { target: "target.md", "pic.png": "pic.png", prop: "prop.md" },
@@ -972,13 +972,17 @@ describe("ObsidianLinkProvider outgoing reference kinds (markdown)", () => {
 		expect(await referencesOf(spec, "source.md")).toContainEqual({ target: "pic.png", kind: "embed" });
 	});
 
-	it("WHEN a reference is a frontmatter property link THEN it is reported as a plain link", async () => {
-		expect(await referencesOf(spec, "source.md")).toContainEqual({ target: "prop.md", kind: "link" });
+	it("WHEN a reference is a frontmatter property link THEN it is a plain link CARRYING the field-key relation", async () => {
+		expect(await referencesOf(spec, "source.md")).toContainEqual({
+			target: "prop.md",
+			kind: "link",
+			relations: [{ name: "up" }],
+		});
 	});
 
 	it("WHEN kinds are attached THEN reference ORDER is unchanged (frontmatter, then body by offset)", async () => {
 		expect(await referencesOf(spec, "source.md")).toEqual([
-			{ target: "prop.md", kind: "link" },
+			{ target: "prop.md", kind: "link", relations: [{ name: "up" }] },
 			{ target: "pic.png", kind: "embed" },
 			{ target: "target.md", kind: "link" },
 		]);
@@ -1014,6 +1018,70 @@ describe("ObsidianLinkProvider outgoing reference kinds (markdown)", () => {
 			"uncached.md",
 		);
 		expect(references).toEqual([{ target: "t.md", kind: "link" }]);
+	});
+});
+
+describe("ObsidianLinkProvider frontmatter named relationships", () => {
+	async function referencesOf(spec: FakeObsidianSpec, path: string) {
+		return (await providerOver(spec)).getOutgoingReferences(asVaultPath(path));
+	}
+
+	it("WHEN a frontmatter field is link-valued THEN the edge carries the field key as its relation name", async () => {
+		const references = await referencesOf(
+			{
+				files: [{ path: "child.md" }, { path: "parent.md" }],
+				fileCaches: { "child.md": { frontmatterLinks: [{ link: "parent", key: "up" }] } },
+				resolutions: { parent: "parent.md" },
+			},
+			"child.md",
+		);
+		expect(references).toEqual([{ target: "parent.md", kind: "link", relations: [{ name: "up" }] }]);
+	});
+
+	it("WHEN a frontmatter list field flattens to up.0/up.1 THEN both targets share the ONE relation name", async () => {
+		const references = await referencesOf(
+			{
+				files: [{ path: "child.md" }, { path: "a.md" }, { path: "b.md" }],
+				fileCaches: {
+					"child.md": {
+						frontmatterLinks: [
+							{ link: "a", key: "up.0" },
+							{ link: "b", key: "up.1" },
+						],
+					},
+				},
+				resolutions: { a: "a.md", b: "b.md" },
+			},
+			"child.md",
+		);
+		expect(references).toEqual([
+			{ target: "a.md", kind: "link", relations: [{ name: "up" }] },
+			{ target: "b.md", kind: "link", relations: [{ name: "up" }] },
+		]);
+	});
+
+	// PARITY (this ticket's acceptance): a frontmatter relation and the equivalent
+	// inline `::` statement must reach edge assembly as the SAME labeled reference —
+	// they are two sources feeding one merge, not two edge shapes.
+	it("WHEN a relation is named in frontmatter vs inline THEN both produce the same labeled reference", async () => {
+		const frontmatterSide = await referencesOf(
+			{
+				files: [{ path: "fm.md" }, { path: "t.md" }],
+				fileCaches: { "fm.md": { frontmatterLinks: [{ link: "t", key: "up" }] } },
+				resolutions: { t: "t.md" },
+			},
+			"fm.md",
+		);
+		const inlineSide = await referencesOf(
+			{
+				files: [{ path: "inline.md", content: "up::[[t]]" }, { path: "t.md" }],
+				fileCaches: { "inline.md": { links: [ref("t", 0)] } },
+				resolutions: { t: "t.md" },
+			},
+			"inline.md",
+		);
+		expect(frontmatterSide).toEqual(inlineSide);
+		expect(frontmatterSide).toEqual([{ target: "t.md", kind: "link", relations: [{ name: "up" }] }]);
 	});
 });
 

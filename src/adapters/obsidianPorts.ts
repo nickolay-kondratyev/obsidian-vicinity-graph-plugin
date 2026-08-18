@@ -55,9 +55,17 @@ export interface ReferencePort {
 	readonly position: { readonly start: { readonly offset: number } };
 }
 
-/** Structural slice of a `FrontmatterLinkCache` (property links carry no body offset). */
+/**
+ * Structural slice of a `FrontmatterLinkCache` (property links carry no body offset).
+ * {@link key} is the frontmatter FIELD the link sits under — the named-relationship
+ * name (`up: "[[parent]]"` ⇒ key `up`). Obsidian flattens a list-valued field into
+ * one cache entry per element, suffixing the key with a numeric index (`up.0`,
+ * `up.1`); {@link import("./FrontmatterRelationships").FrontmatterRelationships}
+ * strips that suffix.
+ */
 export interface FrontmatterLinkPort {
 	readonly link: string;
+	readonly key: string;
 }
 
 /**
