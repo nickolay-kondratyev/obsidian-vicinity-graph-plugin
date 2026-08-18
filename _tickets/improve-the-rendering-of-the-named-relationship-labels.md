@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_xxdr52j98pjgli834qx2d2lsq_e
 title: "Improve the rendering of the named relationship labels"
-status: open
+status: in_progress
 deps: []
 links: []
 created_iso: 2026-08-18T15:09:55Z
-status_updated_iso: 2026-08-18T15:09:55Z
+status_updated_iso: 2026-08-18T15:12:04Z
 type: task
 priority: 3
 assignee: nickolaykondratyev
