@@ -1,4 +1,5 @@
 ---
+session_ids: [{"a": "claude", "type": "execution", "id": "69173b8a-3690-4d64-af54-d708cac4193b"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_onhd5y7uqnbz8fl1hweryjuk4_e
 title: "Named relationships: docs update (README syntax + high-level-plan traversal)"
