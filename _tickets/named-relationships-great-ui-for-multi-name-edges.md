@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-18T02:35:52Z
-session_ids: [{"a": "claude", "type": "execution", "id": "0cc2d87e-4308-4767-a015-ba0b0e377fbe"}]
+session_ids: [{"a": "claude", "type": "execution", "id": "0cc2d87e-4308-4767-a015-ba0b0e377fbe"}, {"a": "claude", "type": "review", "id": "aa9a66cb-84be-4df4-9c6e-965cba26b0e6"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_1ycy9aszptp9fih76equxtcqa_e
 title: "Named relationships: GREAT UI for multi-name edges"
