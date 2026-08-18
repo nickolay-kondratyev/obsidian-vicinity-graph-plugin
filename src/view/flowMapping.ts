@@ -21,6 +21,7 @@ import type { OrphanTruncation } from "./truncationBadges";
 import { deriveTruncationBadges } from "./truncationBadges";
 import { edgeIdOf, folderGroupIdOf, nodeDimensionsPx, nodeSizeOverridePx } from "./graphIdentity";
 import type { RoutedPoint } from "./edgeRouting";
+import { relationEdgeColorClassName } from "./relationColor";
 
 /**
  * Pure engine → React Flow shape mapping. Emits plain objects only (no React,
@@ -652,11 +653,22 @@ export const PURE_HIERARCHY_EDGE_CLASS = "vicinity-graph-edge--hierarchy";
 /**
  * The full class string the React Flow edge WRAPPER carries: the per-{@link EdgeKind}
  * hook, plus the pure-hierarchy dash hook when this edge is a PURE folder-note
- * relation (no link occurrence — {@link FlowEdge.count} 0).
+ * relation (no link occurrence — {@link FlowEdge.count} 0), plus the per-relation-name
+ * COLOUR hook when every named relation on the edge shares one hue (ticket
+ * nid_adesjb4clls56623vdu773ubg_e — see {@link relationEdgeColorClassName}). A pure
+ * hierarchy edge carries no relations, so the colour and dash hooks never collide.
  */
 export function edgeClassName(edge: FlowEdge): string {
 	const kindClass = edgeKindClassName(edge.kind);
-	return edge.hierarchy && edge.count === 0 ? `${kindClass} ${PURE_HIERARCHY_EDGE_CLASS}` : kindClass;
+	const classes = [kindClass];
+	if (edge.hierarchy && edge.count === 0) {
+		classes.push(PURE_HIERARCHY_EDGE_CLASS);
+	}
+	const colorClass = relationEdgeColorClassName((edge.relations ?? []).map((relation) => relation.label.name));
+	if (colorClass !== undefined) {
+		classes.push(colorClass);
+	}
+	return classes.join(" ");
 }
 
 /**

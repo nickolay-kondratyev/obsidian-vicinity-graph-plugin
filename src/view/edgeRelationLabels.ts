@@ -43,13 +43,23 @@ export interface RelationLabelOverflow {
 	readonly title: string;
 }
 
+/**
+ * One drawn relation chip: the display `text` (may carry the `[X]` qualifier) plus the
+ * bare relation `name` that keys its colour ({@link import("./relationColor").relationChipColorClassName}).
+ * The two differ whenever a qualifier is present, so a qualifier can never change a hue.
+ */
+export interface RelationLabelChip {
+	readonly text: string;
+	readonly name: string;
+}
+
 /** One rendered stack of relation-name chips, already truncated and positioned. */
 export interface RelationLabelStack {
 	readonly direction: RelationDirection;
 	/** Anchor in absolute flow space (the chip column centres here, sitting above the line). */
 	readonly x: number;
 	readonly y: number;
-	readonly names: readonly string[];
+	readonly names: readonly RelationLabelChip[];
 	readonly overflow?: RelationLabelOverflow;
 }
 
@@ -81,9 +91,11 @@ export function planRelationLabelStacks(
 	];
 }
 
-/** The display strings for one direction's labels, in first-seen order. */
-function namesOfDirection(relations: readonly DirectedRelationLabel[], direction: RelationDirection): string[] {
-	return relations.filter((relation) => relation.direction === direction).map((relation) => relationLabelText(relation.label));
+/** The chips for one direction's labels, in first-seen order (display text + colour-keying name). */
+function namesOfDirection(relations: readonly DirectedRelationLabel[], direction: RelationDirection): RelationLabelChip[] {
+	return relations
+		.filter((relation) => relation.direction === direction)
+		.map((relation) => ({ text: relationLabelText(relation.label), name: relation.label.name }));
 }
 
 interface Point {
@@ -100,7 +112,7 @@ function biasedToward(from: Point, to: Point): Point {
 }
 
 /** Builds one stack: the first {@link MAX_RELATION_LABELS_PER_STACK} names, the rest as a `+N` chip. */
-function stackAt(direction: RelationDirection, anchor: Point, names: readonly string[]): RelationLabelStack {
+function stackAt(direction: RelationDirection, anchor: Point, names: readonly RelationLabelChip[]): RelationLabelStack {
 	const base = { direction, x: anchor.x, y: anchor.y };
 	if (names.length <= MAX_RELATION_LABELS_PER_STACK) {
 		return { ...base, names };
@@ -112,7 +124,7 @@ function stackAt(direction: RelationDirection, anchor: Point, names: readonly st
 		overflow: {
 			count: hidden.length,
 			badgeText: relationOverflowBadgeText(hidden.length),
-			title: relationOverflowTitle(hidden),
+			title: relationOverflowTitle(hidden.map((chip) => chip.text)),
 		},
 	};
 }

@@ -12,6 +12,7 @@ import {
 import type { ClipRect } from "./edgeGeometry";
 import { planRelationLabelStacks } from "./edgeRelationLabels";
 import type { RelationLabelStack } from "./edgeRelationLabels";
+import { relationChipColorClassName } from "./relationColor";
 import type { DirectedRelationLabel } from "./flowMapping";
 import type { RoutedPoint } from "./edgeRouting";
 
@@ -166,11 +167,13 @@ function RelationLabelColumn({ stack }: { readonly stack: RelationLabelStack }):
 				transform: `translate(-50%, -100%) translate(${stack.x}px, ${stack.y - EDGE_RELATION_LABEL_GAP_PX}px)`,
 			}}
 		>
-			{stack.names.map((text, index) => (
+			{stack.names.map((chip, index) => (
 				// Index key: two distinct rel notes can share a display name, and the
 				// list is a stable, display-only projection of the deduped labels.
-				<span key={index} className="vicinity-graph-edge__relation">
-					{text}
+				// The colour class keys off the bare NAME (not the qualified text), so a
+				// qualifier never shifts the hue — see relationChipColorClassName.
+				<span key={index} className={`vicinity-graph-edge__relation ${relationChipColorClassName(chip.name)}`}>
+					{chip.text}
 				</span>
 			))}
 			{stack.overflow !== undefined && (
