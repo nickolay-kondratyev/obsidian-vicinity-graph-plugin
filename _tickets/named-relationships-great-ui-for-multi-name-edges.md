@@ -88,3 +88,9 @@ carries as separate ordered-pair edges).
   arrowhead rather than adding a `→`/`←` that would be ambiguous on a mutual edge
   and fight the "collapse, don't multiply / glance cedes to flyout" owner principle.
 
+
+## Notes
+
+**2026-08-18T02:38:59Z**
+
+__READY_AS_IS__: Presentation-only direction-aware label planner; check/npm test/named-relationships e2e all green, contracts consistent, coverage thorough, no bugs found.
