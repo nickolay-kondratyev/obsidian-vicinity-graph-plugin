@@ -11,6 +11,7 @@ import { FakeDocIdPort } from "./FakeDocIdPort";
 import { FakeObsidianPorts } from "./FakeObsidianPorts";
 import { FolderNoteIndex } from "./FolderNoteIndex";
 import { FrontmatterIdIndex } from "./FrontmatterIdIndex";
+import { NamedRelationshipsIndex } from "./NamedRelationshipsIndex";
 import type { NoteCreationPort } from "./obsidianPorts";
 import { VicinityGraphBuilder } from "./VicinityGraphBuilder";
 
@@ -63,6 +64,7 @@ async function builderFixture() {
 		new DocIdMapWarmer(ports.vault, docIdPort, pathDocIdMap),
 		new FrontmatterIdIndex(ports.vault, ports.metadataCache, () => ""),
 		new FolderNoteIndex(ports.vault),
+		new NamedRelationshipsIndex(ports.vault, ports.metadataCache),
 		fakeNoteCreation(),
 	);
 	return { builder, docIdPort, pathDocIdMap, pluginDataStore, perDocStore };
@@ -146,6 +148,7 @@ describe("VicinityGraphBuilder create-child-note predicate (mainIsFolderNote)", 
 			new DocIdMapWarmer(ports.vault, docIdPort, pathDocIdMap),
 			new FrontmatterIdIndex(ports.vault, ports.metadataCache, () => ""),
 			new FolderNoteIndex(ports.vault),
+			new NamedRelationshipsIndex(ports.vault, ports.metadataCache),
 			fakeNoteCreation(existingFolders),
 		);
 		return builder.build(mainPath);
@@ -218,6 +221,7 @@ async function coldMapFixture(options: { readonly unreadablePath?: string } = {}
 		new DocIdMapWarmer(ports.vault, docIdPort, pathDocIdMap),
 		new FrontmatterIdIndex(ports.vault, ports.metadataCache, () => ""),
 		new FolderNoteIndex(ports.vault),
+		new NamedRelationshipsIndex(ports.vault, ports.metadataCache),
 		fakeNoteCreation(),
 	);
 	return { builder, docIdPort };

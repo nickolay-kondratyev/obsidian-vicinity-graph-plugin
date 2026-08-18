@@ -5,6 +5,7 @@ import type { FakeObsidianSpec } from "./FakeObsidianPorts";
 import { FakeObsidianPorts } from "./FakeObsidianPorts";
 import { FolderNoteIndex } from "./FolderNoteIndex";
 import { FrontmatterIdIndex } from "./FrontmatterIdIndex";
+import { NamedRelationshipsIndex } from "./NamedRelationshipsIndex";
 import { ObsidianLinkProvider } from "./ObsidianLinkProvider";
 import type { HeadingPort, ReferencePort } from "./obsidianPorts";
 
@@ -20,7 +21,14 @@ async function providerOver(spec: FakeObsidianSpec): Promise<ObsidianLinkProvide
 	const ports = new FakeObsidianPorts(spec);
 	const idIndex = new FrontmatterIdIndex(ports.vault, ports.metadataCache, () => spec.idRefFields ?? "");
 	const folderNoteIndex = new FolderNoteIndex(ports.vault);
-	return ObsidianLinkProvider.create(ports.vault, ports.metadataCache, new CanvasParseCache(), idIndex, folderNoteIndex);
+	return ObsidianLinkProvider.create(
+		ports.vault,
+		ports.metadataCache,
+		new CanvasParseCache(),
+		idIndex,
+		folderNoteIndex,
+		new NamedRelationshipsIndex(ports.vault, ports.metadataCache),
+	);
 }
 
 const CANVAS_JSON = '{"nodes": [{"type": "file", "file": "note-a.md"}, {"type": "file", "file": "pic.png"}]}';

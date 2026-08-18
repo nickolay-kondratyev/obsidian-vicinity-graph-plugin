@@ -2,6 +2,7 @@ import type { LinkOccurrence, LinkOccurrenceProvider, VaultPath } from "../engin
 import type { CanvasParseCache } from "./CanvasParseCache";
 import type { FolderNoteIndex } from "./FolderNoteIndex";
 import type { FrontmatterIdIndex } from "./FrontmatterIdIndex";
+import type { NamedRelationshipsIndex } from "./NamedRelationshipsIndex";
 import { ObsidianLinkOccurrenceProvider } from "./ObsidianLinkOccurrenceProvider";
 import { ObsidianLinkProvider } from "./ObsidianLinkProvider";
 import type { MetadataCachePort, VaultPort } from "./obsidianPorts";
@@ -24,6 +25,8 @@ export class LiveLinkOccurrenceProvider implements LinkOccurrenceProvider {
 		private readonly frontmatterIdIndex: FrontmatterIdIndex,
 		/** Shared plugin-lived folder-note index so hierarchy edges appear in the drawer too. */
 		private readonly folderNoteIndex: FolderNoteIndex,
+		/** Shared plugin-lived named-relationships index so labels ride drawer snapshots too. */
+		private readonly namedRelations: NamedRelationshipsIndex,
 	) {}
 
 	async occurrencesBetween(source: VaultPath, target: VaultPath): Promise<readonly LinkOccurrence[]> {
@@ -37,6 +40,7 @@ export class LiveLinkOccurrenceProvider implements LinkOccurrenceProvider {
 			this.canvasParseCache,
 			this.frontmatterIdIndex,
 			this.folderNoteIndex,
+			this.namedRelations,
 		);
 		return new ObsidianLinkOccurrenceProvider(this.vault, this.metadataCache, linkProvider);
 	}

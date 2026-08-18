@@ -5,6 +5,7 @@ import { CanvasParseCache } from "./adapters/CanvasParseCache";
 import { FolderNoteIndex } from "./adapters/FolderNoteIndex";
 import { FrontmatterIdIndex } from "./adapters/FrontmatterIdIndex";
 import { LiveLinkOccurrenceProvider } from "./adapters/LiveLinkOccurrenceProvider";
+import { NamedRelationshipsIndex } from "./adapters/NamedRelationshipsIndex";
 import { ObsidianNoteCreation } from "./adapters/ObsidianNoteCreation";
 import { VicinityGraphBuilder } from "./adapters/VicinityGraphBuilder";
 import { DocIdMapWarmer } from "./persistence/DocIdMapWarmer";
@@ -88,6 +89,13 @@ export default class VicinityGraphPlugin extends Plugin {
 	 */
 	private folderNoteIndex!: FolderNoteIndex;
 	/**
+	 * Plugin-lived named-relationships index (`supports::[[x]]` statements —
+	 * metadataCache carries no `::` prefixes, so raw markdown is parsed once and
+	 * kept fresh by the SAME lifecycle events as the other indexes; scan starts
+	 * eagerly at load and never blocks it, graph builds await readiness).
+	 */
+	private namedRelationsIndex!: NamedRelationshipsIndex;
+	/**
 	 * The plugin's ONE vault-WRITE seam (`Vault.create` + a `folderExists` read). Shared
 	 * by the builder (folder-existence half of the create-child-note chip predicate) and
 	 * every view's `ChildNoteCreator` (the write + open). Plugin-lived and stateless.
@@ -154,6 +162,10 @@ export default class VicinityGraphPlugin extends Plugin {
 		);
 		// Path-only folder-note index; carries no settings, so it needs no accessor.
 		this.folderNoteIndex = new FolderNoteIndex(this.app.vault);
+		this.namedRelationsIndex = new NamedRelationshipsIndex(this.app.vault, this.app.metadataCache);
+		// Kick the initial vault scan off now (bounded concurrency, absorbed failure —
+		// a failed scan retries on the next build's await) without delaying onload.
+		this.namedRelationsIndex.startEagerly();
 		// The plugin's ONE vault-WRITE seam (create-child-note); its folderExists half is
 		// also the read the builder's chip predicate needs.
 		this.noteCreation = new ObsidianNoteCreation(this.app.vault);
@@ -168,6 +180,7 @@ export default class VicinityGraphPlugin extends Plugin {
 			this.docIdMapWarmer,
 			this.frontmatterIdIndex,
 			this.folderNoteIndex,
+			this.namedRelationsIndex,
 			this.noteCreation,
 		);
 
@@ -183,6 +196,7 @@ export default class VicinityGraphPlugin extends Plugin {
 			this.canvasParseCache,
 			this.frontmatterIdIndex,
 			this.folderNoteIndex,
+			this.namedRelationsIndex,
 		);
 		this.registerView(
 			VIEW_TYPE_VICINITY_GRAPH,
@@ -249,7 +263,14 @@ export default class VicinityGraphPlugin extends Plugin {
 		// change (an edited `id:` or configured field, a new/removed note) can move an
 		// id-ref edge, so invalidate on `changed` and let the next graph build rebuild.
 		// Empty configured field list ⇒ the rebuild is a no-op (inert index).
-		this.registerEvent(this.app.metadataCache.on("changed", () => this.frontmatterIdIndex.markStale()));
+		this.registerEvent(
+			this.app.metadataCache.on("changed", (file, data) => {
+				this.frontmatterIdIndex.markStale();
+				// The 'changed' callback hands the file's CONTENT — the named-relationships
+				// index re-parses from it directly, zero extra reads.
+				this.namedRelationsIndex.handleFileChanged(file.path, data);
+			}),
+		);
 		// The folder-note index is derived from the vault's PATH SET, so it invalidates
 		// on the path events (create/delete/rename) — never on `changed`, since a body
 		// edit cannot move a path-chosen folder note. A newly created file can BECOME a
@@ -267,6 +288,8 @@ export default class VicinityGraphPlugin extends Plugin {
 				// A rename of the folder note OR of the folder re-resolves the hierarchy —
 				// both are path moves the path-derived index must pick up.
 				this.folderNoteIndex.markStale();
+				// Statements are content-derived: a rename only REKEYS the entry.
+				this.namedRelationsIndex.handleFileRenamed(oldPath, file.path);
 			}),
 		);
 		// Caught, not rethrown: the handler now spans vault file I/O (the per-file
@@ -298,6 +321,7 @@ export default class VicinityGraphPlugin extends Plugin {
 		// A deleted file may have been a folder note (or a folder note's child) — the
 		// path-derived hierarchy index must re-resolve without it.
 		this.folderNoteIndex.markStale();
+		this.namedRelationsIndex.handleFileDeleted(path);
 		const docid = this.pathDocIdMap.handleDelete(path);
 		if (docid !== undefined) {
 			// Both stores together are the ONE choke point a delete spans: the global
