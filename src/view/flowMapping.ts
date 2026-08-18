@@ -198,6 +198,21 @@ export interface EdgeNotePair {
 	readonly relations?: readonly RelationLabel[];
 }
 
+/** Which way a relation label points relative to an edge's drawn `source → target`. */
+export type RelationDirection = "forward" | "backward";
+
+/**
+ * A relation label plus the direction it travels relative to the edge's DRAWN
+ * orientation ({@link FlowEdge.source} → {@link FlowEdge.target} is `"forward"`).
+ * A plain unidirectional edge's labels are ALL forward; only a collapsed
+ * {@link FlowEdge.bidirectional} edge unions labels going both ways, and this
+ * tag is what lets the canvas UI attribute each name to its true direction.
+ */
+export interface DirectedRelationLabel {
+	readonly label: RelationLabel;
+	readonly direction: RelationDirection;
+}
+
 export interface FlowEdge {
 	readonly id: string;
 	readonly source: string;
@@ -233,8 +248,15 @@ export interface FlowEdge {
 	 * its relation names"). A collapsed group edge unions its pairs; a passthrough
 	 * edge carries its single pair's labels. ABSENT ⇒ an unnamed edge. Per-pair
 	 * attribution for the flyout rides {@link EdgeNotePair.relations}.
+	 *
+	 * Each label is tagged with the DIRECTION it points relative to this edge's
+	 * DRAWN orientation ({@link source} → {@link target} = `"forward"`). Only a
+	 * collapsed {@link bidirectional} edge ever mixes both directions — every
+	 * other edge's labels are all `"forward"` (its single arrowhead already tells
+	 * the direction), so the multi-name canvas UI can anchor each direction's
+	 * names beside the arrowhead they point INTO (see `edgeRelationLabels`).
 	 */
-	readonly relations?: readonly RelationLabel[];
+	readonly relations?: readonly DirectedRelationLabel[];
 	/**
 	 * True when the reverse edge (target→source) is also rendered as a SEPARATE
 	 * FlowEdge. Both edges of such a pair curve away from the straight line on
@@ -394,12 +416,17 @@ interface CollapsedEdgeAccumulator {
 	/** The OR of every contributing pair's {@link EdgeNotePair.hierarchy}. */
 	hierarchy: boolean;
 	/**
-	 * Deduped union of every contributing pair's relation labels, first-seen
-	 * order (identity = {@link relationLabelKey}) — the edge's glance-level names.
+	 * Deduped relation labels split by the direction they travel relative to the
+	 * accumulator's fixed `from → to` orientation, each in first-seen order
+	 * (identity = {@link relationLabelKey}). Kept apart so the canvas UI can
+	 * anchor each direction's names beside its own arrowhead; `keys` are the
+	 * per-direction dedup guards. A collapsed edge unions BOTH buckets; a
+	 * one-directional edge fills only `forward`.
 	 */
-	readonly relations: RelationLabel[];
-	/** {@link relationLabelKey}s already in {@link relations} — the dedup guard. */
-	readonly relationKeys: Set<string>;
+	readonly forwardRelations: RelationLabel[];
+	readonly forwardKeys: Set<string>;
+	readonly backwardRelations: RelationLabel[];
+	readonly backwardKeys: Set<string>;
 	/** Contributing engine note→note pairs, in first-seen order. */
 	readonly notePairs: EdgeNotePair[];
 }
@@ -449,9 +476,11 @@ function buildFlowEdges(graph: VicinityGraph, grouping: FolderGroupingResult): F
 				count: edge.count,
 				kind: edge.kind,
 				hierarchy: edge.hierarchy,
-				// A passthrough edge is its single pair, so the engine's already-deduped
-				// per-pair labels ARE the glance-level union.
-				...(edge.relations !== undefined && edge.relations.length > 0 ? { relations: edge.relations } : {}),
+				// A passthrough edge is its single pair drawn source → target, so every
+				// one of its already-deduped per-pair labels is a FORWARD label.
+				...(edge.relations !== undefined && edge.relations.length > 0
+					? { relations: forwardDirectedLabels(edge.relations) }
+					: {}),
 				hasOpposite: renderedEdgeIds.has(edgeIdOf({ source: edge.target, target: edge.source })),
 				bidirectional: false,
 			});
@@ -468,7 +497,7 @@ function buildFlowEdges(graph: VicinityGraph, grouping: FolderGroupingResult): F
 			count: pair.count,
 			kind: pair.kind,
 			hierarchy: pair.hierarchy,
-			...(pair.relations.length > 0 ? { relations: pair.relations } : {}),
+			...directedRelationsProp(pair.forwardRelations, pair.backwardRelations),
 			hasOpposite: false,
 			bidirectional: pair.forwardSeen && pair.backwardSeen,
 		}),
@@ -526,6 +555,31 @@ function addRelationLabels(
 	}
 }
 
+/** Tags every label FORWARD — a one-directional edge draws all its names along its arrowhead. */
+function forwardDirectedLabels(labels: readonly RelationLabel[]): DirectedRelationLabel[] {
+	return labels.map((label) => ({ label, direction: "forward" as const }));
+}
+
+/**
+ * The `relations` prop for a collapsed edge: forward labels first, then backward,
+ * each carrying its {@link RelationDirection}. Omitted entirely when the edge
+ * carries no names (ABSENT ⇒ unnamed), matching the passthrough emit.
+ */
+function directedRelationsProp(
+	forward: readonly RelationLabel[],
+	backward: readonly RelationLabel[],
+): { relations?: readonly DirectedRelationLabel[] } {
+	if (forward.length === 0 && backward.length === 0) {
+		return {};
+	}
+	return {
+		relations: [
+			...forwardDirectedLabels(forward),
+			...backward.map((label) => ({ label, direction: "backward" as const })),
+		],
+	};
+}
+
 function accumulateCollapsedEdge(
 	collapsedByPair: Map<string, CollapsedEdgeAccumulator>,
 	projSource: string,
@@ -535,9 +589,10 @@ function accumulateCollapsedEdge(
 	const key = [projSource, projTarget].sort().join(UNORDERED_PAIR_KEY_SEPARATOR);
 	const existing = collapsedByPair.get(key);
 	if (existing === undefined) {
-		const relations: RelationLabel[] = [];
-		const relationKeys = new Set<string>();
-		addRelationLabels(relations, relationKeys, edge.relations);
+		// First contributor FIXES the from → to orientation, so its labels are forward.
+		const forwardRelations: RelationLabel[] = [];
+		const forwardKeys = new Set<string>();
+		addRelationLabels(forwardRelations, forwardKeys, edge.relations);
 		collapsedByPair.set(key, {
 			from: projSource,
 			to: projTarget,
@@ -546,8 +601,10 @@ function accumulateCollapsedEdge(
 			count: edge.count,
 			kind: edge.kind,
 			hierarchy: edge.hierarchy,
-			relations,
-			relationKeys,
+			forwardRelations,
+			forwardKeys,
+			backwardRelations: [],
+			backwardKeys: new Set<string>(),
 			notePairs: [notePairOf(edge)],
 		});
 		return;
@@ -555,12 +612,16 @@ function accumulateCollapsedEdge(
 	existing.count += edge.count;
 	existing.kind = mergeEdgeKinds(existing.kind, edge.kind);
 	existing.hierarchy = existing.hierarchy || edge.hierarchy;
-	addRelationLabels(existing.relations, existing.relationKeys, edge.relations);
 	existing.notePairs.push(notePairOf(edge));
+	// A contributor matching the fixed orientation is forward; the reverse pair is
+	// backward. Its labels join the matching bucket so each direction stays deduped
+	// on its own (a name asserted BOTH ways is a real fact per direction, not a dup).
 	if (projSource === existing.from && projTarget === existing.to) {
 		existing.forwardSeen = true;
+		addRelationLabels(existing.forwardRelations, existing.forwardKeys, edge.relations);
 	} else {
 		existing.backwardSeen = true;
+		addRelationLabels(existing.backwardRelations, existing.backwardKeys, edge.relations);
 	}
 }
 

@@ -59,6 +59,20 @@ export function relationLabelText(relation: RelationLabel): string {
 		: `${relation.name} ${RELATION_TARGET_MARKER} ${relation.qualifier}`;
 }
 
+/**
+ * Overflow chip shown when an edge carries more relation names than fit on the
+ * canvas: `+N`. The names it hides are named in {@link relationOverflowTitle},
+ * and the full breakdown lives one click away in the edge flyout.
+ */
+export function relationOverflowBadgeText(hiddenCount: number): string {
+	return plusNText(hiddenCount);
+}
+
+/** Tooltip on the relation-overflow chip: the hidden names, then where to see all. */
+export function relationOverflowTitle(hiddenNames: readonly string[]): string {
+	return `${hiddenNames.join(", ")} — click the edge for the full breakdown`;
+}
+
 /** Multiline tooltip body for the corner overlay: one "folder — N hidden" line per folder. */
 export function orphanBreakdownTitle(breakdown: readonly FolderHiddenCount[]): string {
 	return breakdown
