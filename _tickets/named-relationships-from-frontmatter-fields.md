@@ -1,6 +1,6 @@
 ---
 closed_iso: 2026-08-18T01:48:00Z
-session_ids: [{"a": "claude", "type": "execution", "id": "cf851652-75e3-434d-806f-a7f08a8831bc"}]
+session_ids: [{"a": "claude", "type": "execution", "id": "cf851652-75e3-434d-806f-a7f08a8831bc"}, {"a": "claude", "type": "review", "id": "41fc8bcc-c003-433b-a1be-71322bcc1aba"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_ibx7hmt6cvmjh5rydi2aiyab9_e
 title: "Named relationships from frontmatter fields"
