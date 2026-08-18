@@ -56,3 +56,8 @@ it is left saturated and untouched. The ticket title scopes to LABELS, and tonin
 the line down would blunt that feature. If the "standout blue" the reporter saw
 was actually the coloured LINE rather than the chips, that is a one-line follow-up
 (soften the stroke) — flagging here rather than guessing.
+## Notes
+
+**2026-08-18T15:19:56Z**
+
+__READY_AS_IS__: CSS-only relation-label restyle; check + npm test (2415) + namedRelationships e2e (7) all green, no behavior/test/contract issues found.
