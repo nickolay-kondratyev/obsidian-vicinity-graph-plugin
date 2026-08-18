@@ -17,7 +17,7 @@ import { FakeUserNotices } from "./FakeUserNotices";
 import { FakeViewsRefresh } from "./FakeViewsRefresh";
 import { SettingsWriteFailureNotice } from "./settingsWriteFailureNotice";
 import { SettingsWritePipeline } from "./settingsWritePipeline";
-import type { ActiveMainProvider } from "./viewPorts";
+import type { ActiveMainProvider, ChildNoteCreatorPort } from "./viewPorts";
 
 /**
  * Refresh fan-out tests for the controls executor: EVERY write it makes lands in
@@ -91,8 +91,25 @@ async function actionsUnderTest(
 	const notices = new FakeUserNotices();
 	const settingsWrites = new SettingsWritePipeline(pluginDataStore, viewsRefresh, notices);
 	const activeMain = new FakeActiveMain();
-	const actions = new ControlsActions(persistenceServices, VAULT, settingsWrites, notices, activeMain);
-	return { actions, viewsRefresh, pluginDataStore, perDocStore, notices, activeMain };
+	const childNoteCreator = new RecordingChildNoteCreator();
+	const actions = new ControlsActions(
+		persistenceServices,
+		VAULT,
+		settingsWrites,
+		notices,
+		activeMain,
+		childNoteCreator,
+	);
+	return { actions, viewsRefresh, pluginDataStore, perDocStore, notices, activeMain, childNoteCreator };
+}
+
+/** Records the main paths handed to the create-child-note action (the vault-content write seam). */
+class RecordingChildNoteCreator implements ChildNoteCreatorPort {
+	readonly createdFor: string[] = [];
+	createChildNote(mainPath: string): Promise<void> {
+		this.createdFor.push(mainPath);
+		return Promise.resolve();
+	}
 }
 
 describe("ControlsActions.applySettings", () => {
@@ -434,5 +451,19 @@ describe("ControlsActions pinning when data.json cannot be written", () => {
 		const { actions, viewsRefresh } = await actionsUnderTest(new RejectingPluginDataPort());
 		await actions.pinNode(MAIN_PATH);
 		expect(viewsRefresh.refreshedViewIds).toEqual([ORIGINATING_VIEW_ID, OTHER_VIEW_ID]);
+	});
+});
+
+describe("ControlsActions.createChildNote", () => {
+	it("WHEN createChildNote is called THEN it delegates the MAIN path to the child-note creator", async () => {
+		const { actions, childNoteCreator } = await actionsUnderTest();
+		await actions.createChildNote("Jon/Jon.md");
+		expect(childNoteCreator.createdFor).toEqual(["Jon/Jon.md"]);
+	});
+
+	it("WHEN createChildNote is called THEN it makes NO settings/pin fan-out (a vault-content write is off the guarded chain)", async () => {
+		const { actions, viewsRefresh } = await actionsUnderTest();
+		await actions.createChildNote("Jon/Jon.md");
+		expect(viewsRefresh.refreshedViewIds).toEqual([]);
 	});
 });

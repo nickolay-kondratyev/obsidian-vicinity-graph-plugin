@@ -20,7 +20,7 @@ const NO_FOLDER_NOTES: FolderNoteCandidatesLookup = { folderNoteCandidatesOf: ()
 
 /** Default mapping call: nothing pinned, no folder notes. Those cases have their own describes. */
 function toFlow(graph: Parameters<typeof vicinityGraphToFlow>[0]) {
-	return vicinityGraphToFlow(graph, NO_PINS, NO_FOLDER_NOTES);
+	return vicinityGraphToFlow(graph, NO_PINS, NO_FOLDER_NOTES, false);
 }
 
 describe("vicinityGraphToFlow nodes", () => {
@@ -62,12 +62,35 @@ describe("vicinityGraphToFlow nodes", () => {
 			isGloballyPinned: false,
 			isLocallyPinned: false,
 			hasSizeOverride: false,
+			offersChildNoteCreation: false,
 			folder: "",
 			outline: [],
 			preview: "none",
 			imageCount: 0,
 			attachmentGroups: [],
 		});
+	});
+});
+
+describe("vicinityGraphToFlow create-child-note flag (ticket nid_rt0dyx6chv7fxae4k7q85f53l_e)", () => {
+	const graph = makeGraph({
+		nodes: [
+			makeNode({ path: asVaultPath("Jon/Jon.md"), title: "Jon", isMain: true, isCentral: true }),
+			makeNode({ path: asVaultPath("Jon/child.md"), title: "child" }),
+		],
+	});
+
+	it("WHEN the main is a folder note with an existing folder THEN only the MAIN offers child-note creation", () => {
+		const flow = vicinityGraphToFlow(graph, NO_PINS, NO_FOLDER_NOTES, true);
+		expect({
+			main: noteNode(flow.nodes, "Jon/Jon.md")?.data.offersChildNoteCreation,
+			child: noteNode(flow.nodes, "Jon/child.md")?.data.offersChildNoteCreation,
+		}).toEqual({ main: true, child: false });
+	});
+
+	it("WHEN the main is NOT a folder note THEN no node offers child-note creation", () => {
+		const flow = vicinityGraphToFlow(graph, NO_PINS, NO_FOLDER_NOTES, false);
+		expect(noteNode(flow.nodes, "Jon/Jon.md")?.data.offersChildNoteCreation).toBe(false);
 	});
 });
 
@@ -153,7 +176,7 @@ describe("vicinityGraphToFlow pin flags (global vs local split)", () => {
 				}),
 			],
 		});
-		const data = noteNode(vicinityGraphToFlow(graph, pinFacts, NO_FOLDER_NOTES).nodes, "n.md")?.data;
+		const data = noteNode(vicinityGraphToFlow(graph, pinFacts, NO_FOLDER_NOTES, false).nodes, "n.md")?.data;
 		return data === undefined
 			? undefined
 			: { isGloballyPinned: data.isGloballyPinned, isLocallyPinned: data.isLocallyPinned };
@@ -258,7 +281,7 @@ describe("vicinityGraphToFlow folder groups", () => {
 		const candidatesByFolder = new Map([["notes", ["notes/notes.md", "notes.md"]]]);
 		const flow = vicinityGraphToFlow(groupedGraph(), NO_PINS, {
 			folderNoteCandidatesOf: (folder) => candidatesByFolder.get(folder) ?? [],
-		});
+		}, false);
 		const group = flow.nodes.find((node) => node.kind === "folder-group");
 		expect(group?.data.folderNoteCandidates).toEqual(["notes/notes.md", "notes.md"]);
 	});
@@ -335,7 +358,7 @@ describe("vicinityGraphToFlow folder-note candidates on a collapsed chain (R4)",
 				queriedFolders.push(folder);
 				return [];
 			},
-		});
+		}, false);
 		expect(queriedFolders).toEqual(["wiki/lang/en"]);
 	});
 });
@@ -854,6 +877,7 @@ describe("withPositions", () => {
 				isGloballyPinned: false,
 				isLocallyPinned: false,
 				hasSizeOverride: false,
+				offersChildNoteCreation: false,
 				folder: "",
 				outline: [],
 				preview: "none",

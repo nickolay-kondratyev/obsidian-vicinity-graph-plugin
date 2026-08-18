@@ -1,4 +1,4 @@
-import { VicinityEngine } from "../engine";
+import { VicinityEngine, asVaultPath } from "../engine";
 import type { DocIdMapWarmer } from "../persistence/DocIdMapWarmer";
 import type { PathDocIdMap } from "../persistence/PathDocIdMap";
 import type { PerDocStore } from "../persistence/PerDocStore";
@@ -12,7 +12,7 @@ import type { FrontmatterIdIndex } from "./FrontmatterIdIndex";
 import type { GraphRequestInputs } from "./GraphRequestAssembler";
 import { GraphRequestAssembler } from "./GraphRequestAssembler";
 import { ObsidianLinkProvider } from "./ObsidianLinkProvider";
-import type { DocIdPort, MetadataCachePort, VaultPort } from "./obsidianPorts";
+import type { DocIdPort, MetadataCachePort, NoteCreationPort, VaultPort } from "./obsidianPorts";
 
 /**
  * The one async orchestration per rebuild: live Obsidian state → provider,
@@ -39,6 +39,12 @@ export class VicinityGraphBuilder {
 		private readonly frontmatterIdIndex: FrontmatterIdIndex,
 		/** Plugin-lived folder-note index for the hierarchy channels — warmed lazily on the first build. */
 		private readonly folderNoteIndex: FolderNoteIndex,
+		/**
+		 * The vault-existence half of the create-child-note chip predicate: an owned folder
+		 * that is EMPTY is invisible to the path-set {@link FolderNoteIndex}, so its existence
+		 * comes from a live `getFolderByPath`-shaped check here (READ-ONLY use of this write seam).
+		 */
+		private readonly noteCreation: NoteCreationPort,
 	) {}
 
 	/** `null` when `mainPath` does not resolve to a vault file. */
@@ -111,6 +117,16 @@ export class VicinityGraphBuilder {
 			controls: ControlsModelBuilder.build(inputs, graph.excludedNodeCount),
 			pinFacts,
 			folderNoteCandidates: this.folderNoteIndex,
+			// The create-child-note chip predicate: main is a folder note (path-set rule)
+			// AND its owned folder EXISTS (live check — an empty owned folder is invisible
+			// to the index). Read from the SAME warmed index the provider used this build.
+			mainIsFolderNote: this.mainIsFolderNote(mainPath),
 		};
+	}
+
+	/** Main is a folder note whose owned folder EXISTS in the vault (empty folder counts). */
+	private mainIsFolderNote(mainPath: string): boolean {
+		const ownedFolder = this.folderNoteIndex.ownedFolderOf(asVaultPath(mainPath));
+		return ownedFolder !== undefined && this.noteCreation.folderExists(ownedFolder);
 	}
 }

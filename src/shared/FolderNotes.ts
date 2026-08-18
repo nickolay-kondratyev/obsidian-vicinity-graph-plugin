@@ -137,6 +137,26 @@ export class FolderNotes {
 		return children;
 	}
 
+	/**
+	 * The folder a NEW CHILD of the folder note `notePath` should be created INSIDE —
+	 * the folder `notePath` wins (its owned folder), or `undefined` when it owns none
+	 * (an ordinary note, or a losing sibling). On DUAL ownership (`Jon/Jon.md` can win
+	 * both `Jon/` inside-style and `Jon/Jon/` sibling-style) the INSIDE-owned folder
+	 * wins — the same location-dominates precedence the traversal uses (owner Decision
+	 * 2, ticket `nid_rt0dyx6chv7fxae4k7q85f53l_e`).
+	 *
+	 * PATH truth only: like the rest of {@link FolderNotes} this proves `notePath`
+	 * is the folder note candidate that WINS its folder — it does NOT prove that
+	 * folder EXISTS as a vault directory (an empty owned folder is invisible to the
+	 * path set). The child-note chip predicate pairs this with a live
+	 * `folderExists` check (see `NoteCreationPort`).
+	 */
+	ownedFolderOf(notePath: string): string | undefined {
+		// foldersOwnedBy lists the inside-owned folder FIRST (it seeds the Set with the
+		// containing folder before the sibling one), so index 0 is the inside winner.
+		return this.foldersOwnedBy(notePath)[0];
+	}
+
 	/** The folder note one hop UP from `notePath`, or `undefined` at the first folder-note gap. */
 	parentNoteOf(notePath: string): string | undefined {
 		const folder = VaultPathFacts.folderOf(notePath);
