@@ -71,3 +71,9 @@ green. README + `docs-internal/plan/high-level-plan.md` updated.
 **Deferred (not this ticket):** user-configurable name→style mapping; any
 dash/weight styling.
 
+
+## Notes
+
+**2026-08-18T03:04:05Z**
+
+__READY_AS_IS__: per-relation-name colouring is well-factored and fully covered — check/tsc clean, 2415 unit tests + 7 named-rel e2e (incl. new colour-hook assertion) all green; qualifier-vs-name split, single-hue edge rule, and palette slot tripwire all correct.
