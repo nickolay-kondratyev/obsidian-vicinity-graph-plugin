@@ -1,3 +1,4 @@
+import type { RelationLabel } from "../engine";
 import type { FolderHiddenCount } from "./truncationBadges";
 
 /**
@@ -36,6 +37,26 @@ export function groupHiddenTitleText(hiddenCount: number): string {
 /** Edge multi-link badge; `null` = no badge (single link). */
 export function linkCountBadgeText(count: number): string | null {
 	return count > 1 ? `×${count}` : null;
+}
+
+/**
+ * Literal marker for the TARGET position in a qualified relation label — the
+ * edge already points at the target, so the label never repeats the note title
+ * (plan `nid_fg66tanwkoyq3cqs1wdxagn21_e`): `supports [X] but not strongly`.
+ * Shared by the edge label and the flyout breakdown so the marker lives once.
+ */
+export const RELATION_TARGET_MARKER = "[X]";
+
+/**
+ * One named relation's display text: the bare name, or — when the wrapped form
+ * carried a qualifier — `name [X] qualifier`, the target's position marked by
+ * {@link RELATION_TARGET_MARKER}. The rel-note vs plain-text distinction is
+ * already folded into `name` (alias-else-basename), so it does not surface here.
+ */
+export function relationLabelText(relation: RelationLabel): string {
+	return relation.qualifier === undefined
+		? relation.name
+		: `${relation.name} ${RELATION_TARGET_MARKER} ${relation.qualifier}`;
 }
 
 /** Multiline tooltip body for the corner overlay: one "folder — N hidden" line per folder. */
