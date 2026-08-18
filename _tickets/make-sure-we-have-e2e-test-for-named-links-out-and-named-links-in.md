@@ -1,17 +1,17 @@
 ---
 id: nid_wecll6kqjlq3jmdkudq092xte_e
-title: "Make sure we have e2e test for named links out and named links in"
-status: open
+title: Make sure we have e2e test for named links out and named links in
+status: in_progress
 deps: []
 links: []
-created_iso: 2026-08-18T14:55:24Z
-status_updated_iso: 2026-08-18T14:55:24Z
+created_iso: '2026-08-18T14:55:24Z'
+status_updated_iso: '2026-08-18T14:58:11Z'
 type: task
 priority: 3
 assignee: nickolaykondratyev
 tags: []
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin
 ---
-
 Make sure we have an e2e integration test for named links out and named links in .
 
 --------------------------------------------------------------------------------
