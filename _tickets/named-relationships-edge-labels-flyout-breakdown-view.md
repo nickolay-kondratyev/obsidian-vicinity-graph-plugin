@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_wnagjm2j144u0jsgixpcmmpar_e
 title: "Named relationships: edge labels + flyout breakdown (view)"
-status: open
+status: in_progress
 deps: [nid_wldz7yfjecf9fuwtlezlbde9s_e]
 links: []
 created_iso: 2026-08-17T16:44:24Z
-status_updated_iso: 2026-08-17T16:44:24Z
+status_updated_iso: 2026-08-18T01:54:13Z
 type: feature
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
