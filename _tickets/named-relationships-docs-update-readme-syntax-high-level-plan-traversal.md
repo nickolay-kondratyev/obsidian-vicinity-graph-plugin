@@ -59,3 +59,9 @@ links out/in" (not "named-outgoing"); flyout section heading is "Relationships"
 have NO setting of their own. No code/tests touched; markdown only, so no build
 or e2e gate applies.
 
+
+## Notes
+
+**2026-08-18T02:47:00Z**
+
+__READY_AS_IS__: docs-only branch; README + high-level-plan claims (named-rel syntax, [X] marker, depth defaults 2/1 MAIN & pinned, channel table, code/frontmatter masking) all verified against implementation.
