@@ -154,6 +154,14 @@ appears if there are more names than fit, and clicking the connector opens a
 preview listing them all — each with its qualifier, its surrounding context, and
 a link to the relationship note where there is one.
 
+**Each relationship name gets its own colour**, drawn from your theme's palette,
+so `supports` and `contradicts` read apart at a glance without stopping to read
+the labels. The colour is derived from the name itself — the same name is always
+the same colour, with nothing to configure. A connector that carries a *single*
+kind of relationship is tinted whole (line, arrowhead and label); one that
+collapses several different names keeps a neutral line and lets each name's own
+label carry its colour.
+
 Named relationships get **their own reach** — see the *Named links out* / *Named
 links in* depth dials below — so you can follow a chain of `supports::` links
 several hops deep without dragging every ordinary link along with it.

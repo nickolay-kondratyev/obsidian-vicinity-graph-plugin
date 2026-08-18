@@ -5,6 +5,7 @@ import { OUTLINE_RENDER_LIMIT } from "./constants";
 import { edgeClassName, edgeKindClassName, vicinityGraphToFlow, withGroupDimensions, withPositions } from "./flowMapping";
 import type { FlowNode, FlowPinFacts, FolderNoteCandidatesLookup, NoteFlowNode, XY } from "./flowMapping";
 import { NO_ORPHAN_TRUNCATION } from "./truncationBadges";
+import { relationColorSlot } from "./relationColor";
 import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
 
 function noteNode(nodes: readonly FlowNode[], id: string): NoteFlowNode | undefined {
@@ -1375,5 +1376,28 @@ describe("vicinityGraphToFlow named-relationship labels (ticket nid_wnagjm2j144u
 			{ label: { name: "supports" }, direction: "forward" },
 			{ label: { name: "cites" }, direction: "backward" },
 		]);
+	});
+
+	it("WHEN an edge's names all share one hue THEN edgeClassName adds that colour hook (ticket nid_adesjb4clls56623vdu773ubg_e)", () => {
+		const graph = makeGraph({
+			nodes: twoNodes(),
+			edges: [{ ...makeEdge("a.md", "b.md"), relations: [{ name: "supports" }, { name: "supports", qualifier: "weakly" }] }],
+		});
+		expect(edgeClassName(toFlow(graph).edges[0]!)).toBe(
+			`vicinity-graph-edge--kind-link vicinity-graph-edge--relation-color-${relationColorSlot("supports")}`,
+		);
+	});
+
+	it("WHEN an edge mixes relation hues THEN edgeClassName omits the colour hook (line stays neutral)", () => {
+		const graph = makeGraph({
+			nodes: twoNodes(),
+			edges: [{ ...makeEdge("a.md", "b.md"), relations: [{ name: "supports" }, { name: "contradicts" }] }],
+		});
+		expect(edgeClassName(toFlow(graph).edges[0]!)).toBe("vicinity-graph-edge--kind-link");
+	});
+
+	it("WHEN an edge carries no relations THEN edgeClassName has no colour hook", () => {
+		const graph = makeGraph({ nodes: twoNodes(), edges: [makeEdge("a.md", "b.md")] });
+		expect(edgeClassName(toFlow(graph).edges[0]!)).toBe("vicinity-graph-edge--kind-link");
 	});
 });

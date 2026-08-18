@@ -142,6 +142,20 @@ test("a rel-note relation renders a flyout link to its rel note", async () => {
 	await expect(relNoteLink).toHaveAttribute("data-href", "approves.md");
 });
 
+test("a single-relation edge colours its line and chip by the relation name (ticket nid_adesjb4clls56623vdu773ubg_e)", async () => {
+	// relnote-src → relnote-dst carries the one relation `approves`, so the whole
+	// edge shares a hue: the wrapper gets the line-colour hook and the chip its
+	// matching chip-colour hook — the SAME slot, since both key off the same name.
+	const wrapper = page.locator(`.vicinity-graph-flow .react-flow__edge[data-id="${REL_NOTE_EDGE_ID}"]`);
+	const lineSlot = /vicinity-graph-edge--relation-color-(\d+)/.exec((await wrapper.getAttribute("class")) ?? "");
+	expect(lineSlot, "the single-relation edge line carries a colour hook").not.toBeNull();
+
+	const chip = page.locator(".vicinity-graph-edge__relation", { hasText: "approves" });
+	const chipSlot = /vicinity-graph-edge__relation--color-(\d+)/.exec((await chip.getAttribute("class")) ?? "");
+	expect(chipSlot, "the relation chip carries a colour hook").not.toBeNull();
+	expect(chipSlot?.[1]).toBe(lineSlot?.[1]);
+});
+
 test("an edge with many names truncates to the cap plus a +N overflow chip", async () => {
 	await harness.openFile(MANY_SRC_PATH);
 	await expect(page.locator(`.vicinity-graph-node[data-vicinity-path="${MANY_SRC_PATH}"]`)).toHaveAttribute(

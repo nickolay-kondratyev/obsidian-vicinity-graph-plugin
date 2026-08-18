@@ -38,6 +38,22 @@
 	--xy-controls-button-color: var(--text-muted);
 	--xy-controls-button-color-hover: var(--text-normal);
 	--xy-controls-button-border-color: var(--background-modifier-border);
+
+	/*
+	 * Per-relation-name palette (ticket nid_adesjb4clls56623vdu773ubg_e). Eight
+	 * slots keyed by relationColorSlot(); each maps to one of Obsidian's stable
+	 * named-colour theme variables, so light/dark both read correctly and the
+	 * plugin owns zero colour VALUES. Slot count MUST match RELATION_COLOR_SLOT_COUNT
+	 * (relationColor.ts) — relationColorPalette.test.ts fails if a slot is missing.
+	 */
+	--vicinity-rel-color-0: var(--color-red);
+	--vicinity-rel-color-1: var(--color-orange);
+	--vicinity-rel-color-2: var(--color-yellow);
+	--vicinity-rel-color-3: var(--color-green);
+	--vicinity-rel-color-4: var(--color-cyan);
+	--vicinity-rel-color-5: var(--color-blue);
+	--vicinity-rel-color-6: var(--color-purple);
+	--vicinity-rel-color-7: var(--color-pink);
 }
 
 /*
@@ -879,6 +895,46 @@
 	font-weight: var(--font-normal);
 	font-variant-numeric: tabular-nums;
 }
+
+/*
+ * Per-relation-name COLOUR (ticket nid_adesjb4clls56623vdu773ubg_e). Two hooks per
+ * slot, computed by relationColor.ts:
+ *   - the chip class `--color-N` tints ONE name's pill (border + text) — always drawn,
+ *     so a multi-hue collapsed edge stays legible name-by-name even when its line can't
+ *     pick a single colour;
+ *   - the edge-wrapper class `--relation-color-N` recolours the LINE and its self-drawn
+ *     arrowhead, applied only when every name on the edge shares this hue (see
+ *     relationEdgeColorClassName), so `supports` vs `contradicts` read at a glance
+ *     WITHOUT reading the labels — the idea ticket's core goal.
+ * The chip rules override the neutral --text-accent/border set just above; the line
+ * rules ride `.vicinity-graph-flow` for specificity over React Flow's own edge stroke.
+ * The overflow chip deliberately keeps its muted colour (it is not a real name).
+ */
+.vicinity-graph-edge__relation--color-0 { color: var(--vicinity-rel-color-0); border-color: var(--vicinity-rel-color-0); }
+.vicinity-graph-edge__relation--color-1 { color: var(--vicinity-rel-color-1); border-color: var(--vicinity-rel-color-1); }
+.vicinity-graph-edge__relation--color-2 { color: var(--vicinity-rel-color-2); border-color: var(--vicinity-rel-color-2); }
+.vicinity-graph-edge__relation--color-3 { color: var(--vicinity-rel-color-3); border-color: var(--vicinity-rel-color-3); }
+.vicinity-graph-edge__relation--color-4 { color: var(--vicinity-rel-color-4); border-color: var(--vicinity-rel-color-4); }
+.vicinity-graph-edge__relation--color-5 { color: var(--vicinity-rel-color-5); border-color: var(--vicinity-rel-color-5); }
+.vicinity-graph-edge__relation--color-6 { color: var(--vicinity-rel-color-6); border-color: var(--vicinity-rel-color-6); }
+.vicinity-graph-edge__relation--color-7 { color: var(--vicinity-rel-color-7); border-color: var(--vicinity-rel-color-7); }
+
+.vicinity-graph-flow .vicinity-graph-edge--relation-color-0 .react-flow__edge-path,
+.vicinity-graph-flow .vicinity-graph-edge--relation-color-0 .vicinity-graph-edge__arrowhead { stroke: var(--vicinity-rel-color-0); fill: var(--vicinity-rel-color-0); }
+.vicinity-graph-flow .vicinity-graph-edge--relation-color-1 .react-flow__edge-path,
+.vicinity-graph-flow .vicinity-graph-edge--relation-color-1 .vicinity-graph-edge__arrowhead { stroke: var(--vicinity-rel-color-1); fill: var(--vicinity-rel-color-1); }
+.vicinity-graph-flow .vicinity-graph-edge--relation-color-2 .react-flow__edge-path,
+.vicinity-graph-flow .vicinity-graph-edge--relation-color-2 .vicinity-graph-edge__arrowhead { stroke: var(--vicinity-rel-color-2); fill: var(--vicinity-rel-color-2); }
+.vicinity-graph-flow .vicinity-graph-edge--relation-color-3 .react-flow__edge-path,
+.vicinity-graph-flow .vicinity-graph-edge--relation-color-3 .vicinity-graph-edge__arrowhead { stroke: var(--vicinity-rel-color-3); fill: var(--vicinity-rel-color-3); }
+.vicinity-graph-flow .vicinity-graph-edge--relation-color-4 .react-flow__edge-path,
+.vicinity-graph-flow .vicinity-graph-edge--relation-color-4 .vicinity-graph-edge__arrowhead { stroke: var(--vicinity-rel-color-4); fill: var(--vicinity-rel-color-4); }
+.vicinity-graph-flow .vicinity-graph-edge--relation-color-5 .react-flow__edge-path,
+.vicinity-graph-flow .vicinity-graph-edge--relation-color-5 .vicinity-graph-edge__arrowhead { stroke: var(--vicinity-rel-color-5); fill: var(--vicinity-rel-color-5); }
+.vicinity-graph-flow .vicinity-graph-edge--relation-color-6 .react-flow__edge-path,
+.vicinity-graph-flow .vicinity-graph-edge--relation-color-6 .vicinity-graph-edge__arrowhead { stroke: var(--vicinity-rel-color-6); fill: var(--vicinity-rel-color-6); }
+.vicinity-graph-flow .vicinity-graph-edge--relation-color-7 .react-flow__edge-path,
+.vicinity-graph-flow .vicinity-graph-edge--relation-color-7 .vicinity-graph-edge__arrowhead { stroke: var(--vicinity-rel-color-7); fill: var(--vicinity-rel-color-7); }
 
 /* ===== corner overlay badge ============================================= */
 
