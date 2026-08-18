@@ -1,4 +1,5 @@
 ---
+session_ids: [{"a": "claude", "type": "execution", "id": "86bf33f4-3a20-4d47-ae57-87c1e03f4737"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_adesjb4clls56623vdu773ubg_e
 title: "Idea: per-relation-name edge styling (color/dash)"
