@@ -86,3 +86,9 @@ checkout (regenerated at release), so there was nothing to commit for them. The
 `e2e/` directory is a flattened set of normally-tracked files here (no submodule
 gitlink), so its changes commit in the parent repo like any other file.
 
+
+## Notes
+
+**2026-08-18T02:15:55Z**
+
+__READY_AS_IS__: Reviewed full diff; found no bugs. check + npm test (2369) + namedRelationships.e2e.ts (4) all pass. Data plumbing, dedup identity mirrors engine, flyout attribution and rel-note link routing all correct; multi-name canvas presentation deliberately deferred to GREAT-UI ticket per scope. No changes made.
