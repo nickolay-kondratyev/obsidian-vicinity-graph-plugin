@@ -1,4 +1,5 @@
 ---
+session_ids: [{"a": "claude", "type": "execution", "id": "cf851652-75e3-434d-806f-a7f08a8831bc"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_ibx7hmt6cvmjh5rydi2aiyab9_e
 title: "Named relationships from frontmatter fields"
