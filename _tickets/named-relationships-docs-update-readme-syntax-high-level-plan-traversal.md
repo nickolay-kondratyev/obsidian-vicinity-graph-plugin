@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_onhd5y7uqnbz8fl1hweryjuk4_e
 title: "Named relationships: docs update (README syntax + high-level-plan traversal)"
-status: open
+status: in_progress
 deps: [nid_wnagjm2j144u0jsgixpcmmpar_e, nid_ibx7hmt6cvmjh5rydi2aiyab9_e, nid_fqdc55oifopcxxs4eb0w8q876_e]
 links: []
 created_iso: 2026-08-17T17:12:26Z
-status_updated_iso: 2026-08-17T17:12:26Z
+status_updated_iso: 2026-08-18T02:41:35Z
 type: task
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
