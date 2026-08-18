@@ -368,6 +368,7 @@ export class GraphViewController {
 					targetPath,
 					occurrences: await this.occurrences.occurrencesBetween(sourcePath, targetPath),
 					hierarchy: pair.hierarchy,
+					...(pair.relations === undefined ? {} : { relations: pair.relations }),
 				};
 			}),
 		);

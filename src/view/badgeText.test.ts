@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { asFolderPath } from "../engine";
+import { asFolderPath, asVaultPath } from "../engine";
 import {
 	extraImageCountText,
 	groupHiddenTitleText,
@@ -7,6 +7,7 @@ import {
 	linkCountBadgeText,
 	orphanBreakdownTitle,
 	plusNText,
+	relationLabelText,
 	VAULT_ROOT_LABEL,
 } from "./badgeText";
 
@@ -49,6 +50,24 @@ describe("linkCountBadgeText", () => {
 
 	it("WHEN an edge represents a single link THEN there is no badge", () => {
 		expect(linkCountBadgeText(1)).toBeNull();
+	});
+});
+
+describe("relationLabelText", () => {
+	it("WHEN a relation has no qualifier THEN the label is its bare name", () => {
+		expect(relationLabelText({ name: "supports" })).toBe("supports");
+	});
+
+	it("WHEN a relation has a qualifier THEN the target position is marked and the qualifier trails", () => {
+		expect(relationLabelText({ name: "supports", qualifier: "but not strongly" })).toBe(
+			"supports [X] but not strongly",
+		);
+	});
+
+	it("WHEN a rel-note relation maps THEN its rel-note target never surfaces in the label text", () => {
+		expect(relationLabelText({ name: "he supports", relNoteTarget: asVaultPath("rel/he-supports.md") })).toBe(
+			"he supports",
+		);
 	});
 });
 

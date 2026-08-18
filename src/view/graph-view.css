@@ -826,6 +826,37 @@
 	box-shadow: var(--shadow-s);
 }
 
+/*
+ * Named-relationship labels (ticket nid_wnagjm2j144u0jsgixpcmmpar_e), rendered
+ * in the same EdgeLabelRenderer overlay but stacked ABOVE the line so the count
+ * badge keeps the midpoint. One quiet floating token per relation name; a solid
+ * --background-primary fill occludes the edge behind the text for legibility.
+ * All theme vars — zero plugin-owned colours. The dedicated GREAT-UI ticket
+ * iterates this multi-name presentation.
+ */
+.vicinity-graph-edge__relations {
+	position: absolute;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--size-2-1);
+	pointer-events: none;
+}
+
+.vicinity-graph-edge__relation {
+	max-width: 16em;
+	padding: 0 var(--size-4-1);
+	font-size: var(--font-smallest);
+	line-height: 1.5;
+	color: var(--text-accent);
+	background: var(--background-primary);
+	border-radius: var(--radius-s);
+	box-shadow: var(--shadow-s);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
 /* ===== corner overlay badge ============================================= */
 
 .vicinity-graph-overlay-badge {

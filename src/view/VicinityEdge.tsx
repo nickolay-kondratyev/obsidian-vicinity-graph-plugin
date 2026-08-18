@@ -1,7 +1,8 @@
 import { BaseEdge, EdgeLabelRenderer, useInternalNode } from "@xyflow/react";
 import type { Edge, EdgeProps, InternalNode, Node } from "@xyflow/react";
 import type { ReactElement } from "react";
-import { linkCountBadgeText } from "./badgeText";
+import type { RelationLabel } from "../engine";
+import { linkCountBadgeText, relationLabelText } from "./badgeText";
 import {
 	ARROWHEAD_HALF_WIDTH_PX,
 	ARROWHEAD_LENGTH_PX,
@@ -31,6 +32,12 @@ export type VicinityEdgeData = {
 	readonly hasOpposite: boolean;
 	/** Group-collapsed edge unioning both directions: draw a second arrowhead at the source. */
 	readonly bidirectional: boolean;
+	/**
+	 * Named-relationship labels this edge draws (glance-level union;
+	 * {@link import("./flowMapping").FlowEdge.relations}) — stacked above the line,
+	 * a qualifier rendered as `name [X] qualifier`. ABSENT/empty ⇒ an unnamed edge.
+	 */
+	readonly relations?: readonly RelationLabel[];
 	/**
 	 * Obstacle-avoiding polyline in ABSOLUTE flow-space (no transform needed — RF
 	 * edge endpoints are absolute too). Present only when edge routing is on and
@@ -97,6 +104,7 @@ export function VicinityEdge({
 					data?.hasOpposite ?? false,
 				);
 	const badge = linkCountBadgeText(data?.count ?? 1);
+	const relationLabels = (data?.relations ?? []).map(relationLabelText);
 	// Triangle authored tip-at-origin pointing +x, then translated to the tip
 	// and rotated to the edge's arrival angle.
 	const arrowPoints = `0,0 ${-ARROWHEAD_LENGTH_PX},${-ARROWHEAD_HALF_WIDTH_PX} ${-ARROWHEAD_LENGTH_PX},${ARROWHEAD_HALF_WIDTH_PX}`;
@@ -128,6 +136,29 @@ export function VicinityEdge({
 					</span>
 				</EdgeLabelRenderer>
 			)}
+			{relationLabels.length > 0 && (
+				<EdgeLabelRenderer>
+					{/* Stacked ABOVE the line so the count badge keeps the midpoint; the
+					    dedicated GREAT-UI ticket iterates the multi-name presentation. */}
+					<div
+						className="vicinity-graph-edge__relations"
+						style={{
+							transform: `translate(-50%, -100%) translate(${geometry.labelX}px, ${geometry.labelY - EDGE_RELATION_LABEL_GAP_PX}px)`,
+						}}
+					>
+						{relationLabels.map((text, index) => (
+							// Index key: two distinct rel notes can share a display name, and the
+							// list is a stable, display-only projection of the deduped labels.
+							<span key={index} className="vicinity-graph-edge__relation">
+								{text}
+							</span>
+						))}
+					</div>
+				</EdgeLabelRenderer>
+			)}
 		</>
 	);
 }
+
+/** Gap (px) between the stacked relation labels and the edge line beneath them. */
+const EDGE_RELATION_LABEL_GAP_PX = 6;

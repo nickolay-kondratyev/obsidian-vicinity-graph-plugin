@@ -6,6 +6,7 @@ import type {
 	NodeContentOverride,
 	NodePreviewKind,
 	OutlineEntry,
+	RelationLabel,
 	ViewSettings,
 	VicinityGraph,
 } from "../engine";
@@ -186,6 +187,15 @@ export interface EdgeNotePair {
 	 * the pair, not just the {@link FlowEdge}.
 	 */
 	readonly hierarchy: boolean;
+	/**
+	 * Every NAMED-RELATIONSHIP label this ordered pair carries
+	 * ({@link import("../engine").GraphEdge.relations}) — names, qualifiers, and
+	 * rel-note link targets. The edge-click flyout reads them PER PAIR so a
+	 * collapsed group edge attributes each relation to the note that asserts it;
+	 * the {@link FlowEdge}'s glance-level union rides {@link FlowEdge.relations}.
+	 * ABSENT ⇒ an unnamed pair.
+	 */
+	readonly relations?: readonly RelationLabel[];
 }
 
 export interface FlowEdge {
@@ -216,6 +226,15 @@ export interface FlowEdge {
 	 * solid + badge, visually identical to a plain link edge.
 	 */
 	readonly hierarchy: boolean;
+	/**
+	 * Glance-level UNION of every NAMED-RELATIONSHIP label across this rendered
+	 * edge's contributing pairs, deduped by (name, qualifier, rel-note target) in
+	 * first-seen order — what the edge draws on the canvas ("the edge shows ALL
+	 * its relation names"). A collapsed group edge unions its pairs; a passthrough
+	 * edge carries its single pair's labels. ABSENT ⇒ an unnamed edge. Per-pair
+	 * attribution for the flyout rides {@link EdgeNotePair.relations}.
+	 */
+	readonly relations?: readonly RelationLabel[];
 	/**
 	 * True when the reverse edge (target→source) is also rendered as a SEPARATE
 	 * FlowEdge. Both edges of such a pair curve away from the straight line on
@@ -374,6 +393,13 @@ interface CollapsedEdgeAccumulator {
 	kind: EdgeKind;
 	/** The OR of every contributing pair's {@link EdgeNotePair.hierarchy}. */
 	hierarchy: boolean;
+	/**
+	 * Deduped union of every contributing pair's relation labels, first-seen
+	 * order (identity = {@link relationLabelKey}) — the edge's glance-level names.
+	 */
+	readonly relations: RelationLabel[];
+	/** {@link relationLabelKey}s already in {@link relations} — the dedup guard. */
+	readonly relationKeys: Set<string>;
 	/** Contributing engine note→note pairs, in first-seen order. */
 	readonly notePairs: EdgeNotePair[];
 }
@@ -419,10 +445,13 @@ function buildFlowEdges(graph: VicinityGraph, grouping: FolderGroupingResult): F
 				id: edgeIdOf(edge),
 				source: edge.source,
 				target: edge.target,
-				notePairs: [{ source: edge.source, target: edge.target, hierarchy: edge.hierarchy }],
+				notePairs: [notePairOf(edge)],
 				count: edge.count,
 				kind: edge.kind,
 				hierarchy: edge.hierarchy,
+				// A passthrough edge is its single pair, so the engine's already-deduped
+				// per-pair labels ARE the glance-level union.
+				...(edge.relations !== undefined && edge.relations.length > 0 ? { relations: edge.relations } : {}),
 				hasOpposite: renderedEdgeIds.has(edgeIdOf({ source: edge.target, target: edge.source })),
 				bidirectional: false,
 			});
@@ -439,6 +468,7 @@ function buildFlowEdges(graph: VicinityGraph, grouping: FolderGroupingResult): F
 			count: pair.count,
 			kind: pair.kind,
 			hierarchy: pair.hierarchy,
+			...(pair.relations.length > 0 ? { relations: pair.relations } : {}),
 			hasOpposite: false,
 			bidirectional: pair.forwardSeen && pair.backwardSeen,
 		}),
@@ -455,6 +485,47 @@ function mergeEdgeKinds(a: EdgeKind, b: EdgeKind): EdgeKind {
 	return a === b ? a : "both";
 }
 
+/**
+ * Dedup identity of a relation label — (name, qualifier, rel-note target),
+ * NUL-joined. Mirrors the engine's per-pair identity in `EdgeAssembly` so
+ * unioning a collapsed edge's contributors never doubles a label two pairs share.
+ */
+function relationLabelKey(label: RelationLabel): string {
+	const separator = UNORDERED_PAIR_KEY_SEPARATOR;
+	return `${label.name}${separator}${label.qualifier ?? ""}${separator}${label.relNoteTarget ?? ""}`;
+}
+
+/**
+ * The rendered pair behind one engine edge, carrying its relation labels only
+ * when non-empty (ABSENT ⇒ unnamed) — the shape both build paths emit.
+ */
+function notePairOf(edge: GraphEdge): EdgeNotePair {
+	return {
+		source: edge.source,
+		target: edge.target,
+		hierarchy: edge.hierarchy,
+		...(edge.relations !== undefined && edge.relations.length > 0 ? { relations: edge.relations } : {}),
+	};
+}
+
+/**
+ * Folds an edge's relation labels into a first-seen-ordered accumulator (dedup
+ * via `keys`) — the union rule for a collapsed edge's glance-level names.
+ */
+function addRelationLabels(
+	into: RelationLabel[],
+	keys: Set<string>,
+	labels: readonly RelationLabel[] | undefined,
+): void {
+	for (const label of labels ?? []) {
+		const key = relationLabelKey(label);
+		if (!keys.has(key)) {
+			keys.add(key);
+			into.push(label);
+		}
+	}
+}
+
 function accumulateCollapsedEdge(
 	collapsedByPair: Map<string, CollapsedEdgeAccumulator>,
 	projSource: string,
@@ -464,6 +535,9 @@ function accumulateCollapsedEdge(
 	const key = [projSource, projTarget].sort().join(UNORDERED_PAIR_KEY_SEPARATOR);
 	const existing = collapsedByPair.get(key);
 	if (existing === undefined) {
+		const relations: RelationLabel[] = [];
+		const relationKeys = new Set<string>();
+		addRelationLabels(relations, relationKeys, edge.relations);
 		collapsedByPair.set(key, {
 			from: projSource,
 			to: projTarget,
@@ -472,14 +546,17 @@ function accumulateCollapsedEdge(
 			count: edge.count,
 			kind: edge.kind,
 			hierarchy: edge.hierarchy,
-			notePairs: [{ source: edge.source, target: edge.target, hierarchy: edge.hierarchy }],
+			relations,
+			relationKeys,
+			notePairs: [notePairOf(edge)],
 		});
 		return;
 	}
 	existing.count += edge.count;
 	existing.kind = mergeEdgeKinds(existing.kind, edge.kind);
 	existing.hierarchy = existing.hierarchy || edge.hierarchy;
-	existing.notePairs.push({ source: edge.source, target: edge.target, hierarchy: edge.hierarchy });
+	addRelationLabels(existing.relations, existing.relationKeys, edge.relations);
+	existing.notePairs.push(notePairOf(edge));
 	if (projSource === existing.from && projTarget === existing.to) {
 		existing.forwardSeen = true;
 	} else {

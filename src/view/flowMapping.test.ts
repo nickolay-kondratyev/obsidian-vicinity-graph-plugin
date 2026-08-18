@@ -1288,3 +1288,68 @@ describe("vicinityGraphToFlow node geometry ignores the per-node content overrid
 		expect(actual).toEqual(Object.fromEntries(choices.map((c) => [String(c), baseline])));
 	});
 });
+
+describe("vicinityGraphToFlow named-relationship labels (ticket nid_wnagjm2j144u0jsgixpcmmpar_e)", () => {
+	function twoNodes() {
+		return [makeNode({ path: asVaultPath("a.md") }), makeNode({ path: asVaultPath("b.md") })];
+	}
+
+	it("WHEN a passthrough edge carries relation labels THEN the flow edge carries the same union", () => {
+		const graph = makeGraph({
+			nodes: twoNodes(),
+			edges: [{ ...makeEdge("a.md", "b.md"), relations: [{ name: "supports" }, { name: "refutes", qualifier: "weakly" }] }],
+		});
+		expect(toFlow(graph).edges[0]?.relations).toEqual([{ name: "supports" }, { name: "refutes", qualifier: "weakly" }]);
+	});
+
+	it("WHEN a passthrough edge carries relation labels THEN its note pair carries them for the flyout", () => {
+		const graph = makeGraph({
+			nodes: twoNodes(),
+			edges: [{ ...makeEdge("a.md", "b.md"), relations: [{ name: "supports" }] }],
+		});
+		expect(toFlow(graph).edges[0]?.notePairs).toEqual([
+			{ source: "a.md", target: "b.md", hierarchy: false, relations: [{ name: "supports" }] },
+		]);
+	});
+
+	it("WHEN an edge carries no relation labels THEN the flow edge has no relations key", () => {
+		const graph = makeGraph({ nodes: twoNodes(), edges: [makeEdge("a.md", "b.md")] });
+		expect(toFlow(graph).edges[0]?.relations).toBeUndefined();
+	});
+
+	it("WHEN a rel-note label maps THEN its rel-note target survives to the flow edge", () => {
+		const graph = makeGraph({
+			nodes: twoNodes(),
+			edges: [{ ...makeEdge("a.md", "b.md"), relations: [{ name: "he supports", relNoteTarget: asVaultPath("rel/he-supports.md") }] }],
+		});
+		expect(toFlow(graph).edges[0]?.relations).toEqual([
+			{ name: "he supports", relNoteTarget: "rel/he-supports.md" },
+		]);
+	});
+
+	it("WHEN collapsed edges carry relations THEN the flow edge unions them deduped in first-seen order", () => {
+		const graph = makeGraph({
+			nodes: collapsedGraph().nodes,
+			edges: [
+				{ ...makeEdge("hub.md", "notes/a.md"), relations: [{ name: "supports" }] },
+				{ ...makeEdge("hub.md", "notes/b.md"), relations: [{ name: "supports" }, { name: "cites" }] },
+			],
+		});
+		// "supports" appears on both contributors — deduped to one; "cites" follows it.
+		expect(toFlow(graph).edges[0]?.relations).toEqual([{ name: "supports" }, { name: "cites" }]);
+	});
+
+	it("WHEN collapsed edges carry relations THEN each note pair keeps only its OWN labels", () => {
+		const graph = makeGraph({
+			nodes: collapsedGraph().nodes,
+			edges: [
+				{ ...makeEdge("hub.md", "notes/a.md"), relations: [{ name: "supports" }] },
+				{ ...makeEdge("hub.md", "notes/b.md"), relations: [{ name: "cites" }] },
+			],
+		});
+		expect(toFlow(graph).edges[0]?.notePairs).toEqual([
+			{ source: "hub.md", target: "notes/a.md", hierarchy: false, relations: [{ name: "supports" }] },
+			{ source: "hub.md", target: "notes/b.md", hierarchy: false, relations: [{ name: "cites" }] },
+		]);
+	});
+});
