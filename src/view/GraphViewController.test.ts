@@ -1,7 +1,22 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ElkNode } from "elkjs";
-import type { ForceLayoutSettings, LinkOccurrenceProvider, OutlineEntry, VicinityGraph } from "../engine";
-import { asFolderPath, asVaultPath, EngineDefaults, FakeLinkOccurrenceProvider } from "../engine";
+import type {
+	EdgeRelationship,
+	ForceLayoutSettings,
+	LinkOccurrenceProvider,
+	OutlineEntry,
+	SyntaxRelationshipNames,
+	SyntaxRelationshipProvider,
+	VicinityGraph,
+} from "../engine";
+import {
+	asFolderPath,
+	asVaultPath,
+	directedLinkKey,
+	EngineDefaults,
+	FakeLinkOccurrenceProvider,
+	FakeSyntaxRelationshipProvider,
+} from "../engine";
 import { REBUILD_DEBOUNCE_MS } from "./constants";
 import { GraphViewController } from "./GraphViewController";
 import type { FlowSnapshot } from "./GraphViewController";
@@ -9,6 +24,7 @@ import type { FlowNode, FlowPinFacts, FolderNoteCandidatesLookup, NoteFlowNode }
 import type { ControlsModel } from "./ControlsModel";
 import type { EdgePreviewModel } from "./linkPreviewModel";
 import type {
+	EdgeRelationshipsPort,
 	GraphBuildResult,
 	GraphLayoutPort,
 	GraphSourcePort,
@@ -208,6 +224,20 @@ class FakeLinkPreview implements LinkPreviewPort {
 	}
 }
 
+/** Records every relationship map the controller published for the edge labels. */
+class FakeEdgeRelationships implements EdgeRelationshipsPort {
+	readonly shown: ReadonlyMap<string, EdgeRelationship>[] = [];
+
+	showEdgeRelationships(relationships: ReadonlyMap<string, EdgeRelationship>): void {
+		this.shown.push(relationships);
+	}
+
+	/** The map on screen now (empty before anything was shown). */
+	current(): ReadonlyMap<string, EdgeRelationship> {
+		return this.shown[this.shown.length - 1] ?? new Map();
+	}
+}
+
 interface Harness {
 	readonly controller: GraphViewController;
 	readonly source: FakeGraphSource;
@@ -215,19 +245,40 @@ interface Harness {
 	readonly navigator: FakeNavigator;
 	readonly router: FakeEdgeRouter;
 	readonly linkPreview: FakeLinkPreview;
+	readonly relationships: FakeEdgeRelationships;
 	snapshot(): FlowSnapshot;
 }
 
 function setup(
 	router: FakeEdgeRouter = new FakeEdgeRouter(),
 	occurrences: LinkOccurrenceProvider = new FakeLinkOccurrenceProvider({}),
+	syntaxRelationships: SyntaxRelationshipProvider = new FakeSyntaxRelationshipProvider(),
 ): Harness {
 	const source = new FakeGraphSource();
 	const layout = new FakeLayout();
 	const navigator = new FakeNavigator();
 	const linkPreview = new FakeLinkPreview();
-	const controller = new GraphViewController(navigator, source, layout, router, occurrences, linkPreview);
-	return { controller, source, layout, navigator, router, linkPreview, snapshot: () => controller.getSnapshot() };
+	const relationships = new FakeEdgeRelationships();
+	const controller = new GraphViewController(
+		navigator,
+		source,
+		layout,
+		router,
+		occurrences,
+		linkPreview,
+		syntaxRelationships,
+		relationships,
+	);
+	return {
+		controller,
+		source,
+		layout,
+		navigator,
+		router,
+		linkPreview,
+		relationships,
+		snapshot: () => controller.getSnapshot(),
+	};
 }
 
 /**
@@ -1475,5 +1526,133 @@ describe("GraphViewController link previews", () => {
 		await h.controller.openEdgePreview("hub.md->folder-group:notes");
 
 		expect(h.linkPreview.shown).toMatchObject([{ sourceName: "hub", targetName: "notes" }]);
+	});
+});
+
+describe("GraphViewController edge relationship names", () => {
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	const A = asVaultPath("a.md");
+	const B = asVaultPath("b.md");
+	const FOLDER_NOTE = asVaultPath("Jon.md");
+	const CHILD = asVaultPath("Jon/kid.md");
+
+	/** GIVEN a rendered graph a.md → b.md, with the given names declared in notes. */
+	async function linkHarness(syntax: SyntaxRelationshipProvider): Promise<Harness> {
+		const h = setup(new FakeEdgeRouter(), new FakeLinkOccurrenceProvider({}), syntax);
+		h.controller.handleActiveFileChanged("a.md");
+		const nodes = [makeNode({ path: A }), makeNode({ path: B })];
+		h.source.resolveBuild(0, makeGraph({ nodes, edges: [makeEdge("a.md", "b.md")] }));
+		await flush();
+		return h;
+	}
+
+	/** GIVEN a rendered graph where Jon.md reaches Jon/kid.md by folder hierarchy only. */
+	async function hierarchyHarness(syntax: SyntaxRelationshipProvider): Promise<Harness> {
+		const h = setup(new FakeEdgeRouter(), new FakeLinkOccurrenceProvider({}), syntax);
+		h.controller.handleActiveFileChanged("Jon.md");
+		const nodes = [makeNode({ path: FOLDER_NOTE }), makeNode({ path: CHILD })];
+		h.source.resolveBuild(0, makeGraph({ nodes, edges: [makeEdge("Jon.md", "Jon/kid.md", 0, "link", true)] }));
+		await flush();
+		return h;
+	}
+
+	/** Rejects every names read — the one failing collaborator. */
+	const FAILING_SYNTAX: SyntaxRelationshipProvider = {
+		syntaxNamesFor: () => Promise.reject(new Error("cachedRead failed")),
+	};
+
+	it("WHEN the source note names its link THEN the edge is labelled with that name", async () => {
+		const h = await linkHarness(new FakeSyntaxRelationshipProvider([{ source: "a.md", target: "b.md", names: ["improves"] }]));
+		expect(h.relationships.current().get(directedLinkKey(A, B))).toEqual({ name: "improves", origin: "syntax" });
+	});
+
+	it("WHEN only the target note names the reverse link THEN the edge stays unnamed", async () => {
+		const h = await linkHarness(new FakeSyntaxRelationshipProvider([{ source: "b.md", target: "a.md", names: ["improves"] }]));
+		expect(h.relationships.current().size).toBe(0);
+	});
+
+	it("WHEN a pure hierarchy edge is rendered and nothing names it THEN it is labelled `parent`", async () => {
+		const h = await hierarchyHarness(new FakeSyntaxRelationshipProvider());
+		expect(h.relationships.current().get(directedLinkKey(FOLDER_NOTE, CHILD))).toEqual({
+			name: "parent",
+			origin: "folder-hierarchy",
+		});
+	});
+
+	it("WHEN the child names its link to the folder note THEN the `parent` label is hidden", async () => {
+		const h = await hierarchyHarness(
+			new FakeSyntaxRelationshipProvider([{ source: "Jon/kid.md", target: "Jon.md", names: ["rel"] }]),
+		);
+		expect(h.relationships.current().has(directedLinkKey(FOLDER_NOTE, CHILD))).toBe(false);
+	});
+
+	it("WHEN reading names fails THEN the graph is still published", async () => {
+		vi.spyOn(console, "warn").mockImplementation(() => undefined);
+		const h = await hierarchyHarness(FAILING_SYNTAX);
+		expect(h.snapshot().status).toBe("ready");
+	});
+
+	it("WHEN reading names fails THEN the `parent` default is still shown", async () => {
+		vi.spyOn(console, "warn").mockImplementation(() => undefined);
+		const h = await hierarchyHarness(FAILING_SYNTAX);
+		expect(h.relationships.current().get(directedLinkKey(FOLDER_NOTE, CHILD))?.name).toBe("parent");
+	});
+
+	it("WHEN the graph empties THEN every name is cleared", async () => {
+		const h = await linkHarness(new FakeSyntaxRelationshipProvider([{ source: "a.md", target: "b.md", names: ["improves"] }]));
+		h.controller.handleSettingsChanged();
+		h.source.resolveBuild(1, null);
+		await flush();
+		expect(h.relationships.current().size).toBe(0);
+	});
+
+	it("WHEN a newer build supersedes a names read THEN the stale names are never shown", async () => {
+		const reads: Deferred<SyntaxRelationshipNames>[] = [];
+		const syntax: SyntaxRelationshipProvider = {
+			syntaxNamesFor: () => {
+				const read = deferred<SyntaxRelationshipNames>();
+				reads.push(read);
+				return read.promise;
+			},
+		};
+		const h = setup(new FakeEdgeRouter(), new FakeLinkOccurrenceProvider({}), syntax);
+		h.controller.handleActiveFileChanged("a.md");
+		const graph = makeGraph({ nodes: [makeNode({ path: A }), makeNode({ path: B })], edges: [makeEdge("a.md", "b.md")] });
+		h.source.resolveBuild(0, graph);
+		await flush();
+		h.controller.handleSettingsChanged();
+		h.source.resolveBuild(1, graph);
+		await flush();
+		reads[1]?.resolve(new Map([[directedLinkKey(A, B), ["fresh"]]]));
+		await flush();
+		reads[0]?.resolve(new Map([[directedLinkKey(A, B), ["stale"]]]));
+		await flush();
+		expect(h.relationships.current().get(directedLinkKey(A, B))?.name).toBe("fresh");
+	});
+
+	it("WHEN the preview opens before the names read settles THEN the drawer still carries the relationship line", async () => {
+		const read = deferred<SyntaxRelationshipNames>();
+		const h = setup(new FakeEdgeRouter(), new FakeLinkOccurrenceProvider({}), { syntaxNamesFor: () => read.promise });
+		h.controller.handleActiveFileChanged("a.md");
+		const nodes = [makeNode({ path: A }), makeNode({ path: B })];
+		h.source.resolveBuild(0, makeGraph({ nodes, edges: [makeEdge("a.md", "b.md")] }));
+		await flush();
+		const opening = h.controller.openEdgePreview("a.md->b.md");
+		read.resolve(new Map([[directedLinkKey(A, B), ["improves"]]]));
+		await opening;
+		expect(h.linkPreview.shown[0]?.relationships).toEqual([
+			{ sourceName: "a", targetName: "b", name: "improves", originLabel: "from note" },
+		]);
+	});
+
+	it("WHEN a named edge's preview opens THEN the drawer model carries its relationship line", async () => {
+		const h = await linkHarness(new FakeSyntaxRelationshipProvider([{ source: "a.md", target: "b.md", names: ["improves"] }]));
+		await h.controller.openEdgePreview("a.md->b.md");
+		expect(h.linkPreview.shown[0]?.relationships).toEqual([
+			{ sourceName: "a", targetName: "b", name: "improves", originLabel: "from note" },
+		]);
 	});
 });

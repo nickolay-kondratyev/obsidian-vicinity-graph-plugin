@@ -5,6 +5,7 @@ import { CanvasParseCache } from "./adapters/CanvasParseCache";
 import { FolderNoteIndex } from "./adapters/FolderNoteIndex";
 import { FrontmatterIdIndex } from "./adapters/FrontmatterIdIndex";
 import { LiveLinkOccurrenceProvider } from "./adapters/LiveLinkOccurrenceProvider";
+import { ObsidianSyntaxRelationshipProvider } from "./adapters/ObsidianSyntaxRelationshipProvider";
 import { ObsidianNoteCreation } from "./adapters/ObsidianNoteCreation";
 import { VicinityGraphBuilder } from "./adapters/VicinityGraphBuilder";
 import { DocIdMapWarmer } from "./persistence/DocIdMapWarmer";
@@ -184,6 +185,8 @@ export default class VicinityGraphPlugin extends Plugin {
 			this.frontmatterIdIndex,
 			this.folderNoteIndex,
 		);
+		// Stateless over the live vault + metadata cache: every rebuild reads fresh.
+		const syntaxRelationships = new ObsidianSyntaxRelationshipProvider(this.app.vault, this.app.metadataCache);
 		this.registerView(
 			VIEW_TYPE_VICINITY_GRAPH,
 			(leaf) =>
@@ -195,6 +198,7 @@ export default class VicinityGraphPlugin extends Plugin {
 					this.settingsWrites,
 					this.notices,
 					occurrenceProvider,
+					syntaxRelationships,
 					this.folderNoteIndex,
 					this.noteCreation,
 				),

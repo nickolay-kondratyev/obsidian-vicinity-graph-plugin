@@ -2,10 +2,11 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { asVaultPath } from "../engine";
+import type { EdgeRelationship } from "../engine";
 import { DRAWER_KEYBOARD_STEP_PX, DRAWER_MIN_SIZE_PX, sessionDrawerSizes } from "./drawerResize";
 import { RESIZE_HANDLE_LABEL } from "./DrawerResizeHandle";
 import type { LinkPreviewGoTarget } from "./LinkPreviewContent";
-import { LinkPreviewDrawer } from "./LinkPreviewDrawer";
+import { LinkPreviewDrawer, RELATIONSHIPS_LIST_LABEL } from "./LinkPreviewDrawer";
 import { LinkPreviewModels } from "./linkPreviewModel";
 import type { EdgePreviewModel } from "./linkPreviewModel";
 
@@ -19,7 +20,7 @@ import type { EdgePreviewModel } from "./linkPreviewModel";
 const SOURCE = asVaultPath("notes/alpha.md");
 const TARGET = asVaultPath("notes/beta.md");
 
-function edgeModel(bidirectional = false): EdgePreviewModel {
+function edgeModel(bidirectional = false, relationship: EdgeRelationship | null = null): EdgePreviewModel {
 	return LinkPreviewModels.edge({
 		sourceName: "alpha",
 		targetName: "beta",
@@ -32,6 +33,7 @@ function edgeModel(bidirectional = false): EdgePreviewModel {
 					{ offset: 30, context: { shortContext: "short@3", expandedContext: "expanded@3", line: 3 } },
 				],
 				hierarchy: false,
+				relationship,
 			},
 		],
 	});
@@ -117,6 +119,21 @@ describe("LinkPreviewDrawer", () => {
 	it("WHEN a bidirectional edge model renders THEN the drawer title joins the endpoints with '↔'", () => {
 		renderDrawer(edgeModel(true));
 		expect(screen.getByRole("dialog", { name: "alpha ↔ beta" })).toBeTruthy();
+	});
+
+	it("WHEN the edge is named THEN the drawer shows 'source —name→ target'", () => {
+		renderDrawer(edgeModel(false, { name: "improves", origin: "syntax" }));
+		expect(screen.getByRole("list", { name: RELATIONSHIPS_LIST_LABEL }).textContent).toContain("alpha —improves→ beta");
+	});
+
+	it("WHEN the edge is named THEN the drawer shows where the name came from", () => {
+		renderDrawer(edgeModel(false, { name: "parent", origin: "folder-hierarchy" }));
+		expect(screen.getByRole("list", { name: RELATIONSHIPS_LIST_LABEL }).textContent).toContain("folder hierarchy");
+	});
+
+	it("WHEN the edge is unnamed THEN the drawer shows no relationship list", () => {
+		renderDrawer(edgeModel());
+		expect(screen.queryByRole("list", { name: RELATIONSHIPS_LIST_LABEL })).toBeNull();
 	});
 
 	it("WHEN the close button is clicked THEN onClose fires", () => {

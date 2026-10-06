@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { LinkOccurrence } from "../engine";
+import type { EdgeRelationship, LinkOccurrence } from "../engine";
 import { asVaultPath } from "../engine";
 import type { EdgePairOccurrences, EdgePreviewInputs } from "./linkPreviewModel";
 import { LinkPreviewModels, edgeEndpointDisplayName } from "./linkPreviewModel";
@@ -16,8 +16,11 @@ function occurrenceAt(offset: number | null): LinkOccurrence {
 	};
 }
 
-/** A pair with `hierarchy` defaulted off — most tests exercise link-only pairs. */
-type PairInput = Omit<EdgePairOccurrences, "hierarchy"> & { readonly hierarchy?: boolean };
+/** A pair with `hierarchy` defaulted off and no relationship name — most tests exercise plain link pairs. */
+type PairInput = Omit<EdgePairOccurrences, "hierarchy" | "relationship"> & {
+	readonly hierarchy?: boolean;
+	readonly relationship?: EdgeRelationship | null;
+};
 
 /** Edge inputs with one endpoint-name/direction default per test's GIVEN. */
 function edgeInputs(pairs: readonly PairInput[]): EdgePreviewInputs {
@@ -25,7 +28,7 @@ function edgeInputs(pairs: readonly PairInput[]): EdgePreviewInputs {
 		sourceName: "x",
 		targetName: "notes",
 		bidirectional: false,
-		pairs: pairs.map((pair) => ({ ...pair, hierarchy: pair.hierarchy ?? false })),
+		pairs: pairs.map((pair) => ({ ...pair, hierarchy: pair.hierarchy ?? false, relationship: pair.relationship ?? null })),
 	};
 }
 
@@ -144,5 +147,41 @@ describe("edgeEndpointDisplayName", () => {
 
 	it("WHEN the endpoint is a folder-group id THEN the folder name is used", () => {
 		expect(edgeEndpointDisplayName("folder-group:sub/notes")).toBe("notes");
+	});
+});
+
+describe("LinkPreviewModels.edge relationships", () => {
+	const IMPROVES: EdgeRelationship = { name: "improves", origin: "syntax" };
+	const PARENT: EdgeRelationship = { name: "parent", origin: "folder-hierarchy" };
+
+	it("WHEN a pair is named THEN the model lists it with both note titles, its name and its origin", () => {
+		const model = LinkPreviewModels.edge(
+			edgeInputs([{ sourcePath: NOTE, targetPath: TARGET_A, occurrences: [], relationship: IMPROVES }]),
+		);
+		expect(model.relationships).toEqual([
+			{ sourceName: "x", targetName: "a", name: "improves", originLabel: "from note" },
+		]);
+	});
+
+	it("WHEN a pair carries the folder-hierarchy default THEN its origin reads `folder hierarchy`", () => {
+		const model = LinkPreviewModels.edge(
+			edgeInputs([{ sourcePath: NOTE, targetPath: TARGET_A, occurrences: [], relationship: PARENT }]),
+		);
+		expect(model.relationships[0]?.originLabel).toBe("folder hierarchy");
+	});
+
+	it("WHEN a pair is unnamed THEN the model lists no relationship for it", () => {
+		const model = LinkPreviewModels.edge(edgeInputs([{ sourcePath: NOTE, targetPath: TARGET_A, occurrences: [] }]));
+		expect(model.relationships).toEqual([]);
+	});
+
+	it("WHEN several pairs are named THEN they are listed in the pairs' display order", () => {
+		const model = LinkPreviewModels.edge(
+			edgeInputs([
+				{ sourcePath: NOTE, targetPath: TARGET_B, occurrences: [], relationship: PARENT },
+				{ sourcePath: NOTE, targetPath: TARGET_A, occurrences: [], relationship: IMPROVES },
+			]),
+		);
+		expect(model.relationships.map((relationship) => relationship.targetName)).toEqual(["a", "b"]);
 	});
 });

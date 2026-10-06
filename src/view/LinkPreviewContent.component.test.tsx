@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import type { LinkOccurrence } from "../engine";
+import type { EdgeRelationship, LinkOccurrence } from "../engine";
 import { asVaultPath } from "../engine";
 import type { LinkPreviewGoTarget } from "./LinkPreviewContent";
 import { FOLDER_RELATION_SECTION_TITLE, GO_ICON_ID, LinkPreviewContent } from "./LinkPreviewContent";
@@ -83,8 +83,11 @@ function renderContent(model: Parameters<typeof LinkPreviewContent>[0]["model"])
 	return recorders;
 }
 
-/** A pair with `hierarchy` defaulted off — most tests exercise link-only pairs. */
-type PairInput = Omit<EdgePairOccurrences, "hierarchy"> & { readonly hierarchy?: boolean };
+/** A pair with `hierarchy` defaulted off and no relationship name — most tests exercise plain link pairs. */
+type PairInput = Omit<EdgePairOccurrences, "hierarchy" | "relationship"> & {
+	readonly hierarchy?: boolean;
+	readonly relationship?: EdgeRelationship | null;
+};
 
 /** Edge model with neutral endpoint names — pair grouping is what these tests exercise. */
 function edgeModel(pairs: readonly PairInput[]): ReturnType<typeof LinkPreviewModels.edge> {
@@ -92,7 +95,7 @@ function edgeModel(pairs: readonly PairInput[]): ReturnType<typeof LinkPreviewMo
 		sourceName: "center",
 		targetName: "target",
 		bidirectional: false,
-		pairs: pairs.map((pair) => ({ ...pair, hierarchy: pair.hierarchy ?? false })),
+		pairs: pairs.map((pair) => ({ ...pair, hierarchy: pair.hierarchy ?? false, relationship: pair.relationship ?? null })),
 	});
 }
 

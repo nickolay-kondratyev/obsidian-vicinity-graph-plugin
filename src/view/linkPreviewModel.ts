@@ -1,4 +1,4 @@
-import type { LinkOccurrence, VaultPath } from "../engine";
+import type { EdgeRelationship, LinkOccurrence, RelationshipOrigin, VaultPath } from "../engine";
 import { VaultPathFacts } from "../shared/VaultPathFacts";
 import { folderOfGroupId, isFolderGroupId } from "./graphIdentity";
 
@@ -47,6 +47,28 @@ export interface FolderRelationModel {
 }
 
 /**
+ * One NAMED note pair of the clicked edge — the drawer's `A —name→ B` line
+ * (ticket `nid_gk9h4jpa7di1al7och0rehd3h_e`). Names are note titles, the
+ * vocabulary of the graph's own node labels.
+ */
+export interface PairRelationshipModel {
+	readonly sourceName: string;
+	readonly targetName: string;
+	readonly name: string;
+	/** Where the name came from, in the user's words (see {@link RELATIONSHIP_ORIGIN_LABEL}). */
+	readonly originLabel: string;
+}
+
+/**
+ * The user-facing copy of each {@link RelationshipOrigin}. A `Record`, so a new
+ * origin (manual / AI, tasks 2-3) cannot ship without its label.
+ */
+export const RELATIONSHIP_ORIGIN_LABEL: Readonly<Record<RelationshipOrigin, string>> = {
+	syntax: "from note",
+	"folder-hierarchy": "folder hierarchy",
+};
+
+/**
  * What the edge-click preview renders: occurrence groups per contributing
  * note→note pair. ONE group for a plain note→note edge; several when the
  * clicked visual is a group-collapsed edge unioning many pairs (and possibly
@@ -68,6 +90,13 @@ export interface EdgePreviewModel {
 	 * both.
 	 */
 	readonly folderRelations: readonly FolderRelationModel[];
+	/**
+	 * The NAMED pairs of this edge, in the same (sourcePath, targetPath) order as
+	 * {@link pairs}: one line for a plain edge, one per named pair for a
+	 * group-collapsed edge (whose line in the graph carries no label). Empty when
+	 * nothing names the edge.
+	 */
+	readonly relationships: readonly PairRelationshipModel[];
 	/** Every context row id, in display order — the collapse state's row universe. */
 	readonly rowIds: readonly string[];
 }
@@ -85,6 +114,8 @@ export interface EdgePairOccurrences {
 	 * pair has both).
 	 */
 	readonly hierarchy: boolean;
+	/** The pair's resolved relationship name (`resolveEdgeRelationship`), or null when unnamed. */
+	readonly relationship: EdgeRelationship | null;
 }
 
 export interface EdgePreviewInputs {
@@ -107,6 +138,19 @@ function folderRelationOf(pair: EdgePairOccurrences): FolderRelationModel {
 		folderNoteName: VaultPathFacts.basenameOf(pair.sourcePath),
 		folderName: VaultPathFacts.folderNameOf(VaultPathFacts.folderOf(pair.targetPath)),
 		childName: VaultPathFacts.basenameOf(pair.targetPath),
+	};
+}
+
+/** The `A —name→ B` line of a named pair; null for an unnamed one. */
+function pairRelationshipOf(pair: EdgePairOccurrences): PairRelationshipModel | null {
+	if (pair.relationship === null) {
+		return null;
+	}
+	return {
+		sourceName: VaultPathFacts.titleOf(pair.sourcePath),
+		targetName: VaultPathFacts.titleOf(pair.targetPath),
+		name: pair.relationship.name,
+		originLabel: RELATIONSHIP_ORIGIN_LABEL[pair.relationship.origin],
 	};
 }
 
@@ -151,6 +195,9 @@ export class LinkPreviewModels {
 			// Same sorted order as `pairs`; only the hierarchy-carrying pairs explain
 			// a folder relation (a link-only pair contributes none).
 			folderRelations: sortedPairs.filter((pair) => pair.hierarchy).map(folderRelationOf),
+			relationships: sortedPairs
+				.map(pairRelationshipOf)
+				.filter((relationship): relationship is PairRelationshipModel => relationship !== null),
 			rowIds: groups.flatMap((group) => group.rows).map((row) => row.rowId),
 		};
 	}

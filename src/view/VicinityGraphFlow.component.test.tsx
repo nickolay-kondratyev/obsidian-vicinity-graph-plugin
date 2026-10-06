@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { LinkOccurrenceProvider } from "../engine";
+import type { LinkOccurrenceProvider, SyntaxRelationshipProvider } from "../engine";
+import { EdgeRelationshipOverlayStore } from "./EdgeRelationshipOverlayStore";
 import { GraphViewController } from "./GraphViewController";
 import { LinkPreviewOverlayStore } from "./LinkPreviewOverlayStore";
 import { RecordingControlsActions } from "./testFixtures/settingsPanelHarness";
@@ -71,6 +72,10 @@ const INERT_OCCURRENCES: LinkOccurrenceProvider = {
 	occurrencesBetween: () => unreachable("LinkOccurrenceProvider.occurrencesBetween"),
 };
 
+const INERT_SYNTAX_RELATIONSHIPS: SyntaxRelationshipProvider = {
+	syntaxNamesFor: () => unreachable("SyntaxRelationshipProvider.syntaxNamesFor"),
+};
+
 const INERT_GRAPH_UI: GraphUiPort = {
 	resourcePath: () => unreachable("GraphUiPort.resourcePath"),
 	showAttachmentMenu: () => unreachable("GraphUiPort.showAttachmentMenu"),
@@ -90,6 +95,7 @@ interface FailedPaneHarness {
 async function renderFailedPane(): Promise<FailedPaneHarness> {
 	const source = new RejectingGraphSource();
 	const linkPreview = new LinkPreviewOverlayStore();
+	const relationships = new EdgeRelationshipOverlayStore();
 	const controller = new GraphViewController(
 		INERT_NAVIGATOR,
 		source,
@@ -97,6 +103,8 @@ async function renderFailedPane(): Promise<FailedPaneHarness> {
 		INERT_ROUTER,
 		INERT_OCCURRENCES,
 		linkPreview,
+		INERT_SYNTAX_RELATIONSHIPS,
+		relationships,
 	);
 	controller.handleActiveFileChanged("a.md");
 	await flush();
@@ -106,6 +114,7 @@ async function renderFailedPane(): Promise<FailedPaneHarness> {
 			ui={INERT_GRAPH_UI}
 			actions={new RecordingControlsActions()}
 			linkPreview={linkPreview}
+			relationships={relationships}
 		/>,
 	);
 	return { source };
@@ -127,6 +136,7 @@ class PendingGraphSource {
 function renderInitialBuildingPane(): void {
 	const source = new PendingGraphSource();
 	const linkPreview = new LinkPreviewOverlayStore();
+	const relationships = new EdgeRelationshipOverlayStore();
 	const controller = new GraphViewController(
 		INERT_NAVIGATOR,
 		source,
@@ -134,6 +144,8 @@ function renderInitialBuildingPane(): void {
 		INERT_ROUTER,
 		INERT_OCCURRENCES,
 		linkPreview,
+		INERT_SYNTAX_RELATIONSHIPS,
+		relationships,
 	);
 	controller.handleActiveFileChanged("a.md");
 	render(
@@ -142,6 +154,7 @@ function renderInitialBuildingPane(): void {
 			ui={INERT_GRAPH_UI}
 			actions={new RecordingControlsActions()}
 			linkPreview={linkPreview}
+			relationships={relationships}
 		/>,
 	);
 }

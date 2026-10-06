@@ -5,7 +5,7 @@ import { DRAWER_KEYBOARD_STEP_PX, DrawerResizeMath, sessionDrawerSizes } from ".
 import type { DrawerPointerPosition, DrawerResizeAxis, DrawerSizeSnapshot } from "./drawerResize";
 import { LinkPreviewContent } from "./LinkPreviewContent";
 import type { LinkPreviewGoTarget } from "./LinkPreviewContent";
-import type { EdgePreviewModel } from "./linkPreviewModel";
+import type { EdgePreviewModel, PairRelationshipModel } from "./linkPreviewModel";
 
 /**
  * The in-graph link-preview drawer (ticket `nid_5j9mygfywppaiakuim3utf6r2_e`):
@@ -21,6 +21,9 @@ import type { EdgePreviewModel } from "./linkPreviewModel";
 
 /** Lucide icon of the header close button. */
 export const CLOSE_ICON_ID = "x";
+
+/** Accessible name of the drawer's `A —name→ B` list. */
+export const RELATIONSHIPS_LIST_LABEL = "Relationships";
 
 export interface LinkPreviewDrawerProps {
 	readonly model: EdgePreviewModel;
@@ -73,6 +76,7 @@ export function LinkPreviewDrawer({
 				</h2>
 				<CloseButton renderIcon={renderIcon} onClose={onClose} />
 			</header>
+			{model.relationships.length > 0 && <RelationshipList relationships={model.relationships} />}
 			<div className="vicinity-graph-link-preview-drawer__body">
 				<LinkPreviewContent
 					model={model}
@@ -188,6 +192,37 @@ function CloseButton({
 		>
 			<span ref={iconRef} className="vicinity-graph-link-preview-drawer__close-icon" aria-hidden="true" />
 		</button>
+	);
+}
+
+/**
+ * The edge's names as `A —name→ B` lines with their origin (ticket
+ * `nid_gk9h4jpa7di1al7och0rehd3h_e`): one line for a plain edge, one per named
+ * pair for a group-collapsed edge, whose line in the graph carries no label.
+ */
+function RelationshipList({
+	relationships,
+}: {
+	readonly relationships: readonly PairRelationshipModel[];
+}): ReactElement {
+	return (
+		<ul className="vicinity-graph-link-preview-drawer__relationships" aria-label={RELATIONSHIPS_LIST_LABEL}>
+			{relationships.map((relationship, index) => (
+				<li
+					// Index-keyed: the list is fixed per model, and two pairs can share titles
+					// (same-named notes in different folders).
+					key={index}
+					className="vicinity-graph-link-preview-drawer__relationship"
+				>
+					<span className="vicinity-graph-link-preview-drawer__relationship-pair">
+						{`${relationship.sourceName} —${relationship.name}→ ${relationship.targetName}`}
+					</span>
+					<span className="vicinity-graph-link-preview-drawer__relationship-origin">
+						{relationship.originLabel}
+					</span>
+				</li>
+			))}
+		</ul>
 	);
 }
 
