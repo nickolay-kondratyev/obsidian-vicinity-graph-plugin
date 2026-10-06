@@ -15,7 +15,9 @@ import { GRAPH_MIN_ZOOM } from "./constants";
 import { ControlsActionsContext } from "./ControlsActionsContext";
 import { FolderGroupNode } from "./FolderGroupNode";
 import type { FlowEdge, FlowNode } from "./flowMapping";
-import { edgeClassName } from "./flowMapping";
+import { edgeClassName, edgeRelationshipKeyOf } from "./flowMapping";
+import { EdgeRelationshipContext } from "./EdgeRelationshipContext";
+import type { EdgeRelationshipOverlayStore } from "./EdgeRelationshipOverlayStore";
 import { GraphToolbar } from "./GraphToolbar";
 import type { GraphViewController } from "./GraphViewController";
 import { GraphUiContext } from "./GraphUiContext";
@@ -46,12 +48,15 @@ export function VicinityGraphFlow({
 	ui,
 	actions,
 	linkPreview,
+	relationships,
 }: {
 	readonly controller: GraphViewController;
 	readonly ui: GraphUiPort;
 	readonly actions: ControlsActionsPort;
 	/** The drawer's model store — the controller writes it, this component renders it. */
 	readonly linkPreview: LinkPreviewOverlayStore;
+	/** The edge relationship names — the controller writes them, the edges render them. */
+	readonly relationships: EdgeRelationshipOverlayStore;
 }): ReactElement {
 	const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
 	const previewModel = useSyncExternalStore(linkPreview.subscribe, linkPreview.getSnapshot);
@@ -221,112 +226,114 @@ export function VicinityGraphFlow({
 		<GraphUiContext.Provider value={ui}>
 			<ControlsActionsContext.Provider value={actions}>
 				<NoteOpenContext.Provider value={noteOpen}>
-					<div className="vicinity-graph-flow">
-						<ReactFlow
-							nodes={nodes}
-							edges={edges}
-							nodeTypes={NODE_TYPES}
-							edgeTypes={EDGE_TYPES}
-							onNodesChange={onNodesChange}
-							onNodeClick={onNodeClick}
-							onEdgeClick={onEdgeClick}
-							onPaneClick={onPaneClick}
-							nodesConnectable={false}
-							// The graph is read-only in V1: layout is elk-driven and would
-							// overwrite any manual placement on the next rebuild, so a drag
-							// would only snap back. Disable it rather than ship half-working
-							// drag (decision 2026-07-20, [[ticket-node-drag-reposition]]).
-							nodesDraggable={false}
-							// Null EVERY RF key binding — RF would otherwise grab keys
-							// window-wide (ate Space in canvas cards, ticket
-							// nid_156zg4bvhjc7nnl0gwut20bvs_e). WHY lives on the constant.
-							{...REACT_FLOW_GLOBAL_KEY_BINDINGS}
-							// See GRAPH_MIN_ZOOM — RF's 0.5 default clamps fitView on dense
-							// graphs, leaving part of the vicinity unreachable off-pane.
-							minZoom={GRAPH_MIN_ZOOM}
-							// Mount only nodes overlapping the pan/zoom viewport so a
-							// large/image-heavy graph doesn't hold every node (and its lazy
-							// <img> thumbnail) in the DOM at once. Safe with folder-group
-							// subflows: React Flow renders EVERY visible node as a flat
-							// sibling of `.react-flow__nodes`, transformed by its own
-							// `positionAbsolute` — group members are not DOM children of
-							// their container, so culling the container cannot take them
-							// with it. (Culling is "partially visible" anyway, so a group
-							// box only unmounts once it is fully off-pane, by which point
-							// its members are too.) Culling math never needs DOM
-							// measurement: every node carries explicit width/height
-							// (toReactFlowNode).
-							onlyRenderVisibleElements
-							// Hide React Flow's "React Flow" attribution badge: inside an
-							// Obsidian pane it reads as chrome from another app and overlaps
-							// the bottom-right of the graph. NOTE: xyflow asks that only Pro
-							// subscribers set this — see the ticket/release note.
-							proOptions={{ hideAttribution: true }}
-							// WHY-NOT the `fitView` prop: it fires exactly once at mount,
-							// racing Obsidian's pane layout (observed producing an off-graph
-							// viewport in a fresh sidebar) and never refitting after rebuilds.
-							// FitViewOnLayoutChange owns fitting instead.
-						>
-							<FitViewOnLayoutChange layoutVersion={snapshot.layoutVersion} />
-							<Background />
-							{/*
-							 * Zoom + fit-view only. The library's interactivity LOCK toggles
-							 * the store's nodesDraggable/nodesConnectable/elementsSelectable,
-							 * and not one of them can reach this graph: React Flow drills the
-							 * `nodesDraggable` PROP (false, above) into every node wrapper
-							 * rather than reading the store, nothing is wired to `onConnect`,
-							 * and selection changes are filtered out in `onNodesChange`. All
-							 * the button ever did was drop the edge pointer cursor while
-							 * "locked" and re-arm the decorative handles as connectable when
-							 * unlocked — a control that promises interactivity it cannot
-							 * grant (ticket nid_xvuptvuct2b9uget7oc2asyif_e).
-							 */}
-							<Controls showInteractive={false}>
+					<EdgeRelationshipContext.Provider value={relationships}>
+						<div className="vicinity-graph-flow">
+							<ReactFlow
+								nodes={nodes}
+								edges={edges}
+								nodeTypes={NODE_TYPES}
+								edgeTypes={EDGE_TYPES}
+								onNodesChange={onNodesChange}
+								onNodeClick={onNodeClick}
+								onEdgeClick={onEdgeClick}
+								onPaneClick={onPaneClick}
+								nodesConnectable={false}
+								// The graph is read-only in V1: layout is elk-driven and would
+								// overwrite any manual placement on the next rebuild, so a drag
+								// would only snap back. Disable it rather than ship half-working
+								// drag (decision 2026-07-20, [[ticket-node-drag-reposition]]).
+								nodesDraggable={false}
+								// Null EVERY RF key binding — RF would otherwise grab keys
+								// window-wide (ate Space in canvas cards, ticket
+								// nid_156zg4bvhjc7nnl0gwut20bvs_e). WHY lives on the constant.
+								{...REACT_FLOW_GLOBAL_KEY_BINDINGS}
+								// See GRAPH_MIN_ZOOM — RF's 0.5 default clamps fitView on dense
+								// graphs, leaving part of the vicinity unreachable off-pane.
+								minZoom={GRAPH_MIN_ZOOM}
+								// Mount only nodes overlapping the pan/zoom viewport so a
+								// large/image-heavy graph doesn't hold every node (and its lazy
+								// <img> thumbnail) in the DOM at once. Safe with folder-group
+								// subflows: React Flow renders EVERY visible node as a flat
+								// sibling of `.react-flow__nodes`, transformed by its own
+								// `positionAbsolute` — group members are not DOM children of
+								// their container, so culling the container cannot take them
+								// with it. (Culling is "partially visible" anyway, so a group
+								// box only unmounts once it is fully off-pane, by which point
+								// its members are too.) Culling math never needs DOM
+								// measurement: every node carries explicit width/height
+								// (toReactFlowNode).
+								onlyRenderVisibleElements
+								// Hide React Flow's "React Flow" attribution badge: inside an
+								// Obsidian pane it reads as chrome from another app and overlaps
+								// the bottom-right of the graph. NOTE: xyflow asks that only Pro
+								// subscribers set this — see the ticket/release note.
+								proOptions={{ hideAttribution: true }}
+								// WHY-NOT the `fitView` prop: it fires exactly once at mount,
+								// racing Obsidian's pane layout (observed producing an off-graph
+								// viewport in a fresh sidebar) and never refitting after rebuilds.
+								// FitViewOnLayoutChange owns fitting instead.
+							>
+								<FitViewOnLayoutChange layoutVersion={snapshot.layoutVersion} />
+								<Background />
 								{/*
-								 * Manual redraw (ticket nid_cd9x8a7ltnht3vvxh13qcvlzr_e): a
-								 * data-only refresh can keep a stale layout (most visibly a
-								 * folder-group box left oversized after a shrink), so this
-								 * FORCES a fresh elk pass of the current main. Sits with the
-								 * zoom/fit buttons as a native `ControlButton`, so it inherits
-								 * the same themed chrome (graph-view.css) and icon sizing as
-								 * the library's own buttons (which include `type="button"`).
+								 * Zoom + fit-view only. The library's interactivity LOCK toggles
+								 * the store's nodesDraggable/nodesConnectable/elementsSelectable,
+								 * and not one of them can reach this graph: React Flow drills the
+								 * `nodesDraggable` PROP (false, above) into every node wrapper
+								 * rather than reading the store, nothing is wired to `onConnect`,
+								 * and selection changes are filtered out in `onNodesChange`. All
+								 * the button ever did was drop the edge pointer cursor while
+								 * "locked" and re-arm the decorative handles as connectable when
+								 * unlocked — a control that promises interactivity it cannot
+								 * grant (ticket nid_xvuptvuct2b9uget7oc2asyif_e).
 								 */}
-								<ControlButton
-									onClick={() => controller.redraw()}
-									title="Redraw graph"
-									aria-label="Redraw graph"
-								>
-									<RedrawIcon />
-								</ControlButton>
-							</Controls>
-							<Panel position="top-left">
-								<GraphToolbar controls={snapshot.controls} />
-							</Panel>
-							{snapshot.orphanTruncation.totalHiddenCount > 0 && (
-								<Panel position="top-right">
-									<div
-										className="vicinity-graph-overlay-badge"
-										title={orphanBreakdownTitle(snapshot.orphanTruncation.breakdown)}
+								<Controls showInteractive={false}>
+									{/*
+									 * Manual redraw (ticket nid_cd9x8a7ltnht3vvxh13qcvlzr_e): a
+									 * data-only refresh can keep a stale layout (most visibly a
+									 * folder-group box left oversized after a shrink), so this
+									 * FORCES a fresh elk pass of the current main. Sits with the
+									 * zoom/fit buttons as a native `ControlButton`, so it inherits
+									 * the same themed chrome (graph-view.css) and icon sizing as
+									 * the library's own buttons (which include `type="button"`).
+									 */}
+									<ControlButton
+										onClick={() => controller.redraw()}
+										title="Redraw graph"
+										aria-label="Redraw graph"
 									>
-										{hiddenOverlayText(snapshot.orphanTruncation.totalHiddenCount)}
-									</div>
+										<RedrawIcon />
+									</ControlButton>
+								</Controls>
+								<Panel position="top-left">
+									<GraphToolbar controls={snapshot.controls} />
 								</Panel>
+								{snapshot.orphanTruncation.totalHiddenCount > 0 && (
+									<Panel position="top-right">
+										<div
+											className="vicinity-graph-overlay-badge"
+											title={orphanBreakdownTitle(snapshot.orphanTruncation.breakdown)}
+										>
+											{hiddenOverlayText(snapshot.orphanTruncation.totalHiddenCount)}
+										</div>
+									</Panel>
+								)}
+							</ReactFlow>
+							{previewModel !== null && (
+								<LinkPreviewDrawer
+									model={previewModel}
+									renderIcon={(el, iconId) => ui.renderIcon(el, iconId)}
+									renderMarkdown={(el, markdown, sourcePath) => ui.renderMarkdown(el, markdown, sourcePath)}
+									// A snippet's [[link]] click carries a LINKTEXT, not a node path.
+									onOpenLink={(linktext, sourcePath) => controller.openMarkdownLink(linktext, sourcePath)}
+									onClose={() => linkPreview.close()}
+									// GO reuses the node-open path (folder-group guard included);
+									// the drawer already closed itself before reporting.
+									onGo={(target) => controller.openNode(target.path, { newTab: false, line: target.line })}
+								/>
 							)}
-						</ReactFlow>
-						{previewModel !== null && (
-							<LinkPreviewDrawer
-								model={previewModel}
-								renderIcon={(el, iconId) => ui.renderIcon(el, iconId)}
-								renderMarkdown={(el, markdown, sourcePath) => ui.renderMarkdown(el, markdown, sourcePath)}
-								// A snippet's [[link]] click carries a LINKTEXT, not a node path.
-								onOpenLink={(linktext, sourcePath) => controller.openMarkdownLink(linktext, sourcePath)}
-								onClose={() => linkPreview.close()}
-								// GO reuses the node-open path (folder-group guard included);
-								// the drawer already closed itself before reporting.
-								onGo={(target) => controller.openNode(target.path, { newTab: false, line: target.line })}
-							/>
-						)}
-					</div>
+						</div>
+					</EdgeRelationshipContext.Provider>
 				</NoteOpenContext.Provider>
 			</ControlsActionsContext.Provider>
 		</GraphUiContext.Provider>
@@ -451,6 +458,7 @@ function toReactFlowEdge(edge: FlowEdge): Edge {
 			count: edge.count,
 			hasOpposite: edge.hasOpposite,
 			bidirectional: edge.bidirectional,
+			relationshipKey: edgeRelationshipKeyOf(edge),
 			...(edge.routedPoints === undefined ? {} : { routedPoints: edge.routedPoints }),
 		},
 	};

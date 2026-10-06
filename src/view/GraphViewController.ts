@@ -1,5 +1,17 @@
-import type { LinkOccurrenceProvider, VicinityGraph } from "../engine";
-import { asVaultPath, EngineDefaults } from "../engine";
+import type {
+	EdgeRelationship,
+	LinkOccurrenceProvider,
+	SyntaxRelationshipNames,
+	SyntaxRelationshipProvider,
+	VicinityGraph,
+} from "../engine";
+import {
+	asVaultPath,
+	directedLinkKey,
+	EngineDefaults,
+	relationshipLookupPairs,
+	resolveEdgeRelationships,
+} from "../engine";
 import type { ControlsModel } from "./ControlsModel";
 import { REBUILD_DEBOUNCE_MS, SIZE_RELAYOUT_THRESHOLD } from "./constants";
 import { decideLayout } from "./GraphStructureDiff";
@@ -16,6 +28,7 @@ import { NO_ORPHAN_TRUNCATION } from "./truncationBadges";
 import type { OrphanTruncation } from "./truncationBadges";
 import { LinkPreviewModels, edgeEndpointDisplayName } from "./linkPreviewModel";
 import type {
+	EdgeRelationshipsPort,
 	GraphLayoutPort,
 	GraphSourcePort,
 	LinkPreviewPort,
@@ -128,6 +141,9 @@ const INITIAL_BUILDING_SNAPSHOT: FlowSnapshot = { ...EMPTY_SNAPSHOT, status: "bu
  */
 const FAILED_SNAPSHOT: FlowSnapshot = { ...EMPTY_SNAPSHOT, status: "failed" };
 
+/** No edge is named — before the first names resolve, and whenever no graph is shown. */
+const NO_RELATIONSHIPS: ReadonlyMap<string, EdgeRelationship> = new Map();
+
 /** Shared empty route map = every edge stays straight (routing off or failed). */
 const EMPTY_ROUTES: EdgeRouteMap = new Map();
 
@@ -189,6 +205,13 @@ export class GraphViewController {
 	 * module vs. contract violation vs. bad geometry) instead of swallowing it.
 	 */
 	private readonly warnedRoutingFailures = new Set<string>();
+	/**
+	 * Relationship names of the PUBLISHED graph, keyed by `directedLinkKey` — what
+	 * the edge drawer reads; {@link edgeRelationships} renders the same map on the
+	 * edges. Resolved AFTER each publish (names need file reads), so they trail the
+	 * graph by one async read and never hold up the layout.
+	 */
+	private relationships: ReadonlyMap<string, EdgeRelationship> = NO_RELATIONSHIPS;
 
 	constructor(
 		private readonly navigator: NoteNavigatorPort,
@@ -197,6 +220,10 @@ export class GraphViewController {
 		private readonly edgeRouter: EdgeRouter,
 		private readonly occurrences: LinkOccurrenceProvider,
 		private readonly linkPreview: LinkPreviewPort,
+		/** The names notes declare for their links (`rel:: [[target]]`) — async file reads. */
+		private readonly syntaxRelationships: SyntaxRelationshipProvider,
+		/** Where resolved names are published for the edge labels. */
+		private readonly edgeRelationships: EdgeRelationshipsPort,
 	) {}
 
 	// --- external store (React `useSyncExternalStore`) ---------------------
@@ -368,6 +395,7 @@ export class GraphViewController {
 					targetPath,
 					occurrences: await this.occurrences.occurrencesBetween(sourcePath, targetPath),
 					hierarchy: pair.hierarchy,
+					relationship: this.relationships.get(directedLinkKey(sourcePath, targetPath)) ?? null,
 				};
 			}),
 		);
@@ -505,6 +533,34 @@ export class GraphViewController {
 			return;
 		}
 		this.publish(graph, positions, groupDimensions, withRoutedPoints(flow, routes));
+		await this.resolveRelationships(graph, token);
+	}
+
+	/**
+	 * Names the published graph's edges (ticket `nid_gk9h4jpa7di1al7och0rehd3h_e`):
+	 * reads what the notes declare, then applies the precedence chain
+	 * (`resolveEdgeRelationship`). An overlay on a graph that is already on
+	 * screen, so it never relayouts and never fails the rebuild: a failed read is
+	 * reported and the code defaults (`parent`) still render. Latest-wins like
+	 * every other async step.
+	 */
+	private async resolveRelationships(graph: VicinityGraph, token: number): Promise<void> {
+		let syntax: SyntaxRelationshipNames;
+		try {
+			syntax = await this.syntaxRelationships.syntaxNamesFor(relationshipLookupPairs(graph.edges));
+		} catch (error: unknown) {
+			console.warn("vicinity-graph: reading relationship names from notes failed; showing defaults only", error);
+			syntax = new Map();
+		}
+		if (this.isStale(token)) {
+			return;
+		}
+		this.setRelationships(resolveEdgeRelationships(graph.edges, { syntax }));
+	}
+
+	private setRelationships(relationships: ReadonlyMap<string, EdgeRelationship>): void {
+		this.relationships = relationships;
+		this.edgeRelationships.showEdgeRelationships(relationships);
 	}
 
 	/**
@@ -650,6 +706,7 @@ export class GraphViewController {
 		this.positions = new Map();
 		this.groupDimensions = new Map();
 		this.controls = EMPTY_CONTROLS;
+		this.setRelationships(NO_RELATIONSHIPS);
 	}
 
 	private setSnapshot(snapshot: FlowSnapshot): void {

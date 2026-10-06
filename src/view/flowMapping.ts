@@ -9,7 +9,7 @@ import type {
 	ViewSettings,
 	VicinityGraph,
 } from "../engine";
-import { nodePreviewKind, suppressedDuplicateThumbnails } from "../engine";
+import { asVaultPath, directedLinkKey, nodePreviewKind, suppressedDuplicateThumbnails } from "../engine";
 import { resolveNodePreviewPreference } from "./nodePreviewChoice";
 import { OUTLINE_RENDER_LIMIT } from "./constants";
 import type { AttachmentIconGroup } from "./attachmentIconStrip";
@@ -18,7 +18,7 @@ import { deriveFolderGroups } from "./folderGrouping";
 import type { FolderGroup, FolderGroupingResult } from "./folderGrouping";
 import type { OrphanTruncation } from "./truncationBadges";
 import { deriveTruncationBadges } from "./truncationBadges";
-import { edgeIdOf, folderGroupIdOf, nodeDimensionsPx, nodeSizeOverridePx } from "./graphIdentity";
+import { edgeIdOf, folderGroupIdOf, isFolderGroupId, nodeDimensionsPx, nodeSizeOverridePx } from "./graphIdentity";
 import type { RoutedPoint } from "./edgeRouting";
 
 /**
@@ -519,6 +519,19 @@ export const PURE_HIERARCHY_EDGE_CLASS = "vicinity-graph-edge--hierarchy";
 export function edgeClassName(edge: FlowEdge): string {
 	const kindClass = edgeKindClassName(edge.kind);
 	return edge.hierarchy && edge.count === 0 ? `${kindClass} ${PURE_HIERARCHY_EDGE_CLASS}` : kindClass;
+}
+
+/**
+ * The `directedLinkKey` whose relationship name this rendered edge LABELS
+ * (ticket `nid_gk9h4jpa7di1al7och0rehd3h_e`), or null for a group-collapsed
+ * edge: one line standing for many note pairs (and maybe both directions)
+ * carries no label — the edge drawer lists the names per pair instead.
+ */
+export function edgeRelationshipKeyOf(edge: FlowEdge): string | null {
+	if (isFolderGroupId(edge.source) || isFolderGroupId(edge.target)) {
+		return null;
+	}
+	return directedLinkKey(asVaultPath(edge.source), asVaultPath(edge.target));
 }
 
 /**

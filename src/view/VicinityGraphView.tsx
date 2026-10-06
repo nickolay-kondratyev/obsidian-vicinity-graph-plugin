@@ -7,7 +7,7 @@ import type { FolderNoteIndex } from "../adapters/FolderNoteIndex";
 import { ChildNoteCreator } from "../adapters/ChildNoteCreator";
 import type { NoteCreationPort } from "../adapters/obsidianPorts";
 import type { VicinityGraphBuilder } from "../adapters/VicinityGraphBuilder";
-import type { LinkOccurrenceProvider } from "../engine";
+import type { LinkOccurrenceProvider, SyntaxRelationshipProvider } from "../engine";
 import type { PersistenceServices } from "../persistence/PersistenceServices";
 import { ControlsActions } from "./ControlsActions";
 import { LibavoidEdgeRouter } from "./edgeRouting";
@@ -16,6 +16,7 @@ import { GraphLayoutRunner } from "./GraphLayoutRunner";
 import { GraphViewController } from "./GraphViewController";
 import { VicinityGraphFlow } from "./VicinityGraphFlow";
 import { LinkPreviewOverlayStore } from "./LinkPreviewOverlayStore";
+import { EdgeRelationshipOverlayStore } from "./EdgeRelationshipOverlayStore";
 import { ObsidianGraphUi } from "./ObsidianGraphUi";
 import { ObsidianNoteNavigator } from "./ObsidianNoteNavigator";
 import type { SettingsWritePipeline } from "./settingsWritePipeline";
@@ -47,6 +48,8 @@ export class VicinityGraphView extends ItemView {
 		private readonly notices: UserNoticePort,
 		/** Per-query occurrence snapshots for the link-preview drawer; owned by the plugin. */
 		private readonly occurrenceProvider: LinkOccurrenceProvider,
+		/** Reads the relationship names notes declare (`rel:: [[target]]`); owned by the plugin. */
+		private readonly syntaxRelationships: SyntaxRelationshipProvider,
 		/** Plugin-lived folder-note index — the owned-folder half of the create-child-note action. */
 		private readonly folderNoteIndex: FolderNoteIndex,
 		/** Plugin-lived vault-write seam — the create + folderExists half of the child-note action. */
@@ -74,6 +77,8 @@ export class VicinityGraphView extends ItemView {
 		// The in-graph preview drawer's model store (replaces the old modal seam):
 		// the controller writes it, the flow renders it — one store per view.
 		const linkPreview = new LinkPreviewOverlayStore();
+		// Edge relationship names, same shape: the controller writes, the edges render.
+		const relationships = new EdgeRelationshipOverlayStore();
 		const controller = new GraphViewController(
 			navigator,
 			this.graphBuilder,
@@ -81,6 +86,8 @@ export class VicinityGraphView extends ItemView {
 			new HierarchicalEdgeRouter(new LibavoidEdgeRouter()),
 			this.occurrenceProvider,
 			linkPreview,
+			this.syntaxRelationships,
+			relationships,
 		);
 		this.controller = controller;
 		// The create-child-note action (vault-content write + open): resolves the owned
@@ -110,7 +117,13 @@ export class VicinityGraphView extends ItemView {
 		this.root = createRoot(this.contentEl);
 		this.root.render(
 			<StrictMode>
-				<VicinityGraphFlow controller={controller} ui={ui} actions={controlsActions} linkPreview={linkPreview} />
+				<VicinityGraphFlow
+					controller={controller}
+					ui={ui}
+					actions={controlsActions}
+					linkPreview={linkPreview}
+					relationships={relationships}
+				/>
 			</StrictMode>,
 		);
 	}

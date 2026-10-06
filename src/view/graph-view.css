@@ -805,8 +805,41 @@
 /* ===== edges ============================================================ */
 
 /*
- * Collapsed multi-link "×N" badge, rendered inside React Flow's
- * EdgeLabelRenderer overlay (absolute canvas space) at the edge midpoint.
+ * The edge's midpoint label: its relationship name and/or its "×N" badge, side
+ * by side, rendered inside React Flow's EdgeLabelRenderer overlay (absolute
+ * canvas space). Click-through, so the edge underneath stays clickable.
+ */
+.vicinity-graph-edge__label {
+	position: absolute;
+	pointer-events: none;
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-1);
+}
+
+/*
+ * Relationship name (ticket nid_gk9h4jpa7di1al7och0rehd3h_e): the same pill as
+ * the badge below, in the normal text colour so the name reads as the edge's
+ * meaning; the computed `parent` default (data-origin folder-hierarchy) stays
+ * quiet, it only restates what the dashed line already shows.
+ */
+.vicinity-graph-edge__relationship {
+	padding: 0 var(--size-4-1);
+	font-size: var(--font-smallest);
+	line-height: 1.5;
+	white-space: nowrap;
+	color: var(--text-normal);
+	background: var(--background-primary);
+	border-radius: var(--radius-l);
+	box-shadow: var(--shadow-s);
+}
+
+.vicinity-graph-edge__relationship[data-origin="folder-hierarchy"] {
+	color: var(--text-faint);
+}
+
+/*
+ * Collapsed multi-link "×N" badge, inside the edge label above.
  * Smoke-run restyle (2026-07-20): the original bordered chip read as cluttered
  * floating over the canvas. Softened to a borderless pill — a solid
  * --background-primary fill still occludes the edge line behind the digits for
@@ -815,8 +848,6 @@
  * quiet next to the node titles (all theme vars — zero own colors).
  */
 .vicinity-graph-edge__count-badge {
-	position: absolute;
-	pointer-events: none;
 	padding: 0 var(--size-4-1);
 	font-size: var(--font-smallest);
 	line-height: 1.5;

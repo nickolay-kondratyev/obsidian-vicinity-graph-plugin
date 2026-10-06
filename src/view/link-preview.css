@@ -156,6 +156,39 @@
 	border-bottom: 1px solid var(--background-modifier-border);
 }
 
+/*
+ * The edge's `A —name→ B` lines (ticket nid_gk9h4jpa7di1al7och0rehd3h_e), under
+ * the header; the origin is a quiet trailing note.
+ */
+.vicinity-graph-link-preview-drawer__relationships {
+	flex: 0 0 auto;
+	margin: 0;
+	padding: var(--size-4-2) var(--size-4-3);
+	list-style: none;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.vicinity-graph-link-preview-drawer__relationship {
+	display: flex;
+	align-items: baseline;
+	gap: var(--size-4-2);
+	min-width: 0;
+}
+
+.vicinity-graph-link-preview-drawer__relationship-pair {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var(--text-normal);
+}
+
+.vicinity-graph-link-preview-drawer__relationship-origin {
+	flex: 0 0 auto;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
 .vicinity-graph-link-preview-drawer__title {
 	flex: 1 1 auto;
 	min-width: 0;

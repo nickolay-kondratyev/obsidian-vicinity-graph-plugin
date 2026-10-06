@@ -1,5 +1,6 @@
 import type { ElkNode } from "elkjs";
 import type {
+	EdgeRelationship,
 	ForceLayoutSettings,
 	NodeContentOverride,
 	NodeSizeOverridePx,
@@ -257,6 +258,19 @@ export interface NoteOpenPort {
  */
 export interface LinkPreviewPort {
 	showLinkPreview(model: EdgePreviewModel): void;
+}
+
+/**
+ * Publishes the edge relationship names resolved for the CURRENT build (ticket
+ * `nid_gk9h4jpa7di1al7och0rehd3h_e`), keyed by `directedLinkKey(source,
+ * target)`. Its own port for the same reason as {@link LinkPreviewPort}: the
+ * caller is the controller (names need async file reads AFTER the build), the
+ * readers are edge components. Implemented by `EdgeRelationshipOverlayStore`.
+ * Labels are an overlay — publishing never touches layout.
+ */
+export interface EdgeRelationshipsPort {
+	/** Replace every name with this build's (an empty map clears them all). */
+	showEdgeRelationships(relationships: ReadonlyMap<string, EdgeRelationship>): void;
 }
 
 /** Opens the native attachment menu for one icon-strip chip. */
