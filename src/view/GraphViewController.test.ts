@@ -1633,6 +1633,21 @@ describe("GraphViewController edge relationship names", () => {
 		expect(h.relationships.current().get(directedLinkKey(A, B))?.name).toBe("fresh");
 	});
 
+	it("WHEN the preview opens before the names read settles THEN the drawer still carries the relationship line", async () => {
+		const read = deferred<SyntaxRelationshipNames>();
+		const h = setup(new FakeEdgeRouter(), new FakeLinkOccurrenceProvider({}), { syntaxNamesFor: () => read.promise });
+		h.controller.handleActiveFileChanged("a.md");
+		const nodes = [makeNode({ path: A }), makeNode({ path: B })];
+		h.source.resolveBuild(0, makeGraph({ nodes, edges: [makeEdge("a.md", "b.md")] }));
+		await flush();
+		const opening = h.controller.openEdgePreview("a.md->b.md");
+		read.resolve(new Map([[directedLinkKey(A, B), ["improves"]]]));
+		await opening;
+		expect(h.linkPreview.shown[0]?.relationships).toEqual([
+			{ sourceName: "a", targetName: "b", name: "improves", originLabel: "from note" },
+		]);
+	});
+
 	it("WHEN a named edge's preview opens THEN the drawer model carries its relationship line", async () => {
 		const h = await linkHarness(new FakeSyntaxRelationshipProvider([{ source: "a.md", target: "b.md", names: ["improves"] }]));
 		await h.controller.openEdgePreview("a.md->b.md");

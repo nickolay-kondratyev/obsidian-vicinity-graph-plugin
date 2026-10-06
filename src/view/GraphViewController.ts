@@ -212,6 +212,12 @@ export class GraphViewController {
 	 * graph by one async read and never hold up the layout.
 	 */
 	private relationships: ReadonlyMap<string, EdgeRelationship> = NO_RELATIONSHIPS;
+	/**
+	 * Settles when the latest published graph's names read has finished (never
+	 * rejects). {@link openEdgePreview} awaits it, so a drawer opened in that
+	 * window still gets its relationship lines instead of a names-less snapshot.
+	 */
+	private relationshipsSettled: Promise<void> = Promise.resolve();
 
 	constructor(
 		private readonly navigator: NoteNavigatorPort,
@@ -386,6 +392,7 @@ export class GraphViewController {
 		if (edge === undefined) {
 			return; // The clicked edge left the graph before the click was handled.
 		}
+		await this.relationshipsSettled;
 		const pairs = await Promise.all(
 			edge.notePairs.map(async (pair) => {
 				const sourcePath = asVaultPath(pair.source);
@@ -533,7 +540,8 @@ export class GraphViewController {
 			return;
 		}
 		this.publish(graph, positions, groupDimensions, withRoutedPoints(flow, routes));
-		await this.resolveRelationships(graph, token);
+		this.relationshipsSettled = this.resolveRelationships(graph, token);
+		await this.relationshipsSettled;
 	}
 
 	/**
