@@ -1,15 +1,16 @@
 ---
 id: nid_gk9h4jpa7di1al7och0rehd3h_e
 title: "Relationships 1/4: names declared in notes (key:: [[x]]) + folder parent default shown on edges and in the drawer"
-status: open
+status: in_progress
 deps: []
 links: []
 created_iso: 2026-10-06T23:04:39Z
-status_updated_iso: 2026-10-06T23:04:39Z
+status_updated_iso: 2026-10-06T23:33:11Z
 type: task
 priority: 2
 assignee: nickolaykondratyev
 parent: nid_fc47gtxej6z7fqc53bflme8p5_e
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin/.worktree/t-gk9h4jpa
 tags: [relationships]
 ---
 
