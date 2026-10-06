@@ -113,6 +113,22 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   query by `adapters/LiveLinkOccurrenceProvider.ts` over a fresh
   `ObsidianLinkProvider` snapshot; `FakeLinkOccurrenceProvider` is its test
   double.
+  **Edge relationship names** (epic `nid_fc47gtxej6z7fqc53bflme8p5_e`) are an
+  ASYNC OVERLAY after each publish, never engine-build data and never a relayout
+  trigger: `GraphViewController` asks the engine-defined
+  `engine/SyntaxRelationshipProvider.ts` port (implemented by
+  `adapters/ObsidianSyntaxRelationshipProvider.ts` — link-cache POSITIONS +
+  `cachedRead`, matched by the pure `shared/InlineFieldKeys.ts`; fake
+  `FakeSyntaxRelationshipProvider`) for the names notes declare
+  (`rel:: [[target]]`), applies the pure precedence in
+  `engine/EdgeRelationships.ts` (`resolveEdgeRelationship`: syntax > manual > AI
+  > the `parent` folder-hierarchy default; DIRECTED, keyed by
+  `directedLinkKey`), and publishes the map through `EdgeRelationshipsPort` →
+  `EdgeRelationshipOverlayStore`, which `VicinityEdge` reads via
+  `EdgeRelationshipContext` (group-collapsed edges carry no label —
+  `flowMapping.edgeRelationshipKeyOf`); the drawer model lists the names per
+  pair. A new name SOURCE (stored manual / AI names) is a new
+  `RelationshipSources` field + its slot in `resolveEdgeRelationship`.
   Refresh reach is ONE port: `ViewsRefreshPort` (implemented in `main.ts` over
   `refreshOpenViews()`) rebuilds every open view. `UserNoticePort` is the same
   shape for the one user-visible message surface (`Notice`, also implemented in

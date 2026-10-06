@@ -108,6 +108,27 @@ connector — click it and the preview names both the link and the folder
 relationship. (When both `Jon.md` and `Jon/Jon.md` exist, the inside one wins and
 the sibling `Jon.md` is treated as an ordinary note.)
 
+## Relationships
+
+A connector can carry a **name** that says how two notes relate — *improves*,
+*part-of*, *parent* — shown on the connector and at the top of its preview as
+`A —improves→ B`, with where the name came from.
+
+- **Named in your note** — write the link as an inline field (the Dataview
+  style) in the note the link starts from: `improves:: [[B]]`. It also works in
+  list items (`- improves:: [[B]]`) and mid-sentence in brackets
+  (`[improves:: [[B]]]` or `(improves:: [[B]])`). Several links after one name
+  all take it (`improves:: [[B]], [[C]]`), up to the next `name::` on the line.
+  A name is letters, digits, `-` and `_`.
+- **`parent`** — a dashed folder-note connector is named *parent* automatically.
+  It is hidden when the two notes name a link between them in either direction
+  (e.g. the child writes `rel:: [[folder-note]]`).
+
+Names are **directed**: `improves:: [[B]]` in A names only the A → B connector,
+never B → A. Frontmatter properties (`related: "[[B]]"`) do not name connectors,
+and neither do canvases. A connector standing for a whole folder group carries no
+name on the graph; its preview lists the names of the note pairs behind it.
+
 ## Settings
 
 **Every setting is global** — one value used by every note and every open graph.
