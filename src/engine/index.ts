@@ -84,6 +84,23 @@ export type { LinkContextSnippet } from "./LinkContextSnippets";
 export { EXPANDED_CONTEXT_LINES_EACH_SIDE, LinkContextSnippets } from "./LinkContextSnippets";
 export { FakeLinkOccurrenceProvider } from "./FakeLinkOccurrenceProvider";
 export type { FakeOccurrenceSpec } from "./FakeLinkOccurrenceProvider";
+export { directedLinkKey } from "./types";
+export {
+	PARENT_RELATIONSHIP_NAME,
+	relationshipLookupPairs,
+	resolveEdgeRelationship,
+	resolveEdgeRelationships,
+} from "./EdgeRelationships";
+export type {
+	EdgeRelationship,
+	RelationshipEdge,
+	RelationshipOrigin,
+	RelationshipSources,
+	SyntaxRelationshipNames,
+} from "./EdgeRelationships";
+export type { SyntaxRelationshipProvider } from "./SyntaxRelationshipProvider";
+export { FakeSyntaxRelationshipProvider } from "./FakeSyntaxRelationshipProvider";
+export type { FakeSyntaxRelationship } from "./FakeSyntaxRelationshipProvider";
 export { NodeEligibility } from "./NodeEligibility";
 export { PathExclusionMatcher } from "./PathExclusionMatcher";
 export { FakeLinkProvider } from "./FakeLinkProvider";
