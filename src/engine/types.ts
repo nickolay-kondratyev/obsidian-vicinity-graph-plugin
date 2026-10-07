@@ -1,5 +1,3 @@
-import type { AiOfferedReasoningEffort } from "./RelationshipNamer";
-
 /**
  * Domain vocabulary of the pure vicinity-graph engine.
  *
@@ -543,26 +541,6 @@ export interface NodeExclusionSettings {
  */
 export interface FrontmatterLinkSettings {
 	readonly idRefFields: string;
-}
-
-/**
- * Relationship-naming settings (epic `nid_fc47gtxej6z7fqc53bflme8p5_e`, task 4/4
- * `nid_80xc6z8umlpo1x6u4p1v7eb22_e`): auto mode's switch and the OpenAI request it
- * makes. Read by the VIEW (`AiAutoNamingGate`) and the key source, never by the
- * pure engine build — a settings shape like {@link FrontmatterLinkSettings}.
- */
-export interface RelationshipSettings {
-	/** Auto mode: name unnamed eligible edges with the AI. OFF = nothing is ever sent. */
-	readonly autoNaming: boolean;
-	/** The OpenAI model slug the request names, stored trimmed and non-empty. */
-	readonly model: string;
-	readonly reasoningEffort: AiOfferedReasoningEffort;
-	/**
-	 * The NAME of the secret in Obsidian's keychain (`app.secretStorage`) holding the
-	 * OpenAI key — never the key itself. `""` = none chosen (the `OPENAI_API_KEY`
-	 * environment variable is the fallback).
-	 */
-	readonly apiKeySecretName: string;
 }
 
 /**

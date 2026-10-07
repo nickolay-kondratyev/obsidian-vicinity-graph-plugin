@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { FakeDocIdPort } from "../adapters/FakeDocIdPort";
 import type { VaultFilePort, VaultPort } from "../adapters/obsidianPorts";
 import { EngineDefaults } from "../engine";
-import type { RelationshipName } from "../engine";
 import { FakePluginDataPort } from "../persistence/FakePluginDataPort";
 import { FakeVaultFsPort } from "../persistence/FakeVaultFsPort";
 import { PathDocIdMap } from "../persistence/PathDocIdMap";
@@ -11,7 +10,6 @@ import { PersistenceServices } from "../persistence/PersistenceServices";
 import { PluginDataStore } from "../persistence/PluginDataStore";
 import { RejectingPluginDataPort } from "../persistence/RejectingPluginDataPort";
 import { RejectingVaultFsPort } from "../persistence/RejectingVaultFsPort";
-import { RelationshipStore } from "../persistence/RelationshipStore";
 import type { PluginDataPort } from "../persistence/storagePorts";
 import { VaultFileStore } from "../persistence/VaultFileStore";
 import { ControlsActions } from "./ControlsActions";
@@ -85,16 +83,10 @@ async function actionsUnderTest(
 	await pluginDataStore.init();
 	const docIdPort = new FakeDocIdPort({ [MAIN_PATH]: MAIN_DOCID, [TARGET_PATH]: TARGET_DOCID });
 	docIdPort.markUnidentifiable(ID_LESS_PATH);
-	const fileStore = new VaultFileStore(".plugin_data/vicinity_graph", perFileFs, () => 0);
-	const perDocStore = new PerDocStore(fileStore);
-	const relationshipStore = new RelationshipStore(fileStore, () => 0);
-	const persistenceServices = new PersistenceServices(
-		docIdPort,
-		pluginDataStore,
-		perDocStore,
-		relationshipStore,
-		new PathDocIdMap(),
+	const perDocStore = new PerDocStore(
+		new VaultFileStore(".plugin_data/vicinity_graph", perFileFs, () => 0),
 	);
+	const persistenceServices = new PersistenceServices(docIdPort, pluginDataStore, perDocStore, new PathDocIdMap());
 	const viewsRefresh = new FakeViewsRefresh([ORIGINATING_VIEW_ID, OTHER_VIEW_ID]);
 	const notices = new FakeUserNotices();
 	const settingsWrites = new SettingsWritePipeline(pluginDataStore, viewsRefresh, notices);
@@ -108,16 +100,7 @@ async function actionsUnderTest(
 		activeMain,
 		childNoteCreator,
 	);
-	return {
-		actions,
-		viewsRefresh,
-		pluginDataStore,
-		perDocStore,
-		relationshipStore,
-		notices,
-		activeMain,
-		childNoteCreator,
-	};
+	return { actions, viewsRefresh, pluginDataStore, perDocStore, notices, activeMain, childNoteCreator };
 }
 
 /** Records the main paths handed to the create-child-note action (the vault-content write seam). */
@@ -441,52 +424,6 @@ describe("ControlsActions node content override (hover gear)", () => {
  * restart quietly drops it. The policy itself lives in the pipeline
  * (`settingsWritePipeline.test.ts`); these pin the pin path onto it.
  */
-describe("ControlsActions relationship names (edge drawer)", () => {
-	const SUPPORTS = "supports" as RelationshipName;
-	/** The copy a user sees when a name is refused; pinned here because it is user-visible. */
-	const NOT_NAMEABLE_MESSAGE = "This relationship's name can't be saved (a note has no stable id).";
-
-	it("WHEN a relationship is named THEN the name is stored under source → target", async () => {
-		const { actions, relationshipStore } = await actionsUnderTest();
-		await actions.nameRelationship(MAIN_PATH, TARGET_PATH, SUPPORTS);
-		expect(relationshipStore.relationshipFor(MAIN_DOCID, TARGET_DOCID)?.name).toBe("supports");
-	});
-
-	it("WHEN a relationship is named THEN every open view is refreshed", async () => {
-		const { actions, viewsRefresh } = await actionsUnderTest();
-		await actions.nameRelationship(MAIN_PATH, TARGET_PATH, SUPPORTS);
-		expect(viewsRefresh.refreshedViewIds).toEqual([ORIGINATING_VIEW_ID, OTHER_VIEW_ID]);
-	});
-
-	it("WHEN a note of the pair has no stable id THEN the user is told and no view is refreshed", async () => {
-		const { actions, notices, viewsRefresh } = await actionsUnderTest();
-		await actions.nameRelationship(MAIN_PATH, ID_LESS_PATH, SUPPORTS);
-		expect({ messages: notices.messages, refreshed: viewsRefresh.refreshedViewIds }).toEqual({
-			messages: [NOT_NAMEABLE_MESSAGE],
-			refreshed: [],
-		});
-	});
-
-	it("WHEN a named relationship is cleared THEN the pair has no stored name", async () => {
-		const { actions, relationshipStore } = await actionsUnderTest();
-		await actions.nameRelationship(MAIN_PATH, TARGET_PATH, SUPPORTS);
-		await actions.clearRelationship(MAIN_PATH, TARGET_PATH);
-		expect(relationshipStore.relationshipFor(MAIN_DOCID, TARGET_DOCID)).toBeUndefined();
-	});
-
-	it("WHEN the name cannot be written to the vault THEN the ONE failure notice is shown and views repaint", async () => {
-		const { actions, notices, viewsRefresh } = await actionsUnderTest(
-			new FakePluginDataPort(),
-			new RejectingVaultFsPort(),
-		);
-		await actions.nameRelationship(MAIN_PATH, TARGET_PATH, SUPPORTS);
-		expect({ messages: notices.messages, refreshed: viewsRefresh.refreshedViewIds }).toEqual({
-			messages: [SettingsWriteFailureNotice.forNonSettingsWrite("relationship-name")],
-			refreshed: [ORIGINATING_VIEW_ID, OTHER_VIEW_ID],
-		});
-	});
-});
-
 describe("ControlsActions pinning when data.json cannot be written", () => {
 	it("WHEN a pin's persist rejects THEN the user is told exactly once", async () => {
 		const { actions, notices } = await actionsUnderTest(new RejectingPluginDataPort());

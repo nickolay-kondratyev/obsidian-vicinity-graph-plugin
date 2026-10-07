@@ -1,11 +1,5 @@
 import { ALL_SETTINGS_RESET_SCOPE, SETTINGS_RESET_SCOPES } from "../src/view/settingsResetPlan";
-import {
-	EVERY_SETTINGS_BLOCK,
-	SETTINGS_GROUPS,
-	SettingsRowNames,
-	graphSurfaceOf,
-	settingsRowsFor,
-} from "../src/view/settingsRows";
+import { EVERY_SETTINGS_BLOCK, SETTINGS_GROUPS, SettingsRowNames, settingsRowsFor } from "../src/view/settingsRows";
 import type { SettingsRowControlKind } from "../src/view/settingsRows";
 import { SETTINGS_SECTIONS } from "../src/view/settingsSectionFields";
 import type { SizingNumberField } from "../src/view/settingsWritePlan";
@@ -161,7 +155,6 @@ const SUMMARY_ALSO_MATCHES_AN_ANCESTOR: Readonly<Record<SectionResetScope, boole
 	"depth-defaults": true,
 	edges: false,
 	"frontmatter-links": false,
-	relationships: false,
 	"node-sizing": false,
 	"node-contents": false,
 	grouping: false,
@@ -190,10 +183,7 @@ const SUMMARY_ALSO_MATCHES_AN_ANCESTOR: Readonly<Record<SectionResetScope, boole
  * `nid_ez38gf1mrdgh5kxedzrdicwzl_e`; every entry below renders unconditionally, so
  * the pin needs no name-based exemption.)
  */
-export const CONTROLS_PANEL_DISCLOSURES: readonly PanelDisclosure[] = SETTINGS_SECTIONS.filter(
-	// A section another in-graph surface presents (the Relationships menu) is not a panel disclosure.
-	(section) => graphSurfaceOf(SETTINGS_GROUPS[section]) === "controls-panel",
-).map((section) => ({
+export const CONTROLS_PANEL_DISCLOSURES: readonly PanelDisclosure[] = SETTINGS_SECTIONS.map((section) => ({
 	summaryText: SETTINGS_GROUPS[section].heading,
 	startsOpen: SETTINGS_GROUPS[section].openInPanel === true,
 	summaryAlsoMatchesAnAncestor: SUMMARY_ALSO_MATCHES_AN_ANCESTOR[section],

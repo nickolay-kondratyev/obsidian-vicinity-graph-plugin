@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { AI_OFFERED_REASONING_EFFORTS } from "./RelationshipNamer";
 import { SETTINGS_SPEC } from "./SettingsSpec";
 import { EVERY_SETTINGS_SPEC_LEAF } from "./testFixtures/settingsSpecLeaves";
 
@@ -110,13 +109,6 @@ const SHIPPED_SETTINGS_DEFAULTS: Readonly<Record<string, unknown>> = {
 
 	// Frontmatter-id links ship OFF: an empty field list reads no frontmatter as id-refs.
 	"frontmatterLinks.idRefFields": "",
-
-	// AI relationship naming ships OFF (it sends note text to OpenAI); when turned on it
-	// asks gpt-6-luna at medium effort, with the key from OPENAI_API_KEY until a secret is picked.
-	"relationships.autoNaming": false,
-	"relationships.model": "gpt-6-luna",
-	"relationships.reasoningEffort": "medium",
-	"relationships.apiKeySecretName": "",
 };
 
 describe("shipped settings defaults (the hand-pinned literal baseline)", () => {
@@ -133,11 +125,11 @@ describe("shipped settings defaults (the hand-pinned literal baseline)", () => {
  * bounded leaf's declared range is ENFORCED and that its default is reachable inside it,
  * which is the property that matters and the one the deleted limits baseline never had.
  *
- * The four ranges pinned below are the exceptions, each for a stated reason. No other range
+ * The three ranges pinned below are the exceptions, each for a stated reason. No other range
  * has a literal tripwire, and widening one is therefore NOT something `npm test` notices —
  * said plainly here rather than implied by silence.
  */
-describe("settings ranges pinned as literals (the four exceptions)", () => {
+describe("settings ranges pinned as literals (the three exceptions)", () => {
 	it("WHEN the outline depth range is read THEN it is 1..6 (markdown's own heading levels, never 0)", () => {
 		// Product-meaningful: 6 is markdown's own ceiling and 1 (never 0) is what keeps
 		// depth from becoming a second, silent off-switch for previews.
@@ -161,12 +153,5 @@ describe("settings ranges pinned as literals (the four exceptions)", () => {
 		// either bound is a product call, so it gets a literal tripwire.
 		const spec = SETTINGS_SPEC.globalView.nodeCap;
 		expect({ min: spec.min, max: spec.max }).toEqual({ min: 1, max: 1000 });
-	});
-
-	it("WHEN the offered reasoning efforts are read THEN they are low..max (the live-verified set, never none)", () => {
-		// Product-meaningful: each offered effort is one a live gpt-6-luna call ACCEPTED
-		// (ticket nid_g0inqme2ol16xsrcg89g3kks4_e, 2026-10-07), and higher effort costs more
-		// per name. `none` is left out on purpose (see AI_OFFERED_REASONING_EFFORTS).
-		expect(AI_OFFERED_REASONING_EFFORTS).toEqual(["low", "medium", "high", "xhigh", "max"]);
 	});
 });

@@ -17,7 +17,7 @@ const TARGET_OFFSET = NOTE_TEXT.indexOf("[[Target]]");
 const SPEC: FakeObsidianSpec = {
 	files: [{ path: "note.md", content: NOTE_TEXT }, { path: "target.md" }],
 	fileCaches: {
-		"note.md": { links: [{ link: "Target", original: "[[Target]]", position: { start: { offset: TARGET_OFFSET } } }] },
+		"note.md": { links: [{ link: "Target", position: { start: { offset: TARGET_OFFSET } } }] },
 	},
 	resolutions: { Target: "target.md" },
 	resolvedLinks: { "note.md": { "target.md": 1 } },

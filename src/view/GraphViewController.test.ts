@@ -1,25 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ElkNode } from "elkjs";
-import type {
-	EdgeRelationship,
-	ForceLayoutSettings,
-	LinkOccurrenceProvider,
-	OutlineEntry,
-	StoredRelationshipProvider,
-	SyntaxRelationshipNames,
-	SyntaxRelationshipRead,
-	SyntaxRelationshipProvider,
-	VicinityGraph,
-} from "../engine";
-import {
-	asFolderPath,
-	asVaultPath,
-	directedLinkKey,
-	EngineDefaults,
-	FakeLinkOccurrenceProvider,
-	FakeStoredRelationshipProvider,
-	FakeSyntaxRelationshipProvider,
-} from "../engine";
+import type { ForceLayoutSettings, LinkOccurrenceProvider, OutlineEntry, VicinityGraph } from "../engine";
+import { asFolderPath, asVaultPath, EngineDefaults, FakeLinkOccurrenceProvider } from "../engine";
 import { REBUILD_DEBOUNCE_MS } from "./constants";
 import { GraphViewController } from "./GraphViewController";
 import type { FlowSnapshot } from "./GraphViewController";
@@ -27,9 +9,6 @@ import type { FlowNode, FlowPinFacts, FolderNoteCandidatesLookup, NoteFlowNode }
 import type { ControlsModel } from "./ControlsModel";
 import type { EdgePreviewModel } from "./linkPreviewModel";
 import type {
-	AutoNamingOffer,
-	AutoNamingPort,
-	EdgeRelationshipsPort,
 	GraphBuildResult,
 	GraphLayoutPort,
 	GraphSourcePort,
@@ -47,7 +26,6 @@ const EMPTY_CONTROLS: ControlsModel = {
 	globalView: EngineDefaults.viewSettings(),
 	nodeExclusion: EngineDefaults.nodeExclusionSettings(),
 	frontmatterLinks: EngineDefaults.frontmatterLinkSettings(),
-	relationships: EngineDefaults.relationshipSettings(),
 	excludedNodeCount: 0,
 };
 
@@ -230,76 +208,26 @@ class FakeLinkPreview implements LinkPreviewPort {
 	}
 }
 
-/** Records every relationship map the controller published for the edge labels. */
-class FakeEdgeRelationships implements EdgeRelationshipsPort {
-	readonly shown: ReadonlyMap<string, EdgeRelationship>[] = [];
-
-	showEdgeRelationships(relationships: ReadonlyMap<string, EdgeRelationship>): void {
-		this.shown.push(relationships);
-	}
-
-	/** The map on screen now (empty before anything was shown). */
-	current(): ReadonlyMap<string, EdgeRelationship> {
-		return this.shown[this.shown.length - 1] ?? new Map();
-	}
-}
-
-/** Records every build the controller offered to auto mode. */
-class RecordingAutoNaming implements AutoNamingPort {
-	readonly offers: AutoNamingOffer[] = [];
-
-	offerBuild(offer: AutoNamingOffer): void {
-		this.offers.push(offer);
-	}
-}
-
 interface Harness {
 	readonly controller: GraphViewController;
-	readonly autoNaming: RecordingAutoNaming;
 	readonly source: FakeGraphSource;
 	readonly layout: FakeLayout;
 	readonly navigator: FakeNavigator;
 	readonly router: FakeEdgeRouter;
 	readonly linkPreview: FakeLinkPreview;
-	readonly relationships: FakeEdgeRelationships;
 	snapshot(): FlowSnapshot;
 }
 
 function setup(
 	router: FakeEdgeRouter = new FakeEdgeRouter(),
 	occurrences: LinkOccurrenceProvider = new FakeLinkOccurrenceProvider({}),
-	syntaxRelationships: SyntaxRelationshipProvider = new FakeSyntaxRelationshipProvider(),
-	storedRelationships: StoredRelationshipProvider = new FakeStoredRelationshipProvider(),
 ): Harness {
 	const source = new FakeGraphSource();
 	const layout = new FakeLayout();
 	const navigator = new FakeNavigator();
 	const linkPreview = new FakeLinkPreview();
-	const relationships = new FakeEdgeRelationships();
-	const autoNaming = new RecordingAutoNaming();
-	const controller = new GraphViewController(
-		navigator,
-		source,
-		layout,
-		router,
-		occurrences,
-		linkPreview,
-		syntaxRelationships,
-		storedRelationships,
-		relationships,
-		autoNaming,
-	);
-	return {
-		controller,
-		autoNaming,
-		source,
-		layout,
-		navigator,
-		router,
-		linkPreview,
-		relationships,
-		snapshot: () => controller.getSnapshot(),
-	};
+	const controller = new GraphViewController(navigator, source, layout, router, occurrences, linkPreview);
+	return { controller, source, layout, navigator, router, linkPreview, snapshot: () => controller.getSnapshot() };
 }
 
 /**
@@ -1547,301 +1475,5 @@ describe("GraphViewController link previews", () => {
 		await h.controller.openEdgePreview("hub.md->folder-group:notes");
 
 		expect(h.linkPreview.shown).toMatchObject([{ sourceName: "hub", targetName: "notes" }]);
-	});
-});
-
-/** A names read that reached every source. */
-function fullyRead(names: SyntaxRelationshipNames): SyntaxRelationshipRead {
-	return { names, unreadSources: new Set() };
-}
-
-describe("GraphViewController edge relationship names", () => {
-	afterEach(() => {
-		vi.restoreAllMocks();
-	});
-
-	const A = asVaultPath("a.md");
-	const B = asVaultPath("b.md");
-	const FOLDER_NOTE = asVaultPath("Jon.md");
-	const CHILD = asVaultPath("Jon/kid.md");
-
-	/** GIVEN a rendered graph a.md → b.md, with the given names declared in notes. */
-	async function linkHarness(syntax: SyntaxRelationshipProvider): Promise<Harness> {
-		const h = setup(new FakeEdgeRouter(), new FakeLinkOccurrenceProvider({}), syntax);
-		h.controller.handleActiveFileChanged("a.md");
-		const nodes = [makeNode({ path: A }), makeNode({ path: B })];
-		h.source.resolveBuild(0, makeGraph({ nodes, edges: [makeEdge("a.md", "b.md")] }));
-		await flush();
-		return h;
-	}
-
-	/** GIVEN a rendered graph where Jon.md reaches Jon/kid.md by folder hierarchy only. */
-	async function hierarchyHarness(syntax: SyntaxRelationshipProvider): Promise<Harness> {
-		const h = setup(new FakeEdgeRouter(), new FakeLinkOccurrenceProvider({}), syntax);
-		h.controller.handleActiveFileChanged("Jon.md");
-		const nodes = [makeNode({ path: FOLDER_NOTE }), makeNode({ path: CHILD })];
-		h.source.resolveBuild(0, makeGraph({ nodes, edges: [makeEdge("Jon.md", "Jon/kid.md", 0, "link", true)] }));
-		await flush();
-		return h;
-	}
-
-	/** Rejects every names read — the one failing collaborator. */
-	const FAILING_SYNTAX: SyntaxRelationshipProvider = {
-		syntaxNamesFor: () => Promise.reject(new Error("cachedRead failed")),
-	};
-
-	it("WHEN the source note names its link THEN the edge is labelled with that name", async () => {
-		const h = await linkHarness(new FakeSyntaxRelationshipProvider([{ source: "a.md", target: "b.md", names: ["improves"] }]));
-		expect(h.relationships.current().get(directedLinkKey(A, B))).toEqual({ name: "improves", origin: "syntax" });
-	});
-
-	it("WHEN only the target note names the reverse link THEN the edge stays unnamed", async () => {
-		const h = await linkHarness(new FakeSyntaxRelationshipProvider([{ source: "b.md", target: "a.md", names: ["improves"] }]));
-		expect(h.relationships.current().size).toBe(0);
-	});
-
-	it("WHEN a pure hierarchy edge is rendered and nothing names it THEN it is labelled `parent`", async () => {
-		const h = await hierarchyHarness(new FakeSyntaxRelationshipProvider());
-		expect(h.relationships.current().get(directedLinkKey(FOLDER_NOTE, CHILD))).toEqual({
-			name: "parent",
-			origin: "folder-hierarchy",
-		});
-	});
-
-	it("WHEN the child names its link to the folder note THEN the `parent` label is hidden", async () => {
-		const h = await hierarchyHarness(
-			new FakeSyntaxRelationshipProvider([{ source: "Jon/kid.md", target: "Jon.md", names: ["rel"] }]),
-		);
-		expect(h.relationships.current().has(directedLinkKey(FOLDER_NOTE, CHILD))).toBe(false);
-	});
-
-	it("WHEN reading names fails THEN the graph is still published", async () => {
-		vi.spyOn(console, "warn").mockImplementation(() => undefined);
-		const h = await hierarchyHarness(FAILING_SYNTAX);
-		expect(h.snapshot().status).toBe("ready");
-	});
-
-	it("WHEN reading names fails THEN the `parent` default is still shown", async () => {
-		vi.spyOn(console, "warn").mockImplementation(() => undefined);
-		const h = await hierarchyHarness(FAILING_SYNTAX);
-		expect(h.relationships.current().get(directedLinkKey(FOLDER_NOTE, CHILD))?.name).toBe("parent");
-	});
-
-	it("WHEN the graph empties THEN every name is cleared", async () => {
-		const h = await linkHarness(new FakeSyntaxRelationshipProvider([{ source: "a.md", target: "b.md", names: ["improves"] }]));
-		h.controller.handleSettingsChanged();
-		h.source.resolveBuild(1, null);
-		await flush();
-		expect(h.relationships.current().size).toBe(0);
-	});
-
-	it("WHEN a newer build supersedes a names read THEN the stale names are never shown", async () => {
-		const reads: Deferred<SyntaxRelationshipRead>[] = [];
-		const syntax: SyntaxRelationshipProvider = {
-			syntaxNamesFor: () => {
-				const read = deferred<SyntaxRelationshipRead>();
-				reads.push(read);
-				return read.promise;
-			},
-		};
-		const h = setup(new FakeEdgeRouter(), new FakeLinkOccurrenceProvider({}), syntax);
-		h.controller.handleActiveFileChanged("a.md");
-		const graph = makeGraph({ nodes: [makeNode({ path: A }), makeNode({ path: B })], edges: [makeEdge("a.md", "b.md")] });
-		h.source.resolveBuild(0, graph);
-		await flush();
-		h.controller.handleSettingsChanged();
-		h.source.resolveBuild(1, graph);
-		await flush();
-		reads[1]?.resolve(fullyRead(new Map([[directedLinkKey(A, B), ["fresh"]]])));
-		await flush();
-		reads[0]?.resolve(fullyRead(new Map([[directedLinkKey(A, B), ["stale"]]])));
-		await flush();
-		expect(h.relationships.current().get(directedLinkKey(A, B))?.name).toBe("fresh");
-	});
-
-	it("WHEN the preview opens before the names read settles THEN the drawer opens only once the names are published", async () => {
-		const read = deferred<SyntaxRelationshipRead>();
-		const h = setup(new FakeEdgeRouter(), new FakeLinkOccurrenceProvider({}), { syntaxNamesFor: () => read.promise });
-		h.controller.handleActiveFileChanged("a.md");
-		const nodes = [makeNode({ path: A }), makeNode({ path: B })];
-		h.source.resolveBuild(0, makeGraph({ nodes, edges: [makeEdge("a.md", "b.md")] }));
-		await flush();
-		const namesWhenShown: (string | undefined)[] = [];
-		vi.spyOn(h.linkPreview, "showLinkPreview").mockImplementation(() => {
-			namesWhenShown.push(h.relationships.current().get(directedLinkKey(A, B))?.name);
-		});
-		const opening = h.controller.openEdgePreview("a.md->b.md");
-		await flush();
-		read.resolve(fullyRead(new Map([[directedLinkKey(A, B), ["improves"]]])));
-		await opening;
-		expect(namesWhenShown).toEqual(["improves"]);
-	});
-
-	it("WHEN an edge's preview opens THEN the drawer model lists its directed pair for naming", async () => {
-		// The drawer reads the pair's NAME live from the overlay (so a drawer opened
-		// before the names read lands still fills in) — the model carries its key.
-		const h = await linkHarness(new FakeSyntaxRelationshipProvider());
-		await h.controller.openEdgePreview("a.md->b.md");
-		expect(h.linkPreview.shown[0]?.relationshipPairs).toEqual([
-			{ key: directedLinkKey(A, B), sourcePath: A, targetPath: B, sourceName: "a", targetName: "b" },
-		]);
-	});
-
-	it("WHEN the user named the edge THEN it is labelled with the stored manual name", async () => {
-		const h = setup(
-			new FakeEdgeRouter(),
-			new FakeLinkOccurrenceProvider({}),
-			new FakeSyntaxRelationshipProvider(),
-			new FakeStoredRelationshipProvider([
-				{ source: "a.md", target: "b.md", stored: { name: "supports", origin: "manual" } },
-			]),
-		);
-		h.controller.handleActiveFileChanged("a.md");
-		h.source.resolveBuild(0, makeGraph({ nodes: [makeNode({ path: A }), makeNode({ path: B })], edges: [makeEdge("a.md", "b.md")] }));
-		await flush();
-		expect(h.relationships.current().get(directedLinkKey(A, B))).toEqual({ name: "supports", origin: "manual" });
-	});
-
-	it("WHEN reading stored names fails THEN the names notes declare still show", async () => {
-		vi.spyOn(console, "warn").mockImplementation(() => undefined);
-		const h = setup(
-			new FakeEdgeRouter(),
-			new FakeLinkOccurrenceProvider({}),
-			new FakeSyntaxRelationshipProvider([{ source: "a.md", target: "b.md", names: ["improves"] }]),
-			{ storedRelationshipsFor: () => Promise.reject(new Error("vault read failed")) },
-		);
-		h.controller.handleActiveFileChanged("a.md");
-		h.source.resolveBuild(0, makeGraph({ nodes: [makeNode({ path: A }), makeNode({ path: B })], edges: [makeEdge("a.md", "b.md")] }));
-		await flush();
-		expect(h.relationships.current().get(directedLinkKey(A, B))?.name).toBe("improves");
-	});
-});
-
-describe("GraphViewController offers each build to auto mode", () => {
-	const A = asVaultPath("a.md");
-	const B = asVaultPath("b.md");
-	const LINKED = (): VicinityGraph =>
-		makeGraph({ nodes: [makeNode({ path: A }), makeNode({ path: B })], edges: [makeEdge("a.md", "b.md")] });
-
-	/** GIVEN the user opened a.md and its graph a.md → b.md is on screen, names resolved. */
-	async function openedLinkedGraph(): Promise<Harness> {
-		const h = setup();
-		h.controller.handleActiveFileChanged("a.md");
-		h.source.resolveBuild(0, LINKED());
-		await flush();
-		return h;
-	}
-
-	it("WHEN the user opens a note and its names resolve THEN the build is offered as a user request", async () => {
-		const h = await openedLinkedGraph();
-		expect(h.autoNaming.offers.map((offer) => offer.trigger)).toEqual(["user-request"]);
-	});
-
-	it("WHEN the build is offered THEN it carries the build's edges and resolved names", async () => {
-		const h = await openedLinkedGraph();
-		const [offer] = h.autoNaming.offers;
-		expect({ edges: offer?.edges.length, syntax: offer?.sources.syntax.size, stored: offer?.sources.stored.size }).toEqual({
-			edges: 1,
-			syntax: 0,
-			stored: 0,
-		});
-	});
-
-	it("WHEN the build is offered THEN it carries the relationship settings the build was made with", async () => {
-		const h = await openedLinkedGraph();
-		expect(h.autoNaming.offers[0]?.settings).toEqual(EMPTY_CONTROLS.relationships);
-	});
-
-	it("WHEN a write repaints every view THEN the rebuild is offered as a data change", async () => {
-		const h = await openedLinkedGraph();
-		h.controller.handleSettingsChanged();
-		h.source.resolveBuild(1, LINKED());
-		await flush();
-		expect(h.autoNaming.offers.map((offer) => offer.trigger)).toEqual(["user-request", "data-change"]);
-	});
-
-	it("WHEN the user redraws THEN the rebuild is offered as a user request", async () => {
-		const h = await openedLinkedGraph();
-		h.controller.redraw();
-		h.source.resolveBuild(1, LINKED());
-		await flush();
-		expect(h.autoNaming.offers[1]?.trigger).toBe("user-request");
-	});
-
-	it("WHEN auto mode asks for a retry THEN the rebuild is offered as a user request", async () => {
-		const h = await openedLinkedGraph();
-		h.controller.rebuildForAutoNaming();
-		h.source.resolveBuild(1, LINKED());
-		await flush();
-		expect(h.autoNaming.offers[1]?.trigger).toBe("user-request");
-	});
-
-	it("WHEN two notes of one folder render as a group THEN both are offered as grouped", async () => {
-		const h = setup();
-		h.controller.handleActiveFileChanged("a.md");
-		const grouped = [asVaultPath("f/x.md"), asVaultPath("f/y.md")];
-		h.source.resolveBuild(
-			0,
-			makeGraph({
-				nodes: [makeNode({ path: A }), ...grouped.map((path) => makeNode({ path, folder: asFolderPath("f") }))],
-				edges: [makeEdge("a.md", "f/x.md"), makeEdge("a.md", "f/y.md")],
-			}),
-		);
-		await flush();
-		expect([...(h.autoNaming.offers[0]?.groupedPaths ?? [])].sort()).toEqual(grouped);
-	});
-
-	it("WHEN a source's names could not be read THEN the build is offered with that source unread", async () => {
-		const h = setup(new FakeEdgeRouter(), new FakeLinkOccurrenceProvider({}), new FakeSyntaxRelationshipProvider([], new Set([A])));
-		h.controller.handleActiveFileChanged("a.md");
-		h.source.resolveBuild(0, LINKED());
-		await flush();
-		expect([...(h.autoNaming.offers[0]?.syntaxUnreadSources ?? [])]).toEqual([A]);
-	});
-
-	it("WHEN reading the names fails THEN every source is offered as unread (unknown is not unnamed)", async () => {
-		vi.spyOn(console, "warn").mockImplementation(() => undefined);
-		const failing: SyntaxRelationshipProvider = { syntaxNamesFor: () => Promise.reject(new Error("cachedRead failed")) };
-		const h = setup(new FakeEdgeRouter(), new FakeLinkOccurrenceProvider({}), failing);
-		h.controller.handleActiveFileChanged("a.md");
-		h.source.resolveBuild(0, LINKED());
-		await flush();
-		expect([...(h.autoNaming.offers[0]?.syntaxUnreadSources ?? [])]).toEqual([A]);
-	});
-
-	it("WHEN reading the stored names fails THEN the build is not offered (a stored or dismissed name is not unnamed)", async () => {
-		vi.spyOn(console, "warn").mockImplementation(() => undefined);
-		const h = setup(
-			new FakeEdgeRouter(),
-			new FakeLinkOccurrenceProvider({}),
-			new FakeSyntaxRelationshipProvider([]),
-			{ storedRelationshipsFor: () => Promise.reject(new Error("vault read failed")) },
-		);
-		h.controller.handleActiveFileChanged("a.md");
-		h.source.resolveBuild(0, LINKED());
-		await flush();
-		expect(h.autoNaming.offers).toEqual([]);
-	});
-
-	it("WHEN a newer build supersedes one whose names are still being read THEN only the newer build is offered", async () => {
-		const reads: Deferred<SyntaxRelationshipRead>[] = [];
-		const syntax: SyntaxRelationshipProvider = {
-			syntaxNamesFor: () => {
-				const read = deferred<SyntaxRelationshipRead>();
-				reads.push(read);
-				return read.promise;
-			},
-		};
-		const h = setup(new FakeEdgeRouter(), new FakeLinkOccurrenceProvider({}), syntax);
-		h.controller.handleActiveFileChanged("a.md");
-		h.source.resolveBuild(0, LINKED());
-		await flush();
-		h.controller.handleSettingsChanged();
-		h.source.resolveBuild(1, LINKED());
-		await flush();
-		reads[0]?.resolve(fullyRead(new Map()));
-		reads[1]?.resolve(fullyRead(new Map()));
-		await flush();
-		expect(h.autoNaming.offers.map((offer) => offer.trigger)).toEqual(["data-change"]);
 	});
 });

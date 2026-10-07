@@ -46,8 +46,8 @@ reporting the full matrix.)
       `docs-internal/tickets/ticket-step-06-controls-human-smoke-run.md`. This is a
       human visual/native-feel pass and is a release gate; do not ship V1 without
       it being run.
-- [ ] Confirm no other blocking ticket is left in `_tickets/` (or the older
-      `docs-internal/tickets/`) that a release would regress.
+- [ ] Confirm no other blocking ticket is left in `docs-internal/tickets/` that a
+      release would regress.
 
 ## 3. Version agreement
 

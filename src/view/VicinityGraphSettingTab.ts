@@ -7,22 +7,15 @@ import { ConfirmModal } from "./ConfirmModal";
 import { SETTINGS_WRITE_DEBOUNCE_MS } from "./constants";
 import { IdRefFieldChips } from "./idRefFieldChips";
 import { NODE_PREVIEW_OPTION_META } from "./nodePreviewPreferenceMeta";
-import { createSecretPicker } from "./obsidianSecretPicker";
 import { DebouncedSettingsWrites } from "./settingsDebounce";
 import type { SettingsResetScope } from "./settingsResetPlan";
 import { ALL_SETTINGS_RESET_SCOPE, SETTINGS_RESET_SCOPES } from "./settingsResetPlan";
 import type { SettingsResetTarget } from "./settingsResetSequence";
 import { SettingsResetSequence } from "./settingsResetSequence";
-import type {
-	SettingsNumberAccessor,
-	SettingsRowBounds,
-	SettingsTextAccessor,
-	SettingsValueAccessor,
-} from "./settingsRowAccessors";
+import type { SettingsNumberAccessor, SettingsRowBounds, SettingsValueAccessor } from "./settingsRowAccessors";
 import { FolderGroupingDepthSlider, SettingsRowAccessors } from "./settingsRowAccessors";
 import type { SettingsGroup, SettingsRow, SettingsRowBlock, SettingsRowState } from "./settingsRows";
 import {
-	AI_REASONING_EFFORT_LABELS,
 	SETTINGS_GROUPS,
 	SETTINGS_SUBHEADING_CLASS,
 	SettingsRowNames,
@@ -140,7 +133,6 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 			globalView: this.store.globalView(),
 			nodeExclusion: this.store.nodeExclusion(),
 			frontmatterLinks: this.store.frontmatterLinks(),
-			relationships: this.store.relationships(),
 		};
 	}
 
@@ -301,18 +293,6 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 				return;
 			case "id-ref-fields":
 				this.addIdRefFields(container, row, state);
-				return;
-			case "ai-auto-naming":
-				this.addToggleRow(container, row, SettingsRowAccessors.aiAutoNaming(), state);
-				return;
-			case "ai-api-key":
-				this.addAiApiKey(container, row, state);
-				return;
-			case "ai-model":
-				this.addTextRow(container, row, SettingsRowAccessors.aiModel(), state);
-				return;
-			case "ai-reasoning-effort":
-				this.addAiReasoningEffort(container, row, state);
 				return;
 			default:
 				return unhandledRowControl(row.control);
@@ -773,62 +753,6 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 		});
 		input.addEventListener("blur", commit);
 		renderChips();
-	}
-
-	/**
-	 * The keychain secret holding the OpenAI key: Obsidian's own `SecretComponent`
-	 * (pick or create a secret), the same construction the in-graph menu mounts. Only
-	 * the chosen secret's NAME is written; a pick is a whole, aimed choice, so it
-	 * commits at once rather than through the typed-field debounce.
-	 */
-	private addAiApiKey(container: HTMLElement, row: SettingsRow, state: SettingsRowState): void {
-		const accessor = SettingsRowAccessors.aiApiKeySecret();
-		VicinityGraphSettingTab.row(container, row).addComponent((el) =>
-			createSecretPicker(this.app, el, {
-				secretName: accessor.read(state),
-				accessibleName: SettingsRowNames.sole(row),
-				onChange: (secretName) => void this.writes.apply(accessor.interaction(secretName)),
-			}),
-		);
-	}
-
-	/** The reasoning effort: a dropdown over the accessor's offered options, committed at once. */
-	private addAiReasoningEffort(container: HTMLElement, row: SettingsRow, state: SettingsRowState): void {
-		const accessor = SettingsRowAccessors.aiReasoningEffort();
-		VicinityGraphSettingTab.row(container, row).addDropdown((dropdown) => {
-			for (const effort of accessor.options) {
-				dropdown.addOption(effort, AI_REASONING_EFFORT_LABELS[effort]);
-			}
-			VicinityGraphSettingTab.nameControl(dropdown.selectEl, SettingsRowNames.sole(row));
-			dropdown.setValue(accessor.read(state)).onChange((raw) => {
-				const effort = accessor.accept(raw);
-				if (effort !== undefined) {
-					void this.writes.apply(accessor.interaction(effort));
-				}
-			});
-		});
-	}
-
-	/**
-	 * A free-text row (today the AI model slug): debounced like every other TYPED row —
-	 * one persist + rebuild per burst, flushed on blur — and settled by its accessor
-	 * on the way in (`interaction` applies `settlesAt`).
-	 */
-	private addTextRow(
-		container: HTMLElement,
-		row: SettingsRow,
-		accessor: SettingsTextAccessor,
-		state: SettingsRowState,
-	): void {
-		const name = SettingsRowNames.sole(row);
-		VicinityGraphSettingTab.row(container, row).addText((text) => {
-			text.setValue(accessor.read(state));
-			VicinityGraphSettingTab.nameControl(text.inputEl, name);
-			this.flushOnBlur(text.inputEl);
-			text.onChange((raw) => {
-				this.debounced.schedule(name, (writer) => writer.apply(accessor.interaction(raw)));
-			});
-		});
 	}
 
 	/**

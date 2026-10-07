@@ -52,8 +52,6 @@ export interface NoteCreationPort {
 /** Structural slice of a `ReferenceCache` (LinkCache / EmbedCache). */
 export interface ReferencePort {
 	readonly link: string;
-	/** The link exactly as written (`[[x|y]]`) — what checks a cached offset against the CURRENT text. */
-	readonly original: string;
 	readonly position: { readonly start: { readonly offset: number } };
 }
 

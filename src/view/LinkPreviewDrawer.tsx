@@ -6,7 +6,6 @@ import type { DrawerPointerPosition, DrawerResizeAxis, DrawerSizeSnapshot } from
 import { LinkPreviewContent } from "./LinkPreviewContent";
 import type { LinkPreviewGoTarget } from "./LinkPreviewContent";
 import type { EdgePreviewModel } from "./linkPreviewModel";
-import { RelationshipList } from "./RelationshipList";
 
 /**
  * The in-graph link-preview drawer (ticket `nid_5j9mygfywppaiakuim3utf6r2_e`):
@@ -74,7 +73,6 @@ export function LinkPreviewDrawer({
 				</h2>
 				<CloseButton renderIcon={renderIcon} onClose={onClose} />
 			</header>
-			{model.relationshipPairs.length > 0 && <RelationshipList pairs={model.relationshipPairs} />}
 			<div className="vicinity-graph-link-preview-drawer__body">
 				<LinkPreviewContent
 					model={model}

@@ -8,8 +8,6 @@ export interface SweepInputs {
 	readonly overrideDocids: readonly string[];
 	/** Docids a local pin references — MAIN keys AND target docids (data.json). */
 	readonly localPinDocids: readonly string[];
-	/** Docids a stored relationship references — FROM and TO positions (`RelationshipStore`). */
-	readonly relationshipDocids: readonly string[];
 }
 
 /** Exactly what to drop — nothing else (test contract). */
@@ -22,15 +20,13 @@ export interface SweepPlan {
 	 * pruned from every list — so the plan just names the stale docids.
 	 */
 	readonly localPinsToRemove: readonly string[];
-	/** Orphaned relationship docids; `RelationshipStore.forgetDocs` drops both positions. */
-	readonly relationshipsToRemove: readonly string[];
 }
 
 /**
  * Pure orphan judgment (step doc): an entry is an orphan exactly when its docid
  * no longer resolves to a live doc. Effects live in `OrphanSweeper`.
  *
- * Pins, per-node overrides, local pins and stored relationships are the docid-keyed persisted state —
+ * Pins, per-node overrides and local pins are the docid-keyed persisted state —
  * `data.json`'s settings are global and not keyed by anything that can go stale.
  */
 export class SweepPlanner {
@@ -40,7 +36,6 @@ export class SweepPlanner {
 			pinsToRemove: inputs.pinnedDocids.filter(isOrphan),
 			overridesToRemove: inputs.overrideDocids.filter(isOrphan),
 			localPinsToRemove: inputs.localPinDocids.filter(isOrphan),
-			relationshipsToRemove: inputs.relationshipDocids.filter(isOrphan),
 		};
 	}
 }

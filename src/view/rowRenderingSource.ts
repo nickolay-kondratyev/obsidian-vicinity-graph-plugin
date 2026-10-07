@@ -41,15 +41,6 @@ export const ROW_SECTION_WALKERS: Readonly<Record<string, string>> = {
 };
 
 /**
- * Walkers of ONE declared section on a surface of its own (`SettingsGroup.graphSurface`)
- * — they never walk every section, so the "walks every section" scan does not apply,
- * but every per-row scan does.
- */
-export const ROW_GROUP_WALKERS: Readonly<Record<string, string>> = {
-	"relationships menu": "RelationshipsMenu.tsx",
-};
-
-/**
  * Components a presenter delegates ONE control kind to. They render a declared row just
  * as much as the presenter that mounts them, so the scans must reach them too —
  * otherwise "hard-code it in a child component" is an open escape hatch.
@@ -68,7 +59,6 @@ export const EVERY_ROW_RENDERING_MODULE: readonly string[] = [
 	...new Set([
 		...Object.values(ROW_PRESENTERS),
 		...Object.values(ROW_SECTION_WALKERS),
-		...Object.values(ROW_GROUP_WALKERS),
 		...Object.values(ROW_CONTROL_COMPONENTS),
 	]),
 ];

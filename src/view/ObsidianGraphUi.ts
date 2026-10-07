@@ -3,8 +3,7 @@ import type { App, Component } from "obsidian";
 import { VaultPathFacts } from "../shared/VaultPathFacts";
 import { attachmentIconId } from "./attachmentIcons";
 import { planAttachmentMenu } from "./attachmentMenu";
-import { createSecretPicker } from "./obsidianSecretPicker";
-import type { AttachmentMenuRequest, GraphUiPort, NodeMenuEntry, NodeMenuRequest, SecretPickerRequest } from "./viewPorts";
+import type { AttachmentMenuRequest, GraphUiPort, NodeMenuEntry, NodeMenuRequest } from "./viewPorts";
 
 /**
  * Adapts Obsidian UI services (resource URLs, native menus, icon rendering) to
@@ -22,11 +21,6 @@ export class ObsidianGraphUi implements GraphUiPort {
 	resourcePath(path: string): string | null {
 		const file = this.app.vault.getFileByPath(path);
 		return file === null ? null : this.app.vault.getResourcePath(file);
-	}
-
-	mountSecretPicker(el: HTMLElement, request: SecretPickerRequest): () => void {
-		createSecretPicker(this.app, el, request);
-		return () => el.empty();
 	}
 
 	showAttachmentMenu(request: AttachmentMenuRequest): void {

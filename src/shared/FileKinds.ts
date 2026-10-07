@@ -16,7 +16,7 @@ const MARKDOWN_EXTENSION = "md";
 /**
  * Excalidraw drawings are `*.excalidraw.md`: markdown to Obsidian, but the body
  * is a generated drawing payload, not prose. They stay graph NODES
- * (CLARIFICATION Q4) and are excluded from outline PARSING and from AI naming.
+ * (CLARIFICATION Q4) and are excluded from outline PARSING only.
  */
 const EXCALIDRAW_SUFFIX = ".excalidraw.md";
 
@@ -40,15 +40,11 @@ export class FileKinds {
 	}
 
 	/**
-	 * An Excalidraw drawing (`*.excalidraw.md`). Case-insensitive on the suffix —
-	 * the vault, not the user, decides casing (`X.Excalidraw.MD` is the same drawing).
+	 * Files whose headings may be rendered as a node outline: markdown, minus
+	 * excalidraw drawings. Case-insensitive on the suffix — the vault, not the
+	 * user, decides casing (`X.Excalidraw.MD` is the same drawing).
 	 */
-	static isExcalidrawPath(path: string): boolean {
-		return path.toLowerCase().endsWith(EXCALIDRAW_SUFFIX);
-	}
-
-	/** Files whose headings may be rendered as a node outline: markdown, minus excalidraw drawings. */
 	static isOutlineBearingPath(path: string): boolean {
-		return FileKinds.isMarkdownPath(path) && !FileKinds.isExcalidrawPath(path);
+		return FileKinds.isMarkdownPath(path) && !path.toLowerCase().endsWith(EXCALIDRAW_SUFFIX);
 	}
 }

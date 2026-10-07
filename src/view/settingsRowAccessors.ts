@@ -1,6 +1,5 @@
-import type { AiOfferedReasoningEffort, DepthSettings, ForceLayoutSettings, NodePreviewPreference } from "../engine";
+import type { DepthSettings, ForceLayoutSettings, NodePreviewPreference } from "../engine";
 import {
-	AI_OFFERED_REASONING_EFFORTS,
 	FORCE_LAYOUT_RANGES,
 	SETTINGS_SPEC,
 	SIZING_RANGES,
@@ -9,7 +8,6 @@ import {
 	clampNodeCap,
 	clampOutlineMaxDepth,
 	clampSizingNumber,
-	settledAiModel,
 } from "../engine";
 import type { SettingsRowState } from "./settingsRows";
 import type { SettingsInteraction, SizingNumberField } from "./settingsWritePlan";
@@ -77,23 +75,6 @@ export interface SettingsNumberAccessor extends SettingsValueAccessor<number> {
 	 * closes over its clamp, none reads `this`.
 	 */
 	readonly settlesAt: (value: number) => number;
-}
-
-/**
- * A free-text control whose stored value is NORMALISED on the way in (today: the AI
- * model slug, trimmed, blank → default). Like {@link SettingsNumberAccessor},
- * {@link interaction} emits `settlesAt(value)`, so what is written and what a control
- * shows optimistically are one string.
- */
-export interface SettingsTextAccessor extends SettingsValueAccessor<string> {
-	readonly settlesAt: (value: string) => string;
-}
-
-/** A pick-one control: its value plus the options it offers, in display order. */
-export interface SettingsChoiceAccessor<T extends string> extends SettingsValueAccessor<T> {
-	readonly options: readonly T[];
-	/** The offered option `raw` names, or `undefined` for anything else (a stale DOM value). */
-	accept(raw: string): T | undefined;
 }
 
 /** A numeric control the user TYPES into — it must also say what counts as a typed value. */
@@ -323,44 +304,6 @@ export class SettingsRowAccessors {
 		return {
 			read: (state) => state.frontmatterLinks.idRefFields,
 			interaction: (idRefFields) => ({ kind: "global-id-ref-fields", idRefFields }),
-		};
-	}
-
-	/** Auto mode's switch (task 4/4): whether unnamed eligible edges are named by the AI. */
-	static aiAutoNaming(): SettingsValueAccessor<boolean> {
-		return {
-			read: (state) => state.relationships.autoNaming,
-			interaction: (autoNaming) => ({ kind: "global-ai-auto-naming", autoNaming }),
-		};
-	}
-
-	/**
-	 * The NAME of the keychain secret holding the OpenAI key — stored verbatim (`""` =
-	 * none chosen); the key itself never passes through settings.
-	 */
-	static aiApiKeySecret(): SettingsValueAccessor<string> {
-		return {
-			read: (state) => state.relationships.apiKeySecretName,
-			interaction: (apiKeySecretName) => ({ kind: "global-ai-key-secret", apiKeySecretName }),
-		};
-	}
-
-	/** The OpenAI model slug, settled by the engine's ONE rule (`settledAiModel`: trimmed, blank → default). */
-	static aiModel(): SettingsTextAccessor {
-		return {
-			read: (state) => state.relationships.model,
-			settlesAt: settledAiModel,
-			interaction: (model) => ({ kind: "global-ai-model", model: settledAiModel(model) }),
-		};
-	}
-
-	/** The reasoning effort, one of the OFFERED efforts. */
-	static aiReasoningEffort(): SettingsChoiceAccessor<AiOfferedReasoningEffort> {
-		return {
-			read: (state) => state.relationships.reasoningEffort,
-			options: AI_OFFERED_REASONING_EFFORTS,
-			accept: (raw) => AI_OFFERED_REASONING_EFFORTS.find((effort) => effort === raw),
-			interaction: (reasoningEffort) => ({ kind: "global-ai-reasoning-effort", reasoningEffort }),
 		};
 	}
 }

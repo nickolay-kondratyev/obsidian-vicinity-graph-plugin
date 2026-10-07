@@ -1,18 +1,12 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { asVaultPath, directedLinkKey } from "../engine";
-import type { EdgeRelationship } from "../engine";
-import { ControlsActionsContext } from "./ControlsActionsContext";
-import { EdgeRelationshipContext } from "./EdgeRelationshipContext";
-import { EdgeRelationshipOverlayStore } from "./EdgeRelationshipOverlayStore";
+import { asVaultPath } from "../engine";
 import { DRAWER_KEYBOARD_STEP_PX, DRAWER_MIN_SIZE_PX, sessionDrawerSizes } from "./drawerResize";
 import { RESIZE_HANDLE_LABEL } from "./DrawerResizeHandle";
 import type { LinkPreviewGoTarget } from "./LinkPreviewContent";
 import { LinkPreviewDrawer } from "./LinkPreviewDrawer";
-import { LinkPreviewModels, NAME_RELATIONSHIP_ACTION } from "./linkPreviewModel";
-import { RELATIONSHIPS_LIST_LABEL, relationshipNameFieldLabel } from "./RelationshipList";
-import { RecordingControlsActions } from "./testFixtures/settingsPanelHarness";
+import { LinkPreviewModels } from "./linkPreviewModel";
 import type { EdgePreviewModel } from "./linkPreviewModel";
 
 /**
@@ -43,38 +37,24 @@ function edgeModel(bidirectional = false): EdgePreviewModel {
 	});
 }
 
-/** The names the overlay holds, as the controller would publish them — `alpha → beta` named `relationship`. */
-function namedRelationships(relationship: EdgeRelationship): EdgeRelationshipOverlayStore {
-	const store = new EdgeRelationshipOverlayStore();
-	store.showEdgeRelationships(new Map([[directedLinkKey(SOURCE, TARGET), relationship]]));
-	return store;
-}
-
-function renderDrawer(
-	model: EdgePreviewModel,
-	relationships: EdgeRelationshipOverlayStore = new EdgeRelationshipOverlayStore(),
-): {
+function renderDrawer(model: EdgePreviewModel): {
 	onClose: ReturnType<typeof vi.fn>;
 	goTargets: LinkPreviewGoTarget[];
 } {
 	const onClose = vi.fn();
 	const goTargets: LinkPreviewGoTarget[] = [];
 	render(
-		<ControlsActionsContext.Provider value={new RecordingControlsActions()}>
-			<EdgeRelationshipContext.Provider value={relationships}>
-				<LinkPreviewDrawer
-					model={model}
-					renderIcon={(el, iconId) => el.setAttribute("data-icon-id", iconId)}
-					renderMarkdown={(el, markdown) => {
-						el.textContent = markdown;
-						return Promise.resolve();
-					}}
-					onOpenLink={() => undefined}
-					onClose={onClose}
-					onGo={(target) => goTargets.push(target)}
-				/>
-			</EdgeRelationshipContext.Provider>
-		</ControlsActionsContext.Provider>,
+		<LinkPreviewDrawer
+			model={model}
+			renderIcon={(el, iconId) => el.setAttribute("data-icon-id", iconId)}
+			renderMarkdown={(el, markdown) => {
+				el.textContent = markdown;
+				return Promise.resolve();
+			}}
+			onOpenLink={() => undefined}
+			onClose={onClose}
+			onGo={(target) => goTargets.push(target)}
+		/>,
 	);
 	return { onClose, goTargets };
 }
@@ -137,41 +117,6 @@ describe("LinkPreviewDrawer", () => {
 	it("WHEN a bidirectional edge model renders THEN the drawer title joins the endpoints with '↔'", () => {
 		renderDrawer(edgeModel(true));
 		expect(screen.getByRole("dialog", { name: "alpha ↔ beta" })).toBeTruthy();
-	});
-
-	it("WHEN the edge is named THEN the drawer shows 'source —name→ target'", () => {
-		renderDrawer(edgeModel(), namedRelationships({ name: "improves", origin: "syntax" }));
-		expect(screen.getByRole("list", { name: RELATIONSHIPS_LIST_LABEL }).textContent).toContain("alpha —improves→ beta");
-	});
-
-	it("WHEN the edge is named THEN the drawer shows where the name came from", () => {
-		renderDrawer(edgeModel(), namedRelationships({ name: "parent", origin: "folder-hierarchy" }));
-		expect(screen.getByRole("list", { name: RELATIONSHIPS_LIST_LABEL }).textContent).toContain("folder hierarchy");
-	});
-
-	it("WHEN the edge is unnamed THEN the drawer offers to name it", () => {
-		renderDrawer(edgeModel());
-		expect(screen.getByRole("button", { name: NAME_RELATIONSHIP_ACTION })).toBeTruthy();
-	});
-
-	it("WHEN a name is published while the drawer is open THEN its line updates in place", () => {
-		const relationships = new EdgeRelationshipOverlayStore();
-		renderDrawer(edgeModel(), relationships);
-		act(() => {
-			relationships.showEdgeRelationships(
-				new Map([[directedLinkKey(SOURCE, TARGET), { name: "supports", origin: "manual" } as const]]),
-			);
-		});
-		expect(screen.getByRole("list", { name: RELATIONSHIPS_LIST_LABEL }).textContent).toContain("alpha —supports→ beta");
-	});
-
-	it("WHEN Escape is pressed in the name field THEN the drawer stays open", () => {
-		const { onClose } = renderDrawer(edgeModel());
-		fireEvent.click(screen.getByRole("button", { name: NAME_RELATIONSHIP_ACTION }));
-		fireEvent.keyDown(screen.getByRole("textbox", { name: relationshipNameFieldLabel(edgeModel().relationshipPairs[0]!) }), {
-			key: "Escape",
-		});
-		expect(onClose).not.toHaveBeenCalled();
 	});
 
 	it("WHEN the close button is clicked THEN onClose fires", () => {

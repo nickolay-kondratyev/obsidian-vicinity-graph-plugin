@@ -13,17 +13,15 @@
  * - `FORCE_LAYOUT_RANGES` reads `.min/.max/.step`.
  * - The view's stepper/input bounds read `.min/.max`.
  *
- * Pure engine module: imports only types (`./types`, `./RelationshipNamer`; import-guarded).
+ * Pure engine module: imports only `./types` (import-guarded).
  */
 
-import type { AiOfferedReasoningEffort } from "./RelationshipNamer";
 import type {
 	DepthSettings,
 	ForceLayoutSettings,
 	FrontmatterLinkSettings,
 	NodeExclusionSettings,
 	NodePreviewPreference,
-	RelationshipSettings,
 	ViewSettings,
 } from "./types";
 
@@ -96,19 +94,11 @@ export interface FrontmatterLinkSpec {
 	readonly idRefFields: DefaultSpec<string>;
 }
 
-export interface RelationshipsSpec {
-	readonly autoNaming: DefaultSpec<boolean>;
-	readonly model: DefaultSpec<string>;
-	readonly reasoningEffort: DefaultSpec<AiOfferedReasoningEffort>;
-	readonly apiKeySecretName: DefaultSpec<string>;
-}
-
 export interface SettingsSpec {
 	readonly globalDepths: DepthSpec;
 	readonly globalView: ViewSpec;
 	readonly nodeExclusion: NodeExclusionSpec;
 	readonly frontmatterLinks: FrontmatterLinkSpec;
-	readonly relationships: RelationshipsSpec;
 }
 
 // ---------------------------------------------------------------------------
@@ -157,13 +147,6 @@ export const _assertEveryFrontmatterLinkFieldSpecced: Exclude<
 	? true
 	: Exclude<keyof FrontmatterLinkSettings, keyof FrontmatterLinkSpec> = true;
 
-export const _assertEveryRelationshipFieldSpecced: Exclude<
-	keyof RelationshipSettings,
-	keyof RelationshipsSpec
-> extends never
-	? true
-	: Exclude<keyof RelationshipSettings, keyof RelationshipsSpec> = true;
-
 /** The reverse: a spec entry whose settings field was deleted (an orphan default). */
 export const _assertNoOrphanViewSpecField: Exclude<keyof ViewSpec, keyof ViewSettings> extends never
 	? true
@@ -183,12 +166,6 @@ export const _assertNoOrphanFrontmatterLinkSpecField: Exclude<
 > extends never
 	? true
 	: Exclude<keyof FrontmatterLinkSpec, keyof FrontmatterLinkSettings> = true;
-export const _assertNoOrphanRelationshipSpecField: Exclude<
-	keyof RelationshipsSpec,
-	keyof RelationshipSettings
-> extends never
-	? true
-	: Exclude<keyof RelationshipsSpec, keyof RelationshipSettings> = true;
 
 // ---------------------------------------------------------------------------
 // Shared leaf building blocks (kept single-source to avoid duplicated literals)
@@ -508,22 +485,5 @@ export const SETTINGS_SPEC: SettingsSpec = {
 		 * field-name string, parsed by `parseIdRefFields`.
 		 */
 		idRefFields: { default: "" },
-	},
-	relationships: {
-		/**
-		 * OFF by default (human decision 2026-10-06): auto mode sends both notes' full
-		 * text to OpenAI and writes an `id` into the frontmatter of every note it
-		 * names, so it must be the user's explicit choice.
-		 */
-		autoNaming: { default: false },
-		/**
-		 * Human decision 2026-10-06: ~$0.10 / $0.50 per 1M input/output tokens, and
-		 * plenty for a one-word answer. User-editable, because model slugs come and go.
-		 */
-		model: { default: "gpt-6-luna" },
-		/** Human decision 2026-10-06: enough thought to pick a SPECIFIC name, cheap enough per edge. */
-		reasoningEffort: { default: "medium" },
-		/** No secret chosen: the key comes from the `OPENAI_API_KEY` environment variable, if set. */
-		apiKeySecretName: { default: "" },
 	},
 };

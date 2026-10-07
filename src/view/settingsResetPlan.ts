@@ -70,7 +70,7 @@ const ALL_SCOPE_LABEL = "Restore all Vicinity Graph settings";
  * reads the label as "my pins are gone too".
  */
 const ALL_SCOPE_DESCRIPTION =
-	"Resets every Vicinity Graph setting — depth defaults, edges, frontmatter links, relationships, node sizing, node contents, grouping, force layout, node exclusion and performance — to its shipped default. Pinned notes are kept.";
+	"Resets every Vicinity Graph setting — depth defaults, edges, frontmatter links, node sizing, node contents, grouping, force layout, node exclusion and performance — to its shipped default. Pinned notes are kept.";
 
 const EXCLUSION_SCOPE_LABEL = "Restore node exclusion defaults";
 
@@ -96,7 +96,7 @@ function restoreFields<T extends object>(current: T, defaults: T, keys: readonly
  * settings writes do (`planSettingsWrite`) — merging here keeps sibling sections
  * byte-identical across a reset.
  *
- * Emission order is view → depth → exclusion → frontmatterLinks → relationships. It IS observable: `applyReset`
+ * Emission order is view → depth → exclusion → frontmatterLinks. It IS observable: `applyReset`
  * awaits each command in turn and each is a full `data.json` rewrite. Every
  * section today owns fields of exactly ONE family, so this order reproduces the
  * hand-written plans byte-for-byte; the order is pinned here for the day a
@@ -133,12 +133,6 @@ function planSectionReset(section: SettingsSection, ctx: SettingsWriteContext): 
 			),
 		});
 	}
-	if (fields.relationships.length > 0) {
-		commands.push({
-			kind: "relationships",
-			relationships: restoreFields(ctx.relationships, EngineDefaults.relationshipSettings(), fields.relationships),
-		});
-	}
 	return commands;
 }
 export const SETTINGS_RESET_SCOPES: Readonly<Record<SettingsResetScope, SettingsResetScopeSpec>> = {
@@ -158,14 +152,6 @@ export const SETTINGS_RESET_SCOPES: Readonly<Record<SettingsResetScope, Settings
 		label: "Restore frontmatter links defaults",
 		description: "Clears the list of frontmatter fields read as note-id references (turns the feature off).",
 		plan: (ctx) => planSectionReset("frontmatter-links", ctx),
-	},
-	relationships: {
-		label: "Restore relationships defaults",
-		// Names what SURVIVES, like the all scope: the names already stored are vault
-		// content, and the key itself lives in Obsidian's keychain, not in our settings.
-		description:
-			"Turns AI naming off and resets its model, reasoning effort and chosen key. Names already given to relationships, and the key in Obsidian's keychain, are kept.",
-		plan: (ctx) => planSectionReset("relationships", ctx),
 	},
 	"node-sizing": {
 		label: "Restore node sizing defaults",
@@ -241,7 +227,6 @@ export const SETTINGS_RESET_SCOPES: Readonly<Record<SettingsResetScope, Settings
 			{ kind: "global-view", view: EngineDefaults.viewSettings() },
 			{ kind: "node-exclusion", nodeExclusion: EngineDefaults.nodeExclusionSettings() },
 			{ kind: "frontmatter-links", frontmatterLinks: EngineDefaults.frontmatterLinkSettings() },
-			{ kind: "relationships", relationships: EngineDefaults.relationshipSettings() },
 		],
 		// Always confirms: the blast radius is the whole plugin, so there is no
 		// "nothing to lose" state worth skipping the dialog for.

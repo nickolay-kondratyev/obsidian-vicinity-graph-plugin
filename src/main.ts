@@ -1,32 +1,21 @@
 import { Notice, Plugin } from "obsidian";
 import { DocIdServices } from "stable-ids-for-obsidian";
 import type { DocIdService } from "stable-ids-for-obsidian";
-import { SecretOrEnvApiKeySource } from "./adapters/ApiKeySource";
 import { CanvasParseCache } from "./adapters/CanvasParseCache";
 import { FolderNoteIndex } from "./adapters/FolderNoteIndex";
 import { FrontmatterIdIndex } from "./adapters/FrontmatterIdIndex";
-import type { JsonHttpPort } from "./adapters/JsonHttpPort";
 import { LiveLinkOccurrenceProvider } from "./adapters/LiveLinkOccurrenceProvider";
-import { ObsidianJsonHttp } from "./adapters/ObsidianJsonHttp";
-import { ObsidianNoteTextProvider } from "./adapters/ObsidianNoteTextProvider";
-import { ObsidianSyntaxRelationshipProvider } from "./adapters/ObsidianSyntaxRelationshipProvider";
 import { ObsidianNoteCreation } from "./adapters/ObsidianNoteCreation";
-import { OpenAiRelationshipNamer } from "./adapters/OpenAiRelationshipNamer";
 import { VicinityGraphBuilder } from "./adapters/VicinityGraphBuilder";
 import { DocIdMapWarmer } from "./persistence/DocIdMapWarmer";
 import { OrphanSweeper, SWEEP_DELAY_MS } from "./persistence/OrphanSweeper";
 import { PathDocIdMap } from "./persistence/PathDocIdMap";
 import { PerDocStore } from "./persistence/PerDocStore";
-import { PathKeyedStoredRelationships } from "./persistence/PathKeyedStoredRelationships";
 import { PersistenceServices } from "./persistence/PersistenceServices";
 import { PluginDataAdapter } from "./persistence/PluginDataAdapter";
 import { PluginDataStore } from "./persistence/PluginDataStore";
-import { RelationshipStore } from "./persistence/RelationshipStore";
 import { VaultAdapterFsPort } from "./persistence/vaultFsPort";
 import { VaultFileStore } from "./persistence/VaultFileStore";
-import { AiNamingFailureNotices } from "./view/AiNamingFailureNotices";
-import { AiRelationshipQueue } from "./view/AiRelationshipQueue";
-import { AiRelationshipWriter } from "./view/AiRelationshipWriter";
 import { GraphViewOpener } from "./view/GraphViewOpener";
 import { SettingsWritePipeline } from "./view/settingsWritePipeline";
 import { VicinityGraphSettingTab } from "./view/VicinityGraphSettingTab";
@@ -67,30 +56,12 @@ export default class VicinityGraphPlugin extends Plugin {
 	 */
 	perDocStore!: PerDocStore;
 	/**
-	 * The stored relationship names (manual + AI), one file per directed pair on
-	 * {@link vaultFileStore}. Exposed for the e2e harness like {@link perDocStore}.
-	 */
-	relationshipStore!: RelationshipStore;
-	/**
 	 * THE settings write pipeline: ONE per plugin, shared by the settings tab and by
 	 * every open view's controls panel. Sharing it is what makes "one serialised
 	 * chain, one merge base, one fan-out" true across surfaces — two pipelines would
 	 * be two chains, and two chains can interleave.
 	 */
 	settingsWrites!: SettingsWritePipeline;
-	/**
-	 * The ONE outbound-HTTP transport auto mode's OpenAI requests go through
-	 * (`requestUrl`). PUBLIC and reassignable for ONE reason: the e2e harness swaps in a
-	 * recording fake so the real namer, wire format and key lookup run end to end with
-	 * NO network (`e2e/relationshipsAutoMode.e2e.ts`). The namer reads this field per
-	 * request; nothing in the plugin reassigns it.
-	 */
-	aiHttp: JsonHttpPort = new ObsidianJsonHttp();
-	/**
-	 * Auto mode's ONE request queue — plugin-lived, so its dedupe (a pair is asked at
-	 * most once per session) and its session status survive views opening and closing.
-	 */
-	private aiQueue!: AiRelationshipQueue;
 
 	private docIdService!: DocIdService;
 	private readonly pathDocIdMap = new PathDocIdMap();
@@ -166,13 +137,11 @@ export default class VicinityGraphPlugin extends Plugin {
 			this.notices,
 		);
 		this.perDocStore = new PerDocStore(this.vaultFileStore);
-		this.relationshipStore = new RelationshipStore(this.vaultFileStore, Date.now);
 		this.settingsWrites = new SettingsWritePipeline(this.pluginDataStore, this.viewsRefresh, this.notices);
 		this.persistenceServices = new PersistenceServices(
 			this.docIdService,
 			this.pluginDataStore,
 			this.perDocStore,
-			this.relationshipStore,
 			this.pathDocIdMap,
 		);
 		this.docIdMapWarmer = new DocIdMapWarmer(this.app.vault, this.docIdService, this.pathDocIdMap);
@@ -195,15 +164,12 @@ export default class VicinityGraphPlugin extends Plugin {
 			this.canvasParseCache,
 			this.pluginDataStore,
 			this.perDocStore,
-			this.relationshipStore,
 			this.pathDocIdMap,
 			this.docIdMapWarmer,
 			this.frontmatterIdIndex,
 			this.folderNoteIndex,
 			this.noteCreation,
 		);
-
-		this.aiQueue = this.createAiQueue();
 
 		this.registerVaultLifecycleHandlers();
 		this.scheduleOrphanSweep();
@@ -218,10 +184,6 @@ export default class VicinityGraphPlugin extends Plugin {
 			this.frontmatterIdIndex,
 			this.folderNoteIndex,
 		);
-		// Stateless over the live vault + metadata cache: every rebuild reads fresh.
-		const syntaxRelationships = new ObsidianSyntaxRelationshipProvider(this.app.vault, this.app.metadataCache);
-		// The stored (manual / AI) names, path-keyed through the session's docid map.
-		const storedRelationships = new PathKeyedStoredRelationships(this.relationshipStore, this.pathDocIdMap);
 		this.registerView(
 			VIEW_TYPE_VICINITY_GRAPH,
 			(leaf) =>
@@ -233,11 +195,8 @@ export default class VicinityGraphPlugin extends Plugin {
 					this.settingsWrites,
 					this.notices,
 					occurrenceProvider,
-					syntaxRelationships,
-					storedRelationships,
 					this.folderNoteIndex,
 					this.noteCreation,
-					this.aiQueue,
 				),
 		);
 		// Two placements, two hotkey-bindable commands (mirrors core's "Split
@@ -253,29 +212,6 @@ export default class VicinityGraphPlugin extends Plugin {
 			name: "Open below active note",
 			callback: () => void opener.open("main-area"),
 		});
-	}
-
-	/**
-	 * Auto mode's wiring (task 4/4 `nid_80xc6z8umlpo1x6u4p1v7eb22_e`): the key is read
-	 * PER REQUEST — the keychain secret named in settings, else `OPENAI_API_KEY` from the
-	 * environment Obsidian was started with — so a key picked later is used at once.
-	 * Nothing is ever sent unless auto mode is ON (`AiAutoNamingGate`).
-	 */
-	private createAiQueue(): AiRelationshipQueue {
-		const apiKeys = new SecretOrEnvApiKeySource(
-			this.app.secretStorage,
-			() => this.pluginDataStore.relationships().apiKeySecretName,
-			(name) => process.env[name],
-		);
-		// Through `this.aiHttp` on every request (see its doc) rather than captured once.
-		const http: JsonHttpPort = { postJson: (request) => this.aiHttp.postJson(request) };
-		const queue = new AiRelationshipQueue(
-			new OpenAiRelationshipNamer(apiKeys, http),
-			new ObsidianNoteTextProvider(this.app.vault),
-			new AiRelationshipWriter(this.persistenceServices, this.app.vault, this.settingsWrites),
-		);
-		this.register(new AiNamingFailureNotices(queue, this.notices).start());
-		return queue;
 	}
 
 	/**
@@ -346,13 +282,12 @@ export default class VicinityGraphPlugin extends Plugin {
 	}
 
 	/**
-	 * Live cleanup for mapped docs — drops the doc from EVERY docid-keyed store at
-	 * once ({@link PluginDataStore.forgetDocs} for the global pinned set,
+	 * Live cleanup for mapped docs — drops the doc from BOTH storage tiers at once
+	 * ({@link PluginDataStore.forgetDocs} for the global pinned set,
 	 * {@link PerDocStore.forgetDocs} for the per-file record + its localPins-target
-	 * positions, {@link RelationshipStore.forgetDocs} for its relationships in both
 	 * positions): the ONE conceptual choke point a delete spans, mirrored by the
-	 * orphan sweep. A docid-keyed map added to an existing store is pruned by that
-	 * store's `forgetDocs`; a map added to a NEW store needs its `forgetDocs` wired in
+	 * orphan sweep. A docid-keyed map added to EITHER store is pruned by that store's
+	 * `forgetDocs`; a map added to a NEW store would need its `forgetDocs` wired in
 	 * here too. Unmapped paths — and docids the map saw at more than one live path
 	 * (a frontmatter-duplicate twin may survive) — are the delayed sweep's job (backstop).
 	 */
@@ -365,12 +300,10 @@ export default class VicinityGraphPlugin extends Plugin {
 		this.folderNoteIndex.markStale();
 		const docid = this.pathDocIdMap.handleDelete(path);
 		if (docid !== undefined) {
-			// The three stores together are the ONE choke point a delete spans: the global
-			// pinned set (data.json), the per-file record + its localPins-as-target, and
-			// the relationships naming the doc as from OR to.
+			// Both stores together are the ONE choke point a delete spans: the global
+			// pinned set (data.json) and the per-file record + its localPins-as-target.
 			await this.pluginDataStore.forgetDocs([docid]);
 			await this.perDocStore.forgetDocs([docid]);
-			await this.relationshipStore.forgetDocs([docid]);
 		}
 	}
 
@@ -380,7 +313,6 @@ export default class VicinityGraphPlugin extends Plugin {
 			this.pathDocIdMap,
 			this.pluginDataStore,
 			this.perDocStore,
-			this.relationshipStore,
 		);
 		this.sweepTimer = window.setTimeout(
 			() =>

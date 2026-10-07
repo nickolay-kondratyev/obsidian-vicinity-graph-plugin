@@ -1,15 +1,12 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { LinkOccurrenceProvider, StoredRelationshipProvider, SyntaxRelationshipProvider } from "../engine";
-import { EdgeRelationshipOverlayStore } from "./EdgeRelationshipOverlayStore";
+import type { LinkOccurrenceProvider } from "../engine";
 import { GraphViewController } from "./GraphViewController";
 import { LinkPreviewOverlayStore } from "./LinkPreviewOverlayStore";
 import { RecordingControlsActions } from "./testFixtures/settingsPanelHarness";
 import { VicinityGraphFlow } from "./VicinityGraphFlow";
 import type {
-	AiNamingMenuPort,
-	AutoNamingPort,
 	GraphBuildResult,
 	GraphLayoutPort,
 	GraphUiPort,
@@ -74,33 +71,12 @@ const INERT_OCCURRENCES: LinkOccurrenceProvider = {
 	occurrencesBetween: () => unreachable("LinkOccurrenceProvider.occurrencesBetween"),
 };
 
-const INERT_SYNTAX_RELATIONSHIPS: SyntaxRelationshipProvider = {
-	syntaxNamesFor: () => unreachable("SyntaxRelationshipProvider.syntaxNamesFor"),
-};
-
-const INERT_STORED_RELATIONSHIPS: StoredRelationshipProvider = {
-	storedRelationshipsFor: () => unreachable("StoredRelationshipProvider.storedRelationshipsFor"),
-};
-
-/** These panes never publish a graph, so nothing is ever offered to auto mode. */
-const INERT_AUTO_NAMING: AutoNamingPort = {
-	offerBuild: () => unreachable("AutoNamingPort.offerBuild"),
-};
-
-/** The Relationships menu renders only over a published graph, so these panes never read it. */
-const INERT_AI_NAMING_MENU: AiNamingMenuPort = {
-	status: () => unreachable("AiNamingMenuPort.status"),
-	subscribe: () => unreachable("AiNamingMenuPort.subscribe"),
-	retry: () => unreachable("AiNamingMenuPort.retry"),
-};
-
 const INERT_GRAPH_UI: GraphUiPort = {
 	resourcePath: () => unreachable("GraphUiPort.resourcePath"),
 	showAttachmentMenu: () => unreachable("GraphUiPort.showAttachmentMenu"),
 	showNodeMenu: () => unreachable("GraphUiPort.showNodeMenu"),
 	renderIcon: () => unreachable("GraphUiPort.renderIcon"),
 	renderMarkdown: () => unreachable("GraphUiPort.renderMarkdown"),
-	mountSecretPicker: () => unreachable("GraphUiPort.mountSecretPicker"),
 };
 
 interface FailedPaneHarness {
@@ -114,7 +90,6 @@ interface FailedPaneHarness {
 async function renderFailedPane(): Promise<FailedPaneHarness> {
 	const source = new RejectingGraphSource();
 	const linkPreview = new LinkPreviewOverlayStore();
-	const relationships = new EdgeRelationshipOverlayStore();
 	const controller = new GraphViewController(
 		INERT_NAVIGATOR,
 		source,
@@ -122,10 +97,6 @@ async function renderFailedPane(): Promise<FailedPaneHarness> {
 		INERT_ROUTER,
 		INERT_OCCURRENCES,
 		linkPreview,
-		INERT_SYNTAX_RELATIONSHIPS,
-		INERT_STORED_RELATIONSHIPS,
-		relationships,
-		INERT_AUTO_NAMING,
 	);
 	controller.handleActiveFileChanged("a.md");
 	await flush();
@@ -135,8 +106,6 @@ async function renderFailedPane(): Promise<FailedPaneHarness> {
 			ui={INERT_GRAPH_UI}
 			actions={new RecordingControlsActions()}
 			linkPreview={linkPreview}
-			relationships={relationships}
-			aiNaming={INERT_AI_NAMING_MENU}
 		/>,
 	);
 	return { source };
@@ -158,7 +127,6 @@ class PendingGraphSource {
 function renderInitialBuildingPane(): void {
 	const source = new PendingGraphSource();
 	const linkPreview = new LinkPreviewOverlayStore();
-	const relationships = new EdgeRelationshipOverlayStore();
 	const controller = new GraphViewController(
 		INERT_NAVIGATOR,
 		source,
@@ -166,10 +134,6 @@ function renderInitialBuildingPane(): void {
 		INERT_ROUTER,
 		INERT_OCCURRENCES,
 		linkPreview,
-		INERT_SYNTAX_RELATIONSHIPS,
-		INERT_STORED_RELATIONSHIPS,
-		relationships,
-		INERT_AUTO_NAMING,
 	);
 	controller.handleActiveFileChanged("a.md");
 	render(
@@ -178,8 +142,6 @@ function renderInitialBuildingPane(): void {
 			ui={INERT_GRAPH_UI}
 			actions={new RecordingControlsActions()}
 			linkPreview={linkPreview}
-			relationships={relationships}
-			aiNaming={INERT_AI_NAMING_MENU}
 		/>,
 	);
 }
