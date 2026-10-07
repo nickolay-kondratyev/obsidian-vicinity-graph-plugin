@@ -27,3 +27,24 @@ Optionally: export OPENAI_API_KEY in the agent sandbox, then hand this ticket ba
 
 ## Update 2026-10-07
 The human made OPENAI_API_KEY available in the agent sandbox, so `need-human`/`decide` are dropped. The `store: false` question moved to its own decision ticket (see the parent epic). The effort rule comes from ticket 3/4: offer xhigh/max only if this live call shows they are accepted.
+
+## Live call results (2026-10-07)
+5 live calls (budget was 8), all through the REAL `OpenAiRelationshipNamer` (a throwaway Node `fetch`-based `JsonHttpPort` in git-ignored `.tmp/`, never bundled). Input: two synthetic ~300-char notes, "Morning Sunlight Exposure" → links to → "Sleep Onset Latency". Same prompt every call: 389 input tokens, 0 cached.
+
+Price (official, https://developers.openai.com/api/docs/pricing and the gpt-6-luna model page): $0.10 / 1M input, $0.01 / 1M cached input, $0.50 / 1M output (reasoning tokens are billed as output).
+
+| # | Model | Effort | Accepted | Input / output tokens (reasoning) | Cost (USD) | Returned name |
+|---|-------|--------|----------|-----------------------------------|------------|---------------|
+| 1 | gpt-6-luna | medium | yes (200) | 389 / 52 (36) | $0.0000649 | `decreases` |
+| 2 | gpt-6-luna | xhigh | yes (200; response echoes `effort: "xhigh"`) | 389 / 46 (30) | $0.0000619 | `decreases` |
+| 3 | gpt-6-luna | max | yes (200; response echoes `effort: "max"`) | 389 / 77 (61) | $0.0000774 | `reduces` |
+| 4 | gpt-6-luna | medium + raw `"store": false` | yes (200; response echoes `store: false`) | 389 / 42 (25) | $0.0000599 | `improves` |
+| 5 | gpt-6-luna | none | yes (200; no reasoning item in `output[]`) | 389 / 15 (0) | $0.0000464 | `improves` |
+
+**Total: ≈ $0.00031** (1,945 input + 232 output tokens).
+
+Findings:
+- Parsing works on the real shape: `output[]` = `[reasoning, message]` (reasoning item first, with empty `content`/`summary`); the message's `content[0]` is `{type: "output_text", text: "{\"name\":\"…\"}"}`. `status: "completed"`. Usage is `usage.input_tokens` / `usage.output_tokens` as expected. No parsing or mapping bug found.
+- `xhigh` and `max` are accepted, so per the 3/4 rule the settings now offer low / medium / high / xhigh / max. `none` is also accepted but stays unoffered on purpose.
+- `store: false`: accepted by gpt-6-luna (the response echoes `store: false`; by default it echoes `store: true`). The shipped request is unchanged; the decision stays with nid_kje16wg2g49zt951lcvfcei2c_e.
+- The model's names vary from run to run for the same pair (`decreases`, `reduces`, `improves`). Note: from A's point of view, "sunlight decreases sleep-onset latency" is a fair reading.
