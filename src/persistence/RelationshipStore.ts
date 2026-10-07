@@ -115,8 +115,10 @@ export class RelationshipStore {
 	}
 
 	/**
-	 * Drops every relationship a forgotten doc is part of: its whole from-dir AND
-	 * every file naming it in the to-position (found through the reverse index).
+	 * Drops every relationship a forgotten doc is part of: every file in its
+	 * from-dir AND every file naming it in the to-position (found through the
+	 * reverse index). The emptied from-dir itself stays — the fs port has no rmdir,
+	 * and the warm-up walk just finds it empty.
 	 * The third side-by-side call at the ONE removal choke point (the live delete
 	 * handler + the orphan sweep), beside `PluginDataStore.forgetDocs` and
 	 * `PerDocStore.forgetDocs`.
