@@ -1,10 +1,4 @@
-import type { RelationshipName, StoredRelationshipOrigin } from "../engine";
-
-/** Token counts one AI naming request used — kept so the cost of auto mode stays visible. */
-export interface RelationshipTokenUsage {
-	readonly inputTokens: number;
-	readonly outputTokens: number;
-}
+import type { AiNamedRelationship, RelationshipName, RelationshipTokenUsage, StoredRelationshipOrigin } from "../engine";
 
 /**
  * The payload of ONE `from_id/<from_docid>/<to_docid>.json` file (ticket
@@ -105,6 +99,23 @@ export function manualRelationshipRecord(
 	nowIso: string,
 ): RelationshipRecord {
 	return { name, origin: "manual", createdIso: current?.createdIso ?? nowIso, updatedIso: nowIso };
+}
+
+/**
+ * The record of a FRESH AI name (task 3/4): origin `ai`, with the model, effort
+ * and token usage that produced it. Only ever written to a pair with NO record —
+ * see `RelationshipStore.saveAiName`.
+ */
+export function aiRelationshipRecord(named: AiNamedRelationship, nowIso: string): RelationshipRecord {
+	return {
+		name: named.name,
+		origin: "ai",
+		model: named.model,
+		reasoningEffort: named.effort,
+		...(named.usage !== null ? { usage: named.usage } : {}),
+		createdIso: nowIso,
+		updatedIso: nowIso,
+	};
 }
 
 /**

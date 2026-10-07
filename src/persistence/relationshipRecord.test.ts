@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
-import type { RelationshipName } from "../engine";
-import { clearedRelationshipRecord, manualRelationshipRecord, parseRelationshipRecord } from "./relationshipRecord";
+import type { AiNamedRelationship, RelationshipName } from "../engine";
+import {
+	aiRelationshipRecord,
+	clearedRelationshipRecord,
+	manualRelationshipRecord,
+	parseRelationshipRecord,
+} from "./relationshipRecord";
 import type { RelationshipRecord } from "./relationshipRecord";
 
 const CREATED = "2026-10-01T00:00:00.000Z";
@@ -98,5 +103,36 @@ describe("clearedRelationshipRecord", () => {
 
 	it("WHEN a pair with nothing stored is cleared THEN nothing changes", () => {
 		expect(clearedRelationshipRecord(undefined, NOW)).toEqual({ kind: "unchanged" });
+	});
+});
+
+describe("aiRelationshipRecord", () => {
+	const NOW = "2026-10-06T12:00:00.000Z";
+	const NAMED: AiNamedRelationship = {
+		name: "extends" as RelationshipName,
+		model: "gpt-6-luna",
+		effort: "medium",
+		usage: { inputTokens: 1500, outputTokens: 20 },
+	};
+
+	it("WHEN an AI name is recorded THEN it carries origin ai, model, effort, usage and both timestamps", () => {
+		expect(aiRelationshipRecord(NAMED, NOW)).toEqual({
+			name: "extends",
+			origin: "ai",
+			model: "gpt-6-luna",
+			reasoningEffort: "medium",
+			usage: { inputTokens: 1500, outputTokens: 20 },
+			createdIso: NOW,
+			updatedIso: NOW,
+		});
+	});
+
+	it("WHEN the provider reported no usage THEN the record has no usage field", () => {
+		expect(aiRelationshipRecord({ ...NAMED, usage: null }, NOW)).not.toHaveProperty("usage");
+	});
+
+	it("WHEN an AI record is written and parsed back THEN it round-trips", () => {
+		const record = aiRelationshipRecord(NAMED, NOW);
+		expect(parseRelationshipRecord(JSON.parse(JSON.stringify(record)))).toEqual(record);
 	});
 });

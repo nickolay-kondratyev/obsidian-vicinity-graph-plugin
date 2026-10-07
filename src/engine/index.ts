@@ -108,6 +108,43 @@ export type { FakeStoredRelationship } from "./FakeStoredRelationshipProvider";
 export { MAX_RELATIONSHIP_NAME_LENGTH, parseRelationshipName } from "./RelationshipName";
 export type { RelationshipName, RelationshipNameParse, RelationshipNameRejection } from "./RelationshipName";
 export { FakeSyntaxRelationshipProvider } from "./FakeSyntaxRelationshipProvider";
+// AI relationship naming (task 3/4 nid_cbnhpdfn4myqfzqr8weyg7kq5_e).
+export {
+	AI_REASONING_EFFORTS,
+	DEFAULT_AI_MODEL,
+	DEFAULT_AI_REASONING_EFFORT,
+	isFatalAiNamingFailure,
+} from "./RelationshipNamer";
+export type {
+	AiNamedRelationship,
+	AiNamingConfig,
+	AiNamingDecline,
+	AiNamingFailure,
+	AiReasoningEffort,
+	RelationshipNamer,
+	RelationshipNamingOutcome,
+	RelationshipNamingRequest,
+	RelationshipTokenUsage,
+} from "./RelationshipNamer";
+export { FakeRelationshipNamer } from "./FakeRelationshipNamer";
+export {
+	AI_ANCHOR_RELATIONSHIP_NAMES,
+	RELATIONSHIP_NAME_JSON_SCHEMA,
+	RELATIONSHIP_NAME_SCHEMA_NAME,
+	buildRelationshipPrompt,
+	parseModelRelationshipName,
+} from "./RelationshipPrompt";
+export type { ModelRelationshipNameParse, RelationshipPrompt, RelationshipPromptNote } from "./RelationshipPrompt";
+export {
+	MIN_AI_CONTENT_CHARS,
+	aiCandidateEdges,
+	aiContentChars,
+	aiEdgeEligibility,
+	hasEnoughAiContent,
+} from "./AiEligibility";
+export type { AiEdgeEligibility, AiEligibilityFacts } from "./AiEligibility";
+export type { NoteTextProvider } from "./NoteTextProvider";
+export { FakeNoteTextProvider } from "./FakeNoteTextProvider";
 export type { FakeSyntaxRelationship } from "./FakeSyntaxRelationshipProvider";
 export { NodeEligibility } from "./NodeEligibility";
 export { PathExclusionMatcher } from "./PathExclusionMatcher";

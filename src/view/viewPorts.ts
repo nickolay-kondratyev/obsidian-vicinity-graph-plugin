@@ -1,5 +1,6 @@
 import type { ElkNode } from "elkjs";
 import type {
+	AiNamedRelationship,
 	EdgeRelationship,
 	ForceLayoutSettings,
 	NodeContentOverride,
@@ -283,6 +284,16 @@ export interface LinkPreviewPort {
 export interface EdgeRelationshipsPort {
 	/** Replace every name with this build's (an empty map clears them all). */
 	showEdgeRelationships(relationships: ReadonlyMap<string, EdgeRelationship>): void;
+}
+
+/**
+ * Where an AI-generated name lands (task 3/4 `nid_cbnhpdfn4myqfzqr8weyg7kq5_e`):
+ * the `AiRelationshipQueue`'s ONE write. Implemented by `ControlsActions`, so an
+ * AI name rides the same guarded write (one failure notice, every view repainted)
+ * as a manual one. Never overwrites a pair that holds any record by then.
+ */
+export interface AiRelationshipWriterPort {
+	saveAiRelationship(sourcePath: string, targetPath: string, named: AiNamedRelationship): Promise<void>;
 }
 
 /** Opens the native attachment menu for one icon-strip chip. */

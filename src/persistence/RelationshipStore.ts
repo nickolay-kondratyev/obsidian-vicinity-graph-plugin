@@ -1,5 +1,10 @@
-import type { RelationshipName } from "../engine";
-import { clearedRelationshipRecord, manualRelationshipRecord, parseRelationshipRecord } from "./relationshipRecord";
+import type { AiNamedRelationship, RelationshipName } from "../engine";
+import {
+	aiRelationshipRecord,
+	clearedRelationshipRecord,
+	manualRelationshipRecord,
+	parseRelationshipRecord,
+} from "./relationshipRecord";
 import type { RelationshipRecord } from "./relationshipRecord";
 import type { VaultFileStore } from "./VaultFileStore";
 
@@ -96,6 +101,21 @@ export class RelationshipStore {
 		await this.warm();
 		const record = manualRelationshipRecord(this.relationshipFor(fromDocid, toDocid), name, this.nowIso());
 		await this.writeRecord(fromDocid, toDocid, record);
+	}
+
+	/**
+	 * Stores an AI name for `from → to` ONLY when the pair has no record at all,
+	 * judged on the cache read fresh here — a manual name, an earlier AI name or a
+	 * DISMISSED one (the user cleared an AI name) that landed while the request was
+	 * in flight always wins. Resolves `true` when it wrote.
+	 */
+	async saveAiName(fromDocid: string, toDocid: string, named: AiNamedRelationship): Promise<boolean> {
+		await this.warm();
+		if (this.relationshipFor(fromDocid, toDocid) !== undefined) {
+			return false;
+		}
+		await this.writeRecord(fromDocid, toDocid, aiRelationshipRecord(named, this.nowIso()));
+		return true;
 	}
 
 	/** "Clear": a manual name's file is deleted; an AI name becomes the dismissed marker. */

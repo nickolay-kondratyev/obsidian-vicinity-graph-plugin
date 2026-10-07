@@ -149,6 +149,21 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   `parseRelationshipName`) through `ControlsActionsPort.nameRelationship` /
   `clearRelationship` → `runGuarded` → `PersistenceServices`. A new name SOURCE is a
   new `RelationshipSources` field + its slot in `resolveEdgeRelationship`.
+  **AI relationship naming** (task 3/4 `nid_cbnhpdfn4myqfzqr8weyg7kq5_e`; wired
+  end to end by 4/4): pure `engine/AiEligibility.ts` (text-free checks →
+  `aiCandidateEdges`, then `hasEnoughAiContent` on note text) and
+  `engine/RelationshipPrompt.ts` (prompt, anchor names, answer validator over
+  `parseRelationshipName`); the engine-defined `RelationshipNamer` port
+  (`adapters/OpenAiRelationshipNamer.ts` over `openAiResponses.ts`, the pure wire
+  format; fake `FakeRelationshipNamer`) and `NoteTextProvider` port
+  (`adapters/ObsidianNoteTextProvider.ts`; canvas = its text cards). The key comes
+  from `adapters/ApiKeySource.ts` per call; ALL outbound HTTP goes through ONE seam,
+  `adapters/JsonHttpPort.ts` (real `ObsidianJsonHttp` = `requestUrl`, so no `fetch(`
+  token ships). `view/AiRelationshipQueue.ts` orchestrates (dedupe, per-build cap,
+  latest build wins, fatal stop, session status) and writes through
+  `AiRelationshipWriterPort` = `ControlsActions.saveAiRelationship` → `runGuarded` →
+  `RelationshipStore.saveAiName`, which never overwrites an existing record.
+  Failure copy: `view/aiNamingFailureCopy.ts`.
   Refresh reach is ONE port: `ViewsRefreshPort` (implemented in `main.ts` over
   `refreshOpenViews()`) rebuilds every open view. `UserNoticePort` is the same
   shape for the one user-visible message surface (`Notice`, also implemented in

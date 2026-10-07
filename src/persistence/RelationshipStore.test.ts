@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { RelationshipName } from "../engine";
+import type { AiNamedRelationship, RelationshipName } from "../engine";
 import { FakeUserNotices } from "../view/FakeUserNotices";
 import { FakeVaultFsPort } from "./FakeVaultFsPort";
 import type { RelationshipRecord } from "./relationshipRecord";
@@ -214,5 +214,50 @@ describe("RelationshipStore — forgetDocs", () => {
 		await store.saveManualName(B, A, SUPPORTS);
 		await store.forgetDocs([A]);
 		expect(store.relationshipFor(B, A)).toBeUndefined();
+	});
+});
+
+describe("RelationshipStore — AI names", () => {
+	const AI_NAMED: AiNamedRelationship = {
+		name: "extends" as RelationshipName,
+		model: "gpt-6-luna",
+		effort: "medium",
+		usage: { inputTokens: 10, outputTokens: 2 },
+	};
+
+	it("WHEN an unnamed pair gets an AI name THEN the store reads it back as origin ai", async () => {
+		const store = storeOver(new FakeVaultFsPort());
+		await store.saveAiName(A, B, AI_NAMED);
+		expect(store.relationshipFor(A, B)?.origin).toBe("ai");
+	});
+
+	it("WHEN an unnamed pair gets an AI name THEN the save reports it wrote", async () => {
+		expect(await storeOver(new FakeVaultFsPort()).saveAiName(A, B, AI_NAMED)).toBe(true);
+	});
+
+	it("WHEN an AI name is saved THEN it survives a restart", async () => {
+		const fs = new FakeVaultFsPort();
+		await storeOver(fs).saveAiName(A, B, AI_NAMED);
+		expect((await reloaded(fs)).relationshipFor(A, B)?.name).toBe("extends");
+	});
+
+	it("WHEN the pair has a manual name THEN an AI name does not replace it", async () => {
+		const store = storeOver(new FakeVaultFsPort());
+		await store.saveManualName(A, B, SUPPORTS);
+		await store.saveAiName(A, B, AI_NAMED);
+		expect(store.relationshipFor(A, B)?.name).toBe("supports");
+	});
+
+	it("WHEN the pair's AI name was dismissed THEN a new AI name does not revive it", async () => {
+		const fs = new FakeVaultFsPort();
+		seed(fs, A, B, { ...AI_RECORD, name: null });
+		const store = await reloaded(fs);
+		expect(await store.saveAiName(A, B, AI_NAMED)).toBe(false);
+	});
+
+	it("WHEN only the reverse pair is named THEN the AI name is stored (directed)", async () => {
+		const store = storeOver(new FakeVaultFsPort());
+		await store.saveManualName(B, A, SUPPORTS);
+		expect(await store.saveAiName(A, B, AI_NAMED)).toBe(true);
 	});
 });

@@ -43,19 +43,48 @@ export class CanvasFallbackParser {
 		return CanvasFallbackParser.referencesOf(parsed);
 	}
 
+	/**
+	 * The canvas's own PROSE: the body of every text card, in node-array order —
+	 * what the AI relationship namer reads as a canvas's text (task 3/4
+	 * `nid_cbnhpdfn4myqfzqr8weyg7kq5_e`). File / link / group nodes hold no text of
+	 * the canvas's own. Malformed JSON yields none, like {@link parseReferences}.
+	 */
+	static textCardsOf(canvasPath: string, rawJson: string): readonly string[] {
+		let parsed: unknown;
+		try {
+			parsed = JSON.parse(rawJson);
+		} catch {
+			console.error(`vicinity-graph: malformed canvas JSON, skipping text of [${canvasPath}]`);
+			return [];
+		}
+		const texts: string[] = [];
+		for (const node of CanvasFallbackParser.nodesOf(parsed)) {
+			if (typeof node !== "object" || node === null) {
+				continue;
+			}
+			const { type, text } = node as { type?: unknown; text?: unknown };
+			if (type === "text" && typeof text === "string") {
+				texts.push(text);
+			}
+		}
+		return texts;
+	}
+
 	private static referencesOf(parsed: unknown): readonly CanvasReference[] {
+		const references: CanvasReference[] = [];
+		for (const node of CanvasFallbackParser.nodesOf(parsed)) {
+			references.push(...CanvasFallbackParser.referencesOfNode(node));
+		}
+		return references;
+	}
+
+	/** The `nodes` array of a parsed canvas, or none when the JSON is not canvas-shaped. */
+	private static nodesOf(parsed: unknown): readonly unknown[] {
 		if (typeof parsed !== "object" || parsed === null) {
 			return [];
 		}
 		const nodes = (parsed as { nodes?: unknown }).nodes;
-		if (!Array.isArray(nodes)) {
-			return [];
-		}
-		const references: CanvasReference[] = [];
-		for (const node of nodes) {
-			references.push(...CanvasFallbackParser.referencesOfNode(node));
-		}
-		return references;
+		return Array.isArray(nodes) ? nodes : [];
 	}
 
 	/**
