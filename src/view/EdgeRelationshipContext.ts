@@ -16,10 +16,19 @@ export const EdgeRelationshipContext = createContext<EdgeRelationshipOverlayStor
  * (programmer error).
  */
 export function useEdgeRelationship(key: string | null): EdgeRelationship | null {
+	const relationships = useEdgeRelationships();
+	return key === null ? null : (relationships.get(key) ?? null);
+}
+
+/**
+ * Every name of the current build, keyed by `directedLinkKey` — LIVE: a name
+ * published after the caller rendered (a build's names read, a name the user just
+ * saved) re-renders it. Throws outside `VicinityGraphFlow` (programmer error).
+ */
+export function useEdgeRelationships(): ReadonlyMap<string, EdgeRelationship> {
 	const store = useContext(EdgeRelationshipContext);
 	if (store === null) {
 		throw new Error("EdgeRelationshipContext is missing — edges must render inside VicinityGraphFlow");
 	}
-	const relationships = useSyncExternalStore(store.subscribe, store.getSnapshot);
-	return key === null ? null : (relationships.get(key) ?? null);
+	return useSyncExternalStore(store.subscribe, store.getSnapshot);
 }

@@ -198,6 +198,18 @@ describe("VaultFileStore", () => {
 		expect(await makeStore().listKeys("per_file")).toEqual([]);
 	});
 
+	it("WHEN listSubdirs is called THEN only the immediate child directories are returned", async () => {
+		const fs = new FakeVaultFsPort();
+		fs.files.set(`${ROOT}/from_id/a/b.json`, JSON.stringify({ v1: {} }));
+		fs.files.set(`${ROOT}/from_id/c/d/e.json`, JSON.stringify({ v1: {} }));
+		fs.files.set(`${ROOT}/from_id/top.json`, JSON.stringify({ v1: {} }));
+		expect((await makeStore(fs).listSubdirs("from_id")).sort()).toEqual(["from_id/a", "from_id/c"]);
+	});
+
+	it("WHEN listSubdirs targets an absent dir THEN it returns empty", async () => {
+		expect(await makeStore().listSubdirs("from_id")).toEqual([]);
+	});
+
 	it("WHEN a key is removed THEN it no longer exists", async () => {
 		const store = makeStore();
 		await store.write("per_file/a.json", { n: 1 });

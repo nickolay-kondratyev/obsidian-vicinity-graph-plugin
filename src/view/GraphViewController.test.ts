@@ -5,6 +5,7 @@ import type {
 	ForceLayoutSettings,
 	LinkOccurrenceProvider,
 	OutlineEntry,
+	StoredRelationshipProvider,
 	SyntaxRelationshipNames,
 	SyntaxRelationshipProvider,
 	VicinityGraph,
@@ -15,6 +16,7 @@ import {
 	directedLinkKey,
 	EngineDefaults,
 	FakeLinkOccurrenceProvider,
+	FakeStoredRelationshipProvider,
 	FakeSyntaxRelationshipProvider,
 } from "../engine";
 import { REBUILD_DEBOUNCE_MS } from "./constants";
@@ -253,6 +255,7 @@ function setup(
 	router: FakeEdgeRouter = new FakeEdgeRouter(),
 	occurrences: LinkOccurrenceProvider = new FakeLinkOccurrenceProvider({}),
 	syntaxRelationships: SyntaxRelationshipProvider = new FakeSyntaxRelationshipProvider(),
+	storedRelationships: StoredRelationshipProvider = new FakeStoredRelationshipProvider(),
 ): Harness {
 	const source = new FakeGraphSource();
 	const layout = new FakeLayout();
@@ -267,6 +270,7 @@ function setup(
 		occurrences,
 		linkPreview,
 		syntaxRelationships,
+		storedRelationships,
 		relationships,
 	);
 	return {
@@ -1633,26 +1637,42 @@ describe("GraphViewController edge relationship names", () => {
 		expect(h.relationships.current().get(directedLinkKey(A, B))?.name).toBe("fresh");
 	});
 
-	it("WHEN the preview opens before the names read settles THEN the drawer still carries the relationship line", async () => {
-		const read = deferred<SyntaxRelationshipNames>();
-		const h = setup(new FakeEdgeRouter(), new FakeLinkOccurrenceProvider({}), { syntaxNamesFor: () => read.promise });
-		h.controller.handleActiveFileChanged("a.md");
-		const nodes = [makeNode({ path: A }), makeNode({ path: B })];
-		h.source.resolveBuild(0, makeGraph({ nodes, edges: [makeEdge("a.md", "b.md")] }));
-		await flush();
-		const opening = h.controller.openEdgePreview("a.md->b.md");
-		read.resolve(new Map([[directedLinkKey(A, B), ["improves"]]]));
-		await opening;
-		expect(h.linkPreview.shown[0]?.relationships).toEqual([
-			{ sourceName: "a", targetName: "b", name: "improves", originLabel: "from note" },
+	it("WHEN an edge's preview opens THEN the drawer model lists its directed pair for naming", async () => {
+		// The drawer reads the pair's NAME live from the overlay (so a drawer opened
+		// before the names read lands still fills in) — the model carries its key.
+		const h = await linkHarness(new FakeSyntaxRelationshipProvider());
+		await h.controller.openEdgePreview("a.md->b.md");
+		expect(h.linkPreview.shown[0]?.relationshipPairs).toEqual([
+			{ key: directedLinkKey(A, B), sourcePath: A, targetPath: B, sourceName: "a", targetName: "b" },
 		]);
 	});
 
-	it("WHEN a named edge's preview opens THEN the drawer model carries its relationship line", async () => {
-		const h = await linkHarness(new FakeSyntaxRelationshipProvider([{ source: "a.md", target: "b.md", names: ["improves"] }]));
-		await h.controller.openEdgePreview("a.md->b.md");
-		expect(h.linkPreview.shown[0]?.relationships).toEqual([
-			{ sourceName: "a", targetName: "b", name: "improves", originLabel: "from note" },
-		]);
+	it("WHEN the user named the edge THEN it is labelled with the stored manual name", async () => {
+		const h = setup(
+			new FakeEdgeRouter(),
+			new FakeLinkOccurrenceProvider({}),
+			new FakeSyntaxRelationshipProvider(),
+			new FakeStoredRelationshipProvider([
+				{ source: "a.md", target: "b.md", stored: { name: "supports", origin: "manual" } },
+			]),
+		);
+		h.controller.handleActiveFileChanged("a.md");
+		h.source.resolveBuild(0, makeGraph({ nodes: [makeNode({ path: A }), makeNode({ path: B })], edges: [makeEdge("a.md", "b.md")] }));
+		await flush();
+		expect(h.relationships.current().get(directedLinkKey(A, B))).toEqual({ name: "supports", origin: "manual" });
+	});
+
+	it("WHEN reading stored names fails THEN the names notes declare still show", async () => {
+		vi.spyOn(console, "warn").mockImplementation(() => undefined);
+		const h = setup(
+			new FakeEdgeRouter(),
+			new FakeLinkOccurrenceProvider({}),
+			new FakeSyntaxRelationshipProvider([{ source: "a.md", target: "b.md", names: ["improves"] }]),
+			{ storedRelationshipsFor: () => Promise.reject(new Error("vault read failed")) },
+		);
+		h.controller.handleActiveFileChanged("a.md");
+		h.source.resolveBuild(0, makeGraph({ nodes: [makeNode({ path: A }), makeNode({ path: B })], edges: [makeEdge("a.md", "b.md")] }));
+		await flush();
+		expect(h.relationships.current().get(directedLinkKey(A, B))?.name).toBe("improves");
 	});
 });

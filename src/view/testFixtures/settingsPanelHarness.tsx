@@ -1,7 +1,7 @@
 import type { RenderResult } from "@testing-library/react";
 import { render } from "@testing-library/react";
 import type { ReactElement } from "react";
-import type { NodeContentOverride, NodeSizeOverridePx, ViewSettings } from "../../engine";
+import type { NodeContentOverride, NodeSizeOverridePx, RelationshipName, ViewSettings } from "../../engine";
 import { EngineDefaults } from "../../engine";
 import { ControlsActionsContext } from "../ControlsActionsContext";
 import type { ControlsModel } from "../ControlsModel";
@@ -25,6 +25,8 @@ import type { ControlsActionsPort } from "../viewPorts";
 export class RecordingControlsActions implements ControlsActionsPort {
 	readonly interactions: SettingsInteraction[] = [];
 	readonly restoredScopes: SettingsResetScope[] = [];
+	/** Every relationship write the rendered drawer asked for, in order. */
+	readonly relationshipWrites: RecordedRelationshipWrite[] = [];
 
 	constructor(
 		/** What `storedGlobalView()` answers — the fresh-at-commit-time read cross-field judges use. */
@@ -80,7 +82,22 @@ export class RecordingControlsActions implements ControlsActionsPort {
 	createChildNote(_mainPath: string): Promise<void> {
 		return Promise.resolve();
 	}
+
+	nameRelationship(sourcePath: string, targetPath: string, name: RelationshipName): Promise<void> {
+		this.relationshipWrites.push({ kind: "name", sourcePath, targetPath, name });
+		return Promise.resolve();
+	}
+
+	clearRelationship(sourcePath: string, targetPath: string): Promise<void> {
+		this.relationshipWrites.push({ kind: "clear", sourcePath, targetPath });
+		return Promise.resolve();
+	}
 }
+
+/** One relationship write {@link RecordingControlsActions} recorded. */
+export type RecordedRelationshipWrite =
+	| { readonly kind: "name"; readonly sourcePath: string; readonly targetPath: string; readonly name: string }
+	| { readonly kind: "clear"; readonly sourcePath: string; readonly targetPath: string };
 
 /** The three global slices at their shipped defaults, any of them overridable. */
 export function settingsRowStateFixture(overrides: Partial<SettingsRowState> = {}): SettingsRowState {

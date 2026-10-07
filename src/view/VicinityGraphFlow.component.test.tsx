@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { LinkOccurrenceProvider, SyntaxRelationshipProvider } from "../engine";
+import type { LinkOccurrenceProvider, StoredRelationshipProvider, SyntaxRelationshipProvider } from "../engine";
 import { EdgeRelationshipOverlayStore } from "./EdgeRelationshipOverlayStore";
 import { GraphViewController } from "./GraphViewController";
 import { LinkPreviewOverlayStore } from "./LinkPreviewOverlayStore";
@@ -76,6 +76,10 @@ const INERT_SYNTAX_RELATIONSHIPS: SyntaxRelationshipProvider = {
 	syntaxNamesFor: () => unreachable("SyntaxRelationshipProvider.syntaxNamesFor"),
 };
 
+const INERT_STORED_RELATIONSHIPS: StoredRelationshipProvider = {
+	storedRelationshipsFor: () => unreachable("StoredRelationshipProvider.storedRelationshipsFor"),
+};
+
 const INERT_GRAPH_UI: GraphUiPort = {
 	resourcePath: () => unreachable("GraphUiPort.resourcePath"),
 	showAttachmentMenu: () => unreachable("GraphUiPort.showAttachmentMenu"),
@@ -104,6 +108,7 @@ async function renderFailedPane(): Promise<FailedPaneHarness> {
 		INERT_OCCURRENCES,
 		linkPreview,
 		INERT_SYNTAX_RELATIONSHIPS,
+		INERT_STORED_RELATIONSHIPS,
 		relationships,
 	);
 	controller.handleActiveFileChanged("a.md");
@@ -145,6 +150,7 @@ function renderInitialBuildingPane(): void {
 		INERT_OCCURRENCES,
 		linkPreview,
 		INERT_SYNTAX_RELATIONSHIPS,
+		INERT_STORED_RELATIONSHIPS,
 		relationships,
 	);
 	controller.handleActiveFileChanged("a.md");

@@ -12,9 +12,11 @@ import { DocIdMapWarmer } from "./persistence/DocIdMapWarmer";
 import { OrphanSweeper, SWEEP_DELAY_MS } from "./persistence/OrphanSweeper";
 import { PathDocIdMap } from "./persistence/PathDocIdMap";
 import { PerDocStore } from "./persistence/PerDocStore";
+import { PathKeyedStoredRelationships } from "./persistence/PathKeyedStoredRelationships";
 import { PersistenceServices } from "./persistence/PersistenceServices";
 import { PluginDataAdapter } from "./persistence/PluginDataAdapter";
 import { PluginDataStore } from "./persistence/PluginDataStore";
+import { RelationshipStore } from "./persistence/RelationshipStore";
 import { VaultAdapterFsPort } from "./persistence/vaultFsPort";
 import { VaultFileStore } from "./persistence/VaultFileStore";
 import { GraphViewOpener } from "./view/GraphViewOpener";
@@ -56,6 +58,11 @@ export default class VicinityGraphPlugin extends Plugin {
 	 * same way it reaches {@link pluginDataStore} for globals.
 	 */
 	perDocStore!: PerDocStore;
+	/**
+	 * The stored relationship names (manual + AI), one file per directed pair on
+	 * {@link vaultFileStore}. Exposed for the e2e harness like {@link perDocStore}.
+	 */
+	relationshipStore!: RelationshipStore;
 	/**
 	 * THE settings write pipeline: ONE per plugin, shared by the settings tab and by
 	 * every open view's controls panel. Sharing it is what makes "one serialised
@@ -138,11 +145,13 @@ export default class VicinityGraphPlugin extends Plugin {
 			this.notices,
 		);
 		this.perDocStore = new PerDocStore(this.vaultFileStore);
+		this.relationshipStore = new RelationshipStore(this.vaultFileStore, Date.now);
 		this.settingsWrites = new SettingsWritePipeline(this.pluginDataStore, this.viewsRefresh, this.notices);
 		this.persistenceServices = new PersistenceServices(
 			this.docIdService,
 			this.pluginDataStore,
 			this.perDocStore,
+			this.relationshipStore,
 			this.pathDocIdMap,
 		);
 		this.docIdMapWarmer = new DocIdMapWarmer(this.app.vault, this.docIdService, this.pathDocIdMap);
@@ -165,6 +174,7 @@ export default class VicinityGraphPlugin extends Plugin {
 			this.canvasParseCache,
 			this.pluginDataStore,
 			this.perDocStore,
+			this.relationshipStore,
 			this.pathDocIdMap,
 			this.docIdMapWarmer,
 			this.frontmatterIdIndex,
@@ -187,6 +197,8 @@ export default class VicinityGraphPlugin extends Plugin {
 		);
 		// Stateless over the live vault + metadata cache: every rebuild reads fresh.
 		const syntaxRelationships = new ObsidianSyntaxRelationshipProvider(this.app.vault, this.app.metadataCache);
+		// The stored (manual / AI) names, path-keyed through the session's docid map.
+		const storedRelationships = new PathKeyedStoredRelationships(this.relationshipStore, this.pathDocIdMap);
 		this.registerView(
 			VIEW_TYPE_VICINITY_GRAPH,
 			(leaf) =>
@@ -199,6 +211,7 @@ export default class VicinityGraphPlugin extends Plugin {
 					this.notices,
 					occurrenceProvider,
 					syntaxRelationships,
+					storedRelationships,
 					this.folderNoteIndex,
 					this.noteCreation,
 				),
@@ -286,12 +299,13 @@ export default class VicinityGraphPlugin extends Plugin {
 	}
 
 	/**
-	 * Live cleanup for mapped docs — drops the doc from BOTH storage tiers at once
-	 * ({@link PluginDataStore.forgetDocs} for the global pinned set,
+	 * Live cleanup for mapped docs — drops the doc from EVERY docid-keyed store at
+	 * once ({@link PluginDataStore.forgetDocs} for the global pinned set,
 	 * {@link PerDocStore.forgetDocs} for the per-file record + its localPins-target
+	 * positions, {@link RelationshipStore.forgetDocs} for its relationships in both
 	 * positions): the ONE conceptual choke point a delete spans, mirrored by the
-	 * orphan sweep. A docid-keyed map added to EITHER store is pruned by that store's
-	 * `forgetDocs`; a map added to a NEW store would need its `forgetDocs` wired in
+	 * orphan sweep. A docid-keyed map added to an existing store is pruned by that
+	 * store's `forgetDocs`; a map added to a NEW store needs its `forgetDocs` wired in
 	 * here too. Unmapped paths — and docids the map saw at more than one live path
 	 * (a frontmatter-duplicate twin may survive) — are the delayed sweep's job (backstop).
 	 */
@@ -304,10 +318,12 @@ export default class VicinityGraphPlugin extends Plugin {
 		this.folderNoteIndex.markStale();
 		const docid = this.pathDocIdMap.handleDelete(path);
 		if (docid !== undefined) {
-			// Both stores together are the ONE choke point a delete spans: the global
-			// pinned set (data.json) and the per-file record + its localPins-as-target.
+			// The three stores together are the ONE choke point a delete spans: the global
+			// pinned set (data.json), the per-file record + its localPins-as-target, and
+			// the relationships naming the doc as from OR to.
 			await this.pluginDataStore.forgetDocs([docid]);
 			await this.perDocStore.forgetDocs([docid]);
+			await this.relationshipStore.forgetDocs([docid]);
 		}
 	}
 
@@ -317,6 +333,7 @@ export default class VicinityGraphPlugin extends Plugin {
 			this.pathDocIdMap,
 			this.pluginDataStore,
 			this.perDocStore,
+			this.relationshipStore,
 		);
 		this.sweepTimer = window.setTimeout(
 			() =>

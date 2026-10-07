@@ -1,5 +1,5 @@
 import type { VaultFilePort, VaultPort } from "../adapters/obsidianPorts";
-import type { NodeContentOverride, NodeSizeOverridePx, ViewSettings } from "../engine";
+import type { NodeContentOverride, NodeSizeOverridePx, RelationshipName, ViewSettings } from "../engine";
 import type { PersistableIdentity } from "../persistence/DocPersistEligibility";
 import type { PersistenceServices } from "../persistence/PersistenceServices";
 import type { SettingsResetScope } from "./settingsResetPlan";
@@ -49,6 +49,11 @@ const NOT_LOCALLY_PINNABLE_NOTICE = "This note can't be pinned for the current n
 const NOT_RESIZABLE_NOTICE = "This note's size can't be saved (no stable id).";
 /** Same refusal cause again, worded for the per-node content override. */
 const NOT_CONTENT_OVERRIDABLE_NOTICE = "This note's content choice can't be saved (no stable id).";
+/**
+ * Same refusal cause, worded for a relationship name: it needs a stable id for BOTH
+ * notes, so — like the local pin's copy — it names neither.
+ */
+const NOT_NAMEABLE_RELATIONSHIP_NOTICE = "This relationship's name can't be saved (a note has no stable id).";
 
 /**
  * What a failed pinned-set / size-override save is ANNOUNCED as. Only the subject
@@ -58,6 +63,7 @@ const NOT_CONTENT_OVERRIDABLE_NOTICE = "This note's content choice can't be save
 const PIN_WRITE_SUBJECT: NonSettingsWriteSubject = "pinned-set";
 const NODE_SIZE_WRITE_SUBJECT: NonSettingsWriteSubject = "node-size-override";
 const NODE_CONTENT_WRITE_SUBJECT: NonSettingsWriteSubject = "node-content-override";
+const RELATIONSHIP_WRITE_SUBJECT: NonSettingsWriteSubject = "relationship-name";
 
 export class ControlsActions implements ControlsActionsPort {
 	constructor(
@@ -249,6 +255,47 @@ export class ControlsActions implements ControlsActionsPort {
 				return "store-unchanged";
 			}
 			await this.persistenceServices.clearNodeOverrideField(file, "content");
+			return "store-changed";
+		});
+	}
+
+	/**
+	 * The edge drawer's "Name this relationship" / "Rename": the user's name for the
+	 * DIRECTED pair source → target (ticket `nid_a5m4kforr9scit68rhqmqh78o_e`). Rides
+	 * the same guarded seam as a local pin — it is one too in shape (two docids, both
+	 * minted on write intent) — so a failed save gets the ONE failure notice and every
+	 * view repaints from the store. Nothing moved on screen before the write (the field
+	 * just closed), so a refusal reports `store-unchanged`, like a refused pin.
+	 */
+	nameRelationship(sourcePath: string, targetPath: string, name: RelationshipName): Promise<void> {
+		return this.settingsWrites.runGuarded(RELATIONSHIP_WRITE_SUBJECT, async () => {
+			const sourceFile = this.vault.getFileByPath(sourcePath);
+			const targetFile = this.vault.getFileByPath(targetPath);
+			if (sourceFile === null || targetFile === null) {
+				return "store-unchanged";
+			}
+			const outcome = await this.persistenceServices.nameRelationship(sourceFile, targetFile, name);
+			if (outcome.kind === "not-persistable") {
+				this.notices.show(NOT_NAMEABLE_RELATIONSHIP_NOTICE);
+				return "store-unchanged";
+			}
+			return "store-changed";
+		});
+	}
+
+	/**
+	 * The drawer's "Clear": never mints an id and never refuses (`clearRelationship`
+	 * — an id-less note is part of no stored relationship), so like {@link unpinNode}
+	 * it always lands and always repaints.
+	 */
+	clearRelationship(sourcePath: string, targetPath: string): Promise<void> {
+		return this.settingsWrites.runGuarded(RELATIONSHIP_WRITE_SUBJECT, async () => {
+			const sourceFile = this.vault.getFileByPath(sourcePath);
+			const targetFile = this.vault.getFileByPath(targetPath);
+			if (sourceFile === null || targetFile === null) {
+				return "store-unchanged";
+			}
+			await this.persistenceServices.clearRelationship(sourceFile, targetFile);
 			return "store-changed";
 		});
 	}

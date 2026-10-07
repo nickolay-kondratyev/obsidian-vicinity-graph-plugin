@@ -96,9 +96,17 @@ export type {
 	RelationshipEdge,
 	RelationshipOrigin,
 	RelationshipSources,
+	StoredRelationship,
+	StoredRelationshipNames,
+	StoredRelationshipOrigin,
 	SyntaxRelationshipNames,
 } from "./EdgeRelationships";
 export type { SyntaxRelationshipProvider } from "./SyntaxRelationshipProvider";
+export type { StoredRelationshipProvider } from "./StoredRelationshipProvider";
+export { FakeStoredRelationshipProvider } from "./FakeStoredRelationshipProvider";
+export type { FakeStoredRelationship } from "./FakeStoredRelationshipProvider";
+export { MAX_RELATIONSHIP_NAME_LENGTH, parseRelationshipName } from "./RelationshipName";
+export type { RelationshipName, RelationshipNameParse, RelationshipNameRejection } from "./RelationshipName";
 export { FakeSyntaxRelationshipProvider } from "./FakeSyntaxRelationshipProvider";
 export type { FakeSyntaxRelationship } from "./FakeSyntaxRelationshipProvider";
 export { NodeEligibility } from "./NodeEligibility";

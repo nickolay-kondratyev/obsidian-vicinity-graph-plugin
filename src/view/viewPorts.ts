@@ -4,6 +4,7 @@ import type {
 	ForceLayoutSettings,
 	NodeContentOverride,
 	NodeSizeOverridePx,
+	RelationshipName,
 	ViewSettings,
 	VicinityGraph,
 } from "../engine";
@@ -129,6 +130,17 @@ export interface ControlsActionsPort {
 	setNodeContentOverride(path: string, content: NodeContentOverride): Promise<void>;
 	/** Clear the doc's content override ("Inherit" — never mints an id); then rebuild every view. */
 	clearNodeContentOverride(path: string): Promise<void>;
+	/**
+	 * Store `name` as the user's name for the DIRECTED relationship source → target
+	 * (ensures a docid for BOTH notes, the same write intent as a local pin); rebuilds
+	 * every view if it landed. A note that cannot carry an id refuses it with a notice.
+	 */
+	nameRelationship(sourcePath: string, targetPath: string, name: RelationshipName): Promise<void>;
+	/**
+	 * Clear the stored name of source → target (a manual name is deleted, an AI name
+	 * is dismissed; never mints an id); then rebuild every view.
+	 */
+	clearRelationship(sourcePath: string, targetPath: string): Promise<void>;
 	/**
 	 * Create an empty child note inside the folder the MAIN folder note owns, then open
 	 * it (the create-child-note chip; ticket `nid_rt0dyx6chv7fxae4k7q85f53l_e`). UNLIKE

@@ -8,11 +8,18 @@ import { OrphanSweeper } from "./OrphanSweeper";
 import { PathDocIdMap } from "./PathDocIdMap";
 import { PerDocStore } from "./PerDocStore";
 import { PluginDataStore } from "./PluginDataStore";
+import { RelationshipStore } from "./RelationshipStore";
 import { VaultFileStore } from "./VaultFileStore";
+import type { RelationshipName } from "../engine";
 
 /** A fresh per-file store over in-memory disk — the home of overrides + local pins in the sweep. */
 function newPerDocStore(): PerDocStore {
 	return new PerDocStore(new VaultFileStore(".plugin_data/vicinity_graph", new FakeVaultFsPort(), () => 0));
+}
+
+/** A fresh relationship store over in-memory disk. */
+function newRelationshipStore(): RelationshipStore {
+	return new RelationshipStore(new VaultFileStore(".plugin_data/vicinity_graph", new FakeVaultFsPort(), () => 0), () => 0);
 }
 
 /** > the scanner's internal batch size of 20, so the warm phase must yield at least once. */
@@ -43,6 +50,10 @@ async function sweptFixture() {
 	// vanished — both are orphans the sweep must reach through forgetDocs.
 	await perDocStore.addLocalPin("docid_note3_e", "docid_localtargetgone_e", 300);
 	await perDocStore.addLocalPin("docid_localmaingone_e", "docid_note4_e", 400);
+	// A relationship between two live notes, plus one whose TARGET vanished.
+	const relationshipStore = newRelationshipStore();
+	await relationshipStore.saveManualName("docid_note5_e", "docid_note6_e", "supports" as RelationshipName);
+	await relationshipStore.saveManualName("docid_note5_e", "docid_relgone_e", "refines" as RelationshipName);
 
 	const pathDocIdMap = new PathDocIdMap();
 	let yields = 0;
@@ -53,9 +64,10 @@ async function sweptFixture() {
 		pathDocIdMap,
 		pluginDataStore,
 		perDocStore,
+		relationshipStore,
 	);
 	const summary = await sweeper.run();
-	return { docIdPort, pluginDataStore, perDocStore, pathDocIdMap, yieldCount: () => yields, summary };
+	return { docIdPort, pluginDataStore, perDocStore, relationshipStore, pathDocIdMap, yieldCount: () => yields, summary };
 }
 
 describe("OrphanSweeper", () => {
@@ -94,10 +106,27 @@ describe("OrphanSweeper", () => {
 		expect(perDocStore.localPins("docid_localmaingone_e")).toEqual([]);
 	});
 
+	it("WHEN a relationship's TARGET vanished THEN that relationship is dropped", async () => {
+		const { relationshipStore } = await sweptFixture();
+		expect(relationshipStore.relationshipFor("docid_note5_e", "docid_relgone_e")).toBeUndefined();
+	});
+
+	it("WHEN both notes of a relationship are live THEN it survives the sweep", async () => {
+		const { relationshipStore } = await sweptFixture();
+		expect(relationshipStore.relationshipFor("docid_note5_e", "docid_note6_e")?.name).toBe("supports");
+	});
+
 	it("WHEN the sweep completes THEN its summary counts exactly what was removed", async () => {
 		const { summary } = await sweptFixture();
-		// docid_stale_e; docid_gone_e; two stale local-pin docids (target + main key).
-		expect(summary).toEqual({ pinsRemoved: 1, overridesRemoved: 1, localPinsRemoved: 2, everyFileRead: true });
+		// docid_stale_e; docid_gone_e; two stale local-pin docids (target + main key);
+		// one stale relationship docid.
+		expect(summary).toEqual({
+			pinsRemoved: 1,
+			overridesRemoved: 1,
+			localPinsRemoved: 2,
+			relationshipsRemoved: 1,
+			everyFileRead: true,
+		});
 	});
 });
 
@@ -134,6 +163,7 @@ async function midSweepWriteFixture() {
 		pathDocIdMap,
 		pluginDataStore,
 		newPerDocStore(),
+		newRelationshipStore(),
 	);
 	await sweeper.run();
 	return { pluginDataStore };
@@ -178,6 +208,7 @@ async function hundredsOfFilesSweep() {
 		pathDocIdMap,
 		pluginDataStore,
 		newPerDocStore(),
+		newRelationshipStore(),
 	);
 	const summary = await sweeper.run();
 	return { yieldCount: () => yields, summary };
@@ -191,7 +222,13 @@ describe("OrphanSweeper at hundreds-of-files scale", () => {
 
 	it("WHEN hundreds of files are all live THEN the sweep removes nothing", async () => {
 		const { summary } = await hundredsOfFilesSweep();
-		expect(summary).toEqual({ pinsRemoved: 0, overridesRemoved: 0, localPinsRemoved: 0, everyFileRead: true });
+		expect(summary).toEqual({
+			pinsRemoved: 0,
+			overridesRemoved: 0,
+			localPinsRemoved: 0,
+			relationshipsRemoved: 0,
+			everyFileRead: true,
+		});
 	});
 });
 
@@ -218,6 +255,7 @@ async function sweepWithUnreadableFileFixture() {
 		pathDocIdMap,
 		pluginDataStore,
 		newPerDocStore(),
+		newRelationshipStore(),
 	);
 	const summary = await sweeper.run();
 	return { pluginDataStore, pathDocIdMap, summary };
@@ -231,7 +269,13 @@ describe("OrphanSweeper when a file cannot be read", () => {
 
 	it("WHEN one file read fails THEN the summary says the evidence was incomplete", async () => {
 		const { summary } = await sweepWithUnreadableFileFixture();
-		expect(summary).toEqual({ pinsRemoved: 0, overridesRemoved: 0, localPinsRemoved: 0, everyFileRead: false });
+		expect(summary).toEqual({
+			pinsRemoved: 0,
+			overridesRemoved: 0,
+			localPinsRemoved: 0,
+			relationshipsRemoved: 0,
+			everyFileRead: false,
+		});
 	});
 
 	it("WHEN one file read fails THEN the map is still warmed by the same pass", async () => {

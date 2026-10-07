@@ -3,9 +3,11 @@ import { directedLinkKey } from "./types";
 
 /**
  * Named relationships on graph edges (epic `nid_fc47gtxej6z7fqc53bflme8p5_e`,
- * task 1/4 `nid_gk9h4jpa7di1al7och0rehd3h_e`): which NAME a rendered edge
- * carries, and where it came from. Pure — the names a note declares arrive as
- * data ({@link SyntaxRelationshipNames}, read by an adapter), never as file text.
+ * tasks 1/4 `nid_gk9h4jpa7di1al7och0rehd3h_e` and 2/4
+ * `nid_a5m4kforr9scit68rhqmqh78o_e`): which NAME a rendered edge carries, and
+ * where it came from. Pure — the names a note declares and the names we store
+ * arrive as data ({@link SyntaxRelationshipNames}, {@link StoredRelationshipNames},
+ * read by an adapter / the persistence layer), never as file text.
  *
  * A relationship is DIRECTED: a name for `B → A` never labels `A → B`. The one
  * cross-direction rule is the folder-hierarchy default, which a name in EITHER
@@ -19,17 +21,41 @@ export const PARENT_RELATIONSHIP_NAME = "parent";
 const SYNTAX_NAME_SEPARATOR = ", ";
 
 /**
- * Where a resolved name came from. `syntax` = an inline field in the SOURCE note
- * (`rel:: [[target]]`); `folder-hierarchy` = the {@link PARENT_RELATIONSHIP_NAME}
- * default. Tasks 2-3 add `manual` and `ai` between the two.
+ * Where a resolved name came from, highest precedence first. `syntax` = an inline
+ * field in the SOURCE note (`rel:: [[target]]`); `manual` = the user named it in
+ * the edge drawer; `ai` = a model named it (task 3/4); `folder-hierarchy` = the
+ * {@link PARENT_RELATIONSHIP_NAME} default.
  */
-export type RelationshipOrigin = "syntax" | "folder-hierarchy";
+export type RelationshipOrigin = "syntax" | "manual" | "ai" | "folder-hierarchy";
+
+/** The origins WE store (one file per directed pair); the other two are read or computed, never stored. */
+export type StoredRelationshipOrigin = Extract<RelationshipOrigin, "manual" | "ai">;
 
 export interface EdgeRelationship {
 	/** What the edge shows — several syntax names are already joined. */
 	readonly name: string;
 	readonly origin: RelationshipOrigin;
+	/** The model that generated an `ai` name, when known. Absent for every other origin. */
+	readonly model?: string;
 }
+
+/**
+ * A stored (manual / AI) relationship as the precedence chain reads it — the
+ * slice of the persisted record naming depends on. `name: null` is a DISMISSED
+ * AI name: the user cleared it, so it names nothing (and auto mode must not
+ * regenerate it).
+ */
+export interface StoredRelationship {
+	readonly name: string | null;
+	readonly origin: StoredRelationshipOrigin;
+	readonly model?: string;
+}
+
+/**
+ * {@link directedLinkKey}`(source, target)` → the relationship stored for exactly
+ * that DIRECTION. A pair with nothing stored has no entry.
+ */
+export type StoredRelationshipNames = ReadonlyMap<string, StoredRelationship>;
 
 /**
  * {@link directedLinkKey}`(source, target)` → the DISTINCT inline-field keys the
@@ -38,9 +64,11 @@ export interface EdgeRelationship {
  */
 export type SyntaxRelationshipNames = ReadonlyMap<string, readonly string[]>;
 
-/** Every name source the precedence chain reads. Tasks 2-3 add the stored manual / AI names. */
+/** Every name source the precedence chain reads. */
 export interface RelationshipSources {
 	readonly syntax: SyntaxRelationshipNames;
+	/** The manual / AI names we store (`RelationshipStore`), path-keyed for this build. */
+	readonly stored: StoredRelationshipNames;
 }
 
 /** The slice of a {@link GraphEdge} naming depends on. */
@@ -56,16 +84,37 @@ function syntaxNamesOf(sources: RelationshipSources, source: VaultPath, target: 
 }
 
 /**
- * The name an edge shows, by precedence: note syntax > (manual > AI, tasks 2-3) >
- * the code default. The `parent` default applies only to a PURE hierarchy edge
- * (a merged edge is a link the folder note wrote, and is named like any link),
- * and is HIDDEN when the two notes name each other in EITHER direction — the
- * child's `rel:: [[folder-note]]` says more than the default does.
+ * The stored name of exactly this direction, or null — a dismissed AI name
+ * (`name: null`) names nothing. Manual beats AI by construction: a pair has ONE
+ * stored record, and renaming an AI name rewrites it as manual.
+ */
+function storedRelationshipOf(sources: RelationshipSources, edge: RelationshipEdge): EdgeRelationship | null {
+	const stored = sources.stored.get(directedLinkKey(edge.source, edge.target));
+	if (stored === undefined || stored.name === null) {
+		return null;
+	}
+	if (stored.origin === "ai" && stored.model !== undefined) {
+		return { name: stored.name, origin: stored.origin, model: stored.model };
+	}
+	return { name: stored.name, origin: stored.origin };
+}
+
+/**
+ * The name an edge shows, by precedence: note syntax > manual > AI > the code
+ * default. The `parent` default applies only to a PURE hierarchy edge (a merged
+ * edge is a link the folder note wrote, and is named like any link), and is
+ * HIDDEN when the two notes name each other in EITHER direction — the child's
+ * `rel:: [[folder-note]]` says more than the default does. A stored name on the
+ * hierarchy edge itself REPLACES it.
  */
 export function resolveEdgeRelationship(edge: RelationshipEdge, sources: RelationshipSources): EdgeRelationship | null {
 	const names = syntaxNamesOf(sources, edge.source, edge.target);
 	if (names.length > 0) {
 		return { name: names.join(SYNTAX_NAME_SEPARATOR), origin: "syntax" };
+	}
+	const stored = storedRelationshipOf(sources, edge);
+	if (stored !== null) {
+		return stored;
 	}
 	if (isPureHierarchy(edge) && syntaxNamesOf(sources, edge.target, edge.source).length === 0) {
 		return { name: PARENT_RELATIONSHIP_NAME, origin: "folder-hierarchy" };
