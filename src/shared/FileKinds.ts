@@ -16,7 +16,7 @@ const MARKDOWN_EXTENSION = "md";
 /**
  * Excalidraw drawings are `*.excalidraw.md`: markdown to Obsidian, but the body
  * is a generated drawing payload, not prose. They stay graph NODES
- * (CLARIFICATION Q4) and are excluded from outline PARSING only.
+ * (CLARIFICATION Q4) and are excluded from outline PARSING and from AI naming.
  */
 const EXCALIDRAW_SUFFIX = ".excalidraw.md";
 
