@@ -238,6 +238,24 @@ describe("AiAutoNamingGate — no AI repaint chain", () => {
 		expect(namer.requests.length).toBe(2);
 	});
 
+	it("WHEN a data change shows again an edge an earlier build since the user's request showed THEN it is not new", async () => {
+		// GIVEN a backlog past the cap; the user swaps the last link for a new one (a new
+		// edge may restart the backlog), then undoes the swap.
+		const backlog = AI_MAX_REQUESTS_PER_BUILD + 5;
+		const newLink = linkEdges(1, backlog);
+		const { world, namer } = given(linkEdges(backlog), () => NAMED, prose(backlog + 1));
+		world.build("user-request");
+		await settled();
+		world.edges = [...linkEdges(backlog - 1), ...newLink];
+		world.build("data-change");
+		await settled();
+		const askedBeforeUndo = namer.requests.length;
+		world.edges = [...linkEdges(backlog), ...newLink];
+		world.build("data-change");
+		await settled();
+		expect(namer.requests.length).toBe(askedBeforeUndo);
+	});
+
 	it("WHEN the user asks for the graph again THEN the next unnamed edges are asked about", async () => {
 		const { world, namer } = given(linkEdges(AI_MAX_REQUESTS_PER_BUILD + 5));
 		world.build("user-request");

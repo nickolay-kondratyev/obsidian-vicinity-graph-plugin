@@ -171,7 +171,8 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   `BuildTrigger` and offers each published build (`AutoNamingPort`) to
   `view/AiAutoNamingGate.ts`, which owns the NO-REPAINT-CHAIN rule: a
   `user-request` build always submits, a `data-change` build only when it shows a
-  candidate the last submission did not. The top-right `view/RelationshipsMenu.tsx`
+  candidate no build since the last user request showed (edges of unread names
+  count as shown). The top-right `view/RelationshipsMenu.tsx`
   (status line `view/aiNamingStatusLine.ts`, Retry) renders the Relationships
   section, which declares `graphSurface: "relationships-menu"` so `GraphToolbar`
   skips it. Failure copy: `view/aiNamingFailureCopy.ts`.
