@@ -173,6 +173,12 @@ describe("RelationshipsMenu (rendered): the declared rows", () => {
 		fireEvent.change(controlOf("ai-reasoning-effort"), { target: { value: "high" } });
 		expect(actions.interactions).toEqual([{ kind: "global-ai-reasoning-effort", reasoningEffort: "high" }]);
 	});
+
+	it.each(["xhigh", "max"] as const)("WHEN the live-verified effort %s is chosen THEN one effort write for it is emitted", (effort) => {
+		const { actions } = renderMenu();
+		fireEvent.change(controlOf("ai-reasoning-effort"), { target: { value: effort } });
+		expect(actions.interactions).toEqual([{ kind: "global-ai-reasoning-effort", reasoningEffort: effort }]);
+	});
 });
 
 describe("RelationshipsMenu (rendered): status and Retry", () => {

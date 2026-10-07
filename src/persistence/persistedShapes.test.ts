@@ -455,8 +455,16 @@ describe("PersistedShapes relationship settings parsing", () => {
 	it("WHEN data.json holds an effort the settings do not offer THEN it loads at the declared default", () => {
 		const parsed = PersistedShapes.parsePluginData({
 			version: PERSISTED_SHAPE_VERSION,
-			relationships: { reasoningEffort: "max" },
+			relationships: { reasoningEffort: "none" },
 		});
 		expect(parsed.relationships.reasoningEffort).toBe(SETTINGS_SPEC.relationships.reasoningEffort.default);
+	});
+
+	it.each(["xhigh", "max"] as const)("WHEN data.json holds the live-verified effort %s THEN it loads as stored", (effort) => {
+		const parsed = PersistedShapes.parsePluginData({
+			version: PERSISTED_SHAPE_VERSION,
+			relationships: { reasoningEffort: effort },
+		});
+		expect(parsed.relationships.reasoningEffort).toBe(effort);
 	});
 });
