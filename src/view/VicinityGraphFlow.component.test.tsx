@@ -86,6 +86,7 @@ const INERT_GRAPH_UI: GraphUiPort = {
 	showNodeMenu: () => unreachable("GraphUiPort.showNodeMenu"),
 	renderIcon: () => unreachable("GraphUiPort.renderIcon"),
 	renderMarkdown: () => unreachable("GraphUiPort.renderMarkdown"),
+	mountSecretPicker: () => unreachable("GraphUiPort.mountSecretPicker"),
 };
 
 interface FailedPaneHarness {

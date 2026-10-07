@@ -53,6 +53,7 @@ function inputs(partial: Partial<GraphRequestInputs>): GraphRequestInputs {
 		globalView: EngineDefaults.viewSettings(),
 		nodeExclusion: EngineDefaults.nodeExclusionSettings(),
 		frontmatterLinks: EngineDefaults.frontmatterLinkSettings(),
+		relationships: EngineDefaults.relationshipSettings(),
 		...partial,
 	};
 }

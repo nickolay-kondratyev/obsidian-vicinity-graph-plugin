@@ -106,6 +106,7 @@ const EMPTY_CONTROLS: ControlsModel = {
 	globalView: EngineDefaults.viewSettings(),
 	nodeExclusion: EngineDefaults.nodeExclusionSettings(),
 	frontmatterLinks: EngineDefaults.frontmatterLinkSettings(),
+	relationships: EngineDefaults.relationshipSettings(),
 	excludedNodeCount: 0,
 };
 

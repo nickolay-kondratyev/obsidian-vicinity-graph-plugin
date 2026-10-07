@@ -43,6 +43,7 @@ const TUNED_CTX: SettingsWriteContext = {
 	globalView: TUNED_VIEW,
 	nodeExclusion: { enabled: true, patterns: ["^archive/", "templates/"] },
 	frontmatterLinks: { idRefFields: "deps, links" },
+	relationships: { autoNaming: true, model: "gpt-other", reasoningEffort: "high", apiKeySecretName: "openai" },
 };
 
 /** The single `global-view` command a view-scoped reset must produce (fails loudly if 0 or 2). */
@@ -193,6 +194,7 @@ describe("planSettingsReset all scope", () => {
 			"global-depths",
 			"global-view",
 			"node-exclusion",
+			"relationships",
 		]);
 	});
 
@@ -202,6 +204,7 @@ describe("planSettingsReset all scope", () => {
 			globalView: EngineDefaults.viewSettings(),
 			nodeExclusion: EngineDefaults.nodeExclusionSettings(),
 			frontmatterLinks: EngineDefaults.frontmatterLinkSettings(),
+			relationships: EngineDefaults.relationshipSettings(),
 		};
 		expect(planSettingsReset("all", defaults)).toEqual(planSettingsReset("all", TUNED_CTX));
 	});
@@ -259,6 +262,7 @@ describe("planSettingsResetConfirmation other scopes", () => {
 			globalView: EngineDefaults.viewSettings(),
 			nodeExclusion: EngineDefaults.nodeExclusionSettings(),
 			frontmatterLinks: EngineDefaults.frontmatterLinkSettings(),
+			relationships: EngineDefaults.relationshipSettings(),
 		};
 		expect(planSettingsResetConfirmation("all", defaults)).not.toBeNull();
 	});

@@ -30,6 +30,7 @@ describe("settings-tab baseline", () => {
 			"Restore force layout defaults",
 			"Restore node exclusion defaults",
 			"Restore frontmatter links defaults",
+			"Restore relationships defaults",
 			"Restore performance defaults",
 		]);
 	});

@@ -5,10 +5,10 @@ import { GraphToolbar } from "./GraphToolbar";
 import type { SettingsRow, SettingsRowBlock, SettingsRowState } from "./settingsRows";
 import {
 	EVERY_SETTINGS_BLOCK,
-	EVERY_SETTINGS_ROW,
 	SETTINGS_SUBHEADING_CLASS,
 	SettingsRowNames,
 	settingsRowsFor,
+	settingsRowsPresentedBy,
 } from "./settingsRows";
 import {
 	RecordingControlsActions,
@@ -68,7 +68,9 @@ afterEach(cleanup);
 describe("GraphToolbar (rendered): every declared row produces its declared controls", () => {
 	it("WHEN the panel renders THEN every row's controls appear under their declared accessible names, in declared order", () => {
 		const container = renderToolbar(stateRenderingEveryControl());
-		const declared = EVERY_SETTINGS_ROW.flatMap(expectedControlNames);
+		// The rows the controls panel PRESENTS: a section declaring another in-graph surface
+		// (the Relationships menu) has its own rendered suite, `RelationshipsMenu.component.test.tsx`.
+		const declared = settingsRowsPresentedBy("controls-panel").flatMap(expectedControlNames);
 		expect(renderedDeclaredNames(container, declared)).toEqual(declared);
 	});
 

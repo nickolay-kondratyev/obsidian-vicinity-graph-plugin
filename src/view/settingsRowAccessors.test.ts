@@ -36,6 +36,7 @@ function defaults(): SettingsRowState {
 		globalView: EngineDefaults.viewSettings(),
 		nodeExclusion: EngineDefaults.nodeExclusionSettings(),
 		frontmatterLinks: EngineDefaults.frontmatterLinkSettings(),
+		relationships: EngineDefaults.relationshipSettings(),
 	};
 }
 
@@ -51,6 +52,8 @@ function applied(state: SettingsRowState, interaction: SettingsInteraction): Set
 			return { ...state, nodeExclusion: command.nodeExclusion };
 		case "frontmatter-links":
 			return { ...state, frontmatterLinks: command.frontmatterLinks };
+		case "relationships":
+			return { ...state, relationships: command.relationships };
 	}
 }
 
@@ -201,6 +204,14 @@ function probesFor(control: SettingsRowControl): readonly AccessorProbe[] {
 			return [typedNumberProbe("node cap", SettingsRowAccessors.nodeCap())];
 		case "id-ref-fields":
 			return [valueProbe("id ref fields", SettingsRowAccessors.idRefFields(), (raw) => (raw === "deps" ? "links" : "deps"))];
+		case "ai-auto-naming":
+			return [valueProbe("ai auto naming", SettingsRowAccessors.aiAutoNaming(), (on) => !on)];
+		case "ai-api-key":
+			return [valueProbe("ai api key secret", SettingsRowAccessors.aiApiKeySecret(), (name) => `${name}-other`)];
+		case "ai-model":
+			return [valueProbe("ai model", SettingsRowAccessors.aiModel(), (model) => `${model}-other`)];
+		case "ai-reasoning-effort":
+			return [valueProbe("ai reasoning effort", SettingsRowAccessors.aiReasoningEffort(), (effort) => (effort === "low" ? "high" : "low"))];
 		default:
 			return unhandledRowControl(control);
 	}
@@ -314,5 +325,16 @@ describe("settings row accessors cover every declared row", () => {
 
 	it("WHEN the rows are walked THEN every row carried exactly one accessor (no multi-control rows remain)", () => {
 		expect(EVERY_PROBE.length).toBe(EVERY_SETTINGS_ROW.length);
+	});
+});
+
+describe("settings row accessors: the AI model and effort", () => {
+	it("WHEN a padded model slug is written THEN the interaction carries what the model settles at", () => {
+		const accessor = SettingsRowAccessors.aiModel();
+		expect(accessor.interaction(" gpt-other ")).toEqual({ kind: "global-ai-model", model: accessor.settlesAt(" gpt-other ") });
+	});
+
+	it("WHEN the effort control reports a value the settings do not offer THEN it is not accepted", () => {
+		expect(SettingsRowAccessors.aiReasoningEffort().accept("max")).toBeUndefined();
 	});
 });

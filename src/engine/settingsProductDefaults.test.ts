@@ -109,6 +109,13 @@ const SHIPPED_SETTINGS_DEFAULTS: Readonly<Record<string, unknown>> = {
 
 	// Frontmatter-id links ship OFF: an empty field list reads no frontmatter as id-refs.
 	"frontmatterLinks.idRefFields": "",
+
+	// AI relationship naming ships OFF (it sends note text to OpenAI); when turned on it
+	// asks gpt-6-luna at medium effort, with the key from OPENAI_API_KEY until a secret is picked.
+	"relationships.autoNaming": false,
+	"relationships.model": "gpt-6-luna",
+	"relationships.reasoningEffort": "medium",
+	"relationships.apiKeySecretName": "",
 };
 
 describe("shipped settings defaults (the hand-pinned literal baseline)", () => {

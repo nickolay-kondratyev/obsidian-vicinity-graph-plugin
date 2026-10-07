@@ -106,6 +106,7 @@ export function settingsRowStateFixture(overrides: Partial<SettingsRowState> = {
 		globalView: EngineDefaults.viewSettings(),
 		nodeExclusion: EngineDefaults.nodeExclusionSettings(),
 		frontmatterLinks: EngineDefaults.frontmatterLinkSettings(),
+		relationships: EngineDefaults.relationshipSettings(),
 		...overrides,
 	};
 }

@@ -210,6 +210,7 @@ export class SettingsWritePipeline implements SerialSettingsWrites {
 			globalView: this.store.globalView(),
 			nodeExclusion: this.store.nodeExclusion(),
 			frontmatterLinks: this.store.frontmatterLinks(),
+			relationships: this.store.relationships(),
 		};
 	}
 
@@ -286,6 +287,9 @@ export class SettingsWritePipeline implements SerialSettingsWrites {
 				return;
 			case "frontmatter-links":
 				await this.store.saveFrontmatterLinks(command.frontmatterLinks);
+				return;
+			case "relationships":
+				await this.store.saveRelationships(command.relationships);
 				return;
 		}
 	}

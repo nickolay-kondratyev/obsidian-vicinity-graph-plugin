@@ -368,4 +368,20 @@ export interface GraphUiPort {
 	 * {@link NoteNavigatorPort.openMarkdownLink}.
 	 */
 	renderMarkdown(el: HTMLElement, markdown: string, sourcePath: string): Promise<void>;
+	/**
+	 * Mounts Obsidian's own secret picker (`SecretComponent`: pick or create a secret
+	 * in Obsidian's keychain) into `el`, showing `request.secretName`. Returns the
+	 * unmount. Only the chosen secret's NAME ever reaches the caller.
+	 */
+	mountSecretPicker(el: HTMLElement, request: SecretPickerRequest): () => void;
+}
+
+/** What {@link GraphUiPort.mountSecretPicker} shows and whom it tells. */
+export interface SecretPickerRequest {
+	/** The secret currently chosen (`""` = none). */
+	readonly secretName: string;
+	/** The picker's accessible name — the row's declared name. */
+	readonly accessibleName: string;
+	/** Called with the NAME of the secret the user picked or created. */
+	readonly onChange: (secretName: string) => void;
 }
