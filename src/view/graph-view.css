@@ -805,55 +805,8 @@
 /* ===== edges ============================================================ */
 
 /*
- * The edge's midpoint label: its relationship name and/or its "×N" badge, side
- * by side, rendered inside React Flow's EdgeLabelRenderer overlay (absolute
- * canvas space). Click-through, so the edge underneath stays clickable.
- */
-.vicinity-graph-edge__label {
-	position: absolute;
-	pointer-events: none;
-	display: flex;
-	align-items: center;
-	gap: var(--size-4-1);
-}
-
-/*
- * Relationship name (ticket nid_gk9h4jpa7di1al7och0rehd3h_e): the same pill as
- * the badge below, in the normal text colour so the name reads as the edge's
- * meaning; the computed `parent` default (data-origin folder-hierarchy) stays
- * quiet, it only restates what the dashed line already shows.
- */
-.vicinity-graph-edge__relationship {
-	padding: 0 var(--size-4-1);
-	font-size: var(--font-smallest);
-	line-height: 1.5;
-	white-space: nowrap;
-	color: var(--text-normal);
-	background: var(--background-primary);
-	border-radius: var(--radius-l);
-	box-shadow: var(--shadow-s);
-}
-
-.vicinity-graph-edge__relationship[data-origin="folder-hierarchy"] {
-	color: var(--text-faint);
-}
-
-/*
- * An AI-suggested name (task 4/4 nid_80xc6z8umlpo1x6u4p1v7eb22_e) must never pass for
- * one a person wrote: italic plus a leading sparkle. The mark is CSS-only, so the
- * label's text stays the bare name.
- */
-.vicinity-graph-edge__relationship[data-origin="ai"] {
-	font-style: italic;
-}
-.vicinity-graph-edge__relationship[data-origin="ai"]::before {
-	content: "\2726\00a0"; /* ✦ + no-break space */
-	font-style: normal;
-	color: var(--text-accent);
-}
-
-/*
- * Collapsed multi-link "×N" badge, inside the edge label above.
+ * Collapsed multi-link "×N" badge, rendered inside React Flow's
+ * EdgeLabelRenderer overlay (absolute canvas space) at the edge midpoint.
  * Smoke-run restyle (2026-07-20): the original bordered chip read as cluttered
  * floating over the canvas. Softened to a borderless pill — a solid
  * --background-primary fill still occludes the edge line behind the digits for
@@ -862,6 +815,8 @@
  * quiet next to the node titles (all theme vars — zero own colors).
  */
 .vicinity-graph-edge__count-badge {
+	position: absolute;
+	pointer-events: none;
 	padding: 0 var(--size-4-1);
 	font-size: var(--font-smallest);
 	line-height: 1.5;
@@ -869,15 +824,6 @@
 	background: var(--background-primary);
 	border-radius: var(--radius-l);
 	box-shadow: var(--shadow-s);
-}
-
-/* ===== top-right column: Relationships menu, then the hidden badge ====== */
-
-.vicinity-graph-top-right {
-	display: flex;
-	flex-direction: column;
-	align-items: flex-end;
-	gap: var(--size-4-2);
 }
 
 /* ===== corner overlay badge ============================================= */
@@ -915,7 +861,6 @@
 /* Shared disclosure header look (toolbar + nested sections): a chevron that
  * rotates open, no native marker, whole row clickable. */
 .vicinity-graph-toolbar__header,
-.vicinity-graph-relationships-menu__header,
 .vicinity-graph-disclosure__summary {
 	display: flex;
 	align-items: center;
@@ -927,17 +872,14 @@
 	user-select: none;
 }
 .vicinity-graph-toolbar__header::-webkit-details-marker,
-.vicinity-graph-relationships-menu__header::-webkit-details-marker,
 .vicinity-graph-disclosure__summary::-webkit-details-marker {
 	display: none;
 }
 .vicinity-graph-toolbar__header:hover,
-.vicinity-graph-relationships-menu__header:hover,
 .vicinity-graph-disclosure__summary:hover {
 	background: var(--background-modifier-hover);
 }
 .vicinity-graph-toolbar__header::before,
-.vicinity-graph-relationships-menu__header::before,
 .vicinity-graph-disclosure__summary::before {
 	content: "";
 	flex-shrink: 0;
@@ -949,12 +891,10 @@
 	transition: transform 0.15s ease;
 }
 .vicinity-graph-toolbar[open] > .vicinity-graph-toolbar__header::before,
-.vicinity-graph-relationships-menu[open] > .vicinity-graph-relationships-menu__header::before,
 .vicinity-graph-disclosure[open] > .vicinity-graph-disclosure__summary::before {
 	transform: rotate(90deg);
 }
 .vicinity-graph-toolbar__header:focus-visible,
-.vicinity-graph-relationships-menu__header:focus-visible,
 .vicinity-graph-disclosure__summary:focus-visible {
 	outline: none;
 	box-shadow: inset 0 0 0 2px var(--interactive-accent);
@@ -993,67 +933,6 @@
  */
 .vicinity-graph-toolbar__body > * {
 	flex-shrink: 0;
-}
-
-/* ===== Relationships menu (top-right Panel) ============================ */
-
-/*
- * Same chrome as the controls toolbar (its header rules above are shared), on the
- * other corner. Right-aligned in the column, so opening it grows it leftwards.
- */
-.vicinity-graph-relationships-menu {
-	width: 260px;
-	font-size: var(--font-ui-small);
-	color: var(--text-normal);
-	background: var(--background-secondary);
-	border: 1px solid var(--background-modifier-border);
-	border-radius: var(--radius-m);
-	box-shadow: var(--shadow-s);
-	overflow: hidden;
-}
-/* Closed, it is only as wide as its heading. */
-.vicinity-graph-relationships-menu:not([open]) {
-	width: auto;
-}
-
-.vicinity-graph-relationships-menu__body {
-	display: flex;
-	flex-direction: column;
-	gap: var(--size-4-2);
-	max-height: 60vh;
-	padding: var(--size-4-2) var(--size-4-3) var(--size-4-3);
-	overflow-y: auto;
-	border-top: 1px solid var(--background-modifier-border);
-}
-/* Same reason as the toolbar body's rule: overflow must scroll, never crop a row. */
-.vicinity-graph-relationships-menu__body > * {
-	flex-shrink: 0;
-}
-
-.vicinity-graph-relationships-menu__status {
-	margin: 0;
-	color: var(--text-muted);
-	font-size: var(--font-ui-smaller);
-}
-.vicinity-graph-relationships-menu__status[data-kind="stopped"],
-.vicinity-graph-relationships-menu__status[data-kind="problem"] {
-	color: var(--text-error);
-}
-
-.vicinity-graph-relationships-menu__retry {
-	align-self: flex-start;
-}
-
-/* A model slug is longer than the numbers the shared row's 4.5em field is sized for. */
-.vicinity-graph-relationships-menu .vicinity-graph-number-row input[type="text"] {
-	width: 9em;
-}
-
-.vicinity-graph-secret-row {
-	display: flex;
-	flex-direction: column;
-	gap: var(--size-2-1);
-	color: var(--text-muted);
 }
 
 /* ===== block subheadings (a named group of rows inside one section) ===== */

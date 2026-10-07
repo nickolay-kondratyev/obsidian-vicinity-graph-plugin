@@ -83,10 +83,8 @@ function renderContent(model: Parameters<typeof LinkPreviewContent>[0]["model"])
 	return recorders;
 }
 
-/** A pair with `hierarchy` defaulted off — most tests exercise plain link pairs. */
-type PairInput = Omit<EdgePairOccurrences, "hierarchy"> & {
-	readonly hierarchy?: boolean;
-};
+/** A pair with `hierarchy` defaulted off — most tests exercise link-only pairs. */
+type PairInput = Omit<EdgePairOccurrences, "hierarchy"> & { readonly hierarchy?: boolean };
 
 /** Edge model with neutral endpoint names — pair grouping is what these tests exercise. */
 function edgeModel(pairs: readonly PairInput[]): ReturnType<typeof LinkPreviewModels.edge> {

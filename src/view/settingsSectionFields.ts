@@ -1,10 +1,4 @@
-import type {
-	DepthSettings,
-	FrontmatterLinkSettings,
-	NodeExclusionSettings,
-	RelationshipSettings,
-	ViewSettings,
-} from "../engine";
+import type { DepthSettings, FrontmatterLinkSettings, NodeExclusionSettings, ViewSettings } from "../engine";
 
 /**
  * WHICH SETTINGS FIELDS BELONG TO WHICH SETTINGS SECTION — the one structural
@@ -30,9 +24,7 @@ import type {
  * onto `edges` with it. `frontmatter-links` sits between `node-exclusion` and
  * `performance` (owner decision, ticket `nid_gpgudw7pfdy02wcqbs73si21x_e`): it is off by
  * default, so it reads as one of the trailing opt-in dials rather than part of the
- * everyday reach/appearance run. `relationships` (task 4/4
- * `nid_80xc6z8umlpo1x6u4p1v7eb22_e`) joins that opt-in run right after it: it ships
- * OFF, and in the graph it lives in its own top-right menu, not the controls panel.
+ * everyday reach/appearance run.
  */
 export const SETTINGS_SECTIONS = [
 	"depth-defaults",
@@ -43,7 +35,6 @@ export const SETTINGS_SECTIONS = [
 	"force-layout",
 	"node-exclusion",
 	"frontmatter-links",
-	"relationships",
 	"performance",
 ] as const;
 
@@ -55,7 +46,6 @@ export interface SectionSettingsFields {
 	readonly depth: readonly (keyof DepthSettings)[];
 	readonly exclusion: readonly (keyof NodeExclusionSettings)[];
 	readonly frontmatterLinks: readonly (keyof FrontmatterLinkSettings)[];
-	readonly relationships: readonly (keyof RelationshipSettings)[];
 }
 
 /**
@@ -83,71 +73,30 @@ export const SECTION_SETTINGS_FIELDS = {
 		],
 		exclusion: NO_FIELDS,
 		frontmatterLinks: NO_FIELDS,
-		relationships: NO_FIELDS,
 	},
 	edges: {
 		view: ["showCrossLinks", "edgeDepthIntoGroups"],
 		depth: NO_FIELDS,
 		exclusion: NO_FIELDS,
 		frontmatterLinks: NO_FIELDS,
-		relationships: NO_FIELDS,
 	},
-	"node-sizing": {
-		view: ["sizing"],
-		depth: NO_FIELDS,
-		exclusion: NO_FIELDS,
-		frontmatterLinks: NO_FIELDS,
-		relationships: NO_FIELDS,
-	},
+	"node-sizing": { view: ["sizing"], depth: NO_FIELDS, exclusion: NO_FIELDS, frontmatterLinks: NO_FIELDS },
 	"node-contents": {
 		view: ["outlineMaxDepth", "nodePreviewPreference"],
 		depth: NO_FIELDS,
 		exclusion: NO_FIELDS,
 		frontmatterLinks: NO_FIELDS,
-		relationships: NO_FIELDS,
 	},
 	grouping: {
 		view: ["folderGroupingDepth", "groupLabelFullPath"],
 		depth: NO_FIELDS,
 		exclusion: NO_FIELDS,
 		frontmatterLinks: NO_FIELDS,
-		relationships: NO_FIELDS,
 	},
-	"force-layout": {
-		view: ["forceLayout"],
-		depth: NO_FIELDS,
-		exclusion: NO_FIELDS,
-		frontmatterLinks: NO_FIELDS,
-		relationships: NO_FIELDS,
-	},
-	"node-exclusion": {
-		view: NO_FIELDS,
-		depth: NO_FIELDS,
-		exclusion: ["enabled", "patterns"],
-		frontmatterLinks: NO_FIELDS,
-		relationships: NO_FIELDS,
-	},
-	"frontmatter-links": {
-		view: NO_FIELDS,
-		depth: NO_FIELDS,
-		exclusion: NO_FIELDS,
-		frontmatterLinks: ["idRefFields"],
-		relationships: NO_FIELDS,
-	},
-	relationships: {
-		view: NO_FIELDS,
-		depth: NO_FIELDS,
-		exclusion: NO_FIELDS,
-		frontmatterLinks: NO_FIELDS,
-		relationships: ["autoNaming", "model", "reasoningEffort", "apiKeySecretName"],
-	},
-	performance: {
-		view: ["nodeCap"],
-		depth: NO_FIELDS,
-		exclusion: NO_FIELDS,
-		frontmatterLinks: NO_FIELDS,
-		relationships: NO_FIELDS,
-	},
+	"force-layout": { view: ["forceLayout"], depth: NO_FIELDS, exclusion: NO_FIELDS, frontmatterLinks: NO_FIELDS },
+	"node-exclusion": { view: NO_FIELDS, depth: NO_FIELDS, exclusion: ["enabled", "patterns"], frontmatterLinks: NO_FIELDS },
+	"frontmatter-links": { view: NO_FIELDS, depth: NO_FIELDS, exclusion: NO_FIELDS, frontmatterLinks: ["idRefFields"] },
+	performance: { view: ["nodeCap"], depth: NO_FIELDS, exclusion: NO_FIELDS, frontmatterLinks: NO_FIELDS },
 } as const satisfies Readonly<Record<SettingsSection, SectionSettingsFields>>;
 
 /**
@@ -185,9 +134,3 @@ export const _assertEveryFrontmatterLinkFieldSectioned: Exclude<
 > extends never
 	? true
 	: Exclude<keyof FrontmatterLinkSettings, SectionedField<"frontmatterLinks">> = true;
-export const _assertEveryRelationshipFieldSectioned: Exclude<
-	keyof RelationshipSettings,
-	SectionedField<"relationships">
-> extends never
-	? true
-	: Exclude<keyof RelationshipSettings, SectionedField<"relationships">> = true;

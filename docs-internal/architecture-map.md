@@ -41,28 +41,16 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   directory (the per-file analogue of `PluginDataStore`), with a `target → mains`
   reverse index for cheap target-side delete pruning; a `localControls` section is
   reserved for a future per-main dials layer (ticket
-  `nid_rnghlzs0uejjlbd5a4bjkq7eg_e`). The THIRD docid-keyed facts store,
-  `RelationshipStore` (`RelationshipStore.ts`, ticket
-  `nid_a5m4kforr9scit68rhqmqh78o_e`), holds the stored relationship names (manual +
-  AI): one `from_id/<from_docid>/<to_docid>.json` file per DIRECTED pair
-  (`relationshipRecord.ts` is the payload + its pure name/clear transitions — a
-  manual clear deletes, an AI clear leaves the `name: null` dismissed marker),
-  warmed the same lazy way (a walk of `from_id/` and each from-dir via
-  `VaultFileStore.listSubdirs` + `listKeys`), read only in the exact direction, with
-  a `to → froms` reverse index used only for delete pruning.
-  `PathKeyedStoredRelationships` implements the engine's
-  `StoredRelationshipProvider` port over it, translating a build's path pairs
-  through `PathDocIdMap` (read-only). `DocIdMapWarmer` is THE path↔docid scanner
+  `nid_rnghlzs0uejjlbd5a4bjkq7eg_e`). `DocIdMapWarmer` is THE path↔docid scanner
   (one instance, wired in `main.ts`): the read path warms exactly the docids a
-  build needs — the pinned set's (from `PluginDataStore`) UNIONED with each vault
-  store's `keyedDocids()` (`PerDocStore`, `RelationshipStore`) — so pins,
-  overrides, local pins and stored names render on the FIRST build after a
-  restart. The delayed, chunked `OrphanSweeper` reuses the same walk to prune
-  entries in EVERY docid-keyed map whose doc no longer resolves, through THREE
-  `forgetDocs` calls side by side — `PluginDataStore` (pins), `PerDocStore`
-  (overrides + localPins, both MAIN-key and target positions) and
-  `RelationshipStore` (from-dir + to-position files) — the ONE conceptual choke
-  point spanning both tiers, which the live `vault.on('delete')` handler also uses. Every persisted shape carries a
+  build needs — the pinned set's (from `PluginDataStore`) UNIONED with the per-file
+  store's (`PerDocStore.keyedDocids()`) — so pins, overrides and local pins render
+  on the FIRST build after a restart. The delayed, chunked `OrphanSweeper` reuses
+  the same walk to prune entries in EVERY docid-keyed map whose doc no longer
+  resolves, through TWO `forgetDocs` calls side by side — `PluginDataStore` (pins)
+  and `PerDocStore` (overrides + localPins, both MAIN-key and target positions) —
+  the ONE conceptual choke point spanning both tiers, which the live
+  `vault.on('delete')` handler also uses. Every persisted shape carries a
   `version` field.
   `VaultFileStore` (`VaultFileStore.ts`) is that SECOND, domain-agnostic store — a
   `<relPath> ↔ parsed payload` tree of versioned JSON files under the VAULT ROOT
@@ -78,9 +66,9 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   truncation, unknown version key) is QUARANTINED — renamed to
   `<base>_malformed_<ts><ext>` (injected `clock` → `quarantineTimestamp.ts`,
   collision-safe `_2`…), the user is told ONCE via `UserNoticePort`, and the
-  entry reads as ABSENT. Never deletes the user's bytes. `PerDocStore` and
-  `RelationshipStore` are its domain consumers (the facts above); the primitive
-  stays domain-agnostic so a future consumer is a new caller, not an edit here.
+  entry reads as ABSENT. Never deletes the user's bytes. `PerDocStore` is its ONE
+  domain consumer today (the per-doc facts above); the primitive stays
+  domain-agnostic so a future consumer is a new caller, not an edit here.
 - **`src/view/`** — React 18 mounted in an Obsidian `ItemView`. Rendering,
   toolbar controls, layout. `GraphViewController.ts` owns the rebuild pipeline
   `events → engine → structural diff → layout → React Flow` and is the **only**
@@ -125,62 +113,11 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   query by `adapters/LiveLinkOccurrenceProvider.ts` over a fresh
   `ObsidianLinkProvider` snapshot; `FakeLinkOccurrenceProvider` is its test
   double.
-  **Edge relationship names** (epic `nid_fc47gtxej6z7fqc53bflme8p5_e`) are an
-  ASYNC OVERLAY after each publish, never engine-build data and never a relayout
-  trigger: `GraphViewController` asks the engine-defined
-  `engine/SyntaxRelationshipProvider.ts` port (implemented by
-  `adapters/ObsidianSyntaxRelationshipProvider.ts` — link-cache POSITIONS +
-  `cachedRead`, matched by the pure `shared/InlineFieldKeys.ts`; fake
-  `FakeSyntaxRelationshipProvider`) for the names notes declare
-  (`rel:: [[target]]`) — a source whose cached link offsets no longer match its
-  text (the cache lags an id write) comes back in `unreadSources`, unknown rather
-  than unnamed — applies the pure precedence in
-  `engine/EdgeRelationships.ts` (`resolveEdgeRelationship`: syntax > manual > AI
-  > the `parent` folder-hierarchy default; DIRECTED, keyed by
-  `directedLinkKey`), together with the STORED names from the engine-defined
-  `engine/StoredRelationshipProvider.ts` port (implemented by
-  `persistence/PathKeyedStoredRelationships.ts`; fake
-  `FakeStoredRelationshipProvider`), and publishes the map through
-  `EdgeRelationshipsPort` → `EdgeRelationshipOverlayStore`, which `VicinityEdge`
-  reads via `EdgeRelationshipContext` (group-collapsed edges carry no label —
-  `flowMapping.edgeRelationshipKeyOf`). The drawer model lists EVERY directed pair
-  (`relationshipPairs`), and `RelationshipList.tsx` reads each pair's name LIVE from
-  that same overlay (so a save repaints the open drawer) and offers Name / Rename /
-  Clear per `linkPreviewModel.relationshipRowOf`; the name field commits on
-  Enter/blur (`relationshipNameCommit.ts`, over the engine's
-  `parseRelationshipName`) through `ControlsActionsPort.nameRelationship` /
-  `clearRelationship` → `runGuarded` → `PersistenceServices`. A new name SOURCE is a
-  new `RelationshipSources` field + its slot in `resolveEdgeRelationship`.
-  **AI relationship naming** (task 3/4 `nid_cbnhpdfn4myqfzqr8weyg7kq5_e`; wired
-  end to end by 4/4): pure `engine/AiEligibility.ts` (text-free checks →
-  `aiCandidateEdges`, then `hasEnoughAiContent` on note text) and
-  `engine/RelationshipPrompt.ts` (prompt, anchor names, answer validator over
-  `parseRelationshipName`); the engine-defined `RelationshipNamer` port
-  (`adapters/OpenAiRelationshipNamer.ts` over `openAiResponses.ts`, the pure wire
-  format; fake `FakeRelationshipNamer`) and `NoteTextProvider` port
-  (`adapters/ObsidianNoteTextProvider.ts`; canvas = its text cards). The key comes
-  from `adapters/ApiKeySource.ts` per call; ALL outbound HTTP goes through ONE seam,
-  `adapters/JsonHttpPort.ts` (real `ObsidianJsonHttp` = `requestUrl`, so no `fetch(`
-  token ships). `view/AiRelationshipQueue.ts` orchestrates (dedupe, per-build cap,
-  latest build wins, fatal stop, session status) and writes through
-  `AiRelationshipWriterPort` = `view/AiRelationshipWriter.ts` → `runGuarded` →
-  `RelationshipStore.saveAiName`, which never overwrites an existing record. The
-  queue, writer and `view/AiNamingFailureNotices.ts` (one notice per failure kind)
-  are plugin-lived (`main.ts`); `plugin.aiHttp` is the seam the e2e swaps for a
-  recording fake. Per view, `GraphViewController` tags every rebuild with a
-  `BuildTrigger` and offers each published build (`AutoNamingPort`) to
-  `view/AiAutoNamingGate.ts`, which owns the NO-REPAINT-CHAIN rule: a
-  `user-request` build always submits, a `data-change` build only when it shows a
-  candidate no build since the last user request showed (edges of unread names
-  count as shown). The top-right `view/RelationshipsMenu.tsx`
-  (status line `view/aiNamingStatusLine.ts`, Retry) renders the Relationships
-  section, which declares `graphSurface: "relationships-menu"` so `GraphToolbar`
-  skips it. Failure copy: `view/aiNamingFailureCopy.ts`.
   Refresh reach is ONE port: `ViewsRefreshPort` (implemented in `main.ts` over
   `refreshOpenViews()`) rebuilds every open view. `UserNoticePort` is the same
   shape for the one user-visible message surface (`Notice`, also implemented in
   `main.ts`) — its producers are the pipeline's `write()` failure policy and
-  `ControlsActions`' pin / relationship-name refusals, and `main.ts` is the ONLY file constructing
+  `ControlsActions`' pin refusal, and `main.ts` is the ONLY file constructing
   `Notice`; `FakeViewsRefresh` / `FakeUserNotices` are their test doubles. Every settings write is global,
   so there is no narrower reach to choose — the write-scope classifier and the
   owning-view port went with the per-doc layer.

@@ -2,7 +2,6 @@ import { BaseEdge, EdgeLabelRenderer, useInternalNode } from "@xyflow/react";
 import type { Edge, EdgeProps, InternalNode, Node } from "@xyflow/react";
 import type { ReactElement } from "react";
 import { linkCountBadgeText } from "./badgeText";
-import { useEdgeRelationship } from "./EdgeRelationshipContext";
 import {
 	ARROWHEAD_HALF_WIDTH_PX,
 	ARROWHEAD_LENGTH_PX,
@@ -17,10 +16,7 @@ import type { RoutedPoint } from "./edgeRouting";
  * Directed graph edge (step-05): straight line with an arrowhead normally;
  * when the reverse edge is also rendered (A↔B pair) both bow right of their
  * own travel direction and mirror apart (see `edgeGeometry`). Collapsed
- * multi-links show a "×N" badge at the path midpoint, next to the edge's
- * relationship NAME when it has one (ticket `nid_gk9h4jpa7di1al7och0rehd3h_e`;
- * read from `EdgeRelationshipContext`, so a name arriving later repaints the
- * label only).
+ * multi-links show a "×N" badge at the path midpoint.
  *
  * The arrowhead is a self-drawn triangle inset back from the target (not React
  * Flow's `marker-end`, which can only sit at the path end): heads on edges
@@ -41,11 +37,6 @@ export type VicinityEdgeData = {
 	 * the pass succeeded. NOT consumed by rendering yet (ticket edge-routing__02).
 	 */
 	readonly routedPoints?: readonly RoutedPoint[];
-	/**
-	 * The `directedLinkKey` this edge's relationship name is looked up by, or null
-	 * for a group-collapsed edge, which carries no name (`edgeRelationshipKeyOf`).
-	 */
-	readonly relationshipKey: string | null;
 };
 
 export type VicinityEdgeType = Edge<VicinityEdgeData, "vicinity">;
@@ -106,7 +97,6 @@ export function VicinityEdge({
 					data?.hasOpposite ?? false,
 				);
 	const badge = linkCountBadgeText(data?.count ?? 1);
-	const relationship = useEdgeRelationship(data?.relationshipKey ?? null);
 	// Triangle authored tip-at-origin pointing +x, then translated to the tip
 	// and rotated to the edge's arrival angle.
 	const arrowPoints = `0,0 ${-ARROWHEAD_LENGTH_PX},${-ARROWHEAD_HALF_WIDTH_PX} ${-ARROWHEAD_LENGTH_PX},${ARROWHEAD_HALF_WIDTH_PX}`;
@@ -125,26 +115,17 @@ export function VicinityEdge({
 					transform={`translate(${geometry.sourceArrowX} ${geometry.sourceArrowY}) rotate(${geometry.sourceArrowAngleDeg})`}
 				/>
 			)}
-			{(badge !== null || relationship !== null) && (
+			{badge !== null && (
 				<EdgeLabelRenderer>
-					<div
-						className="vicinity-graph-edge__label"
-						data-edge-id={id}
+					<span
+						className="vicinity-graph-edge__count-badge"
+						data-count={data?.count}
 						style={{
 							transform: `translate(-50%, -50%) translate(${geometry.labelX}px, ${geometry.labelY}px)`,
 						}}
 					>
-						{relationship !== null && (
-							<span className="vicinity-graph-edge__relationship" data-origin={relationship.origin}>
-								{relationship.name}
-							</span>
-						)}
-						{badge !== null && (
-							<span className="vicinity-graph-edge__count-badge" data-count={data?.count}>
-								{badge}
-							</span>
-						)}
-					</div>
+						{badge}
+					</span>
 				</EdgeLabelRenderer>
 			)}
 		</>

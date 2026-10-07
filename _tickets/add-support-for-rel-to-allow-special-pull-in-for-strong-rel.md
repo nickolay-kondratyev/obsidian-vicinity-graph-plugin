@@ -3,7 +3,7 @@ id: nid_h8noa3wy468bay7j3t374ux9s_e
 title: "Add support for rel to allow special pull in for strong rel"
 status: punted
 deps: []
-links: [nid_fc47gtxej6z7fqc53bflme8p5_e]
+links: []
 created_iso: 2026-08-07T21:16:43Z
 status_updated_iso: 2026-08-07T21:16:43Z
 type: task

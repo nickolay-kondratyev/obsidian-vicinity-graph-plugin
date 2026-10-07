@@ -69,7 +69,6 @@ describe("SettingsWriteFailureNotice over every declared row", () => {
 			globalView: EngineDefaults.viewSettings(),
 			nodeExclusion: EngineDefaults.nodeExclusionSettings(),
 			frontmatterLinks: EngineDefaults.frontmatterLinkSettings(),
-			relationships: EngineDefaults.relationshipSettings(),
 		};
 	}
 
@@ -107,14 +106,6 @@ describe("SettingsWriteFailureNotice over every declared row", () => {
 				return [interactionOf(SettingsRowAccessors.nodeCap())];
 			case "id-ref-fields":
 				return [interactionOf(SettingsRowAccessors.idRefFields())];
-			case "ai-auto-naming":
-				return [interactionOf(SettingsRowAccessors.aiAutoNaming())];
-			case "ai-api-key":
-				return [interactionOf(SettingsRowAccessors.aiApiKeySecret())];
-			case "ai-model":
-				return [interactionOf(SettingsRowAccessors.aiModel())];
-			case "ai-reasoning-effort":
-				return [interactionOf(SettingsRowAccessors.aiReasoningEffort())];
 			default:
 				return unhandledRowControl(control);
 		}

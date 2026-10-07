@@ -31,9 +31,9 @@ const BASE_SPEC: FakeObsidianSpec = {
 	fileCaches: {
 		"note.md": {
 			links: [
-				{ link: "Target", original: "[[Target]]", position: { start: { offset: TARGET_OFFSET_1 } } },
-				{ link: "Target", original: "[[Target]]", position: { start: { offset: TARGET_OFFSET_2 } } },
-				{ link: "Other", original: "[[Other]]", position: { start: { offset: OTHER_OFFSET } } },
+				{ link: "Target", position: { start: { offset: TARGET_OFFSET_1 } } },
+				{ link: "Target", position: { start: { offset: TARGET_OFFSET_2 } } },
+				{ link: "Other", position: { start: { offset: OTHER_OFFSET } } },
 			],
 		},
 	},
@@ -131,7 +131,7 @@ const EMBEDDING_SPEC: FakeObsidianSpec = {
 		{ path: "target.md" },
 	],
 	fileCaches: {
-		"note.md": { embeds: [{ link: "Target", original: "![[Target]]", position: { start: { offset: EMBED_OFFSET } } }] },
+		"note.md": { embeds: [{ link: "Target", position: { start: { offset: EMBED_OFFSET } } }] },
 	},
 	resolutions: { Target: "target.md" },
 	resolvedLinks: { "note.md": { "target.md": 1 } },

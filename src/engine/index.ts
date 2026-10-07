@@ -46,7 +46,6 @@ export type {
 	ForceLayoutSettings,
 	FrontmatterLinkSettings,
 	GraphEdge,
-	RelationshipSettings,
 	GraphNode,
 	NodeContentOverride,
 	NodeExclusionSettings,
@@ -70,7 +69,6 @@ export {
 	NODE_PREVIEW_PREFERENCES,
 } from "./types";
 export { parseIdRefFields } from "./frontmatterLinkFields";
-export { settledAiModel } from "./aiModelSetting";
 
 export type { FileMetadata, LinkProvider, OutgoingReference } from "./LinkProvider";
 export { OutgoingReferences } from "./LinkProvider";
@@ -86,69 +84,6 @@ export type { LinkContextSnippet } from "./LinkContextSnippets";
 export { EXPANDED_CONTEXT_LINES_EACH_SIDE, LinkContextSnippets } from "./LinkContextSnippets";
 export { FakeLinkOccurrenceProvider } from "./FakeLinkOccurrenceProvider";
 export type { FakeOccurrenceSpec } from "./FakeLinkOccurrenceProvider";
-export { directedLinkKey } from "./types";
-export {
-	PARENT_RELATIONSHIP_NAME,
-	relationshipLookupPairs,
-	resolveEdgeRelationship,
-	resolveEdgeRelationships,
-} from "./EdgeRelationships";
-export type {
-	EdgeRelationship,
-	RelationshipEdge,
-	RelationshipOrigin,
-	RelationshipSources,
-	StoredRelationship,
-	StoredRelationshipNames,
-	StoredRelationshipOrigin,
-	SyntaxRelationshipNames,
-	SyntaxRelationshipRead,
-} from "./EdgeRelationships";
-export type { SyntaxRelationshipProvider } from "./SyntaxRelationshipProvider";
-export type { StoredRelationshipProvider } from "./StoredRelationshipProvider";
-export { FakeStoredRelationshipProvider } from "./FakeStoredRelationshipProvider";
-export type { FakeStoredRelationship } from "./FakeStoredRelationshipProvider";
-export { MAX_RELATIONSHIP_NAME_LENGTH, parseRelationshipName } from "./RelationshipName";
-export type { RelationshipName, RelationshipNameParse, RelationshipNameRejection } from "./RelationshipName";
-export { FakeSyntaxRelationshipProvider } from "./FakeSyntaxRelationshipProvider";
-// AI relationship naming (task 3/4 nid_cbnhpdfn4myqfzqr8weyg7kq5_e).
-export {
-	AI_OFFERED_REASONING_EFFORTS,
-	AI_REASONING_EFFORTS,
-	isFatalAiNamingFailure,
-} from "./RelationshipNamer";
-export type {
-	AiNamedRelationship,
-	AiNamingConfig,
-	AiNamingDecline,
-	AiNamingFailure,
-	AiOfferedReasoningEffort,
-	AiReasoningEffort,
-	RelationshipNamer,
-	RelationshipNamingOutcome,
-	RelationshipNamingRequest,
-	RelationshipTokenUsage,
-} from "./RelationshipNamer";
-export { FakeRelationshipNamer } from "./FakeRelationshipNamer";
-export {
-	AI_ANCHOR_RELATIONSHIP_NAMES,
-	RELATIONSHIP_NAME_JSON_SCHEMA,
-	RELATIONSHIP_NAME_SCHEMA_NAME,
-	buildRelationshipPrompt,
-	parseModelRelationshipName,
-} from "./RelationshipPrompt";
-export type { ModelRelationshipNameParse, RelationshipPrompt, RelationshipPromptNote } from "./RelationshipPrompt";
-export {
-	MIN_AI_CONTENT_CHARS,
-	aiCandidateEdges,
-	aiContentChars,
-	aiEdgeEligibility,
-	hasEnoughAiContent,
-} from "./AiEligibility";
-export type { AiEdgeEligibility, AiEligibilityFacts } from "./AiEligibility";
-export type { NoteTextProvider } from "./NoteTextProvider";
-export { FakeNoteTextProvider } from "./FakeNoteTextProvider";
-export type { FakeSyntaxRelationship } from "./FakeSyntaxRelationshipProvider";
 export { NodeEligibility } from "./NodeEligibility";
 export { PathExclusionMatcher } from "./PathExclusionMatcher";
 export { FakeLinkProvider } from "./FakeLinkProvider";
@@ -226,7 +161,6 @@ export type {
 	ForceLayoutSpec,
 	FrontmatterLinkSpec,
 	NodeExclusionSpec,
-	RelationshipsSpec,
 	SettingsSpec,
 	SizingSpec,
 	ViewSpec,

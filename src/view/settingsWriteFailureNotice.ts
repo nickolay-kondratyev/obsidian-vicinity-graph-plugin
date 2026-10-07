@@ -6,15 +6,14 @@ import type { SettingsInteraction } from "./settingsWritePlan";
 
 /**
  * A serialised `data.json` write that is NOT a settings command, and so has no row to
- * be named after. Today the pinned set (`ControlsActions.pinNode`/`unpinNode`), the
- * per-node overrides (`resizeNode`/`resetNodeSize`, the content override) and the
- * relationship names (`nameRelationship`/`clearRelationship`), all of which run on the
- * pipeline's chain through `SettingsWritePipeline.runGuarded`.
+ * be named after. Today the pinned set (`ControlsActions.pinNode`/`unpinNode`) and the
+ * per-node size overrides (`ControlsActions.resizeNode`/`resetNodeSize`), both of
+ * which run on the pipeline's chain through `SettingsWritePipeline.runGuarded`.
  *
  * A closed union rather than a caller-supplied string: the subject is USER-VISIBLE
  * copy, and the whole point of this module is that no call site types any.
  */
-export type NonSettingsWriteSubject = "pinned-set" | "node-size-override" | "node-content-override" | "relationship-name";
+export type NonSettingsWriteSubject = "pinned-set" | "node-size-override" | "node-content-override";
 
 /**
  * The label each {@link NonSettingsWriteSubject} is announced by. Hand-written (there
@@ -25,7 +24,6 @@ const NON_SETTINGS_WRITE_LABELS: Readonly<Record<NonSettingsWriteSubject, string
 	"pinned-set": "Pinned notes",
 	"node-size-override": "Node size",
 	"node-content-override": "Node content",
-	"relationship-name": "Relationship name",
 };
 
 /**
@@ -144,14 +142,6 @@ export class SettingsWriteFailureNotice {
 				return { kind: "exclusion-patterns" };
 			case "global-id-ref-fields":
 				return { kind: "id-ref-fields" };
-			case "global-ai-auto-naming":
-				return { kind: "ai-auto-naming" };
-			case "global-ai-key-secret":
-				return { kind: "ai-api-key" };
-			case "global-ai-model":
-				return { kind: "ai-model" };
-			case "global-ai-reasoning-effort":
-				return { kind: "ai-reasoning-effort" };
 		}
 	}
 
@@ -188,10 +178,6 @@ export class SettingsWriteFailureNotice {
 			case "exclusion-patterns":
 			case "node-cap":
 			case "id-ref-fields":
-			case "ai-auto-naming":
-			case "ai-api-key":
-			case "ai-model":
-			case "ai-reasoning-effort":
 				return control.kind;
 			default:
 				return unhandledRowControl(control);

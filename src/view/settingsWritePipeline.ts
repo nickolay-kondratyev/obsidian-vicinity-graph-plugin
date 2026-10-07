@@ -146,9 +146,9 @@ export class SettingsWritePipeline implements SerialSettingsWrites {
 	}
 
 	/**
-	 * A serialised write that is NOT a settings command — today the pinned set, the
-	 * per-node overrides and the relationship names, all of which `ControlsActions`
-	 * writes through `PersistenceServices`. Same chain (two fast pin clicks must land in click order, and
+	 * A serialised `data.json` write that is NOT a settings command — today the pinned
+	 * set and the per-node size overrides, both of which `ControlsActions` writes through
+	 * `PersistenceServices`. Same chain (two fast pin clicks must land in click order, and
 	 * neither a pin nor a released resize may interleave with a settings write mid-save)
 	 * and, crucially, the SAME failure policy (rule 5): the task's rejection is caught
 	 * HERE, named through the same copy seam, and never re-thrown at the handler that
@@ -210,7 +210,6 @@ export class SettingsWritePipeline implements SerialSettingsWrites {
 			globalView: this.store.globalView(),
 			nodeExclusion: this.store.nodeExclusion(),
 			frontmatterLinks: this.store.frontmatterLinks(),
-			relationships: this.store.relationships(),
 		};
 	}
 
@@ -287,9 +286,6 @@ export class SettingsWritePipeline implements SerialSettingsWrites {
 				return;
 			case "frontmatter-links":
 				await this.store.saveFrontmatterLinks(command.frontmatterLinks);
-				return;
-			case "relationships":
-				await this.store.saveRelationships(command.relationships);
 				return;
 		}
 	}

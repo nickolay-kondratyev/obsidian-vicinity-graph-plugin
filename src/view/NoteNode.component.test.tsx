@@ -47,9 +47,6 @@ class RecordingGraphUi implements GraphUiPort {
 	renderMarkdown(): Promise<void> {
 		return Promise.resolve();
 	}
-	mountSecretPicker(): () => void {
-		return () => undefined;
-	}
 }
 
 class RecordingResizeActions extends RecordingControlsActions {

@@ -1,12 +1,10 @@
 import { describe, expect, it } from "vitest";
-import type { RelationshipName } from "../engine";
 import { DocIdMapWarmer } from "../persistence/DocIdMapWarmer";
 import { FakePluginDataPort } from "../persistence/FakePluginDataPort";
 import { FakeVaultFsPort } from "../persistence/FakeVaultFsPort";
 import { PathDocIdMap } from "../persistence/PathDocIdMap";
 import { PerDocStore } from "../persistence/PerDocStore";
 import { PluginDataStore } from "../persistence/PluginDataStore";
-import { RelationshipStore } from "../persistence/RelationshipStore";
 import { VaultFileStore } from "../persistence/VaultFileStore";
 import { CanvasParseCache } from "./CanvasParseCache";
 import { FakeDocIdPort } from "./FakeDocIdPort";
@@ -19,11 +17,6 @@ import { VicinityGraphBuilder } from "./VicinityGraphBuilder";
 /** The per-doc/per-main facts store (overrides + local pins) over in-memory disk. */
 function newPerDocStore(): PerDocStore {
 	return new PerDocStore(new VaultFileStore(".plugin_data/vicinity_graph", new FakeVaultFsPort(), () => 0));
-}
-
-/** The stored relationship names over in-memory disk. */
-function newRelationshipStore(): RelationshipStore {
-	return new RelationshipStore(new VaultFileStore(".plugin_data/vicinity_graph", new FakeVaultFsPort(), () => 0), () => 0);
 }
 
 /** A vault-write seam whose `folderExists` reports membership in a fixed set; `create` is unused here. */
@@ -42,7 +35,7 @@ async function builderFixture() {
 	const ports = new FakeObsidianPorts({
 		files: [{ path: "main.md" }, { path: "a.md" }, { path: "pinned.md" }],
 		fileCaches: {
-			"main.md": { links: [{ link: "a", original: "[[a]]", position: { start: { offset: 0 } } }] },
+			"main.md": { links: [{ link: "a", position: { start: { offset: 0 } } }] },
 		},
 		resolutions: { a: "a.md" },
 		resolvedLinks: { "main.md": { "a.md": 1 } },
@@ -57,7 +50,6 @@ async function builderFixture() {
 	await pluginDataStore.init();
 	await pluginDataStore.addPin("docid_pin_e", 5);
 	const perDocStore = newPerDocStore();
-	const relationshipStore = newRelationshipStore();
 	const pathDocIdMap = new PathDocIdMap();
 	pathDocIdMap.set("pinned.md", "docid_pin_e");
 	const builder = new VicinityGraphBuilder(
@@ -67,7 +59,6 @@ async function builderFixture() {
 		new CanvasParseCache(),
 		pluginDataStore,
 		perDocStore,
-		relationshipStore,
 		pathDocIdMap,
 		new DocIdMapWarmer(ports.vault, docIdPort, pathDocIdMap),
 		new FrontmatterIdIndex(ports.vault, ports.metadataCache, () => ""),
@@ -151,7 +142,6 @@ describe("VicinityGraphBuilder create-child-note predicate (mainIsFolderNote)", 
 			new CanvasParseCache(),
 			pluginDataStore,
 			newPerDocStore(),
-			newRelationshipStore(),
 			pathDocIdMap,
 			new DocIdMapWarmer(ports.vault, docIdPort, pathDocIdMap),
 			new FrontmatterIdIndex(ports.vault, ports.metadataCache, () => ""),
@@ -191,10 +181,9 @@ async function coldMapFixture(options: { readonly unreadablePath?: string } = {}
 	const ports = new FakeObsidianPorts({
 		// `vanished.md` sits BEFORE the pinned island in scan order, so a test that
 		// makes it unreadable proves the warm-up walks PAST a failed read.
-		// `related.md` sits LAST, so only a warm-up that asks for its docid reaches it.
-		files: [{ path: "main.md" }, { path: "a.md" }, { path: "vanished.md" }, { path: "pinned.md" }, { path: "related.md" }],
+		files: [{ path: "main.md" }, { path: "a.md" }, { path: "vanished.md" }, { path: "pinned.md" }],
 		fileCaches: {
-			"main.md": { links: [{ link: "a", original: "[[a]]", position: { start: { offset: 0 } } }] },
+			"main.md": { links: [{ link: "a", position: { start: { offset: 0 } } }] },
 		},
 		resolutions: { a: "a.md" },
 		resolvedLinks: { "main.md": { "a.md": 1 } },
@@ -205,7 +194,6 @@ async function coldMapFixture(options: { readonly unreadablePath?: string } = {}
 		"a.md": "docid_a_e",
 		"vanished.md": "docid_vanished_e",
 		"pinned.md": "docid_pin_e",
-		"related.md": "docid_related_e",
 	});
 	if (options.unreadablePath !== undefined) {
 		docIdPort.markUnreadable(options.unreadablePath);
@@ -218,10 +206,6 @@ async function coldMapFixture(options: { readonly unreadablePath?: string } = {}
 		field: "sizePx",
 		value: { widthPx: 320, heightPx: 180 },
 	});
-	// A stored relationship a.md → related.md: related.md is neither pinned nor
-	// overridden, so only the relationship store's docids can get it mapped.
-	const relationshipStore = newRelationshipStore();
-	await relationshipStore.saveManualName("docid_a_e", "docid_related_e", "supports" as RelationshipName);
 	const pathDocIdMap = new PathDocIdMap();
 	const builder = new VicinityGraphBuilder(
 		ports.vault,
@@ -230,23 +214,16 @@ async function coldMapFixture(options: { readonly unreadablePath?: string } = {}
 		new CanvasParseCache(),
 		pluginDataStore,
 		perDocStore,
-		relationshipStore,
 		pathDocIdMap,
 		new DocIdMapWarmer(ports.vault, docIdPort, pathDocIdMap),
 		new FrontmatterIdIndex(ports.vault, ports.metadataCache, () => ""),
 		new FolderNoteIndex(ports.vault),
 		fakeNoteCreation(),
 	);
-	return { builder, docIdPort, pathDocIdMap };
+	return { builder, docIdPort };
 }
 
 describe("VicinityGraphBuilder with a cold docid map (restart shape)", () => {
-	it("WHEN the map is cold THEN a stored relationship's notes are mapped on the FIRST build", async () => {
-		const { builder, pathDocIdMap } = await coldMapFixture();
-		await builder.build("main.md");
-		expect(pathDocIdMap.getPath("docid_related_e")).toBe("related.md");
-	});
-
 	it("WHEN the map is cold THEN a persisted pin is a central on the FIRST build", async () => {
 		const { builder } = await coldMapFixture();
 		const graph = (await builder.build("main.md"))?.graph;

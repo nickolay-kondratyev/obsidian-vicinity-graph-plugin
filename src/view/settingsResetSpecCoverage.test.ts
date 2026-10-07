@@ -35,8 +35,6 @@ function applyCommand(context: SettingsWriteContext, command: SettingsCommand): 
 			return { ...context, nodeExclusion: command.nodeExclusion };
 		case "frontmatter-links":
 			return { ...context, frontmatterLinks: command.frontmatterLinks };
-		case "relationships":
-			return { ...context, relationships: command.relationships };
 	}
 }
 
@@ -66,9 +64,7 @@ function sectionsOwning(leaf: SettingsSpecLeaf): readonly SettingsSection[] {
 					? fields.depth
 					: family === "nodeExclusion"
 						? fields.exclusion
-						: family === "frontmatterLinks"
-							? fields.frontmatterLinks
-							: fields.relationships;
+						: fields.frontmatterLinks;
 		return field !== undefined && keys.includes(field);
 	});
 }

@@ -1,13 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { EdgeRelationship, LinkOccurrence } from "../engine";
-import { asVaultPath, directedLinkKey } from "../engine";
-import type { EdgePairOccurrences, EdgePreviewInputs, RelationshipPairModel } from "./linkPreviewModel";
-import {
-	LinkPreviewModels,
-	edgeEndpointDisplayName,
-	relationshipOriginLabel,
-	relationshipRowOf,
-} from "./linkPreviewModel";
+import type { LinkOccurrence } from "../engine";
+import { asVaultPath } from "../engine";
+import type { EdgePairOccurrences, EdgePreviewInputs } from "./linkPreviewModel";
+import { LinkPreviewModels, edgeEndpointDisplayName } from "./linkPreviewModel";
 
 const NOTE = asVaultPath("notes/x.md");
 const TARGET_A = asVaultPath("notes/a.md");
@@ -21,10 +16,8 @@ function occurrenceAt(offset: number | null): LinkOccurrence {
 	};
 }
 
-/** A pair with `hierarchy` defaulted off — most tests exercise plain link pairs. */
-type PairInput = Omit<EdgePairOccurrences, "hierarchy"> & {
-	readonly hierarchy?: boolean;
-};
+/** A pair with `hierarchy` defaulted off — most tests exercise link-only pairs. */
+type PairInput = Omit<EdgePairOccurrences, "hierarchy"> & { readonly hierarchy?: boolean };
 
 /** Edge inputs with one endpoint-name/direction default per test's GIVEN. */
 function edgeInputs(pairs: readonly PairInput[]): EdgePreviewInputs {
@@ -151,96 +144,5 @@ describe("edgeEndpointDisplayName", () => {
 
 	it("WHEN the endpoint is a folder-group id THEN the folder name is used", () => {
 		expect(edgeEndpointDisplayName("folder-group:sub/notes")).toBe("notes");
-	});
-});
-
-describe("LinkPreviewModels.edge relationship pairs", () => {
-	it("WHEN an edge has a pair THEN the model lists it with its key and both note titles", () => {
-		const model = LinkPreviewModels.edge(edgeInputs([{ sourcePath: NOTE, targetPath: TARGET_A, occurrences: [] }]));
-		expect(model.relationshipPairs).toEqual([
-			{ key: directedLinkKey(NOTE, TARGET_A), sourcePath: NOTE, targetPath: TARGET_A, sourceName: "x", targetName: "a" },
-		]);
-	});
-
-	it("WHEN an edge has several pairs THEN they are listed in the pairs' display order", () => {
-		const model = LinkPreviewModels.edge(
-			edgeInputs([
-				{ sourcePath: NOTE, targetPath: TARGET_B, occurrences: [] },
-				{ sourcePath: NOTE, targetPath: TARGET_A, occurrences: [] },
-			]),
-		);
-		expect(model.relationshipPairs.map((pair) => pair.targetName)).toEqual(["a", "b"]);
-	});
-});
-
-describe("relationshipRowOf", () => {
-	const PAIR: RelationshipPairModel = {
-		key: "x.md->a.md",
-		sourcePath: asVaultPath("x.md"),
-		targetPath: asVaultPath("a.md"),
-		sourceName: "x",
-		targetName: "a",
-	};
-	const SYNTAX: EdgeRelationship = { name: "improves", origin: "syntax" };
-	const MANUAL: EdgeRelationship = { name: "supports", origin: "manual" };
-	const AI: EdgeRelationship = { name: "extends", origin: "ai", model: "gpt-6-luna" };
-	const PARENT: EdgeRelationship = { name: "parent", origin: "folder-hierarchy" };
-
-	it("WHEN the pair is unnamed THEN the row reads `A → B` and offers naming", () => {
-		expect(relationshipRowOf(PAIR, null)).toEqual({
-			text: "x → a",
-			originLabel: null,
-			currentName: null,
-			edit: "name",
-			clearable: false,
-		});
-	});
-
-	it("WHEN the pair is named THEN the row reads `A —name→ B`", () => {
-		expect(relationshipRowOf(PAIR, MANUAL).text).toBe("x —supports→ a");
-	});
-
-	it("WHEN the name is declared in a note THEN the row names that note as its origin", () => {
-		expect(relationshipRowOf(PAIR, SYNTAX).originLabel).toBe("declared in x");
-	});
-
-	it("WHEN the name is declared in a note THEN the row offers no edit and no clear", () => {
-		const row = relationshipRowOf(PAIR, SYNTAX);
-		expect({ edit: row.edit, clearable: row.clearable }).toEqual({ edit: null, clearable: false });
-	});
-
-	it("WHEN the name is manual THEN the row offers rename and clear", () => {
-		const row = relationshipRowOf(PAIR, MANUAL);
-		expect({ edit: row.edit, clearable: row.clearable }).toEqual({ edit: "rename", clearable: true });
-	});
-
-	it("WHEN the name is manual THEN its origin reads `named by you`", () => {
-		expect(relationshipRowOf(PAIR, MANUAL).originLabel).toBe("named by you");
-	});
-
-	it("WHEN the name is AI-generated THEN its origin names the model", () => {
-		expect(relationshipRowOf(PAIR, AI).originLabel).toBe("AI-generated · gpt-6-luna");
-	});
-
-	it("WHEN the name is AI-generated THEN the row offers rename and clear", () => {
-		const row = relationshipRowOf(PAIR, AI);
-		expect({ edit: row.edit, clearable: row.clearable }).toEqual({ edit: "rename", clearable: true });
-	});
-
-	it("WHEN the AI model is unknown THEN the origin reads `AI-generated`", () => {
-		expect(relationshipOriginLabel({ name: "extends", origin: "ai" }, "x")).toBe("AI-generated");
-	});
-
-	it("WHEN the pair carries the `parent` default THEN it can be renamed but not cleared", () => {
-		const row = relationshipRowOf(PAIR, PARENT);
-		expect({ edit: row.edit, clearable: row.clearable, origin: row.originLabel }).toEqual({
-			edit: "rename",
-			clearable: false,
-			origin: "folder hierarchy",
-		});
-	});
-
-	it("WHEN the pair is named THEN the rename field starts from the current name", () => {
-		expect(relationshipRowOf(PAIR, MANUAL).currentName).toBe("supports");
 	});
 });

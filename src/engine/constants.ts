@@ -7,7 +7,6 @@ import type {
 	ForceLayoutSettings,
 	FrontmatterLinkSettings,
 	NodeExclusionSettings,
-	RelationshipSettings,
 	NodeSizeOverridePx,
 	SizingSettings,
 	ViewSettings,
@@ -483,16 +482,6 @@ export class EngineDefaults {
 
 	static frontmatterLinkSettings(): FrontmatterLinkSettings {
 		return { idRefFields: SETTINGS_SPEC.frontmatterLinks.idRefFields.default };
-	}
-
-	static relationshipSettings(): RelationshipSettings {
-		const relationships = SETTINGS_SPEC.relationships;
-		return {
-			autoNaming: relationships.autoNaming.default,
-			model: relationships.model.default,
-			reasoningEffort: relationships.reasoningEffort.default,
-			apiKeySecretName: relationships.apiKeySecretName.default,
-		};
 	}
 
 	static forceLayoutSettings(): ForceLayoutSettings {

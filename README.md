@@ -108,73 +108,11 @@ connector — click it and the preview names both the link and the folder
 relationship. (When both `Jon.md` and `Jon/Jon.md` exist, the inside one wins and
 the sibling `Jon.md` is treated as an ordinary note.)
 
-## Relationships
-
-A connector can carry a **name** that says how two notes relate — *improves*,
-*part-of*, *parent* — shown on the connector and at the top of its preview as
-`A —improves→ B`, with where the name came from.
-
-- **Named in your note** — write the link as an inline field (the Dataview
-  style) in the note the link starts from: `improves:: [[B]]`. It also works in
-  list items (`- improves:: [[B]]`) and mid-sentence in brackets
-  (`[improves:: [[B]]]` or `(improves:: [[B]])`). Several links after one name
-  all take it (`improves:: [[B]], [[C]]`), up to the next `name::` on the line.
-  A name is letters, digits, `-` and `_`.
-- **Named by you** — click a connector and use **Name this relationship** in its
-  preview. Type the name and press Enter (or click away); Escape cancels.
-  **Rename** changes it and **Clear** removes it. A name you typed is never
-  written into your notes; it is stored as vault content under
-  `.plugin_data/vicinity_graph/from_id/` (one small file per named connector),
-  so it syncs with the vault and follows a note across renames. Naming gives both
-  notes a stable `id` in their frontmatter if they don't have one yet. A name
-  declared in a note can't be renamed here — its preview says which note declares
-  it, and you edit that note instead.
-- **`parent`** — a dashed folder-note connector is named *parent* automatically.
-  It is hidden when the two notes name a link between them in either direction
-  (e.g. the child writes `rel:: [[folder-note]]`). You can rename it, and your
-  name replaces *parent*.
-
-- **Named by AI (optional, off by default)** — see [AI naming](#ai-naming) below.
-
-When several sources name the same connector, a name declared in the note wins
-over yours, yours wins over an AI name, and an AI name wins over *parent*.
-
-Names are **directed**: `improves:: [[B]]` in A — or a name you give A → B — names
-only the A → B connector, never B → A. Frontmatter properties (`related: "[[B]]"`) do not name connectors,
-and neither do canvases. A connector standing for a whole folder group carries no
-name on the graph; its preview lists the names of the note pairs behind it.
-
-### AI naming
-
-The **Relationships** menu at the top right of the graph turns AI naming on and
-off, picks the OpenAI model and reasoning effort (low / medium / high / extra
-high / max; higher effort costs more per name), and shows what this session has
-named. The same settings are in the settings tab.
-AI names show on the connector in *italics* with a ✦ mark; rename or clear one
-like any name you gave (a cleared AI name is not asked for again).
-
-**Your key.** Pick or add an OpenAI API key with the menu's key picker — it is
-kept in Obsidian's keychain, outside your vault, and never in plugin settings.
-Without one, the `OPENAI_API_KEY` environment variable is used. A missing or
-refused key, an unknown model or an exhausted quota stops AI naming and says
-how to fix it; **Retry** in the menu starts it again.
-
-**What is sent, and when.** Nothing, until you turn AI naming on. Then, each
-time you open a note or redraw, the graph's unnamed connectors (at most 20 per
-redraw, each pair at most once per session) are sent to **OpenAI** — for each
-one, the **full text of both notes** and their titles. A connector is skipped
-when either note has less than about 200 characters of its own text, when it is
-already named, when it is a *parent* connector, when either note sits inside
-a folder group, or when either note is an Excalidraw drawing
-(`*.excalidraw.md`). Naming a connector adds an `id` to both notes'
-frontmatter, like naming it yourself. Turning AI naming off stops anything not yet sent.
-
 ## Settings
 
 **Every setting is global** — one value used by every note and every open graph.
 The only things remembered *per note* are the facts you set on it directly:
-which notes are **pinned**, which you've **resized**, and the
-[relationship names](#relationships) you gave its connectors.
+which notes are **pinned** and which you've **resized**.
 
 Two surfaces edit the same values and stay in sync: the **settings tab**
 (**Settings → Vicinity Graph**) and the in-view **Graph controls** panel.
@@ -220,11 +158,6 @@ The settings, grouped the same way on both surfaces:
   press <kbd>Enter</kbd> to add it; each added field shows as a chip with its
   own **×** to remove it. Empty by default (the feature is off); it rides the
   same depth budgets as `[[wikilinks]]`.
-- **Relationships** — AI naming on/off, the OpenAI key, model and reasoning
-  effort (see [AI naming](#ai-naming)). Shown in the graph's top-right
-  **Relationships** menu rather than in Graph controls. Its *Restore defaults*
-  turns AI naming off and resets the model, effort and which key is picked; the
-  key itself stays in Obsidian's keychain.
 - **Performance** — a node cap (default **100**, the readable ceiling); beyond it
   the graph truncates and shows a hidden-node count.
 

@@ -5,12 +5,10 @@ import type {
 	NodeExclusionSettings,
 	NodeOverride,
 	NodeSizeOverridePx,
-	RelationshipSettings,
 	SizingSettings,
 	ViewSettings,
 } from "../engine";
 import {
-	AI_OFFERED_REASONING_EFFORTS,
 	EngineDefaults,
 	NODE_CONTENT_OVERRIDES,
 	NODE_PREVIEW_PREFERENCES,
@@ -21,7 +19,6 @@ import {
 	clampNodeSizeOverridePx,
 	clampOutlineMaxDepth,
 	clampSizingSettings,
-	settledAiModel,
 } from "../engine";
 
 /**
@@ -98,8 +95,6 @@ export interface PluginData {
 	readonly nodeExclusion: NodeExclusionSettings;
 	/** Frontmatter-id link config (the comma-separated id-ref field-name string). */
 	readonly frontmatterLinks: FrontmatterLinkSettings;
-	/** Relationship naming: auto mode's switch, the model/effort it asks, the key's SECRET NAME (never the key). */
-	readonly relationships: RelationshipSettings;
 }
 
 export class PersistedShapes {
@@ -111,7 +106,6 @@ export class PersistedShapes {
 			pins: [],
 			nodeExclusion: EngineDefaults.nodeExclusionSettings(),
 			frontmatterLinks: EngineDefaults.frontmatterLinkSettings(),
-			relationships: EngineDefaults.relationshipSettings(),
 		};
 	}
 
@@ -131,7 +125,6 @@ export class PersistedShapes {
 			pins: parsePins(raw["pins"]),
 			nodeExclusion: parseNodeExclusion(raw["nodeExclusion"], defaults.nodeExclusion),
 			frontmatterLinks: parseFrontmatterLinks(raw["frontmatterLinks"], defaults.frontmatterLinks),
-			relationships: parseRelationships(raw["relationships"], defaults.relationships),
 		};
 	}
 }
@@ -329,27 +322,6 @@ function parseFrontmatterLinks(raw: unknown, fallback: FrontmatterLinkSettings):
 		return fallback;
 	}
 	return { idRefFields: typeof raw["idRefFields"] === "string" ? raw["idRefFields"] : fallback.idRefFields };
-}
-
-/**
- * Defensive relationship-settings parser, field by field (one bad field never resets
- * its siblings): the switch must be a boolean, the effort one of the OFFERED efforts,
- * the model a string (settled by the same rule the settings write applies), and the
- * secret name a string, stored verbatim (`""` = none chosen).
- */
-function parseRelationships(raw: unknown, fallback: RelationshipSettings): RelationshipSettings {
-	if (!isRecord(raw)) {
-		return fallback;
-	}
-	const model = raw["model"];
-	const secretName = raw["apiKeySecretName"];
-	return {
-		autoNaming: typeof raw["autoNaming"] === "boolean" ? raw["autoNaming"] : fallback.autoNaming,
-		model: typeof model === "string" ? settledAiModel(model) : fallback.model,
-		reasoningEffort:
-			AI_OFFERED_REASONING_EFFORTS.find((effort) => effort === raw["reasoningEffort"]) ?? fallback.reasoningEffort,
-		apiKeySecretName: typeof secretName === "string" ? secretName : fallback.apiKeySecretName,
-	};
 }
 
 /**

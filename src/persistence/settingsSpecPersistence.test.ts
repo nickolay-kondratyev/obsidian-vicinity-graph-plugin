@@ -42,7 +42,6 @@ function parsedRoot(raw: unknown): unknown {
 		globalView: parsed.globalView,
 		nodeExclusion: parsed.nodeExclusion,
 		frontmatterLinks: parsed.frontmatterLinks,
-		relationships: parsed.relationships,
 	};
 }
 

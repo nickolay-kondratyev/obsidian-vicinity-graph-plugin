@@ -1,10 +1,4 @@
-import type {
-	DepthSettings,
-	FrontmatterLinkSettings,
-	NodeExclusionSettings,
-	RelationshipSettings,
-	ViewSettings,
-} from "../engine";
+import type { DepthSettings, FrontmatterLinkSettings, NodeExclusionSettings, ViewSettings } from "../engine";
 import type { GraphRequestInputs } from "../adapters/GraphRequestAssembler";
 
 /**
@@ -33,8 +27,6 @@ export interface ControlsModel {
 	readonly globalView: ViewSettings;
 	readonly nodeExclusion: NodeExclusionSettings;
 	readonly frontmatterLinks: FrontmatterLinkSettings;
-	/** Relationship naming — read by the top-right Relationships menu and by auto mode's gate. */
-	readonly relationships: RelationshipSettings;
 	/**
 	 * Distinct neighbor paths this build rejected by exclusion (graph telemetry,
 	 * not an input). Rendered next to the pill only when exclusion is enabled AND
@@ -52,7 +44,6 @@ export class ControlsModelBuilder {
 			globalView: inputs.globalView,
 			nodeExclusion: inputs.nodeExclusion,
 			frontmatterLinks: inputs.frontmatterLinks,
-			relationships: inputs.relationships,
 			excludedNodeCount,
 		};
 	}

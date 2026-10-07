@@ -1,6 +1,6 @@
 {
 	"name": "vicinity-graph",
-	"version": "0.1.24",
+	"version": "0.1.23",
 	"private": true,
 	"description": "A richer local graph of the notes near your active note — a folder-grouped alternative to the built-in local graph.",
 	"type": "module",
@@ -11,7 +11,7 @@
 		"setup:obsidian": "bash scripts/setup-obsidian-bin.sh",
 		"build": "npm run check && node esbuild.config.mjs production",
 		"check": "tsc -noEmit && npm run lint && npm run check:e2e",
-		"check:e2e": "tsc -noEmit -p e2e/tsconfig.json",
+		"check:e2e": "bash scripts/check-e2e.sh",
 		"lint": "eslint src",
 		"test": "vitest run",
 		"test:coverage": "vitest run --coverage",

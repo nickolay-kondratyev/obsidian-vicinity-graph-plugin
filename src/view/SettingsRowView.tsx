@@ -1,9 +1,8 @@
 import type { FocusEventHandler, KeyboardEventHandler, ReactElement } from "react";
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useState } from "react";
 import type { DepthSettings, ForceLayoutSettings, NodePreviewPreference } from "../engine";
 import { NODE_PREVIEW_PREFERENCES } from "../engine";
 import { useControlsActions } from "./ControlsActionsContext";
-import { useGraphUi } from "./GraphUiContext";
 import { DepthStepper } from "./DepthStepper";
 import { IdRefFieldChips } from "./idRefFieldChips";
 import { NODE_PREVIEW_OPTION_META } from "./nodePreviewPreferenceMeta";
@@ -12,13 +11,12 @@ import { NO_CROSS_FIELD_RULE, NumberFieldRefusal, NumberRowCommitPolicy } from "
 import type {
 	SettingsNumberAccessor,
 	SettingsRowBounds,
-	SettingsTextAccessor,
 	SettingsTypedNumberAccessor,
 	SettingsValueAccessor,
 } from "./settingsRowAccessors";
 import { FolderGroupingDepthSlider, SettingsRowAccessors } from "./settingsRowAccessors";
 import type { SettingsRow, SettingsRowState } from "./settingsRows";
-import { AI_REASONING_EFFORT_LABELS, SettingsRowNames, isSettingsRowDisabled, unhandledRowControl } from "./settingsRows";
+import { SettingsRowNames, isSettingsRowDisabled, unhandledRowControl } from "./settingsRows";
 import type { SizingNumberField } from "./settingsWritePlan";
 import { SizingRowWrite } from "./sizingRowWrite";
 import { ToggleSwitch } from "./ToggleSwitch";
@@ -92,14 +90,6 @@ export function SettingsRowView({
 			return <NodeCapRow row={row} state={state} />;
 		case "id-ref-fields":
 			return <IdRefFieldsRow row={row} state={state} />;
-		case "ai-auto-naming":
-			return <ToggleRow row={row} accessor={SettingsRowAccessors.aiAutoNaming()} state={state} />;
-		case "ai-api-key":
-			return <AiApiKeyRow row={row} state={state} />;
-		case "ai-model":
-			return <TextFieldRow row={row} accessor={SettingsRowAccessors.aiModel()} state={state} />;
-		case "ai-reasoning-effort":
-			return <AiReasoningEffortRow row={row} state={state} />;
 		default:
 			return unhandledRowControl(row.control);
 	}
@@ -491,119 +481,6 @@ function IdRefFieldsRow({
 					}}
 				/>
 			</div>
-		</div>
-	);
-}
-
-/**
- * A free-text field committed ON BLUR (Enter blurs), never per keystroke — the same rule
- * as the typed number rows. Uncontrolled and RESEEDED after every commit (the `key`
- * carries a commit counter): the accessor may settle the text to something else (a
- * blank model settles at the default), and when that lands back on the stored value
- * nothing else would change, leaving the field showing text the plugin never stored.
- */
-function TextFieldRow({
-	row,
-	accessor,
-	state,
-}: {
-	readonly row: SettingsRow;
-	readonly accessor: SettingsTextAccessor;
-	readonly state: SettingsRowState;
-}): ReactElement {
-	const actions = useControlsActions();
-	const [shown, request] = useOptimisticValue(
-		accessor.read(state),
-		(value) => actions.applySettings(accessor.interaction(value)),
-		accessor.settlesAt,
-	);
-	const [commits, setCommits] = useState(0);
-	return (
-		<label className="vicinity-graph-number-row" title={row.description}>
-			<span>{row.label}</span>
-			<input
-				key={`${commits}:${shown}`}
-				type="text"
-				aria-label={SettingsRowNames.sole(row)}
-				defaultValue={shown}
-				onBlur={(event) => {
-					if (event.target.value !== shown) {
-						request(event.target.value);
-					}
-					setCommits((count) => count + 1);
-				}}
-				onKeyDown={(event) => {
-					if (event.key === "Enter") {
-						event.currentTarget.blur();
-					}
-				}}
-			/>
-		</label>
-	);
-}
-
-/** The reasoning effort: a native `<select>` over the accessor's offered options — each one a whole, aimed choice, so it commits at once. */
-function AiReasoningEffortRow({
-	row,
-	state,
-}: {
-	readonly row: SettingsRow;
-	readonly state: SettingsRowState;
-}): ReactElement {
-	const accessor = SettingsRowAccessors.aiReasoningEffort();
-	const [shown, request] = useSettingsValue(accessor, state);
-	return (
-		<label className="vicinity-graph-number-row" title={row.description}>
-			<span>{row.label}</span>
-			<select
-				aria-label={SettingsRowNames.sole(row)}
-				value={shown}
-				onChange={(event) => {
-					const effort = accessor.accept(event.target.value);
-					if (effort !== undefined) {
-						request(effort);
-					}
-				}}
-			>
-				{accessor.options.map((effort) => (
-					<option key={effort} value={effort}>
-						{AI_REASONING_EFFORT_LABELS[effort]}
-					</option>
-				))}
-			</select>
-		</label>
-	);
-}
-
-/**
- * Which keychain secret holds the OpenAI key: Obsidian's OWN `SecretComponent`, mounted
- * into a ref'd element through {@link useGraphUi} (the panel cannot import `obsidian`).
- * Only the chosen secret's NAME is written. Re-mounted when the stored name changes,
- * so the picker always shows what the store holds.
- */
-function AiApiKeyRow({ row, state }: { readonly row: SettingsRow; readonly state: SettingsRowState }): ReactElement {
-	const ui = useGraphUi();
-	const actions = useControlsActions();
-	const accessor = SettingsRowAccessors.aiApiKeySecret();
-	const stored = accessor.read(state);
-	const accessibleName = SettingsRowNames.sole(row);
-	const host = useRef<HTMLDivElement>(null);
-	useEffect(() => {
-		const el = host.current;
-		if (el === null) {
-			return undefined;
-		}
-		return ui.mountSecretPicker(el, {
-			secretName: stored,
-			accessibleName,
-			onChange: (secretName) => void actions.applySettings(accessor.interaction(secretName)),
-		});
-		// `accessor` is rebuilt every render but stateless, so it is no reason to re-mount.
-	}, [ui, actions, stored, accessibleName]);
-	return (
-		<div className="vicinity-graph-secret-row" title={row.description}>
-			<span>{row.label}</span>
-			<div className="vicinity-graph-secret-row__picker" ref={host} />
 		</div>
 	);
 }

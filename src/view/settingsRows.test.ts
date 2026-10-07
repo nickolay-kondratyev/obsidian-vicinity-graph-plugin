@@ -84,7 +84,6 @@ describe("settings row disabledWhen", () => {
 		globalView: EngineDefaults.viewSettings(),
 		nodeExclusion: { ...EngineDefaults.nodeExclusionSettings(), enabled: exclusionEnabled },
 		frontmatterLinks: EngineDefaults.frontmatterLinkSettings(),
-		relationships: EngineDefaults.relationshipSettings(),
 	});
 
 	const patternsRow = (): SettingsRow => {
@@ -113,7 +112,6 @@ describe("settings row disabledWhen", () => {
 		globalView: { ...EngineDefaults.viewSettings(), folderGroupingDepth },
 		nodeExclusion: EngineDefaults.nodeExclusionSettings(),
 		frontmatterLinks: EngineDefaults.frontmatterLinkSettings(),
-		relationships: EngineDefaults.relationshipSettings(),
 	});
 
 	const soleRowOf = (kind: "group-label-full-path" | "edge-depth-into-groups"): SettingsRow => {

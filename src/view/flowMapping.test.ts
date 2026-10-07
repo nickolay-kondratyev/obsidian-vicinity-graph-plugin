@@ -1,15 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { GraphEdge, GraphNode, NodeContentOverride, NodePreviewPreference, OutlineEntry, ViewSettings } from "../engine";
-import { asDocId, asFolderPath, asVaultPath, directedLinkKey, NODE_CONTENT_OVERRIDES, NODE_PREVIEW_PREFERENCES } from "../engine";
+import { asDocId, asFolderPath, asVaultPath, NODE_CONTENT_OVERRIDES, NODE_PREVIEW_PREFERENCES } from "../engine";
 import { OUTLINE_RENDER_LIMIT } from "./constants";
-import {
-	edgeClassName,
-	edgeKindClassName,
-	edgeRelationshipKeyOf,
-	vicinityGraphToFlow,
-	withGroupDimensions,
-	withPositions,
-} from "./flowMapping";
+import { edgeClassName, edgeKindClassName, vicinityGraphToFlow, withGroupDimensions, withPositions } from "./flowMapping";
 import type { FlowNode, FlowPinFacts, FolderNoteCandidatesLookup, NoteFlowNode, XY } from "./flowMapping";
 import { NO_ORPHAN_TRUNCATION } from "./truncationBadges";
 import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
@@ -1293,23 +1286,5 @@ describe("vicinityGraphToFlow node geometry ignores the per-node content overrid
 		const choices: (NodeContentOverride | undefined)[] = [undefined, ...NODE_CONTENT_OVERRIDES];
 		const actual = Object.fromEntries(choices.map((c) => [String(c), boxesUnderOverride(c)]));
 		expect(actual).toEqual(Object.fromEntries(choices.map((c) => [String(c), baseline])));
-	});
-});
-
-describe("edgeRelationshipKeyOf", () => {
-	it("WHEN an edge joins two notes THEN it labels its own directed pair", () => {
-		const graph = makeGraph({
-			nodes: [makeNode({ path: asVaultPath("a.md") }), makeNode({ path: asVaultPath("b.md") })],
-			edges: [makeEdge("a.md", "b.md")],
-		});
-		const edge = toFlow(graph).edges[0];
-		expect(edge === undefined ? undefined : edgeRelationshipKeyOf(edge)).toBe(
-			directedLinkKey(asVaultPath("a.md"), asVaultPath("b.md")),
-		);
-	});
-
-	it("WHEN an edge is collapsed onto a folder group THEN it labels nothing", () => {
-		const [edge] = toFlow(collapsedGraph()).edges;
-		expect(edge === undefined ? "no collapsed edge" : edgeRelationshipKeyOf(edge)).toBeNull();
 	});
 });

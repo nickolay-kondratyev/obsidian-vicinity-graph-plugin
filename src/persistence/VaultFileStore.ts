@@ -126,34 +126,15 @@ export class VaultFileStore {
 	 * Used by the dependent ticket's sweep to reconcile stored ids against live docids.
 	 */
 	async listKeys(subDir: string): Promise<string[]> {
-		const { files } = await this.listChildren(subDir);
-		return files.filter((relPath) => !VaultFileStore.isQuarantine(relPath) && !relPath.endsWith(TMP_SUFFIX));
-	}
-
-	/**
-	 * The relPaths of the IMMEDIATE child DIRECTORIES of `subDir` — the second half
-	 * of a nested key tree's walk ({@link listKeys} lists only files). Empty when
-	 * the dir is absent. Still domain-agnostic: what a level of nesting MEANS is
-	 * the caller's.
-	 */
-	async listSubdirs(subDir: string): Promise<string[]> {
-		return (await this.listChildren(subDir)).folders;
-	}
-
-	/** `subDir`'s immediate children as root-relative relPaths; empty lists when it is absent. */
-	private async listChildren(subDir: string): Promise<{ files: string[]; folders: string[] }> {
 		const fullDir = this.fullPath(subDir);
 		if (!(await this.fs.exists(fullDir))) {
-			return { files: [], folders: [] };
+			return [];
 		}
-		const { files, folders } = await this.fs.list(fullDir);
-		return { files: files.map((path) => this.relPathOf(path)), folders: folders.map((path) => this.relPathOf(path)) };
-	}
-
-	/** A vault-root-relative path as a relPath under {@link rootDir}. */
-	private relPathOf(fullPath: string): string {
+		const { files } = await this.fs.list(fullDir);
 		const rootPrefix = `${this.rootDir}/`;
-		return fullPath.startsWith(rootPrefix) ? fullPath.slice(rootPrefix.length) : fullPath;
+		return files
+			.map((filePath) => (filePath.startsWith(rootPrefix) ? filePath.slice(rootPrefix.length) : filePath))
+			.filter((relPath) => !VaultFileStore.isQuarantine(relPath) && !relPath.endsWith(TMP_SUFFIX));
 	}
 
 	private async writeNow(relPath: string, payload: unknown): Promise<void> {
