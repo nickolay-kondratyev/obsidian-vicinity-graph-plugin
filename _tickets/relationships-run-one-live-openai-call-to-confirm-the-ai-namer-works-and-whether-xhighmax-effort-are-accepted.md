@@ -24,3 +24,8 @@ Decision: which effort values should the 4/4 menu offer?
 
 Optionally: export OPENAI_API_KEY in the agent sandbox, then hand this ticket back to an agent.
 
+## Second question: send `store: false`? (added 2026-10-07)
+Plain version: by default, OpenAI's Responses API keeps a copy of each request and response on its side. We send the FULL text of both notes. Adding `"store": false` to the request asks OpenAI not to keep it. We lose nothing, because we never chain responses.
+- A (recommended): add `store: false`. It is a one-line change in `src/adapters/openAiResponses.ts` plus a test.
+- B: keep the request exactly as ticket 3/4 spelled it out.
+Reply A or B. If you pick A, 4/4 or whoever takes this ticket can add it.

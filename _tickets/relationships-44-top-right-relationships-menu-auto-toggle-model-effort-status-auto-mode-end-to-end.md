@@ -1,16 +1,17 @@
 ---
 id: nid_80xc6z8umlpo1x6u4p1v7eb22_e
 title: "Relationships 4/4: top-right Relationships menu (auto toggle, model, effort, status) + auto mode end to end"
-status: open
+status: in_progress
 deps: [nid_cbnhpdfn4myqfzqr8weyg7kq5_e]
 links: []
 created_iso: 2026-10-06T23:04:40Z
-status_updated_iso: 2026-10-06T23:04:40Z
+status_updated_iso: 2026-10-07T01:02:17Z
 type: task
 priority: 2
 assignee: nickolaykondratyev
 parent: nid_fc47gtxej6z7fqc53bflme8p5_e
 tags: [relationships]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin/.worktree/t-80xc6z8u
 ---
 
 Part 4/4 of the named-relationships epic. Read the parent ticket first.
@@ -69,10 +70,4 @@ The top-right "Relationships" menu in the graph, the API key setting, and auto m
 - **Effort values:** offer only low/medium/high until the live-call ticket nid_g0inqme2ol16xsrcg89g3kks4_e confirms xhigh/max.
 - **Failure notice wording:** AI save failures currently reuse the "Relationship name" failure notice. 4/4 may give AI names their own declared label if the menu makes that clearer; it is not required.
 - **Wiring left by 3/4:** in `main.ts`, build `ObsidianJsonHttp`, a `SecretOrEnvApiKeySource` over `app.secretStorage`, and the queue, plus the settings they need.
-
-## Second question: send `store: false`? (added 2026-10-07)
-Plain version: by default, OpenAI's Responses API keeps a copy of each request and response on its side. We send the FULL text of both notes. Adding `"store": false` to the request asks OpenAI not to keep it. We lose nothing, because we never chain responses.
-- A (recommended): add `store: false`. It is a one-line change in `src/adapters/openAiResponses.ts` plus a test.
-- B: keep the request exactly as ticket 3/4 spelled it out.
-Reply A or B. If you pick A, 4/4 or whoever takes this ticket can add it.
 - **Incomplete responses cost money on every redraw.** A response with `status:"incomplete"` and no message item maps to the non-fatal "unexpected-response", so that pair is asked again on every redraw. Treat it as "declined" (not asked again this session) and test it.
