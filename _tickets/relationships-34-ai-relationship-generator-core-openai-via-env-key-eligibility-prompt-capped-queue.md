@@ -1,17 +1,17 @@
 ---
+closed_iso: 2026-10-07T00:57:47Z
 id: nid_cbnhpdfn4myqfzqr8weyg7kq5_e
 title: "Relationships 3/4: AI relationship generator core (OpenAI via env key, eligibility, prompt, capped queue)"
-status: in_progress
+status: closed
 deps: [nid_a5m4kforr9scit68rhqmqh78o_e]
 links: []
 created_iso: 2026-10-06T23:04:40Z
-status_updated_iso: 2026-10-07T00:39:49Z
+status_updated_iso: 2026-10-07T00:57:47Z
 type: task
 priority: 2
 assignee: nickolaykondratyev
 parent: nid_fc47gtxej6z7fqc53bflme8p5_e
 tags: [relationships]
-pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin/.worktree/t-cbnhpdfn
 ---
 
 Part 3/4 of the named-relationships epic. Read the parent ticket first ("AI mode" holds the human
@@ -81,3 +81,7 @@ The AI relationship namer, fully testable behind fakes. The UI toggle and key pi
   - error mapping;
   - the queue: dedupe, cap, fatal stop, supersede.
 - One focused manual live call, with the cost recorded in the ticket notes.
+
+## Notes
+
+Live call NOT run (no OPENAI_API_KEY in the agent sandbox) — tracked by nid_g0inqme2ol16xsrcg89g3kks4_e.
