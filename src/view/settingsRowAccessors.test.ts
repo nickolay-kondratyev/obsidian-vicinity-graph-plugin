@@ -335,6 +335,6 @@ describe("settings row accessors: the AI model and effort", () => {
 	});
 
 	it("WHEN the effort control reports a value the settings do not offer THEN it is not accepted", () => {
-		expect(SettingsRowAccessors.aiReasoningEffort().accept("max")).toBeUndefined();
+		expect(SettingsRowAccessors.aiReasoningEffort().accept("none")).toBeUndefined();
 	});
 });

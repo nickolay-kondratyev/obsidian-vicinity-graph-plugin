@@ -691,6 +691,8 @@ export const AI_REASONING_EFFORT_LABELS: Readonly<Record<AiOfferedReasoningEffor
 	low: "Low",
 	medium: "Medium",
 	high: "High",
+	xhigh: "Extra high",
+	max: "Max",
 };
 
 /** Every declared block, in render order across every section — the grouping layer. */

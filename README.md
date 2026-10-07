@@ -147,8 +147,9 @@ name on the graph; its preview lists the names of the note pairs behind it.
 ### AI naming
 
 The **Relationships** menu at the top right of the graph turns AI naming on and
-off, picks the OpenAI model and reasoning effort (low / medium / high), and
-shows what this session has named. The same settings are in the settings tab.
+off, picks the OpenAI model and reasoning effort (low / medium / high / extra
+high / max; higher effort costs more per name), and shows what this session has
+named. The same settings are in the settings tab.
 AI names show on the connector in *italics* with a ✦ mark; rename or clear one
 like any name you gave (a cleared AI name is not asked for again).
 

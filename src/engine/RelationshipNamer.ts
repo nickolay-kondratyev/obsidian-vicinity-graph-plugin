@@ -18,13 +18,13 @@ export const AI_REASONING_EFFORTS = ["none", "low", "medium", "high", "xhigh", "
 export type AiReasoningEffort = (typeof AI_REASONING_EFFORTS)[number];
 
 /**
- * The efforts the settings OFFER (task 4/4, orchestrator decision 2026-10-07):
- * only the three the generic API reference lists. `xhigh` / `max` are on the model
- * page but no live call has confirmed them (no key in the dev environment) — the
- * live-call ticket `nid_g0inqme2ol16xsrcg89g3kks4_e` decides whether to add them.
- * `none` is left out on purpose: naming needs a moment of thought to be SPECIFIC.
+ * The efforts the settings OFFER, lowest first. Rule (task 3/4): offer only what a
+ * live call accepted. `xhigh` / `max` are missing from the generic API reference, but
+ * live gpt-6-luna calls accepted both (ticket `nid_g0inqme2ol16xsrcg89g3kks4_e`,
+ * 2026-10-07). `none` is accepted too, and left out on purpose: naming needs a
+ * moment of thought to be SPECIFIC.
  */
-export const AI_OFFERED_REASONING_EFFORTS = ["low", "medium", "high"] as const satisfies readonly AiReasoningEffort[];
+export const AI_OFFERED_REASONING_EFFORTS = ["low", "medium", "high", "xhigh", "max"] as const satisfies readonly AiReasoningEffort[];
 
 export type AiOfferedReasoningEffort = (typeof AI_OFFERED_REASONING_EFFORTS)[number];
 

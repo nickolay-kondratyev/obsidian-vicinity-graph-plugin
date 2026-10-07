@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ViewSettings } from "../engine";
-import { EngineDefaults, SETTINGS_SPEC, SIZING_RANGES } from "../engine";
+import { AI_OFFERED_REASONING_EFFORTS, EngineDefaults, SETTINGS_SPEC, SIZING_RANGES } from "../engine";
 import { PersistedShapes, PERSISTED_SHAPE_VERSION, serializePluginData } from "./persistedShapes";
 
 /** The parsed `globalView` — the one surface every view field is stored on. */
@@ -455,8 +455,17 @@ describe("PersistedShapes relationship settings parsing", () => {
 	it("WHEN data.json holds an effort the settings do not offer THEN it loads at the declared default", () => {
 		const parsed = PersistedShapes.parsePluginData({
 			version: PERSISTED_SHAPE_VERSION,
-			relationships: { reasoningEffort: "max" },
+			relationships: { reasoningEffort: "none" },
 		});
 		expect(parsed.relationships.reasoningEffort).toBe(SETTINGS_SPEC.relationships.reasoningEffort.default);
+	});
+
+	// Structural over the offered set: the literal list is pinned once, in settingsProductDefaults.test.ts.
+	it.each(AI_OFFERED_REASONING_EFFORTS)("WHEN data.json holds the offered effort %s THEN it loads as stored", (effort) => {
+		const parsed = PersistedShapes.parsePluginData({
+			version: PERSISTED_SHAPE_VERSION,
+			relationships: { reasoningEffort: effort },
+		});
+		expect(parsed.relationships.reasoningEffort).toBe(effort);
 	});
 });
