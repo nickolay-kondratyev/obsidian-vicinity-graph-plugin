@@ -23,13 +23,14 @@ import type { GraphViewController } from "./GraphViewController";
 import { GraphUiContext } from "./GraphUiContext";
 import { LinkPreviewDrawer } from "./LinkPreviewDrawer";
 import { REACT_FLOW_GLOBAL_KEY_BINDINGS } from "./reactFlowKeyBindings";
+import { RelationshipsMenu } from "./RelationshipsMenu";
 import type { LinkPreviewOverlayStore } from "./LinkPreviewOverlayStore";
 import { VicinityEdge } from "./VicinityEdge";
 import { NoteNode } from "./NoteNode";
 import { NoteOpenContext } from "./NoteOpenContext";
 import { opensInNewTab } from "./nodeOpenIntent";
 import { isResizeGestureChange, startedOnResizeGrip } from "./nodeResize";
-import type { ControlsActionsPort, GraphUiPort, NoteOpenPort } from "./viewPorts";
+import type { AiNamingMenuPort, ControlsActionsPort, GraphUiPort, NoteOpenPort } from "./viewPorts";
 
 /**
  * Renders the controller's flow snapshot with React Flow (step-05 rich
@@ -49,6 +50,7 @@ export function VicinityGraphFlow({
 	actions,
 	linkPreview,
 	relationships,
+	aiNaming,
 }: {
 	readonly controller: GraphViewController;
 	readonly ui: GraphUiPort;
@@ -57,6 +59,8 @@ export function VicinityGraphFlow({
 	readonly linkPreview: LinkPreviewOverlayStore;
 	/** The edge relationship names — the controller writes them, the edges render them. */
 	readonly relationships: EdgeRelationshipOverlayStore;
+	/** Auto mode's status and Retry, for the top-right Relationships menu. */
+	readonly aiNaming: AiNamingMenuPort;
 }): ReactElement {
 	const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
 	const previewModel = useSyncExternalStore(linkPreview.subscribe, linkPreview.getSnapshot);
@@ -308,16 +312,22 @@ export function VicinityGraphFlow({
 								<Panel position="top-left">
 									<GraphToolbar controls={snapshot.controls} />
 								</Panel>
-								{snapshot.orphanTruncation.totalHiddenCount > 0 && (
-									<Panel position="top-right">
+								{/*
+								 * Top-right: the Relationships menu (task 4/4), then — only when
+								 * something is hidden — the "+N hidden" badge under it. One
+								 * Panel, stacked, so the two never overlap.
+								 */}
+								<Panel position="top-right" className="vicinity-graph-top-right">
+									<RelationshipsMenu controls={snapshot.controls} aiNaming={aiNaming} />
+									{snapshot.orphanTruncation.totalHiddenCount > 0 && (
 										<div
 											className="vicinity-graph-overlay-badge"
 											title={orphanBreakdownTitle(snapshot.orphanTruncation.breakdown)}
 										>
 											{hiddenOverlayText(snapshot.orphanTruncation.totalHiddenCount)}
 										</div>
-									</Panel>
-								)}
+									)}
+								</Panel>
 							</ReactFlow>
 							{previewModel !== null && (
 								<LinkPreviewDrawer

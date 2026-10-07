@@ -1,11 +1,13 @@
 import type {
 	DirectedLink,
 	EdgeRelationship,
+	RelationshipSettings,
 	LinkOccurrenceProvider,
 	StoredRelationshipNames,
 	StoredRelationshipProvider,
 	SyntaxRelationshipNames,
 	SyntaxRelationshipProvider,
+	VaultPath,
 	VicinityGraph,
 } from "../engine";
 import {
@@ -30,6 +32,8 @@ import { NO_ORPHAN_TRUNCATION } from "./truncationBadges";
 import type { OrphanTruncation } from "./truncationBadges";
 import { LinkPreviewModels, edgeEndpointDisplayName } from "./linkPreviewModel";
 import type {
+	AutoNamingPort,
+	BuildTrigger,
 	EdgeRelationshipsPort,
 	GraphLayoutPort,
 	GraphSourcePort,
@@ -156,11 +160,14 @@ const UNSTRINGIFIABLE_FAILURE_SIGNATURE = "<unstringifiable routing failure>";
 type Subscriber = () => void;
 
 /**
- * Per-pass rebuild knobs. `forceRelayout` bypasses the reuse-layout heuristic so
+ * Per-pass rebuild knobs. `trigger` says what started the pass — auto mode starts AI
+ * work differently for a user's request and for a data change (see
+ * `AiAutoNamingGate`). `forceRelayout` bypasses the reuse-layout heuristic so
  * the elk pass always runs — the manual redraw ({@link GraphViewController.redraw}).
  * Absent/false keeps the default structural-diff behaviour every other trigger uses.
  */
 interface RebuildOptions {
+	readonly trigger: BuildTrigger;
 	readonly forceRelayout?: boolean;
 }
 
@@ -230,6 +237,8 @@ export class GraphViewController {
 		private readonly storedRelationships: StoredRelationshipProvider,
 		/** Where resolved names are published for the edge labels AND the edge drawer (read live). */
 		private readonly edgeRelationships: EdgeRelationshipsPort,
+		/** Auto mode: every published build is offered here once its names have resolved. */
+		private readonly autoNaming: AutoNamingPort,
 	) {}
 
 	// --- external store (React `useSyncExternalStore`) ---------------------
@@ -275,7 +284,7 @@ export class GraphViewController {
 		// any pending debounced resolve-rebuild — it would be a redundant second pass.
 		this.clearDebounce();
 		this.mainPath = outcome.mainPath;
-		void this.runRebuild();
+		void this.runRebuild({ trigger: "user-request" });
 	}
 
 	/**
@@ -296,7 +305,7 @@ export class GraphViewController {
 		}
 		this.clearDebounce();
 		this.mainPath = newPath;
-		void this.runRebuild();
+		void this.runRebuild({ trigger: "data-change" });
 	}
 
 	/**
@@ -308,7 +317,7 @@ export class GraphViewController {
 	 */
 	handleSettingsChanged(): void {
 		this.clearDebounce();
-		void this.runRebuild();
+		void this.runRebuild({ trigger: "data-change" });
 	}
 
 	/**
@@ -319,7 +328,17 @@ export class GraphViewController {
 	 */
 	retryRebuild(): void {
 		this.clearDebounce();
-		void this.runRebuild();
+		void this.runRebuild({ trigger: "user-request" });
+	}
+
+	/**
+	 * The Relationships menu's Retry, after auto mode stopped (bad key, unknown model …):
+	 * rebuild the current graph as a USER request, so auto mode offers its edges again
+	 * even though nothing about the graph changed. No forced relayout — nothing moved.
+	 */
+	rebuildForAutoNaming(): void {
+		this.clearDebounce();
+		void this.runRebuild({ trigger: "user-request" });
 	}
 
 	/**
@@ -332,7 +351,7 @@ export class GraphViewController {
 	 */
 	redraw(): void {
 		this.clearDebounce();
-		void this.runRebuild({ forceRelayout: true });
+		void this.runRebuild({ trigger: "user-request", forceRelayout: true });
 	}
 
 	/** Vault content changed while the view is open — debounce the resolve burst. */
@@ -340,7 +359,7 @@ export class GraphViewController {
 		this.clearDebounce();
 		this.debounceTimer = window.setTimeout(() => {
 			this.debounceTimer = null;
-			void this.runRebuild();
+			void this.runRebuild({ trigger: "data-change" });
 		}, REBUILD_DEBOUNCE_MS);
 	}
 
@@ -378,7 +397,7 @@ export class GraphViewController {
 		this.clearDebounce();
 		this.mainPath = path;
 		this.navigator.openNote(path, { newTab: false });
-		void this.runRebuild();
+		void this.runRebuild({ trigger: "user-request" });
 	}
 
 	/**
@@ -417,7 +436,7 @@ export class GraphViewController {
 
 	// --- pipeline ----------------------------------------------------------
 
-	private async runRebuild(options: RebuildOptions = {}): Promise<void> {
+	private async runRebuild(options: RebuildOptions): Promise<void> {
 		const token = ++this.rebuildToken;
 		const mainPath = this.mainPath;
 		if (mainPath === null) {
@@ -437,7 +456,7 @@ export class GraphViewController {
 			this.setSnapshot(BUILDING_SNAPSHOT);
 		}
 		try {
-			await this.attemptBuildAndPublish(token, mainPath, options.forceRelayout ?? false);
+			await this.attemptBuildAndPublish(token, mainPath, options);
 		} finally {
 			// A superseded build settles nothing — its successor is still the first
 			// paint, and the warm-up it awaits has not been paid for yet.
@@ -460,10 +479,10 @@ export class GraphViewController {
 	 * A SUPERSEDED attempt is neither retried nor reported as a failure: its
 	 * successor owns the screen.
 	 */
-	private async attemptBuildAndPublish(token: number, mainPath: string, forceRelayout: boolean): Promise<void> {
+	private async attemptBuildAndPublish(token: number, mainPath: string, options: RebuildOptions): Promise<void> {
 		for (let attempt = 1; attempt <= REBUILD_ATTEMPTS; attempt += 1) {
 			try {
-				await this.buildAndPublish(token, mainPath, forceRelayout);
+				await this.buildAndPublish(token, mainPath, options);
 				return;
 			} catch (error: unknown) {
 				console.error("vicinity-graph: rebuild failed", { attempt, attempts: REBUILD_ATTEMPTS }, error);
@@ -477,7 +496,7 @@ export class GraphViewController {
 	}
 
 	/** One rebuild pass: engine build → structural diff → elk → routing → publish. */
-	private async buildAndPublish(token: number, mainPath: string, forceRelayout: boolean): Promise<void> {
+	private async buildAndPublish(token: number, mainPath: string, options: RebuildOptions): Promise<void> {
 		const result = await this.graphBuilder.build(mainPath);
 		if (this.isStale(token)) {
 			return;
@@ -493,7 +512,7 @@ export class GraphViewController {
 		// rather than consulted. The diff judges a committed resize against the
 		// geometry the reuse path would keep (does the new box still fit where it
 		// is?), so it gets that geometry.
-		const decision: LayoutDecision = forceRelayout
+		const decision: LayoutDecision = options.forceRelayout === true
 			? "relayout"
 			: decideLayout(this.previousGraph, graph, SIZE_RELAYOUT_THRESHOLD, {
 					positions: this.positions,
@@ -539,7 +558,11 @@ export class GraphViewController {
 			return;
 		}
 		this.publish(graph, positions, groupDimensions, withRoutedPoints(flow, routes));
-		this.relationshipsSettled = this.resolveRelationships(graph, token);
+		this.relationshipsSettled = this.resolveRelationships(graph, token, {
+			groupedPaths: groupedNotePathsOf(flow),
+			settings: result.controls.relationships,
+			trigger: options.trigger,
+		});
 		await this.relationshipsSettled;
 	}
 
@@ -550,14 +573,19 @@ export class GraphViewController {
 	 * overlay on a graph that is already on screen, so it never relayouts and never
 	 * fails the rebuild: a failed read is reported and the other sources (and the
 	 * `parent` default) still render. Latest-wins like every other async step.
+	 *
+	 * Then — only for the build still on screen — offers the build to auto mode, with the
+	 * names it just resolved (an edge named any way is no AI candidate).
 	 */
-	private async resolveRelationships(graph: VicinityGraph, token: number): Promise<void> {
+	private async resolveRelationships(graph: VicinityGraph, token: number, build: AutoNamingContext): Promise<void> {
 		const pairs = relationshipLookupPairs(graph.edges);
 		const [syntax, stored] = await Promise.all([this.readSyntaxNames(pairs), this.readStoredNames(pairs)]);
 		if (this.isStale(token)) {
 			return;
 		}
-		this.setRelationships(resolveEdgeRelationships(graph.edges, { syntax, stored }));
+		const sources = { syntax, stored };
+		this.setRelationships(resolveEdgeRelationships(graph.edges, sources));
+		this.autoNaming.offerBuild({ edges: graph.edges, sources, ...build });
 	}
 
 	private async readSyntaxNames(pairs: readonly DirectedLink[]): Promise<SyntaxRelationshipNames> {
@@ -745,6 +773,23 @@ export class GraphViewController {
 			this.debounceTimer = null;
 		}
 	}
+}
+
+/** What auto mode needs about a build beyond its edges and names (see {@link AutoNamingPort}). */
+interface AutoNamingContext {
+	readonly groupedPaths: ReadonlySet<VaultPath>;
+	readonly settings: RelationshipSettings;
+	readonly trigger: BuildTrigger;
+}
+
+/**
+ * Every NOTE rendered inside a folder group — a note node with a parent. A group
+ * node's own parent is a group too, but it is no note, so it is left out.
+ */
+function groupedNotePathsOf(flow: FlowGraph): ReadonlySet<VaultPath> {
+	return new Set(
+		flow.nodes.flatMap((node) => (node.kind === "note" && node.parentId !== undefined ? [asVaultPath(node.id)] : [])),
+	);
 }
 
 /** Field separator for the route-cache signature — a NUL cannot occur in a vault path / id. */

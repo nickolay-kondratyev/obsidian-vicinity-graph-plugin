@@ -1,12 +1,17 @@
 import { Notice, Plugin } from "obsidian";
 import { DocIdServices } from "stable-ids-for-obsidian";
 import type { DocIdService } from "stable-ids-for-obsidian";
+import { SecretOrEnvApiKeySource } from "./adapters/ApiKeySource";
 import { CanvasParseCache } from "./adapters/CanvasParseCache";
 import { FolderNoteIndex } from "./adapters/FolderNoteIndex";
 import { FrontmatterIdIndex } from "./adapters/FrontmatterIdIndex";
+import type { JsonHttpPort } from "./adapters/JsonHttpPort";
 import { LiveLinkOccurrenceProvider } from "./adapters/LiveLinkOccurrenceProvider";
+import { ObsidianJsonHttp } from "./adapters/ObsidianJsonHttp";
+import { ObsidianNoteTextProvider } from "./adapters/ObsidianNoteTextProvider";
 import { ObsidianSyntaxRelationshipProvider } from "./adapters/ObsidianSyntaxRelationshipProvider";
 import { ObsidianNoteCreation } from "./adapters/ObsidianNoteCreation";
+import { OpenAiRelationshipNamer } from "./adapters/OpenAiRelationshipNamer";
 import { VicinityGraphBuilder } from "./adapters/VicinityGraphBuilder";
 import { DocIdMapWarmer } from "./persistence/DocIdMapWarmer";
 import { OrphanSweeper, SWEEP_DELAY_MS } from "./persistence/OrphanSweeper";
@@ -19,6 +24,9 @@ import { PluginDataStore } from "./persistence/PluginDataStore";
 import { RelationshipStore } from "./persistence/RelationshipStore";
 import { VaultAdapterFsPort } from "./persistence/vaultFsPort";
 import { VaultFileStore } from "./persistence/VaultFileStore";
+import { AiNamingFailureNotices } from "./view/AiNamingFailureNotices";
+import { AiRelationshipQueue } from "./view/AiRelationshipQueue";
+import { AiRelationshipWriter } from "./view/AiRelationshipWriter";
 import { GraphViewOpener } from "./view/GraphViewOpener";
 import { SettingsWritePipeline } from "./view/settingsWritePipeline";
 import { VicinityGraphSettingTab } from "./view/VicinityGraphSettingTab";
@@ -70,6 +78,19 @@ export default class VicinityGraphPlugin extends Plugin {
 	 * be two chains, and two chains can interleave.
 	 */
 	settingsWrites!: SettingsWritePipeline;
+	/**
+	 * The ONE outbound-HTTP transport auto mode's OpenAI requests go through
+	 * (`requestUrl`). PUBLIC and reassignable for ONE reason: the e2e harness swaps in a
+	 * recording fake so the real namer, wire format and key lookup run end to end with
+	 * NO network (`e2e/relationshipsAutoMode.e2e.ts`). The namer reads this field per
+	 * request; nothing in the plugin reassigns it.
+	 */
+	aiHttp: JsonHttpPort = new ObsidianJsonHttp();
+	/**
+	 * Auto mode's ONE request queue — plugin-lived, so its dedupe (a pair is asked at
+	 * most once per session) and its session status survive views opening and closing.
+	 */
+	private aiQueue!: AiRelationshipQueue;
 
 	private docIdService!: DocIdService;
 	private readonly pathDocIdMap = new PathDocIdMap();
@@ -182,6 +203,8 @@ export default class VicinityGraphPlugin extends Plugin {
 			this.noteCreation,
 		);
 
+		this.aiQueue = this.createAiQueue();
+
 		this.registerVaultLifecycleHandlers();
 		this.scheduleOrphanSweep();
 		this.addSettingTab(new VicinityGraphSettingTab(this.app, this));
@@ -214,6 +237,7 @@ export default class VicinityGraphPlugin extends Plugin {
 					storedRelationships,
 					this.folderNoteIndex,
 					this.noteCreation,
+					this.aiQueue,
 				),
 		);
 		// Two placements, two hotkey-bindable commands (mirrors core's "Split
@@ -229,6 +253,29 @@ export default class VicinityGraphPlugin extends Plugin {
 			name: "Open below active note",
 			callback: () => void opener.open("main-area"),
 		});
+	}
+
+	/**
+	 * Auto mode's wiring (task 4/4 `nid_80xc6z8umlpo1x6u4p1v7eb22_e`): the key is read
+	 * PER REQUEST — the keychain secret named in settings, else `OPENAI_API_KEY` from the
+	 * environment Obsidian was started with — so a key picked later is used at once.
+	 * Nothing is ever sent unless auto mode is ON (`AiAutoNamingGate`).
+	 */
+	private createAiQueue(): AiRelationshipQueue {
+		const apiKeys = new SecretOrEnvApiKeySource(
+			this.app.secretStorage,
+			() => this.pluginDataStore.relationships().apiKeySecretName,
+			(name) => process.env[name],
+		);
+		// Through `this.aiHttp` on every request (see its doc) rather than captured once.
+		const http: JsonHttpPort = { postJson: (request) => this.aiHttp.postJson(request) };
+		const queue = new AiRelationshipQueue(
+			new OpenAiRelationshipNamer(apiKeys, http),
+			new ObsidianNoteTextProvider(this.app.vault),
+			new AiRelationshipWriter(this.persistenceServices, this.app.vault, this.settingsWrites),
+		);
+		this.register(new AiNamingFailureNotices(queue, this.notices).start());
+		return queue;
 	}
 
 	/**

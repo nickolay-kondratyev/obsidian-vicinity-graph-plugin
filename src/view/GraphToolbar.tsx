@@ -104,8 +104,10 @@ function SettingsSectionView({
  * counterpart of `collapsedUnder`), and forces the wrapper even where the block
  * declares no layout class: the name and the rows it names must be one element, or
  * the disclosure body's flex gap spaces them as unrelated siblings.
+ *
+ * Exported for the top-right `RelationshipsMenu`, the panel's other section walker.
  */
-function SettingsRowBlockView({
+export function SettingsRowBlockView({
 	block,
 	state,
 }: {
