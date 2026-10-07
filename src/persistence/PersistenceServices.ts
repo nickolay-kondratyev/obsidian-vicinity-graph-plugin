@@ -1,5 +1,5 @@
 import type { DocIdPort, VaultFilePort } from "../adapters/obsidianPorts";
-import type { RelationshipName } from "../engine";
+import type { AiNamedRelationship, RelationshipName } from "../engine";
 import type { NotPersistableReason, PersistableIdentity } from "./DocPersistEligibility";
 import { DocPersistEligibility } from "./DocPersistEligibility";
 import type { PathDocIdMap } from "./PathDocIdMap";
@@ -26,6 +26,19 @@ export type LocalPinPersistOutcome =
 export type RelationshipPersistOutcome =
 	| { readonly kind: "persisted" }
 	| { readonly kind: "not-persistable"; readonly refusedDoc: "source" | "target"; readonly reason: NotPersistableReason };
+
+/**
+ * Verdict of storing an AI name: a {@link RelationshipPersistOutcome}, or
+ * `already-named` when the pair got a record (manual, AI or dismissed) while the
+ * request was in flight — that record wins and nothing is written.
+ */
+export type AiRelationshipPersistOutcome = RelationshipPersistOutcome | { readonly kind: "already-named" };
+
+/** Both notes of a relationship, minted and persistable. */
+interface RelationshipIdentities {
+	readonly sourceDocid: string;
+	readonly targetDocid: string;
+}
 
 /**
  * The doc-scoped write-intent facade: every entry point is an EXPLICIT user
@@ -137,34 +150,37 @@ export class PersistenceServices {
 	/**
 	 * Names (or renames) the DIRECTED relationship source → target as the user's
 	 * manual name — a write intent on BOTH notes, so ids are minted for both (like a
-	 * local pin). Both are checked for eligibility BEFORE either is minted, so a
-	 * pair that cannot be stored (an attachment endpoint) writes nothing into the
-	 * other note. An unsafe foreign id is only known once read, so that refusal
-	 * can follow a mint on the source — which is then simply a note with an id.
+	 * local pin), by {@link relationshipIdentities}.
 	 */
 	async nameRelationship(
 		sourceFile: VaultFilePort,
 		targetFile: VaultFilePort,
 		name: RelationshipName,
 	): Promise<RelationshipPersistOutcome> {
-		if (!this.docIdPort.isEligible(sourceFile)) {
-			return { kind: "not-persistable", refusedDoc: "source", reason: "no-docid" };
+		const identities = await this.relationshipIdentities(sourceFile, targetFile);
+		if (identities.kind !== "persistable") {
+			return identities.refusal;
 		}
-		if (!this.docIdPort.isEligible(targetFile)) {
-			return { kind: "not-persistable", refusedDoc: "target", reason: "no-docid" };
-		}
-		const sourceIdentity = DocPersistEligibility.classify(await this.docIdPort.ensureDocId(sourceFile));
-		if (sourceIdentity.kind !== "persistable") {
-			return { kind: "not-persistable", refusedDoc: "source", reason: sourceIdentity.reason };
-		}
-		const targetIdentity = DocPersistEligibility.classify(await this.docIdPort.ensureDocId(targetFile));
-		if (targetIdentity.kind !== "persistable") {
-			return { kind: "not-persistable", refusedDoc: "target", reason: targetIdentity.reason };
-		}
-		this.pathDocIdMap.set(sourceFile.path, sourceIdentity.docid);
-		this.pathDocIdMap.set(targetFile.path, targetIdentity.docid);
-		await this.relationshipStore.saveManualName(sourceIdentity.docid, targetIdentity.docid, name);
+		await this.relationshipStore.saveManualName(identities.ids.sourceDocid, identities.ids.targetDocid, name);
 		return { kind: "persisted" };
+	}
+
+	/**
+	 * Stores an AI name for source → target (task 3/4). A write intent exactly like
+	 * a manual name — ids are minted for both notes, by the same rule — but it never
+	 * overwrites: a pair that holds ANY record by now keeps it (`already-named`).
+	 */
+	async saveAiRelationship(
+		sourceFile: VaultFilePort,
+		targetFile: VaultFilePort,
+		named: AiNamedRelationship,
+	): Promise<AiRelationshipPersistOutcome> {
+		const identities = await this.relationshipIdentities(sourceFile, targetFile);
+		if (identities.kind !== "persistable") {
+			return identities.refusal;
+		}
+		const written = await this.relationshipStore.saveAiName(identities.ids.sourceDocid, identities.ids.targetDocid, named);
+		return written ? { kind: "persisted" } : { kind: "already-named" };
 	}
 
 	/**
@@ -181,6 +197,39 @@ export class PersistenceServices {
 		this.pathDocIdMap.set(sourceFile.path, source.docid);
 		this.pathDocIdMap.set(targetFile.path, target.docid);
 		await this.relationshipStore.clearName(source.docid, target.docid);
+	}
+
+	/**
+	 * Mints (write intent!) both notes' ids. Both are checked for eligibility BEFORE
+	 * either is minted, so a pair that cannot be stored (an attachment endpoint)
+	 * writes nothing into the other note. An unsafe foreign id is only known once
+	 * read, so that refusal can follow a mint on the source — which is then simply a
+	 * note with an id.
+	 */
+	private async relationshipIdentities(
+		sourceFile: VaultFilePort,
+		targetFile: VaultFilePort,
+	): Promise<
+		| { readonly kind: "persistable"; readonly ids: RelationshipIdentities }
+		| { readonly kind: "refused"; readonly refusal: RelationshipPersistOutcome }
+	> {
+		if (!this.docIdPort.isEligible(sourceFile)) {
+			return { kind: "refused", refusal: { kind: "not-persistable", refusedDoc: "source", reason: "no-docid" } };
+		}
+		if (!this.docIdPort.isEligible(targetFile)) {
+			return { kind: "refused", refusal: { kind: "not-persistable", refusedDoc: "target", reason: "no-docid" } };
+		}
+		const source = DocPersistEligibility.classify(await this.docIdPort.ensureDocId(sourceFile));
+		if (source.kind !== "persistable") {
+			return { kind: "refused", refusal: { kind: "not-persistable", refusedDoc: "source", reason: source.reason } };
+		}
+		const target = DocPersistEligibility.classify(await this.docIdPort.ensureDocId(targetFile));
+		if (target.kind !== "persistable") {
+			return { kind: "refused", refusal: { kind: "not-persistable", refusedDoc: "target", reason: target.reason } };
+		}
+		this.pathDocIdMap.set(sourceFile.path, source.docid);
+		this.pathDocIdMap.set(targetFile.path, target.docid);
+		return { kind: "persistable", ids: { sourceDocid: source.docid, targetDocid: target.docid } };
 	}
 
 	/** ensureDocId (write intent!) → Q3 classification → persist only on a "persistable" verdict. */

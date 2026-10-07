@@ -9,7 +9,7 @@ import { PersistenceServices } from "./PersistenceServices";
 import { PluginDataStore } from "./PluginDataStore";
 import { RelationshipStore } from "./RelationshipStore";
 import { VaultFileStore } from "./VaultFileStore";
-import type { RelationshipName } from "../engine";
+import type { AiNamedRelationship, RelationshipName } from "../engine";
 
 const FIXED_NOW = 777;
 
@@ -290,5 +290,44 @@ describe("PersistenceServices.clearRelationship", () => {
 		const { persistence } = await services(docIdPort);
 		await persistence.clearRelationship(fileAt("a.md"), fileAt("b.md"));
 		expect(docIdPort.ensureCalls).toBe(0);
+	});
+});
+
+const AI_EXTENDS: AiNamedRelationship = {
+	name: "extends" as RelationshipName,
+	model: "gpt-6-luna",
+	effort: "medium",
+	usage: { inputTokens: 100, outputTokens: 5 },
+};
+
+describe("PersistenceServices.saveAiRelationship", () => {
+	it("WHEN both notes have ids THEN the AI name is stored under source → target", async () => {
+		const { persistence, relationshipStore } = await services(
+			new FakeDocIdPort({ "a.md": "docid_a_e", "b.md": "docid_b_e" }),
+		);
+		await persistence.saveAiRelationship(fileAt("a.md"), fileAt("b.md"), AI_EXTENDS);
+		expect(relationshipStore.relationshipFor("docid_a_e", "docid_b_e")?.origin).toBe("ai");
+	});
+
+	it("WHEN neither note has an id THEN ids are minted for BOTH (an AI name is a write intent too)", async () => {
+		const docIdPort = new FakeDocIdPort();
+		const { persistence } = await services(docIdPort);
+		await persistence.saveAiRelationship(fileAt("a.md"), fileAt("b.md"), AI_EXTENDS);
+		expect(docIdPort.ensureCalls).toBe(2);
+	});
+
+	it("WHEN the pair was named manually meanwhile THEN it reports already-named", async () => {
+		const { persistence } = await services(new FakeDocIdPort({ "a.md": "docid_a_e", "b.md": "docid_b_e" }));
+		await persistence.nameRelationship(fileAt("a.md"), fileAt("b.md"), SUPPORTS);
+		expect(await persistence.saveAiRelationship(fileAt("a.md"), fileAt("b.md"), AI_EXTENDS)).toEqual({ kind: "already-named" });
+	});
+
+	it("WHEN the target cannot carry an id THEN it is refused naming the target", async () => {
+		const { persistence } = await services(new FakeDocIdPort({ "a.md": "docid_a_e" }));
+		expect(await persistence.saveAiRelationship(fileAt("a.md"), fileAt("photo.png"), AI_EXTENDS)).toEqual({
+			kind: "not-persistable",
+			refusedDoc: "target",
+			reason: "no-docid",
+		});
 	});
 });
