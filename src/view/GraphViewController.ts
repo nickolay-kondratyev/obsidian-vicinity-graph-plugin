@@ -207,6 +207,14 @@ export class GraphViewController {
 	 * module vs. contract violation vs. bad geometry) instead of swallowing it.
 	 */
 	private readonly warnedRoutingFailures = new Set<string>();
+	/**
+	 * Settles when the latest published graph's names read has finished (never
+	 * rejects). {@link openEdgePreview} awaits it: the drawer reads names LIVE from
+	 * the overlay, but a drawer opened in that window would otherwise first show a
+	 * named pair as unnamed (offering "Name this relationship" on an edge a note
+	 * already names) until the read lands.
+	 */
+	private relationshipsSettled: Promise<void> = Promise.resolve();
 
 	constructor(
 		private readonly navigator: NoteNavigatorPort,
@@ -383,6 +391,7 @@ export class GraphViewController {
 		if (edge === undefined) {
 			return; // The clicked edge left the graph before the click was handled.
 		}
+		await this.relationshipsSettled;
 		const pairs = await Promise.all(
 			edge.notePairs.map(async (pair) => {
 				const sourcePath = asVaultPath(pair.source);
@@ -529,7 +538,8 @@ export class GraphViewController {
 			return;
 		}
 		this.publish(graph, positions, groupDimensions, withRoutedPoints(flow, routes));
-		await this.resolveRelationships(graph, token);
+		this.relationshipsSettled = this.resolveRelationships(graph, token);
+		await this.relationshipsSettled;
 	}
 
 	/**

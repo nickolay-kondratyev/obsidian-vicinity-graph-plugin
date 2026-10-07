@@ -1637,6 +1637,24 @@ describe("GraphViewController edge relationship names", () => {
 		expect(h.relationships.current().get(directedLinkKey(A, B))?.name).toBe("fresh");
 	});
 
+	it("WHEN the preview opens before the names read settles THEN the drawer opens only once the names are published", async () => {
+		const read = deferred<SyntaxRelationshipNames>();
+		const h = setup(new FakeEdgeRouter(), new FakeLinkOccurrenceProvider({}), { syntaxNamesFor: () => read.promise });
+		h.controller.handleActiveFileChanged("a.md");
+		const nodes = [makeNode({ path: A }), makeNode({ path: B })];
+		h.source.resolveBuild(0, makeGraph({ nodes, edges: [makeEdge("a.md", "b.md")] }));
+		await flush();
+		const namesWhenShown: (string | undefined)[] = [];
+		vi.spyOn(h.linkPreview, "showLinkPreview").mockImplementation(() => {
+			namesWhenShown.push(h.relationships.current().get(directedLinkKey(A, B))?.name);
+		});
+		const opening = h.controller.openEdgePreview("a.md->b.md");
+		await flush();
+		read.resolve(new Map([[directedLinkKey(A, B), ["improves"]]]));
+		await opening;
+		expect(namesWhenShown).toEqual(["improves"]);
+	});
+
 	it("WHEN an edge's preview opens THEN the drawer model lists its directed pair for naming", async () => {
 		// The drawer reads the pair's NAME live from the overlay (so a drawer opened
 		// before the names read lands still fills in) — the model carries its key.
