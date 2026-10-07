@@ -20,3 +20,6 @@ Plain version: by default, OpenAI's Responses API keeps a copy of each request a
 
 Reply A or B. The live-call ticket nid_g0inqme2ol16xsrcg89g3kks4_e records whether OpenAI accepts `store: false` with gpt-6-luna.
 
+
+## Fact from the live call (2026-10-07)
+gpt-6-luna accepts `store: false` (the response echoed `store: false`). See nid_g0inqme2ol16xsrcg89g3kks4_e. Still waiting on the human's A/B answer.

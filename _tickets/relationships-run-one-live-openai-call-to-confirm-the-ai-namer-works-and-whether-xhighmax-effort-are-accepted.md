@@ -1,17 +1,17 @@
 ---
+closed_iso: 2026-10-07T16:03:34Z
 id: nid_g0inqme2ol16xsrcg89g3kks4_e
 title: "Relationships: run one live OpenAI call to confirm the AI namer works (and whether xhigh/max effort are accepted)"
-status: in_progress
+status: closed
 deps: []
 links: []
 created_iso: 2026-10-07T00:40:30Z
-status_updated_iso: 2026-10-07T15:56:46Z
+status_updated_iso: 2026-10-07T16:03:34Z
 type: task
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
 parent: nid_fc47gtxej6z7fqc53bflme8p5_e
 tags: [relationships]
-pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin/.worktree/t-g0inqme2
 ---
 
 Plain version: ticket 3/4 (nid_cbnhpdfn4myqfzqr8weyg7kq5_e) asks for ONE real call to OpenAI, with its cost written down. The agent sandbox has no OPENAI_API_KEY, so nobody has made that call yet. All 3/4 code is tested against fakes only.
