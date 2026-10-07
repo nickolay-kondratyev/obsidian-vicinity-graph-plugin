@@ -1,17 +1,17 @@
 ---
+closed_iso: 2026-10-07T00:35:25Z
 id: nid_a5m4kforr9scit68rhqmqh78o_e
 title: "Relationships 2/4: RelationshipStore (from_id/<from>/<to>.json) + manual name/rename/clear in the edge drawer"
-status: in_progress
+status: closed
 deps: [nid_gk9h4jpa7di1al7och0rehd3h_e]
 links: []
 created_iso: 2026-10-06T23:04:40Z
-status_updated_iso: 2026-10-07T00:11:36Z
+status_updated_iso: 2026-10-07T00:35:25Z
 type: task
 priority: 2
 assignee: nickolaykondratyev
 parent: nid_fc47gtxej6z7fqc53bflme8p5_e
 tags: [relationships]
-pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin/.worktree/t-a5m4kfor
 ---
 
 Part 2/4 of the named-relationships epic. Read the parent ticket first for the data model and the
