@@ -1,6 +1,5 @@
 import type { VaultFilePort, VaultPort } from "../adapters/obsidianPorts";
 import type {
-	AiNamedRelationship,
 	NodeContentOverride,
 	NodeSizeOverridePx,
 	RelationshipName,
@@ -14,7 +13,6 @@ import type { GuardedWriteOutcome, SettingsWritePipeline } from "./settingsWrite
 import type { SettingsInteraction } from "./settingsWritePlan";
 import type {
 	ActiveMainProvider,
-	AiRelationshipWriterPort,
 	ChildNoteCreatorPort,
 	ControlsActionsPort,
 	UserNoticePort,
@@ -72,7 +70,7 @@ const NODE_SIZE_WRITE_SUBJECT: NonSettingsWriteSubject = "node-size-override";
 const NODE_CONTENT_WRITE_SUBJECT: NonSettingsWriteSubject = "node-content-override";
 const RELATIONSHIP_WRITE_SUBJECT: NonSettingsWriteSubject = "relationship-name";
 
-export class ControlsActions implements ControlsActionsPort, AiRelationshipWriterPort {
+export class ControlsActions implements ControlsActionsPort {
 	constructor(
 		private readonly persistenceServices: PersistenceServices,
 		private readonly vault: VaultPort,
@@ -304,25 +302,6 @@ export class ControlsActions implements ControlsActionsPort, AiRelationshipWrite
 			}
 			await this.persistenceServices.clearRelationship(sourceFile, targetFile);
 			return "store-changed";
-		});
-	}
-
-	/**
-	 * An AI-generated name (task 3/4 `nid_cbnhpdfn4myqfzqr8weyg7kq5_e`) — the same
-	 * guarded seam as {@link nameRelationship}, so a failed save gets the ONE failure
-	 * notice and a stored name repaints every view. Unlike a manual name a refusal is
-	 * SILENT: nobody clicked anything, and auto mode would show it once per edge. A
-	 * pair named meanwhile (manual, AI or dismissed) keeps its record — nothing moved.
-	 */
-	saveAiRelationship(sourcePath: string, targetPath: string, named: AiNamedRelationship): Promise<void> {
-		return this.settingsWrites.runGuarded(RELATIONSHIP_WRITE_SUBJECT, async () => {
-			const sourceFile = this.vault.getFileByPath(sourcePath);
-			const targetFile = this.vault.getFileByPath(targetPath);
-			if (sourceFile === null || targetFile === null) {
-				return "store-unchanged";
-			}
-			const outcome = await this.persistenceServices.saveAiRelationship(sourceFile, targetFile, named);
-			return outcome.kind === "persisted" ? "store-changed" : "store-unchanged";
 		});
 	}
 

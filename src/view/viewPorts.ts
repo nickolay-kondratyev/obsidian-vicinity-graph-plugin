@@ -288,7 +288,7 @@ export interface EdgeRelationshipsPort {
 
 /**
  * Where an AI-generated name lands (task 3/4 `nid_cbnhpdfn4myqfzqr8weyg7kq5_e`):
- * the `AiRelationshipQueue`'s ONE write. Implemented by `ControlsActions`, so an
+ * the `AiRelationshipQueue`'s ONE write. Implemented by `AiRelationshipWriter`, so an
  * AI name rides the same guarded write (one failure notice, every view repainted)
  * as a manual one. Never overwrites a pair that holds any record by then.
  */
