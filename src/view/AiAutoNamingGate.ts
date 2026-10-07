@@ -1,12 +1,15 @@
-import type { AiNamingConfig, RelationshipSettings } from "../engine";
+import type { AiNamingConfig, DirectedLink, RelationshipSettings } from "../engine";
 import { aiCandidateEdges, directedLinkKey } from "../engine";
 import type { AiNamingStatus, AiRelationshipQueue } from "./AiRelationshipQueue";
 import type { AiNamingMenuPort, AutoNamingOffer, AutoNamingPort } from "./viewPorts";
 
-/** The last build this gate handed the queue — what a later `data-change` build is compared against. */
+/** What the builds since the last submitted `user-request` showed — what a later `data-change` build is compared against. */
 interface Submission {
-	/** {@link directedLinkKey} of every candidate it offered. */
-	readonly offeredKeys: ReadonlySet<string>;
+	/**
+	 * {@link directedLinkKey} of every edge those builds showed unnamed OR of unknown
+	 * name (a `syntax-unread` source) — accumulated, so an edge is "new" only once.
+	 */
+	readonly shownKeys: ReadonlySet<string>;
 }
 
 /**
@@ -24,11 +27,16 @@ interface Submission {
  * - a `user-request` build (the user opened or clicked a note, redrew, retried)
  *   always starts AI work — up to the cap, once per user action;
  * - a `data-change` build (a settings or stored-name write, a vault change) starts AI
- *   work ONLY when it shows a candidate edge the last submitted build did not. An AI
- *   name's repaint and an id write add no edge, so they start nothing; a link the
- *   user just typed, or a depth they just raised, does.
+ *   work ONLY when it shows a candidate edge no build since the last user request
+ *   showed. An AI name's repaint and an id write add no edge, so they start nothing;
+ *   a link the user just typed, or a depth they just raised, does;
+ * - an edge whose source's names were UNREAD counts as shown: the id write that
+ *   naming does leaves the note's link cache lagging, so its edges flip unread → read
+ *   on a later rebuild. Counted as new, that flip would restart the backlog once per
+ *   stored name — the very chain this gate exists to stop.
  * Known ceiling: an edge that only BECOMES nameable through a data change (a note
- * grows past the 200-character minimum) waits for the next user request.
+ * grows past the 200-character minimum, its unread names catch up) waits for the
+ * next user request.
  *
  * Auto mode OFF drops queued (not in-flight) work and forgets what was offered, so
  * turning it back ON names the graph on screen. Turning it on, or changing the model,
@@ -57,16 +65,19 @@ export class AiAutoNamingGate implements AutoNamingPort, AiNamingMenuPort {
 			this.queue.resume();
 			this.lastSubmission = null;
 		}
-		const candidates = aiCandidateEdges(offer.edges, {
-			sources: offer.sources,
-			groupedPaths: offer.groupedPaths,
-			syntaxUnreadSources: offer.syntaxUnreadSources,
-		});
-		const offeredKeys = new Set(candidates.map((edge) => directedLinkKey(edge.source, edge.target)));
-		if (offer.trigger === "data-change" && this.lastSubmission !== null && isSubset(offeredKeys, this.lastSubmission.offeredKeys)) {
-			return;
+		const facts = { sources: offer.sources, groupedPaths: offer.groupedPaths, syntaxUnreadSources: offer.syntaxUnreadSources };
+		const candidates = aiCandidateEdges(offer.edges, facts);
+		// With no unread set, `aiCandidateEdges` also keeps the edges excluded ONLY as `syntax-unread`.
+		const shownKeys = keysOf(aiCandidateEdges(offer.edges, { ...facts, syntaxUnreadSources: new Set() }));
+		const previous = this.lastSubmission;
+		if (offer.trigger === "data-change" && previous !== null) {
+			if (isSubset(keysOf(candidates), previous.shownKeys)) {
+				return;
+			}
+			this.lastSubmission = { shownKeys: new Set([...previous.shownKeys, ...shownKeys]) };
+		} else {
+			this.lastSubmission = { shownKeys };
 		}
-		this.lastSubmission = { offeredKeys };
 		void this.queue.submitBuild(candidates, configOf(offer.settings));
 	}
 
@@ -92,6 +103,10 @@ function sameRelationshipSettings(a: RelationshipSettings, b: RelationshipSettin
 		a.reasoningEffort === b.reasoningEffort &&
 		a.apiKeySecretName === b.apiKeySecretName
 	);
+}
+
+function keysOf(edges: readonly DirectedLink[]): ReadonlySet<string> {
+	return new Set(edges.map((edge) => directedLinkKey(edge.source, edge.target)));
 }
 
 function isSubset(keys: ReadonlySet<string>, of: ReadonlySet<string>): boolean {

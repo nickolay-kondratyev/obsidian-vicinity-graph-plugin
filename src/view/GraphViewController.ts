@@ -575,7 +575,9 @@ export class GraphViewController {
 	 * `parent` default) still render. Latest-wins like every other async step.
 	 *
 	 * Then — only for the build still on screen — offers the build to auto mode, with the
-	 * names it just resolved (an edge named any way is no AI candidate).
+	 * names it just resolved (an edge named any way is no AI candidate). A build whose
+	 * STORED names could not be read is not offered: every stored and dismissed name would
+	 * read as unnamed, and auto mode would pay to ask about them.
 	 */
 	private async resolveRelationships(graph: VicinityGraph, token: number, build: AutoNamingContext): Promise<void> {
 		const pairs = relationshipLookupPairs(graph.edges);
@@ -583,9 +585,11 @@ export class GraphViewController {
 		if (this.isStale(token)) {
 			return;
 		}
-		const sources = { syntax: syntax.names, stored };
+		const sources = { syntax: syntax.names, stored: stored ?? new Map() };
 		this.setRelationships(resolveEdgeRelationships(graph.edges, sources));
-		this.autoNaming.offerBuild({ edges: graph.edges, sources, syntaxUnreadSources: syntax.unreadSources, ...build });
+		if (stored !== null) {
+			this.autoNaming.offerBuild({ edges: graph.edges, sources, syntaxUnreadSources: syntax.unreadSources, ...build });
+		}
 	}
 
 	/**
@@ -601,12 +605,13 @@ export class GraphViewController {
 		}
 	}
 
-	private async readStoredNames(pairs: readonly DirectedLink[]): Promise<StoredRelationshipNames> {
+	/** `null` = the read failed (reported): the stored names are UNKNOWN, not absent. */
+	private async readStoredNames(pairs: readonly DirectedLink[]): Promise<StoredRelationshipNames | null> {
 		try {
 			return await this.storedRelationships.storedRelationshipsFor(pairs);
 		} catch (error: unknown) {
 			console.warn("vicinity-graph: reading stored relationship names failed; showing the others only", error);
-			return new Map();
+			return null;
 		}
 	}
 

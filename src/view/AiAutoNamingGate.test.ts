@@ -214,6 +214,20 @@ describe("AiAutoNamingGate — no AI repaint chain", () => {
 		expect(namer.requests.length).toBe(AI_MAX_REQUESTS_PER_BUILD);
 	});
 
+	it("WHEN a data change only shows a note whose names were unknown (its link cache caught up) THEN nothing more is asked", async () => {
+		// GIVEN a backlog past the cap, plus one note whose names were unread at the user's
+		// request — the lag an id write into its frontmatter leaves while a name is stored.
+		const other = asVaultPath("other.md");
+		const edges = [...linkEdges(AI_MAX_REQUESTS_PER_BUILD + 5), { source: other, target: target(0), count: 1, hierarchy: false }];
+		const texts = new FakeNoteTextProvider({ ...Object.fromEntries(edges.map((edge) => [edge.target, PROSE])), [MAIN]: PROSE, [other]: PROSE });
+		const { world, namer } = given(edges, () => NAMED, texts);
+		world.build("user-request", { syntaxUnreadSources: new Set([other]) });
+		await settled();
+		world.build("data-change");
+		await settled();
+		expect(namer.requests.length).toBe(AI_MAX_REQUESTS_PER_BUILD);
+	});
+
 	it("WHEN a data change shows a new edge (a link the user typed) THEN that edge is asked about", async () => {
 		const { world, namer } = given(linkEdges(1), () => NAMED, prose(2));
 		world.build("user-request");

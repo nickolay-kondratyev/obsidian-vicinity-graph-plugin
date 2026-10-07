@@ -1809,6 +1809,20 @@ describe("GraphViewController offers each build to auto mode", () => {
 		expect([...(h.autoNaming.offers[0]?.syntaxUnreadSources ?? [])]).toEqual([A]);
 	});
 
+	it("WHEN reading the stored names fails THEN the build is not offered (a stored or dismissed name is not unnamed)", async () => {
+		vi.spyOn(console, "warn").mockImplementation(() => undefined);
+		const h = setup(
+			new FakeEdgeRouter(),
+			new FakeLinkOccurrenceProvider({}),
+			new FakeSyntaxRelationshipProvider([]),
+			{ storedRelationshipsFor: () => Promise.reject(new Error("vault read failed")) },
+		);
+		h.controller.handleActiveFileChanged("a.md");
+		h.source.resolveBuild(0, LINKED());
+		await flush();
+		expect(h.autoNaming.offers).toEqual([]);
+	});
+
 	it("WHEN a newer build supersedes one whose names are still being read THEN only the newer build is offered", async () => {
 		const reads: Deferred<SyntaxRelationshipRead>[] = [];
 		const syntax: SyntaxRelationshipProvider = {
