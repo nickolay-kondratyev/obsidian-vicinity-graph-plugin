@@ -1,16 +1,17 @@
 ---
 id: nid_g0inqme2ol16xsrcg89g3kks4_e
 title: "Relationships: run one live OpenAI call to confirm the AI namer works (and whether xhigh/max effort are accepted)"
-status: open
+status: in_progress
 deps: []
 links: []
 created_iso: 2026-10-07T00:40:30Z
-status_updated_iso: 2026-10-07T00:40:30Z
+status_updated_iso: 2026-10-07T15:56:46Z
 type: task
 priority: 2
 assignee: CC_WITH-nickolaykondratyev
 parent: nid_fc47gtxej6z7fqc53bflme8p5_e
-tags: [relationships, decide, need-human]
+tags: [relationships]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin/.worktree/t-g0inqme2
 ---
 
 Plain version: ticket 3/4 (nid_cbnhpdfn4myqfzqr8weyg7kq5_e) asks for ONE real call to OpenAI, with its cost written down. The agent sandbox has no OPENAI_API_KEY, so nobody has made that call yet. All 3/4 code is tested against fakes only.
@@ -24,8 +25,5 @@ Decision: which effort values should the 4/4 menu offer?
 
 Optionally: export OPENAI_API_KEY in the agent sandbox, then hand this ticket back to an agent.
 
-## Second question: send `store: false`? (added 2026-10-07)
-Plain version: by default, OpenAI's Responses API keeps a copy of each request and response on its side. We send the FULL text of both notes. Adding `"store": false` to the request asks OpenAI not to keep it. We lose nothing, because we never chain responses.
-- A (recommended): add `store: false`. It is a one-line change in `src/adapters/openAiResponses.ts` plus a test.
-- B: keep the request exactly as ticket 3/4 spelled it out.
-Reply A or B. If you pick A, 4/4 or whoever takes this ticket can add it.
+## Update 2026-10-07
+The human made OPENAI_API_KEY available in the agent sandbox, so `need-human`/`decide` are dropped. The `store: false` question moved to its own decision ticket (see the parent epic). The effort rule comes from ticket 3/4: offer xhigh/max only if this live call shows they are accepted.
