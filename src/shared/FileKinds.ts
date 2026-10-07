@@ -40,11 +40,15 @@ export class FileKinds {
 	}
 
 	/**
-	 * Files whose headings may be rendered as a node outline: markdown, minus
-	 * excalidraw drawings. Case-insensitive on the suffix — the vault, not the
-	 * user, decides casing (`X.Excalidraw.MD` is the same drawing).
+	 * An Excalidraw drawing (`*.excalidraw.md`). Case-insensitive on the suffix —
+	 * the vault, not the user, decides casing (`X.Excalidraw.MD` is the same drawing).
 	 */
+	static isExcalidrawPath(path: string): boolean {
+		return path.toLowerCase().endsWith(EXCALIDRAW_SUFFIX);
+	}
+
+	/** Files whose headings may be rendered as a node outline: markdown, minus excalidraw drawings. */
 	static isOutlineBearingPath(path: string): boolean {
-		return FileKinds.isMarkdownPath(path) && !path.toLowerCase().endsWith(EXCALIDRAW_SUFFIX);
+		return FileKinds.isMarkdownPath(path) && !FileKinds.isExcalidrawPath(path);
 	}
 }
