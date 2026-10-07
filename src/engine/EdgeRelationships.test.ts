@@ -5,7 +5,7 @@ import {
 	resolveEdgeRelationship,
 	resolveEdgeRelationships,
 } from "./EdgeRelationships";
-import type { RelationshipEdge, RelationshipSources } from "./EdgeRelationships";
+import type { RelationshipEdge, RelationshipSources, StoredRelationship } from "./EdgeRelationships";
 import { asVaultPath, directedLinkKey } from "./types";
 
 const A = asVaultPath("a.md");
@@ -26,8 +26,21 @@ const MERGED_HIERARCHY: RelationshipEdge = { source: PARENT, target: CHILD, coun
 function syntax(entries: readonly (readonly [string, string, readonly string[]])[]): RelationshipSources {
 	return {
 		syntax: new Map(entries.map(([source, target, names]) => [directedLinkKey(asVaultPath(source), asVaultPath(target)), names])),
+		stored: new Map(),
 	};
 }
+
+/** `base` plus one stored relationship for `source → target`. */
+function withStored(base: RelationshipSources, source: string, target: string, stored: StoredRelationship): RelationshipSources {
+	return {
+		syntax: base.syntax,
+		stored: new Map([...base.stored, [directedLinkKey(asVaultPath(source), asVaultPath(target)), stored]]),
+	};
+}
+
+const MANUAL_NAME: StoredRelationship = { name: "supports", origin: "manual" };
+const AI_NAME: StoredRelationship = { name: "extends", origin: "ai", model: "gpt-6-luna" };
+const DISMISSED_AI_NAME: StoredRelationship = { name: null, origin: "ai", model: "gpt-6-luna" };
 
 const NO_SOURCES: RelationshipSources = syntax([]);
 
@@ -78,6 +91,53 @@ describe("resolveEdgeRelationship — the folder-hierarchy default", () => {
 
 	it("WHEN the folder note also links the child (merged edge) THEN no `parent` default is added", () => {
 		expect(resolveEdgeRelationship(MERGED_HIERARCHY, NO_SOURCES)).toBeNull();
+	});
+});
+
+describe("resolveEdgeRelationship — stored manual / AI names", () => {
+	it("WHEN the user named the edge THEN it takes the manual name", () => {
+		expect(resolveEdgeRelationship(linkEdge(), withStored(NO_SOURCES, "a.md", "b.md", MANUAL_NAME))).toEqual({
+			name: "supports",
+			origin: "manual",
+		});
+	});
+
+	it("WHEN a model named the edge THEN it takes the AI name with its model", () => {
+		expect(resolveEdgeRelationship(linkEdge(), withStored(NO_SOURCES, "a.md", "b.md", AI_NAME))).toEqual({
+			name: "extends",
+			origin: "ai",
+			model: "gpt-6-luna",
+		});
+	});
+
+	it("WHEN the note syntax AND a manual name both name the edge THEN the syntax name wins", () => {
+		const sources = withStored(syntax([["a.md", "b.md", ["improves"]]]), "a.md", "b.md", MANUAL_NAME);
+		expect(resolveEdgeRelationship(linkEdge(), sources)?.origin).toBe("syntax");
+	});
+
+	it("WHEN only the REVERSE direction has a stored name THEN the edge stays unnamed (directed)", () => {
+		expect(resolveEdgeRelationship(linkEdge(A, B), withStored(NO_SOURCES, "b.md", "a.md", MANUAL_NAME))).toBeNull();
+	});
+
+	it("WHEN the AI name was dismissed THEN the edge stays unnamed", () => {
+		expect(resolveEdgeRelationship(linkEdge(), withStored(NO_SOURCES, "a.md", "b.md", DISMISSED_AI_NAME))).toBeNull();
+	});
+
+	it("WHEN a pure hierarchy edge has a manual name THEN it replaces `parent`", () => {
+		expect(resolveEdgeRelationship(PURE_HIERARCHY, withStored(NO_SOURCES, "Jon.md", "Jon/kid.md", MANUAL_NAME))).toEqual({
+			name: "supports",
+			origin: "manual",
+		});
+	});
+
+	it("WHEN a pure hierarchy edge has an AI name THEN it replaces `parent`", () => {
+		const sources = withStored(NO_SOURCES, "Jon.md", "Jon/kid.md", AI_NAME);
+		expect(resolveEdgeRelationship(PURE_HIERARCHY, sources)?.origin).toBe("ai");
+	});
+
+	it("WHEN only the child → folder-note direction has a STORED name THEN `parent` still shows", () => {
+		const sources = withStored(NO_SOURCES, "Jon/kid.md", "Jon.md", MANUAL_NAME);
+		expect(resolveEdgeRelationship(PURE_HIERARCHY, sources)?.name).toBe(PARENT_RELATIONSHIP_NAME);
 	});
 });
 

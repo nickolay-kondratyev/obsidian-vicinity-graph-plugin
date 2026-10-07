@@ -1,13 +1,15 @@
 import type {
+	DirectedLink,
 	EdgeRelationship,
 	LinkOccurrenceProvider,
+	StoredRelationshipNames,
+	StoredRelationshipProvider,
 	SyntaxRelationshipNames,
 	SyntaxRelationshipProvider,
 	VicinityGraph,
 } from "../engine";
 import {
 	asVaultPath,
-	directedLinkKey,
 	EngineDefaults,
 	relationshipLookupPairs,
 	resolveEdgeRelationships,
@@ -206,16 +208,11 @@ export class GraphViewController {
 	 */
 	private readonly warnedRoutingFailures = new Set<string>();
 	/**
-	 * Relationship names of the PUBLISHED graph, keyed by `directedLinkKey` — what
-	 * the edge drawer reads; {@link edgeRelationships} renders the same map on the
-	 * edges. Resolved AFTER each publish (names need file reads), so they trail the
-	 * graph by one async read and never hold up the layout.
-	 */
-	private relationships: ReadonlyMap<string, EdgeRelationship> = NO_RELATIONSHIPS;
-	/**
 	 * Settles when the latest published graph's names read has finished (never
-	 * rejects). {@link openEdgePreview} awaits it, so a drawer opened in that
-	 * window still gets its relationship lines instead of a names-less snapshot.
+	 * rejects). {@link openEdgePreview} awaits it: the drawer reads names LIVE from
+	 * the overlay, but a drawer opened in that window would otherwise first show a
+	 * named pair as unnamed (offering "Name this relationship" on an edge a note
+	 * already names) until the read lands.
 	 */
 	private relationshipsSettled: Promise<void> = Promise.resolve();
 
@@ -228,7 +225,9 @@ export class GraphViewController {
 		private readonly linkPreview: LinkPreviewPort,
 		/** The names notes declare for their links (`rel:: [[target]]`) — async file reads. */
 		private readonly syntaxRelationships: SyntaxRelationshipProvider,
-		/** Where resolved names are published for the edge labels. */
+		/** The names we store (manual / AI), path-keyed for the build — an async warm + lookup. */
+		private readonly storedRelationships: StoredRelationshipProvider,
+		/** Where resolved names are published for the edge labels AND the edge drawer (read live). */
 		private readonly edgeRelationships: EdgeRelationshipsPort,
 	) {}
 
@@ -402,7 +401,6 @@ export class GraphViewController {
 					targetPath,
 					occurrences: await this.occurrences.occurrencesBetween(sourcePath, targetPath),
 					hierarchy: pair.hierarchy,
-					relationship: this.relationships.get(directedLinkKey(sourcePath, targetPath)) ?? null,
 				};
 			}),
 		);
@@ -545,29 +543,41 @@ export class GraphViewController {
 	}
 
 	/**
-	 * Names the published graph's edges (ticket `nid_gk9h4jpa7di1al7och0rehd3h_e`):
-	 * reads what the notes declare, then applies the precedence chain
-	 * (`resolveEdgeRelationship`). An overlay on a graph that is already on
-	 * screen, so it never relayouts and never fails the rebuild: a failed read is
-	 * reported and the code defaults (`parent`) still render. Latest-wins like
-	 * every other async step.
+	 * Names the published graph's edges (tickets `nid_gk9h4jpa7di1al7och0rehd3h_e`,
+	 * `nid_a5m4kforr9scit68rhqmqh78o_e`): reads what the notes declare and what we
+	 * store, then applies the precedence chain (`resolveEdgeRelationship`). An
+	 * overlay on a graph that is already on screen, so it never relayouts and never
+	 * fails the rebuild: a failed read is reported and the other sources (and the
+	 * `parent` default) still render. Latest-wins like every other async step.
 	 */
 	private async resolveRelationships(graph: VicinityGraph, token: number): Promise<void> {
-		let syntax: SyntaxRelationshipNames;
-		try {
-			syntax = await this.syntaxRelationships.syntaxNamesFor(relationshipLookupPairs(graph.edges));
-		} catch (error: unknown) {
-			console.warn("vicinity-graph: reading relationship names from notes failed; showing defaults only", error);
-			syntax = new Map();
-		}
+		const pairs = relationshipLookupPairs(graph.edges);
+		const [syntax, stored] = await Promise.all([this.readSyntaxNames(pairs), this.readStoredNames(pairs)]);
 		if (this.isStale(token)) {
 			return;
 		}
-		this.setRelationships(resolveEdgeRelationships(graph.edges, { syntax }));
+		this.setRelationships(resolveEdgeRelationships(graph.edges, { syntax, stored }));
+	}
+
+	private async readSyntaxNames(pairs: readonly DirectedLink[]): Promise<SyntaxRelationshipNames> {
+		try {
+			return await this.syntaxRelationships.syntaxNamesFor(pairs);
+		} catch (error: unknown) {
+			console.warn("vicinity-graph: reading relationship names from notes failed; showing the others only", error);
+			return new Map();
+		}
+	}
+
+	private async readStoredNames(pairs: readonly DirectedLink[]): Promise<StoredRelationshipNames> {
+		try {
+			return await this.storedRelationships.storedRelationshipsFor(pairs);
+		} catch (error: unknown) {
+			console.warn("vicinity-graph: reading stored relationship names failed; showing the others only", error);
+			return new Map();
+		}
 	}
 
 	private setRelationships(relationships: ReadonlyMap<string, EdgeRelationship>): void {
-		this.relationships = relationships;
 		this.edgeRelationships.showEdgeRelationships(relationships);
 	}
 

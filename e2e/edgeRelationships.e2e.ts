@@ -3,11 +3,14 @@ import type { Locator, Page } from "@playwright/test";
 import { ObsidianHarness } from "./obsidianHarness";
 
 /**
- * Named relationships on edges, task 1/4 (ticket nid_gk9h4jpa7di1al7och0rehd3h_e):
- * the key journeys only a real Obsidian can prove — its link cache supplies the
- * link POSITIONS the inline-field matcher reads (`improves:: [[x]]`), and its
- * folder-note hierarchy produces the `parent` default. Which name wins where is
- * unit-tested (`EdgeRelationships.test.ts`, `InlineFieldKeys.test.ts`).
+ * Named relationships on edges, tasks 1/4 and 2/4 (tickets
+ * nid_gk9h4jpa7di1al7och0rehd3h_e, nid_a5m4kforr9scit68rhqmqh78o_e): the key
+ * journeys only a real Obsidian can prove — its link cache supplies the link
+ * POSITIONS the inline-field matcher reads (`improves:: [[x]]`), its folder-note
+ * hierarchy produces the `parent` default, and a name typed in the edge drawer
+ * lands in real vault files (ids minted into both notes) and survives a plugin
+ * reload. Which name wins where is unit-tested (`EdgeRelationships.test.ts`,
+ * `InlineFieldKeys.test.ts`, `RelationshipStore.test.ts`).
  *
  * Own root-level fixtures, each folder holding ONE child so no folder group forms
  * (a group-collapsed edge carries no label by design). Hierarchy edges are only
@@ -36,6 +39,11 @@ const HIDDEN_PARENT_MAIN = "rel-pb.md";
 const HIDDEN_PARENT_EDGE_ID = "rel-pb.md->rel-pb/kid.md";
 const HIDDEN_PARENT_SIGNAL_EDGE_ID = "rel-pb.md->rel-pb-other.md";
 
+/** A plain, unnamed link the user names in the drawer — neither note has an id yet. */
+const MANUAL_MAIN = "rel-name-a.md";
+const MANUAL_EDGE_ID = "rel-name-a.md->rel-name-b.md";
+const MANUAL_NAME = "supports";
+
 const FIXTURES: Record<string, string> = {
 	"rel-source.md": "Intro line.\n\nimproves:: [[rel-target]]\n",
 	"rel-target.md": "The improved note.\n",
@@ -44,6 +52,8 @@ const FIXTURES: Record<string, string> = {
 	"rel-pb.md": "Folder note B.\n\nmarks:: [[rel-pb-other]]\n",
 	"rel-pb/kid.md": "Child of B.\n\nrel:: [[rel-pb]]\n",
 	"rel-pb-other.md": "Marked by B.\n",
+	"rel-name-a.md": "Links on.\n\n[[rel-name-b]]\n",
+	"rel-name-b.md": "Gets named.\n",
 };
 
 let harness: ObsidianHarness;
@@ -66,6 +76,10 @@ async function openMain(path: string): Promise<void> {
 
 function edgePath(edgeId: string): Locator {
 	return page.locator(`.vicinity-graph-flow .react-flow__edge[data-id="${edgeId}"] .react-flow__edge-path`);
+}
+
+function drawerRelationships(): Locator {
+	return page.locator(".vicinity-graph-link-preview-drawer").getByRole("list", { name: "Relationships" });
 }
 
 function edgeName(edgeId: string): Locator {
@@ -98,7 +112,7 @@ test("the edge drawer shows the name as 'source —name→ target' with its orig
 		.locator(".vicinity-graph-link-preview-drawer")
 		.getByRole("list", { name: "Relationships" });
 	await expect(relationships).toContainText("rel-source —improves→ rel-target");
-	await expect(relationships).toContainText("from note");
+	await expect(relationships).toContainText("declared in rel-source");
 	await page.keyboard.press("Escape");
 });
 
@@ -112,4 +126,34 @@ test("a child naming its link to the folder note hides the `parent` name", async
 	await expect(edgeName(HIDDEN_PARENT_SIGNAL_EDGE_ID)).toHaveText("marks");
 	await expect(edgePath(HIDDEN_PARENT_EDGE_ID)).toHaveCount(1);
 	await expect(edgeName(HIDDEN_PARENT_EDGE_ID)).toHaveCount(0);
+});
+
+test("a name typed in the edge drawer labels the edge, survives a reload and clears", async () => {
+	// GIVEN an unnamed link edge, its drawer open.
+	await openMain(MANUAL_MAIN);
+	await expect(edgePath(MANUAL_EDGE_ID)).toHaveCount(1);
+	await clickEdgePath(MANUAL_EDGE_ID);
+
+	// WHEN the user names it in the drawer (Enter commits).
+	await drawerRelationships().getByRole("button", { name: "Name this relationship" }).click();
+	const field = drawerRelationships().getByRole("textbox", { name: "Relationship name for rel-name-a → rel-name-b" });
+	await field.fill(MANUAL_NAME);
+	await field.press("Enter");
+
+	// THEN the edge carries the name.
+	await expect(edgeName(MANUAL_EDGE_ID)).toHaveText(MANUAL_NAME);
+	await page.keyboard.press("Escape");
+
+	// WHEN the plugin reloads (every in-memory store dropped) and the view reopens,
+	// THEN the name comes back off the vault files.
+	await harness.reloadPlugin();
+	await harness.remountGraphView();
+	await openMain(MANUAL_MAIN);
+	await expect(edgeName(MANUAL_EDGE_ID)).toHaveText(MANUAL_NAME);
+
+	// WHEN the user clears it in the drawer, THEN the line reads unnamed and the label is gone.
+	await clickEdgePath(MANUAL_EDGE_ID);
+	await drawerRelationships().getByRole("button", { name: "Clear" }).click();
+	await expect(drawerRelationships()).toContainText("rel-name-a → rel-name-b");
+	await expect(edgeName(MANUAL_EDGE_ID)).toHaveCount(0);
 });

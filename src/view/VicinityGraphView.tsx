@@ -7,7 +7,7 @@ import type { FolderNoteIndex } from "../adapters/FolderNoteIndex";
 import { ChildNoteCreator } from "../adapters/ChildNoteCreator";
 import type { NoteCreationPort } from "../adapters/obsidianPorts";
 import type { VicinityGraphBuilder } from "../adapters/VicinityGraphBuilder";
-import type { LinkOccurrenceProvider, SyntaxRelationshipProvider } from "../engine";
+import type { LinkOccurrenceProvider, StoredRelationshipProvider, SyntaxRelationshipProvider } from "../engine";
 import type { PersistenceServices } from "../persistence/PersistenceServices";
 import { ControlsActions } from "./ControlsActions";
 import { LibavoidEdgeRouter } from "./edgeRouting";
@@ -50,6 +50,8 @@ export class VicinityGraphView extends ItemView {
 		private readonly occurrenceProvider: LinkOccurrenceProvider,
 		/** Reads the relationship names notes declare (`rel:: [[target]]`); owned by the plugin. */
 		private readonly syntaxRelationships: SyntaxRelationshipProvider,
+		/** Reads the relationship names we store (manual / AI); owned by the plugin. */
+		private readonly storedRelationships: StoredRelationshipProvider,
 		/** Plugin-lived folder-note index — the owned-folder half of the create-child-note action. */
 		private readonly folderNoteIndex: FolderNoteIndex,
 		/** Plugin-lived vault-write seam — the create + folderExists half of the child-note action. */
@@ -87,6 +89,7 @@ export class VicinityGraphView extends ItemView {
 			this.occurrenceProvider,
 			linkPreview,
 			this.syntaxRelationships,
+			this.storedRelationships,
 			relationships,
 		);
 		this.controller = controller;

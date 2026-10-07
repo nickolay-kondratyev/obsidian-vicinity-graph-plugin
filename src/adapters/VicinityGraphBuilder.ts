@@ -3,6 +3,7 @@ import type { DocIdMapWarmer } from "../persistence/DocIdMapWarmer";
 import type { PathDocIdMap } from "../persistence/PathDocIdMap";
 import type { PerDocStore } from "../persistence/PerDocStore";
 import type { PluginDataStore } from "../persistence/PluginDataStore";
+import type { RelationshipStore } from "../persistence/RelationshipStore";
 import { ControlsModelBuilder } from "../view/ControlsModel";
 import type { FlowPinFacts } from "../view/flowMapping";
 import type { GraphBuildResult } from "../view/viewPorts";
@@ -32,6 +33,12 @@ export class VicinityGraphBuilder {
 		private readonly pluginDataStore: PluginDataStore,
 		/** The per-doc/per-main facts (overrides, local pins) — warmed lazily on the first build. */
 		private readonly perDocStore: PerDocStore,
+		/**
+		 * The stored relationship names — warmed lazily on the first build, and its
+		 * docids warmed into the path map, so a stored name labels its edge on the
+		 * FIRST build after a restart (the names themselves are read after the build).
+		 */
+		private readonly relationshipStore: RelationshipStore,
 		private readonly pathDocIdMap: PathDocIdMap,
 		/** INJECTED, not built here: the sweep shares this exact instance (one scan discipline, one miss cache). */
 		private readonly docIdMapWarmer: DocIdMapWarmer,
@@ -70,6 +77,7 @@ export class VicinityGraphBuilder {
 		// first build after a restart — this is where they enter memory (not at
 		// plugin init, and without reading every vault file). Idempotent after that.
 		await this.perDocStore.warm();
+		await this.relationshipStore.warm();
 		const pins = this.pluginDataStore.pins();
 		// The active main's local pins are keyed by ITS docid; a main with no docid
 		// (unpinnable) can own none, so it gets the empty list.
@@ -86,6 +94,7 @@ export class VicinityGraphBuilder {
 		await this.docIdMapWarmer.warmFor([
 			...pins.map((pin) => pin.docid),
 			...this.perDocStore.keyedDocids(),
+			...this.relationshipStore.keyedDocids(),
 		]);
 		// ONE inputs object feeds BOTH the graph AND the toolbar model, so the value
 		// a control shows is structurally the value the graph used.

@@ -1,4 +1,5 @@
-import type { EdgeRelationship, LinkOccurrence, RelationshipOrigin, VaultPath } from "../engine";
+import type { EdgeRelationship, LinkOccurrence, VaultPath } from "../engine";
+import { directedLinkKey } from "../engine";
 import { VaultPathFacts } from "../shared/VaultPathFacts";
 import { folderOfGroupId, isFolderGroupId } from "./graphIdentity";
 
@@ -47,26 +48,103 @@ export interface FolderRelationModel {
 }
 
 /**
- * One NAMED note pair of the clicked edge — the drawer's `A —name→ B` line
- * (ticket `nid_gk9h4jpa7di1al7och0rehd3h_e`). Names are note titles, the
+ * One DIRECTED note pair of the clicked edge, as the drawer's relationship list
+ * shows it (tickets `nid_gk9h4jpa7di1al7och0rehd3h_e`, `nid_a5m4kforr9scit68rhqmqh78o_e`).
+ * Carries the pair's identity, NOT its name: the drawer reads the name LIVE from
+ * the relationship overlay by {@link key}, so a name saved (or resolved) while
+ * the drawer is open shows without reopening it. Names are note titles, the
  * vocabulary of the graph's own node labels.
  */
-export interface PairRelationshipModel {
+export interface RelationshipPairModel {
+	/** `directedLinkKey(sourcePath, targetPath)` — the overlay's key for this pair. */
+	readonly key: string;
+	readonly sourcePath: VaultPath;
+	readonly targetPath: VaultPath;
 	readonly sourceName: string;
 	readonly targetName: string;
-	readonly name: string;
-	/** Where the name came from, in the user's words (see {@link RELATIONSHIP_ORIGIN_LABEL}). */
-	readonly originLabel: string;
+}
+
+/** The button that opens the name field on an unnamed pair. */
+export const NAME_RELATIONSHIP_ACTION = "Name this relationship";
+/** The button that opens the name field on a named pair. */
+export const RENAME_RELATIONSHIP_ACTION = "Rename";
+/** The button that clears a stored name. */
+export const CLEAR_RELATIONSHIP_ACTION = "Clear";
+
+/** Which name-field action a row offers, if any. */
+export type RelationshipEditAction = "name" | "rename";
+
+/** One line of the drawer's relationship list: what it says and what the user may do with it. */
+export interface RelationshipRowModel {
+	/** `A —name→ B` for a named pair, `A → B` for an unnamed one. */
+	readonly text: string;
+	/** Where the name came from, in the user's words; null when unnamed. */
+	readonly originLabel: string | null;
+	/** The name the rename field starts from; null when unnamed. */
+	readonly currentName: string | null;
+	/** The name-field action, or null when the name is not ours to change (declared in a note). */
+	readonly edit: RelationshipEditAction | null;
+	/** True when a STORED name can be cleared (manual / AI). */
+	readonly clearable: boolean;
+}
+
+/** Joins the AI origin and its model, e.g. `AI-generated · gpt-6-luna`. */
+const AI_ORIGIN_MODEL_SEPARATOR = " · ";
+
+/**
+ * The user-facing origin of a name. A note-declared name names the note that
+ * declares it — that note is where the user changes it.
+ */
+export function relationshipOriginLabel(relationship: EdgeRelationship, sourceName: string): string {
+	switch (relationship.origin) {
+		case "syntax":
+			return `declared in ${sourceName}`;
+		case "manual":
+			return "named by you";
+		case "ai":
+			return relationship.model === undefined
+				? "AI-generated"
+				: `AI-generated${AI_ORIGIN_MODEL_SEPARATOR}${relationship.model}`;
+		case "folder-hierarchy":
+			return "folder hierarchy";
+	}
 }
 
 /**
- * The user-facing copy of each {@link RelationshipOrigin}. A `Record`, so a new
- * origin (manual / AI, tasks 2-3) cannot ship without its label.
+ * What the drawer shows for one pair given its CURRENT name (null = unnamed): a
+ * note-declared name is read-only (the user edits the note), the `parent`
+ * default can be renamed (a manual name replaces it) but not cleared (it is
+ * computed, not stored), and a stored manual / AI name can be renamed or cleared.
  */
-export const RELATIONSHIP_ORIGIN_LABEL: Readonly<Record<RelationshipOrigin, string>> = {
-	syntax: "from note",
-	"folder-hierarchy": "folder hierarchy",
-};
+export function relationshipRowOf(pair: RelationshipPairModel, relationship: EdgeRelationship | null): RelationshipRowModel {
+	if (relationship === null) {
+		return {
+			text: `${pair.sourceName} → ${pair.targetName}`,
+			originLabel: null,
+			currentName: null,
+			edit: "name",
+			clearable: false,
+		};
+	}
+	const stored = relationship.origin === "manual" || relationship.origin === "ai";
+	return {
+		text: `${pair.sourceName} —${relationship.name}→ ${pair.targetName}`,
+		originLabel: relationshipOriginLabel(relationship, pair.sourceName),
+		currentName: relationship.name,
+		edit: relationship.origin === "syntax" ? null : "rename",
+		clearable: stored,
+	};
+}
+
+function relationshipPairOf(pair: EdgePairOccurrences): RelationshipPairModel {
+	return {
+		key: directedLinkKey(pair.sourcePath, pair.targetPath),
+		sourcePath: pair.sourcePath,
+		targetPath: pair.targetPath,
+		sourceName: VaultPathFacts.titleOf(pair.sourcePath),
+		targetName: VaultPathFacts.titleOf(pair.targetPath),
+	};
+}
 
 /**
  * What the edge-click preview renders: occurrence groups per contributing
@@ -91,12 +169,12 @@ export interface EdgePreviewModel {
 	 */
 	readonly folderRelations: readonly FolderRelationModel[];
 	/**
-	 * The NAMED pairs of this edge, in the same (sourcePath, targetPath) order as
-	 * {@link pairs}: one line for a plain edge, one per named pair for a
-	 * group-collapsed edge (whose line in the graph carries no label). Empty when
-	 * nothing names the edge.
+	 * EVERY directed note pair of this edge, in the same (sourcePath, targetPath)
+	 * order as {@link pairs} — one line each in the drawer, named or not, so any
+	 * pair can be named: one for a plain edge, one per pair for a group-collapsed
+	 * edge (whose line in the graph carries no label).
 	 */
-	readonly relationships: readonly PairRelationshipModel[];
+	readonly relationshipPairs: readonly RelationshipPairModel[];
 	/** Every context row id, in display order — the collapse state's row universe. */
 	readonly rowIds: readonly string[];
 }
@@ -114,8 +192,6 @@ export interface EdgePairOccurrences {
 	 * pair has both).
 	 */
 	readonly hierarchy: boolean;
-	/** The pair's resolved relationship name (`resolveEdgeRelationship`), or null when unnamed. */
-	readonly relationship: EdgeRelationship | null;
 }
 
 export interface EdgePreviewInputs {
@@ -138,19 +214,6 @@ function folderRelationOf(pair: EdgePairOccurrences): FolderRelationModel {
 		folderNoteName: VaultPathFacts.basenameOf(pair.sourcePath),
 		folderName: VaultPathFacts.folderNameOf(VaultPathFacts.folderOf(pair.targetPath)),
 		childName: VaultPathFacts.basenameOf(pair.targetPath),
-	};
-}
-
-/** The `A —name→ B` line of a named pair; null for an unnamed one. */
-function pairRelationshipOf(pair: EdgePairOccurrences): PairRelationshipModel | null {
-	if (pair.relationship === null) {
-		return null;
-	}
-	return {
-		sourceName: VaultPathFacts.titleOf(pair.sourcePath),
-		targetName: VaultPathFacts.titleOf(pair.targetPath),
-		name: pair.relationship.name,
-		originLabel: RELATIONSHIP_ORIGIN_LABEL[pair.relationship.origin],
 	};
 }
 
@@ -195,9 +258,7 @@ export class LinkPreviewModels {
 			// Same sorted order as `pairs`; only the hierarchy-carrying pairs explain
 			// a folder relation (a link-only pair contributes none).
 			folderRelations: sortedPairs.filter((pair) => pair.hierarchy).map(folderRelationOf),
-			relationships: sortedPairs
-				.map(pairRelationshipOf)
-				.filter((relationship): relationship is PairRelationshipModel => relationship !== null),
+			relationshipPairs: sortedPairs.map(relationshipPairOf),
 			rowIds: groups.flatMap((group) => group.rows).map((row) => row.rowId),
 		};
 	}

@@ -7,7 +7,9 @@ import { PathDocIdMap } from "./PathDocIdMap";
 import { PerDocStore } from "./PerDocStore";
 import { PersistenceServices } from "./PersistenceServices";
 import { PluginDataStore } from "./PluginDataStore";
+import { RelationshipStore } from "./RelationshipStore";
 import { VaultFileStore } from "./VaultFileStore";
+import type { RelationshipName } from "../engine";
 
 const FIXED_NOW = 777;
 
@@ -18,10 +20,19 @@ function fileAt(path: string): VaultFilePort {
 async function services(docIdPort: FakeDocIdPort) {
 	const pluginDataStore = new PluginDataStore(new FakePluginDataPort());
 	await pluginDataStore.init();
-	const perDocStore = new PerDocStore(new VaultFileStore(".plugin_data/vicinity_graph", new FakeVaultFsPort(), () => FIXED_NOW));
+	const fileStore = new VaultFileStore(".plugin_data/vicinity_graph", new FakeVaultFsPort(), () => FIXED_NOW);
+	const perDocStore = new PerDocStore(fileStore);
+	const relationshipStore = new RelationshipStore(fileStore, () => FIXED_NOW);
 	const pathDocIdMap = new PathDocIdMap();
-	const persistence = new PersistenceServices(docIdPort, pluginDataStore, perDocStore, pathDocIdMap, () => FIXED_NOW);
-	return { persistence, pluginDataStore, perDocStore, pathDocIdMap };
+	const persistence = new PersistenceServices(
+		docIdPort,
+		pluginDataStore,
+		perDocStore,
+		relationshipStore,
+		pathDocIdMap,
+		() => FIXED_NOW,
+	);
+	return { persistence, pluginDataStore, perDocStore, relationshipStore, pathDocIdMap };
 }
 
 describe("PersistenceServices.pinDoc", () => {
@@ -212,5 +223,72 @@ describe("PersistenceServices.unpinDoc", () => {
 		await persistence.pinDoc(fileAt("a.md"));
 		await persistence.unpinDoc("docid_a_e");
 		expect(pluginDataStore.pins()).toEqual([]);
+	});
+});
+
+const SUPPORTS = "supports" as RelationshipName;
+
+describe("PersistenceServices.nameRelationship", () => {
+	it("WHEN both notes have ids THEN the name is stored under source → target", async () => {
+		const { persistence, relationshipStore } = await services(
+			new FakeDocIdPort({ "a.md": "docid_a_e", "b.md": "docid_b_e" }),
+		);
+		await persistence.nameRelationship(fileAt("a.md"), fileAt("b.md"), SUPPORTS);
+		expect(relationshipStore.relationshipFor("docid_a_e", "docid_b_e")?.name).toBe("supports");
+	});
+
+	it("WHEN neither note has an id THEN ids are minted for BOTH (naming = write intent)", async () => {
+		const docIdPort = new FakeDocIdPort();
+		const { persistence } = await services(docIdPort);
+		await persistence.nameRelationship(fileAt("a.md"), fileAt("b.md"), SUPPORTS);
+		expect(docIdPort.ensureCalls).toBe(2);
+	});
+
+	it("WHEN a relationship is named THEN the path→docid map learns both notes", async () => {
+		const { persistence, pathDocIdMap } = await services(new FakeDocIdPort({ "a.md": "docid_a_e", "b.md": "docid_b_e" }));
+		await persistence.nameRelationship(fileAt("a.md"), fileAt("b.md"), SUPPORTS);
+		expect([pathDocIdMap.getDocId("a.md"), pathDocIdMap.getDocId("b.md")]).toEqual(["docid_a_e", "docid_b_e"]);
+	});
+
+	it("WHEN the target cannot carry an id THEN the naming is refused naming the target", async () => {
+		const { persistence } = await services(new FakeDocIdPort({ "a.md": "docid_a_e" }));
+		expect(await persistence.nameRelationship(fileAt("a.md"), fileAt("photo.png"), SUPPORTS)).toEqual({
+			kind: "not-persistable",
+			refusedDoc: "target",
+			reason: "no-docid",
+		});
+	});
+
+	it("WHEN the target cannot carry an id THEN no id is minted for the source", async () => {
+		const docIdPort = new FakeDocIdPort();
+		const { persistence } = await services(docIdPort);
+		await persistence.nameRelationship(fileAt("a.md"), fileAt("photo.png"), SUPPORTS);
+		expect(docIdPort.ensureCalls).toBe(0);
+	});
+
+	it("WHEN the source carries an unsafe foreign id THEN nothing is stored", async () => {
+		const { persistence, relationshipStore } = await services(
+			new FakeDocIdPort({ "a.md": "../escape", "b.md": "docid_b_e" }),
+		);
+		await persistence.nameRelationship(fileAt("a.md"), fileAt("b.md"), SUPPORTS);
+		expect(relationshipStore.keyedDocids()).toEqual([]);
+	});
+});
+
+describe("PersistenceServices.clearRelationship", () => {
+	it("WHEN a manual name is cleared THEN the pair has no stored relationship", async () => {
+		const { persistence, relationshipStore } = await services(
+			new FakeDocIdPort({ "a.md": "docid_a_e", "b.md": "docid_b_e" }),
+		);
+		await persistence.nameRelationship(fileAt("a.md"), fileAt("b.md"), SUPPORTS);
+		await persistence.clearRelationship(fileAt("a.md"), fileAt("b.md"));
+		expect(relationshipStore.relationshipFor("docid_a_e", "docid_b_e")).toBeUndefined();
+	});
+
+	it("WHEN a note without an id is cleared THEN no id is minted", async () => {
+		const docIdPort = new FakeDocIdPort();
+		const { persistence } = await services(docIdPort);
+		await persistence.clearRelationship(fileAt("a.md"), fileAt("b.md"));
+		expect(docIdPort.ensureCalls).toBe(0);
 	});
 });
