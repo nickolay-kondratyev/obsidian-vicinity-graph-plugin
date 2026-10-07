@@ -164,8 +164,9 @@ redraw, each pair at most once per session) are sent to **OpenAI** — for each
 one, the **full text of both notes** and their titles. A connector is skipped
 when either note has less than about 200 characters of its own text, when it is
 already named, when it is a *parent* connector, when either note sits inside
-a folder group, or when either end is an Excalidraw drawing (`*.excalidraw.md`). Naming a connector adds an `id` to both notes' frontmatter, like
-naming it yourself. Turning AI naming off stops anything not yet sent.
+a folder group, or when either note is an Excalidraw drawing
+(`*.excalidraw.md`). Naming a connector adds an `id` to both notes'
+frontmatter, like naming it yourself. Turning AI naming off stops anything not yet sent.
 
 ## Settings
 
