@@ -70,11 +70,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # `check` = `tsc` (src) + `check:e2e`. The e2e specs live in a PRIVATE
-      # submodule that CI does NOT check out (e2e is the LOCAL release gate — see
-      # this file's header), so `check:e2e` self-skips when `e2e/tsconfig.json` is
-      # absent (scripts/check-e2e.sh). Here that means the src type-check only.
-      - name: Type-check (src; e2e skipped — submodule not checked out)
+      # `check` = `tsc` (src) + lint + `check:e2e` (type-check only — the e2e
+      # specs are not RUN here; see this file's header).
+      - name: Type-check (src + e2e)
         run: npm run check
 
       - name: Unit + integration tests

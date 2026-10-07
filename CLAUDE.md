@@ -12,7 +12,7 @@ under KSAL-2.3 (`LICENSE.md`), **not** OSI open-source.
 - **[`README.md`](./README.md)** — user-facing docs: install, settings model, pinning semantics.
 - **[`docs-internal/development.md`](./docs-internal/development.md)** — build/test/e2e setup, the release matrix, `minAppVersion`, `stable-ids-for-obsidian`.
 - **[`docs-internal/beta-install.md`](./docs-internal/beta-install.md)** — install a pre-release/branch build in a real vault (BRAT, manual, from-source) before the store.
-- `docs-internal/tickets/` — active follow-ups. `docs-internal/RELEASE_CHECKLIST.md`.
+- `_tickets/` — tickets, managed with the `ticket` CLI. `docs-internal/tickets/` holds older follow-ups filed before it. `docs-internal/RELEASE_CHECKLIST.md`.
 
 ## Layering (enforced — do not violate)
 
@@ -67,6 +67,6 @@ Redirect verbose build/test output to `.tmp/` to conserve context.
 ## Guardrails
 
 - Preserve `ap_XXX_E` anchor identifiers; don't remove anchor points or behavior-capturing tests without explicit alignment.
-- Spot issues outside your task → file a `docs-internal/tickets/` ticket, don't silently patch.
+- Spot issues outside your task → file a ticket (`ticket create`, lands in `_tickets/`), don't silently patch.
 - Temp files → `$PWD/.tmp/`. Test screenshots → `.out/` (never source-controlled).
 - `obsidian` typings are pinned to the floor (`1.12.3`, nearest published npm version ≤ `minAppVersion` 1.12.4), never `latest` — a newer tag's `@deprecated` may describe an API still live on the floor, so verify against the pinned e2e build (1.12.7) before deleting a call.
