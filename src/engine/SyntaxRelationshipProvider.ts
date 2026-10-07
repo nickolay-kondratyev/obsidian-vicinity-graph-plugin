@@ -1,4 +1,4 @@
-import type { SyntaxRelationshipNames } from "./EdgeRelationships";
+import type { SyntaxRelationshipRead } from "./EdgeRelationships";
 import type { DirectedLink } from "./types";
 
 /**
@@ -12,7 +12,9 @@ export interface SyntaxRelationshipProvider {
 	/**
 	 * The syntax names of exactly the requested directed pairs. A pair whose
 	 * source declares no name — or whose source is not a markdown note (canvas
-	 * has no syntax names in V1) — has no entry. Never throws for an unknown path.
+	 * has no syntax names in V1) — has no entry. A source whose text could not be
+	 * matched to Obsidian's link cache is listed in `unreadSources` instead.
+	 * Never throws for an unknown path.
 	 */
-	syntaxNamesFor(pairs: readonly DirectedLink[]): Promise<SyntaxRelationshipNames>;
+	syntaxNamesFor(pairs: readonly DirectedLink[]): Promise<SyntaxRelationshipRead>;
 }

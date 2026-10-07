@@ -64,6 +64,18 @@ export type StoredRelationshipNames = ReadonlyMap<string, StoredRelationship>;
  */
 export type SyntaxRelationshipNames = ReadonlyMap<string, readonly string[]>;
 
+/** One read of the names notes declare for a build's pairs. */
+export interface SyntaxRelationshipRead {
+	readonly names: SyntaxRelationshipNames;
+	/**
+	 * Sources whose names could NOT be read this time — e.g. Obsidian's link cache
+	 * still describes the note as it was before an edit (an id written into its
+	 * frontmatter shifts every link). Their names are UNKNOWN, not absent: nothing
+	 * may treat their links as unnamed until a later read succeeds.
+	 */
+	readonly unreadSources: ReadonlySet<VaultPath>;
+}
+
 /** Every name source the precedence chain reads. */
 export interface RelationshipSources {
 	readonly syntax: SyntaxRelationshipNames;

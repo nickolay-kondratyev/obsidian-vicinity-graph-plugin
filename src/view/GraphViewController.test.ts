@@ -7,6 +7,7 @@ import type {
 	OutlineEntry,
 	StoredRelationshipProvider,
 	SyntaxRelationshipNames,
+	SyntaxRelationshipRead,
 	SyntaxRelationshipProvider,
 	VicinityGraph,
 } from "../engine";
@@ -1549,6 +1550,11 @@ describe("GraphViewController link previews", () => {
 	});
 });
 
+/** A names read that reached every source. */
+function fullyRead(names: SyntaxRelationshipNames): SyntaxRelationshipRead {
+	return { names, unreadSources: new Set() };
+}
+
 describe("GraphViewController edge relationship names", () => {
 	afterEach(() => {
 		vi.restoreAllMocks();
@@ -1630,10 +1636,10 @@ describe("GraphViewController edge relationship names", () => {
 	});
 
 	it("WHEN a newer build supersedes a names read THEN the stale names are never shown", async () => {
-		const reads: Deferred<SyntaxRelationshipNames>[] = [];
+		const reads: Deferred<SyntaxRelationshipRead>[] = [];
 		const syntax: SyntaxRelationshipProvider = {
 			syntaxNamesFor: () => {
-				const read = deferred<SyntaxRelationshipNames>();
+				const read = deferred<SyntaxRelationshipRead>();
 				reads.push(read);
 				return read.promise;
 			},
@@ -1646,15 +1652,15 @@ describe("GraphViewController edge relationship names", () => {
 		h.controller.handleSettingsChanged();
 		h.source.resolveBuild(1, graph);
 		await flush();
-		reads[1]?.resolve(new Map([[directedLinkKey(A, B), ["fresh"]]]));
+		reads[1]?.resolve(fullyRead(new Map([[directedLinkKey(A, B), ["fresh"]]])));
 		await flush();
-		reads[0]?.resolve(new Map([[directedLinkKey(A, B), ["stale"]]]));
+		reads[0]?.resolve(fullyRead(new Map([[directedLinkKey(A, B), ["stale"]]])));
 		await flush();
 		expect(h.relationships.current().get(directedLinkKey(A, B))?.name).toBe("fresh");
 	});
 
 	it("WHEN the preview opens before the names read settles THEN the drawer opens only once the names are published", async () => {
-		const read = deferred<SyntaxRelationshipNames>();
+		const read = deferred<SyntaxRelationshipRead>();
 		const h = setup(new FakeEdgeRouter(), new FakeLinkOccurrenceProvider({}), { syntaxNamesFor: () => read.promise });
 		h.controller.handleActiveFileChanged("a.md");
 		const nodes = [makeNode({ path: A }), makeNode({ path: B })];
@@ -1666,7 +1672,7 @@ describe("GraphViewController edge relationship names", () => {
 		});
 		const opening = h.controller.openEdgePreview("a.md->b.md");
 		await flush();
-		read.resolve(new Map([[directedLinkKey(A, B), ["improves"]]]));
+		read.resolve(fullyRead(new Map([[directedLinkKey(A, B), ["improves"]]])));
 		await opening;
 		expect(namesWhenShown).toEqual(["improves"]);
 	});
@@ -1785,11 +1791,29 @@ describe("GraphViewController offers each build to auto mode", () => {
 		expect([...(h.autoNaming.offers[0]?.groupedPaths ?? [])].sort()).toEqual(grouped);
 	});
 
+	it("WHEN a source's names could not be read THEN the build is offered with that source unread", async () => {
+		const h = setup(new FakeEdgeRouter(), new FakeLinkOccurrenceProvider({}), new FakeSyntaxRelationshipProvider([], new Set([A])));
+		h.controller.handleActiveFileChanged("a.md");
+		h.source.resolveBuild(0, LINKED());
+		await flush();
+		expect([...(h.autoNaming.offers[0]?.syntaxUnreadSources ?? [])]).toEqual([A]);
+	});
+
+	it("WHEN reading the names fails THEN every source is offered as unread (unknown is not unnamed)", async () => {
+		vi.spyOn(console, "warn").mockImplementation(() => undefined);
+		const failing: SyntaxRelationshipProvider = { syntaxNamesFor: () => Promise.reject(new Error("cachedRead failed")) };
+		const h = setup(new FakeEdgeRouter(), new FakeLinkOccurrenceProvider({}), failing);
+		h.controller.handleActiveFileChanged("a.md");
+		h.source.resolveBuild(0, LINKED());
+		await flush();
+		expect([...(h.autoNaming.offers[0]?.syntaxUnreadSources ?? [])]).toEqual([A]);
+	});
+
 	it("WHEN a newer build supersedes one whose names are still being read THEN only the newer build is offered", async () => {
-		const reads: Deferred<SyntaxRelationshipNames>[] = [];
+		const reads: Deferred<SyntaxRelationshipRead>[] = [];
 		const syntax: SyntaxRelationshipProvider = {
 			syntaxNamesFor: () => {
-				const read = deferred<SyntaxRelationshipNames>();
+				const read = deferred<SyntaxRelationshipRead>();
 				reads.push(read);
 				return read.promise;
 			},
@@ -1801,8 +1825,8 @@ describe("GraphViewController offers each build to auto mode", () => {
 		h.controller.handleSettingsChanged();
 		h.source.resolveBuild(1, LINKED());
 		await flush();
-		reads[0]?.resolve(new Map());
-		reads[1]?.resolve(new Map());
+		reads[0]?.resolve(fullyRead(new Map()));
+		reads[1]?.resolve(fullyRead(new Map()));
 		await flush();
 		expect(h.autoNaming.offers.map((offer) => offer.trigger)).toEqual(["data-change"]);
 	});

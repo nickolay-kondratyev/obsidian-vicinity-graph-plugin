@@ -86,6 +86,7 @@ class World implements AiRelationshipWriterPort {
 			edges: this.edges,
 			sources: { syntax: new Map(), stored: new Map(this.stored) },
 			groupedPaths: new Set(),
+			syntaxUnreadSources: new Set(),
 			settings: this.settings,
 			trigger,
 			...extra,
@@ -150,6 +151,14 @@ describe("AiAutoNamingGate — on and off", () => {
 	it("WHEN an edge's note renders inside a folder group THEN it is not asked about", async () => {
 		const { world, namer } = given(linkEdges(1));
 		world.build("user-request", { groupedPaths: new Set([target(0)]) });
+		await settled();
+		expect(namer.requests).toEqual([]);
+	});
+
+	it("WHEN the source's own names could not be read THEN its edge is not asked about", async () => {
+		// The link cache lagging an id just written into the note: unknown is not unnamed.
+		const { world, namer } = given(linkEdges(1));
+		world.build("user-request", { syntaxUnreadSources: new Set([MAIN]) });
 		await settled();
 		expect(namer.requests).toEqual([]);
 	});

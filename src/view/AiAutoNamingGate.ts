@@ -57,7 +57,11 @@ export class AiAutoNamingGate implements AutoNamingPort, AiNamingMenuPort {
 			this.queue.resume();
 			this.lastSubmission = null;
 		}
-		const candidates = aiCandidateEdges(offer.edges, { sources: offer.sources, groupedPaths: offer.groupedPaths });
+		const candidates = aiCandidateEdges(offer.edges, {
+			sources: offer.sources,
+			groupedPaths: offer.groupedPaths,
+			syntaxUnreadSources: offer.syntaxUnreadSources,
+		});
 		const offeredKeys = new Set(candidates.map((edge) => directedLinkKey(edge.source, edge.target)));
 		if (offer.trigger === "data-change" && this.lastSubmission !== null && isSubset(offeredKeys, this.lastSubmission.offeredKeys)) {
 			return;

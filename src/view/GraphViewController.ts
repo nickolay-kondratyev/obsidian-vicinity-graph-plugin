@@ -5,7 +5,7 @@ import type {
 	LinkOccurrenceProvider,
 	StoredRelationshipNames,
 	StoredRelationshipProvider,
-	SyntaxRelationshipNames,
+	SyntaxRelationshipRead,
 	SyntaxRelationshipProvider,
 	VaultPath,
 	VicinityGraph,
@@ -583,17 +583,21 @@ export class GraphViewController {
 		if (this.isStale(token)) {
 			return;
 		}
-		const sources = { syntax, stored };
+		const sources = { syntax: syntax.names, stored };
 		this.setRelationships(resolveEdgeRelationships(graph.edges, sources));
-		this.autoNaming.offerBuild({ edges: graph.edges, sources, ...build });
+		this.autoNaming.offerBuild({ edges: graph.edges, sources, syntaxUnreadSources: syntax.unreadSources, ...build });
 	}
 
-	private async readSyntaxNames(pairs: readonly DirectedLink[]): Promise<SyntaxRelationshipNames> {
+	/**
+	 * A failed read shows the other names only — and reports EVERY source unread, so
+	 * auto mode never mistakes "could not read" for "unnamed".
+	 */
+	private async readSyntaxNames(pairs: readonly DirectedLink[]): Promise<SyntaxRelationshipRead> {
 		try {
 			return await this.syntaxRelationships.syntaxNamesFor(pairs);
 		} catch (error: unknown) {
 			console.warn("vicinity-graph: reading relationship names from notes failed; showing the others only", error);
-			return new Map();
+			return { names: new Map(), unreadSources: new Set(pairs.map((pair) => pair.source)) };
 		}
 	}
 

@@ -102,6 +102,7 @@ export type {
 	StoredRelationshipNames,
 	StoredRelationshipOrigin,
 	SyntaxRelationshipNames,
+	SyntaxRelationshipRead,
 } from "./EdgeRelationships";
 export type { SyntaxRelationshipProvider } from "./SyntaxRelationshipProvider";
 export type { StoredRelationshipProvider } from "./StoredRelationshipProvider";

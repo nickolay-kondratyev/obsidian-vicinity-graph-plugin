@@ -319,6 +319,8 @@ export interface AutoNamingOffer {
 	readonly sources: RelationshipSources;
 	/** Every note path rendered inside a folder group in this build. */
 	readonly groupedPaths: ReadonlySet<VaultPath>;
+	/** Sources whose syntax names this build could not read — their links are not known to be unnamed. */
+	readonly syntaxUnreadSources: ReadonlySet<VaultPath>;
 	/** The relationship settings this build was made with. */
 	readonly settings: RelationshipSettings;
 	readonly trigger: BuildTrigger;
