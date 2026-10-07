@@ -1,16 +1,17 @@
 ---
 id: nid_cbnhpdfn4myqfzqr8weyg7kq5_e
 title: "Relationships 3/4: AI relationship generator core (OpenAI via env key, eligibility, prompt, capped queue)"
-status: open
+status: in_progress
 deps: [nid_a5m4kforr9scit68rhqmqh78o_e]
 links: []
 created_iso: 2026-10-06T23:04:40Z
-status_updated_iso: 2026-10-06T23:04:40Z
+status_updated_iso: 2026-10-07T00:39:49Z
 type: task
 priority: 2
 assignee: nickolaykondratyev
 parent: nid_fc47gtxej6z7fqc53bflme8p5_e
 tags: [relationships]
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin/.worktree/t-cbnhpdfn
 ---
 
 Part 3/4 of the named-relationships epic. Read the parent ticket first ("AI mode" holds the human
