@@ -37,7 +37,13 @@ export type AiEdgeEligibility =
 	/** An endpoint renders inside a folder group (human decision: a waste for now; revisit later). */
 	| "grouped-note"
 	/** An endpoint is neither a note (`.md`) nor a canvas — there is no prose to read. */
-	| "unsupported-file";
+	| "unsupported-file"
+	/**
+	 * An endpoint is an Excalidraw drawing (`*.excalidraw.md`): its body is mostly
+	 * drawing data, not prose, so the AI would be paid to read a payload. Excluded
+	 * "for now" by human decision (ticket `nid_hg4yxf9zqkg9mvs5kmeporfjw_e`).
+	 */
+	| "excalidraw-drawing";
 
 /** What a build knows that eligibility reads. */
 export interface AiEligibilityFacts {
@@ -60,6 +66,9 @@ export function aiEdgeEligibility(edge: RelationshipEdge, facts: AiEligibilityFa
 	}
 	if (!FileKinds.isNodeBearingPath(edge.source) || !FileKinds.isNodeBearingPath(edge.target)) {
 		return "unsupported-file";
+	}
+	if (FileKinds.isExcalidrawPath(edge.source) || FileKinds.isExcalidrawPath(edge.target)) {
+		return "excalidraw-drawing";
 	}
 	if (facts.groupedPaths.has(edge.source) || facts.groupedPaths.has(edge.target)) {
 		return "grouped-note";

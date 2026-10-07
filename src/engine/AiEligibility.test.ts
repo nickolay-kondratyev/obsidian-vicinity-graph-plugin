@@ -9,6 +9,8 @@ const A = asVaultPath("a.md");
 const B = asVaultPath("b.md");
 const BOARD = asVaultPath("board.canvas");
 const PHOTO = asVaultPath("photo.png");
+const DRAWING = asVaultPath("sketch.excalidraw.md");
+const NOTE_NAMED_EXCALIDRAW = asVaultPath("my-excalidraw-notes.md");
 const PARENT = asVaultPath("Jon.md");
 const CHILD = asVaultPath("Jon/kid.md");
 
@@ -60,6 +62,9 @@ describe("aiEdgeEligibility — the text-free checks", () => {
 		{ when: "the folder note also LINKS its child (merged edge)", edge: MERGED_HIERARCHY, facts: facts(), then: "candidate" },
 		{ when: "the target is an image", edge: linkEdge(A, PHOTO), facts: facts(), then: "unsupported-file" },
 		{ when: "the source is an image", edge: linkEdge(PHOTO, A), facts: facts(), then: "unsupported-file" },
+		{ when: "the source is an excalidraw drawing", edge: linkEdge(DRAWING, A), facts: facts(), then: "excalidraw-drawing" },
+		{ when: "the target is an excalidraw drawing", edge: linkEdge(A, DRAWING), facts: facts(), then: "excalidraw-drawing" },
+		{ when: "a plain note's name merely contains excalidraw", edge: linkEdge(A, NOTE_NAMED_EXCALIDRAW), facts: facts(), then: "candidate" },
 	];
 
 	for (const row of table) {

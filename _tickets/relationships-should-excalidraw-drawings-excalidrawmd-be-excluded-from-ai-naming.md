@@ -24,3 +24,6 @@ Reply A or B. Not blocking: 4/4 proceeds either way.
 
 ## Decision (human, 2026-10-07)
 Option A: exclude `*.excalidraw.md` from AI naming "for now". Implement it in the pure eligibility check (rule (e)), with a test, and update the README AI-naming section if it lists the eligible file types.
+
+## Implementation note
+`aiEdgeEligibility` returns a new reason `excalidraw-drawing` when either end is `*.excalidraw.md` (case-insensitive, via `FileKinds.isExcalidrawPath`, the same suffix rule that already keeps drawings out of outline parsing). Plain notes whose name merely contains "excalidraw" stay eligible. README AI-naming skip list updated.

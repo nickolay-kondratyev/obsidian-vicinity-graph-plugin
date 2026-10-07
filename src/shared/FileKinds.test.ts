@@ -31,6 +31,20 @@ describe("FileKinds.isMarkdownPath", () => {
 	});
 });
 
+describe("FileKinds.isExcalidrawPath", () => {
+	it("WHEN the path ends in .excalidraw.md THEN it is a drawing", () => {
+		expect(FileKinds.isExcalidrawPath("draw/x.excalidraw.md")).toBe(true);
+	});
+
+	it("WHEN the excalidraw suffix is upper-cased THEN it is still a drawing", () => {
+		expect(FileKinds.isExcalidrawPath("draw/X.Excalidraw.MD")).toBe(true);
+	});
+
+	it("WHEN a plain note's name merely contains excalidraw THEN it is NOT a drawing", () => {
+		expect(FileKinds.isExcalidrawPath("my-excalidraw-notes.md")).toBe(false);
+	});
+});
+
 describe("FileKinds.isOutlineBearingPath", () => {
 	it("WHEN the path is a markdown note THEN it is outline-bearing", () => {
 		expect(FileKinds.isOutlineBearingPath("notes/a.md")).toBe(true);
