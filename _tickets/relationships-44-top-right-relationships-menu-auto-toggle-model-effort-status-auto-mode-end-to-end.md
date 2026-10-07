@@ -63,3 +63,9 @@ The top-right "Relationships" menu in the graph, the API key setting, and auto m
   - none on an empty-note edge, a grouped-note edge, or an edge with `rel:: [[x]]`;
   - toggle OFF → no new requests.
 - `npm run test:all` green.
+
+## Orchestrator decisions carried over from 3/4 (2026-10-07)
+- **No AI repaint chain.** Every stored AI name repaints all views, and each repaint is a new build. Do NOT feed builds caused by AI-name writes to `AiRelationshipQueue`; only user- or vault-driven builds start AI work. WHY: the 20-requests-per-redraw cap is a cost ceiling per user action; a write → repaint → 20 more cascade would defeat it. Test it.
+- **Effort values:** offer only low/medium/high until the live-call ticket nid_g0inqme2ol16xsrcg89g3kks4_e confirms xhigh/max.
+- **Failure notice wording:** AI save failures currently reuse the "Relationship name" failure notice. 4/4 may give AI names their own declared label if the menu makes that clearer; it is not required.
+- **Wiring left by 3/4:** in `main.ts`, build `ObsidianJsonHttp`, a `SecretOrEnvApiKeySource` over `app.secretStorage`, and the queue, plus the settings they need.
