@@ -1,17 +1,17 @@
 ---
+closed_iso: 2026-10-07T01:58:44Z
 id: nid_80xc6z8umlpo1x6u4p1v7eb22_e
 title: "Relationships 4/4: top-right Relationships menu (auto toggle, model, effort, status) + auto mode end to end"
-status: in_progress
+status: closed
 deps: [nid_cbnhpdfn4myqfzqr8weyg7kq5_e]
 links: []
 created_iso: 2026-10-06T23:04:40Z
-status_updated_iso: 2026-10-07T01:02:17Z
+status_updated_iso: 2026-10-07T01:58:44Z
 type: task
 priority: 2
 assignee: nickolaykondratyev
 parent: nid_fc47gtxej6z7fqc53bflme8p5_e
 tags: [relationships]
-pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin/.worktree/t-80xc6z8u
 ---
 
 Part 4/4 of the named-relationships epic. Read the parent ticket first.
