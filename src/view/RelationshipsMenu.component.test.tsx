@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { EngineDefaults } from "../engine";
+import { AI_OFFERED_REASONING_EFFORTS, EngineDefaults } from "../engine";
 import type { RelationshipSettings } from "../engine";
 import { aiNamingStatusLine } from "./aiNamingStatusLine";
 import type { AiNamingStatus } from "./AiRelationshipQueue";
@@ -174,11 +174,16 @@ describe("RelationshipsMenu (rendered): the declared rows", () => {
 		expect(actions.interactions).toEqual([{ kind: "global-ai-reasoning-effort", reasoningEffort: "high" }]);
 	});
 
-	it.each(["xhigh", "max"] as const)("WHEN the live-verified effort %s is chosen THEN one effort write for it is emitted", (effort) => {
-		const { actions } = renderMenu();
-		fireEvent.change(controlOf("ai-reasoning-effort"), { target: { value: effort } });
-		expect(actions.interactions).toEqual([{ kind: "global-ai-reasoning-effort", reasoningEffort: effort }]);
-	});
+	// Structural over the offered set (pinned once, in settingsProductDefaults.test.ts). The
+	// shown effort is left out: re-selecting the current <select> value fires no change.
+	it.each(AI_OFFERED_REASONING_EFFORTS.filter((effort) => effort !== EngineDefaults.relationshipSettings().reasoningEffort))(
+		"WHEN the offered effort %s is chosen THEN one effort write for it is emitted",
+		(effort) => {
+			const { actions } = renderMenu();
+			fireEvent.change(controlOf("ai-reasoning-effort"), { target: { value: effort } });
+			expect(actions.interactions).toEqual([{ kind: "global-ai-reasoning-effort", reasoningEffort: effort }]);
+		},
+	);
 });
 
 describe("RelationshipsMenu (rendered): status and Retry", () => {
