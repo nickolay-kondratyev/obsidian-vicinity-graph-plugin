@@ -92,11 +92,13 @@ export function isFatalAiNamingFailure(failure: AiNamingFailure): boolean {
 
 /**
  * Why THIS pair gets no name, though nothing is wrong with the setup: the model
- * refused, answered something that is not a valid name, or (400
+ * refused, answered something that is not a valid name, stopped before answering
+ * (`status: "incomplete"` with no message — tokens billed, nothing said), or (400
  * `context_length_exceeded`) the two notes are too big for it. Asking again would
- * answer the same, so a declined pair is not retried this session.
+ * most likely answer the same and cost again, so a declined pair is not retried
+ * this session.
  */
-export type AiNamingDecline = "refusal" | "invalid-name" | "notes-too-long";
+export type AiNamingDecline = "refusal" | "invalid-name" | "incomplete" | "notes-too-long";
 
 export type RelationshipNamingOutcome =
 	| { readonly kind: "named"; readonly name: RelationshipName; readonly usage: RelationshipTokenUsage | null }

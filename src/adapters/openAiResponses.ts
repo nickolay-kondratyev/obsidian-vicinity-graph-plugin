@@ -21,6 +21,12 @@ const HTTP_SERVER_ERROR_MAX = 599;
 const HTTP_SUCCESS_MIN = 200;
 const HTTP_SUCCESS_MAX = 299;
 
+/**
+ * A 2xx body's `status` when the model stopped before answering (e.g. it spent its
+ * output budget reasoning). See {@link parseOpenAiAnswer}.
+ */
+const INCOMPLETE_RESPONSE_STATUS = "incomplete";
+
 /** OpenAI `error.code` values that change what a status means. */
 const QUOTA_EXHAUSTED_CODE = "insufficient_quota";
 const CONTEXT_TOO_LONG_CODE = "context_length_exceeded";
@@ -52,6 +58,8 @@ export function isSuccessStatus(status: number): boolean {
 export type OpenAiAnswer =
 	| { readonly kind: "text"; readonly text: string; readonly usage: RelationshipTokenUsage | null }
 	| { readonly kind: "refusal"; readonly usage: RelationshipTokenUsage | null }
+	/** `status: "incomplete"` and no message item: the model ran out before answering (tokens still billed). */
+	| { readonly kind: "incomplete"; readonly usage: RelationshipTokenUsage | null }
 	| { readonly kind: "malformed" };
 
 function recordOf(value: unknown): Record<string, unknown> | null {
@@ -69,6 +77,12 @@ function usageOf(body: Record<string, unknown>): RelationshipTokenUsage | null {
  * Reads a 2xx body: the FIRST `output[]` item of `type: "message"` — reasoning
  * items may come before it — then its `content[]`: an `output_text` part carries
  * the structured JSON, a `refusal` part means the model declined.
+ *
+ * A body with `status: "incomplete"` and NO message item is told apart from a
+ * malformed one (orchestrator decision carried into task 4/4): the model stopped
+ * before answering, which asking again would most likely repeat — and every ask is
+ * billed. Malformed maps to a non-fatal failure that is retried on every redraw;
+ * incomplete is a per-pair decline, not asked again this session.
  */
 export function parseOpenAiAnswer(json: unknown): OpenAiAnswer {
 	const body = recordOf(json);
@@ -77,6 +91,9 @@ export function parseOpenAiAnswer(json: unknown): OpenAiAnswer {
 		return { kind: "malformed" };
 	}
 	const message = output.map(recordOf).find((item) => item?.["type"] === "message");
+	if (message === undefined && body["status"] === INCOMPLETE_RESPONSE_STATUS) {
+		return { kind: "incomplete", usage: usageOf(body) };
+	}
 	const content = message?.["content"];
 	if (!Array.isArray(content)) {
 		return { kind: "malformed" };

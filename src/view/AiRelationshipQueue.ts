@@ -21,10 +21,19 @@ import type { AiRelationshipWriterPort } from "./viewPorts";
  */
 export const AI_MAX_REQUESTS_PER_BUILD = 20;
 
-/** The session's naming progress, for the task 4/4 status line ("Naming 3…", "Named 12 (≈N tokens)", the last error). */
+/** The session's naming progress, for the task 4/4 status line ("Naming 3 of 12…", "Named 12 (≈N tokens)", the last error). */
 export interface AiNamingStatus {
+	/** Submitted builds still choosing what to send (reading notes) — busy before any request is in flight. */
+	readonly preparing: number;
 	/** Requests sent and not answered yet. */
 	readonly inFlight: number;
+	/**
+	 * Requests sent in the current RUN — a run starts when a request goes out while
+	 * none is in flight, so "Naming 3 of 12…" counts one burst, not the whole session.
+	 */
+	readonly runRequested: number;
+	/** Requests of the current run that got an answer (of any kind). */
+	readonly runAnswered: number;
 	/** Pairs the model named this session. */
 	readonly named: number;
 	/** Pairs the model answered without a usable name (refusal, invalid name, notes too long). */
@@ -33,14 +42,22 @@ export interface AiNamingStatus {
 	readonly failed: number;
 	readonly inputTokens: number;
 	readonly outputTokens: number;
-	/** The most recent failure, for the plain-language status; `null` until one happens (or after {@link AiRelationshipQueue.resume}). */
+	/**
+	 * The CURRENT problem, for the plain-language status: the most recent failure,
+	 * `null` until one happens, after {@link AiRelationshipQueue.resume}, or once a
+	 * later request got an answer again (a transient failure is over by then; a fatal
+	 * one stays until resumed).
+	 */
 	readonly lastFailure: AiNamingFailure | null;
 	/** True after a FATAL failure: nothing more is sent until {@link AiRelationshipQueue.resume}. */
 	readonly stopped: boolean;
 }
 
 const IDLE_STATUS: AiNamingStatus = {
+	preparing: 0,
 	inFlight: 0,
+	runRequested: 0,
+	runAnswered: 0,
 	named: 0,
 	declined: 0,
 	failed: 0,
@@ -99,21 +116,26 @@ export class AiRelationshipQueue {
 		this.generation += 1;
 		const generation = this.generation;
 		const started: Promise<void>[] = [];
-		for (const edge of edges) {
-			if (started.length >= AI_MAX_REQUESTS_PER_BUILD || !this.mayStart(generation)) {
-				break;
+		this.update({ preparing: this.current.preparing + 1 });
+		try {
+			for (const edge of edges) {
+				if (started.length >= AI_MAX_REQUESTS_PER_BUILD || !this.mayStart(generation)) {
+					break;
+				}
+				const key = directedLinkKey(edge.source, edge.target);
+				if (this.claimed.has(key) || this.answered.has(key)) {
+					continue;
+				}
+				this.claimed.add(key);
+				const prompt = await this.promptFor(edge);
+				if (prompt === null || !this.mayStart(generation)) {
+					this.claimed.delete(key);
+					continue;
+				}
+				started.push(this.ask(key, edge, { prompt, config }));
 			}
-			const key = directedLinkKey(edge.source, edge.target);
-			if (this.claimed.has(key) || this.answered.has(key)) {
-				continue;
-			}
-			this.claimed.add(key);
-			const prompt = await this.promptFor(edge);
-			if (prompt === null || !this.mayStart(generation)) {
-				this.claimed.delete(key);
-				continue;
-			}
-			started.push(this.ask(key, edge, { prompt, config }));
+		} finally {
+			this.update({ preparing: this.current.preparing - 1 });
 		}
 		await Promise.all(started);
 	}
@@ -159,12 +181,17 @@ export class AiRelationshipQueue {
 	}
 
 	private async ask(key: string, edge: DirectedLink, request: RelationshipNamingRequest): Promise<void> {
-		this.update({ inFlight: this.current.inFlight + 1 });
+		const startsRun = this.current.inFlight === 0;
+		this.update({
+			inFlight: this.current.inFlight + 1,
+			runRequested: startsRun ? 1 : this.current.runRequested + 1,
+			runAnswered: startsRun ? 0 : this.current.runAnswered,
+		});
 		try {
 			await this.settle(key, edge, request.config, await this.outcomeOf(request));
 		} finally {
 			this.claimed.delete(key);
-			this.update({ inFlight: this.current.inFlight - 1 });
+			this.update({ inFlight: this.current.inFlight - 1, runAnswered: this.current.runAnswered + 1 });
 		}
 	}
 
@@ -187,11 +214,11 @@ export class AiRelationshipQueue {
 					effort: config.effort,
 					usage: outcome.usage,
 				});
-				this.update({ named: this.current.named + 1, ...this.tokensAdding(outcome.usage) });
+				this.update({ named: this.current.named + 1, ...this.answeredAgain(), ...this.tokensAdding(outcome.usage) });
 				return;
 			case "declined":
 				this.answered.add(key);
-				this.update({ declined: this.current.declined + 1, ...this.tokensAdding(outcome.usage) });
+				this.update({ declined: this.current.declined + 1, ...this.answeredAgain(), ...this.tokensAdding(outcome.usage) });
 				return;
 			case "failed":
 				this.update({
@@ -201,6 +228,11 @@ export class AiRelationshipQueue {
 				});
 				return;
 		}
+	}
+
+	/** An answer ends a TRANSIENT failure (the status stops showing it); a fatal one stays until {@link resume}. */
+	private answeredAgain(): Pick<AiNamingStatus, "lastFailure"> {
+		return { lastFailure: this.current.stopped ? this.current.lastFailure : null };
 	}
 
 	private tokensAdding(usage: RelationshipTokenUsage | null): Pick<AiNamingStatus, "inputTokens" | "outputTokens"> {

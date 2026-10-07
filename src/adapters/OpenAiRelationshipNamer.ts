@@ -43,6 +43,8 @@ export class OpenAiRelationshipNamer implements RelationshipNamer {
 				return { kind: "failed", failure: "unexpected-response" };
 			case "refusal":
 				return { kind: "declined", reason: "refusal", usage: answer.usage };
+			case "incomplete":
+				return { kind: "declined", reason: "incomplete", usage: answer.usage };
 			case "text": {
 				const parsed = parseModelRelationshipName(answer.text);
 				return parsed.kind === "valid"

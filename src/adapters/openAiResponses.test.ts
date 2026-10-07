@@ -52,6 +52,13 @@ describe("parseOpenAiAnswer", () => {
 		expect(parseOpenAiAnswer(body)).toEqual({ kind: "text", text: "{}", usage: null });
 	});
 
+	it("WHEN the response is incomplete with no message item THEN the answer is incomplete, with its usage", () => {
+		expect(parseOpenAiAnswer({ status: "incomplete", output: [REASONING_ITEM], usage: USAGE_BODY })).toEqual({
+			kind: "incomplete",
+			usage: USAGE,
+		});
+	});
+
 	it("WHEN there is no message item THEN the body is malformed", () => {
 		expect(parseOpenAiAnswer({ output: [REASONING_ITEM], usage: USAGE_BODY })).toEqual({ kind: "malformed" });
 	});
