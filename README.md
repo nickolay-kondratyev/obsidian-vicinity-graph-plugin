@@ -120,12 +120,25 @@ A connector can carry a **name** that says how two notes relate — *improves*,
   (`[improves:: [[B]]]` or `(improves:: [[B]])`). Several links after one name
   all take it (`improves:: [[B]], [[C]]`), up to the next `name::` on the line.
   A name is letters, digits, `-` and `_`.
+- **Named by you** — click a connector and use **Name this relationship** in its
+  preview. Type the name and press Enter (or click away); Escape cancels.
+  **Rename** changes it and **Clear** removes it. A name you typed is never
+  written into your notes; it is stored as vault content under
+  `.plugin_data/vicinity_graph/from_id/` (one small file per named connector),
+  so it syncs with the vault and follows a note across renames. Naming gives both
+  notes a stable `id` in their frontmatter if they don't have one yet. A name
+  declared in a note can't be renamed here — its preview says which note declares
+  it, and you edit that note instead.
 - **`parent`** — a dashed folder-note connector is named *parent* automatically.
   It is hidden when the two notes name a link between them in either direction
-  (e.g. the child writes `rel:: [[folder-note]]`).
+  (e.g. the child writes `rel:: [[folder-note]]`). You can rename it, and your
+  name replaces *parent*.
 
-Names are **directed**: `improves:: [[B]]` in A names only the A → B connector,
-never B → A. Frontmatter properties (`related: "[[B]]"`) do not name connectors,
+When several sources name the same connector, a name declared in the note wins
+over yours, and yours wins over *parent*.
+
+Names are **directed**: `improves:: [[B]]` in A — or a name you give A → B — names
+only the A → B connector, never B → A. Frontmatter properties (`related: "[[B]]"`) do not name connectors,
 and neither do canvases. A connector standing for a whole folder group carries no
 name on the graph; its preview lists the names of the note pairs behind it.
 
@@ -133,7 +146,8 @@ name on the graph; its preview lists the names of the note pairs behind it.
 
 **Every setting is global** — one value used by every note and every open graph.
 The only things remembered *per note* are the facts you set on it directly:
-which notes are **pinned** and which you've **resized**.
+which notes are **pinned**, which you've **resized**, and the
+[relationship names](#relationships) you gave its connectors.
 
 Two surfaces edit the same values and stay in sync: the **settings tab**
 (**Settings → Vicinity Graph**) and the in-view **Graph controls** panel.
