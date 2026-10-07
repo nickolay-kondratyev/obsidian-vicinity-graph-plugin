@@ -159,3 +159,26 @@ describe("CanvasFallbackParser link kinds", () => {
 		expect(linkKindsOf('{"nodes": [{"type": "text", "text": "see ![a](pic.png)"}]}')).toEqual(["embed"]);
 	});
 });
+
+describe("CanvasFallbackParser text cards", () => {
+	it("WHEN a canvas holds text cards among other nodes THEN only the cards' text comes back, in node order", () => {
+		const json = JSON.stringify({
+			nodes: [
+				{ type: "text", text: "one" },
+				{ type: "file", file: "a.md" },
+				{ type: "link", url: "https://example.com" },
+				{ type: "text", text: "two" },
+			],
+		});
+		expect(CanvasFallbackParser.textCardsOf("board.canvas", json)).toEqual(["one", "two"]);
+	});
+
+	it("WHEN the canvas has no nodes array THEN there are no text cards", () => {
+		expect(CanvasFallbackParser.textCardsOf("empty.canvas", "{}")).toEqual([]);
+	});
+
+	it("WHEN the canvas JSON is malformed THEN there are no text cards", () => {
+		vi.spyOn(console, "error").mockImplementation(() => undefined);
+		expect(CanvasFallbackParser.textCardsOf("malformed.canvas", fixture("malformed.canvas"))).toEqual([]);
+	});
+});
