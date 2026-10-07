@@ -9,7 +9,7 @@ import { ObsidianLinkProvider } from "./ObsidianLinkProvider";
 import type { HeadingPort, ReferencePort } from "./obsidianPorts";
 
 function ref(link: string, offset: number): ReferencePort {
-	return { link, position: { start: { offset } } };
+	return { link, original: `[[${link}]]`, position: { start: { offset } } };
 }
 
 function heading(text: string, level: number, offset: number): HeadingPort {
@@ -1112,7 +1112,7 @@ describe("ObsidianLinkProvider frontmatter id-ref edges", () => {
 				"owner.md": { frontmatter: { id: "owner-id" } },
 				"referrer.md": {
 					frontmatter: { deps: ["owner-id"] },
-					links: [{ link: "owner", position: { start: { offset: 0 } } }],
+					links: [{ link: "owner", original: "[[owner]]", position: { start: { offset: 0 } } }],
 				},
 			},
 			resolutions: { owner: "owner.md" },
@@ -1129,7 +1129,7 @@ describe("ObsidianLinkProvider frontmatter id-ref edges", () => {
 				"owner.md": { frontmatter: { id: "owner-id" } },
 				"referrer.md": {
 					frontmatter: { deps: ["owner-id"] },
-					links: [{ link: "owner", position: { start: { offset: 0 } } }],
+					links: [{ link: "owner", original: "[[owner]]", position: { start: { offset: 0 } } }],
 				},
 			},
 			resolutions: { owner: "owner.md" },

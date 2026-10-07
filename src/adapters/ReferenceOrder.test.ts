@@ -3,7 +3,7 @@ import type { CachedMetadataPort, ReferencePort } from "./obsidianPorts";
 import { FRONTMATTER_REFERENCE_OFFSET, ReferenceOrder } from "./ReferenceOrder";
 
 function ref(link: string, offset: number): ReferencePort {
-	return { link, position: { start: { offset } } };
+	return { link, original: `[[${link}]]`, position: { start: { offset } } };
 }
 
 /** The link texts alone — what the ordering-only cases care about. */

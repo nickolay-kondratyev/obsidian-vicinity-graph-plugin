@@ -1,9 +1,11 @@
 import type {
+	AiOfferedReasoningEffort,
 	DepthSettings,
 	ForceLayoutSettings,
 	FrontmatterLinkSettings,
 	NodeExclusionSettings,
 	NodePreviewPreference,
+	RelationshipSettings,
 	SizingSettings,
 	ViewSettings,
 } from "../engine";
@@ -61,7 +63,15 @@ export type SettingsInteraction =
 	/** The exclusion pattern list (the enable flag is untouched). */
 	| { readonly kind: "global-exclusion-patterns"; readonly patterns: readonly string[] }
 	/** The comma-separated frontmatter id-ref field-name string (stored verbatim). */
-	| { readonly kind: "global-id-ref-fields"; readonly idRefFields: string };
+	| { readonly kind: "global-id-ref-fields"; readonly idRefFields: string }
+	/** Auto mode: whether unnamed eligible edges are named by the AI. */
+	| { readonly kind: "global-ai-auto-naming"; readonly autoNaming: boolean }
+	/** The OpenAI model slug auto mode asks (already settled by its accessor). */
+	| { readonly kind: "global-ai-model"; readonly model: string }
+	/** The reasoning effort auto mode asks at. */
+	| { readonly kind: "global-ai-reasoning-effort"; readonly reasoningEffort: AiOfferedReasoningEffort }
+	/** The NAME of the keychain secret holding the OpenAI key (`""` = none; never the key itself). */
+	| { readonly kind: "global-ai-key-secret"; readonly apiKeySecretName: string };
 
 /** The persistence call the executor must make. */
 export type SettingsCommand =
@@ -72,7 +82,9 @@ export type SettingsCommand =
 	/** → `saveNodeExclusion(nodeExclusion)` (whole object). */
 	| { readonly kind: "node-exclusion"; readonly nodeExclusion: NodeExclusionSettings }
 	/** → `saveFrontmatterLinks(frontmatterLinks)` (whole object). */
-	| { readonly kind: "frontmatter-links"; readonly frontmatterLinks: FrontmatterLinkSettings };
+	| { readonly kind: "frontmatter-links"; readonly frontmatterLinks: FrontmatterLinkSettings }
+	/** → `saveRelationships(relationships)` (whole object). */
+	| { readonly kind: "relationships"; readonly relationships: RelationshipSettings };
 
 /** Current globals so whole-object commands can merge exactly one field. */
 export interface SettingsWriteContext {
@@ -80,6 +92,7 @@ export interface SettingsWriteContext {
 	readonly globalView: ViewSettings;
 	readonly nodeExclusion: NodeExclusionSettings;
 	readonly frontmatterLinks: FrontmatterLinkSettings;
+	readonly relationships: RelationshipSettings;
 }
 
 export function planSettingsWrite(interaction: SettingsInteraction, ctx: SettingsWriteContext): SettingsCommand {
@@ -121,6 +134,20 @@ export function planSettingsWrite(interaction: SettingsInteraction, ctx: Setting
 			return {
 				kind: "frontmatter-links",
 				frontmatterLinks: { ...ctx.frontmatterLinks, idRefFields: interaction.idRefFields },
+			};
+		case "global-ai-auto-naming":
+			return { kind: "relationships", relationships: { ...ctx.relationships, autoNaming: interaction.autoNaming } };
+		case "global-ai-model":
+			return { kind: "relationships", relationships: { ...ctx.relationships, model: interaction.model } };
+		case "global-ai-reasoning-effort":
+			return {
+				kind: "relationships",
+				relationships: { ...ctx.relationships, reasoningEffort: interaction.reasoningEffort },
+			};
+		case "global-ai-key-secret":
+			return {
+				kind: "relationships",
+				relationships: { ...ctx.relationships, apiKeySecretName: interaction.apiKeySecretName },
 			};
 	}
 }

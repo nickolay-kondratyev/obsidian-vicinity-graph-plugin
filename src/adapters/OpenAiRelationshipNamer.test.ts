@@ -75,6 +75,12 @@ describe("OpenAiRelationshipNamer — outcomes", () => {
 			then: { kind: "declined", reason: "refusal", usage: null },
 		},
 		{
+			when: "the response is incomplete with no message (the model ran out before answering)",
+			key: KEY,
+			answer: () => ({ status: 200, json: { status: "incomplete", output: [{ type: "reasoning", summary: [] }], usage: USAGE_BODY } }),
+			then: { kind: "declined", reason: "incomplete", usage: { inputTokens: 900, outputTokens: 12 } },
+		},
+		{
 			when: "the notes are too long for the model",
 			key: KEY,
 			answer: () => ({ status: 400, json: { error: { code: "context_length_exceeded" } } }),

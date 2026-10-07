@@ -144,6 +144,14 @@ export class SettingsWriteFailureNotice {
 				return { kind: "exclusion-patterns" };
 			case "global-id-ref-fields":
 				return { kind: "id-ref-fields" };
+			case "global-ai-auto-naming":
+				return { kind: "ai-auto-naming" };
+			case "global-ai-key-secret":
+				return { kind: "ai-api-key" };
+			case "global-ai-model":
+				return { kind: "ai-model" };
+			case "global-ai-reasoning-effort":
+				return { kind: "ai-reasoning-effort" };
 		}
 	}
 
@@ -180,6 +188,10 @@ export class SettingsWriteFailureNotice {
 			case "exclusion-patterns":
 			case "node-cap":
 			case "id-ref-fields":
+			case "ai-auto-naming":
+			case "ai-api-key":
+			case "ai-model":
+			case "ai-reasoning-effort":
 				return control.kind;
 			default:
 				return unhandledRowControl(control);

@@ -134,13 +134,38 @@ A connector can carry a **name** that says how two notes relate — *improves*,
   (e.g. the child writes `rel:: [[folder-note]]`). You can rename it, and your
   name replaces *parent*.
 
+- **Named by AI (optional, off by default)** — see [AI naming](#ai-naming) below.
+
 When several sources name the same connector, a name declared in the note wins
-over yours, and yours wins over *parent*.
+over yours, yours wins over an AI name, and an AI name wins over *parent*.
 
 Names are **directed**: `improves:: [[B]]` in A — or a name you give A → B — names
 only the A → B connector, never B → A. Frontmatter properties (`related: "[[B]]"`) do not name connectors,
 and neither do canvases. A connector standing for a whole folder group carries no
 name on the graph; its preview lists the names of the note pairs behind it.
+
+### AI naming
+
+The **Relationships** menu at the top right of the graph turns AI naming on and
+off, picks the OpenAI model and reasoning effort (low / medium / high), and
+shows what this session has named. The same settings are in the settings tab.
+AI names show on the connector in *italics* with a ✦ mark; rename or clear one
+like any name you gave (a cleared AI name is not asked for again).
+
+**Your key.** Pick or add an OpenAI API key with the menu's key picker — it is
+kept in Obsidian's keychain, outside your vault, and never in plugin settings.
+Without one, the `OPENAI_API_KEY` environment variable is used. A missing or
+refused key, an unknown model or an exhausted quota stops AI naming and says
+how to fix it; **Retry** in the menu starts it again.
+
+**What is sent, and when.** Nothing, until you turn AI naming on. Then, each
+time you open a note or redraw, the graph's unnamed connectors (at most 20 per
+redraw, each pair at most once per session) are sent to **OpenAI** — for each
+one, the **full text of both notes** and their titles. A connector is skipped
+when either note has less than about 200 characters of its own text, when it is
+already named, when it is a *parent* connector, or when either note sits inside
+a folder group. Naming a connector adds an `id` to both notes' frontmatter, like
+naming it yourself. Turning AI naming off stops anything not yet sent.
 
 ## Settings
 
@@ -193,6 +218,11 @@ The settings, grouped the same way on both surfaces:
   press <kbd>Enter</kbd> to add it; each added field shows as a chip with its
   own **×** to remove it. Empty by default (the feature is off); it rides the
   same depth budgets as `[[wikilinks]]`.
+- **Relationships** — AI naming on/off, the OpenAI key, model and reasoning
+  effort (see [AI naming](#ai-naming)). Shown in the graph's top-right
+  **Relationships** menu rather than in Graph controls. Its *Restore defaults*
+  turns AI naming off and resets the model, effort and which key is picked; the
+  key itself stays in Obsidian's keychain.
 - **Performance** — a node cap (default **100**, the readable ceiling); beyond it
   the graph truncates and shows a hidden-node count.
 

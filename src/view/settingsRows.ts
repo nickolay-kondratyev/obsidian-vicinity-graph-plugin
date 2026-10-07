@@ -1,4 +1,4 @@
-import type { DepthSettings, ForceLayoutSettings } from "../engine";
+import type { AiOfferedReasoningEffort, DepthSettings, ForceLayoutSettings } from "../engine";
 import {
 	FORCE_LAYOUT_ADVANCED_FIELDS,
 	FORCE_LAYOUT_FIELD_META,
@@ -70,6 +70,10 @@ export const SETTINGS_ROW_CONTROL_KINDS = [
 	"exclusion-patterns",
 	"node-cap",
 	"id-ref-fields",
+	"ai-auto-naming",
+	"ai-api-key",
+	"ai-model",
+	"ai-reasoning-effort",
 ] as const;
 
 export type SettingsRowControlKind = (typeof SETTINGS_ROW_CONTROL_KINDS)[number];
@@ -105,7 +109,18 @@ export type SettingsRowControl =
 	 * added per entry, each chip carrying its own remove button. Stored unchanged as
 	 * the one comma-separated string (`IdRefFieldChips` owns the projection).
 	 */
-	| { readonly kind: "id-ref-fields" };
+	| { readonly kind: "id-ref-fields" }
+	/** Auto mode's switch: name unnamed eligible edges with the AI. */
+	| { readonly kind: "ai-auto-naming" }
+	/**
+	 * Which secret in Obsidian's keychain holds the OpenAI key — picked with Obsidian's
+	 * own `SecretComponent` on both surfaces (only the secret's NAME is stored).
+	 */
+	| { readonly kind: "ai-api-key" }
+	/** The OpenAI model slug — a typed field, committed on blur (tab: debounced). */
+	| { readonly kind: "ai-model" }
+	/** The reasoning effort, one of the offered efforts (tab: dropdown, panel: `<select>`). */
+	| { readonly kind: "ai-reasoning-effort" };
 
 /**
  * Compile-time completeness of {@link SETTINGS_ROW_CONTROL_KINDS}: a control arm
@@ -276,8 +291,21 @@ export interface SettingsRowBlock {
  */
 export const SETTINGS_SUBHEADING_CLASS = "vicinity-graph-settings-subheading";
 
+/**
+ * WHERE in the graph a section is presented. `controls-panel` is the top-left
+ * `GraphToolbar`; `relationships-menu` is the top-right Relationships menu
+ * (`RelationshipsMenu.tsx`), which sits next to the naming status it governs. The
+ * settings tab presents every section either way.
+ */
+export type SettingsGraphSurface = "controls-panel" | "relationships-menu";
+
 /** One settings section as both surfaces present it. */
 export interface SettingsGroup {
+	/**
+	 * Which in-graph surface presents this section; absent = the controls panel. A
+	 * section presented elsewhere is SKIPPED by the controls panel, never rendered twice.
+	 */
+	readonly graphSurface?: SettingsGraphSurface;
 	/** Card heading in the tab, disclosure summary in the panel. */
 	readonly heading: string;
 	/** Section-level copy: a description row in the tab, the summary's `title` in the panel. */
@@ -587,6 +615,45 @@ export const SETTINGS_GROUPS: Readonly<Record<SettingsSection, SettingsGroup>> =
 			},
 		],
 	},
+	// Task 4/4 (`nid_80xc6z8umlpo1x6u4p1v7eb22_e`). In the graph it is the top-right
+	// Relationships menu, not a controls-panel section: the switch belongs next to the
+	// naming status it starts and stops. Toggle first (general → specific): nothing
+	// below it does anything while it is off.
+	relationships: {
+		heading: "Relationships",
+		description:
+			"Names the links between notes. A note can name its own links with an inline field (improves:: [[Other note]]); you can name any link from the edge drawer; and AI naming can name the rest.",
+		graphSurface: "relationships-menu",
+		panelClass: "vicinity-graph-relationships-settings",
+		blocks: [
+			{
+				rows: [
+					{
+						label: "Name relationships with AI",
+						description:
+							"Asks OpenAI to name the unnamed links shown in the graph. For each link it names, the full text of both notes is sent to OpenAI, and an id is added to the frontmatter of both notes. Off until you turn it on.",
+						control: { kind: "ai-auto-naming" },
+					},
+					{
+						label: "OpenAI API key",
+						description:
+							"Pick or add the key in Obsidian's keychain — it is stored outside your vault, never in plugin settings. Without one, the OPENAI_API_KEY environment variable is used.",
+						control: { kind: "ai-api-key" },
+					},
+					{
+						label: "AI model",
+						description: "The OpenAI model that names relationships.",
+						control: { kind: "ai-model" },
+					},
+					{
+						label: "Reasoning effort",
+						description: "How much the model thinks before naming a link. Higher costs more.",
+						control: { kind: "ai-reasoning-effort" },
+					},
+				],
+			},
+		],
+	},
 	performance: {
 		heading: "Performance",
 		blocks: [
@@ -602,6 +669,28 @@ export const SETTINGS_GROUPS: Readonly<Record<SettingsSection, SettingsGroup>> =
 			},
 		],
 	},
+};
+
+/** The in-graph surface presenting `group` (the controls panel unless it declares another). */
+export function graphSurfaceOf(group: SettingsGroup): SettingsGraphSurface {
+	return group.graphSurface ?? "controls-panel";
+}
+
+/** The rows the in-graph `surface` presents, in render order — what its rendered suite expects. */
+export function settingsRowsPresentedBy(surface: SettingsGraphSurface): readonly SettingsRow[] {
+	return SETTINGS_SECTIONS.filter((section) => graphSurfaceOf(SETTINGS_GROUPS[section]) === surface).flatMap(
+		(section) => SETTINGS_GROUPS[section].blocks.flatMap((block) => block.rows),
+	);
+}
+
+/**
+ * What each OFFERED reasoning effort reads as, on both surfaces. A `Record` over the
+ * offered union, so offering another effort is a compile error here until it has copy.
+ */
+export const AI_REASONING_EFFORT_LABELS: Readonly<Record<AiOfferedReasoningEffort, string>> = {
+	low: "Low",
+	medium: "Medium",
+	high: "High",
 };
 
 /** Every declared block, in render order across every section — the grouping layer. */

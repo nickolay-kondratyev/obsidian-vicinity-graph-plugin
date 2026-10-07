@@ -31,8 +31,8 @@ const BASE_SPEC: FakeObsidianSpec = {
 	fileCaches: {
 		"note.md": {
 			links: [
-				...X_OFFSETS.map((offset) => ({ link: "X", position: { start: { offset } } })),
-				{ link: "Y", position: { start: { offset: Y_BODY_OFFSET } } },
+				...X_OFFSETS.map((offset) => ({ link: "X", original: "[[X]]", position: { start: { offset } } })),
+				{ link: "Y", original: "[[Y]]", position: { start: { offset: Y_BODY_OFFSET } } },
 			],
 			frontmatterLinks: [{ link: "Y" }],
 		},
@@ -55,8 +55,17 @@ function providerOver(spec: FakeObsidianSpec): { provider: ObsidianSyntaxRelatio
 }
 
 async function namesFor(pairs: readonly DirectedLink[], spec = BASE_SPEC): Promise<ReadonlyMap<string, readonly string[]>> {
-	return providerOver(spec).provider.syntaxNamesFor(pairs);
+	return (await providerOver(spec).provider.syntaxNamesFor(pairs)).names;
 }
+
+/**
+ * The note as it reads right after an id was written into its frontmatter, while
+ * Obsidian's link cache still holds the offsets of {@link NOTE_TEXT}.
+ */
+const LAGGING_CACHE_SPEC: FakeObsidianSpec = {
+	...BASE_SPEC,
+	files: [{ path: "note.md", content: `---\nid: abc\n---\n${NOTE_TEXT}` }, { path: "x.md" }, { path: "y.md" }],
+};
 
 describe("ObsidianSyntaxRelationshipProvider", () => {
 	it("WHEN the note names its links to a target THEN the distinct names answer in note order", async () => {
@@ -98,6 +107,21 @@ describe("ObsidianSyntaxRelationshipProvider", () => {
 			{ source: NOTE, target: Y },
 		]);
 		expect(reads).toEqual(["note.md"]);
+	});
+
+	it("WHEN the note was read in full THEN no source is unread", async () => {
+		const read = await providerOver(BASE_SPEC).provider.syntaxNamesFor([{ source: NOTE, target: X }]);
+		expect(read.unreadSources).toEqual(new Set());
+	});
+
+	it("WHEN the link cache lags the note's text THEN the source is reported unread", async () => {
+		const read = await providerOver(LAGGING_CACHE_SPEC).provider.syntaxNamesFor([{ source: NOTE, target: X }]);
+		expect(read.unreadSources).toEqual(new Set([NOTE]));
+	});
+
+	it("WHEN the link cache lags the note's text THEN none of its names are guessed", async () => {
+		const names = await namesFor([{ source: NOTE, target: X }], LAGGING_CACHE_SPEC);
+		expect(names.size).toBe(0);
 	});
 
 	it("WHEN the source path is not in the vault THEN it answers empty", async () => {

@@ -8,24 +8,25 @@ import type { RelationshipPrompt } from "./RelationshipPrompt";
  * `adapters/OpenAiRelationshipNamer.ts`, faked by {@link FakeRelationshipNamer}.
  */
 
-/** The model auto mode asks by default (human decision 2026-10-06; ~$0.10 / $0.50 per 1M input/output tokens). */
-export const DEFAULT_AI_MODEL = "gpt-6-luna";
-
 /**
- * Every reasoning effort the `gpt-6-luna` model page lists, lowest first.
- * WHY `xhigh` / `max` are here although UNVERIFIED: the generic API reference
- * lists only low/medium/high, and no live call has confirmed the other two yet
- * (no key in the dev environment, task 3/4). Verify both with one live call
- * before task 4/4 OFFERS them in the UI; a model that rejects one answers 400,
- * which maps to the fatal `rejected-request` failure, so a wrong guess stops
- * auto mode instead of hammering.
+ * Every reasoning effort the `gpt-6-luna` model page lists, lowest first — what
+ * the wire type accepts. The model and effort DEFAULTS live on the settings spec
+ * (`SETTINGS_SPEC.relationships`), the one source of every settings default.
  */
 export const AI_REASONING_EFFORTS = ["none", "low", "medium", "high", "xhigh", "max"] as const;
 
 export type AiReasoningEffort = (typeof AI_REASONING_EFFORTS)[number];
 
-/** Default effort (human decision 2026-10-06): enough thought to pick a SPECIFIC name, cheap enough per edge. */
-export const DEFAULT_AI_REASONING_EFFORT: AiReasoningEffort = "medium";
+/**
+ * The efforts the settings OFFER (task 4/4, orchestrator decision 2026-10-07):
+ * only the three the generic API reference lists. `xhigh` / `max` are on the model
+ * page but no live call has confirmed them (no key in the dev environment) — the
+ * live-call ticket `nid_g0inqme2ol16xsrcg89g3kks4_e` decides whether to add them.
+ * `none` is left out on purpose: naming needs a moment of thought to be SPECIFIC.
+ */
+export const AI_OFFERED_REASONING_EFFORTS = ["low", "medium", "high"] as const satisfies readonly AiReasoningEffort[];
+
+export type AiOfferedReasoningEffort = (typeof AI_OFFERED_REASONING_EFFORTS)[number];
 
 /** Which model, at which effort — read from settings at submit time (task 4/4), recorded with every AI name. */
 export interface AiNamingConfig {
@@ -92,11 +93,13 @@ export function isFatalAiNamingFailure(failure: AiNamingFailure): boolean {
 
 /**
  * Why THIS pair gets no name, though nothing is wrong with the setup: the model
- * refused, answered something that is not a valid name, or (400
+ * refused, answered something that is not a valid name, stopped before answering
+ * (`status: "incomplete"` with no message — tokens billed, nothing said), or (400
  * `context_length_exceeded`) the two notes are too big for it. Asking again would
- * answer the same, so a declined pair is not retried this session.
+ * most likely answer the same and cost again, so a declined pair is not retried
+ * this session.
  */
-export type AiNamingDecline = "refusal" | "invalid-name" | "notes-too-long";
+export type AiNamingDecline = "refusal" | "invalid-name" | "incomplete" | "notes-too-long";
 
 export type RelationshipNamingOutcome =
 	| { readonly kind: "named"; readonly name: RelationshipName; readonly usage: RelationshipTokenUsage | null }

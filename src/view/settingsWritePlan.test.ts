@@ -8,6 +8,7 @@ const CTX: SettingsWriteContext = {
 	globalView: EngineDefaults.viewSettings(),
 	nodeExclusion: EngineDefaults.nodeExclusionSettings(),
 	frontmatterLinks: EngineDefaults.frontmatterLinkSettings(),
+	relationships: EngineDefaults.relationshipSettings(),
 };
 
 describe("planSettingsWrite global writes", () => {
@@ -22,6 +23,20 @@ describe("planSettingsWrite global writes", () => {
 		expect(planSettingsWrite({ kind: "global-cap", value: 50 }, CTX)).toEqual({
 			kind: "global-view",
 			view: { ...CTX.globalView, nodeCap: 50 },
+		});
+	});
+
+	it("WHEN auto naming is switched on THEN only that field moves in ctx.relationships", () => {
+		expect(planSettingsWrite({ kind: "global-ai-auto-naming", autoNaming: true }, CTX)).toEqual({
+			kind: "relationships",
+			relationships: { ...CTX.relationships, autoNaming: true },
+		});
+	});
+
+	it("WHEN the key's secret is chosen THEN only its name moves in ctx.relationships", () => {
+		expect(planSettingsWrite({ kind: "global-ai-key-secret", apiKeySecretName: "openai" }, CTX)).toEqual({
+			kind: "relationships",
+			relationships: { ...CTX.relationships, apiKeySecretName: "openai" },
 		});
 	});
 

@@ -17,6 +17,7 @@ describe("PersistedShapes.parsePluginData", () => {
 			pins: [],
 			nodeExclusion: EngineDefaults.nodeExclusionSettings(),
 			frontmatterLinks: EngineDefaults.frontmatterLinkSettings(),
+			relationships: EngineDefaults.relationshipSettings(),
 		});
 	});
 
@@ -41,6 +42,7 @@ describe("PersistedShapes.parsePluginData", () => {
 			pins: [{ docid: "docid_a_e", pinTimestamp: 1000 }],
 			nodeExclusion: { enabled: true, patterns: ["^rel/", "templates/"] },
 			frontmatterLinks: { idRefFields: "deps, links" },
+			relationships: { autoNaming: true, model: "gpt-other", reasoningEffort: "high", apiKeySecretName: "openai" },
 		};
 		expect(PersistedShapes.parsePluginData(JSON.parse(JSON.stringify(data)))).toEqual(data);
 	});
@@ -433,5 +435,28 @@ describe("PersistedShapes outline depth parsing", () => {
 
 	it("WHEN outlineMaxDepth is not a number THEN the default applies", () => {
 		expect(parsedDepth({ outlineMaxDepth: "deep" })).toBe(SETTINGS_SPEC.globalView.outlineMaxDepth.default);
+	});
+});
+
+describe("PersistedShapes relationship settings parsing", () => {
+	function parsedModel(model: unknown): string {
+		return PersistedShapes.parsePluginData({ version: PERSISTED_SHAPE_VERSION, relationships: { model } }).relationships
+			.model;
+	}
+
+	it("WHEN data.json holds a blank model THEN it loads at the declared default", () => {
+		expect(parsedModel("  ")).toBe(SETTINGS_SPEC.relationships.model.default);
+	});
+
+	it("WHEN data.json holds a model with surrounding spaces THEN it loads trimmed", () => {
+		expect(parsedModel(" gpt-other ")).toBe("gpt-other");
+	});
+
+	it("WHEN data.json holds an effort the settings do not offer THEN it loads at the declared default", () => {
+		const parsed = PersistedShapes.parsePluginData({
+			version: PERSISTED_SHAPE_VERSION,
+			relationships: { reasoningEffort: "max" },
+		});
+		expect(parsed.relationships.reasoningEffort).toBe(SETTINGS_SPEC.relationships.reasoningEffort.default);
 	});
 });

@@ -51,6 +51,9 @@ class RecordingGraphUi implements GraphUiPort {
 	renderMarkdown(): Promise<void> {
 		return Promise.resolve();
 	}
+	mountSecretPicker(): () => void {
+		return () => undefined;
+	}
 }
 
 const GROUP_FOLDER = "notes";

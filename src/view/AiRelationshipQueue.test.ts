@@ -15,6 +15,9 @@ import type {
 	RelationshipNamingRequest,
 	VaultPath,
 } from "../engine";
+import { FakeApiKeySource } from "../adapters/FakeApiKeySource";
+import { FakeJsonHttpPort } from "../adapters/FakeJsonHttpPort";
+import { OpenAiRelationshipNamer } from "../adapters/OpenAiRelationshipNamer";
 import { AI_MAX_REQUESTS_PER_BUILD, AiRelationshipQueue } from "./AiRelationshipQueue";
 import type { AiRelationshipWriterPort } from "./viewPorts";
 
@@ -195,6 +198,39 @@ describe("AiRelationshipQueue — dedupe", () => {
 	});
 });
 
+/**
+ * The REAL namer over a fake transport (orchestrator decision carried into task 4/4):
+ * a 200 whose `status` is "incomplete" and which holds no message item is billed but
+ * says nothing. Mapped to a non-fatal failure it would be asked again on EVERY redraw,
+ * paying each time; it must count as declined — not asked again this session.
+ */
+describe("AiRelationshipQueue — an incomplete OpenAI answer", () => {
+	const INCOMPLETE_BODY = {
+		status: "incomplete",
+		output: [{ type: "reasoning", summary: [] }],
+		usage: { input_tokens: 900, output_tokens: 4000 },
+	};
+
+	function givenIncompleteAnswers(): { readonly queue: AiRelationshipQueue; readonly http: FakeJsonHttpPort } {
+		const http = new FakeJsonHttpPort(() => ({ status: 200, json: INCOMPLETE_BODY }));
+		const namer = new OpenAiRelationshipNamer(new FakeApiKeySource("sk-test"), http);
+		return { queue: new AiRelationshipQueue(namer, new FakeNoteTextProvider(proseFor(1)), new RecordingWriter()), http };
+	}
+
+	it("WHEN OpenAI answers incomplete THEN a later build does not ask about that pair again", async () => {
+		const { queue, http } = givenIncompleteAnswers();
+		await queue.submitBuild(edges(1), CONFIG);
+		await queue.submitBuild(edges(1), CONFIG);
+		expect(http.requests.length).toBe(1);
+	});
+
+	it("WHEN OpenAI answers incomplete THEN it counts as declined, not as a failure", async () => {
+		const { queue } = givenIncompleteAnswers();
+		await queue.submitBuild(edges(1), CONFIG);
+		expect({ declined: queue.status().declined, failed: queue.status().failed }).toEqual({ declined: 1, failed: 0 });
+	});
+});
+
 describe("AiRelationshipQueue — cap", () => {
 	it(`WHEN a build has more candidates than the cap THEN only ${AI_MAX_REQUESTS_PER_BUILD} requests are sent`, async () => {
 		const { queue, namer } = given();
@@ -318,7 +354,10 @@ describe("AiRelationshipQueue — latest build wins", () => {
 describe("AiRelationshipQueue — session status", () => {
 	it("WHEN nothing was submitted THEN the status is idle", () => {
 		expect(given().queue.status()).toEqual({
+			preparing: 0,
 			inFlight: 0,
+			runRequested: 0,
+			runAnswered: 0,
 			named: 0,
 			declined: 0,
 			failed: 0,
@@ -333,7 +372,8 @@ describe("AiRelationshipQueue — session status", () => {
 		const answers = [NAMED, DECLINED, RATE_LIMITED];
 		const { queue } = given(() => answers.shift() ?? NAMED);
 		await queue.submitBuild(edges(3), CONFIG);
-		expect(queue.status()).toEqual({
+		expect(queue.status()).toMatchObject({
+			preparing: 0,
 			inFlight: 0,
 			named: 1,
 			declined: 1,
@@ -342,6 +382,56 @@ describe("AiRelationshipQueue — session status", () => {
 			outputTokens: 2 * USAGE.outputTokens,
 			lastFailure: "rate-limited",
 			stopped: false,
+		});
+	});
+
+	it("WHEN a transient failure is followed by an answer THEN the last failure is cleared", async () => {
+		const answers = [RATE_LIMITED, NAMED];
+		const { queue } = given(() => answers.shift() ?? NAMED);
+		await queue.submitBuild(edges(2), CONFIG);
+		expect(queue.status().lastFailure).toBeNull();
+	});
+
+	it("WHEN a fatal failure is followed by an in-flight answer THEN the fatal failure stays", async () => {
+		// Both requests are sent before either answers; the fatal one settles FIRST.
+		const answers = [NO_KEY, NAMED];
+		const { queue, namer } = given(() => answers.shift() ?? NAMED);
+		namer.holdAnswers();
+		const build = queue.submitBuild(edges(2), CONFIG);
+		await settled();
+		namer.releaseAll();
+		await build;
+		expect(queue.status().lastFailure).toBe("no-key");
+	});
+
+	it("WHEN a build is still reading notes THEN the status counts it as preparing", async () => {
+		const texts = new GatedNoteTexts(proseFor(PLENTY));
+		const { queue } = given(undefined, texts);
+		const build = queue.submitBuild(edges(1), CONFIG);
+		const preparing = queue.status().preparing;
+		texts.open();
+		await build;
+		expect(preparing).toBe(1);
+	});
+
+	it("WHEN requests are in flight THEN the run counts what was sent and what was answered", async () => {
+		const { queue, namer } = given();
+		namer.holdAnswers();
+		const build = queue.submitBuild(edges(3), CONFIG);
+		await settled();
+		const sent = { runRequested: queue.status().runRequested, runAnswered: queue.status().runAnswered };
+		namer.releaseAll();
+		await build;
+		expect(sent).toEqual({ runRequested: 3, runAnswered: 0 });
+	});
+
+	it("WHEN a new run starts after the queue went idle THEN its counters start over", async () => {
+		const { queue } = given();
+		await queue.submitBuild(edges(3), CONFIG);
+		await queue.submitBuild(edges(1, 10), CONFIG);
+		expect({ runRequested: queue.status().runRequested, runAnswered: queue.status().runAnswered }).toEqual({
+			runRequested: 1,
+			runAnswered: 1,
 		});
 	});
 

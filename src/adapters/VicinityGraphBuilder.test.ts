@@ -42,7 +42,7 @@ async function builderFixture() {
 	const ports = new FakeObsidianPorts({
 		files: [{ path: "main.md" }, { path: "a.md" }, { path: "pinned.md" }],
 		fileCaches: {
-			"main.md": { links: [{ link: "a", position: { start: { offset: 0 } } }] },
+			"main.md": { links: [{ link: "a", original: "[[a]]", position: { start: { offset: 0 } } }] },
 		},
 		resolutions: { a: "a.md" },
 		resolvedLinks: { "main.md": { "a.md": 1 } },
@@ -194,7 +194,7 @@ async function coldMapFixture(options: { readonly unreadablePath?: string } = {}
 		// `related.md` sits LAST, so only a warm-up that asks for its docid reaches it.
 		files: [{ path: "main.md" }, { path: "a.md" }, { path: "vanished.md" }, { path: "pinned.md" }, { path: "related.md" }],
 		fileCaches: {
-			"main.md": { links: [{ link: "a", position: { start: { offset: 0 } } }] },
+			"main.md": { links: [{ link: "a", original: "[[a]]", position: { start: { offset: 0 } } }] },
 		},
 		resolutions: { a: "a.md" },
 		resolvedLinks: { "main.md": { "a.md": 1 } },

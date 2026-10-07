@@ -5,10 +5,15 @@ import type {
 	ForceLayoutSettings,
 	NodeContentOverride,
 	NodeSizeOverridePx,
+	RelationshipEdge,
 	RelationshipName,
+	RelationshipSettings,
+	RelationshipSources,
+	VaultPath,
 	ViewSettings,
 	VicinityGraph,
 } from "../engine";
+import type { AiNamingStatus } from "./AiRelationshipQueue";
 import type { ControlsModel } from "./ControlsModel";
 import type { FlowPinFacts, FolderNoteCandidatesLookup } from "./flowMapping";
 import type { EdgePreviewModel } from "./linkPreviewModel";
@@ -288,12 +293,59 @@ export interface EdgeRelationshipsPort {
 
 /**
  * Where an AI-generated name lands (task 3/4 `nid_cbnhpdfn4myqfzqr8weyg7kq5_e`):
- * the `AiRelationshipQueue`'s ONE write. Implemented by `ControlsActions`, so an
+ * the `AiRelationshipQueue`'s ONE write. Implemented by `AiRelationshipWriter`, so an
  * AI name rides the same guarded write (one failure notice, every view repainted)
  * as a manual one. Never overwrites a pair that holds any record by then.
  */
 export interface AiRelationshipWriterPort {
 	saveAiRelationship(sourcePath: string, targetPath: string, named: AiNamedRelationship): Promise<void>;
+}
+
+/**
+ * What started a rebuild, as far as auto mode cares (task 4/4
+ * `nid_80xc6z8umlpo1x6u4p1v7eb22_e`). `user-request` = the user asked for THIS graph
+ * (opened or clicked a note, redraw, retry); `data-change` = something the graph
+ * shows changed under it (a settings or stored-name write repainting every view, the
+ * vault's metadata resolving, a rename). Only the first may always start AI work; see
+ * `AiAutoNamingGate` for why the second may not.
+ */
+export type BuildTrigger = "user-request" | "data-change";
+
+/** One published build, as auto mode reads it — handed over once its names have resolved. */
+export interface AutoNamingOffer {
+	/** Every edge the build drew. */
+	readonly edges: readonly RelationshipEdge[];
+	/** The names this build resolved from (syntax + stored, dismissed included). */
+	readonly sources: RelationshipSources;
+	/** Every note path rendered inside a folder group in this build. */
+	readonly groupedPaths: ReadonlySet<VaultPath>;
+	/** Sources whose syntax names this build could not read — their links are not known to be unnamed. */
+	readonly syntaxUnreadSources: ReadonlySet<VaultPath>;
+	/** The relationship settings this build was made with. */
+	readonly settings: RelationshipSettings;
+	readonly trigger: BuildTrigger;
+}
+
+/**
+ * Where `GraphViewController` hands each published build once its names have resolved
+ * (task 4/4). Implemented by `AiAutoNamingGate`, which decides whether the build starts
+ * AI work.
+ */
+export interface AutoNamingPort {
+	offerBuild(offer: AutoNamingOffer): void;
+}
+
+/**
+ * What the top-right Relationships menu reads and does (task 4/4). Implemented by
+ * `AiAutoNamingGate`. `status` / `subscribe` are function PROPERTIES because React's
+ * `useSyncExternalStore` calls them unbound.
+ */
+export interface AiNamingMenuPort {
+	/** The session's naming status; the SAME object until it changes (a `useSyncExternalStore` snapshot). */
+	readonly status: () => AiNamingStatus;
+	readonly subscribe: (listener: () => void) => () => void;
+	/** After a stop (bad key, unknown model, …): lift it and name the current graph's edges again. */
+	retry(): void;
 }
 
 /** Opens the native attachment menu for one icon-strip chip. */
@@ -368,4 +420,20 @@ export interface GraphUiPort {
 	 * {@link NoteNavigatorPort.openMarkdownLink}.
 	 */
 	renderMarkdown(el: HTMLElement, markdown: string, sourcePath: string): Promise<void>;
+	/**
+	 * Mounts Obsidian's own secret picker (`SecretComponent`: pick or create a secret
+	 * in Obsidian's keychain) into `el`, showing `request.secretName`. Returns the
+	 * unmount. Only the chosen secret's NAME ever reaches the caller.
+	 */
+	mountSecretPicker(el: HTMLElement, request: SecretPickerRequest): () => void;
+}
+
+/** What {@link GraphUiPort.mountSecretPicker} shows and whom it tells. */
+export interface SecretPickerRequest {
+	/** The secret currently chosen (`""` = none). */
+	readonly secretName: string;
+	/** The picker's accessible name — the row's declared name. */
+	readonly accessibleName: string;
+	/** Called with the NAME of the secret the user picked or created. */
+	readonly onChange: (secretName: string) => void;
 }

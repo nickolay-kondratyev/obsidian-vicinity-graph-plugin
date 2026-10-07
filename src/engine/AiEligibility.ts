@@ -27,6 +27,11 @@ export type AiEdgeEligibility =
 	| "candidate"
 	/** Something already names exactly this direction: syntax, manual, AI, or a dismissed AI name. */
 	| "already-named"
+	/**
+	 * The source's own syntax names could not be read this build (its link cache lags
+	 * an edit), so whether it names this link is unknown — never guessed as unnamed.
+	 */
+	| "syntax-unread"
 	/** A pure folder-hierarchy edge — it already reads `parent`. */
 	| "folder-hierarchy"
 	/** An endpoint renders inside a folder group (human decision: a waste for now; revisit later). */
@@ -40,6 +45,8 @@ export interface AiEligibilityFacts {
 	readonly sources: RelationshipSources;
 	/** Every note path rendered inside a folder group in the current graph. */
 	readonly groupedPaths: ReadonlySet<VaultPath>;
+	/** Sources whose syntax names this build could not read (`SyntaxRelationshipRead.unreadSources`). */
+	readonly syntaxUnreadSources: ReadonlySet<VaultPath>;
 }
 
 /**
@@ -60,6 +67,9 @@ export function aiEdgeEligibility(edge: RelationshipEdge, facts: AiEligibilityFa
 	const key = directedLinkKey(edge.source, edge.target);
 	if (facts.sources.syntax.has(key) || facts.sources.stored.has(key)) {
 		return "already-named";
+	}
+	if (facts.syntaxUnreadSources.has(edge.source)) {
+		return "syntax-unread";
 	}
 	return "candidate";
 }

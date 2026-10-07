@@ -27,6 +27,7 @@ interface FactsSpec {
 	readonly syntax?: readonly (readonly [VaultPath, VaultPath])[];
 	readonly stored?: readonly (readonly [VaultPath, VaultPath, StoredRelationship])[];
 	readonly grouped?: readonly VaultPath[];
+	readonly unread?: readonly VaultPath[];
 }
 
 function facts(spec: FactsSpec = {}): AiEligibilityFacts {
@@ -36,6 +37,7 @@ function facts(spec: FactsSpec = {}): AiEligibilityFacts {
 			stored: new Map((spec.stored ?? []).map(([source, target, stored]) => [directedLinkKey(source, target), stored])),
 		},
 		groupedPaths: new Set(spec.grouped ?? []),
+		syntaxUnreadSources: new Set(spec.unread ?? []),
 	};
 }
 
@@ -49,6 +51,9 @@ describe("aiEdgeEligibility — the text-free checks", () => {
 		{ when: "the pair's AI name was dismissed", edge: linkEdge(), facts: facts({ stored: [[A, B, DISMISSED_AI_NAME]] }), then: "already-named" },
 		{ when: "only the REVERSE direction has a syntax name", edge: linkEdge(), facts: facts({ syntax: [[B, A]] }), then: "candidate" },
 		{ when: "only the REVERSE direction has a stored name", edge: linkEdge(), facts: facts({ stored: [[B, A, MANUAL_NAME]] }), then: "candidate" },
+		{ when: "the source's own names could not be read", edge: linkEdge(), facts: facts({ unread: [A] }), then: "syntax-unread" },
+		{ when: "only the TARGET's names could not be read", edge: linkEdge(), facts: facts({ unread: [B] }), then: "candidate" },
+		{ when: "the source is unread but the pair has a stored name", edge: linkEdge(), facts: facts({ unread: [A], stored: [[A, B, MANUAL_NAME]] }), then: "already-named" },
 		{ when: "the source renders in a folder group", edge: linkEdge(), facts: facts({ grouped: [A] }), then: "grouped-note" },
 		{ when: "the target renders in a folder group", edge: linkEdge(), facts: facts({ grouped: [B] }), then: "grouped-note" },
 		{ when: "the edge is a pure folder-hierarchy edge", edge: PURE_HIERARCHY, facts: facts(), then: "folder-hierarchy" },

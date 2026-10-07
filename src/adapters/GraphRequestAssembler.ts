@@ -4,6 +4,7 @@ import type {
 	GraphBuildRequest,
 	NodeExclusionSettings,
 	NodeOverride,
+	RelationshipSettings,
 	PinnedNodeDescriptor,
 	VaultPath,
 	ViewSettings,
@@ -39,6 +40,12 @@ export interface GraphRequestInputs {
 	 * does not read it; the dependent adapter ticket wires it into id-ref discovery).
 	 */
 	readonly frontmatterLinks: FrontmatterLinkSettings;
+	/**
+	 * Relationship-naming settings. Carried like {@link frontmatterLinks} so the
+	 * Relationships menu and auto mode read the SAME snapshot the graph used — never
+	 * passed to the engine.
+	 */
+	readonly relationships: RelationshipSettings;
 }
 
 /**

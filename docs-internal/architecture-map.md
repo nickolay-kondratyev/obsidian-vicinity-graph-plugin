@@ -132,7 +132,9 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   `adapters/ObsidianSyntaxRelationshipProvider.ts` — link-cache POSITIONS +
   `cachedRead`, matched by the pure `shared/InlineFieldKeys.ts`; fake
   `FakeSyntaxRelationshipProvider`) for the names notes declare
-  (`rel:: [[target]]`), applies the pure precedence in
+  (`rel:: [[target]]`) — a source whose cached link offsets no longer match its
+  text (the cache lags an id write) comes back in `unreadSources`, unknown rather
+  than unnamed — applies the pure precedence in
   `engine/EdgeRelationships.ts` (`resolveEdgeRelationship`: syntax > manual > AI
   > the `parent` folder-hierarchy default; DIRECTED, keyed by
   `directedLinkKey`), together with the STORED names from the engine-defined
@@ -161,9 +163,19 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   `adapters/JsonHttpPort.ts` (real `ObsidianJsonHttp` = `requestUrl`, so no `fetch(`
   token ships). `view/AiRelationshipQueue.ts` orchestrates (dedupe, per-build cap,
   latest build wins, fatal stop, session status) and writes through
-  `AiRelationshipWriterPort` = `ControlsActions.saveAiRelationship` → `runGuarded` →
-  `RelationshipStore.saveAiName`, which never overwrites an existing record.
-  Failure copy: `view/aiNamingFailureCopy.ts`.
+  `AiRelationshipWriterPort` = `view/AiRelationshipWriter.ts` → `runGuarded` →
+  `RelationshipStore.saveAiName`, which never overwrites an existing record. The
+  queue, writer and `view/AiNamingFailureNotices.ts` (one notice per failure kind)
+  are plugin-lived (`main.ts`); `plugin.aiHttp` is the seam the e2e swaps for a
+  recording fake. Per view, `GraphViewController` tags every rebuild with a
+  `BuildTrigger` and offers each published build (`AutoNamingPort`) to
+  `view/AiAutoNamingGate.ts`, which owns the NO-REPAINT-CHAIN rule: a
+  `user-request` build always submits, a `data-change` build only when it shows a
+  candidate no build since the last user request showed (edges of unread names
+  count as shown). The top-right `view/RelationshipsMenu.tsx`
+  (status line `view/aiNamingStatusLine.ts`, Retry) renders the Relationships
+  section, which declares `graphSurface: "relationships-menu"` so `GraphToolbar`
+  skips it. Failure copy: `view/aiNamingFailureCopy.ts`.
   Refresh reach is ONE port: `ViewsRefreshPort` (implemented in `main.ts` over
   `refreshOpenViews()`) rebuilds every open view. `UserNoticePort` is the same
   shape for the one user-visible message surface (`Notice`, also implemented in

@@ -63,6 +63,14 @@ function specLeafIdFor(control: SettingsRowControl): string {
 			return "globalView.nodeCap";
 		case "id-ref-fields":
 			return "frontmatterLinks.idRefFields";
+		case "ai-auto-naming":
+			return "relationships.autoNaming";
+		case "ai-api-key":
+			return "relationships.apiKeySecretName";
+		case "ai-model":
+			return "relationships.model";
+		case "ai-reasoning-effort":
+			return "relationships.reasoningEffort";
 		default:
 			return unhandledRowControl(control);
 	}

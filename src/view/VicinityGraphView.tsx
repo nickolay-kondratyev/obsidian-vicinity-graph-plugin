@@ -9,6 +9,8 @@ import type { NoteCreationPort } from "../adapters/obsidianPorts";
 import type { VicinityGraphBuilder } from "../adapters/VicinityGraphBuilder";
 import type { LinkOccurrenceProvider, StoredRelationshipProvider, SyntaxRelationshipProvider } from "../engine";
 import type { PersistenceServices } from "../persistence/PersistenceServices";
+import { AiAutoNamingGate } from "./AiAutoNamingGate";
+import type { AiRelationshipQueue } from "./AiRelationshipQueue";
 import { ControlsActions } from "./ControlsActions";
 import { LibavoidEdgeRouter } from "./edgeRouting";
 import { HierarchicalEdgeRouter } from "./hierarchicalEdgeRouting";
@@ -56,6 +58,8 @@ export class VicinityGraphView extends ItemView {
 		private readonly folderNoteIndex: FolderNoteIndex,
 		/** Plugin-lived vault-write seam — the create + folderExists half of the child-note action. */
 		private readonly noteCreation: NoteCreationPort,
+		/** Auto mode's ONE request queue, plugin-lived: its dedupe and session status outlive any view. */
+		private readonly aiQueue: AiRelationshipQueue,
 	) {
 		super(leaf);
 	}
@@ -81,6 +85,9 @@ export class VicinityGraphView extends ItemView {
 		const linkPreview = new LinkPreviewOverlayStore();
 		// Edge relationship names, same shape: the controller writes, the edges render.
 		const relationships = new EdgeRelationshipOverlayStore();
+		// Auto mode's per-view gate over the plugin's queue. Its Retry rebuilds THIS view
+		// as a user request (the closure runs only on a click, long after `controller` exists).
+		const autoNaming = new AiAutoNamingGate(this.aiQueue, () => controller.rebuildForAutoNaming());
 		const controller = new GraphViewController(
 			navigator,
 			this.graphBuilder,
@@ -91,6 +98,7 @@ export class VicinityGraphView extends ItemView {
 			this.syntaxRelationships,
 			this.storedRelationships,
 			relationships,
+			autoNaming,
 		);
 		this.controller = controller;
 		// The create-child-note action (vault-content write + open): resolves the owned
@@ -126,6 +134,7 @@ export class VicinityGraphView extends ItemView {
 					actions={controlsActions}
 					linkPreview={linkPreview}
 					relationships={relationships}
+					aiNaming={autoNaming}
 				/>
 			</StrictMode>,
 		);

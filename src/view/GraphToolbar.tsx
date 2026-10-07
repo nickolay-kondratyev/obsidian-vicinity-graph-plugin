@@ -4,7 +4,7 @@ import { useControlsActions } from "./ControlsActionsContext";
 import { Disclosure } from "./Disclosure";
 import { SETTINGS_RESET_SCOPES } from "./settingsResetPlan";
 import type { SettingsGroup, SettingsRowBlock, SettingsRowState } from "./settingsRows";
-import { SETTINGS_GROUPS, SETTINGS_SUBHEADING_CLASS } from "./settingsRows";
+import { SETTINGS_GROUPS, SETTINGS_SUBHEADING_CLASS, graphSurfaceOf } from "./settingsRows";
 import { SettingsRowView } from "./SettingsRowView";
 import type { SettingsSection } from "./settingsSectionFields";
 import { SETTINGS_SECTIONS } from "./settingsSectionFields";
@@ -27,9 +27,18 @@ import { SETTINGS_SECTIONS } from "./settingsSectionFields";
  * INTERACTION through the `ControlsActionsPort` and `SettingsWritePipeline` plans it
  * against a fresh read (this component and its children hold no business rule).
  *
+ * A section declaring another in-graph surface (`graphSurface`, today only the
+ * Relationships section → the top-right `RelationshipsMenu`) is skipped here: the
+ * graph presents every section exactly once.
+ *
  * `nowheel`/`nodrag`/`nopan` are React-Flow escape hatches so scrolling and
  * interacting with the panel never pans or zooms the canvas beneath it.
  */
+/** The declared sections this panel presents, in declared order (see `graphSurface`). */
+const CONTROLS_PANEL_SECTIONS: readonly SettingsSection[] = SETTINGS_SECTIONS.filter(
+	(section) => graphSurfaceOf(SETTINGS_GROUPS[section]) === "controls-panel",
+);
+
 export function GraphToolbar({ controls }: { readonly controls: ControlsModel }): ReactElement {
 	// The three global slices, under the names every row descriptor reads them by.
 	const state: SettingsRowState = {
@@ -37,6 +46,7 @@ export function GraphToolbar({ controls }: { readonly controls: ControlsModel })
 		globalView: controls.globalView,
 		nodeExclusion: controls.nodeExclusion,
 		frontmatterLinks: controls.frontmatterLinks,
+		relationships: controls.relationships,
 	};
 	return (
 		<details className="vicinity-graph-toolbar nowheel nodrag nopan">
@@ -44,7 +54,7 @@ export function GraphToolbar({ controls }: { readonly controls: ControlsModel })
 				<span className="vicinity-graph-toolbar__title">Graph controls</span>
 			</summary>
 			<div className="vicinity-graph-toolbar__body">
-				{SETTINGS_SECTIONS.map((section) => (
+				{CONTROLS_PANEL_SECTIONS.map((section) => (
 					<SettingsSectionView
 						key={section}
 						section={section}
@@ -94,8 +104,10 @@ function SettingsSectionView({
  * counterpart of `collapsedUnder`), and forces the wrapper even where the block
  * declares no layout class: the name and the rows it names must be one element, or
  * the disclosure body's flex gap spaces them as unrelated siblings.
+ *
+ * Exported for the top-right `RelationshipsMenu`, the panel's other section walker.
  */
-function SettingsRowBlockView({
+export function SettingsRowBlockView({
 	block,
 	state,
 }: {

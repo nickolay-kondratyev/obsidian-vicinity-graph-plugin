@@ -46,6 +46,7 @@ export type {
 	ForceLayoutSettings,
 	FrontmatterLinkSettings,
 	GraphEdge,
+	RelationshipSettings,
 	GraphNode,
 	NodeContentOverride,
 	NodeExclusionSettings,
@@ -69,6 +70,7 @@ export {
 	NODE_PREVIEW_PREFERENCES,
 } from "./types";
 export { parseIdRefFields } from "./frontmatterLinkFields";
+export { settledAiModel } from "./aiModelSetting";
 
 export type { FileMetadata, LinkProvider, OutgoingReference } from "./LinkProvider";
 export { OutgoingReferences } from "./LinkProvider";
@@ -100,6 +102,7 @@ export type {
 	StoredRelationshipNames,
 	StoredRelationshipOrigin,
 	SyntaxRelationshipNames,
+	SyntaxRelationshipRead,
 } from "./EdgeRelationships";
 export type { SyntaxRelationshipProvider } from "./SyntaxRelationshipProvider";
 export type { StoredRelationshipProvider } from "./StoredRelationshipProvider";
@@ -110,9 +113,8 @@ export type { RelationshipName, RelationshipNameParse, RelationshipNameRejection
 export { FakeSyntaxRelationshipProvider } from "./FakeSyntaxRelationshipProvider";
 // AI relationship naming (task 3/4 nid_cbnhpdfn4myqfzqr8weyg7kq5_e).
 export {
+	AI_OFFERED_REASONING_EFFORTS,
 	AI_REASONING_EFFORTS,
-	DEFAULT_AI_MODEL,
-	DEFAULT_AI_REASONING_EFFORT,
 	isFatalAiNamingFailure,
 } from "./RelationshipNamer";
 export type {
@@ -120,6 +122,7 @@ export type {
 	AiNamingConfig,
 	AiNamingDecline,
 	AiNamingFailure,
+	AiOfferedReasoningEffort,
 	AiReasoningEffort,
 	RelationshipNamer,
 	RelationshipNamingOutcome,
@@ -223,6 +226,7 @@ export type {
 	ForceLayoutSpec,
 	FrontmatterLinkSpec,
 	NodeExclusionSpec,
+	RelationshipsSpec,
 	SettingsSpec,
 	SizingSpec,
 	ViewSpec,

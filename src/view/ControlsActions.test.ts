@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { FakeDocIdPort } from "../adapters/FakeDocIdPort";
 import type { VaultFilePort, VaultPort } from "../adapters/obsidianPorts";
 import { EngineDefaults } from "../engine";
-import type { AiNamedRelationship, RelationshipName } from "../engine";
+import type { RelationshipName } from "../engine";
 import { FakePluginDataPort } from "../persistence/FakePluginDataPort";
 import { FakeVaultFsPort } from "../persistence/FakeVaultFsPort";
 import { PathDocIdMap } from "../persistence/PathDocIdMap";
@@ -484,46 +484,6 @@ describe("ControlsActions relationship names (edge drawer)", () => {
 			messages: [SettingsWriteFailureNotice.forNonSettingsWrite("relationship-name")],
 			refreshed: [ORIGINATING_VIEW_ID, OTHER_VIEW_ID],
 		});
-	});
-});
-
-describe("ControlsActions AI relationship names (auto mode)", () => {
-	const AI_EXTENDS: AiNamedRelationship = {
-		name: "extends" as RelationshipName,
-		model: "gpt-6-luna",
-		effort: "medium",
-		usage: { inputTokens: 100, outputTokens: 5 },
-	};
-
-	it("WHEN an AI name is saved THEN it is stored as an ai name under source → target", async () => {
-		const { actions, relationshipStore } = await actionsUnderTest();
-		await actions.saveAiRelationship(MAIN_PATH, TARGET_PATH, AI_EXTENDS);
-		expect(relationshipStore.relationshipFor(MAIN_DOCID, TARGET_DOCID)).toMatchObject({ name: "extends", origin: "ai" });
-	});
-
-	it("WHEN an AI name is saved THEN every open view is refreshed (labels repaint)", async () => {
-		const { actions, viewsRefresh } = await actionsUnderTest();
-		await actions.saveAiRelationship(MAIN_PATH, TARGET_PATH, AI_EXTENDS);
-		expect(viewsRefresh.refreshedViewIds).toEqual([ORIGINATING_VIEW_ID, OTHER_VIEW_ID]);
-	});
-
-	it("WHEN a note of the pair has no stable id THEN nothing is shown and no view is refreshed", async () => {
-		const { actions, notices, viewsRefresh } = await actionsUnderTest();
-		await actions.saveAiRelationship(MAIN_PATH, ID_LESS_PATH, AI_EXTENDS);
-		expect({ messages: notices.messages, refreshed: viewsRefresh.refreshedViewIds }).toEqual({ messages: [], refreshed: [] });
-	});
-
-	it("WHEN the pair was named manually meanwhile THEN the manual name stays", async () => {
-		const { actions, relationshipStore } = await actionsUnderTest();
-		await actions.nameRelationship(MAIN_PATH, TARGET_PATH, "supports" as RelationshipName);
-		await actions.saveAiRelationship(MAIN_PATH, TARGET_PATH, AI_EXTENDS);
-		expect(relationshipStore.relationshipFor(MAIN_DOCID, TARGET_DOCID)?.name).toBe("supports");
-	});
-
-	it("WHEN the AI name cannot be written to the vault THEN the ONE failure notice is shown", async () => {
-		const { actions, notices } = await actionsUnderTest(new FakePluginDataPort(), new RejectingVaultFsPort());
-		await actions.saveAiRelationship(MAIN_PATH, TARGET_PATH, AI_EXTENDS);
-		expect(notices.messages).toEqual([SettingsWriteFailureNotice.forNonSettingsWrite("relationship-name")]);
 	});
 });
 

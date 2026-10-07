@@ -1,6 +1,13 @@
 import { EngineDefaults } from "../constants";
 import { SETTINGS_SPEC } from "../SettingsSpec";
-import type { DepthSettings, FrontmatterLinkSettings, NodeExclusionSettings, ViewSettings } from "../types";
+import { AI_OFFERED_REASONING_EFFORTS } from "../RelationshipNamer";
+import type {
+	DepthSettings,
+	FrontmatterLinkSettings,
+	NodeExclusionSettings,
+	RelationshipSettings,
+	ViewSettings,
+} from "../types";
 import { NODE_PREVIEW_PREFERENCES } from "../types";
 
 /**
@@ -54,6 +61,7 @@ export interface SettingsRootSnapshot {
 	readonly globalView: ViewSettings;
 	readonly nodeExclusion: NodeExclusionSettings;
 	readonly frontmatterLinks: FrontmatterLinkSettings;
+	readonly relationships: RelationshipSettings;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -122,6 +130,7 @@ export function defaultSettingsRoot(): SettingsRootSnapshot {
 		globalView: EngineDefaults.viewSettings(),
 		nodeExclusion: EngineDefaults.nodeExclusionSettings(),
 		frontmatterLinks: EngineDefaults.frontmatterLinkSettings(),
+		relationships: EngineDefaults.relationshipSettings(),
 	};
 }
 
@@ -189,6 +198,19 @@ const ID_REF_FIELDS_LEAF_ID = "frontmatterLinks.idRefFields";
 /** A non-default value for {@link ID_REF_FIELDS_LEAF_ID} — arbitrary, only has to differ from `""`. */
 const ALTERNATE_ID_REF_FIELDS = "deps, links";
 
+/** The reasoning-effort leaf: an enum, so its alternate is drawn from the OFFERED efforts. */
+const AI_REASONING_EFFORT_LEAF_ID = "relationships.reasoningEffort";
+
+/**
+ * The FREE-FORM string leaves and a non-default value for each — arbitrary, only has to
+ * differ from the default (and, for the model, be non-blank: a blank model is not storable).
+ */
+const ALTERNATE_FREE_FORM_STRINGS: Readonly<Record<string, string>> = {
+	[ID_REF_FIELDS_LEAF_ID]: ALTERNATE_ID_REF_FIELDS,
+	"relationships.model": "gpt-alternate-model",
+	"relationships.apiKeySecretName": "alternate-openai-key",
+};
+
 /**
  * A value for `leaf` that is VALID but NOT its default — what a round-trip, a
  * fall-back-to-default and a restore-defaults test all need in order to prove anything.
@@ -222,12 +244,17 @@ export function alternateLeafValue(leaf: SettingsSpecLeaf): unknown {
 		if (leaf.id === NODE_PREVIEW_LEAF_ID) {
 			return NODE_PREVIEW_PREFERENCES.find((preference) => preference !== declared);
 		}
-		if (leaf.id === ID_REF_FIELDS_LEAF_ID) {
-			return ALTERNATE_ID_REF_FIELDS;
+		if (leaf.id === AI_REASONING_EFFORT_LEAF_ID) {
+			return AI_OFFERED_REASONING_EFFORTS.find((effort) => effort !== declared);
+		}
+		const freeForm = ALTERNATE_FREE_FORM_STRINGS[leaf.id];
+		if (freeForm !== undefined) {
+			return freeForm;
 		}
 		throw new Error(
 			`spec leaf id=[${leaf.id}] is string-valued but its domain is unknown here; ` +
-				`teach alternateLeafValue about it (modelled: [${NODE_PREVIEW_LEAF_ID}], [${ID_REF_FIELDS_LEAF_ID}])`,
+				`teach alternateLeafValue about it (modelled: [${NODE_PREVIEW_LEAF_ID}], [${AI_REASONING_EFFORT_LEAF_ID}], ` +
+				`${Object.keys(ALTERNATE_FREE_FORM_STRINGS).map((id) => `[${id}]`).join(", ")})`,
 		);
 	}
 	if (Array.isArray(declared)) {
@@ -241,15 +268,15 @@ export function alternateLeafValue(leaf: SettingsSpecLeaf): unknown {
  * what the "garbage in ⇒ default out" persistence claim needs, per leaf.
  *
  * For almost every leaf a non-enum STRING is unusable at once: not a number, not a
- * boolean, not an array, and not a recognized `nodePreviewPreference`. The exception is
- * a FREE-FORM string leaf (`idRefFields`), where any string is a legitimate value, so
- * its garbage must be a NON-string instead. Kept beside {@link alternateLeafValue} so
- * one place owns every leaf's type knowledge.
+ * boolean, not an array, and not a recognized enum value. The exception is a FREE-FORM
+ * string leaf (`idRefFields`, the AI model, the key's secret name), where any string is
+ * a legitimate value, so its garbage must be a NON-string instead. Kept beside
+ * {@link alternateLeafValue} so one place owns every leaf's type knowledge.
  */
 const GARBAGE_STRING = "not-a-valid-setting-value";
 const GARBAGE_NON_STRING = 42;
 export function garbageLeafValue(leaf: SettingsSpecLeaf): unknown {
-	return leaf.id === ID_REF_FIELDS_LEAF_ID ? GARBAGE_NON_STRING : GARBAGE_STRING;
+	return ALTERNATE_FREE_FORM_STRINGS[leaf.id] !== undefined ? GARBAGE_NON_STRING : GARBAGE_STRING;
 }
 
 /**

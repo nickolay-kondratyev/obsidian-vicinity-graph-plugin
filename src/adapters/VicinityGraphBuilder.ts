@@ -109,6 +109,7 @@ export class VicinityGraphBuilder {
 			globalView: this.pluginDataStore.globalView(),
 			nodeExclusion: this.pluginDataStore.nodeExclusion(),
 			frontmatterLinks: this.pluginDataStore.frontmatterLinks(),
+			relationships: this.pluginDataStore.relationships(),
 		};
 		const graph = new VicinityEngine(provider).build(GraphRequestAssembler.assemble(inputs));
 		// The two pin docid sets are derived from the SAME inputs the graph used, so
