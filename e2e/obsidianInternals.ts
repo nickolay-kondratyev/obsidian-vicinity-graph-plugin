@@ -8,6 +8,7 @@ import type {
 	NodeContentOverride,
 	NodeExclusionSettings,
 	NodeOverride,
+	RelationshipSettings,
 	ViewSettings,
 } from "../src/engine";
 
@@ -169,6 +170,7 @@ export interface E2ePluginDataStore {
 	globalDepths(): DepthSettings;
 	nodeExclusion(): NodeExclusionSettings;
 	frontmatterLinks(): FrontmatterLinkSettings;
+	relationships(): RelationshipSettings;
 	saveGlobalView(view: ViewSettings): Promise<void>;
 	saveGlobalDepths(depths: DepthSettings): Promise<void>;
 	saveNodeExclusion(exclusion: NodeExclusionSettings): Promise<void>;
@@ -184,9 +186,23 @@ export interface E2ePerDocStore {
 	addLocalPin(mainDocid: string, targetDocid: string, pinTimestamp: number): Promise<void>;
 }
 
+/** A request the AI namer hands its HTTP seam — mirrors `JsonHttpRequest`. */
+export interface E2eJsonHttpRequest {
+	readonly url: string;
+	readonly headers: Readonly<Record<string, string>>;
+	readonly body: unknown;
+}
+
+/** The AI namer's outbound seam — mirrors `JsonHttpPort`. */
+export interface E2eJsonHttp {
+	postJson(request: E2eJsonHttpRequest): Promise<{ readonly status: number; readonly json: unknown }>;
+}
+
 export interface E2eVicinityPlugin {
 	readonly pluginDataStore: E2ePluginDataStore;
 	readonly perDocStore: E2ePerDocStore;
+	/** Reassignable on purpose: `relationshipsAutoMode.e2e.ts` swaps in a recording fake (no network). */
+	aiHttp: E2eJsonHttp;
 	/** Private in production (ONE fan-out rule); reached by name here — see the harness WHY comment. */
 	refreshOpenViews(): void;
 }
