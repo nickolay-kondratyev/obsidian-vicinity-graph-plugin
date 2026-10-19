@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import { ObsidianHarness } from "./obsidianHarness";
+import { nodeChip } from "./nodeChips";
 
 /**
  * Step-06 HEADLINE scenario (QA §10, goal-3/goal-4) driven end-to-end through the
@@ -79,7 +80,7 @@ function noteNode(path: string): Locator {
 async function clickPin(path: string): Promise<void> {
 	const node = noteNode(path);
 	await node.hover();
-	await node.locator(".vicinity-graph-pin-button").click();
+	await nodeChip(node, ".vicinity-graph-pin-button").click();
 }
 
 /** The panel's ACTIVE-note depth block (`:not` — the pinned block shares the base class). */
@@ -155,15 +156,15 @@ test("the MAIN central itself can be pinned, survives switching MAIN, and can be
 	// MAIN offers the pin gesture too (keep the current central around before navigating away).
 	// The chip is an aria-pressed TOGGLE with a CONSTANT name; its state lives in
 	// aria-pressed, and the flipping tooltip (title) is the visible hover hint.
-	await expect(noteNode(HUB).locator(".vicinity-graph-pin-button")).toHaveAttribute("aria-label", "Pin to graph");
-	await expect(noteNode(HUB).locator(".vicinity-graph-pin-button")).toHaveAttribute("aria-pressed", "false");
-	await expect(noteNode(HUB).locator(".vicinity-graph-pin-button")).toHaveAttribute("title", "Pin to graph");
+	await expect(nodeChip(noteNode(HUB), ".vicinity-graph-pin-button")).toHaveAttribute("aria-label", "Pin to graph");
+	await expect(nodeChip(noteNode(HUB), ".vicinity-graph-pin-button")).toHaveAttribute("aria-pressed", "false");
+	await expect(nodeChip(noteNode(HUB), ".vicinity-graph-pin-button")).toHaveAttribute("title", "Pin to graph");
 	await clickPin(HUB);
 	// Still MAIN-tier (main styling wins) but the toggle flips to pressed.
 	await expect(noteNode(HUB)).toHaveAttribute("data-tier", "main");
-	await expect(noteNode(HUB).locator(".vicinity-graph-pin-button")).toHaveAttribute("aria-label", "Pin to graph");
-	await expect(noteNode(HUB).locator(".vicinity-graph-pin-button")).toHaveAttribute("aria-pressed", "true");
-	await expect(noteNode(HUB).locator(".vicinity-graph-pin-button")).toHaveAttribute("title", "Unpin from graph");
+	await expect(nodeChip(noteNode(HUB), ".vicinity-graph-pin-button")).toHaveAttribute("aria-label", "Pin to graph");
+	await expect(nodeChip(noteNode(HUB), ".vicinity-graph-pin-button")).toHaveAttribute("aria-pressed", "true");
+	await expect(nodeChip(noteNode(HUB), ".vicinity-graph-pin-button")).toHaveAttribute("title", "Unpin from graph");
 
 	// Switch MAIN away → the pinned ex-MAIN stays in the graph as a pinned central.
 	await harness.openFile(OTHER_MAIN);

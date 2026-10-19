@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import { EngineDefaults, NODE_OVERRIDE_HARD_MIN_PX } from "../src/engine";
 import { ObsidianHarness } from "./obsidianHarness";
+import { nodeChip } from "./nodeChips";
 import type { E2eObsidianApp } from "./obsidianInternals";
 
 /**
@@ -22,9 +23,9 @@ import type { E2eObsidianApp } from "./obsidianInternals";
  *
  * The override is ALSO this suite's way of putting a node at a chosen box, which
  * is why the hover pin chip's small-node behavior is asserted here (ticket
- * `nid_tclb98q9hxhmcuonamvr4ig1f_e`): the chip is revealed at every node height
- * and only withheld where it would cover the node's CENTRE point, and the sizes
- * that band applies to are not sizes a fixture graph renders on its own.
+ * `nid_tclb98q9hxhmcuonamvr4ig1f_e`): the chip is offered at every node size, at
+ * ONE size, beside the node rather than on it (the side rail), and the smallest
+ * sizes are not sizes a fixture graph renders on its own.
  *
  * SERIAL and order-dependent: each test builds on the state above it.
  */
@@ -51,9 +52,9 @@ const TARGET_DOCID = "docid_resizetarget_e";
 const SHIPPED_MIN_NODE_PX = EngineDefaults.sizingSettings().minPx;
 
 /**
- * A width no chip rung can reach — the shipped `maxPx`, so the node under it is
- * "small" on its HEIGHT axis only: the title-only note the pin chip's default size
- * exists for (ticket nid_8i5936g90vrllosssaz7v3xbr_e).
+ * The shipped `maxPx`, so the node under it is "small" on its HEIGHT axis only: the
+ * title-only note the one-chip-size rule was first written for (ticket
+ * nid_8i5936g90vrllosssaz7v3xbr_e).
  */
 const WIDE_NODE_WIDTH_PX = EngineDefaults.sizingSettings().maxPx;
 
@@ -379,15 +380,13 @@ async function renderTargetAsNeighbourBox(box: { widthPx: number; heightPx: numb
 
 /** One computed style value off the node's pin chip — the rung the CASCADE picked. */
 async function pinChipComputedStyle(path: string, property: "display" | "width" | "height"): Promise<string> {
-	return noteNode(path)
-		.locator(".vicinity-graph-pin-button")
-		.evaluate((el, prop) => getComputedStyle(el).getPropertyValue(prop), property);
+	return nodeChip(noteNode(path), ".vicinity-graph-pin-button").evaluate((el, prop) => getComputedStyle(el).getPropertyValue(prop), property);
 }
 
 /**
  * The chip's COMPUTED display. `flex`, not the authored `inline-flex`: the chip
- * is absolutely positioned, and CSS blockifies an out-of-flow box's display.
- * `none` is the stylesheet WITHHOLDING it (the centre-clearance rung).
+ * is a flex ITEM of the side rail's column, and CSS blockifies a flex item's
+ * display. `none` would be the stylesheet withholding it.
  */
 async function pinChipDisplay(path: string): Promise<string> {
 	return pinChipComputedStyle(path, "display");
@@ -430,10 +429,10 @@ test("WHEN a node renders at the shipped minimum THEN it still carries the hover
 	expect(await pinChipDisplay(TARGET)).toBe("flex");
 });
 
-test("WHEN that minimum-sized node's body is clicked THEN the note opens (the compact chip does not swallow it)", async () => {
-	// The invariant the compact rung exists for. Playwright's own hover REVEALS the
-	// chip on the way to the click, so a chip reaching the centre point would stop
-	// propagation here and the active file would never change.
+test("WHEN that minimum-sized node's body is clicked THEN the note opens (no chip swallows it)", async () => {
+	// Playwright's own hover REVEALS the chips on the way to the click, so a chip (or
+	// the side rail's hover zone) reaching the centre point would stop propagation
+	// here and the active file would never change.
 	await renderTargetAsNeighbourAt(SHIPPED_MIN_NODE_PX);
 	await noteNode(TARGET).click();
 	await expect.poll(activeFilePath).toBe(TARGET);
@@ -451,22 +450,18 @@ test("WHEN a node is short but WIDE THEN its pin chip is the same size as a larg
 	expect(await pinChipBoxPx(TARGET)).toEqual(await pinChipBoxPx(HUB));
 });
 
-test("WHEN a node is small on BOTH axes THEN its chip steps down, so the node stays clickable", async () => {
-	// The other half, and what keeps the test above from passing on a stylesheet that
-	// simply shrank every chip: the step-down still fires where the full-size chip
-	// would cover the node's centre point.
+test("WHEN a node is small on BOTH axes THEN its pin chip is STILL the same size as a large node's", async () => {
+	// The side rail puts the chips beside the node, so nothing about the node's own
+	// box may shrink them any more (the old centre-clearance step-down is gone).
 	await renderTargetAsNeighbourAt(SHIPPED_MIN_NODE_PX);
-	const compact = await pinChipBoxPx(TARGET);
-	expect(compact.heightPx).toBeLessThan((await pinChipBoxPx(HUB)).heightPx);
+	expect(await pinChipBoxPx(TARGET)).toEqual(await pinChipBoxPx(HUB));
 });
 
-test("WHEN a node is shrunk to the drag-resize floor THEN the chip that would cover its centre is withheld", async () => {
-	// The one band where "every node carries the chip" yields. Only a real engine
-	// answers this: nodeDensityThresholds.test.ts proves the rung's arithmetic
-	// against the stylesheet, but not that Chromium PARSES a two-axis
-	// `@container … and …` prelude — an unparsable one is dropped SILENTLY.
+test("WHEN a node is shrunk to the drag-resize floor THEN it STILL carries the pin chip", async () => {
+	// The old ladder withheld the chip here; beside the node it covers nothing, so
+	// the floor-sized node keeps its affordance like every other node.
 	await renderTargetAsNeighbourAt(NODE_OVERRIDE_HARD_MIN_PX);
-	expect(await pinChipDisplay(TARGET)).toBe("none");
+	expect(await pinChipDisplay(TARGET)).toBe("flex");
 });
 
 test("WHEN that floor-sized node's body is clicked THEN the note still opens", async () => {

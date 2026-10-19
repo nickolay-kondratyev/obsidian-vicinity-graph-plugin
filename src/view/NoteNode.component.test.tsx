@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { ReactFlow } from "@xyflow/react";
+import type { NodeMouseHandler } from "@xyflow/react";
 import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import type { NodeContentOverride, NodeSizeOverridePx } from "../engine";
@@ -107,7 +108,7 @@ function nodeData(overrides: Partial<FlowNodeData> = {}): FlowNodeData {
 	};
 }
 
-function renderNoteNode(data: FlowNodeData) {
+function renderNoteNode(data: FlowNodeData, onNodeClick?: NodeMouseHandler) {
 	const ui = new RecordingGraphUi();
 	const actions = new RecordingResizeActions();
 	const result = render(
@@ -118,6 +119,7 @@ function renderNoteNode(data: FlowNodeData) {
 						nodes={[{ id: NODE_PATH, type: "note", position: { x: 0, y: 0 }, width: 100, height: 100, data }]}
 						edges={[]}
 						nodeTypes={{ note: NoteNode }}
+						onNodeClick={onNodeClick}
 					/>
 				</div>
 			</ControlsActionsContext.Provider>
@@ -147,7 +149,99 @@ async function mountedWrapper(container: HTMLElement): Promise<HTMLElement> {
 	return wrapper;
 }
 
+/**
+ * The hover chips' column. Located under the React Flow WRAPPER, not under
+ * `.vicinity-graph-node`: the column sits OUTSIDE the node box (to its right), and
+ * that box clips its content, so NoteNode mounts the column as its sibling.
+ */
+async function mountedActions(container: HTMLElement): Promise<HTMLElement> {
+	const wrapper = await mountedWrapper(container);
+	const column = wrapper.querySelector<HTMLElement>(".vicinity-graph-node-actions");
+	if (column === null) {
+		throw new Error("node actions column not mounted");
+	}
+	return column;
+}
+
+/** The column's chips top-to-bottom, each named by its variant class. */
+function chipOrder(column: HTMLElement): string[] {
+	return Array.from(column.querySelectorAll("button.vicinity-graph-node-chip")).map(
+		(chip) => Array.from(chip.classList).find((c) => CHIP_VARIANT_CLASSES.includes(c)) ?? "unknown",
+	);
+}
+
+const CHIP_VARIANT_CLASSES = [
+	"vicinity-graph-pin-button",
+	"vicinity-graph-local-pin-button",
+	"vicinity-graph-gear-button",
+	"vicinity-graph-child-note-button",
+];
+
 afterEach(cleanup);
+
+/**
+ * The side rail: hover chips sit OUTSIDE the node box, in one column to its right,
+ * inside an invisible hover zone that keeps them revealed on the way over. jsdom
+ * does no layout, so the STRUCTURE the CSS geometry relies on is what is asserted;
+ * the geometry and the hover travel are e2e (`e2e/nodeChipRail.e2e.ts`).
+ */
+describe("NoteNode chip side rail", () => {
+	it("WHEN a note node renders THEN no chip sits inside the node's clipping box", async () => {
+		const { result } = renderNoteNode(nodeData({ tier: "main", offersChildNoteCreation: true }));
+		const node = await mountedNode(result.container);
+		expect(node.querySelectorAll(".vicinity-graph-node-chip")).toHaveLength(0);
+	});
+
+	it("WHEN a regular node renders THEN the column reads global pin, local pin, gear from top to bottom", async () => {
+		const { result } = renderNoteNode(nodeData());
+		expect(chipOrder(await mountedActions(result.container))).toEqual([
+			"vicinity-graph-pin-button",
+			"vicinity-graph-local-pin-button",
+			"vicinity-graph-gear-button",
+		]);
+	});
+
+	it("WHEN a MAIN folder note renders THEN the column reads global pin, gear, create child note", async () => {
+		const { result } = renderNoteNode(nodeData({ tier: "main", offersChildNoteCreation: true }));
+		expect(chipOrder(await mountedActions(result.container))).toEqual([
+			"vicinity-graph-pin-button",
+			"vicinity-graph-gear-button",
+			"vicinity-graph-child-note-button",
+		]);
+	});
+
+	it("WHEN a note node renders THEN the hover zone PRECEDES the node box, so the node paints above it", async () => {
+		// Two positioned siblings at `z-index: auto` paint (and hit-test) in DOM
+		// order: the zone must come first, or its transparent body would sit over
+		// the node and swallow the click that opens the note.
+		const { result } = renderNoteNode(nodeData());
+		const wrapper = await mountedWrapper(result.container);
+		const zone = wrapper.querySelector(".vicinity-graph-node-hover-zone");
+		const node = await mountedNode(result.container);
+		expect(zone !== null && (zone.compareDocumentPosition(node) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0).toBe(
+			true,
+		);
+	});
+
+	it("WHEN the hover zone itself is clicked THEN the click does not reach the node (the note is not opened)", async () => {
+		const clickedNodeIds: string[] = [];
+		const { result } = renderNoteNode(nodeData(), (_event, node) => clickedNodeIds.push(node.id));
+		const zone = (await mountedWrapper(result.container)).querySelector<HTMLElement>(
+			".vicinity-graph-node-hover-zone",
+		);
+		fireEvent.click(zone!);
+		expect(clickedNodeIds).toEqual([]);
+	});
+
+	it("WHEN a chip is right-clicked THEN it opens the node's menu, as the node body does", async () => {
+		const { ui, result } = renderNoteNode(nodeData());
+		fireEvent.contextMenu(await mountedGear(result.container));
+		expect(ui.nodeMenuRequests[0]?.entries.map((entry) => entry.title)).toEqual([
+			"Pin to graph",
+			"Pin for this note",
+		]);
+	});
+});
 
 describe("NoteNode resize controls", () => {
 	it("WHEN a note node renders THEN it mounts bottom/right/bottom-right resize controls (and no top/left ones)", async () => {
@@ -227,10 +321,10 @@ describe("NoteNode context menu reset entry", () => {
 	});
 });
 
-/** The gear (top-right) button, once React Flow has mounted the node. */
+/** The gear button, once React Flow has mounted the node's actions column. */
 async function mountedGear(container: HTMLElement): Promise<HTMLElement> {
-	const node = await mountedNode(container);
-	const gear = node.querySelector<HTMLElement>("button.vicinity-graph-gear-button");
+	const column = await mountedActions(container);
+	const gear = column.querySelector<HTMLElement>("button.vicinity-graph-gear-button");
 	if (gear === null) {
 		throw new Error("gear button not mounted");
 	}
@@ -249,10 +343,10 @@ function gearMenuEntries(ui: RecordingGraphUi): readonly NodeMenuEntry[] {
 describe("NoteNode gear content menu", () => {
 	it("WHEN a note node renders THEN it mounts a hover gear button distinct from the pin", async () => {
 		const { result } = renderNoteNode(nodeData());
-		const node = await mountedNode(result.container);
-		expect(node.querySelectorAll("button.vicinity-graph-gear-button")).toHaveLength(1);
-		// The pin moved to its own corner; both chips coexist.
-		expect(node.querySelectorAll("button.vicinity-graph-pin-button")).toHaveLength(1);
+		const column = await mountedActions(result.container);
+		expect(column.querySelectorAll("button.vicinity-graph-gear-button")).toHaveLength(1);
+		// Both chips coexist in the one actions column.
+		expect(column.querySelectorAll("button.vicinity-graph-pin-button")).toHaveLength(1);
 	});
 
 	it("WHEN the gear is clicked THEN it opens a menu offering every content choice", async () => {
@@ -325,55 +419,55 @@ describe("NoteNode gear content menu", () => {
 });
 
 /** The local-pin chip (distinct class from the global pin), once the node has mounted. */
-function localPinButton(node: HTMLElement): HTMLElement | null {
-	return node.querySelector<HTMLElement>("button.vicinity-graph-local-pin-button");
+function localPinButton(column: HTMLElement): HTMLElement | null {
+	return column.querySelector<HTMLElement>("button.vicinity-graph-local-pin-button");
 }
 
 describe("NoteNode local pin control", () => {
 	it("WHEN a regular node renders THEN it mounts BOTH the global and the local pin chip", async () => {
 		const { result } = renderNoteNode(nodeData());
-		const node = await mountedNode(result.container);
+		const column = await mountedActions(result.container);
 		expect({
-			global: node.querySelectorAll("button.vicinity-graph-pin-button").length,
-			local: node.querySelectorAll("button.vicinity-graph-local-pin-button").length,
+			global: column.querySelectorAll("button.vicinity-graph-pin-button").length,
+			local: column.querySelectorAll("button.vicinity-graph-local-pin-button").length,
 		}).toEqual({ global: 1, local: 1 });
 	});
 
 	it("WHEN the MAIN node renders THEN it withholds the local pin chip (a note cannot be locally pinned under itself)", async () => {
 		const { result } = renderNoteNode(nodeData({ tier: "main" }));
-		const node = await mountedNode(result.container);
-		expect(localPinButton(node)).toBeNull();
+		const column = await mountedActions(result.container);
+		expect(localPinButton(column)).toBeNull();
 	});
 
 	it("WHEN a node is NOT locally pinned THEN its local chip offers to pin for this note", async () => {
 		const { result } = renderNoteNode(nodeData());
-		const node = await mountedNode(result.container);
-		expect(localPinButton(node)?.getAttribute("aria-label")).toBe("Pin for this note");
+		const column = await mountedActions(result.container);
+		expect(localPinButton(column)?.getAttribute("aria-label")).toBe("Pin for this note");
 	});
 
 	it("WHEN a node IS locally pinned THEN its local chip KEEPS the constant toggle name (aria-pressed carries the state)", async () => {
 		const { result } = renderNoteNode(nodeData({ isLocallyPinned: true, docid: "docid_a_e" }));
-		const node = await mountedNode(result.container);
-		expect(localPinButton(node)?.getAttribute("aria-label")).toBe("Pin for this note");
+		const column = await mountedActions(result.container);
+		expect(localPinButton(column)?.getAttribute("aria-label")).toBe("Pin for this note");
 	});
 
 	it("WHEN a node IS locally pinned THEN its local chip TOOLTIP still flips to the unpin action (the hover hint predicts the click)", async () => {
 		const { result } = renderNoteNode(nodeData({ isLocallyPinned: true, docid: "docid_a_e" }));
-		const node = await mountedNode(result.container);
-		expect(localPinButton(node)?.getAttribute("title")).toBe("Unpin for this note");
+		const column = await mountedActions(result.container);
+		expect(localPinButton(column)?.getAttribute("title")).toBe("Unpin for this note");
 	});
 
 	it("WHEN the local chip on an unpinned node is clicked THEN the node's PATH reaches localPinNode", async () => {
 		const { actions, result } = renderNoteNode(nodeData());
-		const node = await mountedNode(result.container);
-		fireEvent.click(localPinButton(node)!);
+		const column = await mountedActions(result.container);
+		fireEvent.click(localPinButton(column)!);
 		expect(actions.localPinnedPaths).toEqual([NODE_PATH]);
 	});
 
 	it("WHEN the local chip on a locally-pinned node is clicked THEN the node's DOCID reaches localUnpinNode", async () => {
 		const { actions, result } = renderNoteNode(nodeData({ isLocallyPinned: true, docid: "docid_a_e" }));
-		const node = await mountedNode(result.container);
-		fireEvent.click(localPinButton(node)!);
+		const column = await mountedActions(result.container);
+		fireEvent.click(localPinButton(column)!);
 		expect(actions.localUnpinnedDocids).toEqual(["docid_a_e"]);
 	});
 
@@ -381,10 +475,10 @@ describe("NoteNode local pin control", () => {
 		const { result } = renderNoteNode(
 			nodeData({ isGloballyPinned: true, isLocallyPinned: true, tier: "pinned-central", docid: "docid_a_e" }),
 		);
-		const node = await mountedNode(result.container);
+		const column = await mountedActions(result.container);
 		expect({
-			global: node.querySelector("button.vicinity-graph-pin-button")?.getAttribute("aria-label"),
-			local: localPinButton(node)?.getAttribute("aria-label"),
+			global: column.querySelector("button.vicinity-graph-pin-button")?.getAttribute("aria-label"),
+			local: localPinButton(column)?.getAttribute("aria-label"),
 		}).toEqual({ global: "Pin to graph", local: "Pin for this note" });
 	});
 
@@ -392,10 +486,10 @@ describe("NoteNode local pin control", () => {
 		const { result } = renderNoteNode(
 			nodeData({ isGloballyPinned: true, isLocallyPinned: true, tier: "pinned-central", docid: "docid_a_e" }),
 		);
-		const node = await mountedNode(result.container);
+		const column = await mountedActions(result.container);
 		expect({
-			global: node.querySelector("button.vicinity-graph-pin-button")?.getAttribute("title"),
-			local: localPinButton(node)?.getAttribute("title"),
+			global: column.querySelector("button.vicinity-graph-pin-button")?.getAttribute("title"),
+			local: localPinButton(column)?.getAttribute("title"),
 		}).toEqual({ global: "Unpin from graph", local: "Unpin for this note" });
 	});
 
@@ -423,31 +517,31 @@ describe("NoteNode local pin control", () => {
 });
 
 /** The create-child-note chip, once the node has mounted. */
-function childNoteButton(node: HTMLElement): HTMLElement | null {
-	return node.querySelector<HTMLElement>("button.vicinity-graph-child-note-button");
+function childNoteButton(column: HTMLElement): HTMLElement | null {
+	return column.querySelector<HTMLElement>("button.vicinity-graph-child-note-button");
 }
 
 describe("NoteNode create-child-note chip", () => {
 	it("WHEN a node does NOT offer child-note creation THEN no chip is mounted", async () => {
 		const { result } = renderNoteNode(nodeData());
-		expect(childNoteButton(await mountedNode(result.container))).toBeNull();
+		expect(childNoteButton(await mountedActions(result.container))).toBeNull();
 	});
 
 	it("WHEN a MAIN folder note offers child-note creation THEN it mounts a chip labelled 'Create child note'", async () => {
 		const { result } = renderNoteNode(nodeData({ tier: "main", offersChildNoteCreation: true }));
-		const chip = childNoteButton(await mountedNode(result.container));
+		const chip = childNoteButton(await mountedActions(result.container));
 		expect(chip?.getAttribute("aria-label")).toBe("Create child note");
 	});
 
 	it("WHEN the chip is clicked THEN the node's PATH reaches createChildNote", async () => {
 		const { actions, result } = renderNoteNode(nodeData({ tier: "main", offersChildNoteCreation: true }));
-		fireEvent.click(childNoteButton(await mountedNode(result.container))!);
+		fireEvent.click(childNoteButton(await mountedActions(result.container))!);
 		expect(actions.childNotesCreatedFor).toEqual([NODE_PATH]);
 	});
 
-	it("WHEN the offering node ALSO shows an attachment strip THEN the chip still mounts (crowded bottom-right)", async () => {
-		// The bottom-right corner is shared with the attachment strip and the corner
-		// resize grip; the chip is a distinct button, so it coexists with them.
+	it("WHEN the offering node ALSO shows an attachment strip THEN the chip still mounts alongside it", async () => {
+		// The chip lives in the side column, the strip inside the node box; one must
+		// never displace the other.
 		const { result } = renderNoteNode(
 			nodeData({
 				tier: "main",
@@ -455,17 +549,18 @@ describe("NoteNode create-child-note chip", () => {
 				attachmentGroups: [{ extension: "pdf", count: 1, paths: ["a.pdf"] }],
 			}),
 		);
+		const column = await mountedActions(result.container);
 		const node = await mountedNode(result.container);
 		expect({
-			chip: childNoteButton(node) !== null,
+			chip: childNoteButton(column) !== null,
 			strip: node.querySelectorAll(".vicinity-graph-attachment").length,
 		}).toEqual({ chip: true, strip: 1 });
 	});
 
 	it("WHEN the chip renders THEN it carries the signed-off file-plus-2 glyph", async () => {
 		const { ui, result } = renderNoteNode(nodeData({ tier: "main", offersChildNoteCreation: true }));
-		const node = await mountedNode(result.container);
-		expect(chipIconId(ui, childNoteButton(node))).toBe("file-plus-2");
+		const column = await mountedActions(result.container);
+		expect(chipIconId(ui, childNoteButton(column))).toBe("file-plus-2");
 	});
 });
 
@@ -487,10 +582,10 @@ function chipIconId(ui: RecordingGraphUi, chip: HTMLElement | null): string | un
 describe("NoteNode pin chip pressed state", () => {
 	it("WHEN a node is not pinned in any way THEN both chips read unpressed", async () => {
 		const { result } = renderNoteNode(nodeData());
-		const node = await mountedNode(result.container);
+		const column = await mountedActions(result.container);
 		expect({
-			global: node.querySelector("button.vicinity-graph-pin-button")?.getAttribute("aria-pressed"),
-			local: localPinButton(node)?.getAttribute("aria-pressed"),
+			global: column.querySelector("button.vicinity-graph-pin-button")?.getAttribute("aria-pressed"),
+			local: localPinButton(column)?.getAttribute("aria-pressed"),
 		}).toEqual({ global: "false", local: "false" });
 	});
 
@@ -498,10 +593,10 @@ describe("NoteNode pin chip pressed state", () => {
 		const { result } = renderNoteNode(
 			nodeData({ isGloballyPinned: true, tier: "pinned-central", docid: "docid_a_e" }),
 		);
-		const node = await mountedNode(result.container);
+		const column = await mountedActions(result.container);
 		expect({
-			global: node.querySelector("button.vicinity-graph-pin-button")?.getAttribute("aria-pressed"),
-			local: localPinButton(node)?.getAttribute("aria-pressed"),
+			global: column.querySelector("button.vicinity-graph-pin-button")?.getAttribute("aria-pressed"),
+			local: localPinButton(column)?.getAttribute("aria-pressed"),
 		}).toEqual({ global: "true", local: "false" });
 	});
 
@@ -509,10 +604,10 @@ describe("NoteNode pin chip pressed state", () => {
 		const { result } = renderNoteNode(
 			nodeData({ isGloballyPinned: true, isLocallyPinned: true, tier: "pinned-central", docid: "docid_a_e" }),
 		);
-		const node = await mountedNode(result.container);
+		const column = await mountedActions(result.container);
 		expect({
-			global: node.querySelector("button.vicinity-graph-pin-button")?.getAttribute("aria-pressed"),
-			local: localPinButton(node)?.getAttribute("aria-pressed"),
+			global: column.querySelector("button.vicinity-graph-pin-button")?.getAttribute("aria-pressed"),
+			local: localPinButton(column)?.getAttribute("aria-pressed"),
 		}).toEqual({ global: "true", local: "true" });
 	});
 
@@ -520,10 +615,10 @@ describe("NoteNode pin chip pressed state", () => {
 		const { ui, result } = renderNoteNode(
 			nodeData({ isGloballyPinned: true, isLocallyPinned: true, tier: "pinned-central", docid: "docid_a_e" }),
 		);
-		const node = await mountedNode(result.container);
+		const column = await mountedActions(result.container);
 		expect({
-			global: chipIconId(ui, node.querySelector<HTMLElement>("button.vicinity-graph-pin-button")),
-			local: chipIconId(ui, localPinButton(node)),
+			global: chipIconId(ui, column.querySelector<HTMLElement>("button.vicinity-graph-pin-button")),
+			local: chipIconId(ui, localPinButton(column)),
 		}).toEqual({ global: "pin", local: "map-pin" });
 	});
 

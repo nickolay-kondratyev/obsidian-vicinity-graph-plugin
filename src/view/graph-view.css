@@ -151,7 +151,7 @@
 	--vicinity-graph-thumbnail-height: 56px;
 
 	container-type: size;
-	position: relative; /* anchor for the hover-reveal pin button */
+	position: relative; /* anchor for the edge handles and the thumbnail badge */
 	width: 100%;
 	height: 100%;
 	box-sizing: border-box;
@@ -169,7 +169,13 @@
 		box-shadow 0.15s ease;
 }
 
-.vicinity-graph-node:hover {
+/* Keyed on the NOTE WRAPPER's hover, not the node box's: the side rail's chips
+ * sit outside the box (see "hover side rail"), and the node must stay highlighted
+ * while the pointer is on them — it shows which node they belong to. `:where()`
+ * keeps the specificity at (0,1,0), what `.vicinity-graph-node:hover` had relative
+ * to the rules it must LOSE to: the tier rings below (a MAIN keeps its accent
+ * border under the pointer) and the focus/selection ring. */
+:where(.vicinity-graph-flow .react-flow__node-note:hover) .vicinity-graph-node {
 	border-color: var(--background-modifier-border-hover);
 	box-shadow: var(--shadow-s);
 }
@@ -366,90 +372,102 @@
 	pointer-events: none;
 }
 
-/* ===== hover corner chips (pin + gear) ================================= */
+/* ===== hover side rail (pins + gear + create child note) ============== */
 
 /*
- * The two hover-revealed corner chips share ALL of their chrome and their
- * centre-clearance ladder — only the CORNER differs (pin top-left, gear
- * top-right; see the placement rules just below). One base class, so the ladder
- * arithmetic and the drag-resize clearance are stated ONCE and both chips are
- * guarded by the same `nodeDensityThresholds.test.ts` rungs.
+ * The hover chips live OUTSIDE the node box, in ONE column down its right side
+ * (top to bottom: global pin, local pin, gear, create child note — see NoteNode),
+ * so they never cover the note itself: on a small node, chips drawn on top of it
+ * left little of the node to click. The column may run past the node's bottom.
  *
- * Revealed only while the node is hovered (or the button itself is keyboard
- * focused) so an idle graph stays uncluttered (CLARIFICATION Q3). Round chips;
- * `nodrag nopan` (in the markup) keeps their clicks off the canvas.
+ * Markup (NoteNode.tsx): `.vicinity-graph-node-hover-zone` > `.vicinity-graph-node-actions`
+ * > chips, mounted as a SIBLING of `.vicinity-graph-node` inside the React Flow node
+ * wrapper — `.vicinity-graph-node` is `overflow: hidden`, so a column nested there
+ * would be clipped away. The zone is DOM-first, so the node paints and hit-tests
+ * above it wherever the two overlap; only the zone's parts outside the node box
+ * ever catch the pointer.
  *
- * EVERY node the chip FITS carries it (ticket `nid_tclb98q9hxhmcuonamvr4ig1f_e`,
- * owner-decided): content-fit sizing made the small node the COMMON case — a
- * title-only note sits at ~minPx — and hiding the affordance there left the
- * right-click menu as the only way to pin the notes people pin most. On the way
- * down the chip only gets SMALLER (the custom properties below) instead of
- * disappearing; the ONE band where it does disappear is the ladder's bottom rung,
- * where even the compact chip no longer fits clear of the node's centre.
+ * The ZONE is an invisible hover area covering the node AND the column, plus a
+ * `pad` margin on every side. It is a DOM descendant of the wrapper, so while the
+ * pointer is anywhere inside it the wrapper stays `:hover` — the travel from the
+ * node to its chips can never drop the reveal on the way. Geometry is pure CSS,
+ * no JS measuring: the zone starts `pad` above/left of the node, is
+ * `node + offset + chip` wide plus its padding, and grows DOWN with the column
+ * (`min-height` = the node + padding, height auto). The column is pushed to the
+ * zone's right edge, so its first chip's top meets the node's top and its left
+ * edge sits `offset` right of the node's right edge.
  *
- * And it is FULL SIZE unless the node's own geometry forbids it (ticket
- * `nid_8i5936g90vrllosssaz7v3xbr_e`): one chip size throughout, so the icon does
- * not read as a different affordance on the small node than on the big one. The
- * previous ladder grew the chip on HEIGHT alone (`min-height: 72px`), so the
- * common small node — short but WIDE, a title-only note at ~minPx — wore the
- * compact chip even though its corner had room to spare. Size is now
- * stepped DOWN, and only in the band where the step-down is what keeps the node
- * clickable at all.
+ * `offset` clears the drag-resize grips that hang OUTSIDE the node: the right
+ * band's outer half (`--vicinity-graph-resize-band-px` / 2 = 4px) and the corner
+ * handle's overhang (4.5px at zoom 1) — both paint above the zone (z-index 1, see
+ * the drag-to-resize section), so a chip under them would lose clicks to a resize.
+ * Known ceiling: React Flow `autoScale`s the corner HANDLE to a constant SCREEN
+ * size, so below zoom ~0.75 its overhang outgrows the flow-unit `offset` and can
+ * cover a sliver of the chip beside the node's bottom corner. Acceptable — at
+ * that zoom the chip is tiny anyway; the upgrade path is a screen-px offset
+ * computed from the zoom.
  *
- * Three guards keep a chip from swallowing the node's open-click on small nodes (a
- * dense fit-view shrinks nodes toward the 40px minimum):
- *   1. `pointer-events: none` while hidden — an opacity:0 element STILL receives
- *      pointer events, so without this the transparent button eats a click that
- *      should open the note. Re-enabled only when revealed (hover/focus).
- *   2. the ladder's STEP-DOWN rung below: on a node that is small on BOTH axes (as
- *      narrow as ~40px for a short title, and 40px tall at minPx) the full-size 20px
- *      chip inset 4px reaches the node's centre point, which is exactly where a click
- *      meant to OPEN the note lands. The 14px/3px compact chip clears it. That
- *      inset is 3px and not 2px because the drag-resize grip bands reach 4px INTO
- *      the node — see the clearance note in the drag-to-resize section below.
- *   3. the ladder's WITHHOLDING rung below — the ONE height/width band where even
- *      the compact chip cannot clear that centre point. `minPx` is a dial the user
- *      can take to 1px and a drag-resize override may go as low as 24px
- *      (`NODE_OVERRIDE_HARD_MIN_PX`), so "small" is NOT bounded by the shipped
- *      40px default and guard 2 alone would be a claim about defaults, not a
- *      guarantee.
+ * Revealed ONLY while the NOTE wrapper is hovered (`.react-flow__node-note`, the
+ * class React Flow derives from the node type — NOT `.react-flow__node`, which
+ * would also match a hovered folder-group wrapper and raise it above its own
+ * children), or while a chip itself is keyboard-focused. While hidden, the zone
+ * AND the chips are `pointer-events: none`: an opacity:0 element STILL receives
+ * pointer events, and a transparent zone would steal clicks from the canvas and
+ * the neighbouring nodes. Unlike the resize grips this gate is not bistable: the
+ * reveal is entered through the node box (always hittable), and the zone only has
+ * to stay hit-testable while the wrapper is already hovered.
  *
- * The `.vicinity-graph-node` prefix is LOAD-BEARING (same trap as the attachment
- * chip above): without it, Obsidian's `button:not(.clickable-icon)` (0,1,1)
- * beats this reset's (0,1,0) for background/box-shadow/color. Covered by the
- * pin-chrome assertion in e2e/vicinityGraph.e2e.ts.
+ * `nodeDensityThresholds.test.ts` guards that no container query styles a chip
+ * (they sit outside the node's size container; one size everywhere) and that
+ * `offset` clears the resize band.
  */
-.vicinity-graph-node .vicinity-graph-node-chip {
-	/* Full-size rung — the DEFAULT (see the step-down queries below). Custom
-	 * properties, not two competing rule blocks, so a step-down query restates SIZE
-	 * only — the chrome reset below it stays declared once. */
+.vicinity-graph-node-hover-zone {
 	--vicinity-graph-node-chip-size: 20px;
-	--vicinity-graph-node-chip-inset: var(--size-4-1);
-	/* Gap between the two right-corner chips (pin sits just LEFT of the gear). Kept
-	 * out of the size ladder because the ladder guards the CORNER chip (the gear),
-	 * whose reach `inset + size` this gap does not change — and both chips share the
-	 * top edge, so VERTICAL clearance is identical for both. It DOES push the pin
-	 * `size + gap` further inboard HORIZONTALLY, so the pin is no longer a corner
-	 * chip: on a wide-but-short node its revealed box can reach the horizontal
-	 * centre in a band the ladder (a corner-chip guard, symmetric on both axes) does
-	 * not cover. Accepted edge, tracked in
-	 * docs-internal/tickets/ticket-pin-offset-centre-clearance.md. */
-	--vicinity-graph-node-chip-gap: var(--size-2-1);
 	--vicinity-graph-node-chip-icon-size: 13px;
+	/* How far the zone reaches past the node and the column on every side. */
+	--vicinity-graph-node-hover-zone-pad: var(--size-4-2);
+	/* Gap between the node's right edge and the column — see the grip clearance above. */
+	--vicinity-graph-node-actions-offset: 6px;
+	--vicinity-graph-node-actions-gap: var(--size-4-1);
+
+	position: absolute;
+	top: calc(-1 * var(--vicinity-graph-node-hover-zone-pad));
+	left: calc(-1 * var(--vicinity-graph-node-hover-zone-pad));
+	box-sizing: border-box;
+	width: calc(
+		100% + 2 * var(--vicinity-graph-node-hover-zone-pad) + var(--vicinity-graph-node-actions-offset) +
+			var(--vicinity-graph-node-chip-size)
+	);
+	min-height: calc(100% + 2 * var(--vicinity-graph-node-hover-zone-pad));
+	padding: var(--vicinity-graph-node-hover-zone-pad);
+	display: flex;
+	justify-content: flex-end;
+	align-items: flex-start;
+	cursor: default;
+	pointer-events: none;
+}
+.vicinity-graph-node-actions {
+	display: flex;
+	flex-direction: column;
+	gap: var(--vicinity-graph-node-actions-gap);
+}
+/*
+ * The `.vicinity-graph-node-actions` prefix is LOAD-BEARING (same trap as the
+ * attachment chip above): without it, Obsidian's `button:not(.clickable-icon)`
+ * (0,1,1) beats this reset's (0,1,0) for background/box-shadow/color; the prefix
+ * makes it (0,2,0). Covered by the pin-chrome assertion in e2e/vicinityGraph.e2e.ts.
+ */
+.vicinity-graph-node-actions .vicinity-graph-node-chip {
 	/* The pressed toggle's depth cue (dark inset top shadow + faint lighter bottom
 	 * lip), declared ONCE: the pressed rule uses it alone, and the focus-visible
 	 * variant composes it with the focus ring — two literal copies would drift. */
 	--vicinity-graph-node-chip-pressed-shadow:
 		inset 0 1px 2px rgba(0, 0, 0, 0.35),
 		inset 0 -1px 0 rgba(255, 255, 255, 0.12);
-	position: absolute;
-	/* Declared, not inherited from the app: the chip's REACH into the node
-	 * (`inset + size`) is what the centre-clearance rung below is computed from,
-	 * and under `content-box` the 1px border would make that reach 2px larger
-	 * than the rung assumes. */
+	/* Declared, not inherited from the app: the zone's width is computed from the
+	 * chip size, and under `content-box` the 1px border would make the chip 2px
+	 * wider than the zone reserves. */
 	box-sizing: border-box;
-	top: var(--vicinity-graph-node-chip-inset);
-	z-index: 1;
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -468,115 +486,34 @@
 		opacity 0.12s ease,
 		color 0.12s ease;
 }
-/* Corner placement — the ONLY per-chip difference. Both chips ride the top-RIGHT
- * corner: the gear takes the corner itself (the conventional settings corner),
- * clearing the right-edge grip band by the inset the ladder guards; the pin sits
- * one chip-width + gap to its LEFT, so the pair reads PIN GEAR. Both offsets are
- * built from the SAME custom properties the size ladder steps, so the pin stays
- * flush against the gear at every rung. The gear's inset is what the grip-band
- * guard measures, so the corner-most chip is always the one against the grip. */
-.vicinity-graph-node .vicinity-graph-pin-button {
-	right: calc(
-		var(--vicinity-graph-node-chip-inset) + var(--vicinity-graph-node-chip-size) +
-			var(--vicinity-graph-node-chip-gap)
-	);
+/*
+ * Paint order ACROSS nodes: a hovered note must lift its whole wrapper so the
+ * column paints over (and hit-tests ahead of) the neighbouring nodes it overlaps.
+ * React Flow writes the wrapper's z-index as an INLINE style (`style.zIndex =
+ * internals.z`; a selected node gets +1000), and an inline style can only be
+ * beaten by `!important` — hence the one `!important` here. The value only has
+ * to clear every z React Flow computes (nesting depth + the selection bump).
+ */
+.vicinity-graph-flow .react-flow__node-note:hover {
+	--vicinity-graph-hovered-note-z: 100000;
+
+	z-index: var(--vicinity-graph-hovered-note-z) !important;
 }
-/* The LOCAL pin (present only off the MAIN — see NoteNode) sits one more chip-width +
- * gap LEFT of the global pin, so the trio reads LOCAL GLOBAL GEAR. Same custom
- * properties as the size ladder, so it stays flush at every rung. Being the leftmost,
- * it extends the same horizontal centre-reach edge the global pin already accepts
- * (tracked in docs-internal/tickets/ticket-pin-offset-centre-clearance.md): on a
- * wide-but-short node its revealed box reaches further inboard than the corner-chip
- * ladder guards — acceptable, and it only ever shows while the node is hovered. */
-.vicinity-graph-node .vicinity-graph-local-pin-button {
-	right: calc(
-		var(--vicinity-graph-node-chip-inset) + 2 *
-			(var(--vicinity-graph-node-chip-size) + var(--vicinity-graph-node-chip-gap))
-	);
+.vicinity-graph-flow .react-flow__node-note:hover .vicinity-graph-node-hover-zone {
+	pointer-events: auto;
 }
-.vicinity-graph-node .vicinity-graph-gear-button {
-	right: var(--vicinity-graph-node-chip-inset);
-}
-/* The create-child-note chip (MAIN folder note only — see NoteNode): the BOTTOM-right
- * corner, the one corner the top chips (pin/gear) and their trio leave free. It shares
- * the base chip's chrome, size ladder and withhold rungs (same `.vicinity-graph-node-chip`
- * class), overriding only the vertical anchor: `top: auto` + `bottom` mirrors the gear's
- * top inset so it clears the bottom AND right resize grip bands by the same margin the
- * top chips clear theirs (band reaches 4px in; chip outer edge sits border + inset in).
- * The bottom-right corner resize HANDLE overhangs the very corner, so the chip is inset
- * from it exactly as the gear is inset from the right edge. z-index (from the base) keeps
- * it above the attachment strip it may overlap on a tall node — it only shows on hover. */
-.vicinity-graph-node .vicinity-graph-child-note-button {
-	top: auto;
-	bottom: var(--vicinity-graph-node-chip-inset);
-	right: var(--vicinity-graph-node-chip-inset);
-}
-/* The chip's size ladder, stated as centre-clearance rungs: ONE rule per step,
- * each firing exactly where the chip ABOVE it would cover the node's centre point
- * — where a click means OPEN THE NOTE.
- *
- * The arithmetic, once: a corner chip reaches `inset + size` into the node's
- * PADDING box from its corner, and the node's centre falls inside that reach
- * only when BOTH padding-box axes are within 2 x reach — i.e. when both
- * CONTENT-box axes are at most `2 x reach - 2 x 8px` of node padding. Hence `and`,
- * not a comma: a wide-but-short node's centre is nowhere near the chip, which is
- * the whole reason the full-size chip is now the default.
- *
- *   full-size chip: reach 4 + 20 = 24px → covers the centre at <= 32px  → step down
- *   compact chip:   reach 3 + 14 = 17px → covers the centre at <= 18px  → withhold
- *
- * Stated as max-* queries on purpose, inverting the density ladder above: these are
- * step-downs, not reveals, so a container that stopped resolving (a `container-type`
- * regression) fails OPEN — full-size chip present — rather than shrinking or
- * deleting the affordance on every node.
- *
- * NEVER declare the chip inside one of the `min-height` density rungs above: that
- * is the shape ticket `nid_8i5936g90vrllosssaz7v3xbr_e` removed, and it is the
- * shape a maintainer reaches for out of habit because those rungs sit a few lines
- * up in this same file. `nodeDensityThresholds.test.ts` fails any container query
- * that styles the chip and is not one of the two rungs below.
- *
- * It also recomputes BOTH rungs from the chip declarations they guard plus the
- * node's padding, so re-tuning a chip cannot leave a rung
- * behind — and separately asserts the rungs DESCEND, since each is derived from the
- * chip ABOVE it and a step-down that shrank the chip's size while growing its inset
- * would consistently derive a band SWALLOWING the one above (the compact chip would
- * then never render). At the shipped 40px `minPx` a node's content box is 22px, so an ordinary
- * small node keeps its chip — compact if it is narrow too, full-size otherwise;
- * only a hand-shrunk `minPx` or a drag-resize override reaches the withheld band.
- *
- * ORDER between the two blocks is not load-bearing (they declare disjoint
- * properties, and `display: none` in the lower one has nothing above it to lose
- * to), which is why the arithmetic — not the source order — is what is guarded. */
-@container (max-height: 32px) and (max-width: 32px) {
-	.vicinity-graph-node .vicinity-graph-node-chip {
-		--vicinity-graph-node-chip-size: 14px;
-		--vicinity-graph-node-chip-inset: 3px;
-		--vicinity-graph-node-chip-icon-size: 10px;
-	}
-}
-/* Below this band the chips are withheld. Pin/unpin stays reachable through the
- * node's right-click menu, as it was everywhere before the chip became always-on.
- * The gear's Content override has NO right-click equivalent, so it is unavailable
- * here — acceptable because a sub-18px node renders essentially nothing to preview
- * (tracked: _tickets/gear-content-override-unreachable-below-the-18px-chip-withhold-band.md). */
-@container (max-height: 18px) and (max-width: 18px) {
-	.vicinity-graph-node .vicinity-graph-node-chip {
-		display: none;
-	}
-}
-.vicinity-graph-node:hover .vicinity-graph-node-chip,
-.vicinity-graph-node .vicinity-graph-node-chip:focus-visible {
+.vicinity-graph-flow .react-flow__node-note:hover .vicinity-graph-node-chip,
+.vicinity-graph-node-actions .vicinity-graph-node-chip:focus-visible {
 	opacity: 1;
 	pointer-events: auto;
 }
-.vicinity-graph-node .vicinity-graph-node-chip:hover {
+.vicinity-graph-node-actions .vicinity-graph-node-chip:hover {
 	color: var(--interactive-accent);
 	background: var(--background-modifier-hover);
 }
 /* A pinned pin chip is a PRESSED toggle (NoteNode sets `aria-pressed`): the raised
  * chip's drop shadow is swapped for a press-into-the-page treatment — the pressed
- * shadow above — plus a darker face and accent icon, because at 20px/14px the
+ * shadow above — plus a darker face and accent icon, because at 20px the
  * depth cue alone is too subtle to carry the state. The face is
  * `active-hover`, NOT the `hover` modifier the `:hover` rule uses: an unpressed
  * chip under the cursor also turns accent + `hover`, so sharing that face would
@@ -586,26 +523,23 @@
  * rgba blacks/whites in the shadow rather than theme variables: Obsidian themes
  * are arbitrary, so hand-picked same-hue shades (the part_6 ideal) are
  * unavailable — low-alpha neutrals read as shading on any face color. */
-.vicinity-graph-node .vicinity-graph-node-chip[aria-pressed="true"] {
+.vicinity-graph-node-actions .vicinity-graph-node-chip[aria-pressed="true"] {
 	color: var(--interactive-accent);
 	background: var(--background-modifier-active-hover);
 	box-shadow: var(--vicinity-graph-node-chip-pressed-shadow);
 }
-.vicinity-graph-node .vicinity-graph-node-chip:focus-visible {
+.vicinity-graph-node-actions .vicinity-graph-node-chip:focus-visible {
 	outline: none;
 	box-shadow: 0 0 0 2px var(--interactive-accent);
 }
 /* A focused PRESSED chip keeps its depth cue alongside the ring — otherwise the
  * focus rule above (later, equal-specificity `box-shadow`) would strip the
  * pressed treatment exactly for keyboard users. */
-.vicinity-graph-node .vicinity-graph-node-chip[aria-pressed="true"]:focus-visible {
+.vicinity-graph-node-actions .vicinity-graph-node-chip[aria-pressed="true"]:focus-visible {
 	box-shadow:
 		0 0 0 2px var(--interactive-accent),
 		var(--vicinity-graph-node-chip-pressed-shadow);
 }
-/* Inherits the chip's icon size (the property is declared unconditionally on the
- * chip above, so NO fallback here — a fallback could only ever name one rung's
- * size and would silently overflow the other). */
 .vicinity-graph-node-chip__icon svg {
 	display: block;
 	width: var(--vicinity-graph-node-chip-icon-size);
@@ -633,13 +567,10 @@
 	 * the node's body paints over (and hit-tests ahead of) every half of a grip
 	 * that overlaps it, leaving only the part hanging outside the box grabbable.
 	 * Confined to this node's own React Flow wrapper, which sets a z-index of its
-	 * own, so a grip can never rise above a NEIGHBOURING node. The pin button
-	 * stays clickable regardless: `.vicinity-graph-node` is a stacking context
-	 * (`container-type: size` ⇒ layout containment), so the button's z-index is
-	 * scoped inside it — and the grips clear it by design: a grip band reaches
-	 * 4px into the node, while the chip's outer edge sits `border + inset` in —
-	 * 5px at the full-size rung, 4px on the compact one (which is WHY that rung
-	 * insets 3px and not 2px: at 2px the band would take a pixel of the chip). */
+	 * own, so a grip can never rise above a NEIGHBOURING node. Also above the
+	 * side rail's hover zone (an earlier sibling too), so a resize still starts
+	 * from the band/handle parts outside the node; the chip column itself sits
+	 * clear of them by `--vicinity-graph-node-actions-offset`. */
 	z-index: 1;
 	opacity: 0;
 	transition: opacity 0.12s ease;
