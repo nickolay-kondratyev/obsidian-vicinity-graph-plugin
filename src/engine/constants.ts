@@ -120,9 +120,9 @@ export const MAX_STEPPER_DEPTH = SETTINGS_SPEC.globalDepths.linkDepthOut.max;
  * hover pin chip's old full-size rung (ticket `nid_tclb98q9hxhmcuonamvr4ig1f_e`) —
  * 0.35 floored an EMPTY central at 82px, missing that rung, so the node people pin
  * and unpin most got the compact chip. That rung is GONE (ticket
- * `nid_8i5936g90vrllosssaz7v3xbr_e`: the chip is full size by default, stepped down
- * only on a node small on BOTH axes, which a central never is), so the chip no
- * longer constrains this number. Owner-decided (ticket
+ * `nid_8i5936g90vrllosssaz7v3xbr_e`, and the chips have since moved OUT of the node
+ * into a side rail at one size everywhere), so the chip no longer constrains this
+ * number. Owner-decided (ticket
  * `nid_s1474ljrdqneqhqt5zrkpwva2_e`) to KEEP 0.44 as the final shipped prominence:
  * at 40/180 an empty central reads at 102px — a touch more clearly the anchor than
  * 0.35's 89px — while still sitting well under the midpoint.

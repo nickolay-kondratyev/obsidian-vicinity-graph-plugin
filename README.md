@@ -67,8 +67,8 @@ there; running the command for where it already is just focuses it.
 ## Pinning
 
 Pinning holds a note's neighbourhood on screen as an extra central node. There
-are **two kinds**, each with its own control (revealed on hover, top-right, and
-in the right-click menu):
+are **two kinds**, each with its own control (revealed on hover in a column of
+buttons just right of the note, and in the right-click menu):
 
 - **Global pin** — pins the note into **every** graph, whatever your active note
   is. Use it to keep a hub or a note you're working from always in view.
