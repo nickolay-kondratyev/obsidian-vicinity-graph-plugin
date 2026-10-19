@@ -96,6 +96,24 @@ async function opacityOf(locator: Locator): Promise<string> {
 	return locator.evaluate((el) => getComputedStyle(el).opacity);
 }
 
+/**
+ * Whether the pointer is ON the element right now — real hit-testing, so a hidden
+ * (`pointer-events: none`) chip is never hovered. Used instead of reading opacity
+ * right after a move: opacity TRANSITIONS, so a reveal lost on the way would still
+ * read "1" at the start of its fade and pass.
+ */
+async function isHovered(locator: Locator): Promise<boolean> {
+	return locator.evaluate((el) => el.matches(":hover"));
+}
+
+/** The class list of the topmost element hit at a screen point. */
+async function classesHitAt(point: { x: number; y: number }): Promise<string[]> {
+	return page.evaluate(
+		({ x, y }) => Array.from(document.elementFromPoint(x, y)?.classList ?? []),
+		point,
+	);
+}
+
 const activeFilePath = () =>
 	page.evaluate(() => (window as unknown as { app: E2eObsidianApp }).app.workspace.getActiveFile()?.path);
 
@@ -131,7 +149,7 @@ test("WHEN a small node is hovered THEN its column runs past the node's bottom (
 
 test("WHEN the pointer travels from the node to its LOWEST chip THEN that chip stays revealed", async () => {
 	await travelToLeafGear();
-	expect(await opacityOf(leafGear())).toBe("1");
+	expect(await isHovered(leafGear())).toBe(true);
 });
 
 test("WHEN the rail is revealed THEN a screenshot of it is captured for human review", async () => {
@@ -155,9 +173,11 @@ test("WHEN the zone's margin beside the column is clicked THEN the note is NOT o
 	await travelToLeafGear();
 	const column = await screenBox(actionsColumn(LEAF), "the leaf's chip column");
 	const before = await activeFilePath();
-	await page.mouse.move(column.x + column.width + ZONE_MARGIN_PROBE_PX, column.y + column.height / 2, {
-		steps: POINTER_TRAVEL_STEPS,
-	});
+	const probe = { x: column.x + column.width + ZONE_MARGIN_PROBE_PX, y: column.y + column.height / 2 };
+	await page.mouse.move(probe.x, probe.y, { steps: POINTER_TRAVEL_STEPS });
+	// The probe must land ON the zone, or a click falling through to the canvas would
+	// pass this test vacuously.
+	expect(await classesHitAt(probe)).toContain("vicinity-graph-node-hover-zone");
 	await page.mouse.down();
 	await page.mouse.up();
 	// A click that DID reach the node would focus it: re-centre the graph on the leaf

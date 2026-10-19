@@ -380,7 +380,10 @@ async function renderTargetAsNeighbourBox(box: { widthPx: number; heightPx: numb
 
 /** One computed style value off the node's pin chip — the rung the CASCADE picked. */
 async function pinChipComputedStyle(path: string, property: "display" | "width" | "height"): Promise<string> {
-	return nodeChip(noteNode(path), ".vicinity-graph-pin-button").evaluate((el, prop) => getComputedStyle(el).getPropertyValue(prop), property);
+	return nodeChip(noteNode(path), ".vicinity-graph-pin-button").evaluate(
+		(el, prop) => getComputedStyle(el).getPropertyValue(prop),
+		property,
+	);
 }
 
 /**

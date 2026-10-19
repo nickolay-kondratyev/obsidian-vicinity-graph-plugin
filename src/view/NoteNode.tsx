@@ -391,8 +391,9 @@ function GearButton({
 
 /**
  * Hover-reveal create-child-note chip — the LAST chip of the side rail's column.
- * Present only on a MAIN folder note whose owned folder exists (gated by the caller). Hidden until the node is hovered (CSS), a
- * `nodrag nopan` escape hatch so the click never starts a node drag or canvas pan.
+ * Present only on a MAIN folder note whose owned folder exists (gated by the
+ * caller). Hidden until the node is hovered (CSS), a `nodrag nopan` escape hatch
+ * so the click never starts a node drag or canvas pan.
  * A plain button, not a toggle: one action, no pressed state. Its click creates an
  * empty child inside the owned folder and opens it.
  */
