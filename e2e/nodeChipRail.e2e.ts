@@ -18,7 +18,8 @@ import { nodeChip } from "./nodeChips";
  *
  * What jsdom cannot see and this suite does: real layout (the column's position),
  * real `:hover` (the zone holding the reveal on the way), and real hit-testing (a
- * click on the zone's margin swallowed, a chip click reaching the chip).
+ * click on the zone's margin swallowed, a hidden zone catching nothing, a chip click
+ * reaching the chip).
  *
  * SERIAL and order-dependent: each test states the GIVEN it inherits.
  */
@@ -195,6 +196,17 @@ test("WHEN the pointer moves well outside the zone THEN the chips hide again", a
 		steps: POINTER_TRAVEL_STEPS,
 	});
 	await expect.poll(() => opacityOf(leafGear())).toBe("0");
+});
+
+test("WHEN the rail is hidden THEN its zone does not catch a pointer arriving from outside", async () => {
+	// GIVEN (from the test above) the pointer is well outside and the rail hidden.
+	// The same margin spot as the click test, now approached WITHOUT crossing the
+	// node: a hidden zone must be `pointer-events: none`, or its transparent body
+	// would steal clicks from the canvas and from neighbouring nodes.
+	const column = await screenBox(actionsColumn(LEAF), "the leaf's chip column");
+	const probe = { x: column.x + column.width + ZONE_MARGIN_PROBE_PX, y: column.y + column.height / 2 };
+	await page.mouse.move(probe.x, probe.y);
+	expect(await classesHitAt(probe)).not.toContain("vicinity-graph-node-hover-zone");
 });
 
 // LAST on purpose: it leaves the gear menu open, and nothing after it has to
