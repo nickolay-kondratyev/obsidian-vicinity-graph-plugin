@@ -1,10 +1,11 @@
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import { ObsidianHarness } from "./obsidianHarness";
+import { nodeChip } from "./nodeChips";
 
 /**
  * Per-node CONTENT override e2e (ticket nid_9hx6okamx3yt0rg9iad2f4151_e): the
- * hover gear at a node's top-right opens a small menu whose Content row
+ * hover gear in a node's side rail opens a small menu whose Content row
  * [Inherit | Title only | Outline | Image] overrides that ONE doc globally.
  * Asserted end-to-end, against a REAL Obsidian:
  * - the gear opens a native menu offering every content choice;
@@ -61,7 +62,7 @@ function noteNode(path: string): Locator {
 /** Opens the gear menu for a node: hover to reveal the chip, then click it. */
 async function openGearMenu(path: string): Promise<void> {
 	await noteNode(path).hover();
-	await noteNode(path).locator("button.vicinity-graph-gear-button").click();
+	await nodeChip(noteNode(path), "button.vicinity-graph-gear-button").click();
 }
 
 /** Opens the gear menu and chooses one content option by its label. */

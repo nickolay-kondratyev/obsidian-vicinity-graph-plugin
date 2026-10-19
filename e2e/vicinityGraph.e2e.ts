@@ -5,6 +5,7 @@ import { buttonChromeVsDeclared } from "./buttonChrome";
 import { hiddenOverlayText, linkCountBadgeText, orphanBreakdownTitle, plusNText } from "../src/view/badgeText";
 import { attachmentGroupLabel } from "../src/view/attachmentIcons";
 import { ObsidianHarness } from "./obsidianHarness";
+import { nodeChip } from "./nodeChips";
 import type { E2eObsidianApp } from "./obsidianInternals";
 
 /**
@@ -174,7 +175,7 @@ test("attachment chips keep their flat chip chrome, not Obsidian's raised-button
 });
 
 test("the pin button keeps its declared chip chrome, not Obsidian's raised-button chrome", async () => {
-	const pin = noteNode(ALPHA_PATH).locator("button.vicinity-graph-pin-button");
+	const pin = nodeChip(noteNode(ALPHA_PATH), "button.vicinity-graph-pin-button");
 	const chrome = await buttonChromeVsDeclared(pin, {
 		background: "var(--background-primary)",
 		boxShadow: "var(--shadow-s)",
@@ -182,10 +183,10 @@ test("the pin button keeps its declared chip chrome, not Obsidian's raised-butto
 	expect(chrome.actual).toEqual(chrome.declared);
 });
 
-// The pin chip's two size rungs and the centre-clearance band that withholds it
-// are covered in e2e/nodeResize.e2e.ts, where a stored size override renders the
-// node at a chosen box through the REAL rebuild — and where the assertion is the
-// invariant itself (the node still opens on click), not a computed style.
+// The pin chip's one-size-everywhere rule on small nodes is covered in
+// e2e/nodeResize.e2e.ts, where a stored size override renders the node at a chosen
+// box through the REAL rebuild; the side rail's placement and hover travel are
+// covered in e2e/nodeChipRail.e2e.ts.
 
 test("stepper buttons render flat inside their control pill, not as Obsidian buttons", async () => {
 	// Computed style resolves regardless of the toolbar disclosure's open state.
@@ -352,8 +353,8 @@ for (const theme of ["dark", "light"] as const) {
 // test). They run on the ALPHA graph, NOT note1's: alpha has only 3 nodes, so
 // each renders at a comfortable size and the fitted zoom stays near 1, which
 // keeps the click target physically large in a headless window. That the open
-// click ALSO survives on the smallest nodes — where the hover-revealed pin chip
-// shares the box with the node body — is asserted in e2e/nodeResize.e2e.ts
+// click ALSO survives on the smallest nodes — with the hover-revealed side rail
+// right beside the node body — is asserted in e2e/nodeResize.e2e.ts
 // (ticket nid_tclb98q9hxhmcuonamvr4ig1f_e), not here.
 
 const activeFilePath = () =>

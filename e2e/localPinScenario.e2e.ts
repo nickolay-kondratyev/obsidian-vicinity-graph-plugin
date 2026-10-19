@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import { ObsidianHarness } from "./obsidianHarness";
+import { nodeChip } from "./nodeChips";
 
 /**
  * LOCAL PINNING headline scenario, driven end-to-end through the real controls UI
@@ -28,13 +29,11 @@ import { ObsidianHarness } from "./obsidianHarness";
  * carries a seeded `id` (stable-ids-for-obsidian's frontmatter key): a note can only be pinned
  * once it has a stable docid, and seeding models the normal steady state.
  *
- * Each also carries a DESCRIPTIVE frontmatter `title` — deliberately, not for show. Node
- * WIDTH hugs the title, and the LOCAL-pin chip is the LEFTMOST of three hover chips, so it
- * only sits INSIDE the node once the node is wide enough to hold all three (the narrow-node
- * clipping edge in docs-internal/tickets/ticket-pin-offset-centre-clearance.md). A bare
- * filename title like `lp_a` sizes the node so narrow that the chip's centre spills past the
- * node's left edge onto the pane, where a real click cannot land. The `[[lp_a]]` wikilinks
- * still resolve by FILENAME, so the titles change the rendered width only, never the graph.
+ * Each also carries a DESCRIPTIVE frontmatter `title`, which keeps the nodes comfortably
+ * wide and the fitted zoom stable. (It was once load-bearing: the chips used to sit INSIDE
+ * the node, and a bare `lp_a` title sized it too narrow to hold them; they now sit in the
+ * side rail beside it.) The `[[lp_a]]` wikilinks still resolve by FILENAME, so the titles
+ * change the rendered width only, never the graph.
  */
 
 test.describe.configure({ mode: "serial" });
@@ -76,7 +75,7 @@ function noteNode(path: string): Locator {
 async function clickLocalPin(path: string): Promise<void> {
 	const node = noteNode(path);
 	await node.hover();
-	await node.locator(".vicinity-graph-local-pin-button").click();
+	await nodeChip(node, ".vicinity-graph-local-pin-button").click();
 }
 
 test("a locally pinned neighbor becomes central, stays central once disconnected, and is scoped to its main", async () => {
@@ -89,7 +88,7 @@ test("a locally pinned neighbor becomes central, stays central once disconnected
 	await expect(noteNode(B)).toHaveCount(0);
 
 	// MAIN itself offers NO local pin (a note cannot be pinned under itself, decision Q4).
-	await expect(noteNode(HUB).locator(".vicinity-graph-local-pin-button")).toHaveCount(0);
+	await expect(nodeChip(noteNode(HUB), ".vicinity-graph-local-pin-button")).toHaveCount(0);
 
 	// (1) Locally pin lp_a → it becomes a pinned central under this main. As a central it
 	// now traverses at the pinned depth, pulling its own out-neighbor lp_b into view.
@@ -97,12 +96,12 @@ test("a locally pinned neighbor becomes central, stays central once disconnected
 	await expect(noteNode(A)).toHaveAttribute("data-tier", "pinned-central");
 	// The chip is an aria-pressed TOGGLE with a CONSTANT name; the pin state lives in
 	// aria-pressed and the flipping tooltip (title) is the visible hover hint.
-	await expect(noteNode(A).locator(".vicinity-graph-local-pin-button")).toHaveAttribute(
+	await expect(nodeChip(noteNode(A), ".vicinity-graph-local-pin-button")).toHaveAttribute(
 		"aria-label",
 		"Pin for this note",
 	);
-	await expect(noteNode(A).locator(".vicinity-graph-local-pin-button")).toHaveAttribute("aria-pressed", "true");
-	await expect(noteNode(A).locator(".vicinity-graph-local-pin-button")).toHaveAttribute(
+	await expect(nodeChip(noteNode(A), ".vicinity-graph-local-pin-button")).toHaveAttribute("aria-pressed", "true");
+	await expect(nodeChip(noteNode(A), ".vicinity-graph-local-pin-button")).toHaveAttribute(
 		"title",
 		"Unpin for this note",
 	);
@@ -152,12 +151,12 @@ test("a local pin survives a real Obsidian restart", async () => {
 	// assertion, no polling out the orphan sweep.
 	await expect(noteNode(B)).toHaveAttribute("data-tier", "pinned-central");
 	// Constant toggle name survives the restart; the engaged state is aria-pressed.
-	await expect(noteNode(B).locator(".vicinity-graph-local-pin-button")).toHaveAttribute(
+	await expect(nodeChip(noteNode(B), ".vicinity-graph-local-pin-button")).toHaveAttribute(
 		"aria-label",
 		"Pin for this note",
 	);
-	await expect(noteNode(B).locator(".vicinity-graph-local-pin-button")).toHaveAttribute("aria-pressed", "true");
-	await expect(noteNode(B).locator(".vicinity-graph-local-pin-button")).toHaveAttribute(
+	await expect(nodeChip(noteNode(B), ".vicinity-graph-local-pin-button")).toHaveAttribute("aria-pressed", "true");
+	await expect(nodeChip(noteNode(B), ".vicinity-graph-local-pin-button")).toHaveAttribute(
 		"title",
 		"Unpin for this note",
 	);

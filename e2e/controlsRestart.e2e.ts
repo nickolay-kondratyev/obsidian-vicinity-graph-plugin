@@ -3,6 +3,7 @@ import type { Locator, Page } from "@playwright/test";
 import { ATTACHMENT_ROW_REVEAL_CONTENT_BOX_PX } from "../src/engine";
 import { nodeContentBoxHeightPx } from "./nodeContentBox";
 import { ObsidianHarness } from "./obsidianHarness";
+import { nodeChip } from "./nodeChips";
 
 /**
  * Step-06 RESTART round-trip (QA §1/§6/§11/§13) — the step's hard exit criterion
@@ -118,7 +119,7 @@ async function ensureOpen(details: Locator): Promise<void> {
 async function clickPin(path: string): Promise<void> {
 	const node = noteNode(path);
 	await node.hover();
-	await node.locator(".vicinity-graph-pin-button").click();
+	await nodeChip(node, ".vicinity-graph-pin-button").click();
 }
 
 /**

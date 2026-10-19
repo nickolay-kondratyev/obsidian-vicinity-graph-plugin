@@ -40,6 +40,15 @@ const CHILD_NOTE_ICON_ID = "file-plus-2";
 const CONTENT_MENU_SECTION = "content";
 const SIZE_MENU_SECTION = "size";
 
+/**
+ * Swallows a click on the hover zone's own body (its margin, the gaps between
+ * chips): the zone is part of the React Flow node wrapper, whose click opens the
+ * note — a near-miss of a chip must not.
+ */
+function stopZoneClick(event: ReactMouseEvent<HTMLDivElement>): void {
+	event.stopPropagation();
+}
+
 export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>): ReactElement {
 	const ui = useGraphUi();
 	const actions = useControlsActions();
@@ -204,6 +213,44 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
 				onResizeEnd={onResizeEnd}
 			/>
 			<NodeResizeControl position="bottom-right" {...NODE_RESIZE_BOUNDS} onResizeEnd={onResizeEnd} />
+			{/* The hover side rail: the chips sit OUTSIDE the node box, in one column
+			    down its right side, so on a small node they never cover the note
+			    (graph-view.css, "hover side rail"). A SIBLING of `.vicinity-graph-node`
+			    for the same clipping reason as the grips above. The zone is an
+			    invisible hover area spanning the node AND the column (plus a margin):
+			    a DOM descendant of the React Flow wrapper, so while the pointer is
+			    anywhere inside it the wrapper stays `:hover` and the chips stay
+			    revealed on the way from the node to them. It comes BEFORE the node
+			    box so the node paints and hit-tests ABOVE it where the two overlap.
+			    Its click is stopped so a stray click in the margin or between chips
+			    neither opens the note (RF wrapper onClick) nor, via `nodrag nopan`,
+			    starts a drag or pan; right-click opens the node's menu, as it did when
+			    the chips lived inside the node. */}
+			<div
+				className="vicinity-graph-node-hover-zone nodrag nopan"
+				onClick={stopZoneClick}
+				onContextMenu={onContextMenu}
+			>
+				<div className="vicinity-graph-node-actions">
+					<PinButton
+						action={pinAction}
+						pressed={data.isGloballyPinned}
+						onActivate={runPinAction}
+						variantClassName="vicinity-graph-pin-button"
+					/>
+					{offersLocalPin && (
+						<PinButton
+							action={localPinAction}
+							pressed={data.isLocallyPinned}
+							onActivate={runLocalPinAction}
+							variantClassName="vicinity-graph-local-pin-button"
+						/>
+					)}
+					<GearButton onActivate={onGearClick} />
+					{/* Present ONLY on a MAIN folder note whose owned folder exists. */}
+					{data.offersChildNoteCreation && <ChildNoteButton onActivate={runCreateChildNote} />}
+				</div>
+			</div>
 			<div
 				className="vicinity-graph-node"
 				data-tier={data.tier}
@@ -217,26 +264,6 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
 				data-preview={data.preview}
 				onContextMenu={onContextMenu}
 			>
-				{offersLocalPin && (
-					<PinButton
-						action={localPinAction}
-						pressed={data.isLocallyPinned}
-						onActivate={runLocalPinAction}
-						variantClassName="vicinity-graph-local-pin-button"
-					/>
-				)}
-				<PinButton
-					action={pinAction}
-					pressed={data.isGloballyPinned}
-					onActivate={runPinAction}
-					variantClassName="vicinity-graph-pin-button"
-				/>
-				<GearButton onActivate={onGearClick} />
-				{/* The create-child-note chip: bottom-right, present ONLY on a MAIN folder
-				    note whose owned folder exists (data.offersChildNoteCreation). Its own
-				    corner (pin/gear own the top), so it never fights their clicks; CSS
-				    clears the bottom/right resize grips and the attachment strip. */}
-				{data.offersChildNoteCreation && <ChildNoteButton onActivate={runCreateChildNote} />}
 				{/* Read-only graph: handles exist only as edge anchors (top target /
 				    bottom source matches the elk DOWN direction) and are hidden in CSS. */}
 				<Handle type="target" position={Position.Top} className="vicinity-graph-node__handle" />
@@ -274,18 +301,18 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
 });
 
 /**
- * Hover-reveal pin/unpin button. Two of these ride the node's top-RIGHT corner: the
- * GLOBAL pin just left of the gear, and — off the MAIN — the LOCAL pin one chip
- * further left, so the row reads LOCAL GLOBAL GEAR. `variantClassName` is the ONLY
- * difference between the two instances: it carries the per-chip horizontal placement
- * (`vicinity-graph-pin-button` / `vicinity-graph-local-pin-button`); everything else —
+ * Hover-reveal pin/unpin button. Two of these ride the side rail's column: the
+ * GLOBAL pin on top and — off the MAIN — the LOCAL pin right below it, then the
+ * gear. `variantClassName` is the ONLY difference between the two instances: it
+ * names which pin a chip is (`vicinity-graph-pin-button` /
+ * `vicinity-graph-local-pin-button`) for tests and styling hooks; everything else —
  * chrome, hover reveal, icon — is the shared chip. Hidden until the node is hovered
  * (CSS), a `nodrag nopan` escape hatch so the click never starts a node drag or canvas
  * pan. Its click carries the same shared pin decision as the matching context entry.
  *
  * A TOGGLE, not a plain button: the glyph is the action's constant `chipIconId` and
  * the pinned state is `aria-pressed` — CSS renders a pressed chip as pushed INTO the
- * node (see `.vicinity-graph-node-chip[aria-pressed="true"]`), so hovering shows at
+ * page (see `.vicinity-graph-node-chip[aria-pressed="true"]`), so hovering shows at
  * a glance which pin kinds are engaged.
  *
  * `aria-label` is the action's CONSTANT `chipLabel`, not the flipping `title`: an
@@ -332,11 +359,10 @@ function PinButton({
 }
 
 /**
- * Hover-reveal gear button (top-right corner of the node — the conventional
- * settings corner; the pin sits just to its left and the resize grips own the
- * bottom/right edges, so nothing here fights for the same clicks). Hidden until the node is hovered
- * (CSS), a `nodrag nopan` escape hatch so the click never starts a node drag or
- * canvas pan. Its click opens the per-node content/size menu at the cursor.
+ * Hover-reveal gear button, in the side rail's column below the pins. Hidden until
+ * the node is hovered (CSS), a `nodrag nopan` escape hatch so the click never starts
+ * a node drag or canvas pan. Its click opens the per-node content/size menu at the
+ * cursor.
  */
 function GearButton({
 	onActivate,
@@ -364,11 +390,10 @@ function GearButton({
 }
 
 /**
- * Hover-reveal create-child-note chip — the BOTTOM-right corner (its own corner: the
- * pin/gear own the top-right, the resize grips own the bottom/right edges, so nothing
- * here fights for the same clicks). Present only on a MAIN folder note whose owned
- * folder exists (gated by the caller). Hidden until the node is hovered (CSS), a
- * `nodrag nopan` escape hatch so the click never starts a node drag or canvas pan.
+ * Hover-reveal create-child-note chip — the LAST chip of the side rail's column.
+ * Present only on a MAIN folder note whose owned folder exists (gated by the
+ * caller). Hidden until the node is hovered (CSS), a `nodrag nopan` escape hatch
+ * so the click never starts a node drag or canvas pan.
  * A plain button, not a toggle: one action, no pressed state. Its click creates an
  * empty child inside the owned folder and opens it.
  */

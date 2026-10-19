@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import { ObsidianHarness } from "./obsidianHarness";
+import { nodeChip } from "./nodeChips";
 import type { E2eObsidianApp } from "./obsidianInternals";
 
 /**
@@ -69,14 +70,14 @@ test("the MAIN folder note shows the chip; clicking it creates and opens an empt
 	// folder exists), never on the plain child neighbor.
 	await expect(noteNode(MAIN)).toHaveAttribute("data-tier", "main");
 	await noteNode(MAIN).hover();
-	await expect(noteNode(MAIN).locator(".vicinity-graph-child-note-button")).toHaveCount(1);
-	await expect(noteNode("Jon/child.md").locator(".vicinity-graph-child-note-button")).toHaveCount(0);
+	await expect(nodeChip(noteNode(MAIN), ".vicinity-graph-child-note-button")).toHaveCount(1);
+	await expect(nodeChip(noteNode("Jon/child.md"), ".vicinity-graph-child-note-button")).toHaveCount(0);
 
 	// The child does not exist yet.
 	expect(await fileExists(EXPECTED_CHILD)).toBe(false);
 
 	// WHEN the chip is clicked.
-	await noteNode(MAIN).locator(".vicinity-graph-child-note-button").click();
+	await nodeChip(noteNode(MAIN), ".vicinity-graph-child-note-button").click();
 
 	// THEN an empty `Jon/Untitled.md` was created inside the owned folder AND opened.
 	await expect.poll(() => fileExists(EXPECTED_CHILD)).toBe(true);
