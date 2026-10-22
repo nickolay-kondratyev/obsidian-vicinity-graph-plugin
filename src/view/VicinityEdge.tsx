@@ -15,8 +15,10 @@ import type { RoutedPoint } from "./edgeRouting";
 /**
  * Directed graph edge (step-05): straight line with an arrowhead normally;
  * when the reverse edge is also rendered (A↔B pair) both bow right of their
- * own travel direction and mirror apart (see `edgeGeometry`). Collapsed
- * multi-links show a "×N" badge at the path midpoint.
+ * own travel direction and mirror apart (see `edgeGeometry`). ONE midpoint pill
+ * carries the per-pair facts that have one ("collapse, don't multiply"): the
+ * named-link relation (`uses::[[x]]` → "uses") and/or the collapsed multi-link
+ * "×N" count; no pill at all when neither exists.
  *
  * The arrowhead is a self-drawn triangle inset back from the target (not React
  * Flow's `marker-end`, which can only sit at the path end): heads on edges
@@ -37,6 +39,8 @@ export type VicinityEdgeData = {
 	 * the pass succeeded. NOT consumed by rendering yet (ticket edge-routing__02).
 	 */
 	readonly routedPoints?: readonly RoutedPoint[];
+	/** Named-link relation label (see {@link FlowEdge.relation}); absent = no named link. */
+	readonly relation?: string;
 };
 
 export type VicinityEdgeType = Edge<VicinityEdgeData, "vicinity">;
@@ -97,6 +101,7 @@ export function VicinityEdge({
 					data?.hasOpposite ?? false,
 				);
 	const badge = linkCountBadgeText(data?.count ?? 1);
+	const relation = data?.relation;
 	// Triangle authored tip-at-origin pointing +x, then translated to the tip
 	// and rotated to the edge's arrival angle.
 	const arrowPoints = `0,0 ${-ARROWHEAD_LENGTH_PX},${-ARROWHEAD_HALF_WIDTH_PX} ${-ARROWHEAD_LENGTH_PX},${ARROWHEAD_HALF_WIDTH_PX}`;
@@ -115,16 +120,24 @@ export function VicinityEdge({
 					transform={`translate(${geometry.sourceArrowX} ${geometry.sourceArrowY}) rotate(${geometry.sourceArrowAngleDeg})`}
 				/>
 			)}
-			{badge !== null && (
+			{(relation !== undefined || badge !== null) && (
 				<EdgeLabelRenderer>
 					<span
-						className="vicinity-graph-edge__count-badge"
-						data-count={data?.count}
+						className="vicinity-graph-edge__midpoint-label"
 						style={{
 							transform: `translate(-50%, -50%) translate(${geometry.labelX}px, ${geometry.labelY}px)`,
 						}}
 					>
-						{badge}
+						{relation !== undefined && (
+							<span className="vicinity-graph-edge__relation">
+								{relation}
+							</span>
+						)}
+						{badge !== null && (
+							<span className="vicinity-graph-edge__count-badge" data-count={data?.count}>
+								{badge}
+							</span>
+						)}
 					</span>
 				</EdgeLabelRenderer>
 			)}

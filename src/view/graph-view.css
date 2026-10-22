@@ -736,25 +736,45 @@
 /* ===== edges ============================================================ */
 
 /*
- * Collapsed multi-link "×N" badge, rendered inside React Flow's
- * EdgeLabelRenderer overlay (absolute canvas space) at the edge midpoint.
+ * Edge midpoint pill, rendered inside React Flow's EdgeLabelRenderer overlay
+ * (absolute canvas space). ONE pill carries the named-link relation label and/or
+ * the collapsed multi-link "×N" count ("collapse, don't multiply").
  * Smoke-run restyle (2026-07-20): the original bordered chip read as cluttered
  * floating over the canvas. Softened to a borderless pill — a solid
- * --background-primary fill still occludes the edge line behind the digits for
+ * --background-primary fill still occludes the edge line behind the text for
  * legibility, a full --radius-l pill + faint --shadow-s make it read as a light
- * floating token instead of a boxed label, and --text-muted keeps the count
- * quiet next to the node titles (all theme vars — zero own colors).
+ * floating token instead of a boxed label (all theme vars — zero own colors).
  */
-.vicinity-graph-edge__count-badge {
+.vicinity-graph-edge__midpoint-label {
 	position: absolute;
+	display: flex;
+	align-items: baseline;
+	gap: var(--size-2-1);
 	pointer-events: none;
 	padding: 0 var(--size-4-1);
 	font-size: var(--font-smallest);
 	line-height: 1.5;
-	color: var(--text-muted);
 	background: var(--background-primary);
 	border-radius: var(--radius-l);
 	box-shadow: var(--shadow-s);
+}
+
+/*
+ * The relation reads like body text (--text-normal) — it IS content the user
+ * wrote — while the count stays quiet (--text-muted) next to the node titles.
+ * Single line, clipped: a runaway name must not become a banner across the graph.
+ */
+.vicinity-graph-edge__relation {
+	--vicinity-edge-relation-max-width: 16em;
+	max-width: var(--vicinity-edge-relation-max-width);
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	color: var(--text-normal);
+}
+
+.vicinity-graph-edge__count-badge {
+	color: var(--text-muted);
 }
 
 /* ===== corner overlay badge ============================================= */

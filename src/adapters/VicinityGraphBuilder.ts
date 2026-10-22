@@ -7,6 +7,7 @@ import { ControlsModelBuilder } from "../view/ControlsModel";
 import type { FlowPinFacts } from "../view/flowMapping";
 import type { GraphBuildResult } from "../view/viewPorts";
 import type { CanvasParseCache } from "./CanvasParseCache";
+import { EdgeRelationLabeler } from "./EdgeRelationLabeler";
 import type { FolderNoteIndex } from "./FolderNoteIndex";
 import type { FrontmatterIdIndex } from "./FrontmatterIdIndex";
 import type { GraphRequestInputs } from "./GraphRequestAssembler";
@@ -101,7 +102,11 @@ export class VicinityGraphBuilder {
 			nodeExclusion: this.pluginDataStore.nodeExclusion(),
 			frontmatterLinks: this.pluginDataStore.frontmatterLinks(),
 		};
-		const graph = new VicinityEngine(provider).build(GraphRequestAssembler.assemble(inputs));
+		const built = new VicinityEngine(provider).build(GraphRequestAssembler.assemble(inputs));
+		// Named-link labels are a post-engine, text-reading pass over the kept edges'
+		// sources only (see EdgeRelationLabeler) — the engine stays synchronous and pure.
+		const labeler = new EdgeRelationLabeler(this.vault, this.metadataCache);
+		const graph = { ...built, edges: await labeler.label(built.edges) };
 		// The two pin docid sets are derived from the SAME inputs the graph used, so
 		// the per-node global/local flags cannot disagree with the merged root list.
 		const pinFacts: FlowPinFacts = {

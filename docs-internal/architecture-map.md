@@ -21,6 +21,11 @@ view  ──▶  adapters  ──▶  engine  (pure core)
 - **`src/adapters/`** — bridges Obsidian ↔ engine. `ObsidianLinkProvider`
   (resolvedLinks + backlinks), the canvas parser (run for EVERY canvas),
   `VicinityGraphBuilder` (per-rebuild orchestration), docid ↔ path translation.
+  `EdgeRelationLabeler` is the POST-engine named-link pass (`uses::[[x]]` →
+  `GraphEdge.relation`): it `cachedRead`s only the sources of the edges the
+  build kept (bounded by the visible graph, never the vault) and walks the
+  body links in `ReferenceOrder` (embeds and frontmatter links dropped); the text rule itself is the pure
+  `src/shared/NamedLinks.ts`. The engine never sets `relation`.
   `FolderNoteIndex` (`FolderNoteIndex.ts`) is the folder-note hierarchy cache
   (plan `nid_ri1d36t7hmhu0kr652wny1dmz_e`): built from `vault.getFiles()` PATHS
   ONLY — never a file read — it holds ZERO resolution knowledge, delegating to

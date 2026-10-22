@@ -166,6 +166,26 @@ leave the field, not per keystroke. Every section has its own *Restore defaults*
 row, and **Restore all Vicinity Graph settings** at the bottom resets everything
 — **your pinned notes are never touched by any of them**.
 
+## Named links
+
+Give a link a relation name by gluing `name::` to it, and the graph shows that
+name on the connector:
+
+```md
+uses::[[TCP]]
+greatly-improves::[[Caching]]
+```
+
+- The name is the run of letters, digits, `_` and `-` directly before `::[[`. A
+  space ends it: `greatly improves::[[Caching]]` labels the connector
+  `improves`, and `uses:: [[TCP]]` (space after `::`) labels nothing.
+- Only plain `[[wikilinks]]` in the note body take a name — not embeds
+  (`![[…]]`), markdown links or frontmatter links. `[[Note|alias]]` and
+  `[[Note#Heading]]` work.
+- One label per connector: the first named link to that note (in document
+  order) wins; unnamed links to the same note never hide it. A connector into a
+  folder box shows the first label among the links it bundles.
+
 ## Scope & limits
 
 - **Local graph only** — no global graph, and no unresolved (ghost) links.
