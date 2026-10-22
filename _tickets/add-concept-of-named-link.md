@@ -63,7 +63,7 @@ greatly improves::[[note2]] -> label would be note1-'improves'->note2
 Built as specified above (commit `6059a2c`, "Named links: …").
 
 - **Text rule** — `src/shared/NamedLinks.ts` (`NamedLinks.relationAt(text, linkOffset)`): pure,
-  regex `/([\p{L}\p{N}_-]+)::$/u` over the same-line prefix of a link that starts with `[[`.
+  regex `/([\p{L}\p{M}\p{N}_-]+)::$/u` over the same-line prefix of a link that starts with `[[`.
   CRLF-safe. Tests: `NamedLinks.test.ts`.
 - **Post-engine pass** — `src/adapters/EdgeRelationLabeler.ts`, called in
   `VicinityGraphBuilder.build()` right after `VicinityEngine.build`. Reads (`cachedRead`) only the

@@ -54,6 +54,10 @@ describe("NamedLinks.relationAt", () => {
 		expect(relationIn("использует::[[TCP]]")).toBe("использует");
 	});
 
+	it("WHEN the name's script uses combining marks (Devanagari vowel signs) THEN the whole word is the relation", () => {
+		expect(relationIn("उपयोग::[[TCP]]")).toBe("उपयोग");
+	});
+
 	it("WHEN the named link opens a new line THEN the previous line is not consulted", () => {
 		expect(relationIn("first line\nuses::[[TCP]]")).toBe("uses");
 	});

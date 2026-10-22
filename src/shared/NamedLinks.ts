@@ -12,12 +12,14 @@
 /**
  * The relation name: the MAXIMAL run of Unicode letters / digits / `_` / `-` glued
  * to `::` at the very end of the text before the link — `$` anchors it to the
- * line prefix, `\p{L}\p{N}` (the `u` flag) admits non-ASCII names. Whitespace or
+ * line prefix, `\p{L}\p{N}` (the `u` flag) admits non-ASCII names, and `\p{M}`
+ * keeps a letter's combining marks (Devanagari/Thai vowel signs, NFD accents)
+ * inside the word instead of cutting the name at the last mark. Whitespace or
  * any other character ends the run, so `greatly improves::[[x]]` names `improves`
  * and `**x**::[[x]]` names nothing (`*` is not a name character and nothing
  * follows it before `::`).
  */
-const RELATION_BEFORE_LINK_PATTERN = /([\p{L}\p{N}_-]+)::$/u;
+const RELATION_BEFORE_LINK_PATTERN = /([\p{L}\p{M}\p{N}_-]+)::$/u;
 
 const WIKILINK_OPENER = "[[";
 const LINE_BREAK = "\n";
