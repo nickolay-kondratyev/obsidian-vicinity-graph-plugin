@@ -1,6 +1,7 @@
 import type { GraphEdge, VaultPath } from "../engine";
 import { FileKinds } from "../shared/FileKinds";
 import { NamedLinks } from "../shared/NamedLinks";
+import { Wikilinks } from "../shared/Wikilinks";
 import type { MetadataCachePort, VaultPort } from "./obsidianPorts";
 import { ReferenceOrder } from "./ReferenceOrder";
 
@@ -67,7 +68,9 @@ export class EdgeRelationLabeler {
 			if (relation === undefined) {
 				continue;
 			}
-			const target = this.metadataCache.getFirstLinkpathDest(link.link, source)?.path;
+			// The cached link text keeps a `#heading`/`#^block` subpath, which
+			// `getFirstLinkpathDest` does not resolve — only the bare target does.
+			const target = this.metadataCache.getFirstLinkpathDest(Wikilinks.partsOf(link.link).target, source)?.path;
 			if (target !== undefined && !relations.has(target)) {
 				relations.set(target, relation);
 			}

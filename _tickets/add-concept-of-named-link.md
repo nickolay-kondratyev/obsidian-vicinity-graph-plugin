@@ -6,7 +6,7 @@ id: nid_wu4gfieqps2uw9l8f4wab1abq_e
 title: "Add concept of named link"
 status: closed
 deps: []
-links: []
+links: [nid_kfk1vkf9marllfnnmqybgcdh1_e]
 created_iso: 2026-10-22T16:08:49Z
 status_updated_iso: 2026-10-22T16:25:40Z
 type: task
@@ -86,3 +86,6 @@ Built as specified above (commit `6059a2c`, "Named links: …").
 - **Known limits** — the `name::` text still shows verbatim in the note and in the link-preview
   drawer's context rows (not stripped). If a label is edited but nothing structural changes, the
   graph only updates after the next metadata-driven rebuild (same as count badges).
+  A `name::[[t#heading]]` link is labelled by the labeler, but today the edge itself only exists
+  if `t` is reached some other way: outgoing subpath links are dropped by the link provider
+  (pre-existing, ticket `nid_kfk1vkf9marllfnnmqybgcdh1_e`).

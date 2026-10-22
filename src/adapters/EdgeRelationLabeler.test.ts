@@ -21,12 +21,14 @@ function hierarchyEdge(source: string, target: string): GraphEdge {
 /**
  * The cache a real Obsidian would build for `content`: every plain `[[x]]` lands
  * in `links` at its offset, every `![[x]]` in `embeds` (offset at the `!`). Link
- * text is the bare target name (resolved by {@link FakeObsidianPorts.resolutions}).
+ * text is what Obsidian stores — the inner text minus any `|alias`, so a
+ * `#subpath` stays on it (only the bare name resolves, via
+ * {@link FakeObsidianPorts.resolutions}).
  */
 function cacheFor(content: string): CachedMetadataPort {
 	const links: ReferencePort[] = [];
 	const embeds: ReferencePort[] = [];
-	for (const match of content.matchAll(/!?\[\[([^\]]+)\]\]/gu)) {
+	for (const match of content.matchAll(/!?\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/gu)) {
 		const reference = { link: match[1] ?? "", position: { start: { offset: match.index } } };
 		(match[0].startsWith("!") ? embeds : links).push(reference);
 	}
@@ -56,6 +58,10 @@ async function relationOf(content: string, edge = linkEdge(SOURCE, TARGET)): Pro
 describe("EdgeRelationLabeler", () => {
 	it("WHEN the source names its link THEN the edge carries that relation", async () => {
 		expect(await relationOf("uses::[[target]]")).toBe("uses");
+	});
+
+	it("WHEN the named link carries a #subpath and an alias THEN the edge still carries the relation", async () => {
+		expect(await relationOf("uses::[[target#Section|that section]]")).toBe("uses");
 	});
 
 	it("WHEN the link is unlabelled THEN the edge carries no relation", async () => {
