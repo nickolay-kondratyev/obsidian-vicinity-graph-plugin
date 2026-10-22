@@ -1,11 +1,12 @@
 ---
+working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_wu4gfieqps2uw9l8f4wab1abq_e
 title: "Add concept of named link"
-status: open
+status: in_progress
 deps: []
 links: []
 created_iso: 2026-10-22T16:08:49Z
-status_updated_iso: 2026-10-22T16:08:49Z
+status_updated_iso: 2026-10-22T16:11:48Z
 type: task
 priority: 3
 assignee: nickolaykondratyev
