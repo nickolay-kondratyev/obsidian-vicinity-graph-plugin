@@ -89,3 +89,9 @@ Built as specified above (commit `6059a2c`, "Named links: …").
   A `name::[[t#heading]]` link is labelled by the labeler, but today the edge itself only exists
   if `t` is reached some other way: outgoing subpath links are dropped by the link provider
   (pre-existing, ticket `nid_kfk1vkf9marllfnnmqybgcdh1_e`).
+
+## Notes
+
+**2026-10-22T16:31:17Z**
+
+__REVIEW_AGAIN__: fixed subpath-link labelling (380d26f, verified on real Obsidian); first review round, and named-link-with-subpath e2e still blocked on pre-existing provider bug nid_kfk1vkf9marllfnnmqybgcdh1_e
