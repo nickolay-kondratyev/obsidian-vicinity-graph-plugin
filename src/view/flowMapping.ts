@@ -237,6 +237,13 @@ export interface FlowEdge {
 	 * documented pass-level failure fallback, where edges render straight).
 	 */
 	readonly routedPoints?: readonly RoutedPoint[];
+	/**
+	 * The named-link relation shown in the edge's midpoint pill
+	 * ({@link import("../engine").GraphEdge.relation}). A passthrough edge copies its
+	 * pair's; a group-collapsed edge takes the FIRST contributing pair's defined
+	 * relation (first-seen engine order — the same KISS "first wins" rule as per pair).
+	 */
+	readonly relation?: string;
 }
 
 export interface FlowGraph {
@@ -376,6 +383,8 @@ interface CollapsedEdgeAccumulator {
 	hierarchy: boolean;
 	/** Contributing engine note→note pairs, in first-seen order. */
 	readonly notePairs: EdgeNotePair[];
+	/** The first contributing pair's defined relation; stays undefined until one contributes. */
+	relation: string | undefined;
 }
 
 /** Separator that cannot occur in a vault path or folder-group id — a collision-proof delimiter. */
@@ -425,6 +434,7 @@ function buildFlowEdges(graph: VicinityGraph, grouping: FolderGroupingResult): F
 				hierarchy: edge.hierarchy,
 				hasOpposite: renderedEdgeIds.has(edgeIdOf({ source: edge.target, target: edge.source })),
 				bidirectional: false,
+				...(edge.relation === undefined ? {} : { relation: edge.relation }),
 			});
 			continue;
 		}
@@ -441,6 +451,7 @@ function buildFlowEdges(graph: VicinityGraph, grouping: FolderGroupingResult): F
 			hierarchy: pair.hierarchy,
 			hasOpposite: false,
 			bidirectional: pair.forwardSeen && pair.backwardSeen,
+			...(pair.relation === undefined ? {} : { relation: pair.relation }),
 		}),
 	);
 	return [...passthrough, ...collapsed];
@@ -473,6 +484,7 @@ function accumulateCollapsedEdge(
 			kind: edge.kind,
 			hierarchy: edge.hierarchy,
 			notePairs: [{ source: edge.source, target: edge.target, hierarchy: edge.hierarchy }],
+			relation: edge.relation,
 		});
 		return;
 	}
@@ -480,6 +492,7 @@ function accumulateCollapsedEdge(
 	existing.kind = mergeEdgeKinds(existing.kind, edge.kind);
 	existing.hierarchy = existing.hierarchy || edge.hierarchy;
 	existing.notePairs.push({ source: edge.source, target: edge.target, hierarchy: edge.hierarchy });
+	existing.relation ??= edge.relation;
 	if (projSource === existing.from && projTarget === existing.to) {
 		existing.forwardSeen = true;
 	} else {

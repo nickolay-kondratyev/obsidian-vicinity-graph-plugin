@@ -308,6 +308,14 @@ export interface GraphEdge extends DirectedLink {
 	 * keeps its link kind. See the type doc for the three rendered states.
 	 */
 	readonly hierarchy: boolean;
+	/**
+	 * The named-link relation label of this pair (`uses::[[target]]` → `"uses"`,
+	 * ticket `nid_wu4gfieqps2uw9l8f4wab1abq_e`): the FIRST labelled link in document
+	 * order; absent = no named link. Attached AFTER the engine build by the adapter
+	 * (`EdgeRelationLabeler`), because it needs the source's file text, which the
+	 * synchronous {@link LinkProvider} cannot read. The engine itself never sets it.
+	 */
+	readonly relation?: string;
 }
 
 /**

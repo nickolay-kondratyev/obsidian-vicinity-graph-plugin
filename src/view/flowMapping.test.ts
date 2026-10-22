@@ -648,6 +648,32 @@ describe("vicinityGraphToFlow edges", () => {
 	});
 });
 
+describe("vicinityGraphToFlow named-link relation", () => {
+	const nodes = [makeNode({ path: asVaultPath("a.md") }), makeNode({ path: asVaultPath("b.md") })];
+
+	it("WHEN a passthrough edge carries a relation THEN the flow edge copies it", () => {
+		const graph = makeGraph({ nodes, edges: [{ ...makeEdge("a.md", "b.md"), relation: "uses" }] });
+		expect(toFlow(graph).edges[0]?.relation).toBe("uses");
+	});
+
+	it("WHEN a passthrough edge has no relation THEN the flow edge has none", () => {
+		const graph = makeGraph({ nodes, edges: [makeEdge("a.md", "b.md")] });
+		expect(toFlow(graph).edges[0]?.relation).toBeUndefined();
+	});
+
+	it("WHEN contributors of a collapsed edge carry relations THEN the first DEFINED one wins", () => {
+		const graph = makeGraph({
+			nodes: collapsedGraph().nodes,
+			edges: [
+				makeEdge("hub.md", "notes/a.md"),
+				{ ...makeEdge("hub.md", "notes/b.md"), relation: "uses" },
+				{ ...makeEdge("notes/a.md", "hub.md"), relation: "extends" },
+			],
+		});
+		expect(toFlow(graph).edges[0]?.relation).toBe("uses");
+	});
+});
+
 /**
  * GIVEN an ungrouped hub linking to two members of the `notes` group. The fan of
  * per-member edges must collapse onto ONE edge to the `folder-group:notes` box.

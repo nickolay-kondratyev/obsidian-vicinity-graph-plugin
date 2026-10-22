@@ -31,11 +31,14 @@ function fakeNoteCreation(existingFolders: readonly string[] = []): NoteCreation
  * End-to-end over fakes: persisted pins + live vault → engine graph. Vault:
  * main.md → a.md (body link), pinned.md is a pinned island.
  */
-async function builderFixture() {
+async function builderFixture(options: { readonly mainContent?: string } = {}) {
+	// The one body link sits at the END of main's text, so a `name::` prefix in
+	// `mainContent` is what the named-link pass sees right before it.
+	const mainContent = options.mainContent ?? "";
 	const ports = new FakeObsidianPorts({
-		files: [{ path: "main.md" }, { path: "a.md" }, { path: "pinned.md" }],
+		files: [{ path: "main.md", content: `${mainContent}[[a]]` }, { path: "a.md" }, { path: "pinned.md" }],
 		fileCaches: {
-			"main.md": { links: [{ link: "a", position: { start: { offset: 0 } } }] },
+			"main.md": { links: [{ link: "a", position: { start: { offset: mainContent.length } } }] },
 		},
 		resolutions: { a: "a.md" },
 		resolvedLinks: { "main.md": { "a.md": 1 } },
@@ -86,6 +89,18 @@ describe("VicinityGraphBuilder", () => {
 		const graph = (await builder.build("main.md"))?.graph;
 		const pinnedNode = graph?.nodes.find((node) => node.path === "pinned.md");
 		expect([pinnedNode?.isCentral, pinnedNode?.isMain]).toEqual([true, false]);
+	});
+
+	it("WHEN main's link is a named link THEN the built edge carries the relation", async () => {
+		const { builder } = await builderFixture({ mainContent: "uses::" });
+		const graph = (await builder.build("main.md"))?.graph;
+		expect(graph?.edges.find((edge) => edge.target === "a.md")?.relation).toBe("uses");
+	});
+
+	it("WHEN main's link is a plain link THEN the built edge carries no relation", async () => {
+		const { builder } = await builderFixture();
+		const graph = (await builder.build("main.md"))?.graph;
+		expect(graph?.edges.find((edge) => edge.target === "a.md")?.relation).toBeUndefined();
 	});
 
 	it("WHEN the main path does not resolve THEN there is no graph (null, no throw)", async () => {

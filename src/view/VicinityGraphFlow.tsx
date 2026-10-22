@@ -452,6 +452,7 @@ function toReactFlowEdge(edge: FlowEdge): Edge {
 			hasOpposite: edge.hasOpposite,
 			bidirectional: edge.bidirectional,
 			...(edge.routedPoints === undefined ? {} : { routedPoints: edge.routedPoints }),
+			...(edge.relation === undefined ? {} : { relation: edge.relation }),
 		},
 	};
 }
