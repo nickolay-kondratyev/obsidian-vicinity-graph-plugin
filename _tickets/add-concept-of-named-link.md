@@ -95,3 +95,7 @@ Built as specified above (commit `6059a2c`, "Named links: …").
 **2026-10-22T16:31:17Z**
 
 __REVIEW_AGAIN__: fixed subpath-link labelling (380d26f, verified on real Obsidian); first review round, and named-link-with-subpath e2e still blocked on pre-existing provider bug nid_kfk1vkf9marllfnnmqybgcdh1_e
+
+**2026-10-22T16:33:26Z**
+
+__READY_AS_IS__: only fix was a one-token regex change so combining marks (Hindi/Thai vowel signs) stay inside a relation name (f7892fb, test-first); check + npm test (2260 passed) green; no other bugs found
