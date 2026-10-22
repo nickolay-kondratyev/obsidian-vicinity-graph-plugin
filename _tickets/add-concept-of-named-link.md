@@ -1,13 +1,14 @@
 ---
+closed_iso: 2026-10-22T16:25:40Z
 session_ids: [{"a": "claude", "type": "execution", "id": "ff4be5e0-028d-4bc7-a937-e48424f6df50"}]
 working_dir: nickolay-kondratyev_obsidian-vicinity-graph-plugin
 id: nid_wu4gfieqps2uw9l8f4wab1abq_e
 title: "Add concept of named link"
-status: in_progress
+status: closed
 deps: []
 links: []
 created_iso: 2026-10-22T16:08:49Z
-status_updated_iso: 2026-10-22T16:11:48Z
+status_updated_iso: 2026-10-22T16:25:40Z
 type: task
 priority: 3
 assignee: nickolaykondratyev
