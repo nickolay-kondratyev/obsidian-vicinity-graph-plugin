@@ -1,3 +1,4 @@
+import { FileKinds } from "../shared/FileKinds";
 import { SETTINGS_SPEC } from "./SettingsSpec";
 // Separate statement: the line above is a VALUE import, and `isolatedModules`
 // needs the type to come across as a type.
@@ -253,12 +254,26 @@ export const NODE_TITLE_LINE_CLAMP = 4;
 export const THUMBNAIL_PREVIEW_TITLE_LINE_CLAMP = 2;
 
 /**
- * Snug width (px) a note node needs to render its title on ONE line. Char-count
- * heuristic — see {@link NODE_TITLE_CHAR_WIDTH_PX}. Callers cap this at
- * {@link NODE_MAX_LABEL_WIDTH_PX} (a longer title wraps instead).
+ * Inline width (px) of the file-kind glyph a CANVAS node draws before its title:
+ * the 12px icon plus its 4px right margin (`.vicinity-graph-node__kind-icon` in
+ * graph-view.css). Notes draw none — the default kind stays unmarked.
  */
-export function estimateNodeLabelWidthPx(title: string): number {
-	return Math.ceil(title.length * NODE_TITLE_CHAR_WIDTH_PX) + NODE_LABEL_HORIZONTAL_PADDING_PX;
+export const NODE_TITLE_KIND_ICON_PX = 16;
+
+/** What a node's label line renders: its title, plus the file-kind glyph its path implies. */
+export interface NodeLabel {
+	readonly title: string;
+	readonly path: string;
+}
+
+/**
+ * Snug width (px) a note node needs to render its label (title + any file-kind
+ * glyph) on ONE line. Char-count heuristic — see {@link NODE_TITLE_CHAR_WIDTH_PX}.
+ * Callers cap this at {@link NODE_MAX_LABEL_WIDTH_PX} (a longer title wraps instead).
+ */
+export function estimateNodeLabelWidthPx(label: NodeLabel): number {
+	const kindIconPx = FileKinds.isCanvasPath(label.path) ? NODE_TITLE_KIND_ICON_PX : 0;
+	return Math.ceil(label.title.length * NODE_TITLE_CHAR_WIDTH_PX) + kindIconPx + NODE_LABEL_HORIZONTAL_PADDING_PX;
 }
 
 /** One rendered title line (`--font-ui-smaller` × `line-height: 1.25`, rounded up). */

@@ -16,6 +16,7 @@ import {
 	nodeVerticalChromePx,
 	revealMinNodePx,
 } from "./constants";
+import type { NodeLabel } from "./constants";
 import type { NodePreviewKind } from "./nodePreviewKind";
 import { nodePreviewKind } from "./nodePreviewKind";
 import { suppressedDuplicateThumbnails } from "./duplicateImageThumbnails";
@@ -161,7 +162,7 @@ export class NodeSizer {
 	 */
 	private static contentFitPx(node: TraversedNode, preview: ResolvedPreview): number {
 		const titleClamp = preview.kind === "thumbnail" ? THUMBNAIL_PREVIEW_TITLE_LINE_CLAMP : NODE_TITLE_LINE_CLAMP;
-		const regions: number[] = [NodeSizer.titleLines(node.title, titleClamp) * ESTIMATED_TITLE_LINE_PX];
+		const regions: number[] = [NodeSizer.titleLines(node, titleClamp) * ESTIMATED_TITLE_LINE_PX];
 		if (preview.kind === "outline") {
 			regions.push(preview.renderableOutlineEntries * ESTIMATED_OUTLINE_ENTRY_PX);
 		} else if (preview.kind === "thumbnail") {
@@ -212,8 +213,8 @@ export class NodeSizer {
 	 * clamp in force for this node's preview — the height counterpart of the
 	 * view's snug width estimate.
 	 */
-	private static titleLines(title: string, lineClamp: number): number {
-		const textWidthPx = estimateNodeLabelWidthPx(title) - NODE_LABEL_HORIZONTAL_PADDING_PX;
+	private static titleLines(label: NodeLabel, lineClamp: number): number {
+		const textWidthPx = estimateNodeLabelWidthPx(label) - NODE_LABEL_HORIZONTAL_PADDING_PX;
 		const lineWidthPx = NODE_MAX_LABEL_WIDTH_PX - NODE_LABEL_HORIZONTAL_PADDING_PX;
 		return Math.min(lineClamp, Math.max(1, Math.ceil(textWidthPx / lineWidthPx)));
 	}

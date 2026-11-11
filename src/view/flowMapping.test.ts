@@ -59,6 +59,7 @@ describe("vicinityGraphToFlow nodes", () => {
 			path: "notes/a.md",
 			title: "a",
 			tier: "main",
+			fileKind: "note",
 			isGloballyPinned: false,
 			isLocallyPinned: false,
 			hasSizeOverride: false,
@@ -157,6 +158,21 @@ describe("vicinityGraphToFlow styling tiers", () => {
 
 	it("WHEN the node is neither THEN its tier is regular", () => {
 		expect(tierOfFlags({ isMain: false, isCentral: false })).toBe("regular");
+	});
+});
+
+describe("vicinityGraphToFlow file kind", () => {
+	function fileKindOf(path: string): string | undefined {
+		const graph = makeGraph({ nodes: [makeNode({ path: asVaultPath(path) })] });
+		return noteNode(toFlow(graph).nodes, path)?.data.fileKind;
+	}
+
+	it("WHEN the node is a canvas board THEN its file kind is canvas", () => {
+		expect(fileKindOf("boards/plan.canvas")).toBe("canvas");
+	});
+
+	it("WHEN the node is a markdown note THEN its file kind is note", () => {
+		expect(fileKindOf("notes/plan.md")).toBe("note");
 	});
 });
 
@@ -900,6 +916,7 @@ describe("withPositions", () => {
 				path: "a.md",
 				title: "a",
 				tier: "regular",
+				fileKind: "note",
 				isGloballyPinned: false,
 				isLocallyPinned: false,
 				hasSizeOverride: false,

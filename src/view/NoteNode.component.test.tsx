@@ -95,6 +95,7 @@ function nodeData(overrides: Partial<FlowNodeData> = {}): FlowNodeData {
 		path: NODE_PATH,
 		title: "a",
 		tier: "regular",
+		fileKind: "note",
 		isGloballyPinned: false,
 		isLocallyPinned: false,
 		hasSizeOverride: false,
@@ -283,6 +284,34 @@ describe("NoteNode path attribute", () => {
 		const { result } = renderNoteNode(nodeData());
 		const node = await mountedNode(result.container);
 		expect(node.getAttribute("data-path")).toBeNull();
+	});
+});
+
+describe("NoteNode file-kind marker", () => {
+	const KIND_ICON = ".vicinity-graph-node__title .vicinity-graph-node__kind-icon";
+
+	it("WHEN a canvas node renders THEN its title leads with the canvas glyph", async () => {
+		const { ui, result } = renderNoteNode(nodeData({ fileKind: "canvas" }));
+		const icon = (await mountedNode(result.container)).querySelector<HTMLElement>(KIND_ICON);
+		expect(ui.renderedIcons.find((rendered) => rendered.el === icon)?.iconId).toBe("layout-dashboard");
+	});
+
+	it("WHEN a canvas node renders THEN the glyph announces itself as Canvas", async () => {
+		const { result } = renderNoteNode(nodeData({ fileKind: "canvas" }));
+		const node = await mountedNode(result.container);
+		expect(node.querySelector(KIND_ICON)?.getAttribute("aria-label")).toBe("Canvas");
+	});
+
+	it("WHEN a canvas node renders THEN its title tooltip names it a canvas", async () => {
+		const { result } = renderNoteNode(nodeData({ fileKind: "canvas", title: "plan" }));
+		const node = await mountedNode(result.container);
+		expect(node.querySelector(".vicinity-graph-node__title")?.getAttribute("title")).toBe("plan (canvas)");
+	});
+
+	it("WHEN a markdown note renders THEN it carries no file-kind marker", async () => {
+		const { result } = renderNoteNode(nodeData({ fileKind: "note" }));
+		const node = await mountedNode(result.container);
+		expect(node.querySelector(KIND_ICON)).toBeNull();
 	});
 });
 

@@ -105,7 +105,7 @@ export function nodeDimensionsPx(node: GraphNode): NodeDimensions {
 		return { width: overridePx.widthPx, height: overridePx.heightPx };
 	}
 	return {
-		width: Math.max(node.sizePx, Math.min(NODE_MAX_LABEL_WIDTH_PX, estimateNodeLabelWidthPx(node.title))),
+		width: Math.max(node.sizePx, Math.min(NODE_MAX_LABEL_WIDTH_PX, estimateNodeLabelWidthPx(node))),
 		height: node.sizePx,
 	};
 }

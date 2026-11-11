@@ -230,6 +230,22 @@
 	overflow: hidden;
 }
 
+/* The canvas marker (NoteNode `CanvasKindIcon`): an inline glyph leading the
+ * title's first line. Its 12px + 4px margin is mirrored by the engine's
+ * NODE_TITLE_KIND_ICON_PX so the width estimate budgets it. Muted, so the title
+ * stays the loudest thing in the node. */
+.vicinity-graph-node__kind-icon {
+	display: inline-block;
+	margin-right: 4px;
+	color: var(--text-muted);
+	vertical-align: -1px;
+}
+.vicinity-graph-node__kind-icon svg {
+	display: block;
+	width: 12px;
+	height: 12px;
+}
+
 .vicinity-graph-node__thumbnail {
 	display: none;
 	position: relative;

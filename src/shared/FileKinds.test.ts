@@ -31,6 +31,20 @@ describe("FileKinds.isMarkdownPath", () => {
 	});
 });
 
+describe("FileKinds.isCanvasPath", () => {
+	it("WHEN the path is a canvas THEN it is a canvas", () => {
+		expect(FileKinds.isCanvasPath("boards/plan.canvas")).toBe(true);
+	});
+
+	it("WHEN the path is a markdown note THEN it is not a canvas", () => {
+		expect(FileKinds.isCanvasPath("notes/plan.md")).toBe(false);
+	});
+
+	it("WHEN the canvas extension is upper-cased THEN it is STILL a canvas", () => {
+		expect(FileKinds.isCanvasPath("PLAN.CANVAS")).toBe(true);
+	});
+});
+
 describe("FileKinds.isOutlineBearingPath", () => {
 	it("WHEN the path is a markdown note THEN it is outline-bearing", () => {
 		expect(FileKinds.isOutlineBearingPath("notes/a.md")).toBe(true);

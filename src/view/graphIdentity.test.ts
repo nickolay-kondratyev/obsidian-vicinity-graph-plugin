@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { NODE_MAX_LABEL_WIDTH_PX, estimateNodeLabelWidthPx } from "../engine";
+import { NODE_MAX_LABEL_WIDTH_PX, NODE_TITLE_KIND_ICON_PX, asVaultPath, estimateNodeLabelWidthPx } from "../engine";
 import { nodeDimensionsPx, sameNodeSizeOverridePx } from "./graphIdentity";
 import { makeNode } from "./testFixtures/graphFixtures";
 
@@ -18,7 +18,7 @@ describe("nodeDimensionsPx", () => {
 
 	it("WHEN a medium title outgrows the square but fits the cap THEN width is the snug single-line estimate", () => {
 		const node = makeNode({ title: MEDIUM_TITLE, sizePx: 40 });
-		expect(nodeDimensionsPx(node).width).toBe(estimateNodeLabelWidthPx(MEDIUM_TITLE));
+		expect(nodeDimensionsPx(node).width).toBe(estimateNodeLabelWidthPx(node));
 	});
 
 	it("WHEN a medium title widens the node THEN width lands between the square floor and the cap", () => {
@@ -29,6 +29,12 @@ describe("nodeDimensionsPx", () => {
 	it("WHEN a long title exceeds the cap THEN width pins to NODE_MAX_LABEL_WIDTH_PX (title wraps to 4 lines)", () => {
 		const node = makeNode({ title: LONG_TITLE, sizePx: 40 });
 		expect(nodeDimensionsPx(node).width).toBe(NODE_MAX_LABEL_WIDTH_PX);
+	});
+
+	it("WHEN a canvas and a note share a medium title THEN the canvas is wider by exactly its kind glyph", () => {
+		const note = makeNode({ path: asVaultPath("plan.md"), title: MEDIUM_TITLE, sizePx: 40 });
+		const canvas = makeNode({ path: asVaultPath("plan.canvas"), title: MEDIUM_TITLE, sizePx: 40 });
+		expect(nodeDimensionsPx(canvas).width - nodeDimensionsPx(note).width).toBe(NODE_TITLE_KIND_ICON_PX);
 	});
 
 	it("WHEN a long title pins the width to the cap THEN height stays the score-driven size", () => {

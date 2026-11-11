@@ -10,6 +10,7 @@ import type {
 	VicinityGraph,
 } from "../engine";
 import { nodePreviewKind, suppressedDuplicateThumbnails } from "../engine";
+import { FileKinds } from "../shared/FileKinds";
 import { resolveNodePreviewPreference } from "./nodePreviewChoice";
 import { OUTLINE_RENDER_LIMIT } from "./constants";
 import type { AttachmentIconGroup } from "./attachmentIconStrip";
@@ -40,6 +41,13 @@ export interface XY {
 export type NodeTier = "main" | "pinned-central" | "regular";
 
 /**
+ * Which kind of file a note node stands for, so the renderer can mark a canvas
+ * board apart from a markdown note — both are graph nodes and a canvas title is a
+ * bare basename, so `plan.md` and `plan.canvas` would otherwise render identically.
+ */
+export type NodeFileKind = "note" | "canvas";
+
+/**
  * Note-node payload the rich renderer needs (step-05).
  *
  * WHY a type alias, not an interface: React Flow constrains node `data` to
@@ -53,6 +61,7 @@ export type FlowNodeData = {
 	/** Echoed engine docid — present on centrals (MAIN + pinned); drives unpin. */
 	readonly docid?: string;
 	readonly tier: NodeTier;
+	readonly fileKind: NodeFileKind;
 	/**
 	 * Whether this note's doc is in the GLOBAL persisted pinned set — the fact the
 	 * global pin/unpin toggle switches on. Distinct from {@link tier}: a globally
@@ -585,6 +594,7 @@ function toFlowNodeData(
 		title: node.title,
 		...(node.docid === undefined ? {} : { docid: node.docid }),
 		tier: tierOf(node),
+		fileKind: FileKinds.isCanvasPath(node.path) ? "canvas" : "note",
 		// ONLY the MAIN carries the create-child-note chip, and only when this build
 		// found it a folder note with an existing owned folder.
 		offersChildNoteCreation: node.isMain && mainIsFolderNote,

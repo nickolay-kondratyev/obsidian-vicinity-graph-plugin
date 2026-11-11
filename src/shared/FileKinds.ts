@@ -13,6 +13,9 @@ const IMAGE_EXTENSIONS: ReadonlySet<string> = new Set(["png", "jpg", "jpeg", "gi
 /** The one markdown extension Obsidian recognises (frontmatter, headings, link resolution). */
 const MARKDOWN_EXTENSION = "md";
 
+/** Obsidian's canvas board (JSON Canvas) extension. */
+const CANVAS_EXTENSION = "canvas";
+
 /**
  * Excalidraw drawings are `*.excalidraw.md`: markdown to Obsidian, but the body
  * is a generated drawing payload, not prose. They stay graph NODES
@@ -37,6 +40,11 @@ export class FileKinds {
 	/** Markdown — the only file kind carrying frontmatter, headings and resolvable link texts. */
 	static isMarkdownPath(path: string): boolean {
 		return VaultPathFacts.extensionOf(path) === MARKDOWN_EXTENSION;
+	}
+
+	/** A canvas board — the node kind the graph marks so it is never mistaken for a note. */
+	static isCanvasPath(path: string): boolean {
+		return VaultPathFacts.extensionOf(path) === CANVAS_EXTENSION;
 	}
 
 	/**

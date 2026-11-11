@@ -13,7 +13,8 @@ between them. Vicinity Graph fixes both:
 
 - **Nodes that actually tell you something.** Each node carries its title, a
   first-image thumbnail, an icon strip for its attachments, its folder, and a
-  size that reflects relevance.
+  size that reflects relevance. A canvas is marked with the canvas icon before
+  its title, so it is never mistaken for a note of the same name.
 - **Folders you can see — nested.** Notes that share a folder render inside a
   labelled group box, and sub-folders draw as boxes **within** their parent's box,
   so folder membership (at every level) is part of the picture. A note whose own

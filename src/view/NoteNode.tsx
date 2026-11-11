@@ -31,6 +31,8 @@ export type NoteNodeType = Node<FlowNodeData, "note">;
 
 /** Lucide id of the hover gear (per-node content menu) — the conventional settings glyph. */
 const GEAR_ICON_ID = "settings";
+/** Lucide id of the canvas marker — the glyph Obsidian itself uses for canvas files. */
+const CANVAS_ICON_ID = "layout-dashboard";
 /** Lucide id of the create-child-note chip (signed-off), a "new file in a place" glyph. */
 const CHILD_NOTE_ICON_ID = "file-plus-2";
 /**
@@ -262,13 +264,17 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
 				// a folder-note rename (ticket nid_ofacqul281sr71qrdacqy8jv3_e).
 				data-vicinity-path={data.path}
 				data-preview={data.preview}
+				data-file-kind={data.fileKind}
 				onContextMenu={onContextMenu}
 			>
 				{/* Read-only graph: handles exist only as edge anchors (top target /
 				    bottom source matches the elk DOWN direction) and are hidden in CSS. */}
 				<Handle type="target" position={Position.Top} className="vicinity-graph-node__handle" />
 				<div className="vicinity-graph-node__content">
-					<div className="vicinity-graph-node__title" title={data.title}>
+					<div className="vicinity-graph-node__title" title={titleTooltip(data)}>
+						{/* Only a canvas is marked: notes are the overwhelming default, and a
+						    glyph on every node would be noise that marks nothing. */}
+						{data.fileKind === "canvas" && <CanvasKindIcon />}
 						{data.title}
 					</div>
 					{data.preview === "thumbnail" && thumbnailUrl !== null && (
@@ -299,6 +305,29 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
 		</>
 	);
 });
+
+/** The title tooltip names a canvas as one, so the hover confirms what the glyph says. */
+function titleTooltip(data: FlowNodeData): string {
+	return data.fileKind === "canvas" ? `${data.title} (canvas)` : data.title;
+}
+
+/**
+ * The canvas marker drawn inline before a canvas node's title. Inline (not a corner
+ * badge) so it can never overlap the title on a narrow node; its width is budgeted
+ * by the engine's label estimate (`NODE_TITLE_KIND_ICON_PX`), so it never pushes a
+ * short title onto a second line. `role="img"` + label: a screen reader announces
+ * "Canvas" ahead of the title, the same fact the glyph shows.
+ */
+function CanvasKindIcon(): ReactElement {
+	const ui = useGraphUi();
+	const iconRef = useRef<HTMLSpanElement>(null);
+	useEffect(() => {
+		if (iconRef.current !== null) {
+			ui.renderIcon(iconRef.current, CANVAS_ICON_ID);
+		}
+	}, [ui]);
+	return <span ref={iconRef} className="vicinity-graph-node__kind-icon" role="img" aria-label="Canvas" />;
+}
 
 /**
  * Hover-reveal pin/unpin button. Two of these ride the side rail's column: the
