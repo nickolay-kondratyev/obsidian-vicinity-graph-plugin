@@ -143,13 +143,16 @@ function tagMenuEntry(tag: Tag, tagFilter: TagFilterPort): NodeMenuEntry {
 	return { title: GraphModeCopy.showTaggedNotes(tag), onClick: () => tagFilter.showTaggedNotes(tag) };
 }
 
-/** A tag label's tooltip says what a click does; a folder label's shows its full path. */
+/**
+ * A tag label's tooltip says what a click does AND names every tag of the label (one
+ * tag: inside the action; several: on a first line); a folder label's shows its full path.
+ */
 function labelTitle(fullLabel: string, labelTags: readonly Tag[]): string {
 	const [only, ...rest] = labelTags;
 	if (only === undefined) {
 		return fullLabel;
 	}
-	return rest.length === 0 ? GraphModeCopy.showTaggedNotes(only) : GraphModeCopy.PICK_TAG_TO_SHOW;
+	return rest.length === 0 ? GraphModeCopy.showTaggedNotes(only) : GraphModeCopy.pickTagToShow(labelTags);
 }
 
 /** One candidate as a native-menu entry: labelled by its vault path, opens in the current tab. */

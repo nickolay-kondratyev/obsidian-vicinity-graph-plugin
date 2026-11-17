@@ -397,7 +397,7 @@ export function vicinityGraphToFlow(
 					mainIsFolderNote,
 					graphHasMain,
 				),
-				...(leftoverTags.length === 0 ? {} : { tagChips: tagChipRowOf(leftoverTags) }),
+				...(leftoverTags.length === 0 ? {} : { tagChips: tagChipRowOf(leftoverTags, width) }),
 			},
 		};
 	});

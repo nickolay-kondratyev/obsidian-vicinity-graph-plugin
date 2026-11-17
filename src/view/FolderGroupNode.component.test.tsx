@@ -272,6 +272,12 @@ describe("FolderGroupNode tag box label (enters tag mode)", () => {
 		]);
 	});
 
+	it("WHEN a several-tag box label renders THEN its tooltip names every tag (the full label an ellipsis may cut)", async () => {
+		const { result } = renderGroupNode(tagBox("follow-up", "important"));
+
+		expect((await mountedTagLabel(result.container)).title).toContain("#follow-up #important");
+	});
+
 	it("WHEN a tag is chosen from a several-tag label's menu THEN tag mode is entered for it", async () => {
 		const { ui, tagFilter, result } = renderGroupNode(tagBox("follow-up", "important"));
 		fireEvent.click(await mountedTagLabel(result.container));
