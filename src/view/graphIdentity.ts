@@ -47,6 +47,29 @@ export function folderOfGroupId(id: string): string {
 	return id.slice(FOLDER_GROUP_ID_PREFIX.length);
 }
 
+/**
+ * Tag-group ids get their own namespace (same collision trade-off as
+ * {@link FOLDER_GROUP_ID_PREFIX}). Recognising them where `isFolderGroupId` is
+ * asked today is the wiring ticket's job (`nid_lmftfz11vvfwj382i4xmmoqgf_e`).
+ */
+const TAG_GROUP_ID_PREFIX = "tag-group:";
+/** Joins the keys of ONE box's tag set. A space never occurs inside a tag. */
+const TAG_GROUP_SET_SEPARATOR = " ";
+/** Joins the boxes of the chain from the outermost box down. `>` never occurs inside a tag. */
+const TAG_GROUP_LEVEL_SEPARATOR = " > ";
+
+/**
+ * Shared RF/elk id of a tag box, minted from the tag-key SETS of the box chain
+ * (outermost first, each set sorted). The same set can box at two places in the
+ * tree (a nested `#vital` and a top-level `#vital`), so the chain — not the box's
+ * own set — is what makes the id unique; it is stable across rebuilds of the
+ * same grouping.
+ */
+export function tagGroupIdOf(tagKeySetChain: readonly (readonly string[])[]): GroupId {
+	const levels = tagKeySetChain.map((keys) => keys.join(TAG_GROUP_SET_SEPARATOR));
+	return asGroupId(`${TAG_GROUP_ID_PREFIX}${levels.join(TAG_GROUP_LEVEL_SEPARATOR)}`);
+}
+
 /** Rendered box of a note node. */
 export interface NodeDimensions {
 	readonly width: number;

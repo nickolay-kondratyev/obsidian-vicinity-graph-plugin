@@ -1,4 +1,5 @@
 import type { FolderPath } from "../engine";
+import type { Tag } from "../shared/Tags";
 
 /**
  * The MODE-AGNOSTIC grouping model: what every grouping consumer (`elkMapping`,
@@ -49,11 +50,21 @@ export const NO_GROUP_COLOR = null;
  * label's navigation target, the DOM hook). A closed union: a new grouper adds
  * its member and the compiler points at every consumer that must decide.
  */
-export type GroupSubject = {
-	readonly kind: "folder";
-	/** The group's own (deepest) folder — never a collapsed ancestor. */
-	readonly folder: FolderPath;
-};
+export type GroupSubject =
+	| {
+			readonly kind: "folder";
+			/** The group's own (deepest) folder — never a collapsed ancestor. */
+			readonly folder: FolderPath;
+	  }
+	| {
+			readonly kind: "tag";
+			/**
+			 * The tags the box is LABELLED with (`tagGrouping.ts`): every tag its
+			 * members share at this level, minus a parent tag implied by a nested child
+			 * in the same set. Never empty; sorted by key.
+			 */
+			readonly tags: readonly Tag[];
+	  };
 
 /** One rendered box of the grouping tree. */
 export interface NodeGroup {
