@@ -89,6 +89,22 @@ describe("VicinityEngine.buildForTag membership", () => {
 	});
 });
 
+describe("VicinityEngine.buildForTag filter tag", () => {
+	it("WHEN a tag is built THEN the graph names the tag it is filtered by", () => {
+		expect(build().tagFilter).toBe(tagKey("#project"));
+	});
+
+	it("WHEN a vicinity graph is built THEN it names no filter tag", () => {
+		const graph = new VicinityEngine(fixtureProvider()).build({
+			main: { path: asVaultPath("hub.md") },
+			globalDepths: EngineDefaults.depthSettings(),
+			globalView: EngineDefaults.viewSettings(),
+		});
+
+		expect(graph.tagFilter).toBeUndefined();
+	});
+});
+
 describe("VicinityEngine.buildForTag pinned docids", () => {
 	const pinnedDocIds = new Map([
 		[asVaultPath("work/plan.md"), asDocId("docid_plan_e")],

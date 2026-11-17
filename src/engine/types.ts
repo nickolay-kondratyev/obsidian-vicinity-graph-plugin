@@ -1,4 +1,4 @@
-import type { Tag } from "../shared/Tags";
+import type { Tag, TagKey } from "../shared/Tags";
 
 /**
  * Domain vocabulary of the pure vicinity-graph engine.
@@ -729,4 +729,10 @@ export interface VicinityGraph {
 	readonly excludedNodeCount: number;
 	/** The view settings the build actually used (post cascade resolution). */
 	readonly viewSettings: ViewSettings;
+	/**
+	 * The tag a TAG-FILTERED build kept notes for (`VicinityEngine.buildForTag`);
+	 * absent on a vicinity build. A fact about the build, so every consumer of the
+	 * graph (the grouper's excluded tags, decision 10) reads it from one place.
+	 */
+	readonly tagFilter?: TagKey;
 }

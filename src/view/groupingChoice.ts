@@ -1,4 +1,5 @@
 import type { GraphNode, GroupingMode, VicinityGraph } from "../engine";
+import { Tags } from "../shared/Tags";
 import type { Tag, TagKey } from "../shared/Tags";
 import { deriveFolderGroups } from "./folderGrouping";
 import type { GroupingResult } from "./grouping";
@@ -28,22 +29,31 @@ export interface ViewGrouping extends GroupingResult {
 	readonly leftoverTagsOf: (notePath: string) => readonly Tag[];
 }
 
-/** No excluded tags — what every build passes until a tag filter is active. */
+/** No excluded tags — what every build that is not tag-filtered passes. */
 export const NO_EXCLUDED_TAG_KEYS: ReadonlySet<TagKey> = new Set();
 
 const NO_LEFTOVER_TAGS: readonly Tag[] = [];
 
 /**
- * The request a built graph asks for. The ONE reader of the graph's grouping inputs:
- * the tag-filter entry points (`nid_6qj8n7uc7zz126l3ix8czfymq_e`) add the filter tag to
- * `excludedTagKeys` HERE (decision 10), so every consumer picks it up at once.
+ * The request a built graph asks for. The ONE reader of the graph's grouping inputs,
+ * so every consumer picks up the same excluded tags at once.
+ *
+ * A TAG-FILTERED graph excludes its filter tag AND that tag's parents (decision 10):
+ * every note carries them, so as a box they would only wrap the whole graph, and as
+ * a chip they would repeat on every note. Tags nested BELOW the filter tag still
+ * group — they tell the filtered notes apart.
  */
-export function groupingRequestOf(graph: Pick<VicinityGraph, "viewSettings">): GroupingRequest {
+export function groupingRequestOf(graph: Pick<VicinityGraph, "viewSettings" | "tagFilter">): GroupingRequest {
 	return {
 		mode: graph.viewSettings.groupingMode,
 		maxGroupNestingDepth: graph.viewSettings.folderGroupingDepth,
-		excludedTagKeys: NO_EXCLUDED_TAG_KEYS,
+		excludedTagKeys: graph.tagFilter === undefined ? NO_EXCLUDED_TAG_KEYS : selfAndParentKeysOf(graph.tagFilter),
 	};
+}
+
+/** `a/b/c` ⇒ `{a, a/b, a/b/c}` — the tag rule's own ancestor expansion, keys only. */
+function selfAndParentKeysOf(key: TagKey): ReadonlySet<TagKey> {
+	return new Set(Tags.withAncestors([{ key, name: key }]).map((tag) => tag.key));
 }
 
 /**
