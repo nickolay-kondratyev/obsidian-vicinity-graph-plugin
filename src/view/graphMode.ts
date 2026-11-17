@@ -120,8 +120,13 @@ export class GraphModeCopy {
 		return {
 			lead: "Tagged",
 			subject: GraphModeCopy.tagLabel(status.tag),
-			detail: status.noteCount === 1 ? "1 note" : `${status.noteCount} notes`,
+			detail: GraphModeCopy.noteCount(status.noteCount),
 		};
+	}
+
+	/** `1 note` / `12 notes` — the pill and the tag picker count notes in one wording. */
+	static noteCount(count: number): string {
+		return count === 1 ? "1 note" : `${count} notes`;
 	}
 
 	/** The pill's wording as one line (`Tagged #todo · 12 notes`). */
@@ -142,6 +147,14 @@ export class GraphModeCopy {
 	}
 
 	static readonly EXIT_TAG_MODE_HINT = "Go back to the vicinity of the note you have open";
+
+	/** One entry of a several-tag box label's menu, and the tooltip of a clickable tag. */
+	static showTaggedNotes(tag: Tag): string {
+		return `Show notes tagged ${GraphModeCopy.tagLabel(tag)}`;
+	}
+
+	/** A several-tag box label's tooltip: clicking it asks which of its tags. */
+	static readonly PICK_TAG_TO_SHOW = "Pick one of these tags to show the notes carrying it";
 
 	static emptyTag(tag: Tag): string {
 		return `No notes are tagged ${GraphModeCopy.tagLabel(tag)}.`;
