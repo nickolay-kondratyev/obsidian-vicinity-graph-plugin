@@ -1,32 +1,37 @@
 import { describe, expect, it } from "vitest";
 import type { FolderPath } from "../engine";
 import { asFolderPath } from "../engine";
-import type { FolderGroup } from "./folderGrouping";
+import { folderGroupIdOf } from "./graphIdentity";
+import type { NodeGroup } from "./grouping";
+import { NO_GROUP_COLOR } from "./grouping";
 import { deriveTruncationBadges, NO_ORPHAN_TRUNCATION } from "./truncationBadges";
 
 function hiddenCounts(entries: Record<string, number>): ReadonlyMap<FolderPath, number> {
 	return new Map(Object.entries(entries).map(([folder, count]) => [asFolderPath(folder), count]));
 }
 
-function group(folder: string): FolderGroup {
+function group(folder: string): NodeGroup {
 	return {
-		folder: asFolderPath(folder),
-		parentFolder: null,
-		leafName: folder,
-		chainPath: folder,
+		id: folderGroupIdOf(folder),
+		parentId: null,
+		label: folder,
+		chainLabel: folder,
+		fullLabel: folder,
 		memberPaths: [],
+		subject: { kind: "folder", folder: asFolderPath(folder) },
+		colorToken: NO_GROUP_COLOR,
 	};
 }
 
 /**
- * Rendered-grouping stub: maps each named folder to a group whose `folder` is
- * its NEAREST rendered ancestor (self-or-ancestor), mirroring
- * `FolderGroupingResult.nearestRenderedAncestorGroupOf`. Folders absent from the
+ * Rendered-grouping stub: maps each named folder to the group of
+ * its NEAREST rendered ancestor (self-or-ancestor), mirroring the folder
+ * grouper's `GroupingResult.groupCreditedForHiddenFolder`. Folders absent from the
  * map render at the top level (no ancestor group → orphan).
  */
 function nearestAncestorGroups(
 	renderedAncestorByFolder: Record<string, string>,
-): (folder: FolderPath) => FolderGroup | null {
+): (folder: FolderPath) => NodeGroup | null {
 	return (folder) => {
 		const renderedAncestor = renderedAncestorByFolder[folder];
 		return renderedAncestor === undefined ? null : group(renderedAncestor);
@@ -39,7 +44,7 @@ const NO_GROUPS = nearestAncestorGroups({});
 describe("deriveTruncationBadges per-group badges", () => {
 	it("WHEN a hidden folder has a rendered group at its exact folder THEN its count becomes that group's badge", () => {
 		const badges = deriveTruncationBadges(hiddenCounts({ notes: 3 }), nearestAncestorGroups({ notes: "notes" }));
-		expect(badges.hiddenCountByGroupFolder.get(asFolderPath("notes"))).toBe(3);
+		expect(badges.hiddenCountByGroupId.get(folderGroupIdOf("notes"))).toBe(3);
 	});
 
 	it("WHEN a hidden folder has a rendered group THEN it does not leak into the orphan aggregate", () => {
@@ -52,7 +57,7 @@ describe("deriveTruncationBadges per-group badges", () => {
 			hiddenCounts({ "SQL/sub": 2 }),
 			nearestAncestorGroups({ "SQL/sub": "SQL" }),
 		);
-		expect(badges.hiddenCountByGroupFolder.get(asFolderPath("SQL"))).toBe(2);
+		expect(badges.hiddenCountByGroupId.get(folderGroupIdOf("SQL"))).toBe(2);
 	});
 
 	it("WHEN a hidden folder attributes to an ancestor group THEN it does not leak into the orphan aggregate", () => {
@@ -68,7 +73,7 @@ describe("deriveTruncationBadges per-group badges", () => {
 			hiddenCounts({ "SQL/sub": 2, "SQL/other": 3, SQL: 1 }),
 			nearestAncestorGroups({ "SQL/sub": "SQL", "SQL/other": "SQL", SQL: "SQL" }),
 		);
-		expect(badges.hiddenCountByGroupFolder.get(asFolderPath("SQL"))).toBe(6);
+		expect(badges.hiddenCountByGroupId.get(folderGroupIdOf("SQL"))).toBe(6);
 	});
 });
 
@@ -100,7 +105,7 @@ describe("deriveTruncationBadges orphan aggregate (folders without a rendered an
 			hiddenCounts({ notes: 3, lost: 2 }),
 			nearestAncestorGroups({ notes: "notes" }),
 		);
-		const surfaced = badges.orphan.totalHiddenCount + (badges.hiddenCountByGroupFolder.get(asFolderPath("notes")) ?? 0);
+		const surfaced = badges.orphan.totalHiddenCount + (badges.hiddenCountByGroupId.get(folderGroupIdOf("notes")) ?? 0);
 		expect(surfaced).toBe(5);
 	});
 });

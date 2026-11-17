@@ -1,9 +1,9 @@
 import type { ElkNode } from "elkjs";
-import type { FolderPath, VicinityGraph } from "../engine";
+import type { VicinityGraph } from "../engine";
 import { ELK_GROUP_PADDING, ELK_ROOT_ID, elkForceRootOptions, elkGroupMemberOptions } from "./constants";
 import { deriveFolderGroups } from "./folderGrouping";
-import type { FolderGroup, FolderGroupingResult } from "./folderGrouping";
-import { edgeIdOf, folderGroupIdOf, nodeDimensionsPx } from "./graphIdentity";
+import type { GroupId, GroupingResult, NodeGroup } from "./grouping";
+import { edgeIdOf, nodeDimensionsPx } from "./graphIdentity";
 import type { Dimensions, XY } from "./flowMapping";
 
 /**
@@ -12,18 +12,19 @@ import type { Dimensions, XY } from "./flowMapping";
  * dependency and stays node-testable; the actual elk engine is invoked by
  * {@link ElkLayoutRunner}.
  *
- * Compound layout (recursive folder groups): a rendered group becomes a folder
+ * Compound layout (recursive groups, read through the mode-agnostic
+ * {@link GroupingResult}): a rendered group becomes a
  * container nested inside its PARENT group's container (a top-level group nests
  * under the root), so the elk tree mirrors the grouping tree to arbitrary depth.
  * Each container holds its direct note members AND its child group containers.
  *
  * elk's JSON contract requires every edge to live on the CLOSEST COMMON ANCESTOR
- * container of its endpoints ({@link FolderGroupingResult.lowestCommonAncestorContainerOf}
+ * container of its endpoints ({@link GroupingResult.lowestCommonAncestorContainerOf}
  * — never re-derived here). Because the root force pass and the rectpacking
  * interiors both run `SEPARATE_CHILDREN` (neither supports `INCLUDE_CHILDREN`),
  * an edge cannot reference a node nested BELOW its host container's direct
  * children; so each endpoint is PROJECTED onto the direct child of the LCA that
- * renders it ({@link FolderGroupingResult.projectOntoContainerChildOf}) — a
+ * renders it ({@link GroupingResult.projectOntoContainerChildOf}) — a
  * sibling note leaf or a sibling group container. Intra-group edges (LCA = that
  * group, both endpoints direct members) stay member-to-member.
  *
@@ -34,7 +35,7 @@ import type { Dimensions, XY } from "./flowMapping";
  */
 
 export function vicinityGraphToElk(graph: VicinityGraph): ElkNode {
-	const grouping = deriveFolderGroups(graph.nodes, graph.viewSettings.folderGroupingDepth);
+	const grouping: GroupingResult = deriveFolderGroups(graph.nodes, graph.viewSettings.folderGroupingDepth);
 	// The "Group member spacing" knob drives the group INTERIORS only; the root
 	// force seed keeps its own internal separation (see `elkForceRootOptions`).
 	const nodeSpacingPx = graph.viewSettings.forceLayout.elkNodeSpacingPx;
@@ -47,13 +48,13 @@ export function vicinityGraphToElk(graph: VicinityGraph): ElkNode {
 	// Build every container first (with its direct note-member leaves), then nest
 	// each under its parent group — parents and children both come from
 	// `grouping.groups`, so a second pass wires the tree once all exist.
-	const containerByFolder = new Map<FolderPath, ElkNode>();
+	const containerByGroupId = new Map<GroupId, ElkNode>();
 	for (const group of grouping.groups) {
 		const memberLeaves = group.memberPaths
 			.map((path) => leafById.get(path))
 			.filter((child): child is ElkNode => child !== undefined);
-		containerByFolder.set(group.folder, {
-			id: folderGroupIdOf(group.folder),
+		containerByGroupId.set(group.id, {
+			id: group.id,
 			children: memberLeaves,
 			edges: [],
 			layoutOptions: { ...elkGroupMemberOptions(nodeSpacingPx), "elk.padding": ELK_GROUP_PADDING },
@@ -61,25 +62,25 @@ export function vicinityGraphToElk(graph: VicinityGraph): ElkNode {
 	}
 	const topLevelContainers: ElkNode[] = [];
 	for (const group of grouping.groups) {
-		const container = containerByFolder.get(group.folder);
+		const container = containerByGroupId.get(group.id);
 		if (container === undefined) {
 			continue;
 		}
-		if (group.parentFolder === null) {
+		if (group.parentId === null) {
 			topLevelContainers.push(container);
 		} else {
-			containerByFolder.get(group.parentFolder)?.children?.push(container);
+			containerByGroupId.get(group.parentId)?.children?.push(container);
 		}
 	}
 	const ungroupedLeaves = graph.nodes
-		.filter((node) => !grouping.groupFolderByMemberPath.has(node.path))
+		.filter((node) => !grouping.groupIdByMemberPath.has(node.path))
 		.map((node) => leafById.get(node.path))
 		.filter((leaf): leaf is ElkNode => leaf !== undefined);
 	// Attach each edge to its LCA container, projecting both endpoints onto that
 	// container's direct children. Root-bound edges (LCA null) are deduped +
 	// reoriented centre-outward; interior edges keep their id (rectpacking ignores
 	// them, they exist only to satisfy elk's common-ancestor contract).
-	const rootEdges = attachEdgesToContainers(graph, grouping, containerByFolder);
+	const rootEdges = attachEdgesToContainers(graph, grouping, containerByGroupId);
 	return {
 		id: ELK_ROOT_ID,
 		layoutOptions: { ...elkForceRootOptions() },
@@ -102,12 +103,12 @@ export function vicinityGraphToElk(graph: VicinityGraph): ElkNode {
  */
 function attachEdgesToContainers(
 	graph: VicinityGraph,
-	grouping: FolderGroupingResult,
-	containerByFolder: ReadonlyMap<FolderPath, ElkNode>,
+	grouping: GroupingResult,
+	containerByGroupId: ReadonlyMap<GroupId, ElkNode>,
 ): NonNullable<ElkNode["edges"]> {
-	const projectedIdOf = (path: string, container: FolderGroup | null): string => {
+	const projectedIdOf = (path: string, container: NodeGroup | null): string => {
 		const child = grouping.projectOntoContainerChildOf(path, container);
-		return child === null ? path : folderGroupIdOf(child.folder);
+		return child === null ? path : child.id;
 	};
 	const minDepthById = new Map<string, number>();
 	for (const node of graph.nodes) {
@@ -132,7 +133,7 @@ function attachEdgesToContainers(
 			}
 			continue;
 		}
-		containerByFolder.get(lca.folder)?.edges?.push({ id: edgeIdOf(edge), sources: [sourceId], targets: [targetId] });
+		containerByGroupId.get(lca.id)?.edges?.push({ id: edgeIdOf(edge), sources: [sourceId], targets: [targetId] });
 	}
 	return [...rootEdgesById.values()];
 }

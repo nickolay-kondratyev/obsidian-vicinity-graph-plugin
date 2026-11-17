@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { asFolderPath, asVaultPath } from "../engine";
 import { deriveFolderGroups, UNLIMITED_GROUP_NESTING_DEPTH } from "./folderGrouping";
+import { folderGroupIdOf } from "./graphIdentity";
 import { makeNode } from "./testFixtures/graphFixtures";
 
 /** GIVEN a mixed graph: two notes in notes/, a singleton in solo/, one root file. */
@@ -414,5 +415,59 @@ describe("deriveFolderGroups depth cap at or above the tree depth", () => {
 	it("WHEN a cap keeps part of the tree THEN the old deep LCA moves to the deepest survivor", () => {
 		const capped = deriveFolderGroups(THREE_DEEP_NODES, 2);
 		expect(capped.lowestCommonAncestorContainerOf("A/B/C/c1.md", "A/B/C/c2.md")?.folder).toBe("A/B");
+	});
+});
+
+/**
+ * The mode-agnostic projection (`grouping.ts`): the folder grouper is ONE producer
+ * of `GroupingResult`, so each folder fact above must surface on the generic
+ * fields the layout / render pipeline actually reads.
+ */
+const CHAIN_UNDER_PARENT_NODES = [
+	makeNode({ path: asVaultPath("P/p1.md"), folder: asFolderPath("P") }),
+	makeNode({ path: asVaultPath("P/A/B/b1.md"), folder: asFolderPath("P/A/B") }),
+	makeNode({ path: asVaultPath("P/A/B/b2.md"), folder: asFolderPath("P/A/B") }),
+];
+
+describe("deriveFolderGroups mode-agnostic projection", () => {
+	const grouping = deriveFolderGroups(CHAIN_UNDER_PARENT_NODES, UNLIMITED_GROUP_NESTING_DEPTH);
+	const chainGroup = grouping.groups.find((group) => group.folder === "P/A/B");
+
+	it("WHEN a folder renders as a group THEN its id is the stable folder-group node id", () => {
+		expect(chainGroup?.id).toBe(folderGroupIdOf("P/A/B"));
+	});
+
+	it("WHEN a group nests in a parent group THEN parentId is the parent's id", () => {
+		expect(chainGroup?.parentId).toBe(folderGroupIdOf("P"));
+	});
+
+	it("WHEN a group is top-level THEN parentId is null", () => {
+		expect(grouping.groups.find((group) => group.folder === "P")?.parentId).toBeNull();
+	});
+
+	it("WHEN a chain collapsed into a group THEN label / chainLabel / fullLabel are leaf name / chain path / full folder", () => {
+		expect(chainGroup).toMatchObject({ label: "B", chainLabel: "A/B", fullLabel: "P/A/B" });
+	});
+
+	it("WHEN a folder renders as a group THEN its subject names that folder", () => {
+		expect(chainGroup?.subject).toEqual({ kind: "folder", folder: "P/A/B" });
+	});
+
+	it("WHEN a folder renders as a group THEN it carries no colour (folder boxes stay neutral)", () => {
+		expect(chainGroup?.colorToken).toBeNull();
+	});
+
+	it("WHEN a parent is first seen after its child THEN groupsAncestorFirst still lists the parent first", () => {
+		const childFirst = [...CHAIN_UNDER_PARENT_NODES].reverse();
+		const ordered = deriveFolderGroups(childFirst, UNLIMITED_GROUP_NESTING_DEPTH).groupsAncestorFirst;
+		expect(ordered.map((group) => group.folder)).toEqual(["P", "P/A/B"]);
+	});
+
+	it("WHEN a hidden note's folder sits under a rendered group THEN that group is credited for it", () => {
+		expect(grouping.groupCreditedForHiddenFolder(asFolderPath("P/A/B/deeper"))?.id).toBe(folderGroupIdOf("P/A/B"));
+	});
+
+	it("WHEN a note renders in a group THEN the generic reverse index maps it to that group's id", () => {
+		expect(grouping.groupIdByMemberPath.get("P/p1.md")).toBe(folderGroupIdOf("P"));
 	});
 });

@@ -1,5 +1,7 @@
 import type { DirectedLink, GraphNode, NodeSizeOverridePx } from "../engine";
 import { NODE_MAX_LABEL_WIDTH_PX, estimateNodeLabelWidthPx } from "../engine";
+import type { GroupId } from "./grouping";
+import { asGroupId } from "./grouping";
 
 /**
  * Structural identity helpers shared by the React-Flow mapping, the elk mapping
@@ -26,9 +28,13 @@ export function edgeIdOf(edge: DirectedLink): string {
  */
 const FOLDER_GROUP_ID_PREFIX = "folder-group:";
 
-/** Shared RF/elk id of the group node rendered for `folder`. */
-export function folderGroupIdOf(folder: string): string {
-	return `${FOLDER_GROUP_ID_PREFIX}${folder}`;
+/**
+ * Shared RF/elk id of the group node rendered for `folder` — the folder
+ * grouper's {@link GroupId} mint. Unchanged across rebuilds, so the structural
+ * diff never sees a folder box as new.
+ */
+export function folderGroupIdOf(folder: string): GroupId {
+	return asGroupId(`${FOLDER_GROUP_ID_PREFIX}${folder}`);
 }
 
 /** True for ids minted by {@link folderGroupIdOf} — group nodes never open notes. */
@@ -39,6 +45,29 @@ export function isFolderGroupId(id: string): boolean {
 /** Inverse of {@link folderGroupIdOf}: the folder path behind a group id. */
 export function folderOfGroupId(id: string): string {
 	return id.slice(FOLDER_GROUP_ID_PREFIX.length);
+}
+
+/**
+ * Tag-group ids get their own namespace (same collision trade-off as
+ * {@link FOLDER_GROUP_ID_PREFIX}). Recognising them where `isFolderGroupId` is
+ * asked today is the wiring ticket's job (`nid_lmftfz11vvfwj382i4xmmoqgf_e`).
+ */
+const TAG_GROUP_ID_PREFIX = "tag-group:";
+/** Joins the keys of ONE box's tag set. A space never occurs inside a tag. */
+const TAG_GROUP_SET_SEPARATOR = " ";
+/** Joins the boxes of the chain from the outermost box down. `>` never occurs inside a tag. */
+const TAG_GROUP_LEVEL_SEPARATOR = " > ";
+
+/**
+ * Shared RF/elk id of a tag box, minted from the tag-key SETS of the box chain
+ * (outermost first, each set sorted). The same set can box at two places in the
+ * tree (a nested `#vital` and a top-level `#vital`), so the chain — not the box's
+ * own set — is what makes the id unique; it is stable across rebuilds of the
+ * same grouping.
+ */
+export function tagGroupIdOf(tagKeySetChain: readonly (readonly string[])[]): GroupId {
+	const levels = tagKeySetChain.map((keys) => keys.join(TAG_GROUP_SET_SEPARATOR));
+	return asGroupId(`${TAG_GROUP_ID_PREFIX}${levels.join(TAG_GROUP_LEVEL_SEPARATOR)}`);
 }
 
 /** Rendered box of a note node. */

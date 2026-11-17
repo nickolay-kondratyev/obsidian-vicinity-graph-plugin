@@ -16,10 +16,10 @@ import { OUTLINE_RENDER_LIMIT } from "./constants";
 import type { AttachmentIconGroup } from "./attachmentIconStrip";
 import { attachmentIconStrip } from "./attachmentIconStrip";
 import { deriveFolderGroups } from "./folderGrouping";
-import type { FolderGroup, FolderGroupingResult } from "./folderGrouping";
+import type { GroupColorToken, GroupingResult, GroupSubject, NodeGroup } from "./grouping";
 import type { OrphanTruncation } from "./truncationBadges";
 import { deriveTruncationBadges } from "./truncationBadges";
-import { edgeIdOf, folderGroupIdOf, nodeDimensionsPx, nodeSizeOverridePx } from "./graphIdentity";
+import { edgeIdOf, nodeDimensionsPx, nodeSizeOverridePx } from "./graphIdentity";
 import type { RoutedPoint } from "./edgeRouting";
 
 /**
@@ -123,27 +123,37 @@ export type FlowNodeData = {
 	readonly attachmentGroups: readonly AttachmentIconGroup[];
 };
 
-/** Folder-group node payload (label + truncation badge). Type alias for the
+/** Group node payload (label + truncation badge), mode-agnostic: filled from a
+ * {@link NodeGroup}, whatever grouper produced it. Type alias for the
  * same React Flow `data` constraint reason as {@link FlowNodeData}. */
 export type FlowGroupData = {
-	readonly folder: string;
-	/** Display name (last path segment) — the group label. */
-	readonly folderName: string;
-	/** Truncated-away nodes of this folder — the group's "+N" badge; 0 = no badge. */
+	/**
+	 * The folder this box stands for — the `data-folder` DOM hook — or `null` for
+	 * a group that is not a folder (the attribute is then omitted).
+	 */
+	readonly folder: string | null;
+	/** The group label as displayed ({@link NodeGroup.label} or its chain form). */
+	readonly label: string;
+	/** Full description of the group — the label's tooltip, whatever {@link label} shows. */
+	readonly fullLabel: string;
+	/** Truncated-away nodes credited to this group — its "+N" badge; 0 = no badge. */
 	readonly hiddenCount: number;
 	/**
-	 * True when `folderName` is a full chain path (the "Full folder path" setting),
+	 * True when `label` is a full chain path (the "Full folder path" setting),
 	 * so the label front-truncates (`…/some/leaf`) to keep the meaningful tail.
 	 * A leaf-name label (the default) keeps conventional trailing truncation.
 	 */
 	readonly fullPathLabel: boolean;
 	/**
-	 * Existing folder-note candidates of {@link folder} — the group's DEEPEST folder
+	 * Existing folder-note candidates of {@link folder} (none for a group that is
+	 * not a folder) — the group's DEEPEST folder
 	 * only, so a collapsed chain's ancestors are deliberately ineligible (ticket
 	 * `nid_2pobjyfp5zgspx283bfukaugn_e`, R4) — in descending precedence. Drives the
 	 * label's navigation: empty = inert, one = opens directly, 2+ = candidate menu.
 	 */
 	readonly folderNoteCandidates: readonly string[];
+	/** Presentation hint, carried through from the group; `null` = neutral box. Not rendered yet. */
+	readonly colorToken: GroupColorToken | null;
 };
 
 /**
@@ -158,7 +168,7 @@ export interface FolderNoteCandidatesLookup {
 }
 
 interface FlowNodeBase {
-	/** React Flow / elk node id — the vault path (notes) or folderGroupIdOf (groups). */
+	/** React Flow / elk node id — the vault path (notes) or the group's `GroupId` (groups). */
 	readonly id: string;
 	/**
 	 * RF-ready position: relative to `parentId`'s origin when present,
@@ -167,7 +177,7 @@ interface FlowNodeBase {
 	readonly position: XY;
 	readonly width: number;
 	readonly height: number;
-	/** Rendered folder-group container (React Flow subflow parent). */
+	/** Rendered group container (React Flow subflow parent). */
 	readonly parentId?: string;
 }
 
@@ -265,18 +275,6 @@ export interface FlowGraph {
 /** Position every node gets before layout runs (elk overwrites it). */
 const UNPLACED: XY = { x: 0, y: 0 };
 
-const FOLDER_SEPARATOR = "/";
-
-/**
- * Nesting depth of a folder path (segment count): an ancestor folder always has
- * a strictly smaller depth than its descendants. Used only to order group nodes
- * ancestor-first for React Flow's parent-before-child rule — group folders are
- * never the vault root, so the empty-string edge case does not arise.
- */
-function folderDepthOf(folder: string): number {
-	return folder.split(FOLDER_SEPARATOR).length;
-}
-
 /**
  * Group nodes are sized by elk (container wraps its children); before layout
  * they carry this placeholder, replaced via {@link withGroupDimensions}.
@@ -302,22 +300,20 @@ export function vicinityGraphToFlow(
 	/** Whether the MAIN is a folder note whose owned folder exists — the create-child-note chip predicate. */
 	mainIsFolderNote: boolean,
 ): FlowGraph {
-	const grouping = deriveFolderGroups(graph.nodes, graph.viewSettings.folderGroupingDepth);
+	// The ONE place the grouper is chosen; everything below reads the
+	// mode-agnostic `GroupingResult` only.
+	const grouping: GroupingResult = deriveFolderGroups(graph.nodes, graph.viewSettings.folderGroupingDepth);
 	const badges = deriveTruncationBadges(
 		graph.hiddenNodeCountsByFolder,
-		grouping.nearestRenderedAncestorGroupOf,
+		grouping.groupCreditedForHiddenFolder,
 	);
-	// Parents must precede children in React Flow's nodes array. `grouping.groups`
-	// is in first-seen (nearest-ancestor-first) order, which can place a nesting
-	// parent AFTER its child, so order the group nodes by folder DEPTH — an
-	// ancestor folder always has fewer segments than its descendants. A stable
-	// sort keeps first-seen order among siblings (determinism unchanged). Note
-	// nodes are appended after every group node, so a note always follows its group.
-	const groupNodes = [...grouping.groups]
-		.sort((a, b) => folderDepthOf(a.folder) - folderDepthOf(b.folder))
-		.map(
+	// Parents must precede children in React Flow's nodes array, and
+	// `grouping.groups` (first-seen order) can place a nesting parent AFTER its
+	// child — so walk the grouper's ancestor-first order instead. Note nodes are
+	// appended after every group node, so a note always follows its group.
+	const groupNodes = grouping.groupsAncestorFirst.map(
 		(group): GroupFlowNode => ({
-			id: folderGroupIdOf(group.folder),
+			id: group.id,
 			kind: "folder-group",
 			position: UNPLACED,
 			width: UNSIZED_GROUP_PX,
@@ -325,21 +321,21 @@ export function vicinityGraphToFlow(
 			// A nested group renders inside its parent group's subflow; a top-level
 			// group's container is the canvas pane (no parentId). Mirrors the elk
 			// container nesting so RF subflows and the layout tree agree.
-			...(group.parentFolder === null ? {} : { parentId: folderGroupIdOf(group.parentFolder) }),
+			...(group.parentId === null ? {} : { parentId: group.parentId }),
 			data: {
-				folder: group.folder,
-				// Label text comes from the group MODEL (signed-off A1): the leaf folder
-				// name by DEFAULT, or the collapsed-chain path (`A/B/C`) when the global
-				// "Full folder path" label setting is on. For a group that is NOT a collapsed
-				// chain `chainPath === leafName`, so the setting only ever adds segments for a
-				// redundant single-child chain. The full folder path rides `folder` for
-				// FolderGroupNode's tooltip regardless of the setting.
-				folderName: graph.viewSettings.groupLabelFullPath ? group.chainPath : group.leafName,
-				hiddenCount: badges.hiddenCountByGroupFolder.get(group.folder) ?? 0,
+				folder: folderOfSubject(group.subject),
+				// Label text comes from the group MODEL (signed-off A1): the compact label
+				// (the leaf folder name) by DEFAULT, or the collapsed-chain label (`A/B/C`)
+				// when the global "Full folder path" label setting is on. For a group that
+				// is NOT a collapsed chain `chainLabel === label`, so the setting only ever
+				// adds segments for a redundant single-child chain. The full description
+				// rides `fullLabel` for FolderGroupNode's tooltip regardless of the setting.
+				label: graph.viewSettings.groupLabelFullPath ? group.chainLabel : group.label,
+				fullLabel: group.fullLabel,
+				hiddenCount: badges.hiddenCountByGroupId.get(group.id) ?? 0,
 				fullPathLabel: graph.viewSettings.groupLabelFullPath,
-				// The DEEPEST folder only (`group.folder`, never a collapsed ancestor):
-				// a chain group `A/B/C` navigates to C's folder note, not A's or B's (R4).
-				folderNoteCandidates: folderNoteCandidates.folderNoteCandidatesOf(group.folder),
+				folderNoteCandidates: labelNavigationCandidatesOf(group.subject, folderNoteCandidates),
+				colorToken: group.colorToken,
 			},
 		}),
 	);
@@ -357,7 +353,7 @@ export function vicinityGraphToFlow(
 		})),
 	);
 	const noteNodes = graph.nodes.map((node): NoteFlowNode => {
-		const groupFolder = grouping.groupFolderByMemberPath.get(node.path);
+		const groupId = grouping.groupIdByMemberPath.get(node.path);
 		const { width, height } = nodeDimensionsPx(node);
 		return {
 			id: node.path,
@@ -365,7 +361,7 @@ export function vicinityGraphToFlow(
 			position: UNPLACED,
 			width,
 			height,
-			...(groupFolder === undefined ? {} : { parentId: folderGroupIdOf(groupFolder) }),
+			...(groupId === undefined ? {} : { parentId: groupId }),
 			data: toFlowNodeData(node, pinFacts, graph.viewSettings, suppressedThumbnails.has(node.path), mainIsFolderNote),
 		};
 	});
@@ -396,7 +392,37 @@ interface CollapsedEdgeAccumulator {
 	relation: string | undefined;
 }
 
-/** Separator that cannot occur in a vault path or folder-group id — a collision-proof delimiter. */
+/**
+ * The `data-folder` DOM hook of a group, by what the group stands for. A `switch`
+ * so a new {@link GroupSubject} member is a compile error here, not a silent miss.
+ */
+function folderOfSubject(subject: GroupSubject): string | null {
+	switch (subject.kind) {
+		case "folder":
+			return subject.folder;
+		case "tag":
+			return null; // A tag box stands for no folder.
+	}
+}
+
+/**
+ * Notes a group's label navigates to. For a folder: the DEEPEST folder only
+ * (never a collapsed ancestor) — a chain group `A/B/C` navigates to C's folder
+ * note, not A's or B's (R4).
+ */
+function labelNavigationCandidatesOf(
+	subject: GroupSubject,
+	folderNoteCandidates: FolderNoteCandidatesLookup,
+): readonly string[] {
+	switch (subject.kind) {
+		case "folder":
+			return folderNoteCandidates.folderNoteCandidatesOf(subject.folder);
+		case "tag":
+			return []; // A tag has no note to open; its label action lands with tag boxes (nid_lmftfz11vvfwj382i4xmmoqgf_e).
+	}
+}
+
+/** Separator that cannot occur in a vault path or group id — a collision-proof delimiter. */
 const UNORDERED_PAIR_KEY_SEPARATOR = "\u0000";
 
 /**
@@ -415,14 +441,14 @@ const UNORDERED_PAIR_KEY_SEPARATOR = "\u0000";
  *   `count` = sum of every contributing edge. The projected endpoints always
  *   differ (both landing on the same child would make that child the LCA).
  */
-function buildFlowEdges(graph: VicinityGraph, grouping: FolderGroupingResult): FlowEdge[] {
+function buildFlowEdges(graph: VicinityGraph, grouping: GroupingResult): FlowEdge[] {
 	// Per-endpoint depth allowance (the "Edge depth into groups" setting). RENDER-ONLY
 	// (plan D2): the layout path (`elkMapping.attachEdgesToContainers`) keeps the
 	// depth-0 projection, so only this — the rendered-edge builder — reads it.
 	const edgeDepthIntoGroups = graph.viewSettings.edgeDepthIntoGroups;
-	const projectId = (path: string, container: FolderGroup | null): string => {
+	const projectId = (path: string, container: NodeGroup | null): string => {
 		const child = grouping.projectOntoContainerChildOf(path, container, edgeDepthIntoGroups);
-		return child === null ? path : folderGroupIdOf(child.folder);
+		return child === null ? path : child.id;
 	};
 	const renderedEdgeIds = new Set(graph.edges.map(edgeIdOf));
 	const passthrough: FlowEdge[] = [];

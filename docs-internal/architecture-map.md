@@ -210,6 +210,22 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   `engine/settingsProductDefaults.test.ts` is the ONE place literal defaults/ranges
   may be written — an id-keyed table over every spec leaf, so a moved default, a new
   leaf and a deleted leaf all fail there and nowhere else.
+- `view/grouping.ts` — **THE mode-agnostic grouping model**: `GroupingResult` (a
+  tree of `NodeGroup`s keyed by the opaque branded `GroupId`, which IS the group's
+  React Flow / elk node id) plus the lookup seams `containerChainOf`,
+  `lowestCommonAncestorContainerOf`, `projectOntoContainerChildOf` and
+  `groupCreditedForHiddenFolder`. `elkMapping`, `flowMapping`, `layoutFit`,
+  `truncationBadges` and `FolderGroupNode` read ONLY this shape — never folder
+  arithmetic on an id, a label or a member path. A GROUPER produces it: `folderGrouping.ts`
+  (`deriveFolderGroups`) and `tagGrouping.ts` (`deriveTagGroups`: greedy
+  "explain the most tag memberships", plus each note's leftover tags for chips;
+  colours from `tagColor.ts`) are the producers — a new grouper is a new
+  producer, not an edit to the consumers. The tree lookups come from
+  `deriveGroupTreeLookups` (from `parentId` + `memberPaths` alone), so a grouper
+  writes only its own membership rules and its hidden-count attribution.
+  `NodeGroup.subject` is the closed union through which a mode's own vocabulary
+  reaches the two consumers that need it (label navigation, the `data-folder` DOM
+  hook); `colorToken` is a presentation hint folders leave unset.
 - `persistence/storagePorts.ts`, `persistence/vaultFsPort.ts`,
   `adapters/obsidianPorts.ts` — testable seams, each with a `Fake*`
   implementation used by unit tests.
@@ -217,7 +233,7 @@ view  ──▶  adapters  ──▶  engine  (pure core)
 ## Layout stack (`src/view/`)
 
 - **elkjs** (`ElkLayoutRunner`, `elkMapping.ts`) — hierarchical/compound layout
-  so folder groups nest correctly. The root runs elk's `force` algorithm as a
+  so groups (`grouping.ts`) nest correctly. The root runs elk's `force` algorithm as a
   seed; folder-group members are packed with elk `rectpacking` internally
   (density, not edge flow — intra-group edges are re-routed by `edgeRouting.ts`).
 - **d3-force** (`d3ForceRefinement.ts`) — force-mode refinement.
