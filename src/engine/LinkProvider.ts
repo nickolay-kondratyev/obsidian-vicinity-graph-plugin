@@ -1,4 +1,5 @@
 import type { LinkKind } from "../shared/LinkKind";
+import type { Tag } from "../shared/Tags";
 import type { AttachmentRef, FolderPath, OutlineEntry, VaultPath } from "./types";
 
 /**
@@ -98,6 +99,13 @@ export interface FileMetadata {
 	 * not be allowed to claim the preview slot).
 	 */
 	readonly imagePrecedesOutline: boolean;
+	/**
+	 * The note's tags as Obsidian sees them (frontmatter `tags` + body hashtags),
+	 * deduplicated by identity via `Tags.distinct`, NOT ancestor-expanded —
+	 * `Tags.withAncestors` is the rule consumers call. Empty for files that carry
+	 * no tags (canvas, attachments, a note not yet in the metadata cache).
+	 */
+	readonly tags: readonly Tag[];
 }
 
 /**

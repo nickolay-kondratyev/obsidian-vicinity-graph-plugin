@@ -610,6 +610,32 @@ describe("VicinityEngine outline pass-through", () => {
 	});
 });
 
+describe("VicinityEngine tag pass-through (tags-v1)", () => {
+	// GIVEN a hub linking a nested-tagged note and a canvas: the provider's tag FACT
+	// must reach GraphNode as reported — never ancestor-expanded (consumers call
+	// `Tags.withAncestors`, so the expansion rule lives once).
+	function tagKeysOf(path: string): readonly string[] | undefined {
+		const provider = new FakeLinkProvider({
+			files: [{ path: "hub.md" }, { path: "child.md", tags: ["#Project/Alpha", "#todo"] }, { path: "board.canvas" }],
+			links: { "hub.md": ["child.md", "board.canvas"] },
+		});
+		const graph = new VicinityEngine(provider).build({
+			main: { path: asVaultPath("hub.md") },
+			globalDepths: { ...EngineDefaults.depthSettings(), linkDepthOut: 1, embedDepthOut: 1, linkDepthIn: 0 },
+			globalView: EngineDefaults.viewSettings(),
+		});
+		return graph.nodes.find((candidate) => candidate.path === path)?.tags.map((tag) => tag.key);
+	}
+
+	it("WHEN a traversed note carries tags THEN its output node carries exactly those tags", () => {
+		expect(tagKeysOf("child.md")).toEqual(["project/alpha", "todo"]);
+	});
+
+	it("WHEN a node is a canvas THEN its output node carries no tags", () => {
+		expect(tagKeysOf("board.canvas")).toEqual([]);
+	});
+});
+
 /**
  * The `globalView -> NodeSizer` seam under CONTENT-FIT sizing: the preview
  * preference legitimately reaches sizing now (node-sizing rethink Q1 — the old

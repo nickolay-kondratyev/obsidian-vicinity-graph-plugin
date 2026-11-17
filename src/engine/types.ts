@@ -1,3 +1,5 @@
+import type { Tag } from "../shared/Tags";
+
 /**
  * Domain vocabulary of the pure vicinity-graph engine.
  *
@@ -219,6 +221,8 @@ export interface GraphNode {
 	 * it into "outline or thumbnail" (see `FileMetadata.imagePrecedesOutline`).
 	 */
 	readonly imagePrecedesOutline: boolean;
+	/** Provider-reported tag FACT (see `FileMetadata.tags`): deduped, never ancestor-expanded. */
+	readonly tags: readonly Tag[];
 	/**
 	 * Content-fit node height (px): the estimate of what this node SHOWS (title
 	 * lines, renderable outline entries or thumbnail), clamped into the

@@ -21,6 +21,7 @@ export function makeNode(overrides: Partial<GraphNode> = {}): GraphNode {
 		attachments: [],
 		outline: [],
 		imagePrecedesOutline: false,
+		tags: [],
 		sizePx: 100,
 		...overrides,
 	};

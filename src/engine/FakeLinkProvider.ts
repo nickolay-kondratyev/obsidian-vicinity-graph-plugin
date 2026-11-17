@@ -1,6 +1,7 @@
 import { FileKinds } from "../shared/FileKinds";
 import { FolderNotes } from "../shared/FolderNotes";
 import type { LinkKind } from "../shared/LinkKind";
+import { Tags } from "../shared/Tags";
 import { VaultPathFacts } from "../shared/VaultPathFacts";
 import type { FileMetadata, LinkProvider, OutgoingReference } from "./LinkProvider";
 import { OutgoingReferences } from "./LinkProvider";
@@ -31,6 +32,11 @@ export interface FakeFileSpec {
 	 * outline-vs-image DECISION belongs to `nodePreviewKind`.
 	 */
 	readonly imagePrecedesOutline?: boolean;
+	/**
+	 * Raw tags as Obsidian reports them (`#todo`, `Idea`), normalised through the
+	 * same `Tags.distinct` the real adapter uses. Default: none.
+	 */
+	readonly tags?: readonly string[];
 }
 
 /** Fixture vault: files + ordered outgoing references (incoming derived by inversion). */
@@ -152,6 +158,7 @@ export class FakeLinkProvider implements LinkProvider {
 				attachments: [], // replaced by attachAttachmentsToMetadata()
 				outline: file.outline ?? [],
 				imagePrecedesOutline: file.imagePrecedesOutline ?? false,
+				tags: Tags.distinct(file.tags ?? []),
 			},
 		});
 	}

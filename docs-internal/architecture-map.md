@@ -99,6 +99,12 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   (`folderNoteOf` / `childNotesOf` / `parentNoteOf`), used by the adapter
   (`FolderNoteIndex`) and `FakeLinkProvider` alike so the tie-break knowledge is
   never duplicated.
+  Tags follow the same split (tags-v1): `FileMetadata.tags` is the note's tag
+  FACT, read from the metadata cache by `adapters/ObsidianTags.ts` (a tested
+  mirror of Obsidian's `getAllTags`) and echoed onto `GraphNode.tags`; the
+  identity / nesting rules (case-insensitive `TagKey`, `withAncestors`,
+  `isSameOrNestedUnder`) live once in the pure `src/shared/Tags.ts`. Tags are
+  stored deduped, never ancestor-expanded — consumers call the rule.
 - `view/viewPorts.ts` — `GraphSourcePort`, `GraphLayoutPort`, `NoteNavigatorPort`
   (opens a note, optionally at a `heading` — the RAW heading text; the adapter
   sanitises it into a link subpath), and `NoteOpenPort`, the one-method slice
