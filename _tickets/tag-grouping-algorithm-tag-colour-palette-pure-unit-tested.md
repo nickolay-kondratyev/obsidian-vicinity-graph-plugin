@@ -1,17 +1,17 @@
 ---
+closed_iso: 2026-11-17T20:58:54Z
 id: nid_86c83wvlt5tbfs6s9ttr8r7mq_e
 title: "Tag grouping algorithm + tag colour palette (pure, unit-tested)"
-status: in_progress
+status: closed
 deps: [nid_44yk50pp4xl9yexnoufqsiytj_e, nid_mr42m1k8cmyeusemmvmxuuaxb_e]
 links: []
 created_iso: 2026-11-17T20:32:45Z
-status_updated_iso: 2026-11-17T20:49:51Z
+status_updated_iso: 2026-11-17T20:58:54Z
 type: task
 priority: 1
 assignee: CC_WITH-nickolaykondratyev
 tags: [tags-v1]
 parent: nid_xhed75cwiy0ui4fokv6l02cxf_e
-pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin/.worktree/t-86c83wvl
 ---
 
 ## Goal
