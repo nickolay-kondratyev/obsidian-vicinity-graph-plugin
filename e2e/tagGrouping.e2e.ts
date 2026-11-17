@@ -134,6 +134,17 @@ test("WHEN grouped by tags THEN a note with a single unshared tag shows it as a 
 	await expect(chipsOf(NOTE6_PATH)).toHaveText(["#visit"]);
 });
 
+test("WHEN the graph is tag-filtered while grouped by tags THEN the corner toggle and the mode pill both render", async () => {
+	await harness.enterTagMode("#vital");
+
+	await expect(page.locator(".vicinity-graph-mode-pill")).toContainText("Tagged #vital");
+	await expect(cornerOption("tags")).toBeChecked();
+
+	// Cleanup, not an assertion: hand the next test a note-mode view on the MAIN again.
+	await page.locator(".vicinity-graph-mode-pill").getByRole("button", { name: "Back to active note" }).click();
+	await expect(page.locator(`.vicinity-graph-node[data-vicinity-path="${MAIN_PATH}"]`)).toHaveAttribute("data-tier", "main");
+});
+
 test("WHEN the plugin restarts THEN the graph still groups by tags", async () => {
 	await harness.reloadPlugin();
 	await harness.remountGraphView();
