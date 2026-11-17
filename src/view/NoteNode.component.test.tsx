@@ -9,10 +9,12 @@ import type { FlowNodeData } from "./flowMapping";
 import { GraphUiContext } from "./GraphUiContext";
 import { NoteNode } from "./NoteNode";
 import { Tags } from "../shared/Tags";
+import type { Tag } from "../shared/Tags";
+import { TagFilterContext } from "./TagFilterContext";
 import { planNodeContentMenu } from "./nodePreviewChoice";
 import { MAX_VISIBLE_TAG_CHIPS, tagChipRowOf } from "./tagChips";
 import { RecordingControlsActions } from "./testFixtures/settingsPanelHarness";
-import type { GraphUiPort, NodeMenuEntry, NodeMenuRequest } from "./viewPorts";
+import type { GraphUiPort, NodeMenuEntry, NodeMenuRequest, TagFilterPort } from "./viewPorts";
 
 /**
  * Rendered proof of the drag-to-resize surface (ticket
@@ -112,24 +114,35 @@ function nodeData(overrides: Partial<FlowNodeData> = {}): FlowNodeData {
 	};
 }
 
+/** Records the tags a chip asked to filter by. */
+class RecordingTagFilter implements TagFilterPort {
+	readonly shown: Tag[] = [];
+	showTaggedNotes(tag: Tag): void {
+		this.shown.push(tag);
+	}
+}
+
 function renderNoteNode(data: FlowNodeData, onNodeClick?: NodeMouseHandler) {
 	const ui = new RecordingGraphUi();
 	const actions = new RecordingResizeActions();
+	const tagFilter = new RecordingTagFilter();
 	const result = render(
 		<GraphUiContext.Provider value={ui}>
 			<ControlsActionsContext.Provider value={actions}>
-				<div style={{ width: 800, height: 600 }}>
-					<ReactFlow
-						nodes={[{ id: NODE_PATH, type: "note", position: { x: 0, y: 0 }, width: 100, height: 100, data }]}
-						edges={[]}
-						nodeTypes={{ note: NoteNode }}
-						onNodeClick={onNodeClick}
-					/>
-				</div>
+				<TagFilterContext.Provider value={tagFilter}>
+					<div style={{ width: 800, height: 600 }}>
+						<ReactFlow
+							nodes={[{ id: NODE_PATH, type: "note", position: { x: 0, y: 0 }, width: 100, height: 100, data }]}
+							edges={[]}
+							nodeTypes={{ note: NoteNode }}
+							onNodeClick={onNodeClick}
+						/>
+					</div>
+				</TagFilterContext.Provider>
 			</ControlsActionsContext.Provider>
 		</GraphUiContext.Provider>,
 	);
-	return { ui, actions, result };
+	return { ui, actions, tagFilter, result };
 }
 
 /** The mounted node root, once React Flow has rendered it. */
@@ -687,5 +700,26 @@ describe("NoteNode tag chips (tag-grouping mode)", () => {
 	it("WHEN the note carries no chips THEN no chip renders", async () => {
 		const { result } = renderNoteNode(nodeData());
 		expect(await chipTexts(result.container)).toEqual([]);
+	});
+
+	it("WHEN a tag chip is clicked THEN tag mode is entered for that chip's tag", async () => {
+		const { tagFilter, result } = renderNoteNode(nodeData({ tagChips: tagChipRowOf(Tags.distinct(["Visit"])) }));
+		await mountedNode(result.container);
+
+		fireEvent.click(result.container.querySelector(".vicinity-graph-tag-chip[data-tag='visit']") as Element);
+
+		expect(tagFilter.shown.map((tag) => tag.name)).toEqual(["Visit"]);
+	});
+
+	it("WHEN a tag chip is clicked THEN the click does not reach the node (the note does not open)", async () => {
+		const nodeClicks: string[] = [];
+		const { result } = renderNoteNode(nodeData({ tagChips: tagChipRowOf(Tags.distinct(["visit"])) }), (_event, node) =>
+			nodeClicks.push(node.id),
+		);
+		await mountedNode(result.container);
+
+		fireEvent.click(result.container.querySelector(".vicinity-graph-tag-chip[data-tag='visit']") as Element);
+
+		expect(nodeClicks).toEqual([]);
 	});
 });

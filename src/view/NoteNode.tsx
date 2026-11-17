@@ -12,7 +12,9 @@ import { NodeOutline } from "./NodeOutline";
 import { currentNodeContentChoice, planNodeContentMenu } from "./nodePreviewChoice";
 import { planNodeLocalPinAction, planNodePinAction } from "./nodePinAction";
 import { NODE_RESIZE_BOUNDS, planResetSizeAction, resizeEndToOverride } from "./nodeResize";
+import { GraphModeCopy } from "./graphMode";
 import type { TagChipRow } from "./tagChips";
+import { useTagFilter } from "./TagFilterContext";
 import type { NodeMenuEntry } from "./viewPorts";
 
 /**
@@ -320,20 +322,30 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
  * A SIBLING of `.vicinity-graph-node` for the same clipping reason as the resize
  * grips (that box is `overflow: hidden`).
  *
- * Each chip carries `data-tag` (its key): the tag-filter entry points
- * (`nid_6qj8n7uc7zz126l3ix8czfymq_e`) turn a chip into the control that enters
- * tag-filter mode for it.
+ * Each chip carries `data-tag` (its key) and is the control that enters tag-filter
+ * mode for its tag in this view (`nid_6qj8n7uc7zz126l3ix8czfymq_e`); its tooltip
+ * says so and names the full tag the ellipsis may cut. The `+N` chip stays a
+ * tooltip only — which hidden tag would it filter by?
  */
 function NoteTagChips({ row }: { readonly row: TagChipRow }): ReactElement {
+	const tagFilter = useTagFilter();
 	return (
 		<div className="vicinity-graph-node-tags">
 			{row.chips.map((chip) => (
 				<span
 					key={chip.tag.key}
-					className="vicinity-graph-tag-chip"
+					// `nodrag nopan` (same as the hover chips): a click on the chip must never
+					// start a node drag or a canvas pan.
+					className="vicinity-graph-tag-chip vicinity-graph-tag-chip--clickable nodrag nopan"
 					data-color={chip.colorToken}
 					data-tag={chip.tag.key}
-					title={chip.label}
+					title={GraphModeCopy.showTaggedNotes(chip.tag)}
+					onClick={(event) => {
+						// The chip owns its click: without this it also reaches React Flow's
+						// node click, which opens the note.
+						event.stopPropagation();
+						tagFilter.showTaggedNotes(chip.tag);
+					}}
 				>
 					{chip.label}
 				</span>

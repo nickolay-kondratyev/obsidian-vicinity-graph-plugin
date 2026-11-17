@@ -44,3 +44,43 @@ describe("deriveGrouping (the ONE grouper choice point)", () => {
 		expect(deriveGrouping(off.nodes, groupingRequestOf(off)).groups).toEqual([]);
 	});
 });
+
+describe("groupingRequestOf a TAG-FILTERED graph (decision 10)", () => {
+	/** GIVEN every note carries the filter tag `#project/alpha` (so also `#project`); two share `#todo`. */
+	const FILTERED_NODES = [
+		note("a.md", "", "project/alpha", "todo"),
+		note("b.md", "", "project/alpha", "todo"),
+		note("c.md", "", "project/alpha", "project/alpha/deep"),
+		note("d.md", "", "project/alpha", "project/alpha/deep"),
+	];
+	const filterTag = Tags.parse("#Project/Alpha");
+	function filteredGrouping(folderGroupingDepth?: number): ReturnType<typeof deriveGrouping> {
+		const graph = makeGraph({ nodes: FILTERED_NODES });
+		const filtered: VicinityGraph = {
+			...graph,
+			viewSettings: {
+				...graph.viewSettings,
+				groupingMode: "tags",
+				folderGroupingDepth: folderGroupingDepth ?? graph.viewSettings.folderGroupingDepth,
+			},
+			...(filterTag === undefined ? {} : { tagFilter: filterTag.key }),
+		};
+		return deriveGrouping(filtered.nodes, groupingRequestOf(filtered));
+	}
+
+	it("WHEN grouped by tags THEN neither the filter tag nor its parent tag is a box", () => {
+		const labels = filteredGrouping().groups.map((group) => group.label);
+
+		expect(labels.filter((label) => label === "#project/alpha" || label === "#project")).toEqual([]);
+	});
+
+	it("WHEN grouped by tags THEN a tag nested BELOW the filter tag still makes a box", () => {
+		expect(filteredGrouping().groups.map((group) => group.label)).toContain("#project/alpha/deep");
+	});
+
+	it("WHEN boxes are off THEN the filter tag is still never a chip", () => {
+		const NO_BOXES = 0;
+
+		expect(filteredGrouping(NO_BOXES).leftoverTagsOf("a.md").map((tag) => tag.name)).toEqual(["todo"]);
+	});
+});

@@ -88,7 +88,10 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   clicks) and stamps the status on every snapshot; `GraphModePill.tsx` renders it
   bottom-right; `VicinityGraphView` saves it in the leaf's state. Triggers call
   ONLY `VicinityGraphPlugin.enterTagMode(rawTag)` / `exitTagMode()` (`main.ts`),
-  which reveal-or-open the view through `GraphViewOpener.revealOrOpen`.
+  which reveal-or-open the view through `GraphViewOpener.revealOrOpen` — the
+  right-click item (`TagFilterMenus.ts`, decisions pure in `tagMenuChoice.ts`)
+  and the command's picker (`TagPickerModal.ts`). In-graph tag clicks (box
+  label, chip) stay in their own view via `TagFilterContext`.
 - **`src/main.ts`** — plugin entry: wires the object graph in `onload`,
   registers the view/commands/vault-lifecycle handlers, schedules the sweep.
 

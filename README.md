@@ -65,6 +65,23 @@ there; running the command for where it already is just focuses it.
 - **Right-click a node** — pin / unpin, plus *Reset size* on a note you resized.
 - Folder-group boxes are containers, not notes — clicking one does nothing.
 
+## Showing the notes with a tag
+
+The graph can show **every note carrying a tag** (or a tag nested under it —
+`#project` also shows `#project/alpha`), with the links between them, instead of
+the vicinity of the open note. Get there from wherever you meet the tag:
+
+- **Right-click a tag** → *Vicinity graph: show tagged notes* — in the editor
+  (Live Preview and Source), in Reading view, in the core Tags pane, and on a
+  pill of the `tags` property. Left-click stays Obsidian's own tag search.
+- **Command palette** → *Show notes with tag…* — pick from your vault's tags,
+  each with how many notes it would show.
+- **Inside the graph** (tag grouping) — click a tag box's label or a tag chip
+  under a note.
+
+The bottom-right pill says which mode the graph is in. The tag view stays while
+you open other notes; *Back to active note* on the pill leaves it.
+
 ## Pinning
 
 Pinning holds a note's neighbourhood on screen as an extra central node. There

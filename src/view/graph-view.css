@@ -788,6 +788,10 @@
 .vicinity-graph-group[data-color] .vicinity-graph-group__label {
 	color: var(--text-normal);
 }
+/* A tag label keeps its normal colour (above), so its click affordance is the underline. */
+.vicinity-graph-group[data-color] .vicinity-graph-group__label--navigable:hover {
+	text-decoration: underline;
+}
 
 /* ===== tag chips (tag-grouping mode) ===================================== */
 
@@ -820,8 +824,15 @@
 	background: color-mix(in srgb, var(--vicinity-graph-tag-color, var(--background-modifier-border)) 18%, var(--background-primary));
 	border: 1px solid color-mix(in srgb, var(--vicinity-graph-tag-color, var(--background-modifier-border)) 60%, transparent);
 	border-radius: var(--radius-s);
-	/* The tooltip (title) needs the pointer even though the row lets clicks fall through. */
+	/* The chip takes the pointer (tooltip + click) even though the row lets clicks fall through. */
 	pointer-events: auto;
+}
+/* A chip enters tag mode for its tag (NoteTagChips); the `+N` chip is a tooltip only. */
+.vicinity-graph-tag-chip--clickable {
+	cursor: pointer;
+}
+.vicinity-graph-tag-chip--clickable:hover {
+	border-color: var(--vicinity-graph-tag-color, var(--background-modifier-border-hover));
 }
 .vicinity-graph-tag-chip--overflow {
 	flex-shrink: 0;

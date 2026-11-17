@@ -5,9 +5,12 @@ import type { MouseEvent as ReactMouseEvent, ReactElement } from "react";
 import { groupHiddenTitleText, plusNText } from "./badgeText";
 import type { FlowGroupData } from "./flowMapping";
 import { useGraphUi } from "./GraphUiContext";
+import type { Tag } from "../shared/Tags";
+import { GraphModeCopy } from "./graphMode";
 import { useNoteOpen } from "./NoteOpenContext";
 import { opensInNewTab } from "./nodeOpenIntent";
-import type { NodeMenuEntry, NoteOpenPort } from "./viewPorts";
+import { useTagFilter } from "./TagFilterContext";
+import type { GraphUiPort, NodeMenuEntry, NoteOpenPort, TagFilterPort } from "./viewPorts";
 
 /**
  * Group container (step-05), rendered from the mode-agnostic
@@ -24,7 +27,8 @@ import type { NodeMenuEntry, NoteOpenPort } from "./viewPorts";
  * exist (ticket `nid_2pobjyfp5zgspx283bfukaugn_e`): one candidate opens
  * directly (ctrl/cmd = new tab, the same gesture as a node click); several open
  * the native candidate menu at the cursor. No candidates = the label stays
- * inert (no handler, unchanged muted styling).
+ * inert (no handler, unchanged muted styling). A TAG box's label instead enters
+ * tag-filtered mode for its tag (several tags: a menu asks which).
  */
 
 export type FolderGroupNodeType = Node<FlowGroupData, "folder-group">;
@@ -34,16 +38,22 @@ export const FolderGroupNode = memo(function FolderGroupNode({
 }: NodeProps<FolderGroupNodeType>): ReactElement {
 	const noteOpen = useNoteOpen();
 	const ui = useGraphUi();
+	const tagFilter = useTagFilter();
 	const candidates = data.folderNoteCandidates;
+	const labelTags = data.labelTags ?? NO_LABEL_TAGS;
 	const onLabelClick = (event: ReactMouseEvent<HTMLSpanElement>): void => {
 		// The label is a CONTROL riding the group node: without this the click also
 		// bubbles into React Flow's onNodeClick pipeline (a folder-group id is inert
 		// there, but its handler still closes the preview drawer) — the label owns
 		// its gesture outright, leaving group-level behaviour untouched.
 		event.stopPropagation();
+		if (labelTags.length > 0) {
+			showTaggedNotesFromLabel(event, labelTags, tagFilter, ui);
+			return;
+		}
 		const [winner, ...losers] = candidates;
 		if (winner === undefined) {
-			return; // Unreachable — the handler is only attached when candidates exist.
+			return; // Unreachable — the handler is only attached when candidates or tags exist.
 		}
 		if (losers.length === 0) {
 			noteOpen.openNote(winner, { newTab: opensInNewTab(event) });
@@ -57,6 +67,7 @@ export const FolderGroupNode = memo(function FolderGroupNode({
 			entries: [candidateMenuEntry(winner, noteOpen), ...losers.map((path) => candidateMenuEntry(path, noteOpen))],
 		});
 	};
+	const isNavigable = candidates.length > 0 || labelTags.length > 0;
 	return (
 		<div
 			className="vicinity-graph-group"
@@ -76,9 +87,9 @@ export const FolderGroupNode = memo(function FolderGroupNode({
 			/>
 			<div className="vicinity-graph-group__header">
 				<span
-					className={labelClassName(data)}
-					title={data.fullLabel}
-					{...(candidates.length === 0 ? {} : { onClick: onLabelClick })}
+					className={labelClassName(data.fullPathLabel, isNavigable)}
+					title={labelTitle(data.fullLabel, labelTags)}
+					{...(isNavigable ? { onClick: onLabelClick } : {})}
 				>
 					{data.label}
 				</span>
@@ -101,18 +112,58 @@ export const FolderGroupNode = memo(function FolderGroupNode({
 	);
 });
 
+const NO_LABEL_TAGS: readonly Tag[] = [];
+
+/**
+ * A TAG box label enters tag mode (ticket `nid_6qj8n7uc7zz126l3ix8czfymq_e`): one
+ * tag enters it directly; a box labelled with several tags (`#important
+ * #follow-up`) asks which, through the same native menu the folder candidates use.
+ */
+function showTaggedNotesFromLabel(
+	event: ReactMouseEvent<HTMLSpanElement>,
+	labelTags: readonly Tag[],
+	tagFilter: TagFilterPort,
+	ui: GraphUiPort,
+): void {
+	const [first, ...rest] = labelTags;
+	if (first === undefined) {
+		return; // Unreachable — the caller checked for tags.
+	}
+	if (rest.length === 0) {
+		tagFilter.showTaggedNotes(first);
+		return;
+	}
+	ui.showNodeMenu({
+		nativeEvent: event.nativeEvent,
+		entries: [tagMenuEntry(first, tagFilter), ...rest.map((tag) => tagMenuEntry(tag, tagFilter))],
+	});
+}
+
+function tagMenuEntry(tag: Tag, tagFilter: TagFilterPort): NodeMenuEntry {
+	return { title: GraphModeCopy.showTaggedNotes(tag), onClick: () => tagFilter.showTaggedNotes(tag) };
+}
+
+/** A tag label's tooltip says what a click does; a folder label's shows its full path. */
+function labelTitle(fullLabel: string, labelTags: readonly Tag[]): string {
+	const [only, ...rest] = labelTags;
+	if (only === undefined) {
+		return fullLabel;
+	}
+	return rest.length === 0 ? GraphModeCopy.showTaggedNotes(only) : GraphModeCopy.PICK_TAG_TO_SHOW;
+}
+
 /** One candidate as a native-menu entry: labelled by its vault path, opens in the current tab. */
 function candidateMenuEntry(path: string, noteOpen: NoteOpenPort): NodeMenuEntry {
 	return { title: path, onClick: () => noteOpen.openNote(path, { newTab: false }) };
 }
 
 /** Base label class, plus the front-truncation and clickable-navigation modifiers. */
-function labelClassName(data: FlowGroupData): string {
+function labelClassName(fullPathLabel: boolean, isNavigable: boolean): string {
 	const classes = ["vicinity-graph-group__label"];
-	if (data.fullPathLabel) {
+	if (fullPathLabel) {
 		classes.push("vicinity-graph-group__label--fullpath");
 	}
-	if (data.folderNoteCandidates.length > 0) {
+	if (isNavigable) {
 		// "nodrag nopan" are React Flow escape hatches (same as the NoteNode chips):
 		// a click on a NAVIGABLE label must never start a node drag or a canvas pan —
 		// otherwise a pan gesture released over the label also fires its onClick.

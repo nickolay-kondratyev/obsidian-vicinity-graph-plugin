@@ -144,6 +144,7 @@ export class VicinityEngine {
 			hiddenNodeCountsByFolder: selection.hiddenNodeCountsByFolder,
 			excludedNodeCount: selection.excludedNodeCount,
 			viewSettings,
+			tagFilter: request.tag,
 		};
 	}
 

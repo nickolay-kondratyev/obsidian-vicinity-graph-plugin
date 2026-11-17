@@ -6,6 +6,7 @@ import { FolderNoteIndex } from "./adapters/FolderNoteIndex";
 import { FrontmatterIdIndex } from "./adapters/FrontmatterIdIndex";
 import { LiveLinkOccurrenceProvider } from "./adapters/LiveLinkOccurrenceProvider";
 import { ObsidianNoteCreation } from "./adapters/ObsidianNoteCreation";
+import { ObsidianTags } from "./adapters/ObsidianTags";
 import { VicinityGraphBuilder } from "./adapters/VicinityGraphBuilder";
 import { DocIdMapWarmer } from "./persistence/DocIdMapWarmer";
 import { OrphanSweeper, SWEEP_DELAY_MS } from "./persistence/OrphanSweeper";
@@ -19,6 +20,9 @@ import { VaultFileStore } from "./persistence/VaultFileStore";
 import { Tags } from "./shared/Tags";
 import { GraphViewOpener } from "./view/GraphViewOpener";
 import { SettingsWritePipeline } from "./view/settingsWritePipeline";
+import { TagFilterMenus } from "./view/TagFilterMenus";
+import { tagNoteCountsOf } from "./view/tagNoteCounts";
+import { TagPickerModal } from "./view/TagPickerModal";
 import { VicinityGraphSettingTab } from "./view/VicinityGraphSettingTab";
 import { VicinityGraphView, VIEW_TYPE_VICINITY_GRAPH } from "./view/VicinityGraphView";
 import type { UserNoticePort, ViewsRefreshPort } from "./view/viewPorts";
@@ -216,6 +220,14 @@ export default class VicinityGraphPlugin extends Plugin {
 			name: "Open below active note",
 			callback: () => void opener.open("main-area"),
 		});
+		// Tag-filtered mode's entry points outside the graph (tags-v1 decision 8);
+		// the in-graph ones (tag box label, tag chip) live in the view.
+		this.addCommand({
+			id: "show-notes-with-tag",
+			name: "Show notes with tag…",
+			callback: () => this.openTagPicker(),
+		});
+		new TagFilterMenus((tag) => void this.enterTagMode(tag.name)).register(this);
 	}
 
 	/**
@@ -262,6 +274,23 @@ export default class VicinityGraphPlugin extends Plugin {
 		for (const view of await this.graphViewOpener.revealOrOpen("right-sidebar")) {
 			view.enterTagMode(tag);
 		}
+	}
+
+	/**
+	 * The command's tag picker over every tag in the vault, with note counts. A vault
+	 * with no tag at all gets a notice instead of an empty picker.
+	 */
+	private openTagPicker(): void {
+		const entries = tagNoteCountsOf(
+			this.app.vault
+				.getMarkdownFiles()
+				.map((file) => ObsidianTags.rawTagsOf(this.app.metadataCache.getFileCache(file))),
+		);
+		if (entries.length === 0) {
+			this.notices.show("No note has a tag yet, so there is nothing to pick. Add a tag like #project to a note first.");
+			return;
+		}
+		new TagPickerModal(this.app, entries, (tag) => void this.enterTagMode(tag.name)).open();
 	}
 
 	/** Every open graph view goes back to following the active note. No-op when none is filtered. */
