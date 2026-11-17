@@ -1,8 +1,7 @@
 import { Menu } from "obsidian";
-import type { Editor, Plugin } from "obsidian";
+import type { Plugin } from "obsidian";
 import type { Tag } from "../shared/Tags";
-import { SHOW_TAGGED_NOTES_MENU_TITLE, tagMenuSiteOf, tagOfMenuSite } from "./tagMenuChoice";
-import type { TagMenuSite } from "./tagMenuChoice";
+import { SHOW_TAGGED_NOTES_MENU_TITLE, editorTagSiteOf, tagMenuSiteOf, tagOfMenuSite } from "./tagMenuChoice";
 
 /** The graph view's own icon (`VicinityGraphView.getIcon`), so the item reads as "opens the graph". */
 const GRAPH_ICON = "network";
@@ -16,27 +15,46 @@ const MENU_SECTION = "open";
  * the pure `tagMenuChoice.ts`.
  *
  * Two hooks, because Obsidian offers two kinds of menu:
- * - the editor (Live Preview and Source) fires `editor-menu`; Obsidian has already
- *   moved the cursor to the click, and reads it the same way for its own
- *   "Rename heading" item;
+ * - the editor (Live Preview and Source) builds its own menu and fires
+ *   `editor-menu` for plugins to extend. That event carries no click position and
+ *   the editor's cursor has not moved to the click yet, so the right-clicked
+ *   element is remembered on the way DOWN (a capture-phase `contextmenu`) and read
+ *   when `editor-menu` fires for that same click;
  * - every other surface (reading-view tags, the core Tags pane, the tags
  *   property's pills) is caught as a bubbling `contextmenu` on the document and
  *   joined through `Menu.forEvent`, which returns the menu Obsidian already opened
  *   for THIS event (a property pill's Edit / Copy / Remove) or opens one — so the
  *   item is added alongside Obsidian's own, never as a second menu.
+ *
+ * CEILING: only the main window's document is hooked (a popout window's tags get
+ * no item), and a keyboard-opened editor menu (no right-clicked element) gets none.
  */
 export class TagFilterMenus {
+	/** The element of the latest right-click, for the `editor-menu` that click triggers. */
+	private lastRightClicked: Element | null = null;
+
 	constructor(private readonly showTaggedNotes: (tag: Tag) => void) {}
 
-	/** Registers both hooks on `plugin`, which removes them on unload. */
+	/** Registers the hooks on `plugin`, which removes them on unload. */
 	register(plugin: Plugin): void {
-		plugin.registerEvent(plugin.app.workspace.on("editor-menu", (menu, editor) => this.onEditorMenu(menu, editor)));
+		plugin.registerDomEvent(document, "contextmenu", (event) => this.rememberRightClicked(event), { capture: true });
+		plugin.registerEvent(plugin.app.workspace.on("editor-menu", (menu) => this.onEditorMenu(menu)));
 		plugin.registerDomEvent(document, "contextmenu", (event) => this.onContextMenu(event));
 	}
 
-	private onEditorMenu(menu: Menu, editor: Editor): void {
-		const cursor = editor.getCursor();
-		this.offer(menu, { kind: "editor", lineText: editor.getLine(cursor.line), offset: cursor.ch });
+	private rememberRightClicked(event: MouseEvent): void {
+		this.lastRightClicked = event.target instanceof Element ? event.target : null;
+	}
+
+	private onEditorMenu(menu: Menu): void {
+		const target = this.lastRightClicked;
+		// Consumed: a later editor menu with no right-click of its own must not reuse it.
+		this.lastRightClicked = null;
+		const site = target === null ? undefined : editorTagSiteOf(target);
+		const tag = site === undefined ? undefined : tagOfMenuSite(site);
+		if (tag !== undefined) {
+			this.addItem(menu, tag);
+		}
 	}
 
 	private onContextMenu(event: MouseEvent): void {
@@ -50,13 +68,6 @@ export class TagFilterMenus {
 		const tag = site === undefined ? undefined : tagOfMenuSite(site);
 		if (tag !== undefined) {
 			this.addItem(Menu.forEvent(event), tag);
-		}
-	}
-
-	private offer(menu: Menu, site: TagMenuSite): void {
-		const tag = tagOfMenuSite(site);
-		if (tag !== undefined) {
-			this.addItem(menu, tag);
 		}
 	}
 

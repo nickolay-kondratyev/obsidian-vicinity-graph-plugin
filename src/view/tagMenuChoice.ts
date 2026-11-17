@@ -7,8 +7,9 @@ import type { Tag } from "../shared/Tags";
  * THE decision behind the "Vicinity graph: show tagged notes" right-click item
  * (tags-v1 decision 8, ticket `nid_6qj8n7uc7zz126l3ix8czfymq_e`): WHERE the user
  * right-clicked is read into a {@link TagMenuSite} ({@link tagMenuSiteOf} for the
- * DOM surfaces, the editor's own cursor for the editor), and {@link tagOfMenuSite}
- * says which tag — if any — the item is offered for. No `obsidian` import: the
+ * reading view / Tags pane / property pills, {@link editorTagSiteOf} for the
+ * editor), and {@link tagOfMenuSite} says which tag — if any — the item is offered
+ * for. No `obsidian` import: the
  * `Menu` plumbing is `TagFilterMenus`, which only asks here.
  */
 
@@ -17,7 +18,7 @@ export const SHOW_TAGGED_NOTES_MENU_TITLE = "Vicinity graph: show tagged notes";
 
 /** A right-clicked place that may name a tag. */
 export type TagMenuSite =
-	/** The editor (Live Preview or Source): the cursor's line and its offset in it. */
+	/** The editor (Live Preview or Source): the right-clicked line's text and the click's offset in it. */
 	| { readonly kind: "editor"; readonly lineText: string; readonly offset: number }
 	/** A tag Obsidian rendered as text: a reading-view `a.tag` (`#todo`) or a tags-pane row (`todo`). */
 	| { readonly kind: "rendered-tag"; readonly text: string }
@@ -48,6 +49,9 @@ function tagOfText(text: string): Tag | undefined {
 // is no API for "the tag under this element". Re-check on an Obsidian bump — the
 // e2e spec `tagFilterEntryPoints.e2e.ts` drives each surface for real.
 const READING_VIEW_TAG = "a.tag";
+/** An editor line, and the span(s) its markdown highlighter wraps a body hashtag in (both modes). */
+const EDITOR_LINE = ".cm-line";
+const EDITOR_HASHTAG = ".cm-hashtag";
 /** Inside an editor the editor's own menu owns the click (`editor-menu`). */
 const EDITOR = ".cm-editor";
 const TAGS_PANE_ROW = ".tag-pane-tag";
@@ -76,4 +80,34 @@ export function tagMenuSiteOf(target: Element): TagMenuSite | undefined {
 		return { kind: "rendered-tag", text: readingTag.textContent ?? "" };
 	}
 	return undefined;
+}
+
+/**
+ * The editor site of a right-clicked element: the line's RENDERED text and where the
+ * clicked hashtag span starts in it. Only a click ON a hashtag span is a site.
+ *
+ * WHY the DOM and not `editor.getCursor()`: Obsidian fires `editor-menu` BEFORE the
+ * editor moves its cursor to the right-click (measured on 1.12.7), so the cursor
+ * still sits wherever it was — reading it would offer a tag the user never clicked.
+ * WHY the rendered text and not the source line: Live Preview hides markup
+ * (`**`, link brackets), so a DOM offset only lines up with the DOM's own text — and
+ * the tag itself always renders verbatim, which is all `BodyHashtags.at` reads.
+ */
+export function editorTagSiteOf(target: Element): TagMenuSite | undefined {
+	const hashtag = target.closest(EDITOR_HASHTAG);
+	const line = hashtag?.closest(EDITOR_LINE);
+	if (hashtag == null || line == null) {
+		return undefined;
+	}
+	return { kind: "editor", lineText: line.textContent ?? "", offset: textLengthBefore(line, hashtag) };
+}
+
+/** How many characters of `container`'s text come before `child`. */
+function textLengthBefore(container: Element, child: Element): number {
+	const walker = container.ownerDocument.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+	let length = 0;
+	for (let node = walker.nextNode(); node !== null && !child.contains(node); node = walker.nextNode()) {
+		length += node.textContent?.length ?? 0;
+	}
+	return length;
 }

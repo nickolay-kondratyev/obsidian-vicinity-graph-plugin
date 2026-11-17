@@ -70,6 +70,9 @@ export const OPEN_GRAPH_COMMAND_ID = `${PLUGIN_ID}:open-right-sidebar`;
 export const OPEN_GRAPH_BELOW_COMMAND_ID = `${PLUGIN_ID}:open-below`;
 /** Mirrors `GraphViewPlacement`, plus the "neither region" case a spec must be able to see. */
 export type ObservedGraphPlacement = "right-sidebar" | "main-area" | "other";
+
+/** How a markdown note is rendered: the editor's two modes, or Reading view. */
+export type MarkdownViewMode = "live-preview" | "source" | "reading";
 /**
  * Duplicates `VIEW_TYPE_VICINITY_GRAPH` from `src/view/VicinityGraphView.tsx`
  * on purpose: importing that module here would drag the `obsidian` package (types-only,
@@ -267,6 +270,41 @@ export class ObsidianHarness {
 			}
 			await app.workspace.getLeaf(false).openFile(file);
 		}, vaultPath);
+	}
+
+	/**
+	 * Opens a note like {@link openFile}, in an explicit editor mode — the three ways
+	 * Obsidian renders a note's tags (Live Preview / Source spans, Reading-view links).
+	 */
+	async openFileIn(vaultPath: string, mode: MarkdownViewMode): Promise<void> {
+		const state =
+			mode === "reading"
+				? ({ mode: "preview" } as const)
+				: ({ mode: "source", source: mode === "source" } as const);
+		await this.page.evaluate(
+			async ({ targetPath, viewState }) => {
+				const app = (window as unknown as { app: E2eObsidianApp }).app;
+				const file = app.vault.getAbstractFileByPath(targetPath);
+				if (!file) {
+					throw new Error(`e2e: vault file not found: path=[${targetPath}]`);
+				}
+				await app.workspace.getLeaf(false).openFile(file, { state: viewState });
+			},
+			{ targetPath: vaultPath, viewState: state },
+		);
+	}
+
+	/** Opens the core Tags pane in the left sidebar and reveals it. */
+	async openTagsPane(): Promise<void> {
+		await this.page.evaluate(async () => {
+			const app = (window as unknown as { app: E2eObsidianApp }).app;
+			const leaf = app.workspace.getLeftLeaf(false);
+			if (leaf === null) {
+				throw new Error("e2e: no left-sidebar leaf for the Tags pane");
+			}
+			await leaf.setViewState({ type: "tag", active: true });
+			await app.workspace.revealLeaf(leaf);
+		});
 	}
 
 	/**
@@ -529,6 +567,13 @@ export class ObsidianHarness {
 			},
 			{ pluginId: PLUGIN_ID, tag: rawTag },
 		);
+	}
+
+	/** Leaves tag-filtered mode through the plugin's PUBLIC `exitTagMode` (every open view). */
+	async exitTagMode(): Promise<void> {
+		await this.page.evaluate((pluginId) => {
+			(window as unknown as { app: E2eObsidianApp }).app.plugins.plugins[pluginId]!.exitTagMode();
+		}, PLUGIN_ID);
 	}
 
 	/**

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
-import { tagMenuSiteOf } from "./tagMenuChoice";
+import { editorTagSiteOf, tagMenuSiteOf, tagOfMenuSite } from "./tagMenuChoice";
 
 /**
  * Reading a right-clicked element into a {@link TagMenuSite}, over fixture markup
@@ -52,5 +52,29 @@ describe("tagMenuSiteOf (which tag surface was right-clicked)", () => {
 
 	it("WHEN anything else is right-clicked THEN it is no site", () => {
 		expect(tagMenuSiteOf(elementIn(`<p>plain</p>`, "p"))).toBeUndefined();
+	});
+});
+
+describe("editorTagSiteOf (the tag span right-clicked in an editor line)", () => {
+	/** GIVEN a Live Preview line: bold text rendered without its `**`, then two tags as begin/end spans. */
+	const LINE =
+		`<div class="cm-content"><div class="cm-line">See <strong>bold</strong> ` +
+		`<span class="cm-hashtag cm-hashtag-begin">#</span><span class="cm-hashtag cm-hashtag-end">first</span> and ` +
+		`<span class="cm-hashtag cm-hashtag-begin">#</span><span class="cm-hashtag cm-hashtag-end">second</span>.</div></div>`;
+
+	it("WHEN the second tag's name is right-clicked THEN the site names that tag", () => {
+		const site = editorTagSiteOf(elementIn(LINE, ".cm-hashtag-end:last-of-type"));
+
+		expect(site === undefined ? undefined : tagOfMenuSite(site)?.key).toBe("second");
+	});
+
+	it("WHEN a tag's # is right-clicked THEN the site names that tag", () => {
+		const site = editorTagSiteOf(elementIn(LINE, ".cm-hashtag-begin"));
+
+		expect(site === undefined ? undefined : tagOfMenuSite(site)?.key).toBe("first");
+	});
+
+	it("WHEN plain text of the line is right-clicked THEN it is no site (a stale cursor must never pick a tag)", () => {
+		expect(editorTagSiteOf(elementIn(LINE, "strong"))).toBeUndefined();
 	});
 });
