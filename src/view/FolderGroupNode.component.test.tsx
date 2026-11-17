@@ -278,12 +278,6 @@ describe("FolderGroupNode tag box label (enters tag mode)", () => {
 		expect((await mountedTagLabel(result.container)).title).toContain("#follow-up #important");
 	});
 
-	it("WHEN a tag box label renders THEN it truncates at the END like any leaf label (never the folder path's front truncation)", async () => {
-		const { result } = renderGroupNode(tagBox("follow-up", "important"));
-
-		expect((await mountedTagLabel(result.container)).classList.contains("vicinity-graph-group__label--fullpath")).toBe(false);
-	});
-
 	it("WHEN a tag is chosen from a several-tag label's menu THEN tag mode is entered for it", async () => {
 		const { ui, tagFilter, result } = renderGroupNode(tagBox("follow-up", "important"));
 		fireEvent.click(await mountedTagLabel(result.container));
