@@ -34,6 +34,7 @@ Part of epic `nid_xhed75cwiy0ui4fokv6l02cxf_e`. Read `_agent_decisions/needs_rev
 - Folder group rendering: `src/view/FolderGroupNode.tsx`, styles in `src/view/graph-view.css`.
 
 ## Constraints
+- `decideLayout` in `src/view/GraphStructureDiff.ts` reuses the old layout when only a note's tags change. In Tags mode a tag-set change must force a relayout (as the folder grouping depth does today); flipping the mode must too.
 - The mode is GLOBAL config (CLAUDE.md: nothing is per-document as a setting).
 - Not published ⇒ no migration needed for the new key.
 
