@@ -15,7 +15,7 @@ import { resolveNodePreviewPreference } from "./nodePreviewChoice";
 import { OUTLINE_RENDER_LIMIT } from "./constants";
 import type { AttachmentIconGroup } from "./attachmentIconStrip";
 import { attachmentIconStrip } from "./attachmentIconStrip";
-import { deriveFolderGroups } from "./folderGrouping";
+import { deriveGrouping, groupingRequestOf } from "./groupingChoice";
 import type { GroupColorToken, GroupingResult, GroupSubject, NodeGroup } from "./grouping";
 import type { OrphanTruncation } from "./truncationBadges";
 import { deriveTruncationBadges } from "./truncationBadges";
@@ -300,9 +300,9 @@ export function vicinityGraphToFlow(
 	/** Whether the MAIN is a folder note whose owned folder exists — the create-child-note chip predicate. */
 	mainIsFolderNote: boolean,
 ): FlowGraph {
-	// The ONE place the grouper is chosen; everything below reads the
-	// mode-agnostic `GroupingResult` only.
-	const grouping: GroupingResult = deriveFolderGroups(graph.nodes, graph.viewSettings.folderGroupingDepth);
+	// The grouper is chosen at the ONE choice point (`groupingChoice.ts`, shared with
+	// elkMapping); everything below reads the mode-agnostic `GroupingResult` only.
+	const grouping = deriveGrouping(graph.nodes, groupingRequestOf(graph));
 	const badges = deriveTruncationBadges(
 		graph.hiddenNodeCountsByFolder,
 		grouping.groupCreditedForHiddenFolder,

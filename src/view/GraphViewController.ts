@@ -11,7 +11,7 @@ import type { Dimensions, FlowEdge, FlowGraph, FlowNode, XY } from "./flowMappin
 import { DETOUR_RATIO_DEGENERATE, clipRouteToEndpointRects, detourRatio } from "./edgeGeometry";
 import { extractEdgeRoutingInput } from "./edgeRouting";
 import type { EdgeRouteMap, EdgeRouter, EdgeRoutingInput, RoutedPoint } from "./edgeRouting";
-import { isFolderGroupId } from "./graphIdentity";
+import { isGroupId } from "./graphIdentity";
 import { NO_ORPHAN_TRUNCATION } from "./truncationBadges";
 import type { OrphanTruncation } from "./truncationBadges";
 import { LinkPreviewModels, edgeEndpointDisplayName } from "./linkPreviewModel";
@@ -314,8 +314,8 @@ export class GraphViewController {
 	/** Open the note behind a clicked node in a main-area editor leaf
 	 * (ctrl/cmd-click passes `{ newTab: true }` — CLARIFICATION Q2). */
 	openNode(path: string, options?: OpenNoteOptions): void {
-		if (isFolderGroupId(path)) {
-			return; // Folder-group containers have no note behind them.
+		if (isGroupId(path)) {
+			return; // Group containers (folder or tag boxes) have no note behind them.
 		}
 		this.navigator.openNote(path, options);
 	}
@@ -339,7 +339,7 @@ export class GraphViewController {
 	 * re-focusing the current MAIN is a no-op, mirroring that same decision.
 	 */
 	focusNode(path: string): void {
-		if (isFolderGroupId(path) || path === this.mainPath) {
+		if (isGroupId(path) || path === this.mainPath) {
 			return;
 		}
 		this.clearDebounce();

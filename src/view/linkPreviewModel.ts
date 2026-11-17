@@ -1,6 +1,6 @@
 import type { LinkOccurrence, VaultPath } from "../engine";
 import { VaultPathFacts } from "../shared/VaultPathFacts";
-import { folderOfGroupId, isFolderGroupId } from "./graphIdentity";
+import { folderOfGroupId, isFolderGroupId, isTagGroupId, tagGroupLabelOf } from "./graphIdentity";
 
 /**
  * Pure view-model for the EDGE-click link preview (parent ticket
@@ -117,11 +117,14 @@ function comparePaths(a: VaultPath, b: VaultPath): number {
 
 /**
  * Display name of a rendered edge endpoint id — the drawer-title vocabulary:
- * the FOLDER name for a folder-group id (a collapsed edge's endpoint), the note
- * title otherwise.
+ * the FOLDER name for a folder-group id (a collapsed edge's endpoint), the box's
+ * `#tag` label for a tag-group id, the note title otherwise.
  */
 export function edgeEndpointDisplayName(id: string): string {
-	return isFolderGroupId(id) ? VaultPathFacts.folderNameOf(folderOfGroupId(id)) : VaultPathFacts.titleOf(id);
+	if (isFolderGroupId(id)) {
+		return VaultPathFacts.folderNameOf(folderOfGroupId(id));
+	}
+	return isTagGroupId(id) ? tagGroupLabelOf(id) : VaultPathFacts.titleOf(id);
 }
 
 /** THE one place the preview's grouping + ordering rules live. */

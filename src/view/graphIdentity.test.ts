@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { NODE_MAX_LABEL_WIDTH_PX, NODE_TITLE_KIND_ICON_PX, asVaultPath, estimateNodeLabelWidthPx } from "../engine";
-import { nodeDimensionsPx, sameNodeSizeOverridePx } from "./graphIdentity";
+import { folderGroupIdOf, isGroupId, nodeDimensionsPx, sameNodeSizeOverridePx, tagGroupIdOf } from "./graphIdentity";
 import { makeNode } from "./testFixtures/graphFixtures";
 
 // 15 chars: the single-line estimate (15*8 + 20 = 140px) lands strictly
@@ -66,5 +66,19 @@ describe("sameNodeSizeOverridePx", () => {
 
 	it("WHEN neither node was ever resized THEN they are the same size", () => {
 		expect(sameNodeSizeOverridePx(undefined, undefined)).toBe(true);
+	});
+});
+
+describe("isGroupId", () => {
+	it("WHEN the id is a folder-group id THEN it is a group", () => {
+		expect(isGroupId(folderGroupIdOf("work"))).toBe(true);
+	});
+
+	it("WHEN the id is a tag-group id THEN it is a group", () => {
+		expect(isGroupId(tagGroupIdOf([["todo"]]))).toBe(true);
+	});
+
+	it("WHEN the id is a note path THEN it is not a group", () => {
+		expect(isGroupId("work/todo.md")).toBe(false);
 	});
 });

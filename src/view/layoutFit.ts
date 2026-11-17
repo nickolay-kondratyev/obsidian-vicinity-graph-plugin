@@ -1,6 +1,7 @@
 import type { GraphNode } from "../engine";
 import type { Dimensions, XY } from "./flowMapping";
-import { deriveFolderGroups } from "./folderGrouping";
+import type { GroupingRequest } from "./groupingChoice";
+import { deriveGrouping } from "./groupingChoice";
 import type { GroupId, GroupingResult } from "./grouping";
 import { nodeDimensionsPx } from "./graphIdentity";
 
@@ -84,12 +85,12 @@ export function resizedNodesFitRenderedLayout(
 	resizedPaths: ReadonlySet<string>,
 	nodes: readonly GraphNode[],
 	layout: RenderedLayout,
-	maxGroupNestingDepth: number,
+	groupingRequest: GroupingRequest,
 ): boolean {
-	// The SAME depth cap the rendered layout was built under (the caller only asks
-	// this question when the cap did not change): a different cap would derive
+	// The SAME grouping the rendered layout was built under (the caller only asks
+	// this question when the grouping did not change): a different one would derive
 	// groups the layout never placed and answer "relayout" for every resize.
-	const grouping: GroupingResult = deriveFolderGroups(nodes, maxGroupNestingDepth);
+	const grouping: GroupingResult = deriveGrouping(nodes, groupingRequest);
 	const nodeRects = new Map<string, Rect>();
 	for (const node of nodes) {
 		const position = layout.positions.get(node.path);

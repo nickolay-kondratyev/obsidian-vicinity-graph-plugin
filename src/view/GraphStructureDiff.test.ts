@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { ForceLayoutSettings } from "../engine";
+import type { ForceLayoutSettings, GraphNode, VicinityGraph } from "../engine";
+import { Tags } from "../shared/Tags";
 import { asVaultPath, FORCE_LAYOUT_RANGES } from "../engine";
 import { SIZE_RELAYOUT_THRESHOLD } from "./constants";
 import { decideLayout } from "./GraphStructureDiff";
@@ -301,5 +302,37 @@ describe("decideLayout per-node content override (hover gear)", () => {
 		expect(decideLayout(graphWithContent("image"), graphWithContent(undefined), SIZE_RELAYOUT_THRESHOLD, NO_RENDERED_LAYOUT)).toBe(
 			"reuse-layout",
 		);
+	});
+});
+
+describe("decideLayout grouping changes", () => {
+	// GIVEN two root notes that share #todo, plus one with #visit, in tag mode
+	const tagged = (path: string, ...tags: string[]) => makeNode({ path: asVaultPath(path), tags: Tags.distinct(tags) });
+	const inTagMode = (nodes: readonly GraphNode[]): VicinityGraph => {
+		const graph = makeGraph({ nodes });
+		return { ...graph, viewSettings: { ...graph.viewSettings, groupingMode: "tags" } };
+	};
+	const base = inTagMode([tagged("a.md", "todo"), tagged("b.md", "todo"), tagged("c.md", "visit")]);
+
+	it("WHEN two builds differ ONLY in groupingMode THEN it relayouts", () => {
+		const next = { ...base, viewSettings: { ...base.viewSettings, groupingMode: "folders" as const } };
+		expect(decideLayout(base, next, SIZE_RELAYOUT_THRESHOLD, NO_RENDERED_LAYOUT)).toBe("relayout");
+	});
+
+	it("WHEN in tag mode a note's tag edit moves it into a tag box THEN it relayouts", () => {
+		const next = inTagMode([tagged("a.md", "todo"), tagged("b.md", "todo"), tagged("c.md", "todo")]);
+		expect(decideLayout(base, next, SIZE_RELAYOUT_THRESHOLD, NO_RENDERED_LAYOUT)).toBe("relayout");
+	});
+
+	it("WHEN in tag mode a tag edit leaves every box as it was THEN it reuses the layout", () => {
+		const next = inTagMode([tagged("a.md", "todo"), tagged("b.md", "todo"), tagged("c.md", "visit", "idea")]);
+		expect(decideLayout(base, next, SIZE_RELAYOUT_THRESHOLD, NO_RENDERED_LAYOUT)).toBe("reuse-layout");
+	});
+
+	it("WHEN in folder mode a note's tags change THEN it reuses the layout", () => {
+		const inFolderMode = (nodes: readonly GraphNode[]): VicinityGraph => makeGraph({ nodes });
+		const previous = inFolderMode([tagged("a.md", "todo"), tagged("b.md")]);
+		const next = inFolderMode([tagged("a.md", "todo"), tagged("b.md", "todo")]);
+		expect(decideLayout(previous, next, SIZE_RELAYOUT_THRESHOLD, NO_RENDERED_LAYOUT)).toBe("reuse-layout");
 	});
 });
