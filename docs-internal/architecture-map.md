@@ -196,8 +196,8 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   React Flow / elk node id) plus the lookup seams `containerChainOf`,
   `lowestCommonAncestorContainerOf`, `projectOntoContainerChildOf` and
   `groupCreditedForHiddenFolder`. `elkMapping`, `flowMapping`, `layoutFit`,
-  `truncationBadges` and `FolderGroupNode` read ONLY this shape — never a folder
-  path, never id/label arithmetic. A GROUPER produces it: `folderGrouping.ts`
+  `truncationBadges` and `FolderGroupNode` read ONLY this shape — never folder
+  arithmetic on an id, a label or a member path. A GROUPER produces it: `folderGrouping.ts`
   (`deriveFolderGroups`) is the one today; a second grouper (tags) is a new
   producer, not an edit to the consumers. The tree lookups come from
   `deriveGroupTreeLookups` (from `parentId` + `memberPaths` alone), so a grouper

@@ -617,6 +617,16 @@ describe("vicinityGraphToFlow collapsed-chain group label (groupLabelFullPath)",
 		expect(collapsedChainGroup(graph)?.data.folder).toBe("A/B/C");
 	});
 
+	// The tooltip is rendered from `fullLabel` (FolderGroupNode `title`), so the
+	// full-vault-path promise must be pinned on that field, not only on `folder`.
+	it("WHEN the label setting is ON THEN the tooltip text (fullLabel) is the full vault path", () => {
+		const graph = makeGraph({
+			nodes: collapsedChainGraph().nodes,
+			viewSettings: { ...makeGraph().viewSettings, groupLabelFullPath: true },
+		});
+		expect(collapsedChainGroup(graph)?.data.fullLabel).toBe("A/B/C");
+	});
+
 	it("WHEN the label setting is ON THEN a NON-collapsed group is unaffected (leaf === chain)", () => {
 		const graph = makeGraph({
 			nodes: groupedGraph().nodes,
