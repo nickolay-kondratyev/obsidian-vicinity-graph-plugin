@@ -1,6 +1,8 @@
 import type { ForceLayoutSettings, GraphNode, VicinityGraph } from "../engine";
 import { FORCE_LAYOUT_RANGES } from "../engine";
 import { edgeIdOf, nodeDimensionsPx, nodeSizeOverridePx, sameNodeSizeOverridePx } from "./graphIdentity";
+import type { GroupingResult } from "./grouping";
+import { deriveGrouping, groupingRequestOf } from "./groupingChoice";
 import { resizedNodesFitRenderedLayout } from "./layoutFit";
 import type { RenderedLayout } from "./layoutFit";
 
@@ -14,7 +16,8 @@ import type { RenderedLayout } from "./layoutFit";
  * exit criterion.
  *
  * `relayout`: first build, any structural change (a node or edge added/removed),
- * a force-layout tuning change (the sliders must re-run the layout live — reusing
+ * a change to which group BOXES exist or what they hold (see {@link sameBoxes}), a
+ * force-layout tuning change (the sliders must re-run the layout live — reusing
  * positions would silently swallow the new values), a surviving node whose per-node
  * size OVERRIDE changed into a box that no longer FITS where the rendered layout
  * put it (see {@link resizedPaths}), or a surviving node whose RENDERED box
@@ -38,10 +41,15 @@ export function decideLayout(
 	if (!sameForceLayout(previous.viewSettings.forceLayout, next.viewSettings.forceLayout)) {
 		return "relayout";
 	}
-	// The folder-grouping depth cap changes which GROUP BOXES exist for the same
-	// node/edge id sets, so reusing positions would leave new boxes unplaced (and
-	// removed ones haunting the pane) — the slider must re-run the layout live.
-	if (previous.viewSettings.folderGroupingDepth !== next.viewSettings.folderGroupingDepth) {
+	// The grouping dials — the depth cap and the Folders | Tags mode — change which
+	// GROUP BOXES exist for the same node/edge id sets, so reusing positions would
+	// leave new boxes unplaced (and removed ones haunting the pane): moving either
+	// re-runs the layout live, unconditionally, as the user just asked for a new
+	// arrangement.
+	if (
+		previous.viewSettings.folderGroupingDepth !== next.viewSettings.folderGroupingDepth ||
+		previous.viewSettings.groupingMode !== next.viewSettings.groupingMode
+	) {
 		return "relayout";
 	}
 	if (!sameIds(nodeIdsOf(previous), nodeIdsOf(next))) {
@@ -50,11 +58,15 @@ export function decideLayout(
 	if (!sameIds(edgeIdsOf(previous), edgeIdsOf(next))) {
 		return "relayout";
 	}
+	// The boxes can ALSO change with no dial moved: in tag mode, editing a note's tags
+	// regroups it. Judged on the DERIVED boxes rather than on the tags, so an edit that
+	// leaves every box as it was (a tag that only adds a chip) stays a data-only refresh.
+	const nextGroupingRequest = groupingRequestOf(next);
+	if (!sameBoxes(deriveGrouping(previous.nodes, groupingRequestOf(previous)), deriveGrouping(next.nodes, nextGroupingRequest))) {
+		return "relayout";
+	}
 	const resized = resizedPaths(previous.nodes, next.nodes);
-	if (
-		resized.size > 0 &&
-		!resizedNodesFitRenderedLayout(resized, next.nodes, renderedLayout, next.viewSettings.folderGroupingDepth)
-	) {
+	if (resized.size > 0 && !resizedNodesFitRenderedLayout(resized, next.nodes, renderedLayout, nextGroupingRequest)) {
 		return "relayout";
 	}
 	if (anyNodeGrewBeyond(previous.nodes, next.nodes, sizeGrowthThreshold, resized)) {
@@ -74,6 +86,24 @@ const FORCE_LAYOUT_FIELDS = Object.keys(FORCE_LAYOUT_RANGES) as readonly (keyof 
 /** Value equality over every force-layout field (each build resolves a fresh object, so identity cannot be used). */
 function sameForceLayout(a: ForceLayoutSettings, b: ForceLayoutSettings): boolean {
 	return FORCE_LAYOUT_FIELDS.every((field) => a[field] === b[field]);
+}
+
+/**
+ * TRUE when both groupings render the same boxes (id + parent) holding the same direct
+ * members — everything the layout places. Labels, colours and chips are deliberately
+ * NOT compared: they repaint on a data-only refresh without moving anything.
+ */
+function sameBoxes(a: GroupingResult, b: GroupingResult): boolean {
+	return a.groups.length === b.groups.length && a.groups.every((group, index) => {
+		const other = b.groups[index];
+		return (
+			other !== undefined &&
+			other.id === group.id &&
+			other.parentId === group.parentId &&
+			other.memberPaths.length === group.memberPaths.length &&
+			other.memberPaths.every((path, memberIndex) => path === group.memberPaths[memberIndex])
+		);
+	});
 }
 
 function nodeIdsOf(graph: VicinityGraph): Set<string> {

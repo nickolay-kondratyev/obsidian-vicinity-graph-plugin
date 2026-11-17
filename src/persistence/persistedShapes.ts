@@ -11,6 +11,7 @@ import type {
 import {
 	EngineDefaults,
 	NODE_CONTENT_OVERRIDES,
+	GROUPING_MODES,
 	NODE_PREVIEW_PREFERENCES,
 	clampEdgeDepthIntoGroups,
 	clampFolderGroupingDepth,
@@ -219,6 +220,8 @@ function parseViewFields(raw: unknown): Partial<ViewSettings> {
 		// back to its spec default): an existing data.json parses correctly. A
 		// non-boolean falls through as absent — never a truthiness coercion.
 		groupLabelFullPath: typeof raw["groupLabelFullPath"] === "boolean" ? raw["groupLabelFullPath"] : undefined,
+		// Unrecognized values fall through as absent, so the spec default applies.
+		groupingMode: GROUPING_MODES.find((mode) => mode === raw["groupingMode"]),
 		// Decoded by {@link decodeFolderGroupingDepth} (a missing known field falls
 		// back to its spec default ∞ — unlimited grouping): an existing data.json
 		// parses correctly. Clamped with the SAME function the slider settles with, so

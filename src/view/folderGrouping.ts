@@ -87,8 +87,8 @@ export const MIN_GROUP_MEMBER_COUNT = 2;
 
 /**
  * `maxGroupNestingDepth` value imposing no cap: every rendered nesting level
- * survives. Callers pass this until the "Folder grouping depth" setting lands
- * (plan `nid_yyugpoh3gv8ip24cizvgrs4w4_e`, ticket `nid_5vz7mtm2rn6n7nj9cp5mfbslx_e`).
+ * survives — the "Grouping depth" setting's ∞ (plan `nid_yyugpoh3gv8ip24cizvgrs4w4_e`,
+ * ticket `nid_5vz7mtm2rn6n7nj9cp5mfbslx_e`).
  */
 export const UNLIMITED_GROUP_NESTING_DEPTH = Number.POSITIVE_INFINITY;
 

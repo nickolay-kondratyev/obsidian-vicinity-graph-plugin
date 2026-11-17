@@ -772,6 +772,18 @@ describe("GraphViewController step-05 snapshot extras", () => {
 		h.controller.openNode("folder-group:notes");
 		expect(h.navigator.opened).toEqual([]);
 	});
+
+	it("WHEN a tag-group node is clicked THEN no note open is attempted", () => {
+		const h = setup();
+		h.controller.openNode("tag-group:todo");
+		expect(h.navigator.opened).toEqual([]);
+	});
+
+	it("WHEN a tag-group node is focused THEN no note open is attempted", () => {
+		const h = setup();
+		h.controller.focusNode("tag-group:todo");
+		expect(h.navigator.opened).toEqual([]);
+	});
 });
 
 describe("GraphViewController layoutVersion refit signal", () => {

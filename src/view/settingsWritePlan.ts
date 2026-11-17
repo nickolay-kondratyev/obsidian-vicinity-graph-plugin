@@ -2,6 +2,7 @@ import type {
 	DepthSettings,
 	ForceLayoutSettings,
 	FrontmatterLinkSettings,
+	GroupingMode,
 	NodeExclusionSettings,
 	NodePreviewPreference,
 	SizingSettings,
@@ -44,7 +45,9 @@ export type SettingsInteraction =
 	| { readonly kind: "global-show-cross-links"; readonly showCrossLinks: boolean }
 	/** Whether a collapsed folder chain is labelled with its full path instead of the leaf name. */
 	| { readonly kind: "global-group-label-full-path"; readonly groupLabelFullPath: boolean }
-	/** Maximum rendered folder-group nesting levels (0 turns grouping off entirely). */
+	/** What the group boxes stand for: folders or tags. */
+	| { readonly kind: "global-grouping-mode"; readonly value: GroupingMode }
+	/** Maximum rendered group nesting levels (0 turns grouping off entirely). */
 	| { readonly kind: "global-folder-grouping-depth"; readonly value: number }
 	/** How many nested-group levels an edge may reach into before collapsing onto the group box. */
 	| { readonly kind: "global-edge-depth-into-groups"; readonly value: number }
@@ -102,6 +105,8 @@ export function planSettingsWrite(interaction: SettingsInteraction, ctx: Setting
 				kind: "global-view",
 				view: { ...ctx.globalView, groupLabelFullPath: interaction.groupLabelFullPath },
 			};
+		case "global-grouping-mode":
+			return { kind: "global-view", view: { ...ctx.globalView, groupingMode: interaction.value } };
 		case "global-folder-grouping-depth":
 			return { kind: "global-view", view: { ...ctx.globalView, folderGroupingDepth: interaction.value } };
 		case "global-edge-depth-into-groups":

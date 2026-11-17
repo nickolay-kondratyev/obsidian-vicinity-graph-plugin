@@ -1,8 +1,8 @@
 import type { ElkNode } from "elkjs";
-import { isFolderGroupId } from "../graphIdentity";
+import { isGroupId } from "../graphIdentity";
 
 /**
- * Merges `options` over every folder-group CONTAINER's `layoutOptions` (root
+ * Merges `options` over every group CONTAINER (folder or tag box)'s `layoutOptions` (root
  * and leaves untouched) — the interior-layout candidate switch (ticket
  * nid_7abfje1vus15rx9hzmpel9jin_e), shared by the eval harness and the
  * box-refit tests so "run this graph with <these interior options>" is
@@ -16,7 +16,7 @@ export function withContainerOptions(node: ElkNode, options: Readonly<Record<str
 		return node;
 	}
 	const rewritten = children.map((child) => withContainerOptions(child, options));
-	if (!isFolderGroupId(node.id)) {
+	if (!isGroupId(node.id)) {
 		return { ...node, children: rewritten };
 	}
 	return {

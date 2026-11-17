@@ -73,6 +73,7 @@ describe("section resets together cover every settings field", () => {
 			nodeCap: 17,
 			outlineMaxDepth: 5,
 			nodePreviewPreference: "image",
+			groupingMode: "tags",
 			showCrossLinks: true,
 			groupLabelFullPath: true,
 			folderGroupingDepth: 2,

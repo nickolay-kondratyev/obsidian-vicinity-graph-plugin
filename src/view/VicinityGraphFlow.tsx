@@ -10,7 +10,6 @@ import type {
 } from "@xyflow/react";
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { ReactElement } from "react";
-import { hiddenOverlayText, orphanBreakdownTitle } from "./badgeText";
 import { GRAPH_MIN_ZOOM } from "./constants";
 import { ControlsActionsContext } from "./ControlsActionsContext";
 import { FolderGroupNode } from "./FolderGroupNode";
@@ -18,6 +17,7 @@ import type { FlowEdge, FlowNode } from "./flowMapping";
 import { edgeClassName } from "./flowMapping";
 import { GraphModeCopy } from "./graphMode";
 import { ExitTagModeButton, GraphModePill } from "./GraphModePill";
+import { GraphCorner } from "./GraphCorner";
 import { GraphToolbar } from "./GraphToolbar";
 import type { GraphViewController } from "./GraphViewController";
 import { GraphUiContext } from "./GraphUiContext";
@@ -325,21 +325,14 @@ export function VicinityGraphFlow({
 							{/*
 							 * The mode status (tags-v1 decision 12). Bottom-RIGHT: the
 							 * zoom controls own bottom-left, the toolbar top-left and the
-							 * "+N hidden" badge top-right.
+							 * grouping toggle + "+N hidden" badge (GraphCorner) top-right.
 							 */}
 							<Panel position="bottom-right">
 								<GraphModePill status={snapshot.mode} onExitTagMode={exitTagMode} />
 							</Panel>
-							{snapshot.orphanTruncation.totalHiddenCount > 0 && (
-								<Panel position="top-right">
-									<div
-										className="vicinity-graph-overlay-badge"
-										title={orphanBreakdownTitle(snapshot.orphanTruncation.breakdown)}
-									>
-										{hiddenOverlayText(snapshot.orphanTruncation.totalHiddenCount)}
-									</div>
-								</Panel>
-							)}
+							<Panel position="top-right">
+								<GraphCorner controls={snapshot.controls} orphanTruncation={snapshot.orphanTruncation} />
+							</Panel>
 						</ReactFlow>
 						{previewModel !== null && (
 							<LinkPreviewDrawer

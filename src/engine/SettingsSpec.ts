@@ -20,6 +20,7 @@ import type {
 	DepthSettings,
 	ForceLayoutSettings,
 	FrontmatterLinkSettings,
+	GroupingMode,
 	NodeExclusionSettings,
 	NodePreviewPreference,
 	ViewSettings,
@@ -79,6 +80,7 @@ export interface ViewSpec {
 	readonly nodePreviewPreference: DefaultSpec<NodePreviewPreference>;
 	readonly showCrossLinks: DefaultSpec<boolean>;
 	readonly groupLabelFullPath: DefaultSpec<boolean>;
+	readonly groupingMode: DefaultSpec<GroupingMode>;
 	readonly folderGroupingDepth: BoundedNumberSpec;
 	readonly edgeDepthIntoGroups: BoundedNumberSpec;
 	readonly sizing: SizingSpec;
@@ -302,6 +304,13 @@ export const SETTINGS_SPEC: SettingsSpec = {
 		 * either way; this only changes what a COLLAPSED chain reads as.
 		 */
 		groupLabelFullPath: { default: false },
+		/**
+		 * FOLDERS by default (tags-v1, `nid_lmftfz11vvfwj382i4xmmoqgf_e`): folder
+		 * grouping is what the plugin shipped with and works in every vault, while tag
+		 * grouping only pays off in a vault that tags its notes — an opt-in reading,
+		 * one click away on the graph's top-right toggle.
+		 */
+		groupingMode: { default: "folders" },
 		/**
 		 * Maximum RENDERED folder-group nesting levels (plan
 		 * `nid_yyugpoh3gv8ip24cizvgrs4w4_e`, signed-off Q2). `0` turns folder

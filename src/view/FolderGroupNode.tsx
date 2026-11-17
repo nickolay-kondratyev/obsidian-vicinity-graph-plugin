@@ -14,7 +14,9 @@ import type { NodeMenuEntry, NoteOpenPort } from "./viewPorts";
  * {@link FlowGroupData} — it never asks which grouper made the box. Neutral
  * Obsidian-theme styling — visible neutral border, secondary-background fill,
  * name label — deliberately NO folder colors (human decision, CLARIFICATION
- * palette section; `data.colorToken` is carried but not rendered yet). The "+N"
+ * palette section). A box that carries a `colorToken` (every TAG box) paints it
+ * as a tinted border + header through `data-color` (graph-view.css, "tag colours"),
+ * a theme variable per token, so light and dark both work. The "+N"
  * badge surfaces the group's truncated-away members (Q4). Member nodes
  * render on top because React Flow orders parents before children.
  *
@@ -56,7 +58,13 @@ export const FolderGroupNode = memo(function FolderGroupNode({
 		});
 	};
 	return (
-		<div className="vicinity-graph-group" {...(data.folder === null ? {} : { "data-folder": data.folder })}>
+		<div
+			className="vicinity-graph-group"
+			{...(data.folder === null ? {} : { "data-folder": data.folder })}
+			{...(data.colorToken === null ? {} : { "data-color": data.colorToken })}
+			// The tag box's DOM hook (the twin of `data-folder`): its label tag keys.
+			{...(data.labelTags === undefined ? {} : { "data-tags": data.labelTags.map((tag) => tag.key).join(" ") })}
+		>
 			{/* Hidden edge anchors so collapsed edges can point at the group box
 			    (mirrors NoteNode). isConnectable=false keeps groups non-interactive
 			    for links — they are edge-addressable only. */}

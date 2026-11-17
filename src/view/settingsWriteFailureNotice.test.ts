@@ -86,6 +86,8 @@ describe("SettingsWriteFailureNotice over every declared row", () => {
 				return [interactionOf(SettingsRowAccessors.sizingNumber(control.field))];
 			case "node-preview":
 				return [interactionOf(SettingsRowAccessors.nodePreview())];
+			case "grouping-mode":
+				return [interactionOf(SettingsRowAccessors.groupingMode())];
 			case "show-cross-links":
 				return [interactionOf(SettingsRowAccessors.showCrossLinks())];
 			case "group-label-full-path":

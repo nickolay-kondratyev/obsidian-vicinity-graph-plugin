@@ -77,6 +77,9 @@ const SHIPPED_SETTINGS_DEFAULTS: Readonly<Record<string, unknown>> = {
 	// Collapsed folder chains show the leaf folder name by default (signed-off
 	// decision A1); ON labels them with the full A/B/C path.
 	"globalView.groupLabelFullPath": false,
+	// Folder boxes by default (tags-v1): tag grouping is the opt-in reading, one
+	// click away on the graph's top-right Folders | Tags toggle.
+	"globalView.groupingMode": "folders",
 	// ∞ = unlimited nesting, the genuine value not a large-number sentinel (ticket
 	// nid_rndi5sulwrsx1aq0x4xqcskrb_e): grouping ships nesting to whatever depth a vault
 	// has; 0 turns it off entirely, and the slider's finite stops run 1..10.

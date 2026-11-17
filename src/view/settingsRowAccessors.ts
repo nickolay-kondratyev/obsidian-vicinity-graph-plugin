@@ -1,4 +1,4 @@
-import type { DepthSettings, ForceLayoutSettings, NodePreviewPreference } from "../engine";
+import type { DepthSettings, ForceLayoutSettings, GroupingMode, NodePreviewPreference } from "../engine";
 import {
 	FORCE_LAYOUT_RANGES,
 	SETTINGS_SPEC,
@@ -267,6 +267,14 @@ export class SettingsRowAccessors {
 		return {
 			read: (state) => state.globalView.showCrossLinks,
 			interaction: (showCrossLinks) => ({ kind: "global-show-cross-links", showCrossLinks }),
+		};
+	}
+
+	/** What the group boxes stand for: folders or tags. */
+	static groupingMode(): SettingsValueAccessor<GroupingMode> {
+		return {
+			read: (state) => state.globalView.groupingMode,
+			interaction: (value) => ({ kind: "global-grouping-mode", value }),
 		};
 	}
 

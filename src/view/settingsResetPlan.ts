@@ -170,10 +170,10 @@ export const SETTINGS_RESET_SCOPES: Readonly<Record<SettingsResetScope, Settings
 	},
 	grouping: {
 		label: "Restore grouping defaults",
-		// Does not state WHICH way the toggle lands: that literal lives in
+		// Does not state WHICH way each control lands: those literals live in
 		// `SETTINGS_SPEC` alone (see the edges scope).
 		description:
-			"Resets whether collapsed folder chains are labelled with their full path, and how far edges reach into nested groups.",
+			"Resets what the boxes around notes stand for (folders or tags), how many levels of boxes nest, and whether collapsed folder chains are labelled with their full path.",
 		plan: (ctx) => planSectionReset("grouping", ctx),
 	},
 	"force-layout": {

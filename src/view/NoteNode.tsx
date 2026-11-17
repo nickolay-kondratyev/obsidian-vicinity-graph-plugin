@@ -4,7 +4,7 @@ import { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import type { MouseEvent as ReactMouseEvent, ReactElement } from "react";
 import { attachmentGroupLabel, attachmentIconId } from "./attachmentIcons";
 import type { AttachmentIconGroup } from "./attachmentIconStrip";
-import { extraImageCountText } from "./badgeText";
+import { extraImageCountText, plusNText } from "./badgeText";
 import { useControlsActions } from "./ControlsActionsContext";
 import type { FlowNodeData } from "./flowMapping";
 import { useGraphUi } from "./GraphUiContext";
@@ -12,6 +12,7 @@ import { NodeOutline } from "./NodeOutline";
 import { currentNodeContentChoice, planNodeContentMenu } from "./nodePreviewChoice";
 import { planNodeLocalPinAction, planNodePinAction } from "./nodePinAction";
 import { NODE_RESIZE_BOUNDS, planResetSizeAction, resizeEndToOverride } from "./nodeResize";
+import type { TagChipRow } from "./tagChips";
 import type { NodeMenuEntry } from "./viewPorts";
 
 /**
@@ -303,9 +304,48 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
 				)}
 				<Handle type="source" position={Position.Bottom} className="vicinity-graph-node__handle" />
 			</div>
+			{data.tagChips !== undefined && <NoteTagChips row={data.tagChips} />}
 		</>
 	);
 });
+
+/**
+ * The note's leftover-tag chips (tag-grouping mode). Hung just BELOW the node box
+ * (graph-view.css, "tag chips"), never inside it: inside, they would need height
+ * the content-fit sizer does not reserve and would break the density ladder
+ * (`nodeDensityThresholds.test.ts`); outside, they cost no layout space at all.
+ * CEILING: they borrow the gap the layout leaves between boxes (the spacing knobs'
+ * defaults keep 40px+), so a user who dials node spacing near 0 sees chips touch a
+ * neighbour. Upgrade path: reserve the row through the sizer like other content.
+ * A SIBLING of `.vicinity-graph-node` for the same clipping reason as the resize
+ * grips (that box is `overflow: hidden`).
+ *
+ * Each chip carries `data-tag` (its key): the tag-filter entry points
+ * (`nid_6qj8n7uc7zz126l3ix8czfymq_e`) turn a chip into the control that enters
+ * tag-filter mode for it.
+ */
+function NoteTagChips({ row }: { readonly row: TagChipRow }): ReactElement {
+	return (
+		<div className="vicinity-graph-node-tags">
+			{row.chips.map((chip) => (
+				<span
+					key={chip.tag.key}
+					className="vicinity-graph-tag-chip"
+					data-color={chip.colorToken}
+					data-tag={chip.tag.key}
+					title={chip.label}
+				>
+					{chip.label}
+				</span>
+			))}
+			{row.overflow !== null && (
+				<span className="vicinity-graph-tag-chip vicinity-graph-tag-chip--overflow" title={row.overflow.title}>
+					{plusNText(row.overflow.count)}
+				</span>
+			)}
+		</div>
+	);
+}
 
 /** The title tooltip names a canvas as one, so the hover confirms what the glyph says. */
 function titleTooltip(data: FlowNodeData): string {

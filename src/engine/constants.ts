@@ -520,6 +520,7 @@ export class EngineDefaults {
 			nodePreviewPreference: view.nodePreviewPreference.default,
 			showCrossLinks: view.showCrossLinks.default,
 			groupLabelFullPath: view.groupLabelFullPath.default,
+			groupingMode: view.groupingMode.default,
 			folderGroupingDepth: view.folderGroupingDepth.default,
 			edgeDepthIntoGroups: view.edgeDepthIntoGroups.default,
 			sizing: EngineDefaults.sizingSettings(),

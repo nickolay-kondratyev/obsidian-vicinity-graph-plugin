@@ -9,6 +9,7 @@ import type {
 	ViewSettings,
 } from "../engine";
 import { asDocId, asFolderPath, asVaultPath, NODE_CONTENT_OVERRIDES, NODE_PREVIEW_PREFERENCES } from "../engine";
+import { Tags } from "../shared/Tags";
 import { OUTLINE_RENDER_LIMIT } from "./constants";
 import { edgeClassName, edgeKindClassName, vicinityGraphToFlow, withGroupDimensions, withPositions } from "./flowMapping";
 import type { FlowNode, FlowPinFacts, FolderNoteCandidatesLookup, NoteFlowNode, XY } from "./flowMapping";
@@ -1379,5 +1380,59 @@ describe("vicinityGraphToFlow node geometry ignores the per-node content overrid
 		const choices: (NodeContentOverride | undefined)[] = [undefined, ...NODE_CONTENT_OVERRIDES];
 		const actual = Object.fromEntries(choices.map((c) => [String(c), boxesUnderOverride(c)]));
 		expect(actual).toEqual(Object.fromEntries(choices.map((c) => [String(c), baseline])));
+	});
+});
+
+describe("vicinityGraphToFlow in tag-grouping mode", () => {
+	// GIVEN two notes in DIFFERENT folders sharing #todo, and a third with a lone #visit
+	const tagged = (path: string, folder: string, ...tags: string[]) =>
+		makeNode({ path: asVaultPath(path), folder: asFolderPath(folder), tags: Tags.distinct(tags) });
+	const nodes = [tagged("x/a.md", "x", "todo"), tagged("y/b.md", "y", "todo"), tagged("c.md", "", "visit")];
+	const graphIn = (groupingMode: ViewSettings["groupingMode"], extra: Partial<ViewSettings> = {}) => {
+		const graph = makeGraph({ nodes });
+		return { ...graph, viewSettings: { ...graph.viewSettings, groupingMode, ...extra } };
+	};
+	const groupNodesOf = (flowNodes: readonly FlowNode[]) => flowNodes.filter((node) => node.kind === "folder-group");
+
+	it("WHEN the mode is tags THEN the only box is the #todo tag box", () => {
+		expect(groupNodesOf(toFlow(graphIn("tags")).nodes).map((node) => node.data.label)).toEqual(["#todo"]);
+	});
+
+	it("WHEN the mode is tags THEN the notes sharing #todo render inside the tag box", () => {
+		const flow = toFlow(graphIn("tags"));
+		const [box] = groupNodesOf(flow.nodes);
+		expect([noteNode(flow.nodes, "x/a.md")?.parentId, noteNode(flow.nodes, "y/b.md")?.parentId]).toEqual([box?.id, box?.id]);
+	});
+
+	it("WHEN the mode is tags THEN the tag box carries its tag colour", () => {
+		const [box] = groupNodesOf(toFlow(graphIn("tags")).nodes);
+		expect(box?.kind === "folder-group" ? box.data.colorToken : undefined).toBe("orange");
+	});
+
+	it("WHEN the mode is tags THEN the tag box carries its label tags (the click hook's subject)", () => {
+		const [box] = groupNodesOf(toFlow(graphIn("tags")).nodes);
+		expect(box?.kind === "folder-group" ? box.data.labelTags?.map((tag) => tag.key) : undefined).toEqual(["todo"]);
+	});
+
+	it("WHEN the mode is tags and the full-path label setting is on THEN the tag box label still truncates conventionally", () => {
+		const [box] = groupNodesOf(toFlow(graphIn("tags", { groupLabelFullPath: true })).nodes);
+		expect(box?.kind === "folder-group" ? box.data.fullPathLabel : undefined).toBe(false);
+	});
+
+	it("WHEN the mode is tags THEN a note with an unshared tag carries it as a chip", () => {
+		expect(noteNode(toFlow(graphIn("tags")).nodes, "c.md")?.data.tagChips?.chips.map((chip) => chip.label)).toEqual(["#visit"]);
+	});
+
+	it("WHEN the mode is tags THEN a note whose only tag names its box carries no chips", () => {
+		expect(noteNode(toFlow(graphIn("tags")).nodes, "x/a.md")?.data.tagChips).toBeUndefined();
+	});
+
+	it("WHEN the mode is folders THEN no note carries chips", () => {
+		expect(noteNode(toFlow(graphIn("folders")).nodes, "c.md")?.data.tagChips).toBeUndefined();
+	});
+
+	it("WHEN the mode is folders THEN boxes carry no label tags", () => {
+		const boxes = groupNodesOf(toFlow(graphIn("folders")).nodes);
+		expect(boxes.map((box) => (box.kind === "folder-group" ? box.data.labelTags : "note"))).toEqual(boxes.map(() => undefined));
 	});
 });

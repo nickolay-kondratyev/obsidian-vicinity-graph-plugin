@@ -128,9 +128,12 @@ The settings, grouped the same way on both surfaces:
   second set of budgets for pinned notes. A depth of **0** turns that
   relationship off; descendants and ancestors ship at **1** for the active note
   and **0** for pinned notes.
-- **Grouping** — *Folder grouping depth* sets how many levels of nested folder
-  groups render: **0** turns grouping off entirely, and the slider runs `1`–`10`
-  and then **∞** (unlimited, the default). *Full folder path* labels a collapsed
+- **Grouping** — *Group notes by* draws boxes around notes that share a
+  **Folder** (the default) or **Tags** (coloured tag boxes, with each note's other
+  tags as small chips); the same switch sits in the graph's top-right corner.
+  *Grouping depth* sets how many levels of nested boxes render: **0** turns
+  grouping off entirely, and the slider runs `1`–`10` and then **∞** (unlimited,
+  the default). *Full folder path* labels a collapsed
   folder chain (a run of single-child folders drawn as one group) with its full
   path (`A/B/C`) instead of just the innermost folder name (off by default;
   groups that are not collapsed always show their folder name).
