@@ -2,6 +2,8 @@ import type { ElkNode } from "elkjs";
 import { describe, expect, it } from "vitest";
 import { asFolderPath, asVaultPath } from "../engine";
 import { ELK_GROUP_PADDING, ELK_ROOT_ID, elkGroupMemberOptions } from "./constants";
+import { ELK_TAG_GROUP_PADDING } from "./groupBoxPadding";
+import { Tags } from "../shared/Tags";
 import { extractElkDimensionsById, extractElkPositions, vicinityGraphToElk } from "./elkMapping";
 import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
 
@@ -145,6 +147,20 @@ describe("vicinityGraphToElk folder-group compounds (step-05)", () => {
 		// BUILT from it — this locks the elk syntax so that extraction cannot silently
 		// alter every folder group's layout.
 		expect(ELK_GROUP_PADDING).toBe("[top=36.0,left=16.0,bottom=16.0,right=16.0]");
+	});
+
+	it("WHEN the same notes are grouped by TAG THEN the tag box reserves the tag inset (room for the chip row)", () => {
+		const tagged = makeGraph({
+			nodes: [
+				makeNode({ path: asVaultPath("a.md"), folder: asFolderPath(""), tags: Tags.distinct(["#todo"]) }),
+				makeNode({ path: asVaultPath("b.md"), folder: asFolderPath(""), tags: Tags.distinct(["#todo"]) }),
+			],
+		});
+		const byTag = { ...tagged, viewSettings: { ...tagged.viewSettings, groupingMode: "tags" as const } };
+
+		const tagBox = vicinityGraphToElk(byTag).children?.find((child) => child.children !== undefined);
+
+		expect(tagBox?.layoutOptions?.["elk.padding"]).toBe(ELK_TAG_GROUP_PADDING);
 	});
 
 	it("WHEN the group-member-spacing setting is customized THEN the container spacing option carries it (ticket-04 threading)", () => {

@@ -1,6 +1,7 @@
 import type { ElkNode } from "elkjs";
 import type { VicinityGraph } from "../engine";
-import { ELK_GROUP_PADDING, ELK_ROOT_ID, elkForceRootOptions, elkGroupMemberOptions } from "./constants";
+import { ELK_ROOT_ID, elkForceRootOptions, elkGroupMemberOptions } from "./constants";
+import { elkGroupPaddingOf } from "./groupBoxPadding";
 import { deriveGrouping, groupingRequestOf } from "./groupingChoice";
 import type { GroupId, GroupingResult, NodeGroup } from "./grouping";
 import { edgeIdOf, nodeDimensionsPx } from "./graphIdentity";
@@ -57,7 +58,7 @@ export function vicinityGraphToElk(graph: VicinityGraph): ElkNode {
 			id: group.id,
 			children: memberLeaves,
 			edges: [],
-			layoutOptions: { ...elkGroupMemberOptions(nodeSpacingPx), "elk.padding": ELK_GROUP_PADDING },
+			layoutOptions: { ...elkGroupMemberOptions(nodeSpacingPx), "elk.padding": elkGroupPaddingOf(group.subject.kind) },
 		});
 	}
 	const topLevelContainers: ElkNode[] = [];

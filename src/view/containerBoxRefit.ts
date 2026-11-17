@@ -1,5 +1,5 @@
 import type { ElkNode } from "elkjs";
-import { GROUP_BOX_PADDING_PX } from "./constants";
+import { groupBoxPaddingOfElkContainer } from "./groupBoxPadding";
 
 /**
  * Refits a folder-group container's box around its (d3-refined) interior.
@@ -10,8 +10,8 @@ import { GROUP_BOX_PADDING_PX } from "./constants";
  * OUTSIDE the group border. This translates the children back into
  * padding-origin coordinates and recomputes the box, restoring the invariant
  * the rest of the pipeline assumes: every direct child lies inside its parent's
- * box, inset by exactly {@link GROUP_BOX_PADDING_PX} at the bounding-box
- * extremes. That side inset is also the ceiling of the user-facing "Edge
+ * box, inset by exactly the container's own group padding (folder or tag,
+ * `groupBoxPadding.ts`) at the bounding-box extremes. That side inset is also the ceiling of the user-facing "Edge
  * clearance" range (`CLEARANCE_RANGE.max < GROUP_SIDE_PADDING_PX`, guarded in
  * `edgeRouting.test.ts`): members stay routing obstacles INSIDE the border,
  * never poking clearance regions out of it.
@@ -30,7 +30,7 @@ export function refitContainerBox(container: ElkNode): ElkNode {
 	const minY = Math.min(...children.map((child) => child.y ?? 0));
 	const maxX = Math.max(...children.map((child) => (child.x ?? 0) + (child.width ?? 0)));
 	const maxY = Math.max(...children.map((child) => (child.y ?? 0) + (child.height ?? 0)));
-	const pad = GROUP_BOX_PADDING_PX;
+	const pad = groupBoxPaddingOfElkContainer(container);
 	const shiftX = pad.left - minX;
 	const shiftY = pad.top - minY;
 	return {

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ElkNode } from "elkjs";
 import { GROUP_BOX_PADDING_PX } from "./constants";
 import { refitContainerBox } from "./containerBoxRefit";
+import { ELK_TAG_GROUP_PADDING, groupBoxPaddingOf } from "./groupBoxPadding";
 
 /**
  * The pure geometry of the container box refit: after a d3 interior refinement
@@ -55,5 +56,14 @@ describe("refitContainerBox", () => {
 	it("WHEN the container has no children THEN it is returned unchanged", () => {
 		const leaf: ElkNode = { id: "group:empty", width: 50, height: 40 };
 		expect(refitContainerBox(leaf)).toBe(leaf);
+	});
+	it("WHEN a TAG box is refit THEN its bottom keeps the tag inset (room for the chip row)", () => {
+		const tagBox: ElkNode = {
+			id: "group:tag",
+			layoutOptions: { "elk.padding": ELK_TAG_GROUP_PADDING },
+			children: [{ id: "a.md", x: 0, y: 0, width: 40, height: 30 }],
+		};
+
+		expect(refitContainerBox(tagBox).height).toBe(30 + groupBoxPaddingOf("tag").top + groupBoxPaddingOf("tag").bottom);
 	});
 });
