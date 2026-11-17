@@ -1,17 +1,17 @@
 ---
+closed_iso: 2026-11-17T21:47:49Z
 id: nid_6qj8n7uc7zz126l3ix8czfymq_e
 title: "Entry points to tag-filtered mode: tag right-click menu, command + tag picker, in-graph tag click"
-status: in_progress
+status: closed
 deps: [nid_aimlia0wjp0ms0uzd4fvhbomo_e, nid_lmftfz11vvfwj382i4xmmoqgf_e]
 links: []
 created_iso: 2026-11-17T20:32:45Z
-status_updated_iso: 2026-11-17T21:23:39Z
+status_updated_iso: 2026-11-17T21:47:49Z
 type: task
 priority: 1
 assignee: CC_WITH-nickolaykondratyev
 tags: [tags-v1]
 parent: nid_xhed75cwiy0ui4fokv6l02cxf_e
-pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin/.worktree/t-6qj8n7uc
 ---
 
 ## Goal
