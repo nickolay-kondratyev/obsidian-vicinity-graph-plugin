@@ -643,8 +643,8 @@ function GroupingModeRow({
 	readonly state: SettingsRowState;
 }): ReactElement {
 	return (
-		<div className="vicinity-graph-nodecontents__field" title={row.description}>
-			<span className="vicinity-graph-nodecontents__label">{row.label}</span>
+		<div className="vicinity-graph-grouping-mode" title={row.description}>
+			<span className="vicinity-graph-grouping-mode__label">{row.label}</span>
 			<GroupingModeSwitch accessibleName={SettingsRowNames.sole(row)} state={state} />
 		</div>
 	);

@@ -11,6 +11,7 @@ import type {
 } from "../engine";
 import { nodePreviewKind, suppressedDuplicateThumbnails } from "../engine";
 import { FileKinds } from "../shared/FileKinds";
+import type { Tag } from "../shared/Tags";
 import { resolveNodePreviewPreference } from "./nodePreviewChoice";
 import { OUTLINE_RENDER_LIMIT } from "./constants";
 import type { AttachmentIconGroup } from "./attachmentIconStrip";
@@ -21,6 +22,8 @@ import type { OrphanTruncation } from "./truncationBadges";
 import { deriveTruncationBadges } from "./truncationBadges";
 import { edgeIdOf, nodeDimensionsPx, nodeSizeOverridePx } from "./graphIdentity";
 import type { RoutedPoint } from "./edgeRouting";
+import type { TagChipRow } from "./tagChips";
+import { tagChipRowOf } from "./tagChips";
 
 /**
  * Pure engine → React Flow shape mapping. Emits plain objects only (no React,
@@ -121,6 +124,12 @@ export type FlowNodeData = {
 	readonly imageCount: number;
 	/** Icon strip entries (per-extension counts + dropdown paths). */
 	readonly attachmentGroups: readonly AttachmentIconGroup[];
+	/**
+	 * The note's leftover tags as chips (tag-grouping mode only, decision 3) — the
+	 * tags no enclosing box already names. Absent when there are none (always, in
+	 * folder mode).
+	 */
+	readonly tagChips?: TagChipRow;
 };
 
 /** Group node payload (label + truncation badge), mode-agnostic: filled from a
@@ -152,8 +161,13 @@ export type FlowGroupData = {
 	 * label's navigation: empty = inert, one = opens directly, 2+ = candidate menu.
 	 */
 	readonly folderNoteCandidates: readonly string[];
-	/** Presentation hint, carried through from the group; `null` = neutral box. Not rendered yet. */
+	/** Presentation hint, carried through from the group; `null` = neutral box (every folder box). */
 	readonly colorToken: GroupColorToken | null;
+	/**
+	 * The tags a TAG box is labelled with — what its label stands for, and the subject
+	 * a label click acts on. Absent on a folder box.
+	 */
+	readonly labelTags?: readonly Tag[];
 };
 
 /**
@@ -333,9 +347,10 @@ export function vicinityGraphToFlow(
 				label: graph.viewSettings.groupLabelFullPath ? group.chainLabel : group.label,
 				fullLabel: group.fullLabel,
 				hiddenCount: badges.hiddenCountByGroupId.get(group.id) ?? 0,
-				fullPathLabel: graph.viewSettings.groupLabelFullPath,
+				fullPathLabel: rendersFullPathLabel(group.subject, graph.viewSettings),
 				folderNoteCandidates: labelNavigationCandidatesOf(group.subject, folderNoteCandidates),
 				colorToken: group.colorToken,
+				...(group.subject.kind === "tag" ? { labelTags: group.subject.tags } : {}),
 			},
 		}),
 	);
@@ -355,6 +370,7 @@ export function vicinityGraphToFlow(
 	const noteNodes = graph.nodes.map((node): NoteFlowNode => {
 		const groupId = grouping.groupIdByMemberPath.get(node.path);
 		const { width, height } = nodeDimensionsPx(node);
+		const leftoverTags = grouping.leftoverTagsOf(node.path);
 		return {
 			id: node.path,
 			kind: "note",
@@ -362,7 +378,10 @@ export function vicinityGraphToFlow(
 			width,
 			height,
 			...(groupId === undefined ? {} : { parentId: groupId }),
-			data: toFlowNodeData(node, pinFacts, graph.viewSettings, suppressedThumbnails.has(node.path), mainIsFolderNote),
+			data: {
+				...toFlowNodeData(node, pinFacts, graph.viewSettings, suppressedThumbnails.has(node.path), mainIsFolderNote),
+				...(leftoverTags.length === 0 ? {} : { tagChips: tagChipRowOf(leftoverTags) }),
+			},
 		};
 	});
 	return {
@@ -406,6 +425,20 @@ function folderOfSubject(subject: GroupSubject): string | null {
 }
 
 /**
+ * Whether the box's label is a full PATH that front-truncates (`…/leaf`). Only a
+ * folder box follows the "Full folder path" setting: a tag box's label is a run of
+ * `#tags` with no more-important tail, so it keeps conventional trailing truncation.
+ */
+function rendersFullPathLabel(subject: GroupSubject, view: ViewSettings): boolean {
+	switch (subject.kind) {
+		case "folder":
+			return view.groupLabelFullPath;
+		case "tag":
+			return false;
+	}
+}
+
+/**
  * Notes a group's label navigates to. For a folder: the DEEPEST folder only
  * (never a collapsed ancestor) — a chain group `A/B/C` navigates to C's folder
  * note, not A's or B's (R4).
@@ -418,7 +451,7 @@ function labelNavigationCandidatesOf(
 		case "folder":
 			return folderNoteCandidates.folderNoteCandidatesOf(subject.folder);
 		case "tag":
-			return []; // A tag has no note to open; its label action lands with tag boxes (nid_lmftfz11vvfwj382i4xmmoqgf_e).
+			return []; // A tag has no note to open; its label's tag-filter action is `labelTags` (nid_6qj8n7uc7zz126l3ix8czfymq_e).
 	}
 }
 

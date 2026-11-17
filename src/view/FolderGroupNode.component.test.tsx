@@ -3,6 +3,8 @@ import { ReactFlow } from "@xyflow/react";
 import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { FolderGroupNode } from "./FolderGroupNode";
+import type { GroupColorToken } from "./grouping";
+import { Tags } from "../shared/Tags";
 import type { FlowGroupData } from "./flowMapping";
 import { GraphUiContext } from "./GraphUiContext";
 import { NoteOpenContext } from "./NoteOpenContext";
@@ -196,5 +198,31 @@ describe("FolderGroupNode multi-candidate click", () => {
 		fireEvent.click(await mountedLabel(result.container));
 		ui.nodeMenuRequests[0]?.entries[1]?.onClick();
 		expect(noteOpen.opened).toEqual([{ path: "notes/notes.canvas", options: { newTab: false } }]);
+	});
+});
+
+describe("FolderGroupNode tag box hooks", () => {
+	const mountedBox = (container: HTMLElement): Promise<HTMLElement> =>
+		waitFor(() => {
+			const found = container.querySelector<HTMLElement>(".vicinity-graph-group");
+			if (found === null) {
+				throw new Error("group box not mounted yet");
+			}
+			return found;
+		});
+
+	it("WHEN the box carries a colour token THEN it exposes it as data-color", async () => {
+		const { result } = renderGroupNode(groupData({ folder: null, colorToken: "orange" as GroupColorToken }));
+		expect((await mountedBox(result.container)).dataset["color"]).toBe("orange");
+	});
+
+	it("WHEN the box is a folder box THEN it carries no data-color", async () => {
+		const { result } = renderGroupNode(groupData());
+		expect((await mountedBox(result.container)).hasAttribute("data-color")).toBe(false);
+	});
+
+	it("WHEN the box is a tag box THEN data-tags lists its label tag keys", async () => {
+		const { result } = renderGroupNode(groupData({ folder: null, labelTags: Tags.distinct(["Follow-Up", "important"]) }));
+		expect((await mountedBox(result.container)).dataset["tags"]).toBe("follow-up important");
 	});
 });

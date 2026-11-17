@@ -8,7 +8,9 @@ import { ControlsActionsContext } from "./ControlsActionsContext";
 import type { FlowNodeData } from "./flowMapping";
 import { GraphUiContext } from "./GraphUiContext";
 import { NoteNode } from "./NoteNode";
+import { Tags } from "../shared/Tags";
 import { planNodeContentMenu } from "./nodePreviewChoice";
+import { MAX_VISIBLE_TAG_CHIPS, tagChipRowOf } from "./tagChips";
 import { RecordingControlsActions } from "./testFixtures/settingsPanelHarness";
 import type { GraphUiPort, NodeMenuEntry, NodeMenuRequest } from "./viewPorts";
 
@@ -660,5 +662,29 @@ describe("NoteNode pin chip pressed state", () => {
 			"pin-off",
 			"map-pin-off",
 		]);
+	});
+});
+
+describe("NoteNode tag chips (tag-grouping mode)", () => {
+	const chipTexts = async (container: HTMLElement): Promise<string[]> => {
+		await mountedNode(container);
+		return Array.from(container.querySelectorAll(".vicinity-graph-tag-chip"), (chip) => chip.textContent ?? "");
+	};
+
+	it("WHEN the note carries a leftover tag THEN its chip renders with the #tag text", async () => {
+		const { result } = renderNoteNode(nodeData({ tagChips: tagChipRowOf(Tags.distinct(["visit"])) }));
+		expect(await chipTexts(result.container)).toEqual(["#visit"]);
+	});
+
+	it("WHEN the note carries more tags than the cap THEN the rest collapse into one +N chip", async () => {
+		const tags = Tags.distinct(["a", "b", "c", "d", "e"]);
+		const { result } = renderNoteNode(nodeData({ tagChips: tagChipRowOf(tags) }));
+		const texts = await chipTexts(result.container);
+		expect(texts[texts.length - 1]).toBe(`+${tags.length - MAX_VISIBLE_TAG_CHIPS}`);
+	});
+
+	it("WHEN the note carries no chips THEN no chip renders", async () => {
+		const { result } = renderNoteNode(nodeData());
+		expect(await chipTexts(result.container)).toEqual([]);
 	});
 });
