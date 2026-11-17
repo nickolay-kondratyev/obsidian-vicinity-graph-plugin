@@ -1,8 +1,9 @@
 # Vicinity Graph
 
 A richer replacement for Obsidian's native local graph. Instead of identical
-dots, Vicinity Graph shows the neighbourhood of your active note as informative,
-folder-grouped nodes — each one telling you what the note is before you open it.
+dots, Vicinity Graph shows the neighbourhood of your active note as informative
+nodes, grouped by folder or by tag — each one telling you what the note is before
+you open it.
 
 ![Vicinity Graph showing the neighbourhood of a note as folder-grouped, informative nodes with routed connectors](./assets/images/for_readme/vicinity-graph-example-2026-Aug-11.png)
 
@@ -19,6 +20,9 @@ between them. Vicinity Graph fixes both:
   labelled group box, and sub-folders draw as boxes **within** their parent's box,
   so folder membership (at every level) is part of the picture. A note whose own
   folder is too small to draw falls into the nearest folder that is.
+- **Tags, two ways.** Flip the **Folders | Tags** switch (top-right of the graph)
+  to group notes into colour-coded tag boxes instead, or show **every note with a
+  tag** — right-click any tag. See [Tags](#tags).
 - **Connectors that stay out of the way.** Links are drawn as calm, right-angled
   connectors that route *around* your notes instead of cutting across them, so a
   busy graph stays readable — and every connector is clickable (see below).
@@ -63,9 +67,49 @@ there; running the command for where it already is just focuses it.
 - **Drag a node's right/bottom edge or corner** to resize it; the handles appear
   on hover. The new size is remembered for that note in every graph.
 - **Right-click a node** — pin / unpin, plus *Reset size* on a note you resized.
-- Folder-group boxes are containers, not notes — clicking one does nothing.
+- Group boxes are containers, not notes — clicking one does nothing. Clicking a
+  folder box's **label** opens that folder's folder note (when it has one);
+  clicking a tag box's label shows the notes with that tag (see [Tags](#tags)).
 
-## Showing the notes with a tag
+## Tags
+
+Tags work two ways in the graph: as the **boxes** notes are grouped into, and as
+a **filter** that shows every note carrying a tag.
+
+### Group by tags
+
+The **Folders | Tags** switch in the graph's top-right corner picks what the
+boxes stand for (the same choice is *Group notes by* in the settings). Folders is
+the default.
+
+- **How boxes are chosen:** the box that explains the most tags (its notes ×
+  the tags they all share) is drawn first, then the same rule repeats on the
+  remaining notes and inside each box — so one box can stand for several tags
+  (`#follow-up #important`), and boxes nest.
+- Every note shows up **once** — in one box, or loose when no box takes it. A box
+  needs at least 2 notes.
+- A note's **other tags** — the ones its boxes don't already name — show as small
+  **chips** under it (extra ones fold into a `+N` chip).
+- **Nested tags count as their parents**, like Obsidian's tag search:
+  `#project/alpha` also sits in a `#project` box.
+- **Colours:** common tags get a fixed colour, matched on the last part of the tag
+  and ignoring case, `-` and `_` (`#follow-up` = `#FollowUp` = `#work/follow_up`):
+
+  | Colour | Tags |
+  |---|---|
+  | red | critical, urgent, blocker, bug, asap, fixme, error, broken, important |
+  | orange | todo, follow-up, wip, in-progress, pending, waiting, review, action |
+  | yellow | idea, question, draft, maybe, someday |
+  | green | done, complete, completed, resolved, approved |
+  | blue | reference, info, docs, research, learning |
+  | purple | project, goal, area |
+  | grey | archive, archived, deprecated, obsolete |
+
+  Every other tag gets a colour picked from its name, so it never changes. Colours
+  follow your theme, so light and dark both work.
+- *Grouping depth* limits how many levels of boxes nest, the same as for folders.
+
+### Show every note with a tag
 
 The graph can show **every note carrying a tag** (or a tag nested under it —
 `#project` also shows `#project/alpha`), with the links between them, instead of
@@ -73,14 +117,21 @@ the vicinity of the open note. Get there from wherever you meet the tag:
 
 - **Right-click a tag** → *Vicinity graph: show tagged notes* — in the editor
   (Live Preview and Source), in Reading view, in the core Tags pane, and on a
-  pill of the `tags` property. Left-click stays Obsidian's own tag search.
+  pill of the `tags` property. **Left-click stays Obsidian's own tag search.**
 - **Command palette** → *Show notes with tag…* — pick from your vault's tags,
   each with how many notes it would show.
-- **Inside the graph** (tag grouping) — click a tag box's label or a tag chip
-  under a note.
+- **Inside the graph** (when grouping by tags) — click a tag box's label (a box
+  with several tags asks which) or a tag chip under a note.
 
-The bottom-right pill says which mode the graph is in. The tag view stays while
-you open other notes; *Back to active note* on the pill leaves it.
+The **pill in the bottom-right corner** always says which mode the graph is in:
+`Vicinity of <note>` or `Tagged #tag · N notes` (hover it for an explanation).
+The tag view stays while you open other notes — clicking a note in it opens the
+note without leaving the tag — and survives a restart. To leave, click **Back to
+active note** on the pill.
+
+In the tag view there is no central note: pins don't add notes and the depth
+dials don't apply. If more notes carry the tag than the node cap allows, the
+most-linked ones stay.
 
 ## Pinning
 
@@ -147,7 +198,8 @@ The settings, grouped the same way on both surfaces:
   and **0** for pinned notes.
 - **Grouping** — *Group notes by* draws boxes around notes that share a
   **Folder** (the default) or **Tags** (coloured tag boxes, with each note's other
-  tags as small chips); the same switch sits in the graph's top-right corner.
+  tags as small chips — see [Tags](#tags)); the same switch sits in the graph's
+  top-right corner.
   *Grouping depth* sets how many levels of nested boxes render: **0** turns
   grouping off entirely, and the slider runs `1`–`10` and then **∞** (unlimited,
   the default). *Full folder path* labels a collapsed

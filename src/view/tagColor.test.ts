@@ -1,7 +1,27 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import type { TagKey } from "../shared/Tags";
 import { Tags } from "../shared/Tags";
-import { HASHED_TAG_COLOR_NAMES, tagColorTokenOf } from "./tagColor";
+import { HASHED_TAG_COLOR_NAMES, PRESET_FAMILIES, tagColorTokenOf } from "./tagColor";
+
+const README = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "README.md");
+/** A README colour-table row: `| red | critical, urgent, ... |`. */
+const README_COLOR_ROW = /^\| *([a-z]+) *\| *([a-z][a-z, -]*?) *\|$/;
+const WORD_SEPARATORS = /[-_]/g;
+
+/** The README's preset table, words normalised the way `PRESET_FAMILIES` spells them. */
+function readmePresetFamilies(): ReadonlyArray<{ readonly color: string; readonly words: readonly string[] }> {
+	return readFileSync(README, "utf8")
+		.split("\n")
+		.map((line) => README_COLOR_ROW.exec(line.trim()))
+		.filter((match): match is RegExpExecArray => match !== null)
+		.map(([, color = "", words = ""]) => ({
+			color,
+			words: words.split(",").map((word) => word.trim().replace(WORD_SEPARATORS, "")),
+		}));
+}
 
 function keyOf(raw: string): TagKey {
 	const tag = Tags.parse(raw);
@@ -53,5 +73,11 @@ describe("tagColorTokenOf hashed fallback", () => {
 	it("WHEN many unknown tags are coloured THEN the hash spreads them over more than one token", () => {
 		const tokens = new Set(["alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta"].map((raw) => tagColorTokenOf(keyOf(raw))));
 		expect(tokens.size).toBeGreaterThan(1);
+	});
+});
+
+describe("README colour table", () => {
+	it("WHEN the README lists the preset colours THEN it lists exactly the shipped families", () => {
+		expect(readmePresetFamilies()).toEqual(PRESET_FAMILIES);
 	});
 });
