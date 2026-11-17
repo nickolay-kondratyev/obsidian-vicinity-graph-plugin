@@ -59,10 +59,12 @@ const GROUP_ID = `folder-group:${GROUP_FOLDER}`;
 function groupData(overrides: Partial<FlowGroupData> = {}): FlowGroupData {
 	return {
 		folder: GROUP_FOLDER,
-		folderName: GROUP_FOLDER,
+		label: GROUP_FOLDER,
+		fullLabel: GROUP_FOLDER,
 		hiddenCount: 0,
 		fullPathLabel: false,
 		folderNoteCandidates: [],
+		colorToken: null,
 		...overrides,
 	};
 }
@@ -100,6 +102,26 @@ async function mountedLabel(container: HTMLElement): Promise<HTMLElement> {
 }
 
 afterEach(cleanup);
+
+describe("FolderGroupNode mode-agnostic payload", () => {
+	it("WHEN the label and the full description differ THEN the label shows the former and its tooltip the latter", async () => {
+		const { result } = renderGroupNode(groupData({ label: "leaf", fullLabel: "some/long/leaf" }));
+		const label = await mountedLabel(result.container);
+		expect({ text: label.textContent, title: label.title }).toEqual({ text: "leaf", title: "some/long/leaf" });
+	});
+
+	it("WHEN the group is not a folder THEN the box carries no data-folder hook", async () => {
+		const { result } = renderGroupNode(groupData({ folder: null }));
+		const box = await waitFor(() => {
+			const found = result.container.querySelector<HTMLElement>(".vicinity-graph-group");
+			if (found === null) {
+				throw new Error("group box not mounted yet");
+			}
+			return found;
+		});
+		expect(box.hasAttribute("data-folder")).toBe(false);
+	});
+});
 
 describe("FolderGroupNode label affordance", () => {
 	it("WHEN the folder has candidates THEN the label carries the navigable modifier class", async () => {
