@@ -24,6 +24,7 @@ Part of epic `nid_xhed75cwiy0ui4fokv6l02cxf_e`. Read `_agent_decisions/needs_rev
 - Command palette: "Show notes with tag…" opens a fuzzy tag picker over the vault's tags (with note counts) and enters tag mode.
 - Inside the graph: clicking a tag box label or a tag chip enters tag mode for that tag (in the same view). Folder box behavior unchanged.
 - While a view is tag-filtered and grouping is Tags, the filter tag (and its parent tags) is never a grouping key (decision 10) — pass it as the grouper's excluded tags.
+- Tag chips hang ~22px below a note, but a group box's bottom padding is 16px, so the chip of the lowest note in a TAG box crosses the box's bottom border. Give tag boxes enough extra bottom padding (tag boxes only; folder layout unchanged) — unit-test the padding rule.
 - Tests: unit tests for tag-at-offset and the menu-item decision; extend the tag e2e specs (or add one) to cover: editor right-click on a `#tag` ⇒ menu item ⇒ only tagged notes render; command + picker ⇒ tag mode; click a tag chip in the graph ⇒ tag mode. No CSS/look assertions.
 - `npm run check`, `npm test`, the tag e2e specs green.
 
