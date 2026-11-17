@@ -14,8 +14,9 @@ import { presetTagColorOf, tagColorTokenOf } from "./tagColor";
  * Rule — "explain the most tag memberships", greedy and recursive. At each level:
  * - every tag carried by >= {@link MIN_GROUP_MEMBER_COUNT} of the level's notes is a
  *   CANDIDATE; its box's tag SET is the tags shared by ALL those notes;
- * - score = members x set size (see {@link scoreOf} for the ceiling); ties go to
- *   more members, then the set's tag keys (plain code-unit order);
+ * - score = members x LABEL tags — the set minus parents implied by a nested child
+ *   in it (see {@link scoreOf} for why and for the ceiling); ties go to more
+ *   members, then the set's tag keys (plain code-unit order);
  * - the winner's notes leave the level and the level repeats on the rest;
  * - inside a box the same rule re-runs on each member's NOT-YET-EXPLAINED tags, so
  *   boxes nest. Notes no candidate claims render directly in the enclosing box
@@ -176,13 +177,17 @@ function sharedTagKeysOf(members: readonly LevelNote[]): readonly TagKey[] {
 }
 
 /**
- * "Tag memberships explained" by a box. CEILING (decision 1): greedy, not optimal —
- * 2 notes sharing 10 tags (20) outscore 15 notes sharing 1 (15), so a small
- * many-tag cluster can claim notes a broad single-tag box would have gathered.
- * Upgrade path: a members-weighted score (e.g. members^2 x set size).
+ * "Tag memberships explained" by a box, counting only its LABEL tags. WHY-NOT the
+ * raw set size: a nested tag drags its implied parent into the set, so
+ * `#project/alpha` on 2 notes (2 x 2) would beat `#project` on 3 (3 x 1) and
+ * strand the third note outside the parent box it plainly belongs to.
+ * CEILING (decision 1): greedy, not optimal — 2 notes sharing 10 tags (20)
+ * outscore 15 notes sharing 1 (15), so a small many-tag cluster can claim notes a
+ * broad single-tag box would have gathered. Upgrade path: a members-weighted
+ * score (e.g. members^2 x label tags).
  */
 function scoreOf(candidate: Candidate): number {
-	return candidate.members.length * candidate.tagKeys.length;
+	return candidate.members.length * labelKeysOf(candidate.tagKeys).length;
 }
 
 function outranks(challenger: Candidate, incumbent: Candidate): boolean {
@@ -224,15 +229,18 @@ function boxOf(winner: Candidate, parent: ParentBox | null): { readonly group: N
 }
 
 /**
- * The set's tags minus any parent implied by a nested child in the same set
- * (`{project, project/alpha}` ⇒ `project/alpha`), in key order. Display casing is
- * the FIRST member's (graph-node order), so it is deterministic.
+ * The set's keys minus any parent implied by a nested child in the same set
+ * (`{project, project/alpha}` ⇒ `project/alpha`), in key order. The ONE label
+ * rule: both the score and the label read it.
  */
+function labelKeysOf(tagKeys: readonly TagKey[]): readonly TagKey[] {
+	return tagKeys.filter((key) => !tagKeys.some((other) => other !== key && Tags.isSameOrNestedUnder(other, key)));
+}
+
+/** {@link labelKeysOf} as tags. Display casing is the FIRST member's (graph-node order), so it is deterministic. */
 function labelTagsOf(winner: Candidate): readonly Tag[] {
 	const firstMember = winner.members[0];
-	return winner.tagKeys
-		.filter((key) => !winner.tagKeys.some((other) => other !== key && Tags.isSameOrNestedUnder(other, key)))
-		.map((key) => firstMember?.unexplained.get(key) ?? { key, name: key });
+	return labelKeysOf(winner.tagKeys).map((key) => firstMember?.unexplained.get(key) ?? { key, name: key });
 }
 
 function hashtagsOf(tags: readonly Tag[]): string {

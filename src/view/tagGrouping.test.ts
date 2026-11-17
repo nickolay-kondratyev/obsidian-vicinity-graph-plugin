@@ -169,6 +169,26 @@ describe("deriveTagGroups edge cases", () => {
 		expect(topLevelLabels(group([note("a", "project/alpha"), note("b", "project/alpha")]))).toEqual(["#project/alpha"]);
 	});
 
+	describe("GIVEN two notes on one nested tag and a third on its sibling", () => {
+		const nodes = [note("a", "project/alpha"), note("b", "project/alpha"), note("c", "project/beta")];
+
+		it("WHEN grouped THEN the parent tag is the only top-level box (an implied parent does not score)", () => {
+			expect(topLevelLabels(group(nodes))).toEqual(["#project"]);
+		});
+
+		it("WHEN grouped THEN the shared nested tag boxes a and b inside the parent box", () => {
+			expect(boxAt(group(nodes), "#project", "#project/alpha")?.memberPaths).toEqual(["a.md", "b.md"]);
+		});
+
+		it("WHEN grouped THEN the sibling-tagged note sits directly in the parent box", () => {
+			expect(boxAt(group(nodes), null, "#project")?.memberPaths).toEqual(["c.md"]);
+		});
+
+		it("WHEN grouped THEN the sibling-tagged note keeps its nested tag as a leftover", () => {
+			expect(leftoverNamesOf(group(nodes), "c.md")).toEqual(["project/beta"]);
+		});
+	});
+
 	it("WHEN a nested tag's parent box encloses the note THEN the nested tag is still a leftover", () => {
 		const nodes = [note("a", "project/alpha"), note("b", "project/beta")];
 		expect(leftoverNamesOf(group(nodes), "a.md")).toEqual(["project/alpha"]);
