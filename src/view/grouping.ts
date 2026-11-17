@@ -7,9 +7,9 @@ import type { Tag } from "../shared/Tags";
  *
  * A GROUPER turns the visible notes into a tree of boxes and answers the lookup
  * seams below; the layout / render / edge-collapse pipeline never asks HOW a
- * note landed in its box. `folderGrouping.ts` (`deriveFolderGroups`) is the one
- * grouper today; a tag grouper is a second producer of this exact shape (epic
- * `nid_xhed75cwiy0ui4fokv6l02cxf_e`).
+ * note landed in its box. The producers of this exact shape are
+ * `folderGrouping.ts` (`deriveFolderGroups`) and `tagGrouping.ts`
+ * (`deriveTagGroups`, epic `nid_xhed75cwiy0ui4fokv6l02cxf_e`).
  *
  * What the shape promises, and what it deliberately does NOT:
  * - A note renders in EXACTLY ONE group (or none) — {@link GroupingResult.groupIdByMemberPath}
@@ -37,7 +37,8 @@ export function asGroupId(id: string): GroupId {
 /**
  * Names a theme colour for a group box. Carried, NOT rendered yet: folder boxes
  * are deliberately neutral (`docs-internal/tickets/ticket-folder-color-ux-design-pass.md`),
- * so the palette and its CSS land with the first grouper that colours (tags).
+ * so only tag boxes carry one (`tagColor.ts`); the CSS that paints a token lands
+ * with tag-box rendering (`nid_lmftfz11vvfwj382i4xmmoqgf_e`).
  */
 export type GroupColorToken = string & { readonly __brand: "GroupColorToken" };
 
