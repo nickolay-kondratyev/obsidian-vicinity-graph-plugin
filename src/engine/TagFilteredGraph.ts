@@ -5,7 +5,7 @@ import { NodeEligibility } from "./NodeEligibility";
 import type { PathExclusionMatcher } from "./PathExclusionMatcher";
 import type { TraversedNode } from "./VicinityTraversal";
 import { toTraversedNode } from "./VicinityTraversal";
-import type { DirectedLink, FolderPath, VaultPath } from "./types";
+import type { DirectedLink, DocId, FolderPath, VaultPath } from "./types";
 
 export interface TagFilteredSelectionInput {
 	readonly provider: LinkProvider;
@@ -14,6 +14,8 @@ export interface TagFilteredSelectionInput {
 	readonly exclusion: PathExclusionMatcher;
 	/** Hard cap on the number of notes kept. */
 	readonly nodeCap: number;
+	/** Docids to echo onto the selected notes that have one (never a membership input). */
+	readonly echoedDocIds?: ReadonlyMap<VaultPath, DocId>;
 }
 
 /** The node/edge selection of a tag-filtered build — the tag-mode twin of traversal + truncation. */
@@ -78,7 +80,14 @@ export class TagFilteredSelector {
 				continue; // Unreachable: members are node-bearing, hence known.
 			}
 			if (visiblePaths.has(path)) {
-				visibleNodes.set(path, toTraversedNode(path, metadata, { isCentral: false, depthTags: [] }));
+				visibleNodes.set(
+					path,
+					toTraversedNode(path, metadata, {
+						docid: input.echoedDocIds?.get(path),
+						isCentral: false,
+						depthTags: [],
+					}),
+				);
 			} else {
 				hiddenNodeCountsByFolder.set(metadata.folder, (hiddenNodeCountsByFolder.get(metadata.folder) ?? 0) + 1);
 			}

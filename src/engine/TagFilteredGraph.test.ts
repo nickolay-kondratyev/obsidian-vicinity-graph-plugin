@@ -6,7 +6,7 @@ import { FakeLinkProvider } from "./FakeLinkProvider";
 import type { TagGraphBuildRequest } from "./VicinityEngine";
 import { VicinityEngine } from "./VicinityEngine";
 import type { VicinityGraph } from "./types";
-import { asVaultPath } from "./types";
+import { asDocId, asVaultPath } from "./types";
 
 function tagKey(raw: string): TagKey {
 	const tag = Tags.parse(raw);
@@ -86,6 +86,27 @@ describe("VicinityEngine.buildForTag membership", () => {
 		expect(graph.nodes.find((node) => node.path === "work/plan.md")?.override).toEqual({
 			sizePx: { widthPx: 200, heightPx: 90 },
 		});
+	});
+});
+
+describe("VicinityEngine.buildForTag pinned docids", () => {
+	const pinnedDocIds = new Map([
+		[asVaultPath("work/plan.md"), asDocId("docid_plan_e")],
+		[asVaultPath("hub.md"), asDocId("docid_hub_e")],
+	]);
+
+	it("WHEN a tagged note is pinned THEN its docid is echoed onto the node", () => {
+		const graph = build({ pinnedDocIds });
+
+		expect(graph.nodes.find((node) => node.path === "work/plan.md")?.docid).toBe("docid_plan_e");
+	});
+
+	it("WHEN a pinned note does not carry the tag THEN the pin adds no node", () => {
+		expect(paths(build({ pinnedDocIds }))).not.toContain("hub.md");
+	});
+
+	it("WHEN a tagged note is pinned THEN it is still not central", () => {
+		expect(build({ pinnedDocIds }).nodes.some((node) => node.isCentral)).toBe(false);
 	});
 });
 

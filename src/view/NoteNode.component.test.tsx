@@ -98,6 +98,7 @@ function nodeData(overrides: Partial<FlowNodeData> = {}): FlowNodeData {
 		fileKind: "note",
 		isGloballyPinned: false,
 		isLocallyPinned: false,
+		offersLocalPin: true,
 		hasSizeOverride: false,
 		offersChildNoteCreation: false,
 		folder: "",
@@ -188,7 +189,7 @@ afterEach(cleanup);
  */
 describe("NoteNode chip side rail", () => {
 	it("WHEN a note node renders THEN no chip sits inside the node's clipping box", async () => {
-		const { result } = renderNoteNode(nodeData({ tier: "main", offersChildNoteCreation: true }));
+		const { result } = renderNoteNode(nodeData({ tier: "main", offersLocalPin: false, offersChildNoteCreation: true }));
 		const node = await mountedNode(result.container);
 		expect(node.querySelectorAll(".vicinity-graph-node-chip")).toHaveLength(0);
 	});
@@ -203,7 +204,7 @@ describe("NoteNode chip side rail", () => {
 	});
 
 	it("WHEN a MAIN folder note renders THEN the column reads global pin, gear, create child note", async () => {
-		const { result } = renderNoteNode(nodeData({ tier: "main", offersChildNoteCreation: true }));
+		const { result } = renderNoteNode(nodeData({ tier: "main", offersLocalPin: false, offersChildNoteCreation: true }));
 		expect(chipOrder(await mountedActions(result.container))).toEqual([
 			"vicinity-graph-pin-button",
 			"vicinity-graph-gear-button",
@@ -462,8 +463,8 @@ describe("NoteNode local pin control", () => {
 		}).toEqual({ global: 1, local: 1 });
 	});
 
-	it("WHEN the MAIN node renders THEN it withholds the local pin chip (a note cannot be locally pinned under itself)", async () => {
-		const { result } = renderNoteNode(nodeData({ tier: "main" }));
+	it("WHEN a node does not offer the local pin (the MAIN, or any node of a tag graph) THEN the local pin chip is withheld", async () => {
+		const { result } = renderNoteNode(nodeData({ tier: "main", offersLocalPin: false }));
 		const column = await mountedActions(result.container);
 		expect(localPinButton(column)).toBeNull();
 	});
@@ -532,7 +533,7 @@ describe("NoteNode local pin control", () => {
 	});
 
 	it("WHEN the MAIN node is right-clicked THEN the menu omits the local pin entry", async () => {
-		const { ui, result } = renderNoteNode(nodeData({ tier: "main" }));
+		const { ui, result } = renderNoteNode(nodeData({ tier: "main", offersLocalPin: false }));
 		fireEvent.contextMenu(await mountedNode(result.container));
 		expect(ui.nodeMenuRequests[0]?.entries.map((entry) => entry.title)).toEqual(["Pin to graph"]);
 	});
@@ -557,13 +558,13 @@ describe("NoteNode create-child-note chip", () => {
 	});
 
 	it("WHEN a MAIN folder note offers child-note creation THEN it mounts a chip labelled 'Create child note'", async () => {
-		const { result } = renderNoteNode(nodeData({ tier: "main", offersChildNoteCreation: true }));
+		const { result } = renderNoteNode(nodeData({ tier: "main", offersLocalPin: false, offersChildNoteCreation: true }));
 		const chip = childNoteButton(await mountedActions(result.container));
 		expect(chip?.getAttribute("aria-label")).toBe("Create child note");
 	});
 
 	it("WHEN the chip is clicked THEN the node's PATH reaches createChildNote", async () => {
-		const { actions, result } = renderNoteNode(nodeData({ tier: "main", offersChildNoteCreation: true }));
+		const { actions, result } = renderNoteNode(nodeData({ tier: "main", offersLocalPin: false, offersChildNoteCreation: true }));
 		fireEvent.click(childNoteButton(await mountedActions(result.container))!);
 		expect(actions.childNotesCreatedFor).toEqual([NODE_PATH]);
 	});
@@ -573,7 +574,7 @@ describe("NoteNode create-child-note chip", () => {
 		// never displace the other.
 		const { result } = renderNoteNode(
 			nodeData({
-				tier: "main",
+				tier: "main", offersLocalPin: false,
 				offersChildNoteCreation: true,
 				attachmentGroups: [{ extension: "pdf", count: 1, paths: ["a.pdf"] }],
 			}),
@@ -587,7 +588,7 @@ describe("NoteNode create-child-note chip", () => {
 	});
 
 	it("WHEN the chip renders THEN it carries the signed-off file-plus-2 glyph", async () => {
-		const { ui, result } = renderNoteNode(nodeData({ tier: "main", offersChildNoteCreation: true }));
+		const { ui, result } = renderNoteNode(nodeData({ tier: "main", offersLocalPin: false, offersChildNoteCreation: true }));
 		const column = await mountedActions(result.container);
 		expect(chipIconId(ui, childNoteButton(column))).toBe("file-plus-2");
 	});

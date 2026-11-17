@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import type { GraphEdge, GraphNode, NodeContentOverride, NodePreviewPreference, OutlineEntry, ViewSettings } from "../engine";
+import type {
+	GraphEdge,
+	GraphNode,
+	NodeContentOverride,
+	NodePreviewPreference,
+	OutlineEntry,
+	VicinityGraph,
+	ViewSettings,
+} from "../engine";
 import { asDocId, asFolderPath, asVaultPath, NODE_CONTENT_OVERRIDES, NODE_PREVIEW_PREFERENCES } from "../engine";
 import { OUTLINE_RENDER_LIMIT } from "./constants";
 import { edgeClassName, edgeKindClassName, vicinityGraphToFlow, withGroupDimensions, withPositions } from "./flowMapping";
@@ -62,6 +70,7 @@ describe("vicinityGraphToFlow nodes", () => {
 			fileKind: "note",
 			isGloballyPinned: false,
 			isLocallyPinned: false,
+			offersLocalPin: false,
 			hasSizeOverride: false,
 			offersChildNoteCreation: false,
 			folder: "",
@@ -173,6 +182,34 @@ describe("vicinityGraphToFlow file kind", () => {
 
 	it("WHEN the node is a markdown note THEN its file kind is note", () => {
 		expect(fileKindOf("notes/plan.md")).toBe("note");
+	});
+});
+
+describe("vicinityGraphToFlow local pin offer", () => {
+	function offersLocalPin(graph: VicinityGraph, path: string): boolean | undefined {
+		return noteNode(vicinityGraphToFlow(graph, NO_PINS, NO_FOLDER_NOTES, false).nodes, path)?.data.offersLocalPin;
+	}
+	const vicinityOfMain = makeGraph({
+		nodes: [
+			makeNode({ path: asVaultPath("main.md"), isMain: true, isCentral: true }),
+			makeNode({ path: asVaultPath("neighbour.md") }),
+		],
+	});
+	/** A tag-filtered graph: no node is MAIN. */
+	const graphWithoutMain = makeGraph({
+		nodes: [makeNode({ path: asVaultPath("t1.md") }), makeNode({ path: asVaultPath("t2.md") })],
+	});
+
+	it("WHEN the graph has a MAIN THEN a node other than the MAIN offers the local pin", () => {
+		expect(offersLocalPin(vicinityOfMain, "neighbour.md")).toBe(true);
+	});
+
+	it("WHEN the graph has a MAIN THEN the MAIN itself does not offer the local pin", () => {
+		expect(offersLocalPin(vicinityOfMain, "main.md")).toBe(false);
+	});
+
+	it("WHEN the graph has no MAIN (tag-filtered) THEN no node offers the local pin", () => {
+		expect(offersLocalPin(graphWithoutMain, "t1.md")).toBe(false);
 	});
 });
 
@@ -931,6 +968,7 @@ describe("withPositions", () => {
 				fileKind: "note",
 				isGloballyPinned: false,
 				isLocallyPinned: false,
+				offersLocalPin: true,
 				hasSizeOverride: false,
 				offersChildNoteCreation: false,
 				folder: "",

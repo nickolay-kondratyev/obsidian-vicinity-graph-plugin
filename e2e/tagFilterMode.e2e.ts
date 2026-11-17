@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
+import { nodeChip } from "./nodeChips";
 import { ObsidianHarness } from "./obsidianHarness";
 
 /**
@@ -94,6 +95,29 @@ test("WHEN tag mode is entered THEN only the notes carrying the tag render", asy
 
 test("WHEN the graph is filtered by a tag THEN the status pill names the tag and the note count", async () => {
 	await expect(modePill()).toContainText("Tagged #tagmodetopic · 3 notes");
+});
+
+test("WHEN the graph is filtered by a tag THEN a note offers no local pin (there is no main note to pin it under)", async () => {
+	// Positive control first: the chip rail IS mounted (the global pin is there).
+	await expect(nodeChip(noteNode(BODY_TAGGED), ".vicinity-graph-pin-button")).toHaveCount(1);
+
+	await expect(nodeChip(noteNode(BODY_TAGGED), ".vicinity-graph-local-pin-button")).toHaveCount(0);
+});
+
+test("WHEN a tagged note is pinned from the tag graph THEN its pin reads as pinned", async () => {
+	const node = noteNode(BODY_TAGGED);
+	await node.hover();
+	await nodeChip(node, ".vicinity-graph-pin-button").click();
+
+	await expect(nodeChip(noteNode(BODY_TAGGED), ".vicinity-graph-pin-button")).toHaveAttribute("aria-pressed", "true");
+});
+
+test("WHEN a pinned tagged note is unpinned from the tag graph THEN its pin reads as unpinned again", async () => {
+	const node = noteNode(BODY_TAGGED);
+	await node.hover();
+	await nodeChip(node, ".vicinity-graph-pin-button").click();
+
+	await expect(nodeChip(noteNode(BODY_TAGGED), ".vicinity-graph-pin-button")).toHaveAttribute("aria-pressed", "false");
 });
 
 test("WHEN another note is opened in tag mode THEN the filter stays", async () => {

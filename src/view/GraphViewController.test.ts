@@ -1669,6 +1669,30 @@ describe("GraphViewController tag mode", () => {
 		expect(h.source.calls).toEqual(["a.md"]);
 	});
 
+	it("WHEN tag mode is exited while its build is in flight THEN the late tag graph is not published", async () => {
+		const h = await inTagMode();
+		h.controller.exitTagMode();
+		h.source.resolveBuild(2, graphOf("a.md"));
+		await flush();
+
+		h.source.resolveBuild(1, taggedGraph("t1.md", "t2.md"));
+		await flush();
+
+		expect(nodeIds(h.snapshot())).toEqual(["a.md"]);
+	});
+
+	it("WHEN a second tag is entered while the first tag's build is in flight THEN only the second tag's graph is published", async () => {
+		const h = await inTagMode();
+		h.controller.enterTagMode(tag("#other"));
+		h.source.resolveBuild(2, taggedGraph("o1.md"));
+		await flush();
+
+		h.source.resolveBuild(1, taggedGraph("t1.md", "t2.md"));
+		await flush();
+
+		expect(nodeIds(h.snapshot())).toEqual(["o1.md"]);
+	});
+
 	it("WHEN in tag mode THEN there is no active MAIN to scope a local pin under", async () => {
 		const h = await showingTagGraph();
 

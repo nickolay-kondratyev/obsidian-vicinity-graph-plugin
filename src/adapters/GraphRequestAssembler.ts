@@ -1,5 +1,6 @@
 import type {
 	DepthSettings,
+	DocId,
 	FrontmatterLinkSettings,
 	GraphBuildRequest,
 	NodeExclusionSettings,
@@ -44,13 +45,16 @@ export interface GraphRequestInputs {
 }
 
 /**
- * Everything a TAG-FILTERED build needs, already loaded. No main and no pins —
- * nothing is rooted (see {@link TagGraphBuildRequest}); the settings slices are the
+ * Everything a TAG-FILTERED build needs, already loaded. No main, and the pins
+ * root nothing (see {@link TagGraphBuildRequest}) — they are carried only so a
+ * tagged note that IS pinned can say so; the settings slices are the
  * same globals {@link GraphRequestInputs} carries, so the controls panel seeds
  * from the snapshot the graph used in either mode.
  */
 export interface TagGraphRequestInputs {
 	readonly tag: TagKey;
+	/** The GLOBAL pinned set — pin STATE for the tagged notes, never extra nodes. */
+	readonly pins: readonly PinnedDocEntry[];
 	readonly nodeOverrides: Readonly<Record<string, NodeOverride>>;
 	readonly resolveDocPath: (docid: string) => string | undefined;
 	readonly globalDepths: DepthSettings;
@@ -90,12 +94,23 @@ export class GraphRequestAssembler {
 		};
 	}
 
-	/** The tag-filtered twin of {@link assemble}: only the overrides need translating. */
+	/**
+	 * The tag-filtered twin of {@link assemble}: the overrides and the pinned docids
+	 * are translated to paths; an unresolved pin is skipped, as in {@link assemble}.
+	 */
 	static assembleForTag(inputs: TagGraphRequestInputs): TagGraphBuildRequest {
 		const nodeOverrides = GraphRequestAssembler.pathKeyedOverrides(inputs);
+		const pinnedDocIds = new Map<VaultPath, DocId>();
+		for (const pin of inputs.pins) {
+			const path = inputs.resolveDocPath(pin.docid);
+			if (path !== undefined) {
+				pinnedDocIds.set(asVaultPath(path), asDocId(pin.docid));
+			}
+		}
 		return {
 			tag: inputs.tag,
 			...(nodeOverrides.size > 0 ? { nodeOverrides } : {}),
+			...(pinnedDocIds.size > 0 ? { pinnedDocIds } : {}),
 			globalView: inputs.globalView,
 			nodeExclusion: inputs.nodeExclusion,
 		};

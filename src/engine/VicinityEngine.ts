@@ -13,6 +13,7 @@ import type {
 	CentralNodeDescriptor,
 	DepthSettings,
 	DirectedLink,
+	DocId,
 	GraphNode,
 	VicinityGraph,
 	NodeExclusionSettings,
@@ -67,6 +68,13 @@ export interface TagGraphBuildRequest {
 	/** Global node exclusion. Applies to EVERY tagged note — there are no roots to exempt. */
 	readonly nodeExclusion?: NodeExclusionSettings;
 	readonly nodeOverrides?: ReadonlyMap<VaultPath, NodeOverride>;
+	/**
+	 * The docids of the globally PINNED docs, by path — ECHOED onto the tagged notes
+	 * among them and nothing else (the same echo a root's docid gets in
+	 * {@link GraphBuildRequest}), so the view can show a tagged note as pinned and
+	 * unpin it. A pin still adds NO note and makes none central.
+	 */
+	readonly pinnedDocIds?: ReadonlyMap<VaultPath, DocId>;
 }
 
 /**
@@ -127,6 +135,7 @@ export class VicinityEngine {
 			tag: request.tag,
 			exclusion: this.exclusionMatcher(request),
 			nodeCap: viewSettings.nodeCap,
+			...(request.pinnedDocIds === undefined ? {} : { echoedDocIds: request.pinnedDocIds }),
 		});
 		return {
 			nodes: this.sizedNodes(selection.visibleNodes, viewSettings, request.nodeOverrides, undefined),

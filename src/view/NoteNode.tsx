@@ -74,9 +74,10 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
 	}, [pinAction.kind, actions, data.path, data.docid]);
 	// The SECOND, independent pin toggle (LOCAL PINNING): a target pinned only while
 	// this main is active. Withheld on the MAIN node itself — a note cannot be locally
-	// pinned under itself (decision Q4) — so both the hover chip and the menu entry are
-	// gated on this. A node can hold BOTH pin kinds; each toggle reads its own flag.
-	const offersLocalPin = data.tier !== "main";
+	// pinned under itself (decision Q4) — and on every node of a graph with no MAIN
+	// (tag-filtered); `flowMapping` decides, and both the hover chip and the menu entry
+	// are gated on it. A node can hold BOTH pin kinds; each toggle reads its own flag.
+	const offersLocalPin = data.offersLocalPin;
 	const localPinAction = useMemo(() => planNodeLocalPinAction(data.isLocallyPinned), [data.isLocallyPinned]);
 	const runLocalPinAction = useCallback(() => {
 		if (localPinAction.kind === "local-pin") {

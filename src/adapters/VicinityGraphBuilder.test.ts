@@ -298,6 +298,26 @@ describe("VicinityGraphBuilder.buildForTag (tags-v1 tag filter)", () => {
 		expect(result.graph.nodes.some((node) => node.path === "pinned.md")).toBe(false);
 	});
 
+	it("WHEN a tagged note is globally pinned THEN its node carries the pinned docid", async () => {
+		const { builder, pluginDataStore, pathDocIdMap } = await builderFixture();
+		await pluginDataStore.addPin("docid_a_e", 6);
+		pathDocIdMap.set("a.md", "docid_a_e");
+		const result = await builder.buildForTag(TOPIC);
+		expect(result.graph.nodes.find((node) => node.path === "a.md")?.docid).toBe("docid_a_e");
+	});
+
+	it("WHEN a tag is built THEN the pin facts name the global pinned set", async () => {
+		const { builder } = await builderFixture();
+		const result = await builder.buildForTag(TOPIC);
+		expect([...result.pinFacts.globalPinnedDocids]).toEqual(["docid_pin_e"]);
+	});
+
+	it("WHEN a tag is built THEN no local pin is in play (no MAIN to scope one under)", async () => {
+		const { builder } = await builderFixture();
+		const result = await builder.buildForTag(TOPIC);
+		expect(result.pinFacts.localPinnedDocids.size).toBe(0);
+	});
+
 	it("WHEN a tag is built THEN no node is MAIN", async () => {
 		const { builder } = await builderFixture();
 		const result = await builder.buildForTag(TOPIC);

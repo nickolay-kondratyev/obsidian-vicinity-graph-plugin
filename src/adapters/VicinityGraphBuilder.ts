@@ -127,18 +127,23 @@ export class VicinityGraphBuilder {
 	/**
 	 * The TAG-FILTERED build (tags-v1): every note carrying `tag` (or a nested child
 	 * tag) with the links between them. Never `null` — a tag nobody carries is an
-	 * EMPTY graph, which the view reports as such. Pins play no part (no roots), so
-	 * only the per-node overrides are loaded and translated; a tagged note keeps its
-	 * resized box / content choice.
+	 * EMPTY graph, which the view reports as such. Pins ROOT nothing here (no
+	 * roots): the global pinned set is loaded only so a tagged note that is pinned
+	 * shows as pinned and can be unpinned. Local pins play no part — they are scoped
+	 * under a MAIN, and a tag graph has none. A tagged note keeps its resized box /
+	 * content choice (the per-node overrides).
 	 */
 	async buildForTag(tag: TagKey): Promise<GraphBuildResult> {
 		const provider = await this.createProvider();
 		await this.perDocStore.warm();
+		const pins = this.pluginDataStore.pins();
 		// Same cold-map rule as build(): resolve the docids THIS build reads (the
-		// override subjects) so overrides apply on the first build after a restart.
-		await this.docIdMapWarmer.warmFor([...this.perDocStore.keyedDocids()]);
+		// pinned set + the override subjects) so both apply on the first build after
+		// a restart.
+		await this.docIdMapWarmer.warmFor([...pins.map((pin) => pin.docid), ...this.perDocStore.keyedDocids()]);
 		const inputs: TagGraphRequestInputs = {
 			tag,
+			pins,
 			nodeOverrides: this.perDocStore.nodeOverrides(),
 			resolveDocPath: (docid) => this.pathDocIdMap.getPath(docid),
 			globalDepths: this.pluginDataStore.globalDepths(),
@@ -152,8 +157,8 @@ export class VicinityGraphBuilder {
 		return {
 			graph,
 			controls: ControlsModelBuilder.buildForTag(inputs, graph.excludedNodeCount),
-			// No roots ⇒ no node carries a docid, so no pin flag can light up.
-			pinFacts: { globalPinnedDocids: new Set(), localPinnedDocids: new Set() },
+			// No MAIN ⇒ no local pins; the global set lights up the tagged notes in it.
+			pinFacts: { globalPinnedDocids: new Set(pins.map((pin) => pin.docid)), localPinnedDocids: new Set() },
 			folderNoteCandidates: this.folderNoteIndex,
 			mainIsFolderNote: false,
 		};
