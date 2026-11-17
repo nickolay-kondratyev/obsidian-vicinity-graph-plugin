@@ -207,7 +207,12 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   (`deriveFolderGroups`) and `tagGrouping.ts` (`deriveTagGroups`: greedy
   "explain the most tag memberships", plus each note's leftover tags for chips;
   colours from `tagColor.ts`) are the producers — a new grouper is a new
-  producer, not an edit to the consumers. The tree lookups come from
+  producer, not an edit to the consumers. `groupingChoice.ts` (`deriveGrouping`
+  + `groupingRequestOf`) is THE choice point between them, driven by the global
+  `groupingMode` setting: every consumer derives its grouping through it, so
+  `elkMapping`, `flowMapping` and `layoutFit` can never disagree. Group ids live in
+  two namespaces (`folder-group:` / `tag-group:`); code asking "is this a box, not
+  a note?" asks `graphIdentity.isGroupId`. The tree lookups come from
   `deriveGroupTreeLookups` (from `parentId` + `memberPaths` alone), so a grouper
   writes only its own membership rules and its hidden-count attribution.
   `NodeGroup.subject` is the closed union through which a mode's own vocabulary
