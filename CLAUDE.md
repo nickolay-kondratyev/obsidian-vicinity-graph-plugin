@@ -1,7 +1,7 @@
 # CLAUDE.md — Vicinity Graph
 
 An Obsidian plugin (`id: vicinity-graph`) that renders the vicinity of the
-active note as a rich, folder-grouped React Flow graph — a richer replacement
+active note as a rich, folder- or tag-grouped React Flow graph — a richer replacement
 for the native local graph. TypeScript + esbuild + React 18. Source-available
 under KSAL-2.3 (`LICENSE.md`), **not** OSI open-source.
 
@@ -9,7 +9,7 @@ under KSAL-2.3 (`LICENSE.md`), **not** OSI open-source.
 
 - **[`docs-internal/architecture-map.md`](./docs-internal/architecture-map.md)** — directory → responsibility map + layering rules. **Read before changing structure.**
 - **[`docs-internal/plan/high-level-plan.md`](./docs-internal/plan/high-level-plan.md)** — design source of truth (traversal, sizing, truncation, pinning, persistence, canvas). Read before changing behavior.
-- **[`README.md`](./README.md)** — user-facing docs: install, settings model, pinning semantics.
+- **[`README.md`](./README.md)** — user-facing docs: install, settings model, pinning semantics, tags (grouping + tag-filtered mode).
 - **[`docs-internal/development.md`](./docs-internal/development.md)** — build/test/e2e setup, the release matrix, `minAppVersion`, `stable-ids-for-obsidian`.
 - **[`docs-internal/beta-install.md`](./docs-internal/beta-install.md)** — install a pre-release/branch build in a real vault (BRAT, manual, from-source) before the store.
 - `docs-internal/tickets/` — active follow-ups. `docs-internal/RELEASE_CHECKLIST.md`.
