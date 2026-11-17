@@ -1,4 +1,5 @@
 import { VicinityEngine, asVaultPath } from "../engine";
+import type { TagKey } from "../shared/Tags";
 import type { DocIdMapWarmer } from "../persistence/DocIdMapWarmer";
 import type { PathDocIdMap } from "../persistence/PathDocIdMap";
 import type { PerDocStore } from "../persistence/PerDocStore";
@@ -10,7 +11,7 @@ import type { CanvasParseCache } from "./CanvasParseCache";
 import { EdgeRelationLabeler } from "./EdgeRelationLabeler";
 import type { FolderNoteIndex } from "./FolderNoteIndex";
 import type { FrontmatterIdIndex } from "./FrontmatterIdIndex";
-import type { GraphRequestInputs } from "./GraphRequestAssembler";
+import type { GraphRequestInputs, TagGraphRequestInputs } from "./GraphRequestAssembler";
 import { GraphRequestAssembler } from "./GraphRequestAssembler";
 import { ObsidianLinkProvider } from "./ObsidianLinkProvider";
 import type { DocIdPort, MetadataCachePort, NoteCreationPort, VaultPort } from "./obsidianPorts";
@@ -54,13 +55,7 @@ export class VicinityGraphBuilder {
 		if (mainFile === null) {
 			return null;
 		}
-		const provider = await ObsidianLinkProvider.create(
-			this.vault,
-			this.metadataCache,
-			this.canvasParseCache,
-			this.frontmatterIdIndex,
-			this.folderNoteIndex,
-		);
+		const provider = await this.createProvider();
 		const mainDocId = this.docIdPort.isEligible(mainFile) ? await this.docIdPort.getDocId(mainFile) : null;
 		if (mainDocId !== null) {
 			// Lazy map fill on visit (CLARIFICATION planning default) — keeps
@@ -127,6 +122,56 @@ export class VicinityGraphBuilder {
 			// to the index). Read from the SAME warmed index the provider used this build.
 			mainIsFolderNote: this.mainIsFolderNote(mainPath),
 		};
+	}
+
+	/**
+	 * The TAG-FILTERED build (tags-v1): every note carrying `tag` (or a nested child
+	 * tag) with the links between them. Never `null` — a tag nobody carries is an
+	 * EMPTY graph, which the view reports as such. Pins ROOT nothing here (no
+	 * roots): the global pinned set is loaded only so a tagged note that is pinned
+	 * shows as pinned and can be unpinned. Local pins play no part — they are scoped
+	 * under a MAIN, and a tag graph has none. A tagged note keeps its resized box /
+	 * content choice (the per-node overrides).
+	 */
+	async buildForTag(tag: TagKey): Promise<GraphBuildResult> {
+		const provider = await this.createProvider();
+		await this.perDocStore.warm();
+		const pins = this.pluginDataStore.pins();
+		// Same cold-map rule as build(): resolve the docids THIS build reads (the
+		// pinned set + the override subjects) so both apply on the first build after
+		// a restart.
+		await this.docIdMapWarmer.warmFor([...pins.map((pin) => pin.docid), ...this.perDocStore.keyedDocids()]);
+		const inputs: TagGraphRequestInputs = {
+			tag,
+			pins,
+			nodeOverrides: this.perDocStore.nodeOverrides(),
+			resolveDocPath: (docid) => this.pathDocIdMap.getPath(docid),
+			globalDepths: this.pluginDataStore.globalDepths(),
+			globalView: this.pluginDataStore.globalView(),
+			nodeExclusion: this.pluginDataStore.nodeExclusion(),
+			frontmatterLinks: this.pluginDataStore.frontmatterLinks(),
+		};
+		const built = new VicinityEngine(provider).buildForTag(GraphRequestAssembler.assembleForTag(inputs));
+		const labeler = new EdgeRelationLabeler(this.vault, this.metadataCache);
+		const graph = { ...built, edges: await labeler.label(built.edges) };
+		return {
+			graph,
+			controls: ControlsModelBuilder.buildForTag(inputs, graph.excludedNodeCount),
+			// No MAIN ⇒ no local pins; the global set lights up the tagged notes in it.
+			pinFacts: { globalPinnedDocids: new Set(pins.map((pin) => pin.docid)), localPinnedDocids: new Set() },
+			folderNoteCandidates: this.folderNoteIndex,
+			mainIsFolderNote: false,
+		};
+	}
+
+	private createProvider(): Promise<ObsidianLinkProvider> {
+		return ObsidianLinkProvider.create(
+			this.vault,
+			this.metadataCache,
+			this.canvasParseCache,
+			this.frontmatterIdIndex,
+			this.folderNoteIndex,
+		);
 	}
 
 	/** Main is a folder note whose owned folder EXISTS in the vault (empty folder counts). */

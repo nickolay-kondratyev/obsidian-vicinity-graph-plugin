@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { Tags } from "../shared/Tags";
+import type { TagKey } from "../shared/Tags";
 import { DocIdMapWarmer } from "../persistence/DocIdMapWarmer";
 import { FakePluginDataPort } from "../persistence/FakePluginDataPort";
 import { FakeVaultFsPort } from "../persistence/FakeVaultFsPort";
@@ -38,7 +40,11 @@ async function builderFixture(options: { readonly mainContent?: string } = {}) {
 	const ports = new FakeObsidianPorts({
 		files: [{ path: "main.md", content: `${mainContent}[[a]]` }, { path: "a.md" }, { path: "pinned.md" }],
 		fileCaches: {
-			"main.md": { links: [{ link: "a", position: { start: { offset: mainContent.length } } }] },
+			"main.md": {
+				links: [{ link: "a", position: { start: { offset: mainContent.length } } }],
+				tags: [{ tag: "#topic" }],
+			},
+			"a.md": { tags: [{ tag: "#topic/sub" }] },
 		},
 		resolutions: { a: "a.md" },
 		resolvedLinks: { "main.md": { "a.md": 1 } },
@@ -268,5 +274,65 @@ describe("VicinityGraphBuilder with a cold docid map (restart shape)", () => {
 		const { builder } = await coldMapFixture({ unreadablePath: "vanished.md" });
 		const graph = (await builder.build("main.md"))?.graph;
 		expect(graph?.nodes.find((node) => node.path === "pinned.md")?.isCentral).toBe(true);
+	});
+});
+
+describe("VicinityGraphBuilder.buildForTag (tags-v1 tag filter)", () => {
+	const TOPIC = Tags.parse("#topic")?.key ?? ("" as TagKey);
+
+	it("WHEN a tag is built THEN exactly the notes carrying it (or a nested tag) are nodes", async () => {
+		const { builder } = await builderFixture();
+		const result = await builder.buildForTag(TOPIC);
+		expect(result.graph.nodes.map((node) => node.path).sort()).toEqual(["a.md", "main.md"]);
+	});
+
+	it("WHEN tagged notes link each other THEN the link is an edge", async () => {
+		const { builder } = await builderFixture();
+		const result = await builder.buildForTag(TOPIC);
+		expect(result.graph.edges.map((edge) => `${edge.source}->${edge.target}`)).toEqual(["main.md->a.md"]);
+	});
+
+	it("WHEN a pinned note does not carry the tag THEN the pin adds nothing", async () => {
+		const { builder } = await builderFixture();
+		const result = await builder.buildForTag(TOPIC);
+		expect(result.graph.nodes.some((node) => node.path === "pinned.md")).toBe(false);
+	});
+
+	it("WHEN a tagged note is globally pinned THEN its node carries the pinned docid", async () => {
+		const { builder, pluginDataStore, pathDocIdMap } = await builderFixture();
+		await pluginDataStore.addPin("docid_a_e", 6);
+		pathDocIdMap.set("a.md", "docid_a_e");
+		const result = await builder.buildForTag(TOPIC);
+		expect(result.graph.nodes.find((node) => node.path === "a.md")?.docid).toBe("docid_a_e");
+	});
+
+	it("WHEN a tag is built THEN the pin facts name the global pinned set", async () => {
+		const { builder } = await builderFixture();
+		const result = await builder.buildForTag(TOPIC);
+		expect([...result.pinFacts.globalPinnedDocids]).toEqual(["docid_pin_e"]);
+	});
+
+	it("WHEN a tag is built THEN no local pin is in play (no MAIN to scope one under)", async () => {
+		const { builder } = await builderFixture();
+		const result = await builder.buildForTag(TOPIC);
+		expect(result.pinFacts.localPinnedDocids.size).toBe(0);
+	});
+
+	it("WHEN a tag is built THEN no node is MAIN", async () => {
+		const { builder } = await builderFixture();
+		const result = await builder.buildForTag(TOPIC);
+		expect(result.graph.nodes.some((node) => node.isMain)).toBe(false);
+	});
+
+	it("WHEN no note carries the tag THEN the graph is empty rather than absent", async () => {
+		const { builder } = await builderFixture();
+		const result = await builder.buildForTag(Tags.parse("#nobody")?.key ?? ("" as TagKey));
+		expect(result.graph.nodes).toEqual([]);
+	});
+
+	it("WHEN a tag is built THEN no ids are created (read path)", async () => {
+		const { builder, docIdPort } = await builderFixture();
+		await builder.buildForTag(TOPIC);
+		expect(docIdPort.ensureCalls).toBe(0);
 	});
 });

@@ -90,7 +90,7 @@ export { FakeLinkProvider } from "./FakeLinkProvider";
 export type { FakeFileSpec, FakeVaultSpec } from "./FakeLinkProvider";
 
 export { VicinityEngine } from "./VicinityEngine";
-export type { GraphBuildRequest } from "./VicinityEngine";
+export type { GraphBuildRequest, TagGraphBuildRequest } from "./VicinityEngine";
 
 // Pipeline stages, exported for targeted reuse/testing; most consumers only
 // need the VicinityEngine facade above.

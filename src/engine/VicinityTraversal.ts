@@ -2,7 +2,7 @@ import type { LinkKind } from "../shared/LinkKind";
 import type { Tag } from "../shared/Tags";
 import { VaultPathFacts } from "../shared/VaultPathFacts";
 import { EdgeAccumulator } from "./EdgeAccumulator";
-import type { LinkProvider } from "./LinkProvider";
+import type { FileMetadata, LinkProvider } from "./LinkProvider";
 import { OutgoingReferences } from "./LinkProvider";
 import { NodeEligibility } from "./NodeEligibility";
 import { PathExclusionMatcher } from "./PathExclusionMatcher";
@@ -220,23 +220,10 @@ export class VicinityTraversal {
 			if (metadata === undefined) {
 				continue; // Unreachable: only node-bearing (⇒ known) paths are collected.
 			}
-			const firstImage = metadata.attachments.find((attachment) => attachment.isImage);
-			nodes.set(path, {
+			nodes.set(
 				path,
-				docid: docidByPath.get(path),
-				// Step-05 human decision: frontmatter title/name wins over basename.
-				title: metadata.frontmatterTitle ?? VaultPathFacts.titleOf(path),
-				folder: metadata.folder,
-				sizeBytes: metadata.sizeBytes,
-				isCentral: rootPaths.has(path),
-				depthTags,
-				minDepth: Math.min(...depthTags.map((tag) => tag.depth)),
-				attachments: metadata.attachments,
-				outline: metadata.outline,
-				firstImagePath: firstImage?.path,
-				imagePrecedesOutline: metadata.imagePrecedesOutline,
-				tags: metadata.tags,
-			});
+				toTraversedNode(path, metadata, { docid: docidByPath.get(path), isCentral: rootPaths.has(path), depthTags }),
+			);
 		}
 		return {
 			nodes,
@@ -252,6 +239,42 @@ export class VicinityTraversal {
 				.filter((path) => this.eligibility.isNodeBearing(path)).length,
 		};
 	}
+}
+
+/** The traversal-side facts of one node — everything {@link FileMetadata} cannot answer. */
+export interface TraversedNodeRole {
+	readonly docid?: DocId;
+	readonly isCentral: boolean;
+	/** Empty for a node no root walked to (the tag-filtered build has no roots). */
+	readonly depthTags: readonly DepthTag[];
+}
+
+/** Depth of a node no root walked to: there is no root to be far from. */
+const ROOTLESS_MIN_DEPTH = 0;
+
+/**
+ * THE metadata → {@link TraversedNode} mapping, shared by the vicinity walk and the
+ * tag-filtered build so the title / first-image rules exist once.
+ */
+export function toTraversedNode(path: VaultPath, metadata: FileMetadata, role: TraversedNodeRole): TraversedNode {
+	const firstImage = metadata.attachments.find((attachment) => attachment.isImage);
+	return {
+		path,
+		docid: role.docid,
+		// Step-05 human decision: frontmatter title/name wins over basename.
+		title: metadata.frontmatterTitle ?? VaultPathFacts.titleOf(path),
+		folder: metadata.folder,
+		sizeBytes: metadata.sizeBytes,
+		isCentral: role.isCentral,
+		depthTags: role.depthTags,
+		minDepth:
+			role.depthTags.length === 0 ? ROOTLESS_MIN_DEPTH : Math.min(...role.depthTags.map((tag) => tag.depth)),
+		attachments: metadata.attachments,
+		outline: metadata.outline,
+		firstImagePath: firstImage?.path,
+		imagePrecedesOutline: metadata.imagePrecedesOutline,
+		tags: metadata.tags,
+	};
 }
 
 /** MAIN-first: when MAIN is also pinned, the first (MAIN) descriptor wins the dedupe. */

@@ -13,7 +13,10 @@ import { ControlsActions } from "./ControlsActions";
 import { LibavoidEdgeRouter } from "./edgeRouting";
 import { HierarchicalEdgeRouter } from "./hierarchicalEdgeRouting";
 import { GraphLayoutRunner } from "./GraphLayoutRunner";
+import { GRAPH_MODE_STATE_KEY, GraphModes, NOTE_GRAPH_MODE } from "./graphMode";
+import type { GraphMode } from "./graphMode";
 import { GraphViewController } from "./GraphViewController";
+import type { Tag } from "../shared/Tags";
 import { VicinityGraphFlow } from "./VicinityGraphFlow";
 import { LinkPreviewOverlayStore } from "./LinkPreviewOverlayStore";
 import { ObsidianGraphUi } from "./ObsidianGraphUi";
@@ -34,6 +37,13 @@ export class VicinityGraphView extends ItemView {
 	private controller: GraphViewController | null = null;
 	/** Built in `onOpen` alongside the controller; handed to the flow (Phase C). */
 	private controlsActions: ControlsActions | null = null;
+	/**
+	 * This leaf's graph mode (tags-v1), mirrored from the controller so it can be
+	 * saved ({@link getState}) and so a mode that arrives BEFORE the controller
+	 * exists — a restored workspace's {@link setState}, or {@link enterTagMode} on a
+	 * leaf that has not opened yet — is applied in {@link onOpen} rather than lost.
+	 */
+	private graphMode: GraphMode = NOTE_GRAPH_MODE;
 
 	constructor(
 		leaf: WorkspaceLeaf,
@@ -81,6 +91,7 @@ export class VicinityGraphView extends ItemView {
 			new HierarchicalEdgeRouter(new LibavoidEdgeRouter()),
 			this.occurrenceProvider,
 			linkPreview,
+			(mode) => this.rememberGraphMode(mode),
 		);
 		this.controller = controller;
 		// The create-child-note action (vault-content write + open): resolves the owned
@@ -105,6 +116,11 @@ export class VicinityGraphView extends ItemView {
 		);
 		this.controlsActions = controlsActions;
 		this.registerGraphEvents(controller, navigator);
+		// A mode restored before the controller existed: enter it FIRST, so the first
+		// build is the tag's and start() (which only follows the active note) no-ops.
+		if (this.graphMode.kind === "tag") {
+			controller.enterTagMode(this.graphMode.tag);
+		}
 		controller.start();
 
 		this.root = createRoot(this.contentEl);
@@ -136,18 +152,65 @@ export class VicinityGraphView extends ItemView {
 		return this.controlsActions;
 	}
 
+	// --- graph mode: THE enter/exit API of one view (tags-v1) ---------------
+	// Entry points should go through the plugin (`VicinityGraphPlugin.enterTagMode`
+	// / `exitTagMode`), which also opens/reveals the view; these are its per-view half.
+
 	/**
-	 * V1 persists NOTHING view-specific (CLARIFICATION Q4): no view-settings UI
-	 * exists until step-06 and scroll/zoom is intentionally not saved. The
-	 * overrides stay so multi-view workspace restore round-trips cleanly — each
-	 * leaf simply re-follows the active file on restore.
+	 * Show every note carrying `tag` (or a nested child tag) in THIS view, until
+	 * {@link exitTagMode}. Safe before `onOpen`: the mode is applied when the view opens.
+	 */
+	enterTagMode(tag: Tag): void {
+		if (this.controller === null) {
+			this.rememberGraphMode(GraphModes.tag(tag));
+			return;
+		}
+		this.controller.enterTagMode(tag);
+	}
+
+	/** Back to the vicinity of the active note. A no-op when not in tag mode. */
+	exitTagMode(): void {
+		if (this.controller === null) {
+			this.rememberGraphMode(NOTE_GRAPH_MODE);
+			return;
+		}
+		this.controller.exitTagMode();
+	}
+
+	/** The mode this view is in (the same value {@link getState} saves). */
+	currentGraphMode(): GraphMode {
+		return this.graphMode;
+	}
+
+	/**
+	 * The ONE view-specific thing persisted per leaf: the graph mode (tags-v1
+	 * decision 11), so a tag filter survives an Obsidian restart. Scroll/zoom is
+	 * intentionally not saved, and settings are global (never per view).
 	 */
 	getState(): Record<string, unknown> {
-		return super.getState();
+		return { ...super.getState(), [GRAPH_MODE_STATE_KEY]: GraphModes.toSaved(this.graphMode) };
 	}
 
 	async setState(state: unknown, result: ViewStateResult): Promise<void> {
 		await super.setState(state, result);
+		// Obsidian also calls this with state that carries no mode at all (a plain
+		// `setViewState({ type })`); an absent or unreadable mode leaves the current
+		// one alone rather than silently dropping a filter.
+		const saved = GraphModes.fromSaved(savedGraphModeOf(state));
+		if (saved === undefined) {
+			return;
+		}
+		if (saved.kind === "tag") {
+			this.enterTagMode(saved.tag);
+		} else {
+			this.exitTagMode();
+		}
+	}
+
+	/** Mirrors a mode change and asks Obsidian to save the workspace (debounced by Obsidian). */
+	private rememberGraphMode(mode: GraphMode): void {
+		this.graphMode = mode;
+		this.app.workspace.requestSaveLayout();
 	}
 
 	private registerGraphEvents(controller: GraphViewController, navigator: NoteNavigatorPort): void {
@@ -162,4 +225,10 @@ export class VicinityGraphView extends ItemView {
 			this.app.vault.on("rename", (file, oldPath) => controller.handleMainRenamed(oldPath, file.path)),
 		);
 	}
+}
+
+function savedGraphModeOf(state: unknown): unknown {
+	return typeof state === "object" && state !== null
+		? (state as Readonly<Record<string, unknown>>)[GRAPH_MODE_STATE_KEY]
+		: undefined;
 }

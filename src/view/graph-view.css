@@ -132,7 +132,9 @@
 }
 
 /* The failure state adds a retry button under its sentence — the only one of the
-   three the user can act on, so it stacks instead of centering a single line. */
+   three the user can act on, so it stacks instead of centering a single line. The
+   empty TAG state stacks the same way: its sentence sits over the exit button. */
+.vicinity-graph-empty--tag,
 .vicinity-graph-failed {
 	flex-direction: column;
 	gap: var(--size-4-3);
@@ -804,6 +806,88 @@
 	border-radius: var(--radius-l);
 	box-shadow: var(--shadow-s);
 	cursor: help; /* title tooltip carries the per-folder breakdown */
+}
+
+/* ===== mode status pill (bottom-right Panel) =========================== */
+
+/*
+ * Same chrome as the "+N hidden" corner badge above, so the two read as one
+ * family of quiet status surfaces. Hierarchy is carried by COLOUR, not size: the
+ * mode word and the count are muted, the subject (note title / #tag) is the one
+ * normal-contrast run.
+ *
+ * Overflow: only the SUBJECT truncates (a long note title or tag ellipsises; the
+ * mode word and the note count never do), and in a narrow pane the exit button
+ * wraps under the summary instead of being squeezed out — it stays reachable in
+ * a ~300px sidebar. The cap keeps the pill clear of the bottom-left zoom controls.
+ */
+.vicinity-graph-mode-pill {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	justify-content: flex-end;
+	gap: var(--size-2-1) var(--size-4-2);
+	max-width: min(420px, 80cqw);
+	padding: var(--size-4-1) var(--size-4-3);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-l);
+	box-shadow: var(--shadow-s);
+}
+/* Tag mode is the NON-default, sticky mode: an accent edge says "a filter is on"
+   without relying on the wording alone. */
+.vicinity-graph-mode-pill[data-graph-mode="tag"] {
+	border-color: var(--interactive-accent);
+}
+.vicinity-graph-mode-pill__summary {
+	display: flex;
+	align-items: baseline;
+	/* One word-space between the parts: flex drops the whitespace between them. */
+	column-gap: 0.3em;
+	min-width: 0;
+	white-space: nowrap;
+	cursor: help; /* title tooltip explains the mode */
+}
+.vicinity-graph-mode-pill__lead,
+.vicinity-graph-mode-pill__detail {
+	flex: none;
+}
+.vicinity-graph-mode-pill__subject {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	color: var(--text-normal);
+	font-weight: var(--font-medium);
+}
+/*
+ * The `.vicinity-graph-flow` prefix is LOAD-BEARING (same trap as the controls
+ * buttons above): Obsidian's app-wide `button:not(.clickable-icon)` would
+ * otherwise turn this into a raised pill-in-a-pill. Link-styled on purpose — a
+ * tertiary action inside a status surface.
+ */
+.vicinity-graph-flow .vicinity-graph-mode-pill__exit {
+	flex: none;
+	height: auto;
+	padding: 0 0 0 var(--size-4-2);
+	font-size: inherit;
+	color: var(--text-accent);
+	background: none;
+	border: none;
+	border-left: 1px solid var(--background-modifier-border);
+	border-radius: 0;
+	box-shadow: none;
+	cursor: pointer;
+}
+.vicinity-graph-flow .vicinity-graph-mode-pill__exit:hover {
+	color: var(--text-accent-hover);
+	text-decoration: underline;
+}
+.vicinity-graph-flow .vicinity-graph-mode-pill__exit:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
+	border-radius: var(--radius-s);
 }
 
 /* ===== controls toolbar (top-left Panel) =============================== */

@@ -1,5 +1,5 @@
 import type { LinkKind } from "../shared/LinkKind";
-import type { Tag } from "../shared/Tags";
+import type { Tag, TagKey } from "../shared/Tags";
 import type { AttachmentRef, FolderPath, OutlineEntry, VaultPath } from "./types";
 
 /**
@@ -168,4 +168,12 @@ export interface LinkProvider {
 	 * per-kind count and the badge number is unchanged.
 	 */
 	getLinkCount(source: VaultPath, target: VaultPath): number;
+	/**
+	 * Every file carrying `tag` or a tag nested below it (`Tags.carries` — the ONE
+	 * membership rule), in a stable order. A FACT for the tag-filtered build
+	 * ({@link import("./VicinityEngine").VicinityEngine.buildForTag}): the engine
+	 * still decides eligibility, exclusion and the cap. Unlike every other query
+	 * here this one is NOT bounded by the node cap — it answers for the whole vault.
+	 */
+	getPathsCarryingTag(tag: TagKey): readonly VaultPath[];
 }

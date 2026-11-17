@@ -78,6 +78,14 @@ export type FlowNodeData = {
 	 */
 	readonly isLocallyPinned: boolean;
 	/**
+	 * Whether this node carries the LOCAL pin toggle (hover chip + menu entry). A
+	 * local pin is scoped under the graph's MAIN, so it is offered on every node
+	 * EXCEPT the MAIN itself (a note cannot be locally pinned under itself) — and on
+	 * NO node when the graph has no MAIN at all (the tag-filtered graph): there is
+	 * no note to scope the pin to, and a control that could only refuse is not shown.
+	 */
+	readonly offersLocalPin: boolean;
+	/**
 	 * Whether a persisted per-node size override shaped this node's box — the
 	 * fact the context menu's "Reset size" entry switches on.
 	 */
@@ -352,6 +360,8 @@ export function vicinityGraphToFlow(
 			rendersThumbnail: resolveNodePreview(node, graph.viewSettings, node.firstImagePath !== undefined) === "thumbnail",
 		})),
 	);
+	// A graph with no MAIN (tag-filtered) has nothing to scope a local pin under.
+	const graphHasMain = graph.nodes.some((node) => node.isMain);
 	const noteNodes = graph.nodes.map((node): NoteFlowNode => {
 		const groupId = grouping.groupIdByMemberPath.get(node.path);
 		const { width, height } = nodeDimensionsPx(node);
@@ -362,7 +372,14 @@ export function vicinityGraphToFlow(
 			width,
 			height,
 			...(groupId === undefined ? {} : { parentId: groupId }),
-			data: toFlowNodeData(node, pinFacts, graph.viewSettings, suppressedThumbnails.has(node.path), mainIsFolderNote),
+			data: toFlowNodeData(
+				node,
+				pinFacts,
+				graph.viewSettings,
+				suppressedThumbnails.has(node.path),
+				mainIsFolderNote,
+				graphHasMain,
+			),
 		};
 	});
 	return {
@@ -613,6 +630,7 @@ function toFlowNodeData(
 	view: ViewSettings,
 	suppressImage: boolean,
 	mainIsFolderNote: boolean,
+	graphHasMain: boolean,
 ): FlowNodeData {
 	const outline = renderedOutline(node, view);
 	return {
@@ -629,6 +647,7 @@ function toFlowNodeData(
 		// which. A node with no docid (an ordinary neighbor) is in neither set.
 		isGloballyPinned: node.docid !== undefined && pinFacts.globalPinnedDocids.has(node.docid),
 		isLocallyPinned: node.docid !== undefined && pinFacts.localPinnedDocids.has(node.docid),
+		offersLocalPin: graphHasMain && !node.isMain,
 		hasSizeOverride: nodeSizeOverridePx(node) !== undefined,
 		folder: node.folder,
 		outline,

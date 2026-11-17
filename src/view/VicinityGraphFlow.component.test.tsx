@@ -2,6 +2,9 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { LinkOccurrenceProvider } from "../engine";
+import { EngineDefaults } from "../engine";
+import { Tags } from "../shared/Tags";
+import { makeGraph } from "./testFixtures/graphFixtures";
 import { GraphViewController } from "./GraphViewController";
 import { LinkPreviewOverlayStore } from "./LinkPreviewOverlayStore";
 import { RecordingControlsActions } from "./testFixtures/settingsPanelHarness";
@@ -39,6 +42,10 @@ class RejectingGraphSource {
 
 	build(mainPath: string): Promise<GraphBuildResult | null> {
 		this.calls.push(mainPath);
+		return Promise.reject(new Error("vault read failed"));
+	}
+
+	buildForTag(): Promise<GraphBuildResult> {
 		return Promise.reject(new Error("vault read failed"));
 	}
 }
@@ -114,6 +121,10 @@ async function renderFailedPane(): Promise<FailedPaneHarness> {
 /** A build that never settles — holds the pane in the `building` state to render. */
 class PendingGraphSource {
 	build(): Promise<GraphBuildResult | null> {
+		return new Promise(() => undefined);
+	}
+
+	buildForTag(): Promise<GraphBuildResult> {
 		return new Promise(() => undefined);
 	}
 }
@@ -200,5 +211,85 @@ describe("VicinityGraphFlow failed state", () => {
 		fireEvent.click(screen.getByRole("button", { name: "Try again" }));
 
 		expect(screen.getByText("Building the vicinity graph…")).toBeTruthy();
+	});
+});
+
+/**
+ * A tag nobody carries (tags-v1): the filter is STICKY, so the empty state is the
+ * only screen the user has — it must say what is empty and offer the way out.
+ * Driven through the real controller, like the failed state above.
+ */
+describe("VicinityGraphFlow empty tag state", () => {
+	/** Resolves every tag build with an empty graph; note builds never settle. */
+	class EmptyTagGraphSource {
+		readonly calls: string[] = [];
+
+		build(mainPath: string): Promise<GraphBuildResult | null> {
+			this.calls.push(mainPath);
+			return new Promise(() => undefined);
+		}
+
+		buildForTag(): Promise<GraphBuildResult> {
+			return Promise.resolve({
+				graph: makeGraph(),
+				controls: {
+					mainPinned: false,
+					globalDepths: EngineDefaults.depthSettings(),
+					globalView: EngineDefaults.viewSettings(),
+					nodeExclusion: EngineDefaults.nodeExclusionSettings(),
+					frontmatterLinks: EngineDefaults.frontmatterLinkSettings(),
+					excludedNodeCount: 0,
+				},
+				pinFacts: { globalPinnedDocids: new Set<string>(), localPinnedDocids: new Set<string>() },
+				folderNoteCandidates: { folderNoteCandidatesOf: () => [] },
+				mainIsFolderNote: false,
+			});
+		}
+	}
+
+	async function renderEmptyTagPane(): Promise<EmptyTagGraphSource> {
+		const source = new EmptyTagGraphSource();
+		const linkPreview = new LinkPreviewOverlayStore();
+		const controller = new GraphViewController(
+			{ ...INERT_NAVIGATOR, activeFilePath: () => "a.md" },
+			source,
+			INERT_LAYOUT,
+			INERT_ROUTER,
+			INERT_OCCURRENCES,
+			linkPreview,
+		);
+		const tag = Tags.parse("#nobody");
+		if (tag === undefined) {
+			throw new Error("fixture bug");
+		}
+		controller.enterTagMode(tag);
+		await flush();
+		render(
+			<VicinityGraphFlow
+				controller={controller}
+				ui={INERT_GRAPH_UI}
+				actions={new RecordingControlsActions()}
+				linkPreview={linkPreview}
+			/>,
+		);
+		return source;
+	}
+
+	afterEach(() => {
+		cleanup();
+	});
+
+	it("WHEN no note carries the filter tag THEN the pane says so, naming the tag", async () => {
+		await renderEmptyTagPane();
+
+		expect(screen.getByText("No notes are tagged #nobody.")).toBeTruthy();
+	});
+
+	it("WHEN the exit is pressed on the empty tag state THEN the active note's vicinity is built", async () => {
+		const source = await renderEmptyTagPane();
+
+		fireEvent.click(screen.getByRole("button", { name: "Back to active note" }));
+
+		expect(source.calls).toEqual(["a.md"]);
 	});
 });

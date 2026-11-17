@@ -12,6 +12,9 @@ import { DETOUR_RATIO_DEGENERATE, clipRouteToEndpointRects, detourRatio } from "
 import { extractEdgeRoutingInput } from "./edgeRouting";
 import type { EdgeRouteMap, EdgeRouter, EdgeRoutingInput, RoutedPoint } from "./edgeRouting";
 import { isFolderGroupId } from "./graphIdentity";
+import { GraphModes, NOTE_GRAPH_MODE } from "./graphMode";
+import type { GraphMode, GraphModeStatus } from "./graphMode";
+import type { Tag } from "../shared/Tags";
 import { NO_ORPHAN_TRUNCATION } from "./truncationBadges";
 import type { OrphanTruncation } from "./truncationBadges";
 import { LinkPreviewModels, edgeEndpointDisplayName } from "./linkPreviewModel";
@@ -83,7 +86,22 @@ export interface FlowSnapshot {
 	 * failed state also builds, but it is NOT the first build, so it stays `false`.
 	 */
 	readonly isInitialBuild: boolean;
+	/**
+	 * Which mode THIS snapshot was published under, as the status pill words it
+	 * (note title / tag + matched count). Stamped at publish time by
+	 * {@link GraphViewController.setSnapshot}, so the pill and the graph it describes
+	 * can never disagree — a mode switch shows once its build has published.
+	 */
+	readonly mode: GraphModeStatus;
 }
+
+/** A snapshot before the controller stamps the mode on it. */
+type SnapshotBody = Omit<FlowSnapshot, "mode">;
+
+/** What one rebuild pass builds: the vicinity of a MAIN path, or a tag's notes. */
+type BuildTarget =
+	| { readonly kind: "note"; readonly mainPath: string }
+	| { readonly kind: "tag"; readonly tag: Tag };
 
 const EMPTY_CONTROLS: ControlsModel = {
 	mainPinned: false,
@@ -94,7 +112,7 @@ const EMPTY_CONTROLS: ControlsModel = {
 	excludedNodeCount: 0,
 };
 
-const EMPTY_SNAPSHOT: FlowSnapshot = {
+const EMPTY_SNAPSHOT: SnapshotBody = {
 	status: "empty",
 	nodes: [],
 	edges: [],
@@ -109,14 +127,14 @@ const EMPTY_SNAPSHOT: FlowSnapshot = {
  * retry off the failed state ({@link GraphViewController.runRebuild}). "Building
  * the vicinity graph…" with no first-load caveat, because a warm map makes it fast.
  */
-const BUILDING_SNAPSHOT: FlowSnapshot = { ...EMPTY_SNAPSHOT, status: "building" };
+const BUILDING_SNAPSHOT: SnapshotBody = { ...EMPTY_SNAPSHOT, status: "building" };
 
 /**
  * The FIRST build of this controller's life — the one that pays the docid warm-up
  * ({@link GraphViewController.firstBuildPending}). Told apart from a plain rebuild
  * so the render layer can say this one-off wait is expected right after Obsidian loads.
  */
-const INITIAL_BUILDING_SNAPSHOT: FlowSnapshot = { ...EMPTY_SNAPSHOT, status: "building", isInitialBuild: true };
+const INITIAL_BUILDING_SNAPSHOT: SnapshotBody = { ...EMPTY_SNAPSHOT, status: "building", isInitialBuild: true };
 
 /**
  * Every attempt of a rebuild failed ({@link REBUILD_ATTEMPTS}). Published over
@@ -126,7 +144,7 @@ const INITIAL_BUILDING_SNAPSHOT: FlowSnapshot = { ...EMPTY_SNAPSHOT, status: "bu
  * current; the view says so and offers a retry instead
  * ({@link GraphViewController.retryRebuild}).
  */
-const FAILED_SNAPSHOT: FlowSnapshot = { ...EMPTY_SNAPSHOT, status: "failed" };
+const FAILED_SNAPSHOT: SnapshotBody = { ...EMPTY_SNAPSHOT, status: "failed" };
 
 /** Shared empty route map = every edge stays straight (routing off or failed). */
 const EMPTY_ROUTES: EdgeRouteMap = new Map();
@@ -146,7 +164,13 @@ interface RebuildOptions {
 }
 
 export class GraphViewController {
-	private snapshot: FlowSnapshot = EMPTY_SNAPSHOT;
+	private snapshot: FlowSnapshot = { ...EMPTY_SNAPSHOT, mode: GraphModes.statusOf(NOTE_GRAPH_MODE, null) };
+	/**
+	 * What this view shows (tags-v1): the active note's vicinity, or a tag's notes.
+	 * Tag mode is STICKY — {@link handleActiveFileChanged} and {@link focusNode} leave
+	 * it alone; only {@link exitTagMode} (or another {@link enterTagMode}) changes it.
+	 */
+	private mode: GraphMode = NOTE_GRAPH_MODE;
 	private readonly subscribers = new Set<Subscriber>();
 
 	/** The graph rendered last — the structural-diff baseline. */
@@ -197,6 +221,12 @@ export class GraphViewController {
 		private readonly edgeRouter: EdgeRouter,
 		private readonly occurrences: LinkOccurrenceProvider,
 		private readonly linkPreview: LinkPreviewPort,
+		/**
+		 * Told every time the mode CHANGES (enter / switch tag / exit) — the view
+		 * shell saves it into the leaf's state so it survives a restart. Defaulted:
+		 * a controller with nobody to tell (tests, a view not persisting) needs none.
+		 */
+		private readonly onModeChanged: (mode: GraphMode) => void = () => undefined,
 	) {}
 
 	// --- external store (React `useSyncExternalStore`) ---------------------
@@ -216,7 +246,54 @@ export class GraphViewController {
 	 * graph the pin will be applied to.
 	 */
 	activeMainPath(): string | null {
-		return this.mainPath;
+		// A tag graph is built around NO note, so there is no MAIN to scope a local
+		// pin under — the remembered {@link mainPath} is only where an exit returns to.
+		return this.mode.kind === "tag" ? null : this.mainPath;
+	}
+
+	// --- graph mode (tags-v1) ----------------------------------------------
+
+	/** The mode this view is in right now (the saved-state source of truth). */
+	graphMode(): GraphMode {
+		return this.mode;
+	}
+
+	/**
+	 * ENTER tag mode: show every note carrying `tag` (or a nested child tag), links
+	 * or not, and stop following the active note. Calling it while already in tag
+	 * mode SWITCHES the tag; the same tag again is a no-op. Stays until
+	 * {@link exitTagMode}.
+	 */
+	enterTagMode(tag: Tag): void {
+		this.switchMode(GraphModes.tag(tag));
+	}
+
+	/**
+	 * EXIT tag mode: back to the vicinity of the note that is active NOW (or, when
+	 * the active file is not a note — an image, nothing — the note the graph last
+	 * followed). A no-op in note mode.
+	 */
+	exitTagMode(): void {
+		if (this.mode.kind === "note") {
+			return;
+		}
+		// `null` as the current main: the active note must win even when it is the
+		// note the graph followed before the filter.
+		const outcome = decideActiveFileRebuild(this.activeFilePath(), null);
+		if (outcome.kind === "rebuild") {
+			this.mainPath = outcome.mainPath;
+		}
+		this.switchMode(NOTE_GRAPH_MODE);
+	}
+
+	private switchMode(mode: GraphMode): void {
+		if (GraphModes.same(this.mode, mode)) {
+			return;
+		}
+		this.mode = mode;
+		this.clearDebounce();
+		this.onModeChanged(mode);
+		void this.runRebuild();
 	}
 
 	// --- lifecycle ---------------------------------------------------------
@@ -234,6 +311,11 @@ export class GraphViewController {
 	// --- event entry points (called by the ItemView) -----------------------
 
 	handleActiveFileChanged(activePath: string | null): void {
+		if (this.mode.kind === "tag") {
+			// STICKY (tags-v1 decision 11): a tag graph does not follow the open note.
+			// {@link exitTagMode} re-reads the active file, so nothing is tracked here.
+			return;
+		}
 		const outcome = decideActiveFileRebuild(activePath, this.mainPath);
 		if (outcome.kind === "ignore") {
 			return;
@@ -261,8 +343,13 @@ export class GraphViewController {
 		if (oldPath !== this.mainPath) {
 			return;
 		}
-		this.clearDebounce();
 		this.mainPath = newPath;
+		if (this.mode.kind === "tag") {
+			// Only where an exit returns to moved; the tag graph itself picks the
+			// rename up through {@link handleMetadataResolved} like any other note's.
+			return;
+		}
+		this.clearDebounce();
 		void this.runRebuild();
 	}
 
@@ -339,7 +426,15 @@ export class GraphViewController {
 	 * re-focusing the current MAIN is a no-op, mirroring that same decision.
 	 */
 	focusNode(path: string): void {
-		if (isFolderGroupId(path) || path === this.mainPath) {
+		if (isFolderGroupId(path)) {
+			return;
+		}
+		if (this.mode.kind === "tag") {
+			// Opens the note; the tag graph stays (sticky — no MAIN to re-centre on).
+			this.navigator.openNote(path, { newTab: false });
+			return;
+		}
+		if (path === this.mainPath) {
 			return;
 		}
 		this.clearDebounce();
@@ -385,8 +480,8 @@ export class GraphViewController {
 
 	private async runRebuild(options: RebuildOptions = {}): Promise<void> {
 		const token = ++this.rebuildToken;
-		const mainPath = this.mainPath;
-		if (mainPath === null) {
+		const target = this.buildTarget();
+		if (target === null) {
 			// No MAIN to build: a definite (empty) answer, not a pending one — and no
 			// build ran, so the next one is still the first paint.
 			this.reset();
@@ -403,7 +498,7 @@ export class GraphViewController {
 			this.setSnapshot(BUILDING_SNAPSHOT);
 		}
 		try {
-			await this.attemptBuildAndPublish(token, mainPath, options.forceRelayout ?? false);
+			await this.attemptBuildAndPublish(token, target, options.forceRelayout ?? false);
 		} finally {
 			// A superseded build settles nothing — its successor is still the first
 			// paint, and the warm-up it awaits has not been paid for yet.
@@ -411,6 +506,14 @@ export class GraphViewController {
 				this.firstBuildPending = false;
 			}
 		}
+	}
+
+	/** What the current mode asks a rebuild for; `null` = note mode with no MAIN yet. */
+	private buildTarget(): BuildTarget | null {
+		if (this.mode.kind === "tag") {
+			return { kind: "tag", tag: this.mode.tag };
+		}
+		return this.mainPath === null ? null : { kind: "note", mainPath: this.mainPath };
 	}
 
 	/**
@@ -426,10 +529,10 @@ export class GraphViewController {
 	 * A SUPERSEDED attempt is neither retried nor reported as a failure: its
 	 * successor owns the screen.
 	 */
-	private async attemptBuildAndPublish(token: number, mainPath: string, forceRelayout: boolean): Promise<void> {
+	private async attemptBuildAndPublish(token: number, target: BuildTarget, forceRelayout: boolean): Promise<void> {
 		for (let attempt = 1; attempt <= REBUILD_ATTEMPTS; attempt += 1) {
 			try {
-				await this.buildAndPublish(token, mainPath, forceRelayout);
+				await this.buildAndPublish(token, target, forceRelayout);
 				return;
 			} catch (error: unknown) {
 				console.error("vicinity-graph: rebuild failed", { attempt, attempts: REBUILD_ATTEMPTS }, error);
@@ -443,8 +546,11 @@ export class GraphViewController {
 	}
 
 	/** One rebuild pass: engine build → structural diff → elk → routing → publish. */
-	private async buildAndPublish(token: number, mainPath: string, forceRelayout: boolean): Promise<void> {
-		const result = await this.graphBuilder.build(mainPath);
+	private async buildAndPublish(token: number, target: BuildTarget, forceRelayout: boolean): Promise<void> {
+		const result =
+			target.kind === "tag"
+				? await this.graphBuilder.buildForTag(target.tag.key)
+				: await this.graphBuilder.build(target.mainPath);
 		if (this.isStale(token)) {
 			return;
 		}
@@ -622,15 +728,18 @@ export class GraphViewController {
 		this.previousGraph = graph;
 		this.positions = positions;
 		this.groupDimensions = groupDimensions;
-		this.setSnapshot({
-			status: "ready",
-			nodes: withGroupDimensions(withPositions(flow.nodes, positions), groupDimensions),
-			edges: flow.edges,
-			orphanTruncation: flow.orphanTruncation,
-			controls: this.controls,
-			layoutVersion: this.layoutVersion,
-			isInitialBuild: false,
-		});
+		this.setSnapshot(
+			{
+				status: "ready",
+				nodes: withGroupDimensions(withPositions(flow.nodes, positions), groupDimensions),
+				edges: flow.edges,
+				orphanTruncation: flow.orphanTruncation,
+				controls: this.controls,
+				layoutVersion: this.layoutVersion,
+				isInitialBuild: false,
+			},
+			graph,
+		);
 	}
 
 	private reset(): void {
@@ -652,8 +761,13 @@ export class GraphViewController {
 		this.controls = EMPTY_CONTROLS;
 	}
 
-	private setSnapshot(snapshot: FlowSnapshot): void {
-		this.snapshot = snapshot;
+	/**
+	 * Publishes `body` stamped with the CURRENT mode's status — `graph` is the graph
+	 * the body renders (absent for the no-graph states), which is where the pill's
+	 * note title / matched-note count come from.
+	 */
+	private setSnapshot(body: SnapshotBody, graph: VicinityGraph | null = null): void {
+		this.snapshot = { ...body, mode: GraphModes.statusOf(this.mode, graph) };
 		for (const listener of this.subscribers) {
 			listener();
 		}

@@ -1,14 +1,17 @@
 import type {
 	DepthSettings,
+	DocId,
 	FrontmatterLinkSettings,
 	GraphBuildRequest,
 	NodeExclusionSettings,
 	NodeOverride,
 	PinnedNodeDescriptor,
+	TagGraphBuildRequest,
 	VaultPath,
 	ViewSettings,
 } from "../engine";
 import { asDocId, asVaultPath } from "../engine";
+import type { TagKey } from "../shared/Tags";
 import type { PinnedDocEntry } from "../persistence/persistedShapes";
 
 /** Everything the assembler needs, already loaded (it does no IO itself). */
@@ -38,6 +41,25 @@ export interface GraphRequestInputs {
 	 * from the SAME snapshot the graph used — NOT passed to the engine (the pure engine
 	 * does not read it; the dependent adapter ticket wires it into id-ref discovery).
 	 */
+	readonly frontmatterLinks: FrontmatterLinkSettings;
+}
+
+/**
+ * Everything a TAG-FILTERED build needs, already loaded. No main, and the pins
+ * root nothing (see {@link TagGraphBuildRequest}) — they are carried only so a
+ * tagged note that IS pinned can say so; the settings slices are the
+ * same globals {@link GraphRequestInputs} carries, so the controls panel seeds
+ * from the snapshot the graph used in either mode.
+ */
+export interface TagGraphRequestInputs {
+	readonly tag: TagKey;
+	/** The GLOBAL pinned set — pin STATE for the tagged notes, never extra nodes. */
+	readonly pins: readonly PinnedDocEntry[];
+	readonly nodeOverrides: Readonly<Record<string, NodeOverride>>;
+	readonly resolveDocPath: (docid: string) => string | undefined;
+	readonly globalDepths: DepthSettings;
+	readonly globalView: ViewSettings;
+	readonly nodeExclusion: NodeExclusionSettings;
 	readonly frontmatterLinks: FrontmatterLinkSettings;
 }
 
@@ -72,6 +94,28 @@ export class GraphRequestAssembler {
 		};
 	}
 
+	/**
+	 * The tag-filtered twin of {@link assemble}: the overrides and the pinned docids
+	 * are translated to paths; an unresolved pin is skipped, as in {@link assemble}.
+	 */
+	static assembleForTag(inputs: TagGraphRequestInputs): TagGraphBuildRequest {
+		const nodeOverrides = GraphRequestAssembler.pathKeyedOverrides(inputs);
+		const pinnedDocIds = new Map<VaultPath, DocId>();
+		for (const pin of inputs.pins) {
+			const path = inputs.resolveDocPath(pin.docid);
+			if (path !== undefined) {
+				pinnedDocIds.set(asVaultPath(path), asDocId(pin.docid));
+			}
+		}
+		return {
+			tag: inputs.tag,
+			...(nodeOverrides.size > 0 ? { nodeOverrides } : {}),
+			...(pinnedDocIds.size > 0 ? { pinnedDocIds } : {}),
+			globalView: inputs.globalView,
+			nodeExclusion: inputs.nodeExclusion,
+		};
+	}
+
 	private static pinnedDescriptors(inputs: GraphRequestInputs): readonly PinnedNodeDescriptor[] {
 		// GLOBAL ∪ the active main's LOCAL pins, deduped by docid keeping the MOST
 		// RECENT pinTimestamp so NodePriorityChain recency stays honest for a doc
@@ -96,7 +140,9 @@ export class GraphRequestAssembler {
 		return descriptors;
 	}
 
-	private static pathKeyedOverrides(inputs: GraphRequestInputs): ReadonlyMap<VaultPath, NodeOverride> {
+	private static pathKeyedOverrides(
+		inputs: Pick<GraphRequestInputs, "nodeOverrides" | "resolveDocPath">,
+	): ReadonlyMap<VaultPath, NodeOverride> {
 		const overrides = new Map<VaultPath, NodeOverride>();
 		for (const [docid, override] of Object.entries(inputs.nodeOverrides)) {
 			const path = inputs.resolveDocPath(docid);

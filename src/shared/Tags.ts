@@ -85,6 +85,15 @@ export class Tags {
 		return tag === ancestor || tag.startsWith(ancestor + NESTING_SEPARATOR);
 	}
 
+	/**
+	 * True when a note carrying `tags` counts as tagged `wanted`: it carries that
+	 * tag or one nested below it. THE tag-filter membership rule — the real adapter
+	 * and the fake provider both ask here.
+	 */
+	static carries(tags: readonly Tag[], wanted: TagKey): boolean {
+		return tags.some((tag) => Tags.isSameOrNestedUnder(tag.key, wanted));
+	}
+
 	/** `toLowerCase`, not locale-aware: identity must not depend on the user's locale. */
 	private static keyOfName(name: string): TagKey {
 		return name.toLowerCase() as TagKey;

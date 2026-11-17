@@ -18,6 +18,9 @@ import type {
 } from "./viewPorts";
 import type { EdgeRouteMap, EdgeRouter, EdgeRoutingInput } from "./edgeRouting";
 import { makeEdge, makeGraph, makeNode } from "./testFixtures/graphFixtures";
+import { Tags } from "../shared/Tags";
+import type { Tag, TagKey } from "../shared/Tags";
+import type { GraphMode } from "./graphMode";
 
 /** These tests exercise rebuild concurrency, not the toolbar model — an empty model suffices. */
 const EMPTY_CONTROLS: ControlsModel = {
@@ -77,6 +80,23 @@ class FakeGraphSource implements GraphSourcePort {
 		const pending = deferred<GraphBuildResult | null>();
 		this.deferreds.push(pending);
 		return pending.promise;
+	}
+
+	/**
+	 * The tag-filtered build, recorded as `#<tag key>` in the SAME call log and
+	 * resolved through the same deferred list, so a test orders note and tag builds
+	 * against each other by index.
+	 */
+	buildForTag(tag: TagKey): Promise<GraphBuildResult> {
+		this.calls.push(`#${tag}`);
+		const pending = deferred<GraphBuildResult | null>();
+		this.deferreds.push(pending);
+		return pending.promise.then((result) => {
+			if (result === null) {
+				throw new Error("fixture bug: a tag build never resolves null");
+			}
+			return result;
+		});
 	}
 
 	/** Tests supply just the graph; the empty controls model and no-pins facts are attached here. */
@@ -1475,5 +1495,251 @@ describe("GraphViewController link previews", () => {
 		await h.controller.openEdgePreview("hub.md->folder-group:notes");
 
 		expect(h.linkPreview.shown).toMatchObject([{ sourceName: "hub", targetName: "notes" }]);
+	});
+});
+
+/**
+ * Tag-filtered mode (tags-v1 decisions 9-12): a per-view mode that shows a tag's
+ * notes instead of the active note's vicinity, and is STICKY until exited.
+ */
+describe("GraphViewController tag mode", () => {
+	function tag(raw: string): Tag {
+		const parsed = Tags.parse(raw);
+		if (parsed === undefined) {
+			throw new Error(`fixture bug: [${raw}] is not a tag`);
+		}
+		return parsed;
+	}
+
+	/** A tag graph: no MAIN, no centrals — just the tagged notes. */
+	function taggedGraph(...paths: string[]): VicinityGraph {
+		return makeGraph({ nodes: paths.map((path) => makeNode({ path: asVaultPath(path) })) });
+	}
+
+	/** GIVEN a view following `a.md` that then entered tag mode for `#Project` (build[1] in flight). */
+	async function inTagMode(): Promise<Harness> {
+		const h = setup();
+		h.navigator.activePath = "a.md";
+		h.controller.start();
+		h.source.resolveBuild(0, graphOf("a.md"));
+		await flush();
+		h.controller.enterTagMode(tag("#Project"));
+		return h;
+	}
+
+	/** GIVEN the tag graph of {@link inTagMode} is on screen. */
+	async function showingTagGraph(): Promise<Harness> {
+		const h = await inTagMode();
+		h.source.resolveBuild(1, taggedGraph("t1.md", "t2.md"));
+		await flush();
+		return h;
+	}
+
+	it("WHEN tag mode is entered THEN the tag's graph is built, by the tag's identity", async () => {
+		const h = await inTagMode();
+
+		expect(h.source.calls).toEqual(["a.md", "#project"]);
+	});
+
+	it("WHEN the tag build resolves THEN the tagged notes are rendered", async () => {
+		const h = await showingTagGraph();
+
+		expect(nodeIds(h.snapshot())).toEqual(["t1.md", "t2.md"]);
+	});
+
+	it("WHEN the tag graph is published THEN the snapshot names the tag and how many notes matched", async () => {
+		const h = await showingTagGraph();
+
+		expect(h.snapshot().mode).toEqual({ kind: "tag", tag: tag("#Project"), noteCount: 2 });
+	});
+
+	it("WHEN a note graph is published THEN the snapshot names the MAIN note", async () => {
+		const h = setup();
+		h.controller.handleActiveFileChanged("a.md");
+		h.source.resolveBuild(0, makeGraph({ nodes: [makeNode({ path: asVaultPath("a.md"), isMain: true })] }));
+		await flush();
+
+		expect(h.snapshot().mode).toEqual({ kind: "note", noteTitle: "a" });
+	});
+
+	it("WHEN another note becomes active in tag mode THEN the graph is not rebuilt", async () => {
+		const h = await showingTagGraph();
+
+		h.controller.handleActiveFileChanged("b.md");
+
+		expect(h.source.calls).toEqual(["a.md", "#project"]);
+	});
+
+	it("WHEN a node is clicked in tag mode THEN its note opens in the current tab", async () => {
+		const h = await showingTagGraph();
+
+		h.controller.focusNode("t1.md");
+
+		expect({ opened: h.navigator.opened, options: h.navigator.openedOptions }).toEqual({
+			opened: ["t1.md"],
+			options: [{ newTab: false }],
+		});
+	});
+
+	it("WHEN a node is clicked in tag mode THEN the graph is not rebuilt", async () => {
+		const h = await showingTagGraph();
+
+		h.controller.focusNode("t1.md");
+
+		expect(h.source.calls).toEqual(["a.md", "#project"]);
+	});
+
+	it("WHEN settings change in tag mode THEN the tag graph is rebuilt", async () => {
+		const h = await showingTagGraph();
+
+		h.controller.handleSettingsChanged();
+
+		expect(h.source.calls).toEqual(["a.md", "#project", "#project"]);
+	});
+
+	it("WHEN tag mode is entered before any note was active THEN the tag graph still builds", () => {
+		const h = setup();
+
+		h.controller.enterTagMode(tag("#project"));
+
+		expect(h.source.calls).toEqual(["#project"]);
+	});
+
+	it("WHEN no note carries the tag THEN the snapshot is empty and still in tag mode", async () => {
+		const h = await inTagMode();
+
+		h.source.resolveBuild(1, taggedGraph());
+		await flush();
+
+		expect({ status: h.snapshot().status, mode: h.snapshot().mode }).toEqual({
+			status: "empty",
+			mode: { kind: "tag", tag: tag("#Project"), noteCount: 0 },
+		});
+	});
+
+	it("WHEN the same tag is entered again THEN nothing is rebuilt", async () => {
+		const h = await showingTagGraph();
+
+		h.controller.enterTagMode(tag("#PROJECT"));
+
+		expect(h.source.calls).toEqual(["a.md", "#project"]);
+	});
+
+	it("WHEN a different tag is entered THEN that tag's graph is built", async () => {
+		const h = await showingTagGraph();
+
+		h.controller.enterTagMode(tag("#other"));
+
+		expect(h.source.calls).toEqual(["a.md", "#project", "#other"]);
+	});
+
+	it("WHEN tag mode is exited THEN the vicinity of the note active NOW is built", async () => {
+		const h = await showingTagGraph();
+		h.navigator.activePath = "b.md";
+
+		h.controller.exitTagMode();
+
+		expect(h.source.calls).toEqual(["a.md", "#project", "b.md"]);
+	});
+
+	it("WHEN tag mode is exited while the active file is not a note THEN the last followed note is rebuilt", async () => {
+		const h = await showingTagGraph();
+		h.navigator.activePath = "photo.png";
+
+		h.controller.exitTagMode();
+
+		expect(h.source.calls).toEqual(["a.md", "#project", "a.md"]);
+	});
+
+	it("WHEN tag mode was exited THEN the graph follows the active note again", async () => {
+		const h = await showingTagGraph();
+		h.controller.exitTagMode();
+
+		h.controller.handleActiveFileChanged("c.md");
+
+		expect(h.source.calls).toEqual(["a.md", "#project", "a.md", "c.md"]);
+	});
+
+	it("WHEN exit is asked for in note mode THEN nothing is rebuilt", async () => {
+		const h = setup();
+		h.controller.handleActiveFileChanged("a.md");
+
+		h.controller.exitTagMode();
+
+		expect(h.source.calls).toEqual(["a.md"]);
+	});
+
+	it("WHEN tag mode is exited while its build is in flight THEN the late tag graph is not published", async () => {
+		const h = await inTagMode();
+		h.controller.exitTagMode();
+		h.source.resolveBuild(2, graphOf("a.md"));
+		await flush();
+
+		h.source.resolveBuild(1, taggedGraph("t1.md", "t2.md"));
+		await flush();
+
+		expect(nodeIds(h.snapshot())).toEqual(["a.md"]);
+	});
+
+	it("WHEN a second tag is entered while the first tag's build is in flight THEN only the second tag's graph is published", async () => {
+		const h = await inTagMode();
+		h.controller.enterTagMode(tag("#other"));
+		h.source.resolveBuild(2, taggedGraph("o1.md"));
+		await flush();
+
+		h.source.resolveBuild(1, taggedGraph("t1.md", "t2.md"));
+		await flush();
+
+		expect(nodeIds(h.snapshot())).toEqual(["o1.md"]);
+	});
+
+	it("WHEN in tag mode THEN there is no active MAIN to scope a local pin under", async () => {
+		const h = await showingTagGraph();
+
+		expect(h.controller.activeMainPath()).toBeNull();
+	});
+
+	it("WHEN the mode changes THEN the mode listener is told each new mode", () => {
+		const modes: GraphMode[] = [];
+		const controller = new GraphViewController(
+			new FakeNavigator(),
+			new FakeGraphSource(),
+			new FakeLayout(),
+			new FakeEdgeRouter(),
+			new FakeLinkOccurrenceProvider({}),
+			new FakeLinkPreview(),
+			(mode) => modes.push(mode),
+		);
+
+		controller.enterTagMode(tag("#project"));
+		controller.exitTagMode();
+
+		expect(modes.map((mode) => mode.kind)).toEqual(["tag", "note"]);
+	});
+});
+
+describe("GraphViewController tag mode metadata rebuild", () => {
+	beforeEach(() => {
+		vi.useFakeTimers();
+		vi.stubGlobal("window", { setTimeout, clearTimeout });
+	});
+
+	afterEach(() => {
+		vi.useRealTimers();
+		vi.unstubAllGlobals();
+	});
+
+	it("WHEN vault metadata resolves in tag mode THEN the tag graph is rebuilt after the debounce", () => {
+		const h = setup();
+		const parsed = Tags.parse("#project");
+		if (parsed === undefined) {
+			throw new Error("fixture bug");
+		}
+		h.controller.enterTagMode(parsed);
+
+		h.controller.handleMetadataResolved();
+		vi.advanceTimersByTime(REBUILD_DEBOUNCE_MS);
+
+		expect(h.source.calls).toEqual(["#project", "#project"]);
 	});
 });
