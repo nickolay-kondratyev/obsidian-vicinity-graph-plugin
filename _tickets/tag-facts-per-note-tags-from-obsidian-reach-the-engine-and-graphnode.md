@@ -1,16 +1,17 @@
 ---
 id: nid_mr42m1k8cmyeusemmvmxuuaxb_e
 title: "Tag facts: per-note tags from Obsidian reach the engine and GraphNode"
-status: open
+status: in_progress
 deps: []
 links: []
 created_iso: 2026-11-17T20:32:45Z
-status_updated_iso: 2026-11-17T20:32:45Z
+status_updated_iso: 2026-11-17T20:35:05Z
 type: task
 priority: 1
 assignee: CC_WITH-nickolaykondratyev
 tags: [tags-v1]
 parent: nid_xhed75cwiy0ui4fokv6l02cxf_e
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin/.worktree/t-mr42m1k8
 ---
 
 ## Goal
