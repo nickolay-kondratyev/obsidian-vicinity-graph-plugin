@@ -234,7 +234,7 @@ test("settings tab: WHEN the exclusion toggle is switched back on THEN the patte
 });
 
 /* ========================================================================== *
- * The Grouping card's dependent rows (master: the Folder grouping depth slider)
+ * The Grouping card's dependent rows (master: the Grouping depth slider)
  * ========================================================================== */
 
 /** The declared accessible name of a Grouping-card row — the model's copy, never retyped. */
@@ -250,7 +250,7 @@ function declaredName(kind: SettingsRowControlKind): string {
 const GROUPING_ON_DEPTH = 2;
 
 /**
- * Drives the tab's "Folder grouping depth" SLIDER — the real master gesture, so the
+ * Drives the tab's "Grouping depth" SLIDER — the real master gesture, so the
  * dependent verdicts flow through the tab's own onChange (write, then the
  * authoritative `applyRowDependencies` pass). Set through the native value setter,
  * then BOTH `input` and `change` events: Obsidian's `SliderComponent` decides which
@@ -274,12 +274,12 @@ async function setFolderGroupingDepthSlider(value: number): Promise<void> {
 async function expectGroupingDepthPersisted(depth: number): Promise<void> {
 	await expect
 		.poll(async () => (await harness.readGlobalView()).folderGroupingDepth, {
-			message: "the folder grouping depth slider must persist, not just repaint its dependents",
+			message: "the grouping depth slider must persist, not just repaint its dependents",
 		})
 		.toBe(depth);
 }
 
-test("settings tab: WHEN Folder grouping depth is set to 0 THEN both dependent grouping rows are disabled in place, keeping scroll and focus", async () => {
+test("settings tab: WHEN Grouping depth is set to 0 THEN both dependent grouping rows are disabled in place, keeping scroll and focus", async () => {
 	await settingsTab.open();
 	await harness.saveGlobalView({ folderGroupingDepth: GROUPING_ON_DEPTH });
 	await settingsTab.redisplay();
@@ -307,7 +307,7 @@ test("settings tab: WHEN Folder grouping depth is set to 0 THEN both dependent g
 	await page.screenshot({ path: `${OUT_DIR}/03-grouping-off-rows-disabled.png` });
 });
 
-test("settings tab: WHEN Folder grouping depth leaves 0 THEN both dependent grouping rows are re-enabled in place", async () => {
+test("settings tab: WHEN Grouping depth leaves 0 THEN both dependent grouping rows are re-enabled in place", async () => {
 	await settingsTab.open();
 	await harness.saveGlobalView({ folderGroupingDepth: 0 });
 	await settingsTab.redisplay();
