@@ -10,7 +10,9 @@ is cheap to revisit.
 1. **Algorithm — "explain the most tag memberships", greedy and recursive.**
    At each level, for every tag carried by 2+ of the level's notes, take the
    group's tag SET = the tags shared by ALL of those notes; score =
-   `members × tags in the set`. The best-scoring set becomes a box (ties: more
+   `members × LABEL tags` (the set minus a parent tag implied by a nested child in
+   it — otherwise `#project/alpha` on 2 notes would outscore `#project` on 3 and
+   strand the third note outside its parent box). The best-scoring set becomes a box (ties: more
    members, then tag name); its notes are removed and the level repeats. Inside a
    box the same rule runs again on the remaining (not yet explained) tags, so
    boxes nest. A box with several shared tags is ONE box labelled with all of

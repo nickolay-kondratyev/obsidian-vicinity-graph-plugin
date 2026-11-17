@@ -1,4 +1,5 @@
 import type { FolderPath } from "../engine";
+import type { Tag } from "../shared/Tags";
 
 /**
  * The MODE-AGNOSTIC grouping model: what every grouping consumer (`elkMapping`,
@@ -6,9 +7,9 @@ import type { FolderPath } from "../engine";
  *
  * A GROUPER turns the visible notes into a tree of boxes and answers the lookup
  * seams below; the layout / render / edge-collapse pipeline never asks HOW a
- * note landed in its box. `folderGrouping.ts` (`deriveFolderGroups`) is the one
- * grouper today; a tag grouper is a second producer of this exact shape (epic
- * `nid_xhed75cwiy0ui4fokv6l02cxf_e`).
+ * note landed in its box. The producers of this exact shape are
+ * `folderGrouping.ts` (`deriveFolderGroups`) and `tagGrouping.ts`
+ * (`deriveTagGroups`, epic `nid_xhed75cwiy0ui4fokv6l02cxf_e`).
  *
  * What the shape promises, and what it deliberately does NOT:
  * - A note renders in EXACTLY ONE group (or none) — {@link GroupingResult.groupIdByMemberPath}
@@ -36,7 +37,8 @@ export function asGroupId(id: string): GroupId {
 /**
  * Names a theme colour for a group box. Carried, NOT rendered yet: folder boxes
  * are deliberately neutral (`docs-internal/tickets/ticket-folder-color-ux-design-pass.md`),
- * so the palette and its CSS land with the first grouper that colours (tags).
+ * so only tag boxes carry one (`tagColor.ts`); the CSS that paints a token lands
+ * with tag-box rendering (`nid_lmftfz11vvfwj382i4xmmoqgf_e`).
  */
 export type GroupColorToken = string & { readonly __brand: "GroupColorToken" };
 
@@ -49,11 +51,21 @@ export const NO_GROUP_COLOR = null;
  * label's navigation target, the DOM hook). A closed union: a new grouper adds
  * its member and the compiler points at every consumer that must decide.
  */
-export type GroupSubject = {
-	readonly kind: "folder";
-	/** The group's own (deepest) folder — never a collapsed ancestor. */
-	readonly folder: FolderPath;
-};
+export type GroupSubject =
+	| {
+			readonly kind: "folder";
+			/** The group's own (deepest) folder — never a collapsed ancestor. */
+			readonly folder: FolderPath;
+	  }
+	| {
+			readonly kind: "tag";
+			/**
+			 * The tags the box is LABELLED with (`tagGrouping.ts`): every tag its
+			 * members share at this level, minus a parent tag implied by a nested child
+			 * in the same set. Never empty; sorted by key.
+			 */
+			readonly tags: readonly Tag[];
+	  };
 
 /** One rendered box of the grouping tree. */
 export interface NodeGroup {

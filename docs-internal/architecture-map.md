@@ -204,7 +204,9 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   `groupCreditedForHiddenFolder`. `elkMapping`, `flowMapping`, `layoutFit`,
   `truncationBadges` and `FolderGroupNode` read ONLY this shape — never folder
   arithmetic on an id, a label or a member path. A GROUPER produces it: `folderGrouping.ts`
-  (`deriveFolderGroups`) is the one today; a second grouper (tags) is a new
+  (`deriveFolderGroups`) and `tagGrouping.ts` (`deriveTagGroups`: greedy
+  "explain the most tag memberships", plus each note's leftover tags for chips;
+  colours from `tagColor.ts`) are the producers — a new grouper is a new
   producer, not an edit to the consumers. The tree lookups come from
   `deriveGroupTreeLookups` (from `parentId` + `memberPaths` alone), so a grouper
   writes only its own membership rules and its hidden-count attribution.

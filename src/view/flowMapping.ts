@@ -400,6 +400,8 @@ function folderOfSubject(subject: GroupSubject): string | null {
 	switch (subject.kind) {
 		case "folder":
 			return subject.folder;
+		case "tag":
+			return null; // A tag box stands for no folder.
 	}
 }
 
@@ -415,6 +417,8 @@ function labelNavigationCandidatesOf(
 	switch (subject.kind) {
 		case "folder":
 			return folderNoteCandidates.folderNoteCandidatesOf(subject.folder);
+		case "tag":
+			return []; // A tag has no note to open; its label action lands with tag boxes (nid_lmftfz11vvfwj382i4xmmoqgf_e).
 	}
 }
 
