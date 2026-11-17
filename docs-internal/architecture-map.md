@@ -92,6 +92,12 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   right-click item (`TagFilterMenus.ts`, decisions pure in `tagMenuChoice.ts`)
   and the command's picker (`TagPickerModal.ts`). In-graph tag clicks (box
   label, chip) stay in their own view via `TagFilterContext`.
+  The graph's corner overlays are React Flow `<Panel>`s mounted by
+  `VicinityGraphFlow`: `GraphToolbar` (the Graph controls panel), `GraphModePill`
+  bottom-right, and `GraphCorner` top-right — the Folders | Tags toggle (the
+  panel row's own `GroupingModeSwitch`, so it writes `groupingMode` through the
+  one settings pipeline) plus the orphan "+N hidden" badge. Tag chips are
+  `NoteNode`'s `NoteTagChips`, fed by `tagChips.ts` from the grouper's leftovers.
 - **`src/main.ts`** — plugin entry: wires the object graph in `onload`,
   registers the view/commands/vault-lifecycle handlers, schedules the sweep.
 
