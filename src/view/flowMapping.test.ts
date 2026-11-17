@@ -286,10 +286,12 @@ describe("vicinityGraphToFlow folder groups", () => {
 		const group = toFlow(groupedGraph()).nodes.find((node) => node.kind === "folder-group");
 		expect(group?.data).toEqual({
 			folder: "notes",
-			folderName: "notes",
+			label: "notes",
+			fullLabel: "notes",
 			hiddenCount: 0,
 			fullPathLabel: false,
 			folderNoteCandidates: [],
+			colorToken: null,
 		});
 	});
 
@@ -596,7 +598,7 @@ function collapsedChainGroup(graph: Parameters<typeof vicinityGraphToFlow>[0]) {
 
 describe("vicinityGraphToFlow collapsed-chain group label (groupLabelFullPath)", () => {
 	it("WHEN the label setting is OFF (default) THEN a collapsed chain shows its LEAF folder name", () => {
-		expect(collapsedChainGroup(collapsedChainGraph())?.data.folderName).toBe("C");
+		expect(collapsedChainGroup(collapsedChainGraph())?.data.label).toBe("C");
 	});
 
 	it("WHEN the label setting is ON THEN a collapsed chain shows its FULL path", () => {
@@ -604,7 +606,7 @@ describe("vicinityGraphToFlow collapsed-chain group label (groupLabelFullPath)",
 			nodes: collapsedChainGraph().nodes,
 			viewSettings: { ...makeGraph().viewSettings, groupLabelFullPath: true },
 		});
-		expect(collapsedChainGroup(graph)?.data.folderName).toBe("A/B/C");
+		expect(collapsedChainGroup(graph)?.data.label).toBe("A/B/C");
 	});
 
 	it("WHEN the label setting is ON THEN the tooltip folder path is unchanged (full vault path)", () => {
@@ -620,7 +622,7 @@ describe("vicinityGraphToFlow collapsed-chain group label (groupLabelFullPath)",
 			nodes: groupedGraph().nodes,
 			viewSettings: { ...makeGraph().viewSettings, groupLabelFullPath: true },
 		});
-		expect(collapsedChainGroup(graph)?.data.folderName).toBe("notes");
+		expect(collapsedChainGroup(graph)?.data.label).toBe("notes");
 	});
 
 	it("WHEN the label setting is OFF (default) THEN fullPathLabel is false (leaf keeps trailing truncation)", () => {

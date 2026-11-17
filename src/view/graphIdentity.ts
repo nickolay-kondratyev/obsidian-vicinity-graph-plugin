@@ -1,5 +1,7 @@
 import type { DirectedLink, GraphNode, NodeSizeOverridePx } from "../engine";
 import { NODE_MAX_LABEL_WIDTH_PX, estimateNodeLabelWidthPx } from "../engine";
+import type { GroupId } from "./grouping";
+import { asGroupId } from "./grouping";
 
 /**
  * Structural identity helpers shared by the React-Flow mapping, the elk mapping
@@ -26,9 +28,13 @@ export function edgeIdOf(edge: DirectedLink): string {
  */
 const FOLDER_GROUP_ID_PREFIX = "folder-group:";
 
-/** Shared RF/elk id of the group node rendered for `folder`. */
-export function folderGroupIdOf(folder: string): string {
-	return `${FOLDER_GROUP_ID_PREFIX}${folder}`;
+/**
+ * Shared RF/elk id of the group node rendered for `folder` — the folder
+ * grouper's {@link GroupId} mint. Unchanged across rebuilds, so the structural
+ * diff never sees a folder box as new.
+ */
+export function folderGroupIdOf(folder: string): GroupId {
+	return asGroupId(`${FOLDER_GROUP_ID_PREFIX}${folder}`);
 }
 
 /** True for ids minted by {@link folderGroupIdOf} — group nodes never open notes. */

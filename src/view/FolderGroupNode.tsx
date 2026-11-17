@@ -10,10 +10,12 @@ import { opensInNewTab } from "./nodeOpenIntent";
 import type { NodeMenuEntry, NoteOpenPort } from "./viewPorts";
 
 /**
- * Folder-group container (step-05): neutral Obsidian-theme styling — visible
- * neutral border, secondary-background fill, folder-name label — deliberately NO
- * folder colors (human decision, CLARIFICATION palette section). The "+N"
- * badge surfaces this folder's truncated-away members (Q4). Member nodes
+ * Group container (step-05), rendered from the mode-agnostic
+ * {@link FlowGroupData} — it never asks which grouper made the box. Neutral
+ * Obsidian-theme styling — visible neutral border, secondary-background fill,
+ * name label — deliberately NO folder colors (human decision, CLARIFICATION
+ * palette section; `data.colorToken` is carried but not rendered yet). The "+N"
+ * badge surfaces the group's truncated-away members (Q4). Member nodes
  * render on top because React Flow orders parents before children.
  *
  * The NAME LABEL navigates to the folder's folder-note candidate(s) when any
@@ -54,7 +56,7 @@ export const FolderGroupNode = memo(function FolderGroupNode({
 		});
 	};
 	return (
-		<div className="vicinity-graph-group" data-folder={data.folder}>
+		<div className="vicinity-graph-group" {...(data.folder === null ? {} : { "data-folder": data.folder })}>
 			{/* Hidden edge anchors so collapsed edges can point at the group box
 			    (mirrors NoteNode). isConnectable=false keeps groups non-interactive
 			    for links — they are edge-addressable only. */}
@@ -67,10 +69,10 @@ export const FolderGroupNode = memo(function FolderGroupNode({
 			<div className="vicinity-graph-group__header">
 				<span
 					className={labelClassName(data)}
-					title={data.folder}
+					title={data.fullLabel}
 					{...(candidates.length === 0 ? {} : { onClick: onLabelClick })}
 				>
-					{data.folderName}
+					{data.label}
 				</span>
 				{data.hiddenCount > 0 && (
 					<span
