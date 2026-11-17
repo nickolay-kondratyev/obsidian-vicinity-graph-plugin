@@ -28,6 +28,11 @@ export class ObsidianTags {
 		];
 	}
 
+	/** True for the frontmatter property Obsidian reads tags from (`tags`, any casing). */
+	static isTagsPropertyKey(key: string): boolean {
+		return FRONTMATTER_TAGS_KEY.test(key);
+	}
+
 	private static frontmatterTagsOf(frontmatter: CachedMetadataPort["frontmatter"]): readonly string[] {
 		if (frontmatter === undefined) {
 			return [];
