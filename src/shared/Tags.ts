@@ -57,19 +57,20 @@ export class Tags {
 	/**
 	 * `tags` plus every ancestor of each nested tag (`a/b/c` ⇒ `a`, `a/b`, `a/b/c`),
 	 * deduplicated, each ancestor placed before its first descendant. A note tagged
-	 * `#project/alpha` counts as `#project` too, matching Obsidian's tag search. An
-	 * added ancestor's display name is the prefix of the tag that implied it; a tag
-	 * the note carries itself keeps its own casing when it comes first.
+	 * `#project/alpha` counts as `#project` too, matching Obsidian's tag search. A
+	 * tag the note carries itself always keeps its own casing; an ancestor it does
+	 * NOT carry is named by the prefix of the first tag that implied it.
 	 */
 	static withAncestors(tags: readonly Tag[]): readonly Tag[] {
+		const carried = new Map(tags.map((tag) => [tag.key, tag]));
 		const byKey = new Map<TagKey, Tag>();
 		for (const tag of tags) {
 			const segments = tag.name.split(NESTING_SEPARATOR);
 			for (let length = 1; length <= segments.length; length++) {
-				const name = length === segments.length ? tag.name : segments.slice(0, length).join(NESTING_SEPARATOR);
+				const name = segments.slice(0, length).join(NESTING_SEPARATOR);
 				const key = Tags.keyOfName(name);
 				if (name !== "" && !byKey.has(key)) {
-					byKey.set(key, length === segments.length ? tag : { key, name });
+					byKey.set(key, carried.get(key) ?? { key, name });
 				}
 			}
 		}

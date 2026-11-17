@@ -87,6 +87,10 @@ describe("Tags.withAncestors", () => {
 			"project/alpha",
 		]);
 	});
+
+	it("WHEN the note carries the parent tag AFTER its nested tag THEN the parent still keeps the note's own casing", () => {
+		expect(Tags.withAncestors([tag("#project/alpha"), tag("#PROJECT")])[0]?.name).toBe("PROJECT");
+	});
 });
 
 describe("Tags.isSameOrNestedUnder (Obsidian tag-search semantics)", () => {
