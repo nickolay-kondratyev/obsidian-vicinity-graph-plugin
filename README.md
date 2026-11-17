@@ -89,7 +89,7 @@ the default.
 - Every note shows up **once** — in one box, or loose when no box takes it. A box
   needs at least 2 notes.
 - A note's **other tags** — the ones its boxes don't already name — show as small
-  **chips** under it (up to 3, then `+N`).
+  **chips** under it (extra ones fold into a `+N` chip).
 - **Nested tags count as their parents**, like Obsidian's tag search:
   `#project/alpha` also sits in a `#project` box.
 - **Colours:** common tags get a fixed colour, matched on the last part of the tag
@@ -105,7 +105,7 @@ the default.
   | purple | project, goal, area |
   | grey | archive, archived, deprecated, obsolete |
 
-  Every other tag gets its own colour, which stays the same every time. Colours
+  Every other tag gets a colour picked from its name, so it never changes. Colours
   follow your theme, so light and dark both work.
 - *Grouping depth* limits how many levels of boxes nest, the same as for folders.
 
@@ -124,7 +124,7 @@ the vicinity of the open note. Get there from wherever you meet the tag:
   with several tags asks which) or a tag chip under a note.
 
 The **pill in the bottom-right corner** always says which mode the graph is in:
-*Vicinity of <note>* or *Tagged #tag · N notes* (hover it for an explanation).
+`Vicinity of <note>` or `Tagged #tag · N notes` (hover it for an explanation).
 The tag view stays while you open other notes — clicking a note in it opens the
 note without leaving the tag — and survives a restart. To leave, click **Back to
 active note** on the pill.

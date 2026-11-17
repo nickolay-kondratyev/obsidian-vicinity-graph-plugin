@@ -28,7 +28,7 @@ is cheap to revisit.
      sharing 1. Upgrade path: a members-weighted score. Recorded in code.
 2. **A note renders once** — in exactly one box (no duplicated nodes).
 3. **Leftover tags become chips on the note** (tags not already named by the
-   note's enclosing boxes), only in tag-grouping mode, capped at 3 then a `+N`.
+   note's enclosing boxes), only in tag-grouping mode, capped with a `+N`.
 4. **Nested tags** (`#project/alpha`) also count as their parents (`#project`),
    matching Obsidian's own tag search. A box label drops a parent tag implied by a
    child tag in the same set.
