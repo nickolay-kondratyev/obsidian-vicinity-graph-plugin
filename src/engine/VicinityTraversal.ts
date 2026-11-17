@@ -1,4 +1,5 @@
 import type { LinkKind } from "../shared/LinkKind";
+import type { Tag } from "../shared/Tags";
 import { VaultPathFacts } from "../shared/VaultPathFacts";
 import { EdgeAccumulator } from "./EdgeAccumulator";
 import type { LinkProvider } from "./LinkProvider";
@@ -42,6 +43,8 @@ export interface TraversedNode {
 	readonly firstImagePath?: VaultPath;
 	/** Provider-owned document-position fact (see `FileMetadata.imagePrecedesOutline`). */
 	readonly imagePrecedesOutline: boolean;
+	/** Provider-owned tag fact (see `FileMetadata.tags`). */
+	readonly tags: readonly Tag[];
 }
 
 export interface TraversalResult {
@@ -232,6 +235,7 @@ export class VicinityTraversal {
 				outline: metadata.outline,
 				firstImagePath: firstImage?.path,
 				imagePrecedesOutline: metadata.imagePrecedesOutline,
+				tags: metadata.tags,
 			});
 		}
 		return {

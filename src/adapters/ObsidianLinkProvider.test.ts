@@ -632,6 +632,41 @@ describe("ObsidianLinkProvider frontmatter display title (step-05 human decision
 	});
 });
 
+describe("ObsidianLinkProvider note tags (tags-v1)", () => {
+	// GIVEN a note tagged in frontmatter AND body, the same tag in two casings.
+	const spec: FakeObsidianSpec = {
+		files: [{ path: "note.md" }, { path: "board.canvas", content: "{}" }, { path: "uncached.md" }],
+		fileCaches: {
+			"note.md": {
+				frontmatter: { tags: ["Idea"] },
+				tags: [{ tag: "#project/alpha" }, { tag: "#idea" }],
+			},
+		},
+	};
+
+	async function tagKeysOf(path: string): Promise<readonly string[] | undefined> {
+		const provider = await providerOver(spec);
+		return provider.getFileMetadata(asVaultPath(path))?.tags.map((tag) => tag.key);
+	}
+
+	it("WHEN a note carries frontmatter and body tags THEN both are reported, deduped by identity", async () => {
+		expect(await tagKeysOf("note.md")).toEqual(["idea", "project/alpha"]);
+	});
+
+	it("WHEN the same tag appears in two casings THEN the first reported casing is the display name", async () => {
+		const provider = await providerOver(spec);
+		expect(provider.getFileMetadata(asVaultPath("note.md"))?.tags[0]?.name).toBe("Idea");
+	});
+
+	it("WHEN the note has no cache entry THEN it has no tags", async () => {
+		expect(await tagKeysOf("uncached.md")).toEqual([]);
+	});
+
+	it("WHEN the file is a canvas THEN it has no tags", async () => {
+		expect(await tagKeysOf("board.canvas")).toEqual([]);
+	});
+});
+
 /**
  * The note outline offered as a node's in-node preview. The adapter owns
  * ELIGIBILITY only (markdown minus excalidraw, headings present) — never the
