@@ -88,7 +88,7 @@ export const SECTION_SETTINGS_FIELDS = {
 		frontmatterLinks: NO_FIELDS,
 	},
 	grouping: {
-		view: ["folderGroupingDepth", "groupLabelFullPath"],
+		view: ["groupingMode", "folderGroupingDepth", "groupLabelFullPath"],
 		depth: NO_FIELDS,
 		exclusion: NO_FIELDS,
 		frontmatterLinks: NO_FIELDS,

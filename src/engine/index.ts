@@ -47,6 +47,7 @@ export type {
 	FrontmatterLinkSettings,
 	GraphEdge,
 	GraphNode,
+	GroupingMode,
 	NodeContentOverride,
 	NodeExclusionSettings,
 	NodeOverride,
@@ -65,6 +66,7 @@ export {
 	asVaultPath,
 	CHANNEL_DEPTH_FIELD,
 	DepthSettingsFacts,
+	GROUPING_MODES,
 	NODE_CONTENT_OVERRIDES,
 	NODE_PREVIEW_PREFERENCES,
 } from "./types";
