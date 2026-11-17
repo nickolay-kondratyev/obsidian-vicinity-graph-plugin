@@ -1,17 +1,18 @@
 ---
 id: nid_aimlia0wjp0ms0uzd4fvhbomo_e
 title: "Tag-filtered graph mode: show every note with a tag + bottom-right mode status"
-status: open
+status: in_progress
 deps: [nid_mr42m1k8cmyeusemmvmxuuaxb_e]
 links: []
 created_iso: 2026-11-17T20:32:45Z
-status_updated_iso: 2026-11-17T20:32:45Z
+status_updated_iso: 2026-11-17T20:46:21Z
 type: task
 priority: 1
 assignee: CC_WITH-nickolaykondratyev
 tags: [tags-v1]
 parent: nid_xhed75cwiy0ui4fokv6l02cxf_e
 profile: higher
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin/.worktree/t-aimlia0w
 ---
 
 ## Goal
