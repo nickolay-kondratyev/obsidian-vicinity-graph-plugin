@@ -15,12 +15,14 @@ const TAG_MARKER = "#";
 
 /**
  * Obsidian's BODY hashtag grammar over a single line of text — what the editor's
- * right-click needs (the line under the cursor, not the metadata cache, which lags
- * an unsaved edit). Pure: no `obsidian` import.
+ * right-click needs (the right-clicked line's rendered text, not the metadata
+ * cache, which lags an unsaved edit). Pure: no `obsidian` import.
  *
- * CEILING: a line is read without its document context, so a `#word` inside an
- * inline code span or a fenced code block counts as a tag. Harmless for its one
- * caller (the menu item then shows an empty tag graph); upgrade path: consult
+ * CEILING: a line is read without its document context, so on its own a `#word`
+ * inside an inline code span or a fenced code block counts as a tag. Its one
+ * caller (`editorTagSiteOf`) only asks at an offset where the editor itself drew
+ * a hashtag span — Obsidian's own tag detection, which skips code — so that false
+ * positive never reaches the menu. A new caller without such a gate would need
  * `MarkdownCodeRegions` over the whole document.
  */
 export class BodyHashtags {

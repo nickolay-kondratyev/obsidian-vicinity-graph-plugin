@@ -77,4 +77,10 @@ describe("editorTagSiteOf (the tag span right-clicked in an editor line)", () =>
 	it("WHEN plain text of the line is right-clicked THEN it is no site (a stale cursor must never pick a tag)", () => {
 		expect(editorTagSiteOf(elementIn(LINE, "strong"))).toBeUndefined();
 	});
+
+	it("WHEN a #word inside an inline code span is right-clicked THEN it is no site (the editor drew no hashtag span)", () => {
+		const codeLine = `<div class="cm-content"><div class="cm-line">Run <span class="cm-inline-code">#notatag</span></div></div>`;
+
+		expect(editorTagSiteOf(elementIn(codeLine, ".cm-inline-code"))).toBeUndefined();
+	});
 });
