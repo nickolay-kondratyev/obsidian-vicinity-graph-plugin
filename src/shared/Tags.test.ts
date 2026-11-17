@@ -114,3 +114,21 @@ describe("Tags.isSameOrNestedUnder (Obsidian tag-search semantics)", () => {
 		expect(Tags.isSameOrNestedUnder(tag("#projects").key, tag("#project").key)).toBe(false);
 	});
 });
+
+describe("Tags.carries (tag-filter membership)", () => {
+	it("WHEN the note carries the wanted tag THEN it counts as tagged", () => {
+		expect(Tags.carries(Tags.distinct(["#idea", "#Project"]), tag("#project").key)).toBe(true);
+	});
+
+	it("WHEN the note carries a tag nested below the wanted one THEN it counts as tagged", () => {
+		expect(Tags.carries(Tags.distinct(["#project/alpha"]), tag("#project").key)).toBe(true);
+	});
+
+	it("WHEN the note carries only the PARENT of the wanted tag THEN it does not count", () => {
+		expect(Tags.carries(Tags.distinct(["#project"]), tag("#project/alpha").key)).toBe(false);
+	});
+
+	it("WHEN the note carries no tags THEN it does not count", () => {
+		expect(Tags.carries([], tag("#project").key)).toBe(false);
+	});
+});

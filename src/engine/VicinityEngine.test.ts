@@ -360,6 +360,10 @@ describe("VicinityEngine cross links never drop a walked edge", () => {
 		getLinkCount(source: VaultPath, target: VaultPath): number {
 			return this.delegate.getLinkCount(source, target);
 		}
+
+		getPathsCarryingTag(tag: Parameters<LinkProvider["getPathsCarryingTag"]>[0]): readonly VaultPath[] {
+			return this.delegate.getPathsCarryingTag(tag);
+		}
 	}
 
 	/** GIVEN backlinks still report linker.md → hub.md, but linker.md's cache is empty. */

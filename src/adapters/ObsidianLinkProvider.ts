@@ -1,7 +1,7 @@
 import type { AttachmentRef, FileMetadata, LinkProvider, OutgoingReference, OutlineEntry, VaultPath } from "../engine";
 import { asFolderPath, asVaultPath, OutgoingReferences } from "../engine";
 import { FileKinds } from "../shared/FileKinds";
-import type { Tag } from "../shared/Tags";
+import type { Tag, TagKey } from "../shared/Tags";
 import { Tags } from "../shared/Tags";
 import { BacklinksAdapter } from "./BacklinksAdapter";
 import type { FolderNoteIndex } from "./FolderNoteIndex";
@@ -221,6 +221,22 @@ export class ObsidianLinkProvider implements LinkProvider {
 		}
 		// resolvedLinks is Obsidian's own source → target → link-count map.
 		return (this.metadataCache.resolvedLinks[source]?.[target] ?? 0) + idRefCount;
+	}
+
+	/**
+	 * Answered from the metadata cache alone — never a file read.
+	 *
+	 * COST CEILING: a full `vault.getFiles()` scan with one `getFileCache` lookup per
+	 * markdown file, on EVERY tag-filtered rebuild (Obsidian's public API has no
+	 * tag → files index). In-memory and linear, so fine into the tens of thousands of
+	 * notes; past that, the upgrade path is a plugin-lived tag index invalidated on
+	 * `metadataCache.on("changed")`, mirroring `FrontmatterIdIndex`.
+	 */
+	getPathsCarryingTag(tag: TagKey): readonly VaultPath[] {
+		return this.vault
+			.getFiles()
+			.filter((file) => Tags.carries(tagsOf(file, this.metadataCache.getFileCache(file)), tag))
+			.map((file) => asVaultPath(file.path));
 	}
 
 	getFileMetadata(path: VaultPath): FileMetadata | undefined {

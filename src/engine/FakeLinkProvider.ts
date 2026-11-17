@@ -2,6 +2,7 @@ import { FileKinds } from "../shared/FileKinds";
 import { FolderNotes } from "../shared/FolderNotes";
 import type { LinkKind } from "../shared/LinkKind";
 import { Tags } from "../shared/Tags";
+import type { TagKey } from "../shared/Tags";
 import { VaultPathFacts } from "../shared/VaultPathFacts";
 import type { FileMetadata, LinkProvider, OutgoingReference } from "./LinkProvider";
 import { OutgoingReferences } from "./LinkProvider";
@@ -128,6 +129,12 @@ export class FakeLinkProvider implements LinkProvider {
 			}
 		}
 		return count;
+	}
+
+	getPathsCarryingTag(tag: TagKey): readonly VaultPath[] {
+		return [...this.files]
+			.filter(([, file]) => Tags.carries(file.metadata.tags, tag))
+			.map(([path]) => path);
 	}
 
 	/** Times {@link getOutgoingReferences} was queried for `path` (test instrumentation). */

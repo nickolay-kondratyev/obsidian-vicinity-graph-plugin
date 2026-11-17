@@ -5,10 +5,12 @@ import type {
 	NodeExclusionSettings,
 	NodeOverride,
 	PinnedNodeDescriptor,
+	TagGraphBuildRequest,
 	VaultPath,
 	ViewSettings,
 } from "../engine";
 import { asDocId, asVaultPath } from "../engine";
+import type { TagKey } from "../shared/Tags";
 import type { PinnedDocEntry } from "../persistence/persistedShapes";
 
 /** Everything the assembler needs, already loaded (it does no IO itself). */
@@ -38,6 +40,22 @@ export interface GraphRequestInputs {
 	 * from the SAME snapshot the graph used — NOT passed to the engine (the pure engine
 	 * does not read it; the dependent adapter ticket wires it into id-ref discovery).
 	 */
+	readonly frontmatterLinks: FrontmatterLinkSettings;
+}
+
+/**
+ * Everything a TAG-FILTERED build needs, already loaded. No main and no pins —
+ * nothing is rooted (see {@link TagGraphBuildRequest}); the settings slices are the
+ * same globals {@link GraphRequestInputs} carries, so the controls panel seeds
+ * from the snapshot the graph used in either mode.
+ */
+export interface TagGraphRequestInputs {
+	readonly tag: TagKey;
+	readonly nodeOverrides: Readonly<Record<string, NodeOverride>>;
+	readonly resolveDocPath: (docid: string) => string | undefined;
+	readonly globalDepths: DepthSettings;
+	readonly globalView: ViewSettings;
+	readonly nodeExclusion: NodeExclusionSettings;
 	readonly frontmatterLinks: FrontmatterLinkSettings;
 }
 
@@ -72,6 +90,17 @@ export class GraphRequestAssembler {
 		};
 	}
 
+	/** The tag-filtered twin of {@link assemble}: only the overrides need translating. */
+	static assembleForTag(inputs: TagGraphRequestInputs): TagGraphBuildRequest {
+		const nodeOverrides = GraphRequestAssembler.pathKeyedOverrides(inputs);
+		return {
+			tag: inputs.tag,
+			...(nodeOverrides.size > 0 ? { nodeOverrides } : {}),
+			globalView: inputs.globalView,
+			nodeExclusion: inputs.nodeExclusion,
+		};
+	}
+
 	private static pinnedDescriptors(inputs: GraphRequestInputs): readonly PinnedNodeDescriptor[] {
 		// GLOBAL ∪ the active main's LOCAL pins, deduped by docid keeping the MOST
 		// RECENT pinTimestamp so NodePriorityChain recency stays honest for a doc
@@ -96,7 +125,9 @@ export class GraphRequestAssembler {
 		return descriptors;
 	}
 
-	private static pathKeyedOverrides(inputs: GraphRequestInputs): ReadonlyMap<VaultPath, NodeOverride> {
+	private static pathKeyedOverrides(
+		inputs: Pick<GraphRequestInputs, "nodeOverrides" | "resolveDocPath">,
+	): ReadonlyMap<VaultPath, NodeOverride> {
 		const overrides = new Map<VaultPath, NodeOverride>();
 		for (const [docid, override] of Object.entries(inputs.nodeOverrides)) {
 			const path = inputs.resolveDocPath(docid);

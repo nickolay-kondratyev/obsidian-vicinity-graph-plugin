@@ -1,5 +1,5 @@
 import type { DepthSettings, FrontmatterLinkSettings, NodeExclusionSettings, ViewSettings } from "../engine";
-import type { GraphRequestInputs } from "../adapters/GraphRequestAssembler";
+import type { GraphRequestInputs, TagGraphRequestInputs } from "../adapters/GraphRequestAssembler";
 
 /**
  * The controls panel's read-model, built PURE over the SAME
@@ -40,6 +40,21 @@ export class ControlsModelBuilder {
 	static build(inputs: GraphRequestInputs, excludedNodeCount = 0): ControlsModel {
 		return {
 			mainPinned: inputs.mainDocId !== null && inputs.pins.some((pin) => pin.docid === inputs.mainDocId),
+			globalDepths: inputs.globalDepths,
+			globalView: inputs.globalView,
+			nodeExclusion: inputs.nodeExclusion,
+			frontmatterLinks: inputs.frontmatterLinks,
+			excludedNodeCount,
+		};
+	}
+
+	/**
+	 * The tag-filtered build's model: the same global slices, and no MAIN to be
+	 * pinned (a tag graph has no main note).
+	 */
+	static buildForTag(inputs: TagGraphRequestInputs, excludedNodeCount = 0): ControlsModel {
+		return {
+			mainPinned: false,
 			globalDepths: inputs.globalDepths,
 			globalView: inputs.globalView,
 			nodeExclusion: inputs.nodeExclusion,
