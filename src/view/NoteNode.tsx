@@ -13,7 +13,8 @@ import { currentNodeContentChoice, planNodeContentMenu } from "./nodePreviewChoi
 import { planNodeLocalPinAction, planNodePinAction } from "./nodePinAction";
 import { NODE_RESIZE_BOUNDS, planResetSizeAction, resizeEndToOverride } from "./nodeResize";
 import { GraphModeCopy } from "./graphMode";
-import type { TagChipRow } from "./tagChips";
+import type { TagChip, TagChipRow } from "./tagChips";
+import { TAG_CHIP_ROW_MIN_WIDTH_PX, tagChipMinWidthCss } from "./tagChips";
 import { useTagFilter } from "./TagFilterContext";
 import type { NodeMenuEntry } from "./viewPorts";
 
@@ -326,19 +327,24 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
  * mode for its tag in this view (`nid_6qj8n7uc7zz126l3ix8czfymq_e`); its tooltip
  * says so and names the full tag the ellipsis may cut. The `+N` chip stays a
  * tooltip only — which hidden tag would it filter by?
+ *
+ * How many chips show, and how far each may shrink, is decided upstream by
+ * `tagChipRowOf` against the note's width; this only renders that decision — the
+ * row's floor width and each chip's `min-width` come from the same module.
  */
 function NoteTagChips({ row }: { readonly row: TagChipRow }): ReactElement {
 	const tagFilter = useTagFilter();
 	return (
-		<div className="vicinity-graph-node-tags">
+		<div className="vicinity-graph-node-tags" style={{ maxWidth: `max(100%, ${TAG_CHIP_ROW_MIN_WIDTH_PX}px)` }}>
 			{row.chips.map((chip) => (
 				<span
 					key={chip.tag.key}
 					// `nodrag nopan` (same as the hover chips): a click on the chip must never
 					// start a node drag or a canvas pan.
-					className="vicinity-graph-tag-chip vicinity-graph-tag-chip--clickable nodrag nopan"
+					className={tagChipClassName(chip)}
 					data-color={chip.colorToken}
 					data-tag={chip.tag.key}
+					style={{ minWidth: tagChipMinWidthCss(chip) }}
 					title={GraphModeCopy.showTaggedNotes(chip.tag)}
 					onClick={(event) => {
 						// The chip owns its click: without this it also reaches React Flow's
@@ -357,6 +363,12 @@ function NoteTagChips({ row }: { readonly row: TagChipRow }): ReactElement {
 			)}
 		</div>
 	);
+}
+
+/** A chip with a readable-prefix floor may shrink (CSS ellipsis); a short tag's chip never does. */
+function tagChipClassName(chip: TagChip): string {
+	const shrinks = chip.minPrefixChars === null ? "" : " vicinity-graph-tag-chip--shrinks";
+	return `vicinity-graph-tag-chip vicinity-graph-tag-chip--clickable${shrinks} nodrag nopan`;
 }
 
 /** The title tooltip names a canvas as one, so the hover confirms what the glyph says. */

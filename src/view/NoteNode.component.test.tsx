@@ -12,7 +12,7 @@ import { Tags } from "../shared/Tags";
 import type { Tag } from "../shared/Tags";
 import { TagFilterContext } from "./TagFilterContext";
 import { planNodeContentMenu } from "./nodePreviewChoice";
-import { MAX_VISIBLE_TAG_CHIPS, tagChipRowOf } from "./tagChips";
+import { MAX_VISIBLE_TAG_CHIPS, TAG_CHIP_ELLIPSIS_CHARS, TAG_CHIP_MIN_PREFIX_CHARS, tagChipRowOf } from "./tagChips";
 import { RecordingControlsActions } from "./testFixtures/settingsPanelHarness";
 import type { GraphUiPort, NodeMenuEntry, NodeMenuRequest, TagFilterPort } from "./viewPorts";
 
@@ -680,21 +680,43 @@ describe("NoteNode pin chip pressed state", () => {
 });
 
 describe("NoteNode tag chips (tag-grouping mode)", () => {
+	/** Wide enough that only the count cap folds a chip (the width rule is `tagChips.test.ts`'s). */
+	const WIDE_NODE_PX = 2000;
+	const chipOf = (container: HTMLElement, tagKey: string): HTMLElement =>
+		container.querySelector<HTMLElement>(`.vicinity-graph-tag-chip[data-tag='${tagKey}']`) as HTMLElement;
 	const chipTexts = async (container: HTMLElement): Promise<string[]> => {
 		await mountedNode(container);
 		return Array.from(container.querySelectorAll(".vicinity-graph-tag-chip"), (chip) => chip.textContent ?? "");
 	};
 
 	it("WHEN the note carries a leftover tag THEN its chip renders with the #tag text", async () => {
-		const { result } = renderNoteNode(nodeData({ tagChips: tagChipRowOf(Tags.distinct(["visit"])) }));
+		const { result } = renderNoteNode(nodeData({ tagChips: tagChipRowOf(Tags.distinct(["visit"]), WIDE_NODE_PX) }));
 		expect(await chipTexts(result.container)).toEqual(["#visit"]);
 	});
 
 	it("WHEN the note carries more tags than the cap THEN the rest collapse into one +N chip", async () => {
 		const tags = Tags.distinct(["a", "b", "c", "d", "e"]);
-		const { result } = renderNoteNode(nodeData({ tagChips: tagChipRowOf(tags) }));
+		const { result } = renderNoteNode(nodeData({ tagChips: tagChipRowOf(tags, WIDE_NODE_PX) }));
 		const texts = await chipTexts(result.container);
 		expect(texts[texts.length - 1]).toBe(`+${tags.length - MAX_VISIBLE_TAG_CHIPS}`);
+	});
+
+	it("WHEN a long tag's chip renders THEN it may shrink", async () => {
+		const { result } = renderNoteNode(nodeData({ tagChips: tagChipRowOf(Tags.distinct(["meeting-notes"]), WIDE_NODE_PX) }));
+		await mountedNode(result.container);
+		expect(chipOf(result.container, "meeting-notes").classList.contains("vicinity-graph-tag-chip--shrinks")).toBe(true);
+	});
+
+	it("WHEN a long tag's chip renders THEN it shrinks no further than the readable prefix plus the ellipsis", async () => {
+		const { result } = renderNoteNode(nodeData({ tagChips: tagChipRowOf(Tags.distinct(["meeting-notes"]), WIDE_NODE_PX) }));
+		await mountedNode(result.container);
+		expect(chipOf(result.container, "meeting-notes").style.minWidth).toBe(`${TAG_CHIP_MIN_PREFIX_CHARS + TAG_CHIP_ELLIPSIS_CHARS}ch`);
+	});
+
+	it("WHEN a short tag's chip renders THEN it never shrinks", async () => {
+		const { result } = renderNoteNode(nodeData({ tagChips: tagChipRowOf(Tags.distinct(["ux"]), WIDE_NODE_PX) }));
+		await mountedNode(result.container);
+		expect(chipOf(result.container, "ux").classList.contains("vicinity-graph-tag-chip--shrinks")).toBe(false);
 	});
 
 	it("WHEN the note carries no chips THEN no chip renders", async () => {
@@ -703,7 +725,7 @@ describe("NoteNode tag chips (tag-grouping mode)", () => {
 	});
 
 	it("WHEN a tag chip is clicked THEN tag mode is entered for that chip's tag", async () => {
-		const { tagFilter, result } = renderNoteNode(nodeData({ tagChips: tagChipRowOf(Tags.distinct(["Visit"])) }));
+		const { tagFilter, result } = renderNoteNode(nodeData({ tagChips: tagChipRowOf(Tags.distinct(["Visit"]), WIDE_NODE_PX) }));
 		await mountedNode(result.container);
 
 		fireEvent.click(result.container.querySelector(".vicinity-graph-tag-chip[data-tag='visit']") as Element);
@@ -713,7 +735,7 @@ describe("NoteNode tag chips (tag-grouping mode)", () => {
 
 	it("WHEN a tag chip is clicked THEN the click does not reach the node (the note does not open)", async () => {
 		const nodeClicks: string[] = [];
-		const { result } = renderNoteNode(nodeData({ tagChips: tagChipRowOf(Tags.distinct(["visit"])) }), (_event, node) =>
+		const { result } = renderNoteNode(nodeData({ tagChips: tagChipRowOf(Tags.distinct(["visit"]), WIDE_NODE_PX) }), (_event, node) =>
 			nodeClicks.push(node.id),
 		);
 		await mountedNode(result.container);

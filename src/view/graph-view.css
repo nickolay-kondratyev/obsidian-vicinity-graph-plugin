@@ -798,8 +798,9 @@
 /*
  * The note's leftover tags, hung just BELOW the node box so they cost no layout
  * space (see `NoteTagChips` in NoteNode.tsx for the why and the ceiling). Absolute
- * against the React Flow node wrapper; one row, never wrapping — the `+N` cap
- * keeps it short.
+ * against the React Flow node wrapper; one row, never wrapping. Its `max-width` is
+ * inline (`tagChips.ts` owns the floor), and `tagChipRowOf` already chose only the
+ * chips that fit it, each at no less than a readable prefix.
  */
 .vicinity-graph-node-tags {
 	position: absolute;
@@ -807,13 +808,16 @@
 	left: 0;
 	display: flex;
 	gap: var(--size-2-1);
-	max-width: max(100%, 160px);
 	overflow: hidden;
 	pointer-events: none;
 }
+/* `content-box`: a shrinking chip's inline `min-width` (in `ch`, from `tagChipMinWidthCss`)
+ * sizes its TEXT, padding and border outside it. A chip does not shrink unless it is
+ * `--shrinks` (a tag longer than the readable prefix) — a short tag's chip ellipsing
+ * to `#u…` would read worse than folding it. */
 .vicinity-graph-tag-chip {
-	flex: 0 1 auto;
-	min-width: 0;
+	flex: 0 0 auto;
+	box-sizing: content-box;
 	padding: 0 var(--size-4-1);
 	font-size: var(--font-smallest);
 	line-height: 1.5;
@@ -834,8 +838,10 @@
 .vicinity-graph-tag-chip--clickable:hover {
 	border-color: var(--vicinity-graph-tag-color, var(--background-modifier-border-hover));
 }
+.vicinity-graph-tag-chip--shrinks {
+	flex-shrink: 1;
+}
 .vicinity-graph-tag-chip--overflow {
-	flex-shrink: 0;
 	color: var(--text-muted);
 }
 

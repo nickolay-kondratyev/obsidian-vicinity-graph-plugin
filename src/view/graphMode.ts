@@ -153,8 +153,13 @@ export class GraphModeCopy {
 		return `Show notes tagged ${GraphModeCopy.tagLabel(tag)}`;
 	}
 
-	/** A several-tag box label's tooltip: clicking it asks which of its tags. */
-	static readonly PICK_TAG_TO_SHOW = "Pick one of these tags to show the notes carrying it";
+	/**
+	 * A several-tag box label's tooltip: the full label first (the end ellipsis may cut
+	 * it on a narrow box), then that clicking it asks which of its tags.
+	 */
+	static pickTagToShow(tags: readonly Tag[]): string {
+		return `${tags.map((tag) => GraphModeCopy.tagLabel(tag)).join(" ")}\nPick one of these tags to show the notes carrying it`;
+	}
 
 	static emptyTag(tag: Tag): string {
 		return `No notes are tagged ${GraphModeCopy.tagLabel(tag)}.`;
