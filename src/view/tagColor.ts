@@ -13,9 +13,10 @@ export type TagColorName = "red" | "orange" | "yellow" | "green" | "cyan" | "blu
 /**
  * Preset families, matched on a tag's LAST segment after
  * {@link normalisedLastSegmentOf} (so `follow-up` = `followup` = `Follow_Up`,
- * and `#work/done` is green). Spelled here already normalised.
+ * and `#work/done` is green). Spelled here already normalised. README.md's colour
+ * table lists the same families (guarded by `tagColor.test.ts`).
  */
-const PRESET_FAMILIES: ReadonlyArray<{ readonly color: TagColorName; readonly words: readonly string[] }> = [
+export const PRESET_FAMILIES: ReadonlyArray<{ readonly color: TagColorName; readonly words: readonly string[] }> = [
 	{ color: "red", words: ["critical", "urgent", "blocker", "bug", "asap", "fixme", "error", "broken", "important"] },
 	{ color: "orange", words: ["todo", "followup", "wip", "inprogress", "pending", "waiting", "review", "action"] },
 	{ color: "yellow", words: ["idea", "question", "draft", "maybe", "someday"] },
