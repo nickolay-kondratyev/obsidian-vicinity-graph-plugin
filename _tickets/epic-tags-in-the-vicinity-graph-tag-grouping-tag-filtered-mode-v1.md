@@ -2,7 +2,7 @@
 id: nid_xhed75cwiy0ui4fokv6l02cxf_e
 title: "Epic: tags in the vicinity graph (tag grouping + tag-filtered mode) V1"
 status: open
-deps: [nid_44yk50pp4xl9yexnoufqsiytj_e, nid_mr42m1k8cmyeusemmvmxuuaxb_e, nid_86c83wvlt5tbfs6s9ttr8r7mq_e, nid_aimlia0wjp0ms0uzd4fvhbomo_e, nid_lmftfz11vvfwj382i4xmmoqgf_e, nid_6qj8n7uc7zz126l3ix8czfymq_e, nid_w3rln1820v65xtdu2tvxs12ky_e]
+deps: [nid_44yk50pp4xl9yexnoufqsiytj_e, nid_mr42m1k8cmyeusemmvmxuuaxb_e, nid_86c83wvlt5tbfs6s9ttr8r7mq_e, nid_aimlia0wjp0ms0uzd4fvhbomo_e, nid_lmftfz11vvfwj382i4xmmoqgf_e, nid_6qj8n7uc7zz126l3ix8czfymq_e, nid_w3rln1820v65xtdu2tvxs12ky_e, nid_mf28gwba8b6aihah05jtjj34z_e]
 links: []
 created_iso: 2026-11-17T20:32:44Z
 status_updated_iso: 2026-11-17T20:32:44Z

@@ -1,16 +1,17 @@
 ---
 id: nid_mf28gwba8b6aihah05jtjj34z_e
 title: "Tag chips and tag box labels stay readable on narrow nodes"
-status: open
+status: in_progress
 deps: []
 links: []
 created_iso: 2026-11-17T21:58:08Z
-status_updated_iso: 2026-11-17T21:58:08Z
+status_updated_iso: 2026-11-17T21:58:17Z
 type: bug
 priority: 1
 assignee: CC_WITH-nickolaykondratyev
 tags: [tags-v1]
 parent: nid_xhed75cwiy0ui4fokv6l02cxf_e
+pwd: /home/nickolaykondratyev/git_repos/nickolay-kondratyev_obsidian-vicinity-graph-plugin/.worktree/t-mf28gwba
 ---
 
 ## Goal
