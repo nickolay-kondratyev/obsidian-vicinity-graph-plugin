@@ -1,3 +1,4 @@
+import type { TagKey } from "../shared/Tags";
 import type { ElkNode } from "elkjs";
 import type {
 	ForceLayoutSettings,
@@ -56,9 +57,15 @@ export interface GraphBuildResult {
 	readonly mainIsFolderNote: boolean;
 }
 
-/** Builds the vicinity graph for a MAIN file path. `null` = path unresolved. */
+/** Builds the graph a view shows — one method per {@link import("./graphMode").GraphMode}. */
 export interface GraphSourcePort {
+	/** The vicinity graph for a MAIN file path. `null` = path unresolved. */
 	build(mainPath: string): Promise<GraphBuildResult | null>;
+	/**
+	 * The tag-filtered graph: every note carrying `tag` (or a nested child tag).
+	 * Never `null` — a tag nobody carries is an EMPTY graph.
+	 */
+	buildForTag(tag: TagKey): Promise<GraphBuildResult>;
 }
 
 /**

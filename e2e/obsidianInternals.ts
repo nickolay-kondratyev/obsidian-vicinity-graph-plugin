@@ -189,6 +189,8 @@ export interface E2eVicinityPlugin {
 	readonly perDocStore: E2ePerDocStore;
 	/** Private in production (ONE fan-out rule); reached by name here — see the harness WHY comment. */
 	refreshOpenViews(): void;
+	/** THE public tag-mode entry (tags-v1): what the menu / command / in-graph entry points call. */
+	enterTagMode(rawTag: string): Promise<void>;
 }
 
 /** One rendered settings tab (`app.setting.activeTab`). */

@@ -16,6 +16,8 @@ import { ControlsActionsContext } from "./ControlsActionsContext";
 import { FolderGroupNode } from "./FolderGroupNode";
 import type { FlowEdge, FlowNode } from "./flowMapping";
 import { edgeClassName } from "./flowMapping";
+import { GraphModeCopy } from "./graphMode";
+import { ExitTagModeButton, GraphModePill } from "./GraphModePill";
 import { GraphToolbar } from "./GraphToolbar";
 import type { GraphViewController } from "./GraphViewController";
 import { GraphUiContext } from "./GraphUiContext";
@@ -199,7 +201,20 @@ export function VicinityGraphFlow({
 			</div>
 		);
 	}
+	// The one way OUT of tag mode. It must be reachable from every state a tag graph
+	// can be in — a tag nobody carries and a failed build show no pill to press.
+	const exitTagMode = (): void => controller.exitTagMode();
 	if (snapshot.status === "empty") {
+		// A tag nobody carries is its own answer (not "no graph for the active file"),
+		// and it must offer the way back: the filter is sticky, so nothing else leaves it.
+		if (snapshot.mode.kind === "tag") {
+			return (
+				<div className="vicinity-graph-empty vicinity-graph-empty--tag">
+					<div>{GraphModeCopy.emptyTag(snapshot.mode.tag)}</div>
+					<ExitTagModeButton className="mod-cta" onExit={exitTagMode} />
+				</div>
+			);
+		}
 		return <div className="vicinity-graph-empty">No vicinity graph for the active file.</div>;
 	}
 	// Every attempt of the rebuild failed (GraphViewController.REBUILD_ATTEMPTS —
@@ -209,10 +224,15 @@ export function VicinityGraphFlow({
 	if (snapshot.status === "failed") {
 		return (
 			<div className="vicinity-graph-failed">
-				<div>Could not build the vicinity graph for the active file.</div>
+				<div>
+					{snapshot.mode.kind === "tag"
+						? GraphModeCopy.failedTag(snapshot.mode.tag)
+						: "Could not build the vicinity graph for the active file."}
+				</div>
 				<button type="button" className="mod-cta" onClick={() => controller.retryRebuild()}>
 					Try again
 				</button>
+				{snapshot.mode.kind === "tag" && <ExitTagModeButton className="" onExit={exitTagMode} />}
 			</div>
 		);
 	}
@@ -301,6 +321,14 @@ export function VicinityGraphFlow({
 							</Controls>
 							<Panel position="top-left">
 								<GraphToolbar controls={snapshot.controls} />
+							</Panel>
+							{/*
+							 * The mode status (tags-v1 decision 12). Bottom-RIGHT: the
+							 * zoom controls own bottom-left, the toolbar top-left and the
+							 * "+N hidden" badge top-right.
+							 */}
+							<Panel position="bottom-right">
+								<GraphModePill status={snapshot.mode} onExitTagMode={exitTagMode} />
 							</Panel>
 							{snapshot.orphanTruncation.totalHiddenCount > 0 && (
 								<Panel position="top-right">

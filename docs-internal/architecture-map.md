@@ -81,6 +81,14 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   monotonic rebuild token); `VicinityGraphView.tsx` stays a thin lifecycle shell.
   `GraphViewOpener.ts` owns WHERE the single graph view lives (right sidebar vs a
   main-area split-down) and moves it between the two.
+  **Graph mode** (tags-v1) is per VIEW: `graphMode.ts` (pure) declares
+  `GraphMode` (`note` | `tag`), the pill's `GraphModeStatus`, the saved shape and
+  ALL the mode's user-facing copy; the controller owns the mode
+  (`enterTagMode` / `exitTagMode`, sticky against active-file changes and node
+  clicks) and stamps the status on every snapshot; `GraphModePill.tsx` renders it
+  bottom-right; `VicinityGraphView` saves it in the leaf's state. Triggers call
+  ONLY `VicinityGraphPlugin.enterTagMode(rawTag)` / `exitTagMode()` (`main.ts`),
+  which reveal-or-open the view through `GraphViewOpener.revealOrOpen`.
 - **`src/main.ts`** — plugin entry: wires the object graph in `onload`,
   registers the view/commands/vault-lifecycle handlers, schedules the sweep.
 
@@ -105,6 +113,11 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   identity / nesting rules (case-insensitive `TagKey`, `withAncestors`,
   `isSameOrNestedUnder`) live once in the pure `src/shared/Tags.ts`. Tags are
   stored deduped, never ancestor-expanded — consumers call the rule.
+  The tag FILTER adds one vault-wide fact, `getPathsCarryingTag(tag)` (membership
+  rule: `Tags.carries`), consumed by the engine's second entry point
+  `VicinityEngine.buildForTag` (`engine/TagFilteredGraph.ts`: selection +
+  most-linked truncation; no roots). `GraphSourcePort` mirrors it as
+  `buildForTag`, implemented by `VicinityGraphBuilder.buildForTag`.
 - `view/viewPorts.ts` — `GraphSourcePort`, `GraphLayoutPort`, `NoteNavigatorPort`
   (opens a note, optionally at a `heading` — the RAW heading text; the adapter
   sanitises it into a link subpath), and `NoteOpenPort`, the one-method slice

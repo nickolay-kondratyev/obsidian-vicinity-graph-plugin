@@ -517,6 +517,32 @@ export class ObsidianHarness {
 	}
 
 	/**
+	 * Enters tag-filtered mode through the plugin's PUBLIC `enterTagMode` — the one
+	 * method every real entry point (right-click menu, command, in-graph tag click)
+	 * calls, so a spec driving it exercises the same path they do.
+	 */
+	async enterTagMode(rawTag: string): Promise<void> {
+		await this.page.evaluate(
+			async ({ pluginId, tag }) => {
+				// `!`: callers open the graph view first, which requires the loaded plugin.
+				await (window as unknown as { app: E2eObsidianApp }).app.plugins.plugins[pluginId]!.enterTagMode(tag);
+			},
+			{ pluginId: PLUGIN_ID, tag: rawTag },
+		);
+	}
+
+	/**
+	 * The vault copy's saved workspace layout as raw text (`""` before Obsidian
+	 * first writes it). Obsidian saves the layout on a DEBOUNCE, so a spec that
+	 * restarts right after changing per-leaf view state polls this for the state it
+	 * expects before relaunching — never a sleep. Read-only; dev-vault-copy mode only.
+	 */
+	readSavedWorkspaceLayout(): string {
+		const layoutPath = path.join(VAULT_COPY_DIR, ".obsidian", "workspace.json");
+		return fs.existsSync(layoutPath) ? fs.readFileSync(layoutPath, "utf8") : "";
+	}
+
+	/**
 	 * Merges `patch` over the stored global view slice.
 	 *
 	 * SHALLOW merge, exactly like the store's own callers: a nested field
