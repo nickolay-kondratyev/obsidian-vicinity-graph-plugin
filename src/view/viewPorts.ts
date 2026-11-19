@@ -1,3 +1,4 @@
+import type { Tag, TagKey } from "../shared/Tags";
 import type { ElkNode } from "elkjs";
 import type {
 	ForceLayoutSettings,
@@ -56,9 +57,15 @@ export interface GraphBuildResult {
 	readonly mainIsFolderNote: boolean;
 }
 
-/** Builds the vicinity graph for a MAIN file path. `null` = path unresolved. */
+/** Builds the graph a view shows — one method per {@link import("./graphMode").GraphMode}. */
 export interface GraphSourcePort {
+	/** The vicinity graph for a MAIN file path. `null` = path unresolved. */
 	build(mainPath: string): Promise<GraphBuildResult | null>;
+	/**
+	 * The tag-filtered graph: every note carrying `tag` (or a nested child tag).
+	 * Never `null` — a tag nobody carries is an EMPTY graph.
+	 */
+	buildForTag(tag: TagKey): Promise<GraphBuildResult>;
 }
 
 /**
@@ -244,6 +251,17 @@ export interface NoteNavigatorPort {
  */
 export interface NoteOpenPort {
 	openNote(path: string, options: OpenNoteOptions): void;
+}
+
+/**
+ * Enters tag-filtered mode for a tag clicked INSIDE the graph (a tag box label or a
+ * note's tag chip) — in THIS view, the one the user clicked in. The in-graph twin of
+ * the plugin's `enterTagMode` (which opens/reveals a view first; here the view is
+ * already on screen). Delivered by `TagFilterContext`; implemented by
+ * `VicinityGraphFlow` over its controller.
+ */
+export interface TagFilterPort {
+	showTaggedNotes(tag: Tag): void;
 }
 
 /**

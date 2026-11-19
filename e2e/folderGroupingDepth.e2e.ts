@@ -8,7 +8,7 @@ import { ObsidianHarness } from "./obsidianHarness";
 import { SettingsTabPage } from "./settingsTabPage";
 
 /**
- * "Folder grouping depth" slider — RENDERED behavior e2e (plan ticket
+ * "Grouping depth" slider — RENDERED behavior e2e (plan ticket
  * nid_yyugpoh3gv8ip24cizvgrs4w4_e, part 4/4, ticket
  * nid_ovayqcmi0vlmzyju40tdxw3sd_e). The unit layer proves the depth-cap merge in
  * `deriveFolderGroups` exhaustively; this file locks what only a real Obsidian
@@ -140,7 +140,7 @@ async function expectRenderedInside(inner: Locator, outer: Locator): Promise<voi
 }
 
 /**
- * Drives the global "Folder grouping depth" SLIDER through the in-graph controls
+ * Drives the global "Grouping depth" SLIDER through the in-graph controls
  * PANEL — the real user gesture, reaching the same write pipeline the settings
  * tab uses, which fans out a rebuild on its own. Reveals the toolbar and every
  * nested `<details>` first (only the depth section opens by default; a closed
@@ -175,7 +175,7 @@ async function setFolderGroupingDepth(depth: number): Promise<void> {
 	// The write must land in the STORE, not just repaint — polled, never slept.
 	await expect
 		.poll(async () => (await harness.readGlobalView()).folderGroupingDepth, {
-			message: "the folder grouping depth slider must persist, not just repaint",
+			message: "the grouping depth slider must persist, not just repaint",
 		})
 		.toBe(depth);
 	await toolbar.evaluate((root) => {

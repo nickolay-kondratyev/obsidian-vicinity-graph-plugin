@@ -43,6 +43,8 @@ function specLeafIdFor(control: SettingsRowControl): string {
 			return `globalView.sizing.${control.field}`;
 		case "node-preview":
 			return "globalView.nodePreviewPreference";
+		case "grouping-mode":
+			return "globalView.groupingMode";
 		case "show-cross-links":
 			return "globalView.showCrossLinks";
 		case "group-label-full-path":

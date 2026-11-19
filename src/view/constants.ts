@@ -290,16 +290,30 @@ export const GROUP_BOX_PADDING_PX = {
 	right: GROUP_SIDE_PADDING_PX,
 } as const;
 
+/** A group container's inner inset, per side, in px. */
+export interface GroupBoxPadding {
+	readonly top: number;
+	readonly left: number;
+	readonly bottom: number;
+	readonly right: number;
+}
+
 /** [elk `ElkPadding` syntax]: values must be written as float literals (`16.0`, not `16`). */
 function elkPaddingValue(px: number): string {
 	const ELK_PADDING_DECIMALS = 1;
 	return px.toFixed(ELK_PADDING_DECIMALS);
 }
 
+/** A {@link GroupBoxPadding} in elk's `ElkPadding` syntax. */
+export function elkPaddingOf(padding: GroupBoxPadding): string {
+	return (
+		`[top=${elkPaddingValue(padding.top)},left=${elkPaddingValue(padding.left)}` +
+		`,bottom=${elkPaddingValue(padding.bottom)},right=${elkPaddingValue(padding.right)}]`
+	);
+}
+
 /** Inner padding of folder-group containers, in elk's `ElkPadding` syntax. */
-export const ELK_GROUP_PADDING =
-	`[top=${elkPaddingValue(GROUP_BOX_PADDING_PX.top)},left=${elkPaddingValue(GROUP_BOX_PADDING_PX.left)}` +
-	`,bottom=${elkPaddingValue(GROUP_BOX_PADDING_PX.bottom)},right=${elkPaddingValue(GROUP_BOX_PADDING_PX.right)}]`;
+export const ELK_GROUP_PADDING = elkPaddingOf(GROUP_BOX_PADDING_PX);
 
 /**
  * React Flow zoom floor. RF's default (0.5) clamps `fitView` on dense graphs in

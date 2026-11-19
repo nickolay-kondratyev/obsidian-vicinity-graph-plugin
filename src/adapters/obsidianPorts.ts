@@ -72,6 +72,11 @@ export interface HeadingPort {
 	readonly position: { readonly start: { readonly offset: number } };
 }
 
+/** Structural slice of a `TagCache`: one BODY hashtag occurrence, `#` included (`#todo`). */
+export interface TagPort {
+	readonly tag: string;
+}
+
 /** Structural slice of `CachedMetadata`. */
 export interface CachedMetadataPort {
 	readonly links?: readonly ReferencePort[];
@@ -79,6 +84,8 @@ export interface CachedMetadataPort {
 	readonly frontmatterLinks?: readonly FrontmatterLinkPort[];
 	/** Markdown headings in document order (Obsidian's own ordering — never re-sorted). */
 	readonly headings?: readonly HeadingPort[];
+	/** Body hashtags in document order, one entry per occurrence (frontmatter tags are NOT here). */
+	readonly tags?: readonly TagPort[];
 	/** Parsed frontmatter properties; values are user-controlled (any YAML shape). */
 	readonly frontmatter?: Readonly<Record<string, unknown>>;
 }

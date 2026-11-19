@@ -360,6 +360,10 @@ describe("VicinityEngine cross links never drop a walked edge", () => {
 		getLinkCount(source: VaultPath, target: VaultPath): number {
 			return this.delegate.getLinkCount(source, target);
 		}
+
+		getPathsCarryingTag(tag: Parameters<LinkProvider["getPathsCarryingTag"]>[0]): readonly VaultPath[] {
+			return this.delegate.getPathsCarryingTag(tag);
+		}
 	}
 
 	/** GIVEN backlinks still report linker.md → hub.md, but linker.md's cache is empty. */
@@ -607,6 +611,32 @@ describe("VicinityEngine outline pass-through", () => {
 			globalView: EngineDefaults.viewSettings(),
 		});
 		expect(graph.nodes.find((candidate) => candidate.path === "cover.md")?.imagePrecedesOutline).toBe(true);
+	});
+});
+
+describe("VicinityEngine tag pass-through (tags-v1)", () => {
+	// GIVEN a hub linking a nested-tagged note and a canvas: the provider's tag FACT
+	// must reach GraphNode as reported — never ancestor-expanded (consumers call
+	// `Tags.withAncestors`, so the expansion rule lives once).
+	function tagKeysOf(path: string): readonly string[] | undefined {
+		const provider = new FakeLinkProvider({
+			files: [{ path: "hub.md" }, { path: "child.md", tags: ["#Project/Alpha", "#todo"] }, { path: "board.canvas" }],
+			links: { "hub.md": ["child.md", "board.canvas"] },
+		});
+		const graph = new VicinityEngine(provider).build({
+			main: { path: asVaultPath("hub.md") },
+			globalDepths: { ...EngineDefaults.depthSettings(), linkDepthOut: 1, embedDepthOut: 1, linkDepthIn: 0 },
+			globalView: EngineDefaults.viewSettings(),
+		});
+		return graph.nodes.find((candidate) => candidate.path === path)?.tags.map((tag) => tag.key);
+	}
+
+	it("WHEN a traversed note carries tags THEN its output node carries exactly those tags", () => {
+		expect(tagKeysOf("child.md")).toEqual(["project/alpha", "todo"]);
+	});
+
+	it("WHEN a node is a canvas THEN its output node carries no tags", () => {
+		expect(tagKeysOf("board.canvas")).toEqual([]);
 	});
 });
 

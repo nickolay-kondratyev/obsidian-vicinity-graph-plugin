@@ -1,3 +1,5 @@
+import type { Tag, TagKey } from "../shared/Tags";
+
 /**
  * Domain vocabulary of the pure vicinity-graph engine.
  *
@@ -219,6 +221,8 @@ export interface GraphNode {
 	 * it into "outline or thumbnail" (see `FileMetadata.imagePrecedesOutline`).
 	 */
 	readonly imagePrecedesOutline: boolean;
+	/** Provider-reported tag FACT (see `FileMetadata.tags`): deduped, never ancestor-expanded. */
+	readonly tags: readonly Tag[];
 	/**
 	 * Content-fit node height (px): the estimate of what this node SHOWS (title
 	 * lines, renderable outline entries or thumbnail), clamped into the
@@ -360,6 +364,24 @@ export const NODE_PREVIEW_PREFERENCES = [
 type UnlistedPreference = Exclude<NodePreviewPreference, (typeof NODE_PREVIEW_PREFERENCES)[number]>;
 export const _assertEveryNodePreviewPreferenceListed: UnlistedPreference extends never ? true : UnlistedPreference =
 	true;
+
+/**
+ * What the graph's group boxes stand for (tags-v1, owner request 2026-11-17):
+ * the notes' FOLDERS or their TAGS. A view-layer choice — the engine carries it,
+ * the view's grouper choice point (`src/view/groupingChoice.ts`) applies it.
+ */
+export type GroupingMode = "folders" | "tags";
+
+/**
+ * THE value list of {@link GroupingMode}, in the order the segmented control
+ * renders them left-to-right (the shipped default first). Persistence validates
+ * against it and both settings surfaces plus the graph's top-right toggle
+ * derive their option order from it.
+ */
+export const GROUPING_MODES = ["folders", "tags"] as const satisfies readonly GroupingMode[];
+
+type UnlistedGroupingMode = Exclude<GroupingMode, (typeof GROUPING_MODES)[number]>;
+export const _assertEveryGroupingModeListed: UnlistedGroupingMode extends never ? true : UnlistedGroupingMode = true;
 
 // ---------------------------------------------------------------------------
 // Per-node overrides (persisted in `data.json`, keyed by docid — like pins).
@@ -663,6 +685,12 @@ export interface ViewSettings {
 	 */
 	readonly groupLabelFullPath: boolean;
 	/**
+	 * What the group boxes stand for — folders or tags ({@link GroupingMode}).
+	 * View-layer knob: the engine carries it, the view's grouper choice point
+	 * applies it.
+	 */
+	readonly groupingMode: GroupingMode;
+	/**
 	 * Maximum RENDERED folder-group nesting levels (a collapsed single-child chain
 	 * counts as ONE level — one box). A group deeper than this merges up into its
 	 * depth-cap ancestor; `0` disables folder grouping entirely and
@@ -701,4 +729,10 @@ export interface VicinityGraph {
 	readonly excludedNodeCount: number;
 	/** The view settings the build actually used (post cascade resolution). */
 	readonly viewSettings: ViewSettings;
+	/**
+	 * The tag a TAG-FILTERED build kept notes for (`VicinityEngine.buildForTag`);
+	 * absent on a vicinity build. A fact about the build, so every consumer of the
+	 * graph (the grouper's excluded tags, decision 10) reads it from one place.
+	 */
+	readonly tagFilter?: TagKey;
 }

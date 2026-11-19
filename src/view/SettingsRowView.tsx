@@ -1,9 +1,10 @@
 import type { FocusEventHandler, KeyboardEventHandler, ReactElement } from "react";
 import { useId, useState } from "react";
-import type { DepthSettings, ForceLayoutSettings, NodePreviewPreference } from "../engine";
-import { NODE_PREVIEW_PREFERENCES } from "../engine";
+import type { DepthSettings, ForceLayoutSettings, GroupingMode, NodePreviewPreference } from "../engine";
+import { GROUPING_MODES, NODE_PREVIEW_PREFERENCES } from "../engine";
 import { useControlsActions } from "./ControlsActionsContext";
 import { DepthStepper } from "./DepthStepper";
+import { GROUPING_MODE_OPTION_META } from "./groupingModeMeta";
 import { IdRefFieldChips } from "./idRefFieldChips";
 import { NODE_PREVIEW_OPTION_META } from "./nodePreviewPreferenceMeta";
 import type { NumberRowJudge } from "./numberRowCommit";
@@ -74,6 +75,8 @@ export function SettingsRowView({
 			return <ShowCrossLinksRow row={row} state={state} />;
 		case "group-label-full-path":
 			return <GroupLabelFullPathRow row={row} state={state} />;
+		case "grouping-mode":
+			return <GroupingModeRow row={row} state={state} />;
 		case "folder-grouping-depth":
 			return <FolderGroupingDepthRow row={row} state={state} />;
 		case "edge-depth-into-groups":
@@ -534,6 +537,74 @@ function ForceLayoutRow({
 	return <SliderRow row={row} accessor={SettingsRowAccessors.forceLayout(field)} state={state} />;
 }
 
+/** One segment of a {@link SegmentedChoice}: its value plus the copy both surfaces share. */
+interface SegmentedOption<T extends string> {
+	readonly value: T;
+	readonly label: string;
+	/** What the option does — the segment's tooltip (the panel has no room for prose). */
+	readonly description: string;
+}
+
+/**
+ * The panel's ONE segmented pill (`segmented-control.css`): a native radio per option
+ * inside a named `role="radiogroup"`, so keyboard and screen-reader behaviour come
+ * free. Shared by every pill the panel renders, and by the graph's top-right grouping
+ * toggle, so they cannot drift apart in markup or naming.
+ */
+function SegmentedChoice<T extends string>({
+	accessibleName,
+	options,
+	selected,
+	onSelect,
+	className,
+}: {
+	readonly accessibleName: string;
+	readonly options: readonly SegmentedOption<T>[];
+	readonly selected: T;
+	readonly onSelect: (value: T) => void;
+	readonly className?: string;
+}): ReactElement {
+	/*
+	 * Radio grouping is DOCUMENT-scoped for inputs outside a `<form>`. The settings
+	 * tab's pill uses its own constant name; this one must be unique per mount, or
+	 * two open surfaces (or two graph views) would fuse into one group and un-check
+	 * each other. `useId()` is exactly that guarantee — which is why the shared row
+	 * model does NOT own the name.
+	 */
+	const groupName = useId();
+	return (
+		<div
+			className={className === undefined ? "vicinity-graph-segmented" : `vicinity-graph-segmented ${className}`}
+			role="radiogroup"
+			aria-label={accessibleName}
+		>
+			{options.map((option) => (
+				// The <label> WRAPS its radio, so the visible text is the radio's
+				// accessible name with no id/for pairing.
+				<label key={option.value} className="vicinity-graph-segmented__option" title={option.description}>
+					<input
+						type="radio"
+						name={groupName}
+						value={option.value}
+						checked={selected === option.value}
+						onChange={() => onSelect(option.value)}
+					/>
+					<span className="vicinity-graph-segmented__text">{option.label}</span>
+				</label>
+			))}
+		</div>
+	);
+}
+
+const NODE_PREVIEW_OPTIONS: readonly SegmentedOption<NodePreviewPreference>[] = NODE_PREVIEW_PREFERENCES.map(
+	(preference) => ({ value: preference, ...NODE_PREVIEW_OPTION_META[preference] }),
+);
+
+const GROUPING_MODE_OPTIONS: readonly SegmentedOption<GroupingMode>[] = GROUPING_MODES.map((mode) => ({
+	value: mode,
+	...GROUPING_MODE_OPTION_META[mode],
+}));
+
 /**
  * The Preview pill. Copy comes from the shared {@link NODE_PREVIEW_OPTION_META} and
  * the order from {@link NODE_PREVIEW_PREFERENCES}, so the two surfaces' pills cannot
@@ -546,43 +617,63 @@ function NodePreviewRow({
 	readonly row: SettingsRow;
 	readonly state: SettingsRowState;
 }): ReactElement {
-	/*
-	 * Radio grouping is DOCUMENT-scoped for inputs outside a `<form>`. The settings
-	 * tab's pill uses its own constant name; this one must be unique per mount, or
-	 * two open surfaces (or two graph views) would fuse into one group and un-check
-	 * each other. `useId()` is exactly that guarantee — which is why the shared row
-	 * model does NOT own the name.
-	 */
-	const groupName = useId();
 	const [selected, request] = useSettingsValue<NodePreviewPreference>(SettingsRowAccessors.nodePreview(), state);
-	const accessibleName = SettingsRowNames.sole(row);
 	return (
 		<div className="vicinity-graph-nodecontents__field">
 			{/* A plain span, not a <label>: it names the GROUP (carried by the
 			    radiogroup's aria-label), not any single radio. A bare
 			    Auto/Outline/Image trio would not say what it switches. */}
 			<span className="vicinity-graph-nodecontents__label">{row.label}</span>
-			<div className="vicinity-graph-segmented" role="radiogroup" aria-label={accessibleName}>
-				{NODE_PREVIEW_PREFERENCES.map((preference) => {
-					const meta = NODE_PREVIEW_OPTION_META[preference];
-					return (
-						// The <label> WRAPS its radio, so the visible text is the radio's
-						// accessible name with no id/for pairing. The panel has no room for
-						// the row description, so the OPTION copy rides as a title tooltip.
-						<label key={preference} className="vicinity-graph-segmented__option" title={meta.description}>
-							<input
-								type="radio"
-								name={groupName}
-								value={preference}
-								checked={selected === preference}
-								onChange={() => request(preference)}
-							/>
-							<span className="vicinity-graph-segmented__text">{meta.label}</span>
-						</label>
-					);
-				})}
-			</div>
+			<SegmentedChoice
+				accessibleName={SettingsRowNames.sole(row)}
+				options={NODE_PREVIEW_OPTIONS}
+				selected={selected}
+				onSelect={request}
+			/>
 		</div>
+	);
+}
+
+/** The Folders | Tags pill, as a panel row (label above, like the Preview row). */
+function GroupingModeRow({
+	row,
+	state,
+}: {
+	readonly row: SettingsRow;
+	readonly state: SettingsRowState;
+}): ReactElement {
+	return (
+		<div className="vicinity-graph-grouping-mode" title={row.description}>
+			<span className="vicinity-graph-grouping-mode__label">{row.label}</span>
+			<GroupingModeSwitch accessibleName={SettingsRowNames.sole(row)} state={state} />
+		</div>
+	);
+}
+
+/**
+ * The bare Folders | Tags pill — the panel row's control AND the graph's top-right
+ * toggle (`VicinityGraphFlow`). One component, one accessor, one write path (the
+ * shared pipeline via {@link useControlsActions}), so the corner toggle can never
+ * become a second way to write the setting.
+ */
+export function GroupingModeSwitch({
+	accessibleName,
+	state,
+	className,
+}: {
+	readonly accessibleName: string;
+	readonly state: SettingsRowState;
+	readonly className?: string;
+}): ReactElement {
+	const [selected, request] = useSettingsValue<GroupingMode>(SettingsRowAccessors.groupingMode(), state);
+	return (
+		<SegmentedChoice
+			accessibleName={accessibleName}
+			options={GROUPING_MODE_OPTIONS}
+			selected={selected}
+			onSelect={request}
+			{...(className === undefined ? {} : { className })}
+		/>
 	);
 }
 

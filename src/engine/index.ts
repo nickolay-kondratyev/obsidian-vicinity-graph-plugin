@@ -47,6 +47,7 @@ export type {
 	FrontmatterLinkSettings,
 	GraphEdge,
 	GraphNode,
+	GroupingMode,
 	NodeContentOverride,
 	NodeExclusionSettings,
 	NodeOverride,
@@ -65,6 +66,7 @@ export {
 	asVaultPath,
 	CHANNEL_DEPTH_FIELD,
 	DepthSettingsFacts,
+	GROUPING_MODES,
 	NODE_CONTENT_OVERRIDES,
 	NODE_PREVIEW_PREFERENCES,
 } from "./types";
@@ -90,7 +92,7 @@ export { FakeLinkProvider } from "./FakeLinkProvider";
 export type { FakeFileSpec, FakeVaultSpec } from "./FakeLinkProvider";
 
 export { VicinityEngine } from "./VicinityEngine";
-export type { GraphBuildRequest } from "./VicinityEngine";
+export type { GraphBuildRequest, TagGraphBuildRequest } from "./VicinityEngine";
 
 // Pipeline stages, exported for targeted reuse/testing; most consumers only
 // need the VicinityEngine facade above.

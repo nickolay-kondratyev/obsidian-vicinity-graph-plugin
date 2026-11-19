@@ -1,9 +1,12 @@
 import type { AttachmentRef, FileMetadata, LinkProvider, OutgoingReference, OutlineEntry, VaultPath } from "../engine";
 import { asFolderPath, asVaultPath, OutgoingReferences } from "../engine";
 import { FileKinds } from "../shared/FileKinds";
+import type { Tag, TagKey } from "../shared/Tags";
+import { Tags } from "../shared/Tags";
 import { BacklinksAdapter } from "./BacklinksAdapter";
 import type { FolderNoteIndex } from "./FolderNoteIndex";
 import type { FrontmatterIdIndex } from "./FrontmatterIdIndex";
+import { ObsidianTags } from "./ObsidianTags";
 import type { OrderedReference } from "./ReferenceOrder";
 import { ReferenceOrder } from "./ReferenceOrder";
 import type { CanvasReference } from "./CanvasFallbackParser";
@@ -220,6 +223,22 @@ export class ObsidianLinkProvider implements LinkProvider {
 		return (this.metadataCache.resolvedLinks[source]?.[target] ?? 0) + idRefCount;
 	}
 
+	/**
+	 * Answered from the metadata cache alone — never a file read.
+	 *
+	 * COST CEILING: a full `vault.getFiles()` scan with one `getFileCache` lookup per
+	 * markdown file, on EVERY tag-filtered rebuild (Obsidian's public API has no
+	 * tag → files index). In-memory and linear, so fine into the tens of thousands of
+	 * notes; past that, the upgrade path is a plugin-lived tag index invalidated on
+	 * `metadataCache.on("changed")`, mirroring `FrontmatterIdIndex`.
+	 */
+	getPathsCarryingTag(tag: TagKey): readonly VaultPath[] {
+		return this.vault
+			.getFiles()
+			.filter((file) => Tags.carries(tagsOf(file, this.metadataCache.getFileCache(file)), tag))
+			.map((file) => asVaultPath(file.path));
+	}
+
 	getFileMetadata(path: VaultPath): FileMetadata | undefined {
 		const file = this.vault.getFileByPath(path);
 		if (file === null) {
@@ -237,6 +256,7 @@ export class ObsidianLinkProvider implements LinkProvider {
 			frontmatterTitle: frontmatterTitleOf(file, cache),
 			isNodeBearing: FileKinds.isNodeBearingPath(file.path),
 			attachments: this.attachmentsOf(file, references),
+			tags: tagsOf(file, cache),
 			// Field names match {@link FileMetadata} by design — the facts are
 			// computed together (shared guards) and travel unchanged.
 			...this.outlineFactsOf(file, cache, references),
@@ -471,6 +491,14 @@ function frontmatterTitleOf(file: VaultFilePort, cache: CachedMetadataPort | nul
 		}
 	}
 	return undefined;
+}
+
+/** The note's tags from the SAME cache read as the title; markdown only (a canvas carries none). */
+function tagsOf(file: VaultFilePort, cache: CachedMetadataPort | null): readonly Tag[] {
+	if (!FileKinds.isMarkdownPath(file.path)) {
+		return [];
+	}
+	return Tags.distinct(ObsidianTags.rawTagsOf(cache));
 }
 
 function engineFolderOf(file: VaultFilePort): string {

@@ -62,6 +62,7 @@ export const SETTINGS_ROW_CONTROL_KINDS = [
 	"node-preview",
 	"show-cross-links",
 	"group-label-full-path",
+	"grouping-mode",
 	"folder-grouping-depth",
 	"edge-depth-into-groups",
 	"outline-depth",
@@ -86,7 +87,9 @@ export type SettingsRowControl =
 	| { readonly kind: "show-cross-links" }
 	/** Whether a collapsed folder chain is labelled with its full path instead of the leaf name. */
 	| { readonly kind: "group-label-full-path" }
-	/** Maximum rendered folder-group nesting levels (0 turns grouping off entirely). */
+	/** What the group boxes stand for (options come from `GROUPING_MODE_OPTION_META`). */
+	| { readonly kind: "grouping-mode" }
+	/** Maximum rendered group nesting levels (0 turns grouping off entirely). */
 	| { readonly kind: "folder-grouping-depth" }
 	/** How many nested-group levels an edge may reach into before collapsing onto the group box. */
 	| { readonly kind: "edge-depth-into-groups" }
@@ -143,14 +146,14 @@ export function unhandledRowControl(control: never): never {
  * disable it (owner decision 2026-07-29, ticket `nid_qp56jugz8en8wkgjirwcb269p_e`) — so there is no
  * hide/reveal repaint that can go stale and nothing drops out of settings search.
  */
-export type SettingsRowDependency = "exclusion-enabled" | "folder-grouping-on";
+export type SettingsRowDependency = "exclusion-enabled" | "grouping-on";
 
 /**
- * The "Folder grouping depth" value that turns folder grouping off entirely (the
- * spec's declared minimum; `deriveFolderGroups` renders no groups at 0) — the
- * condition the `folder-grouping-on` dependency tests.
+ * The "Grouping depth" value that turns grouping off entirely, in either mode (the
+ * spec's declared minimum; neither grouper renders a box at 0) — the condition the
+ * `grouping-on` dependency tests.
  */
-const FOLDER_GROUPING_OFF_DEPTH = 0;
+const GROUPING_OFF_DEPTH = 0;
 
 /**
  * The control kinds whose presenters ACTUALLY honour a declared dependency — the
@@ -195,8 +198,8 @@ export function isSettingsRowDisabled(row: SettingsRow, state: SettingsRowState)
 	switch (row.disabledWhen) {
 		case "exclusion-enabled":
 			return !state.nodeExclusion.enabled;
-		case "folder-grouping-on":
-			return state.globalView.folderGroupingDepth === FOLDER_GROUPING_OFF_DEPTH;
+		case "grouping-on":
+			return state.globalView.folderGroupingDepth === GROUPING_OFF_DEPTH;
 	}
 }
 
@@ -310,6 +313,13 @@ const NODE_PREVIEW_ROW_LABEL = "Preview";
 const NODE_PREVIEW_ROW_DESCRIPTION =
 	"Which preview a node shows: its heading outline or its first image. " +
 	"Auto keeps the outline for the active and pinned notes; Outline and Image apply everywhere.";
+
+/**
+ * Names the grouping-mode SETTING — visibly in both settings surfaces, and as the
+ * `aria-label` of every Folders | Tags radiogroup, the graph's top-right toggle
+ * included (exported for it: one name for one setting wherever it is switched).
+ */
+export const GROUPING_MODE_ROW_LABEL = "Group notes by";
 
 /** One force-layout slider row: label and description come from the shared meta table. */
 function forceLayoutRow(field: keyof ForceLayoutSettings): SettingsRow {
@@ -434,7 +444,7 @@ export const SETTINGS_GROUPS: Readonly<Record<SettingsSection, SettingsGroup>> =
 							"How many levels of nested groups an edge may reach into before collapsing onto the group box. 0 keeps every group edge collapsed.",
 						control: { kind: "edge-depth-into-groups" },
 						// Moot while folder grouping is off — there are no groups to reach into.
-						disabledWhen: "folder-grouping-on",
+						disabledWhen: "grouping-on",
 					},
 				],
 			},
@@ -509,13 +519,22 @@ export const SETTINGS_GROUPS: Readonly<Record<SettingsSection, SettingsGroup>> =
 		blocks: [
 			{
 				rows: [
-					// First row deliberately (general → specific): this is the master dial —
-					// at 0 the row below it is moot, which is what its declared
-					// `disabledWhen` renders.
+					// First (general → specific): WHAT the boxes stand for. The graph also
+					// shows this row's pill on its own in its top-right corner — same
+					// accessor, same write path.
 					{
-						label: "Folder grouping depth",
+						label: GROUPING_MODE_ROW_LABEL,
 						description:
-							"Maximum levels of nested folder groups. 0 turns folder grouping off entirely; ∞ is unlimited.",
+							"What the boxes around notes stand for: shared folders, or shared tags. Also switchable from the graph's top-right corner.",
+						control: { kind: "grouping-mode" },
+					},
+					// The master dial — at 0 the rows that depend on boxes existing are
+					// moot, which is what their declared `disabledWhen` renders. Its copy
+					// is mode-neutral: the cap applies to tag boxes too.
+					{
+						label: "Grouping depth",
+						description:
+							"Maximum levels of nested boxes, folder or tag. 0 turns grouping off entirely; ∞ is unlimited.",
 						control: { kind: "folder-grouping-depth" },
 					},
 					{
@@ -523,7 +542,7 @@ export const SETTINGS_GROUPS: Readonly<Record<SettingsSection, SettingsGroup>> =
 						description:
 							"Label a collapsed folder chain — a run of single-child folders drawn as one group — with its full path (A/B/C) instead of just the innermost folder name. Groups that are not collapsed always show their folder name.",
 						control: { kind: "group-label-full-path" },
-						disabledWhen: "folder-grouping-on",
+						disabledWhen: "grouping-on",
 					},
 				],
 			},

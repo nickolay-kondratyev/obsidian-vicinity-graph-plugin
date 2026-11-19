@@ -81,6 +81,23 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   monotonic rebuild token); `VicinityGraphView.tsx` stays a thin lifecycle shell.
   `GraphViewOpener.ts` owns WHERE the single graph view lives (right sidebar vs a
   main-area split-down) and moves it between the two.
+  **Graph mode** (tags-v1) is per VIEW: `graphMode.ts` (pure) declares
+  `GraphMode` (`note` | `tag`), the pill's `GraphModeStatus`, the saved shape and
+  ALL the mode's user-facing copy; the controller owns the mode
+  (`enterTagMode` / `exitTagMode`, sticky against active-file changes and node
+  clicks) and stamps the status on every snapshot; `GraphModePill.tsx` renders it
+  bottom-right; `VicinityGraphView` saves it in the leaf's state. Triggers call
+  ONLY `VicinityGraphPlugin.enterTagMode(rawTag)` / `exitTagMode()` (`main.ts`),
+  which reveal-or-open the view through `GraphViewOpener.revealOrOpen` — the
+  right-click item (`TagFilterMenus.ts`, decisions pure in `tagMenuChoice.ts`)
+  and the command's picker (`TagPickerModal.ts`). In-graph tag clicks (box
+  label, chip) stay in their own view via `TagFilterContext`.
+  The graph's corner overlays are React Flow `<Panel>`s mounted by
+  `VicinityGraphFlow`: `GraphToolbar` (the Graph controls panel), `GraphModePill`
+  bottom-right, and `GraphCorner` top-right — the Folders | Tags toggle (the
+  panel row's own `GroupingModeSwitch`, so it writes `groupingMode` through the
+  one settings pipeline) plus the orphan "+N hidden" badge. Tag chips are
+  `NoteNode`'s `NoteTagChips`, fed by `tagChips.ts` from the grouper's leftovers.
 - **`src/main.ts`** — plugin entry: wires the object graph in `onload`,
   registers the view/commands/vault-lifecycle handlers, schedules the sweep.
 
@@ -99,6 +116,17 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   (`folderNoteOf` / `childNotesOf` / `parentNoteOf`), used by the adapter
   (`FolderNoteIndex`) and `FakeLinkProvider` alike so the tie-break knowledge is
   never duplicated.
+  Tags follow the same split (tags-v1): `FileMetadata.tags` is the note's tag
+  FACT, read from the metadata cache by `adapters/ObsidianTags.ts` (a tested
+  mirror of Obsidian's `getAllTags`) and echoed onto `GraphNode.tags`; the
+  identity / nesting rules (case-insensitive `TagKey`, `withAncestors`,
+  `isSameOrNestedUnder`) live once in the pure `src/shared/Tags.ts`. Tags are
+  stored deduped, never ancestor-expanded — consumers call the rule.
+  The tag FILTER adds one vault-wide fact, `getPathsCarryingTag(tag)` (membership
+  rule: `Tags.carries`), consumed by the engine's second entry point
+  `VicinityEngine.buildForTag` (`engine/TagFilteredGraph.ts`: selection +
+  most-linked truncation; no roots). `GraphSourcePort` mirrors it as
+  `buildForTag`, implemented by `VicinityGraphBuilder.buildForTag`.
 - `view/viewPorts.ts` — `GraphSourcePort`, `GraphLayoutPort`, `NoteNavigatorPort`
   (opens a note, optionally at a `heading` — the RAW heading text; the adapter
   sanitises it into a link subpath), and `NoteOpenPort`, the one-method slice
@@ -191,6 +219,27 @@ view  ──▶  adapters  ──▶  engine  (pure core)
   `engine/settingsProductDefaults.test.ts` is the ONE place literal defaults/ranges
   may be written — an id-keyed table over every spec leaf, so a moved default, a new
   leaf and a deleted leaf all fail there and nowhere else.
+- `view/grouping.ts` — **THE mode-agnostic grouping model**: `GroupingResult` (a
+  tree of `NodeGroup`s keyed by the opaque branded `GroupId`, which IS the group's
+  React Flow / elk node id) plus the lookup seams `containerChainOf`,
+  `lowestCommonAncestorContainerOf`, `projectOntoContainerChildOf` and
+  `groupCreditedForHiddenFolder`. `elkMapping`, `flowMapping`, `layoutFit`,
+  `truncationBadges` and `FolderGroupNode` read ONLY this shape — never folder
+  arithmetic on an id, a label or a member path. A GROUPER produces it: `folderGrouping.ts`
+  (`deriveFolderGroups`) and `tagGrouping.ts` (`deriveTagGroups`: greedy
+  "explain the most tag memberships", plus each note's leftover tags for chips;
+  colours from `tagColor.ts`) are the producers — a new grouper is a new
+  producer, not an edit to the consumers. `groupingChoice.ts` (`deriveGrouping`
+  + `groupingRequestOf`) is THE choice point between them, driven by the global
+  `groupingMode` setting: every consumer derives its grouping through it, so
+  `elkMapping`, `flowMapping` and `layoutFit` can never disagree. Group ids live in
+  two namespaces (`folder-group:` / `tag-group:`); code asking "is this a box, not
+  a note?" asks `graphIdentity.isGroupId`. The tree lookups come from
+  `deriveGroupTreeLookups` (from `parentId` + `memberPaths` alone), so a grouper
+  writes only its own membership rules and its hidden-count attribution.
+  `NodeGroup.subject` is the closed union through which a mode's own vocabulary
+  reaches the two consumers that need it (label navigation, the `data-folder` DOM
+  hook); `colorToken` is a presentation hint folders leave unset.
 - `persistence/storagePorts.ts`, `persistence/vaultFsPort.ts`,
   `adapters/obsidianPorts.ts` — testable seams, each with a `Fake*`
   implementation used by unit tests.
@@ -198,7 +247,7 @@ view  ──▶  adapters  ──▶  engine  (pure core)
 ## Layout stack (`src/view/`)
 
 - **elkjs** (`ElkLayoutRunner`, `elkMapping.ts`) — hierarchical/compound layout
-  so folder groups nest correctly. The root runs elk's `force` algorithm as a
+  so groups (`grouping.ts`) nest correctly. The root runs elk's `force` algorithm as a
   seed; folder-group members are packed with elk `rectpacking` internally
   (density, not edge flow — intra-group edges are re-routed by `edgeRouting.ts`).
 - **d3-force** (`d3ForceRefinement.ts`) — force-mode refinement.

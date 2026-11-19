@@ -1,3 +1,4 @@
+import { Tags } from "../shared/Tags";
 import { describe, expect, it } from "vitest";
 import { asVaultPath } from "../engine";
 import { CanvasParseCache } from "./CanvasParseCache";
@@ -629,6 +630,79 @@ describe("ObsidianLinkProvider frontmatter display title (step-05 human decision
 	it("WHEN the file is a canvas THEN there is no frontmatter title (markdown only)", async () => {
 		const provider = await providerOver({ files: [{ path: "board.canvas" }] });
 		expect(provider.getFileMetadata(asVaultPath("board.canvas"))?.frontmatterTitle).toBeUndefined();
+	});
+});
+
+describe("ObsidianLinkProvider note tags (tags-v1)", () => {
+	// GIVEN a note tagged in frontmatter AND body, the same tag in two casings.
+	const spec: FakeObsidianSpec = {
+		files: [{ path: "note.md" }, { path: "board.canvas", content: "{}" }, { path: "uncached.md" }],
+		fileCaches: {
+			"note.md": {
+				frontmatter: { tags: ["Idea"] },
+				tags: [{ tag: "#project/alpha" }, { tag: "#idea" }],
+			},
+		},
+	};
+
+	async function tagKeysOf(path: string): Promise<readonly string[] | undefined> {
+		const provider = await providerOver(spec);
+		return provider.getFileMetadata(asVaultPath(path))?.tags.map((tag) => tag.key);
+	}
+
+	it("WHEN a note carries frontmatter and body tags THEN both are reported, deduped by identity", async () => {
+		expect(await tagKeysOf("note.md")).toEqual(["idea", "project/alpha"]);
+	});
+
+	it("WHEN the same tag appears in two casings THEN the first reported casing is the display name", async () => {
+		const provider = await providerOver(spec);
+		expect(provider.getFileMetadata(asVaultPath("note.md"))?.tags[0]?.name).toBe("Idea");
+	});
+
+	it("WHEN the note has no cache entry THEN it has no tags", async () => {
+		expect(await tagKeysOf("uncached.md")).toEqual([]);
+	});
+
+	it("WHEN the file is a canvas THEN it has no tags", async () => {
+		expect(await tagKeysOf("board.canvas")).toEqual([]);
+	});
+});
+
+describe("ObsidianLinkProvider.getPathsCarryingTag (tags-v1 tag filter)", () => {
+	// GIVEN notes tagged in frontmatter, in the body, through a nested tag, and not at all.
+	const spec: FakeObsidianSpec = {
+		files: [
+			{ path: "front.md" },
+			{ path: "body.md" },
+			{ path: "nested.md" },
+			{ path: "other.md" },
+			{ path: "uncached.md" },
+			{ path: "board.canvas", content: "{}" },
+		],
+		fileCaches: {
+			"front.md": { frontmatter: { tags: ["Project"] } },
+			"body.md": { tags: [{ tag: "#project" }] },
+			"nested.md": { tags: [{ tag: "#project/alpha" }] },
+			"other.md": { tags: [{ tag: "#projects" }] },
+		},
+	};
+
+	async function pathsCarrying(raw: string): Promise<readonly string[]> {
+		const provider = await providerOver(spec);
+		const tag = Tags.parse(raw);
+		return tag === undefined ? [] : provider.getPathsCarryingTag(tag.key);
+	}
+
+	it("WHEN a tag is asked for THEN frontmatter-, body- and nested-tagged notes are reported", async () => {
+		expect(await pathsCarrying("#project")).toEqual(["front.md", "body.md", "nested.md"]);
+	});
+
+	it("WHEN a nested tag is asked for THEN a note carrying only its parent is not reported", async () => {
+		expect(await pathsCarrying("#project/alpha")).toEqual(["nested.md"]);
+	});
+
+	it("WHEN no note carries the tag THEN nothing is reported", async () => {
+		expect(await pathsCarrying("#nobody")).toEqual([]);
 	});
 });
 

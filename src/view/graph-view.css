@@ -132,7 +132,9 @@
 }
 
 /* The failure state adds a retry button under its sentence — the only one of the
-   three the user can act on, so it stacks instead of centering a single line. */
+   three the user can act on, so it stacks instead of centering a single line. The
+   empty TAG state stacks the same way: its sentence sits over the exit button. */
+.vicinity-graph-empty--tag,
 .vicinity-graph-failed {
 	flex-direction: column;
 	gap: var(--size-4-3);
@@ -749,6 +751,119 @@
 	border-radius: var(--radius-s);
 }
 
+/* ===== tag colours (tag boxes + tag chips) =============================== */
+
+/*
+ * A colour TOKEN (`tagColor.ts`) is a theme colour NAME carried as `data-color`;
+ * this table is the ONE place it becomes a colour. Obsidian's `--color-<name>`
+ * variables follow the active theme, so light and dark both just work. `grey` has
+ * no `--color-grey`, so it maps to a neutral base shade ("archived / inactive").
+ */
+.vicinity-graph-group[data-color="red"], .vicinity-graph-tag-chip[data-color="red"] { --vicinity-graph-tag-color: var(--color-red); }
+.vicinity-graph-group[data-color="orange"], .vicinity-graph-tag-chip[data-color="orange"] { --vicinity-graph-tag-color: var(--color-orange); }
+.vicinity-graph-group[data-color="yellow"], .vicinity-graph-tag-chip[data-color="yellow"] { --vicinity-graph-tag-color: var(--color-yellow); }
+.vicinity-graph-group[data-color="green"], .vicinity-graph-tag-chip[data-color="green"] { --vicinity-graph-tag-color: var(--color-green); }
+.vicinity-graph-group[data-color="cyan"], .vicinity-graph-tag-chip[data-color="cyan"] { --vicinity-graph-tag-color: var(--color-cyan); }
+.vicinity-graph-group[data-color="blue"], .vicinity-graph-tag-chip[data-color="blue"] { --vicinity-graph-tag-color: var(--color-blue); }
+.vicinity-graph-group[data-color="purple"], .vicinity-graph-tag-chip[data-color="purple"] { --vicinity-graph-tag-color: var(--color-purple); }
+.vicinity-graph-group[data-color="pink"], .vicinity-graph-tag-chip[data-color="pink"] { --vicinity-graph-tag-color: var(--color-pink); }
+.vicinity-graph-group[data-color="grey"], .vicinity-graph-tag-chip[data-color="grey"] { --vicinity-graph-tag-color: var(--color-base-50); }
+
+/*
+ * A tinted box: the colour on the BORDER (what reads at graph zoom) and a faint
+ * wash behind the header, so the `#tag` label sits on its colour. The fill stays
+ * the neutral group fill — a fully tinted interior would fight the notes inside.
+ * Folder boxes carry no `data-color` and never match.
+ */
+.vicinity-graph-group[data-color] {
+	border-color: color-mix(in srgb, var(--vicinity-graph-tag-color) 70%, transparent);
+}
+.vicinity-graph-group[data-color] .vicinity-graph-group__header {
+	/* Bleeds the wash to the box edge: cancels the group's own padding. */
+	margin: calc(-1 * var(--size-4-2)) calc(-1 * var(--size-4-3)) 0;
+	padding: var(--size-4-1) var(--size-4-3);
+	background: color-mix(in srgb, var(--vicinity-graph-tag-color) 16%, transparent);
+	border-radius: var(--radius-l) var(--radius-l) 0 0;
+}
+.vicinity-graph-group[data-color] .vicinity-graph-group__label {
+	color: var(--text-normal);
+}
+/* A tag label keeps its normal colour (above), so its click affordance is the underline. */
+.vicinity-graph-group[data-color] .vicinity-graph-group__label--navigable:hover {
+	text-decoration: underline;
+}
+
+/* ===== tag chips (tag-grouping mode) ===================================== */
+
+/*
+ * The note's leftover tags, hung just BELOW the node box so they cost no layout
+ * space (see `NoteTagChips` in NoteNode.tsx for the why and the ceiling). Absolute
+ * against the React Flow node wrapper; one row, never wrapping. Its `max-width` is
+ * inline (`tagChips.ts` owns the floor), and `tagChipRowOf` already chose only the
+ * chips that fit it, each at no less than a readable prefix.
+ */
+.vicinity-graph-node-tags {
+	position: absolute;
+	top: calc(100% + var(--size-2-1));
+	left: 0;
+	display: flex;
+	gap: var(--size-2-1);
+	overflow: hidden;
+	pointer-events: none;
+}
+/* `content-box`: a shrinking chip's inline `min-width` (in `ch`, from `tagChipMinWidthCss`)
+ * sizes its TEXT, padding and border outside it. A chip does not shrink unless it is
+ * `--shrinks` (a tag longer than the readable prefix) — a short tag's chip ellipsing
+ * to `#u…` would read worse than folding it. */
+.vicinity-graph-tag-chip {
+	flex: 0 0 auto;
+	box-sizing: content-box;
+	padding: 0 var(--size-4-1);
+	font-size: var(--font-smallest);
+	line-height: 1.5;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	color: var(--text-normal);
+	background: color-mix(in srgb, var(--vicinity-graph-tag-color, var(--background-modifier-border)) 18%, var(--background-primary));
+	border: 1px solid color-mix(in srgb, var(--vicinity-graph-tag-color, var(--background-modifier-border)) 60%, transparent);
+	border-radius: var(--radius-s);
+	/* The chip takes the pointer (tooltip + click) even though the row lets clicks fall through. */
+	pointer-events: auto;
+}
+/* A chip enters tag mode for its tag (NoteTagChips); the `+N` chip is a tooltip only. */
+.vicinity-graph-tag-chip--clickable {
+	cursor: pointer;
+}
+.vicinity-graph-tag-chip--clickable:hover {
+	border-color: var(--vicinity-graph-tag-color, var(--background-modifier-border-hover));
+}
+.vicinity-graph-tag-chip--shrinks {
+	flex-shrink: 1;
+}
+.vicinity-graph-tag-chip--overflow {
+	color: var(--text-muted);
+}
+
+/* ===== top-right corner (grouping toggle + hidden overlay) =============== */
+
+/*
+ * The Folders | Tags toggle and the "+N hidden" overlay share ONE top-right
+ * panel, stacked, so they can never overlap whatever either one's width is.
+ * The pill's look is segmented-control.css's; here it only gets a surface so it
+ * reads over the canvas like the overlay badge does.
+ */
+.vicinity-graph-corner {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	gap: var(--size-4-2);
+}
+.vicinity-graph-corner .vicinity-graph-segmented {
+	background: var(--background-secondary);
+	box-shadow: var(--shadow-s);
+}
+
 /* ===== edges ============================================================ */
 
 /*
@@ -804,6 +919,88 @@
 	border-radius: var(--radius-l);
 	box-shadow: var(--shadow-s);
 	cursor: help; /* title tooltip carries the per-folder breakdown */
+}
+
+/* ===== mode status pill (bottom-right Panel) =========================== */
+
+/*
+ * Same chrome as the "+N hidden" corner badge above, so the two read as one
+ * family of quiet status surfaces. Hierarchy is carried by COLOUR, not size: the
+ * mode word and the count are muted, the subject (note title / #tag) is the one
+ * normal-contrast run.
+ *
+ * Overflow: only the SUBJECT truncates (a long note title or tag ellipsises; the
+ * mode word and the note count never do), and in a narrow pane the exit button
+ * wraps under the summary instead of being squeezed out — it stays reachable in
+ * a ~300px sidebar. The cap keeps the pill clear of the bottom-left zoom controls.
+ */
+.vicinity-graph-mode-pill {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	justify-content: flex-end;
+	gap: var(--size-2-1) var(--size-4-2);
+	max-width: min(420px, 80cqw);
+	padding: var(--size-4-1) var(--size-4-3);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-l);
+	box-shadow: var(--shadow-s);
+}
+/* Tag mode is the NON-default, sticky mode: an accent edge says "a filter is on"
+   without relying on the wording alone. */
+.vicinity-graph-mode-pill[data-graph-mode="tag"] {
+	border-color: var(--interactive-accent);
+}
+.vicinity-graph-mode-pill__summary {
+	display: flex;
+	align-items: baseline;
+	/* One word-space between the parts: flex drops the whitespace between them. */
+	column-gap: 0.3em;
+	min-width: 0;
+	white-space: nowrap;
+	cursor: help; /* title tooltip explains the mode */
+}
+.vicinity-graph-mode-pill__lead,
+.vicinity-graph-mode-pill__detail {
+	flex: none;
+}
+.vicinity-graph-mode-pill__subject {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	color: var(--text-normal);
+	font-weight: var(--font-medium);
+}
+/*
+ * The `.vicinity-graph-flow` prefix is LOAD-BEARING (same trap as the controls
+ * buttons above): Obsidian's app-wide `button:not(.clickable-icon)` would
+ * otherwise turn this into a raised pill-in-a-pill. Link-styled on purpose — a
+ * tertiary action inside a status surface.
+ */
+.vicinity-graph-flow .vicinity-graph-mode-pill__exit {
+	flex: none;
+	height: auto;
+	padding: 0 0 0 var(--size-4-2);
+	font-size: inherit;
+	color: var(--text-accent);
+	background: none;
+	border: none;
+	border-left: 1px solid var(--background-modifier-border);
+	border-radius: 0;
+	box-shadow: none;
+	cursor: pointer;
+}
+.vicinity-graph-flow .vicinity-graph-mode-pill__exit:hover {
+	color: var(--text-accent-hover);
+	text-decoration: underline;
+}
+.vicinity-graph-flow .vicinity-graph-mode-pill__exit:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
+	border-radius: var(--radius-s);
 }
 
 /* ===== controls toolbar (top-left Panel) =============================== */
@@ -1242,6 +1439,21 @@
 .vicinity-graph-exclusion__hint {
 	font-size: var(--font-smallest);
 	color: var(--text-faint);
+}
+
+/* --- Grouping section (toolbar) ----------------------------------------- */
+
+/* The Folders | Tags row: label above the pill, the same stacked shape as the
+ * Preview row; two short segments fit at their natural width. */
+.vicinity-graph-grouping-mode {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: var(--size-2-1);
+}
+.vicinity-graph-grouping-mode__label {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
 }
 
 /* --- Node-contents section (toolbar) ------------------------------------ */

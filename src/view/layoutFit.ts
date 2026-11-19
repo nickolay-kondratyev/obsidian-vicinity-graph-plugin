@@ -1,8 +1,9 @@
-import type { FolderPath, GraphNode } from "../engine";
+import type { GraphNode } from "../engine";
 import type { Dimensions, XY } from "./flowMapping";
-import type { FolderGroupingResult } from "./folderGrouping";
-import { deriveFolderGroups } from "./folderGrouping";
-import { folderGroupIdOf, nodeDimensionsPx } from "./graphIdentity";
+import type { GroupingRequest } from "./groupingChoice";
+import { deriveGrouping } from "./groupingChoice";
+import type { GroupId, GroupingResult } from "./grouping";
+import { nodeDimensionsPx } from "./graphIdentity";
 
 /**
  * Does a resized node still FIT where the previous layout put it? (ticket
@@ -84,12 +85,12 @@ export function resizedNodesFitRenderedLayout(
 	resizedPaths: ReadonlySet<string>,
 	nodes: readonly GraphNode[],
 	layout: RenderedLayout,
-	maxGroupNestingDepth: number,
+	groupingRequest: GroupingRequest,
 ): boolean {
-	// The SAME depth cap the rendered layout was built under (the caller only asks
-	// this question when the cap did not change): a different cap would derive
+	// The SAME grouping the rendered layout was built under (the caller only asks
+	// this question when the grouping did not change): a different one would derive
 	// groups the layout never placed and answer "relayout" for every resize.
-	const grouping = deriveFolderGroups(nodes, maxGroupNestingDepth);
+	const grouping: GroupingResult = deriveGrouping(nodes, groupingRequest);
 	const nodeRects = new Map<string, Rect>();
 	for (const node of nodes) {
 		const position = layout.positions.get(node.path);
@@ -98,29 +99,28 @@ export function resizedNodesFitRenderedLayout(
 		}
 		nodeRects.set(node.path, { ...position, ...nodeDimensionsPx(node) });
 	}
-	const groupRects = new Map<FolderPath, Rect>();
+	const groupRects = new Map<GroupId, Rect>();
 	for (const group of grouping.groups) {
-		const groupId = folderGroupIdOf(group.folder);
-		const position = layout.positions.get(groupId);
-		const dimensions = layout.groupDimensions.get(groupId);
+		const position = layout.positions.get(group.id);
+		const dimensions = layout.groupDimensions.get(group.id);
 		if (position === undefined || dimensions === undefined) {
 			return false;
 		}
-		groupRects.set(group.folder, { ...position, ...dimensions });
+		groupRects.set(group.id, { ...position, ...dimensions });
 	}
 	for (const path of resizedPaths) {
 		const rect = nodeRects.get(path);
 		if (rect === undefined) {
 			return false;
 		}
-		// Groups nest (folderGrouping, plan D2): the node's own group AND every
+		// Groups nest (grouping, plan D2): the node's own group AND every
 		// ancestor group are CONTAINERS the rect must stay inside, never colliders
 		// — a nested member always sits inside each ancestor's box, so an overlap
 		// test against them would answer "no fit" unconditionally (ticket
 		// `nid_vjezt4ewmn50r0mbwjdfn70i2_e`).
-		const containerFolders = containerGroupFoldersOf(grouping, path);
-		for (const containerFolder of containerFolders) {
-			if (!containsRect(groupRects.get(containerFolder), rect)) {
+		const containerIds = new Set(grouping.containerChainOf(path).map((group) => group.id));
+		for (const containerId of containerIds) {
+			if (!containsRect(groupRects.get(containerId), rect)) {
 				return false;
 			}
 		}
@@ -129,29 +129,13 @@ export function resizedNodesFitRenderedLayout(
 				return false;
 			}
 		}
-		for (const [otherFolder, groupRect] of groupRects) {
-			if (!containerFolders.has(otherFolder) && overlaps(rect, groupRect)) {
+		for (const [otherGroupId, groupRect] of groupRects) {
+			if (!containerIds.has(otherGroupId) && overlaps(rect, groupRect)) {
 				return false;
 			}
 		}
 	}
 	return true;
-}
-
-/**
- * Folders of the groups CONTAINING a member node: its own group plus each
- * ancestor group, walking the rendered `parentFolder` chain. Empty for an
- * ungrouped node — every group box is then foreign to it.
- */
-function containerGroupFoldersOf(grouping: FolderGroupingResult, memberPath: string): ReadonlySet<FolderPath> {
-	const folders = new Set<FolderPath>();
-	const ownFolder = grouping.groupFolderByMemberPath.get(memberPath);
-	let group = ownFolder === undefined ? null : grouping.nearestRenderedAncestorGroupOf(ownFolder);
-	while (group !== null) {
-		folders.add(group.folder);
-		group = group.parentFolder === null ? null : grouping.nearestRenderedAncestorGroupOf(group.parentFolder);
-	}
-	return folders;
 }
 
 /** Overlap = a positive-area intersection; boxes that merely touch are not overlapping. */

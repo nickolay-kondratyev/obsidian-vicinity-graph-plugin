@@ -1,9 +1,11 @@
+import type { TagKey } from "../shared/Tags";
 import { CrossLinkSweep } from "./CrossLinkSweep";
 import { EdgeAssembly } from "./EdgeAssembly";
 import { GraphTruncator } from "./GraphTruncator";
 import type { TruncationResult } from "./GraphTruncator";
 import type { LinkProvider } from "./LinkProvider";
 import { PathExclusionMatcher } from "./PathExclusionMatcher";
+import { TagFilteredSelector } from "./TagFilteredGraph";
 import { VicinityTraversal } from "./VicinityTraversal";
 import type { TraversalRoot, TraversedNode } from "./VicinityTraversal";
 import { NodeSizer } from "./NodeSizer";
@@ -11,6 +13,7 @@ import type {
 	CentralNodeDescriptor,
 	DepthSettings,
 	DirectedLink,
+	DocId,
 	GraphNode,
 	VicinityGraph,
 	NodeExclusionSettings,
@@ -53,6 +56,28 @@ export interface GraphBuildRequest {
 }
 
 /**
+ * Everything a TAG-FILTERED build needs ({@link VicinityEngine.buildForTag}). No
+ * `main`, no pins and no depths: nothing is walked, so there is nothing to root or
+ * budget. The view settings, exclusion and overrides mean what they mean in
+ * {@link GraphBuildRequest}.
+ */
+export interface TagGraphBuildRequest {
+	/** The filter tag's identity; notes carrying a tag nested below it match too. */
+	readonly tag: TagKey;
+	readonly globalView: ViewSettings;
+	/** Global node exclusion. Applies to EVERY tagged note — there are no roots to exempt. */
+	readonly nodeExclusion?: NodeExclusionSettings;
+	readonly nodeOverrides?: ReadonlyMap<VaultPath, NodeOverride>;
+	/**
+	 * The docids of the globally PINNED docs, by path — ECHOED onto the tagged notes
+	 * among them and nothing else (the same echo a root's docid gets in
+	 * {@link GraphBuildRequest}), so the view can show a tagged note as pinned and
+	 * unpin it. A pin still adds NO note and makes none central.
+	 */
+	readonly pinnedDocIds?: ReadonlyMap<VaultPath, DocId>;
+}
+
+/**
  * The engine facade — the one call steps 03/04 make per rebuild:
  * multi-root BFS → sizing → truncation → edge visibility. Pure and
  * synchronous; Obsidian reaches it only through {@link LinkProvider}.
@@ -71,36 +96,14 @@ export class VicinityEngine {
 			mainPath: request.main.path,
 			nodeCap: viewSettings.nodeCap,
 		});
-		// Size the VISIBLE nodes only, AFTER truncation (the truncator's ranking is
-		// size-independent, so this reorder is safe). The sizer's image de-dup then
-		// sees exactly the nodes the VIEW renders and de-dups against, so a suppressed
-		// node's box matches the region it paints — a winner truncated away would
-		// otherwise leave a surviving loser sized for an image it now shows.
 		const visibleNodes = new Map<VaultPath, TraversedNode>();
 		for (const [path, node] of traversal.nodes) {
 			if (truncation.visiblePaths.has(path)) {
 				visibleNodes.set(path, node);
 			}
 		}
-		const sizes = NodeSizer.computeSizes(visibleNodes, viewSettings);
-		const nodes: GraphNode[] = [];
-		for (const node of visibleNodes.values()) {
-			const sizePx = sizes.get(node.path);
-			if (sizePx === undefined) {
-				// The sizer sizes every traversed node; a gap is a pipeline bug.
-				// Fail loud rather than render a silently wrong graph.
-				throw new Error(`Engine invariant violated: no size computed for path=[${node.path}]`);
-			}
-			const override = request.nodeOverrides?.get(node.path);
-			nodes.push({
-				...node,
-				isMain: node.path === request.main.path,
-				sizePx,
-				...(override !== undefined ? { override } : {}),
-			});
-		}
 		return {
-			nodes,
+			nodes: this.sizedNodes(visibleNodes, viewSettings, request.nodeOverrides, request.main.path),
 			edges: EdgeAssembly.attach({
 				visibleEdges: this.visibleEdges(viewSettings, truncation),
 				hierarchyPairKeys: traversal.hierarchyPairKeys,
@@ -112,6 +115,72 @@ export class VicinityEngine {
 			excludedNodeCount: traversal.excludedNodeCount,
 			viewSettings,
 		};
+	}
+
+	/**
+	 * The TAG-FILTERED build (tags-v1): every note carrying {@link TagGraphBuildRequest.tag}
+	 * (or a nested child tag) with the links between them — no MAIN, no centrals, no
+	 * walk. Selection and its most-linked truncation live in {@link TagFilteredSelector};
+	 * sizing and edge assembly are the SAME stages {@link build} uses, so a tagged note
+	 * renders exactly like the same note in a vicinity graph.
+	 *
+	 * Every link between two visible notes is an edge REGARDLESS of
+	 * {@link ViewSettings.showCrossLinks}: that toggle chooses between "walked" and
+	 * "all" links, and nothing is walked here.
+	 */
+	buildForTag(request: TagGraphBuildRequest): VicinityGraph {
+		const viewSettings = request.globalView;
+		const selection = TagFilteredSelector.select({
+			provider: this.provider,
+			tag: request.tag,
+			exclusion: this.exclusionMatcher(request),
+			nodeCap: viewSettings.nodeCap,
+			...(request.pinnedDocIds === undefined ? {} : { echoedDocIds: request.pinnedDocIds }),
+		});
+		return {
+			nodes: this.sizedNodes(selection.visibleNodes, viewSettings, request.nodeOverrides, undefined),
+			// No pair-key sets: with no hierarchy channel walked, every pair is a link.
+			edges: EdgeAssembly.attach({ visibleEdges: selection.visibleEdges, provider: this.provider }),
+			hiddenNodeCountsByFolder: selection.hiddenNodeCountsByFolder,
+			excludedNodeCount: selection.excludedNodeCount,
+			viewSettings,
+			tagFilter: request.tag,
+		};
+	}
+
+	/**
+	 * Sizes the VISIBLE nodes only, AFTER truncation (the truncators' rankings are
+	 * size-independent, so this order is safe). The sizer's image de-dup then sees
+	 * exactly the nodes the VIEW renders and de-dups against, so a suppressed node's
+	 * box matches the region it paints — a winner truncated away would otherwise
+	 * leave a surviving loser sized for an image it now shows.
+	 *
+	 * `mainPath` is `undefined` for a build with no MAIN (the tag-filtered one).
+	 */
+	private sizedNodes(
+		visibleNodes: ReadonlyMap<VaultPath, TraversedNode>,
+		viewSettings: ViewSettings,
+		nodeOverrides: ReadonlyMap<VaultPath, NodeOverride> | undefined,
+		mainPath: VaultPath | undefined,
+	): readonly GraphNode[] {
+		const sizes = NodeSizer.computeSizes(visibleNodes, viewSettings);
+		const nodes: GraphNode[] = [];
+		for (const node of visibleNodes.values()) {
+			const sizePx = sizes.get(node.path);
+			if (sizePx === undefined) {
+				// The sizer sizes every visible node; a gap is a pipeline bug.
+				// Fail loud rather than render a silently wrong graph.
+				throw new Error(`Engine invariant violated: no size computed for path=[${node.path}]`);
+			}
+			const override = nodeOverrides?.get(node.path);
+			nodes.push({
+				...node,
+				isMain: node.path === mainPath,
+				sizePx,
+				...(override !== undefined ? { override } : {}),
+			});
+		}
+		return nodes;
 	}
 
 	/**
@@ -139,7 +208,7 @@ export class VicinityEngine {
 	 * absent config yields an empty (no-op) matcher — the `enabled` gate lives here
 	 * so {@link PathExclusionMatcher} stays pure regex-lite logic.
 	 */
-	private exclusionMatcher(request: GraphBuildRequest): PathExclusionMatcher {
+	private exclusionMatcher(request: Pick<GraphBuildRequest, "nodeExclusion">): PathExclusionMatcher {
 		const exclusion = request.nodeExclusion;
 		const patterns = exclusion?.enabled ? exclusion.patterns : [];
 		return PathExclusionMatcher.fromPatterns(patterns);

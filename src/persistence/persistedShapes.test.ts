@@ -318,6 +318,7 @@ describe("PersistedShapes view field presence semantics", () => {
 		nodeCap: 7,
 		outlineMaxDepth: 4,
 		nodePreviewPreference: "image",
+		groupingMode: "tags",
 		showCrossLinks: true,
 		groupLabelFullPath: true,
 		folderGroupingDepth: 2,

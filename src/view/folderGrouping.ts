@@ -1,9 +1,14 @@
 import type { FolderPath, GraphNode } from "../engine";
 import { asFolderPath } from "../engine";
 import { VaultPathFacts } from "../shared/VaultPathFacts";
+import { folderGroupIdOf } from "./graphIdentity";
+import type { GroupingResult, NodeGroup } from "./grouping";
+import { deriveGroupTreeLookups, NO_GROUP_COLOR } from "./grouping";
 
 /**
  * Folder-group membership derivation (recursive): pure, deterministic, RF-free.
+ * The FOLDER grouper — one producer of the mode-agnostic {@link GroupingResult}
+ * (`grouping.ts`), which is all the layout / render / edge pipeline reads.
  *
  * Groups nest to arbitrary depth (plan `nid_xko67wo2z4awg5gdrm1xx1chz_e`, D2):
  * - A folder QUALIFIES as a group iff >= {@link MIN_GROUP_MEMBER_COUNT} visible
@@ -18,16 +23,24 @@ import { VaultPathFacts } from "../shared/VaultPathFacts";
  *   surviving group carries the collapsed chain on {@link FolderGroup.chainPath}
  *   (e.g. `A/B/C`), while `folder`/`leafName` name its real leaf folder.
  *
- * LCA, nearest-rendered-ancestor and container-child projection lookups live
- * ONCE here ({@link FolderGroupingResult.nearestRenderedAncestorGroupOf},
- * {@link FolderGroupingResult.lowestCommonAncestorContainerOf},
- * {@link FolderGroupingResult.projectOntoContainerChildOf}); consumers
- * (`elkMapping`, `flowMapping`, `truncationBadges`) MUST use these seams and
- * never re-derive the tree (DRY).
+ * The tree lookups (LCA, container chain, container-child projection) are NOT
+ * implemented here: they come from {@link deriveGroupTreeLookups}, derived from
+ * the `parentId` tree alone. This module adds only what needs FOLDER arithmetic —
+ * which folders qualify, collapse and survive the depth cap, and
+ * {@link FolderGroupingResult.nearestRenderedAncestorGroupOf} (hidden-count
+ * attribution). Consumers MUST use the seams and never re-derive the tree (DRY).
  */
 
-/** A folder that renders as a group node within the recursive grouping tree. */
-export interface FolderGroup {
+/**
+ * A folder that renders as a group node within the recursive grouping tree.
+ *
+ * The folder-vocabulary fields below are this grouper's OWN view of a group (its
+ * tests and its folder arithmetic speak folders); pipeline consumers read only
+ * the inherited {@link NodeGroup} fields, which {@link toFolderGroup} projects
+ * from them — `id` from `folder`, `parentId` from `parentFolder`, `label` /
+ * `chainLabel` / `fullLabel` from `leafName` / `chainPath` / `folder`.
+ */
+export interface FolderGroup extends NodeGroup {
 	/** Full vault path of this group's leaf folder; its stable id/key. */
 	readonly folder: FolderPath;
 	/**
@@ -56,52 +69,17 @@ export interface FolderGroup {
 	readonly memberPaths: readonly string[];
 }
 
-export interface FolderGroupingResult {
-	/** Groups in first-seen folder order (deterministic across rebuilds of the same graph). */
-	readonly groups: readonly FolderGroup[];
+export interface FolderGroupingResult extends GroupingResult<FolderGroup> {
 	/** Reverse index: member node path → the folder of the group it RENDERS in (nearest qualifying ancestor, capped to the depth-cap survivor). */
 	readonly groupFolderByMemberPath: ReadonlyMap<string, FolderPath>;
 	/**
 	 * Nearest rendered (surviving) group that is an ancestor-or-self of `folderPath`,
 	 * or `null` when none exists (the folder renders at the top level). Skips
-	 * collapsed folders. The ONE nearest-ancestor lookup — e.g. truncation badges
-	 * attribute a hidden note's count to `nearestRenderedAncestorGroupOf(note.folder)`.
+	 * collapsed folders. The ONE nearest-ancestor lookup, and this grouper's answer
+	 * to {@link GroupingResult.groupCreditedForHiddenFolder}: truncation badges
+	 * attribute a hidden note's count to the group where it WOULD have rendered.
 	 */
 	readonly nearestRenderedAncestorGroupOf: (folderPath: FolderPath) => FolderGroup | null;
-	/**
-	 * Lowest common ancestor CONTAINER of two note paths: the deepest group that
-	 * renders BOTH, or `null` when their only common container is the canvas pane.
-	 * The ONE LCA lookup — edge collapse projects each endpoint onto the boundary
-	 * of the group strictly inside this container.
-	 */
-	readonly lowestCommonAncestorContainerOf: (pathA: string, pathB: string) => FolderGroup | null;
-	/**
-	 * Projects `notePath` onto the group strictly inside `container` (null = canvas
-	 * pane) the edge should terminate at, given a per-endpoint depth `allowance`.
-	 *
-	 * At `allowance === 0` (the default, and the ONLY value the layout path uses)
-	 * this is the DIRECT CHILD of `container` that renders the note: the group
-	 * strictly inside `container` that is an ancestor-or-self of the note, or `null`
-	 * when the note is a direct leaf member of `container` with no intervening group.
-	 *
-	 * With `allowance === N` the endpoint reaches `N` levels DEEPER — onto the
-	 * ancestor group `N` below that direct child (= depth `N+1` below `container`) —
-	 * or `null` (the true note) when the note's chain is shallower than that. `N` is
-	 * the "Edge depth into groups" setting (plan `nid_6fkhyw97hjs84xb62z6tommhi_e`,
-	 * D1/D4); only `flowMapping` passes a non-zero value (RENDER-ONLY, D2).
-	 *
-	 * Precondition: `container` is on the note's rendered chain (i.e. `container` is
-	 * a {@link lowestCommonAncestorContainerOf} result for that note, or `null`).
-	 * The ONE projection seam BOTH edge consumers (`elkMapping`, `flowMapping`) use
-	 * to attach a cross-boundary edge while naming a group `container` actually
-	 * contains — never a nested descendant elk cannot reference under
-	 * `SEPARATE_CHILDREN` (which is why the layout path stays at `allowance` 0).
-	 */
-	readonly projectOntoContainerChildOf: (
-		notePath: string,
-		container: FolderGroup | null,
-		allowance?: number,
-	) => FolderGroup | null;
 }
 
 /** Groups render only at 2+ descendant notes (plan D2); smaller folders fall up to an ancestor. */
@@ -109,8 +87,8 @@ export const MIN_GROUP_MEMBER_COUNT = 2;
 
 /**
  * `maxGroupNestingDepth` value imposing no cap: every rendered nesting level
- * survives. Callers pass this until the "Folder grouping depth" setting lands
- * (plan `nid_yyugpoh3gv8ip24cizvgrs4w4_e`, ticket `nid_5vz7mtm2rn6n7nj9cp5mfbslx_e`).
+ * survives — the "Grouping depth" setting's ∞ (plan `nid_yyugpoh3gv8ip24cizvgrs4w4_e`,
+ * ticket `nid_5vz7mtm2rn6n7nj9cp5mfbslx_e`).
  */
 export const UNLIMITED_GROUP_NESTING_DEPTH = Number.POSITIVE_INFINITY;
 
@@ -141,6 +119,40 @@ function relativeFolderPath(base: FolderPath | null, folder: FolderPath): string
 		return folder;
 	}
 	return folder.slice(base.length + FOLDER_SEPARATOR.length);
+}
+
+/**
+ * Nesting depth of a folder path (segment count): an ancestor folder always has
+ * a strictly smaller depth than its descendants. Used only to order groups
+ * ancestor-first — group folders are never the vault root, so the empty-string
+ * edge case does not arise.
+ */
+function folderDepthOf(folder: FolderPath): number {
+	return folder.split(FOLDER_SEPARATOR).length;
+}
+
+/** The ONE place a folder group's mode-agnostic {@link NodeGroup} fields are projected from its folder facts. */
+function toFolderGroup(
+	folder: FolderPath,
+	parentFolder: FolderPath | null,
+	memberPaths: readonly string[],
+): FolderGroup {
+	const leafName = VaultPathFacts.folderNameOf(folder);
+	const chainPath = relativeFolderPath(parentFolder, folder);
+	return {
+		id: folderGroupIdOf(folder),
+		parentId: parentFolder === null ? null : folderGroupIdOf(parentFolder),
+		label: leafName,
+		chainLabel: chainPath,
+		fullLabel: folder,
+		memberPaths,
+		subject: { kind: "folder", folder },
+		colorToken: NO_GROUP_COLOR,
+		folder,
+		parentFolder,
+		leafName,
+		chainPath,
+	};
 }
 
 /**
@@ -230,16 +242,9 @@ export function deriveFolderGroups(
 		return current === VAULT_ROOT_FOLDER ? null : current;
 	};
 
-	const fullTreeGroups: FolderGroup[] = survivingLeaves.map((folder) => {
-		const parentFolder = effectiveParentOf(folder);
-		return {
-			folder,
-			parentFolder,
-			leafName: VaultPathFacts.folderNameOf(folder),
-			chainPath: relativeFolderPath(parentFolder, folder),
-			memberPaths: membersByQualifyingFolder.get(folder) ?? [],
-		};
-	});
+	const fullTreeGroups: FolderGroup[] = survivingLeaves.map((folder) =>
+		toFolderGroup(folder, effectiveParentOf(folder), membersByQualifyingFolder.get(folder) ?? []),
+	);
 
 	// Depth-cap post-pass (plan Q1): rendered depth counts VISIBLE boxes, so it
 	// walks `parentFolder` tree edges (a collapsed chain is one edge = one level).
@@ -295,8 +300,6 @@ export function deriveFolderGroups(
 		}
 	}
 
-	const folderByNotePath = new Map<string, FolderPath>(nodes.map((node) => [node.path, node.folder]));
-
 	const nearestRenderedAncestorGroupOf = (folderPath: FolderPath): FolderGroup | null => {
 		for (const ancestor of ancestorFoldersOf(folderPath)) {
 			const group = groupByFolder.get(ancestor);
@@ -307,50 +310,19 @@ export function deriveFolderGroups(
 		return null;
 	};
 
-	// Rendered group chain for a note path, DEEPEST first (its group, then each ancestor group).
-	const renderedGroupChainOf = (notePath: string): FolderGroup[] => {
-		const folder = folderByNotePath.get(notePath);
-		const chain: FolderGroup[] = [];
-		let group = folder === undefined ? null : nearestRenderedAncestorGroupOf(folder);
-		while (group !== null) {
-			chain.push(group);
-			group = group.parentFolder === null ? null : groupByFolder.get(group.parentFolder) ?? null;
-		}
-		return chain;
-	};
-
-	const lowestCommonAncestorContainerOf = (pathA: string, pathB: string): FolderGroup | null => {
-		const foldersA = new Set(renderedGroupChainOf(pathA).map((group) => group.folder));
-		return renderedGroupChainOf(pathB).find((group) => foldersA.has(group.folder)) ?? null;
-	};
-
-	// The direct child of `container` on the note's chain is the ONE group whose
-	// effective parent IS the container (parentFolder === container.folder, or null
-	// for the canvas pane); none exists when the note is a direct leaf member. The
-	// chain is DEEPEST-FIRST, so the note's own group is index 0 and the direct child
-	// sits farthest out — a depth `allowance` of N steps N indices back TOWARD the
-	// note (a deeper group). Stepping past the note's own group (index < 0) means the
-	// chain is shallower than the reach, so the endpoint stays the true note (null).
-	const projectOntoContainerChildOf = (
-		notePath: string,
-		container: FolderGroup | null,
-		allowance = 0,
-	): FolderGroup | null => {
-		const containerFolder = container === null ? null : container.folder;
-		const chain = renderedGroupChainOf(notePath);
-		const directChildIndex = chain.findIndex((group) => group.parentFolder === containerFolder);
-		if (directChildIndex < 0) {
-			return null; // The note is a direct leaf member of `container` — no group to reach.
-		}
-		const targetIndex = directChildIndex - allowance;
-		return targetIndex < 0 ? null : chain[targetIndex] ?? null;
-	};
+	// React Flow needs parents before children. `groups` is in first-seen
+	// (nearest-ancestor-first) order, which can place a nesting parent AFTER its
+	// child, so order by folder DEPTH — an ancestor folder always has fewer
+	// segments than its descendants. A stable sort keeps first-seen order among
+	// siblings (determinism unchanged).
+	const groupsAncestorFirst = [...groups].sort((a, b) => folderDepthOf(a.folder) - folderDepthOf(b.folder));
 
 	return {
 		groups,
+		groupsAncestorFirst,
+		...deriveGroupTreeLookups(groups),
+		groupCreditedForHiddenFolder: nearestRenderedAncestorGroupOf,
 		groupFolderByMemberPath,
 		nearestRenderedAncestorGroupOf,
-		lowestCommonAncestorContainerOf,
-		projectOntoContainerChildOf,
 	};
 }

@@ -3,10 +3,14 @@ import { ReactFlow } from "@xyflow/react";
 import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { FolderGroupNode } from "./FolderGroupNode";
+import type { GroupColorToken } from "./grouping";
+import { Tags } from "../shared/Tags";
+import type { Tag } from "../shared/Tags";
+import { TagFilterContext } from "./TagFilterContext";
 import type { FlowGroupData } from "./flowMapping";
 import { GraphUiContext } from "./GraphUiContext";
 import { NoteOpenContext } from "./NoteOpenContext";
-import type { GraphUiPort, NodeMenuRequest, NoteOpenPort, OpenNoteOptions } from "./viewPorts";
+import type { GraphUiPort, NodeMenuRequest, NoteOpenPort, OpenNoteOptions, TagFilterPort } from "./viewPorts";
 
 /**
  * Rendered proof of the clickable folder-group label (ticket
@@ -59,31 +63,44 @@ const GROUP_ID = `folder-group:${GROUP_FOLDER}`;
 function groupData(overrides: Partial<FlowGroupData> = {}): FlowGroupData {
 	return {
 		folder: GROUP_FOLDER,
-		folderName: GROUP_FOLDER,
+		label: GROUP_FOLDER,
+		fullLabel: GROUP_FOLDER,
 		hiddenCount: 0,
 		fullPathLabel: false,
 		folderNoteCandidates: [],
+		colorToken: null,
 		...overrides,
 	};
+}
+
+/** Records the tags a label asked to filter by. */
+class RecordingTagFilter implements TagFilterPort {
+	readonly shown: Tag[] = [];
+	showTaggedNotes(tag: Tag): void {
+		this.shown.push(tag);
+	}
 }
 
 function renderGroupNode(data: FlowGroupData) {
 	const ui = new RecordingGraphUi();
 	const noteOpen = new RecordingNoteOpen();
+	const tagFilter = new RecordingTagFilter();
 	const result = render(
 		<GraphUiContext.Provider value={ui}>
 			<NoteOpenContext.Provider value={noteOpen}>
-				<div style={{ width: 800, height: 600 }}>
-					<ReactFlow
-						nodes={[{ id: GROUP_ID, type: "folder-group", position: { x: 0, y: 0 }, width: 200, height: 150, data }]}
-						edges={[]}
-						nodeTypes={{ "folder-group": FolderGroupNode }}
-					/>
-				</div>
+				<TagFilterContext.Provider value={tagFilter}>
+					<div style={{ width: 800, height: 600 }}>
+						<ReactFlow
+							nodes={[{ id: GROUP_ID, type: "folder-group", position: { x: 0, y: 0 }, width: 200, height: 150, data }]}
+							edges={[]}
+							nodeTypes={{ "folder-group": FolderGroupNode }}
+						/>
+					</div>
+				</TagFilterContext.Provider>
 			</NoteOpenContext.Provider>
 		</GraphUiContext.Provider>,
 	);
-	return { ui, noteOpen, result };
+	return { ui, noteOpen, tagFilter, result };
 }
 
 /** The mounted group's label span, once React Flow has rendered the node. */
@@ -100,6 +117,26 @@ async function mountedLabel(container: HTMLElement): Promise<HTMLElement> {
 }
 
 afterEach(cleanup);
+
+describe("FolderGroupNode mode-agnostic payload", () => {
+	it("WHEN the label and the full description differ THEN the label shows the former and its tooltip the latter", async () => {
+		const { result } = renderGroupNode(groupData({ label: "leaf", fullLabel: "some/long/leaf" }));
+		const label = await mountedLabel(result.container);
+		expect({ text: label.textContent, title: label.title }).toEqual({ text: "leaf", title: "some/long/leaf" });
+	});
+
+	it("WHEN the group is not a folder THEN the box carries no data-folder hook", async () => {
+		const { result } = renderGroupNode(groupData({ folder: null }));
+		const box = await waitFor(() => {
+			const found = result.container.querySelector<HTMLElement>(".vicinity-graph-group");
+			if (found === null) {
+				throw new Error("group box not mounted yet");
+			}
+			return found;
+		});
+		expect(box.hasAttribute("data-folder")).toBe(false);
+	});
+});
 
 describe("FolderGroupNode label affordance", () => {
 	it("WHEN the folder has candidates THEN the label carries the navigable modifier class", async () => {
@@ -174,5 +211,79 @@ describe("FolderGroupNode multi-candidate click", () => {
 		fireEvent.click(await mountedLabel(result.container));
 		ui.nodeMenuRequests[0]?.entries[1]?.onClick();
 		expect(noteOpen.opened).toEqual([{ path: "notes/notes.canvas", options: { newTab: false } }]);
+	});
+});
+
+describe("FolderGroupNode tag box hooks", () => {
+	const mountedBox = (container: HTMLElement): Promise<HTMLElement> =>
+		waitFor(() => {
+			const found = container.querySelector<HTMLElement>(".vicinity-graph-group");
+			if (found === null) {
+				throw new Error("group box not mounted yet");
+			}
+			return found;
+		});
+
+	it("WHEN the box carries a colour token THEN it exposes it as data-color", async () => {
+		const { result } = renderGroupNode(groupData({ folder: null, colorToken: "orange" as GroupColorToken }));
+		expect((await mountedBox(result.container)).dataset["color"]).toBe("orange");
+	});
+
+	it("WHEN the box is a folder box THEN it carries no data-color", async () => {
+		const { result } = renderGroupNode(groupData());
+		expect((await mountedBox(result.container)).hasAttribute("data-color")).toBe(false);
+	});
+
+	it("WHEN the box is a tag box THEN data-tags lists its label tag keys", async () => {
+		const { result } = renderGroupNode(groupData({ folder: null, labelTags: Tags.distinct(["Follow-Up", "important"]) }));
+		expect((await mountedBox(result.container)).dataset["tags"]).toBe("follow-up important");
+	});
+});
+
+describe("FolderGroupNode tag box label (enters tag mode)", () => {
+	/** A tag box: no folder, labelled by its tags; mounted label found by the box, not by folder. */
+	const tagBox = (...rawTags: string[]): FlowGroupData =>
+		groupData({ folder: null, label: rawTags.map((raw) => `#${raw}`).join(" "), labelTags: Tags.distinct(rawTags) });
+	const mountedTagLabel = (container: HTMLElement): Promise<HTMLElement> =>
+		waitFor(() => {
+			const label = container.querySelector<HTMLElement>(".vicinity-graph-group[data-tags] .vicinity-graph-group__label");
+			if (label === null) {
+				throw new Error("tag-box label not mounted yet");
+			}
+			return label;
+		});
+
+	it("WHEN a one-tag box label is clicked THEN tag mode is entered for that tag", async () => {
+		const { tagFilter, result } = renderGroupNode(tagBox("Visit"));
+
+		fireEvent.click(await mountedTagLabel(result.container));
+
+		expect(tagFilter.shown.map((tag) => tag.name)).toEqual(["Visit"]);
+	});
+
+	it("WHEN a several-tag box label is clicked THEN a menu offers one entry per tag", async () => {
+		const { ui, result } = renderGroupNode(tagBox("follow-up", "important"));
+
+		fireEvent.click(await mountedTagLabel(result.container));
+
+		expect(ui.nodeMenuRequests[0]?.entries.map((entry) => entry.title)).toEqual([
+			"Show notes tagged #follow-up",
+			"Show notes tagged #important",
+		]);
+	});
+
+	it("WHEN a several-tag box label renders THEN its tooltip names every tag (the full label an ellipsis may cut)", async () => {
+		const { result } = renderGroupNode(tagBox("follow-up", "important"));
+
+		expect((await mountedTagLabel(result.container)).title).toContain("#follow-up #important");
+	});
+
+	it("WHEN a tag is chosen from a several-tag label's menu THEN tag mode is entered for it", async () => {
+		const { ui, tagFilter, result } = renderGroupNode(tagBox("follow-up", "important"));
+		fireEvent.click(await mountedTagLabel(result.container));
+
+		ui.nodeMenuRequests[0]?.entries[1]?.onClick();
+
+		expect(tagFilter.shown.map((tag) => tag.name)).toEqual(["important"]);
 	});
 });

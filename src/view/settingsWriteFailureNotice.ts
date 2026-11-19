@@ -128,6 +128,8 @@ export class SettingsWriteFailureNotice {
 				return { kind: "show-cross-links" };
 			case "global-group-label-full-path":
 				return { kind: "group-label-full-path" };
+			case "global-grouping-mode":
+				return { kind: "grouping-mode" };
 			case "global-folder-grouping-depth":
 				return { kind: "folder-grouping-depth" };
 			case "global-edge-depth-into-groups":
@@ -171,6 +173,7 @@ export class SettingsWriteFailureNotice {
 			case "node-preview":
 			case "show-cross-links":
 			case "group-label-full-path":
+			case "grouping-mode":
 			case "folder-grouping-depth":
 			case "edge-depth-into-groups":
 			case "outline-depth":

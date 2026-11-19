@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
-import type { GraphEdge, GraphNode, NodeContentOverride, NodePreviewPreference, OutlineEntry, ViewSettings } from "../engine";
+import type {
+	GraphEdge,
+	GraphNode,
+	NodeContentOverride,
+	NodePreviewPreference,
+	OutlineEntry,
+	VicinityGraph,
+	ViewSettings,
+} from "../engine";
 import { asDocId, asFolderPath, asVaultPath, NODE_CONTENT_OVERRIDES, NODE_PREVIEW_PREFERENCES } from "../engine";
+import { Tags } from "../shared/Tags";
 import { OUTLINE_RENDER_LIMIT } from "./constants";
 import { edgeClassName, edgeKindClassName, vicinityGraphToFlow, withGroupDimensions, withPositions } from "./flowMapping";
 import type { FlowNode, FlowPinFacts, FolderNoteCandidatesLookup, NoteFlowNode, XY } from "./flowMapping";
@@ -62,6 +71,7 @@ describe("vicinityGraphToFlow nodes", () => {
 			fileKind: "note",
 			isGloballyPinned: false,
 			isLocallyPinned: false,
+			offersLocalPin: false,
 			hasSizeOverride: false,
 			offersChildNoteCreation: false,
 			folder: "",
@@ -176,6 +186,34 @@ describe("vicinityGraphToFlow file kind", () => {
 	});
 });
 
+describe("vicinityGraphToFlow local pin offer", () => {
+	function offersLocalPin(graph: VicinityGraph, path: string): boolean | undefined {
+		return noteNode(vicinityGraphToFlow(graph, NO_PINS, NO_FOLDER_NOTES, false).nodes, path)?.data.offersLocalPin;
+	}
+	const vicinityOfMain = makeGraph({
+		nodes: [
+			makeNode({ path: asVaultPath("main.md"), isMain: true, isCentral: true }),
+			makeNode({ path: asVaultPath("neighbour.md") }),
+		],
+	});
+	/** A tag-filtered graph: no node is MAIN. */
+	const graphWithoutMain = makeGraph({
+		nodes: [makeNode({ path: asVaultPath("t1.md") }), makeNode({ path: asVaultPath("t2.md") })],
+	});
+
+	it("WHEN the graph has a MAIN THEN a node other than the MAIN offers the local pin", () => {
+		expect(offersLocalPin(vicinityOfMain, "neighbour.md")).toBe(true);
+	});
+
+	it("WHEN the graph has a MAIN THEN the MAIN itself does not offer the local pin", () => {
+		expect(offersLocalPin(vicinityOfMain, "main.md")).toBe(false);
+	});
+
+	it("WHEN the graph has no MAIN (tag-filtered) THEN no node offers the local pin", () => {
+		expect(offersLocalPin(graphWithoutMain, "t1.md")).toBe(false);
+	});
+});
+
 describe("vicinityGraphToFlow pin flags (global vs local split)", () => {
 	const DOCID = "docid_n_e";
 	function pinFlagsOf(
@@ -286,10 +324,12 @@ describe("vicinityGraphToFlow folder groups", () => {
 		const group = toFlow(groupedGraph()).nodes.find((node) => node.kind === "folder-group");
 		expect(group?.data).toEqual({
 			folder: "notes",
-			folderName: "notes",
+			label: "notes",
+			fullLabel: "notes",
 			hiddenCount: 0,
 			fullPathLabel: false,
 			folderNoteCandidates: [],
+			colorToken: null,
 		});
 	});
 
@@ -596,7 +636,7 @@ function collapsedChainGroup(graph: Parameters<typeof vicinityGraphToFlow>[0]) {
 
 describe("vicinityGraphToFlow collapsed-chain group label (groupLabelFullPath)", () => {
 	it("WHEN the label setting is OFF (default) THEN a collapsed chain shows its LEAF folder name", () => {
-		expect(collapsedChainGroup(collapsedChainGraph())?.data.folderName).toBe("C");
+		expect(collapsedChainGroup(collapsedChainGraph())?.data.label).toBe("C");
 	});
 
 	it("WHEN the label setting is ON THEN a collapsed chain shows its FULL path", () => {
@@ -604,7 +644,7 @@ describe("vicinityGraphToFlow collapsed-chain group label (groupLabelFullPath)",
 			nodes: collapsedChainGraph().nodes,
 			viewSettings: { ...makeGraph().viewSettings, groupLabelFullPath: true },
 		});
-		expect(collapsedChainGroup(graph)?.data.folderName).toBe("A/B/C");
+		expect(collapsedChainGroup(graph)?.data.label).toBe("A/B/C");
 	});
 
 	it("WHEN the label setting is ON THEN the tooltip folder path is unchanged (full vault path)", () => {
@@ -615,12 +655,22 @@ describe("vicinityGraphToFlow collapsed-chain group label (groupLabelFullPath)",
 		expect(collapsedChainGroup(graph)?.data.folder).toBe("A/B/C");
 	});
 
+	// The tooltip is rendered from `fullLabel` (FolderGroupNode `title`), so the
+	// full-vault-path promise must be pinned on that field, not only on `folder`.
+	it("WHEN the label setting is ON THEN the tooltip text (fullLabel) is the full vault path", () => {
+		const graph = makeGraph({
+			nodes: collapsedChainGraph().nodes,
+			viewSettings: { ...makeGraph().viewSettings, groupLabelFullPath: true },
+		});
+		expect(collapsedChainGroup(graph)?.data.fullLabel).toBe("A/B/C");
+	});
+
 	it("WHEN the label setting is ON THEN a NON-collapsed group is unaffected (leaf === chain)", () => {
 		const graph = makeGraph({
 			nodes: groupedGraph().nodes,
 			viewSettings: { ...makeGraph().viewSettings, groupLabelFullPath: true },
 		});
-		expect(collapsedChainGroup(graph)?.data.folderName).toBe("notes");
+		expect(collapsedChainGroup(graph)?.data.label).toBe("notes");
 	});
 
 	it("WHEN the label setting is OFF (default) THEN fullPathLabel is false (leaf keeps trailing truncation)", () => {
@@ -919,6 +969,7 @@ describe("withPositions", () => {
 				fileKind: "note",
 				isGloballyPinned: false,
 				isLocallyPinned: false,
+				offersLocalPin: true,
 				hasSizeOverride: false,
 				offersChildNoteCreation: false,
 				folder: "",
@@ -1329,5 +1380,59 @@ describe("vicinityGraphToFlow node geometry ignores the per-node content overrid
 		const choices: (NodeContentOverride | undefined)[] = [undefined, ...NODE_CONTENT_OVERRIDES];
 		const actual = Object.fromEntries(choices.map((c) => [String(c), boxesUnderOverride(c)]));
 		expect(actual).toEqual(Object.fromEntries(choices.map((c) => [String(c), baseline])));
+	});
+});
+
+describe("vicinityGraphToFlow in tag-grouping mode", () => {
+	// GIVEN two notes in DIFFERENT folders sharing #todo, and a third with a lone #visit
+	const tagged = (path: string, folder: string, ...tags: string[]) =>
+		makeNode({ path: asVaultPath(path), folder: asFolderPath(folder), tags: Tags.distinct(tags) });
+	const nodes = [tagged("x/a.md", "x", "todo"), tagged("y/b.md", "y", "todo"), tagged("c.md", "", "visit")];
+	const graphIn = (groupingMode: ViewSettings["groupingMode"], extra: Partial<ViewSettings> = {}) => {
+		const graph = makeGraph({ nodes });
+		return { ...graph, viewSettings: { ...graph.viewSettings, groupingMode, ...extra } };
+	};
+	const groupNodesOf = (flowNodes: readonly FlowNode[]) => flowNodes.filter((node) => node.kind === "folder-group");
+
+	it("WHEN the mode is tags THEN the only box is the #todo tag box", () => {
+		expect(groupNodesOf(toFlow(graphIn("tags")).nodes).map((node) => node.data.label)).toEqual(["#todo"]);
+	});
+
+	it("WHEN the mode is tags THEN the notes sharing #todo render inside the tag box", () => {
+		const flow = toFlow(graphIn("tags"));
+		const [box] = groupNodesOf(flow.nodes);
+		expect([noteNode(flow.nodes, "x/a.md")?.parentId, noteNode(flow.nodes, "y/b.md")?.parentId]).toEqual([box?.id, box?.id]);
+	});
+
+	it("WHEN the mode is tags THEN the tag box carries its tag colour", () => {
+		const [box] = groupNodesOf(toFlow(graphIn("tags")).nodes);
+		expect(box?.kind === "folder-group" ? box.data.colorToken : undefined).toBe("orange");
+	});
+
+	it("WHEN the mode is tags THEN the tag box carries its label tags (the click hook's subject)", () => {
+		const [box] = groupNodesOf(toFlow(graphIn("tags")).nodes);
+		expect(box?.kind === "folder-group" ? box.data.labelTags?.map((tag) => tag.key) : undefined).toEqual(["todo"]);
+	});
+
+	it("WHEN the mode is tags and the full-path label setting is on THEN the tag box label still truncates conventionally", () => {
+		const [box] = groupNodesOf(toFlow(graphIn("tags", { groupLabelFullPath: true })).nodes);
+		expect(box?.kind === "folder-group" ? box.data.fullPathLabel : undefined).toBe(false);
+	});
+
+	it("WHEN the mode is tags THEN a note with an unshared tag carries it as a chip", () => {
+		expect(noteNode(toFlow(graphIn("tags")).nodes, "c.md")?.data.tagChips?.chips.map((chip) => chip.label)).toEqual(["#visit"]);
+	});
+
+	it("WHEN the mode is tags THEN a note whose only tag names its box carries no chips", () => {
+		expect(noteNode(toFlow(graphIn("tags")).nodes, "x/a.md")?.data.tagChips).toBeUndefined();
+	});
+
+	it("WHEN the mode is folders THEN no note carries chips", () => {
+		expect(noteNode(toFlow(graphIn("folders")).nodes, "c.md")?.data.tagChips).toBeUndefined();
+	});
+
+	it("WHEN the mode is folders THEN boxes carry no label tags", () => {
+		const boxes = groupNodesOf(toFlow(graphIn("folders")).nodes);
+		expect(boxes.map((box) => (box.kind === "folder-group" ? box.data.labelTags : "note"))).toEqual(boxes.map(() => undefined));
 	});
 });

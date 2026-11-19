@@ -21,6 +21,7 @@ export function makeNode(overrides: Partial<GraphNode> = {}): GraphNode {
 		attachments: [],
 		outline: [],
 		imagePrecedesOutline: false,
+		tags: [],
 		sizePx: 100,
 		...overrides,
 	};
@@ -46,6 +47,7 @@ function makeViewSettings(): ViewSettings {
 		nodePreviewPreference: "auto",
 		showCrossLinks: false,
 		groupLabelFullPath: false,
+		groupingMode: "folders",
 		// UNLIMITED in fixture terms: view tests that want a capped grouping
 		// override it explicitly; 20 = the spec's effectively-unlimited ceiling.
 		folderGroupingDepth: 20,

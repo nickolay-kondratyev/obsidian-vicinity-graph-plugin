@@ -6,6 +6,7 @@ import { FolderNoteIndex } from "./adapters/FolderNoteIndex";
 import { FrontmatterIdIndex } from "./adapters/FrontmatterIdIndex";
 import { LiveLinkOccurrenceProvider } from "./adapters/LiveLinkOccurrenceProvider";
 import { ObsidianNoteCreation } from "./adapters/ObsidianNoteCreation";
+import { ObsidianTags } from "./adapters/ObsidianTags";
 import { VicinityGraphBuilder } from "./adapters/VicinityGraphBuilder";
 import { DocIdMapWarmer } from "./persistence/DocIdMapWarmer";
 import { OrphanSweeper, SWEEP_DELAY_MS } from "./persistence/OrphanSweeper";
@@ -16,8 +17,12 @@ import { PluginDataAdapter } from "./persistence/PluginDataAdapter";
 import { PluginDataStore } from "./persistence/PluginDataStore";
 import { VaultAdapterFsPort } from "./persistence/vaultFsPort";
 import { VaultFileStore } from "./persistence/VaultFileStore";
+import { Tags } from "./shared/Tags";
 import { GraphViewOpener } from "./view/GraphViewOpener";
 import { SettingsWritePipeline } from "./view/settingsWritePipeline";
+import { TagFilterMenus } from "./view/TagFilterMenus";
+import { tagNoteCountsOf } from "./view/tagNoteCounts";
+import { TagPickerModal } from "./view/TagPickerModal";
 import { VicinityGraphSettingTab } from "./view/VicinityGraphSettingTab";
 import { VicinityGraphView, VIEW_TYPE_VICINITY_GRAPH } from "./view/VicinityGraphView";
 import type { UserNoticePort, ViewsRefreshPort } from "./view/viewPorts";
@@ -94,6 +99,8 @@ export default class VicinityGraphPlugin extends Plugin {
 	 */
 	private noteCreation!: ObsidianNoteCreation;
 	private sweepTimer: number | null = null;
+	/** WHERE the graph view lives; also what {@link enterTagMode} opens it through. */
+	private graphViewOpener!: GraphViewOpener;
 	/**
 	 * {@link ViewsRefreshPort} over this plugin's own leaf walk, handed to every
 	 * view it creates so a global write made INSIDE a controls panel fans out
@@ -202,6 +209,7 @@ export default class VicinityGraphPlugin extends Plugin {
 		// Two placements, two hotkey-bindable commands (mirrors core's "Split
 		// right"/"Split down"); the opener MOVES a graph that is open elsewhere.
 		const opener = new GraphViewOpener(this.app.workspace);
+		this.graphViewOpener = opener;
 		this.addCommand({
 			id: "open-right-sidebar",
 			name: "Open in right sidebar",
@@ -212,6 +220,14 @@ export default class VicinityGraphPlugin extends Plugin {
 			name: "Open below active note",
 			callback: () => void opener.open("main-area"),
 		});
+		// Tag-filtered mode's entry points outside the graph (tags-v1 decision 8);
+		// the in-graph ones (tag box label, tag chip) live in the view.
+		this.addCommand({
+			id: "show-notes-with-tag",
+			name: "Show notes with tag…",
+			callback: () => this.openTagPicker(),
+		});
+		new TagFilterMenus((tag) => void this.enterTagMode(tag.name)).register(this);
 	}
 
 	/**
@@ -234,6 +250,54 @@ export default class VicinityGraphPlugin extends Plugin {
 			const { view } = leaf;
 			if (view instanceof VicinityGraphView) {
 				view.refresh();
+			}
+		}
+	}
+
+	// --- tag-filtered mode: THE public enter/exit API (tags-v1) -------------
+	// Every entry point (right-click menu, command + tag picker, in-graph tag
+	// click, e2e) calls these two — never a view or controller directly.
+
+	/**
+	 * Show every note carrying `rawTag` (or a nested child tag) in the graph view,
+	 * opening the view in the right sidebar when none is open (an open one is
+	 * revealed where it is, never moved). `rawTag` is a tag as Obsidian writes it,
+	 * with or without the `#` (`#project/alpha`, `Todo`). The filter is sticky —
+	 * it stays until {@link exitTagMode} (the status pill's "Back to active note").
+	 */
+	async enterTagMode(rawTag: string): Promise<void> {
+		const tag = Tags.parse(rawTag);
+		if (tag === undefined) {
+			this.notices.show(`"${rawTag}" is not a tag, so there is nothing to show. Pick a tag like #project.`);
+			return;
+		}
+		for (const view of await this.graphViewOpener.revealOrOpen("right-sidebar")) {
+			view.enterTagMode(tag);
+		}
+	}
+
+	/**
+	 * The command's tag picker over every tag in the vault, with note counts. A vault
+	 * with no tag at all gets a notice instead of an empty picker.
+	 */
+	private openTagPicker(): void {
+		const entries = tagNoteCountsOf(
+			this.app.vault
+				.getMarkdownFiles()
+				.map((file) => ObsidianTags.rawTagsOf(this.app.metadataCache.getFileCache(file))),
+		);
+		if (entries.length === 0) {
+			this.notices.show("No note has a tag yet, so there is nothing to pick. Add a tag like #project to a note first.");
+			return;
+		}
+		new TagPickerModal(this.app, entries, (tag) => void this.enterTagMode(tag.name)).open();
+	}
+
+	/** Every open graph view goes back to following the active note. No-op when none is filtered. */
+	exitTagMode(): void {
+		for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE_VICINITY_GRAPH)) {
+			if (leaf.view instanceof VicinityGraphView) {
+				leaf.view.exitTagMode();
 			}
 		}
 	}

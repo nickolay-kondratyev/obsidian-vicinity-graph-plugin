@@ -1,5 +1,5 @@
 import type { Workspace, WorkspaceLeaf } from "obsidian";
-import { VIEW_TYPE_VICINITY_GRAPH } from "./VicinityGraphView";
+import { VicinityGraphView, VIEW_TYPE_VICINITY_GRAPH } from "./VicinityGraphView";
 
 /**
  * Where a graph view lives. Deliberately coarse — it names the REGION a leaf
@@ -44,6 +44,29 @@ export class GraphViewOpener {
 		}
 		await leaf.setViewState({ type: VIEW_TYPE_VICINITY_GRAPH, active: true });
 		await this.workspace.revealLeaf(leaf);
+	}
+
+	/**
+	 * Makes sure a graph view is open and visible WITHOUT moving one that already
+	 * is: reveals the existing view(s) wherever they live, or opens one at
+	 * `fallbackPlacement` when there is none. Returns the open graph views, loaded
+	 * (never Obsidian's deferred placeholder) — what an action ON the graph, such as
+	 * entering tag mode, needs.
+	 */
+	async revealOrOpen(fallbackPlacement: GraphViewPlacement): Promise<readonly VicinityGraphView[]> {
+		if (this.workspace.getLeavesOfType(VIEW_TYPE_VICINITY_GRAPH).length === 0) {
+			await this.open(fallbackPlacement);
+		}
+		const views: VicinityGraphView[] = [];
+		for (const leaf of this.workspace.getLeavesOfType(VIEW_TYPE_VICINITY_GRAPH)) {
+			// A background-tab leaf holds a DeferredView until revealed; reveal loads it.
+			await this.workspace.revealLeaf(leaf);
+			await leaf.loadIfDeferred();
+			if (leaf.view instanceof VicinityGraphView) {
+				views.push(leaf.view);
+			}
+		}
+		return views;
 	}
 
 	/** `'horizontal'` is Obsidian's direction for a split BELOW (core "Split down"). */

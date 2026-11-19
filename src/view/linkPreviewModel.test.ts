@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { LinkOccurrence } from "../engine";
 import { asVaultPath } from "../engine";
 import type { EdgePairOccurrences, EdgePreviewInputs } from "./linkPreviewModel";
+import { tagGroupIdOf } from "./graphIdentity";
 import { LinkPreviewModels, edgeEndpointDisplayName } from "./linkPreviewModel";
 
 const NOTE = asVaultPath("notes/x.md");
@@ -144,5 +145,13 @@ describe("edgeEndpointDisplayName", () => {
 
 	it("WHEN the endpoint is a folder-group id THEN the folder name is used", () => {
 		expect(edgeEndpointDisplayName("folder-group:sub/notes")).toBe("notes");
+	});
+
+	it("WHEN the endpoint is a nested tag-group id THEN its own box's hashtags are used", () => {
+		expect(edgeEndpointDisplayName(tagGroupIdOf([["important"], ["follow-up", "vital"]]))).toBe("#follow-up #vital");
+	});
+
+	it("WHEN a tag-group id's set holds a parent implied by its nested child THEN only the child is named", () => {
+		expect(edgeEndpointDisplayName(tagGroupIdOf([["project", "project/alpha"]]))).toBe("#project/alpha");
 	});
 });

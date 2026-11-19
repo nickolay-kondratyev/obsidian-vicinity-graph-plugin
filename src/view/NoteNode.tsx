@@ -4,7 +4,7 @@ import { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import type { MouseEvent as ReactMouseEvent, ReactElement } from "react";
 import { attachmentGroupLabel, attachmentIconId } from "./attachmentIcons";
 import type { AttachmentIconGroup } from "./attachmentIconStrip";
-import { extraImageCountText } from "./badgeText";
+import { extraImageCountText, plusNText } from "./badgeText";
 import { useControlsActions } from "./ControlsActionsContext";
 import type { FlowNodeData } from "./flowMapping";
 import { useGraphUi } from "./GraphUiContext";
@@ -12,6 +12,10 @@ import { NodeOutline } from "./NodeOutline";
 import { currentNodeContentChoice, planNodeContentMenu } from "./nodePreviewChoice";
 import { planNodeLocalPinAction, planNodePinAction } from "./nodePinAction";
 import { NODE_RESIZE_BOUNDS, planResetSizeAction, resizeEndToOverride } from "./nodeResize";
+import { GraphModeCopy } from "./graphMode";
+import type { TagChip, TagChipRow } from "./tagChips";
+import { TAG_CHIP_ROW_MIN_WIDTH_PX, tagChipMinWidthCss } from "./tagChips";
+import { useTagFilter } from "./TagFilterContext";
 import type { NodeMenuEntry } from "./viewPorts";
 
 /**
@@ -74,9 +78,10 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
 	}, [pinAction.kind, actions, data.path, data.docid]);
 	// The SECOND, independent pin toggle (LOCAL PINNING): a target pinned only while
 	// this main is active. Withheld on the MAIN node itself — a note cannot be locally
-	// pinned under itself (decision Q4) — so both the hover chip and the menu entry are
-	// gated on this. A node can hold BOTH pin kinds; each toggle reads its own flag.
-	const offersLocalPin = data.tier !== "main";
+	// pinned under itself (decision Q4) — and on every node of a graph with no MAIN
+	// (tag-filtered); `flowMapping` decides, and both the hover chip and the menu entry
+	// are gated on it. A node can hold BOTH pin kinds; each toggle reads its own flag.
+	const offersLocalPin = data.offersLocalPin;
 	const localPinAction = useMemo(() => planNodeLocalPinAction(data.isLocallyPinned), [data.isLocallyPinned]);
 	const runLocalPinAction = useCallback(() => {
 		if (localPinAction.kind === "local-pin") {
@@ -302,9 +307,69 @@ export const NoteNode = memo(function NoteNode({ data }: NodeProps<NoteNodeType>
 				)}
 				<Handle type="source" position={Position.Bottom} className="vicinity-graph-node__handle" />
 			</div>
+			{data.tagChips !== undefined && <NoteTagChips row={data.tagChips} />}
 		</>
 	);
 });
+
+/**
+ * The note's leftover-tag chips (tag-grouping mode). Hung just BELOW the node box
+ * (graph-view.css, "tag chips"), never inside it: inside, they would need height
+ * the content-fit sizer does not reserve and would break the density ladder
+ * (`nodeDensityThresholds.test.ts`); outside, they cost no layout space at all.
+ * CEILING: they borrow the gap the layout leaves between boxes (the spacing knobs'
+ * defaults keep 40px+), so a user who dials node spacing near 0 sees chips touch a
+ * neighbour. Upgrade path: reserve the row through the sizer like other content.
+ * A SIBLING of `.vicinity-graph-node` for the same clipping reason as the resize
+ * grips (that box is `overflow: hidden`).
+ *
+ * Each chip carries `data-tag` (its key) and is the control that enters tag-filter
+ * mode for its tag in this view (`nid_6qj8n7uc7zz126l3ix8czfymq_e`); its tooltip
+ * says so and names the full tag the ellipsis may cut. The `+N` chip stays a
+ * tooltip only — which hidden tag would it filter by?
+ *
+ * How many chips show, and how far each may shrink, is decided upstream by
+ * `tagChipRowOf` against the note's width; this only renders that decision — the
+ * row's floor width and each chip's `min-width` come from the same module.
+ */
+function NoteTagChips({ row }: { readonly row: TagChipRow }): ReactElement {
+	const tagFilter = useTagFilter();
+	return (
+		<div className="vicinity-graph-node-tags" style={{ maxWidth: `max(100%, ${TAG_CHIP_ROW_MIN_WIDTH_PX}px)` }}>
+			{row.chips.map((chip) => (
+				<span
+					key={chip.tag.key}
+					// `nodrag nopan` (same as the hover chips): a click on the chip must never
+					// start a node drag or a canvas pan.
+					className={tagChipClassName(chip)}
+					data-color={chip.colorToken}
+					data-tag={chip.tag.key}
+					style={{ minWidth: tagChipMinWidthCss(chip) }}
+					title={GraphModeCopy.showTaggedNotes(chip.tag)}
+					onClick={(event) => {
+						// The chip owns its click: without this it also reaches React Flow's
+						// node click, which opens the note.
+						event.stopPropagation();
+						tagFilter.showTaggedNotes(chip.tag);
+					}}
+				>
+					{chip.label}
+				</span>
+			))}
+			{row.overflow !== null && (
+				<span className="vicinity-graph-tag-chip vicinity-graph-tag-chip--overflow" title={row.overflow.title}>
+					{plusNText(row.overflow.count)}
+				</span>
+			)}
+		</div>
+	);
+}
+
+/** A chip with a readable-prefix floor may shrink (CSS ellipsis); a short tag's chip never does. */
+function tagChipClassName(chip: TagChip): string {
+	const shrinks = chip.minPrefixChars === null ? "" : " vicinity-graph-tag-chip--shrinks";
+	return `vicinity-graph-tag-chip vicinity-graph-tag-chip--clickable${shrinks} nodrag nopan`;
+}
 
 /** The title tooltip names a canvas as one, so the hover confirms what the glyph says. */
 function titleTooltip(data: FlowNodeData): string {

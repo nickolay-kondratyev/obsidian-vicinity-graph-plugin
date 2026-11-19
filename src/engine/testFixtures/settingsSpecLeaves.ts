@@ -1,7 +1,7 @@
 import { EngineDefaults } from "../constants";
 import { SETTINGS_SPEC } from "../SettingsSpec";
 import type { DepthSettings, FrontmatterLinkSettings, NodeExclusionSettings, ViewSettings } from "../types";
-import { NODE_PREVIEW_PREFERENCES } from "../types";
+import { GROUPING_MODES, NODE_PREVIEW_PREFERENCES } from "../types";
 
 /**
  * THE FLAT WALK over {@link SETTINGS_SPEC} — one entry per spec LEAF, carrying the
@@ -183,6 +183,9 @@ const ALTERNATE_EXCLUSION_PATTERNS: readonly string[] = ["^Attachments/"];
 /** The node-preview string leaf {@link alternateLeafValue} draws an alternate from its enum for. */
 const NODE_PREVIEW_LEAF_ID = "globalView.nodePreviewPreference";
 
+/** The grouping-mode string leaf {@link alternateLeafValue} draws an alternate from its enum for. */
+const GROUPING_MODE_LEAF_ID = "globalView.groupingMode";
+
 /** The id-ref-fields string leaf: a free-form comma-separated list, so its alternate is a literal. */
 const ID_REF_FIELDS_LEAF_ID = "frontmatterLinks.idRefFields";
 
@@ -222,12 +225,15 @@ export function alternateLeafValue(leaf: SettingsSpecLeaf): unknown {
 		if (leaf.id === NODE_PREVIEW_LEAF_ID) {
 			return NODE_PREVIEW_PREFERENCES.find((preference) => preference !== declared);
 		}
+		if (leaf.id === GROUPING_MODE_LEAF_ID) {
+			return GROUPING_MODES.find((mode) => mode !== declared);
+		}
 		if (leaf.id === ID_REF_FIELDS_LEAF_ID) {
 			return ALTERNATE_ID_REF_FIELDS;
 		}
 		throw new Error(
 			`spec leaf id=[${leaf.id}] is string-valued but its domain is unknown here; ` +
-				`teach alternateLeafValue about it (modelled: [${NODE_PREVIEW_LEAF_ID}], [${ID_REF_FIELDS_LEAF_ID}])`,
+				`teach alternateLeafValue about it (modelled: [${NODE_PREVIEW_LEAF_ID}], [${GROUPING_MODE_LEAF_ID}], [${ID_REF_FIELDS_LEAF_ID}])`,
 		);
 	}
 	if (Array.isArray(declared)) {

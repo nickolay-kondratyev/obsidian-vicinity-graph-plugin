@@ -1,10 +1,11 @@
 import { PluginSettingTab, Setting } from "obsidian";
 import type { App, SliderComponent, TextAreaComponent, ToggleComponent } from "obsidian";
-import { NODE_PREVIEW_PREFERENCES } from "../engine";
+import { GROUPING_MODES, NODE_PREVIEW_PREFERENCES } from "../engine";
 import type VicinityGraphPlugin from "../main";
 import type { PluginDataStore } from "../persistence/PluginDataStore";
 import { ConfirmModal } from "./ConfirmModal";
 import { SETTINGS_WRITE_DEBOUNCE_MS } from "./constants";
+import { GROUPING_MODE_OPTION_META } from "./groupingModeMeta";
 import { IdRefFieldChips } from "./idRefFieldChips";
 import { NODE_PREVIEW_OPTION_META } from "./nodePreviewPreferenceMeta";
 import { DebouncedSettingsWrites } from "./settingsDebounce";
@@ -63,6 +64,9 @@ const EXCLUSION_TEXTAREA_ROWS = 4;
  * there — the shared row model deliberately does not own the name.
  */
 const NODE_PREVIEW_RADIO_GROUP = "vicinity-graph-node-preview-settings";
+
+/** Shared `name` of the grouping-mode pill's radios — tab-local for the same reason. */
+const GROUPING_MODE_RADIO_GROUP = "vicinity-graph-grouping-mode-settings";
 
 /**
  * One rendered control whose enabled-ness is declared by the row's `disabledWhen`
@@ -269,6 +273,9 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 				return;
 			case "group-label-full-path":
 				this.addToggleRow(container, row, SettingsRowAccessors.groupLabelFullPath(), state);
+				return;
+			case "grouping-mode":
+				this.addGroupingMode(container, row, state);
 				return;
 			case "folder-grouping-depth":
 				this.addGroupingDepthSlider(container, row, state);
@@ -653,6 +660,36 @@ export class VicinityGraphSettingTab extends PluginSettingTab {
 				option.createSpan({ cls: "vicinity-graph-segmented__text", text: label });
 				radio.addEventListener("change", () => {
 					void this.writes.apply(accessor.interaction(preference));
+				});
+			}
+		});
+	}
+
+	/**
+	 * The Folders | Tags pill — the same native-radio segmented control as
+	 * {@link addNodePreview}, with copy from the shared `GROUPING_MODE_OPTION_META`
+	 * (the panel row and the graph's top-right toggle read the same table).
+	 */
+	private addGroupingMode(container: HTMLElement, row: SettingsRow, state: SettingsRowState): void {
+		const accessor = SettingsRowAccessors.groupingMode();
+		const selected = accessor.read(state);
+		VicinityGraphSettingTab.row(container, row).then((setting) => {
+			const group = setting.controlEl.createDiv({
+				cls: "vicinity-graph-segmented",
+				attr: { role: "radiogroup", "aria-label": SettingsRowNames.sole(row) },
+			});
+			for (const mode of GROUPING_MODES) {
+				const { label, description } = GROUPING_MODE_OPTION_META[mode];
+				const option = group.createEl("label", { cls: "vicinity-graph-segmented__option", title: description });
+				const radio = option.createEl("input", {
+					type: "radio",
+					value: mode,
+					attr: { name: GROUPING_MODE_RADIO_GROUP },
+				});
+				radio.checked = mode === selected;
+				option.createSpan({ cls: "vicinity-graph-segmented__text", text: label });
+				radio.addEventListener("change", () => {
+					void this.writes.apply(accessor.interaction(mode));
 				});
 			}
 		});

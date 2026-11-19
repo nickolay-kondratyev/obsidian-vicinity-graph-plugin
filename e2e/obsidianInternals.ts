@@ -96,6 +96,17 @@ export interface E2eWorkspaceParent {
  */
 export interface E2eOpenState {
 	readonly eState?: { readonly subpath?: string };
+	/**
+	 * The markdown view's own state: `mode: "preview"` = Reading view; `mode: "source"`
+	 * with `source: false` = Live Preview, with `source: true` = Source mode.
+	 */
+	readonly state?: { readonly mode: "source" | "preview"; readonly source?: boolean };
+}
+
+/** `WorkspaceLeaf.setViewState`'s argument — only the view type (core views by id, e.g. `"tag"`). */
+export interface E2eViewState {
+	readonly type: string;
+	readonly active?: boolean;
 }
 
 /** One node on an open canvas — opaque but for its `id`, which the deletion spec round-trips. */
@@ -130,6 +141,7 @@ export interface E2eWorkspaceLeaf {
 	getRoot(): E2eWorkspaceParent;
 	detach(): void;
 	openFile(file: E2eAbstractFile, openState?: E2eOpenState): Promise<void>;
+	setViewState(viewState: E2eViewState): Promise<void>;
 	/** Narrowed to the canvas view — the suite only reaches `.view` off `getLeavesOfType("canvas")`. */
 	readonly view: E2eCanvasLeafView;
 }
@@ -142,6 +154,10 @@ export interface E2eWorkspace {
 	/** The heading-targeted open an outline entry makes; reassignable so tests can spy on it. */
 	openLinkText(linktext: string, sourcePath: string, newLeaf?: unknown): unknown;
 	getLeaf(newLeaf: boolean): E2eWorkspaceLeaf;
+	/** A leaf in the LEFT sidebar (a new one when `split`). */
+	getLeftLeaf(split: boolean): E2eWorkspaceLeaf | null;
+	/** Expands the leaf's sidebar if collapsed and makes the leaf its visible tab. */
+	revealLeaf(leaf: E2eWorkspaceLeaf): Promise<void>;
 	getLeavesOfType(viewType: string): readonly E2eWorkspaceLeaf[];
 	iterateAllLeaves(callback: (leaf: E2eWorkspaceLeaf) => void): void;
 }
@@ -189,6 +205,9 @@ export interface E2eVicinityPlugin {
 	readonly perDocStore: E2ePerDocStore;
 	/** Private in production (ONE fan-out rule); reached by name here — see the harness WHY comment. */
 	refreshOpenViews(): void;
+	/** THE public tag-mode entry (tags-v1): what the menu / command / in-graph entry points call. */
+	enterTagMode(rawTag: string): Promise<void>;
+	exitTagMode(): void;
 }
 
 /** One rendered settings tab (`app.setting.activeTab`). */
